@@ -1,0 +1,4 @@
+&bio_co2_sys_nml
+	dic_initial = 2100.,
+	pCO2a = 305.
+/

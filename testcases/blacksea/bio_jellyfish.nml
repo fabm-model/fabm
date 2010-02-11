@@ -1,0 +1,15 @@
+&bio_jellyfish_nml
+	food_source_variable = 'npzd01_zoo',
+	foodmic_source_variable = 'npzd01_zoo',
+	respiration_target_variable = 'npzd01_nut',
+	mortality_target_variable = 'npzd01_det',
+	egb_initial = 0.1
+	jb_initial =  1.,
+	ja_initial =  0.3333,
+	tb_initial =  1.,
+	ta_initial =  0.5,
+	adb_initial = 1.,
+	ada_initial = .1667,
+	food_scale = 79.5
+/
+
