@@ -213,14 +213,13 @@
 ! !IROUTINE: Initialise the selected 0d biogeochemical model
 !
 ! !INTERFACE:
-   function init_bio_single(bio_model,nmlunit,nmlfilename,nameprefix,longnameprefix,master) result(model)
+   function init_bio_single(bio_model,nmlunit,nameprefix,longnameprefix,master) result(model)
 !
 ! !USES:
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
    integer,                                intent(in) :: bio_model,nmlunit
-   character(len=*),                       intent(in) :: nmlfilename
    character(len=*),      optional,        intent(in) :: nameprefix,longnameprefix
    type (type_model_info),optional,target, intent(in) :: master
    type (type_model)                                  :: model
@@ -246,7 +245,6 @@
    model%id = no_model_id
 
    ! Allow the selected model to initialize
-   open(nmlunit,file=nmlfilename,action='read',status='old',err=98)
    select case (bio_model)
       case (no_model_id)
       case (npzd_0d_id)
@@ -258,18 +256,10 @@
       case default
          stop 'bio_0d_gen::init_bio_single: no valid biogeochemical model specified!'
    end select
-   close(nmlunit)
-   LEVEL3 'model '//trim(modelname)//' initialized successfully from '//trim(nmlfilename)
+   LEVEL3 'model '//trim(modelname)//' initialized successfully.'
    
    ! Store the identifier for the selected model.
    model%id = bio_model
-   
-   return
-   
-98 LEVEL2 'I could not open '//trim(nmlfilename)
-   LEVEL2 'If thats not what you want you have to supply '//trim(nmlfilename)
-   LEVEL2 'See the bio example on www.gotm.net for a working '//trim(nmlfilename)
-   return
 
    end function init_bio_single
 !EOC
@@ -526,14 +516,13 @@
 ! !IROUTINE: Initialise a collection of 0d biogeochemical models
 !
 ! !INTERFACE:
-   function init_bio_collection(count,bio_model,nmlunit,nmlfilename,nameprefixes,longnameprefixes) result(collection)
+   function init_bio_collection(count,bio_model,nmlunit,nameprefixes,longnameprefixes) result(collection)
 !
 ! !USES:
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
    integer,                     intent(in) :: count,bio_model(count),nmlunit
-   character(len=*),            intent(in) :: nmlfilename(count)
    character(len=*),optional,   intent(in) :: nameprefixes(count),longnameprefixes(count)
    type (type_model_collection),target     :: collection
 !
@@ -569,7 +558,7 @@
       end if
       
       ! Initialize the current model
-      collection%models(i) = init_bio_0d_generic(bio_model(i),nmlunit,nmlfilename(i),nameprefix,longnameprefix,master=collection%info)
+      collection%models(i) = init_bio_0d_generic(bio_model(i),nmlunit,nameprefix,longnameprefix,master=collection%info)
    end do
 
    ! Create table for information on the entire collection of models.

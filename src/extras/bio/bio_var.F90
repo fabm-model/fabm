@@ -20,6 +20,7 @@
 
 !  model types
    integer                                      :: bio_model
+   integer                                      :: bio_models(256)
    logical                                      :: bio_eulerian
 
 !  available models

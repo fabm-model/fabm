@@ -73,10 +73,9 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   integer :: i,ioffset
+   integer :: i,ioffset,nmodels
    character(len=64) :: model_name
-   integer,parameter :: bio_model2=1002
-   character(len=64) :: bio_model2_nml = 'bio_jellyfish.nml'
+   character(len=64) :: nmlfilename = 'bio0d.nml'
    !integer,parameter :: bio_model2=1003
    !character(len=64) :: bio_model2_nml = 'bio_co2_sys.nml'
 
@@ -85,15 +84,18 @@
 !BOC
    LEVEL2 'init_bio_0d'
    
-   ! Get actual model info based on the model selected.
-   model_name = get_model_name(bio_model)
+   ! Find the number of active bio models
+   do nmodels=1,256
+      if (bio_models(nmodels)==-1) exit
+   end do
+   nmodels = nmodels-1
    
    ! Use single instance
+   !model_name = get_model_name(bio_model)
    !model = init_bio_0d_generic(1,(/bio_model/),namlst,(/'bio_'//trim(model_name)//'.nml'/))
    
-   ! Use two instances
-   model = init_bio_0d_generic(2,(/bio_model,bio_model2/),namlst,(/'bio_'//trim(model_name)//'.nml',trim(bio_model2_nml)/))
-   !model = init_bio_0d_generic(2,(/bio_model2,bio_model/),namlst,(/trim(bio_model2_nml),'bio_'//trim(model_name)//'.nml               '/))
+   ! Use multiple instances
+   model = init_bio_0d_generic(nmodels,bio_models(1:nmodels),namlst)
    
    ! Allocate global arrays for info on biogeochemical model
    ! Add a variable for particle densities if using Lagragian model
