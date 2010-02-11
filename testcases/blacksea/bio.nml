@@ -59,7 +59,7 @@
 !-------------------------------------------------------------------------------
 
 &bio_nml
-   bio_calc = .true.,
+   bio_calc = .false.,
    bio_models = 1001,1002
    bio_eulerian = .true.,
    cnpar = 1.0,
