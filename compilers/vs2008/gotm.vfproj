@@ -4,7 +4,7 @@
 		<Platform Name="Win32"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32" OutputDirectory="$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(ConfigurationName)\$(ProjectName)">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(NETCDF_PREFIX)\include" PreprocessorDefinitions="REAL_4B=real(4);FORTRAN95;NUDGE_VEL;NETCDF_FMT;SEAGRASS;BIO;LAGRANGE;BIO_NPZD;BIO_IOW;BIO_FASHAM;BIO_SED;BIO_NPZD_FE;BIO_PHOTO;GUSTINESS;LOCATIONTYPE=integer;LOCATIONVARIABLE=ilev;" Interfaces="true" WarnInterfaces="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(NETCDF_PREFIX)\include" PreprocessorDefinitions="REAL_4B=real(4);FORTRAN95;NUDGE_VEL;NETCDF_FMT;SEAGRASS;BIO;LAGRANGE;BIO_NPZD;BIO_IOW;BIO_FASHAM;BIO_SED;BIO_NPZD_FE;BIO_PHOTO;GUSTINESS;LOCATIONTYPE=integer;LOCATIONVARIABLE=ilev;" Interfaces="true" WarnInterfaces="true" FloatingPointSpeculation="fpSpeculationOff" ExternalNameInterpretation="extNameLowerCase" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(NETCDF_PREFIX)\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdf.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -14,7 +14,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32" OutputDirectory="$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(ConfigurationName)\$(ProjectName)">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(NETCDF_PREFIX)\include" PreprocessorDefinitions="REAL_4B=real(4);FORTRAN95;NUDGE_VEL;NETCDF_FMT;SEAGRASS;BIO;LAGRANGE;BIO_NPZD;BIO_IOW;BIO_FASHAM;BIO_SED;BIO_NPZD_FE;BIO_PHOTO;GUSTINESS;LOCATIONTYPE=integer;LOCATIONVARIABLE=ilev;"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(NETCDF_PREFIX)\include" PreprocessorDefinitions="REAL_4B=real(4);FORTRAN95;NUDGE_VEL;NETCDF_FMT;SEAGRASS;BIO;LAGRANGE;BIO_NPZD;BIO_IOW;BIO_FASHAM;BIO_SED;BIO_NPZD_FE;BIO_PHOTO;GUSTINESS;LOCATIONTYPE=integer;LOCATIONVARIABLE=ilev;" ExternalNameInterpretation="extNameLowerCase"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(NETCDF_PREFIX)\lib" SubSystem="subSystemConsole" AdditionalDependencies="netcdf.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -39,18 +39,17 @@
 		<File RelativePath="..\..\src\airsea\short_wave_radiation.F90"/></Filter>
 		<Filter Name="extras">
 		<Filter Name="bio">
+		<Filter Name="co2sys_0d">
+		<File RelativePath="..\..\src\extras\bio\co2sys_0d\bio_co2_sys_0d.F90"/>
+		<File RelativePath="..\..\src\extras\bio\co2sys_0d\co2_dyn.F90"/></Filter>
 		<Filter Name="fasham">
 		<File RelativePath="..\..\src\extras\bio\fasham\bio_fasham.F90"/></Filter>
 		<Filter Name="iow">
 		<File RelativePath="..\..\src\extras\bio\iow\bio_iow.F90"/></Filter>
-		<Filter Name="mab">
-		<File RelativePath="..\..\src\extras\bio\mab\bio_mab.F90"/></Filter>
 		<Filter Name="jellyfish_0d">
 		<File RelativePath="..\..\src\extras\bio\jellyfish_0d\bio_jellyfish_0d.F90"/></Filter>
-		<Filter Name="bio_co2sys_0d">
-		<File RelativePath="C:\Temp\carbonate model\co2_dyn.F90"/></Filter>
-		<Filter Name="co2sys_0d">
-		<File RelativePath="..\..\src\extras\bio\co2sys_0d\bio_co2_sys_0d.F90"/></Filter>
+		<Filter Name="mab">
+		<File RelativePath="..\..\src\extras\bio\mab\bio_mab.F90"/></Filter>
 		<Filter Name="npzd">
 		<File RelativePath="..\..\src\extras\bio\npzd\bio_npzd.F90"/></Filter>
 		<Filter Name="npzd_0d">
