@@ -1,0 +1,43 @@
+<?xml version="1.0" ?>
+<element name="bio_fasham" label="Fasham et al. biological model" description="Fasham et al. biological model with modifications by Kühn and Radach" version="nml-001" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../../../gui.py/core/scenario-1.0.xsd">
+	<element name="bio_fasham_nml" grouponly="gui">
+		<element name="numc"      type="int"   label="number of compartments for geobiochemical model"/>
+		<element name="p_initial" type="float" label="initial phytoplankton concentration" unit="mmol N/m³"/>
+		<element name="z_initial" type="float" label="initial zooplakton concentration" unit="mmol N/m³"/>
+		<element name="b_initial" type="float" label="initial bacteria concentration" unit="mmol N/m³"/>
+		<element name="d_initial" type="float" label="initial detritus concentration" unit="mmol N/m³"/>
+		<element name="n_initial" type="float" label="initial nitrate concentration" unit="mmol N/m³"/>
+		<element name="a_initial" type="float" label="initial ammonium concentration" unit="mmol N/m³"/>
+		<element name="l_initial" type="float" label="initial LDON concentration" unit="mmol N/m³"/>
+		<element name="p0"        type="float" label="minimum phytoplankton concentration" unit="mmol N/m³"/>
+		<element name="z0"        type="float" label="minimum zooplakton concentration" unit="mmol N/m³"/>
+		<element name="b0"        type="float" label="minimum bacteria concentration" unit="mmol N/m³"/>
+		<element name="vp"        type="float" label="maximum phytoplankton uptake rate" unit="1/d"/>
+		<element name="alpha"     type="float" label="slope of the PI-curve" unit="m²/(W d)"/>
+		<element name="k1"        type="float" label="half saturation constant nitrate uptake" unit="mmol N/m³"/>
+		<element name="k2"        type="float" label="half saturation constant ammonium uptake" unit="mmol N/m³"/>
+		<element name="mu1"       type="float" label="phytoplankton mortality rate" unit="1/d"/>
+		<element name="k5"        type="float" label="half saturation constant phytoplankton mortality" unit="mmol N/m³"/>
+		<element name="gamma"     type="float" label="exudation fraction"/>
+		<element name="w_p"       type="float" label="phytoplankton settling velocity" unit="m/d"/>
+		<element name="gmax"      type="float" label="maximum ingestion rate" unit="1/d"/>
+		<element name="k3"        type="float" label="half saturation constant ingestion" unit="mmol N/m³"/>
+		<element name="beta"      type="float" label="grazing efficiency"/>
+		<element name="mu2"       type="float" label="maximum zooplankton loss rate" unit="1/d"/>
+		<element name="k6"        type="float" label="half saturation zooplankton loss" unit="mmol N/m³"/>
+		<element name="delta"     type="float" label="fractional zooplankton loss to LDON"/>
+		<element name="epsi"      type="float" label="fractional zooplankton loss to ammonium"/>
+		<element name="r1"        type="float" label="grazing preference phytoplankton"/>
+		<element name="r2"        type="float" label="grazing preference bacteria"/>
+		<element name="r3"        type="float" label="grazing preference detritus"/>
+		<element name="vb"        type="float" label="maximum bacterial uptake rate" unit="1/d"/>
+		<element name="k4"        type="float" label="half saturation bacterial uptake" unit="mmol N/m³"/>
+		<element name="mu3"       type="float" label="bacteria excretion rate" unit="1/d"/>
+		<element name="eta"       type="float" label="uptake ratio ammonium:LDON"/>
+		<element name="mu4"       type="float" label="detritus breakdown rate" unit="1/d"/>
+		<element name="w_d"       type="float" label="detritus settling velocity" unit="m/d"/>
+		<element name="kc"        type="float" label="attenuation constant for the self shading effect" unit="m²/mmol N"/>
+		<element name="aa"        type="float" label="weighting factor for visible light fraction"/>
+		<element name="g2"        type="float" label="attenuation length for visible light" unit="m"/>
+	</element>
+</element>

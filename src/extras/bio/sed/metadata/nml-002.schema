@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<element name="bio_sed" version="nml-002" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../../../gui.py/core/scenario-1.0.xsd" label="sedimentation model">
+	<element name="bio_sed_nml" grouponly="gui">
+		<element name="numc"      type="int"   label="number of compartments for geobiochemical model"/>
+		<element name="ntype"     type="int"   label="number of particle types" />
+		<element name="nprop"     type="int"   label="number of particle properties" />
+		<element name="C_initial" type="float" label="initial suspended matter concentration" unit="mmol N/m³"/>
+		<element name="w_C"       type="float" label="settling velocity of suspended matter" unit="m/d"/>
+	</element>
+</element>

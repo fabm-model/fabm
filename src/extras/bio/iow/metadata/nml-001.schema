@@ -1,0 +1,89 @@
+<?xml version="1.0" ?>
+<element name="bio_iow" version="nml-001" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../../../gui.py/core/scenario-1.0.xsd" label="IOW biological model" description="IOW biological model according to Neumann et al. 2002 and Burchard et al. 2005">
+	<element name="bio_iow_nml" grouponly="gui">
+		<element name="numc"       type="int"   label="number of compartments for geobiochemical model"/>
+
+		<element name="p1_initial" type="float" label="initial diatom concentration" unit="mmol N/m³"/>
+		<element name="p2_initial" type="float" label="initial flagellate concentration" unit="mmol N/m³"/>
+		<element name="p3_initial" type="float" label="initial cyanobacteria concentration" unit="mmol N/m³"/>
+		<element name="zo_initial" type="float" label="initial zooplankton concentration" unit="mmol N/m³"/>
+		<element name="de_initial" type="float" label="initial detritus concentration" unit="mmol N/m³"/>
+		<element name="am_initial" type="float" label="initial ammonium concentration" unit="mmol N/m³"/>
+		<element name="ni_initial" type="float" label="initial nitrate concentration" unit="mmol N/m³"/>
+		<element name="po_initial" type="float" label="initial phosphate concentration" unit="mmol P/m³"/>
+		<element name="o2_initial" type="float" label="initial oxygen concentration" unit="mmol N/m³"/>
+
+		<element name="sfl_po"     type="float" label="constant surface phosphate flux" unit="mmol P/m²/d"/>
+		<element name="sfl_am"     type="float" label="constant surface ammonium flux" unit="mmol N/m²/d"/>
+		<element name="sfl_ni"     type="float" label="constant surface nitrate flux" unit="mmol N/m²/d"/>
+		<element name="surface_flux_method" type="int" label="surface flux specification">
+			<options>
+				<option value="0" label="constant fluxes" />
+				<option value="2" label="custom, temporally variable" />
+			</options>
+		</element>
+
+		<element name="fluff"      type="bool"  label="calculate fluff layer"/>
+		<element name="fl_initial" type="float" label="initial fluff concentration" unit="mmol N/m²">
+			<condition type="eq" variable="./fluff" value="True"/>
+		</element>
+
+		<element name="p10"        type="float" label="minimum diatom concentration" unit="mmol N/m³"/>
+		<element name="p20"        type="float" label="minimum flagellate concentration" unit="mmol N/m³"/>
+		<element name="p30"        type="float" label="minimum cyanobacteria concentration" unit="mmol N/m³"/>
+		<element name="zo0"        type="float" label="minimum zooplankton concentration" unit="mmol N/m³"/>
+
+		<element name="w_p1"       type="float" label="sinking speed diatoms" unit="m/d"/>
+		<element name="w_p2"       type="float" label="sinking speed flagellates" unit="m/d"/>
+		<element name="w_p3"       type="float" label="sinking speed cyanobacteria" unit="m/d"/>
+		<element name="w_de"       type="float" label="sinking speed detritus" unit="m/d"/>
+		<element name="kc"         type="float" label="attenuation constant for the self shading effect" unit="m²/mmol N"/>
+
+		<element name="I_min"      type="float" label="minimum photosynthetically active radiation (PAR)" unit="W/m²"/>
+		<element name="r1max"      type="float" label="maximum growth rate diatoms" unit="1/d"/>
+		<element name="r2max"      type="float" label="maximum growth rate flagellates" unit="1/d"/>
+		<element name="r3max"      type="float" label="maximum growth rate cyanobacteria" unit="1/d"/>
+		<element name="alpha1"     type="float" label="half saturation diatoms" unit="mmol N/m³"/>
+		<element name="alpha2"     type="float" label="half saturation flagellates" unit="mmol N/m³"/>
+		<element name="alpha3"     type="float" label="half saturation cyanobacteria" unit="mmol N/m³"/>
+		<element name="lpa"        type="float" label="p --> a rate (p respiration)" unit="1/d"/>
+		<element name="lpd"        type="float" label="p --> d rate (p mortality)" unit="1/d"/>
+		<element name="tf"         type="float" label="temperature control flagellates" unit="°C"/>
+		<element name="tbg"        type="float" label="temperature control cyanobacteria" unit="°C"/>
+		<element name="beta_bg"    type="float" label="temperature control cyanobacteria" unit="1/°C"/>
+		<element name="g1max"      type="float" label="maximum grazing rate on diatoms" unit="1/d"/>
+		<element name="g2max"      type="float" label="maximum grazing rate on flagellates" unit="1/d"/>
+		<element name="g3max"      type="float" label="maximum grazing rate on cyanobacteria" unit="1/d"/>
+		<element name="lza"        type="float" label="z --> a rate (z exudation)" unit="m³/d/mmol N"/>
+		<element name="lzd"        type="float" label="z --> d rate (z mortality)" unit="m³/d/mmol N"/>
+		<element name="iv"         type="float" label="Ivlev constant" unit="1/(mmol N/m³)³"/>
+		<element name="topt"       type="float" label="optimum temperature" unit="°C"/>
+
+		<element name="lan"        type="float" label="nitrification constant" unit="1/d"/>
+		<element name="oan"        type="float" label="oxygen parameter"/>
+		<element name="beta_an"    type="float" label="temperature control" unit="1/°C"/>
+
+		<element name="lda"        type="float" label="detritus mineralisation constant" unit="1/d"/>
+		<element name="tda"        type="float" label="temperature control" unit="°C"/>
+		<element name="beta_da"    type="float" label="temperature control"/>
+		<element name="lds"        type="float" label="rate of detritus sinking into sediment" unit="m/d"/>
+		<element name="lsa"        type="float" label="rate of sediment mineralisation" unit="1/d"/>
+		<element name="bsa"        type="float" label="temperature control of sediment mineralisation" unit="1/°C"/>
+		<element name="ph1"        type="float" label="release of phosphate 1"/>
+		<element name="ph2"        type="float" label="release of phosphate 2"/>
+		<element name="pvel"       type="float" label="piston velocity" unit="m/d"/>
+
+		<element name="sr"         type="float" label="Redfield ratio" unit="mmol P/mmol N"/>
+		<element name="s1"         type="float" label="reduced nitrate/oxidized detritus"/>
+		<element name="s2"         type="float" label="oxygen production/recycled nitrogen"/>
+		<element name="s3"         type="float" label="oyxgen production related to N"/>
+		<element name="s4"         type="float" label="nitrification"/>
+
+		<element name="a0"         type="float" label="osat parameter" unit="mmol/m³"/>
+		<element name="a1"         type="float" label="osat parameter"/>
+		<element name="a2"         type="float" label="osat parameter" unit="1/°C"/>
+
+		<element name="aa"         type="float" label="weighting factor for visible light fraction"/>
+		<element name="g2"         type="float" label="attenuation length for visible light" unit="m"/>
+	</element>
+</element>
