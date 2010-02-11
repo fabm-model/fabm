@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioProject ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{3DB9CC1D-2D5C-4F4F-AEDA-30B02FC13B89}">
+	<Platforms>
+		<Platform Name="Win32"/></Platforms>
+	<Configurations>
+		<Configuration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include" Interfaces="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/></Configuration>
+		<Configuration Name="Release|Win32" OutputDirectory="$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(ConfigurationName)\$(ProjectName)">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" SubSystem="subSystemConsole"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/></Configuration></Configurations>
+	<Files>
+		<Filter Name="Header Files" Filter="fi;fd">
+		<File RelativePath="..\..\include\cppdefs.h"/>
+		<File RelativePath=".\version.h"/></Filter>
+		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<Filter Name="airsea">
+		<File RelativePath="..\..\src\airsea\short_wave_radiation.F90"/></Filter>
+		<Filter Name="extras">
+		<Filter Name="bio">
+		<Filter Name="npzd_0d">
+		<File RelativePath="..\..\src\extras\bio\npzd_0d\bio_npzd_0d.F90"/></Filter>
+		<File RelativePath="..\..\src\extras\bio\bio_0d_gen.F90"/>
+		<File RelativePath="..\..\src\extras\bio\bio_types.F90"/></Filter>
+		<Filter Name="driver">
+		<File RelativePath="..\..\src\extras\bio\driver\driver_0d.F90"/>
+		<File RelativePath="..\..\src\extras\bio\driver\main.F90"/></Filter></Filter>
+		<Filter Name="observations"/>
+		<Filter Name="util">
+		<File RelativePath="..\..\src\util\ode_solvers.F90"/>
+		<File RelativePath="..\..\src\util\time.F90"/></Filter></Filter></Files>
+	<Globals/></VisualStudioProject>

@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "gotm", "gotm.vfproj", "{B6A5514C-5B9C-4E70-9BD7-767888D45B30}"
+EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "driver_0d", "driver_0d.vfproj", "{3DB9CC1D-2D5C-4F4F-AEDA-30B02FC13B89}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B6A5514C-5B9C-4E70-9BD7-767888D45B30}.Debug|Win32.ActiveCfg = Debug|Win32
+		{B6A5514C-5B9C-4E70-9BD7-767888D45B30}.Debug|Win32.Build.0 = Debug|Win32
+		{B6A5514C-5B9C-4E70-9BD7-767888D45B30}.Release|Win32.ActiveCfg = Release|Win32
+		{B6A5514C-5B9C-4E70-9BD7-767888D45B30}.Release|Win32.Build.0 = Release|Win32
+		{3DB9CC1D-2D5C-4F4F-AEDA-30B02FC13B89}.Debug|Win32.ActiveCfg = Debug|Win32
+		{3DB9CC1D-2D5C-4F4F-AEDA-30B02FC13B89}.Debug|Win32.Build.0 = Debug|Win32
+		{3DB9CC1D-2D5C-4F4F-AEDA-30B02FC13B89}.Release|Win32.ActiveCfg = Release|Win32
+		{3DB9CC1D-2D5C-4F4F-AEDA-30B02FC13B89}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
