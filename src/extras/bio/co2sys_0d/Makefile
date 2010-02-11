@@ -1,15 +1,16 @@
 #
-# Makefile to build the 0D version of the jellyfish bio-module
+# Makefile to build the 0D version of the carbonate system module
 #
 
 include ../../../Rules.make
 
 LIB	= $(LIBDIR)/libbio$(buildtype).a
 
-DOCSRC	=  bio_jellyfish_0d.F90
+DOCSRC	=  bio_co2_sys_0d.F90
 
 OBJS   = \
-${LIB}(bio_jellyfish_0d.o)
+${LIB}(co2_dyn.o)	\
+${LIB}(bio_co2_sys_0d.o)
 
 all: ${OBJS}
 	$(MOVE_MODULES_COMMAND)

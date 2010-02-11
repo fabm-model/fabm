@@ -21,7 +21,8 @@ OBJ1   = \
 ${LIB}(bio_var.o)		\
 ${LIB}(bio_alloc_info.o)        \
 ${LIB}(bio_fluxes.o)		\
-${LIB}(bio_types.o)
+${LIB}(bio_types.o)		\
+${LIB}(bio_0d_driver_gotm.o)
 
 OBJ2   = 
 ifneq ($(NO_0D_BIO),true)
@@ -106,7 +107,10 @@ SUBDIRS += photo
 DEFINES += -DBIO_PHOTO
 endif
 
-
+ifneq ($(NO_0D_BIO),true)
+SUBDIRS += co2sys_0d
+SUBDIRS += jellyfish_0d
+endif
 
 
 
