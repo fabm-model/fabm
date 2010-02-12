@@ -141,7 +141,6 @@
    self%rpdu = rpdu/secs_pr_day
    self%rpdl = rpdl/secs_pr_day
    self%rzd  = rzd /secs_pr_day
-   
    self%dic_per_n = dic_per_n
    
    ! State variables
@@ -161,6 +160,7 @@
    self%id_par = register_variable_dependency('par')
    self%id_I_0 = register_variable_dependency('I_0')
 
+   ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%id_dic = -1
    if (dic_variable.ne.'') self%id_dic = register_state_variable_dependency(modelinfo,dic_variable)
 
@@ -203,9 +203,11 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Retrieve current (local) state variable values.
    p = getbiovar(self%id_p, LOCATIONVARIABLE)
    d = getbiovar(self%id_d, LOCATIONVARIABLE)
    
+   ! Self-shading with explciit contribution from background phytoplankton concentration.
    extinction = self%kc*(self%p0+p+d)
 
    end function get_bio_extinction_npzd_0d
@@ -232,10 +234,13 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Retrieve current (local) state variable values.
    n = getbiovar(self%id_n, LOCATIONVARIABLE)
    p = getbiovar(self%id_p, LOCATIONVARIABLE)
    z = getbiovar(self%id_z, LOCATIONVARIABLE)
    d = getbiovar(self%id_d, LOCATIONVARIABLE)
+   
+   ! Total nutrient is simply the sum of all variables.
    sums(self%id_totN) = n+p+z+d
 
    end subroutine get_conserved_quantities_npzd_0d
@@ -381,14 +386,17 @@
 !-----------------------------------------------------------------------
 !BOC
 
+   ! Retrieve current (local) state variable values.
    n = getbiovar(self%id_n,LOCATIONVARIABLE)
    p = getbiovar(self%id_p,LOCATIONVARIABLE)
    z = getbiovar(self%id_z,LOCATIONVARIABLE)
    d = getbiovar(self%id_d,LOCATIONVARIABLE)
    
+   ! Retrieve current (local) environmental conditions.
    par = getvar(self%id_par,LOCATIONVARIABLE)
    I_0 = getvar(self%id_I_0,LOCATIONVARIABLE)
    
+   ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
 
    if (par .ge. self%I_min) then
@@ -397,14 +405,20 @@
       rpd = self%rpdl
    end if
    
+   ! Note: the temporal derivatives are incremented or decremented, rahter than set.
+   ! This is IMPORTANT: oher biogeochemical models might already have provided additional
+   ! sink and source terms for these variables in the rhs arrays.
    rhs(self%id_n) = rhs(self%id_n) - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
    rhs(self%id_p) = rhs(self%id_p) + fnp(self,n,p,par,iopt) - fpz(self,p,z) - self%rpn*p - rpd*p
    rhs(self%id_z) = rhs(self%id_z) + fpz(self,p,z) - self%rzn*z - self%rzd*z
    rhs(self%id_d) = rhs(self%id_d) + rpd*p + self%rzd*z - self%rdn*d
    
+   ! If an externally maintained DIC pool is present, change the DIC pool according to the
+   ! the change in nutrients (assuming constant C:N ratio)
    if (self%id_dic.ne.-1) &
       rhs(self%id_dic) = rhs(self%id_dic) + self%dic_per_n*(- fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d)
 
+   ! Export diagnostic variables
    diag(self%id_dPAR) = par
    diag(self%id_GPP)  = fnp(self,n,p,par,iopt)
    diag(self%id_NCP)  = fnp(self,n,p,par,iopt) - self%rpn*p
@@ -417,7 +431,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Right hand sides of NPZD model
+! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
    subroutine do_bio_npzd_0d_ppdd(self,LOCATIONVARIABLE,numc,num_diag,pp,dd,diag)
@@ -495,14 +509,17 @@
 !-----------------------------------------------------------------------
 !BOC
 
+   ! Retrieve current (local) state variable values.
    n = getbiovar(self%id_n,LOCATIONVARIABLE)
    p = getbiovar(self%id_p,LOCATIONVARIABLE)
    z = getbiovar(self%id_z,LOCATIONVARIABLE)
    d = getbiovar(self%id_d,LOCATIONVARIABLE)
    
+   ! Retrieve current (local) environmental conditions.
    par = getvar(self%id_par,LOCATIONVARIABLE)
    I_0 = getvar(self%id_I_0,LOCATIONVARIABLE)
    
+   ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
 
    if (par .ge. self%I_min) then
@@ -528,6 +545,13 @@
    pp(self%id_d,self%id_p) = dd(self%id_p,self%id_d)
    pp(self%id_d,self%id_z) = dd(self%id_z,self%id_d)
 
+   ! If an externally maintained DIC pool is present, change the DIC pool according to the
+   ! the change in nutrients (assuming constant C:N ratio)
+   if (self%id_dic.ne.-1) &
+      pp(self%id_dic,self%id_dic) = pp(self%id_dic,self%id_dic) + &
+         self%dic_per_n*(- fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d)
+
+   ! Export diagnostic variables
    diag(self%id_dPAR) = par
    diag(self%id_GPP) =  dd(self%id_n,self%id_p)
    diag(self%id_NCP) =  dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p)
