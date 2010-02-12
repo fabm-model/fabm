@@ -10,7 +10,7 @@ else
 compilation=$(COMPILATION_MODE)
 endif
 
-DEFINES=-DNUDGE_VEL
+DEFINES=-DNUDGE_VEL -DLOCATIONTYPE=integer -DLOCATIONVARIABLE=ilev
 DEFINES=-D$(FORTRAN_COMPILER)
 
 # What do we include in this compilation
