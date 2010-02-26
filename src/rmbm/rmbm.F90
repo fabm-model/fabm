@@ -403,7 +403,7 @@ end subroutine set_state_data
 ! biogeochemical model
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_do_rhs(model,LOCATION,numc,num_diag,dy,diag)
+   recursive subroutine rmbm_do_rhs(model,LOCATION,dy,diag)
 !
 ! !USES:
    IMPLICIT NONE
@@ -411,11 +411,9 @@ end subroutine set_state_data
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
    LOCATIONTYPE,           intent(in)    :: LOCATION
-   integer,                intent(in)    :: numc,num_diag
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,               intent(inout) :: dy(:)
-   REALTYPE,               intent(inout) :: diag(:)
+   REALTYPE, dimension(:), intent(inout) :: dy,diag
 !
 ! !LOCAL PARAMETERS:
    REALTYPE,allocatable                  :: pp(:,:),dd(:,:)
@@ -429,7 +427,7 @@ end subroutine set_state_data
 !BOC
    select case (model%id)
       case (npzd_id)
-         call do_bio_npzd_0d(model%npzd,model%state,model%environment,LOCATION,numc,num_diag,dy,diag)
+         call do_bio_npzd_0d(model%npzd,model%state,model%environment,LOCATION,dy,diag)
       case (jellyfish_id)
          call do_bio_jellyfish_0d(model%jellyfish,model%state,model%environment,LOCATION,dy,diag)
       case (carbonate_id)
@@ -438,17 +436,17 @@ end subroutine set_state_data
       case (model_container_id)
          curchild => model%firstchild
          do while (associated(curchild))
-            call rmbm_do_rhs(curchild,LOCATION,numc,num_diag,dy,diag)
+            call rmbm_do_rhs(curchild,LOCATION,dy,diag)
             curchild => curchild%nextsibling
          end do
       case default
-         allocate(pp(1:numc,1:numc))
-         allocate(dd(1:numc,1:numc))
+         allocate(pp(1:ubound(dy,1),1:ubound(dy,1)))
+         allocate(dd(1:ubound(dy,1),1:ubound(dy,1)))
          pp = _ZERO_
          dd = _ZERO_
-         call rmbm_do_ppdd(model,LOCATION,numc,num_diag,pp,dd,diag)
-         do i=1,numc
-            do j=1,numc
+         call rmbm_do_ppdd(model,LOCATION,pp,dd,diag)
+         do i=1,ubound(dy,1)
+            do j=1,ubound(dy,1)
                dy(i) = dy(i) + pp(i,j)-dd(i,j)
             end do
          end do
@@ -465,7 +463,7 @@ end subroutine set_state_data
 ! !IROUTINE: Get the local temporal derivatives in 1D
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_do_rhs_1d(model,LOCATION_1DLOOP,numc,num_diag,dy,diag)
+   recursive subroutine rmbm_do_rhs_1d(model,LOCATION_1DLOOP,dy,diag)
 !
 ! !USES:
    LOOP1D_USE
@@ -475,15 +473,12 @@ end subroutine set_state_data
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
    LOCATIONTYPE,           intent(in)    :: LOCATION_1DLOOP
-   integer,                intent(in)    :: numc,num_diag
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE,               intent(inout) :: dy(:,:)
    REALTYPE,               intent(inout) :: diag(:,:)
 !
 ! !LOCAL PARAMETERS:
-   REALTYPE,allocatable                  :: pp(:,:,:),dd(:,:,:)
-   integer                               :: i,j
    type (type_model), pointer            :: curchild
    LOCATIONTYPE                          :: VARIABLE_1DLOOP
 !
@@ -496,13 +491,13 @@ end subroutine set_state_data
       case (model_container_id)
          curchild => model%firstchild
          do while (associated(curchild))
-            do LOOP1D
-               call rmbm_do_rhs(curchild,LOCATION,numc,num_diag,dy(SLICE1D),diag(SLICE1D))
-            end do
+            call rmbm_do_rhs_1d(curchild,LOCATION_1DLOOP,dy,diag)
             curchild => curchild%nextsibling
          end do
       case default
-         stop
+         do VARIABLE_1DLOOP=1,LENGTH_1DLOOP
+            call rmbm_do_rhs(curchild,LOCATION,dy(VARIABLE_1DLOOP,:),diag(VARIABLE_1DLOOP,:))
+         end do
    end select
 
    end subroutine rmbm_do_rhs_1d
@@ -515,7 +510,7 @@ end subroutine set_state_data
 ! biogeochemical model
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_do_ppdd(model,LOCATION,numc,num_diag,pp,dd,diag)
+   recursive subroutine rmbm_do_ppdd(model,LOCATION,pp,dd,diag)
 !
 ! !USES:
    IMPLICIT NONE
@@ -523,12 +518,10 @@ end subroutine set_state_data
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
    LOCATIONTYPE,           intent(in)    :: LOCATION
-   integer,                intent(in)    :: numc,num_diag
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,               intent(inout) :: pp(1:numc,1:numc)
-   REALTYPE,               intent(inout) :: dd(1:numc,1:numc)
-   REALTYPE,               intent(inout) :: diag(1:num_diag)
+   REALTYPE,dimension(:,:),intent(inout) :: pp,dd
+   REALTYPE,dimension(:),  intent(inout) :: diag
 !
 ! !LOCAL PARAMETERS:
    REALTYPE,allocatable                  :: dy(:)
@@ -542,19 +535,19 @@ end subroutine set_state_data
 !BOC
    select case (model%id)
       case (npzd_id)
-         call do_bio_npzd_0d_ppdd(model%npzd,model%state,model%environment,LOCATION,numc,num_diag,pp,dd,diag)
+         call do_bio_npzd_0d_ppdd(model%npzd,model%state,model%environment,LOCATION,pp,dd,diag)
       ! ADD_NEW_MODEL_HERE - optional
       case (model_container_id)
          curchild => model%firstchild
          do while (associated(curchild))
-            call rmbm_do_ppdd(curchild,LOCATION,numc,num_diag,pp,dd,diag)
+            call rmbm_do_ppdd(curchild,LOCATION,pp,dd,diag)
             curchild => curchild%nextsibling
          end do
       case default
-         allocate(dy(numc))
+         allocate(dy(ubound(pp,1)))
          dy = _ZERO_
-         call rmbm_do_rhs(model,LOCATION,numc,num_diag,dy,diag)
-         do i=1,numc
+         call rmbm_do_rhs(model,LOCATION,dy,diag)
+         do i=1,ubound(pp,1)
             pp(i,i) = pp(i,i) + dy(i)
          end do
          deallocate(dy)
@@ -664,7 +657,7 @@ end subroutine set_state_data
 ! selected 0d biogeochemical model
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_get_vertical_movement(model,LOCATION,numc,vertical_movement)
+   recursive subroutine rmbm_get_vertical_movement(model,LOCATION,vertical_movement)
 !
 ! !USES:
    IMPLICIT NONE
@@ -672,10 +665,9 @@ end subroutine set_state_data
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
    LOCATIONTYPE,           intent(in)    :: LOCATION
-   integer,                intent(in)    :: numc
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,               intent(inout) :: vertical_movement(1:numc)
+   REALTYPE,               intent(inout) :: vertical_movement(:)
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -689,7 +681,7 @@ end subroutine set_state_data
       case (model_container_id)
          curchild => model%firstchild
          do while (associated(curchild))
-            call rmbm_get_vertical_movement(curchild,LOCATION,numc,vertical_movement)
+            call rmbm_get_vertical_movement(curchild,LOCATION,vertical_movement)
             curchild => curchild%nextsibling
          end do
       case default

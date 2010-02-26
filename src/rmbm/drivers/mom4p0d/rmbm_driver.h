@@ -7,8 +7,7 @@
 #define LOCATION2DDIMENSIONS :,:
 
 #define LOCATION_1DLOOP jj,kk
-#define SLICE1D ii,:
-#define LOOP1D ii=1,iec-isc+1
 #define VARIABLE_1DLOOP ii
+#define LENGTH_1DLOOP iec-isc+1
 
 #define LOOP1D_USE use ocean_tpm_util_mod, only: isc, iec

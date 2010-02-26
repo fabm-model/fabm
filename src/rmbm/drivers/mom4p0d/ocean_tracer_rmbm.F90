@@ -173,13 +173,12 @@ type biotic_type  !{
 
   type (type_model),pointer :: model
   
-  character(len=fm_field_name_len)            :: name
-  logical                                     :: do_virtual_flux = .false.
-  integer,_ALLOCATABLE,dimension(:)           :: inds,inds_diag
-  double precision,pointer,dimension(:,:,:,:) :: work_state _NULL,work_diag _NULL
-  double precision,_ALLOCATABLE,dimension(:,:):: w,adv
-  double precision,_ALLOCATABLE,dimension(:)  :: diag _NULL,dy _NULL
-  double precision,_ALLOCATABLE,dimension(:,:):: diag1d _NULL,dy1d _NULL
+  character(len=fm_field_name_len)                 :: name
+  logical                                          :: do_virtual_flux = .false.
+  integer,_ALLOCATABLE,dimension(:)                :: inds,inds_diag
+  double precision,pointer,     dimension(:,:,:,:) :: work_state => null()
+  double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_diag _NULL
+  double precision,_ALLOCATABLE,dimension(:,:)     :: w _NULL,adv _NULL,work_dy _NULL
 
 end type biotic_type  !}
 
@@ -916,7 +915,7 @@ do n = 1, instances  !{
     end do
   end do
 
-  ! Set array with diagnostic variables to zero, becasue values for land points will not be set.
+  ! Set array with diagnostic variables to zero, because values for land points will not be set.
   biotic(n)%work_diag(isc:iec,jsc:jec,:,:) = 0.d0
 end do
 
@@ -928,22 +927,21 @@ do it=1,biotic_split
 
      do k = 1, nk  !{
        do j = jsc, jec  !{
+       
+         ! Initialize derivatives to zero, because the bio model will increment/decrement values rather than set them.
+         biotic(n)%work_dy(isc:iec,:) = 0.d0
+
          do i = isc, iec  !{
            ! Move on if we are on a land point.
            if (grid%tmask(i,j,k).eq.0.) cycle
            
-           ! Initialize derivatives to zero, because the bio model will increment/decrement values rather than set them.
-           biotic(n)%dy = 0.d0
-           
            ! Call bio model for current grid point.
-           call rmbm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%model%info%state_variable_count,biotic(n)%model%info%diagnostic_variable_count,biotic(n)%dy,biotic(n)%diag)
-           
-           ! Update current state according to supplied temporal derivatives (Forward Euler)
-           biotic(n)%work_state(i,j,k,:) = biotic(n)%work_state(i,j,k,:) + dtsb*biotic(n)%dy
-
-           ! Transfer local diagnostics to global array.
-           biotic(n)%work_diag(i,j,k,:) = biotic(n)%diag
+           call rmbm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:),biotic(n)%work_diag(i,j,k,:))
          end do  !} i
+
+         ! Update current state according to supplied temporal derivatives (Forward Euler)
+         biotic(n)%work_state(isc:iec,j,k,:) = biotic(n)%work_state(isc:iec,j,k,:) + dtsb*biotic(n)%work_dy(isc:iec,:)
+
        end do  !} j
      end do  !} k
 
@@ -982,7 +980,7 @@ do n = 1, instances  !{
     
      !  Get sinking speed over entire column for all state variables.
      do k=1,nk
-       call rmbm_get_vertical_movement(biotic(n)%model,i,j,k,biotic(n)%model%info%state_variable_count,biotic(n)%w(k,:))
+       call rmbm_get_vertical_movement(biotic(n)%model,i,j,k,biotic(n)%w(k,:))
      end do
      
      ! Interpolate to sinking speed at interfaces
@@ -1123,9 +1121,8 @@ write(stdout(),*)
 
 do n=1,instances
    allocate(biotic(n)%work_state(isc:iec,jsc:jec,nk,biotic(n)%model%info%state_variable_count))
+   allocate(biotic(n)%work_dy   (isc:iec,           biotic(n)%model%info%state_variable_count))
    allocate(biotic(n)%work_diag (isc:iec,jsc:jec,nk,biotic(n)%model%info%diagnostic_variable_count))
-   allocate(biotic(n)%dy(biotic(n)%model%info%state_variable_count))
-   allocate(biotic(n)%diag(biotic(n)%model%info%diagnostic_variable_count))
    allocate(biotic(n)%w  (nk+1,biotic(n)%model%info%diagnostic_variable_count))
    allocate(biotic(n)%adv(nk+1,biotic(n)%model%info%diagnostic_variable_count))
 
