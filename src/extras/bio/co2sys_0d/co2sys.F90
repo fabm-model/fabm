@@ -1,5 +1,5 @@
 !$Id: bio_npzd_0d.F90,v 1.6 2009-05-10 18:36:38 jorn Exp $
-#include"cppdefs.h"
+#include "rmbm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
@@ -7,20 +7,20 @@
 ! !MODULE: bio_co2_sys_0d --- 0D CO2/carbonate system model
 !
 ! !INTERFACE:
-   module bio_co2_sys_0d
+module rmbm_co2sys
 !
 ! !DESCRIPTION:
 ! CO2 system model based on PML code.
 !
 ! !USES:
-   use bio_types
-   use bio_driver
+   use rmbm_types
+   use rmbm_driver
 
 !  default: all is private.
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_co2_sys, init_bio_co2_sys_0d, do_bio_co2_sys_0d, update_airsea_co2_sys_0d
+   public type_co2_sys, init_bio_co2_sys_0d, do_bio_co2_sys_0d, update_air_sea_co2_sys_0d
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -38,7 +38,7 @@
 !EOP
 !-----------------------------------------------------------------------
 
-   contains
+contains
 
 !-----------------------------------------------------------------------
 !BOP
@@ -81,7 +81,7 @@
    self%pCO2a     = pCO2a
       
    self%id_dic = register_state_variable(modelinfo,'DIC','mol C/m**3','total dissolved inorganic carbon', &
-                                    dic_initial,positive_definite=.true.)
+                                    dic_initial,minimum=_ZERO_)
                                     
    self%id_ph     = register_diagnostic_variable(modelinfo, 'pH',    '-',        'pH',                           2)
    self%id_TA     = register_diagnostic_variable(modelinfo, 'TA',    'mmol/m**3','alkalinity',                   2)
@@ -93,34 +93,9 @@
    self%id_Om_cal = register_diagnostic_variable(modelinfo, 'Om_cal','-',        'calcite saturation state',     2)
    self%id_Om_arg = register_diagnostic_variable(modelinfo, 'Om_arg','-',        'aragonite saturation state',   2)
 
-   self%id_temp = register_variable_dependency('temp')
-   if (self%id_temp==-1) then
-      FATAL 'Could not locate temperature variable.'
-      stop 'init_bio_co2_sys_0d'
-   end if
-
-   self%id_salt = register_variable_dependency('salt')
-   if (self%id_salt==-1) then
-      FATAL 'Could not locate salinity variable.'
-      stop 'init_bio_co2_sys_0d'
-   end if
-
-   self%id_pres = register_variable_dependency('pres')
-   if (self%id_pres==-1) then
-      FATAL 'Could not locate pressure variable.'
-      stop 'init_bio_co2_sys_0d'
-   end if
-
-   self%id_wnd = register_variable_dependency('wind')
-   if (self%id_wnd==-1) then
-      FATAL 'Could not locate wind speed variable.'
-      stop 'init_bio_co2_sys_0d'
-   end if
-
    return
 
-99 FATAL 'I could not read namelist bio_co2_sys_nml'
-   stop 'init_bio_co2_sys_0d'
+99 call fatal_error('init_bio_co2_sys_0d','I could not read namelist bio_co2_sys_nml')
    
    end subroutine init_bio_co2_sys_0d
 !EOC
@@ -131,7 +106,7 @@
 ! !IROUTINE: Right hand sides of carbonate system model
 !
 ! !INTERFACE:
-   subroutine do_bio_co2_sys_0d(self,LOCATIONVARIABLE,numc,num_diag,dy,diag)
+   subroutine do_bio_co2_sys_0d(self,state,environment,LOCATION,dy,diag)
 !
 ! !DESCRIPTION:
 !
@@ -139,13 +114,13 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_co2_sys), intent(in)    :: self
-   LOCATIONTYPE                         :: LOCATIONVARIABLE
-   integer,intent(in)                   :: numc,num_diag
+   type (type_co2_sys),    intent(in) :: self
+   type (type_state),      intent(in) :: state(:)
+   type (type_environment),intent(in) :: environment
+   LOCATIONTYPE                       :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, intent(inout)              :: dy(1:numc)
-   REALTYPE, intent(inout)              :: diag(1:num_diag)
+   REALTYPE, intent(inout),dimension(:) :: dy,diag
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -159,12 +134,12 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Get current value for total dissolved inorganic carbon (our own state variable).
-   dic = getbiovar(self%id_dic,LOCATIONVARIABLE)
+   dic = state(self%id_dic)%data(LOCATION)
 
    ! Get environmental variables.
-   temp = getvar(self%id_temp,LOCATIONVARIABLE)
-   salt = getvar(self%id_salt,LOCATIONVARIABLE)
-   pres = getvar(self%id_pres,LOCATIONVARIABLE)
+   temp = environment%temp(LOCATION)
+   salt = environment%salt(LOCATION)
+   pres = environment%pres(LOCATION)
 
    ! Linearly approximate alkalinity from salinity.
    TA = self%TA_offset + self%TA_slope*salt
@@ -195,7 +170,7 @@
 ! !IROUTINE: Air-sea exchange for the carbonate system model
 !
 ! !INTERFACE:
-   subroutine update_airsea_co2_sys_0d(self,LOCATIONVARIABLE,numc,flux)
+   subroutine update_air_sea_co2_sys_0d(self,state,environment,LOCATION,numc,flux)
 !
 ! !DESCRIPTION:
 !
@@ -204,7 +179,9 @@
 !
 ! !INPUT PARAMETERS:
    type (type_co2_sys), intent(in)      :: self
-   LOCATIONTYPE                         :: LOCATIONVARIABLE
+   type (type_state),      intent(in),pointer :: state(:)
+   type (type_environment),intent(in),pointer :: environment
+   LOCATIONTYPE                         :: LOCATION
    integer,intent(in)                   :: numc
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -228,11 +205,11 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   temp = getvar(self%id_temp,LOCATIONVARIABLE)
-   salt = getvar(self%id_salt,LOCATIONVARIABLE)
-   wnd  = getvar(self%id_wnd ,LOCATIONVARIABLE)
+   temp = environment%temp(LOCATION)
+   salt = environment%salt(LOCATION)
+   wnd  = environment%wind_sf(LOCATION2D)
 
-   dic = getbiovar(self%id_dic,LOCATIONVARIABLE)
+   dic = state(self%id_dic)%data(LOCATION)
 
    ! Linearly approximate alkalinity from salinity.
    TA = self%TA_offset + self%TA_slope*salt
@@ -244,12 +221,12 @@
    
    flux(self%id_dic) = fl/secs_pr_day
 
-   end subroutine update_airsea_co2_sys_0d
+   end subroutine update_air_sea_co2_sys_0d
 !EOC
 
 !-----------------------------------------------------------------------
 
-   end module bio_co2_sys_0d
+end module rmbm_co2sys
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

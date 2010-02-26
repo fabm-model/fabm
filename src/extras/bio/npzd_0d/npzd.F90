@@ -1,13 +1,13 @@
 !$Id: bio_npzd_0d.F90,v 1.6 2009-05-10 18:36:38 jorn Exp $
-#include"cppdefs.h"
+#include "rmbm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: bio_npzd_0d --- 0D NPZD biogeochemical model
+! !MODULE: rmbm_npzd --- 0D NPZD biogeochemical model
 !
 ! !INTERFACE:
-   module bio_npzd_0d
+   module rmbm_npzd
 !
 ! !DESCRIPTION:
 ! The NPZD (nutrient-phytoplankton-zooplankton-detritus) model described here
@@ -25,8 +25,8 @@
 ! see \cite{Burchardetal2005b}.
 !
 ! !USES:
-   use bio_types
-   use bio_driver
+   use rmbm_types
+   use rmbm_driver
 
 !  default: all is private.
    private
@@ -145,20 +145,16 @@
    
    ! State variables
    self%id_n = register_state_variable(modelinfo,'nut','mmol/m**3','nutrients',     &
-                                    n_initial,positive_definite=.true.)
+                                    n_initial,minimum=_ZERO_)
    self%id_p = register_state_variable(modelinfo,'phy','mmol/m**3','phytoplankton', &
-                                    p_initial,positive_definite=.true.,vertical_movement=w_p/secs_pr_day, &
+                                    p_initial,minimum=_ZERO_,vertical_movement=w_p/secs_pr_day, &
                                     mussels_inhale=.true.)
    self%id_z = register_state_variable(modelinfo,'zoo','mmol/m**3','zooplankton', &
-                                    z_initial,positive_definite=.true., &
+                                    z_initial,minimum=_ZERO_, &
                                     mussels_inhale=.true.)
    self%id_d = register_state_variable(modelinfo,'det','mmol/m**3','detritus', &
-                                    d_initial,positive_definite=.true.,vertical_movement=w_d/secs_pr_day, &
+                                    d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day, &
                                     mussels_inhale=.true.)
-                                    
-   ! Environmental variables
-   self%id_par = register_variable_dependency('par')
-   self%id_I_0 = register_variable_dependency('I_0')
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%id_dic = -1
@@ -176,8 +172,7 @@
    
    return
 
-99 FATAL 'I could not read namelist bio_npzd_nml'
-   stop 'init_bio_npzd_0d'
+99 call fatal_error('init_bio_npzd_0d','I could not read namelist bio_npzd_nml')
    
    end subroutine init_bio_npzd_0d
 !EOC
@@ -189,11 +184,13 @@
 ! variables
 !
 ! !INTERFACE:
-   function get_bio_extinction_npzd_0d(self,LOCATIONVARIABLE) result(extinction)
+   _PURE function get_bio_extinction_npzd_0d(self,state,environment,LOCATION) result(extinction)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd), intent(in) :: self
-   LOCATIONTYPE,     intent(in) :: LOCATIONVARIABLE
+   type (type_state),      intent(in),pointer :: state(:)
+   type (type_environment),intent(in),pointer :: environment
+   LOCATIONTYPE,     intent(in) :: LOCATION
    REALTYPE                     :: extinction
    
    REALTYPE                     :: p,d
@@ -204,8 +201,8 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve current (local) state variable values.
-   p = getbiovar(self%id_p, LOCATIONVARIABLE)
-   d = getbiovar(self%id_d, LOCATIONVARIABLE)
+   p = state(self%id_p)%data(LOCATION)
+   d = state(self%id_d)%data(LOCATION)
    
    ! Self-shading with explciit contribution from background phytoplankton concentration.
    extinction = self%kc*(self%p0+p+d)
@@ -219,11 +216,13 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   subroutine get_conserved_quantities_npzd_0d(self,LOCATIONVARIABLE,count,sums)
+   _PURE subroutine get_conserved_quantities_npzd_0d(self,state,environment,LOCATION,count,sums)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd), intent(in)    :: self
-   LOCATIONTYPE,     intent(in)    :: LOCATIONVARIABLE
+   type (type_state),      intent(in),pointer :: state(:)
+   type (type_environment),intent(in),pointer :: environment
+   LOCATIONTYPE,     intent(in)    :: LOCATION
    integer,          intent(in)    :: count
    REALTYPE,         intent(inout) :: sums(1:count)
    
@@ -235,10 +234,10 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve current (local) state variable values.
-   n = getbiovar(self%id_n, LOCATIONVARIABLE)
-   p = getbiovar(self%id_p, LOCATIONVARIABLE)
-   z = getbiovar(self%id_z, LOCATIONVARIABLE)
-   d = getbiovar(self%id_d, LOCATIONVARIABLE)
+   n = state(self%id_n)%data(LOCATION)
+   p = state(self%id_p)%data(LOCATION)
+   z = state(self%id_z)%data(LOCATION)
+   d = state(self%id_d)%data(LOCATION)
    
    ! Total nutrient is simply the sum of all variables.
    sums(self%id_totN) = n+p+z+d
@@ -252,7 +251,7 @@
 ! !IROUTINE: Michaelis-Menten formulation for nutrient uptake
 !
 ! !INTERFACE:
-   REALTYPE function fnp(self,n,p,par,iopt)
+   _PURE REALTYPE function fnp(self,n,p,par,iopt)
 !
 ! !DESCRIPTION:
 ! Here, the classical Michaelis-Menten formulation for nutrient uptake
@@ -282,7 +281,7 @@
 ! !IROUTINE: Ivlev formulation for zooplankton grazing on phytoplankton
 !
 ! !INTERFACE:
-   REALTYPE function fpz(self,p,z)
+   _PURE REALTYPE function fpz(self,p,z)
 !
 ! !DESCRIPTION:
 ! Here, the classical Ivlev formulation for zooplankton grazing on 
@@ -313,7 +312,7 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine do_bio_npzd_0d(self,LOCATIONVARIABLE,numc,num_diag,rhs,diag)
+   _PURE subroutine do_bio_npzd_0d(self,state,environment,LOCATION,rhs,diag)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -366,13 +365,13 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd), intent(in)         :: self
-   LOCATIONTYPE,     intent(in)         :: LOCATIONVARIABLE
-   integer, intent(in)                  :: numc,num_diag
+   type (type_npzd),       intent(in) :: self
+   type (type_state),      intent(in) :: state(:)
+   type (type_environment),intent(in) :: environment
+   LOCATIONTYPE,           intent(in) :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, intent(inout)              :: rhs(1:numc)
-   REALTYPE, intent(inout)              :: diag(1:num_diag)
+   REALTYPE, dimension(:), intent(inout) :: rhs,diag
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -387,14 +386,14 @@
 !BOC
 
    ! Retrieve current (local) state variable values.
-   n = getbiovar(self%id_n,LOCATIONVARIABLE)
-   p = getbiovar(self%id_p,LOCATIONVARIABLE)
-   z = getbiovar(self%id_z,LOCATIONVARIABLE)
-   d = getbiovar(self%id_d,LOCATIONVARIABLE)
+   n = state(self%id_n)%data(LOCATION)
+   p = state(self%id_p)%data(LOCATION)
+   z = state(self%id_z)%data(LOCATION)
+   d = state(self%id_d)%data(LOCATION)
    
    ! Retrieve current (local) environmental conditions.
-   par = getvar(self%id_par,LOCATIONVARIABLE)
-   I_0 = getvar(self%id_I_0,LOCATIONVARIABLE)
+   par = environment%par(LOCATION)
+   I_0 = environment%par_sf(LOCATION2D)
    
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -434,7 +433,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine do_bio_npzd_0d_ppdd(self,LOCATIONVARIABLE,numc,num_diag,pp,dd,diag)
+   _PURE subroutine do_bio_npzd_0d_ppdd(self,state,environment,LOCATION,pp,dd,diag)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -487,14 +486,14 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd), intent(in)         :: self
-   LOCATIONTYPE,     intent(in)         :: LOCATIONVARIABLE
-   integer, intent(in)                  :: numc,num_diag
+   type (type_npzd),       intent(in) :: self
+   type (type_state),      intent(in) :: state(:)
+   type (type_environment),intent(in) :: environment
+   LOCATIONTYPE,           intent(in) :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, intent(inout)              :: pp(1:numc,1:numc)
-   REALTYPE, intent(inout)              :: dd(1:numc,1:numc)
-   REALTYPE, intent(inout)              :: diag(1:num_diag)
+   REALTYPE, intent(inout),dimension(:,:) :: pp,dd
+   REALTYPE, intent(inout),dimension(:)   :: diag
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -510,14 +509,14 @@
 !BOC
 
    ! Retrieve current (local) state variable values.
-   n = getbiovar(self%id_n,LOCATIONVARIABLE)
-   p = getbiovar(self%id_p,LOCATIONVARIABLE)
-   z = getbiovar(self%id_z,LOCATIONVARIABLE)
-   d = getbiovar(self%id_d,LOCATIONVARIABLE)
+   n = state(self%id_n)%data(LOCATION)
+   p = state(self%id_p)%data(LOCATION)
+   z = state(self%id_z)%data(LOCATION)
+   d = state(self%id_d)%data(LOCATION)
    
    ! Retrieve current (local) environmental conditions.
-   par = getvar(self%id_par,LOCATIONVARIABLE)
-   I_0 = getvar(self%id_I_0,LOCATIONVARIABLE)
+   par = environment%par(LOCATION)
+   I_0 = environment%par_sf(LOCATION2D)
    
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -564,7 +563,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module bio_npzd_0d
+   end module rmbm_npzd
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

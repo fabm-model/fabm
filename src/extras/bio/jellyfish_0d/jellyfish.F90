@@ -1,13 +1,13 @@
 !$Id: bio_npzd_0d.F90,v 1.6 2009-05-10 18:36:38 jorn Exp $
-#include"cppdefs.h"
+#include "rmbm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: bio_jellyfish_0d --- 0D jellyfish model
+! !MODULE: rmbm_jellyfish --- 0D jellyfish model
 !
 ! !INTERFACE:
-   module bio_jellyfish_0d
+   module rmbm_jellyfish
 !
 ! !DESCRIPTION:
 ! Black Sea jellyfish (Mnemiopsis) model based on code by Baris Salihoglu.
@@ -15,8 +15,8 @@
 ! prey to the jellyfish population.
 !
 ! !USES:
-   use bio_types
-   use bio_driver
+   use rmbm_types
+   use rmbm_driver
 
 !  default: all is private.
    private
@@ -96,19 +96,19 @@
    ! NB: all rates must be provided in values per day, and are converted here to values per second.
       
    self%id_egb = register_state_variable(modelinfo,'egb','mg C/m**3','egg biomass',        &
-                                    egb_initial,positive_definite=.true.)
+                                    egb_initial,minimum=_ZERO_)
    self%id_jb  = register_state_variable(modelinfo,'jb','mg C/m**3','nauplii biomass',     &
-                                    jb_initial,positive_definite=.true.)
+                                    jb_initial,minimum=_ZERO_)
    self%id_ja  = register_state_variable(modelinfo,'ja','#/m**3','nauplii abundance',      &
-                                    ja_initial,positive_definite=.true.)
+                                    ja_initial,minimum=_ZERO_)
    self%id_tb  = register_state_variable(modelinfo,'tb','mg C/m**3','transitional biomass',&
-                                    tb_initial,positive_definite=.true.)
+                                    tb_initial,minimum=_ZERO_)
    self%id_ta  = register_state_variable(modelinfo,'ta','#/m**3','transitional abundance', &
-                                    ta_initial,positive_definite=.true.)
+                                    ta_initial,minimum=_ZERO_)
    self%id_adb = register_state_variable(modelinfo,'adb','mg C/m**3','adult biomass',      &
-                                    adb_initial,positive_definite=.true.)
+                                    adb_initial,minimum=_ZERO_)
    self%id_ada = register_state_variable(modelinfo,'ada','#/m**3','adult abundance',       &
-                                    ada_initial,positive_definite=.true.)
+                                    ada_initial,minimum=_ZERO_)
                                     
    self%id_food       = register_state_variable_dependency(modelinfo,food_source_variable)
    self%id_foodmic    = register_state_variable_dependency(modelinfo,foodmic_source_variable)
@@ -116,17 +116,10 @@
    self%id_morttarget = register_state_variable_dependency(modelinfo,mortality_target_variable)
    
    self%food_scale = food_scale
-                                    
-   self%id_temp = register_variable_dependency('temp')
-   if (self%id_temp==-1) then
-      FATAL 'Could not locate temperature variable.'
-      stop 'init_bio_jellyfish_0d'
-   end if
 
    return
 
-99 FATAL 'I could not read namelist bio_jellyfish_nml'
-   stop 'init_bio_jellyfish_0d'
+99 call fatal_error('init_bio_jellyfish_0d','I could not read namelist bio_jellyfish_nml')
    
    end subroutine init_bio_jellyfish_0d
 !EOC
@@ -137,7 +130,7 @@
 ! !IROUTINE: Right hand sides of jellyfish model
 !
 ! !INTERFACE:
-   subroutine do_bio_jellyfish_0d(self,LOCATIONVARIABLE,numc,num_diag,dy,diag)
+   _PURE subroutine do_bio_jellyfish_0d(self,state,environment,LOCATION,dy,diag)
 !
 ! !DESCRIPTION:
 !
@@ -145,13 +138,13 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_jellyfish), intent(in)    :: self
-   LOCATIONTYPE                         :: LOCATIONVARIABLE
-   integer,intent(in)                   :: numc,num_diag
+   type (type_jellyfish),  intent(in) :: self
+   type (type_state),      intent(in) :: state(:)
+   type (type_environment),intent(in) :: environment
+   LOCATIONTYPE,           intent(in) :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, intent(inout)              :: dy(1:numc)
-   REALTYPE, intent(inout)              :: diag(1:num_diag)
+   REALTYPE, dimension(:),intent(inout) :: dy,diag
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman, Baris Salihoglu
@@ -193,22 +186,23 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   egb_mn = getbiovar(self%id_egb,LOCATIONVARIABLE)
-   jb_mn  = getbiovar(self%id_jb, LOCATIONVARIABLE)
-   ja_mn  = getbiovar(self%id_ja, LOCATIONVARIABLE)
-   tb_mn  = getbiovar(self%id_tb, LOCATIONVARIABLE)
-   ta_mn  = getbiovar(self%id_ta, LOCATIONVARIABLE)
-   adb_mn = getbiovar(self%id_adb,LOCATIONVARIABLE)
-   ada_mn = getbiovar(self%id_ada,LOCATIONVARIABLE)
+   egb_mn = state(self%id_egb)%data(LOCATION)
+   jb_mn  = state(self%id_jb )%data(LOCATION)
+   ja_mn  = state(self%id_ja )%data(LOCATION)
+   tb_mn  = state(self%id_tb )%data(LOCATION)
+   ta_mn  = state(self%id_ta )%data(LOCATION)
+   adb_mn = state(self%id_adb)%data(LOCATION)
+   ada_mn = state(self%id_ada)%data(LOCATION)
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
 
-   food    = getbiovar(self%id_food,   LOCATIONVARIABLE)*self%food_scale
-   foodmic = getbiovar(self%id_foodmic,LOCATIONVARIABLE)*self%food_scale
+   food    = state(self%id_food   )%data(LOCATION)*self%food_scale
+   foodmic = state(self%id_foodmic)%data(LOCATION)*self%food_scale
    foodno  = food/0.0024 !0.0024 is mg C per copepod
    
-   temp = getvar(self%id_temp,LOCATIONVARIABLE)
+   !temp = getvar(self%id_temp,LOCATION)
+   temp = environment%temp(LOCATION)
 
-   !write (*,*) LOCATIONVARIABLE,numc,food,foodmic
+   !write (*,*) LOCATION,numc,food,foodmic
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
 
    resp_mn = 0.04+0.11*(foodno/(30.+foodno))
@@ -395,7 +389,7 @@
    end subroutine do_bio_jellyfish_0d
 !EOC
 
-   subroutine trans(mm,mr,ma,t,p7)
+   _PURE subroutine trans(mm,mr,ma,t,p7)
       implicit none
       
       ! here mm is max and ma actual and mr is the reference weight 
@@ -409,7 +403,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module bio_jellyfish_0d
+   end module rmbm_jellyfish
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
