@@ -79,7 +79,7 @@ module  ocean_tracer_rmbm_mod  !{
 !
 
 use diag_manager_mod,         only: send_data
-use field_manager_mod,        only: fm_field_name_len, fm_path_name_len, fm_string_len
+use field_manager_mod,        only: fm_field_name_len, fm_path_name_len, fm_string_len, fm_get_index
 use field_manager_mod,        only: fm_get_length, fm_get_value, fm_new_value
 use fms_mod,                  only: write_data
 use mpp_mod,                  only: stdout, stdlog, mpp_error, mpp_sum, FATAL
@@ -99,7 +99,7 @@ use ocean_tpm_util_mod, only: indsal, indtemp
 use ocean_tpm_util_mod, only: end_of_year, end_of_month
 
 use ocean_sbc_mod,      only: use_waterflux
-use ocean_types_mod,    only: ocean_thickness_type
+use ocean_types_mod,    only: ocean_thickness_type,ocean_density_type
 
 use rmbm
 
@@ -176,8 +176,7 @@ type biotic_type  !{
   character(len=fm_field_name_len)                 :: name
   logical                                          :: do_virtual_flux = .false.
   integer,_ALLOCATABLE,dimension(:)                :: inds,inds_diag
-  double precision,pointer,     dimension(:,:,:,:) :: work_state => null()
-  double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_diag _NULL
+  double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_state _NULL,work_diag _NULL
   double precision,_ALLOCATABLE,dimension(:,:)     :: w _NULL,adv _NULL,work_dy _NULL
 
 end type biotic_type  !}
@@ -225,10 +224,15 @@ integer                                 :: package_index
 !
 !----------------------------------------------------------------------
 !
-integer                                         :: instances
-type(biotic_type), allocatable, dimension(:)    :: biotic
-integer                                         :: index_irr,index_chl
-double precision                                :: dt_bio
+integer                                             :: instances
+type(biotic_type), allocatable, dimension(:),target :: biotic
+integer                                             :: index_irr,index_chl
+double precision                                    :: dt_bio
+
+integer                                   :: wind_id
+real, allocatable, dimension(:,:), target :: wind
+character*128                             :: wind_file
+character*32                              :: wind_name
 
 !
 !-----------------------------------------------------------------------
@@ -472,39 +476,44 @@ integer :: i
 integer :: j
 integer :: k
 integer :: n
+integer :: ivar
 
 !
 ! =====================================================================
 !     begin executable code
 ! =====================================================================
 !
+call time_interp_external(wind_id, time%model_time, wind)
 
 do n = 1, instances  !{
+  ! Set pointers to environmental variables.
+  biotic(n)%model%environment%temp => t_prog(indtemp  )%field(isc:iec,jsc:jec,:,tau)
+  biotic(n)%model%environment%salt => t_prog(indsal   )%field(isc:iec,jsc:jec,:,tau)
+
+  ! Set pointers to biotic variables.
+  do ivar=1,biotic(n)%model%info%state_variable_count
+    biotic(n)%model%state(ivar)%data => t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,tau)
+  end do
+
    if (use_waterflux) then  !{
-
-     ! Copy current surface state to rain and river input to prevent dilution due to freshwater.
-     !if (biotic(n)%do_dic_virtual_flux) then  !{
-     !  do j = jsc, jec  !{
-     !    do i = isc, iec  !{
-     !      T_prog(biotic(n)%ind_dic)%tpme(i,j) =                 &
-     !           T_prog(biotic(n)%ind_dic)%field(i,j,1,tau)
-     !      T_prog(biotic(n)%ind_dic)%triver(i,j) =               &
-     !           T_prog(biotic(n)%ind_dic)%field(i,j,1,tau)
-     !    enddo  !} i
-     !  enddo  !} j
-     !endif  !}
-
+     do ivar=1,biotic(n)%model%info%state_variable_count
+       if (biotic(n)%model%info%variables(ivar)%no_precipitation_dilution) &
+         T_prog(biotic(n)%inds(ivar))%tpme  (isc:iec,jsc:jec) = T_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,1,tau)
+       if (biotic(n)%model%info%variables(ivar)%no_river_dilution) &
+         T_prog(biotic(n)%inds(ivar))%triver(isc:iec,jsc:jec) = T_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,1,tau)
+     end do
    endif  !}
 
    ! Set surface fluxes for biota
    do j = jsc, jec  !{
+    biotic(n)%work_dy = 0.d0
     do i = isc, iec  !{
-      !t_prog(biotic(n)%ind_dic)%stf(i,j) = kw_co2(i,j) *        &
-      !      biotic(n)%csat_csurf(i,j)
-      !t_prog(biotic(n)%ind_o2)%stf(i,j) = kw_o2(i,j) *          &
-      !      (o2_saturation(i,j) * patm_t(i,j) -                 &
-      !       t_prog(biotic(n)%ind_o2)%field(i,j,1,taum1))
+      if (grid%tmask(i,j,1).eq.1.) &
+         call rmbm_update_air_sea_exchange(biotic(n)%model,i-isc+1,j-jsc+1,1,biotic(n)%work_dy(i,:))
     enddo  !} i
+    do ivar=1,biotic(n)%model%info%state_variable_count
+      t_prog(biotic(n)%inds(ivar))%stf(isc:iec,j) = biotic(n)%work_dy(isc:iec,ivar)
+    end do
    enddo  !} j 
 
    !
@@ -692,10 +701,13 @@ endif  !}
 
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-!call otpm_start_namelist(package_name, '*global*', caller = caller_str, no_overwrite = .true., &
-!     check = .true.)
+call otpm_start_namelist(package_name, '*global*', caller = caller_str, no_overwrite = .true., &
+     check = .true.)
 
-!call otpm_end_namelist(package_name, '*global*', caller = caller_str, check = .true.)
+call otpm_set_value('wind_file', 'INPUT/scalar_wind_ongrid.nc')
+call otpm_set_value('wind_name', 'scalar_wind')
+
+call otpm_end_namelist(package_name, '*global*', caller = caller_str, check = .true.)
 
 !
 !-----------------------------------------------------------------------
@@ -844,7 +856,7 @@ end subroutine ocean_tracer_rmbm_init  !}
 
 subroutine ocean_tracer_rmbm_source(Thickness)  !{
 
-type(ocean_thickness_type), intent(in) :: Thickness
+type(ocean_thickness_type),         intent(in) :: Thickness
 
 !
 !-----------------------------------------------------------------------
@@ -904,8 +916,13 @@ do n = 1, instances  !{
   ! update state at the internal time step).
   do ivar=1,biotic(n)%model%info%state_variable_count
      biotic(n)%work_state(isc:iec,jsc:jec,:,ivar) = t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1)
+     biotic(n)%model%state(ivar)%data => biotic(n)%work_state(isc:iec,jsc:jec,:,ivar)
   end do
   
+  ! Set pointers to environmental variables.
+  biotic(n)%model%environment%temp => t_prog(indtemp  )%field(isc:iec,jsc:jec,:,taum1)
+  biotic(n)%model%environment%salt => t_prog(indsal   )%field(isc:iec,jsc:jec,:,taum1)
+
   ! Repair bio state at the start of the time step
   do k = 1, nk  !{
     do j = jsc, jec  !{
@@ -916,7 +933,7 @@ do n = 1, instances  !{
   end do
 
   ! Set array with diagnostic variables to zero, because values for land points will not be set.
-  biotic(n)%work_diag(isc:iec,jsc:jec,:,:) = 0.d0
+  biotic(n)%work_diag = 0.d0
 end do
 
 do it=1,biotic_split
@@ -929,14 +946,12 @@ do it=1,biotic_split
        do j = jsc, jec  !{
        
          ! Initialize derivatives to zero, because the bio model will increment/decrement values rather than set them.
-         biotic(n)%work_dy(isc:iec,:) = 0.d0
+         biotic(n)%work_dy = 0.d0
 
          do i = isc, iec  !{
-           ! Move on if we are on a land point.
-           if (grid%tmask(i,j,k).eq.0.) cycle
-           
-           ! Call bio model for current grid point.
-           call rmbm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:),biotic(n)%work_diag(i,j,k,:))
+           ! Call bio model for current grid point, provided that it is wet
+           if (grid%tmask(i,j,k).eq.1.) &
+              call rmbm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:),biotic(n)%work_diag(i,j,k,:))
          end do  !} i
 
          ! Update current state according to supplied temporal derivatives (Forward Euler)
@@ -980,7 +995,7 @@ do n = 1, instances  !{
     
      !  Get sinking speed over entire column for all state variables.
      do k=1,nk
-       call rmbm_get_vertical_movement(biotic(n)%model,i,j,k,biotic(n)%w(k,:))
+       call rmbm_get_vertical_movement(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%w(k,:))
      end do
      
      ! Interpolate to sinking speed at interfaces
@@ -1035,7 +1050,7 @@ end subroutine  ocean_tracer_rmbm_source  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocean_tracer_rmbm_start  !{
+subroutine ocean_tracer_rmbm_start(Dens)  !{
 
 !
 !-----------------------------------------------------------------------
@@ -1048,6 +1063,8 @@ use time_manager_mod, only: days_in_year, days_in_month,        &
 use time_interp_external_mod, only: init_external_field
 use diag_manager_mod, only: register_diag_field, diag_axis_init
 use fms_mod, only : read_data
+
+type(ocean_density_type),   target, intent(in) :: Dens
 
 !
 !-----------------------------------------------------------------------
@@ -1069,7 +1086,7 @@ character(len=256), parameter   :: note_header =                                
 !-----------------------------------------------------------------------
 !
 character(len=256)                                      :: caller_str
-integer                                                 :: i,n=1
+integer                                                 :: i,n=1,index_wind
 
 !
 ! =====================================================================
@@ -1094,11 +1111,13 @@ write(stdout(),*) trim(note_header),                     &
 
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-!call otpm_start_namelist(package_name, '*global*', caller = caller_str)
+call otpm_start_namelist(package_name, '*global*', caller = caller_str)
 
 ! Request variable values
+wind_file =  otpm_get_string ('wind_file', scalar = .true.)
+wind_name =  otpm_get_string ('wind_name', scalar = .true.)
 
-!call otpm_end_namelist(package_name, '*global*', caller = caller_str)
+call otpm_end_namelist(package_name, '*global*', caller = caller_str)
       
 !
 !-----------------------------------------------------------------------
@@ -1119,24 +1138,30 @@ write(stdout(),*)
 write(stdout(),*) trim(note_header), 'Tracer runs initialized'
 write(stdout(),*)
 
+!index_wind = fm_get_index('/flux/diag_tracers/wind')
+!if (index_wind.eq.-1) call mpp_error(FATAL, trim(error_header)// ' Could not find diagnostic variable "wind"')
+
+wind_id = init_external_field(wind_file,wind_name,domain = Domain%domain2d)
+if (wind_id .eq. 0) then  !{
+  call mpp_error(FATAL, trim(error_header) //                   &
+       'Could not open wind file: ' //                   &
+       trim(wind_file))
+endif  !}
+
+allocate(wind(isd:ied,jsd:jed) )
+
 do n=1,instances
    allocate(biotic(n)%work_state(isc:iec,jsc:jec,nk,biotic(n)%model%info%state_variable_count))
    allocate(biotic(n)%work_dy   (isc:iec,           biotic(n)%model%info%state_variable_count))
    allocate(biotic(n)%work_diag (isc:iec,jsc:jec,nk,biotic(n)%model%info%diagnostic_variable_count))
-   allocate(biotic(n)%w  (nk+1,biotic(n)%model%info%diagnostic_variable_count))
-   allocate(biotic(n)%adv(nk+1,biotic(n)%model%info%diagnostic_variable_count))
+   allocate(biotic(n)%w  (nk+1,biotic(n)%model%info%state_variable_count))
+   allocate(biotic(n)%adv(nk+1,biotic(n)%model%info%state_variable_count))
 
-   ! Set pointers to environmental variables
-   biotic(n)%model%environment%temp   => t_prog(indtemp  )%field(isc:iec,jsc:jec,:,taum1)
-   biotic(n)%model%environment%salt   => t_prog(indsal   )%field(isc:iec,jsc:jec,:,taum1)
+   biotic(n)%model%environment%pres => Dens%pressure_at_depth(isc:iec,jsc:jec,:)
    biotic(n)%model%environment%par    => t_diag(index_irr)%field(isc:iec,jsc:jec,:)
    biotic(n)%model%environment%par_sf => t_diag(index_irr)%field(isc:iec,jsc:jec,1)
-
-   ! Set pointers to biotic variables.
-   do i=1,biotic(n)%model%info%state_variable_count
-     biotic(n)%model%state(i)%data => biotic(n)%work_state(isc:iec,jsc:jec,:,i)
-   end do
-enddo
+   biotic(n)%model%environment%wind   => wind(isc:iec,jsc:jec)
+end do
 
 return
 

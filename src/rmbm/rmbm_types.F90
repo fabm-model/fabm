@@ -49,6 +49,7 @@
 #if 0
       REALTYPE :: mussels_inhale             ! Whether this variable can be consumed by mussels
 #endif
+      logical :: no_precipitation_dilution,no_river_dilution
       
       integer  :: globalid                   ! This is a globally unique identifier for the variable that can be used in getbiovar
    end type type_state_variable_info
@@ -76,35 +77,26 @@
    type type_model_info
       ! Number of state variables
       integer :: state_variable_count, diagnostic_variable_count, conserved_quantity_count
-
-      ! Vertical movement type
-      ! 0: vertical movement of all variables is constant in time and space
-      ! 2: vertical movement of one or more variables depends on time and space
-      !    (optionally including the current state and local enviroment)
-      ! NB: other values (e.g., 1) are reserved for semi-variable vertical movement:
-      ! e.g., in depth only, but not in time. Currently this is not implemented and
-      ! therefore requires dynamic_vertical_movement=2.
-      integer  :: dynamic_vertical_movement
       
       type (type_state_variable_info),     pointer,dimension(:) :: variables            => NULL()
       type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables => NULL()
       type (type_conserved_quantity_info), pointer,dimension(:) :: conserved_quantities => NULL()
       
-      type (type_model_info),pointer :: master
+      type (type_model_info),pointer :: parent, firstchild, nextsibling
       
       character(len=64) :: nameprefix,longnameprefix
    end type type_model_info
    
    type type_environment
       ! 3D variables (defined locally)
-      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: temp => NULL()
-      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: salt => NULL()
-      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: par  => NULL()
-      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: pres => NULL()
+      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: temp => NULL() ! Temperature (degrees Celsius)
+      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: salt => NULL() ! Salinity
+      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: par  => NULL() ! Photosynthetically Active Radiation (W/m^2)
+      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: pres => NULL() ! Pressure (dbar)
       
       ! 2D variables (defined at surface and/or bottom)
-      REALTYPE, pointer, dimension(LOCATION2DDIMENSIONS) :: wind_sf => NULL()
-      REALTYPE, pointer, dimension(LOCATION2DDIMENSIONS) :: par_sf  => NULL()
+      REALTYPE, pointer, dimension(LOCATION2DDIMENSIONS) :: wind    => NULL() ! Surface wind speed (m/s)
+      REALTYPE, pointer, dimension(LOCATION2DDIMENSIONS) :: par_sf  => NULL() ! Surface Photosynthetically Active Radiation (W/m^2)
    end type type_environment
 
    type type_state
@@ -143,16 +135,16 @@
       modelinfo%state_variable_count      = 0
       modelinfo%diagnostic_variable_count = 0
       modelinfo%conserved_quantity_count  = 0
-      
-      modelinfo%dynamic_vertical_movement = 0
 
       modelinfo%variables            => null()
       modelinfo%diagnostic_variables => null()
       modelinfo%conserved_quantities => null()
       
-      modelinfo%master => null()
+      modelinfo%parent      => null()
+      modelinfo%firstchild  => null()
+      modelinfo%nextsibling => null()
       
-      modelinfo%nameprefix = ''
+      modelinfo%nameprefix     = ''
       modelinfo%longnameprefix = ''
             
    end subroutine init_model_info
@@ -194,6 +186,8 @@
 #if 0
       varinfo%mussels_inhale = .false.
 #endif
+      varinfo%no_precipitation_dilution = .false.
+      varinfo%no_river_dilution         = .false.
    end subroutine init_state_variable_info
 !EOC
 
@@ -270,7 +264,8 @@
 ! !INTERFACE:
    recursive function register_state_variable(modelinfo, name, units, longname, &
                                     initial_value, vertical_movement, specific_light_extinction, &
-                                    mussels_inhale, minimum, maximum) &
+                                    mussels_inhale, minimum, maximum, &
+                                    no_precipitation_dilution,no_river_dilution) &
                                     result(id)
 !
 ! !DESCRIPTION:
@@ -287,7 +282,7 @@
       character(len=*),      intent(in)          :: name, longname, units
       REALTYPE,              intent(in),optional :: initial_value,vertical_movement,specific_light_extinction
       REALTYPE,              intent(in),optional :: minimum, maximum
-      logical,               intent(in),optional :: mussels_inhale
+      logical,               intent(in),optional :: mussels_inhale,no_precipitation_dilution,no_river_dilution
 !
 ! !OUTPUT PARAMETER:
       integer                                    :: id
@@ -319,8 +314,8 @@
       call init_state_variable_info(modelinfo%variables(id))
       
       ! Store customized information on state variable.
-      modelinfo%variables(id)%name = name
-      modelinfo%variables(id)%units = units
+      modelinfo%variables(id)%name     = name
+      modelinfo%variables(id)%units    = units
       modelinfo%variables(id)%longname = longname
       if (present(initial_value))             modelinfo%variables(id)%initial_value = initial_value
       if (present(minimum))                   modelinfo%variables(id)%minimum = minimum
@@ -330,6 +325,8 @@
 #if 0
       if (present(mussels_inhale))            modelinfo%variables(id)%mussels_inhale = mussels_inhale
 #endif
+      if (present(no_precipitation_dilution)) modelinfo%variables(id)%no_precipitation_dilution = no_precipitation_dilution
+      if (present(no_river_dilution        )) modelinfo%variables(id)%no_river_dilution         = no_river_dilution
 
       ! Check for positive definiteness of initial value, if positive definiteness is specified.
       ! NB: although it would make sense to allow a value of exactly zero for positive definite
@@ -345,14 +342,16 @@
                   
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the variable id.
-      if (associated(modelinfo%master)) &
-         id = register_state_variable(modelinfo%master,trim(modelinfo%nameprefix)//name,       &
-                units,trim(modelinfo%longnameprefix)//' '//longname,                            &
+      if (associated(modelinfo%parent)) &
+         id = register_state_variable(modelinfo%parent,trim(modelinfo%nameprefix)//name,       &
+                units,trim(modelinfo%longnameprefix)//' '//longname,                           &
                 initial_value             = modelinfo%variables(id)%initial_value,             &
                 vertical_movement         = modelinfo%variables(id)%vertical_movement,         &
                 specific_light_extinction = modelinfo%variables(id)%specific_light_extinction, &
                 minimum                   = modelinfo%variables(id)%minimum,                   &
-                maximum                   = modelinfo%variables(id)%maximum)
+                maximum                   = modelinfo%variables(id)%maximum,                   &
+                no_precipitation_dilution = modelinfo%variables(id)%no_precipitation_dilution, &
+                no_river_dilution         = modelinfo%variables(id)%no_river_dilution)
                 
       ! Save the variable's global id.
       modelinfo%variables(modelinfo%state_variable_count)%globalid = id
@@ -410,15 +409,15 @@
       call init_diagnostic_variable_info(modelinfo%diagnostic_variables(id))
       
       ! Store customized information on diagnostic variable.
-      modelinfo%diagnostic_variables(id)%name = name
-      modelinfo%diagnostic_variables(id)%units = units
+      modelinfo%diagnostic_variables(id)%name     = name
+      modelinfo%diagnostic_variables(id)%units    = units
       modelinfo%diagnostic_variables(id)%longname = longname
       if (present(time_treatment)) modelinfo%diagnostic_variables(id)%time_treatment = time_treatment
                   
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the diagnostic variable id.
-      if (associated(modelinfo%master)) &
-         id = register_diagnostic_variable(modelinfo%master,trim(modelinfo%nameprefix)//name, &
+      if (associated(modelinfo%parent)) &
+         id = register_diagnostic_variable(modelinfo%parent,trim(modelinfo%nameprefix)//name, &
                  units,trim(modelinfo%longnameprefix)//' '//longname, &
                  modelinfo%diagnostic_variables(id)%time_treatment)
                 
@@ -478,14 +477,14 @@
       call init_conserved_quantity_info(modelinfo%conserved_quantities(id))
       
       ! Store customized information on conserved quantity.
-      modelinfo%conserved_quantities(id)%name = name
-      modelinfo%conserved_quantities(id)%units = units
+      modelinfo%conserved_quantities(id)%name     = name
+      modelinfo%conserved_quantities(id)%units    = units
       modelinfo%conserved_quantities(id)%longname = longname
                   
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the conserved quantity id.
-      if (associated(modelinfo%master)) &
-         id = register_conserved_quantity(modelinfo%master,trim(modelinfo%nameprefix)//name, &
+      if (associated(modelinfo%parent)) &
+         id = register_conserved_quantity(modelinfo%parent,trim(modelinfo%nameprefix)//name, &
                  units,trim(modelinfo%longnameprefix)//' '//longname)
                 
       ! Save the conserved quantity's global id.
@@ -511,8 +510,8 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-      type (type_model_info),intent(in) :: modelinfo
-      character(len=*),      intent(in) :: name
+      type (type_model_info),target,          intent(in) :: modelinfo
+      character(len=*),                       intent(in) :: name
 !
 ! !OUTPUT PARAMETER:
       integer                           :: id
@@ -523,23 +522,41 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-      character(len=256)                      :: text
+      integer                                 :: i
+      type (type_model_info),pointer          :: curinfo
 !
 !-----------------------------------------------------------------------
 !BOC
-      if (associated(modelinfo%master)) then
-         ! There is a master model attached - ask that model for the variable id instead.
-         id = register_state_variable_dependency(modelinfo%master,name)
-      else
-         ! No master model attached - look up the variable in our ptivate list of state variables.
-         do id = 1,modelinfo%state_variable_count
-            if (modelinfo%variables(id)%name==name) exit
-         end do
-         if (id>modelinfo%state_variable_count) then
-            write (text,*) 'Could not locate variable "'//trim(name)//'".'
-            call fatal_error('bio_types::register_state_variable_dependency',text)
+      id = -1
+      
+      ! If this model does not have a parent, there is no context to search variables in.
+      if (.not. associated(modelinfo%parent)) return
+
+      ! First search amongst siblings (if any)
+      curinfo => modelinfo%parent%firstchild
+      do while (associated(curinfo))
+         if (.not. associated(curinfo,modelinfo)) then
+            do i = 1,curinfo%state_variable_count
+               if (curinfo%variables(i)%name==name) then
+                  id = curinfo%variables(i)%globalid
+                  return
+               end if
+            end do
          end if
-      end if
+         curinfo => curinfo%nextsibling
+      end do
+
+      ! Now search amongst ancestors.
+      curinfo => modelinfo%parent
+      do while (associated(curinfo))
+         do i = 1,curinfo%state_variable_count
+            if (curinfo%variables(i)%name==name) then
+               id = curinfo%variables(i)%globalid
+               return
+            end if
+         end do
+         curinfo => curinfo%parent
+      end do
       
    end function register_state_variable_dependency
 !EOC

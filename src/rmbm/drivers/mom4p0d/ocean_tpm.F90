@@ -94,7 +94,7 @@ module ocean_tpm_mod  !{
 use field_manager_mod
 use mpp_mod,            only: stdout, mpp_error, FATAL
 use ocean_tpm_util_mod, only: dtts
-use ocean_types_mod,    only: ocean_thickness_type
+use ocean_types_mod,    only: ocean_thickness_type, ocean_density_type
 
 !
 !       Place tracer modules here
@@ -782,10 +782,12 @@ end subroutine ocean_tpm_source
 ! </DESCRIPTION>
 !
 
-subroutine ocean_tpm_start(T_prog_in, T_diag_in)  !{
+subroutine ocean_tpm_start(T_prog_in, T_diag_in,Dens)  !{
 
 use ocean_tpm_util_mod, only: t_prog, t_diag
 use ocean_types_mod, only: ocean_prog_tracer_type, ocean_diag_tracer_type
+
+type(ocean_density_type), target, intent(in) :: Dens
 
 !
 !-----------------------------------------------------------------------
@@ -834,7 +836,7 @@ endif  !}
 
 ! JornB
 if (do_ocean_tracer_rmbm) then  !{
-  call ocean_tracer_rmbm_start
+  call ocean_tracer_rmbm_start(Dens)
 endif  !}
 
 if (do_ocmip2_biotic) then  !{
