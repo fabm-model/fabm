@@ -31,9 +31,10 @@ module rmbm_co2sys
 ! !PUBLIC DERIVED TYPES:
    type type_co2_sys
       integer :: id_dic
-      integer :: id_temp, id_salt, id_pres, id_wnd
-      integer :: id_ph, id_TA, id_pco2, id_cco2, id_CarbA, id_Bicarb, id_Carb, id_Om_cal, id_Om_arg
-      REALTYPE  :: TA_offset, TA_slope, pCO2a
+      integer :: id_temp, id_salt, id_pres, id_wind
+      integer :: id_ph, id_alk, id_pco2, id_cco2, id_CarbA, id_Bicarb, id_Carb, id_Om_cal, id_Om_arg
+      REALTYPE :: TA_offset, TA_slope, pCO2a
+      logical  :: alk_param
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -65,9 +66,10 @@ contains
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE :: dic_initial
-   REALTYPE  :: TA_offset = 520.1, TA_slope = 51.24, pCO2a = 390.
-   namelist /bio_co2_sys_nml/ dic_initial, TA_offset, TA_slope, pCO2a
+   REALTYPE :: dic_initial, alk_initial
+   REALTYPE  :: alk_offset = 520.1, alk_slope = 51.24, pCO2a = 390.
+   logical :: alk_param = .true.
+   namelist /bio_co2_sys_nml/ dic_initial, alk_initial, alk_param, alk_offset, alk_slope, pCO2a
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -76,15 +78,22 @@ contains
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day, and are converted here to values per second.
-   self%TA_offset = TA_offset
-   self%TA_slope  = TA_slope
+   self%TA_offset = alk_offset
+   self%TA_slope  = alk_slope
    self%pCO2a     = pCO2a
+   self%alk_param  = alk_param
       
-   self%id_dic = register_state_variable(modelinfo,'DIC','mol C/m**3','total dissolved inorganic carbon', &
-                                    dic_initial,minimum=_ZERO_)
+   self%id_dic = register_state_variable(modelinfo,'dic','mol C/m**3','total dissolved inorganic carbon', &
+                                    dic_initial,minimum=_ZERO_,no_precipitation_dilution=.true.,no_river_dilution=.true.)
+                                    
+   if (.not. alk_param) then
+     self%id_alk = register_state_variable(modelinfo,'alk','mEq/m**3','alkalinity', &
+                                    alk_initial,minimum=_ZERO_,no_precipitation_dilution=.true.,no_river_dilution=.true.)
+   else
+     self%id_alk = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity',2)
+   end if
                                     
    self%id_ph     = register_diagnostic_variable(modelinfo, 'pH',    '-',        'pH',                           2)
-   self%id_TA     = register_diagnostic_variable(modelinfo, 'TA',    'mmol/m**3','alkalinity',                   2)
    self%id_pco2   = register_diagnostic_variable(modelinfo, 'pCO2',  'ppm',      'CO2 partial pressure',         2)
    self%id_cco2   = register_diagnostic_variable(modelinfo, 'cCO2',  'mmol/m**3','CO2 concentration',            2)
    self%id_CarbA  = register_diagnostic_variable(modelinfo, 'CarbA', 'mmol/m**3','carbonic acid concentration',  2)
@@ -92,6 +101,11 @@ contains
    self%id_Carb   = register_diagnostic_variable(modelinfo, 'Carb',  'mmol/m**3','carbonate ion concentration',  2)
    self%id_Om_cal = register_diagnostic_variable(modelinfo, 'Om_cal','-',        'calcite saturation state',     2)
    self%id_Om_arg = register_diagnostic_variable(modelinfo, 'Om_arg','-',        'aragonite saturation state',   2)
+   
+   self%id_temp = register_dependency(modelinfo, varname_temp)
+   self%id_salt = register_dependency(modelinfo, varname_salt)
+   self%id_pres = register_dependency(modelinfo, varname_pres)
+   self%id_wind = register_dependency(modelinfo, varname_wind_sf,shape=shape2d)
 
    return
 
@@ -133,26 +147,30 @@ contains
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Get environmental variables.
+   temp = max(_ZERO_,environment%var3d(self%id_temp)%data(LOCATION))
+   salt = environment%var3d(self%id_salt)%data(LOCATION)
+   pres = environment%var3d(self%id_pres)%data(LOCATION)
+
    ! Get current value for total dissolved inorganic carbon (our own state variable).
    dic = state(self%id_dic)%data(LOCATION)
 
-   ! Get environmental variables.
-   temp = environment%temp(LOCATION)
-   salt = environment%salt(LOCATION)
-   pres = environment%pres(LOCATION)
-
-   ! Linearly approximate alkalinity from salinity.
-   TA = self%TA_offset + self%TA_slope*salt
+   if (self%alk_param) then
+      ! Linearly approximate alkalinity from salinity.
+      TA = self%TA_offset + self%TA_slope*salt
+   else
+      ! Alkalinity is a separate state variable
+      TA = state(self%id_alk)%data(LOCATION)
+   end if
 
    ! Calculate carbonate system equilibrium.
    call CO2DYN(dic/1.0D6, TA/1.0D6, temp, salt, PCO2WATER, pH, HENRY, PCO2X, ca, bc, cb)
 
    !Call carbonate saturation state subroutine to calculate calcite and aragonite calcification states.
-   call CaCO3_Saturation (temp, salt, pres*10.d0, cb, Om_cal, Om_arg)
+   call CaCO3_Saturation (temp, salt, pres, cb, Om_cal, Om_arg)
    
    ! Store diagnostic variables.
    diag(self%id_ph)     = ph
-   diag(self%id_TA)     = TA
    diag(self%id_pco2)   = PCO2WATER*1.0D6   ! To ppm
    diag(self%id_cco2)   = PCO2X             ! Already in mmol/m**3
    diag(self%id_CarbA)  = ca       *1.0D6   ! To mmol/m**3
@@ -160,6 +178,7 @@ contains
    diag(self%id_Carb)   = cb       *1.0D6   ! To mmol/m**3
    diag(self%id_Om_cal) = Om_cal
    diag(self%id_Om_arg) = Om_arg
+   if (self%alk_param) diag(self%id_alk) = TA
 
    end subroutine do_bio_co2_sys_0d
 !EOC
@@ -170,7 +189,7 @@ contains
 ! !IROUTINE: Air-sea exchange for the carbonate system model
 !
 ! !INTERFACE:
-   subroutine update_air_sea_co2_sys_0d(self,state,environment,LOCATION,numc,flux)
+   subroutine update_air_sea_co2_sys_0d(self,state,environment,LOCATION,flux)
 !
 ! !DESCRIPTION:
 !
@@ -178,14 +197,13 @@ contains
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_co2_sys), intent(in)      :: self
-   type (type_state),      intent(in),pointer :: state(:)
-   type (type_environment),intent(in),pointer :: environment
-   LOCATIONTYPE                         :: LOCATION
-   integer,intent(in)                   :: numc
+   type (type_co2_sys), intent(in)    :: self
+   type (type_state),      intent(in) :: state(:)
+   type (type_environment),intent(in) :: environment
+   LOCATIONTYPE                       :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, intent(inout)              :: flux(1:numc)
+   REALTYPE, intent(inout)            :: flux(:)
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -205,14 +223,19 @@ contains
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   temp = environment%temp(LOCATION)
-   salt = environment%salt(LOCATION)
-   wnd  = environment%wind_sf(LOCATION2D)
+   temp = max(_ZERO_,environment%var3d(self%id_temp)%data(LOCATION))
+   salt = environment%var3d(self%id_salt)%data(LOCATION)
+   wnd  = environment%var2d(self%id_wind)%data(LOCATION2D)
 
    dic = state(self%id_dic)%data(LOCATION)
 
-   ! Linearly approximate alkalinity from salinity.
-   TA = self%TA_offset + self%TA_slope*salt
+   if (self%alk_param) then
+      ! Linearly approximate alkalinity from salinity.
+      TA = self%TA_offset + self%TA_slope*salt
+   else
+      ! Alkalinity is a separate state variable
+      TA = state(self%id_alk)%data(LOCATION)
+   end if
 
    ! Calculate carbonate system equilibrium.
    call CO2DYN(dic/1.0D6, TA/1.0D6, temp, salt, PCO2WATER, pH, HENRY, PCO2X, ca, bc, cb)

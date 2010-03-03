@@ -145,7 +145,7 @@
    
    ! State variables
    self%id_n = register_state_variable(modelinfo,'nut','mmol/m**3','nutrients',     &
-                                    n_initial,minimum=_ZERO_)
+                                    n_initial,minimum=_ZERO_,no_river_dilution=.true.)
    self%id_p = register_state_variable(modelinfo,'phy','mmol/m**3','phytoplankton', &
                                     p_initial,minimum=_ZERO_,vertical_movement=w_p/secs_pr_day, &
                                     mussels_inhale=.true.)
@@ -158,7 +158,10 @@
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%id_dic = -1
-   if (dic_variable.ne.'') self%id_dic = register_state_variable_dependency(modelinfo,dic_variable)
+   if (dic_variable.ne.'') then
+      self%id_dic = register_state_variable_dependency(modelinfo,dic_variable)
+      if (self%id_dic.eq.-1) call fatal_error('init_bio_npzd_0d','Cannot locate external DIC variable '//dic_variable)
+   end if
 
    ! Diagnostic variables
    self%id_GPP  = register_diagnostic_variable(modelinfo,'GPP','mmol/m**3',  'gross primary production',           3)
@@ -170,6 +173,9 @@
    ! Conserved quantities
    self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
    
+   self%id_par = register_dependency(modelinfo, varname_par)
+   self%id_I_0 = register_dependency(modelinfo, varname_par_sf, shape=shape2d)
+
    return
 
 99 call fatal_error('init_bio_npzd_0d','I could not read namelist bio_npzd_nml')
@@ -377,7 +383,7 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,z,d,par,I_0
+   REALTYPE                   :: n,p,z,d,par,I_0,dn
    REALTYPE                   :: iopt
    REALTYPE                   :: rpd
    REALTYPE, parameter :: secs_pr_day = 86400.
@@ -392,8 +398,11 @@
    d = state(self%id_d)%data(LOCATION)
    
    ! Retrieve current (local) environmental conditions.
-   par = environment%par(LOCATION)
-   I_0 = environment%par_sf(LOCATION2D)
+   par = environment%var3d(self%id_par)%data(LOCATION)
+   I_0 = environment%var2d(self%id_I_0)%data(LOCATION2D)
+   
+   !par = environment%par(LOCATION)
+   !I_0 = environment%par_sf(LOCATION2D)
    
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -407,15 +416,15 @@
    ! Note: the temporal derivatives are incremented or decremented, rahter than set.
    ! This is IMPORTANT: oher biogeochemical models might already have provided additional
    ! sink and source terms for these variables in the rhs arrays.
-   rhs(self%id_n) = rhs(self%id_n) - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
+   dn = - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
+   rhs(self%id_n) = rhs(self%id_n) + dn
    rhs(self%id_p) = rhs(self%id_p) + fnp(self,n,p,par,iopt) - fpz(self,p,z) - self%rpn*p - rpd*p
    rhs(self%id_z) = rhs(self%id_z) + fpz(self,p,z) - self%rzn*z - self%rzd*z
    rhs(self%id_d) = rhs(self%id_d) + rpd*p + self%rzd*z - self%rdn*d
-   
+
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
-   if (self%id_dic.ne.-1) &
-      rhs(self%id_dic) = rhs(self%id_dic) + self%dic_per_n*(- fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d)
+   if (self%id_dic.ne.-1) rhs(self%id_dic) = rhs(self%id_dic) + self%dic_per_n*dn
 
    ! Export diagnostic variables
    diag(self%id_dPAR) = par
@@ -499,7 +508,7 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,z,d,par,I_0
+   REALTYPE                   :: n,p,z,d,par,I_0,dn
    REALTYPE                   :: iopt
    REALTYPE                   :: rpd
    integer                    :: i,j
@@ -515,8 +524,10 @@
    d = state(self%id_d)%data(LOCATION)
    
    ! Retrieve current (local) environmental conditions.
-   par = environment%par(LOCATION)
-   I_0 = environment%par_sf(LOCATION2D)
+   !par = environment%par(LOCATION)
+   !I_0 = environment%par_sf(LOCATION2D)
+   par = environment%var3d(self%id_par)%data(LOCATION)
+   I_0 = environment%var2d(self%id_I_0)%data(LOCATION2D)
    
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -546,9 +557,8 @@
 
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
-   if (self%id_dic.ne.-1) &
-      pp(self%id_dic,self%id_dic) = pp(self%id_dic,self%id_dic) + &
-         self%dic_per_n*(- fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d)
+   dn = - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
+   if (self%id_dic.ne.-1) pp(self%id_dic,self%id_dic) = pp(self%id_dic,self%id_dic) + self%dic_per_n*dn
 
    ! Export diagnostic variables
    diag(self%id_dPAR) = par

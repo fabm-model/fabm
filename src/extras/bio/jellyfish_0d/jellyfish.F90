@@ -115,6 +115,8 @@
    self%id_resptarget = register_state_variable_dependency(modelinfo,respiration_target_variable)
    self%id_morttarget = register_state_variable_dependency(modelinfo,mortality_target_variable)
    
+   self%id_temp = register_dependency(modelinfo, varname_temp)
+
    self%food_scale = food_scale
 
    return
@@ -199,8 +201,7 @@
    foodmic = state(self%id_foodmic)%data(LOCATION)*self%food_scale
    foodno  = food/0.0024 !0.0024 is mg C per copepod
    
-   !temp = getvar(self%id_temp,LOCATION)
-   temp = environment%temp(LOCATION)
+   temp = environment%var3d(self%id_temp)%data(LOCATION)
 
    !write (*,*) LOCATION,numc,food,foodmic
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
