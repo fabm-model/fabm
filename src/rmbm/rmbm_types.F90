@@ -32,8 +32,8 @@
    public type_state_variable_info,type_diagnostic_variable_info,type_conserved_quantity_info
    public init_model_info
    public register_state_variable, register_diagnostic_variable, register_conserved_quantity, &
-          register_state_variable_dependency
-   public type_environment,type_state
+          register_state_variable_dependency, register_dependency
+   public type_environment,type_state_2d,type_state
 !
 ! !PUBLIC DERIVED TYPES:
 !
@@ -72,36 +72,57 @@
       character(len=64) :: name, longname, units
       integer           :: globalid,id
    end type type_conserved_quantity_info
-
+   
    ! Global 0D model properties
    type type_model_info
       ! Number of state variables
       integer :: state_variable_count, diagnostic_variable_count, conserved_quantity_count
       
-      type (type_state_variable_info),     pointer,dimension(:) :: variables            => NULL()
-      type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables => NULL()
-      type (type_conserved_quantity_info), pointer,dimension(:) :: conserved_quantities => NULL()
+      type (type_state_variable_info),     pointer,dimension(:) :: variables            => null()
+      type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables => null()
+      type (type_conserved_quantity_info), pointer,dimension(:) :: conserved_quantities => null()
       
       type (type_model_info),pointer :: parent, firstchild, nextsibling
       
       character(len=64) :: nameprefix,longnameprefix
+      
+      character(len=64),pointer  :: dependencies3d(:) => null()
+      character(len=64),pointer  :: dependencies2d(:) => null()
    end type type_model_info
    
-   type type_environment
-      ! 3D variables (defined locally)
-      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: temp => NULL() ! Temperature (degrees Celsius)
-      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: salt => NULL() ! Salinity
-      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: par  => NULL() ! Photosynthetically Active Radiation (W/m^2)
-      REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: pres => NULL() ! Pressure (dbar)
-      
-      ! 2D variables (defined at surface and/or bottom)
-      REALTYPE, pointer, dimension(LOCATION2DDIMENSIONS) :: wind    => NULL() ! Surface wind speed (m/s)
-      REALTYPE, pointer, dimension(LOCATION2DDIMENSIONS) :: par_sf  => NULL() ! Surface Photosynthetically Active Radiation (W/m^2)
-   end type type_environment
-
+   integer, parameter, public         :: shape2d=2,shape3d=3
+   
+   character(len=64),parameter,public :: varname_temp    = 'env_temp', &
+                                         varname_salt    = 'env_salt', &
+                                         varname_par     = 'env_par',  &
+                                         varname_pres    = 'env_pres', &
+                                         varname_wind_sf = 'env_wind_sf', &
+                                         varname_par_sf  = 'env_par_sf'
+                                  
    type type_state
       REALTYPE,pointer,dimension(LOCATIONDIMENSIONS) :: data => NULL()
-   end type
+   end type type_state
+
+   type type_state_2d
+      REALTYPE,pointer,dimension(LOCATION2DDIMENSIONS) :: data => NULL()
+   end type type_state_2d
+
+   type type_environment
+      type (type_state   ), dimension(:), pointer :: var3d => null()
+      type (type_state_2d), dimension(:), pointer :: var2d => null()
+   end type type_environment
+
+   !type type_environment
+   !   ! 3D variables (defined locally)
+   !   REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: temp => NULL() ! Temperature (degrees Celsius)
+   !   REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: salt => NULL() ! Salinity
+   !   REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: par  => NULL() ! Photosynthetically Active Radiation (W/m^2)
+   !   REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: pres => NULL() ! Pressure (dbar = 10 kPa)
+   !   
+   !   ! 2D variables (defined at surface and/or bottom)
+   !   REALTYPE, pointer, dimension(LOCATION2DDIMENSIONS) :: wind    => NULL() ! Surface wind speed (m/s)
+   !   REALTYPE, pointer, dimension(LOCATION2DDIMENSIONS) :: par_sf  => NULL() ! Surface Photosynthetically Active Radiation (W/m^2)
+   !end type type_environment
 
 !-----------------------------------------------------------------------
 
@@ -562,9 +583,96 @@
 !EOC
 
 !-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Registers a read-only dependency on another variable
+!
+! !INTERFACE:
+   recursive function register_dependency(modelinfo,name,shape) result(id)
+!
+! !DESCRIPTION:
+!  This function searches for a biogeochemical state variable by the user-supplied name
+!  in the global model database. It returns the identifier of the variable (or -1 if
+!  the variable is not found), which may be used to retrieve the variable value at a later stage.
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+      type (type_model_info),target,          intent(inout) :: modelinfo
+      character(len=*),                       intent(in)    :: name
+      integer,optional,                       intent(in)    :: shape
+!
+! !OUTPUT PARAMETER:
+      integer                           :: id
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+      integer                                 :: n,realshape
+      type (type_model_info),pointer          :: proot
+      character(len=64),pointer    :: dependencies_new(:)
+      character(len=64),pointer               :: source(:)
+!
+!-----------------------------------------------------------------------
+!BOC
+      ! Get effective shape argument
+      realshape = shape3d
+      if (present(shape)) realshape = shape
+
+      ! Find the root of the model tree
+      proot => modelinfo
+      do while (associated(proot%parent))
+         proot => proot%parent
+      end do
+      
+      ! Get pointer to array wioth dependencies
+      select case (realshape)
+         case (shape2d)
+            source => proot%dependencies2d
+         case (shape3d)
+            source => proot%dependencies3d
+         case default
+            call fatal_error('rmbm_types::register_dependency','Invalid shape argument given')
+      end select
+
+      ! Search existing dependencies and return the corresponding id if found.
+      if (associated(source)) then
+         n = ubound(source,1)
+         do id=1,n
+            if (source(id).eq.name) return
+         end do
+      else
+         n = 0
+      end if
+      
+      ! Extend array to hold new dependency
+      allocate(dependencies_new(n+1))
+      if (associated(source)) then
+         dependencies_new(1:n) = source(:)
+         deallocate(source)
+      end if
+      dependencies_new(n+1) = name
+      
+      select case (realshape)
+         case (shape2d)
+            proot%dependencies2d => dependencies_new
+         case (shape3d)
+            proot%dependencies3d => dependencies_new
+      end select
+      
+      id = n+1
+      
+   end function register_dependency
+!EOC
+
+!-----------------------------------------------------------------------
    
    end module rmbm_types
 
 !-----------------------------------------------------------------------
-! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
+! Copyright under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------

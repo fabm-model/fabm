@@ -249,6 +249,7 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_model, rmbm_init, rmbm_create_model, rmbm_do, &
+          rmbm_link_variable_data,rmbm_get_variable_id, &
           rmbm_check_state, rmbm_get_vertical_movement, rmbm_get_bio_extinction, &
           rmbm_get_conserved_quantities, rmbm_update_air_sea_exchange
 !
@@ -299,6 +300,11 @@
       module procedure rmbm_do_ppdd
       module procedure rmbm_do_rhs_1d
    end interface rmbm_do
+   
+   interface rmbm_link_variable_data
+      module procedure rmbm_supply_variable_data_2d
+      module procedure rmbm_supply_variable_data_3d
+   end interface rmbm_link_variable_data
 !
 ! !REVISION HISTORY:!
 !  Original author(s): Jorn Bruggeman
@@ -353,7 +359,7 @@
 !
 ! !IROUTINE: Create a new model. This will be a specific model if the
 ! model identifier is provided, or a contained of child models if the
-! idnetifier is omitted.
+! identifier is omitted.
 !
 ! !INTERFACE:
    function rmbm_create_model(modelid,name,parent) result(model)
@@ -483,6 +489,8 @@
    
    if (.not. associated(model%parent)) then
       allocate(model%environment)
+      allocate(model%environment%var2d(ubound(model%info%dependencies2d,1)))
+      allocate(model%environment%var3d(ubound(model%info%dependencies3d,1)))
       allocate(model%state(model%info%state_variable_count))
       call set_state_data(model,model%state,model%environment)
    end if
@@ -507,6 +515,46 @@ recursive subroutine set_state_data(model,state,environment)
       curchild => curchild%nextsibling
    end do
 end subroutine set_state_data
+
+function rmbm_get_variable_id(model,name,shape) result(id)
+   type (type_model),             intent(in)  :: model
+   character(len=*),              intent(in)  :: name
+   integer,                       intent(in)  :: shape
+   integer                                    :: id
+   character(len=64),pointer                  :: source(:)
+   
+   select case (shape)
+      case (shape2d)
+         source => model%info%dependencies2d
+      case (shape3d)
+         source => model%info%dependencies3d
+   end select
+
+   if (associated(source)) then
+      do id=1,ubound(source,1)
+         if (source(id)==name) return
+      end do
+   end if
+   
+   id = -1
+end function rmbm_get_variable_id
+
+recursive subroutine rmbm_supply_variable_data_3d(model,id,dat)
+   type (type_model),             intent(inout)  :: model
+   integer,                       intent(in)     :: id
+   REALTYPE,dimension(LOCATIONDIMENSIONS),target,intent(in) :: dat
+   
+   model%environment%var3d(id)%data => dat
+end subroutine rmbm_supply_variable_data_3d
+
+recursive subroutine rmbm_supply_variable_data_2d(model,id,dat)
+   type (type_model),             intent(inout)  :: model
+   integer,                       intent(in)     :: id
+   REALTYPE,dimension(LOCATION2DDIMENSIONS),target,intent(in) :: dat
+   
+   model%environment%var2d(id)%data => dat
+end subroutine rmbm_supply_variable_data_2d
+
 
 !-----------------------------------------------------------------------
 !BOP
@@ -903,5 +951,5 @@ end subroutine set_state_data
 end module rmbm
 
 !-----------------------------------------------------------------------
-! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
+! Copyright under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------

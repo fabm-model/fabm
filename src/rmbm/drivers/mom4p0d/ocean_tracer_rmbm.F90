@@ -102,6 +102,7 @@ use ocean_sbc_mod,      only: use_waterflux
 use ocean_types_mod,    only: ocean_thickness_type,ocean_density_type
 
 use rmbm
+use rmbm_types
 
 !
 !----------------------------------------------------------------------
@@ -172,6 +173,7 @@ character(len=fm_string_len), parameter         :: default_file_out = 'RESTART/o
 type biotic_type  !{
 
   type (type_model),pointer :: model
+  integer                                          :: id_temp,id_salt,id_wind,id_pres,id_par,id_par_sf
   
   character(len=fm_field_name_len)                 :: name
   logical                                          :: do_virtual_flux = .false.
@@ -487,8 +489,8 @@ call time_interp_external(wind_id, time%model_time, wind)
 
 do n = 1, instances  !{
   ! Set pointers to environmental variables.
-  biotic(n)%model%environment%temp => t_prog(indtemp  )%field(isc:iec,jsc:jec,:,tau)
-  biotic(n)%model%environment%salt => t_prog(indsal   )%field(isc:iec,jsc:jec,:,tau)
+  if (biotic(n)%id_temp.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,tau))
+  if (biotic(n)%id_salt.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,tau))
 
   ! Set pointers to biotic variables.
   do ivar=1,biotic(n)%model%info%state_variable_count
@@ -791,6 +793,14 @@ do n = 1, instances  !{
           min_tracer_limit = biotic(n)%model%info%variables(i)%minimum,                      &
           max_tracer_limit = biotic(n)%model%info%variables(i)%maximum)
   end do
+  
+  ! Obtain ids of required external variables
+  biotic(n)%id_temp   = rmbm_get_variable_id(biotic(n)%model,varname_temp,   shape3d)
+  biotic(n)%id_salt   = rmbm_get_variable_id(biotic(n)%model,varname_salt,   shape3d)
+  biotic(n)%id_pres   = rmbm_get_variable_id(biotic(n)%model,varname_pres,   shape3d)
+  biotic(n)%id_par    = rmbm_get_variable_id(biotic(n)%model,varname_par,    shape3d)
+  biotic(n)%id_wind   = rmbm_get_variable_id(biotic(n)%model,varname_wind_sf,shape2d)
+  biotic(n)%id_par_sf = rmbm_get_variable_id(biotic(n)%model,varname_par_sf, shape2d)
 
 enddo  !} n
 
@@ -920,14 +930,15 @@ do n = 1, instances  !{
   end do
   
   ! Set pointers to environmental variables.
-  biotic(n)%model%environment%temp => t_prog(indtemp  )%field(isc:iec,jsc:jec,:,taum1)
-  biotic(n)%model%environment%salt => t_prog(indsal   )%field(isc:iec,jsc:jec,:,taum1)
+  if (biotic(n)%id_temp.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
+  if (biotic(n)%id_salt.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
 
   ! Repair bio state at the start of the time step
   do k = 1, nk  !{
     do j = jsc, jec  !{
       do i = isc, iec  !{
-        valid = rmbm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.)
+        if (grid%tmask(i,j,k).eq.1.) &
+          valid = rmbm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.)
       end do
     end do
   end do
@@ -953,9 +964,15 @@ do it=1,biotic_split
            if (grid%tmask(i,j,k).eq.1.) &
               call rmbm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:),biotic(n)%work_diag(i,j,k,:))
          end do  !} i
-
+         
          ! Update current state according to supplied temporal derivatives (Forward Euler)
          biotic(n)%work_state(isc:iec,j,k,:) = biotic(n)%work_state(isc:iec,j,k,:) + dtsb*biotic(n)%work_dy(isc:iec,:)
+
+         ! Repair bio state at the end of the internal time step
+         do i = isc, iec  !{
+           if (grid%tmask(i,j,k).eq.1.) &
+             valid = rmbm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.)
+         end do
 
        end do  !} j
      end do  !} k
@@ -965,15 +982,6 @@ enddo   !} t
 
 do n = 1, instances  !{
 
-   ! Repair bio state at the end of the time step
-   do k = 1, nk  !{
-     do j = jsc, jec  !{
-       do i = isc, iec  !{
-         valid = rmbm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.)
-       end do
-     end do
-   end do
-  
    ! Use updated state variable values to calculate tendencies.
    do ivar=1,biotic(n)%model%info%state_variable_count
       t_prog(biotic(n)%inds(ivar))%th_tendency(isc:iec,jsc:jec,:) = t_prog(biotic(n)%inds(ivar))%th_tendency(isc:iec,jsc:jec,:) &
@@ -992,40 +1000,40 @@ do n = 1, instances  !{
   ! Vertical movement is applied with a first-order upwind scheme.
   do j = jsc, jec
     do i = isc, iec
+     if (grid%tmask(i,j,k).ne.1.) cycle
     
      !  Get sinking speed over entire column for all state variables.
-     do k=1,nk
+     do k=1,grid%kmt(i,j)
        call rmbm_get_vertical_movement(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%w(k,:))
      end do
      
      ! Interpolate to sinking speed at interfaces
      do ivar=1,biotic(n)%model%info%state_variable_count
-       biotic(n)%w(2:nk,ivar) = (biotic(n)%w(2:nk,ivar) + biotic(n)%w(1:nk-1,ivar))*0.5d0
+       biotic(n)%w(2:grid%kmt(i,j),ivar) = (biotic(n)%w(2:grid%kmt(i,j),ivar) + biotic(n)%w(1:grid%kmt(i,j)-1,ivar))*0.5d0
      end do
-     biotic(n)%w(1,                   :) = 0.0d0   ! Surface boundary condition
-     biotic(n)%w(grid%kmt(i,j)+1:nk+1,:) = 0.0d0   ! Bottom boundary condition
+     biotic(n)%w(1,              :) = 0.0d0   ! Surface boundary condition
+     biotic(n)%w(grid%kmt(i,j)+1,:) = 0.0d0   ! Bottom boundary condition
+     
+     biotic(n)%adv = 0.d0
      
      do ivar=1,biotic(n)%model%info%state_variable_count
      
         ! Get upstream state variable values at all interfaces.
-        do k=2,nk
+        do k=2,grid%kmt(i,j)
           if (biotic(n)%w(k,ivar)>0.) then
             ! floating
-            biotic(n)%adv(k,ivar) = t_prog(biotic(n)%inds(ivar))%field(i,j,k,taum1)
+            biotic(n)%adv(k,ivar) = biotic(n)%w(k,ivar)*t_prog(biotic(n)%inds(ivar))%field(i,j,k,taum1)
           elseif (biotic(n)%w(k,ivar)<0.) then
             ! sinking
-            biotic(n)%adv(k,ivar) = t_prog(biotic(n)%inds(ivar))%field(i,j,k-1,taum1)
+            biotic(n)%adv(k,ivar) = biotic(n)%w(k,ivar)*t_prog(biotic(n)%inds(ivar))%field(i,j,k-1,taum1)
           end if
         end do
-        
-        ! Calculate transport over all interfaces.
-        biotic(n)%adv = biotic(n)%adv*biotic(n)%w
-        
+
         ! Add transport to tracer tendencies (conservative formulation)
         ! Note: normally the transport terms should be divided by the layer thickness.
         ! However, as MOM4 needs thickness-weighted tendencies (multiplication by thickness)
         ! that can be skipped here.
-        do k=1,nk
+        do k=1,grid%kmt(i,j)
            t_prog(biotic(n)%inds(ivar))%th_tendency(i,j,k) = t_prog(biotic(n)%inds(ivar))%th_tendency(i,j,k) + &
                grid%tmask(i,j,k)*(biotic(n)%adv(k+1,ivar)-biotic(n)%adv(k,ivar))
         end do  !} k
@@ -1138,9 +1146,6 @@ write(stdout(),*)
 write(stdout(),*) trim(note_header), 'Tracer runs initialized'
 write(stdout(),*)
 
-!index_wind = fm_get_index('/flux/diag_tracers/wind')
-!if (index_wind.eq.-1) call mpp_error(FATAL, trim(error_header)// ' Could not find diagnostic variable "wind"')
-
 wind_id = init_external_field(wind_file,wind_name,domain = Domain%domain2d)
 if (wind_id .eq. 0) then  !{
   call mpp_error(FATAL, trim(error_header) //                   &
@@ -1157,10 +1162,10 @@ do n=1,instances
    allocate(biotic(n)%w  (nk+1,biotic(n)%model%info%state_variable_count))
    allocate(biotic(n)%adv(nk+1,biotic(n)%model%info%state_variable_count))
 
-   biotic(n)%model%environment%pres => Dens%pressure_at_depth(isc:iec,jsc:jec,:)
-   biotic(n)%model%environment%par    => t_diag(index_irr)%field(isc:iec,jsc:jec,:)
-   biotic(n)%model%environment%par_sf => t_diag(index_irr)%field(isc:iec,jsc:jec,1)
-   biotic(n)%model%environment%wind   => wind(isc:iec,jsc:jec)
+   if (biotic(n)%id_pres  .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth(isc:iec,jsc:jec,:))
+   if (biotic(n)%id_par   .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_par ,  t_diag(index_irr)%field(isc:iec,jsc:jec,:))
+   if (biotic(n)%id_par_sf.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_par_sf,t_diag(index_irr)%field(isc:iec,jsc:jec,1))
+   if (biotic(n)%id_wind  .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_wind,  wind(isc:iec,jsc:jec))
 end do
 
 return
