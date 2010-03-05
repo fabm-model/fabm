@@ -32,3 +32,31 @@
 #define _NULL =>NULL()
 #define _ALLOCATED ASSOCIATED
 #endif
+
+! Data type for location variable(s)
+#define LOCATION_TYPE integer
+
+! Define remaining dimensions in a 1D loop.
+! NB if there is only one spatial dimension, there are no remaining dimensions!
+#if RMBM_DIMENSIONS>1
+#define DEFINE_LOCATION_1DLOOP LOCATION_TYPE,intent(in) :: LOCATION_1DLOOP
+#define ARG_LOCATION_1DLOOP ,LOCATION_1DLOOP
+#else
+#define DEFINE_LOCATION_1DLOOP
+#define ARG_LOCATION_1DLOOP
+#define LOCATION_1DLOOP
+#define VARIABLE_1DLOOP LOCATION
+#endif
+
+! Define dimension attribute and index specifyer for horizontal (2D) fields.
+#ifdef RMBM_HORIZONTAL_IS_SCALAR
+#define INDEX_LOCATION_HZ
+#define ATTR_LOCATION_DIMENSIONS_HZ
+#else
+#define INDEX_LOCATION_HZ (LOCATION_HZ)
+#define ATTR_LOCATION_DIMENSIONS_HZ ,dimension(LOCATION_DIMENSIONS_HZ)
+#endif
+
+! Define dimension attribute and index specifyer for full 3D fields.
+#define ATTR_LOCATION_DIMENSIONS ,dimension(LOCATION_DIMENSIONS)
+#define INDEX_LOCATION (LOCATION)

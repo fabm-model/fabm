@@ -75,15 +75,15 @@
    logical                   :: bioshade_feedback=.true.
 
    type (type_model),pointer :: model
-   REALTYPE,allocatable,dimension(LOCATIONDIMENSIONS,:),target :: cc
-   REALTYPE,allocatable,dimension(LOCATIONDIMENSIONS,:) :: cc_diag,work_cc_diag,ws
-   REALTYPE,allocatable,dimension(LOCATIONDIMENSIONS)   :: par,pres
+   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:),target :: cc
+   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:) :: cc_diag,work_cc_diag,ws
+   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS)   :: par,pres
    REALTYPE,allocatable,dimension(:)                    :: sfl,bfl
    logical :: rmbm_calc
 
    REALTYPE :: dt
    integer  :: w_adv_ctr
-   REALTYPE,pointer,dimension(LOCATIONDIMENSIONS) :: nuh,h,bioshade,rad,w,z
+   REALTYPE,pointer,dimension(LOCATION_DIMENSIONS) :: nuh,h,bioshade,rad,w,z
 
    contains
 
@@ -220,7 +220,7 @@
 ! !USES:
    IMPLICIT NONE
    
-   LOCATIONTYPE,intent(in) :: LOCATION
+   LOCATION_TYPE,intent(in) :: LOCATION
 !
 !
 ! !REVISION HISTORY:
@@ -234,22 +234,22 @@
 !-----------------------------------------------------------------------
 !BOC
 
-   allocate(cc(1:model%info%state_variable_count,LOCATIONRANGE),stat=rc)
+   allocate(cc(1:model%info%state_variable_count,LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc)'
    do i=1,model%info%state_variable_count
       cc(i,:) = model%info%variables(i)%initial_value
       model%state(i)%data => cc(i,1:LOCATION)
    end do
 
-   allocate(cc_diag(1:model%info%diagnostic_variable_count,LOCATIONRANGE),stat=rc)
+   allocate(cc_diag(1:model%info%diagnostic_variable_count,LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc_diag)'
    cc_diag = _ZERO_
 
-   allocate(work_cc_diag(1:model%info%diagnostic_variable_count,LOCATIONRANGE),stat=rc)
+   allocate(work_cc_diag(1:model%info%diagnostic_variable_count,LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (work_cc_diag)'
    work_cc_diag = _ZERO_
 
-   allocate(ws(LOCATIONRANGE,1:model%info%state_variable_count),stat=rc)
+   allocate(ws(LOCATION_RANGE,1:model%info%state_variable_count),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (ws)'
    do i=1,model%info%state_variable_count
       ws(:,i) = model%info%variables(i)%vertical_movement
@@ -263,12 +263,12 @@
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (bfl)'
    bfl = _ZERO_
 
-   allocate(par(LOCATIONRANGE),stat=rc)
+   allocate(par(LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (par)'
    varid = rmbm_get_variable_id(model,varname_par,shape3d)
    if (varid.ne.-1) call rmbm_link_variable_data(model,varid,par(1:LOCATION))
 
-   allocate(pres(LOCATIONRANGE),stat=rc)
+   allocate(pres(LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (pres)'
    varid = rmbm_get_variable_id(model,varname_pres,shape3d)
    if (varid.ne.-1) call rmbm_link_variable_data(model,varid,pres(1:LOCATION))
@@ -297,8 +297,8 @@
 ! !INPUT PARAMETERS:
    REALTYPE, intent(in) :: dt_
    integer, intent(in) :: w_adv_ctr_
-   REALTYPE, intent(in),target ATTR_LOCATIONDIMENSIONS   :: temp,salt,rho,nuh_,h_,w_,rad_,bioshade_,z_
-   REALTYPE, intent(in),target ATTR_LOCATION2DDIMENSIONS :: I_0,wnd
+   REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS    :: temp,salt,rho,nuh_,h_,w_,rad_,bioshade_,z_
+   REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS_HZ :: I_0,wnd
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman

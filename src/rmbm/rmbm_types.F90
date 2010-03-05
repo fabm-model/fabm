@@ -103,11 +103,11 @@
      varname_par_sf  = 'env_par_sf'     ! Photosynthetically Active Radiation at surface (W/m^2)
                                   
    type type_state
-      REALTYPE,pointer ATTR_LOCATIONDIMENSIONS :: data => NULL()
+      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS :: data => NULL()
    end type type_state
 
    type type_state_2d
-      REALTYPE,pointer ATTR_LOCATION2DDIMENSIONS :: data => NULL()
+      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_HZ :: data => NULL()
    end type type_state_2d
 
    type type_environment

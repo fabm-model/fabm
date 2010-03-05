@@ -1,26 +1,14 @@
+#define RMBM_DIMENSIONS 1
+#define RMBM_HORIZONTAL_IS_SCALAR
+
+! Variable name and dimension specifyer for full bio fields
+#define LOCATION kk
+#define LOCATION_DIMENSIONS :
+
+! Variable name and dimension specifyer for horizontal-only bio fields
+#define LOCATION_HZ
+#define LOCATION_DIMENSIONS_HZ
+
 #include "rmbm.h"
 
-#define LOCATIONTYPE integer
-#define LOCATION kk
-#define LOCATIONDIMENSIONS :
-#define LOCATIONRANGE 0:kk
-#define LOCATION2D
-#define LOCATION2DDIMENSIONS
-#define DIMENSIONS 1
-
-
-#define ATTR_LOCATIONDIMENSIONS ,dimension(LOCATIONDIMENSIONS)
-#define INDEX_LOCATION (LOCATION)
-
-#if DIMENSIONS>1
-#define INDEX_LOCATION2D (LOCATION2D)
-#define ATTR_LOCATION2DDIMENSIONS ,dimension(LOCATION2DDIMENSIONS)
-#else
-#define INDEX_LOCATION2D
-#define ATTR_LOCATION2DDIMENSIONS
-#endif
-
-#define LOCATION_1DLOOP
-#define VARIABLE_1DLOOP kk
-!#define DEFINE_LOCATION_1DLOOP LOCATIONTYPE,intent(in) :: LOCATION_1DLOOP
-#define DEFINE_LOCATION_1DLOOP
+#define LOCATION_RANGE 0:kk

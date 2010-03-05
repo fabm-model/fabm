@@ -540,17 +540,17 @@ function rmbm_get_variable_id(model,name,shape) result(id)
 end function rmbm_get_variable_id
 
 recursive subroutine rmbm_supply_variable_data_3d(model,id,dat)
-   type (type_model),             intent(inout)  :: model
-   integer,                       intent(in)     :: id
-   REALTYPE ATTR_LOCATIONDIMENSIONS,target,intent(in) :: dat
+   type (type_model),                       intent(inout) :: model
+   integer,                                 intent(in)    :: id
+   REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
    
    model%environment%var3d(id)%data => dat
 end subroutine rmbm_supply_variable_data_3d
 
 recursive subroutine rmbm_supply_variable_data_2d(model,id,dat)
-   type (type_model),             intent(inout)  :: model
-   integer,                       intent(in)     :: id
-   REALTYPE ATTR_LOCATION2DDIMENSIONS,target,intent(in) :: dat
+   type (type_model),                          intent(inout) :: model
+   integer,                                    intent(in)    :: id
+   REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
    
    model%environment%var2d(id)%data => dat
 end subroutine rmbm_supply_variable_data_2d
@@ -570,7 +570,7 @@ end subroutine rmbm_supply_variable_data_2d
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
-   LOCATIONTYPE,           intent(in)    :: LOCATION
+   LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, dimension(:), intent(inout) :: dy,diag
@@ -623,7 +623,7 @@ end subroutine rmbm_supply_variable_data_2d
 ! !IROUTINE: Get the local temporal derivatives in 1D
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_do_rhs_1d(model LOCATION_1DLOOP,istart,istop,dy,diag)
+   recursive subroutine rmbm_do_rhs_1d(model ARG_LOCATION_1DLOOP,istart,istop,dy,diag)
 !
 ! !USES:
    IMPLICIT NONE
@@ -639,7 +639,7 @@ end subroutine rmbm_supply_variable_data_2d
 !
 ! !LOCAL PARAMETERS:
    type (type_model), pointer            :: curchild
-   LOCATIONTYPE                          :: VARIABLE_1DLOOP
+   LOCATION_TYPE                         :: VARIABLE_1DLOOP
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -650,7 +650,7 @@ end subroutine rmbm_supply_variable_data_2d
       case (model_container_id)
          curchild => model%firstchild
          do while (associated(curchild))
-            call rmbm_do_rhs_1d(curchild LOCATION_1DLOOP,istart,istop,dy,diag)
+            call rmbm_do_rhs_1d(curchild ARG_LOCATION_1DLOOP,istart,istop,dy,diag)
             curchild => curchild%nextsibling
          end do
       case default
@@ -676,7 +676,7 @@ end subroutine rmbm_supply_variable_data_2d
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
-   LOCATIONTYPE,           intent(in)    :: LOCATION
+   LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE,dimension(:,:),intent(inout) :: pp,dd
@@ -729,7 +729,7 @@ end subroutine rmbm_supply_variable_data_2d
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
-   LOCATIONTYPE,           intent(in)    :: LOCATION
+   LOCATION_TYPE,          intent(in)    :: LOCATION
    logical,                intent(in)    :: repair
 
    logical                               :: valid
@@ -782,7 +782,7 @@ end subroutine rmbm_supply_variable_data_2d
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
-   LOCATIONTYPE,           intent(in)    :: LOCATION
+   LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE,               intent(inout) :: flux(:)
@@ -825,7 +825,7 @@ end subroutine rmbm_supply_variable_data_2d
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
-   LOCATIONTYPE,           intent(in)    :: LOCATION
+   LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE,               intent(inout) :: vertical_movement(:)
@@ -867,7 +867,7 @@ end subroutine rmbm_supply_variable_data_2d
 !
 ! !INPUT PARAMETERS:
    type (type_model), intent(in) :: model
-   LOCATIONTYPE,      intent(in) :: LOCATION
+   LOCATION_TYPE,     intent(in) :: LOCATION
    REALTYPE                      :: extinction
    
    integer                       :: i
@@ -915,7 +915,7 @@ end subroutine rmbm_supply_variable_data_2d
 !
 ! !INPUT PARAMETERS:
    type (type_model), intent(in)      :: model
-   LOCATIONTYPE,      intent(in)      :: LOCATION
+   LOCATION_TYPE,     intent(in)      :: LOCATION
    REALTYPE,          intent(inout)   :: sums(:)
 !
 ! !REVISION HISTORY:

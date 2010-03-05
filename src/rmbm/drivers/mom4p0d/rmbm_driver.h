@@ -1,13 +1,16 @@
+#define RMBM_DIMENSIONS 3
+
+! Variable name and dimension specifyer for full bio fields
+#define LOCATION ii,jj,kk
+#define LOCATION_DIMENSIONS :,:,:
+
+! Variable name and dimension specifyer for horizontal-only bio fields
+#define LOCATION_HZ ii,jj
+#define LOCATION_DIMENSIONS_HZ :,:
+
+! Divide location variables over a single iterator variable and remaining variables.
+#define VARIABLE_1DLOOP ii
+#define LOCATION_1DLOOP jj,kk
+
 #include "rmbm.h"
 
-#define LOCATIONTYPE integer
-#define LOCATION ii,jj,kk
-#define LOCATIONDIMENSIONS :,:,:
-#define LOCATION2D ii,jj
-#define LOCATION2DDIMENSIONS :,:
-
-#define LOCATION_1DLOOP jj,kk
-#define VARIABLE_1DLOOP ii
-#define LENGTH_1DLOOP iec-isc+1
-
-#define LOOP1D_USE use ocean_tpm_util_mod, only: isc, iec
