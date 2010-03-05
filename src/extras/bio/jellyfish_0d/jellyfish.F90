@@ -92,9 +92,7 @@
    ! Read the namelist
    read(namlst,nml=bio_jellyfish_nml,err=99)
 
-   ! Store parameter values in our own derived type
-   ! NB: all rates must be provided in values per day, and are converted here to values per second.
-      
+   ! Register state variables
    self%id_egb = register_state_variable(modelinfo,'egb','mg C/m**3','egg biomass',        &
                                     egb_initial,minimum=_ZERO_)
    self%id_jb  = register_state_variable(modelinfo,'jb','mg C/m**3','nauplii biomass',     &
@@ -110,11 +108,13 @@
    self%id_ada = register_state_variable(modelinfo,'ada','#/m**3','adult abundance',       &
                                     ada_initial,minimum=_ZERO_)
                                     
+   ! Register external state variable dependencies
    self%id_food       = register_state_variable_dependency(modelinfo,food_source_variable)
    self%id_foodmic    = register_state_variable_dependency(modelinfo,foodmic_source_variable)
    self%id_resptarget = register_state_variable_dependency(modelinfo,respiration_target_variable)
    self%id_morttarget = register_state_variable_dependency(modelinfo,mortality_target_variable)
    
+   ! Register environmental dependencies
    self%id_temp = register_dependency(modelinfo, varname_temp)
 
    self%food_scale = food_scale
@@ -188,6 +188,10 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Obtain current values for environmental variables
+   temp = environment%var3d(self%id_temp)%data(LOCATION)
+
+   ! Obtain current values for state variables
    egb_mn = state(self%id_egb)%data(LOCATION)
    jb_mn  = state(self%id_jb )%data(LOCATION)
    ja_mn  = state(self%id_ja )%data(LOCATION)
@@ -201,8 +205,6 @@
    foodmic = state(self%id_foodmic)%data(LOCATION)*self%food_scale
    foodno  = food/0.0024 !0.0024 is mg C per copepod
    
-   temp = environment%var3d(self%id_temp)%data(LOCATION)
-
    !write (*,*) LOCATION,numc,food,foodmic
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
 
@@ -374,18 +376,20 @@
       ma     = 0.
    end if
 
-   dy(self%id_egb) = (tab_mn*adb_mn -              teb_mn*egb_mn - mea_mn*egb_mn)/secs_pr_day  ! egg biomass
-   dy(self%id_jb ) = (teb_mn*egb_mn + (gj_mn-mj_mn-lj_mn)* jb_mn - tjb_mn* jb_mn)/secs_pr_day ! nauplii biomass
-   dy(self%id_ja ) = (tea_mn*egb_mn -               mj_mn* ja_mn - tja_mn* jb_mn)/secs_pr_day ! nauplii abundance
-   dy(self%id_tb ) = (tjb_mn* jb_mn + (gt_mn-mt_mn-lt_mn)* tb_mn - ttb_mn* tb_mn)/secs_pr_day ! c1 biomass
-   dy(self%id_ta ) = (tja_mn* jb_mn -               mt_mn* ta_mn - tta_mn* tb_mn)/secs_pr_day ! c1 abundance
-   dy(self%id_adb) = (ttb_mn* tb_mn + (ga_mn-ma_mn-la_mn)*adb_mn - tab_mn*adb_mn)/secs_pr_day ! adult biomass
-   dy(self%id_ada) = (tta_mn* tb_mn                              - ma_mn *ada_mn)/secs_pr_day ! adult abundance
+   ! Increment/decrement derivatives for our own state variables
+   dy(self%id_egb) = dy(self%id_egb) + (tab_mn*adb_mn -       mea_mn       *egb_mn - teb_mn*egb_mn)/secs_pr_day ! egg biomass
+   dy(self%id_jb ) = dy(self%id_jb ) + (teb_mn*egb_mn + (gj_mn-mj_mn-lj_mn)* jb_mn - tjb_mn* jb_mn)/secs_pr_day ! nauplii biomass
+   dy(self%id_ja ) = dy(self%id_ja ) + (tea_mn*egb_mn -        mj_mn       * ja_mn - tja_mn* jb_mn)/secs_pr_day ! nauplii abundance
+   dy(self%id_tb ) = dy(self%id_tb ) + (tjb_mn* jb_mn + (gt_mn-mt_mn-lt_mn)* tb_mn - ttb_mn* tb_mn)/secs_pr_day ! c1 biomass
+   dy(self%id_ta ) = dy(self%id_ta ) + (tja_mn* jb_mn -        mt_mn       * ta_mn - tta_mn* tb_mn)/secs_pr_day ! c1 abundance
+   dy(self%id_adb) = dy(self%id_adb) + (ttb_mn* tb_mn + (ga_mn-ma_mn-la_mn)*adb_mn - tab_mn*adb_mn)/secs_pr_day ! adult biomass
+   dy(self%id_ada) = dy(self%id_ada) + (tta_mn* tb_mn         -ma_mn       *ada_mn                )/secs_pr_day ! adult abundance
    
+   ! Increment/decrement derivatives for external variables (prey, respiration/mortality target variables)
    dy(self%id_foodmic)    = dy(self%id_foodmic)    - (gj_mn*jb_mn)/self%food_scale/secs_pr_day
-   dy(self%id_food)       = dy(self%id_food)       - (gt_mn*tb_mn - ga_mn*adb_mn)/self%food_scale/secs_pr_day
+   dy(self%id_food)       = dy(self%id_food)       - (gt_mn*tb_mn+ga_mn*adb_mn)/self%food_scale/secs_pr_day
    dy(self%id_resptarget) = dy(self%id_resptarget) + (lj_mn*jb_mn + lt_mn*tb_mn + la_mn*adb_mn)/self%food_scale/secs_pr_day
-   dy(self%id_morttarget) = dy(self%id_morttarget) + (mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale/secs_pr_day
+   dy(self%id_morttarget) = dy(self%id_morttarget) + (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale/secs_pr_day
 
    end subroutine do_bio_jellyfish_0d
 !EOC

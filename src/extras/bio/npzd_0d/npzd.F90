@@ -173,6 +173,7 @@
    ! Conserved quantities
    self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
    
+   ! Environmental dependencies
    self%id_par = register_dependency(modelinfo, varname_par)
    self%id_I_0 = register_dependency(modelinfo, varname_par_sf, shape=shape2d)
 
@@ -222,15 +223,14 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   _PURE subroutine get_conserved_quantities_npzd_0d(self,state,environment,LOCATION,count,sums)
+   _PURE subroutine get_conserved_quantities_npzd_0d(self,state,environment,LOCATION,sums)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd), intent(in)    :: self
    type (type_state),      intent(in),pointer :: state(:)
    type (type_environment),intent(in),pointer :: environment
    LOCATIONTYPE,     intent(in)    :: LOCATION
-   integer,          intent(in)    :: count
-   REALTYPE,         intent(inout) :: sums(1:count)
+   REALTYPE,         intent(inout) :: sums(:)
    
    REALTYPE              :: n,p,z,d
 !
@@ -392,14 +392,14 @@
 !BOC
 
    ! Retrieve current (local) state variable values.
-   n = state(self%id_n)%data(LOCATION)
-   p = state(self%id_p)%data(LOCATION)
-   z = state(self%id_z)%data(LOCATION)
-   d = state(self%id_d)%data(LOCATION)
+   n = state(self%id_n)%data INDEX_LOCATION
+   p = state(self%id_p)%data INDEX_LOCATION
+   z = state(self%id_z)%data INDEX_LOCATION
+   d = state(self%id_d)%data INDEX_LOCATION
    
    ! Retrieve current (local) environmental conditions.
-   par = environment%var3d(self%id_par)%data(LOCATION)
-   I_0 = environment%var2d(self%id_I_0)%data(LOCATION2D)
+   par = environment%var3d(self%id_par)%data INDEX_LOCATION
+   I_0 = environment%var2d(self%id_I_0)%data INDEX_LOCATION2D
    
    !par = environment%par(LOCATION)
    !I_0 = environment%par_sf(LOCATION2D)
@@ -526,8 +526,8 @@
    ! Retrieve current (local) environmental conditions.
    !par = environment%par(LOCATION)
    !I_0 = environment%par_sf(LOCATION2D)
-   par = environment%var3d(self%id_par)%data(LOCATION)
-   I_0 = environment%var2d(self%id_I_0)%data(LOCATION2D)
+   par = environment%var3d(self%id_par)%data INDEX_LOCATION
+   I_0 = environment%var2d(self%id_I_0)%data INDEX_LOCATION2D
    
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)

@@ -5,152 +5,113 @@
 ! (Ingri et al 1967, Talanta 14, 1261 - if it ain't broke don't fix it)
 ! Another routine calulates the air sea exchange of CO2 given wind speed and atmospheric pCO2.
 ! Code developed by Jerry blackford and others at PML, based on pre-existing code.
-! We accept no liability for errors or inaccuracies, (but will take credit for accuracy and utility!).
+! We accept no liability for errors or inaccuracies.
 ! See Zeebe & Wolf-Gladrow, 2001. CO2 in seawater: equilibrium, kinetics and isotopes. 
 ! Elsevier Oceanography Series 65, 346. for a reasonable overview. 
 ! Many other packages exist, replicating the same functionality in different languages.
 ! See http://cdiac.ornl.gov/oceans/co2rprt.html (CO2sys)
 ! or  http://neon.otago.ac.nz/research/mfc/people/keith_hunter/software/swco2/
-
 ! reference for prior usage of this code: Blackford & Gilbert, 2007. J Mar Sys 64, 229-241.
 
-! The following program provides an example implimentation of the routines.
-!   PROGRAM Run_CO2_Dynamics
-!
-!   Real*8 :: Temp, Sal, Depth, DIC, pco2w, pco2a, TA, ph
-!   Real*8 :: cco2, carba,bicarb,carb,henry,om_cal,om_arg
-!   Real*8 :: wnd, flux
-!
-!! set up inputs
-!   Temp  = 10.0
-!   Sal   = 35.0
-!   Depth = 0.0
-!   DIC   = 2100.0
-!   Wnd   = 10.0
-!   pCO2a = 390.0
-!!!!! note you need to define total alkalinity in subroutine co2_dynamics (see lines 71-86) !!!
-!
-!   Call CO2_dynamics (Temp, Sal, Depth, DIC,pco2w,TA,ph,cco2, carba,bicarb,carb,henry,om_cal,om_arg)
-!
-!   Call Air_sea_exchange (Temp, Wnd, pCO2w, pCO2a, Henry, flux)
-!
-!! write inputs
-!   WRITE(*,*) " "
-!   WRITE(*,'(A28)') "    .........Inputs........."
-!   WRITE(*,'(A18,F10.3)') "    Temperature = ",Temp
-!   WRITE(*,'(A18,F10.3)') "    Salinity    = ",Sal
-!   WRITE(*,'(A18,F10.3)') "    Depth       = ",Depth
-!   WRITE(*,'(A18,F10.3)') "    DIC         = ",DIC
-!   WRITE(*,'(A18,F10.3)') "    Wind speed  = ",Wnd
-!   WRITE(*,'(A18,F10.3)') "    pCO2 atmos  = ",pCO2a
-! 
-!! write outputs
-!   WRITE(*,*) " "
-!   WRITE(*,'(A32,F10.3)') "    ..........Outputs..........."
-!   WRITE(*,'(A22,F10.3)') "    pH              = ",pH
-!   WRITE(*,'(A22,F10.3)') "    TA              = ",TA
-!   WRITE(*,'(A22,F10.3)') "    pco2w           = ",pco2w
-!   WRITE(*,'(A22,F10.3)') "    carbonic acid   = ",carba
-!   WRITE(*,'(A22,F10.3)') "    bicarbonate     = ",bicarb
-!   WRITE(*,'(A22,F10.3)') "    carbonate       = ",carb
-!   WRITE(*,'(A22,F10.3)') "    Omega calcite   = ",om_cal
-!   WRITE(*,'(A22,F10.3)') "    Omega aragonite = ",om_arg
-!   WRITE(*,'(A22,F10.3)') "    air sea flux    = ",flux
-!   WRITE(*,*) " "
-!
-!
-!   STOP
-!   END PROGRAM Run_CO2_Dynamics
+! Modifications
+! 17/02/2010. Added conversion factor from per m3 to per kg (line 108-133)
+! 17/02/2010. Update calculation of K1, K2, Kb to make consistant with the OCMIP protocols.
 
-
-
-
-   subroutine CO2_dynamics(T,S,Z,DIC,pco2w,TA,ph,cco2, carba,bicarb,carb,henry,om_cal,om_arg)
+   subroutine CO2_dynamics(T,S,Z,DIC,pco2w,TA,ph,carba,bicarb,carb,henry,om_cal,om_arg,TCO2,dcf)
   
    IMPLICIT NONE
-
 ! INPUT PARAMETERS:
       real*8   :: T, S, Z, DIC
 ! T: temperature (C)
 ! S: salinity (psu)
 ! Z: depth (metres)
-! DIC: total dissolved inorganic carbon (also commonly called TC total carbon)
-! pCO2a: partial pressure of co2 in atmosphere (eg ~390 today, 280=preindustrial, sky's the limit)
+! DIC: total dissolved inorganic carbon (also commonly called TC total carbon), (mmol.m-3)
+! pCO2a: partial pressure of co2 in atmosphere (eg ~390 in 2010, 280=preindustrial)
 
 ! LOCAL VARIABLES:
       real*8   :: TCO2, TA, ph, pco2w
-      real*8   :: pco2water,fairco2, pco2x, henry
-      real*8   :: ca, bc, cb, cco2, carba, bicarb, carb, om_cal, om_arg
+      real*8   :: pco2water,fairco2, henry
+      real*8   :: ca, bc, cb, carba, bicarb, carb, om_cal, om_arg
+      real*8   :: a,b,c,dcf
 
 !!!!!!!! provide an expression for total alkalinity.!!!!!!!!!!!!!!
-! Note, for oceanic regimes there is generally a well constrained relationship between salinity and total alkalinity (tA) as TA is conservative. However the slope and intercept vary according to region.
-! For coastal regions, riverine input of TA makes the TA - s relationship unsatisfactory.
+! Note, for oceanic regimes there is generally a well constrained relationship between salinity and 
+! total alkalinity as TA is conservative. However the slope and intercept vary according to region.
+! For coastal regions, such relationships are unsatisfactory.
 ! If you have the data then one possibility is to introduce riverine alkalinity as a seperate tracer.
 ! note that uptake/release of nutrients and Calcium carbonate also make small modifications to local TA.
-! See Zeebe & Wolf-Gladrow, 
-!     Millero et al 1998, Mar Chem 60, 111-130. 
-!     Lee et al, 2006, GRL 33, L19605, 
-!     Wolf-Gladrow et al, Mar Chem 106 (2007).
+! See Zeebe & Wolf-Gladrow; Millero et al 1998, Mar Chem 60, 111-130; Lee et al, 2006, GRL 33, L19605, 
+! Wolf-Gladrow et al, Mar Chem 106 (2007).
 
-! some example relationships with salinity
-
+! deriving alkalinity (umol/kg) from salinity
 !          TA = 66.96*S - 36.803 ! Nordic, N Atlantic, Bellerby et al 2005. 
-          TA = 520.1 + 51.24*S  ! Atlantic (Millero 1998)
+!          TA = 520.1 + 51.24*S  ! Atlantic (Millero 1998)
 !          TA = 399.0 + 54.629*S ! Pacific (Millero, 1998)
 !          TA = -114.0 + 68.80*S ! Indian (Millero, 1998)
+          TA = 520.1 + 51.24*S  ! Atlantic (Millero 1998)
 
-!scale inputs for iteration (this code uses mol/kg, inputs are generally in mmol/m3)
-          TA = TA / 1.0D6
-          TCO2  = DIC / 1.0D6
+! Adjust to correct units.
+! Haltafall uses mol/kg rather than umol/kg necessitating a scaling factor of /1.0D6
+! DIC (mmol/m3) needs to be converted to umol/kg via the calculation of water density at prevailing T&S
+! sea-water density (Millero & Poisson, Deep-Sea Research, 1981, also known as UNESCO, 1981)
+! with T: Temperature in degree Celsius; S: Salinity in practical units, density in kg/m3
+! valid for 0<T<40 and 0.5<S<43. Density Conversion factor (dcf) = * density * 1.0D3
+
+          a=  8.24493d-1 - 4.0899d-3*T +  7.6438d-5*T**2 - 8.2467d-7*T**3 + 5.3875d-9*T**4
+          b= -5.72466d-3 + 1.0227d-4*T - 1.6546d-6*T**2 
+          c= 4.8314d-4
+          dcf= (999.842594 + 6.793952d-2*T- 9.095290d-3*T**2 + 1.001685d-4*T**3 &
+                      - 1.120083d-6*T**4 + 6.536332d-9*T**5+a*S+b*S**1.5+c*S**2)/1.0D3
+
+          TA = TA / (1.0D6)
+          TCO2  = DIC / (1.0D6*dcf)
 
 !..call the parent routine for the carbonate system
-          CALL CO2DYN ( TCO2, TA, T, S, PCO2WATER, pH, HENRY, PCO2X, ca, bc, cb)
+          CALL CO2DYN ( TCO2, TA, T, S, PCO2WATER, pH, HENRY, ca, bc, cb)
 
-!scale the outputs of the routine to useful units (generally mmols C m-3)and name as appropriate 
-          PCO2W = PCO2WATER*1.0D6 ! partial pressure of co2 in water
-          TA = TA*1.0D6         ! total alkalinity
-          Cco2 = PCO2X * 1.0D6    ! concentration of co2 (partial pressure x solubility)
-          CarbA= ca*1.0d6         ! carbonic acid concentration
-          Bicarb=bc*1.0d6         ! bicarbonate ion concentration
-          Carb = cb*1.0d6         ! carbonate ion concentration
-!         pH                         ! pH, correct units
-!         Henry                      ! Henry's constant, correct units
+! Adjust outputs back to units used in the parent model code (e.g. mmol/m3) if appropriate
+
+          PCO2W = PCO2WATER*1.0D6 	! partial pressure of co2 in water 
+          TA = TA*(1.0D6)         	! total alkalinity (umol/kg)
+          CarbA= ca*(1.0D6*dcf)     ! carbonic acid concentration (mmol/m3)
+          Bicarb=bc*(1.0D6*dcf)     ! bicarbonate ion concentration (mmol/m3)
+          Carb = cb*(1.0D6*dcf)     ! carbonate ion concentration (mmol/m3)
+          TCO2 = TCO2*1.0D6          ! total C or DIC in units of umol/kg
 
 !Call carbonate saturation state subroutine to calculate calcite and aragonite calcification states
+
           CALL CaCO3_Saturation ( T, S, Z, cb, Om_cal, Om_arg)
+
 ! outputs are
-!         Om_cal calcite saturation state
-!         Om_arg aragonite saturation state (both ok units)
+!         Om_cal        calcite saturation state
+!         Om_arg        aragonite saturation state 
 
    RETURN
-
    END SUBROUTINE CO2_dynamics
-
-
-   SUBROUTINE Air_sea_exchange (T, Wnd, pCO2w, pCO2a, Henry, flux)
-
+   
+   SUBROUTINE Air_sea_exchange (T, Wnd, pCO2w, pCO2a, Henry, dcf, flux)
 !  this routine should be called for the surface box only 
 !  Uses the Nightingale and Liss parameterisation (GBC 14, 373-388 (2000).
-!  it calculates the air-sea flux of CO2 given
+!  SC is the Schmidt number from Wanninkhof (1992, JGR 97,7373-7382), the Nightingale et al (2000)
+!  transfer velocity being for Sc=600 and the dependence of tranfer velocity on Sc coming 
+!  from Jahne et al (1987, J. Geophys Res 92, 1937-1949).
+
+!  Inputs
 !  pCO2w    partial pressure of CO2 in the water (from carbonate system subroutine call)
 !  pCO2a    partial pressure of CO2 in the atmosphere (usually external forcing).
 !  T        temperature (C)
 !  Wnd      wind speed, metres
 !  Henry    henry's constant
+!  density  the density of water for conversion between mmol/m3 and umol/kg
+
 !  Outputs are
-!  flux     flux of CO2 in mmol C /m2/d +ve is in-gassing (air to sea), -ve is outgassing (sea to air).
-!      SC is the Schmidt number from Wanninkhof (1992, JGR 97,7373-7382), the Nightingale et al (2000)
-!      transfer velocity being for Sc=600 and the dependence of tranfer velocity on Sc coming 
-!      from Jahne et al (1987, J. Geophys Res 92, 1937-1949).
+!  flux     flux of CO2 in mmol C /m2/d 
+!           +ve is in-gassing (air to sea), -ve is outgassing (sea to air).
 
    IMPLICIT NONE
-
-! INPUT PARAMETERS:
-      real*8   :: T, wnd, pco2w, pco2a, henry
-! LOCAL VARIABLES:
-      real*8   :: sc, fwind
-! OUTPUT Variables
-      real*8   :: flux
+      real*8   :: T, wnd, pco2w, pco2a, henry, dcf    ! INPUT PARAMETERS:
+      real*8   :: sc, fwind    ! LOCAL VARIABLES:
+      real*8   :: flux    ! OUTPUT Variables
 
 ! calculate the scmidt number and unit conversions
           sc=2073.1-125.62*T+3.6276*T**2.0-0.0432190*T**3.0
@@ -158,22 +119,20 @@
           fwind=fwind*24.d0/100.d0   ! convert to m/day
 
 ! flux depends on the difference in partial pressures, wind and henry
-          flux = fwind * HENRY * ( PCO2A - PCO2W )
+! here it is rescaled to mmol/m2/d
+          flux = fwind * HENRY * ( PCO2A - PCO2W ) * dcf
 
   RETURN 
   END SUBROUTINE Air_sea_exchange
 
-
-
-      SUBROUTINE CO2dyn ( TCO2, TA, T, S, pco2, ph, henry, pco2x, ca, bc, cb)
+      SUBROUTINE CO2dyn ( TCO2, TA, T, S, pco2, ph, henry, ca, bc, cb)
 
 !.......................................................................
-!     This subroutine acts as an interface to the Haltafall code, defining parameters etc.
+!     This subroutine acts as an interface to the Haltafall iteration, setting options etc.
 !.......................................................................
-
 
       real*8 PRSS, PH, AKVAL, CONCS,                       &
-     &                 TCO2, TA, T, S, PCO2, PCO2X,           & 
+     &                 TCO2, TA, T, S, PCO2,            & 
      &                 SOLBTY, CCO2,                                 &
      &                 A1, A2, A3, B1, B2, B3, TK, TK1, SOL1, SOL2,  &
      &                 HENRY, ca, bc, cb
@@ -197,30 +156,10 @@
       ca = CONCS(5)
       bc = CONCS(6)
       cb = CONCS(7)
-
-!..calculate solubility of CO2........................................
-      TK     = T + 273.15D0
-
-      A1 = 0.0D0 - 60.2409D0
-      A2 = 93.4517D0
-      A3 = 23.3585D0
-      B1 = 0.023517D0
-      B2 = 0.0D0 - 0.023656D0
-      B3 = 0.0047036D0
-      TK1    = TK / 100.0D0
-      SOL1   = A1 + (A2/TK1) + (A3*LOG(TK1))
-      SOL2   = 36.4D0 * (B1 + (B2*TK1) + (B3*TK1*TK1))
-      SOLBTY = EXP((SOL1 + SOL2))
-
-!     concentration of co2 = partial pressure of co2 * solubility
-      PCO2X   = TCO2 / SOLBTY
-
       HENRY = AKVAL(1)
     
       RETURN
       END SUBROUTINE
-
-
 
       SUBROUTINE POLYCO(PD,TD,SD,CONCS,NCONC,AKVAL,NKVAL,ICALC,ICONST)
 !     -----------------------------------------------------------------
@@ -260,7 +199,7 @@
 !       ICONST = 3  SWS PH SCALE
 !       ICONST = 4  AS 1 BUT INCLUDING BORATE IN THE CALCULATION
 !       ICONST = 5  AS 2 BUT INCLUDING BORATE IN THE CALCULATION
-!       ICONST = 5  AS 3 BUT INCLUDING BORATE IN THE CALCULATION
+!       ICONST = 6  AS 3 BUT INCLUDING BORATE IN THE CALCULATION
 
 !  NOTE: FOR ICONST=1,2,3 CONCS(2) REPRESENTS CARBONATE ALKALINITY SINC
 !        BORATE IS NOT INCLUDED IN THE CALCULATION. FOR ICONST=4,5,6 CO
@@ -277,7 +216,7 @@
       PARAMETER(MINJC=7,MAXJC=9,MINJK=3,MAXJK=4)
       PARAMETER(MINCAL=1,MAXCAL=7,MINCON=1,MAXCON=6)
       PARAMETER(PMIN=0.99999D0,PMAX=1.00001D0,SMIN=0.0D0,  &
-     &  SMAX=40.0D0,TMIN=0.0D0,TMAX=40.0D0)
+     &  SMAX=40.0D0,TMIN=-4.0D0,TMAX=40.0D0)
       DIMENSION CONCS(NCONC),AKVAL(NKVAL)
 
       P = PD
@@ -345,6 +284,10 @@
 
 ! ***
 !      IMPLICIT real*8 (A-H,O-Z)
+
+!     Modified by jcb 17/02/10 to use OCMIP calculations of K1, K2, Kb. 
+!     Differences are subtle rather than significant
+
       INTEGER MAXK, MAXCON, NKVAL, ICON, IC, IK
 ! ***
       PARAMETER(MAXK=4,MAXCON=3)
@@ -353,6 +296,7 @@
       real*8,DIMENSION(:) :: B0(MAXK,MAXCON),B1(MAXK,MAXCON),B2(MAXK,MAXCON)
       real*8,DIMENSION(:) :: AKVAL(NKVAL)
       real*8              :: P,T,S,VAL,TK
+      real*8              :: dlogTK, S2, sqrtS, S15, k1, k2, kb
       DATA A/-167.8108D0, 290.9097D0, 207.6548D0, 148.0248D0/
       DATA B/9345.17D0, -14554.21D0, -11843.79D0, -8966.9D0/
       DATA C/23.3585D0, -45.0575D0, -33.6485D0, -24.4344D0/
@@ -388,6 +332,36 @@
         VAL=VAL + (B0(IK,IC) + B1(IK,IC)*TK + B2(IK,IC)*TK*TK)*S
         AKVAL(IK)=EXP(VAL)
 100    CONTINUE
+
+      IF (IC .EQ. 3) THEN
+!  Calculation of constants as used in the OCMIP process for ICONST = 3 or 6
+!  see http://www.ipsl.jussieu.fr/OCMIP/
+!  added jcb 17/02/10
+
+!  Derive simple terms used more than once
+	dlogTK = log(TK)
+	S2 = S*S
+	sqrtS = sqrt(S)
+	S15 = S**1.5
+! k1 = [H][HCO3]/[H2CO3]
+! k2 = [H][CO3]/[HCO3]
+! Millero p.664 (1995) using Mehrbach et al. data on seawater scale 
+	k1=10**(-1*(3670.7/TK - 62.008 + 9.7944*dlogTK - &
+     &		0.0118 * S + 0.000116*S2))
+	k2=10**(-1*(1394.7/TK + 4.777 - &
+     &		0.0184*S + 0.000118*S2))
+! kb = [H][BO2]/[HBO2]
+! Millero p.669 (1995) using data from Dickson (1990)
+	kb=exp((-8966.90 - 2890.53*sqrtS - 77.942*S + &
+     &		1.728*S15 - 0.0996*S2)/TK + &
+     &		(148.0248 + 137.1942*sqrtS + 1.62142*S) + &
+     &		(-24.4344 - 25.085*sqrtS - 0.2474*S) * &
+     &		dlogTK + 0.053105*sqrtS*TK)
+! replace haltafall calculations with OCMIP calculations
+      AKVAL(2) = k1
+      AKVAL(3) = k2
+      AKVAL(4) = kb
+      END IF ! section implimenting OCMIP coefficients
 
       RETURN
       END SUBROUTINE
@@ -616,6 +590,8 @@
 
 
 
+
+
 !-----------------------------------------------------------------------
       SUBROUTINE CaCO3_Saturation (Tc, S, D, CO3, Om_cal, Om_arg)
       
@@ -624,7 +600,7 @@
 !               Tc      Temperature (C)                                 
 !               S       Salinity                                        
 !               D       Depth (m)                                       
-!               CO3     Carbonate ion concentration (mol.-l ie /1D6)    
+!               CO3     Carbonate ion concentration (mol.kg-1 ie /1D6)
 !                                                                       
 ! Outputs                                                               
 !               Om_cal  Calite saturation                               
