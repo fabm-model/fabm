@@ -52,6 +52,7 @@
       logical :: no_precipitation_dilution,no_river_dilution
       
       integer  :: globalid                   ! This is a globally unique identifier for the variable that can be used in getbiovar
+      integer  :: id
    end type type_state_variable_info
 
    ! Properties of a diagnostic variable
@@ -92,37 +93,27 @@
    
    integer, parameter, public         :: shape2d=2,shape3d=3
    
-   character(len=64),parameter,public :: varname_temp    = 'env_temp', &
-                                         varname_salt    = 'env_salt', &
-                                         varname_par     = 'env_par',  &
-                                         varname_pres    = 'env_pres', &
-                                         varname_wind_sf = 'env_wind_sf', &
-                                         varname_par_sf  = 'env_par_sf'
+   character(len=64),parameter,public :: &
+     varname_temp    = 'env_temp',    & ! Temperature (degrees Celsius)
+     varname_salt    = 'env_salt',    & ! Salinity (psu)
+     varname_par     = 'env_par',     & ! Photosynthetically Active Radiation (W/m^2)
+     varname_pres    = 'env_pres',    & ! Pressure (dbar = 10 kPa)
+     varname_dens    = 'env_dens',    & ! Density (kg/m^3)
+     varname_wind_sf = 'env_wind_sf', & ! Wind speed at 10 m above surface (m/s)
+     varname_par_sf  = 'env_par_sf'     ! Photosynthetically Active Radiation at surface (W/m^2)
                                   
    type type_state
-      REALTYPE,pointer,dimension(LOCATIONDIMENSIONS) :: data => NULL()
+      REALTYPE,pointer ATTR_LOCATIONDIMENSIONS :: data => NULL()
    end type type_state
 
    type type_state_2d
-      REALTYPE,pointer,dimension(LOCATION2DDIMENSIONS) :: data => NULL()
+      REALTYPE,pointer ATTR_LOCATION2DDIMENSIONS :: data => NULL()
    end type type_state_2d
 
    type type_environment
       type (type_state   ), dimension(:), pointer :: var3d => null()
       type (type_state_2d), dimension(:), pointer :: var2d => null()
    end type type_environment
-
-   !type type_environment
-   !   ! 3D variables (defined locally)
-   !   REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: temp => NULL() ! Temperature (degrees Celsius)
-   !   REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: salt => NULL() ! Salinity
-   !   REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: par  => NULL() ! Photosynthetically Active Radiation (W/m^2)
-   !   REALTYPE, pointer, dimension(LOCATIONDIMENSIONS)   :: pres => NULL() ! Pressure (dbar = 10 kPa)
-   !   
-   !   ! 2D variables (defined at surface and/or bottom)
-   !   REALTYPE, pointer, dimension(LOCATION2DDIMENSIONS) :: wind    => NULL() ! Surface wind speed (m/s)
-   !   REALTYPE, pointer, dimension(LOCATION2DDIMENSIONS) :: par_sf  => NULL() ! Surface Photosynthetically Active Radiation (W/m^2)
-   !end type type_environment
 
 !-----------------------------------------------------------------------
 

@@ -20,7 +20,8 @@
 				<Tool Name="VFCustomBuildTool"/>
 				<Tool Name="VFPreLinkEventTool"/>
 				<Tool Name="VFPreBuildEventTool"/>
-				<Tool Name="VFPostBuildEventTool"/></Configuration></Configurations>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
 	<Files>
 		<Filter Name="Header Files" Filter="fi;fd">
 		<File RelativePath="..\..\include\cppdefs.h"/>
@@ -30,8 +31,6 @@
 		<File RelativePath="..\..\src\airsea\short_wave_radiation.F90"/></Filter>
 		<Filter Name="extras">
 		<Filter Name="bio">
-		<Filter Name="npzd_0d">
-		<File RelativePath="..\..\src\extras\bio\npzd_0d\bio_npzd_0d.F90"/></Filter>
 		<File RelativePath="..\..\src\extras\bio\bio_0d_gen.F90"/>
 		<File RelativePath="..\..\src\extras\bio\bio_types.F90"/></Filter>
 		<Filter Name="driver">

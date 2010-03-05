@@ -68,6 +68,9 @@
    use bio_fluxes
    use bio_var, only: npar,numc,cc
 #endif
+#ifdef RMBM
+   use gotm_rmbm
+#endif
 
    use output
 
@@ -88,6 +91,9 @@
 #endif
 #ifdef BIO
    integer, parameter                  :: unit_bio=63
+#endif
+#ifdef RMBM
+   integer, parameter                  :: unit_rmbm=65
 #endif
 !
 ! !REVISION HISTORY:
@@ -365,6 +371,17 @@
 
 #endif
 
+!  initalize RMBM module
+#ifdef RMBM
+
+   call init_gotm_rmbm(namlst,'rmbm.nml',unit_rmbm,nlev)
+
+   call init_var_gotm_rmbm(nlev)
+
+   call set_env_gotm_rmbm(dt,w_adv_discr,t(1:nlev),s(1:nlev),rho(1:nlev),nuh,h,w,rad(1:nlev),bioshade(1:nlev),I_0,wind,z(1:nlev))
+
+#endif
+
    LEVEL2 'done.'
    STDERR LINE
 
@@ -497,6 +514,9 @@
          call get_bio_updates(nlev,bioshade)
       end if
 #endif
+#ifdef RMBM
+      call do_gotm_rmbm(nlev)
+#endif
 
 !    compute turbulent mixing
       select case (turb_method)
@@ -538,6 +558,9 @@
 #endif
 #ifdef BIO
          if (bio_calc) call bio_save(_ZERO_)
+#endif
+#ifdef RMBM
+         call save_gotm_rmbm(nlev)
 #endif
       end if
 
@@ -596,6 +619,10 @@
 
 #ifdef BIO
    call clean_bio()
+#endif
+
+#ifdef RMBM
+   call clean_gotm_rmbm()
 #endif
 
    return

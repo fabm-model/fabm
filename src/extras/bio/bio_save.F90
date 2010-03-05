@@ -13,9 +13,6 @@
 !
 ! !USES:
    use bio_var
-#ifndef NO_0D_BIO
-   use bio_0d,only: save_bio_0d
-#endif
    use output, only: out_fmt,ts
 #ifdef NETCDF_FMT
    use ncdfout, only: ncid
@@ -50,10 +47,6 @@
    end if
 
    select case (bio_model)
-#ifndef NO_0D_BIO
-      case (1000:)
-         call save_bio_0d(first,out_fmt,out_unit,ncid)
-#endif
    end select
 
    select case (out_fmt)

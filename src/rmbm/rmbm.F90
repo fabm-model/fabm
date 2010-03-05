@@ -542,7 +542,7 @@ end function rmbm_get_variable_id
 recursive subroutine rmbm_supply_variable_data_3d(model,id,dat)
    type (type_model),             intent(inout)  :: model
    integer,                       intent(in)     :: id
-   REALTYPE,dimension(LOCATIONDIMENSIONS),target,intent(in) :: dat
+   REALTYPE ATTR_LOCATIONDIMENSIONS,target,intent(in) :: dat
    
    model%environment%var3d(id)%data => dat
 end subroutine rmbm_supply_variable_data_3d
@@ -550,7 +550,7 @@ end subroutine rmbm_supply_variable_data_3d
 recursive subroutine rmbm_supply_variable_data_2d(model,id,dat)
    type (type_model),             intent(inout)  :: model
    integer,                       intent(in)     :: id
-   REALTYPE,dimension(LOCATION2DDIMENSIONS),target,intent(in) :: dat
+   REALTYPE ATTR_LOCATION2DDIMENSIONS,target,intent(in) :: dat
    
    model%environment%var2d(id)%data => dat
 end subroutine rmbm_supply_variable_data_2d
@@ -623,16 +623,15 @@ end subroutine rmbm_supply_variable_data_2d
 ! !IROUTINE: Get the local temporal derivatives in 1D
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_do_rhs_1d(model,LOCATION_1DLOOP,dy,diag)
+   recursive subroutine rmbm_do_rhs_1d(model LOCATION_1DLOOP,istart,istop,dy,diag)
 !
 ! !USES:
-   LOOP1D_USE
-   
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
-   LOCATIONTYPE,           intent(in)    :: LOCATION_1DLOOP
+   integer,                intent(in)    :: istart,istop
+   DEFINE_LOCATION_1DLOOP
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE,               intent(inout) :: dy(:,:)
@@ -651,11 +650,11 @@ end subroutine rmbm_supply_variable_data_2d
       case (model_container_id)
          curchild => model%firstchild
          do while (associated(curchild))
-            call rmbm_do_rhs_1d(curchild,LOCATION_1DLOOP,dy,diag)
+            call rmbm_do_rhs_1d(curchild LOCATION_1DLOOP,istart,istop,dy,diag)
             curchild => curchild%nextsibling
          end do
       case default
-         do VARIABLE_1DLOOP=1,LENGTH_1DLOOP
+         do VARIABLE_1DLOOP=istart,istop
             call rmbm_do_rhs(curchild,LOCATION,dy(VARIABLE_1DLOOP,:),diag(VARIABLE_1DLOOP,:))
          end do
    end select
@@ -909,7 +908,7 @@ end subroutine rmbm_supply_variable_data_2d
 ! !IROUTINE: Get the total of all conserved quantities
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_get_conserved_quantities(model,LOCATION,num,sums)
+   recursive subroutine rmbm_get_conserved_quantities(model,LOCATION,sums)
 !
 ! !USES:
    IMPLICIT NONE
@@ -917,8 +916,7 @@ end subroutine rmbm_supply_variable_data_2d
 ! !INPUT PARAMETERS:
    type (type_model), intent(in)      :: model
    LOCATIONTYPE,      intent(in)      :: LOCATION
-   integer,           intent(in)      :: num
-   REALTYPE,          intent(inout)   :: sums(1:num)
+   REALTYPE,          intent(inout)   :: sums(:)
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -930,12 +928,12 @@ end subroutine rmbm_supply_variable_data_2d
 !BOC
    select case (model%id)
       case (npzd_id)
-         call get_conserved_quantities_npzd_0d(model%npzd,model%state,model%environment,LOCATION,num,sums)
+         call get_conserved_quantities_npzd_0d(model%npzd,model%state,model%environment,LOCATION,sums)
       ! ADD_NEW_MODEL_HERE - optional
       case (model_container_id)
          curchild => model%firstchild
          do while (associated(curchild))
-            call rmbm_get_conserved_quantities(curchild,LOCATION,num,sums)
+            call rmbm_get_conserved_quantities(curchild,LOCATION,sums)
             curchild => curchild%nextsibling
          end do
       case default

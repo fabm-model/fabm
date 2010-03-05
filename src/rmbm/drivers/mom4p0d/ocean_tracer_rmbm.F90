@@ -173,7 +173,7 @@ character(len=fm_string_len), parameter         :: default_file_out = 'RESTART/o
 type biotic_type  !{
 
   type (type_model),pointer :: model
-  integer                                          :: id_temp,id_salt,id_wind,id_pres,id_par,id_par_sf
+  integer                                          :: id_temp,id_salt,id_wind,id_pres,id_par,id_par_sf,id_dens
   
   character(len=fm_field_name_len)                 :: name
   logical                                          :: do_virtual_flux = .false.
@@ -798,6 +798,7 @@ do n = 1, instances  !{
   biotic(n)%id_temp   = rmbm_get_variable_id(biotic(n)%model,varname_temp,   shape3d)
   biotic(n)%id_salt   = rmbm_get_variable_id(biotic(n)%model,varname_salt,   shape3d)
   biotic(n)%id_pres   = rmbm_get_variable_id(biotic(n)%model,varname_pres,   shape3d)
+  biotic(n)%id_dens   = rmbm_get_variable_id(biotic(n)%model,varname_dens,   shape3d)
   biotic(n)%id_par    = rmbm_get_variable_id(biotic(n)%model,varname_par,    shape3d)
   biotic(n)%id_wind   = rmbm_get_variable_id(biotic(n)%model,varname_wind_sf,shape2d)
   biotic(n)%id_par_sf = rmbm_get_variable_id(biotic(n)%model,varname_par_sf, shape2d)
@@ -1000,7 +1001,7 @@ do n = 1, instances  !{
   ! Vertical movement is applied with a first-order upwind scheme.
   do j = jsc, jec
     do i = isc, iec
-     if (grid%tmask(i,j,k).ne.1.) cycle
+     if (grid%tmask(i,j,1).ne.1.) cycle
     
      !  Get sinking speed over entire column for all state variables.
      do k=1,grid%kmt(i,j)
@@ -1162,10 +1163,11 @@ do n=1,instances
    allocate(biotic(n)%w  (nk+1,biotic(n)%model%info%state_variable_count))
    allocate(biotic(n)%adv(nk+1,biotic(n)%model%info%state_variable_count))
 
-   if (biotic(n)%id_pres  .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth(isc:iec,jsc:jec,:))
+   if (biotic(n)%id_pres  .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth (isc:iec,jsc:jec,:))
+   if (biotic(n)%id_dens  .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_dens,  Dens%rho               (isc:iec,jsc:jec,:))
    if (biotic(n)%id_par   .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_par ,  t_diag(index_irr)%field(isc:iec,jsc:jec,:))
    if (biotic(n)%id_par_sf.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_par_sf,t_diag(index_irr)%field(isc:iec,jsc:jec,1))
-   if (biotic(n)%id_wind  .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_wind,  wind(isc:iec,jsc:jec))
+   if (biotic(n)%id_wind  .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_wind,  wind                   (isc:iec,jsc:jec))
 end do
 
 return

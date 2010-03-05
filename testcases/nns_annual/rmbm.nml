@@ -59,15 +59,13 @@
 !-------------------------------------------------------------------------------
 
 &bio_nml
-   bio_calc = .true.,
-   bio_models = 1003,1001
-   bio_eulerian = .true.,
+   rmbm_calc = .true.,
+   models = 3,1
    cnpar = 1.0,
    w_adv_discr = 6,
    ode_method = 3,
    split_factor = 1,
    bioshade_feedback = .true.,
-   npar = 100000,
 /
 
 &bio_co2_sys_nml
@@ -147,6 +145,6 @@
    rpdu = 0.02,
    rpdl = 0.1,
    rzd = 0.02,
-   dic_variable='co2sys01_DIC'
+   dic_variable='co2sys01_dic'
 /
 

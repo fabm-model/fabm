@@ -18,12 +18,6 @@
 ! 
 ! !USES:
    use bio_var
-#ifndef NO_0D_BIO
-   use bio_0d, only: model,init_bio_0d, init_var_0d, &
-                     light_0d, light_0d_par, &
-                     surface_fluxes_0d, update_sinking_rates_0d, &
-                     do_bio_0d_eul, do_bio_0d_eul_rhs, do_bio_0d_par
-#endif
 
 #ifdef BIO_TEMPLATE
    use bio_template, only : init_bio_template,init_var_template
@@ -479,11 +473,6 @@
          FATAL "and re-compile"
          stop "init_bio()"
 #endif
-
-#ifndef NO_0D_BIO
-      case (1000:)
-         call init_bio_0d(namlst,unit)
-#endif
    
       case default
          stop "bio: no valid biomodel specified in bio.nml !"
@@ -745,11 +734,6 @@
          stop "init_bio()"
 #endif
 
-#ifndef NO_0D_BIO
-      case (1000:)
-         call init_var_0d
-#endif
-         
       case default
          stop "bio: no valid biomodel specified in bio.nml !"
       end select
@@ -1048,11 +1032,7 @@
       call surface_fluxes_npzd_fe(nlev)
 #endif
    case (8)
-#ifndef NO_0D_BIO
-   case (1000:)
-      call surface_fluxes_0d(nlev)
-      call update_sinking_rates_0d(numc,nlev,cc)
-#endif
+
    end select
 
    do j=1,numc-vars_zero_d
@@ -1111,10 +1091,6 @@
          call light_npzd_fe(nlev,bioshade_feedback)
 #endif
       case (8)
-#ifndef NO_0D_BIO
-      case (1000:)
-         call light_0d(nlev,bioshade_feedback)
-#endif
       end select
       
       call ode_solver(ode_method,numc,nlev,dt_eff,cc,right_hand_side_rhs,right_hand_side_ppdd)
@@ -1167,10 +1143,6 @@
 #ifdef BIO_CL
          call do_bio_cl(first,numc,nlev,cc,pp,dd)
 #endif
-#ifndef NO_0D_BIO
-      case (1000:)
-         call do_bio_0d_eul(first,numc,nlev,cc,pp,dd)
-#endif
       case default
          allocate(rhs(1:numc,0:nlev))
          call right_hand_side_rhs(first,numc,nlev,cc,rhs)
@@ -1193,10 +1165,6 @@
       REALTYPE, allocatable                :: pp(:,:,:),dd(:,:,:)
 
       select case (bio_model)
-#ifndef NO_0D_BIO
-      case (1000:)
-         call do_bio_0d_eul_rhs(first,numc,nlev,cc,rhs)
-#endif
       case default
          allocate(pp(1:numc,1:numc,0:nlev))
          allocate(dd(1:numc,1:numc,0:nlev))
@@ -1272,11 +1240,6 @@
       call do_bio_sed_par
    case (20)
       call do_bio_photo_par
-#ifndef NO_0D_BIO
-   case (1000:)
-      call light_0d_par(model%models(1),nlev,bioshade_feedback)
-      call do_bio_0d_par(ode_method,dt)
-#endif
    case default
       FATAL 'bio_model=', bio_model, ' is not a valid particle model.'
       stop 'do_bio_par()'
