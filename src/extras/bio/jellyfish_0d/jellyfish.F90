@@ -143,7 +143,7 @@
    type (type_jellyfish),  intent(in) :: self
    type (type_state),      intent(in) :: state(:)
    type (type_environment),intent(in) :: environment
-   LOCATIONTYPE,           intent(in) :: LOCATION
+   LOCATION_TYPE,          intent(in) :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, dimension(:),intent(inout) :: dy,diag

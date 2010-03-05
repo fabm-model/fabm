@@ -197,8 +197,8 @@
    type (type_npzd), intent(in) :: self
    type (type_state),      intent(in),pointer :: state(:)
    type (type_environment),intent(in),pointer :: environment
-   LOCATIONTYPE,     intent(in) :: LOCATION
-   REALTYPE                     :: extinction
+   LOCATION_TYPE,          intent(in)         :: LOCATION
+   REALTYPE                                   :: extinction
    
    REALTYPE                     :: p,d
 !
@@ -229,8 +229,8 @@
    type (type_npzd), intent(in)    :: self
    type (type_state),      intent(in),pointer :: state(:)
    type (type_environment),intent(in),pointer :: environment
-   LOCATIONTYPE,     intent(in)    :: LOCATION
-   REALTYPE,         intent(inout) :: sums(:)
+   LOCATION_TYPE,          intent(in)         :: LOCATION
+   REALTYPE,               intent(inout)      :: sums(:)
    
    REALTYPE              :: n,p,z,d
 !
@@ -374,7 +374,7 @@
    type (type_npzd),       intent(in) :: self
    type (type_state),      intent(in) :: state(:)
    type (type_environment),intent(in) :: environment
-   LOCATIONTYPE,           intent(in) :: LOCATION
+   LOCATION_TYPE,          intent(in) :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, dimension(:), intent(inout) :: rhs,diag
@@ -399,7 +399,7 @@
    
    ! Retrieve current (local) environmental conditions.
    par = environment%var3d(self%id_par)%data INDEX_LOCATION
-   I_0 = environment%var2d(self%id_I_0)%data INDEX_LOCATION2D
+   I_0 = environment%var2d(self%id_I_0)%data INDEX_LOCATION_HZ
    
    !par = environment%par(LOCATION)
    !I_0 = environment%par_sf(LOCATION2D)
@@ -498,7 +498,7 @@
    type (type_npzd),       intent(in) :: self
    type (type_state),      intent(in) :: state(:)
    type (type_environment),intent(in) :: environment
-   LOCATIONTYPE,           intent(in) :: LOCATION
+   LOCATION_TYPE,          intent(in) :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, intent(inout),dimension(:,:) :: pp,dd
@@ -518,16 +518,16 @@
 !BOC
 
    ! Retrieve current (local) state variable values.
-   n = state(self%id_n)%data(LOCATION)
-   p = state(self%id_p)%data(LOCATION)
-   z = state(self%id_z)%data(LOCATION)
-   d = state(self%id_d)%data(LOCATION)
+   n = state(self%id_n)%data INDEX_LOCATION
+   p = state(self%id_p)%data INDEX_LOCATION
+   z = state(self%id_z)%data INDEX_LOCATION
+   d = state(self%id_d)%data INDEX_LOCATION
    
    ! Retrieve current (local) environmental conditions.
    !par = environment%par(LOCATION)
    !I_0 = environment%par_sf(LOCATION2D)
    par = environment%var3d(self%id_par)%data INDEX_LOCATION
-   I_0 = environment%var2d(self%id_I_0)%data INDEX_LOCATION2D
+   I_0 = environment%var2d(self%id_I_0)%data INDEX_LOCATION_HZ
    
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)

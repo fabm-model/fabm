@@ -132,7 +132,7 @@ contains
    type (type_co2_sys),    intent(in) :: self
    type (type_state),      intent(in) :: state(:)
    type (type_environment),intent(in) :: environment
-   LOCATIONTYPE                       :: LOCATION
+   LOCATION_TYPE                      :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, intent(inout),dimension(:) :: dy,diag
@@ -202,7 +202,7 @@ contains
    type (type_co2_sys), intent(in)    :: self
    type (type_state),      intent(in) :: state(:)
    type (type_environment),intent(in) :: environment
-   LOCATIONTYPE                       :: LOCATION
+   LOCATION_TYPE                      :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, intent(inout)            :: flux(:)
@@ -228,7 +228,7 @@ contains
    temp = environment%var3d(self%id_temp)%data INDEX_LOCATION
    salt = environment%var3d(self%id_salt)%data INDEX_LOCATION
    dens = environment%var3d(self%id_dens)%data INDEX_LOCATION
-   wnd  = environment%var2d(self%id_wind)%data INDEX_LOCATION2D
+   wnd  = environment%var2d(self%id_wind)%data INDEX_LOCATION_HZ
 
    dic = state(self%id_dic)%data(LOCATION)
 
