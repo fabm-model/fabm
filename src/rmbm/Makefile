@@ -10,7 +10,8 @@ MOD	= \
 ${LIB}(rmbm.o)
 
 OBJ   = \
-rmbm_types.o
+rmbm_types.o \
+drivers/gotm/rmbm_driver.F90
 
 SUBDIRS += models
 SUBDIRS += drivers/gotm
@@ -18,7 +19,7 @@ SUBDIRS += drivers/gotm
 OBJS: $(OBJ) $(SUBDIRS) 
 	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
 
-all: $(MOD) $(OBJ) OBJS
+all: $(MOD) OBJS
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
