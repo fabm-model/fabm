@@ -15,7 +15,7 @@ rmbm_types.o
 SUBDIRS += models
 SUBDIRS += drivers/gotm
 
-OBJS: $(SUBDIRS)
+OBJS: $(OBJ) $(SUBDIRS) 
 	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
 
 all: $(MOD) $(OBJ) OBJS
