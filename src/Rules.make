@@ -103,8 +103,10 @@ DEFINES += -DBIO
 FEATURES += extras/bio
 FEATURE_LIBS += -lbio$(buildtype)
 endif
-ifeq ($(NO_0D_BIO),true)
-DEFINES         += -DNO_0D_BIO
+ifeq ($(RMBM),true)
+DEFINES += -DRMBM
+FEATURES += rmbm
+FEATURE_LIBS += -lrmbm$(buildtype)
 endif
 
 # Directory related settings.
