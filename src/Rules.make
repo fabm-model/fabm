@@ -107,6 +107,7 @@ ifeq ($(RMBM),true)
 DEFINES += -DRMBM
 FEATURES += rmbm
 FEATURE_LIBS += -lrmbm$(buildtype)
+INCDIRS	+= -I$(GOTMDIR)/src/rmbm/drivers/gotm
 endif
 
 # Directory related settings.
