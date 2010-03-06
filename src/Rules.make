@@ -24,8 +24,8 @@ SEAGRASS=false
 SEAGRASS=true
 BIO=false
 BIO=true
-NO_0D_BIO=true
-NO_0D_BIO=false
+RMBM=false
+RMBM=true
 
 FEATURES	=
 FEATURE_LIBS	=
