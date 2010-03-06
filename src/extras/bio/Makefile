@@ -20,17 +20,9 @@ DOCSRC	=  bio.F90                   \
 OBJ1   = \
 ${LIB}(bio_var.o)		\
 ${LIB}(bio_alloc_info.o)        \
-${LIB}(bio_fluxes.o)		\
-${LIB}(bio_types.o)		\
-${LIB}(bio_0d_driver_gotm.o)
+${LIB}(bio_fluxes.o)
 
-OBJ2   = 
-ifneq ($(NO_0D_BIO),true)
-OBJ2   += \
-${LIB}(bio_0d_gen.o)		\
-${LIB}(bio_0d.o)
-endif
-OBJ2   += \
+OBJ2   = \
 ${LIB}(bio_save.o)		\
 ${LIB}(bio.o)
 
@@ -53,9 +45,6 @@ endif
 ifneq ($(BIO_NPZD),false)
 DOCSRC  += npzd/bio_npzd.F90
 SUBDIRS += npzd
-ifneq ($(NO_0D_BIO),true)
-SUBDIRS += npzd_0d
-endif
 DEFINES += -DBIO_NPZD
 endif
 
@@ -105,11 +94,6 @@ ifneq ($(BIO_PHOTO),false)
 DOCSRC  += photo/bio_photo.F90  
 SUBDIRS += photo
 DEFINES += -DBIO_PHOTO
-endif
-
-ifneq ($(NO_0D_BIO),true)
-SUBDIRS += co2sys_0d
-SUBDIRS += jellyfish_0d
 endif
 
 
