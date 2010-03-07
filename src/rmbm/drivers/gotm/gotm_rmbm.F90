@@ -190,6 +190,8 @@
          case default
             stop "init_gotm_rmbm: no valid ode_method specified in rmbm.nml!"
       end select
+      
+      call init_output_gotm_rmbm()
 
    end if
 
@@ -601,20 +603,20 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Finish the bio calculations
+! !IROUTINE: Initialize output
 !
 ! !INTERFACE:
-   subroutine save_gotm_rmbm(nlev)
+   subroutine init_output_gotm_rmbm()
    
 !
 ! !DESCRIPTION:
 !  Save additional properties of 0d biogeochemical model
 !
 ! !USES:
-   use output,  only: nsave,out_fmt
+   use output,  only: out_fmt
 #ifdef NETCDF_FMT
    use ncdfout, only: ncid,lon_dim,lat_dim,z_dim,time_dim,dims
-   use ncdfout, only: define_mode,new_nc_variable,set_attributes,store_data
+   use ncdfout, only: define_mode,new_nc_variable,set_attributes
 #endif
 
    IMPLICIT NONE
@@ -623,12 +625,8 @@
 #include "netcdf.inc"
 #endif
 !
-! !INPUT PARAMETERS:
-   integer, intent(in)                  :: nlev
-!
 ! !LOCAL VARIABLES:
-   integer :: n,iret,ilev
-   logical, save :: first = .true.
+   integer :: iret,n
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -641,49 +639,92 @@
    select case (out_fmt)
       case (NETCDF)
 #ifdef NETCDF_FMT
-         if(first) then
-            iret = define_mode(ncid,.true.)
+         iret = define_mode(ncid,.true.)
 
-            dims(1) = lon_dim
-            dims(2) = lat_dim
-            dims(3) = z_dim
-            dims(4) = time_dim
+         dims(1) = lon_dim
+         dims(2) = lat_dim
+         dims(3) = z_dim
+         dims(4) = time_dim
 
-            ! Add a variable for each prognostic variable
-            do n=1,model%info%state_variable_count
-               iret = new_nc_variable(ncid,model%info%variables(n)%name,NF_REAL, &
-                                      4,dims,model%info%variables(n)%id)
-               iret = set_attributes(ncid,model%info%variables(n)%id,       &
-                                     units=model%info%variables(n)%units,    &
-                                     long_name=model%info%variables(n)%longname)
-            end do
+         ! Add a variable for each prognostic variable
+         do n=1,model%info%state_variable_count
+            iret = new_nc_variable(ncid,model%info%variables(n)%name,NF_REAL, &
+                                   4,dims,model%info%variables(n)%id)
+            iret = set_attributes(ncid,model%info%variables(n)%id,       &
+                                  units=model%info%variables(n)%units,    &
+                                  long_name=model%info%variables(n)%longname)
+         end do
 
-            ! Add a variable for each diagnostic variable
-            do n=1,model%info%diagnostic_variable_count
-               iret = new_nc_variable(ncid,model%info%diagnostic_variables(n)%name,NF_REAL, &
-                                      4,dims,model%info%diagnostic_variables(n)%id)
-               iret = set_attributes(ncid,model%info%diagnostic_variables(n)%id,       &
-                                     units=model%info%diagnostic_variables(n)%units,    &
-                                     long_name=model%info%diagnostic_variables(n)%longname)
-            end do
+         ! Add a variable for each diagnostic variable
+         do n=1,model%info%diagnostic_variable_count
+            iret = new_nc_variable(ncid,model%info%diagnostic_variables(n)%name,NF_REAL, &
+                                   4,dims,model%info%diagnostic_variables(n)%id)
+            iret = set_attributes(ncid,model%info%diagnostic_variables(n)%id,       &
+                                  units=model%info%diagnostic_variables(n)%units,    &
+                                  long_name=model%info%diagnostic_variables(n)%longname)
+         end do
 
-            dims(3) = time_dim
+         dims(3) = time_dim
 
-            ! Add a variable for each conserved quantity
-            do n=1,model%info%conserved_quantity_count
-               iret = new_nc_variable(ncid,trim(model%info%conserved_quantities(n)%name)//'_tot',NF_REAL, &
-                                      3,dims,model%info%conserved_quantities(n)%id)
-               iret = set_attributes(ncid,model%info%conserved_quantities(n)%id,       &
-                                     units='m*'//model%info%conserved_quantities(n)%units,    &
-                                     long_name=trim(model%info%conserved_quantities(n)%longname)//', depth-integrated')
-            end do
+         ! Add a variable for each conserved quantity
+         do n=1,model%info%conserved_quantity_count
+            iret = new_nc_variable(ncid,trim(model%info%conserved_quantities(n)%name)//'_tot',NF_REAL, &
+                                   3,dims,model%info%conserved_quantities(n)%id)
+            iret = set_attributes(ncid,model%info%conserved_quantities(n)%id,       &
+                                  units='m*'//model%info%conserved_quantities(n)%units,    &
+                                  long_name=trim(model%info%conserved_quantities(n)%longname)//', depth-integrated')
+         end do
 
-            iret = define_mode(ncid,.false.)
-            
-            first = .false.
-         end if
+         iret = define_mode(ncid,.false.)
+#endif
+   end select
 
-         ! Store prognostic variables.
+   end subroutine init_output_gotm_rmbm
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Finish the bio calculations
+!
+! !INTERFACE:
+   subroutine save_gotm_rmbm(nlev)
+   
+!
+! !DESCRIPTION:
+!  Save additional properties of 0d biogeochemical model
+!
+! !USES:
+   use output,  only: nsave,out_fmt
+#ifdef NETCDF_FMT
+   use ncdfout, only: ncid
+   use ncdfout, only: store_data
+#endif
+
+   IMPLICIT NONE
+
+#ifdef NETCDF_FMT
+#include "netcdf.inc"
+#endif
+!
+! !INPUT PARAMETERS:
+   integer, intent(in)                  :: nlev
+!
+! !LOCAL VARIABLES:
+   integer :: iret,ilev,n
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   if (.not. rmbm_calc) return
+   
+   select case (out_fmt)
+      case (NETCDF)
+#ifdef NETCDF_FMT
+         ! Store biogeochemical state (prognostic) variables.
          do n=1,model%info%state_variable_count
             iret = store_data(ncid,model%info%variables(n)%id,XYZT_SHAPE,nlev,array=cc(n,0:nlev))
          end do
