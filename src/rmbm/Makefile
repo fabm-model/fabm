@@ -9,22 +9,24 @@ rmbm_types.F90
 MOD	= \
 ${LIB}(rmbm.o)
 
-OBJ1   = \
-drivers/gotm/rmbm_driver.F90
-
 OBJ   = \
-rmbm_types.o
+${LIB}(rmbm_types.o)
 
 SUBDIRS += models
 SUBDIRS += drivers/gotm
 
-$(OBJ): $(OBJ1)
+all: OBJS $(MOD)
+        $(MOVE_MODULES_COMMAND)
 
-OBJS: $(OBJ) $(SUBDIRS) 
+driver:
+	$(MAKE) -C drivers/gotm driver
+
+$(OBJ): driver
+
+$(SUBDIRS): $(OBJ)
+
+OBJS: $(SUBDIRS) 
 	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
-
-all: $(MOD) OBJS
-	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../../doc/rmbm.tex 

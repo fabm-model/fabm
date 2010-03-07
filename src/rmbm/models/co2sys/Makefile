@@ -8,7 +8,7 @@ LIB	= $(LIBDIR)/librmbm$(buildtype).a
 
 DOCSRC	=  co2sys.F90
 
-OBJS   = 
+OBJS   = \
 ${LIB}(co2_dyn.o)	\
 ${LIB}(co2sys.o)
 

@@ -13,8 +13,6 @@ endif
 DEFINES=-DNUDGE_VEL
 DEFINES=-D$(FORTRAN_COMPILER)
 
-DEFINES += -DLOCATIONTYPE=integer -DLOCATIONVARIABLE=ilev
-
 # What do we include in this compilation
 NetCDF=false
 NetCDF=true

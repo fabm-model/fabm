@@ -1,22 +1,23 @@
-include ../Rules.make
+include ../../../Rules.make
 
 LIB	= $(LIBDIR)/librmbm$(buildtype).a
 
 DOCSRC	= \
 gotm_rmbm.F90
 
-MOD	= \
-${LIB}(rmbm.o)
-
 OBJ   = \
-gotm_rmbm.o
-rmbm_driver.o
+${LIB}(gotm_rmbm.o)
 
-all: $(MOD) $(OBJ)
-	$(MOVE_MODULES_COMMAND)
+OBJ1 = \
+${LIB}(rmbm_driver.o)
+
+all: $(OBJ1) $(OBJ)
+        $(MOVE_MODULES_COMMAND)
+
+driver: $(OBJ1)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../doc/rmbm.tex 
+	$(PROTEX) $(DOCSRC) > ../../../../doc/rmbm.tex 
 	touch doc
 
 clean:
