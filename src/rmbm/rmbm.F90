@@ -243,6 +243,8 @@
    use rmbm_jellyfish
    use rmbm_co2sys
    ! ADD_NEW_MODEL_HERE
+   
+   implicit none
 !   
 !  default: all is private.
    private
