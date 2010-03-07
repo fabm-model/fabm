@@ -431,7 +431,7 @@
    diag(self%id_GPP)  = fnp(self,n,p,par,iopt)
    diag(self%id_NCP)  = fnp(self,n,p,par,iopt) - self%rpn*p
    diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
-   diag(self%id_NPR)  = diag(self%id_NPR)*secs_pr_day
+   diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
 
    end subroutine do_bio_npzd_0d
 !EOC
@@ -562,10 +562,10 @@
 
    ! Export diagnostic variables
    diag(self%id_dPAR) = par
-   diag(self%id_GPP) =  dd(self%id_n,self%id_p)
-   diag(self%id_NCP) =  dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p)
-   diag(self%id_PPR) =  dd(self%id_n,self%id_p)                         *secs_pr_day
-   diag(self%id_NPR) = (dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p))*secs_pr_day
+   diag(self%id_GPP)  = dd(self%id_n,self%id_p)
+   diag(self%id_NCP)  = dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p)
+   diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
+   diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
 
    end subroutine do_bio_npzd_0d_ppdd
 !EOC

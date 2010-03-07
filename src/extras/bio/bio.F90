@@ -334,28 +334,17 @@
 !-----------------------------------------------------------------------
 !  local variables
    integer                   :: rc,i,j,n
-   namelist /bio_nml/ bio_calc,bio_model,bio_models,bio_eulerian,       &
+   namelist /bio_nml/ bio_calc,bio_model,bio_eulerian,       &
                       cnpar,w_adv_discr,ode_method,split_factor,        &
                       bioshade_feedback,npar
 !-----------------------------------------------------------------------
 !BOC
 
    LEVEL1 'init_bio'
-   
-   ! Set bio model identifiers to invalid id.
-   bio_model = -1
-   bio_models(:) = -1
 
 !  open and read the namelist
    open(namlst,file=fname,action='read',status='old',err=98)
    read(namlst,nml=bio_nml,err=99)
-   
-   ! Map identifiers between single bio model and multiple bio models.
-   if (bio_models(1)/=-1) then
-      bio_model = bio_models(1)
-   else
-      if (bio_model/=-1)  bio_models(1) = bio_model
-   end if
 
    if (bio_calc) then
    

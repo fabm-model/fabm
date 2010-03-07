@@ -85,6 +85,8 @@
    integer  :: w_adv_ctr
    REALTYPE,pointer,dimension(LOCATION_DIMENSIONS) :: nuh,h,bioshade,rad,w,z
 
+   REALTYPE,allocatable,dimension(:) :: total,local
+
    contains
 
 !-----------------------------------------------------------------------
@@ -126,6 +128,7 @@
    LEVEL1 'init_gotm_rmbm'
    
    ! Initialize RMBM model identifiers to invalid id.
+   rmbm_calc = .false.
    models = -1
 
 !  open and read the namelist
@@ -233,6 +236,7 @@
 
 !-----------------------------------------------------------------------
 !BOC
+   if (.not. rmbm_calc) return
 
    allocate(cc(1:model%info%state_variable_count,LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc)'
@@ -273,6 +277,9 @@
    varid = rmbm_get_variable_id(model,varname_pres,shape3d)
    if (varid.ne.-1) call rmbm_link_variable_data(model,varid,pres(1:LOCATION))
 
+   allocate(total(1:model%info%conserved_quantity_count))
+   allocate(local(1:model%info%conserved_quantity_count))
+
    end subroutine init_var_gotm_rmbm
 !EOC
 
@@ -310,6 +317,8 @@
 
 !-----------------------------------------------------------------------!
 !BOC
+   if (.not. rmbm_calc) return
+
    varid = rmbm_get_variable_id(model,varname_temp,shape3d)
    if (varid.ne.-1) call rmbm_link_variable_data(model,varid,temp)
 
@@ -374,6 +383,8 @@
 
 !-----------------------------------------------------------------------
 !BOC
+
+   if (.not. rmbm_calc) return
 
    Qsour    = _ZERO_
    Lsour    = _ZERO_
@@ -529,6 +540,8 @@
    if (allocated(ws))             deallocate(ws)
    if (allocated(sfl))            deallocate(sfl)
    if (allocated(bfl))            deallocate(bfl)
+   if (allocated(total))          deallocate(total)
+   if (allocated(local))          deallocate(local)
    LEVEL1 'done.'
 
    end subroutine clean_gotm_rmbm
@@ -616,7 +629,6 @@
 ! !LOCAL VARIABLES:
    integer :: n,iret,ilev
    logical, save :: first = .true.
-   REALTYPE :: total(1:model%info%conserved_quantity_count),local(1:model%info%conserved_quantity_count)
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -624,6 +636,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if (.not. rmbm_calc) return
+   
    select case (out_fmt)
       case (NETCDF)
 #ifdef NETCDF_FMT
