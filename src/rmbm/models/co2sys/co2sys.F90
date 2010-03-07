@@ -144,7 +144,7 @@ contains
    ! Environment
    REALTYPE :: temp, salt, pres, dens
    REALTYPE :: dic, TA
-   REALTYPE :: PCO2WATER, pH, HENRY, PCO2X, ca, bc, cb,Om_cal,Om_arg
+   REALTYPE :: PCO2WATER, pH, HENRY, ca, bc, cb,Om_cal,Om_arg
 !EOP
 !-----------------------------------------------------------------------
 !BOC

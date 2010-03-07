@@ -1,4 +1,3 @@
-!$Id: bio.F90,v 1.53 2009-11-20 08:16:56 kb Exp $
 #include "cppdefs.h"
 #include "rmbm_driver.h"
 
@@ -61,31 +60,33 @@
 ! !REVISION HISTORY:!
 !  Original author(s): Jorn Bruggeman
 !
-!  $Log: bio.F90,v $
-!
 !EOP
 !-----------------------------------------------------------------------
 !
 ! !PRIVATE DATA MEMBERS:
-!  from a namelist
-   REALTYPE                  :: cnpar=0.9
-   integer                   :: w_adv_discr=6
-   integer                   :: ode_method=1
-   integer                   :: split_factor=1
-   logical                   :: bioshade_feedback=.true.
+   ! Namelist variables
+   REALTYPE                  :: cnpar
+   integer                   :: w_adv_discr,ode_method,split_factor
+   logical                   :: rmbm_calc,bioshade_feedback
 
+   ! Model
    type (type_model),pointer :: model
+   
+   ! Arrays for state and diagnostic variables
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:),target :: cc
-   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:) :: cc_diag,work_cc_diag,ws
+   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:)        :: cc_diag
+
+   ! Arrays for work, vertical movement, and cross-boundary fluxes
+   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:) :: work_cc_diag,ws
+   REALTYPE,allocatable,dimension(:)                     :: sfl,bfl,total,local
+   
+   ! Arrays for environmental variables not supplied externally.
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS)   :: par,pres
-   REALTYPE,allocatable,dimension(:)                    :: sfl,bfl
-   logical :: rmbm_calc
-
-   REALTYPE :: dt
-   integer  :: w_adv_ctr
+   
+   ! External variables
+   REALTYPE :: dt          ! External time step
+   integer  :: w_adv_ctr   ! Scheme for vertical advection (0 if not used)
    REALTYPE,pointer,dimension(LOCATION_DIMENSIONS) :: nuh,h,bioshade,rad,w,z
-
-   REALTYPE,allocatable,dimension(:) :: total,local
 
    contains
 
@@ -111,7 +112,7 @@
 
 !
 ! !REVISION HISTORY:
-!  Original author(s): Lars Umlauf, Hans Burchard, Karsten Bolding
+!  Original author(s): Jorn Bruggeman
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -128,8 +129,13 @@
    LEVEL1 'init_gotm_rmbm'
    
    ! Initialize RMBM model identifiers to invalid id.
-   rmbm_calc = .false.
-   models = -1
+   rmbm_calc         = .false.
+   models            = -1
+   cnpar             = _ONE_
+   w_adv_discr       = 6
+   ode_method        = 1
+   split_factor      = 1
+   bioshade_feedback = .true.
 
 !  open and read the namelist
    open(namlst,file=fname,action='read',status='old',err=98)
@@ -138,8 +144,8 @@
    if (rmbm_calc) then
       model => rmbm_create_model()
       do i=1,ubound(models,1)
-         if (models(i).eq.-1) exit
-         childmodel => rmbm_create_model(models(i),parent=model)
+         if (models(i).ne.-1) &
+            childmodel => rmbm_create_model(models(i),parent=model)
       end do
       
       call rmbm_init(model,namlst)
@@ -377,11 +383,8 @@
    REALTYPE                  :: Qsour(0:nlev),Lsour(0:nlev)
    REALTYPE                  :: RelaxTau(0:nlev)
    REALTYPE                  :: dt_eff
-   integer                   :: j,n
+   integer                   :: j
    integer                   :: split,posconc
-   integer                   :: i,np,nc,vars_zero_d=0
-   integer, save             :: count=0
-   logical, save             :: set_C_zero=.true.
 
 !-----------------------------------------------------------------------
 !BOC
@@ -514,13 +517,13 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Finish the bio calculations
+! !IROUTINE: Finish biogeochemical model
 !
 ! !INTERFACE:
    subroutine clean_gotm_rmbm
 !
 ! !DESCRIPTION:
-!  Deallocate memory and clean up some thins.
+!  Deallocate memory.
 !
 ! !USES:
    IMPLICIT NONE
@@ -552,13 +555,14 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Light properties for the 0d biological framework
+! !IROUTINE: Calculate light over entire column
 !
 ! !INTERFACE:
    subroutine light_0d(nlev,bioshade_feedback)
 !
 ! !DESCRIPTION:
-! TODO
+! Calculate photosynthetically active radiation over entire column
+! based on surface radiation, and background and biotic extinction.
 !
 ! !USES:
    use observations, only:A,g2
@@ -610,7 +614,7 @@
    
 !
 ! !DESCRIPTION:
-!  Save additional properties of 0d biogeochemical model
+!  Initialize the output by defining biogeochemical variables.
 !
 ! !USES:
    use output,  only: out_fmt
@@ -685,14 +689,15 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Finish the bio calculations
+! !IROUTINE: Save values of biogeochemical variables
 !
 ! !INTERFACE:
    subroutine save_gotm_rmbm(nlev)
    
 !
 ! !DESCRIPTION:
-!  Save additional properties of 0d biogeochemical model
+!  Save properties of biogeochemical model, including state variable
+!  values, diagnostic variable values, and sums of conserved quantities.
 !
 ! !USES:
    use output,  only: nsave,out_fmt

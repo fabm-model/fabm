@@ -442,10 +442,9 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-  integer                    :: i,ichild
+  integer                    :: ichild
   character(len= 64)         :: modelname
   type (type_model), pointer :: curchild,curchild2
-  character(len=256)         :: childname
 !EOP
 !-----------------------------------------------------------------------
 !BOC

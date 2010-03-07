@@ -511,7 +511,6 @@
    REALTYPE                   :: n,p,z,d,par,I_0,dn
    REALTYPE                   :: iopt
    REALTYPE                   :: rpd
-   integer                    :: i,j
    REALTYPE, parameter :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
