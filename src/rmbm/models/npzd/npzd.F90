@@ -427,11 +427,11 @@
    if (self%id_dic.ne.-1) rhs(self%id_dic) = rhs(self%id_dic) + self%dic_per_n*dn
 
    ! Export diagnostic variables
-   diag(self%id_dPAR) = par
-   diag(self%id_GPP)  = fnp(self,n,p,par,iopt)
-   diag(self%id_NCP)  = fnp(self,n,p,par,iopt) - self%rpn*p
-   diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
-   diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
+   if (self%id_dPAR.ne.id_not_used) diag(self%id_dPAR) = par
+   if (self%id_GPP .ne.id_not_used) diag(self%id_GPP)  = fnp(self,n,p,par,iopt)
+   if (self%id_NCP .ne.id_not_used) diag(self%id_NCP)  = fnp(self,n,p,par,iopt) - self%rpn*p
+   if (self%id_PPR .ne.id_not_used) diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
+   if (self%id_NPR .ne.id_not_used) diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
 
    end subroutine do_bio_npzd_0d
 !EOC
@@ -560,11 +560,11 @@
    if (self%id_dic.ne.-1) pp(self%id_dic,self%id_dic) = pp(self%id_dic,self%id_dic) + self%dic_per_n*dn
 
    ! Export diagnostic variables
-   diag(self%id_dPAR) = par
-   diag(self%id_GPP)  = dd(self%id_n,self%id_p)
-   diag(self%id_NCP)  = dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p)
-   diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
-   diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
+   if (self%id_dPAR.ne.id_not_used) diag(self%id_dPAR) = par
+   if (self%id_GPP .ne.id_not_used) diag(self%id_GPP)  = dd(self%id_n,self%id_p)
+   if (self%id_NCP .ne.id_not_used) diag(self%id_NCP)  = dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p)
+   if (self%id_PPR .ne.id_not_used) diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
+   if (self%id_NPR .ne.id_not_used) diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
 
    end subroutine do_bio_npzd_0d_ppdd
 !EOC

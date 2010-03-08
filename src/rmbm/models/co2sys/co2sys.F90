@@ -32,7 +32,7 @@ module rmbm_co2sys
    type type_co2_sys
       integer :: id_dic
       integer :: id_temp, id_salt, id_pres, id_wind, id_dens
-      integer :: id_ph, id_alk, id_pco2, id_cco2, id_CarbA, id_Bicarb, id_Carb, id_Om_cal, id_Om_arg
+      integer :: id_ph, id_alk, id_pco2, id_CarbA, id_Bicarb, id_Carb, id_Om_cal, id_Om_arg
       REALTYPE :: TA_offset, TA_slope, pCO2a
       logical  :: alk_param
    end type
@@ -95,7 +95,6 @@ contains
                                     
    self%id_ph     = register_diagnostic_variable(modelinfo, 'pH',    '-',        'pH',                           2)
    self%id_pco2   = register_diagnostic_variable(modelinfo, 'pCO2',  'ppm',      'CO2 partial pressure',         2)
-   self%id_cco2   = register_diagnostic_variable(modelinfo, 'cCO2',  'mmol/m**3','CO2 concentration',            2)
    self%id_CarbA  = register_diagnostic_variable(modelinfo, 'CarbA', 'mmol/m**3','carbonic acid concentration',  2)
    self%id_Bicarb = register_diagnostic_variable(modelinfo, 'Bicarb','mmol/m**3','bicarbonate ion concentration',2)
    self%id_Carb   = register_diagnostic_variable(modelinfo, 'Carb',  'mmol/m**3','carbonate ion concentration',  2)
@@ -173,14 +172,14 @@ contains
    call CaCO3_Saturation (temp, salt, pres, cb, Om_cal, Om_arg)
    
    ! Store diagnostic variables.
-   diag(self%id_ph)     = ph
-   diag(self%id_pco2)   = PCO2WATER*1.0D6        ! to ppm
-   diag(self%id_CarbA)  = ca       *1.0D3*dens   ! from mol/kg to mmol/m**3
-   diag(self%id_Bicarb) = bc       *1.0D3*dens   ! from mol/kg to mmol/m**3
-   diag(self%id_Carb)   = cb       *1.0D3*dens   ! from mol/kg to mmol/m**3
-   diag(self%id_Om_cal) = Om_cal
-   diag(self%id_Om_arg) = Om_arg
-   if (self%alk_param) diag(self%id_alk) = TA*dens*1.0D-3   ! from uEg/kg to mmol/m**3
+   if (self%id_ph     .ne.id_not_used) diag(self%id_ph)     = ph
+   if (self%id_pco2   .ne.id_not_used) diag(self%id_pco2)   = PCO2WATER*1.0D6        ! to ppm
+   if (self%id_CarbA  .ne.id_not_used) diag(self%id_CarbA)  = ca       *1.0D3*dens   ! from mol/kg to mmol/m**3
+   if (self%id_Bicarb .ne.id_not_used) diag(self%id_Bicarb) = bc       *1.0D3*dens   ! from mol/kg to mmol/m**3
+   if (self%id_Carb   .ne.id_not_used) diag(self%id_Carb)   = cb       *1.0D3*dens   ! from mol/kg to mmol/m**3
+   if (self%id_Om_cal .ne.id_not_used) diag(self%id_Om_cal) = Om_cal
+   if (self%id_Om_arg .ne.id_not_used) diag(self%id_Om_arg) = Om_arg
+   if (self%id_alk    .ne.id_not_used .and. self%alk_param) diag(self%id_alk) = TA*dens*1.0D-3   ! from uEg/kg to mmol/m**3
 
    end subroutine do_bio_co2_sys_0d
 !EOC

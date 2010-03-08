@@ -91,7 +91,10 @@
       character(len=64),pointer  :: dependencies2d(:) => null()
    end type type_model_info
    
+   ! Parameters
    integer, parameter, public         :: shape2d=2,shape3d=3
+   
+   integer, parameter, public         :: id_not_used=-1
    
    character(len=64),parameter,public :: &
      varname_temp    = 'env_temp',    & ! Temperature (degrees Celsius)
