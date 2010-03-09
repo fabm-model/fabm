@@ -137,7 +137,9 @@
    split_factor      = 1
    bioshade_feedback = .true.
 
-   ! Open the namelist file and read the namelist
+   ! Open the namelist file and read the namelist.
+   ! Note that the namelist file is left open until the routine terminates,
+   ! so RMBM can read more namelists from it during initialization.
    open(namlst,file=fname,action='read',status='old',err=98)
    read(namlst,nml=bio_nml,err=99)
 
@@ -145,6 +147,7 @@
    dt_eff = dt/float(split_factor)
 
    if (rmbm_calc) then
+   
       ! Create model tree
       model => rmbm_create_model()
       do i=1,ubound(models,1)
@@ -247,12 +250,13 @@
 !EOP
 !-----------------------------------------------------------------------
 !  local variables
-   integer                   :: i,rc,varid
+   integer                   :: i,rc
 
 !-----------------------------------------------------------------------
 !BOC
    if (.not. rmbm_calc) return
 
+   ! Allocate state variable array and provide initial values.
    allocate(cc(1:model%info%state_variable_count,LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc)'
    do i=1,model%info%state_variable_count
@@ -260,38 +264,49 @@
       model%state(i)%data => cc(i,1:LOCATION)
    end do
 
+   ! Allocate diagnostic variable array and set all values to zero.
+   ! (needed because time-integrated/averaged variables will increment rather than set the array)
    allocate(cc_diag(1:model%info%diagnostic_variable_count,LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc_diag)'
    cc_diag = _ZERO_
 
+   ! Allocate array for storing current values for diagnostic variables.
    allocate(work_cc_diag(1:model%info%diagnostic_variable_count,LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (work_cc_diag)'
    work_cc_diag = _ZERO_
 
+   ! Allocate array with vertical movement rates (m/s, positive for upwards),
+   ! and set these to the values provided by the model.
    allocate(ws(LOCATION_RANGE,1:model%info%state_variable_count),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (ws)'
    do i=1,model%info%state_variable_count
       ws(:,i) = model%info%variables(i)%vertical_movement
    end do
 
+   ! Allocate array for surface fluxes and initialize these to zero (no flux).
    allocate(sfl(1:model%info%state_variable_count),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (sfl)'
    sfl = _ZERO_
 
+   ! Allocate array for bottom fluxes and initialize these to zero (no flux).
    allocate(bfl(1:model%info%state_variable_count),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (bfl)'
    bfl = _ZERO_
 
+   ! Allocate array for photosynthetically active radiation (PAR).
+   ! This will be calculated internally during each time step.
    allocate(par(LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (par)'
-   varid = rmbm_get_variable_id(model,varname_par,shape3d)
-   if (varid.ne.-1) call rmbm_link_variable_data(model,varid,par(1:LOCATION))
+   call rmbm_link_variable_data(model,varname_par,par(1:LOCATION))
 
+   ! Allocate array for local pressure.
+   ! This will be calculated from layer depths internally during each time step.
    allocate(pres(LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (pres)'
-   varid = rmbm_get_variable_id(model,varname_pres,shape3d)
-   if (varid.ne.-1) call rmbm_link_variable_data(model,varid,pres(1:LOCATION))
+   call rmbm_link_variable_data(model,varname_pres,pres(1:LOCATION))
 
+   ! Allocate arrays for storing local and column-integrated values of diagnostic variables.
+   ! These are used during each save.
    allocate(total(1:model%info%conserved_quantity_count))
    allocate(local(1:model%info%conserved_quantity_count))
 
