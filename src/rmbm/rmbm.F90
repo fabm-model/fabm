@@ -305,7 +305,9 @@
    
    interface rmbm_link_variable_data
       module procedure rmbm_supply_variable_data_2d
+      module procedure rmbm_supply_variable_data_2d_char
       module procedure rmbm_supply_variable_data_3d
+      module procedure rmbm_supply_variable_data_3d_char
    end interface rmbm_link_variable_data
 !
 ! !REVISION HISTORY:!
@@ -540,7 +542,7 @@ function rmbm_get_variable_id(model,name,shape) result(id)
    id = -1
 end function rmbm_get_variable_id
 
-recursive subroutine rmbm_supply_variable_data_3d(model,id,dat)
+subroutine rmbm_supply_variable_data_3d(model,id,dat)
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
@@ -548,7 +550,18 @@ recursive subroutine rmbm_supply_variable_data_3d(model,id,dat)
    model%environment%var3d(id)%data => dat
 end subroutine rmbm_supply_variable_data_3d
 
-recursive subroutine rmbm_supply_variable_data_2d(model,id,dat)
+subroutine rmbm_supply_variable_data_3d_char(model,name,dat)
+   type (type_model),                       intent(inout) :: model
+   character(len=*),                        intent(in)    :: name
+   REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
+   
+   integer                                                :: id
+   
+   id = rmbm_get_variable_id(model,name,shape3d)
+   if (id.ne.-1) call rmbm_supply_variable_data_3d(model,id,dat)
+end subroutine rmbm_supply_variable_data_3d_char
+
+subroutine rmbm_supply_variable_data_2d(model,id,dat)
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
@@ -556,6 +569,16 @@ recursive subroutine rmbm_supply_variable_data_2d(model,id,dat)
    model%environment%var2d(id)%data => dat
 end subroutine rmbm_supply_variable_data_2d
 
+subroutine rmbm_supply_variable_data_2d_char(model,name,dat)
+   type (type_model),                          intent(inout) :: model
+   character(len=*),                           intent(in)    :: name
+   REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
+   
+   integer                                                :: id
+   
+   id = rmbm_get_variable_id(model,name,shape2d)
+   if (id.ne.-1) call rmbm_supply_variable_data_2d(model,id,dat)
+end subroutine rmbm_supply_variable_data_2d_char
 
 !-----------------------------------------------------------------------
 !BOP

@@ -137,20 +137,22 @@
    split_factor      = 1
    bioshade_feedback = .true.
 
-!  open and read the namelist
+   ! Open the namelist file and read the namelist
    open(namlst,file=fname,action='read',status='old',err=98)
    read(namlst,nml=bio_nml,err=99)
 
    if (rmbm_calc) then
+      ! Create model tree
       model => rmbm_create_model()
       do i=1,ubound(models,1)
          if (models(i).ne.-1) &
             childmodel => rmbm_create_model(models(i),parent=model)
       end do
       
+      ! Initialize model tree (creates metadata and assigns variable identifiers)
       call rmbm_init(model,namlst)
 
-!     report variable descriptions
+      ! Report prognostic variable descriptions
       LEVEL2 'RMBM state variables:'
       do i=1,model%info%state_variable_count
          LEVEL3 trim(model%info%variables(i)%name), '  ', &
@@ -158,7 +160,7 @@
                 trim(model%info%variables(i)%longname)
       end do
 
-!     report variable descriptions
+      ! Report diagnostic variable descriptions
       LEVEL2 'RMBM diagnostic variables:'
       do i=1,model%info%diagnostic_variable_count
          LEVEL3 trim(model%info%diagnostic_variables(i)%name), '  ', &
@@ -166,7 +168,7 @@
                 trim(model%info%diagnostic_variables(i)%longname)
       end do
 
-!     report type of solver 
+      ! Report type of solver 
       LEVEL2 "Using Eulerian solver"
       select case (ode_method)
          case (1)
@@ -197,10 +199,12 @@
             stop "init_gotm_rmbm: no valid ode_method specified in rmbm.nml!"
       end select
       
+      ! Initialize RMBM output (creates NetCDF variables)
       call init_output_gotm_rmbm()
 
    end if
 
+   ! Close the namelist file
    close(namlst)
 
    return
@@ -327,20 +331,11 @@
 !BOC
    if (.not. rmbm_calc) return
 
-   varid = rmbm_get_variable_id(model,varname_temp,shape3d)
-   if (varid.ne.-1) call rmbm_link_variable_data(model,varid,temp)
-
-   varid = rmbm_get_variable_id(model,varname_salt,shape3d)
-   if (varid.ne.-1) call rmbm_link_variable_data(model,varid,salt)
-
-   varid = rmbm_get_variable_id(model,varname_dens,shape3d)
-   if (varid.ne.-1) call rmbm_link_variable_data(model,varid,rho)
-
-   varid = rmbm_get_variable_id(model,varname_wind_sf,shape2d)
-   if (varid.ne.-1) call rmbm_link_variable_data(model,varid,wnd)
-
-   varid = rmbm_get_variable_id(model,varname_par_sf,shape2d)
-   if (varid.ne.-1) call rmbm_link_variable_data(model,varid,I_0)
+   call rmbm_link_variable_data(model,varname_temp,temp)
+   call rmbm_link_variable_data(model,varname_salt,salt)
+   call rmbm_link_variable_data(model,varname_dens,rho)
+   call rmbm_link_variable_data(model,varname_wind_sf,wnd)
+   call rmbm_link_variable_data(model,varname_par_sf,I_0)
    
    nuh => nuh_
    h   => h_
