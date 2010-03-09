@@ -203,7 +203,7 @@
 
    food    = state(self%id_food   )%data(LOCATION)*self%food_scale
    foodmic = state(self%id_foodmic)%data(LOCATION)*self%food_scale
-   foodno  = food/0.0024 !0.0024 is mg C per copepod
+   foodno  = max(_ONE_,food/0.0024) !0.0024 is mg C per copepod
    
    !write (*,*) LOCATION,numc,food,foodmic
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
