@@ -321,7 +321,6 @@
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
-   integer :: varid
 !
 !EOP
 !-----------------------------------------------------------------------!
@@ -331,18 +330,19 @@
 !BOC
    if (.not. rmbm_calc) return
 
-   call rmbm_link_variable_data(model,varname_temp,temp)
-   call rmbm_link_variable_data(model,varname_salt,salt)
-   call rmbm_link_variable_data(model,varname_dens,rho)
+   call rmbm_link_variable_data(model,varname_temp,   temp)
+   call rmbm_link_variable_data(model,varname_salt,   salt)
+   call rmbm_link_variable_data(model,varname_dens,   rho)
    call rmbm_link_variable_data(model,varname_wind_sf,wnd)
-   call rmbm_link_variable_data(model,varname_par_sf,I_0)
+   call rmbm_link_variable_data(model,varname_par_sf, I_0)
    
+   ! Save pointers to external arrays that we need later (in do_gotm_rmbm)
    nuh => nuh_
    h   => h_
    w   => w_
    rad => rad_
    bioshade => bioshade_
-   z => z_
+   z => z_  ! used to calculate local pressure in do_gotm_rmbm
    
    dt = dt_
    w_adv_ctr = w_adv_ctr_
@@ -386,46 +386,54 @@
 
    if (.not. rmbm_calc) return
 
+   ! Set local source terms for diffusion scheme to zero,
+   ! because source terms are integrated independently later on.
    Qsour    = _ZERO_
    Lsour    = _ZERO_
+   
+   ! Disable relaxation to observed local values.
    RelaxTau = 1.e15
    
+   ! Calculate local pressure
    pres(1:nlev) = -z(1:nlev)
    
+   ! Get updated air-sea fluxes for biological state variables.
    sfl = _ZERO_
    call rmbm_update_air_sea_exchange(model,nlev,sfl)
 
+   ! get updated vertical movement (m/s, positive for upwards) for biological state variables.
    do j=1,nlev
       call rmbm_get_vertical_movement(model,j,ws(j,:))
    end do
 
    do j=1,model%info%state_variable_count
    
+      ! Determine whether the variabel is postivie definite based on lower allowed bound.
       posconc = 0
       if (model%info%variables(j)%minimum.ge._ZERO_) posconc = 1
          
-!     do advection step due to settling or rising
+      ! Do advection step due to settling or rising
       call adv_center(nlev,dt,h,h,ws(:,j),flux,                   &
            flux,_ZERO_,_ZERO_,w_adv_discr,adv_mode_1,cc(j,:))
          
-!     do advection step due to vertical velocity
+      ! Do advection step due to vertical velocity
       if(w_adv_ctr .ne. 0) &
          call adv_center(nlev,dt,h,h,w,flux,                   &
               flux,_ZERO_,_ZERO_,w_adv_ctr,adv_mode_0,cc(j,:))
       
-!     do diffusion step
+      ! Do diffusion step
       call diff_center(nlev,dt,cnpar,posconc,h,Neumann,Neumann,&
            sfl(j),bfl(j),nuh,Lsour,Qsour,RelaxTau,cc(j,:),cc(j,:))
 
    end do
 
+   dt_eff=dt/float(split_factor)
    do split=1,split_factor
-      dt_eff=dt/float(split_factor)
-
+      ! Update local light field (self-shading may have changed through changes in biological state variables)
       call light_0d(nlev,bioshade_feedback)
       
+      ! Time-integrate one biological time step.
       call ode_solver(ode_method,model%info%state_variable_count,nlev,dt_eff,cc,right_hand_side_rhs,right_hand_side_ppdd)
-      
    end do
 
    end subroutine do_gotm_rmbm
@@ -479,7 +487,7 @@
       integer :: ci
 
       ! Initialization is needed because the different biogeochemical models increment or decrement
-      ! the temporal derivatives, rather than setting them directly. Tis is needed for the simultaenous
+      ! the temporal derivatives, rather than setting them directly. This is needed for the simultaenous
       ! running of different coupled BGC models.
       rhs = _ZERO_
 
@@ -532,7 +540,7 @@
 
    LEVEL1 'clean_gotm_rmbm'
 
-!  internal arrays
+   ! Deallocate internal arrays
    if (allocated(par))            deallocate(par)
    if (allocated(cc))             deallocate(cc)
    if (allocated(cc_diag))        deallocate(cc_diag)
@@ -638,8 +646,10 @@
    select case (out_fmt)
       case (NETCDF)
 #ifdef NETCDF_FMT
+         ! Put NetCDF library in define mode.
          iret = define_mode(ncid,.true.)
 
+         ! Set up dimension indices for 4D variables (longitude,latitude,depth,time).
          dims(1) = lon_dim
          dims(2) = lat_dim
          dims(3) = z_dim
@@ -663,6 +673,7 @@
                                   long_name=model%info%diagnostic_variables(n)%longname)
          end do
 
+         ! Set up dimension indices for 3D variables (longitude,latitude,time).
          dims(3) = time_dim
 
          ! Add a variable for each conserved quantity
@@ -674,6 +685,7 @@
                                   long_name=trim(model%info%conserved_quantities(n)%longname)//', depth-integrated')
          end do
 
+         ! Take NetCDF library out of define mode (ready for storing data).
          iret = define_mode(ncid,.false.)
 #endif
    end select
@@ -729,24 +741,32 @@
             iret = store_data(ncid,model%info%variables(n)%id,XYZT_SHAPE,nlev,array=cc(n,0:nlev))
          end do
 
-         ! Time-average and store diagnostic variables.
+         ! Process and store diagnostic variables.
          do n=1,model%info%diagnostic_variable_count
+            ! Time-average diagnostic variable if needed.
             if (model%info%diagnostic_variables(n)%time_treatment==2) &
                cc_diag(n,1:nlev) = cc_diag(n,1:nlev)/(nsave*dt)
+               
+            ! Store diagnostic variable values.
             iret = store_data(ncid,model%info%diagnostic_variables(n)%id,XYZT_SHAPE,nlev,array=cc_diag(n,0:nlev))
+            
+            ! Reset diagnostic variables to zero if they will be time-integrated (or time-averaged).
             if (model%info%diagnostic_variables(n)%time_treatment==2 .or. &
                 model%info%diagnostic_variables(n)%time_treatment==3) &
                cc_diag(n,1:nlev) = _ZERO_
          end do
 
-         ! Integrate conserved quantities over depth
+         ! Integrate conserved quantities over depth.
          total = _ZERO_
          do ilev=1,nlev
             call rmbm_get_conserved_quantities(model,ilev,local)
+            
+            ! Add to depth integral.
+            ! Note: our pointer to h has a lower bound of 1, so we need to increment the index by 1!
             total = total + h(ilev+1)*local
          end do
 
-         ! Store conserved quantity integrals
+         ! Store conserved quantity integrals.
          do n=1,model%info%conserved_quantity_count
             iret = store_data(ncid,model%info%conserved_quantities(n)%id,XYT_SHAPE,1,scalar=total(n))
          end do
