@@ -143,9 +143,6 @@
    open(namlst,file=fname,action='read',status='old',err=98)
    read(namlst,nml=bio_nml,err=99)
 
-   ! Calculate internal time step.
-   dt_eff = dt/float(split_factor)
-
    if (rmbm_calc) then
    
       ! Create model tree
@@ -266,12 +263,12 @@
 
    ! Allocate diagnostic variable array and set all values to zero.
    ! (needed because time-integrated/averaged variables will increment rather than set the array)
-   allocate(cc_diag(1:model%info%diagnostic_variable_count,LOCATION_RANGE),stat=rc)
+   allocate(cc_diag(LOCATION_RANGE,1:model%info%diagnostic_variable_count),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc_diag)'
    cc_diag = _ZERO_
 
    ! Allocate array for storing current values for diagnostic variables.
-   allocate(work_cc_diag(1:model%info%diagnostic_variable_count,LOCATION_RANGE),stat=rc)
+   allocate(work_cc_diag(LOCATION_RANGE,1:model%info%diagnostic_variable_count),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (work_cc_diag)'
    work_cc_diag = _ZERO_
 
@@ -364,6 +361,9 @@
    
    dt = dt_
    w_adv_ctr = w_adv_ctr_
+
+   ! Calculate internal time step.
+   dt_eff = dt/float(split_factor)
 
    end subroutine set_env_gotm_rmbm
 !EOC
@@ -471,7 +471,7 @@
       
       ! Iterate over all depth levels
       do ci=1,nlev
-         call rmbm_do(model,ci,pp(:,:,ci),dd(:,:,ci),work_cc_diag(:,ci))
+         call rmbm_do(model,ci,pp(:,:,ci),dd(:,:,ci),work_cc_diag(ci,:))
       end do
       
       if (first) then
@@ -483,10 +483,10 @@
          do ci=1,model%info%diagnostic_variable_count
             if (model%info%diagnostic_variables(ci)%time_treatment.eq.0) then
                ! Simply use last value
-               cc_diag(ci,1:nlev) = work_cc_diag(ci,1:nlev)
+               cc_diag(1:nlev,ci) = work_cc_diag(1:nlev,ci)
             else
                ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-               cc_diag(ci,1:nlev) = cc_diag(ci,1:nlev) + work_cc_diag(ci,1:nlev)*dt
+               cc_diag(1:nlev,ci) = cc_diag(1:nlev,ci) + work_cc_diag(1:nlev,ci)*dt
             end if
          end do
       end if
@@ -509,7 +509,7 @@
 
       ! Iterate over all depth levels
       do ci=1,nlev
-         call rmbm_do(model,ci,rhs(:,ci),work_cc_diag(:,ci))
+         call rmbm_do(model,ci,rhs(:,ci),work_cc_diag(ci,:))
       end do
       
       if (first) then
@@ -521,10 +521,10 @@
          do ci=1,model%info%diagnostic_variable_count
             if (model%info%diagnostic_variables(ci)%time_treatment.eq.0) then
                ! Simply use last value
-               cc_diag(ci,1:nlev) = work_cc_diag(ci,1:nlev)
+               cc_diag(1:nlev,ci) = work_cc_diag(1:nlev,ci)
             else
                ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-               cc_diag(ci,1:nlev) = cc_diag(ci,1:nlev) + work_cc_diag(ci,1:nlev)*dt_eff
+               cc_diag(1:nlev,ci) = cc_diag(1:nlev,ci) + work_cc_diag(1:nlev,ci)*dt_eff
             end if
          end do
       end if
@@ -761,15 +761,15 @@
          do n=1,model%info%diagnostic_variable_count
             ! Time-average diagnostic variable if needed.
             if (model%info%diagnostic_variables(n)%time_treatment==2) &
-               cc_diag(n,1:nlev) = cc_diag(n,1:nlev)/(nsave*dt)
+               cc_diag(1:nlev,n) = cc_diag(1:nlev,n)/(nsave*dt)
                
             ! Store diagnostic variable values.
-            iret = store_data(ncid,model%info%diagnostic_variables(n)%id,XYZT_SHAPE,nlev,array=cc_diag(n,0:nlev))
+            iret = store_data(ncid,model%info%diagnostic_variables(n)%id,XYZT_SHAPE,nlev,array=cc_diag(0:nlev,n))
             
             ! Reset diagnostic variables to zero if they will be time-integrated (or time-averaged).
             if (model%info%diagnostic_variables(n)%time_treatment==2 .or. &
                 model%info%diagnostic_variables(n)%time_treatment==3) &
-               cc_diag(n,1:nlev) = _ZERO_
+               cc_diag(1:nlev,n) = _ZERO_
          end do
 
          ! Integrate conserved quantities over depth.
