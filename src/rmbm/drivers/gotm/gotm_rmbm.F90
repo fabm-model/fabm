@@ -99,7 +99,7 @@
    subroutine init_gotm_rmbm(namlst,fname,unit,nmax_)
 !
 ! !DESCRIPTION: 
-! TODO
+! Initializes the GOTM-RMBM driver module by reading settings from rmbm.nml.
 !
 ! !USES:
    IMPLICIT NONE
@@ -115,7 +115,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-!-----------------------------------------------------------------------
+!
 !  local variables
    integer                   :: i
    integer                   :: models(256)
@@ -123,6 +123,7 @@
    namelist /bio_nml/ rmbm_calc,models,                                 &
                       cnpar,w_adv_discr,ode_method,split_factor,        &
                       bioshade_feedback,repair_state
+!
 !-----------------------------------------------------------------------
 !BOC
 
@@ -246,10 +247,10 @@
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-!-----------------------------------------------------------------------
-!  local variables
+!
+! !LOCAL VARIABLES:
    integer                   :: i,rc
-
+!
 !-----------------------------------------------------------------------
 !BOC
    if (.not. rmbm_calc) return
@@ -313,8 +314,6 @@
 
 
 
-
-
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -339,9 +338,6 @@
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-!-----------------------------------------------------------------------!
-
-
 !-----------------------------------------------------------------------!
 !BOC
    if (.not. rmbm_calc) return
@@ -390,7 +386,6 @@
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-!-----------------------------------------------------------------------
 !
 ! !LOCAL VARIABLES:
    integer, parameter        :: adv_mode_0=0
@@ -400,7 +395,7 @@
    integer                   :: j
    integer                   :: split,posconc
    logical                   :: valid
-
+!
 !-----------------------------------------------------------------------
 !BOC
 
@@ -464,108 +459,181 @@
    end subroutine do_gotm_rmbm
 !EOC
 
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Checks the current values of all state variables
+!
+! !INTERFACE:
    subroutine do_repair_state(nlev,location)
-      integer,         intent(in) :: nlev
-      character(len=*),intent(in) :: location
-      integer :: ci,j
-      logical :: valid
+!
+! !DESCRIPTION:
+! Checks the current values of all state variables and repairs these
+! if allowed and possible.
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+   integer,         intent(in) :: nlev
+   character(len=*),intent(in) :: location
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+   integer :: ci,j
+   logical :: valid
+!
+!-----------------------------------------------------------------------
+!BOC
+   do ci=1,nlev
+      valid = rmbm_check_state(model,ci,repair_state)
+      if (.not. (valid .or. repair_state)) then
+         FATAL 'State variables are invalid and repair, '//location//', index ',ci
+         LEVEL1 'Invalid state:'
+         do j=1,model%info%state_variable_count
+            LEVEL2 trim(model%info%variables(j)%name),cc(j,ci)
+         end do
+         stop 'gotm_rmbm::right_hand_side_ppdd'
+      end if
+   end do
+
+   end subroutine do_repair_state
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Calculates temporal derivatives as production/destruction matrices
+!
+! !INTERFACE:
+   subroutine right_hand_side_ppdd(first,numc,nlev,cc,pp,dd)
+!
+! !DESCRIPTION:
+! Checks the current values of all state variables and repairs these
+! if allowed and possible.
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+   logical,  intent(in)                 :: first
+   integer,  intent(in)                 :: numc,nlev
+   REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
+!
+! !OUTPUT PARAMETERS:
+   REALTYPE, intent(out)                :: pp(1:numc,1:numc,0:nlev)
+   REALTYPE, intent(out)                :: dd(1:numc,1:numc,0:nlev)
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+   integer :: ci
+   logical :: valid
+!
+!-----------------------------------------------------------------------
+!BOC
+   if (.not. first) call do_repair_state(nlev,'gotm_rmbm::right_hand_side_ppdd')
+
+   pp = _ZERO_
+   dd = _ZERO_
+   
+   ! Iterate over all depth levels
+   do ci=1,nlev
+      call rmbm_do(model,ci,pp(:,:,ci),dd(:,:,ci),work_cc_diag(ci,:))
+   end do
+   
+   if (first) then
+      ! First time during this time step that do_bio is called: store diagnostic values.
+      ! NB. higher order integration schemes may call this routine multiple times.
+      ! In that case only the value at the first call is used (essential because time
+      ! integration is done internally).
       
-      do ci=1,nlev
-         valid = rmbm_check_state(model,ci,repair_state)
-         if (.not. (valid .or. repair_state)) then
-            FATAL 'State variables are invalid and repair, '//location//', index ',ci
-            LEVEL1 'Invalid state:'
-            do j=1,model%info%state_variable_count
-               LEVEL2 trim(model%info%variables(j)%name),cc(j,ci)
-            end do
-            stop 'gotm_rmbm::right_hand_side_ppdd'
+      do ci=1,model%info%diagnostic_variable_count
+         if (model%info%diagnostic_variables(ci)%time_treatment.eq.0) then
+            ! Simply use last value
+            cc_diag(1:nlev,ci) = work_cc_diag(1:nlev,ci)
+         else
+            ! Integration or averaging in time needed: for now do simple Forward Euler integration.
+            cc_diag(1:nlev,ci) = cc_diag(1:nlev,ci) + work_cc_diag(1:nlev,ci)*dt
          end if
       end do
-   end subroutine do_repair_state
+   end if
 
+   end subroutine right_hand_side_ppdd
+!EOC
 
-   subroutine right_hand_side_ppdd(first,numc,nlev,cc,pp,dd)
-      logical, intent(in)                  :: first
-      integer, intent(in)                  :: numc,nlev
-      REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
-      
-      REALTYPE, intent(out)                :: pp(1:numc,1:numc,0:nlev)
-      REALTYPE, intent(out)                :: dd(1:numc,1:numc,0:nlev)
-      
-      integer :: ci
-      logical :: valid
-
-      if (.not. first) call do_repair_state(nlev,'gotm_rmbm::right_hand_side_ppdd')
-
-      pp = _ZERO_
-      dd = _ZERO_
-      
-      ! Iterate over all depth levels
-      do ci=1,nlev
-         call rmbm_do(model,ci,pp(:,:,ci),dd(:,:,ci),work_cc_diag(ci,:))
-      end do
-      
-      if (first) then
-         ! First time during this time step that do_bio is called: store diagnostic values.
-         ! NB. higher order integration schemes may call this routine multiple times.
-         ! In that case only the value at the first call is used (essential because time
-         ! integration is done internally).
-         
-         do ci=1,model%info%diagnostic_variable_count
-            if (model%info%diagnostic_variables(ci)%time_treatment.eq.0) then
-               ! Simply use last value
-               cc_diag(1:nlev,ci) = work_cc_diag(1:nlev,ci)
-            else
-               ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-               cc_diag(1:nlev,ci) = cc_diag(1:nlev,ci) + work_cc_diag(1:nlev,ci)*dt
-            end if
-         end do
-      end if
-
-   end subroutine
-
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Calculates temporal derivatives as a derivative vector
+!
+! !INTERFACE:
    subroutine right_hand_side_rhs(first,numc,nlev,cc,rhs)
-      logical, intent(in)                  :: first
-      integer, intent(in)                  :: numc,nlev
-      REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
+!
+! !DESCRIPTION:
+! Checks the current values of all state variables and repairs these
+! if allowed and possible.
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+   logical, intent(in)                  :: first
+   integer, intent(in)                  :: numc,nlev
+   REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
+!
+! !OUTPUT PARAMETERS:
+   REALTYPE, intent(out)                :: rhs(1:numc,0:nlev)
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+   integer :: ci
+   logical :: valid
+!
+!-----------------------------------------------------------------------
+!BOC
+   if (.not. first) call do_repair_state(nlev,'gotm_rmbm::right_hand_side_rhs')
+
+   ! Initialization is needed because the different biogeochemical models increment or decrement
+   ! the temporal derivatives, rather than setting them directly. This is needed for the simultaenous
+   ! running of different coupled BGC models.
+   rhs = _ZERO_
+
+   ! Iterate over all depth levels
+   do ci=1,nlev
+      call rmbm_do(model,ci,rhs(:,ci),work_cc_diag(ci,:))
+   end do
+   
+   if (first) then
+      ! First time during this time step that do_bio is called: store diagnostic values.
+      ! NB. higher order integration schemes may call this routine multiple times.
+      ! In that case only the value at the first call is used (essential because time
+      ! integration is done internally).
       
-      REALTYPE, intent(out)                :: rhs(1:numc,0:nlev)
-
-      integer :: ci
-      logical :: valid
-
-      if (.not. first) call do_repair_state(nlev,'gotm_rmbm::right_hand_side_rhs')
-
-      ! Initialization is needed because the different biogeochemical models increment or decrement
-      ! the temporal derivatives, rather than setting them directly. This is needed for the simultaenous
-      ! running of different coupled BGC models.
-      rhs = _ZERO_
-
-      ! Iterate over all depth levels
-      do ci=1,nlev
-         call rmbm_do(model,ci,rhs(:,ci),work_cc_diag(ci,:))
+      do ci=1,model%info%diagnostic_variable_count
+         if (model%info%diagnostic_variables(ci)%time_treatment.eq.0) then
+            ! Simply use last value
+            cc_diag(1:nlev,ci) = work_cc_diag(1:nlev,ci)
+         else
+            ! Integration or averaging in time needed: for now do simple Forward Euler integration.
+            cc_diag(1:nlev,ci) = cc_diag(1:nlev,ci) + work_cc_diag(1:nlev,ci)*dt_eff
+         end if
       end do
-      
-      if (first) then
-         ! First time during this time step that do_bio is called: store diagnostic values.
-         ! NB. higher order integration schemes may call this routine multiple times.
-         ! In that case only the value at the first call is used (essential because time
-         ! integration is done internally).
-         
-         do ci=1,model%info%diagnostic_variable_count
-            if (model%info%diagnostic_variables(ci)%time_treatment.eq.0) then
-               ! Simply use last value
-               cc_diag(1:nlev,ci) = work_cc_diag(1:nlev,ci)
-            else
-               ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-               cc_diag(1:nlev,ci) = cc_diag(1:nlev,ci) + work_cc_diag(1:nlev,ci)*dt_eff
-            end if
-         end do
-      end if
+   end if
 
-   end subroutine
-
-
+   end subroutine right_hand_side_rhs
+!EOC
 
 !-----------------------------------------------------------------------
 !BOP
@@ -629,11 +697,12 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
+!EOP
+!
 ! !LOCAL VARIABLES:
    integer :: i
    REALTYPE :: zz,bioext,localext
-
-!EOP
+!
 !-----------------------------------------------------------------------
 !BOC
    zz = _ZERO_
@@ -675,20 +744,21 @@
    use ncdfout, only: ncid,lon_dim,lat_dim,z_dim,time_dim,dims
    use ncdfout, only: define_mode,new_nc_variable,set_attributes
 #endif
-
+!
    IMPLICIT NONE
-
+!
 #ifdef NETCDF_FMT
 #include "netcdf.inc"
 #endif
-!
-! !LOCAL VARIABLES:
-   integer :: iret,n
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
+!
+! !LOCAL VARIABLES:
+   integer :: iret,n
+!
 !-----------------------------------------------------------------------
 !BOC
    if (.not. rmbm_calc) return
@@ -772,13 +842,14 @@
 ! !INPUT PARAMETERS:
    integer, intent(in)                  :: nlev
 !
-! !LOCAL VARIABLES:
-   integer :: iret,ilev,n
-!
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
+!
+! !LOCAL VARIABLES:
+   integer :: iret,ilev,n
+!
 !-----------------------------------------------------------------------
 !BOC
    if (.not. rmbm_calc) return
