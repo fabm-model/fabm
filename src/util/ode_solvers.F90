@@ -181,7 +181,7 @@
 ! !LOCAL VARIABLES:
   logical  :: first
   REALTYPE :: rhs(1:numc,0:nlev)
-  integer  :: i,j,ci
+  integer  :: i,ci
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -255,7 +255,7 @@
   logical  :: first
   REALTYPE :: rhs(1:numc,0:nlev),rhs1(1:numc,0:nlev)
   REALTYPE :: cc1(1:numc,0:nlev)
-  integer  :: i,j,ci
+  integer  :: i,ci
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -348,7 +348,7 @@
   REALTYPE :: rhs(1:numc,0:nlev),rhs1(1:numc,0:nlev)
   REALTYPE :: rhs2(1:numc,0:nlev),rhs3(1:numc,0:nlev)
   REALTYPE :: cc1(1:numc,0:nlev)
-  integer  :: i,j,ci
+  integer  :: i,ci
 !EOP
 !-----------------------------------------------------------------------
 !BOC
