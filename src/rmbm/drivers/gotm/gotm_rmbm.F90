@@ -84,7 +84,7 @@
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS)   :: par,pres
    
    ! External variables
-   REALTYPE :: dt          ! External time step
+   REALTYPE :: dt,dt_eff   ! External and internal time steps
    integer  :: w_adv_ctr   ! Scheme for vertical advection (0 if not used)
    REALTYPE,pointer,dimension(LOCATION_DIMENSIONS) :: nuh,h,bioshade,rad,w,z
 
@@ -140,6 +140,9 @@
    ! Open the namelist file and read the namelist
    open(namlst,file=fname,action='read',status='old',err=98)
    read(namlst,nml=bio_nml,err=99)
+
+   ! Calculate internal time step.
+   dt_eff = dt/float(split_factor)
 
    if (rmbm_calc) then
       ! Create model tree
@@ -377,7 +380,6 @@
    integer, parameter        :: adv_mode_1=1
    REALTYPE                  :: Qsour(0:nlev),Lsour(0:nlev)
    REALTYPE                  :: RelaxTau(0:nlev)
-   REALTYPE                  :: dt_eff
    integer                   :: j
    integer                   :: split,posconc
 
@@ -427,7 +429,6 @@
 
    end do
 
-   dt_eff=dt/float(split_factor)
    do split=1,split_factor
       ! Update local light field (self-shading may have changed through changes in biological state variables)
       call light_0d(nlev,bioshade_feedback)
@@ -508,7 +509,7 @@
                cc_diag(ci,1:nlev) = work_cc_diag(ci,1:nlev)
             else
                ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-               cc_diag(ci,1:nlev) = cc_diag(ci,1:nlev) + work_cc_diag(ci,1:nlev)*dt
+               cc_diag(ci,1:nlev) = cc_diag(ci,1:nlev) + work_cc_diag(ci,1:nlev)*dt_eff
             end if
          end do
       end if
