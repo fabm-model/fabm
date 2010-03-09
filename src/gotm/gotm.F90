@@ -92,9 +92,6 @@
 #ifdef BIO
    integer, parameter                  :: unit_bio=63
 #endif
-#ifdef RMBM
-   integer, parameter                  :: unit_rmbm=65
-#endif
 !
 ! !REVISION HISTORY:
 !  Original author(s): Karsten Bolding & Hans Burchard
@@ -374,7 +371,7 @@
 !  initalize RMBM module
 #ifdef RMBM
 
-   call init_gotm_rmbm(namlst,'rmbm.nml',unit_rmbm,nlev)
+   call init_gotm_rmbm(namlst,'rmbm.nml')
 
    call init_var_gotm_rmbm(nlev)
 

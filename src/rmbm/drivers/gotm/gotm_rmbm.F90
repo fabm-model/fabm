@@ -13,8 +13,6 @@
 ! TODO
 ! 
 ! !USES:
-   use util,only: flux,Neumann
-
    use rmbm
    use rmbm_types
    
@@ -22,14 +20,14 @@
 
    interface   
       subroutine ode_solver(solver,numc,nlev,dt,cc,right_hand_side_rhs,right_hand_side_ppdd)
-         integer, intent(in)                 :: solver,nlev,numc
+         integer,  intent(in)                :: solver,nlev,numc
          REALTYPE, intent(in)                :: dt
          REALTYPE, intent(inout)             :: cc(1:numc,0:nlev)
 
          interface
             subroutine right_hand_side_ppdd(first,numc,nlev,cc,pp,dd)
-               logical, intent(in)                  :: first
-               integer, intent(in)                  :: numc,nlev
+               logical,  intent(in)                 :: first
+               integer,  intent(in)                 :: numc,nlev
                REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
                
                REALTYPE, intent(out)                :: pp(1:numc,1:numc,0:nlev)
@@ -39,8 +37,8 @@
 
          interface
             subroutine right_hand_side_rhs(first,numc,nlev,cc,rhs)
-               logical, intent(in)                  :: first
-               integer, intent(in)                  :: numc,nlev
+               logical,  intent(in)                 :: first
+               integer,  intent(in)                 :: numc,nlev
                REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
                REALTYPE, intent(out)                :: rhs(1:numc,0:nlev)
             end
@@ -96,7 +94,7 @@
 ! !IROUTINE: Initialise the bio module
 !
 ! !INTERFACE:
-   subroutine init_gotm_rmbm(namlst,fname,unit,nmax_)
+   subroutine init_gotm_rmbm(namlst,fname)
 !
 ! !DESCRIPTION: 
 ! Initializes the GOTM-RMBM driver module by reading settings from rmbm.nml.
@@ -105,10 +103,8 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   integer, intent(in)                 :: namlst
+   integer,          intent(in)        :: namlst
    character(len=*), intent(in)        :: fname
-   integer, intent(in)                 :: unit
-   integer, intent(in)                 :: nmax_
 
 !
 ! !REVISION HISTORY:
@@ -214,12 +210,12 @@
 
    return
 
-98 LEVEL2 'I could not open rmbm.nml'
-   LEVEL2 'If thats not what you want you have to supply rmbm.nml'
-   LEVEL2 'See the bio example on www.gotm.net for a working rmbm.nml'
+98 LEVEL2 'I could not open '//trim(fname)
+   LEVEL2 'If thats not what you want you have to supply '//trim(fname)
+   LEVEL2 'See the bio example on www.gotm.net for a working '//trim(fname)
    rmbm_calc = .false.
    return
-99 FATAL 'I could not read rmbm.nml'
+99 FATAL 'I could not read '//trim(fname)
    stop 'init_gotm_rmbm'
    end subroutine init_gotm_rmbm
 !EOC
@@ -378,6 +374,8 @@
 ! TODO
 !
 ! !USES:
+   use util,only: flux,Neumann
+!
    IMPLICIT NONE
 !
    integer, intent(in) :: nlev
@@ -394,7 +392,6 @@
    REALTYPE                  :: RelaxTau(0:nlev)
    integer                   :: j
    integer                   :: split,posconc
-   logical                   :: valid
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -535,7 +532,6 @@
 !
 ! !LOCAL VARIABLES:
    integer :: ci
-   logical :: valid
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -599,7 +595,6 @@
 !
 ! !LOCAL VARIABLES:
    integer :: ci
-   logical :: valid
 !
 !-----------------------------------------------------------------------
 !BOC
