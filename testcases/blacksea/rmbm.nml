@@ -59,15 +59,13 @@
 !-------------------------------------------------------------------------------
 
 &bio_nml
-   bio_calc = .true.,
-   bio_models = 1001,1002
-   bio_eulerian = .true.,
+   rmbm_calc = .true.,
+   models = 1,2
    cnpar = 1.0,
    w_adv_discr = 6,
    ode_method = 3,
    split_factor = 1,
    bioshade_feedback = .true.,
-   npar = 100000,
 /
 
 !-------------------------------------------------------------------------------
