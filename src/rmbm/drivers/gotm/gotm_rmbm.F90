@@ -67,7 +67,7 @@
    ! Namelist variables
    REALTYPE                  :: cnpar
    integer                   :: w_adv_discr,ode_method,split_factor
-   logical                   :: rmbm_calc,bioshade_feedback
+   logical                   :: rmbm_calc,bioshade_feedback,repair_state
 
    ! Model
    type (type_model),pointer :: model
@@ -122,7 +122,7 @@
    type (type_model),pointer :: childmodel
    namelist /bio_nml/ rmbm_calc,models,                                 &
                       cnpar,w_adv_discr,ode_method,split_factor,        &
-                      bioshade_feedback
+                      bioshade_feedback,repair_state
 !-----------------------------------------------------------------------
 !BOC
 
@@ -136,6 +136,7 @@
    ode_method        = 1
    split_factor      = 1
    bioshade_feedback = .true.
+   repair_state      = .false.
 
    ! Open the namelist file and read the namelist.
    ! Note that the namelist file is left open until the routine terminates,
@@ -345,6 +346,7 @@
 !BOC
    if (.not. rmbm_calc) return
 
+   ! Provide pointers to arrays with environmental variables to RMBM.
    call rmbm_link_variable_data(model,varname_temp,   temp)
    call rmbm_link_variable_data(model,varname_salt,   salt)
    call rmbm_link_variable_data(model,varname_dens,   rho)
@@ -397,6 +399,7 @@
    REALTYPE                  :: RelaxTau(0:nlev)
    integer                   :: j
    integer                   :: split,posconc
+   logical                   :: valid
 
 !-----------------------------------------------------------------------
 !BOC
@@ -414,14 +417,14 @@
    ! Calculate local pressure
    pres(1:nlev) = -z(1:nlev)
    
-   ! Get updated air-sea fluxes for biological state variables.
-   sfl = _ZERO_
-   call rmbm_update_air_sea_exchange(model,nlev,sfl)
-
-   ! get updated vertical movement (m/s, positive for upwards) for biological state variables.
+   ! Get updated vertical movement (m/s, positive for upwards) for biological state variables.
    do j=1,nlev
       call rmbm_get_vertical_movement(model,j,ws(j,:))
    end do
+
+   ! Get updated air-sea fluxes for biological state variables.
+   sfl = _ZERO_
+   call rmbm_update_air_sea_exchange(model,nlev,sfl)
 
    do j=1,model%info%state_variable_count
    
@@ -444,16 +447,41 @@
 
    end do
 
+   ! Repair state before calling RMBM
+   call do_repair_state(nlev,'gotm_rmbm::do_gotm_rmbm, after advection/diffusion')
+
    do split=1,split_factor
       ! Update local light field (self-shading may have changed through changes in biological state variables)
       call light_0d(nlev,bioshade_feedback)
       
       ! Time-integrate one biological time step.
       call ode_solver(ode_method,model%info%state_variable_count,nlev,dt_eff,cc,right_hand_side_rhs,right_hand_side_ppdd)
+
+      ! Repair state
+      call do_repair_state(nlev,'gotm_rmbm::do_gotm_rmbm, after time integration')
    end do
 
    end subroutine do_gotm_rmbm
 !EOC
+
+   subroutine do_repair_state(nlev,location)
+      integer,         intent(in) :: nlev
+      character(len=*),intent(in) :: location
+      integer :: ci,j
+      logical :: valid
+      
+      do ci=1,nlev
+         valid = rmbm_check_state(model,ci,repair_state)
+         if (.not. (valid .or. repair_state)) then
+            FATAL 'State variables are invalid and repair, '//location//', index ',ci
+            LEVEL1 'Invalid state:'
+            do j=1,model%info%state_variable_count
+               LEVEL2 trim(model%info%variables(j)%name),cc(j,ci)
+            end do
+            stop 'gotm_rmbm::right_hand_side_ppdd'
+         end if
+      end do
+   end subroutine do_repair_state
 
 
    subroutine right_hand_side_ppdd(first,numc,nlev,cc,pp,dd)
@@ -465,6 +493,9 @@
       REALTYPE, intent(out)                :: dd(1:numc,1:numc,0:nlev)
       
       integer :: ci
+      logical :: valid
+
+      if (.not. first) call do_repair_state(nlev,'gotm_rmbm::right_hand_side_ppdd')
 
       pp = _ZERO_
       dd = _ZERO_
@@ -501,6 +532,9 @@
       REALTYPE, intent(out)                :: rhs(1:numc,0:nlev)
 
       integer :: ci
+      logical :: valid
+
+      if (.not. first) call do_repair_state(nlev,'gotm_rmbm::right_hand_side_rhs')
 
       ! Initialization is needed because the different biogeochemical models increment or decrement
       ! the temporal derivatives, rather than setting them directly. This is needed for the simultaenous
