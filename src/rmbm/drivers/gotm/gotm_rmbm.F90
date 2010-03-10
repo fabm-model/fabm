@@ -84,7 +84,7 @@
    ! External variables
    REALTYPE :: dt,dt_eff   ! External and internal time steps
    integer  :: w_adv_ctr   ! Scheme for vertical advection (0 if not used)
-   REALTYPE,pointer,dimension(LOCATION_DIMENSIONS) :: nuh,h,bioshade,rad,w,z
+   REALTYPE,pointer,dimension(LOCATION_DIMENSIONS) :: nuh,h,bioshade,rad,w,z,salt
    REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_HZ :: precip,evap
 
    contains
@@ -317,7 +317,7 @@
 ! !IROUTINE: Set bio module environment 
 !
 ! !INTERFACE: 
-   subroutine set_env_gotm_rmbm(dt_,w_adv_method_,w_adv_ctr_,temp,salt,rho,nuh_,h_,w_,rad_,bioshade_,I_0,wnd,precip_,evap_,z_)
+   subroutine set_env_gotm_rmbm(dt_,w_adv_method_,w_adv_ctr_,temp,salt_,rho,nuh_,h_,w_,rad_,bioshade_,I_0,wnd,precip_,evap_,z_)
 !
 ! !DESCRIPTION:
 ! TODO
@@ -328,7 +328,7 @@
 ! !INPUT PARAMETERS:
    REALTYPE, intent(in) :: dt_
    integer,  intent(in) :: w_adv_method_,w_adv_ctr_
-   REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS    :: temp,salt,rho,nuh_,h_,w_,rad_,bioshade_,z_
+   REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS    :: temp,salt_,rho,nuh_,h_,w_,rad_,bioshade_,z_
    REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS_HZ :: I_0,wnd,precip_,evap_
 !
 ! !REVISION HISTORY:
@@ -341,7 +341,7 @@
 
    ! Provide pointers to arrays with environmental variables to RMBM.
    call rmbm_link_variable_data(model,varname_temp,   temp)
-   call rmbm_link_variable_data(model,varname_salt,   salt)
+   call rmbm_link_variable_data(model,varname_salt,   salt_)
    call rmbm_link_variable_data(model,varname_dens,   rho)
    call rmbm_link_variable_data(model,varname_wind_sf,wnd)
    call rmbm_link_variable_data(model,varname_par_sf, I_0)
@@ -363,6 +363,7 @@
    
    precip => precip_
    evap   => evap_
+   salt => salt_
 
    end subroutine set_env_gotm_rmbm
 !EOC
@@ -380,6 +381,7 @@
 !
 ! !USES:
    use util,only: flux,Neumann
+   use observations,only: SRelaxTau,sProf
 !
    IMPLICIT NONE
 !
@@ -395,6 +397,7 @@
    integer, parameter        :: adv_mode_1=1
    REALTYPE                  :: Qsour(0:nlev),Lsour(0:nlev)
    REALTYPE                  :: RelaxTau(0:nlev)
+   REALTYPE                  :: dilution
    integer                   :: j
    integer                   :: split,posconc
 !
@@ -422,13 +425,21 @@
    ! Get updated air-sea fluxes for biological state variables.
    sfl = _ZERO_
    call rmbm_update_air_sea_exchange(model,nlev,sfl)
+   
+   ! Calculate dilution due to surface freshwater flux (m/s)
+   ! If surface freshwater flux is nto specified, but surface salinity is relaxed to observations,
+   ! calculate the effective dilution from the relation term, and use that instead.
+   dilution = precip-evap
+   if (any(SRelaxTau(1:nlev)<1.e10)) &
+      dilution = dilution + sum((salt(1:nlev)-sProf(1:nlev))/SRelaxTau(1:nlev)*h(2:nlev+1)) &
+                           /sum(salt(1:nlev)*h(2:nlev+1)) * sum(h(2:nlev+1))
 
    do j=1,model%info%state_variable_count
       ! Add surface flux due to evaporation/precipitation, unless the model explicitly says otherwise.
       if (.not. model%info%variables(j)%no_precipitation_dilution) &
-         sfl(j) = sfl(j)-cc(j,nlev)*(precip+evap)
+         sfl(j) = sfl(j)-cc(j,nlev)*dilution
    
-      ! Determine whether the variabel is postivie definite based on lower allowed bound.
+      ! Determine whether the variable is positive definite based on lower allowed bound.
       posconc = 0
       if (model%info%variables(j)%minimum.ge._ZERO_) posconc = 1
          
