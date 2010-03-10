@@ -495,7 +495,7 @@
          do j=1,model%info%state_variable_count
             LEVEL2 trim(model%info%variables(j)%name),cc(j,ci)
          end do
-         stop 'gotm_rmbm::right_hand_side_ppdd'
+         stop 'gotm_rmbm::do_repair_state'
       end if
    end do
 
