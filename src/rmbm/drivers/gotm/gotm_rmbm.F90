@@ -381,7 +381,7 @@
 !
 ! !USES:
    use util,only: flux,Neumann
-   use observations,only: SRelaxTau,sProf
+   !use observations,only: SRelaxTau,sProf
 !
    IMPLICIT NONE
 !
@@ -430,9 +430,9 @@
    ! If surface freshwater flux is nto specified, but surface salinity is relaxed to observations,
    ! calculate the effective dilution from the relation term, and use that instead.
    dilution = precip-evap
-   if (any(SRelaxTau(1:nlev)<1.e10)) &
-      dilution = dilution + sum((salt(1:nlev)-sProf(1:nlev))/SRelaxTau(1:nlev)*h(2:nlev+1)) &
-                           /sum(salt(1:nlev)*h(2:nlev+1)) * sum(h(2:nlev+1))
+   !if (any(SRelaxTau(1:nlev)<1.e10)) &
+   !   dilution = dilution + sum((salt(1:nlev)-sProf(1:nlev))/SRelaxTau(1:nlev)*h(2:nlev+1)) &
+   !                        /sum(salt(1:nlev)*h(2:nlev+1)) * sum(h(2:nlev+1))
 
    do j=1,model%info%state_variable_count
       ! Add surface flux due to evaporation/precipitation, unless the model explicitly says otherwise.
