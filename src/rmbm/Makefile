@@ -6,27 +6,24 @@ DOCSRC	= \
 rmbm.F90  \
 rmbm_types.F90
 
-MOD	= \
-${LIB}(rmbm.o)
+RMBMMOD	= ${LIB}(rmbm.o)
+RMBMBASE = ${LIB}(rmbm_types.o)
 
-OBJ   = \
-${LIB}(rmbm_types.o)
-
-SUBDIRS += models
-SUBDIRS += drivers/gotm
-
-all: OBJS $(MOD)
+all: gotmrmbm
         $(MOVE_MODULES_COMMAND)
 
 driver:
 	$(MAKE) -C drivers/gotm driver
 
-$(OBJ): driver
+$(RMBMBASE): driver
 
-$(SUBDIRS): $(OBJ)
+models: driver $(RMBMBASE)
+	$(MAKE) -C models
 
-OBJS: $(SUBDIRS) 
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
+$(RMBMMOD): $(RMBMBASE) models
+
+gotmrmbm: $(RMBMMOD)
+	 $(MAKE) -C drivers/gotm
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../../doc/rmbm.tex 
