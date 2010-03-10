@@ -64,7 +64,7 @@
 ! !PRIVATE DATA MEMBERS:
    ! Namelist variables
    REALTYPE                  :: cnpar
-   integer                   :: w_adv_discr,ode_method,split_factor
+   integer                   :: w_adv_method,w_adv_discr,ode_method,split_factor
    logical                   :: rmbm_calc,bioshade_feedback,repair_state
 
    ! Model
@@ -316,7 +316,7 @@
 ! !IROUTINE: Set bio module environment 
 !
 ! !INTERFACE: 
-   subroutine set_env_gotm_rmbm(dt_,w_adv_ctr_,temp,salt,rho,nuh_,h_,w_,rad_,bioshade_,I_0,wnd,z_)
+   subroutine set_env_gotm_rmbm(dt_,w_adv_method_,w_adv_ctr_,temp,salt,rho,nuh_,h_,w_,rad_,bioshade_,I_0,wnd,z_)
 !
 ! !DESCRIPTION:
 ! TODO
@@ -326,7 +326,7 @@
 !
 ! !INPUT PARAMETERS:
    REALTYPE, intent(in) :: dt_
-   integer, intent(in) :: w_adv_ctr_
+   integer,  intent(in) :: w_adv_method_,w_adv_ctr_
    REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS    :: temp,salt,rho,nuh_,h_,w_,rad_,bioshade_,z_
    REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS_HZ :: I_0,wnd
 !
@@ -354,6 +354,7 @@
    z => z_  ! used to calculate local pressure in do_gotm_rmbm
    
    dt = dt_
+   w_adv_method = w_adv_method_
    w_adv_ctr = w_adv_ctr_
 
    ! Calculate internal time step.
@@ -429,7 +430,7 @@
            flux,_ZERO_,_ZERO_,w_adv_discr,adv_mode_1,cc(j,:))
          
       ! Do advection step due to vertical velocity
-      if(w_adv_ctr .ne. 0) &
+      if (w_adv_method .ne. 0) &
          call adv_center(nlev,dt,h,h,w,flux,                   &
               flux,_ZERO_,_ZERO_,w_adv_ctr,adv_mode_0,cc(j,:))
       
@@ -489,8 +490,8 @@
    do ci=1,nlev
       valid = rmbm_check_state(model,ci,repair_state)
       if (.not. (valid .or. repair_state)) then
-         FATAL 'State variables are invalid and repair, '//location//', index ',ci
-         LEVEL1 'Invalid state:'
+         FATAL 'State variables are invalid and repair is not allowed, '//location
+         LEVEL1 'Invalid state at index ',ci
          do j=1,model%info%state_variable_count
             LEVEL2 trim(model%info%variables(j)%name),cc(j,ci)
          end do
