@@ -85,6 +85,7 @@
    REALTYPE :: dt,dt_eff   ! External and internal time steps
    integer  :: w_adv_ctr   ! Scheme for vertical advection (0 if not used)
    REALTYPE,pointer,dimension(LOCATION_DIMENSIONS) :: nuh,h,bioshade,rad,w,z
+   REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_HZ :: precip,evap
 
    contains
 
@@ -316,7 +317,7 @@
 ! !IROUTINE: Set bio module environment 
 !
 ! !INTERFACE: 
-   subroutine set_env_gotm_rmbm(dt_,w_adv_method_,w_adv_ctr_,temp,salt,rho,nuh_,h_,w_,rad_,bioshade_,I_0,wnd,z_)
+   subroutine set_env_gotm_rmbm(dt_,w_adv_method_,w_adv_ctr_,temp,salt,rho,nuh_,h_,w_,rad_,bioshade_,I_0,wnd,precip_,evap_,z_)
 !
 ! !DESCRIPTION:
 ! TODO
@@ -328,7 +329,7 @@
    REALTYPE, intent(in) :: dt_
    integer,  intent(in) :: w_adv_method_,w_adv_ctr_
    REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS    :: temp,salt,rho,nuh_,h_,w_,rad_,bioshade_,z_
-   REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS_HZ :: I_0,wnd
+   REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS_HZ :: I_0,wnd,precip_,evap_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -359,6 +360,9 @@
 
    ! Calculate internal time step.
    dt_eff = dt/float(split_factor)
+   
+   precip => precip_
+   evap   => evap_
 
    end subroutine set_env_gotm_rmbm
 !EOC
@@ -420,6 +424,9 @@
    call rmbm_update_air_sea_exchange(model,nlev,sfl)
 
    do j=1,model%info%state_variable_count
+      ! Add surface flux due to evaporation/precipitation, unless the model explicitly says otherwise.
+      if (.not. model%info%variables(j)%no_precipitation_dilution) &
+         sfl(j) = sfl(j)-cc(j,nlev)*(precip+evap)
    
       ! Determine whether the variabel is postivie definite based on lower allowed bound.
       posconc = 0

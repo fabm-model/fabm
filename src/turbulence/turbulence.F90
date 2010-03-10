@@ -57,7 +57,8 @@
 
 !  turbulent diffusivities
 !  of momentum, temperature, salinity
-   REALTYPE, public, dimension(:), allocatable   :: num,nuh,nus
+   REALTYPE, public, dimension(:), allocatable,target :: nuh
+   REALTYPE, public, dimension(:), allocatable        :: num,nus
 
 !  non-local fluxes of momentum
    REALTYPE, public, dimension(:), allocatable   :: gamu,gamv

@@ -24,16 +24,18 @@
    logical, public                              :: grid_ready=.false.
 
 !  coordinate z, layer thicknesses
-   REALTYPE, public, dimension(:), allocatable  :: ga,z,h,ho
+   REALTYPE, public, dimension(:), allocatable  :: ga,ho
+   REALTYPE, public, dimension(:), allocatable, target  :: z,h
 
 !  the velocity components
-   REALTYPE, public, dimension(:), allocatable  :: u,v,w
+   REALTYPE, public, dimension(:), allocatable         :: u,v
+   REALTYPE, public, dimension(:), allocatable,target  :: w
 
 !  velocity at old time step
    REALTYPE, public, dimension(:), allocatable  :: uo,vo
 
 !  potential temperature, salinity
-   REALTYPE, public, dimension(:), allocatable  :: T,S,rho
+   REALTYPE, public, dimension(:), allocatable, target  :: T,S,rho
 
 !  boyancy frequency squared
 !  (total, from temperature only, from salinity only)
@@ -45,7 +47,8 @@
 
 !  buoyancy, short-wave radiation,
 !  extra production of tke by see-grass etc
-   REALTYPE, public, dimension(:), allocatable  :: buoy,rad,xP
+   REALTYPE, public, dimension(:), allocatable,target  :: rad
+   REALTYPE, public, dimension(:), allocatable         :: buoy,xP
 
 !  a dummy array
 !  (most often used for diffusivities)
@@ -58,7 +61,7 @@
    REALTYPE, public, dimension(:), allocatable  :: fric,drag
 
 !  shading in the water column
-   REALTYPE, public, dimension(:), allocatable  :: bioshade
+   REALTYPE, public, dimension(:), allocatable, target  :: bioshade
 
 # ifdef EXTRA_OUTPUT
 

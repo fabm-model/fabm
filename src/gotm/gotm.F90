@@ -375,7 +375,7 @@
 
    call init_var_gotm_rmbm(nlev)
 
-   call set_env_gotm_rmbm(dt,w_adv_method,w_adv_discr,t(1:nlev),s(1:nlev),rho(1:nlev),nuh,h,w,rad(1:nlev),bioshade(1:nlev),I_0,wind,z(1:nlev))
+   call set_env_gotm_rmbm(dt,w_adv_method,w_adv_discr,t(1:nlev),s(1:nlev),rho(1:nlev),nuh,h,w,rad(1:nlev),bioshade(1:nlev),I_0,wind,precip,evap,z(1:nlev))
 
 #endif
 

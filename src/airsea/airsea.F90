@@ -41,11 +41,11 @@
    logical,  public                    :: calc_fluxes=.false.
 !
 !  wind speed (m/s)
-   REALTYPE, public                    :: w=_ZERO_
+   REALTYPE, public, target            :: w=_ZERO_
 !
 !  surface short-wave radiation
 !  and surface heat flux (W/m^2)
-   REALTYPE, public                    :: I_0=_ZERO_
+   REALTYPE, public, target            :: I_0=_ZERO_
    REALTYPE, public                    :: heat=_ZERO_
 
 !  surface stress components (Pa)
@@ -53,8 +53,8 @@
 
 !  precipitation and  evaporation
 !  (m/s)
-   REALTYPE, public                    :: precip=_ZERO_
-   REALTYPE, public                    :: evap=_ZERO_
+   REALTYPE, public, target            :: precip=_ZERO_
+   REALTYPE, public, target            :: evap=_ZERO_
 
 !  sea surface temperature (degC) and
 !  sea surface salinity (psu)
