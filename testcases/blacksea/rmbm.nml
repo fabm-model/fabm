@@ -60,7 +60,7 @@
 
 &bio_nml
    rmbm_calc = .true.,
-   models = 1,2
+   models = 1,102
    cnpar = 1.0,
    w_adv_discr = 6,
    ode_method = 3,
@@ -136,7 +136,7 @@
    alpha = 1.35,
    rpn = 0.01,
    rzn = 0.01,
-   rdn = 0.003,
+   rdn = 0.3,!0.003,
    rpdu = 0.02,
    rpdl = 0.1,
    rzd = 0.02,

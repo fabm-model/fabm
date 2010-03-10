@@ -60,7 +60,7 @@
 
 &bio_nml
    rmbm_calc = .true.,
-   models = 3,1
+   models = 101,1
    cnpar = 1.0,
    w_adv_discr = 6,
    ode_method = 3,

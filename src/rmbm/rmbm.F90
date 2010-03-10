@@ -257,11 +257,12 @@
 !
 ! !PRIVATE DATA MEMBERS:
 
-!  Identifiers for specific biogeochemical models:
+!  Identifiers for specific biogeochemical models.
+!  Note: identifiers <=100 are reserved for models ported from the General Ocean Turbulence Model
    integer, parameter :: model_container_id = -1
    integer, parameter :: npzd_id            =  1
-   integer, parameter :: jellyfish_id       =  2
-   integer, parameter :: carbonate_id       =  3
+   integer, parameter :: carbonate_id       =  101
+   integer, parameter :: jellyfish_id       =  102
    ! ADD_NEW_MODEL_HERE
 
 ! !PUBLIC TYPES:
