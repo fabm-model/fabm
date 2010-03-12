@@ -1,4 +1,4 @@
-#$Id: Makefile,v 1.10 2008-03-26 09:16:19 kb Exp $
+#$Id$
 #
 # Master Makefile for making the GOTM executable.
 #

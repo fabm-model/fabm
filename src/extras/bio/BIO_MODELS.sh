@@ -1,4 +1,4 @@
-#$Id: BIO_MODELS.sh,v 1.3 2009-11-11 13:08:54 kb Exp $
+#$Id$
 
 #export BIO_TEMPLATE=false
 #export BIO_NPZD=false

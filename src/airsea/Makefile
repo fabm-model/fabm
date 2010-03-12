@@ -1,4 +1,4 @@
-#$Id: Makefile,v 1.4 2007-09-25 10:06:10 kbk Exp $
+#$Id$
 #
 # Makefile to build the the airsea interaction library - libairsea.a
 #

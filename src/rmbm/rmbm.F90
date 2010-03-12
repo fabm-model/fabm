@@ -1,4 +1,4 @@
-!$Id: bio_0d_gen.F90,v 1.8 2009-05-11 13:57:31 jorn Exp $
+!$Id$
 #include "rmbm_driver.h"
 
 !-----------------------------------------------------------------------
@@ -363,7 +363,7 @@
 !BOP
 !
 ! !IROUTINE: Create a new model. This will be a specific model if the
-! model identifier is provided, or a contained of child models if the
+! model identifier is provided, or a container of child models if the
 ! identifier is omitted.
 !
 ! !INTERFACE:
@@ -491,6 +491,8 @@
          
    end select
    
+   ! If this is the root model, then allocate arrays for pointers to
+   ! environmental and state variables, and pass these arrays to the child models.
    if (.not. associated(model%parent)) then
       allocate(model%environment)
       allocate(model%environment%var2d(ubound(model%info%dependencies2d,1)))

@@ -1,4 +1,4 @@
-#$Id: Makefile,v 1.1 2008-03-26 08:51:44 kb Exp $
+#$Id$
 #
 # Makefile to build the template bio-module
 #

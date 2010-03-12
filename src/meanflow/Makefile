@@ -1,4 +1,4 @@
-#$Id: Makefile,v 1.7 2005-07-06 14:17:31 kbk Exp $
+#$Id$
 #
 # Makefile to build the the Dynamics library - libmeanflow.a
 #

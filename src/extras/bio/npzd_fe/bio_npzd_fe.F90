@@ -1,4 +1,4 @@
-!$Id: bio_npzd_fe.F90,v 1.2 2008-07-08 09:58:38 lars Exp $
+!$Id$
 #include"cppdefs.h"
 #define IRON_QUOTA_LIMITATION
 

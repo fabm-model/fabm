@@ -1,4 +1,4 @@
-#$Id: Makefile,v 1.3 2004-01-12 08:51:01 lars Exp $
+#$Id$
 #
 # Makefile to build the Sediment Module - libsediment.a
 #

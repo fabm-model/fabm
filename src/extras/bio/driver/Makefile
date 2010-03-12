@@ -1,4 +1,4 @@
-#$Id: Makefile,v 1.2 2008-11-05 13:08:00 jorn Exp $
+#$Id$
 
 include ../../../Rules.make
 

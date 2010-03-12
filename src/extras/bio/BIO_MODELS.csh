@@ -1,4 +1,4 @@
-#$Id: BIO_MODELS.csh,v 1.3 2009-11-11 13:08:54 kb Exp $
+#$Id$
 
 #setenv BIO_TEMPLATE false
 #setenv BIO_NPZD false

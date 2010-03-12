@@ -1,4 +1,4 @@
-#$Id: Rules.make,v 1.22 2009-11-20 08:16:56 kb Exp $
+#$Id$
 
 SHELL   = /bin/sh
 

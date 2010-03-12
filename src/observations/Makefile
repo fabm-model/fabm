@@ -1,4 +1,4 @@
-#$Id: Makefile,v 1.7 2007-06-19 10:38:03 kbk Exp $
+#$Id$
 #
 # Makefile to build the the Observtions library - libobservations.a
 #

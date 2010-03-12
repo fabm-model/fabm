@@ -1,4 +1,4 @@
-#$Id: Makefile,v 1.6 2005-07-06 14:07:17 kbk Exp $
+#$Id$
 #
 # Makefile to build the the Turbulence library - libturbulence.a
 #
