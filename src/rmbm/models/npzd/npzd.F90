@@ -401,9 +401,6 @@
    par = environment%var3d(self%id_par)%data INDEX_LOCATION
    I_0 = environment%var2d(self%id_I_0)%data INDEX_LOCATION_HZ
    
-   !par = environment%par(LOCATION)
-   !I_0 = environment%par_sf(LOCATION2D)
-   
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
 
@@ -523,8 +520,6 @@
    d = state(self%id_d)%data INDEX_LOCATION
    
    ! Retrieve current (local) environmental conditions.
-   !par = environment%par(LOCATION)
-   !I_0 = environment%par_sf(LOCATION2D)
    par = environment%var3d(self%id_par)%data INDEX_LOCATION
    I_0 = environment%var2d(self%id_I_0)%data INDEX_LOCATION_HZ
    
