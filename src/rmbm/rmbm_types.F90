@@ -67,6 +67,9 @@
       ! 3: time step-integrated
       integer           :: time_treatment
    end type type_diagnostic_variable_info
+   
+   integer, parameter,public  :: time_treatment_last=0,time_treatment_integrated=1, &
+                                 time_treatment_averaged=2,time_treatment_step_integrated=3
 
    ! Properties of a conserved quantity
    type type_conserved_quantity_info
