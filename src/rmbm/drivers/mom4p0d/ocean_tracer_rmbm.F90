@@ -788,10 +788,14 @@ do n = 1, instances  !{
           package_name,                                                                      &
           longname = trim(biotic(n)%model%info%variables(i)%longname) // trim(long_suffix),  &
           units = trim(biotic(n)%model%info%variables(i)%units),                             &
-          flux_units = trim(biotic(n)%model%info%variables(i)%units)//'/s',                   &
+          flux_units = trim(biotic(n)%model%info%variables(i)%units)//'/s',                  &
           caller = trim(mod_name)//'('//trim(sub_name)//')',                                 &
           min_tracer_limit = biotic(n)%model%info%variables(i)%minimum,                      &
-          max_tracer_limit = biotic(n)%model%info%variables(i)%maximum)
+          max_tracer_limit = biotic(n)%model%info%variables(i)%maximum,                      &
+!          min_tracer = biotic(n)%model%info%variables(i)%minimum,                      &
+          max_tracer = biotic(n)%model%info%variables(i)%maximum,                      &
+          const_init_tracer = .true.,                                                        &
+          const_init_value = biotic(n)%model%info%variables(i)%initial_value)
   end do
   
   ! Obtain ids of required external variables
@@ -923,16 +927,30 @@ biotic_split = max(1,nint(dtts/dt_bio))
 dtsb = dtts/biotic_split
 
 do n = 1, instances  !{
+  ! Set pointers to environmental variables.
+  if (biotic(n)%id_temp.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
+  if (biotic(n)%id_salt.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
+
+  !do ivar=1,biotic(n)%model%info%state_variable_count
+  !   biotic(n)%model%state(ivar)%data => t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1)
+  !end do
+
+  ! Repair bio state at the start of the time step
+  !do k = 1, nk  !{
+  !  do j = jsc, jec  !{
+  !    do i = isc, iec  !{
+  !      if (grid%tmask(i,j,k).eq.1.) &
+  !        valid = rmbm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.)
+  !    end do
+  !  end do
+  !end do
+
   ! Copy current bio state to temporary storage (we will use this temporary array to
   ! update state at the internal time step).
   do ivar=1,biotic(n)%model%info%state_variable_count
      biotic(n)%work_state(isc:iec,jsc:jec,:,ivar) = t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1)
      biotic(n)%model%state(ivar)%data => biotic(n)%work_state(isc:iec,jsc:jec,:,ivar)
   end do
-  
-  ! Set pointers to environmental variables.
-  if (biotic(n)%id_temp.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
-  if (biotic(n)%id_salt.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
 
   ! Repair bio state at the start of the time step
   do k = 1, nk  !{
