@@ -15,7 +15,7 @@
 !
 ! !DESCRIPTION:
 ! This module contains the derived types that are used for communication between
-! the 0D biogeochemical models and a hosting physical environment (e.g. GOTM).
+! the 0D biogeochemical models and a hosting physical environment.
 ! Types are used to describe the 0d model, its state variables, and the local
 ! environment.
 !
@@ -51,7 +51,7 @@
 #endif
       logical :: no_precipitation_dilution,no_river_dilution
       
-      integer  :: globalid                   ! This is a globally unique identifier for the variable that can be used in getbiovar
+      integer  :: globalid                   ! This is a globally unique identifier for the variable that can be used to retrieve values.
       integer  :: id
    end type type_state_variable_info
 
@@ -237,8 +237,8 @@
       varinfo%name = ''
       varinfo%units = ''
       varinfo%longname = ''
-      varinfo%id = -1
-      varinfo%time_treatment = 0
+      varinfo%id = id_not_used
+      varinfo%time_treatment = time_treatment_last
    end subroutine init_diagnostic_variable_info
 !EOC
 
