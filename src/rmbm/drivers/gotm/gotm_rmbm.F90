@@ -429,7 +429,7 @@
    ! Calculate dilution due to surface freshwater flux (m/s)
    ! If surface freshwater flux is not specified, but surface salinity is relaxed to observations,
    ! calculate the effective dilution from the relation term, and use that instead.
-   dilution = precip-evap
+   dilution = precip+evap
    !if (any(SRelaxTau(1:nlev)<1.e10)) &
    !   dilution = dilution + sum((salt(1:nlev)-sProf(1:nlev))/SRelaxTau(1:nlev)*h(2:nlev+1)) &
    !                        /sum(salt(1:nlev)*h(2:nlev+1)) * sum(h(2:nlev+1))
