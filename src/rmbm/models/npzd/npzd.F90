@@ -208,10 +208,10 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve current (local) state variable values.
-   p = state(self%id_p)%data(LOCATION)
-   d = state(self%id_d)%data(LOCATION)
+   p = state(self%id_p)%data INDEX_LOCATION
+   d = state(self%id_d)%data INDEX_LOCATION
    
-   ! Self-shading with explciit contribution from background phytoplankton concentration.
+   ! Self-shading with explicit contribution from background phytoplankton concentration.
    extinction = self%kc*(self%p0+p+d)
 
    end function get_bio_extinction_npzd_0d
@@ -240,10 +240,10 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve current (local) state variable values.
-   n = state(self%id_n)%data(LOCATION)
-   p = state(self%id_p)%data(LOCATION)
-   z = state(self%id_z)%data(LOCATION)
-   d = state(self%id_d)%data(LOCATION)
+   n = state(self%id_n)%data INDEX_LOCATION
+   p = state(self%id_p)%data INDEX_LOCATION
+   z = state(self%id_z)%data INDEX_LOCATION
+   d = state(self%id_d)%data INDEX_LOCATION
    
    ! Total nutrient is simply the sum of all variables.
    sums(self%id_totN) = n+p+z+d

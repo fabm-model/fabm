@@ -27,15 +27,15 @@
 !
 ! 1) Add a use statement that references your new model (cf. "use rmbm_npzd" below)
 !
-! 2) Define an integer identifier for your new model (cf. "npzd_id" below)
+! 2) Define a unique integer identifier for your new model (cf. "npzd_id" below)
 !
-! 3) If your model uses model-specific data (e.g. parameter values) that are grouped in a
-!    (model-specific) derived type, add an instance of this type as member to the derived
-!    type "type_model" defined below.
+! 3) If your model uses model-specific data (e.g., parameter values), it is strongly recommended
+!    that these are grouped in a (model-specific) derived type. This is a *requirement*
+!    if you want to be able to run multiple instances of your model side-by-side!
+!    (because in that case, any module-level variables would be shared between instances)
 !
-!    Note: if you want to be able to run multiple instances of your model
-!    side-by-side, your model cannot use any module-level variables.
-!    Grouping the model parameters in a derived type, then, is a *requirement*.
+!    If your model groups data in a derived type, add an instance of this type as member to the
+!    derived type "type_model" defined below.
 !
 ! 4) Add the model as option to the "select" statements in the following subroutines:
 !
@@ -53,7 +53,8 @@
 !    If this function is not provided, sinking rates will be set to the constant sinking
 !    rates specified by the model upon its calls to register_state_variable.
 !
-! 6) If any of the model variables attenuate light, a function that calculates the light
+! 6) If any of the model variables attenuate light, and this effect cannot be captured by a 
+!    specific extinction coefficient for these model variables, a function that calculates the light
 !    extinction coefficient (/m) from the current model state must be added as option to the "select"
 !    statement in rmbm_get_bio_extinction. This allows for complete customization of the bio
 !    extinction.
@@ -65,8 +66,11 @@
 !
 ! 7) If (part of) the model state variable are composed of conserved quantities (energy and/or
 !    chemical elements), a function that provides the sum of these quantities given the model
-!    state must be added as option to the "select" statement in get_conserved_quantities_rmbm.
-!    Note that your model should reigster these conserved quantities during initialization.
+!    state can be added as option to the "select" statement in get_conserved_quantities_rmbm.
+!    In that case, the totals of these conserved quantities can be diagnosed at run-time, and
+!    included in the model output.
+!
+!    Note that your model should register any conserved quantities during initialization.
 !
 ! ------------------------------------------------------------------------------------------
 ! How to use this library of biogeochemical models in a physical host model
@@ -82,9 +86,9 @@
 ! environmental or biotic variable must be accessible through a single F90 pointer. For
 ! spatial models, all data for a single variable must thus be stored in a single array (e.g., a
 ! one-dimensional array for column models, or a three-dimensionsal array for global
-! circulation models). Ultimately, the variable will be represented by an array slice, which
-! means that the variable for storing is allowed to use additional dimensions (e.g., for time),
-! which will be ignored (by being set to some index chosen by the host) by RMBM.
+! circulation models). Ultimately, the variable will be represented by a F90 array slice, which
+! means that the variable for storing may use additional dimensions (e.g., for time),
+! which are then set to some index chosen by the host, and ignored by RMBM.
 !
 ! Note that this does *not* require that the values for all variables combined are
 ! stored in a single contiguous block of memory. In practice, it does mean that the
@@ -124,7 +128,7 @@
 !
 ! real,dimension(nx,ny,nz,3),target  :: temp,salt
 !
-! Later thwe last dimension can be ignored by providing RMBM with a slices such as
+! Later the last dimension can be ignored by providing RMBM with a slices such as
 ! temp(:,:,:,1) and salt(:,:,:,1)
 !
 ! This can be needed for models that use an additional dimension for the time step index,
@@ -137,7 +141,7 @@
 
 ! A typical example of this would be a variable that stores bottom values on a 3D cartesian
 ! model grid: there the bottom index will vary in the horizontal, making it impossible to
-! get at bottom values with a simple aray slice (with fixed depth index). Before calls to
+! get at bottom values with a simple array slice (with fixed depth index). Before calls to
 ! RMBM, the coupling layer should therefore read bottom values from the physical host, and
 ! put them in the "bottom value" array that has been provided to RMBM.
 !
@@ -403,12 +407,14 @@
    ! Initialize model info
    call init_model_info(model%info)
 
-   ! Connect to parent model if specified.
+   ! Connect to parent container if provided.
    if (present(parent)) then
       if (parent%id.ne.model_container_id) &
          call fatal_error('rmbm_create_model','A child model can only be added to a container, not to an existing model.')
 
       if (associated(parent%firstchild)) then
+         ! The target container already contains one or more children.
+         ! Find the last, then append the new model to the list.
          previoussibling => parent%firstchild
          do while (associated(previoussibling%nextsibling))
             previoussibling => previoussibling%nextsibling
@@ -416,9 +422,13 @@
          previoussibling%nextsibling => model
          previoussibling%info%nextsibling => model%info
       else
+         ! The target container does not contain any children yet.
+         ! Add the current model as first child.
          parent%firstchild => model
          parent%info%firstchild => model%info
       end if
+      
+      ! Link the child model to its parent container.
       model%parent => parent
       model%info%parent => parent%info
    end if
@@ -451,6 +461,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Retrieve model name based on its integer identifier.
    modelname = get_model_name(model%id)
    call log_message('Initializing biogeochemical model '//trim(modelname))
 
@@ -465,9 +476,10 @@
       ! ADD_NEW_MODEL_HERE
       
       case (model_container_id)
+         ! This is a container of models. Loop over all children and allow each to initialize.
          curchild => model%firstchild
          do while (associated(curchild))
-            ! Find the number of the child model
+            ! Find the number of the child model. This will be used in the prefix of model variable names.
             ichild = 1
             curchild2 => model%firstchild
             do while (.not. associated(curchild,curchild2))
@@ -627,6 +639,9 @@ end subroutine rmbm_supply_variable_data_2d_char
             curchild => curchild%nextsibling
          end do
       case default
+         ! The model does not provide the temporal derivatives itself.
+         ! In that case, it provides production/destruction matrices instead.
+         ! Retrieve those, and calculate the temporal derivatives based on their contents.
          allocate(pp(1:ubound(dy,1),1:ubound(dy,1)))
          allocate(dd(1:ubound(dy,1),1:ubound(dy,1)))
          pp = _ZERO_
@@ -730,6 +745,9 @@ end subroutine rmbm_supply_variable_data_2d_char
             curchild => curchild%nextsibling
          end do
       case default
+         ! The model does not provide production/destruction matrices itself.
+         ! In that case, it provides temporal derivatives instead.
+         ! Retrieve those, and create degenerate production/destruction from their contents.
          allocate(dy(ubound(pp,1)))
          dy = _ZERO_
          call rmbm_do_rhs(model,LOCATION,dy,diag)
@@ -755,7 +773,7 @@ end subroutine rmbm_supply_variable_data_2d_char
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(in)    :: model
+   type (type_model),      intent(inout) :: model
    LOCATION_TYPE,          intent(in)    :: LOCATION
    logical,                intent(in)    :: repair
 
@@ -779,17 +797,20 @@ end subroutine rmbm_supply_variable_data_2d_char
             if (.not. rmbm_check_state(curchild,LOCATION,repair)) valid = .false.
             curchild => curchild%nextsibling
          end do
-      case default
-         do i=1,model%info%state_variable_count
-            if (model%state(model%info%variables(i)%globalid)%data(LOCATION)<model%info%variables(i)%minimum) then
-               valid = .false.
-               if (repair) model%state(model%info%variables(i)%globalid)%data(LOCATION) = model%info%variables(i)%minimum
-            elseif (model%state(model%info%variables(i)%globalid)%data(LOCATION)>model%info%variables(i)%maximum) then
-               valid = .false.
-               if (repair) model%state(model%info%variables(i)%globalid)%data(LOCATION) = model%info%variables(i)%maximum
-            end if
-         end do
    end select
+
+   ! Default: check fixed bounds, and clip to bounds if repair is allowed.
+   if (model%id.ne.model_container_id) then
+      do i=1,model%info%state_variable_count
+         if (model%state(model%info%variables(i)%globalid)%data(LOCATION)<model%info%variables(i)%minimum) then
+            valid = .false.
+            if (repair) model%state(model%info%variables(i)%globalid)%data(LOCATION) = model%info%variables(i)%minimum
+         !elseif (model%state(model%info%variables(i)%globalid)%data(LOCATION)>model%info%variables(i)%maximum) then
+         !   valid = .false.
+         !   if (repair) model%state(model%info%variables(i)%globalid)%data(LOCATION) = model%info%variables(i)%maximum
+         end if
+      end do
+   end if
 
    end function rmbm_check_state
 !EOC
