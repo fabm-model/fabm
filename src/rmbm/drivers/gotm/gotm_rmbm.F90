@@ -85,7 +85,7 @@
    ! External variables
    REALTYPE :: dt,dt_eff   ! External and internal time steps
    integer  :: w_adv_ctr   ! Scheme for vertical advection (0 if not used)
-   REALTYPE,pointer,dimension(LOCATION_DIMENSIONS) :: nuh,h,bioshade,rad,w,z,salt
+   REALTYPE,pointer,dimension(LOCATION_DIMENSIONS) :: nuh,h,bioshade,rad,w,z
    REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_HZ :: precip,evap
 
    contains
@@ -347,25 +347,24 @@
    call rmbm_link_variable_data(model,varname_wind_sf,wnd)
    call rmbm_link_variable_data(model,varname_par_sf, I_0)
    
-   ! Save pointers to external arrays that we need later (in do_gotm_rmbm)
-   nuh => nuh_
-   h   => h_
-   w   => w_
-   rad => rad_
-   bioshade => bioshade_
-   z => z_  ! used to calculate local pressure in do_gotm_rmbm
+   ! Save pointers to external dynamic variables that we need later (in do_gotm_rmbm)
+   nuh => nuh_             ! turbulent heat diffusivity [1d array] used to diffuse biogeochemical state variables
+   h   => h_               ! layer heights [1d array] needed for advection, diffusion
+   w   => w_               ! vertical medium velocity [1d array] needed for advection of biogeochemical state variables
+   rad => rad_             ! short wave radiation [1d array] used to calculate photosynthetically active radiation
+   bioshade => bioshade_   ! biogeochemical light attenuation coefficients [1d array], output of biogeochemistry, input for physics
+   z => z_                 ! depth [1d array], used to calculate local pressure
+   precip => precip_       ! precipitation [scalar] - used to calculate dilution of biogeochemical variables due to increased water volume
+   evap   => evap_         ! evaporation [scalar] - used to calculate concentration of biogeochemical variables due to decreased water volume
    
+   ! Copy scalars that will not change during simulation, and are needed in do_gotm_rmbm)
    dt = dt_
    w_adv_method = w_adv_method_
    w_adv_ctr = w_adv_ctr_
 
-   ! Calculate internal time step.
+   ! Calculate and save internal time step.
    dt_eff = dt/float(split_factor)
    
-   precip => precip_
-   evap   => evap_
-   salt => salt_
-
    end subroutine set_env_gotm_rmbm
 !EOC
 
@@ -428,7 +427,7 @@
    call rmbm_update_air_sea_exchange(model,nlev,sfl)
    
    ! Calculate dilution due to surface freshwater flux (m/s)
-   ! If surface freshwater flux is nto specified, but surface salinity is relaxed to observations,
+   ! If surface freshwater flux is not specified, but surface salinity is relaxed to observations,
    ! calculate the effective dilution from the relation term, and use that instead.
    dilution = precip-evap
    !if (any(SRelaxTau(1:nlev)<1.e10)) &
@@ -790,7 +789,7 @@
          dims(3) = z_dim
          dims(4) = time_dim
 
-         ! Add a variable for each prognostic variable
+         ! Add a NetCDF variable for each biogeochemical state variable
          do n=1,model%info%state_variable_count
             iret = new_nc_variable(ncid,model%info%variables(n)%name,NF_REAL, &
                                    4,dims,model%info%variables(n)%id)
@@ -799,7 +798,7 @@
                                   long_name=model%info%variables(n)%longname)
          end do
 
-         ! Add a variable for each diagnostic variable
+         ! Add a NetCDF variable for each biogeochemical diagnostic variable
          do n=1,model%info%diagnostic_variable_count
             iret = new_nc_variable(ncid,model%info%diagnostic_variables(n)%name,NF_REAL, &
                                    4,dims,model%info%diagnostic_variables(n)%id)

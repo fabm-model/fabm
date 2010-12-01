@@ -16,7 +16,7 @@
 ! How to register a new biogeochemical model:
 ! ------------------------------------------------------------------------------------------
 !
-! A new biogeochemical models only need to be registered in this file
+! A new biogeochemical model only needs to be registered in this file
 ! in order to be usable by GOTM, MOM4 and any other physical drivers for RMBM.
 !
 ! For the impatient: throughout this file, locations where additional bio models may be
@@ -642,6 +642,12 @@ end subroutine rmbm_supply_variable_data_2d_char
          ! The model does not provide the temporal derivatives itself.
          ! In that case, it provides production/destruction matrices instead.
          ! Retrieve those, and calculate the temporal derivatives based on their contents.
+         !
+         ! NB pp/dd are allocated on the spot here, which is really expensive.
+         ! However, this could only be improved by making RMBM aware of the full model domain,
+         ! and maing biogeochemical models tell RMB whther they provide pp/dd. Only then can RMBM
+         ! allocate pp/dd for the full domain. (allocating the arrays once for a local
+         ! point in space seems attractive, but that would rule out parallelization)
          allocate(pp(1:ubound(dy,1),1:ubound(dy,1)))
          allocate(dd(1:ubound(dy,1),1:ubound(dy,1)))
          pp = _ZERO_
