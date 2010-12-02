@@ -458,12 +458,17 @@
   integer                    :: ichild
   character(len= 64)         :: modelname
   type (type_model), pointer :: curchild,curchild2
+  logical                    :: isopen
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve model name based on its integer identifier.
    modelname = get_model_name(model%id)
    call log_message('Initializing biogeochemical model '//trim(modelname))
+   
+   ! Check whether the unit provided by the host actually refers to an open file.
+   inquire(nmlunit,opened=isopen)
+   if (.not.isopen) call fatal_error('rmbm_init','input configuration file has not been opened yet!')
 
    ! Allow the selected model to initialize
    select case (model%id)
@@ -514,6 +519,10 @@
    end if
    
    call log_message('model '//trim(modelname)//' initialized successfully.')
+
+   ! Check whether the unit provided by the host has not been closed by the biogeochemical model.
+   inquire(nmlunit,opened=isopen)
+   if (.not.isopen) call fatal_error('rmbm_init','input configuration file was closed by model '//trim(modelname))
 
    end subroutine rmbm_init
 !EOC
