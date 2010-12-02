@@ -582,7 +582,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Registers a read-only dependency on another variable
+! !IROUTINE: Registers a read-only dependency on another variable.
 !
 ! !INTERFACE:
    recursive function register_dependency(modelinfo,name,shape) result(id)
@@ -616,7 +616,7 @@
 !
 !-----------------------------------------------------------------------
 !BOC
-      ! Get effective shape argument
+      ! Get effective shape argument - defaults to 3D.
       realshape = shape3d
       if (present(shape)) realshape = shape
 
@@ -626,7 +626,7 @@
          proot => proot%parent
       end do
       
-      ! Get pointer to array wioth dependencies
+      ! Get pointer to array with dependencies (use shape argument to determine which)
       select case (realshape)
          case (shape2d)
             source => proot%dependencies2d
@@ -646,7 +646,7 @@
          n = 0
       end if
       
-      ! Extend array to hold new dependency
+      ! Dependency was not registered yet - create extended array to hold new dependency.
       allocate(dependencies_new(n+1))
       if (associated(source)) then
          dependencies_new(1:n) = source(:)
@@ -654,6 +654,7 @@
       end if
       dependencies_new(n+1) = name
       
+      ! Assign new array with dependencies (variable to assign to depends on shape argument)
       select case (realshape)
          case (shape2d)
             proot%dependencies2d => dependencies_new
@@ -661,6 +662,7 @@
             proot%dependencies3d => dependencies_new
       end select
       
+      ! Variable identifier equal the previous number of dependencies plus 1.
       id = n+1
       
    end function register_dependency
