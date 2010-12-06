@@ -1,3 +1,5 @@
+#include "rmbm_driver.h"
+
 ! This file contains a set of FORTRAN subroutines that calculate the carbonate system 
 ! at any given point in marine space time, given values for 
 ! temperature, salinity, DIC, depth (pressure). 
@@ -21,7 +23,7 @@
   
    IMPLICIT NONE
 ! INPUT PARAMETERS:
-      real*8   :: T, S, Z, DIC
+      REALTYPE   :: T, S, Z, DIC
 ! T: temperature (C)
 ! S: salinity (psu)
 ! Z: depth (metres)
@@ -29,10 +31,10 @@
 ! pCO2a: partial pressure of co2 in atmosphere (eg ~390 in 2010, 280=preindustrial)
 
 ! LOCAL VARIABLES:
-      real*8   :: TCO2, TA, ph, pco2w
-      real*8   :: pco2water,fairco2, henry
-      real*8   :: ca, bc, cb, carba, bicarb, carb, om_cal, om_arg
-      real*8   :: a,b,c,dcf
+      REALTYPE   :: TCO2, TA, ph, pco2w
+      REALTYPE   :: pco2water,fairco2, henry
+      REALTYPE   :: ca, bc, cb, carba, bicarb, carb, om_cal, om_arg
+      REALTYPE   :: a,b,c,dcf
 
 !!!!!!!! provide an expression for total alkalinity.!!!!!!!!!!!!!!
 ! Note, for oceanic regimes there is generally a well constrained relationship between salinity and 
@@ -71,12 +73,12 @@
 
 ! Adjust outputs back to units used in the parent model code (e.g. mmol/m3) if appropriate
 
-          PCO2W = PCO2WATER*1.0D6 	! partial pressure of co2 in water 
-          TA = TA*(1.0D6)         	! total alkalinity (umol/kg)
+          PCO2W = PCO2WATER*1.0D6   ! partial pressure of co2 in water 
+          TA = TA*(1.0D6)           ! total alkalinity (umol/kg)
           CarbA= ca*(1.0D6*dcf)     ! carbonic acid concentration (mmol/m3)
           Bicarb=bc*(1.0D6*dcf)     ! bicarbonate ion concentration (mmol/m3)
           Carb = cb*(1.0D6*dcf)     ! carbonate ion concentration (mmol/m3)
-          TCO2 = TCO2*1.0D6          ! total C or DIC in units of umol/kg
+          TCO2 = TCO2*1.0D6         ! total C or DIC in units of umol/kg
 
 !Call carbonate saturation state subroutine to calculate calcite and aragonite calcification states
 
@@ -109,9 +111,9 @@
 !           +ve is in-gassing (air to sea), -ve is outgassing (sea to air).
 
    IMPLICIT NONE
-      real*8   :: T, wnd, pco2w, pco2a, henry, dcf    ! INPUT PARAMETERS:
-      real*8   :: sc, fwind    ! LOCAL VARIABLES:
-      real*8   :: flux    ! OUTPUT Variables
+      REALTYPE   :: T, wnd, pco2w, pco2a, henry, dcf    ! INPUT PARAMETERS:
+      REALTYPE   :: sc, fwind    ! LOCAL VARIABLES:
+      REALTYPE   :: flux    ! OUTPUT Variables
 
 ! calculate the scmidt number and unit conversions
           sc=2073.1-125.62*T+3.6276*T**2.0-0.0432190*T**3.0
@@ -130,8 +132,9 @@
 !.......................................................................
 !     This subroutine acts as an interface to the Haltafall iteration, setting options etc.
 !.......................................................................
+      IMPLICIT NONE
 
-      real*8 PRSS, PH, AKVAL, CONCS,                       &
+      REALTYPE PRSS, PH, AKVAL, CONCS,                       &
      &                 TCO2, TA, T, S, PCO2,            & 
      &                 SOLBTY, CCO2,                                 &
      &                 A1, A2, A3, B1, B2, B3, TK, TK1, SOL1, SOL2,  &
@@ -144,7 +147,7 @@
       DIMENSION AKVAL(MKVAL), CONCS(MCONC)
 
       ICONST = 6
-      PRSS = 1.0D0
+      PRSS = 1.0d0
       CONCS(1) = TCO2
       CONCS(2) = TA
       ICALC = 1
@@ -205,9 +208,9 @@
 !        BORATE IS NOT INCLUDED IN THE CALCULATION. FOR ICONST=4,5,6 CO
 !        REPRESENTS TOTAL ALKALINITY (CARBONATE + BORATE), THE COMPONEN
 !        WHICH ARE GIVEN IN CONCS(8) AND CONCS(9)
+      IMPLICIT NONE
 
-
-      real*8 PMIN, PMAX, SMIN, SMAX, TMIN, TMAX, CONCS,  &
+      REALTYPE PMIN, PMAX, SMIN, SMAX, TMIN, TMAX, CONCS,  &
      &      AKVAL, PD, TD, SD, P, T, S, BTOT
       INTEGER MINJC, MAXJC, MINJK, MAXJK, MINCAL, MAXCAL, MINCON,  &
      &      MAXCON, NCONC, NKVAL, ICALC, ICONST, IC
@@ -283,20 +286,21 @@
 !                                                              (KB ONLY
 
 ! ***
-!      IMPLICIT real*8 (A-H,O-Z)
+!      IMPLICIT REALTYPE (A-H,O-Z)
 
 !     Modified by jcb 17/02/10 to use OCMIP calculations of K1, K2, Kb. 
 !     Differences are subtle rather than significant
+      IMPLICIT NONE
 
       INTEGER MAXK, MAXCON, NKVAL, ICON, IC, IK
 ! ***
       PARAMETER(MAXK=4,MAXCON=3)
-      real*8,DIMENSION(:) :: A(MAXK),B(MAXK),C(MAXK)
-      real*8,DIMENSION(:) :: A0(MAXK,MAXCON),A1(MAXK,MAXCON),A2(MAXK,MAXCON)
-      real*8,DIMENSION(:) :: B0(MAXK,MAXCON),B1(MAXK,MAXCON),B2(MAXK,MAXCON)
-      real*8,DIMENSION(:) :: AKVAL(NKVAL)
-      real*8              :: P,T,S,VAL,TK
-      real*8              :: dlogTK, S2, sqrtS, S15, k1, k2, kb
+      REALTYPE,DIMENSION(:) :: A(MAXK),B(MAXK),C(MAXK)
+      REALTYPE,DIMENSION(:) :: A0(MAXK,MAXCON),A1(MAXK,MAXCON),A2(MAXK,MAXCON)
+      REALTYPE,DIMENSION(:) :: B0(MAXK,MAXCON),B1(MAXK,MAXCON),B2(MAXK,MAXCON)
+      REALTYPE,DIMENSION(:) :: AKVAL(NKVAL)
+      REALTYPE              :: P,T,S,VAL,TK
+      REALTYPE              :: dlogTK, S2, sqrtS, S15, k1, k2, kb
       DATA A/-167.8108D0, 290.9097D0, 207.6548D0, 148.0248D0/
       DATA B/9345.17D0, -14554.21D0, -11843.79D0, -8966.9D0/
       DATA C/23.3585D0, -45.0575D0, -33.6485D0, -24.4344D0/
@@ -339,24 +343,24 @@
 !  added jcb 17/02/10
 
 !  Derive simple terms used more than once
-	dlogTK = log(TK)
-	S2 = S*S
-	sqrtS = sqrt(S)
-	S15 = S**1.5
+   dlogTK = log(TK)
+   S2 = S*S
+   sqrtS = sqrt(S)
+   S15 = S**1.5
 ! k1 = [H][HCO3]/[H2CO3]
 ! k2 = [H][CO3]/[HCO3]
 ! Millero p.664 (1995) using Mehrbach et al. data on seawater scale 
-	k1=10**(-1*(3670.7/TK - 62.008 + 9.7944*dlogTK - &
-     &		0.0118 * S + 0.000116*S2))
-	k2=10**(-1*(1394.7/TK + 4.777 - &
-     &		0.0184*S + 0.000118*S2))
+   k1=10**(-1*(3670.7/TK - 62.008 + 9.7944*dlogTK - &
+     &      0.0118 * S + 0.000116*S2))
+   k2=10**(-1*(1394.7/TK + 4.777 - &
+     &      0.0184*S + 0.000118*S2))
 ! kb = [H][BO2]/[HBO2]
 ! Millero p.669 (1995) using data from Dickson (1990)
-	kb=exp((-8966.90 - 2890.53*sqrtS - 77.942*S + &
-     &		1.728*S15 - 0.0996*S2)/TK + &
-     &		(148.0248 + 137.1942*sqrtS + 1.62142*S) + &
-     &		(-24.4344 - 25.085*sqrtS - 0.2474*S) * &
-     &		dlogTK + 0.053105*sqrtS*TK)
+   kb=exp((-8966.90 - 2890.53*sqrtS - 77.942*S + &
+     &      1.728*S15 - 0.0996*S2)/TK + &
+     &      (148.0248 + 137.1942*sqrtS + 1.62142*S) + &
+     &      (-24.4344 - 25.085*sqrtS - 0.2474*S) * &
+     &      dlogTK + 0.053105*sqrtS*TK)
 ! replace haltafall calculations with OCMIP calculations
       AKVAL(2) = k1
       AKVAL(3) = k2
@@ -375,14 +379,16 @@
 ! WITH ADDITIONS FOR INCLUDING BORON IF BORON=.TRUE.
 
 
-!      IMPLICIT real*8 (A-H,O-Z)
+!      IMPLICIT REALTYPE (A-H,O-Z)
+      IMPLICIT NONE
+
       INTEGER NCONC, NKVAL, ICALC, II, KARL, LQ
-      real*8              :: CTOT,ALK,PCO2,PH,H2CO3,HCO3,CO3,ALKC
-      real*8              :: ALKB,AKP,AK1C,AK2C,AKB,BTOT
-      real*8              :: AKR,AHPLUS
-      real*8              :: PROD,tol1,tol2,tol3,tol4,steg,fak
-      real*8              :: STEGBY,Y,X,W,X1,Y1,X2,Y2,FACTOR,TERM,Z
-      real*8,DIMENSION(:) :: CONCS(NCONC),AKVAL(NKVAL),CONCS2(9),AKVAL2(4)
+      REALTYPE              :: CTOT,ALK,PCO2,PH,H2CO3,HCO3,CO3,ALKC
+      REALTYPE              :: ALKB,AKP,AK1C,AK2C,AKB,BTOT
+      REALTYPE              :: AKR,AHPLUS
+      REALTYPE              :: PROD,tol1,tol2,tol3,tol4,steg,fak
+      REALTYPE              :: STEGBY,Y,X,W,X1,Y1,X2,Y2,FACTOR,TERM,Z
+      REALTYPE,DIMENSION(:) :: CONCS(NCONC),AKVAL(NKVAL),CONCS2(9),AKVAL2(4)
       EQUIVALENCE (CTOT  , CONCS2(1)), (ALK   , CONCS2(2)),  &
      &            (PCO2  , CONCS2(3)), (PH    , CONCS2(4)),  &
      &            (H2CO3 , CONCS2(5)), (HCO3  , CONCS2(6)),  &
@@ -620,11 +626,11 @@
 !                                                                       
 
         IMPLICIT None
-        REAL*8 Tc, Tk, Kelvin, S, D, Ca, CO3
-        REAL*8 logKspc, Kspc, Om_cal
-        REAL*8 logKspa, Kspa, Om_arg
-        REAL*8 tmp1, tmp2, tmp3
-        REAL*8 dV, dK, P, R
+        REALTYPE Tc, Tk, Kelvin, S, D, Ca, CO3
+        REALTYPE logKspc, Kspc, Om_cal
+        REALTYPE logKspa, Kspa, Om_arg
+        REALTYPE tmp1, tmp2, tmp3
+        REALTYPE dV, dK, P, R
                
 ! setup
         Kelvin = 273.15

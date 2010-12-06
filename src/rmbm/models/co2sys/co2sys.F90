@@ -120,7 +120,7 @@ contains
 ! !IROUTINE: Right hand sides of carbonate system model
 !
 ! !INTERFACE:
-   subroutine do_bio_co2_sys_0d(self,state,environment,LOCATION,dy,diag)
+   subroutine do_bio_co2_sys_0d(self,environment,LOCATION,dy,diag)
 !
 ! !DESCRIPTION:
 !
@@ -129,7 +129,6 @@ contains
 !
 ! !INPUT PARAMETERS:
    type (type_co2_sys),    intent(in) :: self
-   type (type_state),      intent(in) :: state(:)
    type (type_environment),intent(in) :: environment
    LOCATION_TYPE                      :: LOCATION
 !
@@ -154,7 +153,7 @@ contains
    dens = environment%var3d(self%id_dens)%data INDEX_LOCATION
 
    ! Get current value for total dissolved inorganic carbon (our own state variable).
-   dic = state(self%id_dic)%data INDEX_LOCATION
+   dic = environment%state(self%id_dic)%data INDEX_LOCATION
 
    if (self%alk_param) then
       ! Linearly approximate alkalinity (uEq/kg) from salinity.
@@ -162,7 +161,7 @@ contains
    else
       ! Alkalinity (mEq/m**3) is a separate state variable.
       ! Divide by density/1000 to get alkalinity in uEq/kg.
-      TA = state(self%id_alk)%data(LOCATION)/dens*1.0D3
+      TA = environment%state(self%id_alk)%data INDEX_LOCATION/dens*1.0D3
    end if
 
    ! Calculate carbonate system equilibrium.
@@ -190,7 +189,7 @@ contains
 ! !IROUTINE: Air-sea exchange for the carbonate system model
 !
 ! !INTERFACE:
-   subroutine update_air_sea_co2_sys_0d(self,state,environment,LOCATION,flux)
+   subroutine update_air_sea_co2_sys_0d(self,environment,LOCATION,flux)
 !
 ! !DESCRIPTION:
 !
@@ -199,7 +198,6 @@ contains
 !
 ! !INPUT PARAMETERS:
    type (type_co2_sys), intent(in)    :: self
-   type (type_state),      intent(in) :: state(:)
    type (type_environment),intent(in) :: environment
    LOCATION_TYPE                      :: LOCATION
 !
@@ -229,7 +227,7 @@ contains
    dens = environment%var3d(self%id_dens)%data INDEX_LOCATION
    wnd  = environment%var2d(self%id_wind)%data INDEX_LOCATION_HZ
 
-   dic = state(self%id_dic)%data(LOCATION)
+   dic = environment%state(self%id_dic)%data(LOCATION)
 
    if (self%alk_param) then
       ! Linearly approximate alkalinity (uEq/kg) from salinity.
@@ -237,7 +235,7 @@ contains
    else
       ! Alkalinity (mEq/m**3) is a separate state variable
       ! Divide by density/1000 to get alkalinity in uEq/kg.
-      TA = state(self%id_alk)%data(LOCATION)/dens*1.0d3
+      TA = environment%state(self%id_alk)%data INDEX_LOCATION/dens*1.0d3
    end if
 
    ! Calculate carbonate system equilibrium.

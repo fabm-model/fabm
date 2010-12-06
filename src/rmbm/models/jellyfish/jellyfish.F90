@@ -109,10 +109,10 @@
                                     ada_initial,minimum=_ZERO_)
                                     
    ! Register external state variable dependencies
-   self%id_food       = register_state_variable_dependency(modelinfo,food_source_variable)
-   self%id_foodmic    = register_state_variable_dependency(modelinfo,foodmic_source_variable)
-   self%id_resptarget = register_state_variable_dependency(modelinfo,respiration_target_variable)
-   self%id_morttarget = register_state_variable_dependency(modelinfo,mortality_target_variable)
+   self%id_food       = register_state_dependency(modelinfo,food_source_variable)
+   self%id_foodmic    = register_state_dependency(modelinfo,foodmic_source_variable)
+   self%id_resptarget = register_state_dependency(modelinfo,respiration_target_variable)
+   self%id_morttarget = register_state_dependency(modelinfo,mortality_target_variable)
    
    ! Register environmental dependencies
    self%id_temp = register_dependency(modelinfo, varname_temp)
@@ -132,7 +132,7 @@
 ! !IROUTINE: Right hand sides of jellyfish model
 !
 ! !INTERFACE:
-   _PURE subroutine do_bio_jellyfish_0d(self,state,environment,LOCATION,dy,diag)
+   _PURE subroutine do_bio_jellyfish_0d(self,environment,LOCATION,dy,diag)
 !
 ! !DESCRIPTION:
 !
@@ -141,7 +141,6 @@
 !
 ! !INPUT PARAMETERS:
    type (type_jellyfish),  intent(in) :: self
-   type (type_state),      intent(in) :: state(:)
    type (type_environment),intent(in) :: environment
    LOCATION_TYPE,          intent(in) :: LOCATION
 !
@@ -192,17 +191,17 @@
    temp = environment%var3d(self%id_temp)%data(LOCATION)
 
    ! Obtain current values for state variables
-   egb_mn = state(self%id_egb)%data(LOCATION)
-   jb_mn  = state(self%id_jb )%data(LOCATION)
-   ja_mn  = state(self%id_ja )%data(LOCATION)
-   tb_mn  = state(self%id_tb )%data(LOCATION)
-   ta_mn  = state(self%id_ta )%data(LOCATION)
-   adb_mn = state(self%id_adb)%data(LOCATION)
-   ada_mn = state(self%id_ada)%data(LOCATION)
+   egb_mn = environment%state(self%id_egb)%data(LOCATION)
+   jb_mn  = environment%state(self%id_jb )%data(LOCATION)
+   ja_mn  = environment%state(self%id_ja )%data(LOCATION)
+   tb_mn  = environment%state(self%id_tb )%data(LOCATION)
+   ta_mn  = environment%state(self%id_ta )%data(LOCATION)
+   adb_mn = environment%state(self%id_adb)%data(LOCATION)
+   ada_mn = environment%state(self%id_ada)%data(LOCATION)
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
 
-   food    = state(self%id_food   )%data(LOCATION)*self%food_scale
-   foodmic = state(self%id_foodmic)%data(LOCATION)*self%food_scale
+   food    = environment%state(self%id_food   )%data(LOCATION)*self%food_scale
+   foodmic = environment%state(self%id_foodmic)%data(LOCATION)*self%food_scale
    foodno  = max(_ONE_,food/0.0024) !0.0024 is mg C per copepod
    
    !write (*,*) LOCATION,numc,food,foodmic
@@ -216,13 +215,13 @@
    eppley = exp(0.05*temp)
 
    ! Calculate transfer rate from egg to juveniles
-	if (temp.lt.4.0) then 
-	   teb_mn = 0.
-	   tea_mn = 0.
-	else
-	   teb_mn = 0.27*exp(a*(temp-4.)) !biomass 0.27 is set so that at 25 degrees eggs hatch in 1 day 
-	   tea_mn = teb_mn/mne_mn
-	endif
+   if (temp.lt.4.0) then 
+      teb_mn = 0.
+      tea_mn = 0.
+   else
+      teb_mn = 0.27*exp(a*(temp-4.)) !biomass 0.27 is set so that at 25 degrees eggs hatch in 1 day 
+      tea_mn = teb_mn/mne_mn
+   end if
 
    ! Calculate egg mortality
    mea_mn = 0.98+0.00002*ja_mn**2.
@@ -251,7 +250,7 @@
 
                              !              gj_mn=gj_mn*AEj*73.*food(it)!x73 try 58 kremer 1976is to convert carbon weight to dry weight
       gj_mn = gj_mn*AEj*foodmic*ja_mn/jb_mn ! ja_mn/jb_mn is to estimate ind/mgC
-      gj_mn = min(gj_mn,4.)!after Sorokin
+      gj_mn = min(gj_mn,4.d0)!after Sorokin
       tjb_mn = gj_mn*tr     !transfer rate from nauplii to copepods
       tja_mn = tjb_mn/mm    !           
    else                   !if biomass or abundance is zero
@@ -266,7 +265,7 @@
       ! Jorn: cannot influence state variables in GOTM except through temporal derivative
       !x(2)   = 0.0 !biomass
       !x(3)   = 0.00000001 !0000001!number
-   endif	 
+   end if
 
    ! Calculate transfer rate from "trans" to adult
    mt_mn = 0.3+0.003*ta_mn**2.
@@ -389,7 +388,8 @@
    dy(self%id_foodmic)    = dy(self%id_foodmic)    - (gj_mn*jb_mn)/self%food_scale/secs_pr_day
    dy(self%id_food)       = dy(self%id_food)       - (gt_mn*tb_mn+ga_mn*adb_mn)/self%food_scale/secs_pr_day
    dy(self%id_resptarget) = dy(self%id_resptarget) + (lj_mn*jb_mn + lt_mn*tb_mn + la_mn*adb_mn)/self%food_scale/secs_pr_day
-   dy(self%id_morttarget) = dy(self%id_morttarget) + (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale/secs_pr_day
+   dy(self%id_morttarget) = dy(self%id_morttarget) + (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale &
+                            /secs_pr_day
 
    end subroutine do_bio_jellyfish_0d
 !EOC

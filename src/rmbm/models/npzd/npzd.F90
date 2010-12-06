@@ -32,8 +32,8 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_npzd, init_bio_npzd_0d, do_bio_npzd_0d, do_bio_npzd_0d_ppdd, &
-          get_bio_extinction_npzd_0d, get_conserved_quantities_npzd_0d
+   public type_npzd, init_bio_npzd, do_bio_npzd, do_bio_npzd_ppdd, &
+          get_bio_extinction_npzd, get_conserved_quantities_npzd
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -73,7 +73,7 @@
 ! !IROUTINE: Initialise the bio module
 !
 ! !INTERFACE:
-   subroutine init_bio_npzd_0d(self,modelinfo,namlst)
+   subroutine init_bio_npzd(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Here, the bio namelist {\tt bio\_npzd.nml} is read and 
@@ -159,8 +159,8 @@
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%id_dic = -1
    if (dic_variable.ne.'') then
-      self%id_dic = register_state_variable_dependency(modelinfo,dic_variable)
-      if (self%id_dic.eq.-1) call fatal_error('init_bio_npzd_0d','Cannot locate external DIC variable '//dic_variable)
+      self%id_dic = register_state_dependency(modelinfo,dic_variable)
+      if (self%id_dic.eq.-1) call fatal_error('init_bio_npzd','Cannot locate external DIC variable '//dic_variable)
    end if
 
    ! Diagnostic variables
@@ -179,9 +179,9 @@
 
    return
 
-99 call fatal_error('init_bio_npzd_0d','I could not read namelist bio_npzd_nml')
+99 call fatal_error('init_bio_npzd','I could not read namelist bio_npzd_nml')
    
-   end subroutine init_bio_npzd_0d
+   end subroutine init_bio_npzd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -191,14 +191,13 @@
 ! variables
 !
 ! !INTERFACE:
-   _PURE function get_bio_extinction_npzd_0d(self,state,environment,LOCATION) result(extinction)
+   _PURE function get_bio_extinction_npzd(self,environment,LOCATION) result(extinction)
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd), intent(in) :: self
-   type (type_state),      intent(in),pointer :: state(:)
-   type (type_environment),intent(in),pointer :: environment
-   LOCATION_TYPE,          intent(in)         :: LOCATION
-   REALTYPE                                   :: extinction
+   type (type_npzd),       intent(in) :: self
+   type (type_environment),intent(in) :: environment
+   LOCATION_TYPE,          intent(in) :: LOCATION
+   REALTYPE                           :: extinction
    
    REALTYPE                     :: p,d
 !
@@ -208,13 +207,13 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve current (local) state variable values.
-   p = state(self%id_p)%data INDEX_LOCATION
-   d = state(self%id_d)%data INDEX_LOCATION
+   p = environment%state(self%id_p)%data INDEX_LOCATION
+   d = environment%state(self%id_d)%data INDEX_LOCATION
    
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    extinction = self%kc*(self%p0+p+d)
 
-   end function get_bio_extinction_npzd_0d
+   end function get_bio_extinction_npzd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -223,14 +222,13 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   _PURE subroutine get_conserved_quantities_npzd_0d(self,state,environment,LOCATION,sums)
+   _PURE subroutine get_conserved_quantities_npzd(self,environment,LOCATION,sums)
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd), intent(in)    :: self
-   type (type_state),      intent(in),pointer :: state(:)
-   type (type_environment),intent(in),pointer :: environment
-   LOCATION_TYPE,          intent(in)         :: LOCATION
-   REALTYPE,               intent(inout)      :: sums(:)
+   type (type_npzd),       intent(in)    :: self
+   type (type_environment),intent(in)    :: environment
+   LOCATION_TYPE,          intent(in)    :: LOCATION
+   REALTYPE,               intent(inout) :: sums(:)
    
    REALTYPE              :: n,p,z,d
 !
@@ -240,15 +238,15 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve current (local) state variable values.
-   n = state(self%id_n)%data INDEX_LOCATION
-   p = state(self%id_p)%data INDEX_LOCATION
-   z = state(self%id_z)%data INDEX_LOCATION
-   d = state(self%id_d)%data INDEX_LOCATION
+   n = environment%state(self%id_n)%data INDEX_LOCATION
+   p = environment%state(self%id_p)%data INDEX_LOCATION
+   z = environment%state(self%id_z)%data INDEX_LOCATION
+   d = environment%state(self%id_d)%data INDEX_LOCATION
    
    ! Total nutrient is simply the sum of all variables.
    sums(self%id_totN) = n+p+z+d
 
-   end subroutine get_conserved_quantities_npzd_0d
+   end subroutine get_conserved_quantities_npzd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -318,7 +316,7 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   _PURE subroutine do_bio_npzd_0d(self,state,environment,LOCATION,rhs,diag)
+   _PURE subroutine do_bio_npzd(self,environment,LOCATION,rhs,diag)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -372,7 +370,6 @@
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in) :: self
-   type (type_state),      intent(in) :: state(:)
    type (type_environment),intent(in) :: environment
    LOCATION_TYPE,          intent(in) :: LOCATION
 !
@@ -392,10 +389,10 @@
 !BOC
 
    ! Retrieve current (local) state variable values.
-   n = state(self%id_n)%data INDEX_LOCATION
-   p = state(self%id_p)%data INDEX_LOCATION
-   z = state(self%id_z)%data INDEX_LOCATION
-   d = state(self%id_d)%data INDEX_LOCATION
+   n = environment%state(self%id_n)%data INDEX_LOCATION
+   p = environment%state(self%id_p)%data INDEX_LOCATION
+   z = environment%state(self%id_z)%data INDEX_LOCATION
+   d = environment%state(self%id_d)%data INDEX_LOCATION
    
    ! Retrieve current (local) environmental conditions.
    par = environment%var3d(self%id_par)%data INDEX_LOCATION
@@ -411,7 +408,7 @@
    end if
    
    ! Note: the temporal derivatives are incremented or decremented, rahter than set.
-   ! This is IMPORTANT: oher biogeochemical models might already have provided additional
+   ! This is IMPORTANT: other biogeochemical models might already have provided additional
    ! sink and source terms for these variables in the rhs arrays.
    dn = - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
    rhs(self%id_n) = rhs(self%id_n) + dn
@@ -430,7 +427,7 @@
    if (self%id_PPR .ne.id_not_used) diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
    if (self%id_NPR .ne.id_not_used) diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
 
-   end subroutine do_bio_npzd_0d
+   end subroutine do_bio_npzd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -439,7 +436,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   _PURE subroutine do_bio_npzd_0d_ppdd(self,state,environment,LOCATION,pp,dd,diag)
+   _PURE subroutine do_bio_npzd_ppdd(self,environment,LOCATION,pp,dd,diag)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -493,7 +490,6 @@
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in) :: self
-   type (type_state),      intent(in) :: state(:)
    type (type_environment),intent(in) :: environment
    LOCATION_TYPE,          intent(in) :: LOCATION
 !
@@ -514,10 +510,10 @@
 !BOC
 
    ! Retrieve current (local) state variable values.
-   n = state(self%id_n)%data INDEX_LOCATION
-   p = state(self%id_p)%data INDEX_LOCATION
-   z = state(self%id_z)%data INDEX_LOCATION
-   d = state(self%id_d)%data INDEX_LOCATION
+   n = environment%state(self%id_n)%data INDEX_LOCATION
+   p = environment%state(self%id_p)%data INDEX_LOCATION
+   z = environment%state(self%id_z)%data INDEX_LOCATION
+   d = environment%state(self%id_d)%data INDEX_LOCATION
    
    ! Retrieve current (local) environmental conditions.
    par = environment%var3d(self%id_par)%data INDEX_LOCATION
@@ -561,7 +557,7 @@
    if (self%id_PPR .ne.id_not_used) diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
    if (self%id_NPR .ne.id_not_used) diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
 
-   end subroutine do_bio_npzd_0d_ppdd
+   end subroutine do_bio_npzd_ppdd
 !EOC
 
 

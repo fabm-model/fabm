@@ -258,7 +258,7 @@
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc)'
    do i=1,model%info%state_variable_count
       cc(i,:) = model%info%variables(i)%initial_value
-      model%state(i)%data => cc(i,1:LOCATION)
+      model%environment%state(i)%data => cc(i,1:LOCATION)
    end do
 
    ! Allocate diagnostic variable array and set all values to zero.

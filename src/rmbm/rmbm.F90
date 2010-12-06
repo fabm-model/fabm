@@ -281,15 +281,14 @@
       
       ! Pointers for linking to parent and child models
       ! (models can be linked to form a tree structure)
-      type (type_model),pointer :: parent      => NULL()
-      type (type_model),pointer :: firstchild  => NULL()
-      type (type_model),pointer :: nextsibling => NULL()
+      type (type_model),pointer :: parent
+      type (type_model),pointer :: firstchild
+      type (type_model),pointer :: nextsibling
 
       ! Pointers to the current state and environment.
       ! These are allocated upon initialization by RMBM,
       ! and should be set by the physical host model.
       type (type_environment),pointer :: environment
-      type (type_state),      pointer :: state(:)
 
       ! Derived types that belong to specific biogeochemical models.
       type (type_npzd)      :: npzd
@@ -306,14 +305,14 @@
       module procedure rmbm_do_rhs
       module procedure rmbm_do_ppdd
       module procedure rmbm_do_rhs_1d
-   end interface rmbm_do
+   end interface
    
    interface rmbm_link_variable_data
-      module procedure rmbm_supply_variable_data_2d
-      module procedure rmbm_supply_variable_data_2d_char
-      module procedure rmbm_supply_variable_data_3d
-      module procedure rmbm_supply_variable_data_3d_char
-   end interface rmbm_link_variable_data
+      module procedure rmbm_supply_vardata_2d
+      module procedure rmbm_supply_vardata_2d_char
+      module procedure rmbm_supply_vardata_3d
+      module procedure rmbm_supply_vardata_3d_char
+   end interface
 !
 ! !REVISION HISTORY:!
 !  Original author(s): Jorn Bruggeman
@@ -356,7 +355,7 @@
          name = 'co2sys'
       ! ADD_NEW_MODEL_HERE
       case default
-         write (text,fmt='(i,a)') bio_model,' is not a valid bio model identifier.'
+         write (text,fmt='(i4,a)') bio_model,' is not a valid bio model identifier.'
          call fatal_error('rmbm::get_model_name',text)
    end select
    
@@ -379,7 +378,7 @@
 ! !INPUT PARAMETERS:
    integer,         optional,         intent(in)    :: modelid
    character(len=*),optional,         intent(in)    :: name
-   type (type_model),pointer,optional,intent(inout) :: parent
+   type (type_model),pointer,optional               :: parent
    type (type_model),pointer                        :: model
 !
 ! !REVISION HISTORY:
@@ -406,6 +405,14 @@
 
    ! Initialize model info
    call init_model_info(model%info)
+
+   ! Make sure the pointers to parent and sibling models are explicitly dissociated.
+   nullify(model%parent)
+   nullify(model%firstchild)
+   nullify(model%nextsibling)
+   
+   ! Make sure the pointers to the current environment are explicitly dissociated.
+   nullify(model%environment)
 
    ! Connect to parent container if provided.
    if (present(parent)) then
@@ -455,7 +462,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-  integer                    :: ichild
+  integer                    :: ichild,ivar
   character(len= 64)         :: modelname
   type (type_model), pointer :: curchild,curchild2
   logical                    :: isopen
@@ -464,7 +471,7 @@
 !BOC
    ! Retrieve model name based on its integer identifier.
    modelname = get_model_name(model%id)
-   call log_message('Initializing biogeochemical model '//trim(modelname))
+   call log_message('Initializing biogeochemical model '//trim(modelname)//'...')
    
    ! Check whether the unit provided by the host actually refers to an open file.
    inquire(nmlunit,opened=isopen)
@@ -473,7 +480,7 @@
    ! Allow the selected model to initialize
    select case (model%id)
       case (npzd_id)
-         call init_bio_npzd_0d(model%npzd,model%info,nmlunit)
+         call init_bio_npzd(model%npzd,model%info,nmlunit)
       case (jellyfish_id)
          call init_bio_jellyfish_0d(model%jellyfish,model%info,nmlunit)
       case (carbonate_id)
@@ -511,37 +518,49 @@
    ! If this is the root model, then allocate arrays for pointers to
    ! environmental and state variables, and pass these arrays to the child models.
    if (.not. associated(model%parent)) then
+      ! Allocate arrays for storage of (references to) data.
       allocate(model%environment)
       allocate(model%environment%var2d(ubound(model%info%dependencies2d,1)))
       allocate(model%environment%var3d(ubound(model%info%dependencies3d,1)))
-      allocate(model%state(model%info%state_variable_count))
-      call set_state_data(model,model%state,model%environment)
+      allocate(model%environment%state(model%info%state_variable_count))
+      
+      ! Set all pointers to external data to dissociated.
+      do ivar=1,ubound(model%environment%state,1)
+         nullify(model%environment%state(ivar)%data)
+      end do
+      do ivar=1,ubound(model%environment%var2d,1)
+         nullify(model%environment%var2d(ivar)%data)
+      end do
+      do ivar=1,ubound(model%environment%var3d,1)
+         nullify(model%environment%var3d(ivar)%data)
+      end do
+      
+      ! Transfer arrays with external data to child models.
+      call set_model_data_members(model,model%environment)
    end if
    
    call log_message('model '//trim(modelname)//' initialized successfully.')
 
    ! Check whether the unit provided by the host has not been closed by the biogeochemical model.
    inquire(nmlunit,opened=isopen)
-   if (.not.isopen) call fatal_error('rmbm_init','input configuration file was closed by model '//trim(modelname))
+   if (.not.isopen) call fatal_error('rmbm_init','input configuration file was closed by model '//trim(modelname)//'.')
 
    end subroutine rmbm_init
 !EOC
 
-recursive subroutine set_state_data(model,state,environment)
+recursive subroutine set_model_data_members(model,environment)
    type (type_model),             intent(inout) :: model
-   type (type_state),      target,intent(in)    :: state(:)
    type (type_environment),target,intent(in)    :: environment
    
    type (type_model), pointer :: curchild
    
-   model%state       => state
    model%environment => environment
    curchild => model%firstchild
    do while (associated(curchild))
-      call set_state_data(curchild,state,environment)
+      call set_model_data_members(curchild,environment)
       curchild => curchild%nextsibling
    end do
-end subroutine set_state_data
+end subroutine set_model_data_members
 
 function rmbm_get_variable_id(model,name,shape) result(id)
    type (type_model),             intent(in)  :: model
@@ -566,15 +585,15 @@ function rmbm_get_variable_id(model,name,shape) result(id)
    id = -1
 end function rmbm_get_variable_id
 
-subroutine rmbm_supply_variable_data_3d(model,id,dat)
+subroutine rmbm_supply_vardata_3d(model,id,dat)
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
    
    model%environment%var3d(id)%data => dat
-end subroutine rmbm_supply_variable_data_3d
+end subroutine rmbm_supply_vardata_3d
 
-subroutine rmbm_supply_variable_data_3d_char(model,name,dat)
+subroutine rmbm_supply_vardata_3d_char(model,name,dat)
    type (type_model),                       intent(inout) :: model
    character(len=*),                        intent(in)    :: name
    REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
@@ -582,18 +601,18 @@ subroutine rmbm_supply_variable_data_3d_char(model,name,dat)
    integer                                                :: id
    
    id = rmbm_get_variable_id(model,name,shape3d)
-   if (id.ne.-1) call rmbm_supply_variable_data_3d(model,id,dat)
-end subroutine rmbm_supply_variable_data_3d_char
+   if (id.ne.-1) call rmbm_supply_vardata_3d(model,id,dat)
+end subroutine rmbm_supply_vardata_3d_char
 
-subroutine rmbm_supply_variable_data_2d(model,id,dat)
+subroutine rmbm_supply_vardata_2d(model,id,dat)
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
    
    model%environment%var2d(id)%data => dat
-end subroutine rmbm_supply_variable_data_2d
+end subroutine rmbm_supply_vardata_2d
 
-subroutine rmbm_supply_variable_data_2d_char(model,name,dat)
+subroutine rmbm_supply_vardata_2d_char(model,name,dat)
    type (type_model),                          intent(inout) :: model
    character(len=*),                           intent(in)    :: name
    REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
@@ -601,8 +620,8 @@ subroutine rmbm_supply_variable_data_2d_char(model,name,dat)
    integer                                                :: id
    
    id = rmbm_get_variable_id(model,name,shape2d)
-   if (id.ne.-1) call rmbm_supply_variable_data_2d(model,id,dat)
-end subroutine rmbm_supply_variable_data_2d_char
+   if (id.ne.-1) call rmbm_supply_vardata_2d(model,id,dat)
+end subroutine rmbm_supply_vardata_2d_char
 
 !-----------------------------------------------------------------------
 !BOP
@@ -635,11 +654,11 @@ end subroutine rmbm_supply_variable_data_2d_char
 !BOC
    select case (model%id)
       case (npzd_id)
-         call do_bio_npzd_0d(model%npzd,model%state,model%environment,LOCATION,dy,diag)
+         call do_bio_npzd(model%npzd,model%environment,LOCATION,dy,diag)
       case (jellyfish_id)
-         call do_bio_jellyfish_0d(model%jellyfish,model%state,model%environment,LOCATION,dy,diag)
+         call do_bio_jellyfish_0d(model%jellyfish,model%environment,LOCATION,dy,diag)
       case (carbonate_id)
-         call do_bio_co2_sys_0d(model%carbonate,model%state,model%environment,LOCATION,dy,diag)
+         call do_bio_co2_sys_0d(model%carbonate,model%environment,LOCATION,dy,diag)
       ! ADD_NEW_MODEL_HERE
       case (model_container_id)
          curchild => model%firstchild
@@ -751,7 +770,7 @@ end subroutine rmbm_supply_variable_data_2d_char
 !BOC
    select case (model%id)
       case (npzd_id)
-         call do_bio_npzd_0d_ppdd(model%npzd,model%state,model%environment,LOCATION,pp,dd,diag)
+         call do_bio_npzd_ppdd(model%npzd,model%environment,LOCATION,pp,dd,diag)
       ! ADD_NEW_MODEL_HERE - optional
       case (model_container_id)
          curchild => model%firstchild
@@ -817,9 +836,9 @@ end subroutine rmbm_supply_variable_data_2d_char
    ! Default: check fixed bounds, and clip to bounds if repair is allowed.
    if (model%id.ne.model_container_id) then
       do i=1,model%info%state_variable_count
-         if (model%state(model%info%variables(i)%globalid)%data(LOCATION)<model%info%variables(i)%minimum) then
+         if (model%environment%state(model%info%variables(i)%globalid)%data(LOCATION)<model%info%variables(i)%minimum) then
             valid = .false.
-            if (repair) model%state(model%info%variables(i)%globalid)%data(LOCATION) = model%info%variables(i)%minimum
+            if (repair) model%environment%state(model%info%variables(i)%globalid)%data(LOCATION) = model%info%variables(i)%minimum
          !elseif (model%state(model%info%variables(i)%globalid)%data(LOCATION)>model%info%variables(i)%maximum) then
          !   valid = .false.
          !   if (repair) model%state(model%info%variables(i)%globalid)%data(LOCATION) = model%info%variables(i)%maximum
@@ -859,7 +878,7 @@ end subroutine rmbm_supply_variable_data_2d_char
 !BOC
    select case (model%id)
       case (carbonate_id)
-         call update_air_sea_co2_sys_0d(model%carbonate,model%state,model%environment,LOCATION,flux)
+         call update_air_sea_co2_sys_0d(model%carbonate,model%environment,LOCATION,flux)
       ! ADD_NEW_MODEL_HERE - optional
       case (model_container_id)
          curchild => model%firstchild
@@ -943,7 +962,7 @@ end subroutine rmbm_supply_variable_data_2d_char
 !BOC
    select case (model%id)
       case (npzd_id)
-         extinction = get_bio_extinction_npzd_0d(model%npzd,model%state,model%environment,LOCATION)
+         extinction = get_bio_extinction_npzd(model%npzd,model%environment,LOCATION)
       ! ADD_NEW_MODEL_HERE - optional
       case (model_container_id)
          extinction = _ZERO_
@@ -957,7 +976,7 @@ end subroutine rmbm_supply_variable_data_2d_char
          extinction = _ZERO_
          do i=1,model%info%state_variable_count
             if (model%info%variables(i)%specific_light_extinction.ne._ZERO_) &
-               extinction = extinction + model%state(model%info%variables(i)%globalid)%data(LOCATION) &
+               extinction = extinction + model%environment%state(model%info%variables(i)%globalid)%data(LOCATION) &
                                  & * model%info%variables(i)%specific_light_extinction
          end do
    end select
@@ -991,7 +1010,7 @@ end subroutine rmbm_supply_variable_data_2d_char
 !BOC
    select case (model%id)
       case (npzd_id)
-         call get_conserved_quantities_npzd_0d(model%npzd,model%state,model%environment,LOCATION,sums)
+         call get_conserved_quantities_npzd(model%npzd,model%environment,LOCATION,sums)
       ! ADD_NEW_MODEL_HERE - optional
       case (model_container_id)
          curchild => model%firstchild

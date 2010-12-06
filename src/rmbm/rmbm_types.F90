@@ -32,7 +32,7 @@
    public type_state_variable_info,type_diagnostic_variable_info,type_conserved_quantity_info
    public init_model_info
    public register_state_variable, register_diagnostic_variable, register_conserved_quantity, &
-          register_state_variable_dependency, register_dependency
+          register_state_dependency, register_dependency
    public type_environment,type_state_2d,type_state
 !
 ! !PUBLIC DERIVED TYPES:
@@ -82,16 +82,18 @@
       ! Number of state variables
       integer :: state_variable_count, diagnostic_variable_count, conserved_quantity_count
       
-      type (type_state_variable_info),     pointer,dimension(:) :: variables            => null()
-      type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables => null()
-      type (type_conserved_quantity_info), pointer,dimension(:) :: conserved_quantities => null()
+      type (type_state_variable_info),     pointer,dimension(:) :: variables
+      type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables
+      type (type_conserved_quantity_info), pointer,dimension(:) :: conserved_quantities
       
-      type (type_model_info),pointer :: parent, firstchild, nextsibling
+      type (type_model_info),pointer :: parent
+      type (type_model_info),pointer :: firstchild
+      type (type_model_info),pointer :: nextsibling
       
       character(len=64) :: nameprefix,longnameprefix
       
-      character(len=64),pointer  :: dependencies3d(:) => null()
-      character(len=64),pointer  :: dependencies2d(:) => null()
+      character(len=64),pointer  :: dependencies3d(:)
+      character(len=64),pointer  :: dependencies2d(:)
    end type type_model_info
    
    ! Parameters
@@ -109,16 +111,17 @@
      varname_par_sf  = 'env_par_sf'     ! Photosynthetically Active Radiation at surface (W/m^2)
                                   
    type type_state
-      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS :: data => NULL()
+      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS :: data
    end type type_state
 
    type type_state_2d
-      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_HZ :: data => NULL()
+      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_HZ :: data
    end type type_state_2d
 
    type type_environment
-      type (type_state   ), dimension(:), pointer :: var3d => null()
-      type (type_state_2d), dimension(:), pointer :: var2d => null()
+      type (type_state   ), dimension(:), _ALLOCATABLE :: state _NULL
+      type (type_state   ), dimension(:), _ALLOCATABLE :: var3d _NULL
+      type (type_state_2d), dimension(:), _ALLOCATABLE :: var2d _NULL
    end type type_environment
 
 !-----------------------------------------------------------------------
@@ -154,13 +157,16 @@
       modelinfo%diagnostic_variable_count = 0
       modelinfo%conserved_quantity_count  = 0
 
-      modelinfo%variables            => null()
-      modelinfo%diagnostic_variables => null()
-      modelinfo%conserved_quantities => null()
+      nullify(modelinfo%variables)
+      nullify(modelinfo%diagnostic_variables)
+      nullify(modelinfo%conserved_quantities)
       
-      modelinfo%parent      => null()
-      modelinfo%firstchild  => null()
-      modelinfo%nextsibling => null()
+      nullify(modelinfo%parent)
+      nullify(modelinfo%firstchild)
+      nullify(modelinfo%nextsibling)
+
+      nullify(modelinfo%dependencies2d)
+      nullify(modelinfo%dependencies3d)
       
       modelinfo%nameprefix     = ''
       modelinfo%longnameprefix = ''
@@ -517,7 +523,7 @@
 ! !IROUTINE: Registers a dependency on another biogeochemical state variable
 !
 ! !INTERFACE:
-   recursive function register_state_variable_dependency(modelinfo,name) result(id)
+   recursive function register_state_dependency(modelinfo,name) result(id)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -576,7 +582,7 @@
          curinfo => curinfo%parent
       end do
       
-   end function register_state_variable_dependency
+   end function register_state_dependency
 !EOC
 
 !-----------------------------------------------------------------------
