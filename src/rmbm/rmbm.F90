@@ -285,10 +285,11 @@
       type (type_model),pointer :: firstchild
       type (type_model),pointer :: nextsibling
       
-      ! Pointer to next model in flattened list of (non-container) models.
-      ! Used to speed up iterations over all models in the tree.
-      ! For the root model, this points to the first non-container model in the list.
-      ! For nested (non-root) container models, this pointer will remain disassociated.
+      ! Pointer to next non-container model.
+      ! To speed up iterations over all models in the tree, non-container models are
+      ! connected in a single linked list.
+      ! For the root model, nextmodel points to the first non-container model in the list.
+      ! For nested (non-root) container models, the pointer will remain disassociated(!)
       type (type_model),pointer :: nextmodel
 
       ! Derived types that belong to specific biogeochemical models.
@@ -303,6 +304,9 @@
       type (type_environment),pointer :: environment
    end type type_model
    
+   ! Arrays for integer identifiers and names of all available biogeochemical models.
+   integer,          pointer,dimension(:) :: modelids   => null()
+   character(len=64),pointer,dimension(:) :: modelnames => null()
 !
 ! !PUBLIC INTERFACES:
 !
@@ -319,6 +323,11 @@
       module procedure rmbm_supply_vardata_3d
       module procedure rmbm_supply_vardata_3d_char
    end interface
+   
+   interface rmbm_create_model
+      module procedure rmbm_create_model_by_id
+      module procedure rmbm_create_model_by_name
+   end interface
 !
 ! !REVISION HISTORY:!
 !  Original author(s): Jorn Bruggeman
@@ -331,16 +340,94 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE:Get short model name (letters, numbers and underscores only)
+! !IROUTINE:Register all biogeochemical models integer identifier and
+!  short model name (letters, numbers and underscores only)
 !
 ! !INTERFACE:
-   function get_model_name(bio_model) result(name)
+   subroutine register_models()
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!
+!-----------------------------------------------------------------------
+!BOC
+   call register_model(model_container_id,'')
+   call register_model(npzd_id           ,'npzd')
+   call register_model(jellyfish_id      ,'jellyfish')
+   call register_model(carbonate_id      ,'co2sys')
+   
+   end subroutine register_models
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Register integer identifier and short name (letters,
+! numbers and underscores only) of a new biogeochemical model.
+!
+! !INTERFACE:
+   subroutine register_model(id,name)
 !
 ! !USES:
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   integer, intent(in) :: bio_model
+   integer, intent(in)         :: id
+   character(len=*),intent(in) :: name
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+   integer :: oldcount,i
+   integer,          pointer,dimension(:) :: modelids_new
+   character(len=64),pointer,dimension(:) :: modelnames_new
+   character(len=256) :: text
+!
+!-----------------------------------------------------------------------
+!BOC
+   oldcount = ubound(modelids,1)
+   allocate(modelids_new  (oldcount+1))
+   allocate(modelnames_new(oldcount+1))
+   if (associated(modelids)) then
+      do i=1,ubound(modelids,1)
+         if (trim(modelnames(i))==trim(name)) &
+            call fatal_error('rmbm::register_model_name','model name "'//trim(name)//'" has already been registered.')
+         if (modelids(i)==id) then
+            write (text,fmt='(a,i4,a)') 'model identifier ',id,' has already been registered.'
+            call fatal_error('rmbm::register_model_name',text)
+         end if
+      end do
+      modelids_new  (1:oldcount) = modelids(:)
+      modelnames_new(1:oldcount) = modelnames(:)
+      deallocate(modelids)
+      deallocate(modelnames)
+   end if
+   modelids_new  (oldcount+1) = id
+   modelnames_new(oldcount+1) = name
+   modelids   => modelids_new
+   modelnames => modelnames_new
+   
+   end subroutine register_model
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the short model name (letters, numbers and underscores
+! only) for the biogeochemcial model with the specified integer identifier.
+!
+! !INTERFACE:
+   function get_model_name(id) result(name)
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+   integer, intent(in) :: id
    character(len=64)   :: name
 !
 ! !REVISION HISTORY:
@@ -348,24 +435,55 @@
 !EOP
 !
    character(len=256) :: text
+   integer :: i
 !-----------------------------------------------------------------------
 !BOC
-   select case (bio_model)
-      case (model_container_id)
-         name = ''
-      case (npzd_id)
-         name = 'npzd'
-      case (jellyfish_id)
-         name = 'jellyfish'
-      case (carbonate_id)
-         name = 'co2sys'
-      ! ADD_NEW_MODEL_HERE
-      case default
-         write (text,fmt='(i4,a)') bio_model,' is not a valid bio model identifier.'
-         call fatal_error('rmbm::get_model_name',text)
-   end select
+   if (.not.associated(modelids)) call register_models()
+   do i=1,ubound(modelids,1)
+      if (modelids(i)==id) then
+         name = modelnames(i)
+         return
+      end if
+   end do
+   write (text,fmt='(i4,a)') id,' is not a valid model identifier.'
+   call fatal_error('rmbm::get_model_name',text)
    
    end function get_model_name
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the integer model identifier from the specified short
+! model name (letters, numbers and underscores only)
+!
+! !INTERFACE:
+   function get_model_id(name) result(id)
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+   character(len=*),intent(in) :: name
+   integer                     :: id
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!
+   integer :: i
+!-----------------------------------------------------------------------
+!BOC
+   if (.not.associated(modelnames)) call register_models()
+   do i=1,ubound(modelnames,1)
+      if (trim(modelnames(i))==trim(name)) then
+         id = modelids(i)
+         return
+      end if
+   end do
+   call fatal_error('rmbm::get_model_id',trim(name)//' is not a valid model name.')
+   
+   end function get_model_id
 !EOC
 
 !-----------------------------------------------------------------------
@@ -376,7 +494,7 @@
 ! identifier is omitted.
 !
 ! !INTERFACE:
-   function rmbm_create_model(modelid,name,parent) result(model)
+   function rmbm_create_model_by_id(modelid,name,parent) result(model)
 !
 ! !USES:
    IMPLICIT NONE
@@ -464,7 +582,39 @@
       curmodel%nextmodel => model
    end if
    
-   end function rmbm_create_model
+   end function rmbm_create_model_by_id
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Create a new model by name. This will be a specific model if the
+! model name is provided, or a container of child models if the
+! identifier is omitted.
+!
+! !INTERFACE:
+   function rmbm_create_model_by_name(modelname,parent) result(model)
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+   character(len=*),    intent(in)    :: modelname
+   type (type_model),pointer,optional :: parent
+   type (type_model),pointer          :: model
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   if (present(parent)) then
+      model => rmbm_create_model_by_id(get_model_id(modelname),parent=parent)
+   else
+      model => rmbm_create_model_by_id(get_model_id(modelname))
+   end if
+   
+   end function rmbm_create_model_by_name
 !EOC
 
 !-----------------------------------------------------------------------
@@ -517,6 +667,7 @@
       nullify(root%environment%var3d(ivar)%data)
    end do
    
+   ! Transfer pointer to environment to all child models.
    call set_model_data_members(root,root%environment)
 
    end subroutine rmbm_init
@@ -542,7 +693,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-  integer                    :: ichild,ivar
+  integer                    :: ichild
   character(len= 64)         :: modelname
   type (type_model), pointer :: curchild,curchild2
   logical                    :: isopen
@@ -711,11 +862,11 @@ end subroutine rmbm_supply_vardata_2d_char
    do while (associated(curmodel))
       select case (curmodel%id)
          case (npzd_id)
-            call do_bio_npzd(curmodel%npzd,curmodel%environment,LOCATION,dy,diag)
+            call do_bio_npzd(curmodel%npzd,model%environment,LOCATION,dy,diag)
          case (jellyfish_id)
-            call do_bio_jellyfish_0d(curmodel%jellyfish,curmodel%environment,LOCATION,dy,diag)
+            call do_bio_jellyfish_0d(curmodel%jellyfish,model%environment,LOCATION,dy,diag)
          case (carbonate_id)
-            call do_bio_co2_sys_0d(curmodel%carbonate,curmodel%environment,LOCATION,dy,diag)
+            call do_bio_co2_sys_0d(curmodel%carbonate,model%environment,LOCATION,dy,diag)
          ! ADD_NEW_MODEL_HERE - required unless added to rmbm_do_ppdd instead.
          case default
             ! The model does not provide the temporal derivatives itself.

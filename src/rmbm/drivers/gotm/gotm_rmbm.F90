@@ -116,7 +116,7 @@
 !
 !  local variables
    integer                   :: i
-   integer                   :: models(256)
+   character(len=64)         :: models(256)
    type (type_model),pointer :: childmodel
    namelist /bio_nml/ rmbm_calc,models,                                 &
                       cnpar,w_adv_discr,ode_method,split_factor,        &
@@ -129,7 +129,7 @@
    
    ! Initialize RMBM model identifiers to invalid id.
    rmbm_calc         = .false.
-   models            = -1
+   models            = ''
    cnpar             = _ONE_
    w_adv_discr       = 6
    ode_method        = 1
@@ -148,8 +148,8 @@
       ! Create model tree
       model => rmbm_create_model()
       do i=1,ubound(models,1)
-         if (models(i).ne.-1) &
-            childmodel => rmbm_create_model(models(i),parent=model)
+         if (trim(models(i)).ne.'') &
+            childmodel => rmbm_create_model(trim(models(i)),parent=model)
       end do
       
       ! Initialize model tree (creates metadata and assigns variable identifiers)
@@ -725,15 +725,15 @@
       localext = rmbm_get_bio_extinction(model,i)
    
       ! Add the extinction of the first half of the grid box.
-      bioext = bioext+localext*0.5*h(i)
+      bioext = bioext+localext*0.5*h(i+1)
 
-      zz=zz+0.5*h(i)
+      zz=zz+0.5*h(i+1)
       par(i)=rad(nlev)*(_ONE_-A)*exp(-zz/g2-bioext)
 
       ! Add the extinction of the second half of the grid box.
-      bioext = bioext+localext*0.5*h(i)
+      bioext = bioext+localext*0.5*h(i+1)
       
-      zz=zz+0.5*h(i)
+      zz=zz+0.5*h(i+1)
       if (bioshade_feedback) bioshade(i)=exp(-bioext)
    end do
 
