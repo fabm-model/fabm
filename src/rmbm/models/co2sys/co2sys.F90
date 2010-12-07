@@ -20,7 +20,7 @@ module rmbm_co2sys
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_co2_sys, init_bio_co2_sys_0d, do_bio_co2_sys_0d, update_air_sea_co2_sys_0d
+   public type_co2_sys, co2sys_init, co2sys_do, co2sys_get_surface_exchange
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -47,7 +47,7 @@ contains
 ! !IROUTINE: Initialise the bio module
 !
 ! !INTERFACE:
-   subroutine init_bio_co2_sys_0d(self,modelinfo,namlst)
+   subroutine co2sys_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Here, the bio namelist is read and 
@@ -111,7 +111,7 @@ contains
 
 99 call fatal_error('init_bio_co2_sys_0d','I could not read namelist bio_co2_sys_nml')
    
-   end subroutine init_bio_co2_sys_0d
+   end subroutine co2sys_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -120,7 +120,7 @@ contains
 ! !IROUTINE: Right hand sides of carbonate system model
 !
 ! !INTERFACE:
-   subroutine do_bio_co2_sys_0d(self,environment,LOCATION,dy,diag)
+   subroutine co2sys_do(self,environment,LOCATION,dy,diag)
 !
 ! !DESCRIPTION:
 !
@@ -180,7 +180,7 @@ contains
    if (self%id_Om_arg .ne.id_not_used) diag(self%id_Om_arg) = Om_arg
    if (self%id_alk    .ne.id_not_used .and. self%alk_param) diag(self%id_alk) = TA*dens*1.0D-3   ! from uEg/kg to mmol/m**3
 
-   end subroutine do_bio_co2_sys_0d
+   end subroutine co2sys_do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -189,7 +189,7 @@ contains
 ! !IROUTINE: Air-sea exchange for the carbonate system model
 !
 ! !INTERFACE:
-   subroutine update_air_sea_co2_sys_0d(self,environment,LOCATION,flux)
+   subroutine co2sys_get_surface_exchange(self,environment,LOCATION,flux)
 !
 ! !DESCRIPTION:
 !
@@ -245,7 +245,7 @@ contains
    
    flux(self%id_dic) = fl/secs_pr_day
 
-   end subroutine update_air_sea_co2_sys_0d
+   end subroutine co2sys_get_surface_exchange
 !EOC
 
 !-----------------------------------------------------------------------

@@ -32,8 +32,8 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_npzd, init_bio_npzd, do_bio_npzd, do_bio_npzd_ppdd, &
-          get_bio_extinction_npzd, get_conserved_quantities_npzd
+   public type_npzd, npzd_init, npzd_do, npzd_do_ppdd, &
+          npzd_get_light_extinction, npzd_get_conserved_quantities
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -73,7 +73,7 @@
 ! !IROUTINE: Initialise the bio module
 !
 ! !INTERFACE:
-   subroutine init_bio_npzd(self,modelinfo,namlst)
+   subroutine npzd_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Here, the bio namelist {\tt bio\_npzd.nml} is read and 
@@ -181,7 +181,7 @@
 
 99 call fatal_error('init_bio_npzd','I could not read namelist bio_npzd_nml')
    
-   end subroutine init_bio_npzd
+   end subroutine npzd_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -191,7 +191,7 @@
 ! variables
 !
 ! !INTERFACE:
-   _PURE function get_bio_extinction_npzd(self,environment,LOCATION) result(extinction)
+   _PURE function npzd_get_light_extinction(self,environment,LOCATION) result(extinction)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in) :: self
@@ -213,7 +213,7 @@
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    extinction = self%kc*(self%p0+p+d)
 
-   end function get_bio_extinction_npzd
+   end function npzd_get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -222,7 +222,7 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   _PURE subroutine get_conserved_quantities_npzd(self,environment,LOCATION,sums)
+   _PURE subroutine npzd_get_conserved_quantities(self,environment,LOCATION,sums)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in)    :: self
@@ -246,7 +246,7 @@
    ! Total nutrient is simply the sum of all variables.
    sums(self%id_totN) = n+p+z+d
 
-   end subroutine get_conserved_quantities_npzd
+   end subroutine npzd_get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------
@@ -316,7 +316,7 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   _PURE subroutine do_bio_npzd(self,environment,LOCATION,rhs,diag)
+   _PURE subroutine npzd_do(self,environment,LOCATION,rhs,diag)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -427,7 +427,7 @@
    if (self%id_PPR .ne.id_not_used) diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
    if (self%id_NPR .ne.id_not_used) diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
 
-   end subroutine do_bio_npzd
+   end subroutine npzd_do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -436,7 +436,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   _PURE subroutine do_bio_npzd_ppdd(self,environment,LOCATION,pp,dd,diag)
+   _PURE subroutine npzd_do_ppdd(self,environment,LOCATION,pp,dd,diag)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -557,7 +557,7 @@
    if (self%id_PPR .ne.id_not_used) diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
    if (self%id_NPR .ne.id_not_used) diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
 
-   end subroutine do_bio_npzd_ppdd
+   end subroutine npzd_do_ppdd
 !EOC
 
 

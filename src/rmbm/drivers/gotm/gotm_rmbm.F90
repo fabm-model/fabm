@@ -722,7 +722,7 @@
    zz = _ZERO_
    bioext = _ZERO_
    do i=nlev,1,-1
-      localext = rmbm_get_bio_extinction(model,i)
+      localext = rmbm_get_light_extinction(model,i)
    
       ! Add the extinction of the first half of the grid box.
       bioext = bioext+localext*0.5*h(i+1)

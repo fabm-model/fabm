@@ -56,7 +56,7 @@
 ! 6) If any of the model variables attenuate light, and this effect cannot be captured by a 
 !    specific extinction coefficient for these model variables, a function that calculates the light
 !    extinction coefficient (/m) from the current model state must be added as option to the "select"
-!    statement in rmbm_get_bio_extinction. This allows for complete customization of the bio
+!    statement in rmbm_get_light_extinction. This allows for complete customization of the bio
 !    extinction.
 !
 !    If this function is not provided, the bio extinction will be calculated from the specific
@@ -223,13 +223,13 @@
 !    end do
 !
 ! 6) Access the model by the following subroutines:
-!    - rmbm_do:                   to get local temporal derivatives
+!    - rmbm_do:                       to get local temporal derivatives
 !    - rmbm_get_vertical_movement:    to get current vertcial movement rates for the state variables
-!    - rmbm_get_bio_extinction:       to get the combined light extinction coefficient due to
+!    - rmbm_get_light_extinction:     to get the combined light extinction coefficient due to
 !                                     biogeochemical components
 !    - rmbm_get_conserved_quantities: to get the sums of the conserved quantities described
 !                                     by the model
-!    - rmbm_update_air_sea_exchange:  to get updated fluxes over the air-sea interface
+!    - rmbm_get_surface_exchange:     to get updated fluxes over the air-sea interface
 !    - rmbm_check_state:              to check the validity of current state variable values,
 !                                     and repair (clip) these if desired
 !
@@ -256,7 +256,7 @@
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_model, rmbm_init, rmbm_create_model, rmbm_do, &
           rmbm_link_variable_data,rmbm_get_variable_id, &
-          rmbm_check_state, rmbm_get_vertical_movement, rmbm_get_bio_extinction, &
+          rmbm_check_state, rmbm_get_vertical_movement, rmbm_get_light_extinction, &
           rmbm_get_conserved_quantities, rmbm_get_surface_exchange
 !
 ! !PRIVATE DATA MEMBERS:
@@ -359,6 +359,7 @@
    call register_model(npzd_id           ,'npzd')
    call register_model(jellyfish_id      ,'jellyfish')
    call register_model(carbonate_id      ,'co2sys')
+   ! ADD_NEW_MODEL_HERE - required
    
    end subroutine register_models
 !EOC
@@ -389,25 +390,39 @@
 !
 !-----------------------------------------------------------------------
 !BOC
-   oldcount = ubound(modelids,1)
+   ! Determine original model count.
+   oldcount = 0
+   if (associated(modelids)) oldcount = ubound(modelids,1)
+   
+   ! Create new arrays for identifiers and names, one longer to accomodate the new model.
    allocate(modelids_new  (oldcount+1))
    allocate(modelnames_new(oldcount+1))
+   
    if (associated(modelids)) then
+      ! First check whether the provided model identifier or name are not in use yet.
       do i=1,ubound(modelids,1)
-         if (trim(modelnames(i))==trim(name)) &
-            call fatal_error('rmbm::register_model_name','model name "'//trim(name)//'" has already been registered.')
          if (modelids(i)==id) then
             write (text,fmt='(a,i4,a)') 'model identifier ',id,' has already been registered.'
             call fatal_error('rmbm::register_model_name',text)
          end if
+         if (trim(modelnames(i))==trim(name)) &
+            call fatal_error('rmbm::register_model_name','model name "'//trim(name)//'" has already been registered.')
       end do
+      
+      ! Copy the old identifiers and names to the new extended array.
       modelids_new  (1:oldcount) = modelids(:)
       modelnames_new(1:oldcount) = modelnames(:)
+      
+      ! Deallocate the old arrays.
       deallocate(modelids)
       deallocate(modelnames)
    end if
+   
+   ! Add the new identifier and name.
    modelids_new  (oldcount+1) = id
    modelnames_new(oldcount+1) = name
+   
+   ! Assign the new arrays to the module-level pointers.
    modelids   => modelids_new
    modelnames => modelnames_new
    
@@ -707,12 +722,12 @@
    ! Allow the selected model to initialize
    select case (model%id)
       case (npzd_id)
-         call init_bio_npzd(model%npzd,model%info,nmlunit)
+         call npzd_init(model%npzd,model%info,nmlunit)
       case (jellyfish_id)
-         call init_bio_jellyfish_0d(model%jellyfish,model%info,nmlunit)
+         call jellyfish_init(model%jellyfish,model%info,nmlunit)
       case (carbonate_id)
-         call init_bio_co2_sys_0d(model%carbonate,model%info,nmlunit)
-      ! ADD_NEW_MODEL_HERE
+         call co2sys_init(model%carbonate,model%info,nmlunit)
+      ! ADD_NEW_MODEL_HERE - required
       
       case (model_container_id)
          ! This is a container of models. Loop over all children and allow each to initialize.
@@ -862,11 +877,11 @@ end subroutine rmbm_supply_vardata_2d_char
    do while (associated(curmodel))
       select case (curmodel%id)
          case (npzd_id)
-            call do_bio_npzd(curmodel%npzd,model%environment,LOCATION,dy,diag)
+            call npzd_do(curmodel%npzd,curmodel%environment,LOCATION,dy,diag)
          case (jellyfish_id)
-            call do_bio_jellyfish_0d(curmodel%jellyfish,model%environment,LOCATION,dy,diag)
+            call jellyfish_do(curmodel%jellyfish,curmodel%environment,LOCATION,dy,diag)
          case (carbonate_id)
-            call do_bio_co2_sys_0d(curmodel%carbonate,model%environment,LOCATION,dy,diag)
+            call co2sys_do(curmodel%carbonate,curmodel%environment,LOCATION,dy,diag)
          ! ADD_NEW_MODEL_HERE - required unless added to rmbm_do_ppdd instead.
          case default
             ! The model does not provide the temporal derivatives itself.
@@ -973,7 +988,7 @@ end subroutine rmbm_supply_vardata_2d_char
 !BOC
    select case (model%id)
       case (npzd_id)
-         call do_bio_npzd_ppdd(model%npzd,model%environment,LOCATION,pp,dd,diag)
+         call npzd_do_ppdd(model%npzd,model%environment,LOCATION,pp,dd,diag)
       ! ADD_NEW_MODEL_HERE - optional
       case (model_container_id)
          curchild => model%firstchild
@@ -1088,13 +1103,51 @@ end subroutine rmbm_supply_vardata_2d_char
    do while (associated(curmodel))
       select case (curmodel%id)
          case (carbonate_id)
-            call update_air_sea_co2_sys_0d(curmodel%carbonate,curmodel%environment,LOCATION,flux)
+            call co2sys_get_surface_exchange(curmodel%carbonate,curmodel%environment,LOCATION,flux)
          ! ADD_NEW_MODEL_HERE - optional
       end select
       curmodel => curmodel%nextmodel
    end do
 
    end subroutine rmbm_get_surface_exchange
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the air-sea exchange fluxes for all bio state variables.
+! Positive values indicate fluxes into the ocean, negative values indicate fluxes
+! out of the ocean. Units are m/s * tracer unit.
+!
+! !INTERFACE:
+   subroutine rmbm_do_benthos(root,LOCATION,dy_ben,dy_pel,diag)
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+   type (type_model),      intent(in)    :: root
+   LOCATION_TYPE,          intent(in)    :: LOCATION
+!
+! !INPUT/OUTPUT PARAMETERS:
+   REALTYPE,dimension(:),  intent(inout) :: dy_pel,dy_ben,diag
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!
+   type (type_model), pointer            :: curmodel
+!-----------------------------------------------------------------------
+!BOC
+   curmodel => root%nextmodel
+   do while (associated(curmodel))
+      select case (curmodel%id)
+         ! ADD_NEW_MODEL_HERE - optional
+      end select
+      curmodel => curmodel%nextmodel
+   end do
+
+   end subroutine rmbm_do_benthos
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1148,7 +1201,7 @@ end subroutine rmbm_supply_vardata_2d_char
 ! variables
 !
 ! !INTERFACE:
-   function rmbm_get_bio_extinction(root,LOCATION) result(extinction)
+   function rmbm_get_light_extinction(root,LOCATION) result(extinction)
 !
 ! !INPUT PARAMETERS:
    type (type_model), intent(in) :: root
@@ -1167,7 +1220,7 @@ end subroutine rmbm_supply_vardata_2d_char
    do while (associated(curmodel))
       select case (curmodel%id)
          case (npzd_id)
-            extinction = get_bio_extinction_npzd(curmodel%npzd,curmodel%environment,LOCATION)
+            extinction = npzd_get_light_extinction(curmodel%npzd,curmodel%environment,LOCATION)
          ! ADD_NEW_MODEL_HERE - optional
          case default
             ! Default: use constant specific light extinction values specified in the state variable properties
@@ -1181,7 +1234,7 @@ end subroutine rmbm_supply_vardata_2d_char
       curmodel => curmodel%nextmodel
    end do
 
-   end function rmbm_get_bio_extinction
+   end function rmbm_get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1212,7 +1265,7 @@ end subroutine rmbm_supply_vardata_2d_char
    do while (associated(curmodel))
       select case (curmodel%id)
          case (npzd_id)
-            call get_conserved_quantities_npzd(curmodel%npzd,curmodel%environment,LOCATION,sums)
+            call npzd_get_conserved_quantities(curmodel%npzd,curmodel%environment,LOCATION,sums)
          ! ADD_NEW_MODEL_HERE - optional
          case default
             ! Default: the model does not describe any conserved quantities.

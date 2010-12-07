@@ -22,7 +22,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_jellyfish, init_bio_jellyfish_0d, do_bio_jellyfish_0d
+   public type_jellyfish, jellyfish_init, jellyfish_do
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -56,7 +56,7 @@
 ! !IROUTINE: Initialise the bio module
 !
 ! !INTERFACE:
-   subroutine init_bio_jellyfish_0d(self,modelinfo,namlst)
+   subroutine jellyfish_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Here, the bio namelist {\tt bio\_jellyfish.nml} is read and 
@@ -123,7 +123,7 @@
 
 99 call fatal_error('init_bio_jellyfish_0d','I could not read namelist bio_jellyfish_nml')
    
-   end subroutine init_bio_jellyfish_0d
+   end subroutine jellyfish_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -132,7 +132,7 @@
 ! !IROUTINE: Right hand sides of jellyfish model
 !
 ! !INTERFACE:
-   _PURE subroutine do_bio_jellyfish_0d(self,environment,LOCATION,dy,diag)
+   _PURE subroutine jellyfish_do(self,environment,LOCATION,dy,diag)
 !
 ! !DESCRIPTION:
 !
@@ -391,7 +391,7 @@
    dy(self%id_morttarget) = dy(self%id_morttarget) + (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale &
                             /secs_pr_day
 
-   end subroutine do_bio_jellyfish_0d
+   end subroutine jellyfish_do
 !EOC
 
    _PURE subroutine trans(mm,mr,ma,t,p7)
