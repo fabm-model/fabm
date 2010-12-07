@@ -257,7 +257,7 @@
    public type_model, rmbm_init, rmbm_create_model, rmbm_do, &
           rmbm_link_variable_data,rmbm_get_variable_id, &
           rmbm_check_state, rmbm_get_vertical_movement, rmbm_get_bio_extinction, &
-          rmbm_get_conserved_quantities, rmbm_update_air_sea_exchange
+          rmbm_get_conserved_quantities, rmbm_get_surface_exchange
 !
 ! !PRIVATE DATA MEMBERS:
 
@@ -284,11 +284,12 @@
       type (type_model),pointer :: parent
       type (type_model),pointer :: firstchild
       type (type_model),pointer :: nextsibling
-
-      ! Pointers to the current state and environment.
-      ! These are allocated upon initialization by RMBM,
-      ! and should be set by the physical host model.
-      type (type_environment),pointer :: environment
+      
+      ! Pointer to next model in flattened list of (non-container) models.
+      ! Used to speed up iterations over all models in the tree.
+      ! For the root model, this points to the first non-container model in the list.
+      ! For nested (non-root) container models, this pointer will remain disassociated.
+      type (type_model),pointer :: nextmodel
 
       ! Derived types that belong to specific biogeochemical models.
       type (type_npzd)      :: npzd
@@ -296,7 +297,12 @@
       type (type_co2_sys)   :: carbonate
       ! ADD_NEW_MODEL_HERE
       
+      ! Pointers to the current state and environment.
+      ! These are allocated upon initialization by RMBM,
+      ! and should be set by the physical host model.
+      type (type_environment),pointer :: environment
    end type type_model
+   
 !
 ! !PUBLIC INTERFACES:
 !
@@ -384,7 +390,7 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
-   type (type_model),pointer                        :: previoussibling
+   type (type_model),pointer                        :: curmodel
 !-----------------------------------------------------------------------
 !BOC
    allocate(model)
@@ -410,24 +416,27 @@
    nullify(model%parent)
    nullify(model%firstchild)
    nullify(model%nextsibling)
+   nullify(model%nextmodel)
    
    ! Make sure the pointers to the current environment are explicitly dissociated.
    nullify(model%environment)
 
    ! Connect to parent container if provided.
    if (present(parent)) then
+      ! Make sure the provided parent model is a container.
       if (parent%id.ne.model_container_id) &
          call fatal_error('rmbm_create_model','A child model can only be added to a container, not to an existing model.')
 
+      ! Link parent container to child.
       if (associated(parent%firstchild)) then
          ! The target container already contains one or more children.
          ! Find the last, then append the new model to the list.
-         previoussibling => parent%firstchild
-         do while (associated(previoussibling%nextsibling))
-            previoussibling => previoussibling%nextsibling
+         curmodel => parent%firstchild
+         do while (associated(curmodel%nextsibling))
+            curmodel => curmodel%nextsibling
          end do
-         previoussibling%nextsibling => model
-         previoussibling%info%nextsibling => model%info
+         curmodel%nextsibling => model
+         curmodel%info%nextsibling => model%info
       else
          ! The target container does not contain any children yet.
          ! Add the current model as first child.
@@ -438,6 +447,21 @@
       ! Link the child model to its parent container.
       model%parent => parent
       model%info%parent => parent%info
+      
+      ! Find the root of the tree.
+      curmodel => parent
+      do while (associated(curmodel%parent))
+         curmodel => curmodel%parent
+      end do
+      
+      ! Find the last model in the flattened list of non-container models.
+      ! (first model is pointed to by the root of the tree)
+      do while (associated(curmodel%nextmodel))
+         curmodel => curmodel%nextmodel
+      end do
+      
+      ! Add current model to the flattened list of non-container models.
+      curmodel%nextmodel => model
    end if
    
    end function rmbm_create_model
@@ -449,7 +473,63 @@
 ! !IROUTINE: Initialise the selected 0d biogeochemical model
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_init(model,nmlunit)
+   subroutine rmbm_init(root,nmlunit)
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+   type (type_model),target,               intent(inout) :: root
+   integer,                                intent(in)    :: nmlunit
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+  logical                    :: isopen
+  integer                    :: ivar
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Check whether we are operating on the root of a model tree.
+   if (associated(root%parent)) call fatal_error('rmbm_init','rmbm_init can only be called on the root of a model tree.')
+
+   ! Check whether the unit provided by the host actually refers to an open file.
+   inquire(nmlunit,opened=isopen)
+   if (.not.isopen) call fatal_error('rmbm_init','input configuration file has not been opened yet!')
+   
+   call init_model(root,nmlunit)
+
+   ! Allocate arrays for storage of (references to) data.
+   allocate(root%environment)
+   allocate(root%environment%var2d(ubound(root%info%dependencies2d,1)))
+   allocate(root%environment%var3d(ubound(root%info%dependencies3d,1)))
+   allocate(root%environment%state(root%info%state_variable_count))
+   
+   ! Set all pointers to external data to dissociated.
+   do ivar=1,ubound(root%environment%state,1)
+      nullify(root%environment%state(ivar)%data)
+   end do
+   do ivar=1,ubound(root%environment%var2d,1)
+      nullify(root%environment%var2d(ivar)%data)
+   end do
+   do ivar=1,ubound(root%environment%var3d,1)
+      nullify(root%environment%var3d(ivar)%data)
+   end do
+   
+   call set_model_data_members(root,root%environment)
+
+   end subroutine rmbm_init
+!EOC
+
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initialise the selected 0d biogeochemical model
+!
+! !INTERFACE:
+   recursive subroutine init_model(model,nmlunit)
 !
 ! !USES:
    IMPLICIT NONE
@@ -473,10 +553,6 @@
    modelname = get_model_name(model%id)
    call log_message('Initializing biogeochemical model '//trim(modelname)//'...')
    
-   ! Check whether the unit provided by the host actually refers to an open file.
-   inquire(nmlunit,opened=isopen)
-   if (.not.isopen) call fatal_error('rmbm_init','input configuration file has not been opened yet!')
-
    ! Allow the selected model to initialize
    select case (model%id)
       case (npzd_id)
@@ -504,7 +580,7 @@
             write (unit=curchild%info%longnameprefix, fmt='(a,i2.2,a)') trim(curchild%name),ichild,' '
 
             ! Initialize child model.
-            call rmbm_init(curchild,nmlunit)
+            call init_model(curchild,nmlunit)
             
             ! Move to next child model.
             curchild => curchild%nextsibling
@@ -515,37 +591,13 @@
          
    end select
    
-   ! If this is the root model, then allocate arrays for pointers to
-   ! environmental and state variables, and pass these arrays to the child models.
-   if (.not. associated(model%parent)) then
-      ! Allocate arrays for storage of (references to) data.
-      allocate(model%environment)
-      allocate(model%environment%var2d(ubound(model%info%dependencies2d,1)))
-      allocate(model%environment%var3d(ubound(model%info%dependencies3d,1)))
-      allocate(model%environment%state(model%info%state_variable_count))
-      
-      ! Set all pointers to external data to dissociated.
-      do ivar=1,ubound(model%environment%state,1)
-         nullify(model%environment%state(ivar)%data)
-      end do
-      do ivar=1,ubound(model%environment%var2d,1)
-         nullify(model%environment%var2d(ivar)%data)
-      end do
-      do ivar=1,ubound(model%environment%var3d,1)
-         nullify(model%environment%var3d(ivar)%data)
-      end do
-      
-      ! Transfer arrays with external data to child models.
-      call set_model_data_members(model,model%environment)
-   end if
-   
    call log_message('model '//trim(modelname)//' initialized successfully.')
 
    ! Check whether the unit provided by the host has not been closed by the biogeochemical model.
    inquire(nmlunit,opened=isopen)
    if (.not.isopen) call fatal_error('rmbm_init','input configuration file was closed by model '//trim(modelname)//'.')
 
-   end subroutine rmbm_init
+   end subroutine init_model
 !EOC
 
 recursive subroutine set_model_data_members(model,environment)
@@ -630,7 +682,7 @@ end subroutine rmbm_supply_vardata_2d_char
 ! biogeochemical model
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_do_rhs(model,LOCATION,dy,diag)
+   subroutine rmbm_do_rhs(model,LOCATION,dy,diag)
 !
 ! !USES:
    IMPLICIT NONE
@@ -645,50 +697,51 @@ end subroutine rmbm_supply_vardata_2d_char
 ! !LOCAL PARAMETERS:
    REALTYPE,allocatable                  :: pp(:,:),dd(:,:)
    integer                               :: i,j
-   type (type_model), pointer            :: curchild
+   type (type_model), pointer            :: curmodel
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   select case (model%id)
-      case (npzd_id)
-         call do_bio_npzd(model%npzd,model%environment,LOCATION,dy,diag)
-      case (jellyfish_id)
-         call do_bio_jellyfish_0d(model%jellyfish,model%environment,LOCATION,dy,diag)
-      case (carbonate_id)
-         call do_bio_co2_sys_0d(model%carbonate,model%environment,LOCATION,dy,diag)
-      ! ADD_NEW_MODEL_HERE
-      case (model_container_id)
-         curchild => model%firstchild
-         do while (associated(curchild))
-            call rmbm_do_rhs(curchild,LOCATION,dy,diag)
-            curchild => curchild%nextsibling
-         end do
-      case default
-         ! The model does not provide the temporal derivatives itself.
-         ! In that case, it provides production/destruction matrices instead.
-         ! Retrieve those, and calculate the temporal derivatives based on their contents.
-         !
-         ! NB pp/dd are allocated on the spot here, which is really expensive.
-         ! However, this could only be improved by making RMBM aware of the full model domain,
-         ! and maing biogeochemical models tell RMB whther they provide pp/dd. Only then can RMBM
-         ! allocate pp/dd for the full domain. (allocating the arrays once for a local
-         ! point in space seems attractive, but that would rule out parallelization)
-         allocate(pp(1:ubound(dy,1),1:ubound(dy,1)))
-         allocate(dd(1:ubound(dy,1),1:ubound(dy,1)))
-         pp = _ZERO_
-         dd = _ZERO_
-         call rmbm_do_ppdd(model,LOCATION,pp,dd,diag)
-         do i=1,ubound(dy,1)
-            do j=1,ubound(dy,1)
-               dy(i) = dy(i) + pp(i,j)-dd(i,j)
+   if (model%id.eq.model_container_id .and. associated(model%parent)) &
+      call fatal_error('rmbm_do_rhs','rmbm_do_rhs may only be called on the root of the model tree, or on non-container models.')
+
+   curmodel => model%nextmodel
+   do while (associated(curmodel))
+      select case (curmodel%id)
+         case (npzd_id)
+            call do_bio_npzd(curmodel%npzd,curmodel%environment,LOCATION,dy,diag)
+         case (jellyfish_id)
+            call do_bio_jellyfish_0d(curmodel%jellyfish,curmodel%environment,LOCATION,dy,diag)
+         case (carbonate_id)
+            call do_bio_co2_sys_0d(curmodel%carbonate,curmodel%environment,LOCATION,dy,diag)
+         ! ADD_NEW_MODEL_HERE - required unless added to rmbm_do_ppdd instead.
+         case default
+            ! The model does not provide the temporal derivatives itself.
+            ! In that case, it provides production/destruction matrices instead.
+            ! Retrieve those, and calculate the temporal derivatives based on their contents.
+            !
+            ! NB pp/dd are allocated on the spot here, which is really expensive.
+            ! However, this could only be improved by making RMBM aware of the full model domain,
+            ! and making biogeochemical models tell RMB whther they provide pp/dd. Only then can RMBM
+            ! allocate pp/dd for the full domain. (allocating the arrays once for a local
+            ! point in space seems attractive, but that would rule out parallelization)
+            allocate(pp(1:ubound(dy,1),1:ubound(dy,1)))
+            allocate(dd(1:ubound(dy,1),1:ubound(dy,1)))
+            pp = _ZERO_
+            dd = _ZERO_
+            call rmbm_do_ppdd(curmodel,LOCATION,pp,dd,diag)
+            do i=1,ubound(dy,1)
+               do j=1,ubound(dy,1)
+                  dy(i) = dy(i) + pp(i,j)-dd(i,j)
+               end do
             end do
-         end do
-         deallocate(pp)
-         deallocate(dd)
-   end select
+            deallocate(pp)
+            deallocate(dd)
+      end select
+      curmodel => curmodel%nextmodel
+   end do
 
    end subroutine rmbm_do_rhs
 !EOC
@@ -699,13 +752,13 @@ end subroutine rmbm_supply_vardata_2d_char
 ! !IROUTINE: Get the local temporal derivatives in 1D
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_do_rhs_1d(model ARG_LOCATION_1DLOOP,istart,istop,dy,diag)
+   subroutine rmbm_do_rhs_1d(root ARG_LOCATION_1DLOOP,istart,istop,dy,diag)
 !
 ! !USES:
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(in)    :: model
+   type (type_model),      intent(in)    :: root
    integer,                intent(in)    :: istart,istop
    DEFINE_LOCATION_1DLOOP
 !
@@ -714,7 +767,7 @@ end subroutine rmbm_supply_vardata_2d_char
    REALTYPE,               intent(inout) :: diag(:,:)
 !
 ! !LOCAL PARAMETERS:
-   type (type_model), pointer            :: curchild
+   type (type_model), pointer            :: curmodel
    LOCATION_TYPE                         :: VARIABLE_1DLOOP
 !
 ! !REVISION HISTORY:
@@ -722,18 +775,17 @@ end subroutine rmbm_supply_vardata_2d_char
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   select case (model%id)
-      case (model_container_id)
-         curchild => model%firstchild
-         do while (associated(curchild))
-            call rmbm_do_rhs_1d(curchild ARG_LOCATION_1DLOOP,istart,istop,dy,diag)
-            curchild => curchild%nextsibling
-         end do
-      case default
-         do VARIABLE_1DLOOP=istart,istop
-            call rmbm_do_rhs(curchild,LOCATION,dy(VARIABLE_1DLOOP,:),diag(VARIABLE_1DLOOP,:))
-         end do
-   end select
+   curmodel = root%nextmodel
+   do while (associated(curmodel))
+      select case (curmodel%id)
+         ! ADD_NEW_MODEL_HERE - optional
+         case default
+            do VARIABLE_1DLOOP=istart,istop
+               call rmbm_do_rhs(curmodel,LOCATION,dy(VARIABLE_1DLOOP,:),diag(VARIABLE_1DLOOP,:))
+            end do
+      end select
+      curmodel = curmodel%nextmodel
+   end do
 
    end subroutine rmbm_do_rhs_1d
 !EOC
@@ -801,13 +853,13 @@ end subroutine rmbm_supply_vardata_2d_char
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   recursive function rmbm_check_state(model,LOCATION,repair) result(valid)
+   function rmbm_check_state(root,LOCATION,repair) result(valid)
 !
 ! !USES:
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(inout) :: model
+   type (type_model),      intent(inout) :: root
    LOCATION_TYPE,          intent(in)    :: LOCATION
    logical,                intent(in)    :: repair
 
@@ -815,7 +867,7 @@ end subroutine rmbm_supply_vardata_2d_char
 !
 ! !LOCAL PARAMETERS:
    integer                               :: i
-   type (type_model), pointer            :: curchild
+   type (type_model), pointer            :: curmodel
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -823,28 +875,33 @@ end subroutine rmbm_supply_vardata_2d_char
 !-----------------------------------------------------------------------
 !BOC
    valid = .true.
-   select case (model%id)
-      ! ADD_NEW_MODEL_HERE - optional
-      case (model_container_id)
-         curchild => model%firstchild
-         do while (associated(curchild))
-            if (.not. rmbm_check_state(curchild,LOCATION,repair)) valid = .false.
-            curchild => curchild%nextsibling
-         end do
-   end select
+   
+   ! Allow models to perform custom repairs.
+   curmodel => root%nextmodel
+   do while (associated(curmodel) .and. valid)
+      select case (curmodel%id)
+         ! ADD_NEW_MODEL_HERE - optional
+         ! If a subroutine or function is provided:
+         ! Set "valid" to .false. if the state variable values are invalid,
+         ! repair them if they are invalid and "repair" is .true. (but still keep "valid" set to .false.)
+      end select
+      curmodel => curmodel%nextmodel
+   end do
+   
+   ! If the present values are invalid and repair is not permitted, we are done.
+   if (.not. (valid .or. repair)) return
 
-   ! Default: check fixed bounds, and clip to bounds if repair is allowed.
-   if (model%id.ne.model_container_id) then
-      do i=1,model%info%state_variable_count
-         if (model%environment%state(model%info%variables(i)%globalid)%data(LOCATION)<model%info%variables(i)%minimum) then
-            valid = .false.
-            if (repair) model%environment%state(model%info%variables(i)%globalid)%data(LOCATION) = model%info%variables(i)%minimum
-         !elseif (model%state(model%info%variables(i)%globalid)%data(LOCATION)>model%info%variables(i)%maximum) then
-         !   valid = .false.
-         !   if (repair) model%state(model%info%variables(i)%globalid)%data(LOCATION) = model%info%variables(i)%maximum
-         end if
-      end do
-   end if
+   ! Check absolute variable boundaries specified by the models.
+   ! If repair is permitted, this comes down to clipping to the lower or upper boundary.
+   do i=1,root%info%state_variable_count
+      if (root%environment%state(root%info%variables(i)%globalid)%data INDEX_LOCATION<root%info%variables(i)%minimum) then
+         valid = .false.
+         if (repair) root%environment%state(root%info%variables(i)%globalid)%data INDEX_LOCATION = root%info%variables(i)%minimum
+      elseif (root%environment%state(root%info%variables(i)%globalid)%data INDEX_LOCATION>root%info%variables(i)%maximum) then
+         valid = .false.
+         if (repair) root%environment%state(root%info%variables(i)%globalid)%data INDEX_LOCATION = root%info%variables(i)%maximum
+      end if
+   end do
 
    end function rmbm_check_state
 !EOC
@@ -854,16 +911,16 @@ end subroutine rmbm_supply_vardata_2d_char
 !
 ! !IROUTINE: Get the air-sea exchange fluxes for all bio state variables.
 ! Positive values indicate fluxes into the ocean, negative values indicate fluxes
-! out of the ocean. Units are m/s * tracer concentration.
+! out of the ocean. Units are m/s * tracer unit.
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_update_air_sea_exchange(model,LOCATION,flux)
+   subroutine rmbm_get_surface_exchange(root,LOCATION,flux)
 !
 ! !USES:
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(in)    :: model
+   type (type_model),      intent(in)    :: root
    LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -873,23 +930,20 @@ end subroutine rmbm_supply_vardata_2d_char
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer            :: curchild
+   type (type_model), pointer            :: curmodel
 !-----------------------------------------------------------------------
 !BOC
-   select case (model%id)
-      case (carbonate_id)
-         call update_air_sea_co2_sys_0d(model%carbonate,model%environment,LOCATION,flux)
-      ! ADD_NEW_MODEL_HERE - optional
-      case (model_container_id)
-         curchild => model%firstchild
-         do while (associated(curchild))
-            call rmbm_update_air_sea_exchange(curchild,LOCATION,flux)
-            curchild => curchild%nextsibling
-         end do
-      case default
-   end select
+   curmodel => root%nextmodel
+   do while (associated(curmodel))
+      select case (curmodel%id)
+         case (carbonate_id)
+            call update_air_sea_co2_sys_0d(curmodel%carbonate,curmodel%environment,LOCATION,flux)
+         ! ADD_NEW_MODEL_HERE - optional
+      end select
+      curmodel => curmodel%nextmodel
+   end do
 
-   end subroutine rmbm_update_air_sea_exchange
+   end subroutine rmbm_get_surface_exchange
 !EOC
 
 !-----------------------------------------------------------------------
@@ -900,13 +954,13 @@ end subroutine rmbm_supply_vardata_2d_char
 ! and positive values indicate movemment towards the surface, e.g., floating.
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_get_vertical_movement(model,LOCATION,vertical_movement)
+   subroutine rmbm_get_vertical_movement(root,LOCATION,vertical_movement)
 !
 ! !USES:
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(in)    :: model
+   type (type_model),      intent(in)    :: root
    LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -916,24 +970,22 @@ end subroutine rmbm_supply_vardata_2d_char
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer            :: curchild
+   type (type_model), pointer            :: curmodel
    integer                               :: i
 !-----------------------------------------------------------------------
 !BOC
-   select case (model%id)
-      ! ADD_NEW_MODEL_HERE - optional
-      case (model_container_id)
-         curchild => model%firstchild
-         do while (associated(curchild))
-            call rmbm_get_vertical_movement(curchild,LOCATION,vertical_movement)
-            curchild => curchild%nextsibling
-         end do
-      case default
-         ! Default: use the constant sinking rates specified in state variable properties.
-         do i=1,model%info%state_variable_count
-            vertical_movement(model%info%variables(i)%globalid) = model%info%variables(i)%vertical_movement
-         end do
-   end select
+   curmodel => root%nextmodel
+   do while (associated(curmodel))
+      select case (curmodel%id)
+         ! ADD_NEW_MODEL_HERE - optional
+         case default
+            ! Default: use the constant sinking rates specified in state variable properties.
+            do i=1,curmodel%info%state_variable_count
+               vertical_movement(curmodel%info%variables(i)%globalid) = curmodel%info%variables(i)%vertical_movement
+            end do
+      end select
+      curmodel => curmodel%nextmodel
+   end do
 
    end subroutine rmbm_get_vertical_movement
 !EOC
@@ -945,41 +997,38 @@ end subroutine rmbm_supply_vardata_2d_char
 ! variables
 !
 ! !INTERFACE:
-   recursive function rmbm_get_bio_extinction(model,LOCATION) result(extinction)
+   function rmbm_get_bio_extinction(root,LOCATION) result(extinction)
 !
 ! !INPUT PARAMETERS:
-   type (type_model), intent(in) :: model
+   type (type_model), intent(in) :: root
    LOCATION_TYPE,     intent(in) :: LOCATION
    REALTYPE                      :: extinction
    
    integer                       :: i
-   type (type_model), pointer    :: curchild
+   type (type_model), pointer    :: curmodel
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   select case (model%id)
-      case (npzd_id)
-         extinction = get_bio_extinction_npzd(model%npzd,model%environment,LOCATION)
-      ! ADD_NEW_MODEL_HERE - optional
-      case (model_container_id)
-         extinction = _ZERO_
-         curchild => model%firstchild
-         do while (associated(curchild))
-            extinction = extinction + rmbm_get_bio_extinction(curchild,LOCATION)
-            curchild => curchild%nextsibling
-         end do
-      case default
-         ! Default: use constant specific light extinction values specified in the state variable properties
-         extinction = _ZERO_
-         do i=1,model%info%state_variable_count
-            if (model%info%variables(i)%specific_light_extinction.ne._ZERO_) &
-               extinction = extinction + model%environment%state(model%info%variables(i)%globalid)%data(LOCATION) &
-                                 & * model%info%variables(i)%specific_light_extinction
-         end do
-   end select
+   curmodel => root%nextmodel
+   do while (associated(curmodel))
+      select case (curmodel%id)
+         case (npzd_id)
+            extinction = get_bio_extinction_npzd(curmodel%npzd,curmodel%environment,LOCATION)
+         ! ADD_NEW_MODEL_HERE - optional
+         case default
+            ! Default: use constant specific light extinction values specified in the state variable properties
+            extinction = _ZERO_
+            do i=1,curmodel%info%state_variable_count
+               if (curmodel%info%variables(i)%specific_light_extinction.ne._ZERO_) &
+                  extinction = extinction + curmodel%environment%state(curmodel%info%variables(i)%globalid)%data INDEX_LOCATION &
+                                    & * curmodel%info%variables(i)%specific_light_extinction
+            end do
+      end select
+      curmodel => curmodel%nextmodel
+   end do
 
    end function rmbm_get_bio_extinction
 !EOC
@@ -990,13 +1039,13 @@ end subroutine rmbm_supply_vardata_2d_char
 ! !IROUTINE: Get the total of all conserved quantities
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_get_conserved_quantities(model,LOCATION,sums)
+   subroutine rmbm_get_conserved_quantities(root,LOCATION,sums)
 !
 ! !USES:
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_model), intent(in)      :: model
+   type (type_model), intent(in)      :: root
    LOCATION_TYPE,     intent(in)      :: LOCATION
    REALTYPE,          intent(inout)   :: sums(:)
 !
@@ -1004,26 +1053,24 @@ end subroutine rmbm_supply_vardata_2d_char
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer    :: curchild
+   type (type_model), pointer    :: curmodel
 
 !-----------------------------------------------------------------------
 !BOC
-   select case (model%id)
-      case (npzd_id)
-         call get_conserved_quantities_npzd(model%npzd,model%environment,LOCATION,sums)
-      ! ADD_NEW_MODEL_HERE - optional
-      case (model_container_id)
-         curchild => model%firstchild
-         do while (associated(curchild))
-            call rmbm_get_conserved_quantities(curchild,LOCATION,sums)
-            curchild => curchild%nextsibling
-         end do
-      case default
-         ! Default: the model does not describe any conserved quantities.
-         if (model%info%conserved_quantity_count.gt.0) &
-            call fatal_error('rmbm_get_conserved_quantities','the model specifies that it describes one or more conserved &
-                 &quantities, but a function that provides sums of these quantities has not been specified.')
-   end select
+   curmodel => root%nextmodel
+   do while (associated(curmodel))
+      select case (curmodel%id)
+         case (npzd_id)
+            call get_conserved_quantities_npzd(curmodel%npzd,curmodel%environment,LOCATION,sums)
+         ! ADD_NEW_MODEL_HERE - optional
+         case default
+            ! Default: the model does not describe any conserved quantities.
+            if (curmodel%info%conserved_quantity_count.gt.0) &
+               call fatal_error('rmbm_get_conserved_quantities','the model specifies that it describes one or more conserved &
+                    &quantities, but a function that provides sums of these quantities has not been specified.')
+      end select
+      curmodel => curmodel%nextmodel
+   end do
 
    end subroutine rmbm_get_conserved_quantities
 !EOC

@@ -69,7 +69,7 @@
    logical                   :: rmbm_calc,bioshade_feedback,repair_state
 
    ! Model
-   type (type_model),pointer :: model
+   type (type_model), pointer :: model
    
    ! Arrays for state and diagnostic variables
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:),target :: cc
@@ -424,7 +424,7 @@
 
    ! Get updated air-sea fluxes for biological state variables.
    sfl = _ZERO_
-   call rmbm_update_air_sea_exchange(model,nlev,sfl)
+   call rmbm_get_surface_exchange(model,nlev,sfl)
    
    ! Calculate dilution due to surface freshwater flux (m/s)
    ! If surface freshwater flux is not specified, but surface salinity is relaxed to observations,
