@@ -5,10 +5,6 @@
 #define LOCATION kk
 #define LOCATION_DIMENSIONS :
 
-! Variable name and dimension specifyer for horizontal-only bio fields
-#define LOCATION_HZ
-#define LOCATION_DIMENSIONS_HZ
-
 ! Include RMBM preprocessor definitions.
 ! This *must* be done after the host-specific variables are defined (above),
 ! because these are used in rmbm.h.
