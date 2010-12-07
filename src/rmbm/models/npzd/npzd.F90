@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: rmbm_npzd --- 0D NPZD biogeochemical model
+! !MODULE: rmbm_npzd --- NPZD biogeochemical model taken from GOTM
 !
 ! !INTERFACE:
    module rmbm_npzd

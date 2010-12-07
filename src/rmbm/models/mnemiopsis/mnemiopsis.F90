@@ -4,16 +4,16 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: rmbm_jellyfish --- Mnemiopsis (comb jelly species) model
-! by Salihoglu (IMS METU)
+! !MODULE: rmbm_mnemiopsis --- Mnemiopsis (comb jelly species) model
+! by Baris Salihoglu (IMS METU)
 !
 ! !INTERFACE:
    module rmbm_mnemiopsis
 !
 ! !DESCRIPTION:
-! Black Sea jellyfish (Mnemiopsis) model based on code by Baris Salihoglu.
+! Black Sea comb jelly (Mnemiopsis) model based on code by Baris Salihoglu.
 ! This model must be coupled to a lower trophic level model that provides
-! prey to the jellyfish population.
+! prey to the Mnemiopsis population.
 !
 ! !USES:
    use rmbm_types
@@ -33,7 +33,7 @@
 !
 ! !PUBLIC DERIVED TYPES:
    type type_mnemiopsis
-      ! Jellyfish state variable identifiers
+      ! Mnemiopsis state variable identifiers
       integer :: id_egb, id_jb, id_ja, id_tb, id_ta, id_adb, id_ada
       
       ! Prey state variable identifiers (links to other model with lower trophic levels)
@@ -130,7 +130,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Right hand sides of jellyfish model
+! !IROUTINE: Right hand sides of Mnemiopsis model
 !
 ! !INTERFACE:
    _PURE subroutine mnemiopsis_do(self,environment,LOCATION,dy,diag)

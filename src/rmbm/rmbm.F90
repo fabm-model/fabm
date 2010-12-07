@@ -635,7 +635,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Initialise the selected 0d biogeochemical model
+! !IROUTINE: Initialise the biogeochemical model tree.
 !
 ! !INTERFACE:
    subroutine rmbm_init(root,nmlunit)
@@ -692,7 +692,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Initialise the selected 0d biogeochemical model
+! !IROUTINE: Initialise the provided biogeochemical model
 !
 ! !INTERFACE:
    recursive subroutine init_model(model,nmlunit)
@@ -844,8 +844,8 @@ end subroutine rmbm_supply_vardata_2d_char
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Get the local temporal derivatives for the selected 0d
-! biogeochemical model
+! !IROUTINE: Get the local temporal derivatives for the biogeochemical
+! model tree.
 !
 ! !INTERFACE:
    subroutine rmbm_do_rhs(model,LOCATION,dy,diag)
@@ -959,8 +959,8 @@ end subroutine rmbm_supply_vardata_2d_char
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Get the local temporal derivatives for the selected 0d
-! biogeochemical model
+! !IROUTINE: Get the local temporal derivatives for the biogeochemical
+! model tree in the form of production and destruction matrices.
 !
 ! !INTERFACE:
    recursive subroutine rmbm_do_ppdd(model,LOCATION,pp,dd,diag)
