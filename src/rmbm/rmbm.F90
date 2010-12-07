@@ -174,7 +174,7 @@
 !    childmodel => rmbm_create_model(1,parent=model)
 !    childmodel => rmbm_create_model(2,parent=model)
 !
-!    This adds child models with identifiers 1 (currently NPZD) and 2 (currently jellyfish)
+!    This adds child models with identifiers 1 (currently NPZD) and 2 (currently Mnemiopsis)
 !    to the root.
 !
 !    Note 1: it is not required to first construct an empty root model - if you know that you
@@ -244,7 +244,7 @@
 !   
 !  Reference specific biogeochemical models:
    use rmbm_npzd
-   use rmbm_jellyfish
+   use rmbm_mnemiopsis
    use rmbm_co2sys
    ! ADD_NEW_MODEL_HERE
    
@@ -266,7 +266,7 @@
    integer, parameter :: model_container_id = -1
    integer, parameter :: npzd_id            =  1
    integer, parameter :: carbonate_id       =  101
-   integer, parameter :: jellyfish_id       =  102
+   integer, parameter :: mnemiopsis_id      =  102
    ! ADD_NEW_MODEL_HERE
 
 ! !PUBLIC TYPES:
@@ -293,9 +293,9 @@
       type (type_model),pointer :: nextmodel
 
       ! Derived types that belong to specific biogeochemical models.
-      type (type_npzd)      :: npzd
-      type (type_jellyfish) :: jellyfish
-      type (type_co2_sys)   :: carbonate
+      type (type_npzd)       :: npzd
+      type (type_mnemiopsis) :: mnemiopsis
+      type (type_co2_sys)    :: carbonate
       ! ADD_NEW_MODEL_HERE
       
       ! Pointers to the current state and environment.
@@ -357,7 +357,7 @@
 !BOC
    call register_model(model_container_id,'')
    call register_model(npzd_id           ,'npzd')
-   call register_model(jellyfish_id      ,'jellyfish')
+   call register_model(mnemiopsis_id     ,'mnemiopsis')
    call register_model(carbonate_id      ,'co2sys')
    ! ADD_NEW_MODEL_HERE - required
    
@@ -723,8 +723,8 @@
    select case (model%id)
       case (npzd_id)
          call npzd_init(model%npzd,model%info,nmlunit)
-      case (jellyfish_id)
-         call jellyfish_init(model%jellyfish,model%info,nmlunit)
+      case (mnemiopsis_id)
+         call mnemiopsis_init(model%mnemiopsis,model%info,nmlunit)
       case (carbonate_id)
          call co2sys_init(model%carbonate,model%info,nmlunit)
       ! ADD_NEW_MODEL_HERE - required
@@ -878,8 +878,8 @@ end subroutine rmbm_supply_vardata_2d_char
       select case (curmodel%id)
          case (npzd_id)
             call npzd_do(curmodel%npzd,curmodel%environment,LOCATION,dy,diag)
-         case (jellyfish_id)
-            call jellyfish_do(curmodel%jellyfish,curmodel%environment,LOCATION,dy,diag)
+         case (mnemiopsis_id)
+            call mnemiopsis_do(curmodel%mnemiopsis,curmodel%environment,LOCATION,dy,diag)
          case (carbonate_id)
             call co2sys_do(curmodel%carbonate,curmodel%environment,LOCATION,dy,diag)
          ! ADD_NEW_MODEL_HERE - required unless added to rmbm_do_ppdd instead.

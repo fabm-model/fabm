@@ -4,10 +4,11 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: rmbm_jellyfish --- 0D jellyfish model
+! !MODULE: rmbm_jellyfish --- Mnemiopsis (comb jelly species) model
+! by Salihoglu (IMS METU)
 !
 ! !INTERFACE:
-   module rmbm_jellyfish
+   module rmbm_mnemiopsis
 !
 ! !DESCRIPTION:
 ! Black Sea jellyfish (Mnemiopsis) model based on code by Baris Salihoglu.
@@ -22,7 +23,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_jellyfish, jellyfish_init, jellyfish_do
+   public type_mnemiopsis, mnemiopsis_init, mnemiopsis_do
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -31,7 +32,7 @@
 !
 !
 ! !PUBLIC DERIVED TYPES:
-   type type_jellyfish
+   type type_mnemiopsis
       ! Jellyfish state variable identifiers
       integer :: id_egb, id_jb, id_ja, id_tb, id_ta, id_adb, id_ada
       
@@ -56,7 +57,7 @@
 ! !IROUTINE: Initialise the bio module
 !
 ! !INTERFACE:
-   subroutine jellyfish_init(self,modelinfo,namlst)
+   subroutine mnemiopsis_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Here, the bio namelist {\tt bio\_jellyfish.nml} is read and 
@@ -67,7 +68,7 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_jellyfish), intent(out)   :: self
+   type (type_mnemiopsis),intent(out)   :: self
    type (type_model_info),intent(inout) :: modelinfo
    integer,               intent(in )   :: namlst
 !
@@ -121,9 +122,9 @@
 
    return
 
-99 call fatal_error('init_bio_jellyfish_0d','I could not read namelist bio_jellyfish_nml')
+99 call fatal_error('mnemiopsis_init','I could not read namelist bio_jellyfish_nml')
    
-   end subroutine jellyfish_init
+   end subroutine mnemiopsis_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -132,7 +133,7 @@
 ! !IROUTINE: Right hand sides of jellyfish model
 !
 ! !INTERFACE:
-   _PURE subroutine jellyfish_do(self,environment,LOCATION,dy,diag)
+   _PURE subroutine mnemiopsis_do(self,environment,LOCATION,dy,diag)
 !
 ! !DESCRIPTION:
 !
@@ -140,7 +141,7 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_jellyfish),  intent(in) :: self
+   type (type_mnemiopsis), intent(in) :: self
    type (type_environment),intent(in) :: environment
    LOCATION_TYPE,          intent(in) :: LOCATION
 !
@@ -391,7 +392,7 @@
    dy(self%id_morttarget) = dy(self%id_morttarget) + (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale &
                             /secs_pr_day
 
-   end subroutine jellyfish_do
+   end subroutine mnemiopsis_do
 !EOC
 
    _PURE subroutine trans(mm,mr,ma,t,p7)
@@ -408,7 +409,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module rmbm_jellyfish
+   end module rmbm_mnemiopsis
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

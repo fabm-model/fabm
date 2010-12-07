@@ -4,7 +4,8 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: bio_co2_sys_0d --- 0D CO2/carbonate system model
+! !MODULE: rmbm_co2sys --- shell around CO2/carbonate system model by
+! Jerry Blackford (Plymouth Marine Laboratory)
 !
 ! !INTERFACE:
 module rmbm_co2sys
