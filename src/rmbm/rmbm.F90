@@ -255,7 +255,8 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_model, rmbm_init, rmbm_create_model, rmbm_do, &
-          rmbm_link_variable_data,rmbm_get_variable_id, &
+          rmbm_link_2d_data,rmbm_link_3d_data,rmbm_get_variable_id, &
+          rmbm_link_2d_state_data,rmbm_link_3d_state_data, &
           rmbm_check_state, rmbm_get_vertical_movement, rmbm_get_light_extinction, &
           rmbm_get_conserved_quantities, rmbm_get_surface_exchange
 !
@@ -317,11 +318,14 @@
       module procedure rmbm_do_rhs_1d
    end interface
    
-   interface rmbm_link_variable_data
-      module procedure rmbm_supply_vardata_2d
-      module procedure rmbm_supply_vardata_2d_char
-      module procedure rmbm_supply_vardata_3d
-      module procedure rmbm_supply_vardata_3d_char
+   interface rmbm_link_3d_data
+      module procedure rmbm_link_data_3d
+      module procedure rmbm_link_data_3d_char
+   end interface
+
+   interface rmbm_link_2d_data
+      module procedure rmbm_link_data_2d
+      module procedure rmbm_link_data_2d_char
    end interface
    
    interface rmbm_create_model
@@ -347,7 +351,7 @@
    subroutine register_models()
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -374,7 +378,7 @@
    subroutine register_model(id,name)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    integer, intent(in)         :: id
@@ -439,7 +443,7 @@
    function get_model_name(id) result(name)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    integer, intent(in) :: id
@@ -476,7 +480,7 @@
    function get_model_id(name) result(id)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    character(len=*),intent(in) :: name
@@ -509,14 +513,13 @@
 ! identifier is omitted.
 !
 ! !INTERFACE:
-   function rmbm_create_model_by_id(modelid,name,parent) result(model)
+   function rmbm_create_model_by_id(modelid,parent) result(model)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    integer,         optional,         intent(in)    :: modelid
-   character(len=*),optional,         intent(in)    :: name
    type (type_model),pointer,optional               :: parent
    type (type_model),pointer                        :: model
 !
@@ -536,11 +539,7 @@
    end if
 
    ! Set the model name
-   if (present(name)) then
-      model%name = name
-   else
-      model%name = get_model_name(model%id)
-   end if
+   model%name = get_model_name(model%id)
 
    ! Initialize model info
    call init_model_info(model%info)
@@ -580,21 +579,28 @@
       ! Link the child model to its parent container.
       model%parent => parent
       model%info%parent => parent%info
+
+      if (model%id.ne.model_container_id) then
+         ! This model is not a container.
+         ! It needs to be added to the flattened list of non-container models,
+         ! which is used at runtime to iterate over all models without needing recursion.
       
-      ! Find the root of the tree.
-      curmodel => parent
-      do while (associated(curmodel%parent))
-         curmodel => curmodel%parent
-      end do
-      
-      ! Find the last model in the flattened list of non-container models.
-      ! (first model is pointed to by the root of the tree)
-      do while (associated(curmodel%nextmodel))
-         curmodel => curmodel%nextmodel
-      end do
-      
-      ! Add current model to the flattened list of non-container models.
-      curmodel%nextmodel => model
+         ! First non-container model will be pointed to by the root of the tree - find it.
+         curmodel => parent
+         do while (associated(curmodel%parent))
+            curmodel => curmodel%parent
+         end do
+         
+         ! Find the last model in the flattened list of non-container models.
+         ! (first model is pointed to by the root of the tree)
+         do while (associated(curmodel%nextmodel))
+            curmodel => curmodel%nextmodel
+         end do
+         
+         ! Add current model to the flattened list of non-container models.
+         curmodel%nextmodel => model
+      end if
+
    end if
    
    end function rmbm_create_model_by_id
@@ -611,7 +617,7 @@
    function rmbm_create_model_by_name(modelname,parent) result(model)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    character(len=*),    intent(in)    :: modelname
@@ -641,7 +647,7 @@
    subroutine rmbm_init(root,nmlunit)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: root
@@ -667,13 +673,14 @@
 
    ! Allocate arrays for storage of (references to) data.
    allocate(root%environment)
-   allocate(root%environment%var2d(ubound(root%info%dependencies2d,1)))
-   allocate(root%environment%var3d(ubound(root%info%dependencies3d,1)))
-   allocate(root%environment%state(root%info%state_variable_count))
+   allocate(root%environment%var2d  (ubound(root%info%dependencies2d,    1)))
+   allocate(root%environment%var3d  (ubound(root%info%dependencies3d,    1)))
+   allocate(root%environment%state2d(ubound(root%info%state_variables_2d,1)))
+   allocate(root%environment%state3d(ubound(root%info%state_variables_3d,1)))
    
    ! Set all pointers to external data to dissociated.
-   do ivar=1,ubound(root%environment%state,1)
-      nullify(root%environment%state(ivar)%data)
+   do ivar=1,ubound(root%environment%state3d,1)
+      nullify(root%environment%state3d(ivar)%data)
    end do
    do ivar=1,ubound(root%environment%var2d,1)
       nullify(root%environment%var2d(ivar)%data)
@@ -698,7 +705,7 @@
    recursive subroutine init_model(model,nmlunit)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: model
@@ -796,22 +803,22 @@ function rmbm_get_variable_id(model,name,shape) result(id)
 
    if (associated(source)) then
       do id=1,ubound(source,1)
-         if (source(id)==name) return
+         if (trim(source(id))==trim(name)) return
       end do
    end if
    
-   id = -1
+   id = id_not_used
 end function rmbm_get_variable_id
 
-subroutine rmbm_supply_vardata_3d(model,id,dat)
+subroutine rmbm_link_data_3d(model,id,dat)
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
    
    model%environment%var3d(id)%data => dat
-end subroutine rmbm_supply_vardata_3d
+end subroutine rmbm_link_data_3d
 
-subroutine rmbm_supply_vardata_3d_char(model,name,dat)
+subroutine rmbm_link_data_3d_char(model,name,dat)
    type (type_model),                       intent(inout) :: model
    character(len=*),                        intent(in)    :: name
    REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
@@ -819,18 +826,18 @@ subroutine rmbm_supply_vardata_3d_char(model,name,dat)
    integer                                                :: id
    
    id = rmbm_get_variable_id(model,name,shape3d)
-   if (id.ne.-1) call rmbm_supply_vardata_3d(model,id,dat)
-end subroutine rmbm_supply_vardata_3d_char
+   if (id.ne.-1) call rmbm_link_data_3d(model,id,dat)
+end subroutine rmbm_link_data_3d_char
 
-subroutine rmbm_supply_vardata_2d(model,id,dat)
+subroutine rmbm_link_data_2d(model,id,dat)
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
    
    model%environment%var2d(id)%data => dat
-end subroutine rmbm_supply_vardata_2d
+end subroutine rmbm_link_data_2d
 
-subroutine rmbm_supply_vardata_2d_char(model,name,dat)
+subroutine rmbm_link_data_2d_char(model,name,dat)
    type (type_model),                          intent(inout) :: model
    character(len=*),                           intent(in)    :: name
    REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
@@ -838,8 +845,24 @@ subroutine rmbm_supply_vardata_2d_char(model,name,dat)
    integer                                                :: id
    
    id = rmbm_get_variable_id(model,name,shape2d)
-   if (id.ne.-1) call rmbm_supply_vardata_2d(model,id,dat)
-end subroutine rmbm_supply_vardata_2d_char
+   if (id.ne.-1) call rmbm_link_data_2d(model,id,dat)
+end subroutine rmbm_link_data_2d_char
+
+subroutine rmbm_link_2d_state_data(model,id,dat)
+   type (type_model),                          intent(inout) :: model
+   integer,                                    intent(in)    :: id
+   REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
+   
+   model%environment%state2d(id)%data => dat
+end subroutine rmbm_link_2d_state_data
+
+subroutine rmbm_link_3d_state_data(model,id,dat)
+   type (type_model),                       intent(inout) :: model
+   integer,                                 intent(in)    :: id
+   REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
+   
+   model%environment%state3d(id)%data => dat
+end subroutine rmbm_link_3d_state_data
 
 !-----------------------------------------------------------------------
 !BOP
@@ -851,7 +874,7 @@ end subroutine rmbm_supply_vardata_2d_char
    subroutine rmbm_do_rhs(model,LOCATION,dy,diag)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
@@ -921,7 +944,7 @@ end subroutine rmbm_supply_vardata_2d_char
    subroutine rmbm_do_rhs_1d(root ARG_LOCATION_1DLOOP,istart,istop,dy,diag)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: root
@@ -966,7 +989,7 @@ end subroutine rmbm_supply_vardata_2d_char
    recursive subroutine rmbm_do_ppdd(model,LOCATION,pp,dd,diag)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: model
@@ -1022,7 +1045,7 @@ end subroutine rmbm_supply_vardata_2d_char
    function rmbm_check_state(root,LOCATION,repair) result(valid)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(inout) :: root
@@ -1058,14 +1081,17 @@ end subroutine rmbm_supply_vardata_2d_char
    if (.not. (valid .or. repair)) return
 
    ! Check absolute variable boundaries specified by the models.
-   ! If repair is permitted, this comes down to clipping to the lower or upper boundary.
-   do i=1,root%info%state_variable_count
-      if (root%environment%state(root%info%variables(i)%globalid)%data INDEX_LOCATION<root%info%variables(i)%minimum) then
+   ! If repair is permitted, this clips invalid values to the closest boundary.
+   do i=1,ubound(root%info%state_variables_3d,1)
+      if (root%environment%state3d(root%info%state_variables_3d(i)%globalid)%data INDEX_LOCATION<root%info%state_variables_3d(i)%minimum) then
          valid = .false.
-         if (repair) root%environment%state(root%info%variables(i)%globalid)%data INDEX_LOCATION = root%info%variables(i)%minimum
-      elseif (root%environment%state(root%info%variables(i)%globalid)%data INDEX_LOCATION>root%info%variables(i)%maximum) then
+         if (repair) root%environment%state3d(root%info%state_variables_3d(i)%globalid)%data INDEX_LOCATION =&
+             root%info%state_variables_3d(i)%minimum
+      elseif (root%environment%state3d(root%info%state_variables_3d(i)%globalid)%data INDEX_LOCATION> &
+               root%info%state_variables_3d(i)%maximum) then
          valid = .false.
-         if (repair) root%environment%state(root%info%variables(i)%globalid)%data INDEX_LOCATION = root%info%variables(i)%maximum
+         if (repair) root%environment%state3d(root%info%state_variables_3d(i)%globalid)%data INDEX_LOCATION =&
+             root%info%state_variables_3d(i)%maximum
       end if
    end do
 
@@ -1075,7 +1101,7 @@ end subroutine rmbm_supply_vardata_2d_char
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Get the air-sea exchange fluxes for all bio state variables.
+! !IROUTINE: Get the air-water exchange fluxes for all biogeochemical state variables.
 ! Positive values indicate fluxes into the ocean, negative values indicate fluxes
 ! out of the ocean. Units are m/s * tracer unit.
 !
@@ -1083,7 +1109,7 @@ end subroutine rmbm_supply_vardata_2d_char
    subroutine rmbm_get_surface_exchange(root,LOCATION,flux)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: root
@@ -1115,22 +1141,24 @@ end subroutine rmbm_supply_vardata_2d_char
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Get the air-sea exchange fluxes for all bio state variables.
-! Positive values indicate fluxes into the ocean, negative values indicate fluxes
-! out of the ocean. Units are m/s * tracer unit.
+! !IROUTINE: Process interaction between benthos and bottom layer of the
+! pelagic. This calculates the fluxes into all bottom pelagic and benthic variables,
+! in variable units * m/s (similar to surface fluxes). Positive values denote state
+! variable increases, negative values state variable decreases, for both pelagic and
+! benthic variables. Horizontal-only diagnostic variables can also be set in this routine.
 !
 ! !INTERFACE:
-   subroutine rmbm_do_benthos(root,LOCATION,dy_ben,dy_pel,diag)
+   subroutine rmbm_do_benthos(root,LOCATION,flux_ben,flux_pel,diag)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: root
    LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,dimension(:),  intent(inout) :: dy_pel,dy_ben,diag
+   REALTYPE,dimension(:),  intent(inout) :: flux_ben,flux_pel,diag
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1161,7 +1189,7 @@ end subroutine rmbm_supply_vardata_2d_char
    subroutine rmbm_get_vertical_movement(root,LOCATION,vertical_movement)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: root
@@ -1184,8 +1212,9 @@ end subroutine rmbm_supply_vardata_2d_char
          ! ADD_NEW_MODEL_HERE - optional
          case default
             ! Default: use the constant sinking rates specified in state variable properties.
-            do i=1,curmodel%info%state_variable_count
-               vertical_movement(curmodel%info%variables(i)%globalid) = curmodel%info%variables(i)%vertical_movement
+            do i=1,ubound(curmodel%info%state_variables_3d,1)
+               vertical_movement(curmodel%info%state_variables_3d(i)%globalid) =&
+                   curmodel%info%state_variables_3d(i)%vertical_movement
             end do
       end select
       curmodel => curmodel%nextmodel
@@ -1225,10 +1254,10 @@ end subroutine rmbm_supply_vardata_2d_char
          case default
             ! Default: use constant specific light extinction values specified in the state variable properties
             extinction = _ZERO_
-            do i=1,curmodel%info%state_variable_count
-               if (curmodel%info%variables(i)%specific_light_extinction.ne._ZERO_) &
-                  extinction = extinction + curmodel%environment%state(curmodel%info%variables(i)%globalid)%data INDEX_LOCATION &
-                                    & * curmodel%info%variables(i)%specific_light_extinction
+            do i=1,ubound(curmodel%info%state_variables_3d,1)
+               if (curmodel%info%state_variables_3d(i)%specific_light_extinction.ne._ZERO_) &
+                  extinction = extinction + curmodel%environment%state3d(curmodel%info%state_variables_3d(i)%globalid)%data INDEX_LOCATION &
+                                    & * curmodel%info%state_variables_3d(i)%specific_light_extinction
             end do
       end select
       curmodel => curmodel%nextmodel
@@ -1246,7 +1275,7 @@ end subroutine rmbm_supply_vardata_2d_char
    subroutine rmbm_get_conserved_quantities(root,LOCATION,sums)
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model), intent(in)      :: root
@@ -1269,7 +1298,7 @@ end subroutine rmbm_supply_vardata_2d_char
          ! ADD_NEW_MODEL_HERE - optional
          case default
             ! Default: the model does not describe any conserved quantities.
-            if (curmodel%info%conserved_quantity_count.gt.0) &
+            if (ubound(curmodel%info%conserved_quantities,1).gt.0) &
                call fatal_error('rmbm_get_conserved_quantities','the model specifies that it describes one or more conserved &
                     &quantities, but a function that provides sums of these quantities has not been specified.')
       end select

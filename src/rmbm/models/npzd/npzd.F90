@@ -164,11 +164,11 @@
    end if
 
    ! Diagnostic variables
-   self%id_GPP  = register_diagnostic_variable(modelinfo,'GPP','mmol/m**3',  'gross primary production',           3)
-   self%id_NCP  = register_diagnostic_variable(modelinfo,'NCP','mmol/m**3',  'net community production',           3)
-   self%id_PPR  = register_diagnostic_variable(modelinfo,'PPR','mmol/m**3/d','gross primary production rate',      2)
-   self%id_NPR  = register_diagnostic_variable(modelinfo,'NPR','mmol/m**3/d','net community production rate',      2)
-   self%id_dPAR = register_diagnostic_variable(modelinfo,'PAR','W/m**2',     'photosynthetically active radiation',2)
+   self%id_GPP  = register_diagnostic_variable(modelinfo,'GPP','mmol/m**3',  'gross primary production',           time_treatment=time_treatment_step_integrated)
+   self%id_NCP  = register_diagnostic_variable(modelinfo,'NCP','mmol/m**3',  'net community production',           time_treatment=time_treatment_step_integrated)
+   self%id_PPR  = register_diagnostic_variable(modelinfo,'PPR','mmol/m**3/d','gross primary production rate',      time_treatment=time_treatment_averaged)
+   self%id_NPR  = register_diagnostic_variable(modelinfo,'NPR','mmol/m**3/d','net community production rate',      time_treatment=time_treatment_averaged)
+   self%id_dPAR = register_diagnostic_variable(modelinfo,'PAR','W/m**2',     'photosynthetically active radiation',time_treatment=time_treatment_averaged)
    
    ! Conserved quantities
    self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
@@ -207,8 +207,8 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve current (local) state variable values.
-   p = environment%state(self%id_p)%data INDEX_LOCATION
-   d = environment%state(self%id_d)%data INDEX_LOCATION
+   p = environment%state3d(self%id_p)%data INDEX_LOCATION
+   d = environment%state3d(self%id_d)%data INDEX_LOCATION
    
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    extinction = self%kc*(self%p0+p+d)
@@ -238,10 +238,10 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve current (local) state variable values.
-   n = environment%state(self%id_n)%data INDEX_LOCATION
-   p = environment%state(self%id_p)%data INDEX_LOCATION
-   z = environment%state(self%id_z)%data INDEX_LOCATION
-   d = environment%state(self%id_d)%data INDEX_LOCATION
+   n = environment%state3d(self%id_n)%data INDEX_LOCATION
+   p = environment%state3d(self%id_p)%data INDEX_LOCATION
+   z = environment%state3d(self%id_z)%data INDEX_LOCATION
+   d = environment%state3d(self%id_d)%data INDEX_LOCATION
    
    ! Total nutrient is simply the sum of all variables.
    sums(self%id_totN) = n+p+z+d
@@ -389,10 +389,10 @@
 !BOC
 
    ! Retrieve current (local) state variable values.
-   n = environment%state(self%id_n)%data INDEX_LOCATION
-   p = environment%state(self%id_p)%data INDEX_LOCATION
-   z = environment%state(self%id_z)%data INDEX_LOCATION
-   d = environment%state(self%id_d)%data INDEX_LOCATION
+   n = environment%state3d(self%id_n)%data INDEX_LOCATION
+   p = environment%state3d(self%id_p)%data INDEX_LOCATION
+   z = environment%state3d(self%id_z)%data INDEX_LOCATION
+   d = environment%state3d(self%id_d)%data INDEX_LOCATION
    
    ! Retrieve current (local) environmental conditions.
    par = environment%var3d(self%id_par)%data INDEX_LOCATION
@@ -510,10 +510,10 @@
 !BOC
 
    ! Retrieve current (local) state variable values.
-   n = environment%state(self%id_n)%data INDEX_LOCATION
-   p = environment%state(self%id_p)%data INDEX_LOCATION
-   z = environment%state(self%id_z)%data INDEX_LOCATION
-   d = environment%state(self%id_d)%data INDEX_LOCATION
+   n = environment%state3d(self%id_n)%data INDEX_LOCATION
+   p = environment%state3d(self%id_p)%data INDEX_LOCATION
+   z = environment%state3d(self%id_z)%data INDEX_LOCATION
+   d = environment%state3d(self%id_d)%data INDEX_LOCATION
    
    ! Retrieve current (local) environmental conditions.
    par = environment%var3d(self%id_par)%data INDEX_LOCATION

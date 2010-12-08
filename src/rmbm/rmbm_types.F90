@@ -79,11 +79,8 @@
    
    ! Global 0D model properties
    type type_model_info
-      ! Number of state variables
-      integer :: state_variable_count, diagnostic_variable_count, conserved_quantity_count
-      
-      type (type_state_variable_info),     pointer,dimension(:) :: variables
-      type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables
+      type (type_state_variable_info),     pointer,dimension(:) :: state_variables_2d,state_variables_3d
+      type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables_2d,diagnostic_variables_3d
       type (type_conserved_quantity_info), pointer,dimension(:) :: conserved_quantities
       
       type (type_model_info),pointer :: parent
@@ -119,9 +116,10 @@
    end type type_state_2d
 
    type type_environment
-      type (type_state   ), dimension(:), _ALLOCATABLE :: state _NULL
-      type (type_state   ), dimension(:), _ALLOCATABLE :: var3d _NULL
-      type (type_state_2d), dimension(:), _ALLOCATABLE :: var2d _NULL
+      type (type_state   ), dimension(:), _ALLOCATABLE :: state3d _NULL ! array of pointers to data of pelagic state variables
+      type (type_state   ), dimension(:), _ALLOCATABLE :: var3d   _NULL ! array of pointers to data of all pelagic variables (state and diagnostic)
+      type (type_state_2d), dimension(:), _ALLOCATABLE :: state2d _NULL ! array of pointers to data of benthic state variables
+      type (type_state_2d), dimension(:), _ALLOCATABLE :: var2d   _NULL ! array of pointers to data of all horizontal variables (state and diagnostic, surface and bottom)
    end type type_environment
 
 !-----------------------------------------------------------------------
@@ -141,7 +139,7 @@
 !  by setting them to a reasonable default value.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
       type (type_model_info),intent(inout) :: modelinfo
@@ -153,13 +151,11 @@
 !
 !-----------------------------------------------------------------------
 !BOC
-      modelinfo%state_variable_count      = 0
-      modelinfo%diagnostic_variable_count = 0
-      modelinfo%conserved_quantity_count  = 0
-
-      nullify(modelinfo%variables)
-      nullify(modelinfo%diagnostic_variables)
-      nullify(modelinfo%conserved_quantities)
+      allocate(modelinfo%state_variables_2d(0))
+      allocate(modelinfo%state_variables_3d(0))
+      allocate(modelinfo%diagnostic_variables_2d(0))
+      allocate(modelinfo%diagnostic_variables_3d(0))
+      allocate(modelinfo%conserved_quantities(0))
       
       nullify(modelinfo%parent)
       nullify(modelinfo%firstchild)
@@ -187,7 +183,7 @@
 !  by setting them to a reasonable default value.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
       type (type_state_variable_info), intent(inout) :: varinfo
@@ -228,7 +224,7 @@
 !  by setting them to a reasonable default value.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
       type (type_diagnostic_variable_info), intent(inout) :: varinfo
@@ -261,7 +257,7 @@
 !  by setting them to a reasonable default value.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
       type (type_conserved_quantity_info), intent(inout) :: conservedinfo
@@ -289,7 +285,7 @@
    recursive function register_state_variable(modelinfo, name, units, longname, &
                                     initial_value, vertical_movement, specific_light_extinction, &
                                     mussels_inhale, minimum, maximum, &
-                                    no_precipitation_dilution,no_river_dilution) &
+                                    no_precipitation_dilution,no_river_dilution,benthic) &
                                     result(id)
 !
 ! !DESCRIPTION:
@@ -297,7 +293,7 @@
 !  It returns an identifier that may be used later to retrieve the value of the state variable.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
       type (type_model_info),intent(inout)       :: modelinfo
@@ -307,6 +303,7 @@
       REALTYPE,              intent(in),optional :: initial_value,vertical_movement,specific_light_extinction
       REALTYPE,              intent(in),optional :: minimum, maximum
       logical,               intent(in),optional :: mussels_inhale,no_precipitation_dilution,no_river_dilution
+      logical,               intent(in),optional :: benthic
 !
 ! !OUTPUT PARAMETER:
       integer                                    :: id
@@ -317,50 +314,64 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_state_variable_info),pointer :: variables_new(:)
+      type (type_state_variable_info),pointer :: variables_old(:),variables_new(:)
       character(len=256)                      :: text
+      logical                                 :: benthic_eff
 !
 !-----------------------------------------------------------------------
 !BOC
-      ! Extend the state variable array.
-      allocate(variables_new(modelinfo%state_variable_count+1))
-      if (associated(modelinfo%variables)) then
-         variables_new(1:modelinfo%state_variable_count) = modelinfo%variables(:)
-         deallocate(modelinfo%variables)
+      ! Determine whether this is a benthic state variable (.false. by default)
+      ! If so, select the array of 2d state variables instead of the normal array with 3d variables.
+      benthic_eff = .false.
+      if (present(benthic)) benthic_eff = benthic
+      if (benthic_eff) then
+         variables_old => modelinfo%state_variables_2d
+      else
+         variables_old => modelinfo%state_variables_3d
       end if
-      modelinfo%variables => variables_new
-      modelinfo%state_variable_count = modelinfo%state_variable_count+1
+
+      ! Extend the state variable array and copy over old values.
+      allocate(variables_new(ubound(variables_old,1)+1))
+      variables_new(1:ubound(variables_old,1)) = variables_old(:)
+      deallocate(variables_old)
+      
+      ! Assign new state variable array.
+      if (benthic_eff) then
+         modelinfo%state_variables_2d => variables_new
+      else
+         modelinfo%state_variables_3d => variables_new
+      end if
       
       ! By default, the variable id is the index of the state variable.
-      id = modelinfo%state_variable_count
+      id = ubound(variables_new,1)
 
       ! Initialize state variable info.
-      call init_state_variable_info(modelinfo%variables(id))
+      call init_state_variable_info(variables_new(id))
       
       ! Store customized information on state variable.
-      modelinfo%variables(id)%name     = name
-      modelinfo%variables(id)%units    = units
-      modelinfo%variables(id)%longname = longname
-      if (present(initial_value))             modelinfo%variables(id)%initial_value = initial_value
-      if (present(minimum))                   modelinfo%variables(id)%minimum = minimum
-      if (present(maximum))                   modelinfo%variables(id)%maximum = maximum
-      if (present(vertical_movement))         modelinfo%variables(id)%vertical_movement = vertical_movement
-      if (present(specific_light_extinction)) modelinfo%variables(id)%specific_light_extinction = specific_light_extinction
+      variables_new(id)%name     = name
+      variables_new(id)%units    = units
+      variables_new(id)%longname = longname
+      if (present(initial_value))             variables_new(id)%initial_value = initial_value
+      if (present(minimum))                   variables_new(id)%minimum = minimum
+      if (present(maximum))                   variables_new(id)%maximum = maximum
+      if (present(vertical_movement))         variables_new(id)%vertical_movement = vertical_movement
+      if (present(specific_light_extinction)) variables_new(id)%specific_light_extinction = specific_light_extinction
 #if 0
-      if (present(mussels_inhale))            modelinfo%variables(id)%mussels_inhale = mussels_inhale
+      if (present(mussels_inhale))            variables_new(id)%mussels_inhale = mussels_inhale
 #endif
-      if (present(no_precipitation_dilution)) modelinfo%variables(id)%no_precipitation_dilution = no_precipitation_dilution
-      if (present(no_river_dilution        )) modelinfo%variables(id)%no_river_dilution         = no_river_dilution
+      if (present(no_precipitation_dilution)) variables_new(id)%no_precipitation_dilution = no_precipitation_dilution
+      if (present(no_river_dilution        )) variables_new(id)%no_river_dilution         = no_river_dilution
 
       ! Check for positive definiteness of initial value, if positive definiteness is specified.
       ! NB: although it would make sense to allow a value of exactly zero for positive definite
       ! state variables, this is not accepted by some integration schemes (notably: Patankar-related
       ! ones, causing NaNs). Therefore, initial values of zero are forbidden here.
-      if (modelinfo%variables(id)%initial_value<modelinfo%variables(id)%minimum .or. &
-          modelinfo%variables(id)%initial_value>modelinfo%variables(id)%maximum) then
-         write (text,*) 'Initial value',modelinfo%variables(id)%initial_value,'for variable "'//trim(name)//'" lies&
-               &outside allowed range',modelinfo%variables(id)%initial_value<modelinfo%variables(id)%minimum, &
-               'to',modelinfo%variables(id)%initial_value<modelinfo%variables(id)%maximum
+      if (variables_new(id)%initial_value<variables_new(id)%minimum .or. &
+          variables_new(id)%initial_value>variables_new(id)%maximum) then
+         write (text,*) 'Initial value',variables_new(id)%initial_value,'for variable "'//trim(name)//'" lies&
+               &outside allowed range',variables_new(id)%initial_value<variables_new(id)%minimum, &
+               'to',variables_new(id)%initial_value<variables_new(id)%maximum
          call fatal_error('rmbm_types::register_state_variable',text)
       end if
                   
@@ -369,16 +380,16 @@
       if (associated(modelinfo%parent)) &
          id = register_state_variable(modelinfo%parent,trim(modelinfo%nameprefix)//name,       &
                 units,trim(modelinfo%longnameprefix)//' '//longname,                           &
-                initial_value             = modelinfo%variables(id)%initial_value,             &
-                vertical_movement         = modelinfo%variables(id)%vertical_movement,         &
-                specific_light_extinction = modelinfo%variables(id)%specific_light_extinction, &
-                minimum                   = modelinfo%variables(id)%minimum,                   &
-                maximum                   = modelinfo%variables(id)%maximum,                   &
-                no_precipitation_dilution = modelinfo%variables(id)%no_precipitation_dilution, &
-                no_river_dilution         = modelinfo%variables(id)%no_river_dilution)
+                initial_value             = variables_new(id)%initial_value,             &
+                vertical_movement         = variables_new(id)%vertical_movement,         &
+                specific_light_extinction = variables_new(id)%specific_light_extinction, &
+                minimum                   = variables_new(id)%minimum,                   &
+                maximum                   = variables_new(id)%maximum,                   &
+                no_precipitation_dilution = variables_new(id)%no_precipitation_dilution, &
+                no_river_dilution         = variables_new(id)%no_river_dilution)
                 
       ! Save the variable's global id.
-      modelinfo%variables(modelinfo%state_variable_count)%globalid = id
+      variables_new(ubound(variables_new,1))%globalid = id
       
    end function register_state_variable
 !EOC
@@ -389,13 +400,13 @@
 ! !IROUTINE: Registers a new diagnostic variable
 !
 ! !INTERFACE:
-   recursive function register_diagnostic_variable(modelinfo, name, units, longname, time_treatment) result(id)
+   recursive function register_diagnostic_variable(modelinfo, name, units, longname, benthic, time_treatment) result(id)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
       type (type_model_info),intent(inout)       :: modelinfo
@@ -403,6 +414,7 @@
 ! !INPUT PARAMETERS:
       character(len=*),      intent(in)          :: name, longname, units
       integer, optional,     intent(in)          :: time_treatment
+      logical, optional,     intent(in)          :: benthic
 !
 ! !OUTPUT PARAMETER:
       integer                                    :: id
@@ -413,40 +425,53 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_diagnostic_variable_info),pointer :: variables_new(:)
+      type (type_diagnostic_variable_info),pointer :: variables_old(:),variables_new(:)
+      logical                                      :: benthic_eff
 !
 !-----------------------------------------------------------------------
 !BOC
-      ! Extend array with diagnostic variables, if needed
-      allocate(variables_new(modelinfo%diagnostic_variable_count+1))
-      if (associated(modelinfo%diagnostic_variables)) then
-         variables_new(1:modelinfo%diagnostic_variable_count) = modelinfo%diagnostic_variables(:)
-         deallocate(modelinfo%diagnostic_variables)
+      ! Determine whether this is a benthic state variable (.false. by default)
+      benthic_eff = .false.
+      if (present(benthic)) benthic_eff = benthic
+      if (benthic_eff) then
+         variables_old => modelinfo%diagnostic_variables_2d
+      else
+         variables_old => modelinfo%diagnostic_variables_3d
       end if
-      modelinfo%diagnostic_variables => variables_new
-      modelinfo%diagnostic_variable_count = modelinfo%diagnostic_variable_count+1
+
+      ! Extend the state variable array and copy over old values.
+      allocate(variables_new(ubound(variables_old,1)+1))
+      variables_new(1:ubound(variables_old,1)) = variables_old(:)
+      deallocate(variables_old)
+      
+      ! Assign new state variable array.
+      if (benthic_eff) then
+         modelinfo%diagnostic_variables_2d => variables_new
+      else
+         modelinfo%diagnostic_variables_3d => variables_new
+      end if
       
       ! By default, the variable id is the index of the diagnostic variable.
-      id = modelinfo%diagnostic_variable_count
+      id = ubound(variables_new,1)
 
       ! Initialize diagnostic variable info.
-      call init_diagnostic_variable_info(modelinfo%diagnostic_variables(id))
+      call init_diagnostic_variable_info(variables_new(id))
       
       ! Store customized information on diagnostic variable.
-      modelinfo%diagnostic_variables(id)%name     = name
-      modelinfo%diagnostic_variables(id)%units    = units
-      modelinfo%diagnostic_variables(id)%longname = longname
-      if (present(time_treatment)) modelinfo%diagnostic_variables(id)%time_treatment = time_treatment
+      variables_new(id)%name     = name
+      variables_new(id)%units    = units
+      variables_new(id)%longname = longname
+      if (present(time_treatment)) variables_new(id)%time_treatment = time_treatment
                   
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the diagnostic variable id.
       if (associated(modelinfo%parent)) &
          id = register_diagnostic_variable(modelinfo%parent,trim(modelinfo%nameprefix)//name, &
                  units,trim(modelinfo%longnameprefix)//' '//longname, &
-                 modelinfo%diagnostic_variables(id)%time_treatment)
+                 time_treatment=variables_new(id)%time_treatment)
                 
       ! Save the diagnostic variable's global id.
-      modelinfo%diagnostic_variables(modelinfo%diagnostic_variable_count)%globalid = id
+      variables_new(ubound(variables_new,1))%globalid = id
       
    end function register_diagnostic_variable
 !EOC
@@ -464,7 +489,7 @@
 !  model database.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
       type (type_model_info),intent(inout)       :: modelinfo
@@ -486,24 +511,21 @@
 !-----------------------------------------------------------------------
 !BOC
       ! Extend array with conserved quantities, if needed
-      allocate(quantities_new(modelinfo%conserved_quantity_count+1))
-      if (associated(modelinfo%conserved_quantities)) then
-         quantities_new(1:modelinfo%conserved_quantity_count) = modelinfo%conserved_quantities(:)
-         deallocate(modelinfo%conserved_quantities)
-      end if
+      allocate(quantities_new(ubound(modelinfo%conserved_quantities,1)+1))
+      quantities_new(1:ubound(modelinfo%conserved_quantities,1)) = modelinfo%conserved_quantities(:)
+      deallocate(modelinfo%conserved_quantities)
       modelinfo%conserved_quantities => quantities_new
-      modelinfo%conserved_quantity_count = modelinfo%conserved_quantity_count+1
       
       ! By default, the conserved quantity id is its index within the model.
-      id = modelinfo%conserved_quantity_count
+      id = ubound(quantities_new,1)
 
       ! Initialize conserved quantity info.
-      call init_conserved_quantity_info(modelinfo%conserved_quantities(id))
+      call init_conserved_quantity_info(quantities_new(id))
       
       ! Store customized information on conserved quantity.
-      modelinfo%conserved_quantities(id)%name     = name
-      modelinfo%conserved_quantities(id)%units    = units
-      modelinfo%conserved_quantities(id)%longname = longname
+      quantities_new(id)%name     = name
+      quantities_new(id)%units    = units
+      quantities_new(id)%longname = longname
                   
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the conserved quantity id.
@@ -512,7 +534,7 @@
                  units,trim(modelinfo%longnameprefix)//' '//longname)
                 
       ! Save the conserved quantity's global id.
-      modelinfo%conserved_quantities(modelinfo%conserved_quantity_count)%globalid = id
+      quantities_new(ubound(quantities_new,1))%globalid = id
       
    end function register_conserved_quantity
 !EOC
@@ -523,7 +545,7 @@
 ! !IROUTINE: Registers a dependency on another biogeochemical state variable
 !
 ! !INTERFACE:
-   recursive function register_state_dependency(modelinfo,name) result(id)
+   recursive function register_state_dependency(modelinfo,name,benthic) result(id)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -531,11 +553,12 @@
 !  the variable is not found), which may be used to retrieve the variable value at a later stage.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
       type (type_model_info),target,          intent(in) :: modelinfo
       character(len=*),                       intent(in) :: name
+      logical,optional,                       intent(in) :: benthic
 !
 ! !OUTPUT PARAMETER:
       integer                           :: id
@@ -547,7 +570,9 @@
 !
 ! !LOCAL VARIABLES:
       integer                                 :: i
+      logical                                 :: benthic_eff
       type (type_model_info),pointer          :: curinfo
+      type (type_state_variable_info),pointer :: variables(:)
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -555,14 +580,23 @@
       
       ! If this model does not have a parent, there is no context to search variables in.
       if (.not. associated(modelinfo%parent)) return
+      
+      benthic_eff = .false.
+      if (present(benthic)) benthic_eff = benthic
 
       ! First search amongst siblings (if any)
       curinfo => modelinfo%parent%firstchild
       do while (associated(curinfo))
          if (.not. associated(curinfo,modelinfo)) then
-            do i = 1,curinfo%state_variable_count
-               if (curinfo%variables(i)%name==name) then
-                  id = curinfo%variables(i)%globalid
+            ! We are dealing with a sibling - not self - so search the model's state variables.
+            if (benthic_eff) then
+               variables => curinfo%state_variables_2d
+            else
+               variables => curinfo%state_variables_3d
+            end if
+            do i = 1,ubound(variables,1)
+               if (variables(i)%name==name) then
+                  id = variables(i)%globalid
                   return
                end if
             end do
@@ -573,9 +607,14 @@
       ! Now search amongst ancestors.
       curinfo => modelinfo%parent
       do while (associated(curinfo))
-         do i = 1,curinfo%state_variable_count
-            if (curinfo%variables(i)%name==name) then
-               id = curinfo%variables(i)%globalid
+         if (benthic_eff) then
+            variables => curinfo%state_variables_2d
+         else
+            variables => curinfo%state_variables_3d
+         end if
+         do i = 1,ubound(variables,1)
+            if (variables(i)%name==name) then
+               id = variables(i)%globalid
                return
             end if
          end do
@@ -599,7 +638,7 @@
 !  the variable is not found), which may be used to retrieve the variable value at a later stage.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
       type (type_model_info),target,          intent(inout) :: modelinfo

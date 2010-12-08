@@ -73,6 +73,7 @@
    
    ! Arrays for state and diagnostic variables
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:),target :: cc
+   REALTYPE,allocatable,dimension(:),                    target :: cc_2d
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:)        :: cc_diag
 
    ! Arrays for work, vertical movement, and cross-boundary fluxes
@@ -156,19 +157,33 @@
       call rmbm_init(model,namlst)
 
       ! Report prognostic variable descriptions
-      LEVEL2 'RMBM state variables:'
-      do i=1,model%info%state_variable_count
-         LEVEL3 trim(model%info%variables(i)%name), '  ', &
-                trim(model%info%variables(i)%units),'  ',&
-                trim(model%info%variables(i)%longname)
+      LEVEL2 'RMBM 3D state variables:'
+      do i=1,ubound(model%info%state_variables_3d,1)
+         LEVEL3 trim(model%info%state_variables_3d(i)%name), '  ', &
+                trim(model%info%state_variables_3d(i)%units),'  ',&
+                trim(model%info%state_variables_3d(i)%longname)
+      end do
+
+      LEVEL2 'RMBM 2D state variables:'
+      do i=1,ubound(model%info%state_variables_2d,1)
+         LEVEL3 trim(model%info%state_variables_2d(i)%name), '  ', &
+                trim(model%info%state_variables_2d(i)%units),'  ',&
+                trim(model%info%state_variables_2d(i)%longname)
       end do
 
       ! Report diagnostic variable descriptions
-      LEVEL2 'RMBM diagnostic variables:'
-      do i=1,model%info%diagnostic_variable_count
-         LEVEL3 trim(model%info%diagnostic_variables(i)%name), '  ', &
-                trim(model%info%diagnostic_variables(i)%units),'  ',&
-                trim(model%info%diagnostic_variables(i)%longname)
+      LEVEL2 'RMBM 3D diagnostic variables:'
+      do i=1,ubound(model%info%diagnostic_variables_3d,1)
+         LEVEL3 trim(model%info%diagnostic_variables_3d(i)%name), '  ', &
+                trim(model%info%diagnostic_variables_3d(i)%units),'  ',&
+                trim(model%info%diagnostic_variables_3d(i)%longname)
+      end do
+
+      LEVEL2 'RMBM 2D diagnostic variables:'
+      do i=1,ubound(model%info%diagnostic_variables_2d,1)
+         LEVEL3 trim(model%info%diagnostic_variables_2d(i)%name), '  ', &
+                trim(model%info%diagnostic_variables_2d(i)%units),'  ',&
+                trim(model%info%diagnostic_variables_2d(i)%longname)
       end do
 
       ! Report type of solver 
@@ -253,40 +268,48 @@
 !BOC
    if (.not. rmbm_calc) return
 
-   ! Allocate state variable array and provide initial values.
-   allocate(cc(1:model%info%state_variable_count,LOCATION_RANGE),stat=rc)
+   ! Allocate pelagic state variable array and provide initial values.
+   allocate(cc(1:ubound(model%info%state_variables_3d,1),LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc)'
-   do i=1,model%info%state_variable_count
-      cc(i,:) = model%info%variables(i)%initial_value
-      model%environment%state(i)%data => cc(i,1:LOCATION)
+   do i=1,ubound(model%info%state_variables_3d,1)
+      cc(i,:) = model%info%state_variables_3d(i)%initial_value
+      call rmbm_link_3d_state_data(model,i,cc(i,1:LOCATION))
+   end do
+
+   ! Allocate benthic state variable array and provide initial values.
+   allocate(cc_2d(1:ubound(model%info%state_variables_2d,1)),stat=rc)
+   if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc_2d)'
+   do i=1,ubound(model%info%state_variables_2d,1)
+      cc_2d(i) = model%info%state_variables_2d(i)%initial_value
+      call rmbm_link_2d_state_data(model,i,cc_2d(i))
    end do
 
    ! Allocate diagnostic variable array and set all values to zero.
    ! (needed because time-integrated/averaged variables will increment rather than set the array)
-   allocate(cc_diag(LOCATION_RANGE,1:model%info%diagnostic_variable_count),stat=rc)
+   allocate(cc_diag(LOCATION_RANGE,1:ubound(model%info%diagnostic_variables_3d,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc_diag)'
    cc_diag = _ZERO_
 
    ! Allocate array for storing current values for diagnostic variables.
-   allocate(work_cc_diag(LOCATION_RANGE,1:model%info%diagnostic_variable_count),stat=rc)
+   allocate(work_cc_diag(LOCATION_RANGE,1:ubound(model%info%diagnostic_variables_3d,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (work_cc_diag)'
    work_cc_diag = _ZERO_
 
    ! Allocate array with vertical movement rates (m/s, positive for upwards),
    ! and set these to the values provided by the model.
-   allocate(ws(LOCATION_RANGE,1:model%info%state_variable_count),stat=rc)
+   allocate(ws(LOCATION_RANGE,1:ubound(model%info%state_variables_3d,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (ws)'
-   do i=1,model%info%state_variable_count
-      ws(:,i) = model%info%variables(i)%vertical_movement
+   do i=1,ubound(model%info%state_variables_3d,1)
+      ws(:,i) = model%info%state_variables_3d(i)%vertical_movement
    end do
 
    ! Allocate array for surface fluxes and initialize these to zero (no flux).
-   allocate(sfl(1:model%info%state_variable_count),stat=rc)
+   allocate(sfl(1:ubound(model%info%state_variables_3d,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (sfl)'
    sfl = _ZERO_
 
    ! Allocate array for bottom fluxes and initialize these to zero (no flux).
-   allocate(bfl(1:model%info%state_variable_count),stat=rc)
+   allocate(bfl(1:ubound(model%info%state_variables_3d,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (bfl)'
    bfl = _ZERO_
 
@@ -294,18 +317,18 @@
    ! This will be calculated internally during each time step.
    allocate(par(LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (par)'
-   call rmbm_link_variable_data(model,varname_par,par(1:LOCATION))
+   call rmbm_link_3d_data(model,varname_par,par(1:LOCATION))
 
    ! Allocate array for local pressure.
-   ! This will be calculated from layer depths internally during each time step.
+   ! This will be calculated [approximated] from layer depths internally during each time step.
    allocate(pres(LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (pres)'
-   call rmbm_link_variable_data(model,varname_pres,pres(1:LOCATION))
+   call rmbm_link_3d_data(model,varname_pres,pres(1:LOCATION))
 
    ! Allocate arrays for storing local and column-integrated values of diagnostic variables.
    ! These are used during each save.
-   allocate(total(1:model%info%conserved_quantity_count))
-   allocate(local(1:model%info%conserved_quantity_count))
+   allocate(total(1:ubound(model%info%conserved_quantities,1)))
+   allocate(local(1:ubound(model%info%conserved_quantities,1)))
 
    end subroutine init_var_gotm_rmbm
 !EOC
@@ -341,11 +364,11 @@
    if (.not. rmbm_calc) return
 
    ! Provide pointers to arrays with environmental variables to RMBM.
-   call rmbm_link_variable_data(model,varname_temp,   temp)
-   call rmbm_link_variable_data(model,varname_salt,   salt_)
-   call rmbm_link_variable_data(model,varname_dens,   rho)
-   call rmbm_link_variable_data(model,varname_wind_sf,wnd)
-   call rmbm_link_variable_data(model,varname_par_sf, I_0)
+   call rmbm_link_3d_data(model,varname_temp,   temp)
+   call rmbm_link_3d_data(model,varname_salt,   salt_)
+   call rmbm_link_3d_data(model,varname_dens,   rho)
+   call rmbm_link_2d_data(model,varname_wind_sf,wnd)
+   call rmbm_link_2d_data(model,varname_par_sf, I_0)
    
    ! Save pointers to external dynamic variables that we need later (in do_gotm_rmbm)
    nuh => nuh_             ! turbulent heat diffusivity [1d array] used to diffuse biogeochemical state variables
@@ -434,14 +457,14 @@
    !   dilution = dilution + sum((salt(1:nlev)-sProf(1:nlev))/SRelaxTau(1:nlev)*h(2:nlev+1)) &
    !                        /sum(salt(1:nlev)*h(2:nlev+1)) * sum(h(2:nlev+1))
 
-   do j=1,model%info%state_variable_count
+   do j=1,ubound(model%info%state_variables_3d,1)
       ! Add surface flux due to evaporation/precipitation, unless the model explicitly says otherwise.
-      if (.not. model%info%variables(j)%no_precipitation_dilution) &
+      if (.not. model%info%state_variables_3d(j)%no_precipitation_dilution) &
          sfl(j) = sfl(j)-cc(j,nlev)*dilution
    
       ! Determine whether the variable is positive definite based on lower allowed bound.
       posconc = 0
-      if (model%info%variables(j)%minimum.ge._ZERO_) posconc = 1
+      if (model%info%state_variables_3d(j)%minimum.ge._ZERO_) posconc = 1
          
       ! Do advection step due to settling or rising
       call adv_center(nlev,dt,h,h,ws(:,j),flux,                   &
@@ -466,7 +489,8 @@
       call light_0d(nlev,bioshade_feedback)
       
       ! Time-integrate one biological time step.
-      call ode_solver(ode_method,model%info%state_variable_count,nlev,dt_eff,cc,right_hand_side_rhs,right_hand_side_ppdd)
+      call ode_solver(ode_method,ubound(cc,1),nlev-1,dt_eff,cc(:,1:nlev),right_hand_side_rhs,       right_hand_side_ppdd)
+      call ode_solver(ode_method,ubound(cc,1),1,     dt_eff,cc(:,0:1),   right_hand_side_rhs_bottom,right_hand_side_ppdd)
 
       ! Repair state
       call do_repair_state(nlev,'gotm_rmbm::do_gotm_rmbm, after time integration')
@@ -510,8 +534,8 @@
       if (.not. (valid .or. repair_state)) then
          FATAL 'State variables are invalid and repair is not allowed, '//location
          LEVEL1 'Invalid state at index ',ci
-         do j=1,model%info%state_variable_count
-            LEVEL2 trim(model%info%variables(j)%name),cc(j,ci)
+         do j=1,ubound(model%info%state_variables_3d,1)
+            LEVEL2 trim(model%info%state_variables_3d(j)%name),cc(j,ci)
          end do
          stop 'gotm_rmbm::do_repair_state'
       end if
@@ -570,8 +594,8 @@
       ! In that case only the value at the first call is used (essential because time
       ! integration is done internally).
       
-      do ci=1,model%info%diagnostic_variable_count
-         if (model%info%diagnostic_variables(ci)%time_treatment.eq.time_treatment_last) then
+      do ci=1,ubound(model%info%diagnostic_variables_3d,1)
+         if (model%info%diagnostic_variables_3d(ci)%time_treatment.eq.time_treatment_last) then
             ! Simply use last value
             cc_diag(1:nlev,ci) = work_cc_diag(1:nlev,ci)
          else
@@ -624,9 +648,10 @@
    ! running of different coupled BGC models.
    rhs = _ZERO_
 
-   ! Iterate over all depth levels
+   ! Iterate over all depth levels except bottom
    do ci=1,nlev
-      call rmbm_do(model,ci,rhs(:,ci),work_cc_diag(ci,:))
+      ! N.B. true depth index is one higher than iterator, because we are skipping the bottom (first) layer.
+      call rmbm_do(model,ci+1,rhs(:,ci),work_cc_diag(ci,:))
    end do
    
    if (first) then
@@ -635,18 +660,79 @@
       ! In that case only the value at the first call is used (essential because time
       ! integration is done internally).
       
-      do ci=1,model%info%diagnostic_variable_count
-         if (model%info%diagnostic_variables(ci)%time_treatment.eq.time_treatment_last) then
+      do ci=1,ubound(model%info%diagnostic_variables_3d,1)
+         if (model%info%diagnostic_variables_3d(ci)%time_treatment.eq.time_treatment_last) then
             ! Simply use last value
-            cc_diag(1:nlev,ci) = work_cc_diag(1:nlev,ci)
+            cc_diag(2:nlev+1,ci) = work_cc_diag(1:nlev,ci)
          else
             ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-            cc_diag(1:nlev,ci) = cc_diag(1:nlev,ci) + work_cc_diag(1:nlev,ci)*dt_eff
+            cc_diag(2:nlev+1,ci) = cc_diag(2:nlev+1,ci) + work_cc_diag(1:nlev,ci)*dt_eff
          end if
       end do
    end if
 
    end subroutine right_hand_side_rhs
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Calculates temporal derivatives as a derivative vector
+!
+! !INTERFACE:
+   subroutine right_hand_side_rhs_bottom(first,numc,nlev,cc,rhs)
+!
+! !DESCRIPTION:
+! Checks the current values of all state variables and repairs these
+! if allowed and possible.
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+   logical, intent(in)                  :: first
+   integer, intent(in)                  :: numc,nlev
+   REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
+!
+! !OUTPUT PARAMETERS:
+   REALTYPE, intent(out)                :: rhs(1:numc,0:nlev)
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+   integer :: ci
+!
+!-----------------------------------------------------------------------
+!BOC
+   ! Initialization is needed because the different biogeochemical models increment or decrement
+   ! the temporal derivatives, rather than setting them directly. This is needed for the simultaenous
+   ! running of different coupled BGC models.
+   rhs = _ZERO_
+
+   ! Calculate bottom rhs
+   call rmbm_do(model,1,rhs(:,1),work_cc_diag(1,:))
+   
+   if (first) then
+      ! First time during this time step that do_bio is called: store diagnostic values.
+      ! NB. higher order integration schemes may call this routine multiple times.
+      ! In that case only the value at the first call is used (essential because time
+      ! integration is done internally).
+      
+      do ci=1,ubound(model%info%diagnostic_variables_3d,1)
+         if (model%info%diagnostic_variables_3d(ci)%time_treatment.eq.time_treatment_last) then
+            ! Simply use last value
+            cc_diag(1,ci) = work_cc_diag(1,ci)
+         else
+            ! Integration or averaging in time needed: for now do simple Forward Euler integration.
+            cc_diag(1,ci) = cc_diag(1,ci) + work_cc_diag(1,ci)*dt_eff
+         end if
+      end do
+   end if
+
+   end subroutine right_hand_side_rhs_bottom
 !EOC
 
 !-----------------------------------------------------------------------
@@ -789,29 +875,47 @@
          dims(3) = z_dim
          dims(4) = time_dim
 
-         ! Add a NetCDF variable for each biogeochemical state variable
-         do n=1,model%info%state_variable_count
-            iret = new_nc_variable(ncid,model%info%variables(n)%name,NF_REAL, &
-                                   4,dims,model%info%variables(n)%id)
-            iret = set_attributes(ncid,model%info%variables(n)%id,       &
-                                  units=model%info%variables(n)%units,    &
-                                  long_name=model%info%variables(n)%longname)
+         ! Add a NetCDF variable for each 4D (longitude,latitude,depth,time) biogeochemical state variable.
+         do n=1,ubound(model%info%state_variables_3d,1)
+            iret = new_nc_variable(ncid,model%info%state_variables_3d(n)%name,NF_REAL, &
+                                   4,dims,model%info%state_variables_3d(n)%id)
+            iret = set_attributes(ncid,model%info%state_variables_3d(n)%id,       &
+                                  units=model%info%state_variables_3d(n)%units,    &
+                                  long_name=model%info%state_variables_3d(n)%longname)
          end do
 
-         ! Add a NetCDF variable for each biogeochemical diagnostic variable
-         do n=1,model%info%diagnostic_variable_count
-            iret = new_nc_variable(ncid,model%info%diagnostic_variables(n)%name,NF_REAL, &
-                                   4,dims,model%info%diagnostic_variables(n)%id)
-            iret = set_attributes(ncid,model%info%diagnostic_variables(n)%id,       &
-                                  units=model%info%diagnostic_variables(n)%units,    &
-                                  long_name=model%info%diagnostic_variables(n)%longname)
+         ! Add a NetCDF variable for each 4D (longitude,latitude,depth,time) biogeochemical diagnostic variable.
+         do n=1,ubound(model%info%diagnostic_variables_3d,1)
+            iret = new_nc_variable(ncid,model%info%diagnostic_variables_3d(n)%name,NF_REAL, &
+                                   4,dims,model%info%diagnostic_variables_3d(n)%id)
+            iret = set_attributes(ncid,model%info%diagnostic_variables_3d(n)%id,       &
+                                  units=model%info%diagnostic_variables_3d(n)%units,    &
+                                  long_name=model%info%diagnostic_variables_3d(n)%longname)
          end do
 
          ! Set up dimension indices for 3D variables (longitude,latitude,time).
          dims(3) = time_dim
 
+         ! Add a NetCDF variable for each 3D (longitude,latitude,time) biogeochemical state variable.
+         do n=1,ubound(model%info%state_variables_2d,1)
+            iret = new_nc_variable(ncid,model%info%state_variables_2d(n)%name,NF_REAL, &
+                                   3,dims,model%info%state_variables_2d(n)%id)
+            iret = set_attributes(ncid,model%info%state_variables_2d(n)%id,       &
+                                  units=model%info%state_variables_2d(n)%units,    &
+                                  long_name=model%info%state_variables_2d(n)%longname)
+         end do
+
+         ! Add a NetCDF variable for each 3D (longitude,latitude,time) biogeochemical diagnostic variable.
+         do n=1,ubound(model%info%diagnostic_variables_2d,1)
+            iret = new_nc_variable(ncid,model%info%diagnostic_variables_2d(n)%name,NF_REAL, &
+                                   3,dims,model%info%diagnostic_variables_2d(n)%id)
+            iret = set_attributes(ncid,model%info%diagnostic_variables_2d(n)%id,       &
+                                  units=model%info%diagnostic_variables_2d(n)%units,    &
+                                  long_name=model%info%diagnostic_variables_2d(n)%longname)
+         end do
+
          ! Add a variable for each conserved quantity
-         do n=1,model%info%conserved_quantity_count
+         do n=1,ubound(model%info%conserved_quantities,1)
             iret = new_nc_variable(ncid,trim(model%info%conserved_quantities(n)%name)//'_tot',NF_REAL, &
                                    3,dims,model%info%conserved_quantities(n)%id)
             iret = set_attributes(ncid,model%info%conserved_quantities(n)%id,       &
@@ -872,22 +976,22 @@
       case (NETCDF)
 #ifdef NETCDF_FMT
          ! Store biogeochemical state (prognostic) variables.
-         do n=1,model%info%state_variable_count
-            iret = store_data(ncid,model%info%variables(n)%id,XYZT_SHAPE,nlev,array=cc(n,0:nlev))
+         do n=1,ubound(model%info%state_variables_3d,1)
+            iret = store_data(ncid,model%info%state_variables_3d(n)%id,XYZT_SHAPE,nlev,array=cc(n,0:nlev))
          end do
 
          ! Process and store diagnostic variables.
-         do n=1,model%info%diagnostic_variable_count
+         do n=1,ubound(model%info%diagnostic_variables_3d,1)
             ! Time-average diagnostic variable if needed.
-            if (model%info%diagnostic_variables(n)%time_treatment==time_treatment_averaged) &
+            if (model%info%diagnostic_variables_3d(n)%time_treatment==time_treatment_averaged) &
                cc_diag(1:nlev,n) = cc_diag(1:nlev,n)/(nsave*dt)
                
             ! Store diagnostic variable values.
-            iret = store_data(ncid,model%info%diagnostic_variables(n)%id,XYZT_SHAPE,nlev,array=cc_diag(0:nlev,n))
+            iret = store_data(ncid,model%info%diagnostic_variables_3d(n)%id,XYZT_SHAPE,nlev,array=cc_diag(0:nlev,n))
             
             ! Reset diagnostic variables to zero if they will be time-integrated (or time-averaged).
-            if (model%info%diagnostic_variables(n)%time_treatment==time_treatment_averaged .or. &
-                model%info%diagnostic_variables(n)%time_treatment==time_treatment_step_integrated) &
+            if (model%info%diagnostic_variables_3d(n)%time_treatment==time_treatment_averaged .or. &
+                model%info%diagnostic_variables_3d(n)%time_treatment==time_treatment_step_integrated) &
                cc_diag(1:nlev,n) = _ZERO_
          end do
 
@@ -902,7 +1006,7 @@
          end do
 
          ! Store conserved quantity integrals.
-         do n=1,model%info%conserved_quantity_count
+         do n=1,ubound(model%info%conserved_quantities,1)
             iret = store_data(ncid,model%info%conserved_quantities(n)%id,XYT_SHAPE,1,scalar=total(n))
          end do
 #endif

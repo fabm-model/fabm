@@ -91,16 +91,16 @@ contains
      self%id_alk = register_state_variable(modelinfo,'alk','mEq/m**3','alkalinity', &
                                     alk_initial,minimum=_ZERO_,no_precipitation_dilution=.true.,no_river_dilution=.true.)
    else
-     self%id_alk = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity',2)
+     self%id_alk = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity',time_treatment=time_treatment_averaged)
    end if
                                     
-   self%id_ph     = register_diagnostic_variable(modelinfo, 'pH',    '-',        'pH',                           2)
-   self%id_pco2   = register_diagnostic_variable(modelinfo, 'pCO2',  'ppm',      'CO2 partial pressure',         2)
-   self%id_CarbA  = register_diagnostic_variable(modelinfo, 'CarbA', 'mmol/m**3','carbonic acid concentration',  2)
-   self%id_Bicarb = register_diagnostic_variable(modelinfo, 'Bicarb','mmol/m**3','bicarbonate ion concentration',2)
-   self%id_Carb   = register_diagnostic_variable(modelinfo, 'Carb',  'mmol/m**3','carbonate ion concentration',  2)
-   self%id_Om_cal = register_diagnostic_variable(modelinfo, 'Om_cal','-',        'calcite saturation state',     2)
-   self%id_Om_arg = register_diagnostic_variable(modelinfo, 'Om_arg','-',        'aragonite saturation state',   2)
+   self%id_ph     = register_diagnostic_variable(modelinfo, 'pH',    '-',        'pH',                           time_treatment=time_treatment_averaged)
+   self%id_pco2   = register_diagnostic_variable(modelinfo, 'pCO2',  'ppm',      'CO2 partial pressure',         time_treatment=time_treatment_averaged)
+   self%id_CarbA  = register_diagnostic_variable(modelinfo, 'CarbA', 'mmol/m**3','carbonic acid concentration',  time_treatment=time_treatment_averaged)
+   self%id_Bicarb = register_diagnostic_variable(modelinfo, 'Bicarb','mmol/m**3','bicarbonate ion concentration',time_treatment=time_treatment_averaged)
+   self%id_Carb   = register_diagnostic_variable(modelinfo, 'Carb',  'mmol/m**3','carbonate ion concentration',  time_treatment=time_treatment_averaged)
+   self%id_Om_cal = register_diagnostic_variable(modelinfo, 'Om_cal','-',        'calcite saturation state',     time_treatment=time_treatment_averaged)
+   self%id_Om_arg = register_diagnostic_variable(modelinfo, 'Om_arg','-',        'aragonite saturation state',   time_treatment=time_treatment_averaged)
    
    self%id_temp = register_dependency(modelinfo, varname_temp)
    self%id_salt = register_dependency(modelinfo, varname_salt)
@@ -154,7 +154,7 @@ contains
    dens = environment%var3d(self%id_dens)%data INDEX_LOCATION
 
    ! Get current value for total dissolved inorganic carbon (our own state variable).
-   dic = environment%state(self%id_dic)%data INDEX_LOCATION
+   dic = environment%state3d(self%id_dic)%data INDEX_LOCATION
 
    if (self%alk_param) then
       ! Linearly approximate alkalinity (uEq/kg) from salinity.
@@ -162,7 +162,7 @@ contains
    else
       ! Alkalinity (mEq/m**3) is a separate state variable.
       ! Divide by density/1000 to get alkalinity in uEq/kg.
-      TA = environment%state(self%id_alk)%data INDEX_LOCATION/dens*1.0D3
+      TA = environment%state3d(self%id_alk)%data INDEX_LOCATION/dens*1.0D3
    end if
 
    ! Calculate carbonate system equilibrium.
@@ -228,7 +228,7 @@ contains
    dens = environment%var3d(self%id_dens)%data INDEX_LOCATION
    wnd  = environment%var2d(self%id_wind)%data INDEX_LOCATION_HZ
 
-   dic = environment%state(self%id_dic)%data(LOCATION)
+   dic = environment%state3d(self%id_dic)%data(LOCATION)
 
    if (self%alk_param) then
       ! Linearly approximate alkalinity (uEq/kg) from salinity.
@@ -236,7 +236,7 @@ contains
    else
       ! Alkalinity (mEq/m**3) is a separate state variable
       ! Divide by density/1000 to get alkalinity in uEq/kg.
-      TA = environment%state(self%id_alk)%data INDEX_LOCATION/dens*1.0d3
+      TA = environment%state3d(self%id_alk)%data INDEX_LOCATION/dens*1.0d3
    end if
 
    ! Calculate carbonate system equilibrium.
