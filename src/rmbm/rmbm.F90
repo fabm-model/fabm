@@ -258,7 +258,7 @@
           rmbm_link_2d_data,rmbm_link_3d_data,rmbm_get_variable_id, &
           rmbm_link_2d_state_data,rmbm_link_3d_state_data, &
           rmbm_check_state, rmbm_get_vertical_movement, rmbm_get_light_extinction, &
-          rmbm_get_conserved_quantities, rmbm_get_surface_exchange
+          rmbm_get_conserved_quantities, rmbm_get_surface_exchange, rmbm_do_benthos
 !
 ! !PRIVATE DATA MEMBERS:
 

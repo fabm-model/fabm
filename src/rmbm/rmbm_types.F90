@@ -386,7 +386,8 @@
                 minimum                   = variables_new(id)%minimum,                   &
                 maximum                   = variables_new(id)%maximum,                   &
                 no_precipitation_dilution = variables_new(id)%no_precipitation_dilution, &
-                no_river_dilution         = variables_new(id)%no_river_dilution)
+                no_river_dilution         = variables_new(id)%no_river_dilution,         &
+                benthic                   = benthic_eff)
                 
       ! Save the variable's global id.
       variables_new(ubound(variables_new,1))%globalid = id
@@ -468,7 +469,8 @@
       if (associated(modelinfo%parent)) &
          id = register_diagnostic_variable(modelinfo%parent,trim(modelinfo%nameprefix)//name, &
                  units,trim(modelinfo%longnameprefix)//' '//longname, &
-                 time_treatment=variables_new(id)%time_treatment)
+                 time_treatment=variables_new(id)%time_treatment,     &
+                 benthic = benthic_eff)
                 
       ! Save the diagnostic variable's global id.
       variables_new(ubound(variables_new,1))%globalid = id

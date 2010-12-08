@@ -72,13 +72,12 @@
    type (type_model), pointer :: model
    
    ! Arrays for state and diagnostic variables
-   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:),target :: cc
-   REALTYPE,allocatable,dimension(:),                    target :: cc_2d
+   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:),target :: cc,cc_2d
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:)        :: cc_diag
 
    ! Arrays for work, vertical movement, and cross-boundary fluxes
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:) :: work_cc_diag,ws
-   REALTYPE,allocatable,dimension(:)                     :: sfl,bfl,total,local
+   REALTYPE,allocatable,dimension(:)                     :: sfl,bfl,total,local,work_cc_diag_2d,cc_diag_2d
    
    ! Arrays for environmental variables not supplied externally.
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS)   :: par,pres
@@ -276,12 +275,12 @@
       call rmbm_link_3d_state_data(model,i,cc(i,1:LOCATION))
    end do
 
-   ! Allocate benthic state variable array and provide initial values.
-   allocate(cc_2d(1:ubound(model%info%state_variables_2d,1)),stat=rc)
+   ! Allocate state variable array for bottom (benthos *and* bottom pelagic) and provide initial values (benthos only).
+   allocate(cc_2d(1:ubound(model%info%state_variables_2d,1)+ubound(model%info%state_variables_3d,1),0:1),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc_2d)'
    do i=1,ubound(model%info%state_variables_2d,1)
-      cc_2d(i) = model%info%state_variables_2d(i)%initial_value
-      call rmbm_link_2d_state_data(model,i,cc_2d(i))
+      cc_2d(i,:) = model%info%state_variables_2d(i)%initial_value
+      call rmbm_link_2d_state_data(model,i,cc_2d(i,1))
    end do
 
    ! Allocate diagnostic variable array and set all values to zero.
@@ -294,6 +293,17 @@
    allocate(work_cc_diag(LOCATION_RANGE,1:ubound(model%info%diagnostic_variables_3d,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (work_cc_diag)'
    work_cc_diag = _ZERO_
+
+   ! Allocate diagnostic variable array and set all values to zero.
+   ! (needed because time-integrated/averaged variables will increment rather than set the array)
+   allocate(cc_diag_2d(1:ubound(model%info%diagnostic_variables_2d,1)),stat=rc)
+   if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc_diag_2d)'
+   cc_diag_2d = _ZERO_
+
+   ! Allocate array for storing current values for diagnostic variables.
+   allocate(work_cc_diag_2d(1:ubound(model%info%diagnostic_variables_2d,1)),stat=rc)
+   if (rc /= 0) STOP 'allocate_memory(): Error allocating (work_cc_diag_2d)'
+   work_cc_diag_2d = _ZERO_
 
    ! Allocate array with vertical movement rates (m/s, positive for upwards),
    ! and set these to the values provided by the model.
@@ -488,9 +498,15 @@
       ! Update local light field (self-shading may have changed through changes in biological state variables)
       call light_0d(nlev,bioshade_feedback)
       
-      ! Time-integrate one biological time step.
-      call ode_solver(ode_method,ubound(cc,1),nlev-1,dt_eff,cc(:,1:nlev),right_hand_side_rhs,       right_hand_side_ppdd)
-      call ode_solver(ode_method,ubound(cc,1),1,     dt_eff,cc(:,0:1),   right_hand_side_rhs_bottom,right_hand_side_ppdd)
+      ! Copy bottom pelagic values to combined benthic+pelagic state variable array.
+      cc_2d(ubound(model%info%state_variables_2d,1)+1:,1) = cc(:,1)
+
+      ! Time-integrate one biological time step - first for all layers but bottom, then for bottom (benthic+pelagic)
+      call ode_solver(ode_method,ubound(cc,   1),nlev-1,dt_eff,cc(:,1:nlev),right_hand_side_rhs,       right_hand_side_ppdd)
+      call ode_solver(ode_method,ubound(cc_2d,1),1,     dt_eff,cc_2d(:,0:1),right_hand_side_rhs_bottom,right_hand_side_ppdd)
+
+      ! Take bottom pelagic values from combined bottom benthic+pelagic array.
+      cc(:,1) = cc_2d(ubound(model%info%state_variables_2d,1)+1:,1)
 
       ! Repair state
       call do_repair_state(nlev,'gotm_rmbm::do_gotm_rmbm, after time integration')
@@ -712,14 +728,30 @@
    ! running of different coupled BGC models.
    rhs = _ZERO_
 
-   ! Calculate bottom rhs
-   call rmbm_do(model,1,rhs(:,1),work_cc_diag(1,:))
+   ! Calculate temporal derivatives due to benthic processes.
+   call rmbm_do_benthos(model,1,rhs(1:ubound(model%info%state_variables_2d,1), 1),rhs(ubound(model%info%state_variables_2d,1)+1:,1),work_cc_diag_2d(:))
+   
+   ! Distribute bottom flux into pelagic over bottom box.
+   rhs(1:ubound(model%info%state_variables_2d,1),1) = rhs(1:ubound(model%info%state_variables_2d,1),1)/h(2)
+
+   ! Calculate temporal derivatives due to pelagic processes.
+   call rmbm_do(model,1,rhs(ubound(model%info%state_variables_2d,1)+1:,1),work_cc_diag(1,:))
    
    if (first) then
       ! First time during this time step that do_bio is called: store diagnostic values.
       ! NB. higher order integration schemes may call this routine multiple times.
       ! In that case only the value at the first call is used (essential because time
       ! integration is done internally).
+
+      do ci=1,ubound(model%info%diagnostic_variables_2d,1)
+         if (model%info%diagnostic_variables_2d(ci)%time_treatment.eq.time_treatment_last) then
+            ! Simply use last value
+            cc_diag_2d(ci) = work_cc_diag_2d(ci)
+         else
+            ! Integration or averaging in time needed: for now do simple Forward Euler integration.
+            cc_diag_2d(ci) = cc_diag_2d(ci) + work_cc_diag_2d(ci)*dt_eff
+         end if
+      end do
       
       do ci=1,ubound(model%info%diagnostic_variables_3d,1)
          if (model%info%diagnostic_variables_3d(ci)%time_treatment.eq.time_treatment_last) then
@@ -761,8 +793,11 @@
    ! Deallocate internal arrays
    if (allocated(par))            deallocate(par)
    if (allocated(cc))             deallocate(cc)
+   if (allocated(cc_2d))          deallocate(cc_2d)
    if (allocated(cc_diag))        deallocate(cc_diag)
    if (allocated(work_cc_diag))   deallocate(work_cc_diag)
+   if (allocated(cc_diag_2d))     deallocate(cc_diag_2d)
+   if (allocated(work_cc_diag_2d))deallocate(work_cc_diag_2d)
    if (allocated(ws))             deallocate(ws)
    if (allocated(sfl))            deallocate(sfl)
    if (allocated(bfl))            deallocate(bfl)
@@ -975,7 +1010,7 @@
    select case (out_fmt)
       case (NETCDF)
 #ifdef NETCDF_FMT
-         ! Store biogeochemical state (prognostic) variables.
+         ! Store depth-explicit biogeochemical state (prognostic) variables.
          do n=1,ubound(model%info%state_variables_3d,1)
             iret = store_data(ncid,model%info%state_variables_3d(n)%id,XYZT_SHAPE,nlev,array=cc(n,0:nlev))
          end do
@@ -993,6 +1028,11 @@
             if (model%info%diagnostic_variables_3d(n)%time_treatment==time_treatment_averaged .or. &
                 model%info%diagnostic_variables_3d(n)%time_treatment==time_treatment_step_integrated) &
                cc_diag(1:nlev,n) = _ZERO_
+         end do
+
+         ! Store depth-independent biogeochemical state (prognostic) variables.
+         do n=1,ubound(model%info%state_variables_2d,1)
+            iret = store_data(ncid,model%info%state_variables_2d(n)%id,XYT_SHAPE,1,scalar=cc_2d(n,1))
          end do
 
          ! Integrate conserved quantities over depth.
