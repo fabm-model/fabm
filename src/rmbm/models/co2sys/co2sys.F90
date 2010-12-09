@@ -121,7 +121,7 @@ contains
 ! !IROUTINE: Right hand sides of carbonate system model
 !
 ! !INTERFACE:
-   subroutine co2sys_do(self,environment,LOCATION,dy,diag)
+   subroutine co2sys_do(self,environment,LOCATION,dy)
 !
 ! !DESCRIPTION:
 !
@@ -134,7 +134,7 @@ contains
    LOCATION_TYPE                      :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, intent(inout),dimension(:) :: dy,diag
+   REALTYPE, intent(inout),dimension(:) :: dy
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -172,14 +172,14 @@ contains
    call CaCO3_Saturation (temp, salt, pres, cb, Om_cal, Om_arg)
    
    ! Store diagnostic variables.
-   if (self%id_ph     .ne.id_not_used) diag(self%id_ph)     = ph
-   if (self%id_pco2   .ne.id_not_used) diag(self%id_pco2)   = PCO2WATER*1.0D6        ! to ppm
-   if (self%id_CarbA  .ne.id_not_used) diag(self%id_CarbA)  = ca       *1.0D3*dens   ! from mol/kg to mmol/m**3
-   if (self%id_Bicarb .ne.id_not_used) diag(self%id_Bicarb) = bc       *1.0D3*dens   ! from mol/kg to mmol/m**3
-   if (self%id_Carb   .ne.id_not_used) diag(self%id_Carb)   = cb       *1.0D3*dens   ! from mol/kg to mmol/m**3
-   if (self%id_Om_cal .ne.id_not_used) diag(self%id_Om_cal) = Om_cal
-   if (self%id_Om_arg .ne.id_not_used) diag(self%id_Om_arg) = Om_arg
-   if (self%id_alk    .ne.id_not_used .and. self%alk_param) diag(self%id_alk) = TA*dens*1.0D-3   ! from uEg/kg to mmol/m**3
+   if (self%id_ph     .ne.id_not_used) environment%var3d(self%id_ph    )%data INDEX_LOCATION = ph
+   if (self%id_pco2   .ne.id_not_used) environment%var3d(self%id_pco2  )%data INDEX_LOCATION = PCO2WATER*1.0D6        ! to ppm
+   if (self%id_CarbA  .ne.id_not_used) environment%var3d(self%id_CarbA )%data INDEX_LOCATION = ca       *1.0D3*dens   ! from mol/kg to mmol/m**3
+   if (self%id_Bicarb .ne.id_not_used) environment%var3d(self%id_Bicarb)%data INDEX_LOCATION = bc       *1.0D3*dens   ! from mol/kg to mmol/m**3
+   if (self%id_Carb   .ne.id_not_used) environment%var3d(self%id_Carb  )%data INDEX_LOCATION = cb       *1.0D3*dens   ! from mol/kg to mmol/m**3
+   if (self%id_Om_cal .ne.id_not_used) environment%var3d(self%id_Om_cal)%data INDEX_LOCATION = Om_cal
+   if (self%id_Om_arg .ne.id_not_used) environment%var3d(self%id_Om_arg)%data INDEX_LOCATION = Om_arg
+   if (self%id_alk    .ne.id_not_used .and. self%alk_param) environment%var3d(self%id_alk)%data INDEX_LOCATION = TA*dens*1.0D-3   ! from uEg/kg to mmol/m**3
 
    end subroutine co2sys_do
 !EOC

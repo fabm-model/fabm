@@ -293,6 +293,9 @@
    allocate(work_cc_diag(LOCATION_RANGE,1:ubound(model%info%diagnostic_variables_3d,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (work_cc_diag)'
    work_cc_diag = _ZERO_
+   do i=1,ubound(model%info%diagnostic_variables_3d,1)
+      call rmbm_link_3d_data(model,model%info%diagnostic_variables_3d(i)%globalid,work_cc_diag(1:LOCATION,i))
+   end do
 
    ! Allocate diagnostic variable array and set all values to zero.
    ! (needed because time-integrated/averaged variables will increment rather than set the array)
@@ -304,6 +307,9 @@
    allocate(work_cc_diag_2d(1:ubound(model%info%diagnostic_variables_2d,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (work_cc_diag_2d)'
    work_cc_diag_2d = _ZERO_
+   do i=1,ubound(model%info%diagnostic_variables_2d,1)
+      call rmbm_link_2d_data(model,model%info%diagnostic_variables_2d(i)%globalid,work_cc_diag_2d(i))
+   end do
 
    ! Allocate array with vertical movement rates (m/s, positive for upwards),
    ! and set these to the values provided by the model.
@@ -512,6 +518,28 @@
       call do_repair_state(nlev,'gotm_rmbm::do_gotm_rmbm, after time integration')
    end do
 
+   ! Time-integrate 2D diagnostic variables whether needed.
+   do j=1,ubound(model%info%diagnostic_variables_2d,1)
+      if (model%info%diagnostic_variables_2d(j)%time_treatment.eq.time_treatment_last) then
+         ! Simply use last value
+         cc_diag_2d(j) = work_cc_diag_2d(j)
+      else
+         ! Integration or averaging in time needed: for now do simple Forward Euler integration.
+         cc_diag_2d(j) = cc_diag_2d(j) + work_cc_diag_2d(j)*dt
+      end if
+   end do
+   
+   ! Time-integrate 3D diagnostic variables whether needed.
+   do j=1,ubound(model%info%diagnostic_variables_3d,1)
+      if (model%info%diagnostic_variables_3d(j)%time_treatment.eq.time_treatment_last) then
+         ! Simply use last value
+         cc_diag(1:nlev,j) = work_cc_diag(1:nlev,j)
+      else
+         ! Integration or averaging in time needed: for now do simple Forward Euler integration.
+         cc_diag(1:nlev,j) = cc_diag(1:nlev,j) + work_cc_diag(1:nlev,j)*dt
+      end if
+   end do
+
    end subroutine do_gotm_rmbm
 !EOC
 
@@ -596,30 +624,18 @@
 !BOC
    if (.not. first) call do_repair_state(nlev,'gotm_rmbm::right_hand_side_ppdd')
 
+   ! Initializae production and destruction matrices to zero because RMBM
+   ! biogeochemical models increment these, rather than set these.
    pp = _ZERO_
    dd = _ZERO_
    
    ! Iterate over all depth levels
    do ci=1,nlev
-      call rmbm_do(model,ci,pp(:,:,ci),dd(:,:,ci),work_cc_diag(ci,:))
+      ! N.B. true depth index is one higher than iterator, because we are skipping the bottom (first) layer.
+      ! The bottom layer is dealt with separately in right_hand_side_rhs_bottom, in order to accomodate
+      ! additional state variables associated with the benthos.
+      call rmbm_do(model,ci+1,pp(:,:,ci),dd(:,:,ci))
    end do
-   
-   if (first) then
-      ! First time during this time step that do_bio is called: store diagnostic values.
-      ! NB. higher order integration schemes may call this routine multiple times.
-      ! In that case only the value at the first call is used (essential because time
-      ! integration is done internally).
-      
-      do ci=1,ubound(model%info%diagnostic_variables_3d,1)
-         if (model%info%diagnostic_variables_3d(ci)%time_treatment.eq.time_treatment_last) then
-            ! Simply use last value
-            cc_diag(1:nlev,ci) = work_cc_diag(1:nlev,ci)
-         else
-            ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-            cc_diag(1:nlev,ci) = cc_diag(1:nlev,ci) + work_cc_diag(1:nlev,ci)*dt
-         end if
-      end do
-   end if
 
    end subroutine right_hand_side_ppdd
 !EOC
@@ -664,28 +680,13 @@
    ! running of different coupled BGC models.
    rhs = _ZERO_
 
-   ! Iterate over all depth levels except bottom
+   ! Iterate over all depth levels (this excludes the bottom!)
    do ci=1,nlev
       ! N.B. true depth index is one higher than iterator, because we are skipping the bottom (first) layer.
-      call rmbm_do(model,ci+1,rhs(:,ci),work_cc_diag(ci,:))
+      ! The bottom layer is dealt with separately in right_hand_side_rhs_bottom, in order to accomodate
+      ! additional state variables associated with the benthos.
+      call rmbm_do(model,ci+1,rhs(:,ci))
    end do
-   
-   if (first) then
-      ! First time during this time step that do_bio is called: store diagnostic values.
-      ! NB. higher order integration schemes may call this routine multiple times.
-      ! In that case only the value at the first call is used (essential because time
-      ! integration is done internally).
-      
-      do ci=1,ubound(model%info%diagnostic_variables_3d,1)
-         if (model%info%diagnostic_variables_3d(ci)%time_treatment.eq.time_treatment_last) then
-            ! Simply use last value
-            cc_diag(2:nlev+1,ci) = work_cc_diag(1:nlev,ci)
-         else
-            ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-            cc_diag(2:nlev+1,ci) = cc_diag(2:nlev+1,ci) + work_cc_diag(1:nlev,ci)*dt_eff
-         end if
-      end do
-   end if
 
    end subroutine right_hand_side_rhs
 !EOC
@@ -729,40 +730,13 @@
    rhs = _ZERO_
 
    ! Calculate temporal derivatives due to benthic processes.
-   call rmbm_do_benthos(model,1,rhs(1:ubound(model%info%state_variables_2d,1), 1),rhs(ubound(model%info%state_variables_2d,1)+1:,1),work_cc_diag_2d(:))
+   call rmbm_do_benthos(model,1,rhs(1:ubound(model%info%state_variables_2d,1), 1),rhs(ubound(model%info%state_variables_2d,1)+1:,1))
    
-   ! Distribute bottom flux into pelagic over bottom box.
+   ! Distribute bottom flux into pelagic over bottom box (i.e., divide by layer height).
    rhs(1:ubound(model%info%state_variables_2d,1),1) = rhs(1:ubound(model%info%state_variables_2d,1),1)/h(2)
 
    ! Calculate temporal derivatives due to pelagic processes.
-   call rmbm_do(model,1,rhs(ubound(model%info%state_variables_2d,1)+1:,1),work_cc_diag(1,:))
-   
-   if (first) then
-      ! First time during this time step that do_bio is called: store diagnostic values.
-      ! NB. higher order integration schemes may call this routine multiple times.
-      ! In that case only the value at the first call is used (essential because time
-      ! integration is done internally).
-
-      do ci=1,ubound(model%info%diagnostic_variables_2d,1)
-         if (model%info%diagnostic_variables_2d(ci)%time_treatment.eq.time_treatment_last) then
-            ! Simply use last value
-            cc_diag_2d(ci) = work_cc_diag_2d(ci)
-         else
-            ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-            cc_diag_2d(ci) = cc_diag_2d(ci) + work_cc_diag_2d(ci)*dt_eff
-         end if
-      end do
-      
-      do ci=1,ubound(model%info%diagnostic_variables_3d,1)
-         if (model%info%diagnostic_variables_3d(ci)%time_treatment.eq.time_treatment_last) then
-            ! Simply use last value
-            cc_diag(1,ci) = work_cc_diag(1,ci)
-         else
-            ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-            cc_diag(1,ci) = cc_diag(1,ci) + work_cc_diag(1,ci)*dt_eff
-         end if
-      end do
-   end if
+   call rmbm_do(model,1,rhs(ubound(model%info%state_variables_2d,1)+1:,1))
 
    end subroutine right_hand_side_rhs_bottom
 !EOC

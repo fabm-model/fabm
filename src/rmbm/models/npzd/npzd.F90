@@ -316,7 +316,7 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   _PURE subroutine npzd_do(self,environment,LOCATION,rhs,diag)
+   subroutine npzd_do(self,environment,LOCATION,rhs)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -374,7 +374,7 @@
    LOCATION_TYPE,          intent(in) :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, dimension(:), intent(inout) :: rhs,diag
+   REALTYPE, dimension(:), intent(inout) :: rhs
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -421,11 +421,11 @@
    if (self%id_dic.ne.-1) rhs(self%id_dic) = rhs(self%id_dic) + self%dic_per_n*dn
 
    ! Export diagnostic variables
-   if (self%id_dPAR.ne.id_not_used) diag(self%id_dPAR) = par
-   if (self%id_GPP .ne.id_not_used) diag(self%id_GPP)  = fnp(self,n,p,par,iopt)
-   if (self%id_NCP .ne.id_not_used) diag(self%id_NCP)  = fnp(self,n,p,par,iopt) - self%rpn*p
-   if (self%id_PPR .ne.id_not_used) diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
-   if (self%id_NPR .ne.id_not_used) diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
+   if (self%id_dPAR.ne.id_not_used) environment%var3d(self%id_dPAR)%data INDEX_LOCATION = par
+   if (self%id_GPP .ne.id_not_used) environment%var3d(self%id_GPP )%data INDEX_LOCATION = fnp(self,n,p,par,iopt)
+   if (self%id_NCP .ne.id_not_used) environment%var3d(self%id_NCP )%data INDEX_LOCATION = fnp(self,n,p,par,iopt) - self%rpn*p
+   if (self%id_PPR .ne.id_not_used) environment%var3d(self%id_PPR )%data INDEX_LOCATION = fnp(self,n,p,par,iopt)*secs_pr_day
+   if (self%id_NPR .ne.id_not_used) environment%var3d(self%id_NPR )%data INDEX_LOCATION = (fnp(self,n,p,par,iopt) - self%rpn*p)*secs_pr_day
 
    end subroutine npzd_do
 !EOC
@@ -436,7 +436,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   _PURE subroutine npzd_do_ppdd(self,environment,LOCATION,pp,dd,diag)
+   subroutine npzd_do_ppdd(self,environment,LOCATION,pp,dd)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -495,7 +495,6 @@
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, intent(inout),dimension(:,:) :: pp,dd
-   REALTYPE, intent(inout),dimension(:)   :: diag
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -551,11 +550,11 @@
    if (self%id_dic.ne.-1) pp(self%id_dic,self%id_dic) = pp(self%id_dic,self%id_dic) + self%dic_per_n*dn
 
    ! Export diagnostic variables
-   if (self%id_dPAR.ne.id_not_used) diag(self%id_dPAR) = par
-   if (self%id_GPP .ne.id_not_used) diag(self%id_GPP)  = dd(self%id_n,self%id_p)
-   if (self%id_NCP .ne.id_not_used) diag(self%id_NCP)  = dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p)
-   if (self%id_PPR .ne.id_not_used) diag(self%id_PPR)  = diag(self%id_GPP)*secs_pr_day
-   if (self%id_NPR .ne.id_not_used) diag(self%id_NPR)  = diag(self%id_NCP)*secs_pr_day
+   if (self%id_dPAR.ne.id_not_used) environment%var3d(self%id_dPAR)%data INDEX_LOCATION = par
+   if (self%id_GPP .ne.id_not_used) environment%var3d(self%id_GPP )%data INDEX_LOCATION = dd(self%id_n,self%id_p)
+   if (self%id_NCP .ne.id_not_used) environment%var3d(self%id_NCP )%data INDEX_LOCATION = dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p)
+   if (self%id_PPR .ne.id_not_used) environment%var3d(self%id_PPR )%data INDEX_LOCATION = dd(self%id_n,self%id_p)*secs_pr_day
+   if (self%id_NPR .ne.id_not_used) environment%var3d(self%id_NPR )%data INDEX_LOCATION = (dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p))*secs_pr_day
 
    end subroutine npzd_do_ppdd
 !EOC

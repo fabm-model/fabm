@@ -409,7 +409,7 @@
             write (text,fmt='(a,i4,a)') 'model identifier ',id,' has already been registered.'
             call fatal_error('rmbm::register_model_name',text)
          end if
-         if (trim(modelnames(i))==trim(name)) &
+         if (modelnames(i)==name) &
             call fatal_error('rmbm::register_model_name','model name "'//trim(name)//'" has already been registered.')
       end do
       
@@ -495,7 +495,7 @@
 !BOC
    if (.not.associated(modelnames)) call register_models()
    do i=1,ubound(modelnames,1)
-      if (trim(modelnames(i))==trim(name)) then
+      if (modelnames(i)==name) then
          id = modelids(i)
          return
       end if
@@ -582,7 +582,7 @@
 
       if (model%id.ne.model_container_id) then
          ! This model is not a container.
-         ! It needs to be added to the flattened list of non-container models,
+         ! Add the model to the flattened list of non-container models,
          ! which is used at runtime to iterate over all models without needing recursion.
       
          ! First non-container model will be pointed to by the root of the tree - find it.
@@ -715,10 +715,11 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-  integer                    :: ichild
+  integer                    :: count,ownindex
   character(len= 64)         :: modelname
   type (type_model), pointer :: curchild,curchild2
   logical                    :: isopen
+  logical,parameter          :: alwayspostfixindex=.false.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -741,16 +742,24 @@
          curchild => model%firstchild
          do while (associated(curchild))
             ! Find the number of the child model. This will be used in the prefix of model variable names.
-            ichild = 1
+            count = 0
             curchild2 => model%firstchild
-            do while (.not. associated(curchild,curchild2))
-               if (curchild2%name.eq.curchild%name) ichild = ichild + 1
+            do while (associated(curchild2))
+               if (curchild2%name.eq.curchild%name) then
+                  count = count + 1
+                  if (associated(curchild,curchild2)) ownindex = count
+               end if
                curchild2 => curchild2%nextsibling
             end do
 
             ! Create prefixes for names of variables of the child model.
-            write (unit=curchild%info%nameprefix,     fmt='(a,i2.2,a)') trim(curchild%name),ichild,'_'
-            write (unit=curchild%info%longnameprefix, fmt='(a,i2.2,a)') trim(curchild%name),ichild,' '
+            if (alwayspostfixindex .or. count>1) then
+               write (unit=curchild%info%nameprefix,     fmt='(a,i2.2,a)') trim(curchild%name),ownindex,'_'
+               write (unit=curchild%info%longnameprefix, fmt='(a,i2.2,a)') trim(curchild%name),ownindex,' '
+            else
+               curchild%info%nameprefix     = trim(curchild%name)//'_'
+               curchild%info%longnameprefix = trim(curchild%name)//' '
+            end if
 
             ! Initialize child model.
             call init_model(curchild,nmlunit)
@@ -803,7 +812,7 @@ function rmbm_get_variable_id(model,name,shape) result(id)
 
    if (associated(source)) then
       do id=1,ubound(source,1)
-         if (trim(source(id))==trim(name)) return
+         if (source(id)==name) return
       end do
    end if
    
@@ -871,7 +880,7 @@ end subroutine rmbm_link_3d_state_data
 ! model tree.
 !
 ! !INTERFACE:
-   subroutine rmbm_do_rhs(model,LOCATION,dy,diag)
+   subroutine rmbm_do_rhs(model,LOCATION,dy)
 !
 ! !USES:
    implicit none
@@ -881,7 +890,7 @@ end subroutine rmbm_link_3d_state_data
    LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, dimension(:), intent(inout) :: dy,diag
+   REALTYPE, dimension(:), intent(inout) :: dy
 !
 ! !LOCAL PARAMETERS:
    REALTYPE,allocatable                  :: pp(:,:),dd(:,:)
@@ -900,11 +909,11 @@ end subroutine rmbm_link_3d_state_data
    do while (associated(curmodel))
       select case (curmodel%id)
          case (npzd_id)
-            call npzd_do(curmodel%npzd,curmodel%environment,LOCATION,dy,diag)
+            call npzd_do(curmodel%npzd,curmodel%environment,LOCATION,dy)
          case (mnemiopsis_id)
-            call mnemiopsis_do(curmodel%mnemiopsis,curmodel%environment,LOCATION,dy,diag)
+            call mnemiopsis_do(curmodel%mnemiopsis,curmodel%environment,LOCATION,dy)
          case (carbonate_id)
-            call co2sys_do(curmodel%carbonate,curmodel%environment,LOCATION,dy,diag)
+            call co2sys_do(curmodel%carbonate,curmodel%environment,LOCATION,dy)
          ! ADD_NEW_MODEL_HERE - required unless added to rmbm_do_ppdd instead.
          case default
             ! The model does not provide the temporal derivatives itself.
@@ -920,7 +929,7 @@ end subroutine rmbm_link_3d_state_data
             allocate(dd(1:ubound(dy,1),1:ubound(dy,1)))
             pp = _ZERO_
             dd = _ZERO_
-            call rmbm_do_ppdd(curmodel,LOCATION,pp,dd,diag)
+            call rmbm_do_ppdd(curmodel,LOCATION,pp,dd)
             do i=1,ubound(dy,1)
                do j=1,ubound(dy,1)
                   dy(i) = dy(i) + pp(i,j)-dd(i,j)
@@ -941,7 +950,7 @@ end subroutine rmbm_link_3d_state_data
 ! !IROUTINE: Get the local temporal derivatives in 1D
 !
 ! !INTERFACE:
-   subroutine rmbm_do_rhs_1d(root ARG_LOCATION_1DLOOP,istart,istop,dy,diag)
+   subroutine rmbm_do_rhs_1d(root ARG_LOCATION_1DLOOP,istart,istop,dy)
 !
 ! !USES:
    implicit none
@@ -953,7 +962,6 @@ end subroutine rmbm_link_3d_state_data
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE,               intent(inout) :: dy(:,:)
-   REALTYPE,               intent(inout) :: diag(:,:)
 !
 ! !LOCAL PARAMETERS:
    type (type_model), pointer            :: curmodel
@@ -970,7 +978,7 @@ end subroutine rmbm_link_3d_state_data
          ! ADD_NEW_MODEL_HERE - optional
          case default
             do VARIABLE_1DLOOP=istart,istop
-               call rmbm_do_rhs(curmodel,LOCATION,dy(VARIABLE_1DLOOP,:),diag(VARIABLE_1DLOOP,:))
+               call rmbm_do_rhs(curmodel,LOCATION,dy(VARIABLE_1DLOOP,:))
             end do
       end select
       curmodel = curmodel%nextmodel
@@ -986,7 +994,7 @@ end subroutine rmbm_link_3d_state_data
 ! model tree in the form of production and destruction matrices.
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_do_ppdd(model,LOCATION,pp,dd,diag)
+   recursive subroutine rmbm_do_ppdd(model,LOCATION,pp,dd)
 !
 ! !USES:
    implicit none
@@ -997,7 +1005,6 @@ end subroutine rmbm_link_3d_state_data
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE,dimension(:,:),intent(inout) :: pp,dd
-   REALTYPE,dimension(:),  intent(inout) :: diag
 !
 ! !LOCAL PARAMETERS:
    REALTYPE,allocatable                  :: dy(:)
@@ -1011,12 +1018,12 @@ end subroutine rmbm_link_3d_state_data
 !BOC
    select case (model%id)
       case (npzd_id)
-         call npzd_do_ppdd(model%npzd,model%environment,LOCATION,pp,dd,diag)
+         call npzd_do_ppdd(model%npzd,model%environment,LOCATION,pp,dd)
       ! ADD_NEW_MODEL_HERE - optional
       case (model_container_id)
          curchild => model%firstchild
          do while (associated(curchild))
-            call rmbm_do_ppdd(curchild,LOCATION,pp,dd,diag)
+            call rmbm_do_ppdd(curchild,LOCATION,pp,dd)
             curchild => curchild%nextsibling
          end do
       case default
@@ -1025,7 +1032,7 @@ end subroutine rmbm_link_3d_state_data
          ! Retrieve those, and create degenerate production/destruction from their contents.
          allocate(dy(ubound(pp,1)))
          dy = _ZERO_
-         call rmbm_do_rhs(model,LOCATION,dy,diag)
+         call rmbm_do_rhs(model,LOCATION,dy)
          do i=1,ubound(pp,1)
             pp(i,i) = pp(i,i) + dy(i)
          end do
@@ -1148,7 +1155,7 @@ end subroutine rmbm_link_3d_state_data
 ! benthic variables. Horizontal-only diagnostic variables can also be set in this routine.
 !
 ! !INTERFACE:
-   subroutine rmbm_do_benthos(root,LOCATION,flux_ben,flux_pel,diag)
+   subroutine rmbm_do_benthos(root,LOCATION,flux_ben,flux_pel)
 !
 ! !USES:
    implicit none
@@ -1158,7 +1165,7 @@ end subroutine rmbm_link_3d_state_data
    LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,dimension(:),  intent(inout) :: flux_ben,flux_pel,diag
+   REALTYPE,dimension(:),  intent(inout) :: flux_ben,flux_pel
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman

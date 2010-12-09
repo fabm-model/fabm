@@ -133,7 +133,7 @@
 ! !IROUTINE: Right hand sides of Mnemiopsis model
 !
 ! !INTERFACE:
-   _PURE subroutine mnemiopsis_do(self,environment,LOCATION,dy,diag)
+   _PURE subroutine mnemiopsis_do(self,environment,LOCATION,dy)
 !
 ! !DESCRIPTION:
 !
@@ -146,7 +146,7 @@
    LOCATION_TYPE,          intent(in) :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, dimension(:),intent(inout) :: dy,diag
+   REALTYPE, dimension(:),intent(inout) :: dy
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman, Baris Salihoglu

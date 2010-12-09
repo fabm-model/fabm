@@ -89,8 +89,8 @@
       
       character(len=64) :: nameprefix,longnameprefix
       
-      character(len=64),pointer  :: dependencies3d(:)
-      character(len=64),pointer  :: dependencies2d(:)
+      character(len=64),pointer :: dependencies3d(:)
+      character(len=64),pointer :: dependencies2d(:)
    end type type_model_info
    
    ! Parameters
@@ -161,8 +161,8 @@
       nullify(modelinfo%firstchild)
       nullify(modelinfo%nextsibling)
 
-      nullify(modelinfo%dependencies2d)
-      nullify(modelinfo%dependencies3d)
+      allocate(modelinfo%dependencies2d(0))
+      allocate(modelinfo%dependencies3d(0))
       
       modelinfo%nameprefix     = ''
       modelinfo%longnameprefix = ''
@@ -314,7 +314,7 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_state_variable_info),pointer :: variables_old(:),variables_new(:)
+      type (type_state_variable_info),pointer :: variables_old(:),variables_new(:),curinfo
       character(len=256)                      :: text
       logical                                 :: benthic_eff
 !
@@ -342,55 +342,56 @@
          modelinfo%state_variables_3d => variables_new
       end if
       
-      ! By default, the variable id is the index of the state variable.
-      id = ubound(variables_new,1)
-
+      curinfo => variables_new(ubound(variables_new,1))
+      
       ! Initialize state variable info.
-      call init_state_variable_info(variables_new(id))
+      call init_state_variable_info(curinfo)
       
       ! Store customized information on state variable.
-      variables_new(id)%name     = name
-      variables_new(id)%units    = units
-      variables_new(id)%longname = longname
-      if (present(initial_value))             variables_new(id)%initial_value = initial_value
-      if (present(minimum))                   variables_new(id)%minimum = minimum
-      if (present(maximum))                   variables_new(id)%maximum = maximum
-      if (present(vertical_movement))         variables_new(id)%vertical_movement = vertical_movement
-      if (present(specific_light_extinction)) variables_new(id)%specific_light_extinction = specific_light_extinction
+      curinfo%name     = name
+      curinfo%units    = units
+      curinfo%longname = longname
+      if (present(initial_value))             curinfo%initial_value = initial_value
+      if (present(minimum))                   curinfo%minimum = minimum
+      if (present(maximum))                   curinfo%maximum = maximum
+      if (present(vertical_movement))         curinfo%vertical_movement = vertical_movement
+      if (present(specific_light_extinction)) curinfo%specific_light_extinction = specific_light_extinction
 #if 0
-      if (present(mussels_inhale))            variables_new(id)%mussels_inhale = mussels_inhale
+      if (present(mussels_inhale))            curinfo%mussels_inhale = mussels_inhale
 #endif
-      if (present(no_precipitation_dilution)) variables_new(id)%no_precipitation_dilution = no_precipitation_dilution
-      if (present(no_river_dilution        )) variables_new(id)%no_river_dilution         = no_river_dilution
+      if (present(no_precipitation_dilution)) curinfo%no_precipitation_dilution = no_precipitation_dilution
+      if (present(no_river_dilution        )) curinfo%no_river_dilution         = no_river_dilution
 
       ! Check for positive definiteness of initial value, if positive definiteness is specified.
       ! NB: although it would make sense to allow a value of exactly zero for positive definite
       ! state variables, this is not accepted by some integration schemes (notably: Patankar-related
       ! ones, causing NaNs). Therefore, initial values of zero are forbidden here.
-      if (variables_new(id)%initial_value<variables_new(id)%minimum .or. &
-          variables_new(id)%initial_value>variables_new(id)%maximum) then
-         write (text,*) 'Initial value',variables_new(id)%initial_value,'for variable "'//trim(name)//'" lies&
-               &outside allowed range',variables_new(id)%initial_value<variables_new(id)%minimum, &
-               'to',variables_new(id)%initial_value<variables_new(id)%maximum
+      if (curinfo%initial_value<curinfo%minimum .or. curinfo%initial_value>curinfo%maximum) then
+         write (text,*) 'Initial value',curinfo%initial_value,'for variable "'//trim(name)//'" lies&
+               &outside allowed range',curinfo%minimum,'to',curinfo%maximum
          call fatal_error('rmbm_types::register_state_variable',text)
       end if
                   
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the variable id.
-      if (associated(modelinfo%parent)) &
-         id = register_state_variable(modelinfo%parent,trim(modelinfo%nameprefix)//name,       &
-                units,trim(modelinfo%longnameprefix)//' '//longname,                           &
-                initial_value             = variables_new(id)%initial_value,             &
-                vertical_movement         = variables_new(id)%vertical_movement,         &
-                specific_light_extinction = variables_new(id)%specific_light_extinction, &
-                minimum                   = variables_new(id)%minimum,                   &
-                maximum                   = variables_new(id)%maximum,                   &
-                no_precipitation_dilution = variables_new(id)%no_precipitation_dilution, &
-                no_river_dilution         = variables_new(id)%no_river_dilution,         &
+      if (associated(modelinfo%parent)) then
+         id = register_state_variable(modelinfo%parent,trim(modelinfo%nameprefix)//trim(curinfo%name), &
+                trim(curinfo%units),trim(modelinfo%longnameprefix)//' '//trim(curinfo%longname),       &
+                initial_value             = curinfo%initial_value,             &
+                vertical_movement         = curinfo%vertical_movement,         &
+                specific_light_extinction = curinfo%specific_light_extinction, &
+                minimum                   = curinfo%minimum,                   &
+                maximum                   = curinfo%maximum,                   &
+                no_precipitation_dilution = curinfo%no_precipitation_dilution, &
+                no_river_dilution         = curinfo%no_river_dilution,         &
                 benthic                   = benthic_eff)
-                
-      ! Save the variable's global id.
-      variables_new(ubound(variables_new,1))%globalid = id
+      else
+         id = ubound(variables_new,1)
+      end if
+      
+      ! Save the state variable's global id
+      ! (index into state variable array of the root of the model tree).
+      curinfo%globalid = id
       
    end function register_state_variable
 !EOC
@@ -426,8 +427,9 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_diagnostic_variable_info),pointer :: variables_old(:),variables_new(:)
+      type (type_diagnostic_variable_info),pointer :: variables_old(:),variables_new(:),curinfo
       logical                                      :: benthic_eff
+      integer                                      :: shape
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -452,28 +454,34 @@
          modelinfo%diagnostic_variables_3d => variables_new
       end if
       
-      ! By default, the variable id is the index of the diagnostic variable.
-      id = ubound(variables_new,1)
+      curinfo => variables_new(ubound(variables_new,1))
 
       ! Initialize diagnostic variable info.
-      call init_diagnostic_variable_info(variables_new(id))
+      call init_diagnostic_variable_info(curinfo)
       
       ! Store customized information on diagnostic variable.
-      variables_new(id)%name     = name
-      variables_new(id)%units    = units
-      variables_new(id)%longname = longname
-      if (present(time_treatment)) variables_new(id)%time_treatment = time_treatment
+      curinfo%name     = name
+      curinfo%units    = units
+      curinfo%longname = longname
+      if (present(time_treatment)) curinfo%time_treatment = time_treatment
                   
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the diagnostic variable id.
-      if (associated(modelinfo%parent)) &
-         id = register_diagnostic_variable(modelinfo%parent,trim(modelinfo%nameprefix)//name, &
-                 units,trim(modelinfo%longnameprefix)//' '//longname, &
-                 time_treatment=variables_new(id)%time_treatment,     &
-                 benthic = benthic_eff)
+      if (associated(modelinfo%parent)) then
+         id = register_diagnostic_variable(modelinfo%parent,trim(modelinfo%nameprefix)//trim(curinfo%name), &
+                                           trim(curinfo%units),                                             &
+                                           trim(modelinfo%longnameprefix)//' '//trim(curinfo%longname),     &
+                                           time_treatment=curinfo%time_treatment,                           &
+                                           benthic = benthic_eff)
+      else
+         shape = shape3d
+         if (benthic_eff) shape = shape2d
+         id = register_dependency(modelinfo,curinfo%name,shape)
+      end if
                 
       ! Save the diagnostic variable's global id.
-      variables_new(ubound(variables_new,1))%globalid = id
+      ! (index into dependencies array of the root of the tree)
+      curinfo%globalid = id
       
    end function register_diagnostic_variable
 !EOC
@@ -586,27 +594,7 @@
       benthic_eff = .false.
       if (present(benthic)) benthic_eff = benthic
 
-      ! First search amongst siblings (if any)
-      curinfo => modelinfo%parent%firstchild
-      do while (associated(curinfo))
-         if (.not. associated(curinfo,modelinfo)) then
-            ! We are dealing with a sibling - not self - so search the model's state variables.
-            if (benthic_eff) then
-               variables => curinfo%state_variables_2d
-            else
-               variables => curinfo%state_variables_3d
-            end if
-            do i = 1,ubound(variables,1)
-               if (variables(i)%name==name) then
-                  id = variables(i)%globalid
-                  return
-               end if
-            end do
-         end if
-         curinfo => curinfo%nextsibling
-      end do
-
-      ! Now search amongst ancestors.
+      ! Search amongst ancestors.
       curinfo => modelinfo%parent
       do while (associated(curinfo))
          if (benthic_eff) then
@@ -658,7 +646,7 @@
 ! !LOCAL VARIABLES:
       integer                                 :: n,realshape
       type (type_model_info),pointer          :: proot
-      character(len=64),pointer    :: dependencies_new(:)
+      character(len=64),pointer               :: dependencies_new(:)
       character(len=64),pointer               :: source(:)
 !
 !-----------------------------------------------------------------------
@@ -683,22 +671,17 @@
             call fatal_error('rmbm_types::register_dependency','Invalid shape argument given')
       end select
 
+      n = ubound(source,1)
+
       ! Search existing dependencies and return the corresponding id if found.
-      if (associated(source)) then
-         n = ubound(source,1)
-         do id=1,n
-            if (source(id).eq.name) return
-         end do
-      else
-         n = 0
-      end if
+      do id=1,n
+         if (source(id).eq.name) return
+      end do
       
       ! Dependency was not registered yet - create extended array to hold new dependency.
       allocate(dependencies_new(n+1))
-      if (associated(source)) then
-         dependencies_new(1:n) = source(:)
-         deallocate(source)
-      end if
+      dependencies_new(1:n) = source(:)
+      deallocate(source)
       dependencies_new(n+1) = name
       
       ! Assign new array with dependencies (variable to assign to depends on shape argument)
