@@ -79,7 +79,7 @@
    
    ! Global 0D model properties
    type type_model_info
-      type (type_state_variable_info),     pointer,dimension(:) :: state_variables_2d,state_variables_3d
+      type (type_state_variable_info),     pointer,dimension(:) :: state_variables_ben,state_variables
       type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables_2d,diagnostic_variables_3d
       type (type_conserved_quantity_info), pointer,dimension(:) :: conserved_quantities
       
@@ -116,9 +116,9 @@
    end type type_state_2d
 
    type type_environment
-      type (type_state   ), dimension(:), _ALLOCATABLE :: state3d _NULL ! array of pointers to data of pelagic state variables
+      type (type_state   ), dimension(:), _ALLOCATABLE :: state _NULL ! array of pointers to data of pelagic state variables
       type (type_state   ), dimension(:), _ALLOCATABLE :: var3d   _NULL ! array of pointers to data of all pelagic variables (state and diagnostic)
-      type (type_state_2d), dimension(:), _ALLOCATABLE :: state2d _NULL ! array of pointers to data of benthic state variables
+      type (type_state_2d), dimension(:), _ALLOCATABLE :: state_ben _NULL ! array of pointers to data of benthic state variables
       type (type_state_2d), dimension(:), _ALLOCATABLE :: var2d   _NULL ! array of pointers to data of all horizontal variables (state and diagnostic, surface and bottom)
    end type type_environment
 
@@ -151,8 +151,8 @@
 !
 !-----------------------------------------------------------------------
 !BOC
-      allocate(modelinfo%state_variables_2d(0))
-      allocate(modelinfo%state_variables_3d(0))
+      allocate(modelinfo%state_variables_ben(0))
+      allocate(modelinfo%state_variables(0))
       allocate(modelinfo%diagnostic_variables_2d(0))
       allocate(modelinfo%diagnostic_variables_3d(0))
       allocate(modelinfo%conserved_quantities(0))
@@ -272,7 +272,7 @@
       conservedinfo%name = ''
       conservedinfo%units = ''
       conservedinfo%longname = ''
-      conservedinfo%id = -1
+      conservedinfo%id = id_not_used
    end subroutine init_conserved_quantity_info
 !EOC
    
@@ -325,9 +325,9 @@
       benthic_eff = .false.
       if (present(benthic)) benthic_eff = benthic
       if (benthic_eff) then
-         variables_old => modelinfo%state_variables_2d
+         variables_old => modelinfo%state_variables_ben
       else
-         variables_old => modelinfo%state_variables_3d
+         variables_old => modelinfo%state_variables
       end if
 
       ! Extend the state variable array and copy over old values.
@@ -337,9 +337,9 @@
       
       ! Assign new state variable array.
       if (benthic_eff) then
-         modelinfo%state_variables_2d => variables_new
+         modelinfo%state_variables_ben => variables_new
       else
-         modelinfo%state_variables_3d => variables_new
+         modelinfo%state_variables => variables_new
       end if
       
       curinfo => variables_new(ubound(variables_new,1))
@@ -586,7 +586,7 @@
 !
 !-----------------------------------------------------------------------
 !BOC
-      id = -1
+      id = id_not_used
       
       ! If this model does not have a parent, there is no context to search variables in.
       if (.not. associated(modelinfo%parent)) return
@@ -598,9 +598,9 @@
       curinfo => modelinfo%parent
       do while (associated(curinfo))
          if (benthic_eff) then
-            variables => curinfo%state_variables_2d
+            variables => curinfo%state_variables_ben
          else
-            variables => curinfo%state_variables_3d
+            variables => curinfo%state_variables
          end if
          do i = 1,ubound(variables,1)
             if (variables(i)%name==name) then

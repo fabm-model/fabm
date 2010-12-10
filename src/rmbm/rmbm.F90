@@ -257,6 +257,7 @@
    public type_model, rmbm_init, rmbm_create_model, rmbm_do, &
           rmbm_link_2d_data,rmbm_link_3d_data,rmbm_get_variable_id, &
           rmbm_link_2d_state_data,rmbm_link_3d_state_data, &
+          rmbm_link_2d_diagnostic_data,rmbm_link_3d_diagnostic_data, &
           rmbm_check_state, rmbm_get_vertical_movement, rmbm_get_light_extinction, &
           rmbm_get_conserved_quantities, rmbm_get_surface_exchange, rmbm_do_benthos
 !
@@ -675,12 +676,12 @@
    allocate(root%environment)
    allocate(root%environment%var2d  (ubound(root%info%dependencies2d,    1)))
    allocate(root%environment%var3d  (ubound(root%info%dependencies3d,    1)))
-   allocate(root%environment%state2d(ubound(root%info%state_variables_2d,1)))
-   allocate(root%environment%state3d(ubound(root%info%state_variables_3d,1)))
+   allocate(root%environment%state_ben(ubound(root%info%state_variables_ben,1)))
+   allocate(root%environment%state(ubound(root%info%state_variables,1)))
    
    ! Set all pointers to external data to dissociated.
-   do ivar=1,ubound(root%environment%state3d,1)
-      nullify(root%environment%state3d(ivar)%data)
+   do ivar=1,ubound(root%environment%state,1)
+      nullify(root%environment%state(ivar)%data)
    end do
    do ivar=1,ubound(root%environment%var2d,1)
       nullify(root%environment%var2d(ivar)%data)
@@ -835,7 +836,7 @@ subroutine rmbm_link_data_3d_char(model,name,dat)
    integer                                                :: id
    
    id = rmbm_get_variable_id(model,name,shape3d)
-   if (id.ne.-1) call rmbm_link_data_3d(model,id,dat)
+   if (id.ne.id_not_used) call rmbm_link_data_3d(model,id,dat)
 end subroutine rmbm_link_data_3d_char
 
 subroutine rmbm_link_data_2d(model,id,dat)
@@ -854,7 +855,7 @@ subroutine rmbm_link_data_2d_char(model,name,dat)
    integer                                                :: id
    
    id = rmbm_get_variable_id(model,name,shape2d)
-   if (id.ne.-1) call rmbm_link_data_2d(model,id,dat)
+   if (id.ne.id_not_used) call rmbm_link_data_2d(model,id,dat)
 end subroutine rmbm_link_data_2d_char
 
 subroutine rmbm_link_2d_state_data(model,id,dat)
@@ -862,7 +863,7 @@ subroutine rmbm_link_2d_state_data(model,id,dat)
    integer,                                    intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
    
-   model%environment%state2d(id)%data => dat
+   model%environment%state_ben(id)%data => dat
 end subroutine rmbm_link_2d_state_data
 
 subroutine rmbm_link_3d_state_data(model,id,dat)
@@ -870,8 +871,24 @@ subroutine rmbm_link_3d_state_data(model,id,dat)
    integer,                                 intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
    
-   model%environment%state3d(id)%data => dat
+   model%environment%state(id)%data => dat
 end subroutine rmbm_link_3d_state_data
+
+subroutine rmbm_link_2d_diagnostic_data(model,id,dat)
+   type (type_model),                          intent(inout) :: model
+   integer,                                    intent(in)    :: id
+   REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
+   
+   call rmbm_link_data_2d(model,model%info%diagnostic_variables_2d(id)%globalid,dat)
+end subroutine rmbm_link_2d_diagnostic_data
+
+subroutine rmbm_link_3d_diagnostic_data(model,id,dat)
+   type (type_model),                       intent(inout) :: model
+   integer,                                 intent(in)    :: id
+   REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
+   
+   call rmbm_link_data_3d(model,model%info%diagnostic_variables_3d(id)%globalid,dat)
+end subroutine rmbm_link_3d_diagnostic_data
 
 !-----------------------------------------------------------------------
 !BOP
@@ -1089,16 +1106,16 @@ end subroutine rmbm_link_3d_state_data
 
    ! Check absolute variable boundaries specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
-   do i=1,ubound(root%info%state_variables_3d,1)
-      if (root%environment%state3d(root%info%state_variables_3d(i)%globalid)%data INDEX_LOCATION<root%info%state_variables_3d(i)%minimum) then
+   do i=1,ubound(root%info%state_variables,1)
+      if (root%environment%state(root%info%state_variables(i)%globalid)%data INDEX_LOCATION<root%info%state_variables(i)%minimum) then
          valid = .false.
-         if (repair) root%environment%state3d(root%info%state_variables_3d(i)%globalid)%data INDEX_LOCATION =&
-             root%info%state_variables_3d(i)%minimum
-      elseif (root%environment%state3d(root%info%state_variables_3d(i)%globalid)%data INDEX_LOCATION> &
-               root%info%state_variables_3d(i)%maximum) then
+         if (repair) root%environment%state(root%info%state_variables(i)%globalid)%data INDEX_LOCATION =&
+             root%info%state_variables(i)%minimum
+      elseif (root%environment%state(root%info%state_variables(i)%globalid)%data INDEX_LOCATION> &
+               root%info%state_variables(i)%maximum) then
          valid = .false.
-         if (repair) root%environment%state3d(root%info%state_variables_3d(i)%globalid)%data INDEX_LOCATION =&
-             root%info%state_variables_3d(i)%maximum
+         if (repair) root%environment%state(root%info%state_variables(i)%globalid)%data INDEX_LOCATION =&
+             root%info%state_variables(i)%maximum
       end if
    end do
 
@@ -1219,9 +1236,9 @@ end subroutine rmbm_link_3d_state_data
          ! ADD_NEW_MODEL_HERE - optional
          case default
             ! Default: use the constant sinking rates specified in state variable properties.
-            do i=1,ubound(curmodel%info%state_variables_3d,1)
-               vertical_movement(curmodel%info%state_variables_3d(i)%globalid) =&
-                   curmodel%info%state_variables_3d(i)%vertical_movement
+            do i=1,ubound(curmodel%info%state_variables,1)
+               vertical_movement(curmodel%info%state_variables(i)%globalid) =&
+                   curmodel%info%state_variables(i)%vertical_movement
             end do
       end select
       curmodel => curmodel%nextmodel
@@ -1261,10 +1278,10 @@ end subroutine rmbm_link_3d_state_data
          case default
             ! Default: use constant specific light extinction values specified in the state variable properties
             extinction = _ZERO_
-            do i=1,ubound(curmodel%info%state_variables_3d,1)
-               if (curmodel%info%state_variables_3d(i)%specific_light_extinction.ne._ZERO_) &
-                  extinction = extinction + curmodel%environment%state3d(curmodel%info%state_variables_3d(i)%globalid)%data INDEX_LOCATION &
-                                    & * curmodel%info%state_variables_3d(i)%specific_light_extinction
+            do i=1,ubound(curmodel%info%state_variables,1)
+               if (curmodel%info%state_variables(i)%specific_light_extinction.ne._ZERO_) &
+                  extinction = extinction + curmodel%environment%state(curmodel%info%state_variables(i)%globalid)%data INDEX_LOCATION &
+                                    & * curmodel%info%state_variables(i)%specific_light_extinction
             end do
       end select
       curmodel => curmodel%nextmodel

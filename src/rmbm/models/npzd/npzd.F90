@@ -157,10 +157,10 @@
                                     mussels_inhale=.true.)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   self%id_dic = -1
+   self%id_dic = id_not_used
    if (dic_variable.ne.'') then
       self%id_dic = register_state_dependency(modelinfo,dic_variable)
-      if (self%id_dic.eq.-1) call fatal_error('init_bio_npzd','Cannot locate external DIC variable '//dic_variable)
+      if (self%id_dic.eq.id_not_used) call fatal_error('init_bio_npzd','Cannot locate external DIC variable '//dic_variable)
    end if
 
    ! Diagnostic variables
@@ -547,7 +547,7 @@
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
    dn = - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
-   if (self%id_dic.ne.-1) pp(self%id_dic,self%id_dic) = pp(self%id_dic,self%id_dic) + self%dic_per_n*dn
+   if (self%id_dic.ne.id_not_used) pp(self%id_dic,self%id_dic) = pp(self%id_dic,self%id_dic) + self%dic_per_n*dn
 
    ! Export diagnostic variables
    if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)

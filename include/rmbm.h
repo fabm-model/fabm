@@ -61,7 +61,7 @@
 #define ATTR_LOCATION_DIMENSIONS ,dimension(LOCATION_DIMENSIONS)
 #define INDEX_LOCATION (LOCATION)
 
-#define _GET_STATE_(index) environment%state3d(index)%data INDEX_LOCATION
+#define _GET_STATE_(index) environment%state(index)%data INDEX_LOCATION
 #define _GET_VAR_(index) environment%var3d(index)%data INDEX_LOCATION
 #define _GET_VAR_HZ_(index) environment%var2d(index)%data INDEX_LOCATION_HZ
 #define _SET_DIAG_(index,value) environment%var3d(index)%data INDEX_LOCATION = value

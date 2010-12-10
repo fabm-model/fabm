@@ -72,7 +72,7 @@
    type (type_model), pointer :: model
    
    ! Arrays for state and diagnostic variables
-   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:),target :: cc,cc_2d
+   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:),target :: cc,cc_ben
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:)        :: cc_diag
 
    ! Arrays for work, vertical movement, and cross-boundary fluxes
@@ -157,17 +157,17 @@
 
       ! Report prognostic variable descriptions
       LEVEL2 'RMBM 3D state variables:'
-      do i=1,ubound(model%info%state_variables_3d,1)
-         LEVEL3 trim(model%info%state_variables_3d(i)%name), '  ', &
-                trim(model%info%state_variables_3d(i)%units),'  ',&
-                trim(model%info%state_variables_3d(i)%longname)
+      do i=1,ubound(model%info%state_variables,1)
+         LEVEL3 trim(model%info%state_variables(i)%name), '  ', &
+                trim(model%info%state_variables(i)%units),'  ',&
+                trim(model%info%state_variables(i)%longname)
       end do
 
       LEVEL2 'RMBM 2D state variables:'
-      do i=1,ubound(model%info%state_variables_2d,1)
-         LEVEL3 trim(model%info%state_variables_2d(i)%name), '  ', &
-                trim(model%info%state_variables_2d(i)%units),'  ',&
-                trim(model%info%state_variables_2d(i)%longname)
+      do i=1,ubound(model%info%state_variables_ben,1)
+         LEVEL3 trim(model%info%state_variables_ben(i)%name), '  ', &
+                trim(model%info%state_variables_ben(i)%units),'  ',&
+                trim(model%info%state_variables_ben(i)%longname)
       end do
 
       ! Report diagnostic variable descriptions
@@ -268,19 +268,19 @@
    if (.not. rmbm_calc) return
 
    ! Allocate pelagic state variable array and provide initial values.
-   allocate(cc(1:ubound(model%info%state_variables_3d,1),LOCATION_RANGE),stat=rc)
+   allocate(cc(1:ubound(model%info%state_variables,1),LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc)'
-   do i=1,ubound(model%info%state_variables_3d,1)
-      cc(i,:) = model%info%state_variables_3d(i)%initial_value
+   do i=1,ubound(model%info%state_variables,1)
+      cc(i,:) = model%info%state_variables(i)%initial_value
       call rmbm_link_3d_state_data(model,i,cc(i,1:LOCATION))
    end do
 
    ! Allocate state variable array for bottom (benthos *and* bottom pelagic) and provide initial values (benthos only).
-   allocate(cc_2d(1:ubound(model%info%state_variables_2d,1)+ubound(model%info%state_variables_3d,1),0:1),stat=rc)
-   if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc_2d)'
-   do i=1,ubound(model%info%state_variables_2d,1)
-      cc_2d(i,:) = model%info%state_variables_2d(i)%initial_value
-      call rmbm_link_2d_state_data(model,i,cc_2d(i,1))
+   allocate(cc_ben(1:ubound(model%info%state_variables_ben,1)+ubound(model%info%state_variables,1),0:1),stat=rc)
+   if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc_ben)'
+   do i=1,ubound(model%info%state_variables_ben,1)
+      cc_ben(i,:) = model%info%state_variables_ben(i)%initial_value
+      call rmbm_link_2d_state_data(model,i,cc_ben(i,1))
    end do
 
    ! Allocate diagnostic variable array and set all values to zero.
@@ -294,7 +294,7 @@
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (work_cc_diag)'
    work_cc_diag = _ZERO_
    do i=1,ubound(model%info%diagnostic_variables_3d,1)
-      call rmbm_link_3d_data(model,model%info%diagnostic_variables_3d(i)%globalid,work_cc_diag(1:LOCATION,i))
+      call rmbm_link_3d_diagnostic_data(model,i,work_cc_diag(1:LOCATION,i))
    end do
 
    ! Allocate diagnostic variable array and set all values to zero.
@@ -308,24 +308,24 @@
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (work_cc_diag_2d)'
    work_cc_diag_2d = _ZERO_
    do i=1,ubound(model%info%diagnostic_variables_2d,1)
-      call rmbm_link_2d_data(model,model%info%diagnostic_variables_2d(i)%globalid,work_cc_diag_2d(i))
+      call rmbm_link_2d_diagnostic_data(model,i,work_cc_diag_2d(i))
    end do
 
    ! Allocate array with vertical movement rates (m/s, positive for upwards),
    ! and set these to the values provided by the model.
-   allocate(ws(LOCATION_RANGE,1:ubound(model%info%state_variables_3d,1)),stat=rc)
+   allocate(ws(LOCATION_RANGE,1:ubound(model%info%state_variables,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (ws)'
-   do i=1,ubound(model%info%state_variables_3d,1)
-      ws(:,i) = model%info%state_variables_3d(i)%vertical_movement
+   do i=1,ubound(model%info%state_variables,1)
+      ws(:,i) = model%info%state_variables(i)%vertical_movement
    end do
 
    ! Allocate array for surface fluxes and initialize these to zero (no flux).
-   allocate(sfl(1:ubound(model%info%state_variables_3d,1)),stat=rc)
+   allocate(sfl(1:ubound(model%info%state_variables,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (sfl)'
    sfl = _ZERO_
 
    ! Allocate array for bottom fluxes and initialize these to zero (no flux).
-   allocate(bfl(1:ubound(model%info%state_variables_3d,1)),stat=rc)
+   allocate(bfl(1:ubound(model%info%state_variables,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (bfl)'
    bfl = _ZERO_
 
@@ -473,14 +473,14 @@
    !   dilution = dilution + sum((salt(1:nlev)-sProf(1:nlev))/SRelaxTau(1:nlev)*h(2:nlev+1)) &
    !                        /sum(salt(1:nlev)*h(2:nlev+1)) * sum(h(2:nlev+1))
 
-   do j=1,ubound(model%info%state_variables_3d,1)
+   do j=1,ubound(model%info%state_variables,1)
       ! Add surface flux due to evaporation/precipitation, unless the model explicitly says otherwise.
-      if (.not. model%info%state_variables_3d(j)%no_precipitation_dilution) &
+      if (.not. model%info%state_variables(j)%no_precipitation_dilution) &
          sfl(j) = sfl(j)-cc(j,nlev)*dilution
    
       ! Determine whether the variable is positive definite based on lower allowed bound.
       posconc = 0
-      if (model%info%state_variables_3d(j)%minimum.ge._ZERO_) posconc = 1
+      if (model%info%state_variables(j)%minimum.ge._ZERO_) posconc = 1
          
       ! Do advection step due to settling or rising
       call adv_center(nlev,dt,h,h,ws(:,j),flux,                   &
@@ -505,14 +505,14 @@
       call light_0d(nlev,bioshade_feedback)
       
       ! Copy bottom pelagic values to combined benthic+pelagic state variable array.
-      cc_2d(ubound(model%info%state_variables_2d,1)+1:,1) = cc(:,1)
+      cc_ben(ubound(model%info%state_variables_ben,1)+1:,1) = cc(:,1)
 
       ! Time-integrate one biological time step - first for all layers but bottom, then for bottom (benthic+pelagic)
       call ode_solver(ode_method,ubound(cc,   1),nlev-1,dt_eff,cc(:,1:nlev),right_hand_side_rhs,       right_hand_side_ppdd)
-      call ode_solver(ode_method,ubound(cc_2d,1),1,     dt_eff,cc_2d(:,0:1),right_hand_side_rhs_bottom,right_hand_side_ppdd)
+      call ode_solver(ode_method,ubound(cc_ben,1),1,     dt_eff,cc_ben(:,0:1),right_hand_side_rhs_bottom,right_hand_side_ppdd)
 
       ! Take bottom pelagic values from combined bottom benthic+pelagic array.
-      cc(:,1) = cc_2d(ubound(model%info%state_variables_2d,1)+1:,1)
+      cc(:,1) = cc_ben(ubound(model%info%state_variables_ben,1)+1:,1)
 
       ! Repair state
       call do_repair_state(nlev,'gotm_rmbm::do_gotm_rmbm, after time integration')
@@ -578,8 +578,8 @@
       if (.not. (valid .or. repair_state)) then
          FATAL 'State variables are invalid and repair is not allowed, '//location
          LEVEL1 'Invalid state at index ',ci
-         do j=1,ubound(model%info%state_variables_3d,1)
-            LEVEL2 trim(model%info%state_variables_3d(j)%name),cc(j,ci)
+         do j=1,ubound(model%info%state_variables,1)
+            LEVEL2 trim(model%info%state_variables(j)%name),cc(j,ci)
          end do
          stop 'gotm_rmbm::do_repair_state'
       end if
@@ -730,13 +730,13 @@
    rhs = _ZERO_
 
    ! Calculate temporal derivatives due to benthic processes.
-   call rmbm_do_benthos(model,1,rhs(1:ubound(model%info%state_variables_2d,1), 1),rhs(ubound(model%info%state_variables_2d,1)+1:,1))
+   call rmbm_do_benthos(model,1,rhs(1:ubound(model%info%state_variables_ben,1), 1),rhs(ubound(model%info%state_variables_ben,1)+1:,1))
    
    ! Distribute bottom flux into pelagic over bottom box (i.e., divide by layer height).
-   rhs(1:ubound(model%info%state_variables_2d,1),1) = rhs(1:ubound(model%info%state_variables_2d,1),1)/h(2)
+   rhs(1:ubound(model%info%state_variables_ben,1),1) = rhs(1:ubound(model%info%state_variables_ben,1),1)/h(2)
 
    ! Calculate temporal derivatives due to pelagic processes.
-   call rmbm_do(model,1,rhs(ubound(model%info%state_variables_2d,1)+1:,1))
+   call rmbm_do(model,1,rhs(ubound(model%info%state_variables_ben,1)+1:,1))
 
    end subroutine right_hand_side_rhs_bottom
 !EOC
@@ -767,7 +767,7 @@
    ! Deallocate internal arrays
    if (allocated(par))            deallocate(par)
    if (allocated(cc))             deallocate(cc)
-   if (allocated(cc_2d))          deallocate(cc_2d)
+   if (allocated(cc_ben))          deallocate(cc_ben)
    if (allocated(cc_diag))        deallocate(cc_diag)
    if (allocated(work_cc_diag))   deallocate(work_cc_diag)
    if (allocated(cc_diag_2d))     deallocate(cc_diag_2d)
@@ -885,12 +885,12 @@
          dims(4) = time_dim
 
          ! Add a NetCDF variable for each 4D (longitude,latitude,depth,time) biogeochemical state variable.
-         do n=1,ubound(model%info%state_variables_3d,1)
-            iret = new_nc_variable(ncid,model%info%state_variables_3d(n)%name,NF_REAL, &
-                                   4,dims,model%info%state_variables_3d(n)%id)
-            iret = set_attributes(ncid,model%info%state_variables_3d(n)%id,       &
-                                  units=model%info%state_variables_3d(n)%units,    &
-                                  long_name=model%info%state_variables_3d(n)%longname)
+         do n=1,ubound(model%info%state_variables,1)
+            iret = new_nc_variable(ncid,model%info%state_variables(n)%name,NF_REAL, &
+                                   4,dims,model%info%state_variables(n)%id)
+            iret = set_attributes(ncid,model%info%state_variables(n)%id,       &
+                                  units=model%info%state_variables(n)%units,    &
+                                  long_name=model%info%state_variables(n)%longname)
          end do
 
          ! Add a NetCDF variable for each 4D (longitude,latitude,depth,time) biogeochemical diagnostic variable.
@@ -906,12 +906,12 @@
          dims(3) = time_dim
 
          ! Add a NetCDF variable for each 3D (longitude,latitude,time) biogeochemical state variable.
-         do n=1,ubound(model%info%state_variables_2d,1)
-            iret = new_nc_variable(ncid,model%info%state_variables_2d(n)%name,NF_REAL, &
-                                   3,dims,model%info%state_variables_2d(n)%id)
-            iret = set_attributes(ncid,model%info%state_variables_2d(n)%id,       &
-                                  units=model%info%state_variables_2d(n)%units,    &
-                                  long_name=model%info%state_variables_2d(n)%longname)
+         do n=1,ubound(model%info%state_variables_ben,1)
+            iret = new_nc_variable(ncid,model%info%state_variables_ben(n)%name,NF_REAL, &
+                                   3,dims,model%info%state_variables_ben(n)%id)
+            iret = set_attributes(ncid,model%info%state_variables_ben(n)%id,       &
+                                  units=model%info%state_variables_ben(n)%units,    &
+                                  long_name=model%info%state_variables_ben(n)%longname)
          end do
 
          ! Add a NetCDF variable for each 3D (longitude,latitude,time) biogeochemical diagnostic variable.
@@ -985,8 +985,8 @@
       case (NETCDF)
 #ifdef NETCDF_FMT
          ! Store depth-explicit biogeochemical state (prognostic) variables.
-         do n=1,ubound(model%info%state_variables_3d,1)
-            iret = store_data(ncid,model%info%state_variables_3d(n)%id,XYZT_SHAPE,nlev,array=cc(n,0:nlev))
+         do n=1,ubound(model%info%state_variables,1)
+            iret = store_data(ncid,model%info%state_variables(n)%id,XYZT_SHAPE,nlev,array=cc(n,0:nlev))
          end do
 
          ! Process and store diagnostic variables.
@@ -1005,8 +1005,8 @@
          end do
 
          ! Store depth-independent biogeochemical state (prognostic) variables.
-         do n=1,ubound(model%info%state_variables_2d,1)
-            iret = store_data(ncid,model%info%state_variables_2d(n)%id,XYT_SHAPE,1,scalar=cc_2d(n,1))
+         do n=1,ubound(model%info%state_variables_ben,1)
+            iret = store_data(ncid,model%info%state_variables_ben(n)%id,XYT_SHAPE,1,scalar=cc_ben(n,1))
          end do
 
          ! Integrate conserved quantities over depth.
