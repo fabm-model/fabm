@@ -256,7 +256,7 @@
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_model, rmbm_init, rmbm_create_model, rmbm_do, &
           rmbm_link_2d_data,rmbm_link_3d_data,rmbm_get_variable_id, &
-          rmbm_link_2d_state_data,rmbm_link_3d_state_data, &
+          rmbm_link_benthos_state_data,rmbm_link_state_data, &
           rmbm_link_2d_diagnostic_data,rmbm_link_3d_diagnostic_data, &
           rmbm_check_state, rmbm_get_vertical_movement, rmbm_get_light_extinction, &
           rmbm_get_conserved_quantities, rmbm_get_surface_exchange, rmbm_do_benthos
@@ -278,7 +278,6 @@
    
       ! Model identifier, name (= variable name prefix), and metadata.
       integer                :: id
-      character(len=64)      :: name
       type (type_model_info) :: info
       
       ! Pointers for linking to parent and child models
@@ -539,11 +538,11 @@
       model%id = model_container_id
    end if
 
-   ! Set the model name
-   model%name = get_model_name(model%id)
-
    ! Initialize model info
    call init_model_info(model%info)
+
+   ! Set the model name
+   model%info%name = get_model_name(model%id)
 
    ! Make sure the pointers to parent and sibling models are explicitly dissociated.
    nullify(model%parent)
@@ -746,7 +745,7 @@
             count = 0
             curchild2 => model%firstchild
             do while (associated(curchild2))
-               if (curchild2%name.eq.curchild%name) then
+               if (curchild2%info%name.eq.curchild%info%name) then
                   count = count + 1
                   if (associated(curchild,curchild2)) ownindex = count
                end if
@@ -755,11 +754,11 @@
 
             ! Create prefixes for names of variables of the child model.
             if (alwayspostfixindex .or. count>1) then
-               write (unit=curchild%info%nameprefix,     fmt='(a,i2.2,a)') trim(curchild%name),ownindex,'_'
-               write (unit=curchild%info%longnameprefix, fmt='(a,i2.2,a)') trim(curchild%name),ownindex,' '
+               write (unit=curchild%info%nameprefix,     fmt='(a,i2.2,a)') trim(curchild%info%name),ownindex,'_'
+               write (unit=curchild%info%longnameprefix, fmt='(a,i2.2,a)') trim(curchild%info%name),ownindex,' '
             else
-               curchild%info%nameprefix     = trim(curchild%name)//'_'
-               curchild%info%longnameprefix = trim(curchild%name)//' '
+               curchild%info%nameprefix     = trim(curchild%info%name)//'_'
+               curchild%info%longnameprefix = trim(curchild%info%name)//' '
             end if
 
             ! Initialize child model.
@@ -858,21 +857,21 @@ subroutine rmbm_link_data_2d_char(model,name,dat)
    if (id.ne.id_not_used) call rmbm_link_data_2d(model,id,dat)
 end subroutine rmbm_link_data_2d_char
 
-subroutine rmbm_link_2d_state_data(model,id,dat)
+subroutine rmbm_link_benthos_state_data(model,id,dat)
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
    
    model%environment%state_ben(id)%data => dat
-end subroutine rmbm_link_2d_state_data
+end subroutine rmbm_link_benthos_state_data
 
-subroutine rmbm_link_3d_state_data(model,id,dat)
+subroutine rmbm_link_state_data(model,id,dat)
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
    
    model%environment%state(id)%data => dat
-end subroutine rmbm_link_3d_state_data
+end subroutine rmbm_link_state_data
 
 subroutine rmbm_link_2d_diagnostic_data(model,id,dat)
    type (type_model),                          intent(inout) :: model

@@ -158,10 +158,7 @@
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%id_dic = id_not_used
-   if (dic_variable.ne.'') then
-      self%id_dic = register_state_dependency(modelinfo,dic_variable)
-      if (self%id_dic.eq.id_not_used) call fatal_error('init_bio_npzd','Cannot locate external DIC variable '//dic_variable)
-   end if
+   if (dic_variable.ne.'') self%id_dic = register_state_dependency(modelinfo,dic_variable)
 
    ! Diagnostic variables
    self%id_GPP  = register_diagnostic_variable(modelinfo,'GPP','mmol/m**3',  'gross primary production',           time_treatment=time_treatment_step_integrated)

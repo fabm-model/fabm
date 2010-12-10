@@ -87,7 +87,7 @@
       type (type_model_info),pointer :: firstchild
       type (type_model_info),pointer :: nextsibling
       
-      character(len=64) :: nameprefix,longnameprefix
+      character(len=64) :: name,nameprefix,longnameprefix
       
       character(len=64),pointer :: dependencies3d(:)
       character(len=64),pointer :: dependencies2d(:)
@@ -555,7 +555,7 @@
 ! !IROUTINE: Registers a dependency on another biogeochemical state variable
 !
 ! !INTERFACE:
-   recursive function register_state_dependency(modelinfo,name,benthic) result(id)
+   function register_state_dependency(modelinfo,name,benthic,mustexist) result(id)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -568,7 +568,7 @@
 ! !INPUT PARAMETERS:
       type (type_model_info),target,          intent(in) :: modelinfo
       character(len=*),                       intent(in) :: name
-      logical,optional,                       intent(in) :: benthic
+      logical,optional,                       intent(in) :: benthic,mustexist
 !
 ! !OUTPUT PARAMETER:
       integer                           :: id
@@ -580,7 +580,7 @@
 !
 ! !LOCAL VARIABLES:
       integer                                 :: i
-      logical                                 :: benthic_eff
+      logical                                 :: benthic_eff,mustexist_eff
       type (type_model_info),pointer          :: curinfo
       type (type_state_variable_info),pointer :: variables(:)
 !
@@ -593,6 +593,9 @@
       
       benthic_eff = .false.
       if (present(benthic)) benthic_eff = benthic
+
+      mustexist_eff = .true.
+      if (present(mustexist)) mustexist_eff = mustexist
 
       ! Search amongst ancestors.
       curinfo => modelinfo%parent
@@ -610,6 +613,9 @@
          end do
          curinfo => curinfo%parent
       end do
+      
+      if (mustexist_eff) call fatal_error('rmbm_types::register_state_dependency', &
+         'state variable dependency '//trim(name)//' of model '//trim(modelinfo%name)//' was not found.')
       
    end function register_state_dependency
 !EOC

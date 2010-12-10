@@ -272,7 +272,7 @@
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc)'
    do i=1,ubound(model%info%state_variables,1)
       cc(i,:) = model%info%state_variables(i)%initial_value
-      call rmbm_link_3d_state_data(model,i,cc(i,1:LOCATION))
+      call rmbm_link_state_data(model,i,cc(i,1:LOCATION))
    end do
 
    ! Allocate state variable array for bottom (benthos *and* bottom pelagic) and provide initial values (benthos only).
@@ -280,7 +280,7 @@
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc_ben)'
    do i=1,ubound(model%info%state_variables_ben,1)
       cc_ben(i,:) = model%info%state_variables_ben(i)%initial_value
-      call rmbm_link_2d_state_data(model,i,cc_ben(i,1))
+      call rmbm_link_benthos_state_data(model,i,cc_ben(i,1))
    end do
 
    ! Allocate diagnostic variable array and set all values to zero.
@@ -765,9 +765,8 @@
    LEVEL1 'clean_gotm_rmbm'
 
    ! Deallocate internal arrays
-   if (allocated(par))            deallocate(par)
    if (allocated(cc))             deallocate(cc)
-   if (allocated(cc_ben))          deallocate(cc_ben)
+   if (allocated(cc_ben))         deallocate(cc_ben)
    if (allocated(cc_diag))        deallocate(cc_diag)
    if (allocated(work_cc_diag))   deallocate(work_cc_diag)
    if (allocated(cc_diag_2d))     deallocate(cc_diag_2d)
@@ -777,6 +776,8 @@
    if (allocated(bfl))            deallocate(bfl)
    if (allocated(total))          deallocate(total)
    if (allocated(local))          deallocate(local)
+   if (allocated(par))            deallocate(par)
+   if (allocated(pres))           deallocate(pres)
    LEVEL1 'done.'
 
    end subroutine clean_gotm_rmbm
