@@ -402,7 +402,7 @@
 ! !IROUTINE: Registers a new diagnostic variable
 !
 ! !INTERFACE:
-   recursive function register_diagnostic_variable(modelinfo, name, units, longname, benthic, time_treatment) result(id)
+   recursive function register_diagnostic_variable(modelinfo, name, units, longname, shape, time_treatment) result(id)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -415,8 +415,7 @@
 !
 ! !INPUT PARAMETERS:
       character(len=*),      intent(in)          :: name, longname, units
-      integer, optional,     intent(in)          :: time_treatment
-      logical, optional,     intent(in)          :: benthic
+      integer, optional,     intent(in)          :: time_treatment,shape
 !
 ! !OUTPUT PARAMETER:
       integer                                    :: id
@@ -428,19 +427,21 @@
 !
 ! !LOCAL VARIABLES:
       type (type_diagnostic_variable_info),pointer :: variables_old(:),variables_new(:),curinfo
-      logical                                      :: benthic_eff
-      integer                                      :: shape
+      integer                                      :: shape_eff
 !
 !-----------------------------------------------------------------------
 !BOC
       ! Determine whether this is a benthic state variable (.false. by default)
-      benthic_eff = .false.
-      if (present(benthic)) benthic_eff = benthic
-      if (benthic_eff) then
-         variables_old => modelinfo%diagnostic_variables_2d
-      else
-         variables_old => modelinfo%diagnostic_variables_3d
-      end if
+      shape_eff = shape3d
+      if (present(shape)) shape_eff = shape
+      select case (shape_eff)
+         case (shape2d)
+            variables_old => modelinfo%diagnostic_variables_2d
+         case (shape3d)
+            variables_old => modelinfo%diagnostic_variables_3d
+         case default
+            call fatal_error('rmbm_types::register_diagnostic_variable','invalid shape argument provided.')
+      end select
 
       ! Extend the state variable array and copy over old values.
       allocate(variables_new(ubound(variables_old,1)+1))
@@ -448,11 +449,12 @@
       deallocate(variables_old)
       
       ! Assign new state variable array.
-      if (benthic_eff) then
-         modelinfo%diagnostic_variables_2d => variables_new
-      else
-         modelinfo%diagnostic_variables_3d => variables_new
-      end if
+      select case (shape_eff)
+         case (shape2d)
+            modelinfo%diagnostic_variables_2d => variables_new
+         case (shape3d)
+            modelinfo%diagnostic_variables_3d => variables_new
+      end select
       
       curinfo => variables_new(ubound(variables_new,1))
 
@@ -472,15 +474,13 @@
                                            trim(curinfo%units),                                             &
                                            trim(modelinfo%longnameprefix)//' '//trim(curinfo%longname),     &
                                            time_treatment=curinfo%time_treatment,                           &
-                                           benthic = benthic_eff)
+                                           shape = shape_eff)
       else
-         shape = shape3d
-         if (benthic_eff) shape = shape2d
          id = register_dependency(modelinfo,curinfo%name,shape)
       end if
                 
       ! Save the diagnostic variable's global id.
-      ! (index into dependencies array of the root of the tree)
+      ! (index into dependencies?d array of the root of the tree, and into environment%var?d)
       curinfo%globalid = id
       
    end function register_diagnostic_variable

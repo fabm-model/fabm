@@ -207,8 +207,8 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve current (local) state variable values.
-   p = environment%state3d(self%id_p)%data INDEX_LOCATION
-   d = environment%state3d(self%id_d)%data INDEX_LOCATION
+   p = _GET_STATE_(self%id_p) ! phytoplankton
+   d = _GET_STATE_(self%id_d) ! detritus
    
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    extinction = self%kc*(self%p0+p+d)
@@ -238,10 +238,10 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve current (local) state variable values.
-   n = environment%state3d(self%id_n)%data INDEX_LOCATION
-   p = environment%state3d(self%id_p)%data INDEX_LOCATION
-   z = environment%state3d(self%id_z)%data INDEX_LOCATION
-   d = environment%state3d(self%id_d)%data INDEX_LOCATION
+   n = _GET_STATE_(self%id_n) ! nutrient
+   p = _GET_STATE_(self%id_p) ! phytoplankton
+   z = _GET_STATE_(self%id_z) ! zooplankton
+   d = _GET_STATE_(self%id_d) ! detritus
    
    ! Total nutrient is simply the sum of all variables.
    sums(self%id_totN) = n+p+z+d
@@ -389,14 +389,14 @@
 !BOC
 
    ! Retrieve current (local) state variable values.
-   n = environment%state3d(self%id_n)%data INDEX_LOCATION
-   p = environment%state3d(self%id_p)%data INDEX_LOCATION
-   z = environment%state3d(self%id_z)%data INDEX_LOCATION
-   d = environment%state3d(self%id_d)%data INDEX_LOCATION
+   n = _GET_STATE_(self%id_n) ! nutrient
+   p = _GET_STATE_(self%id_p) ! phytoplankton
+   z = _GET_STATE_(self%id_z) ! zooplankton
+   d = _GET_STATE_(self%id_d) ! detritus
    
-   ! Retrieve current (local) environmental conditions.
-   par = environment%var3d(self%id_par)%data INDEX_LOCATION
-   I_0 = environment%var2d(self%id_I_0)%data INDEX_LOCATION_HZ
+   ! Retrieve current environmental conditions.
+   par = _GET_VAR_(self%id_par)     ! local photosynthetically active radiation
+   I_0 = _GET_VAR_HZ_(self%id_I_0)  ! surface short wave radiation
    
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -421,11 +421,11 @@
    if (self%id_dic.ne.-1) rhs(self%id_dic) = rhs(self%id_dic) + self%dic_per_n*dn
 
    ! Export diagnostic variables
-   if (self%id_dPAR.ne.id_not_used) environment%var3d(self%id_dPAR)%data INDEX_LOCATION = par
-   if (self%id_GPP .ne.id_not_used) environment%var3d(self%id_GPP )%data INDEX_LOCATION = fnp(self,n,p,par,iopt)
-   if (self%id_NCP .ne.id_not_used) environment%var3d(self%id_NCP )%data INDEX_LOCATION = fnp(self,n,p,par,iopt) - self%rpn*p
-   if (self%id_PPR .ne.id_not_used) environment%var3d(self%id_PPR )%data INDEX_LOCATION = fnp(self,n,p,par,iopt)*secs_pr_day
-   if (self%id_NPR .ne.id_not_used) environment%var3d(self%id_NPR )%data INDEX_LOCATION = (fnp(self,n,p,par,iopt) - self%rpn*p)*secs_pr_day
+   if (self%id_dPAR.ne.id_not_used) _SET_VAR_(self%id_dPAR,par)
+   if (self%id_GPP .ne.id_not_used) _SET_VAR_(self%id_GPP ,fnp(self,n,p,par,iopt))
+   if (self%id_NCP .ne.id_not_used) _SET_VAR_(self%id_NCP ,fnp(self,n,p,par,iopt) - self%rpn*p)
+   if (self%id_PPR .ne.id_not_used) _SET_VAR_(self%id_PPR ,fnp(self,n,p,par,iopt)*secs_pr_day)
+   if (self%id_NPR .ne.id_not_used) _SET_VAR_(self%id_NPR ,(fnp(self,n,p,par,iopt) - self%rpn*p)*secs_pr_day)
 
    end subroutine npzd_do
 !EOC
@@ -509,14 +509,14 @@
 !BOC
 
    ! Retrieve current (local) state variable values.
-   n = environment%state3d(self%id_n)%data INDEX_LOCATION
-   p = environment%state3d(self%id_p)%data INDEX_LOCATION
-   z = environment%state3d(self%id_z)%data INDEX_LOCATION
-   d = environment%state3d(self%id_d)%data INDEX_LOCATION
+   n = _GET_STATE_(self%id_n) ! nutrient
+   p = _GET_STATE_(self%id_p) ! phytoplankton
+   z = _GET_STATE_(self%id_z) ! zooplankton
+   d = _GET_STATE_(self%id_d) ! detritus
    
-   ! Retrieve current (local) environmental conditions.
-   par = environment%var3d(self%id_par)%data INDEX_LOCATION
-   I_0 = environment%var2d(self%id_I_0)%data INDEX_LOCATION_HZ
+   ! Retrieve current environmental conditions.
+   par = _GET_VAR_(self%id_par)     ! local photosynthetically active radiation
+   I_0 = _GET_VAR_HZ_(self%id_I_0)  ! surface short wave radiation
    
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -550,11 +550,11 @@
    if (self%id_dic.ne.-1) pp(self%id_dic,self%id_dic) = pp(self%id_dic,self%id_dic) + self%dic_per_n*dn
 
    ! Export diagnostic variables
-   if (self%id_dPAR.ne.id_not_used) environment%var3d(self%id_dPAR)%data INDEX_LOCATION = par
-   if (self%id_GPP .ne.id_not_used) environment%var3d(self%id_GPP )%data INDEX_LOCATION = dd(self%id_n,self%id_p)
-   if (self%id_NCP .ne.id_not_used) environment%var3d(self%id_NCP )%data INDEX_LOCATION = dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p)
-   if (self%id_PPR .ne.id_not_used) environment%var3d(self%id_PPR )%data INDEX_LOCATION = dd(self%id_n,self%id_p)*secs_pr_day
-   if (self%id_NPR .ne.id_not_used) environment%var3d(self%id_NPR )%data INDEX_LOCATION = (dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p))*secs_pr_day
+   if (self%id_dPAR.ne.id_not_used) _SET_VAR_(self%id_dPAR,par)
+   if (self%id_GPP .ne.id_not_used) _SET_VAR_(self%id_GPP,dd(self%id_n,self%id_p))
+   if (self%id_NCP .ne.id_not_used) _SET_VAR_(self%id_NCP,dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p))
+   if (self%id_PPR .ne.id_not_used) _SET_VAR_(self%id_PPR,dd(self%id_n,self%id_p)*secs_pr_day)
+   if (self%id_NPR .ne.id_not_used) _SET_VAR_(self%id_NPR,(dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p))*secs_pr_day)
 
    end subroutine npzd_do_ppdd
 !EOC
