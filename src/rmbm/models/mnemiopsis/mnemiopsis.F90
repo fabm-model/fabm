@@ -189,20 +189,20 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Obtain current values for environmental variables
-   temp = environment%var3d(self%id_temp)%data(LOCATION)
+   temp = _GET_VAR_(self%id_temp)
 
    ! Obtain current values for state variables
-   egb_mn = environment%state3d(self%id_egb)%data(LOCATION)
-   jb_mn  = environment%state3d(self%id_jb )%data(LOCATION)
-   ja_mn  = environment%state3d(self%id_ja )%data(LOCATION)
-   tb_mn  = environment%state3d(self%id_tb )%data(LOCATION)
-   ta_mn  = environment%state3d(self%id_ta )%data(LOCATION)
-   adb_mn = environment%state3d(self%id_adb)%data(LOCATION)
-   ada_mn = environment%state3d(self%id_ada)%data(LOCATION)
+   egb_mn = _GET_STATE_(self%id_egb)
+   jb_mn  = _GET_STATE_(self%id_jb )
+   ja_mn  = _GET_STATE_(self%id_ja )
+   tb_mn  = _GET_STATE_(self%id_tb )
+   ta_mn  = _GET_STATE_(self%id_ta )
+   adb_mn = _GET_STATE_(self%id_adb)
+   ada_mn = _GET_STATE_(self%id_ada)
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
 
-   food    = environment%state3d(self%id_food   )%data(LOCATION)*self%food_scale
-   foodmic = environment%state3d(self%id_foodmic)%data(LOCATION)*self%food_scale
+   food    = _GET_STATE_(self%id_food   )*self%food_scale
+   foodmic = _GET_STATE_(self%id_foodmic)*self%food_scale
    foodno  = max(_ONE_,food/0.0024) !0.0024 is mg C per copepod
    
    !write (*,*) LOCATION,numc,food,foodmic

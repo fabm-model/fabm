@@ -148,13 +148,13 @@ contains
 !-----------------------------------------------------------------------
 !BOC
    ! Get environmental variables.
-   temp = environment%var3d(self%id_temp)%data INDEX_LOCATION
-   salt = environment%var3d(self%id_salt)%data INDEX_LOCATION
-   pres = environment%var3d(self%id_pres)%data INDEX_LOCATION
-   dens = environment%var3d(self%id_dens)%data INDEX_LOCATION
+   temp = _GET_VAR_(self%id_temp)
+   salt = _GET_VAR_(self%id_salt)
+   pres = _GET_VAR_(self%id_pres)
+   dens = _GET_VAR_(self%id_dens)
 
    ! Get current value for total dissolved inorganic carbon (our own state variable).
-   dic = environment%state3d(self%id_dic)%data INDEX_LOCATION
+   dic = _GET_STATE_(self%id_dic)
 
    if (self%alk_param) then
       ! Linearly approximate alkalinity (uEq/kg) from salinity.
@@ -162,7 +162,7 @@ contains
    else
       ! Alkalinity (mEq/m**3) is a separate state variable.
       ! Divide by density/1000 to get alkalinity in uEq/kg.
-      TA = environment%state3d(self%id_alk)%data INDEX_LOCATION/dens*1.0D3
+      TA = _GET_STATE_(self%id_alk)/dens*1.0D3
    end if
 
    ! Calculate carbonate system equilibrium.
@@ -172,14 +172,14 @@ contains
    call CaCO3_Saturation (temp, salt, pres, cb, Om_cal, Om_arg)
    
    ! Store diagnostic variables.
-   if (self%id_ph     .ne.id_not_used) environment%var3d(self%id_ph    )%data INDEX_LOCATION = ph
-   if (self%id_pco2   .ne.id_not_used) environment%var3d(self%id_pco2  )%data INDEX_LOCATION = PCO2WATER*1.0D6        ! to ppm
-   if (self%id_CarbA  .ne.id_not_used) environment%var3d(self%id_CarbA )%data INDEX_LOCATION = ca       *1.0D3*dens   ! from mol/kg to mmol/m**3
-   if (self%id_Bicarb .ne.id_not_used) environment%var3d(self%id_Bicarb)%data INDEX_LOCATION = bc       *1.0D3*dens   ! from mol/kg to mmol/m**3
-   if (self%id_Carb   .ne.id_not_used) environment%var3d(self%id_Carb  )%data INDEX_LOCATION = cb       *1.0D3*dens   ! from mol/kg to mmol/m**3
-   if (self%id_Om_cal .ne.id_not_used) environment%var3d(self%id_Om_cal)%data INDEX_LOCATION = Om_cal
-   if (self%id_Om_arg .ne.id_not_used) environment%var3d(self%id_Om_arg)%data INDEX_LOCATION = Om_arg
-   if (self%id_alk    .ne.id_not_used .and. self%alk_param) environment%var3d(self%id_alk)%data INDEX_LOCATION = TA*dens*1.0D-3   ! from uEg/kg to mmol/m**3
+   if (self%id_ph     .ne.id_not_used) _SET_DIAG_(self%id_ph    ,ph)
+   if (self%id_pco2   .ne.id_not_used) _SET_DIAG_(self%id_pco2  ,PCO2WATER*1.0D6)        ! to ppm
+   if (self%id_CarbA  .ne.id_not_used) _SET_DIAG_(self%id_CarbA ,ca       *1.0D3*dens)   ! from mol/kg to mmol/m**3
+   if (self%id_Bicarb .ne.id_not_used) _SET_DIAG_(self%id_Bicarb,bc       *1.0D3*dens)   ! from mol/kg to mmol/m**3
+   if (self%id_Carb   .ne.id_not_used) _SET_DIAG_(self%id_Carb  ,cb       *1.0D3*dens)   ! from mol/kg to mmol/m**3
+   if (self%id_Om_cal .ne.id_not_used) _SET_DIAG_(self%id_Om_cal,Om_cal)
+   if (self%id_Om_arg .ne.id_not_used) _SET_DIAG_(self%id_Om_arg,Om_arg)
+   if (self%id_alk    .ne.id_not_used .and. self%alk_param) _SET_DIAG_(self%id_alk,TA*dens*1.0D-3)   ! from uEg/kg to mmol/m**3
 
    end subroutine co2sys_do
 !EOC
@@ -223,12 +223,12 @@ contains
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   temp = environment%var3d(self%id_temp)%data INDEX_LOCATION
-   salt = environment%var3d(self%id_salt)%data INDEX_LOCATION
-   dens = environment%var3d(self%id_dens)%data INDEX_LOCATION
-   wnd  = environment%var2d(self%id_wind)%data INDEX_LOCATION_HZ
+   temp = _GET_VAR_(self%id_temp)
+   salt = _GET_VAR_(self%id_salt)
+   dens = _GET_VAR_(self%id_dens)
+   wnd  = _GET_VAR_HZ_(self%id_wind)
 
-   dic = environment%state3d(self%id_dic)%data(LOCATION)
+   dic = _GET_STATE_(self%id_dic)
 
    if (self%alk_param) then
       ! Linearly approximate alkalinity (uEq/kg) from salinity.
@@ -236,7 +236,7 @@ contains
    else
       ! Alkalinity (mEq/m**3) is a separate state variable
       ! Divide by density/1000 to get alkalinity in uEq/kg.
-      TA = environment%state3d(self%id_alk)%data INDEX_LOCATION/dens*1.0d3
+      TA = _GET_STATE_(self%id_alk)/dens*1.0d3
    end if
 
    ! Calculate carbonate system equilibrium.

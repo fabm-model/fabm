@@ -421,11 +421,11 @@
    if (self%id_dic.ne.-1) rhs(self%id_dic) = rhs(self%id_dic) + self%dic_per_n*dn
 
    ! Export diagnostic variables
-   if (self%id_dPAR.ne.id_not_used) _SET_VAR_(self%id_dPAR,par)
-   if (self%id_GPP .ne.id_not_used) _SET_VAR_(self%id_GPP ,fnp(self,n,p,par,iopt))
-   if (self%id_NCP .ne.id_not_used) _SET_VAR_(self%id_NCP ,fnp(self,n,p,par,iopt) - self%rpn*p)
-   if (self%id_PPR .ne.id_not_used) _SET_VAR_(self%id_PPR ,fnp(self,n,p,par,iopt)*secs_pr_day)
-   if (self%id_NPR .ne.id_not_used) _SET_VAR_(self%id_NPR ,(fnp(self,n,p,par,iopt) - self%rpn*p)*secs_pr_day)
+   if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
+   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP ,fnp(self,n,p,par,iopt))
+   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP ,fnp(self,n,p,par,iopt) - self%rpn*p)
+   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR ,fnp(self,n,p,par,iopt)*secs_pr_day)
+   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR ,(fnp(self,n,p,par,iopt) - self%rpn*p)*secs_pr_day)
 
    end subroutine npzd_do
 !EOC
@@ -550,11 +550,11 @@
    if (self%id_dic.ne.-1) pp(self%id_dic,self%id_dic) = pp(self%id_dic,self%id_dic) + self%dic_per_n*dn
 
    ! Export diagnostic variables
-   if (self%id_dPAR.ne.id_not_used) _SET_VAR_(self%id_dPAR,par)
-   if (self%id_GPP .ne.id_not_used) _SET_VAR_(self%id_GPP,dd(self%id_n,self%id_p))
-   if (self%id_NCP .ne.id_not_used) _SET_VAR_(self%id_NCP,dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p))
-   if (self%id_PPR .ne.id_not_used) _SET_VAR_(self%id_PPR,dd(self%id_n,self%id_p)*secs_pr_day)
-   if (self%id_NPR .ne.id_not_used) _SET_VAR_(self%id_NPR,(dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p))*secs_pr_day)
+   if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
+   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP,dd(self%id_n,self%id_p))
+   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP,dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p))
+   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR,dd(self%id_n,self%id_p)*secs_pr_day)
+   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR,(dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p))*secs_pr_day)
 
    end subroutine npzd_do_ppdd
 !EOC
