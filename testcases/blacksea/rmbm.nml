@@ -60,7 +60,7 @@
 
 &bio_nml
    rmbm_calc = .true.,
-   models = 1,102
+   models = 'npzd','mnemiopsis'
    cnpar = 1.0,
    w_adv_discr = 6,
    ode_method = 3,
@@ -145,10 +145,10 @@
 /
 
 &bio_jellyfish_nml
-	food_source_variable = 'npzd01_zoo',
-	foodmic_source_variable = 'npzd01_zoo',
-	respiration_target_variable = 'npzd01_nut',
-	mortality_target_variable = 'npzd01_det',
+	food_source_variable = 'npzd_zoo',
+	foodmic_source_variable = 'npzd_zoo',
+	respiration_target_variable = 'npzd_nut',
+	mortality_target_variable = 'npzd_det',
 	egb_initial = 0.1
 	jb_initial =  1.,
 	ja_initial =  0.3333,
