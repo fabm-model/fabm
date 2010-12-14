@@ -517,10 +517,10 @@
       do j=1,ubound(model%info%diagnostic_variables_hz,1)
          if (model%info%diagnostic_variables_hz(j)%time_treatment.eq.time_treatment_last) then
             ! Simply use last value
-            cc_diag_hz(j) = model%environment%diag_hz(j)
+            cc_diag_hz(j) = rmbm_get_diagnostic_data_hz(model,j)
          else
             ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-            cc_diag_hz(j) = cc_diag_hz(j) + model%environment%diag_hz(j)*dt_eff
+            cc_diag_hz(j) = cc_diag_hz(j) + rmbm_get_diagnostic_data_hz(model,j)*dt_eff
          end if
       end do
       
@@ -528,10 +528,10 @@
       do j=1,ubound(model%info%diagnostic_variables,1)
          if (model%info%diagnostic_variables(j)%time_treatment.eq.time_treatment_last) then
             ! Simply use last value
-            cc_diag(j,1:nlev) = model%environment%diag(j,1:nlev)
+            cc_diag(j,1:nlev) = rmbm_get_diagnostic_data(model,j)
          else
             ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-            cc_diag(j,1:nlev) = cc_diag(j,1:nlev) + model%environment%diag(j,1:nlev)*dt_eff
+            cc_diag(j,1:nlev) = cc_diag(j,1:nlev) + rmbm_get_diagnostic_data(model,j)*dt_eff
          end if
       end do
    end do

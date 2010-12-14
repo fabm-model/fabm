@@ -257,6 +257,7 @@
    public type_model, rmbm_create_model, rmbm_init, rmbm_set_domain, rmbm_do, &
           rmbm_link_benthos_state_data,rmbm_link_state_data, &
           rmbm_link_data,rmbm_link_data_hz,rmbm_get_variable_id, &
+          rmbm_get_diagnostic_data, rmbm_get_diagnostic_data_hz, &
           rmbm_check_state, rmbm_get_vertical_movement, rmbm_get_light_extinction, &
           rmbm_get_conserved_quantities, rmbm_get_surface_exchange, rmbm_do_benthos
 
@@ -925,7 +926,8 @@ subroutine rmbm_link_state_data(model,dat)
    integer                                                         :: id
    
    if (ubound(dat,1).ne.ubound(model%info%state_variables,1)) &
-      call fatal_error('rmbm::rmbm_link_state_data','The length of the first dimension of the state variable array does not match the number of state variables.')
+      call fatal_error('rmbm::rmbm_link_state_data','The length of the first dimension of the state variable&
+      & array does not match the number of state variables.')
    
    model%environment%state => dat
    do id=1,ubound(model%info%state_variables,1)
@@ -941,7 +943,8 @@ subroutine rmbm_link_benthos_state_data(model,dat)
    integer                                                            :: id
    
    if (ubound(dat,1).ne.ubound(model%info%state_variables_ben,1)) &
-      call fatal_error('rmbm::rmbm_link_benthos_state_data','The length of the first dimension of the benthic state variable array does not match the number of state variables.')
+      call fatal_error('rmbm::rmbm_link_benthos_state_data','The length of the first dimension of the benthic&
+      & state variable array does not match the number of state variables.')
 
    model%environment%state_ben => dat
    do id=1,ubound(model%info%state_variables_ben,1)
@@ -974,15 +977,31 @@ end subroutine rmbm_link_benthos_state_data
 
 #endif
 
-#ifndef RMBM_MANAGE_DIAGNOSTICS
+function rmbm_get_diagnostic_data(model,id) result(dat)
+   type (type_model),                       intent(inout) :: model
+   integer,                                 intent(in)    :: id
+   REALTYPE ATTR_LOCATION_DIMENSIONS,pointer              :: dat
+   
+#ifdef RMBM_MANAGE_DIAGNOSTICS
+   dat => model%environment%diag(id ARG_LOCATION_DIMENSIONS)
+#else
+   dat => model%environment%var(model%info%diagnostic_variables(id)%dependencyid)%data
+#endif
+end function rmbm_get_diagnostic_data
 
-subroutine rmbm_link_diagnostic_data_hz(model,id,dat)
+function rmbm_get_diagnostic_data_hz(model,id) result(dat)
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
-   REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
+   REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,pointer              :: dat
    
-   call rmbm_link_data_hz(model,model%info%diagnostic_variables_hz(id)%dependencyid,dat)
-end subroutine rmbm_link_diagnostic_data_hz
+#ifdef RMBM_MANAGE_DIAGNOSTICS
+   dat => model%environment%diag_hz(id ARG_LOCATION_DIMENSIONS_HZ)
+#else
+   dat => model%environment%var_hz(model%info%diagnostic_variables_hz(id)%dependencyid)%data
+#endif
+end function rmbm_get_diagnostic_data_hz
+
+#ifndef RMBM_MANAGE_DIAGNOSTICS
 
 subroutine rmbm_link_diagnostic_data(model,id,dat)
    type (type_model),                       intent(inout) :: model
@@ -991,6 +1010,14 @@ subroutine rmbm_link_diagnostic_data(model,id,dat)
    
    call rmbm_link_data(model,model%info%diagnostic_variables(id)%dependencyid,dat)
 end subroutine rmbm_link_diagnostic_data
+
+subroutine rmbm_link_diagnostic_data_hz(model,id,dat)
+   type (type_model),                          intent(inout) :: model
+   integer,                                    intent(in)    :: id
+   REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
+   
+   call rmbm_link_data_hz(model,model%info%diagnostic_variables_hz(id)%dependencyid,dat)
+end subroutine rmbm_link_diagnostic_data_hz
 
 #endif
 
@@ -1091,7 +1118,8 @@ end subroutine rmbm_link_diagnostic_data
          call npzd_do_ppdd(root%npzd,pp,dd RMBM_ARGS_IN)
       ! ADD_NEW_MODEL_HERE - only needed if the model is not added to rmbm_do_rhs.
       case default
-         call fatal_error('rmbm::do_ppdd_to_rhs','model '//trim(root%info%name)//' does not provide a subroutine for calculating the temporal derivative vector.')
+         call fatal_error('rmbm::do_ppdd_to_rhs','model '//trim(root%info%name)//' does not provide a&
+         & subroutine for calculating the temporal derivative vector.')
    end select
    do i=1,ubound(dy,1)
       do j=1,ubound(dy,1)
