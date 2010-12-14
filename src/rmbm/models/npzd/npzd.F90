@@ -172,7 +172,7 @@
    
    ! Environmental dependencies
    self%id_par = register_dependency(modelinfo, varname_par)
-   self%id_I_0 = register_dependency(modelinfo, varname_par_sf, shape=shape2d)
+   self%id_I_0 = register_dependency(modelinfo, varname_par_sf, shape=shape_hz)
 
    return
 
@@ -188,13 +188,12 @@
 ! variables
 !
 ! !INTERFACE:
-   _PURE function npzd_get_light_extinction(self,environment,LOCATION) result(extinction)
+   function npzd_get_light_extinction(self RMBM_ARGS) result(extinction)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in) :: self
-   type (type_environment),intent(in) :: environment
-   LOCATION_TYPE,          intent(in) :: LOCATION
    REALTYPE                           :: extinction
+   DECLARE_RMBM_ARGS
    
    REALTYPE                     :: p,d
 !
@@ -219,13 +218,12 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   _PURE subroutine npzd_get_conserved_quantities(self,environment,LOCATION,sums)
+   _PURE subroutine npzd_get_conserved_quantities(self,sums RMBM_ARGS)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in)    :: self
-   type (type_environment),intent(in)    :: environment
-   LOCATION_TYPE,          intent(in)    :: LOCATION
    REALTYPE,               intent(inout) :: sums(:)
+   DECLARE_RMBM_ARGS
    
    REALTYPE              :: n,p,z,d
 !
@@ -313,7 +311,7 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine npzd_do(self,environment,LOCATION,rhs)
+   subroutine npzd_do(self,rhs RMBM_ARGS)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -367,8 +365,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in) :: self
-   type (type_environment),intent(in) :: environment
-   LOCATION_TYPE,          intent(in) :: LOCATION
+   DECLARE_RMBM_ARGS
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, dimension(:), intent(inout) :: rhs
@@ -379,7 +376,7 @@
 ! !LOCAL VARIABLES:
    REALTYPE                   :: n,p,z,d,par,I_0,dn
    REALTYPE                   :: iopt
-   REALTYPE                   :: rpd
+   REALTYPE                   :: rpd,primprod
    REALTYPE, parameter :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
@@ -392,7 +389,7 @@
    d = _GET_STATE_(self%id_d) ! detritus
    
    ! Retrieve current environmental conditions.
-   par = _GET_VAR_(self%id_par)     ! local photosynthetically active radiation
+   par = _GET_VAR_   (self%id_par)  ! local photosynthetically active radiation
    I_0 = _GET_VAR_HZ_(self%id_I_0)  ! surface short wave radiation
    
    ! Light acclimation formulation based on surface light intensity.
@@ -407,9 +404,10 @@
    ! Note: the temporal derivatives are incremented or decremented, rahter than set.
    ! This is IMPORTANT: other biogeochemical models might already have provided additional
    ! sink and source terms for these variables in the rhs arrays.
-   dn = - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
+   primprod = fnp(self,n,p,par,iopt)
+   dn = - primprod + self%rpn*p + self%rzn*z + self%rdn*d
    rhs(self%id_n) = rhs(self%id_n) + dn
-   rhs(self%id_p) = rhs(self%id_p) + fnp(self,n,p,par,iopt) - fpz(self,p,z) - self%rpn*p - rpd*p
+   rhs(self%id_p) = rhs(self%id_p) + primprod - fpz(self,p,z) - self%rpn*p - rpd*p
    rhs(self%id_z) = rhs(self%id_z) + fpz(self,p,z) - self%rzn*z - self%rzd*z
    rhs(self%id_d) = rhs(self%id_d) + rpd*p + self%rzd*z - self%rdn*d
 
@@ -419,10 +417,10 @@
 
    ! Export diagnostic variables
    if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
-   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP ,fnp(self,n,p,par,iopt))
-   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP ,fnp(self,n,p,par,iopt) - self%rpn*p)
-   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR ,fnp(self,n,p,par,iopt)*secs_pr_day)
-   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR ,(fnp(self,n,p,par,iopt) - self%rpn*p)*secs_pr_day)
+   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP ,primprod)
+   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
+   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
+   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
 
    end subroutine npzd_do
 !EOC
@@ -433,7 +431,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine npzd_do_ppdd(self,environment,LOCATION,pp,dd)
+   subroutine npzd_do_ppdd(self,pp,dd RMBM_ARGS)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -487,8 +485,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in) :: self
-   type (type_environment),intent(in) :: environment
-   LOCATION_TYPE,          intent(in) :: LOCATION
+   DECLARE_RMBM_ARGS
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, intent(inout),dimension(:,:) :: pp,dd

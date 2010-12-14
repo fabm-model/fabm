@@ -52,17 +52,41 @@
 #ifdef RMBM_HORIZONTAL_IS_SCALAR
 #define INDEX_LOCATION_HZ
 #define ATTR_LOCATION_DIMENSIONS_HZ
+#define ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE ,dimension(:)
+#define ARG_LOCATION_HZ
+#define ARG_LOCATION_DIMENSIONS_HZ
 #else
 #define INDEX_LOCATION_HZ (LOCATION_HZ)
 #define ATTR_LOCATION_DIMENSIONS_HZ ,dimension(LOCATION_DIMENSIONS_HZ)
+#define ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE ,dimension(:,LOCATION_DIMENSIONS_HZ)
+#define ARG_LOCATION_HZ ,LOCATION_HZ
+#define ARG_LOCATION_DIMENSIONS_HZ ,LOCATION_DIMENSIONS_HZ
 #endif
 
 ! Define dimension attribute and index specifyer for full 3D fields.
-#define ATTR_LOCATION_DIMENSIONS ,dimension(LOCATION_DIMENSIONS)
 #define INDEX_LOCATION (LOCATION)
+#define ATTR_LOCATION_DIMENSIONS ,dimension(LOCATION_DIMENSIONS)
+#define ATTR_LOCATION_DIMENSIONS_PLUS_ONE ,dimension(:,LOCATION_DIMENSIONS)
+#define ARG_LOCATION ,LOCATION
+#define ARG_LOCATION_DIMENSIONS ,:
 
+#define RMBM_ARGS ,environment,LOCATION
+#define DECLARE_RMBM_ARGS type (type_environment),intent(inout) :: environment;LOCATION_TYPE,intent(in) :: LOCATION
+#define RMBM_ARGS_IN ,root%environment,LOCATION
+
+#define _GET_VAR_(index) environment%var(index)%data INDEX_LOCATION
+#define _GET_VAR_HZ_(index) environment%var_hz(index)%data INDEX_LOCATION_HZ
+
+#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
+#define _GET_STATE_(index) environment%state(index,LOCATION)
+#else
 #define _GET_STATE_(index) environment%state(index)%data INDEX_LOCATION
-#define _GET_VAR_(index) environment%var3d(index)%data INDEX_LOCATION
-#define _GET_VAR_HZ_(index) environment%var2d(index)%data INDEX_LOCATION_HZ
-#define _SET_DIAG_(index,value) environment%var3d(index)%data INDEX_LOCATION = value
-#define _SET_DIAG_HZ_(index,value) environment%var2d(index)%data INDEX_LOCATION_HZ = value
+#endif
+
+#ifdef RMBM_MANAGE_DIAGNOSTICS
+#define _SET_DIAG_(index,value) environment%diag(index,LOCATION) = value
+#define _SET_DIAG_HZ_(index,value) environment%diag_hz(index) = value
+#else
+#define _SET_DIAG_(index,value) environment%var(index)%data INDEX_LOCATION = value
+#define _SET_DIAG_HZ_(index,value) environment%var_hz(index)%data INDEX_LOCATION_HZ = value
+#endif

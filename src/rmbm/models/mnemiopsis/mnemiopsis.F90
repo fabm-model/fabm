@@ -133,7 +133,7 @@
 ! !IROUTINE: Right hand sides of Mnemiopsis model
 !
 ! !INTERFACE:
-   _PURE subroutine mnemiopsis_do(self,environment,LOCATION,dy)
+   _PURE subroutine mnemiopsis_do(self,dy RMBM_ARGS)
 !
 ! !DESCRIPTION:
 !
@@ -142,8 +142,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_mnemiopsis), intent(in) :: self
-   type (type_environment),intent(in) :: environment
-   LOCATION_TYPE,          intent(in) :: LOCATION
+   DECLARE_RMBM_ARGS
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, dimension(:),intent(inout) :: dy

@@ -5,6 +5,9 @@
 #define LOCATION kk
 #define LOCATION_DIMENSIONS :
 
+#define RMBM_MANAGE_DIAGNOSTICS
+#define RMBM_SINGLE_STATE_VARIABLE_ARRAY
+
 ! Include RMBM preprocessor definitions.
 ! This *must* be done after the host-specific variables are defined (above),
 ! because these are used in rmbm.h.
@@ -12,3 +15,4 @@
 
 ! Not used by RMBM itself; only by GOTM-RMBM driver gotm_rmbm.F90
 #define LOCATION_RANGE 0:kk
+

@@ -106,7 +106,7 @@ contains
    self%id_salt = register_dependency(modelinfo, varname_salt)
    self%id_pres = register_dependency(modelinfo, varname_pres)
    self%id_dens = register_dependency(modelinfo, varname_dens)
-   self%id_wind = register_dependency(modelinfo, varname_wind_sf,shape=shape2d)
+   self%id_wind = register_dependency(modelinfo, varname_wind_sf,shape=shape_hz)
 
    return
 
@@ -121,7 +121,7 @@ contains
 ! !IROUTINE: Right hand sides of carbonate system model
 !
 ! !INTERFACE:
-   subroutine co2sys_do(self,environment,LOCATION,dy)
+   subroutine co2sys_do(self,dy RMBM_ARGS)
 !
 ! !DESCRIPTION:
 !
@@ -130,8 +130,7 @@ contains
 !
 ! !INPUT PARAMETERS:
    type (type_co2_sys),    intent(in) :: self
-   type (type_environment),intent(in) :: environment
-   LOCATION_TYPE                      :: LOCATION
+   DECLARE_RMBM_ARGS
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, intent(inout),dimension(:) :: dy
@@ -190,7 +189,7 @@ contains
 ! !IROUTINE: Air-sea exchange for the carbonate system model
 !
 ! !INTERFACE:
-   subroutine co2sys_get_surface_exchange(self,environment,LOCATION,flux)
+   subroutine co2sys_get_surface_exchange(self,flux RMBM_ARGS)
 !
 ! !DESCRIPTION:
 !
@@ -199,8 +198,7 @@ contains
 !
 ! !INPUT PARAMETERS:
    type (type_co2_sys), intent(in)    :: self
-   type (type_environment),intent(in) :: environment
-   LOCATION_TYPE                      :: LOCATION
+   DECLARE_RMBM_ARGS
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE, intent(inout)            :: flux(:)

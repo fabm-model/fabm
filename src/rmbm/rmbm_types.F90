@@ -33,7 +33,7 @@
    public init_model_info
    public register_state_variable, register_diagnostic_variable, register_conserved_quantity, &
           register_state_dependency, register_dependency
-   public type_environment,type_state_2d,type_state
+   public type_environment,type_state_hz,type_state
 !
 ! !PUBLIC DERIVED TYPES:
 !
@@ -51,14 +51,14 @@
 #endif
       logical :: no_precipitation_dilution,no_river_dilution
       
-      integer  :: globalid                   ! This is a globally unique identifier for the variable that can be used to retrieve values.
+      integer  :: globalid,dependencyid      ! This is a globally unique identifier for the variable that can be used to retrieve values.
       integer  :: id
    end type type_state_variable_info
 
    ! Properties of a diagnostic variable
    type type_diagnostic_variable_info
       character(len=64) :: name, longname, units
-      integer           :: id,globalid
+      integer           :: id,dependencyid
       
       ! Time treatment:
       ! 0: last value
@@ -80,7 +80,7 @@
    ! Global 0D model properties
    type type_model_info
       type (type_state_variable_info),     pointer,dimension(:) :: state_variables_ben,state_variables
-      type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables_2d,diagnostic_variables_3d
+      type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables_hz,diagnostic_variables
       type (type_conserved_quantity_info), pointer,dimension(:) :: conserved_quantities
       
       type (type_model_info),pointer :: parent
@@ -89,12 +89,12 @@
       
       character(len=64) :: name,nameprefix,longnameprefix
       
-      character(len=64),pointer :: dependencies3d(:)
-      character(len=64),pointer :: dependencies2d(:)
+      character(len=64),pointer :: dependencies(:)
+      character(len=64),pointer :: dependencies_hz(:)
    end type type_model_info
    
    ! Parameters
-   integer, parameter, public         :: shape2d=2,shape3d=3
+   integer, parameter, public         :: shape_hz=2,shape_full=3
    
    integer, parameter, public         :: id_not_used=-1
    
@@ -111,15 +111,35 @@
       REALTYPE,pointer ATTR_LOCATION_DIMENSIONS :: data
    end type type_state
 
-   type type_state_2d
+   type type_state_hz
       REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_HZ :: data
-   end type type_state_2d
+   end type type_state_hz
 
    type type_environment
-      type (type_state   ), dimension(:), _ALLOCATABLE :: state _NULL ! array of pointers to data of pelagic state variables
-      type (type_state   ), dimension(:), _ALLOCATABLE :: var3d   _NULL ! array of pointers to data of all pelagic variables (state and diagnostic)
-      type (type_state_2d), dimension(:), _ALLOCATABLE :: state_ben _NULL ! array of pointers to data of benthic state variables
-      type (type_state_2d), dimension(:), _ALLOCATABLE :: var2d   _NULL ! array of pointers to data of all horizontal variables (state and diagnostic, surface and bottom)
+
+      ! Pointer(s) to arrays that will hold state variable values.
+#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
+      ! Data for all state variables are stored in a single array.
+      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_PLUS_ONE    :: state    =>null() ! pointer to data of pelagic state variables
+      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE :: state_ben=>null() ! pointer to data of benthic state variables
+#else
+      ! Data for the state variables may be stored in different arrays.
+      type (type_state   ), dimension(:), _ALLOCATABLE :: state     _NULL ! array of pointers to data of pelagic state variables
+      type (type_state_hz), dimension(:), _ALLOCATABLE :: state_ben _NULL ! array of pointers to data of benthic state variables
+#endif
+
+      ! Pointer(s) to arrays that will hold values of "generic" variables, that is,
+      ! all internal and external dependencies and, if RMBM_MANAGE_DIAGNOSTICS is not set, diagnsotic variables as well.
+      type (type_state   ), dimension(:), _ALLOCATABLE :: var    _NULL ! array of pointers to data of all pelagic variables (state and diagnostic)
+      type (type_state_hz), dimension(:), _ALLOCATABLE :: var_hz _NULL ! array of pointers to data of all horizontal variables (state and diagnostic, surface and bottom)
+      
+#ifdef RMBM_MANAGE_DIAGNOSTICS
+      ! RMBM will manage the current value of diagnostic variables itself.
+      ! Declare the arrays for this purpose.
+      REALTYPE,_ALLOCATABLE ATTR_LOCATION_DIMENSIONS_PLUS_ONE    :: diag    _NULL
+      REALTYPE,_ALLOCATABLE ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE :: diag_hz _NULL
+#endif
+
    end type type_environment
 
 !-----------------------------------------------------------------------
@@ -153,16 +173,16 @@
 !BOC
       allocate(modelinfo%state_variables_ben(0))
       allocate(modelinfo%state_variables(0))
-      allocate(modelinfo%diagnostic_variables_2d(0))
-      allocate(modelinfo%diagnostic_variables_3d(0))
+      allocate(modelinfo%diagnostic_variables_hz(0))
+      allocate(modelinfo%diagnostic_variables(0))
       allocate(modelinfo%conserved_quantities(0))
       
       nullify(modelinfo%parent)
       nullify(modelinfo%firstchild)
       nullify(modelinfo%nextsibling)
 
-      allocate(modelinfo%dependencies2d(0))
-      allocate(modelinfo%dependencies3d(0))
+      allocate(modelinfo%dependencies_hz(0))
+      allocate(modelinfo%dependencies(0))
       
       modelinfo%nameprefix     = ''
       modelinfo%longnameprefix = ''
@@ -208,6 +228,8 @@
 #endif
       varinfo%no_precipitation_dilution = .false.
       varinfo%no_river_dilution         = .false.
+      varinfo%dependencyid = id_not_used
+      varinfo%globalid = id_not_used
    end subroutine init_state_variable_info
 !EOC
 
@@ -239,8 +261,9 @@
       varinfo%name = ''
       varinfo%units = ''
       varinfo%longname = ''
-      varinfo%id = id_not_used
       varinfo%time_treatment = time_treatment_last
+      varinfo%id = id_not_used
+      varinfo%dependencyid = id_not_used
    end subroutine init_diagnostic_variable_info
 !EOC
 
@@ -320,8 +343,8 @@
 !
 !-----------------------------------------------------------------------
 !BOC
-      ! Determine whether this is a benthic state variable (.false. by default)
-      ! If so, select the array of 2d state variables instead of the normal array with 3d variables.
+      ! Determine whether this is a benthic variable (.false. by default)
+      ! If so, select the corresponding array of state variables instead of the normal one.
       benthic_eff = .false.
       if (present(benthic)) benthic_eff = benthic
       if (benthic_eff) then
@@ -432,13 +455,13 @@
 !-----------------------------------------------------------------------
 !BOC
       ! Determine whether this is a benthic state variable (.false. by default)
-      shape_eff = shape3d
+      shape_eff = shape_full
       if (present(shape)) shape_eff = shape
       select case (shape_eff)
-         case (shape2d)
-            variables_old => modelinfo%diagnostic_variables_2d
-         case (shape3d)
-            variables_old => modelinfo%diagnostic_variables_3d
+         case (shape_hz)
+            variables_old => modelinfo%diagnostic_variables_hz
+         case (shape_full)
+            variables_old => modelinfo%diagnostic_variables
          case default
             call fatal_error('rmbm_types::register_diagnostic_variable','invalid shape argument provided.')
       end select
@@ -450,10 +473,10 @@
       
       ! Assign new state variable array.
       select case (shape_eff)
-         case (shape2d)
-            modelinfo%diagnostic_variables_2d => variables_new
-         case (shape3d)
-            modelinfo%diagnostic_variables_3d => variables_new
+         case (shape_hz)
+            modelinfo%diagnostic_variables_hz => variables_new
+         case (shape_full)
+            modelinfo%diagnostic_variables => variables_new
       end select
       
       curinfo => variables_new(ubound(variables_new,1))
@@ -476,13 +499,20 @@
                                            time_treatment=curinfo%time_treatment,                           &
                                            shape = shape_eff)
       else
+#ifdef RMBM_MANAGE_DIAGNOSTICS
+         ! RMBM manages diagnostic variables - the identifier will be the number of the
+         ! diagnostic variable in the global list maintained by the root of the model tree.
+         id = ubound(variables_new,1)
+#else
+         ! The host manages diagnostic variables - the identifier will be the number of the
+         ! diagnostic variable in the global list of dependencies, maintained by the root of the model tree.
          id = register_dependency(modelinfo,curinfo%name,shape)
+#endif
       end if
-                
-      ! Save the diagnostic variable's global id.
-      ! (index into dependencies?d array of the root of the tree, and into environment%var?d)
-      curinfo%globalid = id
-      
+
+#ifndef RMBM_MANAGE_DIAGNOSTICS
+      curinfo%dependencyid = id
+#endif
    end function register_diagnostic_variable
 !EOC
 
@@ -591,13 +621,16 @@
       ! If this model does not have a parent, there is no context to search variables in.
       if (.not. associated(modelinfo%parent)) return
       
+      ! Determine whether this must be a benthos state varible (default: no).
       benthic_eff = .false.
       if (present(benthic)) benthic_eff = benthic
 
+      ! Determine whether to throw an error if the variable is not found (default: yes).
       mustexist_eff = .true.
       if (present(mustexist)) mustexist_eff = mustexist
 
-      ! Search amongst ancestors.
+      ! Search every ancestor, starting at the parent,
+      ! and moving one level up every time until the variable is found (or we reach the root).
       curinfo => modelinfo%parent
       do while (associated(curinfo))
          if (benthic_eff) then
@@ -614,6 +647,8 @@
          curinfo => curinfo%parent
       end do
       
+      ! If we reaached this point, the variable was not found.
+      ! Throw an error if the variable must exist.
       if (mustexist_eff) call fatal_error('rmbm_types::register_state_dependency', &
          'state variable dependency '//trim(name)//' of model '//trim(modelinfo%name)//' was not found.')
       
@@ -650,15 +685,17 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-      integer                                 :: n,realshape
-      type (type_model_info),pointer          :: proot
-      character(len=64),pointer               :: dependencies_new(:)
-      character(len=64),pointer               :: source(:)
+      integer                                      :: n,i,realshape
+      type (type_model_info),pointer               :: proot
+      character(len=64),pointer                    :: dependencies_new(:)
+      character(len=64),pointer                    :: source(:)
+      type (type_state_variable_info),     pointer :: statevarinfo(:)
+      type (type_diagnostic_variable_info),pointer :: diagvarinfo(:)
 !
 !-----------------------------------------------------------------------
 !BOC
-      ! Get effective shape argument - defaults to 3D.
-      realshape = shape3d
+      ! Get effective shape argument - defaults to the full domain (instead of a horizontal slice).
+      realshape = shape_full
       if (present(shape)) realshape = shape
 
       ! Find the root of the model tree
@@ -669,10 +706,14 @@
       
       ! Get pointer to array with dependencies (use shape argument to determine which)
       select case (realshape)
-         case (shape2d)
-            source => proot%dependencies2d
-         case (shape3d)
-            source => proot%dependencies3d
+         case (shape_hz)
+            source => proot%dependencies_hz
+            statevarinfo => proot%state_variables_ben
+            diagvarinfo => proot%diagnostic_variables_hz
+         case (shape_full)
+            source => proot%dependencies
+            statevarinfo => proot%state_variables
+            diagvarinfo => proot%diagnostic_variables
          case default
             call fatal_error('rmbm_types::register_dependency','Invalid shape argument given')
       end select
@@ -692,14 +733,32 @@
       
       ! Assign new array with dependencies (variable to assign to depends on shape argument)
       select case (realshape)
-         case (shape2d)
-            proot%dependencies2d => dependencies_new
-         case (shape3d)
-            proot%dependencies3d => dependencies_new
+         case (shape_hz)
+            proot%dependencies_hz => dependencies_new
+         case (shape_full)
+            proot%dependencies => dependencies_new
       end select
-      
+
       ! Variable identifier equal the previous number of dependencies plus 1.
       id = n+1
+
+      ! Determine whether this new dependency matches a registered state variable.
+      ! (in that case RMBM can provide the value internally)
+      do i=1,ubound(statevarinfo,1)
+         if (statevarinfo(i)%name==name) then
+            statevarinfo(i)%dependencyid = id
+         end if
+      end do
+
+#ifdef RMBM_MANAGE_DIAGNOSTICS
+      ! Determine whether this new dependency matches a registered diagnostic variable.
+      ! (in that case RMBM can provide the value internally)
+      do i=1,ubound(diagvarinfo,1)
+         if (diagvarinfo(i)%name==name) then
+            diagvarinfo(i)%dependencyid = id
+         end if
+      end do
+#endif
       
    end function register_dependency
 !EOC

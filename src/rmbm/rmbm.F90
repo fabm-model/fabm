@@ -254,12 +254,15 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_model, rmbm_init, rmbm_create_model, rmbm_do, &
-          rmbm_link_2d_data,rmbm_link_3d_data,rmbm_get_variable_id, &
+   public type_model, rmbm_create_model, rmbm_init, rmbm_set_domain, rmbm_do, &
           rmbm_link_benthos_state_data,rmbm_link_state_data, &
-          rmbm_link_2d_diagnostic_data,rmbm_link_3d_diagnostic_data, &
+          rmbm_link_data,rmbm_link_data_hz,rmbm_get_variable_id, &
           rmbm_check_state, rmbm_get_vertical_movement, rmbm_get_light_extinction, &
           rmbm_get_conserved_quantities, rmbm_get_surface_exchange, rmbm_do_benthos
+
+#ifndef RMBM_MANAGE_DIAGNOSTICS
+   public rmbm_link_diagnostic_data_hz,rmbm_link_diagnostic_data
+#endif
 !
 ! !PRIVATE DATA MEMBERS:
 
@@ -318,14 +321,14 @@
       module procedure rmbm_do_rhs_1d
    end interface
    
-   interface rmbm_link_3d_data
-      module procedure rmbm_link_data_3d
-      module procedure rmbm_link_data_3d_char
+   interface rmbm_link_data
+      module procedure rmbm_link_data
+      module procedure rmbm_link_data_char
    end interface
 
-   interface rmbm_link_2d_data
-      module procedure rmbm_link_data_2d
-      module procedure rmbm_link_data_2d_char
+   interface rmbm_link_data_hz
+      module procedure rmbm_link_data_hz
+      module procedure rmbm_link_data_hz_char
    end interface
    
    interface rmbm_create_model
@@ -673,22 +676,31 @@
 
    ! Allocate arrays for storage of (references to) data.
    allocate(root%environment)
-   allocate(root%environment%var2d  (ubound(root%info%dependencies2d,    1)))
-   allocate(root%environment%var3d  (ubound(root%info%dependencies3d,    1)))
-   allocate(root%environment%state_ben(ubound(root%info%state_variables_ben,1)))
-   allocate(root%environment%state(ubound(root%info%state_variables,1)))
-   
+
    ! Set all pointers to external data to dissociated.
+   allocate(root%environment%var_hz(ubound(root%info%dependencies_hz,1)))
+   allocate(root%environment%var   (ubound(root%info%dependencies,   1)))
+   do ivar=1,ubound(root%environment%var_hz,1)
+      nullify(root%environment%var_hz(ivar)%data)
+   end do
+   do ivar=1,ubound(root%environment%var,1)
+      nullify(root%environment%var(ivar)%data)
+   end do
+
+#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
+   nullify(root%environment%state)
+   nullify(root%environment%state_ben)
+#else
+   allocate(root%environment%state    (ubound(root%info%state_variables,    1)))
+   allocate(root%environment%state_ben(ubound(root%info%state_variables_ben,1)))
    do ivar=1,ubound(root%environment%state,1)
       nullify(root%environment%state(ivar)%data)
    end do
-   do ivar=1,ubound(root%environment%var2d,1)
-      nullify(root%environment%var2d(ivar)%data)
+   do ivar=1,ubound(root%environment%state_ben,1)
+      nullify(root%environment%state_ben(ivar)%data)
    end do
-   do ivar=1,ubound(root%environment%var3d,1)
-      nullify(root%environment%var3d(ivar)%data)
-   end do
-   
+#endif
+
    ! Transfer pointer to environment to all child models.
    call set_model_data_members(root,root%environment)
 
@@ -782,6 +794,53 @@
    end subroutine init_model
 !EOC
 
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Tell RMBM about the extents of the spatial domain.
+! This allows it to create spatially-explicit arrays for internal use.
+!
+! !INTERFACE:
+   subroutine rmbm_set_domain(root,LOCATION)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_model),target,               intent(inout) :: root
+   LOCATION_TYPE,                          intent(in)    :: LOCATION
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+  integer                    :: i
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#ifdef RMBM_MANAGE_DIAGNOSTICS
+   ! RMBM will manage and store current values of diagnostic variables.
+
+   ! Allocate arrays for diagnostic variables defined on the full domain and on horizontonal slices.
+   allocate(root%environment%diag   (ubound(root%info%diagnostic_variables,1) ARG_LOCATION))
+   allocate(root%environment%diag_hz(ubound(root%info%diagnostic_variables_hz,1) ARG_LOCATION_HZ))
+
+   ! Initialize diagnostic variables to zero.
+   root%environment%diag    = _ZERO_
+   root%environment%diag_hz = _ZERO_
+   
+   ! If diagnostic variables also appear as dependency, send the corresponding array slice for generic read-only access.
+   do i=1,ubound(root%info%diagnostic_variables,1)
+      if (root%info%diagnostic_variables(i)%dependencyid.ne.id_not_used) &
+         call rmbm_link_data(root,root%info%diagnostic_variables(i)%dependencyid,root%environment%diag(i ARG_LOCATION_DIMENSIONS))
+   end do
+   do i=1,ubound(root%info%diagnostic_variables_hz,1)
+      if (root%info%diagnostic_variables_hz(i)%dependencyid.ne.id_not_used) &
+         call rmbm_link_data_hz(root,root%info%diagnostic_variables_hz(i)%dependencyid,root%environment%diag_hz(i ARG_LOCATION_DIMENSIONS_HZ))
+   end do
+#endif
+end subroutine rmbm_set_domain
+
 recursive subroutine set_model_data_members(model,environment)
    type (type_model),             intent(inout) :: model
    type (type_environment),target,intent(in)    :: environment
@@ -804,10 +863,10 @@ function rmbm_get_variable_id(model,name,shape) result(id)
    character(len=64),pointer                  :: source(:)
    
    select case (shape)
-      case (shape2d)
-         source => model%info%dependencies2d
-      case (shape3d)
-         source => model%info%dependencies3d
+      case (shape_hz)
+         source => model%info%dependencies_hz
+      case (shape_full)
+         source => model%info%dependencies
    end select
 
    if (associated(source)) then
@@ -819,51 +878,79 @@ function rmbm_get_variable_id(model,name,shape) result(id)
    id = id_not_used
 end function rmbm_get_variable_id
 
-subroutine rmbm_link_data_3d(model,id,dat)
+subroutine rmbm_link_data(model,id,dat)
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
    
-   model%environment%var3d(id)%data => dat
-end subroutine rmbm_link_data_3d
+   model%environment%var(id)%data => dat
+end subroutine rmbm_link_data
 
-subroutine rmbm_link_data_3d_char(model,name,dat)
+subroutine rmbm_link_data_char(model,name,dat)
    type (type_model),                       intent(inout) :: model
    character(len=*),                        intent(in)    :: name
    REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
    
    integer                                                :: id
    
-   id = rmbm_get_variable_id(model,name,shape3d)
-   if (id.ne.id_not_used) call rmbm_link_data_3d(model,id,dat)
-end subroutine rmbm_link_data_3d_char
+   id = rmbm_get_variable_id(model,name,shape_full)
+   if (id.ne.id_not_used) call rmbm_link_data(model,id,dat)
+end subroutine rmbm_link_data_char
 
-subroutine rmbm_link_data_2d(model,id,dat)
+subroutine rmbm_link_data_hz(model,id,dat)
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
    
-   model%environment%var2d(id)%data => dat
-end subroutine rmbm_link_data_2d
+   model%environment%var_hz(id)%data => dat
+end subroutine rmbm_link_data_hz
 
-subroutine rmbm_link_data_2d_char(model,name,dat)
+subroutine rmbm_link_data_hz_char(model,name,dat)
    type (type_model),                          intent(inout) :: model
    character(len=*),                           intent(in)    :: name
    REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
    
-   integer                                                :: id
+   integer                                                   :: id
    
-   id = rmbm_get_variable_id(model,name,shape2d)
-   if (id.ne.id_not_used) call rmbm_link_data_2d(model,id,dat)
-end subroutine rmbm_link_data_2d_char
+   id = rmbm_get_variable_id(model,name,shape_hz)
+   if (id.ne.id_not_used) call rmbm_link_data_hz(model,id,dat)
+end subroutine rmbm_link_data_hz_char
 
-subroutine rmbm_link_benthos_state_data(model,id,dat)
-   type (type_model),                          intent(inout) :: model
-   integer,                                    intent(in)    :: id
-   REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
+#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
+
+subroutine rmbm_link_state_data(model,dat)
+   type (type_model),                                intent(inout) :: model
+   REALTYPE ATTR_LOCATION_DIMENSIONS_PLUS_ONE,target,intent(in)    :: dat
    
-   model%environment%state_ben(id)%data => dat
+   integer                                                         :: id
+   
+   if (ubound(dat,1).ne.ubound(model%info%state_variables,1)) &
+      call fatal_error('rmbm::rmbm_link_state_data','The length of the first dimension of the state variable array does not match the number of state variables.')
+   
+   model%environment%state => dat
+   do id=1,ubound(model%info%state_variables,1)
+      if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
+         call rmbm_link_data(model,model%info%state_variables(id)%dependencyid,dat(id ARG_LOCATION_DIMENSIONS))
+   end do
+end subroutine rmbm_link_state_data
+
+subroutine rmbm_link_benthos_state_data(model,dat)
+   type (type_model),                                   intent(inout) :: model
+   REALTYPE ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE,target,intent(in)    :: dat
+
+   integer                                                            :: id
+   
+   if (ubound(dat,1).ne.ubound(model%info%state_variables_ben,1)) &
+      call fatal_error('rmbm::rmbm_link_benthos_state_data','The length of the first dimension of the benthic state variable array does not match the number of state variables.')
+
+   model%environment%state_ben => dat
+   do id=1,ubound(model%info%state_variables_ben,1)
+      if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
+         call rmbm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat(id ARG_LOCATION_DIMENSIONS_HZ))
+   end do
 end subroutine rmbm_link_benthos_state_data
+
+#else
 
 subroutine rmbm_link_state_data(model,id,dat)
    type (type_model),                       intent(inout) :: model
@@ -871,23 +958,41 @@ subroutine rmbm_link_state_data(model,id,dat)
    REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
    
    model%environment%state(id)%data => dat
+   if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
+      call rmbm_link_data(model,model%info%state_variables(id)%dependencyid,dat)
 end subroutine rmbm_link_state_data
 
-subroutine rmbm_link_2d_diagnostic_data(model,id,dat)
+subroutine rmbm_link_benthos_state_data(model,id,dat)
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
    
-   call rmbm_link_data_2d(model,model%info%diagnostic_variables_2d(id)%globalid,dat)
-end subroutine rmbm_link_2d_diagnostic_data
+   model%environment%state_ben(id)%data => dat
+   if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
+      call rmbm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat)
+end subroutine rmbm_link_benthos_state_data
 
-subroutine rmbm_link_3d_diagnostic_data(model,id,dat)
+#endif
+
+#ifndef RMBM_MANAGE_DIAGNOSTICS
+
+subroutine rmbm_link_diagnostic_data_hz(model,id,dat)
+   type (type_model),                          intent(inout) :: model
+   integer,                                    intent(in)    :: id
+   REALTYPE ATTR_LOCATION_DIMENSIONS_HZ,target,intent(in)    :: dat
+   
+   call rmbm_link_data_hz(model,model%info%diagnostic_variables_hz(id)%dependencyid,dat)
+end subroutine rmbm_link_diagnostic_data_hz
+
+subroutine rmbm_link_diagnostic_data(model,id,dat)
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
    REALTYPE ATTR_LOCATION_DIMENSIONS,target,intent(in)    :: dat
    
-   call rmbm_link_data_3d(model,model%info%diagnostic_variables_3d(id)%globalid,dat)
-end subroutine rmbm_link_3d_diagnostic_data
+   call rmbm_link_data(model,model%info%diagnostic_variables(id)%dependencyid,dat)
+end subroutine rmbm_link_diagnostic_data
+
+#endif
 
 !-----------------------------------------------------------------------
 !BOP
@@ -896,13 +1001,64 @@ end subroutine rmbm_link_3d_diagnostic_data
 ! model tree.
 !
 ! !INTERFACE:
-   subroutine rmbm_do_rhs(model,LOCATION,dy)
+   subroutine rmbm_do_rhs(root,LOCATION,dy)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(in)    :: model
+   type (type_model),      intent(inout) :: root
+   LOCATION_TYPE,          intent(in)    :: LOCATION
+!
+! !INPUT/OUTPUT PARAMETERS:
+   REALTYPE, dimension(:), intent(inout) :: dy
+!
+! !LOCAL PARAMETERS:
+   type (type_model), pointer            :: curmodel
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   if (associated(root%parent)) &
+      call fatal_error('rmbm_do_rhs','rmbm_do_rhs may only be called on the root of the model tree, or on non-container models.')
+
+   curmodel => root%nextmodel
+   do while (associated(curmodel))
+      select case (curmodel%id)
+         case (npzd_id)
+            call npzd_do(curmodel%npzd,dy RMBM_ARGS_IN)
+         case (mnemiopsis_id)
+            call mnemiopsis_do(curmodel%mnemiopsis,dy RMBM_ARGS_IN)
+         case (carbonate_id)
+            call co2sys_do(curmodel%carbonate,dy RMBM_ARGS_IN)
+         ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
+         ! matrices instead of a temporal derivative vector. In that case, add the model to
+         ! do_ppdd_to_rhs.
+         case default
+           call do_ppdd_to_rhs(curmodel,LOCATION,dy)
+      end select
+      curmodel => curmodel%nextmodel
+   end do
+
+   end subroutine rmbm_do_rhs
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the local temporal derivatives for the biogeochemical
+! model tree, by caluclating and summing production/destruction matrices.
+!
+! !INTERFACE:
+   subroutine do_ppdd_to_rhs(root,LOCATION,dy)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_model),      intent(inout) :: root
    LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -911,53 +1067,41 @@ end subroutine rmbm_link_3d_diagnostic_data
 ! !LOCAL PARAMETERS:
    REALTYPE,allocatable                  :: pp(:,:),dd(:,:)
    integer                               :: i,j
-   type (type_model), pointer            :: curmodel
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   if (model%id.eq.model_container_id .and. associated(model%parent)) &
-      call fatal_error('rmbm_do_rhs','rmbm_do_rhs may only be called on the root of the model tree, or on non-container models.')
-
-   curmodel => model%nextmodel
-   do while (associated(curmodel))
-      select case (curmodel%id)
-         case (npzd_id)
-            call npzd_do(curmodel%npzd,curmodel%environment,LOCATION,dy)
-         case (mnemiopsis_id)
-            call mnemiopsis_do(curmodel%mnemiopsis,curmodel%environment,LOCATION,dy)
-         case (carbonate_id)
-            call co2sys_do(curmodel%carbonate,curmodel%environment,LOCATION,dy)
-         ! ADD_NEW_MODEL_HERE - required unless added to rmbm_do_ppdd instead.
-         case default
-            ! The model does not provide the temporal derivatives itself.
-            ! In that case, it provides production/destruction matrices instead.
-            ! Retrieve those, and calculate the temporal derivatives based on their contents.
-            !
-            ! NB pp/dd are allocated on the spot here, which is really expensive.
-            ! However, this could only be improved by making RMBM aware of the full model domain,
-            ! and making biogeochemical models tell RMB whther they provide pp/dd. Only then can RMBM
-            ! allocate pp/dd for the full domain. (allocating the arrays once for a local
-            ! point in space seems attractive, but that would rule out parallelization)
-            allocate(pp(1:ubound(dy,1),1:ubound(dy,1)))
-            allocate(dd(1:ubound(dy,1),1:ubound(dy,1)))
-            pp = _ZERO_
-            dd = _ZERO_
-            call rmbm_do_ppdd(curmodel,LOCATION,pp,dd)
-            do i=1,ubound(dy,1)
-               do j=1,ubound(dy,1)
-                  dy(i) = dy(i) + pp(i,j)-dd(i,j)
-               end do
-            end do
-            deallocate(pp)
-            deallocate(dd)
-      end select
-      curmodel => curmodel%nextmodel
+   ! The model does not provide the temporal derivatives itself.
+   ! In that case, it provides production/destruction matrices instead.
+   ! Retrieve those, and calculate the temporal derivatives based on their contents.
+   !
+   ! NB pp/dd are allocated on the spot here, which is really expensive.
+   ! However, this could only be improved by making RMBM aware of the full model domain,
+   ! and making biogeochemical models tell RMB whther they provide pp/dd. Only then can RMBM
+   ! allocate pp/dd for the full domain. (allocating the arrays once for a local
+   ! point in space seems attractive, but that would rule out parallelization)
+   allocate(pp(1:ubound(dy,1),1:ubound(dy,1)))
+   allocate(dd(1:ubound(dy,1),1:ubound(dy,1)))
+   pp = _ZERO_
+   dd = _ZERO_
+   select case (root%id)
+      case (npzd_id)
+         call npzd_do_ppdd(root%npzd,pp,dd RMBM_ARGS_IN)
+      ! ADD_NEW_MODEL_HERE - only needed if the model is not added to rmbm_do_rhs.
+      case default
+         call fatal_error('rmbm::do_ppdd_to_rhs','model '//trim(root%info%name)//' does not provide a subroutine for calculating the temporal derivative vector.')
+   end select
+   do i=1,ubound(dy,1)
+      do j=1,ubound(dy,1)
+         dy(i) = dy(i) + pp(i,j)-dd(i,j)
+      end do
    end do
-
-   end subroutine rmbm_do_rhs
+   deallocate(pp)
+   deallocate(dd)
+   
+   end subroutine do_ppdd_to_rhs
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1010,13 +1154,13 @@ end subroutine rmbm_link_3d_diagnostic_data
 ! model tree in the form of production and destruction matrices.
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_do_ppdd(model,LOCATION,pp,dd)
+   recursive subroutine rmbm_do_ppdd(root,LOCATION,pp,dd)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(in)    :: model
+   type (type_model),      intent(inout) :: root
    LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -1025,35 +1169,33 @@ end subroutine rmbm_link_3d_diagnostic_data
 ! !LOCAL PARAMETERS:
    REALTYPE,allocatable                  :: dy(:)
    integer                               :: i
-   type (type_model), pointer            :: curchild
+   type (type_model), pointer            :: curmodel
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   select case (model%id)
-      case (npzd_id)
-         call npzd_do_ppdd(model%npzd,model%environment,LOCATION,pp,dd)
-      ! ADD_NEW_MODEL_HERE - optional
-      case (model_container_id)
-         curchild => model%firstchild
-         do while (associated(curchild))
-            call rmbm_do_ppdd(curchild,LOCATION,pp,dd)
-            curchild => curchild%nextsibling
-         end do
-      case default
-         ! The model does not provide production/destruction matrices itself.
-         ! In that case, it provides temporal derivatives instead.
-         ! Retrieve those, and create degenerate production/destruction from their contents.
-         allocate(dy(ubound(pp,1)))
-         dy = _ZERO_
-         call rmbm_do_rhs(model,LOCATION,dy)
-         do i=1,ubound(pp,1)
-            pp(i,i) = pp(i,i) + dy(i)
-         end do
-         deallocate(dy)
-   end select
+   curmodel => root%nextmodel
+   do while (associated(curmodel))
+      select case (curmodel%id)
+         case (npzd_id)
+            call npzd_do_ppdd(curmodel%npzd,pp,dd RMBM_ARGS_IN)
+         ! ADD_NEW_MODEL_HERE - optional
+         case default
+            ! The model does not provide production/destruction matrices itself.
+            ! In that case, it provides temporal derivatives instead.
+            ! Retrieve those, and create degenerate production/destruction from their contents.
+            allocate(dy(ubound(pp,1)))
+            dy = _ZERO_
+            call rmbm_do_rhs(curmodel,LOCATION,dy)
+            do i=1,ubound(pp,1)
+               pp(i,i) = pp(i,i) + dy(i)
+            end do
+            deallocate(dy)
+      end select
+      curmodel => curmodel%nextmodel
+   end do
 
    end subroutine rmbm_do_ppdd
 !EOC
@@ -1106,14 +1248,14 @@ end subroutine rmbm_link_3d_diagnostic_data
    ! Check absolute variable boundaries specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
    do i=1,ubound(root%info%state_variables,1)
-      if (root%environment%state(root%info%state_variables(i)%globalid)%data INDEX_LOCATION<root%info%state_variables(i)%minimum) then
+      if (root%_GET_STATE_(root%info%state_variables(i)%globalid)<root%info%state_variables(i)%minimum) then
          valid = .false.
-         if (repair) root%environment%state(root%info%state_variables(i)%globalid)%data INDEX_LOCATION =&
+         if (repair) root%_GET_STATE_(root%info%state_variables(i)%globalid) =&
              root%info%state_variables(i)%minimum
-      elseif (root%environment%state(root%info%state_variables(i)%globalid)%data INDEX_LOCATION> &
+      elseif (root%_GET_STATE_(root%info%state_variables(i)%globalid)> &
                root%info%state_variables(i)%maximum) then
          valid = .false.
-         if (repair) root%environment%state(root%info%state_variables(i)%globalid)%data INDEX_LOCATION =&
+         if (repair) root%_GET_STATE_(root%info%state_variables(i)%globalid) =&
              root%info%state_variables(i)%maximum
       end if
    end do
@@ -1126,7 +1268,7 @@ end subroutine rmbm_link_3d_diagnostic_data
 !
 ! !IROUTINE: Get the air-water exchange fluxes for all biogeochemical state variables.
 ! Positive values indicate fluxes into the ocean, negative values indicate fluxes
-! out of the ocean. Units are m/s * tracer unit.
+! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
    subroutine rmbm_get_surface_exchange(root,LOCATION,flux)
@@ -1135,7 +1277,7 @@ end subroutine rmbm_link_3d_diagnostic_data
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(in)    :: root
+   type (type_model),      intent(inout) :: root
    LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -1152,7 +1294,7 @@ end subroutine rmbm_link_3d_diagnostic_data
    do while (associated(curmodel))
       select case (curmodel%id)
          case (carbonate_id)
-            call co2sys_get_surface_exchange(curmodel%carbonate,curmodel%environment,LOCATION,flux)
+            call co2sys_get_surface_exchange(curmodel%carbonate,flux RMBM_ARGS_IN)
          ! ADD_NEW_MODEL_HERE - optional
       end select
       curmodel => curmodel%nextmodel
@@ -1279,7 +1421,7 @@ end subroutine rmbm_link_3d_diagnostic_data
             extinction = _ZERO_
             do i=1,ubound(curmodel%info%state_variables,1)
                if (curmodel%info%state_variables(i)%specific_light_extinction.ne._ZERO_) &
-                  extinction = extinction + curmodel%environment%state(curmodel%info%state_variables(i)%globalid)%data INDEX_LOCATION &
+                  extinction = extinction + root%_GET_STATE_(curmodel%info%state_variables(i)%globalid) &
                                     & * curmodel%info%state_variables(i)%specific_light_extinction
             end do
       end select
@@ -1301,7 +1443,7 @@ end subroutine rmbm_link_3d_diagnostic_data
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_model), intent(in)      :: root
+   type (type_model), intent(inout)   :: root
    LOCATION_TYPE,     intent(in)      :: LOCATION
    REALTYPE,          intent(inout)   :: sums(:)
 !
@@ -1317,7 +1459,7 @@ end subroutine rmbm_link_3d_diagnostic_data
    do while (associated(curmodel))
       select case (curmodel%id)
          case (npzd_id)
-            call npzd_get_conserved_quantities(curmodel%npzd,curmodel%environment,LOCATION,sums)
+            call npzd_get_conserved_quantities(curmodel%npzd,sums RMBM_ARGS_IN)
          ! ADD_NEW_MODEL_HERE - optional
          case default
             ! Default: the model does not describe any conserved quantities.
