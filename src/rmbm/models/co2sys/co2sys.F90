@@ -121,7 +121,7 @@ contains
 ! !IROUTINE: Right hand sides of carbonate system model
 !
 ! !INTERFACE:
-   subroutine co2sys_do(self,dy RMBM_ARGS)
+   subroutine co2sys_do(self,RMBM_ARGS_DO_RHS)
 !
 ! !DESCRIPTION:
 !
@@ -130,10 +130,7 @@ contains
 !
 ! !INPUT PARAMETERS:
    type (type_co2_sys),    intent(in) :: self
-   DECLARE_RMBM_ARGS
-!
-! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, intent(inout),dimension(:) :: dy
+   DECLARE_RMBM_ARGS_DO_RHS
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -189,7 +186,7 @@ contains
 ! !IROUTINE: Air-sea exchange for the carbonate system model
 !
 ! !INTERFACE:
-   subroutine co2sys_get_surface_exchange(self,flux RMBM_ARGS)
+   subroutine co2sys_get_surface_exchange(self,RMBM_ARGS,flux)
 !
 ! !DESCRIPTION:
 !

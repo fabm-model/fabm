@@ -188,28 +188,33 @@
 ! variables
 !
 ! !INTERFACE:
-   function npzd_get_light_extinction(self RMBM_ARGS) result(extinction)
+   _PURE subroutine npzd_get_light_extinction(self,RMBM_ARGS_GET_EXTINCTION)
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd),       intent(in) :: self
-   REALTYPE                           :: extinction
-   DECLARE_RMBM_ARGS
-   
-   REALTYPE                     :: p,d
+   type (type_npzd), intent(in) :: self
+   DECLARE_RMBM_ARGS_GET_EXTINCTION
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   REALTYPE                     :: p,d
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   _RMBM_ENTER_
+
    ! Retrieve current (local) state variable values.
    p = _GET_STATE_(self%id_p) ! phytoplankton
    d = _GET_STATE_(self%id_d) ! detritus
    
    ! Self-shading with explicit contribution from background phytoplankton concentration.
-   extinction = self%kc*(self%p0+p+d)
+   _SET_EXTINCTION_(self%kc*(self%p0+p+d))
 
-   end function npzd_get_light_extinction
+   _RMBM_LEAVE_
+   
+   end subroutine npzd_get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -218,20 +223,23 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   _PURE subroutine npzd_get_conserved_quantities(self,sums RMBM_ARGS)
+   _PURE subroutine npzd_get_conserved_quantities(self,RMBM_ARGS_GET_CONSERVED_QUANTITIES)
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd),       intent(in)    :: self
-   REALTYPE,               intent(inout) :: sums(:)
-   DECLARE_RMBM_ARGS
-   
-   REALTYPE              :: n,p,z,d
+   type (type_npzd), intent(in) :: self
+   DECLARE_RMBM_ARGS_GET_CONSERVED_QUANTITIES
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   REALTYPE                     :: n,p,z,d
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   _RMBM_ENTER_
+
    ! Retrieve current (local) state variable values.
    n = _GET_STATE_(self%id_n) ! nutrient
    p = _GET_STATE_(self%id_p) ! phytoplankton
@@ -239,9 +247,261 @@
    d = _GET_STATE_(self%id_d) ! detritus
    
    ! Total nutrient is simply the sum of all variables.
-   sums(self%id_totN) = n+p+z+d
+   _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
+
+   _RMBM_LEAVE_
 
    end subroutine npzd_get_conserved_quantities
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Right hand sides of NPZD model
+!
+! !INTERFACE:
+   subroutine npzd_do(self,RMBM_ARGS_DO_RHS)
+!
+! !DESCRIPTION:
+! Seven processes expressed as sink terms are included in this
+! conservative model, see eqs.\ (\ref{dnp}) - (\ref{dzd}). \\
+!
+! Nutrient uptake by phytoplankton:
+! \begin{equation}\label{dnp}
+! d_{np} = r_{\max}\frac{I_{PAR}}{I_{opt}}
+! \exp\left(1-\frac{I_{PAR}}{I_{opt}}\right)
+! \frac{c_n}{\alpha+c_n}c_p
+! \end{equation}
+! 
+! with
+! 
+! \begin{equation}
+! I_{opt}=\max\left(\frac14I_{PAR},I_{\min}\right).
+! \end{equation}
+! 
+! Grazing of zooplankton on phytoplankton:
+! \begin{equation}\label{dpz}
+! d_{pz}=g_{\max}\left(1-\exp\left(-I_v^2c_p^2\right)\right)c_z
+! \end{equation}
+! 
+! Phytoplankton excretion:
+! \begin{equation}\label{dpn}
+! d_{pn} = r_{pn} c_p
+! \end{equation}
+! 
+! Zooplankton excretion:
+! \begin{equation}\label{dzn}
+! d_{zn} = r_{zn} c_z
+! \end{equation}
+! 
+! Remineralisation of detritus into nutrients:
+! \begin{equation}\label{ddn}
+! d_{dn} = r_{dn} c_d
+! \end{equation}
+! 
+! Phytoplankton mortality:
+! \begin{equation}\label{dpd}
+! d_{pd} = r_{pd} c_p
+! \end{equation}
+! 
+! Zooplankton mortality:
+! \begin{equation}\label{dzd}
+! d_{zd} = r_{zd} c_z
+! \end{equation}
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_npzd),       intent(in) :: self
+   DECLARE_RMBM_ARGS_DO_RHS
+!
+! !REVISION HISTORY:
+!  Original author(s): Hans Burchard, Karsten Bolding
+!
+! !LOCAL VARIABLES:
+   REALTYPE                   :: n,p,z,d,par,I_0,dn
+   REALTYPE                   :: iopt
+   REALTYPE                   :: rpd,primprod
+   REALTYPE, parameter        :: secs_pr_day = 86400.
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   _RMBM_ENTER_
+
+   ! Retrieve current (local) state variable values.
+   n = _GET_STATE_(self%id_n) ! nutrient
+   p = _GET_STATE_(self%id_p) ! phytoplankton
+   z = _GET_STATE_(self%id_z) ! zooplankton
+   d = _GET_STATE_(self%id_d) ! detritus
+   
+   ! Retrieve current environmental conditions.
+   par = _GET_VAR_   (self%id_par)  ! local photosynthetically active radiation
+   I_0 = _GET_VAR_HZ_(self%id_I_0)  ! surface short wave radiation
+   
+   ! Light acclimation formulation based on surface light intensity.
+   iopt = max(0.25*I_0,self%I_min)
+
+   ! Loss rate of phytoplankton to detritus depends on local light intensity.
+   if (par .ge. self%I_min) then
+      rpd = self%rpdu
+   else
+      rpd = self%rpdl
+   end if
+   
+   ! Define some intermediate quantities that will be reused multiple times.
+   primprod = fnp(self,n,p,par,iopt)
+   dn = - primprod + self%rpn*p + self%rzn*z + self%rdn*d
+   
+   ! Set temporal derivatives
+   _SET_RHS_(self%id_n,dn)
+   _SET_RHS_(self%id_p,primprod - fpz(self,p,z) - self%rpn*p - rpd*p)
+   _SET_RHS_(self%id_z,fpz(self,p,z) - self%rzn*z - self%rzd*z)
+   _SET_RHS_(self%id_d,rpd*p + self%rzd*z - self%rdn*d)
+
+   ! If an externally maintained DIC pool is present, change the DIC pool according to the
+   ! the change in nutrients (assuming constant C:N ratio)
+   if (self%id_dic.ne.id_not_used) _SET_RHS_(self%id_dic,self%dic_per_n*dn)
+
+   ! Export diagnostic variables
+   if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
+   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP ,primprod)
+   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
+   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
+   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
+   
+   _RMBM_LEAVE_
+
+   end subroutine npzd_do
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
+!
+! !INTERFACE:
+   subroutine npzd_do_ppdd(self,RMBM_ARGS_DO_PPDD)
+!
+! !DESCRIPTION:
+! Seven processes expressed as sink terms are included in this
+! conservative model, see eqs.\ (\ref{dnp}) - (\ref{dzd}). \\
+!
+! Nutrient uptake by phytoplankton:
+! \begin{equation}\label{dnp}
+! d_{np} = r_{\max}\frac{I_{PAR}}{I_{opt}}
+! \exp\left(1-\frac{I_{PAR}}{I_{opt}}\right)
+! \frac{c_n}{\alpha+c_n}c_p
+! \end{equation}
+! 
+! with
+! 
+! \begin{equation}
+! I_{opt}=\max\left(\frac14I_{PAR},I_{\min}\right).
+! \end{equation}
+! 
+! Grazing of zooplankton on phytoplankton:
+! \begin{equation}\label{dpz}
+! d_{pz}=g_{\max}\left(1-\exp\left(-I_v^2c_p^2\right)\right)c_z
+! \end{equation}
+! 
+! Phytoplankton excretion:
+! \begin{equation}\label{dpn}
+! d_{pn} = r_{pn} c_p
+! \end{equation}
+! 
+! Zooplankton excretion:
+! \begin{equation}\label{dzn}
+! d_{zn} = r_{zn} c_z
+! \end{equation}
+! 
+! Remineralisation of detritus into nutrients:
+! \begin{equation}\label{ddn}
+! d_{dn} = r_{dn} c_d
+! \end{equation}
+! 
+! Phytoplankton mortality:
+! \begin{equation}\label{dpd}
+! d_{pd} = r_{pd} c_p
+! \end{equation}
+! 
+! Zooplankton mortality:
+! \begin{equation}\label{dzd}
+! d_{zd} = r_{zd} c_z
+! \end{equation}
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_npzd),       intent(in) :: self
+   DECLARE_RMBM_ARGS_DO_PPDD
+!
+! !REVISION HISTORY:
+!  Original author(s): Hans Burchard, Karsten Bolding
+!
+! !LOCAL VARIABLES:
+   REALTYPE                   :: n,p,z,d,par,I_0,dn
+   REALTYPE                   :: iopt
+   REALTYPE                   :: rpd
+   REALTYPE, parameter :: secs_pr_day = 86400.
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   _RMBM_ENTER_
+
+   ! Retrieve current (local) state variable values.
+   n = _GET_STATE_(self%id_n) ! nutrient
+   p = _GET_STATE_(self%id_p) ! phytoplankton
+   z = _GET_STATE_(self%id_z) ! zooplankton
+   d = _GET_STATE_(self%id_d) ! detritus
+   
+   ! Retrieve current environmental conditions.
+   par = _GET_VAR_(self%id_par)     ! local photosynthetically active radiation
+   I_0 = _GET_VAR_HZ_(self%id_I_0)  ! surface short wave radiation
+   
+   ! Light acclimation formulation based on surface light intensity.
+   iopt = max(0.25*I_0,self%I_min)
+
+   ! Loss rate of phytoplankton to detritus depends on local light intensity.
+   if (par .ge. self%I_min) then
+      rpd = self%rpdu
+   else
+      rpd = self%rpdl
+   end if
+   
+   _SET_DD_(self%id_n,self%id_p,fnp(self,n,p,par,iopt)) ! snp
+   _SET_DD_(self%id_p,self%id_z,fpz(self,p,z))          ! spz
+   _SET_DD_(self%id_p,self%id_n,self%rpn*p)             ! spn
+   _SET_DD_(self%id_z,self%id_n,self%rzn*z)             ! szn
+   _SET_DD_(self%id_d,self%id_n,self%rdn*d)             ! sdn
+   _SET_DD_(self%id_p,self%id_d,rpd*p)                  ! spd
+   _SET_DD_(self%id_z,self%id_d,self%rzd*z)             ! szd
+   
+   ! Mirror destruction rates in production rate matrix (each conversion is fully conservative)
+   _SET_PP_(self%id_p,self%id_n,_GET_DD_(self%id_n,self%id_p))
+   _SET_PP_(self%id_z,self%id_p,_GET_DD_(self%id_p,self%id_z))
+   _SET_PP_(self%id_n,self%id_p,_GET_DD_(self%id_p,self%id_n))
+   _SET_PP_(self%id_n,self%id_z,_GET_DD_(self%id_z,self%id_n))
+   _SET_PP_(self%id_n,self%id_d,_GET_DD_(self%id_d,self%id_n))
+   _SET_PP_(self%id_d,self%id_p,_GET_DD_(self%id_p,self%id_d))
+   _SET_PP_(self%id_d,self%id_z,_GET_DD_(self%id_z,self%id_d))
+
+   ! If an externally maintained DIC pool is present, change the DIC pool according to the
+   ! the change in nutrients (assuming constant C:N ratio)
+   dn = - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
+   if (self%id_dic.ne.id_not_used) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
+
+   ! Export diagnostic variables
+   if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
+   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP,_GET_DD_(self%id_n,self%id_p))
+   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP,_GET_DD_(self%id_n,self%id_p)-_GET_PP_(self%id_n,self%id_p))
+   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR,_GET_DD_(self%id_n,self%id_p)*secs_pr_day)
+   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR,(_GET_DD_(self%id_n,self%id_p)-_GET_PP_(self%id_n,self%id_p))*secs_pr_day)
+
+   _RMBM_LEAVE_
+
+   end subroutine npzd_do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -257,7 +517,7 @@
 ! is formulated.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_npzd), intent(in) :: self
@@ -287,7 +547,7 @@
 ! phytoplankton is formulated.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_npzd), intent(in) :: self
@@ -303,256 +563,6 @@
 
    end function fpz
 !EOC
-
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Right hand sides of NPZD model
-!
-! !INTERFACE:
-   subroutine npzd_do(self,rhs RMBM_ARGS)
-!
-! !DESCRIPTION:
-! Seven processes expressed as sink terms are included in this
-! conservative model, see eqs.\ (\ref{dnp}) - (\ref{dzd}). \\
-!
-! Nutrient uptake by phytoplankton:
-! \begin{equation}\label{dnp}
-! d_{np} = r_{\max}\frac{I_{PAR}}{I_{opt}}
-! \exp\left(1-\frac{I_{PAR}}{I_{opt}}\right)
-! \frac{c_n}{\alpha+c_n}c_p
-! \end{equation}
-! 
-! with
-! 
-! \begin{equation}
-! I_{opt}=\max\left(\frac14I_{PAR},I_{\min}\right).
-! \end{equation}
-! 
-! Grazing of zooplankton on phytoplankton:
-! \begin{equation}\label{dpz}
-! d_{pz}=g_{\max}\left(1-\exp\left(-I_v^2c_p^2\right)\right)c_z
-! \end{equation}
-! 
-! Phytoplankton excretion:
-! \begin{equation}\label{dpn}
-! d_{pn} = r_{pn} c_p
-! \end{equation}
-! 
-! Zooplankton excretion:
-! \begin{equation}\label{dzn}
-! d_{zn} = r_{zn} c_z
-! \end{equation}
-! 
-! Remineralisation of detritus into nutrients:
-! \begin{equation}\label{ddn}
-! d_{dn} = r_{dn} c_d
-! \end{equation}
-! 
-! Phytoplankton mortality:
-! \begin{equation}\label{dpd}
-! d_{pd} = r_{pd} c_p
-! \end{equation}
-! 
-! Zooplankton mortality:
-! \begin{equation}\label{dzd}
-! d_{zd} = r_{zd} c_z
-! \end{equation}
-!
-! !USES:
-   IMPLICIT NONE
-!
-! !INPUT PARAMETERS:
-   type (type_npzd),       intent(in) :: self
-   DECLARE_RMBM_ARGS
-!
-! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, dimension(:), intent(inout) :: rhs
-!
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard, Karsten Bolding
-!
-! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,z,d,par,I_0,dn
-   REALTYPE                   :: iopt
-   REALTYPE                   :: rpd,primprod
-   REALTYPE, parameter :: secs_pr_day = 86400.
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-
-   ! Retrieve current (local) state variable values.
-   n = _GET_STATE_(self%id_n) ! nutrient
-   p = _GET_STATE_(self%id_p) ! phytoplankton
-   z = _GET_STATE_(self%id_z) ! zooplankton
-   d = _GET_STATE_(self%id_d) ! detritus
-   
-   ! Retrieve current environmental conditions.
-   par = _GET_VAR_   (self%id_par)  ! local photosynthetically active radiation
-   I_0 = _GET_VAR_HZ_(self%id_I_0)  ! surface short wave radiation
-   
-   ! Light acclimation formulation based on surface light intensity.
-   iopt = max(0.25*I_0,self%I_min)
-
-   if (par .ge. self%I_min) then
-      rpd = self%rpdu
-   else
-      rpd = self%rpdl
-   end if
-   
-   ! Note: the temporal derivatives are incremented or decremented, rahter than set.
-   ! This is IMPORTANT: other biogeochemical models might already have provided additional
-   ! sink and source terms for these variables in the rhs arrays.
-   primprod = fnp(self,n,p,par,iopt)
-   dn = - primprod + self%rpn*p + self%rzn*z + self%rdn*d
-   rhs(self%id_n) = rhs(self%id_n) + dn
-   rhs(self%id_p) = rhs(self%id_p) + primprod - fpz(self,p,z) - self%rpn*p - rpd*p
-   rhs(self%id_z) = rhs(self%id_z) + fpz(self,p,z) - self%rzn*z - self%rzd*z
-   rhs(self%id_d) = rhs(self%id_d) + rpd*p + self%rzd*z - self%rdn*d
-
-   ! If an externally maintained DIC pool is present, change the DIC pool according to the
-   ! the change in nutrients (assuming constant C:N ratio)
-   if (self%id_dic.ne.id_not_used) rhs(self%id_dic) = rhs(self%id_dic) + self%dic_per_n*dn
-
-   ! Export diagnostic variables
-   if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
-   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP ,primprod)
-   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
-   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
-   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
-
-   end subroutine npzd_do
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
-!
-! !INTERFACE:
-   subroutine npzd_do_ppdd(self,pp,dd RMBM_ARGS)
-!
-! !DESCRIPTION:
-! Seven processes expressed as sink terms are included in this
-! conservative model, see eqs.\ (\ref{dnp}) - (\ref{dzd}). \\
-!
-! Nutrient uptake by phytoplankton:
-! \begin{equation}\label{dnp}
-! d_{np} = r_{\max}\frac{I_{PAR}}{I_{opt}}
-! \exp\left(1-\frac{I_{PAR}}{I_{opt}}\right)
-! \frac{c_n}{\alpha+c_n}c_p
-! \end{equation}
-! 
-! with
-! 
-! \begin{equation}
-! I_{opt}=\max\left(\frac14I_{PAR},I_{\min}\right).
-! \end{equation}
-! 
-! Grazing of zooplankton on phytoplankton:
-! \begin{equation}\label{dpz}
-! d_{pz}=g_{\max}\left(1-\exp\left(-I_v^2c_p^2\right)\right)c_z
-! \end{equation}
-! 
-! Phytoplankton excretion:
-! \begin{equation}\label{dpn}
-! d_{pn} = r_{pn} c_p
-! \end{equation}
-! 
-! Zooplankton excretion:
-! \begin{equation}\label{dzn}
-! d_{zn} = r_{zn} c_z
-! \end{equation}
-! 
-! Remineralisation of detritus into nutrients:
-! \begin{equation}\label{ddn}
-! d_{dn} = r_{dn} c_d
-! \end{equation}
-! 
-! Phytoplankton mortality:
-! \begin{equation}\label{dpd}
-! d_{pd} = r_{pd} c_p
-! \end{equation}
-! 
-! Zooplankton mortality:
-! \begin{equation}\label{dzd}
-! d_{zd} = r_{zd} c_z
-! \end{equation}
-!
-! !USES:
-   IMPLICIT NONE
-!
-! !INPUT PARAMETERS:
-   type (type_npzd),       intent(in) :: self
-   DECLARE_RMBM_ARGS
-!
-! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, intent(inout),dimension(:,:) :: pp,dd
-!
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard, Karsten Bolding
-!
-! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,z,d,par,I_0,dn
-   REALTYPE                   :: iopt
-   REALTYPE                   :: rpd
-   REALTYPE, parameter :: secs_pr_day = 86400.
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-
-   ! Retrieve current (local) state variable values.
-   n = _GET_STATE_(self%id_n) ! nutrient
-   p = _GET_STATE_(self%id_p) ! phytoplankton
-   z = _GET_STATE_(self%id_z) ! zooplankton
-   d = _GET_STATE_(self%id_d) ! detritus
-   
-   ! Retrieve current environmental conditions.
-   par = _GET_VAR_(self%id_par)     ! local photosynthetically active radiation
-   I_0 = _GET_VAR_HZ_(self%id_I_0)  ! surface short wave radiation
-   
-   ! Light acclimation formulation based on surface light intensity.
-   iopt = max(0.25*I_0,self%I_min)
-
-   if (par .ge. self%I_min) then
-      rpd = self%rpdu
-   else
-      rpd = self%rpdl
-   end if
-   
-   dd(self%id_n,self%id_p) = fnp(self,n,p,par,iopt)  ! snp
-   dd(self%id_p,self%id_z) = fpz(self,p,z)           ! spz
-   dd(self%id_p,self%id_n) = self%rpn*p              ! spn
-   dd(self%id_z,self%id_n) = self%rzn*z              ! szn
-   dd(self%id_d,self%id_n) = self%rdn*d              ! sdn
-   dd(self%id_p,self%id_d) =      rpd*p              ! spd
-   dd(self%id_z,self%id_d) = self%rzd*z              ! szd
-   
-   ! Mirror destruction rates in production rate matrix (each conversion is fully conservative)
-   pp(self%id_p,self%id_n) = dd(self%id_n,self%id_p)
-   pp(self%id_z,self%id_p) = dd(self%id_p,self%id_z)
-   pp(self%id_n,self%id_p) = dd(self%id_p,self%id_n)
-   pp(self%id_n,self%id_z) = dd(self%id_z,self%id_n)
-   pp(self%id_n,self%id_d) = dd(self%id_d,self%id_n)
-   pp(self%id_d,self%id_p) = dd(self%id_p,self%id_d)
-   pp(self%id_d,self%id_z) = dd(self%id_z,self%id_d)
-
-   ! If an externally maintained DIC pool is present, change the DIC pool according to the
-   ! the change in nutrients (assuming constant C:N ratio)
-   dn = - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
-   if (self%id_dic.ne.id_not_used) pp(self%id_dic,self%id_dic) = pp(self%id_dic,self%id_dic) + self%dic_per_n*dn
-
-   ! Export diagnostic variables
-   if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
-   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP,dd(self%id_n,self%id_p))
-   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP,dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p))
-   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR,dd(self%id_n,self%id_p)*secs_pr_day)
-   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR,(dd(self%id_n,self%id_p)-pp(self%id_n,self%id_p))*secs_pr_day)
-
-   end subroutine npzd_do_ppdd
-!EOC
-
 
 !-----------------------------------------------------------------------
 

@@ -133,7 +133,7 @@
 ! !IROUTINE: Right hand sides of Mnemiopsis model
 !
 ! !INTERFACE:
-   _PURE subroutine mnemiopsis_do(self,dy RMBM_ARGS)
+   _PURE subroutine mnemiopsis_do(self,RMBM_ARGS_DO_RHS)
 !
 ! !DESCRIPTION:
 !
@@ -142,10 +142,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_mnemiopsis), intent(in) :: self
-   DECLARE_RMBM_ARGS
-!
-! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, dimension(:),intent(inout) :: dy
+   DECLARE_RMBM_ARGS_DO_RHS
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman, Baris Salihoglu
@@ -187,6 +184,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   _RMBM_ENTER_
+
    ! Obtain current values for environmental variables
    temp = _GET_VAR_(self%id_temp)
 
@@ -376,20 +375,21 @@
    end if
 
    ! Increment/decrement derivatives for our own state variables
-   dy(self%id_egb) = dy(self%id_egb) + (tab_mn*adb_mn -       mea_mn       *egb_mn - teb_mn*egb_mn)/secs_pr_day ! egg biomass
-   dy(self%id_jb ) = dy(self%id_jb ) + (teb_mn*egb_mn + (gj_mn-mj_mn-lj_mn)* jb_mn - tjb_mn* jb_mn)/secs_pr_day ! nauplii biomass
-   dy(self%id_ja ) = dy(self%id_ja ) + (tea_mn*egb_mn -        mj_mn       * ja_mn - tja_mn* jb_mn)/secs_pr_day ! nauplii abundance
-   dy(self%id_tb ) = dy(self%id_tb ) + (tjb_mn* jb_mn + (gt_mn-mt_mn-lt_mn)* tb_mn - ttb_mn* tb_mn)/secs_pr_day ! c1 biomass
-   dy(self%id_ta ) = dy(self%id_ta ) + (tja_mn* jb_mn -        mt_mn       * ta_mn - tta_mn* tb_mn)/secs_pr_day ! c1 abundance
-   dy(self%id_adb) = dy(self%id_adb) + (ttb_mn* tb_mn + (ga_mn-ma_mn-la_mn)*adb_mn - tab_mn*adb_mn)/secs_pr_day ! adult biomass
-   dy(self%id_ada) = dy(self%id_ada) + (tta_mn* tb_mn         -ma_mn       *ada_mn                )/secs_pr_day ! adult abundance
+   _SET_RHS_(self%id_egb,(tab_mn*adb_mn -       mea_mn       *egb_mn - teb_mn*egb_mn)/secs_pr_day) ! egg biomass
+   _SET_RHS_(self%id_jb ,(teb_mn*egb_mn + (gj_mn-mj_mn-lj_mn)* jb_mn - tjb_mn* jb_mn)/secs_pr_day) ! nauplii biomass
+   _SET_RHS_(self%id_ja ,(tea_mn*egb_mn -        mj_mn       * ja_mn - tja_mn* jb_mn)/secs_pr_day) ! nauplii abundance
+   _SET_RHS_(self%id_tb ,(tjb_mn* jb_mn + (gt_mn-mt_mn-lt_mn)* tb_mn - ttb_mn* tb_mn)/secs_pr_day) ! c1 biomass
+   _SET_RHS_(self%id_ta ,(tja_mn* jb_mn -        mt_mn       * ta_mn - tta_mn* tb_mn)/secs_pr_day) ! c1 abundance
+   _SET_RHS_(self%id_adb,(ttb_mn* tb_mn + (ga_mn-ma_mn-la_mn)*adb_mn - tab_mn*adb_mn)/secs_pr_day) ! adult biomass
+   _SET_RHS_(self%id_ada,(tta_mn* tb_mn         -ma_mn       *ada_mn                )/secs_pr_day) ! adult abundance
    
    ! Increment/decrement derivatives for external variables (prey, respiration/mortality target variables)
-   dy(self%id_foodmic)    = dy(self%id_foodmic)    - (gj_mn*jb_mn)/self%food_scale/secs_pr_day
-   dy(self%id_food)       = dy(self%id_food)       - (gt_mn*tb_mn+ga_mn*adb_mn)/self%food_scale/secs_pr_day
-   dy(self%id_resptarget) = dy(self%id_resptarget) + (lj_mn*jb_mn + lt_mn*tb_mn + la_mn*adb_mn)/self%food_scale/secs_pr_day
-   dy(self%id_morttarget) = dy(self%id_morttarget) + (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale &
-                            /secs_pr_day
+   _SET_RHS_(self%id_foodmic,   -(gj_mn*jb_mn)/self%food_scale/secs_pr_day)
+   _SET_RHS_(self%id_food,      -(gt_mn*tb_mn+ga_mn*adb_mn)/self%food_scale/secs_pr_day)
+   _SET_RHS_(self%id_resptarget, (lj_mn*jb_mn + lt_mn*tb_mn + la_mn*adb_mn)/self%food_scale/secs_pr_day)
+   _SET_RHS_(self%id_morttarget, (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale/secs_pr_day)
+
+   _RMBM_LEAVE_
 
    end subroutine mnemiopsis_do
 !EOC

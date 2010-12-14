@@ -7,6 +7,7 @@
 
 #define RMBM_MANAGE_DIAGNOSTICS
 #define RMBM_SINGLE_STATE_VARIABLE_ARRAY
+#define RMBM_USE_1D_LOOP
 
 ! Include RMBM preprocessor definitions.
 ! This *must* be done after the host-specific variables are defined (above),

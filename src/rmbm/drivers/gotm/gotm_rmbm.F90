@@ -77,7 +77,8 @@
 
    ! Arrays for work, vertical movement, and cross-boundary fluxes
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:) :: ws
-   REALTYPE,allocatable,dimension(:)                     :: sfl,bfl,total,local,cc_diag_hz
+   REALTYPE,allocatable,dimension(:)                     :: sfl,bfl,total,cc_diag_hz
+   REALTYPE,allocatable ATTR_DIMENSIONS_1                :: local
    
    ! Arrays for environmental variables not supplied externally.
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS)   :: par,pres
@@ -340,7 +341,11 @@
    ! Allocate arrays for storing local and column-integrated values of diagnostic variables.
    ! These are used during each save.
    allocate(total(1:ubound(model%info%conserved_quantities,1)))
+#ifdef RMBM_USE_1D_LOOP
+   allocate(local(1:ubound(model%info%conserved_quantities,1),1:LOCATION))
+#else
    allocate(local(1:ubound(model%info%conserved_quantities,1)))
+#endif
 
    end subroutine init_var_gotm_rmbm
 !EOC
@@ -498,13 +503,13 @@
 
    do split=1,split_factor
       ! Update local light field (self-shading may have changed through changes in biological state variables)
-      call light_0d(nlev,bioshade_feedback)
+      call light(nlev,bioshade_feedback)
       
       ! Copy bottom pelagic values to combined benthic+pelagic state variable array.
       cc_bottom(ubound(model%info%state_variables_ben,1)+1:,1) = cc(:,1)
 
       ! Time-integrate one biological time step - first for all layers but bottom, then for bottom (benthic+pelagic)
-      call ode_solver(ode_method,ubound(cc,    1),nlev-1,dt_eff,cc    (:,1:nlev),right_hand_side_rhs,       right_hand_side_ppdd)
+      call ode_solver(ode_method,ubound(cc,    1),   nlev-1,dt_eff,cc       (:,1:nlev),right_hand_side_rhs,       right_hand_side_ppdd)
       call ode_solver(ode_method,ubound(cc_bottom,1),1,     dt_eff,cc_bottom(:,0:1),   right_hand_side_rhs_bottom,right_hand_side_ppdd)
 
       ! Take bottom pelagic values from combined bottom benthic+pelagic array.
@@ -564,22 +569,25 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-   integer :: ci,j
    logical :: valid
+#ifndef RMBM_USE_1D_LOOP
+   integer :: ci
+#endif
 !
 !-----------------------------------------------------------------------
 !BOC
+#ifdef RMBM_USE_1D_LOOP
+   valid = rmbm_check_state(model,1,nlev,repair_state)
+#else
    do ci=1,nlev
       valid = rmbm_check_state(model,ci,repair_state)
-      if (.not. (valid .or. repair_state)) then
-         FATAL 'State variables are invalid and repair is not allowed, '//location
-         LEVEL1 'Invalid state at index ',ci
-         do j=1,ubound(model%info%state_variables,1)
-            LEVEL2 trim(model%info%state_variables(j)%name),cc(j,ci)
-         end do
-         stop 'gotm_rmbm::do_repair_state'
-      end if
+      if (.not.(valid.or.repair_state)) exit
    end do
+#endif   
+   if (.not. (valid .or. repair_state)) then
+      FATAL 'State variables are invalid and repair is not allowed.'
+      stop 'gotm_rmbm::do_repair_state'
+   end if
 
    end subroutine do_repair_state
 !EOC
@@ -614,7 +622,9 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
+#ifndef RMBM_USE_1D_LOOP
    integer :: ci
+#endif
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -626,12 +636,17 @@
    dd = _ZERO_
    
    ! Iterate over all depth levels
+#ifdef RMBM_USE_1D_LOOP
+   call rmbm_do(model,2,nlev+1,pp(:,:,0:nlev),dd(:,:,0:nlev))
+#else
    do ci=1,nlev
-      ! N.B. true depth index is one higher than iterator, because we are skipping the bottom (first) layer.
+      ! N.B. true depth index is one higher than iterator, because the bottom (first) layer is not included
+      ! in the input arrays.
       ! The bottom layer is dealt with separately in right_hand_side_rhs_bottom, in order to accomodate
       ! additional state variables associated with the benthos.
       call rmbm_do(model,ci+1,pp(:,:,ci),dd(:,:,ci))
    end do
+#endif
 
    end subroutine right_hand_side_ppdd
 !EOC
@@ -665,7 +680,9 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
+#ifndef RMBM_USE_1D_LOOP
    integer :: ci
+#endif
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -676,13 +693,18 @@
    ! running of different coupled BGC models.
    rhs = _ZERO_
 
+#ifdef RMBM_USE_1D_LOOP
+   call rmbm_do(model,2,nlev+1,rhs(:,0:nlev))
+#else   
    ! Iterate over all depth levels (this excludes the bottom!)
    do ci=1,nlev
-      ! N.B. true depth index is one higher than iterator, because we are skipping the bottom (first) layer.
+      ! N.B. true depth index is one higher than iterator, because the bottom (first) layer is not
+      ! included in the input arrays.
       ! The bottom layer is dealt with separately in right_hand_side_rhs_bottom, in order to accomodate
       ! additional state variables associated with the benthos.
       call rmbm_do(model,ci+1,rhs(:,ci))
    end do
+#endif
 
    end subroutine right_hand_side_rhs
 !EOC
@@ -729,7 +751,11 @@
    rhs(1:ubound(model%info%state_variables_ben,1),1) = rhs(1:ubound(model%info%state_variables_ben,1),1)/h(2)
 
    ! Calculate temporal derivatives due to pelagic processes.
+#ifdef RMBM_USE_1D_LOOP
+   call rmbm_do(model,1,1,rhs(ubound(model%info%state_variables_ben,1)+1:,1:1))
+#else
    call rmbm_do(model,1,rhs(ubound(model%info%state_variables_ben,1)+1:,1))
+#endif
 
    end subroutine right_hand_side_rhs_bottom
 !EOC
@@ -780,7 +806,7 @@
 ! !IROUTINE: Calculate light over entire column
 !
 ! !INTERFACE:
-   subroutine light_0d(nlev,bioshade_feedback)
+   subroutine light(nlev,bioshade_feedback)
 !
 ! !DESCRIPTION:
 ! Calculate photosynthetically active radiation over entire column
@@ -803,13 +829,24 @@
 ! !LOCAL VARIABLES:
    integer :: i
    REALTYPE :: zz,bioext,localext
+#ifdef RMBM_USE_1D_LOOP
+   REALTYPE :: localexts(1:nlev)
+#endif
 !
 !-----------------------------------------------------------------------
 !BOC
    zz = _ZERO_
    bioext = _ZERO_
+   
+#ifdef RMBM_USE_1D_LOOP
+   call rmbm_get_light_extinction(model,1,nlev,localexts)
+#endif
    do i=nlev,1,-1
-      localext = rmbm_get_light_extinction(model,i)
+#ifdef RMBM_USE_1D_LOOP
+      localext = localexts(i)
+#else
+      call rmbm_get_light_extinction(model,i,localext)
+#endif
    
       ! Add the extinction of the first half of the grid box.
       bioext = bioext+localext*0.5*h(i+1)
@@ -824,7 +861,7 @@
       if (bioshade_feedback) bioshade(i)=exp(-bioext)
    end do
 
-   end subroutine light_0d
+   end subroutine light
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1002,13 +1039,20 @@
          end do
 
          ! Integrate conserved quantities over depth.
+#ifdef RMBM_USE_1D_LOOP
+         call rmbm_get_conserved_quantities(model,1,nlev,local)
+#endif
          total = _ZERO_
          do ilev=1,nlev
-            call rmbm_get_conserved_quantities(model,ilev,local)
-            
             ! Add to depth integral.
-            ! Note: our pointer to h has a lower bound of 1, so we need to increment the index by 1!
+            ! Note: our pointer to h has a lower bound of 1, while the original pointed-to data starts at 0.
+            ! We therefore need to increment the index by 1 in order to address original elements >=1!
+#ifdef RMBM_USE_1D_LOOP
+            total = total + h(ilev+1)*local(:,ilev)
+#else
+            call rmbm_get_conserved_quantities(model,ilev,local)
             total = total + h(ilev+1)*local
+#endif
          end do
 
          ! Store conserved quantity integrals.

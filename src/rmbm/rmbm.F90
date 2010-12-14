@@ -319,7 +319,6 @@
    interface rmbm_do
       module procedure rmbm_do_rhs
       module procedure rmbm_do_ppdd
-      module procedure rmbm_do_rhs_1d
    end interface
    
    interface rmbm_link_data
@@ -1028,17 +1027,17 @@ end subroutine rmbm_link_diagnostic_data_hz
 ! model tree.
 !
 ! !INTERFACE:
-   subroutine rmbm_do_rhs(root,LOCATION,dy)
+   subroutine rmbm_do_rhs(root,LOCATION_ND,dy)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(inout) :: root
-   LOCATION_TYPE,          intent(in)    :: LOCATION
+   LOCATION_TYPE,          intent(in)    :: LOCATION_ND
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, dimension(:), intent(inout) :: dy
+   REALTYPE ATTR_DIMENSIONS_1, intent(inout) :: dy
 !
 ! !LOCAL PARAMETERS:
    type (type_model), pointer            :: curmodel
@@ -1055,16 +1054,16 @@ end subroutine rmbm_link_diagnostic_data_hz
    do while (associated(curmodel))
       select case (curmodel%id)
          case (npzd_id)
-            call npzd_do(curmodel%npzd,dy RMBM_ARGS_IN)
+            call npzd_do(curmodel%npzd,RMBM_ARGS_ND_IN,dy)
          case (mnemiopsis_id)
-            call mnemiopsis_do(curmodel%mnemiopsis,dy RMBM_ARGS_IN)
+            call mnemiopsis_do(curmodel%mnemiopsis,RMBM_ARGS_ND_IN,dy)
          case (carbonate_id)
-            call co2sys_do(curmodel%carbonate,dy RMBM_ARGS_IN)
+            call co2sys_do(curmodel%carbonate,RMBM_ARGS_ND_IN,dy)
          ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
          ! matrices instead of a temporal derivative vector. In that case, add the model to
          ! do_ppdd_to_rhs.
-         case default
-           call do_ppdd_to_rhs(curmodel,LOCATION,dy)
+         !case default
+         !  call do_ppdd_to_rhs(curmodel,LOCATION,dy)
       end select
       curmodel => curmodel%nextmodel
    end do
@@ -1072,108 +1071,6 @@ end subroutine rmbm_link_diagnostic_data_hz
    end subroutine rmbm_do_rhs
 !EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the local temporal derivatives for the biogeochemical
-! model tree, by caluclating and summing production/destruction matrices.
-!
-! !INTERFACE:
-   subroutine do_ppdd_to_rhs(root,LOCATION,dy)
-!
-! !USES:
-   implicit none
-!
-! !INPUT PARAMETERS:
-   type (type_model),      intent(inout) :: root
-   LOCATION_TYPE,          intent(in)    :: LOCATION
-!
-! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, dimension(:), intent(inout) :: dy
-!
-! !LOCAL PARAMETERS:
-   REALTYPE,allocatable                  :: pp(:,:),dd(:,:)
-   integer                               :: i,j
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! The model does not provide the temporal derivatives itself.
-   ! In that case, it provides production/destruction matrices instead.
-   ! Retrieve those, and calculate the temporal derivatives based on their contents.
-   !
-   ! NB pp/dd are allocated on the spot here, which is really expensive.
-   ! However, this could only be improved by making RMBM aware of the full model domain,
-   ! and making biogeochemical models tell RMB whther they provide pp/dd. Only then can RMBM
-   ! allocate pp/dd for the full domain. (allocating the arrays once for a local
-   ! point in space seems attractive, but that would rule out parallelization)
-   allocate(pp(1:ubound(dy,1),1:ubound(dy,1)))
-   allocate(dd(1:ubound(dy,1),1:ubound(dy,1)))
-   pp = _ZERO_
-   dd = _ZERO_
-   select case (root%id)
-      case (npzd_id)
-         call npzd_do_ppdd(root%npzd,pp,dd RMBM_ARGS_IN)
-      ! ADD_NEW_MODEL_HERE - only needed if the model is not added to rmbm_do_rhs.
-      case default
-         call fatal_error('rmbm::do_ppdd_to_rhs','model '//trim(root%info%name)//' does not provide a&
-         & subroutine for calculating the temporal derivative vector.')
-   end select
-   do i=1,ubound(dy,1)
-      do j=1,ubound(dy,1)
-         dy(i) = dy(i) + pp(i,j)-dd(i,j)
-      end do
-   end do
-   deallocate(pp)
-   deallocate(dd)
-   
-   end subroutine do_ppdd_to_rhs
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the local temporal derivatives in 1D
-!
-! !INTERFACE:
-   subroutine rmbm_do_rhs_1d(root ARG_LOCATION_1DLOOP,istart,istop,dy)
-!
-! !USES:
-   implicit none
-!
-! !INPUT PARAMETERS:
-   type (type_model),      intent(in)    :: root
-   integer,                intent(in)    :: istart,istop
-   DEFINE_LOCATION_1DLOOP
-!
-! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,               intent(inout) :: dy(:,:)
-!
-! !LOCAL PARAMETERS:
-   type (type_model), pointer            :: curmodel
-   LOCATION_TYPE                         :: VARIABLE_1DLOOP
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   curmodel = root%nextmodel
-   do while (associated(curmodel))
-      select case (curmodel%id)
-         ! ADD_NEW_MODEL_HERE - optional
-         case default
-            do VARIABLE_1DLOOP=istart,istop
-               call rmbm_do_rhs(curmodel,LOCATION,dy(VARIABLE_1DLOOP,:))
-            end do
-      end select
-      curmodel = curmodel%nextmodel
-   end do
-
-   end subroutine rmbm_do_rhs_1d
-!EOC
 
 !-----------------------------------------------------------------------
 !BOP
@@ -1182,21 +1079,19 @@ end subroutine rmbm_link_diagnostic_data_hz
 ! model tree in the form of production and destruction matrices.
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_do_ppdd(root,LOCATION,pp,dd)
+   recursive subroutine rmbm_do_ppdd(root,LOCATION_ND,pp,dd)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(inout) :: root
-   LOCATION_TYPE,          intent(in)    :: LOCATION
+   LOCATION_TYPE,          intent(in)    :: LOCATION_ND
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,dimension(:,:),intent(inout) :: pp,dd
+   REALTYPE ATTR_DIMENSIONS_2,intent(inout) :: pp,dd
 !
 ! !LOCAL PARAMETERS:
-   REALTYPE,allocatable                  :: dy(:)
-   integer                               :: i
    type (type_model), pointer            :: curmodel
 !
 ! !REVISION HISTORY:
@@ -1208,19 +1103,9 @@ end subroutine rmbm_link_diagnostic_data_hz
    do while (associated(curmodel))
       select case (curmodel%id)
          case (npzd_id)
-            call npzd_do_ppdd(curmodel%npzd,pp,dd RMBM_ARGS_IN)
+            call npzd_do_ppdd(curmodel%npzd,RMBM_ARGS_ND_IN,pp,dd)
          ! ADD_NEW_MODEL_HERE - optional
          case default
-            ! The model does not provide production/destruction matrices itself.
-            ! In that case, it provides temporal derivatives instead.
-            ! Retrieve those, and create degenerate production/destruction from their contents.
-            allocate(dy(ubound(pp,1)))
-            dy = _ZERO_
-            call rmbm_do_rhs(curmodel,LOCATION,dy)
-            do i=1,ubound(pp,1)
-               pp(i,i) = pp(i,i) + dy(i)
-            end do
-            deallocate(dy)
       end select
       curmodel => curmodel%nextmodel
    end do
@@ -1235,14 +1120,14 @@ end subroutine rmbm_link_diagnostic_data_hz
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   function rmbm_check_state(root,LOCATION,repair) result(valid)
+   function rmbm_check_state(root,LOCATION_ND,repair) result(valid)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(inout) :: root
-   LOCATION_TYPE,          intent(in)    :: LOCATION
+   DECLARE_LOCATION_ARG_ND
    logical,                intent(in)    :: repair
 
    logical                               :: valid
@@ -1267,26 +1152,31 @@ end subroutine rmbm_link_diagnostic_data_hz
          ! Set "valid" to .false. if the state variable values are invalid,
          ! repair them if they are invalid and "repair" is .true. (but still keep "valid" set to .false.)
       end select
+
+      ! If the present values are invalid and repair is not permitted, we are done.
+      if (.not. (valid .or. repair)) return
+      
       curmodel => curmodel%nextmodel
    end do
    
-   ! If the present values are invalid and repair is not permitted, we are done.
-   if (.not. (valid .or. repair)) return
+   _RMBM_ENTER_
 
    ! Check absolute variable boundaries specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
    do i=1,ubound(root%info%state_variables,1)
       if (root%_GET_STATE_(root%info%state_variables(i)%globalid)<root%info%state_variables(i)%minimum) then
          valid = .false.
-         if (repair) root%_GET_STATE_(root%info%state_variables(i)%globalid) =&
-             root%info%state_variables(i)%minimum
+         if (.not.repair) return
+         root%_GET_STATE_(root%info%state_variables(i)%globalid) = root%info%state_variables(i)%minimum
       elseif (root%_GET_STATE_(root%info%state_variables(i)%globalid)> &
                root%info%state_variables(i)%maximum) then
          valid = .false.
-         if (repair) root%_GET_STATE_(root%info%state_variables(i)%globalid) =&
-             root%info%state_variables(i)%maximum
+         if (.not.repair) return
+         root%_GET_STATE_(root%info%state_variables(i)%globalid) = root%info%state_variables(i)%maximum
       end if
    end do
+
+   _RMBM_LEAVE_
 
    end function rmbm_check_state
 !EOC
@@ -1322,7 +1212,7 @@ end subroutine rmbm_link_diagnostic_data_hz
    do while (associated(curmodel))
       select case (curmodel%id)
          case (carbonate_id)
-            call co2sys_get_surface_exchange(curmodel%carbonate,flux RMBM_ARGS_IN)
+            call co2sys_get_surface_exchange(curmodel%carbonate,RMBM_ARGS_IN,flux)
          ! ADD_NEW_MODEL_HERE - optional
       end select
       curmodel => curmodel%nextmodel
@@ -1423,40 +1313,50 @@ end subroutine rmbm_link_diagnostic_data_hz
 ! variables
 !
 ! !INTERFACE:
-   function rmbm_get_light_extinction(root,LOCATION) result(extinction)
+   subroutine rmbm_get_light_extinction(root,LOCATION_ND,extinction)
 !
 ! !INPUT PARAMETERS:
-   type (type_model), intent(in) :: root
-   LOCATION_TYPE,     intent(in) :: LOCATION
-   REALTYPE                      :: extinction
+   type (type_model),         intent(inout) :: root
+   DECLARE_LOCATION_ARG_ND
+   REALTYPE ATTR_DIMENSIONS_0,intent(out)   :: extinction
    
    integer                       :: i
    type (type_model), pointer    :: curmodel
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
+!
+! !LOCAL PARAMETERS:
+   REALTYPE                      :: curext
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   extinction = _ZERO_
    curmodel => root%nextmodel
    do while (associated(curmodel))
       select case (curmodel%id)
          case (npzd_id)
-            extinction = npzd_get_light_extinction(curmodel%npzd,curmodel%environment,LOCATION)
+            call npzd_get_light_extinction(curmodel%npzd,RMBM_ARGS_ND_IN,extinction)
          ! ADD_NEW_MODEL_HERE - optional
          case default
             ! Default: use constant specific light extinction values specified in the state variable properties
-            extinction = _ZERO_
+            
+            ! Enter spatial loops (if any)
+            _RMBM_ENTER_
+            
             do i=1,ubound(curmodel%info%state_variables,1)
-               if (curmodel%info%state_variables(i)%specific_light_extinction.ne._ZERO_) &
-                  extinction = extinction + root%_GET_STATE_(curmodel%info%state_variables(i)%globalid) &
-                                    & * curmodel%info%state_variables(i)%specific_light_extinction
+               curext = curmodel%info%state_variables(i)%specific_light_extinction
+               if (curext.ne._ZERO_) &
+                  _SET_EXTINCTION_(root%_GET_STATE_(curmodel%info%state_variables(i)%globalid)*curext)
             end do
+            
+            ! Enter spatial loops (if any)
+            _RMBM_LEAVE_
       end select
       curmodel => curmodel%nextmodel
    end do
 
-   end function rmbm_get_light_extinction
+   end subroutine rmbm_get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1465,15 +1365,15 @@ end subroutine rmbm_link_diagnostic_data_hz
 ! !IROUTINE: Get the total of all conserved quantities
 !
 ! !INTERFACE:
-   subroutine rmbm_get_conserved_quantities(root,LOCATION,sums)
+   subroutine rmbm_get_conserved_quantities(root,LOCATION_ND,sums)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model), intent(inout)   :: root
-   LOCATION_TYPE,     intent(in)      :: LOCATION
-   REALTYPE,          intent(inout)   :: sums(:)
+   DECLARE_LOCATION_ARG_ND
+   REALTYPE ATTR_DIMENSIONS_1,intent(out) :: sums
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1483,17 +1383,19 @@ end subroutine rmbm_link_diagnostic_data_hz
 
 !-----------------------------------------------------------------------
 !BOC
+   sums = _ZERO_
    curmodel => root%nextmodel
    do while (associated(curmodel))
       select case (curmodel%id)
          case (npzd_id)
-            call npzd_get_conserved_quantities(curmodel%npzd,sums RMBM_ARGS_IN)
+            call npzd_get_conserved_quantities(curmodel%npzd,RMBM_ARGS_ND_IN,sums)
          ! ADD_NEW_MODEL_HERE - optional
          case default
             ! Default: the model does not describe any conserved quantities.
             if (ubound(curmodel%info%conserved_quantities,1).gt.0) &
-               call fatal_error('rmbm_get_conserved_quantities','the model specifies that it describes one or more conserved &
-                    &quantities, but a function that provides sums of these quantities has not been specified.')
+               call fatal_error('rmbm_get_conserved_quantities','model '//trim(curmodel%info%name)//' specifies that it &
+                    &describes one or more conserved quantities, but a function that provides sums of these &
+                    quantities has not been provided.')
       end select
       curmodel => curmodel%nextmodel
    end do
