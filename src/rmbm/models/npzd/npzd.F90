@@ -447,7 +447,7 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,z,d,par,I_0,dn
+   REALTYPE                   :: n,p,z,d,par,I_0,dn,primprod
    REALTYPE                   :: iopt
    REALTYPE                   :: rpd
    REALTYPE, parameter :: secs_pr_day = 86400.
@@ -477,10 +477,12 @@
       rpd = self%rpdl
    end if
    
+   primprod = fnp(self,n,p,par,iopt)
+
    ! Assign destruction rates to different elements of the destruction matrix.
    ! By assigning with _SET_DD_SYM_ (as opposed to _SET_DD_), assignments to dd(i,j)
    ! are automatically assigned to pp(j,i) as well.
-   _SET_DD_SYM_(self%id_n,self%id_p,fnp(self,n,p,par,iopt)) ! snp
+   _SET_DD_SYM_(self%id_n,self%id_p,primprod)               ! snp
    _SET_DD_SYM_(self%id_p,self%id_z,fpz(self,p,z))          ! spz
    _SET_DD_SYM_(self%id_p,self%id_n,self%rpn*p)             ! spn
    _SET_DD_SYM_(self%id_z,self%id_n,self%rzn*z)             ! szn
@@ -495,10 +497,10 @@
 
    ! Export diagnostic variables
    if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
-   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP,_GET_DD_(self%id_n,self%id_p))
-   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP,_GET_DD_(self%id_n,self%id_p)-_GET_PP_(self%id_n,self%id_p))
-   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR,_GET_DD_(self%id_n,self%id_p)*secs_pr_day)
-   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR,(_GET_DD_(self%id_n,self%id_p)-_GET_PP_(self%id_n,self%id_p))*secs_pr_day)
+   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP,primprod)
+   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP,primprod-self%rpn*p)
+   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR,primprod*secs_pr_day)
+   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
    _RMBM_LEAVE_

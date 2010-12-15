@@ -94,8 +94,6 @@
 #define _SET_ODE_(index,value) rhs(index,VARIABLE_1DLOOP) = rhs(index,VARIABLE_1DLOOP) + value
 #define _SET_DD_(index1,index2,value) dd(index1,index2,VARIABLE_1DLOOP) = dd(index1,index2,VARIABLE_1DLOOP) + value
 #define _SET_PP_(index1,index2,value) pp(index1,index2,VARIABLE_1DLOOP) = pp(index1,index2,VARIABLE_1DLOOP) + value
-#define _GET_DD_(index1,index2) dd(index1,index2,VARIABLE_1DLOOP)
-#define _GET_PP_(index1,index2) pp(index1,index2,VARIABLE_1DLOOP)
 #define _SET_EXTINCTION_(value) extinction(VARIABLE_1DLOOP) = extinction(VARIABLE_1DLOOP) + value
 #define _SET_CONSERVED_QUANTITY_(index,value) sums(index,VARIABLE_1DLOOP) = sums(index,VARIABLE_1DLOOP) + value
 
