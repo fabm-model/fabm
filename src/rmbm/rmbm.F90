@@ -1356,6 +1356,7 @@ end subroutine rmbm_link_diagnostic_data_hz
 !
 ! !LOCAL PARAMETERS:
    REALTYPE                      :: curext
+   integer                       :: varid
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1377,8 +1378,10 @@ end subroutine rmbm_link_diagnostic_data_hz
             ! Use variable-specific light extinction coefficients.
             do i=1,ubound(curmodel%info%state_variables,1)
                curext = curmodel%info%state_variables(i)%specific_light_extinction
-               if (curext.ne._ZERO_) &
-                  _SET_EXTINCTION_(root%_GET_STATE_(curmodel%info%state_variables(i)%globalid)*curext)
+               if (curext.ne._ZERO_) then
+                  varid = curmodel%info%state_variables(i)%globalid
+                  _SET_EXTINCTION_(root%_GET_STATE_(varid)*curext)
+               end if
             end do
             
             ! Enter spatial loops (if any)
