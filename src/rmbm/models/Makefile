@@ -10,8 +10,8 @@ LIB	= $(LIBDIR)/librmbm$(buildtype).a
 DOCSRC  += npzd/npzd.F90
 SUBDIRS += npzd
 
-DOCSRC  += jellyfish/jellyfish.F90
-SUBDIRS += jellyfish
+DOCSRC  += mnemiopsis/mnemiopsis.F90
+SUBDIRS += mnemiopsis
 
 DOCSRC  += co2sys/co2sys.F90
 SUBDIRS += co2sys
