@@ -17,6 +17,8 @@ module rmbm_co2sys
    use rmbm_types
    use rmbm_driver
 
+   implicit none
+
 !  default: all is private.
    private
 !
@@ -33,7 +35,7 @@ module rmbm_co2sys
    type type_co2_sys
       integer :: id_dic
       integer :: id_temp, id_salt, id_pres, id_wind, id_dens
-      integer :: id_ph, id_alk, id_pco2, id_CarbA, id_Bicarb, id_Carb, id_Om_cal, id_Om_arg
+      integer :: id_ph, id_alk, id_pco2, id_CarbA, id_Bicarb, id_Carb, id_Om_cal, id_Om_arg, id_co2_flux
       REALTYPE :: TA_offset, TA_slope, pCO2a
       logical  :: alk_param
    end type
@@ -94,13 +96,14 @@ contains
      self%id_alk = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity',time_treatment=time_treatment_averaged)
    end if
                                     
-   self%id_ph     = register_diagnostic_variable(modelinfo, 'pH',    '-',        'pH',                           time_treatment=time_treatment_averaged)
-   self%id_pco2   = register_diagnostic_variable(modelinfo, 'pCO2',  'ppm',      'CO2 partial pressure',         time_treatment=time_treatment_averaged)
-   self%id_CarbA  = register_diagnostic_variable(modelinfo, 'CarbA', 'mmol/m**3','carbonic acid concentration',  time_treatment=time_treatment_averaged)
-   self%id_Bicarb = register_diagnostic_variable(modelinfo, 'Bicarb','mmol/m**3','bicarbonate ion concentration',time_treatment=time_treatment_averaged)
-   self%id_Carb   = register_diagnostic_variable(modelinfo, 'Carb',  'mmol/m**3','carbonate ion concentration',  time_treatment=time_treatment_averaged)
-   self%id_Om_cal = register_diagnostic_variable(modelinfo, 'Om_cal','-',        'calcite saturation state',     time_treatment=time_treatment_averaged)
-   self%id_Om_arg = register_diagnostic_variable(modelinfo, 'Om_arg','-',        'aragonite saturation state',   time_treatment=time_treatment_averaged)
+   self%id_ph       = register_diagnostic_variable(modelinfo, 'pH',      '-',          'pH',                           time_treatment=time_treatment_averaged)
+   self%id_pco2     = register_diagnostic_variable(modelinfo, 'pCO2',    'ppm',        'CO2 partial pressure',         time_treatment=time_treatment_averaged)
+   self%id_CarbA    = register_diagnostic_variable(modelinfo, 'CarbA',   'mmol/m**3',  'carbonic acid concentration',  time_treatment=time_treatment_averaged)
+   self%id_Bicarb   = register_diagnostic_variable(modelinfo, 'Bicarb',  'mmol/m**3',  'bicarbonate ion concentration',time_treatment=time_treatment_averaged)
+   self%id_Carb     = register_diagnostic_variable(modelinfo, 'Carb',    'mmol/m**3',  'carbonate ion concentration',  time_treatment=time_treatment_averaged)
+   self%id_Om_cal   = register_diagnostic_variable(modelinfo, 'Om_cal',  '-',          'calcite saturation state',     time_treatment=time_treatment_averaged)
+   self%id_Om_arg   = register_diagnostic_variable(modelinfo, 'Om_arg',  '-',          'aragonite saturation state',   time_treatment=time_treatment_averaged)
+   self%id_co2_flux = register_diagnostic_variable(modelinfo, 'CO2_flux','mmol/m**2/s','CO2 flux into the water',      time_treatment=time_treatment_averaged, shape=shape_hz)
    
    self%id_temp = register_dependency(modelinfo, varname_temp)
    self%id_salt = register_dependency(modelinfo, varname_salt)
@@ -143,6 +146,9 @@ contains
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Enter spatial loops (if any)
+   _RMBM_ENTER_
+
    ! Get environmental variables.
    temp = _GET_VAR_(self%id_temp)
    salt = _GET_VAR_(self%id_salt)
@@ -164,7 +170,7 @@ contains
    ! Calculate carbonate system equilibrium.
    call CO2DYN(dic/1.0D3/dens, TA/1.0D6, temp, salt, PCO2WATER, pH, HENRY, ca, bc, cb)
 
-   !Call carbonate saturation state subroutine to calculate calcite and aragonite calcification states.
+   ! Call carbonate saturation state subroutine to calculate calcite and aragonite calcification states.
    call CaCO3_Saturation (temp, salt, pres, cb, Om_cal, Om_arg)
    
    ! Store diagnostic variables.
@@ -177,6 +183,9 @@ contains
    if (self%id_Om_arg .ne.id_not_used) _SET_DIAG_(self%id_Om_arg,Om_arg)
    if (self%id_alk    .ne.id_not_used .and. self%alk_param) _SET_DIAG_(self%id_alk,TA*dens*1.0D-3)   ! from uEg/kg to mmol/m**3
 
+   ! Leave spatial loops (if any)
+   _RMBM_LEAVE_
+
    end subroutine co2sys_do
 !EOC
 
@@ -186,7 +195,7 @@ contains
 ! !IROUTINE: Air-sea exchange for the carbonate system model
 !
 ! !INTERFACE:
-   subroutine co2sys_get_surface_exchange(self,RMBM_ARGS,flux)
+   subroutine co2sys_get_surface_exchange(self,RMBM_ARGS_GET_SURFACE_EXCHANGE)
 !
 ! !DESCRIPTION:
 !
@@ -195,10 +204,7 @@ contains
 !
 ! !INPUT PARAMETERS:
    type (type_co2_sys), intent(in)    :: self
-   DECLARE_RMBM_ARGS
-!
-! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, intent(inout)            :: flux(:)
+   DECLARE_RMBM_ARGS_GET_SURFACE_EXCHANGE
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -218,6 +224,9 @@ contains
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Enter spatial loops (if any)
+   _RMBM_ENTER_HZ_
+
    temp = _GET_VAR_(self%id_temp)
    salt = _GET_VAR_(self%id_salt)
    dens = _GET_VAR_(self%id_dens)
@@ -237,9 +246,17 @@ contains
    ! Calculate carbonate system equilibrium.
    call CO2DYN(dic/1.0D3/dens, TA/1.0D6, temp, salt, PCO2WATER, pH, HENRY, ca, bc, cb)
 
+   ! Calculate air-sea exchange of CO2 (positive flux is from atmosphere to water)
    call Air_sea_exchange(temp, wnd, PCO2WATER*1.0D6, self%pCO2a, Henry, dens/1.0D3, fl)
    
-   flux(self%id_dic) = fl/secs_pr_day
+   ! Transfer surface exchange value to RMBM.
+   _SET_SURFACE_EXCHANGE_(self%id_dic,fl/secs_pr_day)
+
+   ! Also store surface flux as diagnostic variable.
+   if (self%id_co2_flux.ne.id_not_used) _SET_DIAG_HZ_(self%id_co2_flux,fl/secs_pr_day)
+
+   ! Leave spatial loops (if any)
+   _RMBM_LEAVE_HZ_
 
    end subroutine co2sys_get_surface_exchange
 !EOC

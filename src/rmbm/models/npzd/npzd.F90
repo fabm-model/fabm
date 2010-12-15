@@ -203,6 +203,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Enter spatial loops (if any)
    _RMBM_ENTER_
 
    ! Retrieve current (local) state variable values.
@@ -212,6 +213,7 @@
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(self%kc*(self%p0+p+d))
 
+   ! Leave spatial loops (if any)
    _RMBM_LEAVE_
    
    end subroutine npzd_get_light_extinction
@@ -238,6 +240,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Enter spatial loops (if any)
    _RMBM_ENTER_
 
    ! Retrieve current (local) state variable values.
@@ -249,6 +252,7 @@
    ! Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
 
+   ! Leave spatial loops (if any)
    _RMBM_LEAVE_
 
    end subroutine npzd_get_conserved_quantities
@@ -327,6 +331,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Enter spatial loops (if any)
    _RMBM_ENTER_
 
    ! Retrieve current (local) state variable values.
@@ -354,14 +359,14 @@
    dn = - primprod + self%rpn*p + self%rzn*z + self%rdn*d
    
    ! Set temporal derivatives
-   _SET_RHS_(self%id_n,dn)
-   _SET_RHS_(self%id_p,primprod - fpz(self,p,z) - self%rpn*p - rpd*p)
-   _SET_RHS_(self%id_z,fpz(self,p,z) - self%rzn*z - self%rzd*z)
-   _SET_RHS_(self%id_d,rpd*p + self%rzd*z - self%rdn*d)
+   _SET_ODE_(self%id_n,dn)
+   _SET_ODE_(self%id_p,primprod - fpz(self,p,z) - self%rpn*p - rpd*p)
+   _SET_ODE_(self%id_z,fpz(self,p,z) - self%rzn*z - self%rzd*z)
+   _SET_ODE_(self%id_d,rpd*p + self%rzd*z - self%rdn*d)
 
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
-   if (self%id_dic.ne.id_not_used) _SET_RHS_(self%id_dic,self%dic_per_n*dn)
+   if (self%id_dic.ne.id_not_used) _SET_ODE_(self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
    if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
@@ -370,6 +375,7 @@
    if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
    if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
    
+   ! Leave spatial loops (if any)
    _RMBM_LEAVE_
 
    end subroutine npzd_do
@@ -448,6 +454,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Enter spatial loops (if any)
    _RMBM_ENTER_
 
    ! Retrieve current (local) state variable values.
@@ -457,7 +464,7 @@
    d = _GET_STATE_(self%id_d) ! detritus
    
    ! Retrieve current environmental conditions.
-   par = _GET_VAR_(self%id_par)     ! local photosynthetically active radiation
+   par = _GET_VAR_   (self%id_par)  ! local photosynthetically active radiation
    I_0 = _GET_VAR_HZ_(self%id_I_0)  ! surface short wave radiation
    
    ! Light acclimation formulation based on surface light intensity.
@@ -470,22 +477,16 @@
       rpd = self%rpdl
    end if
    
-   _SET_DD_(self%id_n,self%id_p,fnp(self,n,p,par,iopt)) ! snp
-   _SET_DD_(self%id_p,self%id_z,fpz(self,p,z))          ! spz
-   _SET_DD_(self%id_p,self%id_n,self%rpn*p)             ! spn
-   _SET_DD_(self%id_z,self%id_n,self%rzn*z)             ! szn
-   _SET_DD_(self%id_d,self%id_n,self%rdn*d)             ! sdn
-   _SET_DD_(self%id_p,self%id_d,rpd*p)                  ! spd
-   _SET_DD_(self%id_z,self%id_d,self%rzd*z)             ! szd
-   
-   ! Mirror destruction rates in production rate matrix (each conversion is fully conservative)
-   _SET_PP_(self%id_p,self%id_n,_GET_DD_(self%id_n,self%id_p))
-   _SET_PP_(self%id_z,self%id_p,_GET_DD_(self%id_p,self%id_z))
-   _SET_PP_(self%id_n,self%id_p,_GET_DD_(self%id_p,self%id_n))
-   _SET_PP_(self%id_n,self%id_z,_GET_DD_(self%id_z,self%id_n))
-   _SET_PP_(self%id_n,self%id_d,_GET_DD_(self%id_d,self%id_n))
-   _SET_PP_(self%id_d,self%id_p,_GET_DD_(self%id_p,self%id_d))
-   _SET_PP_(self%id_d,self%id_z,_GET_DD_(self%id_z,self%id_d))
+   ! Assign destruction rates to different elements of the destruction matrix.
+   ! By assigning with _SET_DD_SYM_ (as opposed to _SET_DD_), assignments to dd(i,j)
+   ! are automatically assigned to pp(j,i) as well.
+   _SET_DD_SYM_(self%id_n,self%id_p,fnp(self,n,p,par,iopt)) ! snp
+   _SET_DD_SYM_(self%id_p,self%id_z,fpz(self,p,z))          ! spz
+   _SET_DD_SYM_(self%id_p,self%id_n,self%rpn*p)             ! spn
+   _SET_DD_SYM_(self%id_z,self%id_n,self%rzn*z)             ! szn
+   _SET_DD_SYM_(self%id_d,self%id_n,self%rdn*d)             ! sdn
+   _SET_DD_SYM_(self%id_p,self%id_d,rpd*p)                  ! spd
+   _SET_DD_SYM_(self%id_z,self%id_d,self%rzd*z)             ! szd
 
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
@@ -499,6 +500,7 @@
    if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR,_GET_DD_(self%id_n,self%id_p)*secs_pr_day)
    if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR,(_GET_DD_(self%id_n,self%id_p)-_GET_PP_(self%id_n,self%id_p))*secs_pr_day)
 
+   ! Leave spatial loops (if any)
    _RMBM_LEAVE_
 
    end subroutine npzd_do_ppdd

@@ -184,6 +184,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Enter spatial loops (if any)
    _RMBM_ENTER_
 
    ! Obtain current values for environmental variables
@@ -375,20 +376,21 @@
    end if
 
    ! Increment/decrement derivatives for our own state variables
-   _SET_RHS_(self%id_egb,(tab_mn*adb_mn -       mea_mn       *egb_mn - teb_mn*egb_mn)/secs_pr_day) ! egg biomass
-   _SET_RHS_(self%id_jb ,(teb_mn*egb_mn + (gj_mn-mj_mn-lj_mn)* jb_mn - tjb_mn* jb_mn)/secs_pr_day) ! nauplii biomass
-   _SET_RHS_(self%id_ja ,(tea_mn*egb_mn -        mj_mn       * ja_mn - tja_mn* jb_mn)/secs_pr_day) ! nauplii abundance
-   _SET_RHS_(self%id_tb ,(tjb_mn* jb_mn + (gt_mn-mt_mn-lt_mn)* tb_mn - ttb_mn* tb_mn)/secs_pr_day) ! c1 biomass
-   _SET_RHS_(self%id_ta ,(tja_mn* jb_mn -        mt_mn       * ta_mn - tta_mn* tb_mn)/secs_pr_day) ! c1 abundance
-   _SET_RHS_(self%id_adb,(ttb_mn* tb_mn + (ga_mn-ma_mn-la_mn)*adb_mn - tab_mn*adb_mn)/secs_pr_day) ! adult biomass
-   _SET_RHS_(self%id_ada,(tta_mn* tb_mn         -ma_mn       *ada_mn                )/secs_pr_day) ! adult abundance
+   _SET_ODE_(self%id_egb,(tab_mn*adb_mn -       mea_mn       *egb_mn - teb_mn*egb_mn)/secs_pr_day) ! egg biomass
+   _SET_ODE_(self%id_jb ,(teb_mn*egb_mn + (gj_mn-mj_mn-lj_mn)* jb_mn - tjb_mn* jb_mn)/secs_pr_day) ! nauplii biomass
+   _SET_ODE_(self%id_ja ,(tea_mn*egb_mn -        mj_mn       * ja_mn - tja_mn* jb_mn)/secs_pr_day) ! nauplii abundance
+   _SET_ODE_(self%id_tb ,(tjb_mn* jb_mn + (gt_mn-mt_mn-lt_mn)* tb_mn - ttb_mn* tb_mn)/secs_pr_day) ! c1 biomass
+   _SET_ODE_(self%id_ta ,(tja_mn* jb_mn -        mt_mn       * ta_mn - tta_mn* tb_mn)/secs_pr_day) ! c1 abundance
+   _SET_ODE_(self%id_adb,(ttb_mn* tb_mn + (ga_mn-ma_mn-la_mn)*adb_mn - tab_mn*adb_mn)/secs_pr_day) ! adult biomass
+   _SET_ODE_(self%id_ada,(tta_mn* tb_mn         -ma_mn       *ada_mn                )/secs_pr_day) ! adult abundance
    
    ! Increment/decrement derivatives for external variables (prey, respiration/mortality target variables)
-   _SET_RHS_(self%id_foodmic,   -(gj_mn*jb_mn)/self%food_scale/secs_pr_day)
-   _SET_RHS_(self%id_food,      -(gt_mn*tb_mn+ga_mn*adb_mn)/self%food_scale/secs_pr_day)
-   _SET_RHS_(self%id_resptarget, (lj_mn*jb_mn + lt_mn*tb_mn + la_mn*adb_mn)/self%food_scale/secs_pr_day)
-   _SET_RHS_(self%id_morttarget, (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale/secs_pr_day)
+   _SET_ODE_(self%id_foodmic,   -(gj_mn*jb_mn)/self%food_scale/secs_pr_day)
+   _SET_ODE_(self%id_food,      -(gt_mn*tb_mn+ga_mn*adb_mn)/self%food_scale/secs_pr_day)
+   _SET_ODE_(self%id_resptarget, (lj_mn*jb_mn + lt_mn*tb_mn + la_mn*adb_mn)/self%food_scale/secs_pr_day)
+   _SET_ODE_(self%id_morttarget, (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale/secs_pr_day)
 
+   ! Leave spatial loops (if any)
    _RMBM_LEAVE_
 
    end subroutine mnemiopsis_do

@@ -68,9 +68,9 @@
 #define ARG_LOCATION ,LOCATION
 #define ARG_LOCATION_DIMENSIONS ,:
 
-#define RMBM_ARGS environment ARG_LOCATION
-#define DECLARE_RMBM_ARGS type (type_environment),intent(inout) :: environment;LOCATION_TYPE,intent(in) :: LOCATION
-#define RMBM_ARGS_IN root%environment ARG_LOCATION
+#define RMBM_ARGS_0D environment ARG_LOCATION
+#define DECLARE_RMBM_ARGS_0D type (type_environment),intent(inout) :: environment;LOCATION_TYPE,intent(in) :: LOCATION
+#define RMBM_ARGS_IN_0D root%environment ARG_LOCATION
 
 ! Write access to diagnostic variables
 #ifdef RMBM_MANAGE_DIAGNOSTICS
@@ -91,7 +91,7 @@
 #define ATTR_DIMENSIONS_0 ,dimension(:)
 #define ATTR_DIMENSIONS_1 ,dimension(:,:)
 #define ATTR_DIMENSIONS_2 ,dimension(:,:,:)
-#define _SET_RHS_(index,value) rhs(index,VARIABLE_1DLOOP) = rhs(index,VARIABLE_1DLOOP) + value
+#define _SET_ODE_(index,value) rhs(index,VARIABLE_1DLOOP) = rhs(index,VARIABLE_1DLOOP) + value
 #define _SET_DD_(index1,index2,value) dd(index1,index2,VARIABLE_1DLOOP) = dd(index1,index2,VARIABLE_1DLOOP) + value
 #define _SET_PP_(index1,index2,value) pp(index1,index2,VARIABLE_1DLOOP) = pp(index1,index2,VARIABLE_1DLOOP) + value
 #define _GET_DD_(index1,index2) dd(index1,index2,VARIABLE_1DLOOP)
@@ -109,7 +109,7 @@
 #define ATTR_DIMENSIONS_0
 #define ATTR_DIMENSIONS_1 ,dimension(:)
 #define ATTR_DIMENSIONS_2 ,dimension(:,:)
-#define _SET_RHS_(index,value) rhs(index) = rhs(index) + value
+#define _SET_ODE_(index,value) rhs(index) = rhs(index) + value
 #define _SET_DD_(index1,index2,value) dd(index1,index2) = dd(index1,index2) + value
 #define _SET_PP_(index1,index2,value) pp(index1,index2) = pp(index1,index2) + value
 #define _GET_DD_(index1,index2) dd(index1,index2)
@@ -119,17 +119,24 @@
 
 #endif
 
+#define _SET_DD_SYM_(index1,index2,value) _SET_DD_(index1,index2,value);_SET_PP_(index2,index1,value)
+
+#define _SET_SURFACE_EXCHANGE_(index,value) flux(index) = flux(index) + value
+
 #define RMBM_ARGS_ND environment,LOCATION_ND
 #define RMBM_ARGS_ND_IN root%environment,LOCATION_ND
 #define RMBM_ARGS_DO_RHS RMBM_ARGS_ND,rhs
 #define RMBM_ARGS_DO_PPDD RMBM_ARGS_ND,pp,dd
 #define RMBM_ARGS_GET_EXTINCTION RMBM_ARGS_ND,extinction
 #define RMBM_ARGS_GET_CONSERVED_QUANTITIES RMBM_ARGS_ND,sums
+#define RMBM_ARGS_GET_SURFACE_EXCHANGE RMBM_ARGS_0D,flux
+
 #define DECLARE_RMBM_ARGS_ND type (type_environment),intent(inout) :: environment;DECLARE_LOCATION_ARG_ND
 #define DECLARE_RMBM_ARGS_DO_RHS  DECLARE_RMBM_ARGS_ND;REALTYPE ATTR_DIMENSIONS_1,intent(inout) :: rhs
 #define DECLARE_RMBM_ARGS_DO_PPDD DECLARE_RMBM_ARGS_ND;REALTYPE ATTR_DIMENSIONS_2,intent(inout) :: pp,dd
 #define DECLARE_RMBM_ARGS_GET_EXTINCTION DECLARE_RMBM_ARGS_ND;REALTYPE ATTR_DIMENSIONS_0,intent(inout) :: extinction
 #define DECLARE_RMBM_ARGS_GET_CONSERVED_QUANTITIES DECLARE_RMBM_ARGS_ND;REALTYPE ATTR_DIMENSIONS_1,intent(inout) :: sums
+#define DECLARE_RMBM_ARGS_GET_SURFACE_EXCHANGE DECLARE_RMBM_ARGS_0D;REALTYPE,dimension(:),intent(inout) :: flux
 
 ! Read-only access to values of external dependencies
 #define _GET_VAR_(index) environment%var(index)%data INDEX_LOCATION
@@ -141,3 +148,6 @@
 #else
 #define _GET_STATE_(index) environment%state(index)%data INDEX_LOCATION
 #endif
+
+#define _RMBM_ENTER_HZ_
+#define _RMBM_LEAVE_HZ_

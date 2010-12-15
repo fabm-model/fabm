@@ -458,9 +458,13 @@
    pres(1:nlev) = -z(1:nlev)
    
    ! Get updated vertical movement (m/s, positive for upwards) for biological state variables.
+#ifdef RMBM_USE_1D_LOOP
+   call rmbm_get_vertical_movement(model,1,nlev,ws(1:nlev,:))
+#else
    do j=1,nlev
       call rmbm_get_vertical_movement(model,j,ws(j,:))
    end do
+#endif
 
    ! Get updated air-sea fluxes for biological state variables.
    sfl = _ZERO_
@@ -1013,12 +1017,17 @@
    select case (out_fmt)
       case (NETCDF)
 #ifdef NETCDF_FMT
-         ! Store depth-explicit biogeochemical state (prognostic) variables.
+         ! Store pelagic biogeochemical state variables.
          do n=1,ubound(model%info%state_variables,1)
             iret = store_data(ncid,model%info%state_variables(n)%id,XYZT_SHAPE,nlev,array=cc(n,0:nlev))
          end do
 
-         ! Process and store diagnostic variables.
+         ! Store benthic biogeochemical state variables.
+         do n=1,ubound(model%info%state_variables_ben,1)
+            iret = store_data(ncid,model%info%state_variables_ben(n)%id,XYT_SHAPE,1,scalar=cc_bottom(n,1))
+         end do
+
+         ! Process and store diagnostic variables defined on the full domain.
          do n=1,ubound(model%info%diagnostic_variables,1)
             ! Time-average diagnostic variable if needed.
             if (model%info%diagnostic_variables(n)%time_treatment==time_treatment_averaged) &
@@ -1033,9 +1042,19 @@
                cc_diag(n,1:nlev) = _ZERO_
          end do
 
-         ! Store depth-independent biogeochemical state (prognostic) variables.
-         do n=1,ubound(model%info%state_variables_ben,1)
-            iret = store_data(ncid,model%info%state_variables_ben(n)%id,XYT_SHAPE,1,scalar=cc_bottom(n,1))
+         ! Process and store diagnostic variables defined on horizontal slices of the domain.
+         do n=1,ubound(model%info%diagnostic_variables_hz,1)
+            ! Time-average diagnostic variable if needed.
+            if (model%info%diagnostic_variables_hz(n)%time_treatment==time_treatment_averaged) &
+               cc_diag_hz(n) = cc_diag_hz(n)/(nsave*dt)
+               
+            ! Store diagnostic variable values.
+            iret = store_data(ncid,model%info%diagnostic_variables_hz(n)%id,XYT_SHAPE,nlev,scalar=cc_diag_hz(n))
+            
+            ! Reset diagnostic variables to zero if they will be time-integrated (or time-averaged).
+            if (model%info%diagnostic_variables_hz(n)%time_treatment==time_treatment_averaged .or. &
+                model%info%diagnostic_variables_hz(n)%time_treatment==time_treatment_step_integrated) &
+               cc_diag_hz(n) = _ZERO_
          end do
 
          ! Integrate conserved quantities over depth.

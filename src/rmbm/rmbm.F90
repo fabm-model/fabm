@@ -1061,9 +1061,11 @@ end subroutine rmbm_link_diagnostic_data_hz
             call co2sys_do(curmodel%carbonate,RMBM_ARGS_ND_IN,dy)
          ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
          ! matrices instead of a temporal derivative vector. In that case, add the model to
-         ! do_ppdd_to_rhs.
-         !case default
-         !  call do_ppdd_to_rhs(curmodel,LOCATION,dy)
+         ! rmbm_do_ppdd.
+         
+         case default
+           call fatal_error('rmbm_do_rhs','model '//trim(curmodel%info%name)//' does not provide a subroutine &
+              &that calculates local temporal derivatives.')
       end select
       curmodel => curmodel%nextmodel
    end do
@@ -1104,8 +1106,13 @@ end subroutine rmbm_link_diagnostic_data_hz
       select case (curmodel%id)
          case (npzd_id)
             call npzd_do_ppdd(curmodel%npzd,RMBM_ARGS_ND_IN,pp,dd)
-         ! ADD_NEW_MODEL_HERE - optional
+         ! ADD_NEW_MODEL_HERE - optional, only if the model provides a subroutine for calculating local
+         ! production/destruction matrices. This is required fro certain temporal integration schemes,
+         ! e.g., Patankar, Modified Patankar.
+         
          case default
+           call fatal_error('rmbm_do_ppdd','model '//trim(curmodel%info%name)//' does not provide a subroutine &
+              &that calculates local production/destruction matrices.')
       end select
       curmodel => curmodel%nextmodel
    end do
@@ -1147,8 +1154,10 @@ end subroutine rmbm_link_diagnostic_data_hz
    curmodel => root%nextmodel
    do while (associated(curmodel) .and. valid)
       select case (curmodel%id)
-         ! ADD_NEW_MODEL_HERE - optional
-         ! If a subroutine or function is provided:
+         ! ADD_NEW_MODEL_HERE - optional, only if the validity of state variable values cannot
+         ! be checked simply by ascertaining whether its values lie within prescribed [constant] bounds.
+         !
+         ! If the biogeochemcial model provides a subroutine for checking the model state:
          ! Set "valid" to .false. if the state variable values are invalid,
          ! repair them if they are invalid and "repair" is .true. (but still keep "valid" set to .false.)
       end select
@@ -1158,24 +1167,31 @@ end subroutine rmbm_link_diagnostic_data_hz
       
       curmodel => curmodel%nextmodel
    end do
+
+   ! Finally check whether all state variabel values lie within their prescribed [constant] bounds.
+   ! This is always done, independently of any model-specific checks that may have been called above.
    
+   ! Enter spatial loops (if any)
    _RMBM_ENTER_
 
    ! Check absolute variable boundaries specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
    do i=1,ubound(root%info%state_variables,1)
       if (root%_GET_STATE_(root%info%state_variables(i)%globalid)<root%info%state_variables(i)%minimum) then
+         ! State variable value lies below prescribed minimum.
          valid = .false.
          if (.not.repair) return
          root%_GET_STATE_(root%info%state_variables(i)%globalid) = root%info%state_variables(i)%minimum
       elseif (root%_GET_STATE_(root%info%state_variables(i)%globalid)> &
                root%info%state_variables(i)%maximum) then
+         ! State variable value exceeds prescribed maximum.
          valid = .false.
          if (.not.repair) return
          root%_GET_STATE_(root%info%state_variables(i)%globalid) = root%info%state_variables(i)%maximum
       end if
    end do
 
+   ! Leave spatial loops (if any)
    _RMBM_LEAVE_
 
    end function rmbm_check_state
@@ -1199,7 +1215,7 @@ end subroutine rmbm_link_diagnostic_data_hz
    LOCATION_TYPE,          intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,               intent(inout) :: flux(:)
+   REALTYPE, intent(out) :: flux(:)
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1212,8 +1228,9 @@ end subroutine rmbm_link_diagnostic_data_hz
    do while (associated(curmodel))
       select case (curmodel%id)
          case (carbonate_id)
-            call co2sys_get_surface_exchange(curmodel%carbonate,RMBM_ARGS_IN,flux)
-         ! ADD_NEW_MODEL_HERE - optional
+            call co2sys_get_surface_exchange(curmodel%carbonate,RMBM_ARGS_IN_0D,flux)
+         ! ADD_NEW_MODEL_HERE - optional, only if the model specifies fluxes of one or
+         ! more of its state variables across the air-water interface.
       end select
       curmodel => curmodel%nextmodel
    end do
@@ -1253,7 +1270,8 @@ end subroutine rmbm_link_diagnostic_data_hz
    curmodel => root%nextmodel
    do while (associated(curmodel))
       select case (curmodel%id)
-         ! ADD_NEW_MODEL_HERE - optional
+         ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
+         ! or specifies bottom fluxes for its pelagic state variables.
       end select
       curmodel => curmodel%nextmodel
    end do
@@ -1269,17 +1287,17 @@ end subroutine rmbm_link_diagnostic_data_hz
 ! and positive values indicate movemment towards the surface, e.g., floating.
 !
 ! !INTERFACE:
-   subroutine rmbm_get_vertical_movement(root,LOCATION,vertical_movement)
+   subroutine rmbm_get_vertical_movement(root,LOCATION_ND,vertical_movement)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(in)    :: root
-   LOCATION_TYPE,          intent(in)    :: LOCATION
+   DECLARE_LOCATION_ARG_ND
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,               intent(inout) :: vertical_movement(:)
+   REALTYPE ATTR_DIMENSIONS_1,intent(out) :: vertical_movement
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1292,13 +1310,23 @@ end subroutine rmbm_link_diagnostic_data_hz
    curmodel => root%nextmodel
    do while (associated(curmodel))
       select case (curmodel%id)
-         ! ADD_NEW_MODEL_HERE - optional
+         ! ADD_NEW_MODEL_HERE - optional, only if the model specifies time- and/or space
+         ! varying vertical velocities for one or more state variables.
+         
          case default
             ! Default: use the constant sinking rates specified in state variable properties.
+
+            ! Enter spatial loops (if any)
+            _RMBM_ENTER_
+
+            ! Use variable-specific vertical movement rates.
             do i=1,ubound(curmodel%info%state_variables,1)
-               vertical_movement(curmodel%info%state_variables(i)%globalid) =&
-                   curmodel%info%state_variables(i)%vertical_movement
+               vertical_movement(kk,curmodel%info%state_variables(i)%globalid) =&
+                  & curmodel%info%state_variables(i)%vertical_movement
             end do
+
+            ! Leave spatial loops (if any)
+            _RMBM_LEAVE_
       end select
       curmodel => curmodel%nextmodel
    end do
@@ -1337,13 +1365,16 @@ end subroutine rmbm_link_diagnostic_data_hz
       select case (curmodel%id)
          case (npzd_id)
             call npzd_get_light_extinction(curmodel%npzd,RMBM_ARGS_ND_IN,extinction)
-         ! ADD_NEW_MODEL_HERE - optional
+         ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
+         ! state variable specific extinction coefficients.
+
          case default
             ! Default: use constant specific light extinction values specified in the state variable properties
             
             ! Enter spatial loops (if any)
             _RMBM_ENTER_
             
+            ! Use variable-specific light extinction coefficients.
             do i=1,ubound(curmodel%info%state_variables,1)
                curext = curmodel%info%state_variables(i)%specific_light_extinction
                if (curext.ne._ZERO_) &
@@ -1389,7 +1420,9 @@ end subroutine rmbm_link_diagnostic_data_hz
       select case (curmodel%id)
          case (npzd_id)
             call npzd_get_conserved_quantities(curmodel%npzd,RMBM_ARGS_ND_IN,sums)
-         ! ADD_NEW_MODEL_HERE - optional
+         ! ADD_NEW_MODEL_HERE - optional, required only if the model exports one or more
+         ! conserved quantities.
+         
          case default
             ! Default: the model does not describe any conserved quantities.
             if (ubound(curmodel%info%conserved_quantities,1).gt.0) &
