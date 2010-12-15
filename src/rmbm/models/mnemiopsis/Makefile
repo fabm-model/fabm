@@ -6,10 +6,10 @@ include ../../../Rules.make
 
 LIB	= $(LIBDIR)/librmbm$(buildtype).a
 
-DOCSRC	=  jellyfish.F90
+DOCSRC	=  mnemiopsis.F90
 
 OBJS   = \
-${LIB}(jellyfish.o)
+${LIB}(mnemiopsis.o)
 
 all: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
