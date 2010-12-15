@@ -194,11 +194,11 @@
 ! variables
 !
 ! !INTERFACE:
-   _PURE subroutine npzd_get_light_extinction(self,RMBM_ARGS_GET_EXTINCTION)
+   _PURE_ subroutine npzd_get_light_extinction(self,_RMBM_ARGS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd), intent(in) :: self
-   DECLARE_RMBM_ARGS_GET_EXTINCTION
+   _DECLARE_RMBM_ARGS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -231,11 +231,11 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   _PURE subroutine npzd_get_conserved_quantities(self,RMBM_ARGS_GET_CONSERVED_QUANTITIES)
+   _PURE_ subroutine npzd_get_conserved_quantities(self,_RMBM_ARGS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd), intent(in) :: self
-   DECLARE_RMBM_ARGS_GET_CONSERVED_QUANTITIES
+   _DECLARE_RMBM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -270,7 +270,7 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine npzd_do(self,RMBM_ARGS_DO_RHS)
+   subroutine npzd_do(self,_RMBM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -324,7 +324,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in) :: self
-   DECLARE_RMBM_ARGS_DO_RHS
+   _DECLARE_RMBM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -393,7 +393,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine npzd_do_ppdd(self,RMBM_ARGS_DO_PPDD)
+   subroutine npzd_do_ppdd(self,_RMBM_ARGS_DO_PPDD_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -447,7 +447,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in) :: self
-   DECLARE_RMBM_ARGS_DO_PPDD
+   _DECLARE_RMBM_ARGS_DO_PPDD_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -521,7 +521,7 @@
 ! !IROUTINE: Michaelis-Menten formulation for nutrient uptake
 !
 ! !INTERFACE:
-   _PURE REALTYPE function fnp(self,n,p,par,iopt)
+   _PURE_ REALTYPE function fnp(self,n,p,par,iopt)
 !
 ! !DESCRIPTION:
 ! Here, the classical Michaelis-Menten formulation for nutrient uptake
@@ -551,7 +551,7 @@
 ! !IROUTINE: Ivlev formulation for zooplankton grazing on phytoplankton
 !
 ! !INTERFACE:
-   _PURE REALTYPE function fpz(self,p,z)
+   _PURE_ REALTYPE function fpz(self,p,z)
 !
 ! !DESCRIPTION:
 ! Here, the classical Ivlev formulation for zooplankton grazing on 

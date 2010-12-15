@@ -108,11 +108,11 @@
      varname_par_sf  = 'env_par_sf'     ! Photosynthetically Active Radiation at surface (W/m^2)
                                   
    type type_state
-      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS :: data
+      REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_ :: data
    end type type_state
 
    type type_state_hz
-      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_HZ :: data
+      REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_HZ_ :: data
    end type type_state_hz
 
    type type_environment
@@ -120,24 +120,24 @@
       ! Pointer(s) to arrays that will hold state variable values.
 #ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
       ! Data for all state variables are stored in a single array.
-      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_PLUS_ONE    :: state    =>null() ! pointer to data of pelagic state variables
-      REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE :: state_ben=>null() ! pointer to data of benthic state variables
+      REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_    :: state    =>null() ! pointer to data of pelagic state variables
+      REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ :: state_ben=>null() ! pointer to data of benthic state variables
 #else
       ! Data for the state variables may be stored in different arrays.
-      type (type_state   ), dimension(:), _ALLOCATABLE :: state     _NULL ! array of pointers to data of pelagic state variables
-      type (type_state_hz), dimension(:), _ALLOCATABLE :: state_ben _NULL ! array of pointers to data of benthic state variables
+      type (type_state   ), dimension(:), _ALLOCATABLE_ :: state     _NULL_ ! array of pointers to data of pelagic state variables
+      type (type_state_hz), dimension(:), _ALLOCATABLE_ :: state_ben _NULL_ ! array of pointers to data of benthic state variables
 #endif
 
       ! Pointer(s) to arrays that will hold values of "generic" variables, that is,
-      ! all internal and external dependencies and, if RMBM_MANAGE_DIAGNOSTICS is not set, diagnsotic variables as well.
-      type (type_state   ), dimension(:), _ALLOCATABLE :: var    _NULL ! array of pointers to data of all pelagic variables (state and diagnostic)
-      type (type_state_hz), dimension(:), _ALLOCATABLE :: var_hz _NULL ! array of pointers to data of all horizontal variables (state and diagnostic, surface and bottom)
+      ! all internal and external dependencies and, if _RMBM_MANAGE_DIAGNOSTICS_ is not set, diagnsotic variables as well.
+      type (type_state   ), dimension(:), _ALLOCATABLE_ :: var    _NULL_ ! array of pointers to data of all pelagic variables (state and diagnostic)
+      type (type_state_hz), dimension(:), _ALLOCATABLE_ :: var_hz _NULL_ ! array of pointers to data of all horizontal variables (state and diagnostic, surface and bottom)
       
-#ifdef RMBM_MANAGE_DIAGNOSTICS
+#ifdef _RMBM_MANAGE_DIAGNOSTICS_
       ! RMBM will manage the current value of diagnostic variables itself.
       ! Declare the arrays for this purpose.
-      REALTYPE,_ALLOCATABLE ATTR_LOCATION_DIMENSIONS_PLUS_ONE    :: diag    _NULL
-      REALTYPE,_ALLOCATABLE ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE :: diag_hz _NULL
+      REALTYPE,_ALLOCATABLE_ _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_    :: diag    _NULL_
+      REALTYPE,_ALLOCATABLE_ _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ :: diag_hz _NULL_
 #endif
 
    end type type_environment
@@ -499,7 +499,7 @@
                                            time_treatment=curinfo%time_treatment,                           &
                                            shape = shape_eff)
       else
-#ifdef RMBM_MANAGE_DIAGNOSTICS
+#ifdef _RMBM_MANAGE_DIAGNOSTICS_
          ! RMBM manages diagnostic variables - the identifier will be the number of the
          ! diagnostic variable in the global list maintained by the root of the model tree.
          id = ubound(variables_new,1)
@@ -510,7 +510,7 @@
 #endif
       end if
 
-#ifndef RMBM_MANAGE_DIAGNOSTICS
+#ifndef _RMBM_MANAGE_DIAGNOSTICS_
       curinfo%dependencyid = id
 #endif
    end function register_diagnostic_variable
@@ -750,7 +750,7 @@
          end if
       end do
 
-#ifdef RMBM_MANAGE_DIAGNOSTICS
+#ifdef _RMBM_MANAGE_DIAGNOSTICS_
       ! Determine whether this new dependency matches a registered diagnostic variable.
       ! (in that case RMBM can provide the value internally)
       do i=1,ubound(diagvarinfo,1)

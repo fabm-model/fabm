@@ -78,7 +78,7 @@
    ! Arrays for work, vertical movement, and cross-boundary fluxes
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:) :: ws
    REALTYPE,allocatable,dimension(:)                     :: sfl,bfl,total,cc_diag_hz
-   REALTYPE,allocatable ATTR_DIMENSIONS_1                :: local
+   REALTYPE,allocatable _ATTR_DIMENSIONS_1_                :: local
    
    ! Arrays for environmental variables not supplied externally.
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS)   :: par,pres
@@ -87,7 +87,7 @@
    REALTYPE :: dt,dt_eff   ! External and internal time steps
    integer  :: w_adv_ctr   ! Scheme for vertical advection (0 if not used)
    REALTYPE,pointer,dimension(LOCATION_DIMENSIONS) :: nuh,h,bioshade,rad,w,z
-   REALTYPE,pointer ATTR_LOCATION_DIMENSIONS_HZ :: precip,evap
+   REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_HZ_ :: precip,evap
 
    contains
 
@@ -253,7 +253,7 @@
 ! !USES:
    IMPLICIT NONE
    
-   LOCATION_TYPE,intent(in) :: LOCATION
+   _LOCATION_TYPE_,intent(in) :: LOCATION
 !
 !
 ! !REVISION HISTORY:
@@ -342,7 +342,7 @@
    ! These are used during each save.
    allocate(total(1:ubound(model%info%conserved_quantities,1)),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (total)'
-#ifdef RMBM_USE_1D_LOOP
+#ifdef _RMBM_USE_1D_LOOP_
    allocate(local(1:LOCATION,1:ubound(model%info%conserved_quantities,1)),stat=rc)
 #else
    allocate(local(1:ubound(model%info%conserved_quantities,1)),stat=rc)
@@ -371,8 +371,8 @@
 ! !INPUT PARAMETERS:
    REALTYPE, intent(in) :: dt_
    integer,  intent(in) :: w_adv_method_,w_adv_ctr_
-   REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS    :: temp,salt_,rho,nuh_,h_,w_,rad_,bioshade_,z_
-   REALTYPE, intent(in),target ATTR_LOCATION_DIMENSIONS_HZ :: I_0,wnd,precip_,evap_
+   REALTYPE, intent(in),target _ATTR_LOCATION_DIMENSIONS_    :: temp,salt_,rho,nuh_,h_,w_,rad_,bioshade_,z_
+   REALTYPE, intent(in),target _ATTR_LOCATION_DIMENSIONS_HZ_ :: I_0,wnd,precip_,evap_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -460,7 +460,7 @@
    pres(1:nlev) = -z(1:nlev)
    
    ! Get updated vertical movement (m/s, positive for upwards) for biological state variables.
-#ifdef RMBM_USE_1D_LOOP
+#ifdef _RMBM_USE_1D_LOOP_
    call rmbm_get_vertical_movement(model,1,nlev,ws(1:nlev,:))
 #else
    do j=1,nlev
@@ -576,22 +576,23 @@
 !
 ! !LOCAL VARIABLES:
    logical :: valid
-#ifndef RMBM_USE_1D_LOOP
+#ifndef _RMBM_USE_1D_LOOP_
    integer :: ci
 #endif
 !
 !-----------------------------------------------------------------------
 !BOC
-#ifdef RMBM_USE_1D_LOOP
-   valid = rmbm_check_state(model,1,nlev,repair_state)
+#ifdef _RMBM_USE_1D_LOOP_
+   call rmbm_check_state(model,1,nlev,repair_state,valid)
 #else
    do ci=1,nlev
-      valid = rmbm_check_state(model,ci,repair_state)
+      call rmbm_check_state(model,ci,repair_state,valid)
       if (.not.(valid.or.repair_state)) exit
    end do
 #endif   
    if (.not. (valid .or. repair_state)) then
-      FATAL 'State variables are invalid and repair is not allowed.'
+      FATAL 'State variable values are invalid and repair is not allowed.'
+      FATAL location
       stop 'gotm_rmbm::do_repair_state'
    end if
 
@@ -628,7 +629,7 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-#ifndef RMBM_USE_1D_LOOP
+#ifndef _RMBM_USE_1D_LOOP_
    integer :: ci
 #endif
 !
@@ -642,7 +643,7 @@
    dd = _ZERO_
    
    ! Iterate over all depth levels
-#ifdef RMBM_USE_1D_LOOP
+#ifdef _RMBM_USE_1D_LOOP_
    call rmbm_do(model,2,nlev+1,pp(:,:,0:nlev),dd(:,:,0:nlev))
 #else
    do ci=1,nlev
@@ -686,7 +687,7 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-#ifndef RMBM_USE_1D_LOOP
+#ifndef _RMBM_USE_1D_LOOP_
    integer :: ci
 #endif
 !
@@ -699,7 +700,7 @@
    ! running of different coupled BGC models.
    rhs = _ZERO_
 
-#ifdef RMBM_USE_1D_LOOP
+#ifdef _RMBM_USE_1D_LOOP_
    call rmbm_do(model,2,nlev+1,rhs(:,0:nlev))
 #else   
    ! Iterate over all depth levels (this excludes the bottom!)
@@ -757,7 +758,7 @@
    rhs(1:ubound(model%info%state_variables_ben,1),1) = rhs(1:ubound(model%info%state_variables_ben,1),1)/h(2)
 
    ! Calculate temporal derivatives due to pelagic processes.
-#ifdef RMBM_USE_1D_LOOP
+#ifdef _RMBM_USE_1D_LOOP_
    call rmbm_do(model,1,1,rhs(ubound(model%info%state_variables_ben,1)+1:,1:1))
 #else
    call rmbm_do(model,1,rhs(ubound(model%info%state_variables_ben,1)+1:,1))
@@ -835,7 +836,7 @@
 ! !LOCAL VARIABLES:
    integer :: i
    REALTYPE :: zz,bioext,localext
-#ifdef RMBM_USE_1D_LOOP
+#ifdef _RMBM_USE_1D_LOOP_
    REALTYPE :: localexts(1:nlev)
 #endif
 !
@@ -844,11 +845,11 @@
    zz = _ZERO_
    bioext = _ZERO_
    
-#ifdef RMBM_USE_1D_LOOP
+#ifdef _RMBM_USE_1D_LOOP_
    call rmbm_get_light_extinction(model,1,nlev,localexts)
 #endif
    do i=nlev,1,-1
-#ifdef RMBM_USE_1D_LOOP
+#ifdef _RMBM_USE_1D_LOOP_
       localext = localexts(i)
 #else
       call rmbm_get_light_extinction(model,i,localext)
@@ -1010,7 +1011,7 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-   integer :: iret,ilev,n
+   integer :: iret,n
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1060,7 +1061,7 @@
          end do
 
          ! Integrate conserved quantities over depth.
-#ifdef RMBM_USE_1D_LOOP
+#ifdef _RMBM_USE_1D_LOOP_
          call rmbm_get_conserved_quantities(model,1,nlev,local)
          do n=1,ubound(model%info%conserved_quantities,1)
             ! Note: our pointer to h has a lower bound of 1, while the original pointed-to data starts at 0.

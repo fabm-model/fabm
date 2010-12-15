@@ -133,7 +133,7 @@
 ! !IROUTINE: Right hand sides of Mnemiopsis model
 !
 ! !INTERFACE:
-   _PURE subroutine mnemiopsis_do(self,RMBM_ARGS_DO_RHS)
+   _PURE_ subroutine mnemiopsis_do(self,_RMBM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 !
@@ -142,7 +142,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_mnemiopsis), intent(in) :: self
-   DECLARE_RMBM_ARGS_DO_RHS
+   _DECLARE_RMBM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman, Baris Salihoglu
@@ -396,7 +396,7 @@
    end subroutine mnemiopsis_do
 !EOC
 
-   _PURE subroutine trans(mm,mr,ma,t,p7)
+   _PURE_ subroutine trans(mm,mr,ma,t,p7)
       implicit none
       
       ! here mm is max and ma actual and mr is the reference weight 
