@@ -5,7 +5,7 @@
 !BOP
 !
 ! !MODULE: rmbm_co2sys --- shell around CO2/carbonate system model by
-! Jerry Blackford (Plymouth Marine Laboratory)
+! Jerry Blackford (Plymouth Marine Laboratory), adapted for RMBM by Jorn Bruggeman
 !
 ! !INTERFACE:
 module rmbm_co2sys
@@ -72,12 +72,12 @@ contains
    REALTYPE :: dic_initial, alk_initial
    REALTYPE  :: alk_offset = 520.1, alk_slope = 51.24, pCO2a = 390.
    logical :: alk_param = .true.
-   namelist /bio_co2_sys_nml/ dic_initial, alk_initial, alk_param, alk_offset, alk_slope, pCO2a
+   namelist /co2sys/ dic_initial, alk_initial, alk_param, alk_offset, alk_slope, pCO2a
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(namlst,nml=bio_co2_sys_nml,err=99)
+   read(namlst,nml=co2sys,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day, and are converted here to values per second.
@@ -86,9 +86,11 @@ contains
    self%pCO2a     = pCO2a
    self%alk_param  = alk_param
       
+   ! First state variable: total dissolved inorganic carbon
    self%id_dic = register_state_variable(modelinfo,'dic','mol C/m**3','total dissolved inorganic carbon', &
                                     dic_initial,minimum=_ZERO_,no_precipitation_dilution=.true.,no_river_dilution=.true.)
                                     
+   ! Alkalinity may be apoproximated from salinity and temperature, or feature as separate state variable.
    if (.not. alk_param) then
      self%id_alk = register_state_variable(modelinfo,'alk','mEq/m**3','alkalinity', &
                                     alk_initial,minimum=_ZERO_,no_precipitation_dilution=.true.,no_river_dilution=.true.)
@@ -96,15 +98,25 @@ contains
      self%id_alk = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity',time_treatment=time_treatment_averaged)
    end if
                                     
-   self%id_ph       = register_diagnostic_variable(modelinfo, 'pH',      '-',          'pH',                           time_treatment=time_treatment_averaged)
-   self%id_pco2     = register_diagnostic_variable(modelinfo, 'pCO2',    'ppm',        'CO2 partial pressure',         time_treatment=time_treatment_averaged)
-   self%id_CarbA    = register_diagnostic_variable(modelinfo, 'CarbA',   'mmol/m**3',  'carbonic acid concentration',  time_treatment=time_treatment_averaged)
-   self%id_Bicarb   = register_diagnostic_variable(modelinfo, 'Bicarb',  'mmol/m**3',  'bicarbonate ion concentration',time_treatment=time_treatment_averaged)
-   self%id_Carb     = register_diagnostic_variable(modelinfo, 'Carb',    'mmol/m**3',  'carbonate ion concentration',  time_treatment=time_treatment_averaged)
-   self%id_Om_cal   = register_diagnostic_variable(modelinfo, 'Om_cal',  '-',          'calcite saturation state',     time_treatment=time_treatment_averaged)
-   self%id_Om_arg   = register_diagnostic_variable(modelinfo, 'Om_arg',  '-',          'aragonite saturation state',   time_treatment=time_treatment_averaged)
-   self%id_co2_flux = register_diagnostic_variable(modelinfo, 'CO2_flux','mmol/m**2/s','CO2 flux into the water',      time_treatment=time_treatment_averaged, shape=shape_hz)
+   ! Register diagnostic variables.
+   self%id_ph       = register_diagnostic_variable(modelinfo, 'pH',      '-',          'pH',                           &
+                         time_treatment=time_treatment_averaged)
+   self%id_pco2     = register_diagnostic_variable(modelinfo, 'pCO2',    'ppm',        'CO2 partial pressure',         &
+                         time_treatment=time_treatment_averaged)
+   self%id_CarbA    = register_diagnostic_variable(modelinfo, 'CarbA',   'mmol/m**3',  'carbonic acid concentration',  &
+                         time_treatment=time_treatment_averaged)
+   self%id_Bicarb   = register_diagnostic_variable(modelinfo, 'Bicarb',  'mmol/m**3',  'bicarbonate ion concentration',&
+                         time_treatment=time_treatment_averaged)
+   self%id_Carb     = register_diagnostic_variable(modelinfo, 'Carb',    'mmol/m**3',  'carbonate ion concentration',  &
+                         time_treatment=time_treatment_averaged)
+   self%id_Om_cal   = register_diagnostic_variable(modelinfo, 'Om_cal',  '-',          'calcite saturation state',     &
+                         time_treatment=time_treatment_averaged)
+   self%id_Om_arg   = register_diagnostic_variable(modelinfo, 'Om_arg',  '-',          'aragonite saturation state',   &
+                         time_treatment=time_treatment_averaged)
+   self%id_co2_flux = register_diagnostic_variable(modelinfo, 'CO2_flux','mmol/m**2/s','CO2 flux into the water',      &
+                         time_treatment=time_treatment_averaged, shape=shape_hz)
    
+   ! Register external dependencies.
    self%id_temp = register_dependency(modelinfo, varname_temp)
    self%id_salt = register_dependency(modelinfo, varname_salt)
    self%id_pres = register_dependency(modelinfo, varname_pres)
@@ -113,7 +125,7 @@ contains
 
    return
 
-99 call fatal_error('init_bio_co2_sys_0d','I could not read namelist bio_co2_sys_nml')
+99 call fatal_error('co2sys_init','Error reading namelist co2sys')
    
    end subroutine co2sys_init
 !EOC

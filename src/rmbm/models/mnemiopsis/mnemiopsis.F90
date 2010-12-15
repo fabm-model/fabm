@@ -5,7 +5,7 @@
 !BOP
 !
 ! !MODULE: rmbm_mnemiopsis --- Mnemiopsis (comb jelly species) model
-! by Baris Salihoglu (IMS METU)
+! by Baris Salihoglu (IMS METU), adapted for RMBM by Jorn Bruggeman
 !
 ! !INTERFACE:
    module rmbm_mnemiopsis
@@ -73,7 +73,7 @@
    integer,               intent(in )   :: namlst
 !
 ! !REVISION HISTORY:
-!  Original author(s): Hans Burchard & Karsten Bolding
+!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
    REALTYPE            :: egb_initial=_ZERO_,jb_initial=_ZERO_,ja_initial=_ZERO_, &
@@ -82,16 +82,16 @@
    character(len=64)   :: food_source_variable,foodmic_source_variable, &
                           respiration_target_variable, mortality_target_variable
    REALTYPE, parameter :: secs_pr_day = 86400.
-   namelist /bio_jellyfish_nml/ egb_initial,jb_initial,ja_initial, &
-                                tb_initial,ta_initial,adb_initial,ada_initial, &
-                                food_source_variable,foodmic_source_variable, &
-                                respiration_target_variable, mortality_target_variable, &
-                                food_scale
+   namelist /mnemiopsis/ egb_initial,jb_initial,ja_initial, &
+                         tb_initial,ta_initial,adb_initial,ada_initial, &
+                         food_source_variable,foodmic_source_variable, &
+                         respiration_target_variable, mortality_target_variable, &
+                         food_scale
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(namlst,nml=bio_jellyfish_nml,err=99)
+   read(namlst,nml=mnemiopsis,err=99)
 
    ! Register state variables
    self%id_egb = register_state_variable(modelinfo,'egb','mg C/m**3','egg biomass',        &
@@ -122,7 +122,7 @@
 
    return
 
-99 call fatal_error('mnemiopsis_init','I could not read namelist bio_jellyfish_nml')
+99 call fatal_error('mnemiopsis_init','Error reading namelist mnemiopsis')
    
    end subroutine mnemiopsis_init
 !EOC

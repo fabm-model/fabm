@@ -4,7 +4,8 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: rmbm_npzd --- NPZD biogeochemical model taken from GOTM
+! !MODULE: rmbm_npzd --- NPZD biogeochemical model taken from GOTM,
+! adapted for RMBM by Jorn Bruggeman
 !
 ! !INTERFACE:
    module rmbm_npzd
@@ -116,14 +117,14 @@
    character(len=64)         :: dic_variable=''
 
    REALTYPE, parameter :: secs_pr_day = 86400.
-   namelist /bio_npzd_nml/ n_initial,p_initial,z_initial,d_initial,   &
-                           p0,z0,w_p,w_d,kc,i_min,rmax,gmax,iv,alpha,rpn,  &
-                           rzn,rdn,rpdu,rpdl,rzd,dic_variable,dic_per_n
+   namelist /npzd/ n_initial,p_initial,z_initial,d_initial,   &
+                   p0,z0,w_p,w_d,kc,i_min,rmax,gmax,iv,alpha,rpn,  &
+                   rzn,rdn,rpdu,rpdl,rzd,dic_variable,dic_per_n
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(namlst,nml=bio_npzd_nml,err=99)
+   read(namlst,nml=npzd,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day, and are converted here to values per second.
@@ -161,11 +162,16 @@
    if (dic_variable.ne.'') self%id_dic = register_state_dependency(modelinfo,dic_variable)
 
    ! Diagnostic variables
-   self%id_GPP  = register_diagnostic_variable(modelinfo,'GPP','mmol/m**3',  'gross primary production',           time_treatment=time_treatment_step_integrated)
-   self%id_NCP  = register_diagnostic_variable(modelinfo,'NCP','mmol/m**3',  'net community production',           time_treatment=time_treatment_step_integrated)
-   self%id_PPR  = register_diagnostic_variable(modelinfo,'PPR','mmol/m**3/d','gross primary production rate',      time_treatment=time_treatment_averaged)
-   self%id_NPR  = register_diagnostic_variable(modelinfo,'NPR','mmol/m**3/d','net community production rate',      time_treatment=time_treatment_averaged)
-   self%id_dPAR = register_diagnostic_variable(modelinfo,'PAR','W/m**2',     'photosynthetically active radiation',time_treatment=time_treatment_averaged)
+   self%id_GPP  = register_diagnostic_variable(modelinfo,'GPP','mmol/m**3',  'gross primary production',           &
+                     time_treatment=time_treatment_step_integrated)
+   self%id_NCP  = register_diagnostic_variable(modelinfo,'NCP','mmol/m**3',  'net community production',           &
+                     time_treatment=time_treatment_step_integrated)
+   self%id_PPR  = register_diagnostic_variable(modelinfo,'PPR','mmol/m**3/d','gross primary production rate',      &
+                     time_treatment=time_treatment_averaged)
+   self%id_NPR  = register_diagnostic_variable(modelinfo,'NPR','mmol/m**3/d','net community production rate',      &
+                     time_treatment=time_treatment_averaged)
+   self%id_dPAR = register_diagnostic_variable(modelinfo,'PAR','W/m**2',     'photosynthetically active radiation',&
+                     time_treatment=time_treatment_averaged)
    
    ! Conserved quantities
    self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
@@ -176,7 +182,7 @@
 
    return
 
-99 call fatal_error('init_bio_npzd','I could not read namelist bio_npzd_nml')
+99 call fatal_error('npzd_init','Error reading namelist npzd')
    
    end subroutine npzd_init
 !EOC
@@ -477,6 +483,7 @@
       rpd = self%rpdl
    end if
    
+   ! Rate of primary production will be reused multiple times - calculate it once.
    primprod = fnp(self,n,p,par,iopt)
 
    ! Assign destruction rates to different elements of the destruction matrix.

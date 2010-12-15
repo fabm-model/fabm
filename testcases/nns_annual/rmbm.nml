@@ -68,7 +68,7 @@
    bioshade_feedback = .true.,
 /
 
-&bio_co2_sys_nml
+&co2sys
 	dic_initial = 2100.,
 	pCO2a = 305.
 /
@@ -124,7 +124,7 @@
 !             attenuation length for visible light
 !-------------------------------------------------------------------------------
 
-&bio_npzd_nml
+&npzd
    n_initial = 4.5,
    p_initial = 1e-15,
    z_initial = 1e-15,
@@ -145,6 +145,6 @@
    rpdu = 0.02,
    rpdl = 0.1,
    rzd = 0.02,
-   dic_variable='co2sys01_dic'
+   dic_variable='co2sys_dic'
 /
 
