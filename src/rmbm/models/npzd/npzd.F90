@@ -210,7 +210,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_ENTER_
+   _RMBM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    p = _GET_STATE_(self%id_p) ! phytoplankton
@@ -220,7 +220,7 @@
    _SET_EXTINCTION_(self%kc*(self%p0+p+d))
 
    ! Leave spatial loops (if any)
-   _RMBM_LEAVE_
+   _RMBM_LOOP_END_
    
    end subroutine npzd_get_light_extinction
 !EOC
@@ -247,7 +247,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_ENTER_
+   _RMBM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    n = _GET_STATE_(self%id_n) ! nutrient
@@ -259,7 +259,7 @@
    _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
 
    ! Leave spatial loops (if any)
-   _RMBM_LEAVE_
+   _RMBM_LOOP_END_
 
    end subroutine npzd_get_conserved_quantities
 !EOC
@@ -338,7 +338,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_ENTER_
+   _RMBM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    n = _GET_STATE_(self%id_n) ! nutrient
@@ -382,7 +382,7 @@
    if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
    
    ! Leave spatial loops (if any)
-   _RMBM_LEAVE_
+   _RMBM_LOOP_END_
 
    end subroutine npzd_do
 !EOC
@@ -461,7 +461,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_ENTER_
+   _RMBM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    n = _GET_STATE_(self%id_n) ! nutrient
@@ -510,7 +510,7 @@
    if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _RMBM_LEAVE_
+   _RMBM_LOOP_END_
 
    end subroutine npzd_do_ppdd
 !EOC

@@ -159,7 +159,7 @@ contains
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_ENTER_
+   _RMBM_LOOP_BEGIN_
 
    ! Get environmental variables.
    temp = _GET_VAR_(self%id_temp)
@@ -196,7 +196,7 @@ contains
    if (self%id_alk    .ne.id_not_used .and. self%alk_param) _SET_DIAG_(self%id_alk,TA*dens*1.0D-3)   ! from uEg/kg to mmol/m**3
 
    ! Leave spatial loops (if any)
-   _RMBM_LEAVE_
+   _RMBM_LOOP_END_
 
    end subroutine co2sys_do
 !EOC

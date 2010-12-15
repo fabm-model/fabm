@@ -1172,7 +1172,7 @@ end subroutine rmbm_link_diagnostic_data_hz
    ! This is always done, independently of any model-specific checks that may have been called above.
    
    ! Enter spatial loops (if any)
-   _RMBM_ENTER_
+   _RMBM_LOOP_BEGIN_
 
    ! Check absolute variable boundaries specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
@@ -1192,7 +1192,7 @@ end subroutine rmbm_link_diagnostic_data_hz
    end do
 
    ! Leave spatial loops (if any)
-   _RMBM_LEAVE_
+   _RMBM_LOOP_END_
 
    end function rmbm_check_state
 !EOC
@@ -1317,7 +1317,7 @@ end subroutine rmbm_link_diagnostic_data_hz
             ! Default: use the constant sinking rates specified in state variable properties.
 
             ! Enter spatial loops (if any)
-            _RMBM_ENTER_
+            _RMBM_LOOP_BEGIN_
 
             ! Use variable-specific vertical movement rates.
             do i=1,ubound(curmodel%info%state_variables,1)
@@ -1326,7 +1326,7 @@ end subroutine rmbm_link_diagnostic_data_hz
             end do
 
             ! Leave spatial loops (if any)
-            _RMBM_LEAVE_
+            _RMBM_LOOP_END_
       end select
       curmodel => curmodel%nextmodel
    end do
@@ -1372,7 +1372,7 @@ end subroutine rmbm_link_diagnostic_data_hz
             ! Default: use constant specific light extinction values specified in the state variable properties
             
             ! Enter spatial loops (if any)
-            _RMBM_ENTER_
+            _RMBM_LOOP_BEGIN_
             
             ! Use variable-specific light extinction coefficients.
             do i=1,ubound(curmodel%info%state_variables,1)
@@ -1382,7 +1382,7 @@ end subroutine rmbm_link_diagnostic_data_hz
             end do
             
             ! Enter spatial loops (if any)
-            _RMBM_LEAVE_
+            _RMBM_LOOP_END_
       end select
       curmodel => curmodel%nextmodel
    end do

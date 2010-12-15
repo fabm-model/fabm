@@ -88,8 +88,8 @@
 #define DECLARE_LOCATION_ARG_ND LOCATION_TYPE,intent(in) :: rmbm_loop_start,rmbm_loop_stop ARG_LOCATION_1DLOOP; LOCATION_TYPE :: VARIABLE_1DLOOP
 
 ! Beginning and end of spatial loop
-#define _RMBM_ENTER_ do VARIABLE_1DLOOP=rmbm_loop_start,rmbm_loop_stop
-#define _RMBM_LEAVE_ end do
+#define _RMBM_LOOP_BEGIN_ do VARIABLE_1DLOOP=rmbm_loop_start,rmbm_loop_stop
+#define _RMBM_LOOP_END_ end do
 
 ! Dimensionality of generic space-dependent arguments.
 #define ATTR_DIMENSIONS_0 ,dimension(:)
@@ -122,8 +122,8 @@
 #define DECLARE_LOCATION_ARG_ND LOCATION_TYPE,intent(in) :: LOCATION
 
 ! Beginning and end of spatial loop
-#define _RMBM_ENTER_
-#define _RMBM_LEAVE_
+#define _RMBM_LOOP_BEGIN_
+#define _RMBM_LOOP_END_
 
 ! Dimensionality of generic space-dependent arguments.
 #define ATTR_DIMENSIONS_0

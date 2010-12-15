@@ -185,7 +185,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_ENTER_
+   _RMBM_LOOP_BEGIN_
 
    ! Obtain current values for environmental variables
    temp = _GET_VAR_(self%id_temp)
@@ -391,7 +391,7 @@
    _SET_ODE_(self%id_morttarget, (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale/secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _RMBM_LEAVE_
+   _RMBM_LOOP_END_
 
    end subroutine mnemiopsis_do
 !EOC
