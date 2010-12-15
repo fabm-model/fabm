@@ -1304,7 +1304,7 @@ end subroutine rmbm_link_diagnostic_data_hz
 !EOP
 !
    type (type_model), pointer            :: curmodel
-   integer                               :: i
+   integer                               :: i,varid
 !-----------------------------------------------------------------------
 !BOC
    curmodel => root%nextmodel
@@ -1321,8 +1321,8 @@ end subroutine rmbm_link_diagnostic_data_hz
 
             ! Use variable-specific vertical movement rates.
             do i=1,ubound(curmodel%info%state_variables,1)
-               vertical_movement(kk,curmodel%info%state_variables(i)%globalid) =&
-                  & curmodel%info%state_variables(i)%vertical_movement
+               varid = curmodel%info%state_variables(i)%globalid
+               _SET_VERTICAL_MOVEMENT_(varid,curmodel%info%state_variables(i)%vertical_movement)
             end do
 
             ! Leave spatial loops (if any)

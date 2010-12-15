@@ -340,12 +340,14 @@
 
    ! Allocate arrays for storing local and column-integrated values of diagnostic variables.
    ! These are used during each save.
-   allocate(total(1:ubound(model%info%conserved_quantities,1)))
+   allocate(total(1:ubound(model%info%conserved_quantities,1)),stat=rc)
+   if (rc /= 0) STOP 'allocate_memory(): Error allocating (total)'
 #ifdef RMBM_USE_1D_LOOP
-   allocate(local(1:ubound(model%info%conserved_quantities,1),1:LOCATION))
+   allocate(local(1:LOCATION,1:ubound(model%info%conserved_quantities,1)),stat=rc)
 #else
-   allocate(local(1:ubound(model%info%conserved_quantities,1)))
+   allocate(local(1:ubound(model%info%conserved_quantities,1)),stat=rc)
 #endif
+   if (rc /= 0) STOP 'allocate_memory(): Error allocating (local)'
 
    end subroutine init_var_gotm_rmbm
 !EOC
@@ -1060,19 +1062,20 @@
          ! Integrate conserved quantities over depth.
 #ifdef RMBM_USE_1D_LOOP
          call rmbm_get_conserved_quantities(model,1,nlev,local)
-#endif
-         total = _ZERO_
-         do ilev=1,nlev
-            ! Add to depth integral.
+         do n=1,ubound(model%info%conserved_quantities,1)
             ! Note: our pointer to h has a lower bound of 1, while the original pointed-to data starts at 0.
             ! We therefore need to increment the index by 1 in order to address original elements >=1!
-#ifdef RMBM_USE_1D_LOOP
-            total = total + h(ilev+1)*local(:,ilev)
+            total(n) = sum(h(2:nlev+1)*local(1:nlev,n))
+         end do
 #else
+         total = _ZERO_
+         do ilev=1,nlev
+            ! Note: our pointer to h has a lower bound of 1, while the original pointed-to data starts at 0.
+            ! We therefore need to increment the index by 1 in order to address original elements >=1!
             call rmbm_get_conserved_quantities(model,ilev,local)
             total = total + h(ilev+1)*local
-#endif
          end do
+#endif
 
          ! Store conserved quantity integrals.
          do n=1,ubound(model%info%conserved_quantities,1)

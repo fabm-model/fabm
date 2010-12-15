@@ -72,63 +72,85 @@
 #define DECLARE_RMBM_ARGS_0D type (type_environment),intent(inout) :: environment;LOCATION_TYPE,intent(in) :: LOCATION
 #define RMBM_ARGS_IN_0D root%environment ARG_LOCATION
 
-! Write access to diagnostic variables
-#ifdef RMBM_MANAGE_DIAGNOSTICS
-#define _SET_DIAG_(index,value) environment%diag(index,LOCATION) = value
-#define _SET_DIAG_HZ_(index,value) environment%diag_hz(index) = value
-#else
-#define _SET_DIAG_(index,value) environment%var(index)%data INDEX_LOCATION = value
-#define _SET_DIAG_HZ_(index,value) environment%var_hz(index)%data INDEX_LOCATION_HZ = value
-#endif
+! Spatial loop for quantities defined on hortizontal slice of the full spatial domain.
+#define _RMBM_ENTER_HZ_
+#define _RMBM_LEAVE_HZ_
+
+! Expressions for indexing space-dependent RMBM variables defined on horizontal slices of the domain.
+#define _INDEX_SURFACE_EXCHANGE_(index) (index)
 
 #ifdef RMBM_USE_1D_LOOP
 
 ! 1D vectorized: RMBM subroutines operate on one spatial dimension.
+
+! Dummy argument and argument declaration for location specification.
 #define LOCATION_ND rmbm_loop_start,rmbm_loop_stop ARG_LOCATION_1DLOOP
 #define DECLARE_LOCATION_ARG_ND LOCATION_TYPE,intent(in) :: rmbm_loop_start,rmbm_loop_stop ARG_LOCATION_1DLOOP; LOCATION_TYPE :: VARIABLE_1DLOOP
+
+! Beginning and end of spatial loop
 #define _RMBM_ENTER_ do VARIABLE_1DLOOP=rmbm_loop_start,rmbm_loop_stop
 #define _RMBM_LEAVE_ end do
+
+! Dimensionality of generic space-dependent arguments.
 #define ATTR_DIMENSIONS_0 ,dimension(:)
 #define ATTR_DIMENSIONS_1 ,dimension(:,:)
 #define ATTR_DIMENSIONS_2 ,dimension(:,:,:)
-#define _SET_ODE_(index,value) rhs(index,VARIABLE_1DLOOP) = rhs(index,VARIABLE_1DLOOP) + value
-#define _SET_DD_(index1,index2,value) dd(index1,index2,VARIABLE_1DLOOP) = dd(index1,index2,VARIABLE_1DLOOP) + value
-#define _SET_PP_(index1,index2,value) pp(index1,index2,VARIABLE_1DLOOP) = pp(index1,index2,VARIABLE_1DLOOP) + value
-#define _SET_EXTINCTION_(value) extinction(VARIABLE_1DLOOP) = extinction(VARIABLE_1DLOOP) + value
-#define _SET_CONSERVED_QUANTITY_(index,value) sums(index,VARIABLE_1DLOOP) = sums(index,VARIABLE_1DLOOP) + value
+
+! Expressions for indexing space-dependent RMBM variables defined on the full spatial domain.
+! These may be overridden by the host-specific driver (if it needs another order of dimensions).
+! In that case, do not redefine the expressions here.
+#ifndef _INDEX_ODE_
+#define _INDEX_ODE_(variable) (VARIABLE_1DLOOP,variable)
+#endif
+#ifndef _INDEX_PPDD_
+#define _INDEX_PPDD_(variable1,variable2) (VARIABLE_1DLOOP,variable1,variable2)
+#endif
+#ifndef _INDEX_CONSERVED_QUANTITY_
+#define _INDEX_CONSERVED_QUANTITY_(variable) (VARIABLE_1DLOOP,variable)
+#endif
+#ifndef _INDEX_VERTICAL_MOVEMENT_
+#define _INDEX_VERTICAL_MOVEMENT_(variable) (VARIABLE_1DLOOP,variable)
+#endif
+#define _INDEX_EXTINCTION_ (VARIABLE_1DLOOP)
 
 #else
 
 ! Not vectorized: RMBM subroutines operate one the local state only.
+
+! Dummy argument and argument declaration for location specification.
 #define LOCATION_ND LOCATION
 #define DECLARE_LOCATION_ARG_ND LOCATION_TYPE,intent(in) :: LOCATION
+
+! Beginning and end of spatial loop
 #define _RMBM_ENTER_
 #define _RMBM_LEAVE_
+
+! Dimensionality of generic space-dependent arguments.
 #define ATTR_DIMENSIONS_0
 #define ATTR_DIMENSIONS_1 ,dimension(:)
 #define ATTR_DIMENSIONS_2 ,dimension(:,:)
-#define _SET_ODE_(index,value) rhs(index) = rhs(index) + value
-#define _SET_DD_(index1,index2,value) dd(index1,index2) = dd(index1,index2) + value
-#define _SET_PP_(index1,index2,value) pp(index1,index2) = pp(index1,index2) + value
-#define _GET_DD_(index1,index2) dd(index1,index2)
-#define _GET_PP_(index1,index2) pp(index1,index2)
-#define _SET_EXTINCTION_(value) extinction = extinction + value
-#define _SET_CONSERVED_QUANTITY_(index,value) sums(index) = sums(index) + value
+
+! Expressions for indexing space-dependent RMBM variables defined on the full spatial domain.
+#define _INDEX_ODE_(variable) (variable)
+#define _INDEX_PPDD_(variable1,variable2) (variable1,variable2)
+#define _INDEX_EXTINCTION_
+#define _INDEX_CONSERVED_QUANTITY_(variable) (variable)
+#define _INDEX_VERTICAL_MOVEMENT_(variable) (variable)
 
 #endif
 
-#define _SET_DD_SYM_(index1,index2,value) _SET_DD_(index1,index2,value);_SET_PP_(index2,index1,value)
-
-#define _SET_SURFACE_EXCHANGE_(index,value) flux(index) = flux(index) + value
-
-#define RMBM_ARGS_ND environment,LOCATION_ND
+! For RMBM: standard arguments used in calling biogeochemical routines.
 #define RMBM_ARGS_ND_IN root%environment,LOCATION_ND
+
+! For BGC models: RMBM arguments to routines implemented by biogeochemical models.
+#define RMBM_ARGS_ND environment,LOCATION_ND
 #define RMBM_ARGS_DO_RHS RMBM_ARGS_ND,rhs
 #define RMBM_ARGS_DO_PPDD RMBM_ARGS_ND,pp,dd
 #define RMBM_ARGS_GET_EXTINCTION RMBM_ARGS_ND,extinction
 #define RMBM_ARGS_GET_CONSERVED_QUANTITIES RMBM_ARGS_ND,sums
 #define RMBM_ARGS_GET_SURFACE_EXCHANGE RMBM_ARGS_0D,flux
 
+! For BGC models: Declaration of RMBM arguments to routines implemented by biogeochemical models.
 #define DECLARE_RMBM_ARGS_ND type (type_environment),intent(inout) :: environment;DECLARE_LOCATION_ARG_ND
 #define DECLARE_RMBM_ARGS_DO_RHS  DECLARE_RMBM_ARGS_ND;REALTYPE ATTR_DIMENSIONS_1,intent(inout) :: rhs
 #define DECLARE_RMBM_ARGS_DO_PPDD DECLARE_RMBM_ARGS_ND;REALTYPE ATTR_DIMENSIONS_2,intent(inout) :: pp,dd
@@ -136,16 +158,35 @@
 #define DECLARE_RMBM_ARGS_GET_CONSERVED_QUANTITIES DECLARE_RMBM_ARGS_ND;REALTYPE ATTR_DIMENSIONS_1,intent(inout) :: sums
 #define DECLARE_RMBM_ARGS_GET_SURFACE_EXCHANGE DECLARE_RMBM_ARGS_0D;REALTYPE,dimension(:),intent(inout) :: flux
 
-! Read-only access to values of external dependencies
-#define _GET_VAR_(index) environment%var(index)%data INDEX_LOCATION
-#define _GET_VAR_HZ_(index) environment%var_hz(index)%data INDEX_LOCATION_HZ
+! For BGC models: Expressions for setting space-dependent RMBM variables defined on the full spatial domain.
+#define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable) = rhs _INDEX_ODE_(variable) + value
+#define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1,variable2) = dd _INDEX_PPDD_(variable1,variable2) + value
+#define _SET_PP_(variable1,variable2,value) pp _INDEX_PPDD_(variable1,variable2) = pp _INDEX_PPDD_(variable1,variable2) + value
+#define _SET_EXTINCTION_(value) extinction _INDEX_EXTINCTION_ = extinction _INDEX_EXTINCTION_ + value
+#define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_CONSERVED_QUANTITY_(variable) = sums _INDEX_CONSERVED_QUANTITY_(variable) + value
+#define _SET_VERTICAL_MOVEMENT_(variable,value) vertical_movement _INDEX_VERTICAL_MOVEMENT_(variable) = value
+#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_SURFACE_EXCHANGE_(variable) = value
 
-! Read-only access to state variable values
+! For BGC models: quick expressions for setting a single element in both the destriction and production matrix.
+#define _SET_DD_SYM_(variable1,variable2,value) _SET_DD_(variable1,variable2,value);_SET_PP_(variable1,variable2,value)
+#define _SET_PP_SYM_(variable1,variable2,value) _SET_PP_(variable1,variable2,value);_SET_DD_(variable1,variable2,value)
+
+! For BGC models: read-only access to values of external dependencies
+#define _GET_VAR_(variable) environment%var(variable)%data INDEX_LOCATION
+#define _GET_VAR_HZ_(variable) environment%var_hz(variable)%data INDEX_LOCATION_HZ
+
+! For BGC models: read-only access to state variable values
 #ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-#define _GET_STATE_(index) environment%state(index,LOCATION)
+#define _GET_STATE_(variable) environment%state _INDEX_STATE_(variable)
 #else
-#define _GET_STATE_(index) environment%state(index)%data INDEX_LOCATION
+#define _GET_STATE_(variable) environment%state(variable)%data INDEX_LOCATION
 #endif
 
-#define _RMBM_ENTER_HZ_
-#define _RMBM_LEAVE_HZ_
+! For BGC models: write access to diagnostic variables
+#ifdef RMBM_MANAGE_DIAGNOSTICS
+#define _SET_DIAG_(index,value) environment%diag(index,LOCATION) = value
+#define _SET_DIAG_HZ_(index,value) environment%diag_hz(index) = value
+#else
+#define _SET_DIAG_(index,value) environment%var(index)%data INDEX_LOCATION = value
+#define _SET_DIAG_HZ_(index,value) environment%var_hz(index)%data INDEX_LOCATION_HZ = value
+#endif
