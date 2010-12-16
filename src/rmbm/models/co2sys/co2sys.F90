@@ -23,7 +23,7 @@ module rmbm_co2sys
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_co2_sys, co2sys_init, co2sys_do, co2sys_get_surface_exchange
+   public type_co2sys, co2sys_init, co2sys_do, co2sys_get_surface_exchange
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -32,7 +32,7 @@ module rmbm_co2sys
 !
 !
 ! !PUBLIC DERIVED TYPES:
-   type type_co2_sys
+   type type_co2sys
       integer :: id_dic
       integer :: id_temp, id_salt, id_pres, id_wind, id_dens
       integer :: id_ph, id_alk, id_pco2, id_CarbA, id_Bicarb, id_Carb, id_Om_cal, id_Om_arg, id_co2_flux
@@ -61,7 +61,7 @@ contains
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_co2_sys), intent(out)     :: self
+   type (type_co2sys), intent(out)     :: self
    type (type_model_info),intent(inout) :: modelinfo
    integer,               intent(in )   :: namlst
 !
@@ -144,7 +144,7 @@ contains
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_co2_sys),    intent(in) :: self
+   type (type_co2sys),    intent(in) :: self
    _DECLARE_RMBM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
@@ -215,7 +215,7 @@ contains
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_co2_sys), intent(in)    :: self
+   type (type_co2sys), intent(in)    :: self
    _DECLARE_RMBM_ARGS_GET_SURFACE_EXCHANGE_
 !
 ! !REVISION HISTORY:

@@ -300,7 +300,7 @@
       ! Derived types that belong to specific biogeochemical models.
       type (type_npzd)       :: npzd
       type (type_mnemiopsis) :: mnemiopsis
-      type (type_co2_sys)    :: carbonate
+      type (type_co2sys)     :: co2sys
       ! ADD_NEW_MODEL_HERE
       
       ! Pointers to the current state and environment.
@@ -751,7 +751,7 @@
       case (mnemiopsis_id)
          call mnemiopsis_init(model%mnemiopsis,model%info,nmlunit)
       case (carbonate_id)
-         call co2sys_init(model%carbonate,model%info,nmlunit)
+         call co2sys_init(model%co2sys,model%info,nmlunit)
       ! ADD_NEW_MODEL_HERE - required
       
       case (model_container_id)
@@ -1065,7 +1065,7 @@ end subroutine rmbm_link_diagnostic_data_hz
          case (mnemiopsis_id)
             call mnemiopsis_do(model%mnemiopsis,_INPUT_ARGS_DO_RHS_)
          case (carbonate_id)
-            call co2sys_do(model%carbonate,_INPUT_ARGS_DO_RHS_)
+            call co2sys_do(model%co2sys,_INPUT_ARGS_DO_RHS_)
          ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
          ! matrices instead of a temporal derivative vector. In that case, add the model to
          ! rmbm_do_ppdd.
@@ -1249,7 +1249,7 @@ end subroutine rmbm_link_diagnostic_data_hz
    do while (associated(model))
       select case (model%id)
          case (carbonate_id)
-            call co2sys_get_surface_exchange(model%carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
+            call co2sys_get_surface_exchange(model%co2sys,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies fluxes of one or
          ! more of its state variables across the air-water interface.
          !
