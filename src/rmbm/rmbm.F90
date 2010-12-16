@@ -1039,7 +1039,7 @@ end subroutine rmbm_link_diagnostic_data_hz
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(inout) :: root
-   _LOCATION_TYPE_,          intent(in)    :: _LOCATION_ND_
+   _LOCATION_TYPE_,        intent(in)    :: _LOCATION_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE _ATTR_DIMENSIONS_1_, intent(inout) :: dy
@@ -1069,6 +1069,9 @@ end subroutine rmbm_link_diagnostic_data_hz
          ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
          ! matrices instead of a temporal derivative vector. In that case, add the model to
          ! rmbm_do_ppdd.
+         !
+         ! Typical model call:
+         ! call MODELNAME_do(model%MODELNAME,_INPUT_ARGS_DO_RHS_)
          
          case default
            call fatal_error('rmbm_do_rhs','model '//trim(model%info%name)//' does not provide a subroutine &
@@ -1094,14 +1097,14 @@ end subroutine rmbm_link_diagnostic_data_hz
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(inout) :: root
-   _LOCATION_TYPE_,          intent(in)    :: _LOCATION_ND_
+   type (type_model),           intent(inout) :: root
+   _LOCATION_TYPE_,             intent(in)    :: _LOCATION_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE _ATTR_DIMENSIONS_2_,intent(inout) :: pp,dd
 !
 ! !LOCAL PARAMETERS:
-   type (type_model), pointer            :: model
+   type (type_model), pointer                 :: model
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1118,6 +1121,9 @@ end subroutine rmbm_link_diagnostic_data_hz
          ! ADD_NEW_MODEL_HERE - optional, only if the model provides a subroutine for calculating local
          ! production/destruction matrices. This is required fro certain temporal integration schemes,
          ! e.g., Patankar, Modified Patankar.
+         !
+         ! Typical model call:
+         ! call MODELNAME_do_ppdd(model%MODELNAME,_INPUT_ARGS_DO_PPDD_)
          
          case default
            call fatal_error('rmbm_do_ppdd','model '//trim(model%info%name)//' does not provide a subroutine &
@@ -1166,6 +1172,9 @@ end subroutine rmbm_link_diagnostic_data_hz
       select case (model%id)
          ! ADD_NEW_MODEL_HERE - optional, only if the validity of state variable values cannot
          ! be checked simply by ascertaining whether its values lie within prescribed [constant] bounds.
+         !
+         ! Typical model call:
+         ! call MODELNAME_check_state(model%MODELNAME,_INPUT_ARGS_CHECK_STATE_)
          !
          ! If the biogeochemical model provides a subroutine for checking the model state:
          ! Set "valid" to .false. if the state variable values are invalid,
@@ -1221,17 +1230,17 @@ end subroutine rmbm_link_diagnostic_data_hz
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(inout) :: root
-   _LOCATION_TYPE_,          intent(in)    :: LOCATION
+   type (type_model), intent(inout) :: root
+   _LOCATION_TYPE_,   intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE, intent(out) :: flux(:)
+   REALTYPE,          intent(out)   :: flux(:)
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer            :: model
+   type (type_model), pointer       :: model
 !-----------------------------------------------------------------------
 !BOC
 #define _INPUT_ARGS_GET_SURFACE_EXCHANGE_ _RMBM_ARGS_IN_0D_,flux
@@ -1243,6 +1252,9 @@ end subroutine rmbm_link_diagnostic_data_hz
             call co2sys_get_surface_exchange(model%carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies fluxes of one or
          ! more of its state variables across the air-water interface.
+         !
+         ! Typical model call:
+         ! call MODELNAME_get_surface_exchange(model%MODELNAME,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
       end select
       model => model%nextmodel
    end do
@@ -1267,7 +1279,7 @@ end subroutine rmbm_link_diagnostic_data_hz
 !
 ! !INPUT PARAMETERS:
    type (type_model),         intent(in)    :: root
-   _LOCATION_TYPE_,             intent(in)    :: LOCATION
+   _LOCATION_TYPE_,           intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE,dimension(:),     intent(inout) :: flux_ben,flux_pel
@@ -1286,6 +1298,9 @@ end subroutine rmbm_link_diagnostic_data_hz
       select case (model%id)
          ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
          ! or specifies bottom fluxes for its pelagic state variables.
+         !
+         ! Typical model call:
+         ! call MODELNAME_do_benthos(model%MODELNAME,_INPUT_ARGS_DO_BENTHOS_)
       end select
       model => model%nextmodel
    end do
@@ -1307,7 +1322,7 @@ end subroutine rmbm_link_diagnostic_data_hz
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(in)    :: root
+   type (type_model),           intent(in)  :: root
    _DECLARE_LOCATION_ARG_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -1317,8 +1332,8 @@ end subroutine rmbm_link_diagnostic_data_hz
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer            :: model
-   integer                               :: i,varid
+   type (type_model), pointer               :: model
+   integer                                  :: i,varid
 !-----------------------------------------------------------------------
 !BOC
 #define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _RMBM_ARGS_ND_IN_,vertical_movement
@@ -1328,6 +1343,9 @@ end subroutine rmbm_link_diagnostic_data_hz
       select case (model%id)
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies time- and/or space
          ! varying vertical velocities for one or more state variables.
+         !
+         ! Typical model call:
+         ! call MODELNAME_get_vertical_movement(model%MODELNAME,_INPUT_ARGS_GET_VERTICAL_MOVEMENT_)
          
          case default
             ! Default: use the constant sinking rates specified in state variable properties.
@@ -1360,7 +1378,7 @@ end subroutine rmbm_link_diagnostic_data_hz
    subroutine rmbm_get_light_extinction(root,_LOCATION_ND_,extinction)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),         intent(inout) :: root
+   type (type_model),           intent(inout) :: root
    _DECLARE_LOCATION_ARG_ND_
    REALTYPE _ATTR_DIMENSIONS_0_,intent(out)   :: extinction
 !
@@ -1368,9 +1386,9 @@ end subroutine rmbm_link_diagnostic_data_hz
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL PARAMETERS:
-   REALTYPE                      :: curext
-   integer                       :: i,varid
-   type (type_model), pointer    :: model
+   REALTYPE                                   :: curext
+   integer                                    :: i,varid
+   type (type_model), pointer                 :: model
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1384,6 +1402,9 @@ end subroutine rmbm_link_diagnostic_data_hz
             call npzd_get_light_extinction(model%npzd,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
          ! state variable specific extinction coefficients.
+         !
+         ! Typical model call:
+         ! call MODELNAME_get_light_extinction(model%MODELNAME,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
 
          case default
             ! Default: use constant specific light extinction values specified in the state variable properties
@@ -1421,7 +1442,7 @@ end subroutine rmbm_link_diagnostic_data_hz
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_model), intent(inout)   :: root
+   type (type_model), intent(inout)         :: root
    _DECLARE_LOCATION_ARG_ND_
    REALTYPE _ATTR_DIMENSIONS_1_,intent(out) :: sums
 !
@@ -1429,7 +1450,7 @@ end subroutine rmbm_link_diagnostic_data_hz
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer    :: model
+   type (type_model), pointer               :: model
 
 !-----------------------------------------------------------------------
 !BOC
@@ -1443,6 +1464,9 @@ end subroutine rmbm_link_diagnostic_data_hz
             call npzd_get_conserved_quantities(model%npzd,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
          ! ADD_NEW_MODEL_HERE - optional, required only if the model exports one or more
          ! conserved quantities.
+         !
+         ! Typical model call:
+         ! call MODELNAME_get_conserved_quantities(model%MODELNAME,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
          
          case default
             ! Default: the model does not describe any conserved quantities.
