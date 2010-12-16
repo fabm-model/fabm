@@ -120,8 +120,8 @@
       ! Pointer(s) to arrays that will hold state variable values.
 #ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
       ! Data for all state variables are stored in a single array.
-      REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_    :: state    =>null() ! pointer to data of pelagic state variables
-      REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ :: state_ben=>null() ! pointer to data of benthic state variables
+      REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_    :: state     ! pointer to data of pelagic state variables
+      REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ :: state_ben ! pointer to data of benthic state variables
 #else
       ! Data for the state variables may be stored in different arrays.
       type (type_state   ), dimension(:), _ALLOCATABLE_ :: state     _NULL_ ! array of pointers to data of pelagic state variables

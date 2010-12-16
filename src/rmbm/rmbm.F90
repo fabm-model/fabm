@@ -310,8 +310,8 @@
    end type type_model
    
    ! Arrays for integer identifiers and names of all available biogeochemical models.
-   integer,          pointer,dimension(:) :: modelids   => null()
-   character(len=64),pointer,dimension(:) :: modelnames => null()
+   integer,          allocatable,dimension(:) :: modelids
+   character(len=64),allocatable,dimension(:) :: modelnames
 !
 ! !PUBLIC INTERFACES:
 !
@@ -362,6 +362,10 @@
 !
 !-----------------------------------------------------------------------
 !BOC
+   ! Start with empty arrays with model identifiers and names
+   allocate(modelids  (0))
+   allocate(modelnames(0))
+
    call register_model(model_container_id,'')
    call register_model(npzd_id           ,'npzd')
    call register_model(mnemiopsis_id     ,'mnemiopsis')
@@ -391,47 +395,48 @@
 !  Original author(s): Jorn Bruggeman
 !EOP
    integer :: oldcount,i
-   integer,          pointer,dimension(:) :: modelids_new
-   character(len=64),pointer,dimension(:) :: modelnames_new
+   integer,          allocatable,dimension(:) :: modelids_old
+   character(len=64),allocatable,dimension(:) :: modelnames_old
    character(len=256) :: text
 !
 !-----------------------------------------------------------------------
 !BOC
    ! Determine original model count.
-   oldcount = 0
-   if (associated(modelids)) oldcount = ubound(modelids,1)
+   oldcount = ubound(modelids,1)
    
-   ! Create new arrays for identifiers and names, one longer to accomodate the new model.
-   allocate(modelids_new  (oldcount+1))
-   allocate(modelnames_new(oldcount+1))
+   ! First check whether the provided model identifier or name are not in use yet.
+   do i=1,ubound(modelids,1)
+      if (modelids(i)==id) then
+         write (text,fmt='(a,i4,a)') 'model identifier ',id,' has already been registered.'
+         call fatal_error('rmbm::register_model_name',text)
+      end if
+      if (modelnames(i)==name) &
+         call fatal_error('rmbm::register_model_name','model name "'//trim(name)//'" has already been registered.')
+   end do
+
+   ! Copy current identifiers and names to temporary storage.
+   allocate(modelids_old  (oldcount))
+   allocate(modelnames_old(oldcount))
+   modelids_old  (:) = modelids
+   modelnames_old(:) = modelnames
    
-   if (associated(modelids)) then
-      ! First check whether the provided model identifier or name are not in use yet.
-      do i=1,ubound(modelids,1)
-         if (modelids(i)==id) then
-            write (text,fmt='(a,i4,a)') 'model identifier ',id,' has already been registered.'
-            call fatal_error('rmbm::register_model_name',text)
-         end if
-         if (modelnames(i)==name) &
-            call fatal_error('rmbm::register_model_name','model name "'//trim(name)//'" has already been registered.')
-      end do
+   ! Create extended arrays
+   deallocate(modelids)
+   deallocate(modelnames)
+   allocate(modelids  (oldcount+1))
+   allocate(modelnames(oldcount+1))
+   
+   ! Copy the old identifiers and names to the new extended array.
+   modelids  (1:oldcount) = modelids_old(:)
+   modelnames(1:oldcount) = modelnames_old(:)
       
-      ! Copy the old identifiers and names to the new extended array.
-      modelids_new  (1:oldcount) = modelids(:)
-      modelnames_new(1:oldcount) = modelnames(:)
-      
-      ! Deallocate the old arrays.
-      deallocate(modelids)
-      deallocate(modelnames)
-   end if
+   ! Deallocate the temporary arrays with old values.
+   deallocate(modelids_old)
+   deallocate(modelnames_old)
    
    ! Add the new identifier and name.
-   modelids_new  (oldcount+1) = id
-   modelnames_new(oldcount+1) = name
-   
-   ! Assign the new arrays to the module-level pointers.
-   modelids   => modelids_new
-   modelnames => modelnames_new
+   modelids  (oldcount+1) = id
+   modelnames(oldcount+1) = name
    
    end subroutine register_model
 !EOC
@@ -460,7 +465,7 @@
    integer :: i
 !-----------------------------------------------------------------------
 !BOC
-   if (.not.associated(modelids)) call register_models()
+   if (.not.allocated(modelids)) call register_models()
    do i=1,ubound(modelids,1)
       if (modelids(i)==id) then
          name = modelnames(i)
@@ -496,7 +501,7 @@
    integer :: i
 !-----------------------------------------------------------------------
 !BOC
-   if (.not.associated(modelnames)) call register_models()
+   if (.not.allocated(modelnames)) call register_models()
    do i=1,ubound(modelnames,1)
       if (modelnames(i)==name) then
          id = modelids(i)
@@ -881,7 +886,7 @@ end function rmbm_get_variable_id
 subroutine rmbm_link_data(model,id,dat)
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)  :: dat
    
    model%environment%var(id)%data => dat
 end subroutine rmbm_link_data
@@ -889,7 +894,7 @@ end subroutine rmbm_link_data
 subroutine rmbm_link_data_char(model,name,dat)
    type (type_model),                       intent(inout) :: model
    character(len=*),                        intent(in)    :: name
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)  :: dat
    
    integer                                                :: id
    
@@ -900,7 +905,7 @@ end subroutine rmbm_link_data_char
 subroutine rmbm_link_data_hz(model,id,dat)
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)  :: dat
    
    model%environment%var_hz(id)%data => dat
 end subroutine rmbm_link_data_hz
@@ -908,7 +913,7 @@ end subroutine rmbm_link_data_hz
 subroutine rmbm_link_data_hz_char(model,name,dat)
    type (type_model),                          intent(inout) :: model
    character(len=*),                           intent(in)    :: name
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)  :: dat
    
    integer                                                   :: id
    
@@ -920,7 +925,7 @@ end subroutine rmbm_link_data_hz_char
 
 subroutine rmbm_link_state_data(model,dat)
    type (type_model),                                intent(inout) :: model
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_,target,intent(in)    :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_,target,intent(in)  :: dat
    
    integer                                                         :: id
    
@@ -937,7 +942,7 @@ end subroutine rmbm_link_state_data
 
 subroutine rmbm_link_benthos_state_data(model,dat)
    type (type_model),                                   intent(inout) :: model
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_,target,intent(in)    :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_,target,intent(in)  :: dat
 
    integer                                                            :: id
    
@@ -957,7 +962,7 @@ end subroutine rmbm_link_benthos_state_data
 subroutine rmbm_link_state_data(model,id,dat)
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)  :: dat
    
    model%environment%state(id)%data => dat
    if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
@@ -967,7 +972,7 @@ end subroutine rmbm_link_state_data
 subroutine rmbm_link_benthos_state_data(model,id,dat)
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)  :: dat
    
    model%environment%state_ben(id)%data => dat
    if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
@@ -979,7 +984,7 @@ end subroutine rmbm_link_benthos_state_data
 function rmbm_get_diagnostic_data(model,id) result(dat)
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_,pointer              :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_,pointer            :: dat
    
 #ifdef _RMBM_MANAGE_DIAGNOSTICS_
    dat => model%environment%diag(id _ARG_LOCATION_DIMENSIONS_)
@@ -991,7 +996,7 @@ end function rmbm_get_diagnostic_data
 function rmbm_get_diagnostic_data_hz(model,id) result(dat)
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,pointer              :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,pointer            :: dat
    
 #ifdef _RMBM_MANAGE_DIAGNOSTICS_
    dat => model%environment%diag_hz(id _ARG_LOCATION_DIMENSIONS_HZ_)
@@ -1005,7 +1010,7 @@ end function rmbm_get_diagnostic_data_hz
 subroutine rmbm_link_diagnostic_data(model,id,dat)
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)  :: dat
    
    call rmbm_link_data(model,model%info%diagnostic_variables(id)%dependencyid,dat)
 end subroutine rmbm_link_diagnostic_data
@@ -1013,7 +1018,7 @@ end subroutine rmbm_link_diagnostic_data
 subroutine rmbm_link_diagnostic_data_hz(model,id,dat)
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)  :: dat
    
    call rmbm_link_data_hz(model,model%info%diagnostic_variables_hz(id)%dependencyid,dat)
 end subroutine rmbm_link_diagnostic_data_hz

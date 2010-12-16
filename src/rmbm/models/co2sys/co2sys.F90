@@ -113,7 +113,7 @@ contains
                          time_treatment=time_treatment_averaged)
    self%id_Om_arg   = register_diagnostic_variable(modelinfo, 'Om_arg',  '-',          'aragonite saturation state',   &
                          time_treatment=time_treatment_averaged)
-   self%id_co2_flux = register_diagnostic_variable(modelinfo, 'CO2_flux','mmol/m**2/s','CO2 flux into the water',      &
+   self%id_co2_flux = register_diagnostic_variable(modelinfo, 'CO2_flux','mmol/m**2/s','surface CO2 flux',             &
                          time_treatment=time_treatment_averaged, shape=shape_hz)
    
    ! Register external dependencies.

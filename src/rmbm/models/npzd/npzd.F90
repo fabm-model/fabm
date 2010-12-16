@@ -71,23 +71,22 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Initialise the bio module
+! !IROUTINE: Initialise the NPZD model
 !
 ! !INTERFACE:
    subroutine npzd_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
-!  Here, the bio namelist {\tt bio\_npzd.nml} is read and 
-!  various variables (rates and settling velocities) 
-!  are transformed into SI units.
+!  Here, the npzd namelist is read and te variables exported
+!  by the model are registered with RMBM.
 !
 ! !USES:
-   IMPLICIT NONE
+   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),      intent(out)   :: self
    type (type_model_info),intent(inout) :: modelinfo
-   integer,               intent(in )   :: namlst
+   integer,               intent(in)    :: namlst
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard & Karsten Bolding
@@ -127,7 +126,8 @@
    read(namlst,nml=npzd,err=99)
 
    ! Store parameter values in our own derived type
-   ! NB: all rates must be provided in values per day, and are converted here to values per second.
+   ! NB: all rates must be provided in values per day,
+   ! and are converted here to values per second.
    self%p0    = p0
    self%z0    = z0
    self%kc    = kc
@@ -144,7 +144,7 @@
    self%rzd  = rzd /secs_pr_day
    self%dic_per_n = dic_per_n
    
-   ! State variables
+   ! Register state variables
    self%id_n = register_state_variable(modelinfo,'nut','mmol/m**3','nutrients',     &
                                     n_initial,minimum=_ZERO_,no_river_dilution=.true.)
    self%id_p = register_state_variable(modelinfo,'phy','mmol/m**3','phytoplankton', &
@@ -161,7 +161,7 @@
    self%id_dic = id_not_used
    if (dic_variable.ne.'') self%id_dic = register_state_dependency(modelinfo,dic_variable)
 
-   ! Diagnostic variables
+   ! Register diagnostic variables
    self%id_GPP  = register_diagnostic_variable(modelinfo,'GPP','mmol/m**3',  'gross primary production',           &
                      time_treatment=time_treatment_step_integrated)
    self%id_NCP  = register_diagnostic_variable(modelinfo,'NCP','mmol/m**3',  'net community production',           &
@@ -173,10 +173,10 @@
    self%id_dPAR = register_diagnostic_variable(modelinfo,'PAR','W/m**2',     'photosynthetically active radiation',&
                      time_treatment=time_treatment_averaged)
    
-   ! Conserved quantities
+   ! Register conserved quantities
    self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
    
-   ! Environmental dependencies
+   ! Register environmental dependencies
    self%id_par = register_dependency(modelinfo, varname_par)
    self%id_I_0 = register_dependency(modelinfo, varname_par_sf, shape=shape_hz)
 
