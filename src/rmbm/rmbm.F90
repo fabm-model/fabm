@@ -804,6 +804,7 @@
 !
 ! !IROUTINE: Tell RMBM about the extents of the spatial domain.
 ! This allows it to create spatially-explicit arrays for internal use.
+! Currently only needed if preprocessor _RMBM_MANAGE_DIAGNOSTICS_ is defined.
 !
 ! !INTERFACE:
    subroutine rmbm_set_domain(root,LOCATION)
@@ -813,7 +814,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: root
-   _LOCATION_TYPE_,                          intent(in)    :: LOCATION
+   _LOCATION_TYPE_,                        intent(in)    :: LOCATION
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -844,29 +845,72 @@
          call rmbm_link_data_hz(root,root%info%diagnostic_variables_hz(i)%dependencyid,root%environment%diag_hz(i _ARG_LOCATION_DIMENSIONS_HZ_))
    end do
 #endif
-end subroutine rmbm_set_domain
 
-recursive subroutine set_model_data_members(model,environment)
+   end subroutine rmbm_set_domain
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide all descendant models with a pointer to the environment.
+!
+! !INTERFACE:
+   recursive subroutine set_model_data_members(model,environment)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
    type (type_model),             intent(inout) :: model
    type (type_environment),target,intent(in)    :: environment
-   
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
    type (type_model), pointer :: curchild
-   
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    model%environment => environment
    curchild => model%firstchild
    do while (associated(curchild))
       call set_model_data_members(curchild,environment)
       curchild => curchild%nextsibling
    end do
-end subroutine set_model_data_members
+   
+   end subroutine set_model_data_members
+!EOC
 
-function rmbm_get_variable_id(model,name,shape) result(id)
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Obtain the integer variable identifier for the given variable
+! name. Returns id_not_used if the variable name is unknown.
+! The variable identifier can be used later in calls to rmbm_link_data/rmbm_link_data_hz.
+!
+! !INTERFACE:
+   function rmbm_get_variable_id(model,name,shape) result(id)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
    type (type_model),             intent(in)  :: model
    character(len=*),              intent(in)  :: name
    integer,                       intent(in)  :: shape
+!
+! !RETURN VALUE:
    integer                                    :: id
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
    character(len=64),pointer                  :: source(:)
-   
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    select case (shape)
       case (shape_hz)
          source => model%info%dependencies_hz
@@ -881,54 +925,158 @@ function rmbm_get_variable_id(model,name,shape) result(id)
    end if
    
    id = id_not_used
-end function rmbm_get_variable_id
+   
+   end function rmbm_get_variable_id
+!EOC
 
-subroutine rmbm_link_data(model,id,dat)
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! the specified variable, defined on the full spatial domain. The variable
+! is identified by its integer id.
+!
+! !INTERFACE:
+   subroutine rmbm_link_data(model,id,dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
    REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)  :: dat
-   
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    model%environment%var(id)%data => dat
-end subroutine rmbm_link_data
+   
+   end subroutine rmbm_link_data
+!EOC
 
-subroutine rmbm_link_data_char(model,name,dat)
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! the specified variable, defined on a horizontal slice of the spatial domain.
+! The variable is identified by its name.
+!
+! !INTERFACE:
+   subroutine rmbm_link_data_char(model,name,dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
    type (type_model),                       intent(inout) :: model
    character(len=*),                        intent(in)    :: name
    REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)  :: dat
-   
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
    integer                                                :: id
-   
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    id = rmbm_get_variable_id(model,name,shape_full)
    if (id.ne.id_not_used) call rmbm_link_data(model,id,dat)
-end subroutine rmbm_link_data_char
+   
+   end subroutine rmbm_link_data_char
+!EOC
 
-subroutine rmbm_link_data_hz(model,id,dat)
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! the specified variable, defined on a horizontal slice of the spatial domain.
+! The variable is identified by its integer id.
+!
+! !INTERFACE:
+   subroutine rmbm_link_data_hz(model,id,dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
    REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)  :: dat
-   
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    model%environment%var_hz(id)%data => dat
-end subroutine rmbm_link_data_hz
+   
+   end subroutine rmbm_link_data_hz
+!EOC
 
-subroutine rmbm_link_data_hz_char(model,name,dat)
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! the specified variable, defined on a horizontal slice of the spatial domain.
+! The variable is identified by its name.
+!
+! !INTERFACE:
+   subroutine rmbm_link_data_hz_char(model,name,dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
    type (type_model),                          intent(inout) :: model
    character(len=*),                           intent(in)    :: name
    REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)  :: dat
-   
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
    integer                                                   :: id
-   
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    id = rmbm_get_variable_id(model,name,shape_hz)
    if (id.ne.id_not_used) call rmbm_link_data_hz(model,id,dat)
-end subroutine rmbm_link_data_hz_char
+   
+   end subroutine rmbm_link_data_hz_char
+!EOC
 
 #ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
 
-subroutine rmbm_link_state_data(model,dat)
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! all pelagic state variables.
+!
+! !INTERFACE:
+   subroutine rmbm_link_state_data(model,dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
    type (type_model),                                intent(inout) :: model
    REALTYPE _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_,target,intent(in)  :: dat
-   
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
    integer                                                         :: id
-   
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    if (ubound(dat,1).ne.ubound(model%info%state_variables,1)) &
       call fatal_error('rmbm::rmbm_link_state_data','The length of the first dimension of the state variable&
       & array does not match the number of state variables.')
@@ -938,14 +1086,34 @@ subroutine rmbm_link_state_data(model,dat)
       if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
          call rmbm_link_data(model,model%info%state_variables(id)%dependencyid,dat(id _ARG_LOCATION_DIMENSIONS_))
    end do
-end subroutine rmbm_link_state_data
-
-subroutine rmbm_link_benthos_state_data(model,dat)
-   type (type_model),                                   intent(inout) :: model
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_,target,intent(in)  :: dat
-
-   integer                                                            :: id
    
+   end subroutine rmbm_link_state_data
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! all benthic state variables.
+!
+! !INTERFACE:
+   subroutine rmbm_link_benthos_state_data(model,dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_model),                                     intent(inout) :: model
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_,target,intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   integer                                                            :: id
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    if (ubound(dat,1).ne.ubound(model%info%state_variables_ben,1)) &
       call fatal_error('rmbm::rmbm_link_benthos_state_data','The length of the first dimension of the benthic&
       & state variable array does not match the number of state variables.')
@@ -955,73 +1123,197 @@ subroutine rmbm_link_benthos_state_data(model,dat)
       if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
          call rmbm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat(id _ARG_LOCATION_DIMENSIONS_HZ_))
    end do
-end subroutine rmbm_link_benthos_state_data
+   
+   end subroutine rmbm_link_benthos_state_data
+!EOC
 
 #else
 
-subroutine rmbm_link_state_data(model,id,dat)
-   type (type_model),                       intent(inout) :: model
-   integer,                                 intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)  :: dat
-   
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! a single pelagic state variable.
+!
+! !INTERFACE:
+   subroutine rmbm_link_state_data(model,id,dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_model),                         intent(inout) :: model
+   integer,                                   intent(in)    :: id
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    model%environment%state(id)%data => dat
    if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
       call rmbm_link_data(model,model%info%state_variables(id)%dependencyid,dat)
-end subroutine rmbm_link_state_data
+      
+   end subroutine rmbm_link_state_data
+!EOC
 
-subroutine rmbm_link_benthos_state_data(model,id,dat)
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! a single benthic state variable.
+!
+! !INTERFACE:
+   subroutine rmbm_link_benthos_state_data(model,id,dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
    REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)  :: dat
-   
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    model%environment%state_ben(id)%data => dat
    if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
       call rmbm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat)
-end subroutine rmbm_link_benthos_state_data
+      
+   end subroutine rmbm_link_benthos_state_data
+!EOC
 
 #endif
 
-function rmbm_get_diagnostic_data(model,id) result(dat)
-   type (type_model),                       intent(inout) :: model
-   integer,                                 intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_,pointer            :: dat
-   
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Returns (a pointer to) the array with data for
+! a single diagnostic variable, defined on the full spatial domain.
+!
+! !INTERFACE:
+   function rmbm_get_diagnostic_data(model,id) result(dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_model),                       intent(in) :: model
+   integer,                                 intent(in) :: id
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_,pointer         :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
 #ifdef _RMBM_MANAGE_DIAGNOSTICS_
    dat => model%environment%diag(id _ARG_LOCATION_DIMENSIONS_)
 #else
    dat => model%environment%var(model%info%diagnostic_variables(id)%dependencyid)%data
 #endif
-end function rmbm_get_diagnostic_data
 
-function rmbm_get_diagnostic_data_hz(model,id) result(dat)
-   type (type_model),                          intent(inout) :: model
-   integer,                                    intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,pointer            :: dat
-   
+   end function rmbm_get_diagnostic_data
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Returns (a pointer to) the array with data for
+! a single diagnostic variable, defined on a horitontal slice of the
+! spatial domain.
+!
+! !INTERFACE:
+   function rmbm_get_diagnostic_data_hz(model,id) result(dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_model),                          intent(in) :: model
+   integer,                                    intent(in) :: id
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,pointer         :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
 #ifdef _RMBM_MANAGE_DIAGNOSTICS_
    dat => model%environment%diag_hz(id _ARG_LOCATION_DIMENSIONS_HZ_)
 #else
    dat => model%environment%var_hz(model%info%diagnostic_variables_hz(id)%dependencyid)%data
 #endif
-end function rmbm_get_diagnostic_data_hz
+
+   end function rmbm_get_diagnostic_data_hz
+!EOC
 
 #ifndef _RMBM_MANAGE_DIAGNOSTICS_
 
-subroutine rmbm_link_diagnostic_data(model,id,dat)
-   type (type_model),                       intent(inout) :: model
-   integer,                                 intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)  :: dat
-   
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! a single diagnostic state variable, defined on the full spatial domain.
+!
+! !INTERFACE:
+   subroutine rmbm_link_diagnostic_data(model,id,dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_model),                         intent(inout) :: model
+   integer,                                   intent(in)    :: id
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    call rmbm_link_data(model,model%info%diagnostic_variables(id)%dependencyid,dat)
-end subroutine rmbm_link_diagnostic_data
+   
+   end subroutine rmbm_link_diagnostic_data
+!EOC
 
-subroutine rmbm_link_diagnostic_data_hz(model,id,dat)
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! a single diagnostic state variable, defined on a horizontal slice of the
+! spatial domain.
+!
+! !INTERFACE:
+   subroutine rmbm_link_diagnostic_data_hz(model,id,dat)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
    REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)  :: dat
-   
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    call rmbm_link_data_hz(model,model%info%diagnostic_variables_hz(id)%dependencyid,dat)
-end subroutine rmbm_link_diagnostic_data_hz
+   
+   end subroutine rmbm_link_diagnostic_data_hz
+!EOC
 
 #endif
 
