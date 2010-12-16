@@ -271,7 +271,7 @@
 !  Note: identifiers <=100 are reserved for models ported from the General Ocean Turbulence Model
    integer, parameter :: model_container_id = -1
    integer, parameter :: npzd_id            =  1
-   integer, parameter :: carbonate_id       =  101
+   integer, parameter :: co2sys_id       =  101
    integer, parameter :: mnemiopsis_id      =  102
    ! ADD_NEW_MODEL_HERE
 
@@ -374,7 +374,7 @@
    call register_model(model_container_id,'')
    call register_model(npzd_id           ,'npzd')
    call register_model(mnemiopsis_id     ,'mnemiopsis')
-   call register_model(carbonate_id      ,'co2sys')
+   call register_model(co2sys_id      ,'co2sys')
    ! ADD_NEW_MODEL_HERE - required
    
    end subroutine register_models
@@ -756,7 +756,7 @@
          call npzd_init(model%npzd,model%info,nmlunit)
       case (mnemiopsis_id)
          call mnemiopsis_init(model%mnemiopsis,model%info,nmlunit)
-      case (carbonate_id)
+      case (co2sys_id)
          call co2sys_init(model%co2sys,model%info,nmlunit)
       ! ADD_NEW_MODEL_HERE - required
       
@@ -1400,7 +1400,7 @@
             call npzd_do(model%npzd,_INPUT_ARGS_DO_RHS_)
          case (mnemiopsis_id)
             call mnemiopsis_do(model%mnemiopsis,_INPUT_ARGS_DO_RHS_)
-         case (carbonate_id)
+         case (co2sys_id)
             call co2sys_do(model%co2sys,_INPUT_ARGS_DO_RHS_)
          ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
          ! matrices instead of a temporal derivative vector. In that case, add the model to
@@ -1585,7 +1585,7 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
-         case (carbonate_id)
+         case (co2sys_id)
             call co2sys_get_surface_exchange(model%co2sys,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies fluxes of one or
          ! more of its state variables across the air-water interface.
