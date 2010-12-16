@@ -280,7 +280,7 @@
 !  Single generic biogeochemical model
    type type_model
    
-      ! Model identifier, name (= variable name prefix), and metadata.
+      ! Model identifier and metadata.
       integer                :: id
       type (type_model_info) :: info
       
@@ -292,9 +292,9 @@
       
       ! Pointer to next non-container model.
       ! To speed up iterations over all models in the tree, non-container models are
-      ! connected in a single linked list.
+      ! connected in a singly linked list.
       ! For the root model, nextmodel points to the first non-container model in the list.
-      ! For nested (non-root) container models, the pointer will remain disassociated(!)
+      ! For nested (non-root) container models, the pointer remains disassociated(!)
       type (type_model),pointer :: nextmodel
 
       ! Derived types that belong to specific biogeochemical models.
@@ -307,6 +307,7 @@
       ! These are allocated upon initialization by RMBM,
       ! and should be set by the physical host model.
       type (type_environment),pointer :: environment
+      
    end type type_model
    
    ! Arrays for integer identifiers and names of all available biogeochemical models.
@@ -315,22 +316,26 @@
 !
 ! !PUBLIC INTERFACES:
 !
-!  Access to temporal derivatives
+!  Subroutine calculating local temporal derivatives either as a right-hand side vector,
+!  or production/destruction matrices.
    interface rmbm_do
       module procedure rmbm_do_rhs
       module procedure rmbm_do_ppdd
    end interface
    
+! Subroutine for providing RMBM with variable data on the full spatial domain.
    interface rmbm_link_data
       module procedure rmbm_link_data
       module procedure rmbm_link_data_char
    end interface
 
+! Subroutine for providing RMBM with variable data on horizontal slices of the domain.
    interface rmbm_link_data_hz
       module procedure rmbm_link_data_hz
       module procedure rmbm_link_data_hz_char
    end interface
    
+! Function for creating new models based on integer id or name.
    interface rmbm_create_model
       module procedure rmbm_create_model_by_id
       module procedure rmbm_create_model_by_name
@@ -347,8 +352,8 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE:Register all biogeochemical models integer identifier and
-!  short model name (letters, numbers and underscores only)
+! !IROUTINE:Register the integer identifiers and short names (letters,
+! numbers and underscores only) of all biogeochemical models.
 !
 ! !INTERFACE:
    subroutine register_models()
@@ -527,9 +532,9 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   integer,         optional,         intent(in)    :: modelid
-   type (type_model),pointer,optional               :: parent
-   type (type_model),pointer                        :: model
+   integer,                 optional,intent(in)    :: modelid
+   type (type_model),target,optional,intent(inout) :: parent
+   type (type_model),pointer                       :: model
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -628,9 +633,9 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   character(len=*),    intent(in)    :: modelname
-   type (type_model),pointer,optional :: parent
-   type (type_model),pointer          :: model
+   character(len=*),                 intent(in)    :: modelname
+   type (type_model),target,optional,intent(inout) :: parent
+   type (type_model),pointer                       :: model
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -677,6 +682,7 @@
    inquire(nmlunit,opened=isopen)
    if (.not.isopen) call fatal_error('rmbm_init','input configuration file has not been opened yet!')
    
+   ! Initialize the model (this automatically initializes all contained models)
    call init_model(root,nmlunit)
 
    ! Allocate arrays for storage of (references to) data.
@@ -911,6 +917,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Obtain a reference to the appropriate array with variable names.
    select case (shape)
       case (shape_hz)
          source => model%info%dependencies_hz
@@ -918,12 +925,15 @@
          source => model%info%dependencies
    end select
 
+   ! Try to locate the variable in the array with variable names.
+   ! Return the identifier when found.
    if (associated(source)) then
       do id=1,ubound(source,1)
          if (source(id)==name) return
       end do
    end if
    
+   ! Return default identifier: variable not found.
    id = id_not_used
    
    end function rmbm_get_variable_id
@@ -953,6 +963,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Store a pointer to the provided array.
    model%environment%var(id)%data => dat
    
    end subroutine rmbm_link_data
@@ -984,7 +995,10 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Obtain integer identifier of the variable.
    id = rmbm_get_variable_id(model,name,shape_full)
+   
+   ! Only link the data if needed (if the variable identifier is valid).
    if (id.ne.id_not_used) call rmbm_link_data(model,id,dat)
    
    end subroutine rmbm_link_data_char
@@ -1014,6 +1028,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Store a pointer to the provided array.
    model%environment%var_hz(id)%data => dat
    
    end subroutine rmbm_link_data_hz
@@ -1045,7 +1060,10 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Obtain integer identifier of the variable.
    id = rmbm_get_variable_id(model,name,shape_hz)
+
+   ! Only link the data if needed (if the variable identifier is valid).
    if (id.ne.id_not_used) call rmbm_link_data_hz(model,id,dat)
    
    end subroutine rmbm_link_data_hz_char
@@ -1077,11 +1095,16 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Basic check - determine whether the length of the first dimension matches the number of pelagic state variables.
    if (ubound(dat,1).ne.ubound(model%info%state_variables,1)) &
       call fatal_error('rmbm::rmbm_link_state_data','The length of the first dimension of the state variable&
       & array does not match the number of state variables.')
    
+   ! Store a pointer to the provided array.
    model%environment%state => dat
+   
+   ! Determine for each state variable whether it also features as dependency. If so, also attach the
+   ! corresponding array slice to the dependency.
    do id=1,ubound(model%info%state_variables,1)
       if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
          call rmbm_link_data(model,model%info%state_variables(id)%dependencyid,dat(id _ARG_LOCATION_DIMENSIONS_))
@@ -1114,11 +1137,16 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Basic check - determine whether the length of the first dimension matches the number of benthic state variables.
    if (ubound(dat,1).ne.ubound(model%info%state_variables_ben,1)) &
       call fatal_error('rmbm::rmbm_link_benthos_state_data','The length of the first dimension of the benthic&
       & state variable array does not match the number of state variables.')
 
+   ! Store a pointer to the provided array.
    model%environment%state_ben => dat
+
+   ! Determine for each state variable whether it also features as dependency. If so, also attach the
+   ! corresponding array slice to the dependency.
    do id=1,ubound(model%info%state_variables_ben,1)
       if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
          call rmbm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat(id _ARG_LOCATION_DIMENSIONS_HZ_))
@@ -1152,7 +1180,11 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Store a pointer to the provided array.
    model%environment%state(id)%data => dat
+
+   ! Determine whether the state variable also features as dependency. If so, also attach the
+   ! array slice to the dependency.
    if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
       call rmbm_link_data(model,model%info%state_variables(id)%dependencyid,dat)
       
@@ -1182,7 +1214,11 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Store a pointer to the provided array.
    model%environment%state_ben(id)%data => dat
+
+   ! Determine whether the state variable also features as dependency. If so, also attach the
+   ! array slice to the dependency.
    if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
       call rmbm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat)
       
@@ -1214,6 +1250,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Retrieve a pointer to the array holding the requested data.
 #ifdef _RMBM_MANAGE_DIAGNOSTICS_
    dat => model%environment%diag(id _ARG_LOCATION_DIMENSIONS_)
 #else
@@ -1247,6 +1284,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Retrieve a pointer to the array holding the requested data.
 #ifdef _RMBM_MANAGE_DIAGNOSTICS_
    dat => model%environment%diag_hz(id _ARG_LOCATION_DIMENSIONS_HZ_)
 #else
@@ -1281,6 +1319,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Diagnostic data is managed by the host, which means that RMBM treats it like a generic
+   ! variable (e.g., an external dependency). Redirect to the generic function.
    call rmbm_link_data(model,model%info%diagnostic_variables(id)%dependencyid,dat)
    
    end subroutine rmbm_link_diagnostic_data
@@ -1310,6 +1350,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Diagnostic data is managed by the host, which means that RMBM treats it like a generic
+   ! variable (e.g., an external dependency). Redirect to the generic function.
    call rmbm_link_data_hz(model,model%info%diagnostic_variables_hz(id)%dependencyid,dat)
    
    end subroutine rmbm_link_diagnostic_data_hz
@@ -1346,9 +1388,11 @@
 !BOC
 #define _INPUT_ARGS_DO_RHS_ _RMBM_ARGS_ND_IN_,dy
 
+   ! Ensure that this subrotuine is called on the root of the model tree only.
    if (associated(root%parent)) &
       call fatal_error('rmbm_do_rhs','rmbm_do_rhs may only be called on the root of the model tree, or on non-container models.')
 
+   ! Enumerate all non-container models in the tree.
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
@@ -1405,6 +1449,7 @@
 !BOC
 #define _INPUT_ARGS_DO_PPDD_ _RMBM_ARGS_ND_IN_,pp,dd
 
+   ! Enumerate all non-container models in the tree.
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
@@ -1458,7 +1503,7 @@
 
    valid = .true.
    
-   ! Allow models to perform custom repairs.
+   ! Enumarate all non-container models in the model tree, and allow them to perform custom repairs.
    model => root%nextmodel
    do while (associated(model) .and. valid)
       select case (model%id)
@@ -1765,7 +1810,7 @@
             if (ubound(model%info%conserved_quantities,1).gt.0) &
                call fatal_error('rmbm_get_conserved_quantities','model '//trim(model%info%name)//' specifies that it &
                     &describes one or more conserved quantities, but a function that provides sums of these &
-                    quantities has not been provided.')
+                    &quantities has not been provided.')
       end select
       model => model%nextmodel
    end do
