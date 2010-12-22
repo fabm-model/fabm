@@ -62,6 +62,7 @@
       ! Model parameters
       REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
       REALTYPE :: dic_per_n
+      logical  :: use_dic
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -158,8 +159,8 @@
                                     mussels_inhale=.true.)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   self%id_dic%id = id_not_used
-   if (dic_variable.ne.'') self%id_dic = register_state_dependency(modelinfo,dic_variable)
+   self%use_dic = dic_variable.ne.''
+   if (self%use_dic) self%id_dic = register_state_dependency(modelinfo,dic_variable)
 
    ! Register diagnostic variables
    self%id_GPP  = register_diagnostic_variable(modelinfo,'GPP','mmol/m**3',  'gross primary production',           &
@@ -371,7 +372,7 @@
 
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
-   if (self%id_dic%id.ne.id_not_used) _SET_ODE_(self%id_dic,self%dic_per_n*dn)
+   if (self%use_dic) _SET_ODE_(self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
    if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
@@ -498,7 +499,7 @@
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
    dn = - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
-   if (self%id_dic%id.ne.id_not_used) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
+   if (self%use_dic) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
    if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
