@@ -20,8 +20,8 @@
 ! (RMBM expects the vectorized spatial dimension to come first, which would benefit performance)
 ! Therefore, prescribe how to access spatially-localized rhs,pp,dd elements here.
 ! Note that this is only relevant if _RMBM_USE_1D_LOOP_ is defined.
-#define _INDEX_ODE_(i) (i,LOCATION)
-#define _INDEX_PPDD_(i,j) (i,j,LOCATION)
+#define _INDEX_ODE_(i) (i,LOCATION-rmbm_loop_start+1)
+#define _INDEX_PPDD_(i,j) (i,j,LOCATION-rmbm_loop_start+1)
 
 ! Include RMBM preprocessor definitions.
 ! This *must* be done after the host-specific variables are defined (above),

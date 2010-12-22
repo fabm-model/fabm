@@ -45,13 +45,13 @@
 ! !PUBLIC DERIVED TYPES:
    type type_npzd
       ! State variable identifiers
-      integer  :: id_n,id_p,id_z,id_d
+      type (type_state_variable_id)  :: id_n,id_p,id_z,id_d
 
       ! Environmental variable identifiers
       integer  :: id_par,id_I_0
       
       ! Dependencies
-      integer  :: id_dic
+      type (type_state_variable_id)  :: id_dic
 
       ! Diagnostic variable identifiers
       integer  :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
@@ -158,7 +158,7 @@
                                     mussels_inhale=.true.)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   self%id_dic = id_not_used
+   self%id_dic%id = id_not_used
    if (dic_variable.ne.'') self%id_dic = register_state_dependency(modelinfo,dic_variable)
 
    ! Register diagnostic variables
@@ -330,9 +330,8 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,z,d,par,I_0,dn
-   REALTYPE                   :: iopt
-   REALTYPE                   :: rpd,primprod
+   REALTYPE                   :: n,p,z,d,par,I_0
+   REALTYPE                   :: iopt,rpd,primprod,dn
    REALTYPE, parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
@@ -349,7 +348,7 @@
    ! Retrieve current environmental conditions.
    par = _GET_VAR_   (self%id_par)  ! local photosynthetically active radiation
    I_0 = _GET_VAR_HZ_(self%id_I_0)  ! surface short wave radiation
-   
+
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
 
@@ -372,7 +371,7 @@
 
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
-   if (self%id_dic.ne.id_not_used) _SET_ODE_(self%id_dic,self%dic_per_n*dn)
+   if (self%id_dic%id.ne.id_not_used) _SET_ODE_(self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
    if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
@@ -453,10 +452,9 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,z,d,par,I_0,dn,primprod
-   REALTYPE                   :: iopt
-   REALTYPE                   :: rpd
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   REALTYPE                   :: n,p,z,d,par,I_0
+   REALTYPE                   :: iopt,rpd,dn,primprod
+   REALTYPE, parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -500,7 +498,7 @@
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
    dn = - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
-   if (self%id_dic.ne.id_not_used) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
+   if (self%id_dic%id.ne.id_not_used) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
    if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)

@@ -12,232 +12,6 @@
 ! !DESCRIPTION:
 ! This module encapsulates various specific biogeochemical models.
 !
-! ------------------------------------------------------------------------------------------
-! How to register a new biogeochemical model:
-! ------------------------------------------------------------------------------------------
-!
-! A new biogeochemical model only needs to be registered in this file
-! in order to be usable by GOTM, MOM4 and any other physical drivers for RMBM.
-!
-! For the impatient: throughout this file, locations where additional bio models may be
-! referenced are indicated by the comment "ADD_NEW_MODEL_HERE". You can search for this
-! string to get started quickly.
-!
-! In detail:
-!
-! 1) Add a use statement that references your new model (cf. "use rmbm_npzd" below)
-!
-! 2) Define a unique integer identifier for your new model (cf. "npzd_id" below)
-!
-! 3) If your model uses model-specific data (e.g., parameter values), it is strongly recommended
-!    that these are grouped in a (model-specific) derived type. This is a *requirement*
-!    if you want to be able to run multiple instances of your model side-by-side!
-!    (because in that case, any module-level variables would be shared between instances)
-!
-!    If your model groups data in a derived type, add an instance of this type as member to the
-!    derived type "type_model" defined below.
-!
-! 4) Add the model as option to the "select" statements in the following subroutines:
-!
-!    "get_model_name" - to provide a short name (string) for your model.
-!    "rmbm_init"      - to initialize your model: register prognostic and diagnostic variables,
-!                       read in namelists, etc.
-!    "rmbm_do_rhs"    - to provide the local temporal derivatives of your model.
-!
-! The following steps are optional:
-!
-! 5) If the sinking rate of any of the model variables varies in time and/or space, a subroutine
-!    that provides the sinking rates (m/s) must be added as option to the "select" statement in
-!    "rmbm_get_vertical_movement".
-!
-!    If this function is not provided, sinking rates will be set to the constant sinking
-!    rates specified by the model upon its calls to register_state_variable.
-!
-! 6) If any of the model variables attenuate light, and this effect cannot be captured by a 
-!    specific extinction coefficient for these model variables, a function that calculates the light
-!    extinction coefficient (/m) from the current model state must be added as option to the "select"
-!    statement in rmbm_get_light_extinction. This allows for complete customization of the bio
-!    extinction.
-!
-!    If this function is not provided, the bio extinction will be calculated from the specific
-!    extinction coefficients for each state variable as specified in the model information,
-!    specifically, the member "specific_light_extinction" of the state variable information.
-!    (note: specific extinction coefficients default to 0: no attenuation due to biogeochemical components) 
-!
-! 7) If (part of) the model state variable are composed of conserved quantities (energy and/or
-!    chemical elements), a function that provides the sum of these quantities given the model
-!    state can be added as option to the "select" statement in get_conserved_quantities_rmbm.
-!    In that case, the totals of these conserved quantities can be diagnosed at run-time, and
-!    included in the model output.
-!
-!    Note that your model should register any conserved quantities during initialization.
-!
-! ------------------------------------------------------------------------------------------
-! How to use this library of biogeochemical models in a physical host model
-! ------------------------------------------------------------------------------------------
-!
-! There are no explicit requirements on the physical model, except for the use of the
-! interfaces documented below. However, in order to use RMBM efficiently, data for 
-! environmental and biotic variables should be stored in a particular way by the host.
-!
-! Specifically:
-!
-! At any given point in time, all variable values (at all points in space) of any single
-! environmental or biotic variable must be accessible through a single F90 pointer. For
-! spatial models, all data for a single variable must thus be stored in a single array (e.g., a
-! one-dimensional array for column models, or a three-dimensionsal array for global
-! circulation models). Ultimately, the variable will be represented by a F90 array slice, which
-! means that the variable for storing may use additional dimensions (e.g., for time),
-! which are then set to some index chosen by the host, and ignored by RMBM.
-!
-! Note that this does *not* require that the values for all variables combined are
-! stored in a single contiguous block of memory. In practice, it does mean that the
-! values for a *single* variable are best stored in a contiguous block of memory.
-!
-! Variable values will be accessed through F90 pointers. Therefore, the FORTRAN variables 
-! at the side of the host that contain environmental or biotic data must be able to serve
-! as the target of a F90 pointer. That means that it should either have the "target" or
-! "pointer" attribute, or be a member of a derived type with one of these attributes.
-!
-! The arrays on the side of the host could thus be defined with any of the following:
-!
-! for a 3D model:
-!
-! real,dimension(:,:,:),allocatable,target  :: temp,salt
-! real,dimension(nx,ny,nz),         target  :: temp,salt
-! real,dimension(:,:,:),            pointer :: temp,salt
-!
-! for a 1D model:
-!
-! real,dimension(:),allocatable,target  :: temp,salt
-! real,dimension(nz),           target  :: temp,salt
-! real,dimension(:),            pointer :: temp,salt
-!
-! They can also be stored as members of a derived type:
-!
-! type type_data
-!    real,dimension(:,:,:),allocatable  :: temp,salt
-! end type
-! type (type_data),pointer :: dat
-!
-! Note that the type instance "dat" needs to have the "target" or "pointer" attribute,
-! but the member variables "temp" and "salt" do not.
-!
-! Also, the data arrays may contain additional dimensions that should be set to a fixed
-! index when used by RMBM, for instance:
-!
-! real,dimension(nx,ny,nz,3),target  :: temp,salt
-!
-! Later the last dimension can be ignored by providing RMBM with a slices such as
-! temp(:,:,:,1) and salt(:,:,:,1)
-!
-! This can be needed for models that use an additional dimension for the time step index,
-! e.g., mom4.
-!
-! If one or more environmental or biotic variables are not stored in the required manner,
-! it will be upon the coupling layer between RMBM and its physical host to create arrays
-! of the required structure for these variables, and make sure that the contained values
-! are current upon each call to RMBM.
-
-! A typical example of this would be a variable that stores bottom values on a 3D cartesian
-! model grid: there the bottom index will vary in the horizontal, making it impossible to
-! get at bottom values with a simple array slice (with fixed depth index). Before calls to
-! RMBM, the coupling layer should therefore read bottom values from the physical host, and
-! put them in the "bottom value" array that has been provided to RMBM.
-!
-! It may be clear that this is feasible for variables that have one
-! or more dimensions fewer than the main grid, such as bottom/surface layers, but it will
-! be (very!) computationally expensive if it is to be done for many variables that exist
-! on the full grid.
-!
-! How to use the RMBM in a physical host:
-!
-! 1) Add a use statement that references this module, e.g.:
-!
-!    use rmbm
-!
-! 2) Define a pointer to an instance of the derived type "type_model":
-!
-!    type (model_type), pointer :: model
-!
-!    This instance will hold all information on the selected biogeochemical model(s),
-!    including descriptive strings, state variable information, and parameter values.
-!
-! 3) Create the root model instance by calling rmbm_create_model. Typically, the root model
-!    will be a model container that is created by calling create_model without arguments:
-!
-!    model => rmbm_create_model()
-!
-!    After the root model is created, it is empty. Child models can be added to it by
-!    repeatedly calling rmbm_create_model, with the existing root model as parent argument:
-!
-!    childmodel => rmbm_create_model(1,parent=model)
-!    childmodel => rmbm_create_model(2,parent=model)
-!
-!    This adds child models with identifiers 1 (currently NPZD) and 2 (currently Mnemiopsis)
-!    to the root.
-!
-!    Note 1: it is not required to first construct an empty root model - if you know that you
-!    will use one model from RMBM only, you can directly construct the desired model by calling
-!    rmbm_create_model with a model identifier and no parent argument. This might render a slight
-!    performance increase because RMBM does not need to enumerate the child models at each call.
-!
-!    Note 2: it is also possible to create a tree structure of models, nesting deeper than the
-!    one level demonstarted above. By creating empty child models (omitting the model identifier
-!    in rmbm_create_model), and then using these child models as parent in other calls to
-!    rmbm_create_model, arbitrary model trees can be created. This is useful, because
-!    namespaces at
-!
-! 4) Initialize the model tree by calling "init_rmbm" on the root model:
-!
-!    init_rmbm(model,nmlunit)
-!
-!    with "nmlunit" being a unit specifier (integer) of a file that has already been openend.
-!    The RMBM models will read namelists from this file during initialization.
-!    After initialization the caller is responsible for closing the file.
-!
-! 5) Provide the model with pointers to the arrays that will hold the current values of environmental
-!    variables, and biotic state variables. These arrays normally are spatially explicit, i.e., they
-!    contain all spatial dimensions.
-!
-!    For instance, a 3D model might have an array with temperature and salinity values allocated as
-!    
-!    real,dimension(nx,ny,nz),target :: temp,salt
-!
-!    These should be provided to RMBM as follows:
-!
-!    model%environment%temp => temp(:,:,:)
-!    model%environment%salt => salt(:,:,:)
-!
-!    For an overview of all environmental variables that should be provided in this manner,
-!    see the definition of the environment type ("type_environment") in rmbm_types.F90.
-!
-!    Similarly, if the n model state variables are stored by the host in variable
-!
-!    real,dimension(nx,ny,nz,n),target :: state
-!
-!    then arrays for all biological state variables must be provided as follows:
-!
-!    do ivar=1,n
-!       model%state(ivar) => state(:,:,:,ivar)
-!    end do
-!
-! 6) Access the model by the following subroutines:
-!    - rmbm_do:                       to get local temporal derivatives
-!    - rmbm_get_vertical_movement:    to get current vertcial movement rates for the state variables
-!    - rmbm_get_light_extinction:     to get the combined light extinction coefficient due to
-!                                     biogeochemical components
-!    - rmbm_get_conserved_quantities: to get the sums of the conserved quantities described
-!                                     by the model
-!    - rmbm_get_surface_exchange:     to get updated fluxes over the air-sea interface
-!    - rmbm_check_state:              to check the validity of current state variable values,
-!                                     and repair (clip) these if desired
-!
-!    Additional information on the model (e.g. long names, units for its variables) is present in the
-!    "info" member of the model, after the model has been initialized. For an overview of available metadata,
-!    see the definition of the info type ("type_model_info") in rmbm_types.F90, as well as the definitions
-!    of its contained types ("type_state_variable_info", "type_diagnostic_variable_info", etc.)
-!
 ! !USES:
    use rmbm_types
    use rmbm_driver
@@ -246,7 +20,7 @@
    use rmbm_npzd
    use rmbm_mnemiopsis
    use rmbm_co2sys
-   ! ADD_NEW_MODEL_HERE
+   ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
    
    implicit none
 !   
@@ -271,9 +45,9 @@
 !  Note: identifiers <=100 are reserved for models ported from the General Ocean Turbulence Model
    integer, parameter :: model_container_id = -1
    integer, parameter :: npzd_id            =  1
-   integer, parameter :: co2sys_id       =  101
+   integer, parameter :: co2sys_id          =  101
    integer, parameter :: mnemiopsis_id      =  102
-   ! ADD_NEW_MODEL_HERE
+   ! ADD_NEW_MODEL_HERE - required
 
 ! !PUBLIC TYPES:
 !
@@ -301,16 +75,16 @@
       type (type_npzd)       :: npzd
       type (type_mnemiopsis) :: mnemiopsis
       type (type_co2sys)     :: co2sys
-      ! ADD_NEW_MODEL_HERE
+      ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
       
-      ! Pointers to the current state and environment.
-      ! These are allocated upon initialization by RMBM,
-      ! and should be set by the physical host model.
+      ! Pointer to the current spatially explicit environment.
+      ! It is assigned to during initialization by RMBM.
       type (type_environment),pointer :: environment
       
    end type type_model
    
    ! Arrays for integer identifiers and names of all available biogeochemical models.
+   ! Allocated and set on demand when model names are first used.
    integer,          allocatable,dimension(:) :: modelids
    character(len=64),allocatable,dimension(:) :: modelnames
 !
@@ -321,6 +95,13 @@
    interface rmbm_do
       module procedure rmbm_do_rhs
       module procedure rmbm_do_ppdd
+   end interface
+
+!  Subroutine calculating local temporal derivatives of bottom layer (benthos & pelagic)
+!  either as a right-hand side vector, or production/destruction matrices.
+   interface rmbm_do_benthos
+      module procedure rmbm_do_benthos_rhs
+      module procedure rmbm_do_benthos_ppdd
    end interface
    
 ! Subroutine for providing RMBM with variable data on the full spatial domain.
@@ -371,10 +152,11 @@
    allocate(modelids  (0))
    allocate(modelnames(0))
 
+   ! Register specific biogeochemical models.
    call register_model(model_container_id,'')
    call register_model(npzd_id           ,'npzd')
    call register_model(mnemiopsis_id     ,'mnemiopsis')
-   call register_model(co2sys_id      ,'co2sys')
+   call register_model(co2sys_id         ,'co2sys')
    ! ADD_NEW_MODEL_HERE - required
    
    end subroutine register_models
@@ -477,7 +259,7 @@
          return
       end if
    end do
-   write (text,fmt='(i4,a)') id,' is not a valid model identifier.'
+   write (text,fmt='(i4,a)') id,' is not a valid model identifier registered in rmbm::register_models.'
    call fatal_error('rmbm::get_model_name',text)
    
    end function get_model_name
@@ -513,7 +295,7 @@
          return
       end if
    end do
-   call fatal_error('rmbm::get_model_id',trim(name)//' is not a valid model name.')
+   call fatal_error('rmbm::get_model_id',trim(name)//' is not a valid model name registered in rmbm::register_models.')
    
    end function get_model_id
 !EOC
@@ -539,7 +321,7 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
-   type (type_model),pointer                        :: curmodel
+   type (type_model),pointer                       :: curmodel
 !-----------------------------------------------------------------------
 !BOC
    allocate(model)
@@ -613,7 +395,9 @@
          ! Add current model to the flattened list of non-container models.
          curmodel%nextmodel => model
       end if
-
+   else
+      if (model%id.ne.model_container_id) &
+         call fatal_error('rmbm_create_model_by_id','Non-container models must be created as children of an existing container.')
    end if
    
    end function rmbm_create_model_by_id
@@ -1502,8 +1286,8 @@
 #define _INPUT_ARGS_CHECK_STATE_ _RMBM_ARGS_ND_IN_,repair,valid
 
    valid = .true.
-   
-   ! Enumarate all non-container models in the model tree, and allow them to perform custom repairs.
+
+   ! Enumerate all non-container models in the model tree, and allow them to perform custom repairs.
    model => root%nextmodel
    do while (associated(model) .and. valid)
       select case (model%id)
@@ -1581,7 +1365,7 @@
 !-----------------------------------------------------------------------
 !BOC
 #define _INPUT_ARGS_GET_SURFACE_EXCHANGE_ _RMBM_ARGS_IN_0D_,flux
-
+   flux = _ZERO_
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
@@ -1604,12 +1388,12 @@
 !
 ! !IROUTINE: Process interaction between benthos and bottom layer of the
 ! pelagic. This calculates the fluxes into all bottom pelagic and benthic variables,
-! in variable units * m/s (similar to surface fluxes). Positive values denote state
-! variable increases, negative values state variable decreases, for both pelagic and
-! benthic variables. Horizontal-only diagnostic variables can also be set in this routine.
+! in variable quantity per surface area per time. This typically imples variable units * m/s
+! [bottom fluxes] for the pelagic, and variable units/s [temporal derivatives] for the benthos.
+! Positive values denote state variable increases, negative values state variable decreases.
 !
 ! !INTERFACE:
-   subroutine rmbm_do_benthos(root,LOCATION,flux_ben,flux_pel)
+   subroutine rmbm_do_benthos_rhs(root,LOCATION,flux_ben,flux_pel)
 !
 ! !USES:
    implicit none
@@ -1642,7 +1426,53 @@
       model => model%nextmodel
    end do
 
-   end subroutine rmbm_do_benthos
+   end subroutine rmbm_do_benthos_rhs
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Process interaction between benthos and bottom layer of the
+! pelagic. This calculates the fluxes between all bottom pelagic and benthic variables,
+! in variable quantity per surface area per time. This typically imples variable units * m/s
+! for the pelagic, and variable units/s for the benthos.
+!
+! !INTERFACE:
+   subroutine rmbm_do_benthos_ppdd(root,LOCATION,pp,dd,benthos_offset)
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_model),         intent(in)    :: root
+   _LOCATION_TYPE_,           intent(in)    :: LOCATION
+   integer,                   intent(in)    :: benthos_offset
+!
+! !INPUT/OUTPUT PARAMETERS:
+   REALTYPE,dimension(:,:),   intent(inout) :: pp,dd
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!
+   type (type_model), pointer               :: model
+!-----------------------------------------------------------------------
+!BOC
+#define _INPUT_ARGS_DO_BENTHOS_ _RMBM_ARGS_IN_0D_,pp,dd,benthos_offset
+
+   model => root%nextmodel
+   do while (associated(model))
+      select case (model%id)
+         ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
+         ! or specifies bottom fluxes for its pelagic state variables.
+         !
+         ! Typical model call:
+         ! call MODELNAME_do_benthos(model%MODELNAME,_INPUT_ARGS_DO_BENTHOS_)
+      end select
+      model => model%nextmodel
+   end do
+
+   end subroutine rmbm_do_benthos_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1670,7 +1500,8 @@
 !EOP
 !
    type (type_model), pointer               :: model
-   integer                                  :: i,varid
+   integer                                  :: i
+   type (type_state_variable_id)            :: varid
 !-----------------------------------------------------------------------
 !BOC
 #define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _RMBM_ARGS_ND_IN_,vertical_movement
@@ -1724,7 +1555,8 @@
 !
 ! !LOCAL PARAMETERS:
    REALTYPE                                   :: curext
-   integer                                    :: i,varid
+   integer                                    :: i
+   type (type_state_variable_id)              :: varid
    type (type_model), pointer                 :: model
 !EOP
 !-----------------------------------------------------------------------

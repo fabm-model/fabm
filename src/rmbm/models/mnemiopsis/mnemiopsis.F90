@@ -34,10 +34,10 @@
 ! !PUBLIC DERIVED TYPES:
    type type_mnemiopsis
       ! Mnemiopsis state variable identifiers
-      integer :: id_egb, id_jb, id_ja, id_tb, id_ta, id_adb, id_ada
+      type (type_state_variable_id) :: id_egb, id_jb, id_ja, id_tb, id_ta, id_adb, id_ada
       
       ! Prey state variable identifiers (links to other model with lower trophic levels)
-      integer :: id_food, id_foodmic, id_resptarget, id_morttarget
+      type (type_state_variable_id) :: id_food, id_foodmic, id_resptarget, id_morttarget
       
       integer :: id_temp
       

@@ -33,9 +33,9 @@ module rmbm_co2sys
 !
 ! !PUBLIC DERIVED TYPES:
    type type_co2sys
-      integer :: id_dic
+      type (type_state_variable_id) :: id_dic, id_alk
       integer :: id_temp, id_salt, id_pres, id_wind, id_dens
-      integer :: id_ph, id_alk, id_pco2, id_CarbA, id_Bicarb, id_Carb, id_Om_cal, id_Om_arg, id_co2_flux
+      integer :: id_ph, id_pco2, id_CarbA, id_Bicarb, id_Carb, id_Om_cal, id_Om_arg, id_co2_flux
       REALTYPE :: TA_offset, TA_slope, pCO2a
       logical  :: alk_param
    end type
@@ -95,7 +95,7 @@ contains
      self%id_alk = register_state_variable(modelinfo,'alk','mEq/m**3','alkalinity', &
                                     alk_initial,minimum=_ZERO_,no_precipitation_dilution=.true.,no_river_dilution=.true.)
    else
-     self%id_alk = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity',time_treatment=time_treatment_averaged)
+     !self%id_alk = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity',time_treatment=time_treatment_averaged)
    end if
                                     
    ! Register diagnostic variables.
@@ -193,7 +193,7 @@ contains
    if (self%id_Carb   .ne.id_not_used) _SET_DIAG_(self%id_Carb  ,cb       *1.0D3*dens)   ! from mol/kg to mmol/m**3
    if (self%id_Om_cal .ne.id_not_used) _SET_DIAG_(self%id_Om_cal,Om_cal)
    if (self%id_Om_arg .ne.id_not_used) _SET_DIAG_(self%id_Om_arg,Om_arg)
-   if (self%id_alk    .ne.id_not_used .and. self%alk_param) _SET_DIAG_(self%id_alk,TA*dens*1.0D-3)   ! from uEg/kg to mmol/m**3
+   !if (self%id_alk    .ne.id_not_used .and. self%alk_param) _SET_DIAG_(self%id_alk,TA*dens*1.0D-3)   ! from uEg/kg to mmol/m**3
 
    ! Leave spatial loops (if any)
    _RMBM_LOOP_END_

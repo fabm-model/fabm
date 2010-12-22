@@ -33,10 +33,15 @@
    public init_model_info
    public register_state_variable, register_diagnostic_variable, register_conserved_quantity, &
           register_state_dependency, register_dependency
-   public type_environment,type_state_hz,type_state
+   public type_environment,type_state_hz,type_state,type_state_variable_id
 !
 ! !PUBLIC DERIVED TYPES:
 !
+
+   type type_state_variable_id
+      integer :: id
+      REALTYPE :: scale
+   end type type_state_variable_id
 
    ! Properties of a single state variable
    type type_state_variable_info
@@ -51,7 +56,8 @@
 #endif
       logical :: no_precipitation_dilution,no_river_dilution
       
-      integer  :: globalid,dependencyid      ! This is a globally unique identifier for the variable that can be used to retrieve values.
+      integer  :: dependencyid      ! This is a globally unique identifier for the variable that can be used to retrieve values.
+      type (type_state_variable_id) :: globalid
       integer  :: id
    end type type_state_variable_info
 
@@ -229,7 +235,7 @@
       varinfo%no_precipitation_dilution = .false.
       varinfo%no_river_dilution         = .false.
       varinfo%dependencyid = id_not_used
-      varinfo%globalid = id_not_used
+      varinfo%globalid%id = id_not_used
    end subroutine init_state_variable_info
 !EOC
 
@@ -329,7 +335,7 @@
       logical,               intent(in),optional :: benthic
 !
 ! !OUTPUT PARAMETER:
-      integer                                    :: id
+      type (type_state_variable_id)              :: id
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -409,12 +415,13 @@
                 no_river_dilution         = curinfo%no_river_dilution,         &
                 benthic                   = benthic_eff)
       else
-         id = ubound(variables_new,1)
+         id%id = ubound(variables_new,1)
       end if
       
       ! Save the state variable's global id
       ! (index into state variable array of the root of the model tree).
       curinfo%globalid = id
+      id%scale = _ONE_
       
    end function register_state_variable
 !EOC
@@ -601,7 +608,7 @@
       logical,optional,                       intent(in) :: benthic,mustexist
 !
 ! !OUTPUT PARAMETER:
-      integer                           :: id
+      type (type_state_variable_id)                      :: id
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -616,7 +623,7 @@
 !
 !-----------------------------------------------------------------------
 !BOC
-      id = id_not_used
+      id%id = id_not_used
       
       ! If this model does not have a parent, there is no context to search variables in.
       if (.not. associated(modelinfo%parent)) return

@@ -96,18 +96,18 @@
 ! These may be overridden by the host-specific driver (if it needs another order of dimensions).
 ! In that case, do not redefine the expressions here.
 #ifndef _INDEX_ODE_
-#define _INDEX_ODE_(variable) (_VARIABLE_1DLOOP_,variable)
+#define _INDEX_ODE_(variable) (_VARIABLE_1DLOOP_-rmbm_loop_start+1,variable)
 #endif
 #ifndef _INDEX_PPDD_
-#define _INDEX_PPDD_(variable1,variable2) (_VARIABLE_1DLOOP_,variable1,variable2)
+#define _INDEX_PPDD_(variable1,variable2) (_VARIABLE_1DLOOP_-rmbm_loop_start+1,variable1,variable2)
 #endif
 #ifndef _INDEX_CONSERVED_QUANTITY_
-#define _INDEX_CONSERVED_QUANTITY_(variable) (_VARIABLE_1DLOOP_,variable)
+#define _INDEX_CONSERVED_QUANTITY_(variable) (_VARIABLE_1DLOOP_-rmbm_loop_start+1,variable)
 #endif
 #ifndef _INDEX_VERTICAL_MOVEMENT_
-#define _INDEX_VERTICAL_MOVEMENT_(variable) (_VARIABLE_1DLOOP_,variable)
+#define _INDEX_VERTICAL_MOVEMENT_(variable) (_VARIABLE_1DLOOP_-rmbm_loop_start+1,variable)
 #endif
-#define _INDEX_EXTINCTION_ (_VARIABLE_1DLOOP_)
+#define _INDEX_EXTINCTION_ (_VARIABLE_1DLOOP_-rmbm_loop_start+1)
 
 #else
 
@@ -155,15 +155,15 @@
 #define _DECLARE_RMBM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_RMBM_ARGS_0D_;REALTYPE,dimension(:),intent(inout) :: flux
 
 ! For BGC models: Expressions for setting space-dependent RMBM variables defined on the full spatial domain.
-#define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable) = rhs _INDEX_ODE_(variable) + value
-#define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1,variable2) = dd _INDEX_PPDD_(variable1,variable2) + value
-#define _SET_PP_(variable1,variable2,value) pp _INDEX_PPDD_(variable1,variable2) = pp _INDEX_PPDD_(variable1,variable2) + value
+#define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%id) = rhs _INDEX_ODE_(variable%id) + value
+#define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1%id,variable2%id) = dd _INDEX_PPDD_(variable1%id,variable2%id) + value
+#define _SET_PP_(variable1,variable2,value) pp _INDEX_PPDD_(variable1%id,variable2%id) = pp _INDEX_PPDD_(variable1%id,variable2%id) + value
 #define _SET_EXTINCTION_(value) extinction _INDEX_EXTINCTION_ = extinction _INDEX_EXTINCTION_ + value
 #define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_CONSERVED_QUANTITY_(variable) = sums _INDEX_CONSERVED_QUANTITY_(variable) + value
-#define _SET_VERTICAL_MOVEMENT_(variable,value) vertical_movement _INDEX_VERTICAL_MOVEMENT_(variable) = value
-#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_SURFACE_EXCHANGE_(variable) = value
+#define _SET_VERTICAL_MOVEMENT_(variable,value) vertical_movement _INDEX_VERTICAL_MOVEMENT_(variable%id) = value
+#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_SURFACE_EXCHANGE_(variable%id) = value
 
-! For BGC models: quick expressions for setting a single element in both the destriction and production matrix.
+! For BGC models: quick expressions for setting a single element in both the destruction and production matrix.
 #define _SET_DD_SYM_(variable1,variable2,value) _SET_DD_(variable1,variable2,value);_SET_PP_(variable1,variable2,value)
 #define _SET_PP_SYM_(variable1,variable2,value) _SET_PP_(variable1,variable2,value);_SET_DD_(variable1,variable2,value)
 
@@ -173,9 +173,9 @@
 
 ! For BGC models: read-only access to state variable values
 #ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-#define _GET_STATE_(variable) environment%state _INDEX_STATE_(variable)
+#define _GET_STATE_(variable) environment%state _INDEX_STATE_(variable%id)
 #else
-#define _GET_STATE_(variable) environment%state(variable)%data _INDEX_LOCATION_
+#define _GET_STATE_(variable) environment%state(variable%id)%data _INDEX_LOCATION_
 #endif
 
 ! For BGC models: write access to diagnostic variables
