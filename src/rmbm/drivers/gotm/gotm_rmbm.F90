@@ -72,7 +72,7 @@
    type (type_model), pointer :: model
    
    ! Arrays for state and diagnostic variables
-   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:),target :: cc,cc_bottom
+   REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:),target :: cc
    REALTYPE,allocatable,dimension(LOCATION_DIMENSIONS,:)        :: cc_diag
 
    ! Arrays for work, vertical movement, and cross-boundary fluxes
@@ -270,31 +270,20 @@
    
    call rmbm_set_domain(model,LOCATION)
 
-   ! Allocate pelagic state variable array and provide initial values.
-   allocate(cc(1:ubound(model%info%state_variables,1),LOCATION_RANGE),stat=rc)
+   ! Allocate state variable array for pelagic amnd benthos combined and provide initial values.
+   ! In terms of memory use, it is a waste to allocate storage for benthic variables across the entire
+   ! column (the bottom layer should suffice). However, it is important that all values at a given point
+   ! in time are integrated simultaneously in multi-step algorithms. This currently can only be arranged
+   ! By storing benthic values together with the pelagic, in a full;y depth=-explicit array.
+   allocate(cc(1:ubound(model%info%state_variables,1)+ubound(model%info%state_variables_ben,1),LOCATION_RANGE),stat=rc)
    if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc)'
+   cc = _ZERO_
    do i=1,ubound(model%info%state_variables,1)
       cc(i,:) = model%info%state_variables(i)%initial_value
-#ifndef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-      call rmbm_link_state_data(model,i,cc(i,1:LOCATION))
-#endif
    end do
-#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-   call rmbm_link_state_data(model,cc(:,1:LOCATION))
-#endif
-
-   ! Allocate state variable array for bottom (benthos *and* bottom pelagic) and provide initial values (benthos only).
-   allocate(cc_bottom(1:ubound(model%info%state_variables_ben,1)+ubound(model%info%state_variables,1),0:1),stat=rc)
-   if (rc /= 0) STOP 'allocate_memory(): Error allocating (cc_bottom)'
    do i=1,ubound(model%info%state_variables_ben,1)
-      cc_bottom(i,:) = model%info%state_variables_ben(i)%initial_value
-#ifndef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-      call rmbm_link_benthos_state_data(model,i,cc_bottom(i,1))
-#endif      
+      cc(ubound(model%info%state_variables,1)+i,1) = model%info%state_variables_ben(i)%initial_value
    end do
-#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-   call rmbm_link_benthos_state_data(model,cc_bottom(1:ubound(model%info%state_variables_ben,1),1))
-#endif
 
    ! Allocate diagnostic variable array and set all values to zero.
    ! (needed because time-integrated/averaged variables will increment rather than set the array)
@@ -440,7 +429,7 @@
    REALTYPE                  :: Qsour(0:nlev),Lsour(0:nlev)
    REALTYPE                  :: RelaxTau(0:nlev)
    REALTYPE                  :: dilution
-   integer                   :: j
+   integer                   :: i
    integer                   :: split,posconc
 !
 !-----------------------------------------------------------------------
@@ -459,17 +448,28 @@
    ! Calculate local pressure
    pres(1:nlev) = -z(1:nlev)
    
+#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
+   call rmbm_link_state_data        (model,cc(1:ubound(model%info%state_variables,1),1:nlev))
+   call rmbm_link_benthos_state_data(model,cc(ubound(model%info%state_variables,1)+1:,1))
+#else
+   do i=1,ubound(model%info%state_variables,1)
+      call rmbm_link_state_data(model,i,cc(i,1:nlev))
+   end do
+   do i=1,ubound(model%info%state_variables_ben,1)
+      call rmbm_link_benthos_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
+   end do
+#endif
+
    ! Get updated vertical movement (m/s, positive for upwards) for biological state variables.
 #ifdef _RMBM_USE_1D_LOOP_
    call rmbm_get_vertical_movement(model,1,nlev,ws(1:nlev,:))
 #else
-   do j=1,nlev
-      call rmbm_get_vertical_movement(model,j,ws(j,:))
+   do i=1,nlev
+      call rmbm_get_vertical_movement(model,i,ws(i,:))
    end do
 #endif
 
    ! Get updated air-sea fluxes for biological state variables.
-   sfl = _ZERO_
    call rmbm_get_surface_exchange(model,nlev,sfl)
    
    ! Calculate dilution due to surface freshwater flux (m/s)
@@ -480,27 +480,27 @@
    !   dilution = dilution + sum((salt(1:nlev)-sProf(1:nlev))/SRelaxTau(1:nlev)*h(2:nlev+1)) &
    !                        /sum(salt(1:nlev)*h(2:nlev+1)) * sum(h(2:nlev+1))
 
-   do j=1,ubound(model%info%state_variables,1)
+   do i=1,ubound(model%info%state_variables,1)
       ! Add surface flux due to evaporation/precipitation, unless the model explicitly says otherwise.
-      if (.not. model%info%state_variables(j)%no_precipitation_dilution) &
-         sfl(j) = sfl(j)-cc(j,nlev)*dilution
+      if (.not. model%info%state_variables(i)%no_precipitation_dilution) &
+         sfl(i) = sfl(i)-cc(i,nlev)*dilution
    
       ! Determine whether the variable is positive definite based on lower allowed bound.
       posconc = 0
-      if (model%info%state_variables(j)%minimum.ge._ZERO_) posconc = 1
+      if (model%info%state_variables(i)%minimum.ge._ZERO_) posconc = 1
          
       ! Do advection step due to settling or rising
-      call adv_center(nlev,dt,h,h,ws(:,j),flux,                   &
-           flux,_ZERO_,_ZERO_,w_adv_discr,adv_mode_1,cc(j,:))
+      call adv_center(nlev,dt,h,h,ws(:,i),flux,                   &
+           flux,_ZERO_,_ZERO_,w_adv_discr,adv_mode_1,cc(i,:))
          
       ! Do advection step due to vertical velocity
       if (w_adv_method .ne. 0) &
          call adv_center(nlev,dt,h,h,w,flux,                   &
-              flux,_ZERO_,_ZERO_,w_adv_ctr,adv_mode_0,cc(j,:))
+              flux,_ZERO_,_ZERO_,w_adv_ctr,adv_mode_0,cc(i,:))
       
       ! Do diffusion step
       call diff_center(nlev,dt,cnpar,posconc,h,Neumann,Neumann,&
-           sfl(j),bfl(j),nuh,Lsour,Qsour,RelaxTau,cc(j,:),cc(j,:))
+           sfl(i),bfl(i),nuh,Lsour,Qsour,RelaxTau,cc(i,:),cc(i,:))
 
    end do
 
@@ -510,39 +510,47 @@
    do split=1,split_factor
       ! Update local light field (self-shading may have changed through changes in biological state variables)
       call light(nlev,bioshade_feedback)
-      
-      ! Copy bottom pelagic values to combined benthic+pelagic state variable array.
-      cc_bottom(ubound(model%info%state_variables_ben,1)+1:,1) = cc(:,1)
 
-      ! Time-integrate one biological time step - first for all layers but bottom, then for bottom (benthic+pelagic)
-      call ode_solver(ode_method,ubound(cc,    1),   nlev-1,dt_eff,cc       (:,1:nlev),right_hand_side_rhs,       right_hand_side_ppdd)
-      call ode_solver(ode_method,ubound(cc_bottom,1),1,     dt_eff,cc_bottom(:,0:1),   right_hand_side_rhs_bottom,right_hand_side_ppdd)
+      ! Time-integrate one biological time step
+      call ode_solver(ode_method,ubound(cc,1),nlev,dt_eff,cc(:,0:nlev),right_hand_side_rhs,right_hand_side_ppdd)
 
-      ! Take bottom pelagic values from combined bottom benthic+pelagic array.
-      cc(:,1) = cc_bottom(ubound(model%info%state_variables_ben,1)+1:,1)
+      ! Provide RMBM with (pointers to) updated state variables.
+#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
+      call rmbm_link_state_data        (model,cc(1:ubound(model%info%state_variables,1), 1:nlev))
+      call rmbm_link_benthos_state_data(model,cc(ubound(model%info%state_variables,1)+1:,1))
+#else
+      do i=1,ubound(model%info%state_variables,1)
+         call rmbm_link_state_data(model,i,cc(i,1:nlev))
+      end do
+      do i=1,ubound(model%info%state_variables_ben,1)
+         call rmbm_link_benthos_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
+      end do
+#endif
 
       ! Repair state
       call do_repair_state(nlev,'gotm_rmbm::do_gotm_rmbm, after time integration')
 
       ! Time-integrate diagnostic variables defined on horizontonal slices, where needed.
-      do j=1,ubound(model%info%diagnostic_variables_hz,1)
-         if (model%info%diagnostic_variables_hz(j)%time_treatment.eq.time_treatment_last) then
+      do i=1,ubound(model%info%diagnostic_variables_hz,1)
+         if (model%info%diagnostic_variables_hz(i)%time_treatment.eq.time_treatment_last) then
             ! Simply use last value
-            cc_diag_hz(j) = rmbm_get_diagnostic_data_hz(model,j)
+            cc_diag_hz(i) = rmbm_get_diagnostic_data_hz(model,i)
          else
             ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-            cc_diag_hz(j) = cc_diag_hz(j) + rmbm_get_diagnostic_data_hz(model,j)*dt_eff
+            ! If averaging is required, this will be done upon output by diving by the elapsed period.
+            cc_diag_hz(i) = cc_diag_hz(i) + rmbm_get_diagnostic_data_hz(model,i)*dt_eff
          end if
       end do
       
       ! Time-integrate diagnostic variables defined on the full domain, where needed.
-      do j=1,ubound(model%info%diagnostic_variables,1)
-         if (model%info%diagnostic_variables(j)%time_treatment.eq.time_treatment_last) then
+      do i=1,ubound(model%info%diagnostic_variables,1)
+         if (model%info%diagnostic_variables(i)%time_treatment.eq.time_treatment_last) then
             ! Simply use last value
-            cc_diag(j,1:nlev) = rmbm_get_diagnostic_data(model,j)
+            cc_diag(i,1:nlev) = rmbm_get_diagnostic_data(model,i)
          else
             ! Integration or averaging in time needed: for now do simple Forward Euler integration.
-            cc_diag(j,1:nlev) = cc_diag(j,1:nlev) + rmbm_get_diagnostic_data(model,j)*dt_eff
+            ! If averaging is required, this will be done upon output by diving by the elapsed period.
+            cc_diag(i,1:nlev) = cc_diag(i,1:nlev) + rmbm_get_diagnostic_data(model,i)*dt_eff
          end if
       end do
    end do
@@ -602,6 +610,81 @@
 !-----------------------------------------------------------------------
 !BOP
 !
+! !IROUTINE: Calculates temporal derivatives as a derivative vector
+!
+! !INTERFACE:
+   subroutine right_hand_side_rhs(first,numc,nlev,cc,rhs)
+!
+! !DESCRIPTION:
+! Checks the current values of all state variables and repairs these
+! if allowed and possible.
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+   logical, intent(in)                  :: first
+   integer, intent(in)                  :: numc,nlev
+   REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
+!
+! !OUTPUT PARAMETERS:
+   REALTYPE, intent(out)                :: rhs(1:numc,0:nlev)
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+#ifndef _RMBM_USE_1D_LOOP_
+   integer :: i
+#endif
+!
+!-----------------------------------------------------------------------
+!BOC
+   ! Provide RMBM with (pointers to) the current state.
+#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
+   call rmbm_link_state_data        (model,cc(1:ubound(model%info%state_variables,1), 1:nlev))
+   call rmbm_link_benthos_state_data(model,cc(ubound(model%info%state_variables,1)+1:,1))
+#else
+   do i=1,ubound(model%info%state_variables,1)
+      call rmbm_link_state_data(model,i,cc(i,1:nlev))
+   end do
+   do i=1,ubound(model%info%state_variables_ben,1)
+      call rmbm_link_benthos_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
+   end do
+#endif
+
+   ! If this is not the first step in the (multi-step) integration scheme,
+   ! then first make sure that the intermediate state variable values are valid.
+   if (.not. first) call do_repair_state(nlev,'gotm_rmbm::right_hand_side_rhs')
+
+   ! Initialization is needed because the different biogeochemical models increment or decrement
+   ! the temporal derivatives, rather than setting them directly. This is needed for the simultaenous
+   ! running of different coupled BGC models.
+   rhs = _ZERO_
+
+   ! Calculate temporal derivatives due to benthic processes.
+   call rmbm_do_benthos(model,1,rhs(ubound(model%info%state_variables,1)+1:,1),rhs(1:ubound(model%info%state_variables,1),1))
+   
+   ! Distribute bottom flux into pelagic over bottom box (i.e., divide by layer height).
+   rhs(1:ubound(model%info%state_variables,1),1) = rhs(1:ubound(model%info%state_variables,1),1)/h(2)
+
+#ifdef _RMBM_USE_1D_LOOP_
+   call rmbm_do(model,1,nlev,rhs(1:ubound(model%info%state_variables,1),1:nlev))
+#else   
+   ! Iterate over all depth levels (this excludes the bottom!)
+   do i=1,nlev
+      call rmbm_do(model,i,rhs(1:ubound(model%info%state_variables,1),i))
+   end do
+#endif
+
+   end subroutine right_hand_side_rhs
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
 ! !IROUTINE: Calculates temporal derivatives as production/destruction matrices
 !
 ! !INTERFACE:
@@ -630,141 +713,58 @@
 !
 ! !LOCAL VARIABLES:
 #ifndef _RMBM_USE_1D_LOOP_
-   integer :: ci
+   integer :: i
 #endif
+   integer :: n
 !
 !-----------------------------------------------------------------------
 !BOC
+   ! Shortcut to the number of pelagic state variables.
+   n = ubound(model%info%state_variables,1)
+
+   ! Provide RMBM with (pointers to) the current state.
+#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
+   call rmbm_link_state_data        (model,cc(1:n,1:nlev))
+   call rmbm_link_benthos_state_data(model,cc(n+1:,1))
+#else
+   do i=1,ubound(model%info%state_variables,1)
+      call rmbm_link_state_data(model,i,cc(i,1:nlev))
+   end do
+   do i=1,ubound(model%info%state_variables_ben,1)
+      call rmbm_link_benthos_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
+   end do
+#endif
+
+   ! If this is not the first step in the (multi-step) integration scheme,
+   ! then first make sure that the intermediate state variable values are valid.
    if (.not. first) call do_repair_state(nlev,'gotm_rmbm::right_hand_side_ppdd')
 
-   ! Initializae production and destruction matrices to zero because RMBM
+   ! Initialiaze production and destruction matrices to zero because RMBM
    ! biogeochemical models increment these, rather than set these.
    pp = _ZERO_
    dd = _ZERO_
    
+   ! Calculate temporal derivatives due to benthic processes.
+   call rmbm_do_benthos(model,1,pp(:,:,1),dd(:,:,1),n)
+   
+   ! Distribute bottom flux into pelagic over bottom box (i.e., divide by layer height).
+   pp(1:n,:,1) = pp(1:n,:,1)/h(2)
+   dd(1:n,:,1) = dd(1:n,:,1)/h(2)
+
    ! Iterate over all depth levels
 #ifdef _RMBM_USE_1D_LOOP_
-   call rmbm_do(model,2,nlev+1,pp(:,:,0:nlev),dd(:,:,0:nlev))
+   call rmbm_do(model,1,nlev,pp(1:n,1:n,1:nlev),dd(1:n,1:n,1:nlev))
 #else
-   do ci=1,nlev
+   do i=1,nlev
       ! N.B. true depth index is one higher than iterator, because the bottom (first) layer is not included
       ! in the input arrays.
       ! The bottom layer is dealt with separately in right_hand_side_rhs_bottom, in order to accomodate
       ! additional state variables associated with the benthos.
-      call rmbm_do(model,ci+1,pp(:,:,ci),dd(:,:,ci))
+      call rmbm_do(model,i,pp(1:n,1:n,i),dd(1:n,1:n,i))
    end do
 #endif
 
    end subroutine right_hand_side_ppdd
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Calculates temporal derivatives as a derivative vector
-!
-! !INTERFACE:
-   subroutine right_hand_side_rhs(first,numc,nlev,cc,rhs)
-!
-! !DESCRIPTION:
-! Checks the current values of all state variables and repairs these
-! if allowed and possible.
-!
-! !USES:
-   IMPLICIT NONE
-!
-! !INPUT PARAMETERS:
-   logical, intent(in)                  :: first
-   integer, intent(in)                  :: numc,nlev
-   REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
-!
-! !OUTPUT PARAMETERS:
-   REALTYPE, intent(out)                :: rhs(1:numc,0:nlev)
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-!EOP
-!
-! !LOCAL VARIABLES:
-#ifndef _RMBM_USE_1D_LOOP_
-   integer :: ci
-#endif
-!
-!-----------------------------------------------------------------------
-!BOC
-   if (.not. first) call do_repair_state(nlev,'gotm_rmbm::right_hand_side_rhs')
-
-   ! Initialization is needed because the different biogeochemical models increment or decrement
-   ! the temporal derivatives, rather than setting them directly. This is needed for the simultaenous
-   ! running of different coupled BGC models.
-   rhs = _ZERO_
-
-#ifdef _RMBM_USE_1D_LOOP_
-   call rmbm_do(model,2,nlev+1,rhs(:,0:nlev))
-#else   
-   ! Iterate over all depth levels (this excludes the bottom!)
-   do ci=1,nlev
-      ! N.B. true depth index is one higher than iterator, because the bottom (first) layer is not
-      ! included in the input arrays.
-      ! The bottom layer is dealt with separately in right_hand_side_rhs_bottom, in order to accomodate
-      ! additional state variables associated with the benthos.
-      call rmbm_do(model,ci+1,rhs(:,ci))
-   end do
-#endif
-
-   end subroutine right_hand_side_rhs
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Calculates temporal derivatives as a derivative vector
-!
-! !INTERFACE:
-   subroutine right_hand_side_rhs_bottom(first,numc,nlev,cc,rhs)
-!
-! !DESCRIPTION:
-! Checks the current values of all state variables and repairs these
-! if allowed and possible.
-!
-! !USES:
-   IMPLICIT NONE
-!
-! !INPUT PARAMETERS:
-   logical, intent(in)                  :: first
-   integer, intent(in)                  :: numc,nlev
-   REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
-!
-! !OUTPUT PARAMETERS:
-   REALTYPE, intent(out)                :: rhs(1:numc,0:nlev)
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-!EOP
-!
-!-----------------------------------------------------------------------
-!BOC
-   ! Initialization is needed because the different biogeochemical models increment or decrement
-   ! the temporal derivatives, rather than setting them directly. This is needed for the simultaenous
-   ! running of different coupled BGC models.
-   rhs = _ZERO_
-
-   ! Calculate temporal derivatives due to benthic processes.
-   call rmbm_do_benthos(model,1,rhs(1:ubound(model%info%state_variables_ben,1), 1),rhs(ubound(model%info%state_variables_ben,1)+1:,1))
-   
-   ! Distribute bottom flux into pelagic over bottom box (i.e., divide by layer height).
-   rhs(1:ubound(model%info%state_variables_ben,1),1) = rhs(1:ubound(model%info%state_variables_ben,1),1)/h(2)
-
-   ! Calculate temporal derivatives due to pelagic processes.
-#ifdef _RMBM_USE_1D_LOOP_
-   call rmbm_do(model,1,1,rhs(ubound(model%info%state_variables_ben,1)+1:,1:1))
-#else
-   call rmbm_do(model,1,rhs(ubound(model%info%state_variables_ben,1)+1:,1))
-#endif
-
-   end subroutine right_hand_side_rhs_bottom
 !EOC
 
 !-----------------------------------------------------------------------
@@ -792,7 +792,6 @@
 
    ! Deallocate internal arrays
    if (allocated(cc))             deallocate(cc)
-   if (allocated(cc_bottom))         deallocate(cc_bottom)
    if (allocated(cc_diag))        deallocate(cc_diag)
    if (allocated(cc_diag_hz))     deallocate(cc_diag_hz)
    if (allocated(ws))             deallocate(ws)
@@ -844,7 +843,7 @@
 !BOC
    zz = _ZERO_
    bioext = _ZERO_
-   
+
 #ifdef _RMBM_USE_1D_LOOP_
    call rmbm_get_light_extinction(model,1,nlev,localexts)
 #endif
@@ -1027,7 +1026,7 @@
 
          ! Store benthic biogeochemical state variables.
          do n=1,ubound(model%info%state_variables_ben,1)
-            iret = store_data(ncid,model%info%state_variables_ben(n)%id,XYT_SHAPE,1,scalar=cc_bottom(n,1))
+            iret = store_data(ncid,model%info%state_variables_ben(n)%id,XYT_SHAPE,1,scalar=cc(ubound(model%info%state_variables,1)+n,1))
          end do
 
          ! Process and store diagnostic variables defined on the full domain.
@@ -1070,11 +1069,11 @@
          end do
 #else
          total = _ZERO_
-         do ilev=1,nlev
+         do n=1,nlev
             ! Note: our pointer to h has a lower bound of 1, while the original pointed-to data starts at 0.
             ! We therefore need to increment the index by 1 in order to address original elements >=1!
-            call rmbm_get_conserved_quantities(model,ilev,local)
-            total = total + h(ilev+1)*local
+            call rmbm_get_conserved_quantities(model,n,local)
+            total = total + h(n+1)*local
          end do
 #endif
 
