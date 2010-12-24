@@ -28,22 +28,36 @@
 ! !USES:
 !  default: all is private.
    private
+   
    public type_model_info
    public type_state_variable_info,type_diagnostic_variable_info,type_conserved_quantity_info
    public init_model_info
    public register_state_variable, register_diagnostic_variable, register_conserved_quantity, &
           register_state_dependency, register_dependency
    public type_environment,type_state_hz,type_state,type_state_variable_id
+
+   ! Named constants
+   integer, parameter, public         :: shape_hz=2,shape_full=3
+   integer, parameter, public         :: id_not_used=-1
+   character(len=64),parameter,public :: &
+     varname_temp    = 'env_temp',    & ! Temperature (degrees Celsius)
+     varname_salt    = 'env_salt',    & ! Salinity (psu)
+     varname_par     = 'env_par',     & ! Photosynthetically Active Radiation (W/m^2)
+     varname_pres    = 'env_pres',    & ! Pressure (dbar = 10 kPa)
+     varname_dens    = 'env_dens',    & ! Density (kg/m^3)
+     varname_wind_sf = 'env_wind_sf', & ! Wind speed at 10 m above surface (m/s)
+     varname_par_sf  = 'env_par_sf'     ! Photosynthetically Active Radiation at surface (W/m^2)
+
 !
 ! !PUBLIC DERIVED TYPES:
 !
-
+   ! Derived type for state variable identifiers.
    type type_state_variable_id
       integer :: id
       REALTYPE :: scale
    end type type_state_variable_id
 
-   ! Properties of a single state variable
+!  Derived type describing a state variable
    type type_state_variable_info
       character(len=64) :: name, longname, units
 
@@ -51,20 +65,18 @@
       REALTYPE :: minimum,maximum            ! Valid range
       REALTYPE :: vertical_movement          ! Vertical movement (m/s) due to e.g. sinking, floating or activity. Note: positive for upward movement!
       REALTYPE :: specific_light_extinction  ! Specific light extinction (/m/state variable unit)
-#if 0
-      REALTYPE :: mussels_inhale             ! Whether this variable can be consumed by mussels
-#endif
       logical :: no_precipitation_dilution,no_river_dilution
       
-      integer  :: dependencyid      ! This is a globally unique identifier for the variable that can be used to retrieve values.
-      type (type_state_variable_id) :: globalid
-      integer  :: id
+      _TYPE_DEPENDENCY_ID_     :: dependencyid ! This is a globally unique identifier for the variable that can be used to retrieve values.
+      _TYPE_STATE_VARIABLE_ID_ :: globalid
+      integer  :: externalid
    end type type_state_variable_info
 
-   ! Properties of a diagnostic variable
+!  Derived type describing a diagnostic variable
    type type_diagnostic_variable_info
-      character(len=64) :: name, longname, units
-      integer           :: id,dependencyid
+      character(len=64)    :: name, longname, units
+      _TYPE_DEPENDENCY_ID_ :: dependencyid
+      integer              :: externalid
       
       ! Time treatment:
       ! 0: last value
@@ -77,50 +89,47 @@
    integer, parameter,public  :: time_treatment_last=0,time_treatment_integrated=1, &
                                  time_treatment_averaged=2,time_treatment_step_integrated=3
 
-   ! Properties of a conserved quantity
+!  Properties of a conserved quantity
    type type_conserved_quantity_info
-      character(len=64) :: name, longname, units
-      integer           :: globalid,id
+      character(len=64)            :: name, longname, units
+      _TYPE_CONSERVED_QUANTITY_ID_ :: globalid
+      integer                      :: externalid
    end type type_conserved_quantity_info
    
-   ! Global 0D model properties
+!  Derived type for storing properties of a generic model.
    type type_model_info
+   
+      ! Arrays with metadata on model variables.
       type (type_state_variable_info),     pointer,dimension(:) :: state_variables_ben,state_variables
       type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables_hz,diagnostic_variables
       type (type_conserved_quantity_info), pointer,dimension(:) :: conserved_quantities
       
+      ! Pointers to linked models in the moel tree.
       type (type_model_info),pointer :: parent
       type (type_model_info),pointer :: firstchild
       type (type_model_info),pointer :: nextsibling
       
+      ! Model name and variable prefixes.
       character(len=64) :: name,nameprefix,longnameprefix
       
-      character(len=64),pointer :: dependencies(:)
-      character(len=64),pointer :: dependencies_hz(:)
+      ! Arrays with names of external dependencies.
+      character(len=64),pointer,dimension(:) :: dependencies,dependencies_hz
+      
    end type type_model_info
    
-   ! Parameters
-   integer, parameter, public         :: shape_hz=2,shape_full=3
-   
-   integer, parameter, public         :: id_not_used=-1
-   
-   character(len=64),parameter,public :: &
-     varname_temp    = 'env_temp',    & ! Temperature (degrees Celsius)
-     varname_salt    = 'env_salt',    & ! Salinity (psu)
-     varname_par     = 'env_par',     & ! Photosynthetically Active Radiation (W/m^2)
-     varname_pres    = 'env_pres',    & ! Pressure (dbar = 10 kPa)
-     varname_dens    = 'env_dens',    & ! Density (kg/m^3)
-     varname_wind_sf = 'env_wind_sf', & ! Wind speed at 10 m above surface (m/s)
-     varname_par_sf  = 'env_par_sf'     ! Photosynthetically Active Radiation at surface (W/m^2)
-                                  
+   ! Derived type for pointer to data defined on the full spatial domain;
+   ! usable as base type of arrays.
    type type_state
       REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_ :: data
    end type type_state
 
+   ! Derived type for pointer to data defined on a horizontal slice of the spatial domain;
+   ! usable as base type of arrays.
    type type_state_hz
       REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_HZ_ :: data
    end type type_state_hz
 
+   ! Derived type described the spatially explicit model environment.
    type type_environment
 
       ! Pointer(s) to arrays that will hold state variable values.
@@ -229,9 +238,6 @@
       varinfo%maximum = 1.e20
       varinfo%vertical_movement = _ZERO_
       varinfo%specific_light_extinction = _ZERO_
-#if 0
-      varinfo%mussels_inhale = .false.
-#endif
       varinfo%no_precipitation_dilution = .false.
       varinfo%no_river_dilution         = .false.
       varinfo%dependencyid = id_not_used
@@ -268,7 +274,7 @@
       varinfo%units = ''
       varinfo%longname = ''
       varinfo%time_treatment = time_treatment_last
-      varinfo%id = id_not_used
+      varinfo%externalid = 0
       varinfo%dependencyid = id_not_used
    end subroutine init_diagnostic_variable_info
 !EOC
@@ -301,7 +307,8 @@
       conservedinfo%name = ''
       conservedinfo%units = ''
       conservedinfo%longname = ''
-      conservedinfo%id = id_not_used
+      conservedinfo%globalid = id_not_used
+      conservedinfo%externalid = 0
    end subroutine init_conserved_quantity_info
 !EOC
    
@@ -313,7 +320,7 @@
 ! !INTERFACE:
    recursive function register_state_variable(modelinfo, name, units, longname, &
                                     initial_value, vertical_movement, specific_light_extinction, &
-                                    mussels_inhale, minimum, maximum, &
+                                    minimum, maximum, &
                                     no_precipitation_dilution,no_river_dilution,benthic) &
                                     result(id)
 !
@@ -331,11 +338,11 @@
       character(len=*),      intent(in)          :: name, longname, units
       REALTYPE,              intent(in),optional :: initial_value,vertical_movement,specific_light_extinction
       REALTYPE,              intent(in),optional :: minimum, maximum
-      logical,               intent(in),optional :: mussels_inhale,no_precipitation_dilution,no_river_dilution
+      logical,               intent(in),optional :: no_precipitation_dilution,no_river_dilution
       logical,               intent(in),optional :: benthic
 !
 ! !OUTPUT PARAMETER:
-      type (type_state_variable_id)              :: id
+      _TYPE_STATE_VARIABLE_ID_                   :: id
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -385,9 +392,6 @@
       if (present(maximum))                   curinfo%maximum = maximum
       if (present(vertical_movement))         curinfo%vertical_movement = vertical_movement
       if (present(specific_light_extinction)) curinfo%specific_light_extinction = specific_light_extinction
-#if 0
-      if (present(mussels_inhale))            curinfo%mussels_inhale = mussels_inhale
-#endif
       if (present(no_precipitation_dilution)) curinfo%no_precipitation_dilution = no_precipitation_dilution
       if (present(no_river_dilution        )) curinfo%no_river_dilution         = no_river_dilution
 
@@ -448,7 +452,7 @@
       integer, optional,     intent(in)          :: time_treatment,shape
 !
 ! !OUTPUT PARAMETER:
-      integer                                    :: id
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_              :: id
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -470,7 +474,7 @@
          case (shape_full)
             variables_old => modelinfo%diagnostic_variables
          case default
-            call fatal_error('rmbm_types::register_diagnostic_variable','invalid shape argument provided.')
+            call fatal_error('rmbm_types::register_diagnostic_variable','unknown value provided for "shape" argument.')
       end select
 
       ! Extend the state variable array and copy over old values.
@@ -545,7 +549,7 @@
       character(len=*),      intent(in)          :: name, longname, units
 !
 ! !OUTPUT PARAMETER:
-      integer                                    :: id
+      _TYPE_CONSERVED_QUANTITY_ID_               :: id
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -608,7 +612,7 @@
       logical,optional,                       intent(in) :: benthic,mustexist
 !
 ! !OUTPUT PARAMETER:
-      type (type_state_variable_id)                      :: id
+      _TYPE_STATE_VARIABLE_ID_                           :: id
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -684,7 +688,7 @@
       integer,optional,                       intent(in)    :: shape
 !
 ! !OUTPUT PARAMETER:
-      integer                           :: id
+      _TYPE_DEPENDENCY_ID_                                  :: id
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -728,8 +732,11 @@
       n = ubound(source,1)
 
       ! Search existing dependencies and return the corresponding id if found.
-      do id=1,n
-         if (source(id).eq.name) return
+      do i=1,n
+         if (source(i).eq.name) then
+            id = i
+            return
+         end if
       end do
       
       ! Dependency was not registered yet - create extended array to hold new dependency.

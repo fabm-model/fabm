@@ -44,22 +44,14 @@
 !
 ! !PUBLIC DERIVED TYPES:
    type type_npzd
-      ! State variable identifiers
-      type (type_state_variable_id)  :: id_n,id_p,id_z,id_d
-
-      ! Environmental variable identifiers
-      integer  :: id_par,id_I_0
+!     Variable identifiers
+      _TYPE_STATE_VARIABLE_ID_      :: id_n,id_p,id_z,id_d
+      _TYPE_STATE_VARIABLE_ID_      :: id_dic
+      _TYPE_DEPENDENCY_ID_          :: id_par,id_I_0
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
+      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
       
-      ! Dependencies
-      type (type_state_variable_id)  :: id_dic
-
-      ! Diagnostic variable identifiers
-      integer  :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
-
-      ! Conserved quantity identifiers
-      integer  :: id_totN
-      
-      ! Model parameters
+!     Model parameters
       REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
       REALTYPE :: dic_per_n
       logical  :: use_dic
@@ -149,14 +141,11 @@
    self%id_n = register_state_variable(modelinfo,'nut','mmol/m**3','nutrients',     &
                                     n_initial,minimum=_ZERO_,no_river_dilution=.true.)
    self%id_p = register_state_variable(modelinfo,'phy','mmol/m**3','phytoplankton', &
-                                    p_initial,minimum=_ZERO_,vertical_movement=w_p/secs_pr_day, &
-                                    mussels_inhale=.true.)
+                                    p_initial,minimum=_ZERO_,vertical_movement=w_p/secs_pr_day)
    self%id_z = register_state_variable(modelinfo,'zoo','mmol/m**3','zooplankton', &
-                                    z_initial,minimum=_ZERO_, &
-                                    mussels_inhale=.true.)
+                                    z_initial,minimum=_ZERO_)
    self%id_d = register_state_variable(modelinfo,'det','mmol/m**3','detritus', &
-                                    d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day, &
-                                    mussels_inhale=.true.)
+                                    d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%use_dic = dic_variable.ne.''
@@ -347,8 +336,8 @@
    d = _GET_STATE_(self%id_d) ! detritus
    
    ! Retrieve current environmental conditions.
-   par = _GET_VAR_   (self%id_par)  ! local photosynthetically active radiation
-   I_0 = _GET_VAR_HZ_(self%id_I_0)  ! surface short wave radiation
+   par = _GET_DEPENDENCY_   (self%id_par)  ! local photosynthetically active radiation
+   I_0 = _GET_DEPENDENCY_HZ_(self%id_I_0)  ! surface short wave radiation
 
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -375,11 +364,11 @@
    if (self%use_dic) _SET_ODE_(self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
-   if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
-   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP ,primprod)
-   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
-   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
-   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_dPAR)) _SET_DIAG_(self%id_dPAR,par)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_GPP )) _SET_DIAG_(self%id_GPP ,primprod)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_NCP )) _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_PPR )) _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_NPR )) _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
    
    ! Leave spatial loops (if any)
    _RMBM_LOOP_END_
@@ -469,8 +458,8 @@
    d = _GET_STATE_(self%id_d) ! detritus
    
    ! Retrieve current environmental conditions.
-   par = _GET_VAR_   (self%id_par)  ! local photosynthetically active radiation
-   I_0 = _GET_VAR_HZ_(self%id_I_0)  ! surface short wave radiation
+   par = _GET_DEPENDENCY_   (self%id_par)  ! local photosynthetically active radiation
+   I_0 = _GET_DEPENDENCY_HZ_(self%id_I_0)  ! surface short wave radiation
    
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -502,11 +491,11 @@
    if (self%use_dic) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
-   if (self%id_dPAR.ne.id_not_used) _SET_DIAG_(self%id_dPAR,par)
-   if (self%id_GPP .ne.id_not_used) _SET_DIAG_(self%id_GPP,primprod)
-   if (self%id_NCP .ne.id_not_used) _SET_DIAG_(self%id_NCP,primprod-self%rpn*p)
-   if (self%id_PPR .ne.id_not_used) _SET_DIAG_(self%id_PPR,primprod*secs_pr_day)
-   if (self%id_NPR .ne.id_not_used) _SET_DIAG_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_dPAR)) _SET_DIAG_(self%id_dPAR,par)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_GPP )) _SET_DIAG_(self%id_GPP,primprod)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_NCP )) _SET_DIAG_(self%id_NCP,primprod-self%rpn*p)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_PPR )) _SET_DIAG_(self%id_PPR,primprod*secs_pr_day)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_NPR )) _SET_DIAG_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
    _RMBM_LOOP_END_

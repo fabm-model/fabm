@@ -485,7 +485,7 @@
       if (.not. model%info%state_variables(i)%no_precipitation_dilution) &
          sfl(i) = sfl(i)-cc(i,nlev)*dilution
    
-      ! Determine whether the variable is positive definite based on lower allowed bound.
+      ! Determine whether the variable is positive-definite based on its lower allowed bound.
       posconc = 0
       if (model%info%state_variables(i)%minimum.ge._ZERO_) posconc = 1
          
@@ -636,22 +636,23 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-#ifndef _RMBM_USE_1D_LOOP_
-   integer :: i
-#endif
+   integer :: i,n
 !
 !-----------------------------------------------------------------------
 !BOC
+   ! Shortcut to the number of pelagic state variables.
+   n = ubound(model%info%state_variables,1)
+
    ! Provide RMBM with (pointers to) the current state.
 #ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-   call rmbm_link_state_data        (model,cc(1:ubound(model%info%state_variables,1), 1:nlev))
-   call rmbm_link_benthos_state_data(model,cc(ubound(model%info%state_variables,1)+1:,1))
+   call rmbm_link_state_data        (model,cc(1:n, 1:nlev))
+   call rmbm_link_benthos_state_data(model,cc(n+1:,1))
 #else
    do i=1,ubound(model%info%state_variables,1)
       call rmbm_link_state_data(model,i,cc(i,1:nlev))
    end do
    do i=1,ubound(model%info%state_variables_ben,1)
-      call rmbm_link_benthos_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
+      call rmbm_link_benthos_state_data(model,i,cc(n+i,1))
    end do
 #endif
 
@@ -665,17 +666,17 @@
    rhs = _ZERO_
 
    ! Calculate temporal derivatives due to benthic processes.
-   call rmbm_do_benthos(model,1,rhs(ubound(model%info%state_variables,1)+1:,1),rhs(1:ubound(model%info%state_variables,1),1))
+   call rmbm_do_benthos(model,1,rhs(1:n,1),rhs(n+1:,1))
    
    ! Distribute bottom flux into pelagic over bottom box (i.e., divide by layer height).
-   rhs(1:ubound(model%info%state_variables,1),1) = rhs(1:ubound(model%info%state_variables,1),1)/h(2)
+   rhs(1:n,1) = rhs(1:n,1)/h(2)
 
+   ! Add pelagic sink and source terms for all depth levels.
 #ifdef _RMBM_USE_1D_LOOP_
-   call rmbm_do(model,1,nlev,rhs(1:ubound(model%info%state_variables,1),1:nlev))
+   call rmbm_do(model,1,nlev,rhs(1:n,1:nlev))
 #else   
-   ! Iterate over all depth levels (this excludes the bottom!)
    do i=1,nlev
-      call rmbm_do(model,i,rhs(1:ubound(model%info%state_variables,1),i))
+      call rmbm_do(model,i,rhs(1:n,i))
    end do
 #endif
 
@@ -712,10 +713,7 @@
 !EOP
 !
 ! !LOCAL VARIABLES:
-#ifndef _RMBM_USE_1D_LOOP_
-   integer :: i
-#endif
-   integer :: n
+   integer :: i,n
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -731,7 +729,7 @@
       call rmbm_link_state_data(model,i,cc(i,1:nlev))
    end do
    do i=1,ubound(model%info%state_variables_ben,1)
-      call rmbm_link_benthos_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
+      call rmbm_link_benthos_state_data(model,i,cc(n+i,1))
    end do
 #endif
 
@@ -751,15 +749,11 @@
    pp(1:n,:,1) = pp(1:n,:,1)/h(2)
    dd(1:n,:,1) = dd(1:n,:,1)/h(2)
 
-   ! Iterate over all depth levels
+   ! Add pelagic sink and source terms for all depth levels.
 #ifdef _RMBM_USE_1D_LOOP_
    call rmbm_do(model,1,nlev,pp(1:n,1:n,1:nlev),dd(1:n,1:n,1:nlev))
 #else
    do i=1,nlev
-      ! N.B. true depth index is one higher than iterator, because the bottom (first) layer is not included
-      ! in the input arrays.
-      ! The bottom layer is dealt with separately in right_hand_side_rhs_bottom, in order to accomodate
-      ! additional state variables associated with the benthos.
       call rmbm_do(model,i,pp(1:n,1:n,i),dd(1:n,1:n,i))
    end do
 #endif
@@ -922,8 +916,8 @@
          ! Add a NetCDF variable for each 4D (longitude,latitude,depth,time) biogeochemical state variable.
          do n=1,ubound(model%info%state_variables,1)
             iret = new_nc_variable(ncid,model%info%state_variables(n)%name,NF_REAL, &
-                                   4,dims,model%info%state_variables(n)%id)
-            iret = set_attributes(ncid,model%info%state_variables(n)%id,       &
+                                   4,dims,model%info%state_variables(n)%externalid)
+            iret = set_attributes(ncid,model%info%state_variables(n)%externalid,       &
                                   units=model%info%state_variables(n)%units,    &
                                   long_name=model%info%state_variables(n)%longname)
          end do
@@ -931,9 +925,9 @@
          ! Add a NetCDF variable for each 4D (longitude,latitude,depth,time) biogeochemical diagnostic variable.
          do n=1,ubound(model%info%diagnostic_variables,1)
             iret = new_nc_variable(ncid,model%info%diagnostic_variables(n)%name,NF_REAL, &
-                                   4,dims,model%info%diagnostic_variables(n)%id)
-            iret = set_attributes(ncid,model%info%diagnostic_variables(n)%id,       &
-                                  units=model%info%diagnostic_variables(n)%units,    &
+                                   4,dims,model%info%diagnostic_variables(n)%externalid)
+            iret = set_attributes(ncid,model%info%diagnostic_variables(n)%externalid,    &
+                                  units=model%info%diagnostic_variables(n)%units,        &
                                   long_name=model%info%diagnostic_variables(n)%longname)
          end do
 
@@ -943,26 +937,26 @@
          ! Add a NetCDF variable for each 3D (longitude,latitude,time) biogeochemical state variable.
          do n=1,ubound(model%info%state_variables_ben,1)
             iret = new_nc_variable(ncid,model%info%state_variables_ben(n)%name,NF_REAL, &
-                                   3,dims,model%info%state_variables_ben(n)%id)
-            iret = set_attributes(ncid,model%info%state_variables_ben(n)%id,       &
-                                  units=model%info%state_variables_ben(n)%units,    &
+                                   3,dims,model%info%state_variables_ben(n)%externalid)
+            iret = set_attributes(ncid,model%info%state_variables_ben(n)%externalid,    &
+                                  units=model%info%state_variables_ben(n)%units,        &
                                   long_name=model%info%state_variables_ben(n)%longname)
          end do
 
          ! Add a NetCDF variable for each 3D (longitude,latitude,time) biogeochemical diagnostic variable.
          do n=1,ubound(model%info%diagnostic_variables_hz,1)
             iret = new_nc_variable(ncid,model%info%diagnostic_variables_hz(n)%name,NF_REAL, &
-                                   3,dims,model%info%diagnostic_variables_hz(n)%id)
-            iret = set_attributes(ncid,model%info%diagnostic_variables_hz(n)%id,       &
-                                  units=model%info%diagnostic_variables_hz(n)%units,    &
+                                   3,dims,model%info%diagnostic_variables_hz(n)%externalid)
+            iret = set_attributes(ncid,model%info%diagnostic_variables_hz(n)%externalid,    &
+                                  units=model%info%diagnostic_variables_hz(n)%units,        &
                                   long_name=model%info%diagnostic_variables_hz(n)%longname)
          end do
 
          ! Add a variable for each conserved quantity
          do n=1,ubound(model%info%conserved_quantities,1)
             iret = new_nc_variable(ncid,trim(model%info%conserved_quantities(n)%name)//'_tot',NF_REAL, &
-                                   3,dims,model%info%conserved_quantities(n)%id)
-            iret = set_attributes(ncid,model%info%conserved_quantities(n)%id,       &
+                                   3,dims,model%info%conserved_quantities(n)%externalid)
+            iret = set_attributes(ncid,model%info%conserved_quantities(n)%externalid,      &
                                   units='m*'//model%info%conserved_quantities(n)%units,    &
                                   long_name=trim(model%info%conserved_quantities(n)%longname)//', depth-integrated')
          end do
@@ -1021,12 +1015,12 @@
 #ifdef NETCDF_FMT
          ! Store pelagic biogeochemical state variables.
          do n=1,ubound(model%info%state_variables,1)
-            iret = store_data(ncid,model%info%state_variables(n)%id,XYZT_SHAPE,nlev,array=cc(n,0:nlev))
+            iret = store_data(ncid,model%info%state_variables(n)%externalid,XYZT_SHAPE,nlev,array=cc(n,0:nlev))
          end do
 
          ! Store benthic biogeochemical state variables.
          do n=1,ubound(model%info%state_variables_ben,1)
-            iret = store_data(ncid,model%info%state_variables_ben(n)%id,XYT_SHAPE,1,scalar=cc(ubound(model%info%state_variables,1)+n,1))
+            iret = store_data(ncid,model%info%state_variables_ben(n)%externalid,XYT_SHAPE,1,scalar=cc(ubound(model%info%state_variables,1)+n,1))
          end do
 
          ! Process and store diagnostic variables defined on the full domain.
@@ -1036,7 +1030,7 @@
                cc_diag(n,1:nlev) = cc_diag(n,1:nlev)/(nsave*dt)
                
             ! Store diagnostic variable values.
-            iret = store_data(ncid,model%info%diagnostic_variables(n)%id,XYZT_SHAPE,nlev,array=cc_diag(n,0:nlev))
+            iret = store_data(ncid,model%info%diagnostic_variables(n)%externalid,XYZT_SHAPE,nlev,array=cc_diag(n,0:nlev))
             
             ! Reset diagnostic variables to zero if they will be time-integrated (or time-averaged).
             if (model%info%diagnostic_variables(n)%time_treatment==time_treatment_averaged .or. &
@@ -1051,7 +1045,7 @@
                cc_diag_hz(n) = cc_diag_hz(n)/(nsave*dt)
                
             ! Store diagnostic variable values.
-            iret = store_data(ncid,model%info%diagnostic_variables_hz(n)%id,XYT_SHAPE,nlev,scalar=cc_diag_hz(n))
+            iret = store_data(ncid,model%info%diagnostic_variables_hz(n)%externalid,XYT_SHAPE,nlev,scalar=cc_diag_hz(n))
             
             ! Reset diagnostic variables to zero if they will be time-integrated (or time-averaged).
             if (model%info%diagnostic_variables_hz(n)%time_treatment==time_treatment_averaged .or. &
@@ -1079,7 +1073,7 @@
 
          ! Store conserved quantity integrals.
          do n=1,ubound(model%info%conserved_quantities,1)
-            iret = store_data(ncid,model%info%conserved_quantities(n)%id,XYT_SHAPE,1,scalar=total(n))
+            iret = store_data(ncid,model%info%conserved_quantities(n)%externalid,XYT_SHAPE,1,scalar=total(n))
          end do
 #endif
    end select

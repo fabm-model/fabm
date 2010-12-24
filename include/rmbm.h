@@ -168,8 +168,8 @@
 #define _SET_PP_SYM_(variable1,variable2,value) _SET_PP_(variable1,variable2,value);_SET_DD_(variable1,variable2,value)
 
 ! For BGC models: read-only access to values of external dependencies
-#define _GET_VAR_(variable) environment%var(variable)%data _INDEX_LOCATION_
-#define _GET_VAR_HZ_(variable) environment%var_hz(variable)%data _INDEX_LOCATION_HZ_
+#define _GET_DEPENDENCY_(variable) environment%var(variable)%data _INDEX_LOCATION_
+#define _GET_DEPENDENCY_HZ_(variable) environment%var_hz(variable)%data _INDEX_LOCATION_HZ_
 
 ! For BGC models: read-only access to state variable values
 #ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
@@ -186,3 +186,10 @@
 #define _SET_DIAG_(index,value) environment%var(index)%data _INDEX_LOCATION_ = value
 #define _SET_DIAG_HZ_(index,value) environment%var_hz(index)%data _INDEX_LOCATION_HZ_ = value
 #endif
+
+! Macros for declaring/accessing variable identifiers of arbitrary type.
+#define _TYPE_STATE_VARIABLE_ID_ type (type_state_variable_id)
+#define _TYPE_DIAGNOSTIC_VARIABLE_ID_ integer
+#define _TYPE_DEPENDENCY_ID_ integer
+#define _TYPE_CONSERVED_QUANTITY_ID_ integer
+#define _IS_DIAGNOSTIC_VARIABLE_USED_(varid) varid.ne.id_not_used

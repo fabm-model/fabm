@@ -33,9 +33,13 @@ module rmbm_co2sys
 !
 ! !PUBLIC DERIVED TYPES:
    type type_co2sys
-      type (type_state_variable_id) :: id_dic, id_alk
-      integer :: id_temp, id_salt, id_pres, id_wind, id_dens
-      integer :: id_ph, id_pco2, id_CarbA, id_Bicarb, id_Carb, id_Om_cal, id_Om_arg, id_co2_flux
+!     Variable identifiers
+      _TYPE_STATE_VARIABLE_ID_      :: id_dic, id_alk
+      _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt, id_pres, id_wind, id_dens
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_ph, id_pco2, id_CarbA, id_Bicarb, &
+                                     & id_Carb, id_Om_cal, id_Om_arg, id_co2_flux, id_alk_diag
+                                     
+!     Model parameters
       REALTYPE :: TA_offset, TA_slope, pCO2a
       logical  :: alk_param
    end type
@@ -95,7 +99,7 @@ contains
      self%id_alk = register_state_variable(modelinfo,'alk','mEq/m**3','alkalinity', &
                                     alk_initial,minimum=_ZERO_,no_precipitation_dilution=.true.,no_river_dilution=.true.)
    else
-     !self%id_alk = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity',time_treatment=time_treatment_averaged)
+     self%id_alk_diag = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity',time_treatment=time_treatment_averaged)
    end if
                                     
    ! Register diagnostic variables.
@@ -162,10 +166,10 @@ contains
    _RMBM_LOOP_BEGIN_
 
    ! Get environmental variables.
-   temp = _GET_VAR_(self%id_temp)
-   salt = _GET_VAR_(self%id_salt)
-   pres = _GET_VAR_(self%id_pres)
-   dens = _GET_VAR_(self%id_dens)
+   temp = _GET_DEPENDENCY_(self%id_temp)
+   salt = _GET_DEPENDENCY_(self%id_salt)
+   pres = _GET_DEPENDENCY_(self%id_pres)
+   dens = _GET_DEPENDENCY_(self%id_dens)
 
    ! Get current value for total dissolved inorganic carbon (our own state variable).
    dic = _GET_STATE_(self%id_dic)
@@ -186,14 +190,14 @@ contains
    call CaCO3_Saturation (temp, salt, pres, cb, Om_cal, Om_arg)
    
    ! Store diagnostic variables.
-   if (self%id_ph     .ne.id_not_used) _SET_DIAG_(self%id_ph    ,ph)
-   if (self%id_pco2   .ne.id_not_used) _SET_DIAG_(self%id_pco2  ,PCO2WATER*1.0D6)        ! to ppm
-   if (self%id_CarbA  .ne.id_not_used) _SET_DIAG_(self%id_CarbA ,ca       *1.0D3*dens)   ! from mol/kg to mmol/m**3
-   if (self%id_Bicarb .ne.id_not_used) _SET_DIAG_(self%id_Bicarb,bc       *1.0D3*dens)   ! from mol/kg to mmol/m**3
-   if (self%id_Carb   .ne.id_not_used) _SET_DIAG_(self%id_Carb  ,cb       *1.0D3*dens)   ! from mol/kg to mmol/m**3
-   if (self%id_Om_cal .ne.id_not_used) _SET_DIAG_(self%id_Om_cal,Om_cal)
-   if (self%id_Om_arg .ne.id_not_used) _SET_DIAG_(self%id_Om_arg,Om_arg)
-   !if (self%id_alk    .ne.id_not_used .and. self%alk_param) _SET_DIAG_(self%id_alk,TA*dens*1.0D-3)   ! from uEg/kg to mmol/m**3
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_ph    )) _SET_DIAG_(self%id_ph    ,ph)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_pco2  )) _SET_DIAG_(self%id_pco2  ,PCO2WATER*1.0D6)        ! to ppm
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_CarbA )) _SET_DIAG_(self%id_CarbA ,ca       *1.0D3*dens)   ! from mol/kg to mmol/m**3
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_Bicarb)) _SET_DIAG_(self%id_Bicarb,bc       *1.0D3*dens)   ! from mol/kg to mmol/m**3
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_Carb  )) _SET_DIAG_(self%id_Carb  ,cb       *1.0D3*dens)   ! from mol/kg to mmol/m**3
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_Om_cal)) _SET_DIAG_(self%id_Om_cal,Om_cal)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_Om_arg)) _SET_DIAG_(self%id_Om_arg,Om_arg)
+   if (self%alk_param .and._IS_DIAGNOSTIC_VARIABLE_USED_(self%id_alk_diag)) _SET_DIAG_(self%id_alk_diag,TA*dens*1.0D-3)   ! from uEg/kg to mmol/m**3
 
    ! Leave spatial loops (if any)
    _RMBM_LOOP_END_
@@ -239,10 +243,10 @@ contains
    ! Enter spatial loops (if any)
    _RMBM_ENTER_HZ_
 
-   temp = _GET_VAR_(self%id_temp)
-   salt = _GET_VAR_(self%id_salt)
-   dens = _GET_VAR_(self%id_dens)
-   wnd  = _GET_VAR_HZ_(self%id_wind)
+   temp = _GET_DEPENDENCY_(self%id_temp)
+   salt = _GET_DEPENDENCY_(self%id_salt)
+   dens = _GET_DEPENDENCY_(self%id_dens)
+   wnd  = _GET_DEPENDENCY_HZ_(self%id_wind)
 
    dic = _GET_STATE_(self%id_dic)
 
@@ -265,7 +269,7 @@ contains
    _SET_SURFACE_EXCHANGE_(self%id_dic,fl/secs_pr_day)
 
    ! Also store surface flux as diagnostic variable.
-   if (self%id_co2_flux.ne.id_not_used) _SET_DIAG_HZ_(self%id_co2_flux,fl/secs_pr_day)
+   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_co2_flux)) _SET_DIAG_HZ_(self%id_co2_flux,fl/secs_pr_day)
 
    ! Leave spatial loops (if any)
    _RMBM_LEAVE_HZ_

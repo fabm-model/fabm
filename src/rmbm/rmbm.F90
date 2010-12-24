@@ -51,8 +51,10 @@
 
 ! !PUBLIC TYPES:
 !
-!  Single generic biogeochemical model
+   ! Derived type for a single generic biogeochemical model
    type type_model
+      ! Default: all members are private.
+      private
    
       ! Model identifier and metadata.
       integer                :: id
@@ -90,33 +92,33 @@
 !
 ! !PUBLIC INTERFACES:
 !
-!  Subroutine calculating local temporal derivatives either as a right-hand side vector,
-!  or production/destruction matrices.
+   ! Subroutine calculating local temporal derivatives either as a right-hand side vector,
+   ! or production/destruction matrices.
    interface rmbm_do
       module procedure rmbm_do_rhs
       module procedure rmbm_do_ppdd
    end interface
 
-!  Subroutine calculating local temporal derivatives of bottom layer (benthos & pelagic)
-!  either as a right-hand side vector, or production/destruction matrices.
+   ! Subroutine calculating local temporal derivatives of bottom layer (benthos & pelagic)
+   ! either as a right-hand side vector, or production/destruction matrices.
    interface rmbm_do_benthos
       module procedure rmbm_do_benthos_rhs
       module procedure rmbm_do_benthos_ppdd
    end interface
    
-! Subroutine for providing RMBM with variable data on the full spatial domain.
+   ! Subroutine for providing RMBM with variable data on the full spatial domain.
    interface rmbm_link_data
       module procedure rmbm_link_data
       module procedure rmbm_link_data_char
    end interface
 
-! Subroutine for providing RMBM with variable data on horizontal slices of the domain.
+   ! Subroutine for providing RMBM with variable data on horizontal slices of the domain.
    interface rmbm_link_data_hz
       module procedure rmbm_link_data_hz
       module procedure rmbm_link_data_hz_char
    end interface
    
-! Function for creating new models based on integer id or name.
+   ! Function for creating new models based on integer id or name.
    interface rmbm_create_model
       module procedure rmbm_create_model_by_id
       module procedure rmbm_create_model_by_name
@@ -339,13 +341,13 @@
    ! Set the model name
    model%info%name = get_model_name(model%id)
 
-   ! Make sure the pointers to parent and sibling models are explicitly dissociated.
+   ! Make sure the pointers to parent and sibling models are dissociated.
    nullify(model%parent)
    nullify(model%firstchild)
    nullify(model%nextsibling)
    nullify(model%nextmodel)
    
-   ! Make sure the pointers to the current environment are explicitly dissociated.
+   ! Make sure the pointers to the current environment are dissociated.
    nullify(model%environment)
 
    ! Connect to parent container if provided.
@@ -379,7 +381,7 @@
          ! This model is not a container.
          ! Add the model to the flattened list of non-container models,
          ! which is used at runtime to iterate over all models without needing recursion.
-      
+
          ! First non-container model will be pointed to by the root of the tree - find it.
          curmodel => parent
          do while (associated(curmodel%parent))
@@ -1393,7 +1395,7 @@
 ! Positive values denote state variable increases, negative values state variable decreases.
 !
 ! !INTERFACE:
-   subroutine rmbm_do_benthos_rhs(root,LOCATION,flux_ben,flux_pel)
+   subroutine rmbm_do_benthos_rhs(root,LOCATION,flux_pel,flux_ben)
 !
 ! !USES:
    implicit none
@@ -1403,7 +1405,7 @@
    _LOCATION_TYPE_,           intent(in)    :: LOCATION
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,dimension(:),     intent(inout) :: flux_ben,flux_pel
+   REALTYPE,dimension(:),     intent(inout) :: flux_pel,flux_ben
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1412,7 +1414,7 @@
    type (type_model), pointer               :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_ _RMBM_ARGS_IN_0D_,flux_ben,flux_pel
+#define _INPUT_ARGS_DO_BENTHOS_ _RMBM_ARGS_IN_0D_,flux_pel,flux_ben
 
    model => root%nextmodel
    do while (associated(model))
@@ -1501,7 +1503,7 @@
 !
    type (type_model), pointer               :: model
    integer                                  :: i
-   type (type_state_variable_id)            :: varid
+   _TYPE_STATE_VARIABLE_ID_                 :: varid
 !-----------------------------------------------------------------------
 !BOC
 #define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _RMBM_ARGS_ND_IN_,vertical_movement
@@ -1556,7 +1558,7 @@
 ! !LOCAL PARAMETERS:
    REALTYPE                                   :: curext
    integer                                    :: i
-   type (type_state_variable_id)              :: varid
+   _TYPE_STATE_VARIABLE_ID_                   :: varid
    type (type_model), pointer                 :: model
 !EOP
 !-----------------------------------------------------------------------

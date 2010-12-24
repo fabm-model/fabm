@@ -33,14 +33,12 @@
 !
 ! !PUBLIC DERIVED TYPES:
    type type_mnemiopsis
-      ! Mnemiopsis state variable identifiers
-      type (type_state_variable_id) :: id_egb, id_jb, id_ja, id_tb, id_ta, id_adb, id_ada
+!     Variable identifiers
+      _TYPE_STATE_VARIABLE_ID_ :: id_egb, id_jb, id_ja, id_tb, id_ta, id_adb, id_ada
+      _TYPE_STATE_VARIABLE_ID_ :: id_food, id_foodmic, id_resptarget, id_morttarget
+      _TYPE_DEPENDENCY_ID_     :: id_temp
       
-      ! Prey state variable identifiers (links to other model with lower trophic levels)
-      type (type_state_variable_id) :: id_food, id_foodmic, id_resptarget, id_morttarget
-      
-      integer :: id_temp
-      
+!     Model parameters
       REALTYPE :: food_scale
    end type
 !
@@ -188,7 +186,7 @@
    _RMBM_LOOP_BEGIN_
 
    ! Obtain current values for environmental variables
-   temp = _GET_VAR_(self%id_temp)
+   temp = _GET_DEPENDENCY_(self%id_temp)
 
    ! Obtain current values for state variables
    egb_mn = _GET_STATE_(self%id_egb)
