@@ -53,8 +53,7 @@
 !
    ! Derived type for state variable identifiers.
    type type_state_variable_id
-      integer :: id
-      REALTYPE :: scale
+      integer :: id,dependencyid
    end type type_state_variable_id
 
 !  Derived type describing a state variable
@@ -132,19 +131,9 @@
    ! Derived type described the spatially explicit model environment.
    type type_environment
 
-      ! Pointer(s) to arrays that will hold state variable values.
-#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-      ! Data for all state variables are stored in a single array.
-      REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_    :: state     ! pointer to data of pelagic state variables
-      REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ :: state_ben ! pointer to data of benthic state variables
-#else
-      ! Data for the state variables may be stored in different arrays.
-      type (type_state   ), dimension(:), _ALLOCATABLE_ :: state     _NULL_ ! array of pointers to data of pelagic state variables
-      type (type_state_hz), dimension(:), _ALLOCATABLE_ :: state_ben _NULL_ ! array of pointers to data of benthic state variables
-#endif
-
-      ! Pointer(s) to arrays that will hold values of "generic" variables, that is,
-      ! all internal and external dependencies and, if _RMBM_MANAGE_DIAGNOSTICS_ is not set, diagnsotic variables as well.
+      ! Pointer(s) to arrays that will hold values of "generic" variables, that is, all internal and external dependencies.
+      ! If _RMBM_MANAGE_DIAGNOSTICS_ is not set, these arrays contains diagnostic variables as well.
+      ! These arrays contain pointers to the state variable data as well.
       type (type_state   ), dimension(:), _ALLOCATABLE_ :: var    _NULL_ ! array of pointers to data of all pelagic variables (state and diagnostic)
       type (type_state_hz), dimension(:), _ALLOCATABLE_ :: var_hz _NULL_ ! array of pointers to data of all horizontal variables (state and diagnostic, surface and bottom)
       
@@ -353,6 +342,7 @@
       type (type_state_variable_info),pointer :: variables_old(:),variables_new(:),curinfo
       character(len=256)                      :: text
       logical                                 :: benthic_eff
+      integer                                 :: shape
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -362,8 +352,10 @@
       if (present(benthic)) benthic_eff = benthic
       if (benthic_eff) then
          variables_old => modelinfo%state_variables_ben
+         shape = shape_hz
       else
          variables_old => modelinfo%state_variables
+         shape = shape_full
       end if
 
       ! Extend the state variable array and copy over old values.
@@ -420,12 +412,12 @@
                 benthic                   = benthic_eff)
       else
          id%id = ubound(variables_new,1)
+         id%dependencyid = register_dependency(modelinfo,curinfo%name,shape)
       end if
       
       ! Save the state variable's global id
       ! (index into state variable array of the root of the model tree).
       curinfo%globalid = id
-      id%scale = _ONE_
       
    end function register_state_variable
 !EOC

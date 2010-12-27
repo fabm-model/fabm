@@ -8,11 +8,6 @@
 ! Let RMBM manage (declare and allocate) arrays for diagnostic variables - slight performance gain.
 #define _RMBM_MANAGE_DIAGNOSTICS_
 
-! Tell RMBM that we will store all state variables in a single array - slight performance gain.
-! Also tell RMBM how to retrieve a spatially-localized state variable values from that array.
-#define RMBM_SINGLE_STATE_VARIABLE_ARRAY
-#define _INDEX_STATE_(variable) (variable,LOCATION)
-
 ! Tell RMBM that we want a 1D vectorized version
 #define _RMBM_USE_1D_LOOP_
 

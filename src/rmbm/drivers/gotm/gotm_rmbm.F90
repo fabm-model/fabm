@@ -448,17 +448,12 @@
    ! Calculate local pressure
    pres(1:nlev) = -z(1:nlev)
    
-#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-   call rmbm_link_state_data        (model,cc(1:ubound(model%info%state_variables,1),1:nlev))
-   call rmbm_link_benthos_state_data(model,cc(ubound(model%info%state_variables,1)+1:,1))
-#else
    do i=1,ubound(model%info%state_variables,1)
       call rmbm_link_state_data(model,i,cc(i,1:nlev))
    end do
    do i=1,ubound(model%info%state_variables_ben,1)
       call rmbm_link_benthos_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
    end do
-#endif
 
    ! Get updated vertical movement (m/s, positive for upwards) for biological state variables.
 #ifdef _RMBM_USE_1D_LOOP_
@@ -515,17 +510,12 @@
       call ode_solver(ode_method,ubound(cc,1),nlev,dt_eff,cc(:,0:nlev),right_hand_side_rhs,right_hand_side_ppdd)
 
       ! Provide RMBM with (pointers to) updated state variables.
-#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-      call rmbm_link_state_data        (model,cc(1:ubound(model%info%state_variables,1), 1:nlev))
-      call rmbm_link_benthos_state_data(model,cc(ubound(model%info%state_variables,1)+1:,1))
-#else
       do i=1,ubound(model%info%state_variables,1)
          call rmbm_link_state_data(model,i,cc(i,1:nlev))
       end do
       do i=1,ubound(model%info%state_variables_ben,1)
          call rmbm_link_benthos_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
       end do
-#endif
 
       ! Repair state
       call do_repair_state(nlev,'gotm_rmbm::do_gotm_rmbm, after time integration')
@@ -644,17 +634,12 @@
    n = ubound(model%info%state_variables,1)
 
    ! Provide RMBM with (pointers to) the current state.
-#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-   call rmbm_link_state_data        (model,cc(1:n, 1:nlev))
-   call rmbm_link_benthos_state_data(model,cc(n+1:,1))
-#else
    do i=1,ubound(model%info%state_variables,1)
       call rmbm_link_state_data(model,i,cc(i,1:nlev))
    end do
    do i=1,ubound(model%info%state_variables_ben,1)
       call rmbm_link_benthos_state_data(model,i,cc(n+i,1))
    end do
-#endif
 
    ! If this is not the first step in the (multi-step) integration scheme,
    ! then first make sure that the intermediate state variable values are valid.
@@ -721,17 +706,12 @@
    n = ubound(model%info%state_variables,1)
 
    ! Provide RMBM with (pointers to) the current state.
-#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-   call rmbm_link_state_data        (model,cc(1:n,1:nlev))
-   call rmbm_link_benthos_state_data(model,cc(n+1:,1))
-#else
    do i=1,ubound(model%info%state_variables,1)
       call rmbm_link_state_data(model,i,cc(i,1:nlev))
    end do
    do i=1,ubound(model%info%state_variables_ben,1)
       call rmbm_link_benthos_state_data(model,i,cc(n+i,1))
    end do
-#endif
 
    ! If this is not the first step in the (multi-step) integration scheme,
    ! then first make sure that the intermediate state variable values are valid.

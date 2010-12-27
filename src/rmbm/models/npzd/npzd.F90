@@ -203,8 +203,8 @@
    _RMBM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   p = _GET_STATE_(self%id_p) ! phytoplankton
-   d = _GET_STATE_(self%id_d) ! detritus
+   _GET_STATE_(self%id_p,p) ! phytoplankton
+   _GET_STATE_(self%id_d,d) ! detritus
    
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(self%kc*(self%p0+p+d))
@@ -240,10 +240,10 @@
    _RMBM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   n = _GET_STATE_(self%id_n) ! nutrient
-   p = _GET_STATE_(self%id_p) ! phytoplankton
-   z = _GET_STATE_(self%id_z) ! zooplankton
-   d = _GET_STATE_(self%id_d) ! detritus
+   _GET_STATE_(self%id_n,n) ! nutrient
+   _GET_STATE_(self%id_p,p) ! phytoplankton
+   _GET_STATE_(self%id_z,z) ! zooplankton
+   _GET_STATE_(self%id_d,d) ! detritus
    
    ! Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
@@ -330,14 +330,14 @@
    _RMBM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   n = _GET_STATE_(self%id_n) ! nutrient
-   p = _GET_STATE_(self%id_p) ! phytoplankton
-   z = _GET_STATE_(self%id_z) ! zooplankton
-   d = _GET_STATE_(self%id_d) ! detritus
+   _GET_STATE_(self%id_n,n) ! nutrient
+   _GET_STATE_(self%id_p,p) ! phytoplankton
+   _GET_STATE_(self%id_z,z) ! zooplankton
+   _GET_STATE_(self%id_d,d) ! detritus
    
    ! Retrieve current environmental conditions.
-   par = _GET_DEPENDENCY_   (self%id_par)  ! local photosynthetically active radiation
-   I_0 = _GET_DEPENDENCY_HZ_(self%id_I_0)  ! surface short wave radiation
+   _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
+   _GET_DEPENDENCY_HZ_(self%id_I_0,I_0)  ! surface short wave radiation
 
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -361,14 +361,16 @@
 
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
-   if (self%use_dic) _SET_ODE_(self%id_dic,self%dic_per_n*dn)
+   if (self%use_dic) then
+      _SET_ODE_(self%id_dic,self%dic_per_n*dn)
+   end if
 
    ! Export diagnostic variables
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_dPAR)) _SET_DIAG_(self%id_dPAR,par)
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_GPP )) _SET_DIAG_(self%id_GPP ,primprod)
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_NCP )) _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_PPR )) _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_NPR )) _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
+   _SET_DIAG_(self%id_dPAR,par)
+   _SET_DIAG_(self%id_GPP ,primprod)
+   _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
+   _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
+   _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
    
    ! Leave spatial loops (if any)
    _RMBM_LOOP_END_
@@ -452,14 +454,14 @@
    _RMBM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   n = _GET_STATE_(self%id_n) ! nutrient
-   p = _GET_STATE_(self%id_p) ! phytoplankton
-   z = _GET_STATE_(self%id_z) ! zooplankton
-   d = _GET_STATE_(self%id_d) ! detritus
+   _GET_STATE_(self%id_n,n) ! nutrient
+   _GET_STATE_(self%id_p,p) ! phytoplankton
+   _GET_STATE_(self%id_z,z) ! zooplankton
+   _GET_STATE_(self%id_d,d) ! detritus
    
    ! Retrieve current environmental conditions.
-   par = _GET_DEPENDENCY_   (self%id_par)  ! local photosynthetically active radiation
-   I_0 = _GET_DEPENDENCY_HZ_(self%id_I_0)  ! surface short wave radiation
+   _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
+   _GET_DEPENDENCY_HZ_(self%id_I_0,I_0)  ! surface short wave radiation
    
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -491,11 +493,11 @@
    if (self%use_dic) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_dPAR)) _SET_DIAG_(self%id_dPAR,par)
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_GPP )) _SET_DIAG_(self%id_GPP,primprod)
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_NCP )) _SET_DIAG_(self%id_NCP,primprod-self%rpn*p)
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_PPR )) _SET_DIAG_(self%id_PPR,primprod*secs_pr_day)
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_NPR )) _SET_DIAG_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
+   _SET_DIAG_(self%id_dPAR,par)
+   _SET_DIAG_(self%id_GPP,primprod)
+   _SET_DIAG_(self%id_NCP,primprod-self%rpn*p)
+   _SET_DIAG_(self%id_PPR,primprod*secs_pr_day)
+   _SET_DIAG_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
    _RMBM_LOOP_END_

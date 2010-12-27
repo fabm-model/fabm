@@ -166,13 +166,13 @@ contains
    _RMBM_LOOP_BEGIN_
 
    ! Get environmental variables.
-   temp = _GET_DEPENDENCY_(self%id_temp)
-   salt = _GET_DEPENDENCY_(self%id_salt)
-   pres = _GET_DEPENDENCY_(self%id_pres)
-   dens = _GET_DEPENDENCY_(self%id_dens)
+   _GET_DEPENDENCY_(self%id_temp,temp)
+   _GET_DEPENDENCY_(self%id_salt,salt)
+   _GET_DEPENDENCY_(self%id_pres,pres)
+   _GET_DEPENDENCY_(self%id_dens,dens)
 
    ! Get current value for total dissolved inorganic carbon (our own state variable).
-   dic = _GET_STATE_(self%id_dic)
+   _GET_STATE_(self%id_dic,dic)
 
    if (self%alk_param) then
       ! Linearly approximate alkalinity (uEq/kg) from salinity.
@@ -180,7 +180,8 @@ contains
    else
       ! Alkalinity (mEq/m**3) is a separate state variable.
       ! Divide by density/1000 to get alkalinity in uEq/kg.
-      TA = _GET_STATE_(self%id_alk)/dens*1.0D3
+      _GET_STATE_(self%id_alk,TA)
+      TA = TA/dens*1.0D3
    end if
 
    ! Calculate carbonate system equilibrium.
@@ -190,14 +191,16 @@ contains
    call CaCO3_Saturation (temp, salt, pres, cb, Om_cal, Om_arg)
    
    ! Store diagnostic variables.
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_ph    )) _SET_DIAG_(self%id_ph    ,ph)
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_pco2  )) _SET_DIAG_(self%id_pco2  ,PCO2WATER*1.0D6)        ! to ppm
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_CarbA )) _SET_DIAG_(self%id_CarbA ,ca       *1.0D3*dens)   ! from mol/kg to mmol/m**3
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_Bicarb)) _SET_DIAG_(self%id_Bicarb,bc       *1.0D3*dens)   ! from mol/kg to mmol/m**3
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_Carb  )) _SET_DIAG_(self%id_Carb  ,cb       *1.0D3*dens)   ! from mol/kg to mmol/m**3
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_Om_cal)) _SET_DIAG_(self%id_Om_cal,Om_cal)
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_Om_arg)) _SET_DIAG_(self%id_Om_arg,Om_arg)
-   if (self%alk_param .and._IS_DIAGNOSTIC_VARIABLE_USED_(self%id_alk_diag)) _SET_DIAG_(self%id_alk_diag,TA*dens*1.0D-3)   ! from uEg/kg to mmol/m**3
+   _SET_DIAG_(self%id_ph    ,ph)
+   _SET_DIAG_(self%id_pco2  ,PCO2WATER*1.0D6)        ! to ppm
+   _SET_DIAG_(self%id_CarbA ,ca       *1.0D3*dens)   ! from mol/kg to mmol/m**3
+   _SET_DIAG_(self%id_Bicarb,bc       *1.0D3*dens)   ! from mol/kg to mmol/m**3
+   _SET_DIAG_(self%id_Carb  ,cb       *1.0D3*dens)   ! from mol/kg to mmol/m**3
+   _SET_DIAG_(self%id_Om_cal,Om_cal)
+   _SET_DIAG_(self%id_Om_arg,Om_arg)
+   if (self%alk_param) then
+      _SET_DIAG_(self%id_alk_diag,TA*dens*1.0D-3)    ! from uEg/kg to mmol/m**3
+   end if
 
    ! Leave spatial loops (if any)
    _RMBM_LOOP_END_
@@ -243,12 +246,12 @@ contains
    ! Enter spatial loops (if any)
    _RMBM_ENTER_HZ_
 
-   temp = _GET_DEPENDENCY_(self%id_temp)
-   salt = _GET_DEPENDENCY_(self%id_salt)
-   dens = _GET_DEPENDENCY_(self%id_dens)
-   wnd  = _GET_DEPENDENCY_HZ_(self%id_wind)
+   _GET_DEPENDENCY_(self%id_temp,temp)
+   _GET_DEPENDENCY_(self%id_salt,salt)
+   _GET_DEPENDENCY_(self%id_dens,dens)
+   _GET_DEPENDENCY_HZ_(self%id_wind,wnd)
 
-   dic = _GET_STATE_(self%id_dic)
+   _GET_STATE_(self%id_dic,dic)
 
    if (self%alk_param) then
       ! Linearly approximate alkalinity (uEq/kg) from salinity.
@@ -256,7 +259,8 @@ contains
    else
       ! Alkalinity (mEq/m**3) is a separate state variable
       ! Divide by density/1000 to get alkalinity in uEq/kg.
-      TA = _GET_STATE_(self%id_alk)/dens*1.0d3
+      _GET_STATE_(self%id_alk,TA)
+      TA = TA/dens*1.0d3
    end if
 
    ! Calculate carbonate system equilibrium.
@@ -269,7 +273,7 @@ contains
    _SET_SURFACE_EXCHANGE_(self%id_dic,fl/secs_pr_day)
 
    ! Also store surface flux as diagnostic variable.
-   if (_IS_DIAGNOSTIC_VARIABLE_USED_(self%id_co2_flux)) _SET_DIAG_HZ_(self%id_co2_flux,fl/secs_pr_day)
+   _SET_DIAG_HZ_(self%id_co2_flux,fl/secs_pr_day)
 
    ! Leave spatial loops (if any)
    _RMBM_LEAVE_HZ_

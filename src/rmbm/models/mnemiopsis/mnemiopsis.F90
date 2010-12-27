@@ -186,20 +186,22 @@
    _RMBM_LOOP_BEGIN_
 
    ! Obtain current values for environmental variables
-   temp = _GET_DEPENDENCY_(self%id_temp)
+   _GET_DEPENDENCY_(self%id_temp,temp)
 
    ! Obtain current values for state variables
-   egb_mn = _GET_STATE_(self%id_egb)
-   jb_mn  = _GET_STATE_(self%id_jb )
-   ja_mn  = _GET_STATE_(self%id_ja )
-   tb_mn  = _GET_STATE_(self%id_tb )
-   ta_mn  = _GET_STATE_(self%id_ta )
-   adb_mn = _GET_STATE_(self%id_adb)
-   ada_mn = _GET_STATE_(self%id_ada)
+   _GET_STATE_(self%id_egb,egb_mn)
+   _GET_STATE_(self%id_jb, jb_mn)
+   _GET_STATE_(self%id_ja, ja_mn)
+   _GET_STATE_(self%id_tb, tb_mn)
+   _GET_STATE_(self%id_ta, ta_mn)
+   _GET_STATE_(self%id_adb,adb_mn)
+   _GET_STATE_(self%id_ada,ada_mn)
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
 
-   food    = _GET_STATE_(self%id_food   )*self%food_scale
-   foodmic = _GET_STATE_(self%id_foodmic)*self%food_scale
+   _GET_STATE_(self%id_food   ,food)
+   _GET_STATE_(self%id_foodmic,foodmic)
+   food = food*self%food_scale
+   foodmic = foodmic*self%food_scale
    foodno  = max(_ONE_,food/0.0024) !0.0024 is mg C per copepod
    
    !write (*,*) LOCATION,numc,food,foodmic

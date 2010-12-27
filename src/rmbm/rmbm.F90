@@ -42,12 +42,12 @@
 ! !PRIVATE DATA MEMBERS:
 
 !  Identifiers for specific biogeochemical models.
-!  Note: identifiers <=100 are reserved for models ported from the General Ocean Turbulence Model
    integer, parameter :: model_container_id = -1
    integer, parameter :: npzd_id            =  1
    integer, parameter :: co2sys_id          =  101
    integer, parameter :: mnemiopsis_id      =  102
-   ! ADD_NEW_MODEL_HERE - required
+   ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
+   ! Note: values <=100 are reserved for models ported from the General Ocean Turbulence Model.
 
 ! !PUBLIC TYPES:
 !
@@ -150,7 +150,7 @@
 !
 !-----------------------------------------------------------------------
 !BOC
-   ! Start with empty arrays with model identifiers and names
+   ! Start with empty arrays with model identifiers and names.
    allocate(modelids  (0))
    allocate(modelnames(0))
 
@@ -254,13 +254,19 @@
    integer :: i
 !-----------------------------------------------------------------------
 !BOC
+   ! If models have not been registered yet, do this first.
    if (.not.allocated(modelids)) call register_models()
+   
+   ! Enumerate all models and compare their integer id with the supplied one.
+   ! Return the name if a match is found.
    do i=1,ubound(modelids,1)
       if (modelids(i)==id) then
          name = modelnames(i)
          return
       end if
    end do
+   
+   ! Model identifier was not found - throw an error.
    write (text,fmt='(i4,a)') id,' is not a valid model identifier registered in rmbm::register_models.'
    call fatal_error('rmbm::get_model_name',text)
    
@@ -290,13 +296,19 @@
    integer :: i
 !-----------------------------------------------------------------------
 !BOC
+   ! If models have not been registered yet, do this first.
    if (.not.allocated(modelnames)) call register_models()
+
+   ! Enumerate all models and compare their name with the supplied one.
+   ! Return the integer id if a match is found.
    do i=1,ubound(modelnames,1)
       if (modelnames(i)==name) then
          id = modelids(i)
          return
       end if
    end do
+
+   ! Model name was not found - throw an error.
    call fatal_error('rmbm::get_model_id',trim(name)//' is not a valid model name registered in rmbm::register_models.')
    
    end function get_model_id
@@ -326,7 +338,20 @@
    type (type_model),pointer                       :: curmodel
 !-----------------------------------------------------------------------
 !BOC
+   ! Allocate storage space for the model.
    allocate(model)
+
+   ! Initialize model info.
+   call init_model_info(model%info)
+
+   ! Make sure the pointers to parent and sibling models are dissociated.
+   nullify(model%parent)
+   nullify(model%firstchild)
+   nullify(model%nextsibling)
+   nullify(model%nextmodel)
+   
+   ! Make sure the pointer to the current environment is dissociated.
+   nullify(model%environment)
 
    ! Set the model identifier.
    if (present(modelid)) then
@@ -335,20 +360,8 @@
       model%id = model_container_id
    end if
 
-   ! Initialize model info
-   call init_model_info(model%info)
-
-   ! Set the model name
+   ! Set the model name.
    model%info%name = get_model_name(model%id)
-
-   ! Make sure the pointers to parent and sibling models are dissociated.
-   nullify(model%parent)
-   nullify(model%firstchild)
-   nullify(model%nextsibling)
-   nullify(model%nextmodel)
-   
-   ! Make sure the pointers to the current environment are dissociated.
-   nullify(model%environment)
 
    ! Connect to parent container if provided.
    if (present(parent)) then
@@ -376,30 +389,32 @@
       ! Link the child model to its parent container.
       model%parent => parent
       model%info%parent => parent%info
-
-      if (model%id.ne.model_container_id) then
-         ! This model is not a container.
-         ! Add the model to the flattened list of non-container models,
-         ! which is used at runtime to iterate over all models without needing recursion.
-
-         ! First non-container model will be pointed to by the root of the tree - find it.
-         curmodel => parent
-         do while (associated(curmodel%parent))
-            curmodel => curmodel%parent
-         end do
-         
-         ! Find the last model in the flattened list of non-container models.
-         ! (first model is pointed to by the root of the tree)
-         do while (associated(curmodel%nextmodel))
-            curmodel => curmodel%nextmodel
-         end do
-         
-         ! Add current model to the flattened list of non-container models.
-         curmodel%nextmodel => model
-      end if
    else
+      ! No parent provided - ensure that the created model is a container.
       if (model%id.ne.model_container_id) &
          call fatal_error('rmbm_create_model_by_id','Non-container models must be created as children of an existing container.')
+   end if
+
+   if (model%id.ne.model_container_id) then
+      ! This model is not a container.
+      ! Add the model to the flattened list of non-container models,
+      ! which is used at runtime to iterate over all models without needing recursion.
+
+      ! First non-container model will be pointed to by the root of the tree - find it.
+      ! Note that the code above ensures that the model has a parent.
+      curmodel => model%parent
+      do while (associated(curmodel%parent))
+         curmodel => curmodel%parent
+      end do
+      
+      ! Find the last model in the flattened list of non-container models.
+      ! (first model is pointed to by the root of the tree)
+      do while (associated(curmodel%nextmodel))
+         curmodel => curmodel%nextmodel
+      end do
+      
+      ! Add current model to the flattened list of non-container models.
+      curmodel%nextmodel => model
    end if
    
    end function rmbm_create_model_by_id
@@ -428,6 +443,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   ! Obtain the integer model identifier, and redirect to the function operating on that.
    if (present(parent)) then
       model => rmbm_create_model_by_id(get_model_id(modelname),parent=parent)
    else
@@ -466,7 +482,7 @@
 
    ! Check whether the unit provided by the host actually refers to an open file.
    inquire(nmlunit,opened=isopen)
-   if (.not.isopen) call fatal_error('rmbm_init','input configuration file has not been opened yet!')
+   if (.not.isopen) call fatal_error('rmbm_init','input configuration file has not been opened yet.')
    
    ! Initialize the model (this automatically initializes all contained models)
    call init_model(root,nmlunit)
@@ -475,28 +491,14 @@
    allocate(root%environment)
 
    ! Set all pointers to external data to dissociated.
-   allocate(root%environment%var_hz(ubound(root%info%dependencies_hz,1)))
    allocate(root%environment%var   (ubound(root%info%dependencies,   1)))
-   do ivar=1,ubound(root%environment%var_hz,1)
-      nullify(root%environment%var_hz(ivar)%data)
-   end do
+   allocate(root%environment%var_hz(ubound(root%info%dependencies_hz,1)))
    do ivar=1,ubound(root%environment%var,1)
       nullify(root%environment%var(ivar)%data)
    end do
-
-#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-   nullify(root%environment%state)
-   nullify(root%environment%state_ben)
-#else
-   allocate(root%environment%state    (ubound(root%info%state_variables,    1)))
-   allocate(root%environment%state_ben(ubound(root%info%state_variables_ben,1)))
-   do ivar=1,ubound(root%environment%state,1)
-      nullify(root%environment%state(ivar)%data)
+   do ivar=1,ubound(root%environment%var_hz,1)
+      nullify(root%environment%var_hz(ivar)%data)
    end do
-   do ivar=1,ubound(root%environment%state_ben,1)
-      nullify(root%environment%state_ben(ivar)%data)
-   end do
-#endif
 
    ! Transfer pointer to environment to all child models.
    call set_model_data_members(root,root%environment)
@@ -525,16 +527,15 @@
 !
 ! !LOCAL VARIABLES:
   integer                    :: count,ownindex
-  character(len= 64)         :: modelname
   type (type_model), pointer :: curchild,curchild2
   logical                    :: isopen
   logical,parameter          :: alwayspostfixindex=.false.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Retrieve model name based on its integer identifier.
-   modelname = get_model_name(model%id)
-   call log_message('Initializing biogeochemical model '//trim(modelname)//'...')
+   ! Log initialization of this model, unless it is a container only.
+   if (model%id.ne.model_container_id) &
+      call log_message('Initializing biogeochemical model "'//trim(model%info%name)//'"...')
    
    ! Allow the selected model to initialize
    select case (model%id)
@@ -578,15 +579,16 @@
          end do
          
       case default
-         call fatal_error('rmbm_init','no valid biogeochemical model specified!')
+         call fatal_error('init_model','model "'//trim(model%info%name)//'" has not been registered in init_model.')
          
    end select
    
-   call log_message('model '//trim(modelname)//' initialized successfully.')
+   if (model%id.ne.model_container_id) &
+      call log_message('model "'//trim(model%info%name)//'" initialized successfully.')
 
    ! Check whether the unit provided by the host has not been closed by the biogeochemical model.
    inquire(nmlunit,opened=isopen)
-   if (.not.isopen) call fatal_error('rmbm_init','input configuration file was closed by model '//trim(modelname)//'.')
+   if (.not.isopen) call fatal_error('init_model','input configuration file was closed by model "'//trim(model%info%name)//'".')
 
    end subroutine init_model
 !EOC
@@ -855,94 +857,6 @@
    end subroutine rmbm_link_data_hz_char
 !EOC
 
-#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
-! all pelagic state variables.
-!
-! !INTERFACE:
-   subroutine rmbm_link_state_data(model,dat)
-!
-! !USES:
-   implicit none
-!
-! !INPUT PARAMETERS:
-   type (type_model),                                intent(inout) :: model
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_,target,intent(in)  :: dat
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   integer                                                         :: id
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Basic check - determine whether the length of the first dimension matches the number of pelagic state variables.
-   if (ubound(dat,1).ne.ubound(model%info%state_variables,1)) &
-      call fatal_error('rmbm::rmbm_link_state_data','The length of the first dimension of the state variable&
-      & array does not match the number of state variables.')
-   
-   ! Store a pointer to the provided array.
-   model%environment%state => dat
-   
-   ! Determine for each state variable whether it also features as dependency. If so, also attach the
-   ! corresponding array slice to the dependency.
-   do id=1,ubound(model%info%state_variables,1)
-      if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
-         call rmbm_link_data(model,model%info%state_variables(id)%dependencyid,dat(id _ARG_LOCATION_DIMENSIONS_))
-   end do
-   
-   end subroutine rmbm_link_state_data
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
-! all benthic state variables.
-!
-! !INTERFACE:
-   subroutine rmbm_link_benthos_state_data(model,dat)
-!
-! !USES:
-   implicit none
-!
-! !INPUT PARAMETERS:
-   type (type_model),                                     intent(inout) :: model
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_,target,intent(in)    :: dat
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   integer                                                            :: id
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Basic check - determine whether the length of the first dimension matches the number of benthic state variables.
-   if (ubound(dat,1).ne.ubound(model%info%state_variables_ben,1)) &
-      call fatal_error('rmbm::rmbm_link_benthos_state_data','The length of the first dimension of the benthic&
-      & state variable array does not match the number of state variables.')
-
-   ! Store a pointer to the provided array.
-   model%environment%state_ben => dat
-
-   ! Determine for each state variable whether it also features as dependency. If so, also attach the
-   ! corresponding array slice to the dependency.
-   do id=1,ubound(model%info%state_variables_ben,1)
-      if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
-         call rmbm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat(id _ARG_LOCATION_DIMENSIONS_HZ_))
-   end do
-   
-   end subroutine rmbm_link_benthos_state_data
-!EOC
-
-#else
-
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -966,9 +880,6 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Store a pointer to the provided array.
-   model%environment%state(id)%data => dat
-
    ! Determine whether the state variable also features as dependency. If so, also attach the
    ! array slice to the dependency.
    if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
@@ -1000,9 +911,6 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Store a pointer to the provided array.
-   model%environment%state_ben(id)%data => dat
-
    ! Determine whether the state variable also features as dependency. If so, also attach the
    ! array slice to the dependency.
    if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
@@ -1010,8 +918,6 @@
       
    end subroutine rmbm_link_benthos_state_data
 !EOC
-
-#endif
 
 !-----------------------------------------------------------------------
 !BOP
@@ -1174,7 +1080,7 @@
 !BOC
 #define _INPUT_ARGS_DO_RHS_ _RMBM_ARGS_ND_IN_,dy
 
-   ! Ensure that this subrotuine is called on the root of the model tree only.
+   ! Ensure that this subroutine is called on the root of the model tree only.
    if (associated(root%parent)) &
       call fatal_error('rmbm_do_rhs','rmbm_do_rhs may only be called on the root of the model tree, or on non-container models.')
 
@@ -1196,7 +1102,7 @@
          ! call MODELNAME_do(model%MODELNAME,_INPUT_ARGS_DO_RHS_)
          
          case default
-           call fatal_error('rmbm_do_rhs','model '//trim(model%info%name)//' does not provide a subroutine &
+           call fatal_error('rmbm_do_rhs','model "'//trim(model%info%name)//'" does not provide a subroutine &
               &that calculates local temporal derivatives.')
       end select
       model => model%nextmodel
@@ -1249,7 +1155,7 @@
          ! call MODELNAME_do_ppdd(model%MODELNAME,_INPUT_ARGS_DO_PPDD_)
          
          case default
-           call fatal_error('rmbm_do_ppdd','model '//trim(model%info%name)//' does not provide a subroutine &
+           call fatal_error('rmbm_do_ppdd','model "'//trim(model%info%name)//'" does not provide a subroutine &
               &that calculates local production/destruction matrices.')
       end select
       model => model%nextmodel
@@ -1279,6 +1185,7 @@
 ! !LOCAL PARAMETERS:
    integer                               :: i
    type (type_model), pointer            :: model
+   REALTYPE                              :: val
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1319,17 +1226,17 @@
    ! Check absolute variable boundaries specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
    do i=1,ubound(root%info%state_variables,1)
-      if (root%_GET_STATE_(root%info%state_variables(i)%globalid)<root%info%state_variables(i)%minimum) then
+      _GET_STATE_EX_(root%environment,root%info%state_variables(i)%globalid,val)
+      if (val<root%info%state_variables(i)%minimum) then
          ! State variable value lies below prescribed minimum.
          valid = .false.
          if (.not.repair) return
-         root%_GET_STATE_(root%info%state_variables(i)%globalid) = root%info%state_variables(i)%minimum
-      elseif (root%_GET_STATE_(root%info%state_variables(i)%globalid)> &
-               root%info%state_variables(i)%maximum) then
+         _SET_STATE_EX_(root%environment,root%info%state_variables(i)%globalid,root%info%state_variables(i)%minimum)
+      elseif (val>root%info%state_variables(i)%maximum) then
          ! State variable value exceeds prescribed maximum.
          valid = .false.
          if (.not.repair) return
-         root%_GET_STATE_(root%info%state_variables(i)%globalid) = root%info%state_variables(i)%maximum
+         _SET_STATE_EX_(root%environment,root%info%state_variables(i)%globalid,root%info%state_variables(i)%maximum)
       end if
    end do
 
@@ -1414,7 +1321,7 @@
    type (type_model), pointer               :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_ _RMBM_ARGS_IN_0D_,flux_pel,flux_ben
+#define _INPUT_ARGS_DO_BENTHOS_RHS_ _RMBM_ARGS_IN_0D_,flux_pel,flux_ben
 
    model => root%nextmodel
    do while (associated(model))
@@ -1423,7 +1330,7 @@
          ! or specifies bottom fluxes for its pelagic state variables.
          !
          ! Typical model call:
-         ! call MODELNAME_do_benthos(model%MODELNAME,_INPUT_ARGS_DO_BENTHOS_)
+         ! call MODELNAME_do_benthos(model%MODELNAME,_INPUT_ARGS_DO_BENTHOS_RHS_)
       end select
       model => model%nextmodel
    end do
@@ -1460,7 +1367,7 @@
    type (type_model), pointer               :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_ _RMBM_ARGS_IN_0D_,pp,dd,benthos_offset
+#define _INPUT_ARGS_DO_BENTHOS_PPDD_ _RMBM_ARGS_IN_0D_,pp,dd,benthos_offset
 
    model => root%nextmodel
    do while (associated(model))
@@ -1469,7 +1376,7 @@
          ! or specifies bottom fluxes for its pelagic state variables.
          !
          ! Typical model call:
-         ! call MODELNAME_do_benthos(model%MODELNAME,_INPUT_ARGS_DO_BENTHOS_)
+         ! call MODELNAME_do_benthos(model%MODELNAME,_INPUT_ARGS_DO_BENTHOS_PPDD_)
       end select
       model => model%nextmodel
    end do
@@ -1556,9 +1463,8 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL PARAMETERS:
-   REALTYPE                                   :: curext
+   REALTYPE                                   :: curext,val
    integer                                    :: i
-   _TYPE_STATE_VARIABLE_ID_                   :: varid
    type (type_model), pointer                 :: model
 !EOP
 !-----------------------------------------------------------------------
@@ -1587,8 +1493,8 @@
             do i=1,ubound(model%info%state_variables,1)
                curext = model%info%state_variables(i)%specific_light_extinction
                if (curext.ne._ZERO_) then
-                  varid = model%info%state_variables(i)%globalid
-                  _SET_EXTINCTION_(root%_GET_STATE_(varid)*curext)
+                  _GET_STATE_EX_(root%environment,model%info%state_variables(i)%globalid,val)
+                  _SET_EXTINCTION_(val*curext)
                end if
             end do
             
@@ -1642,8 +1548,8 @@
          case default
             ! Default: the model does not describe any conserved quantities.
             if (ubound(model%info%conserved_quantities,1).gt.0) &
-               call fatal_error('rmbm_get_conserved_quantities','model '//trim(model%info%name)//' specifies that it &
-                    &describes one or more conserved quantities, but a function that provides sums of these &
+               call fatal_error('rmbm_get_conserved_quantities','model '//trim(model%info%name)//' registered &
+                    &one or more conserved quantities, but a function that provides sums of these &
                     &quantities has not been provided.')
       end select
       model => model%nextmodel

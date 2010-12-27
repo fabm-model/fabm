@@ -154,6 +154,12 @@
 #define _DECLARE_RMBM_ARGS_GET_CONSERVED_QUANTITIES_ _DECLARE_RMBM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: sums
 #define _DECLARE_RMBM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_RMBM_ARGS_0D_;REALTYPE,dimension(:),intent(inout) :: flux
 
+! Macros for declaring/accessing variable identifiers of arbitrary type.
+#define _TYPE_STATE_VARIABLE_ID_ type (type_state_variable_id)
+#define _TYPE_DIAGNOSTIC_VARIABLE_ID_ integer
+#define _TYPE_DEPENDENCY_ID_ integer
+#define _TYPE_CONSERVED_QUANTITY_ID_ integer
+
 ! For BGC models: Expressions for setting space-dependent RMBM variables defined on the full spatial domain.
 #define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%id) = rhs _INDEX_ODE_(variable%id) + value
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1%id,variable2%id) = dd _INDEX_PPDD_(variable1%id,variable2%id) + value
@@ -168,28 +174,23 @@
 #define _SET_PP_SYM_(variable1,variable2,value) _SET_PP_(variable1,variable2,value);_SET_DD_(variable1,variable2,value)
 
 ! For BGC models: read-only access to values of external dependencies
-#define _GET_DEPENDENCY_(variable) environment%var(variable)%data _INDEX_LOCATION_
-#define _GET_DEPENDENCY_HZ_(variable) environment%var_hz(variable)%data _INDEX_LOCATION_HZ_
+#define _GET_DEPENDENCY_(variable,target) target = environment%var(variable)%data _INDEX_LOCATION_
+#define _GET_DEPENDENCY_HZ_(variable,target) target = environment%var_hz(variable)%data _INDEX_LOCATION_HZ_
+
+! For RMBM: read/write access to state variables
+#define _GET_STATE_EX_(env,variable,target) target = env%var(variable%dependencyid)%data _INDEX_LOCATION_
+#define _SET_STATE_EX_(env,variable,value) env%var(variable%dependencyid)%data _INDEX_LOCATION_ = value
 
 ! For BGC models: read-only access to state variable values
-#ifdef RMBM_SINGLE_STATE_VARIABLE_ARRAY
-#define _GET_STATE_(variable) environment%state _INDEX_STATE_(variable%id)
-#else
-#define _GET_STATE_(variable) environment%state(variable%id)%data _INDEX_LOCATION_
-#endif
+#define _GET_STATE_(variable,target) _GET_STATE_EX_(environment,variable,target)
 
 ! For BGC models: write access to diagnostic variables
 #ifdef _RMBM_MANAGE_DIAGNOSTICS_
-#define _SET_DIAG_(index,value) environment%diag(index,LOCATION) = value
-#define _SET_DIAG_HZ_(index,value) environment%diag_hz(index) = value
+#define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%diag(index,LOCATION) = value
+#define _SET_DIAG_HZ_(index,value) if (index.ne.id_not_used) environment%diag_hz(index) = value
 #else
-#define _SET_DIAG_(index,value) environment%var(index)%data _INDEX_LOCATION_ = value
-#define _SET_DIAG_HZ_(index,value) environment%var_hz(index)%data _INDEX_LOCATION_HZ_ = value
+#define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%var(index)%data _INDEX_LOCATION_ = value
+#define _SET_DIAG_HZ_(index,value) if (index.ne.id_not_used) environment%var_hz(index)%data _INDEX_LOCATION_HZ_ = value
 #endif
 
-! Macros for declaring/accessing variable identifiers of arbitrary type.
-#define _TYPE_STATE_VARIABLE_ID_ type (type_state_variable_id)
-#define _TYPE_DIAGNOSTIC_VARIABLE_ID_ integer
-#define _TYPE_DEPENDENCY_ID_ integer
-#define _TYPE_CONSERVED_QUANTITY_ID_ integer
-#define _IS_DIAGNOSTIC_VARIABLE_USED_(varid) varid.ne.id_not_used
+!#define _SET_ODE_(variable,value) if (variable%id.ne.id_not_used) rhs _INDEX_ODE_(variable%id) = rhs _INDEX_ODE_(variable%id) + value
