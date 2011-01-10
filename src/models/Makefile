@@ -3,7 +3,7 @@
 # Makefile to build the Bio Module - libbio.a
 #
 
-include ../../Rules.make
+include ../Rules.make
 
 LIB	= $(LIBDIR)/librmbm$(buildtype).a
 
@@ -23,7 +23,7 @@ OBJS: $(SUBDIRS)
 	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../doc/rmbm.tex 
+	$(PROTEX) $(DOCSRC) > ../../doc/rmbm.tex 
 	touch doc
 
 clean:
