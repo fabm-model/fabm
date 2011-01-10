@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<VisualStudioProject ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{B6A5514C-5B9C-4E70-9BD7-767888D45B30}">
+<VisualStudioProject ProjectType="typeStaticLibrary" ProjectCreator="Intel Fortran" Keyword="Static Library" Version="11.0" ProjectIdGuid="{7D63F885-F1D8-469C-A076-488A23EB592B}">
 	<Platforms>
 		<Platform Name="Win32"/></Platforms>
 	<Configurations>
-		<Configuration Name="Debug|Win32" OutputDirectory="$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(ConfigurationName)\$(ProjectName)">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(NETCDF_PREFIX)\include;$(ProjectDir)\..\..\src\rmbm\drivers\gotm" PreprocessorDefinitions="REAL_4B=real(4);FORTRAN95;NUDGE_VEL;NETCDF_FMT;SEAGRASS;BIO;LAGRANGE;BIO_NPZD;BIO_IOW;BIO_FASHAM;BIO_SED;BIO_NPZD_FE;BIO_PHOTO;GUSTINESS;RMBM" Interfaces="true" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true"/>
+		<Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" Interfaces="true" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
+				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -13,9 +14,10 @@
 				<Tool Name="VFPreBuildEventTool"/>
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
-		<Configuration Name="Release|Win32" OutputDirectory="$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(ConfigurationName)\$(ProjectName)">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" UseProcessorExtensions="codeExclusivelyHost" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(NETCDF_PREFIX)\include;$(ProjectDir)\..\..\src\rmbm\drivers\gotm" PreprocessorDefinitions="REAL_4B=real(4);FORTRAN95;NUDGE_VEL;NETCDF_FMT;SEAGRASS;BIO;LAGRANGE;BIO_NPZD;BIO_IOW;BIO_FASHAM;BIO_SED;BIO_NPZD_FE;BIO_PHOTO;GUSTINESS;RMBM" WarnUnusedVariables="true"/>
+		<Configuration Name="Release|Win32" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" UseProcessorExtensions="codeExclusivelyHost" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" WarnUnusedVariables="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
+				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -25,146 +27,25 @@
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
 	<Files>
 		<Filter Name="Header Files" Filter="fi;fd">
-		<File RelativePath="..\..\include\cppdefs.h"/>
 		<File RelativePath="..\..\include\rmbm.h"/>
-		<File RelativePath="..\..\src\rmbm\drivers\gotm\rmbm_driver.h"/>
-		<File RelativePath=".\version.h"/></Filter>
+		<File RelativePath="..\..\src\drivers\gotm\rmbm_driver.h"/></Filter>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
-		<Filter Name="airsea">
-		<File RelativePath="..\..\src\airsea\airsea.F90"/>
-		<File RelativePath="..\..\src\airsea\airsea_fluxes.F90"/>
-		<File RelativePath="..\..\src\airsea\airsea_variables.F90"/>
-		<File RelativePath="..\..\src\airsea\back_radiation.F90"/>
-		<File RelativePath="..\..\src\airsea\fairall.F90"/>
-		<File RelativePath="..\..\src\airsea\humidity.F90"/>
-		<File RelativePath="..\..\src\airsea\kondo.F90"/>
-		<File RelativePath="..\..\src\airsea\short_wave_radiation.F90"/></Filter>
-		<Filter Name="extras">
-		<Filter Name="bio">
-		<Filter Name="fasham">
-		<File RelativePath="..\..\src\extras\bio\fasham\bio_fasham.F90"/></Filter>
-		<Filter Name="iow">
-		<File RelativePath="..\..\src\extras\bio\iow\bio_iow.F90"/></Filter>
-		<Filter Name="mab">
-		<File RelativePath="..\..\src\extras\bio\mab\bio_mab.F90"/></Filter>
-		<Filter Name="npzd">
-		<File RelativePath="..\..\src\extras\bio\npzd\bio_npzd.F90"/></Filter>
-		<Filter Name="npzd_fe">
-		<File RelativePath="..\..\src\extras\bio\npzd_fe\bio_npzd_fe.F90"/></Filter>
-		<Filter Name="photo">
-		<File RelativePath="..\..\src\extras\bio\photo\bio_photo.F90"/></Filter>
-		<Filter Name="rolm">
-		<File RelativePath="..\..\src\extras\bio\rolm\bio_rolm.F90"/></Filter>
-		<Filter Name="sed">
-		<File RelativePath="..\..\src\extras\bio\sed\bio_sed.F90"/></Filter>
-		<Filter Name="template">
-		<File RelativePath="..\..\src\extras\bio\template\bio_template.F90"/></Filter>
-		<File RelativePath="..\..\src\extras\bio\bio.F90"/>
-		<File RelativePath="..\..\src\extras\bio\bio_alloc_info.F90"/>
-		<File RelativePath="..\..\src\extras\bio\bio_fluxes.F90"/>
-		<File RelativePath="..\..\src\extras\bio\bio_save.F90"/>
-		<File RelativePath="..\..\src\extras\bio\bio_var.F90"/></Filter>
-		<Filter Name="seagrass">
-		<File RelativePath="..\..\src\extras\seagrass\seagrass.F90"/></Filter>
-		<Filter Name="sediment"/></Filter>
-		<Filter Name="gotm">
-		<File RelativePath="..\..\src\gotm\gotm.F90"/>
-		<File RelativePath="..\..\src\gotm\main.F90"/></Filter>
-		<Filter Name="meanflow">
-		<File RelativePath="..\..\src\meanflow\buoyancy.F90"/>
-		<File RelativePath="..\..\src\meanflow\convectiveadjustment.F90"/>
-		<File RelativePath="..\..\src\meanflow\coriolis.F90"/>
-		<File RelativePath="..\..\src\meanflow\extpressure.F90"/>
-		<File RelativePath="..\..\src\meanflow\friction.F90"/>
-		<File RelativePath="..\..\src\meanflow\intpressure.F90"/>
-		<File RelativePath="..\..\src\meanflow\meanflow.F90"/>
-		<File RelativePath="..\..\src\meanflow\salinity.F90"/>
-		<File RelativePath="..\..\src\meanflow\shear.F90"/>
-		<File RelativePath="..\..\src\meanflow\stratification.F90"/>
-		<File RelativePath="..\..\src\meanflow\temperature.F90"/>
-		<File RelativePath="..\..\src\meanflow\uequation.F90"/>
-		<File RelativePath="..\..\src\meanflow\updategrid.F90"/>
-		<File RelativePath="..\..\src\meanflow\vequation.F90"/></Filter>
-		<Filter Name="observations">
-		<File RelativePath="..\..\src\observations\analytical_profile.F90"/>
-		<File RelativePath="..\..\src\observations\const_NNS.F90"/>
-		<File RelativePath="..\..\src\observations\const_NNT.F90"/>
-		<File RelativePath="..\..\src\observations\get_bio_profiles.F90"/>
-		<File RelativePath="..\..\src\observations\get_eps_profile.F90"/>
-		<File RelativePath="..\..\src\observations\get_ext_pressure.F90"/>
-		<File RelativePath="..\..\src\observations\get_int_pressure.F90"/>
-		<File RelativePath="..\..\src\observations\get_o2_profile.F90"/>
-		<File RelativePath="..\..\src\observations\get_s_profile.F90"/>
-		<File RelativePath="..\..\src\observations\get_t_profile.F90"/>
-		<File RelativePath="..\..\src\observations\get_vel_profile.F90"/>
-		<File RelativePath="..\..\src\observations\get_w_adv.F90"/>
-		<File RelativePath="..\..\src\observations\get_wave.F90"/>
-		<File RelativePath="..\..\src\observations\get_zeta.F90"/>
-		<File RelativePath="..\..\src\observations\observations.F90"/>
-		<File RelativePath="..\..\src\observations\read_extinction.F90"/></Filter>
-		<Filter Name="output">
-		<File RelativePath="..\..\src\output\asciiout.F90"/>
-		<File RelativePath="..\..\src\output\ncdfout.F90"/>
-		<File RelativePath="..\..\src\output\output.F90"/></Filter>
-		<Filter Name="rmbm">
+		<Filter Name="models">
 		<Filter Name="co2sys">
-		<File RelativePath="..\..\src\rmbm\models\co2sys\co2_dyn.F90"/>
-		<File RelativePath="..\..\src\rmbm\models\co2sys\co2sys.F90"/></Filter>
+		<File RelativePath="..\..\src\models\co2sys\co2_dyn.F90"/>
+		<File RelativePath="..\..\src\models\co2sys\co2sys.F90"/></Filter>
 		<Filter Name="mnemiopsis">
-		<File RelativePath="..\..\src\rmbm\models\mnemiopsis\mnemiopsis.F90"/></Filter>
+		<File RelativePath="..\..\src\models\mnemiopsis\mnemiopsis.F90"/></Filter>
 		<Filter Name="npzd">
-		<File RelativePath="..\..\src\rmbm\models\npzd\npzd.F90"/></Filter>
-		<File RelativePath="..\..\src\rmbm\drivers\gotm\gotm_rmbm.F90"/>
-		<File RelativePath="..\..\src\rmbm\rmbm.F90">
-			<FileConfiguration Name="Debug|Win32">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsF90" ArgTempCreatedCheck="true"/></FileConfiguration></File>
-		<File RelativePath="..\..\src\rmbm\drivers\gotm\rmbm_driver.F90">
-			<FileConfiguration Name="Debug|Win32">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsF90" ArgTempCreatedCheck="true"/></FileConfiguration></File>
-		<File RelativePath="..\..\src\rmbm\rmbm_types.F90">
+		<File RelativePath="..\..\src\models\npzd\npzd.F90"/></Filter></Filter>
+		<Filter Name="driver">
+		<File RelativePath="..\..\src\drivers\gotm\rmbm_driver.F90">
 			<FileConfiguration Name="Debug|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsF90" ArgTempCreatedCheck="true"/></FileConfiguration></File></Filter>
-		<Filter Name="turbulence">
-		<File RelativePath="..\..\src\turbulence\algebraiclength.F90"/>
-		<File RelativePath="..\..\src\turbulence\alpha_mnb.F90"/>
-		<File RelativePath="..\..\src\turbulence\cmue_a.F90"/>
-		<File RelativePath="..\..\src\turbulence\cmue_b.F90"/>
-		<File RelativePath="..\..\src\turbulence\cmue_c.F90"/>
-		<File RelativePath="..\..\src\turbulence\cmue_d.F90"/>
-		<File RelativePath="..\..\src\turbulence\cmue_ma.F90"/>
-		<File RelativePath="..\..\src\turbulence\cmue_rf.F90"/>
-		<File RelativePath="..\..\src\turbulence\cmue_sg.F90"/>
-		<File RelativePath="..\..\src\turbulence\compute_cpsi3.F90"/>
-		<File RelativePath="..\..\src\turbulence\compute_rist.F90"/>
-		<File RelativePath="..\..\src\turbulence\dissipationeq.F90"/>
-		<File RelativePath="..\..\src\turbulence\epsbalgebraic.F90"/>
-		<File RelativePath="..\..\src\turbulence\fk_craig.F90"/>
-		<File RelativePath="..\..\src\turbulence\genericeq.F90"/>
-		<File RelativePath="..\..\src\turbulence\gotm_lib_version.F90"/>
-		<File RelativePath="..\..\src\turbulence\internal_wave.F90"/>
-		<File RelativePath="..\..\src\turbulence\ispralength.F90"/>
-		<File RelativePath="..\..\src\turbulence\kbalgebraic.F90"/>
-		<File RelativePath="..\..\src\turbulence\kbeq.F90"/>
-		<File RelativePath="..\..\src\turbulence\kpp.F90"/>
-		<File RelativePath="..\..\src\turbulence\lengthscaleeq.F90"/>
-		<File RelativePath="..\..\src\turbulence\potentialml.F90"/>
-		<File RelativePath="..\..\src\turbulence\production.F90"/>
-		<File RelativePath="..\..\src\turbulence\q2over2eq.F90"/>
-		<File RelativePath="..\..\src\turbulence\r_ratio.F90"/>
-		<File RelativePath="..\..\src\turbulence\tkealgebraic.F90"/>
-		<File RelativePath="..\..\src\turbulence\tkeeq.F90"/>
-		<File RelativePath="..\..\src\turbulence\turbulence.F90"/>
-		<File RelativePath="..\..\src\turbulence\variances.F90"/></Filter>
-		<Filter Name="util">
-		<File RelativePath="..\..\src\util\adv_center.F90"/>
-		<File RelativePath="..\..\src\util\convert_fluxes.F90"/>
-		<File RelativePath="..\..\src\util\diff_center.F90"/>
-		<File RelativePath="..\..\src\util\diff_face.F90"/>
-		<File RelativePath="..\..\src\util\eqstate.F90"/>
-		<File RelativePath="..\..\src\util\gridinterpol.F90"/>
-		<File RelativePath="..\..\src\util\lagrange.F90"/>
-		<File RelativePath="..\..\src\util\ode_solvers.F90"/>
-		<File RelativePath="..\..\src\util\time.F90"/>
-		<File RelativePath="..\..\src\util\tridiagonal.F90"/>
-		<File RelativePath="..\..\src\util\util.F90"/></Filter></Filter></Files>
+		<File RelativePath="..\..\src\rmbm.F90">
+			<FileConfiguration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsF90" ArgTempCreatedCheck="true"/></FileConfiguration></File>
+		<File RelativePath="..\..\src\rmbm_types.F90">
+			<FileConfiguration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsF90" ArgTempCreatedCheck="true"/></FileConfiguration></File></Filter></Files>
 	<Globals/></VisualStudioProject>
