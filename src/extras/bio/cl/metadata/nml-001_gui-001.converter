@@ -1,9 +1,0 @@
-<?xml version="1.0" ?>
-<converter source="nml-001" target="gui-001" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../../../gui.py/xmlstore/converter-1.0.xsd">
-	<links>
-		<link source="/bio_cl_nml" target="/params"/>
-		<link source="/bio_cl_nml" target="/iniconcs"/>
-		<link source="/bio_cl_nml" target="/minconcs"/>
-		<link source="/bio_cl_nml" target="/settling"/>
-	</links>
-</converter>

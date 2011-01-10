@@ -1,82 +1,38 @@
-#$Id$
-#
-# Master Makefile for making the GOTM executable.
-#
+include ../Rules.make
 
-include Rules.make
+LIB	= $(LIBDIR)/librmbm$(buildtype).a
 
-DOCSRC	= main.F90 gotm.F90
+DOCSRC	= \
+rmbm.F90  \
+rmbm_types.F90
 
-SUBDIRS	= util observations airsea meanflow turbulence output
+RMBMMOD	= ${LIB}(rmbm.o)
+RMBMBASE = ${LIB}(rmbm_types.o)
 
-CORE_LIBS	=	\
-		-lairsea$(buildtype)		\
-		-lmeanflow$(buildtype) 		\
-		-lturbulence$(buildtype) 	\
-		-lobservations$(buildtype)	\
-		-loutput$(buildtype)		\
-		-lutil$(buildtype)
+all: gotmrmbm
+        $(MOVE_MODULES_COMMAND)
 
-ALL_LIBS	= $(FEATURE_LIBS) $(CORE_LIBS) $(EXTRA_LIBS)
+driver:
+	$(MAKE) -C drivers/gotm driver
 
-EXEC		= gotm$(buildtype)_$(FORTRAN_COMPILER)
+$(RMBMBASE): driver
 
-all: ../VERSION $(EXEC)
+models: driver $(RMBMBASE)
+	$(MAKE) -C models
 
-../VERSION: ../Makefile
-	$(MAKE) -C ..
+$(RMBMMOD): $(RMBMBASE) models
 
-$(EXEC): makedirs subdirs features gotmlib 
-	$(FC) -o $@ ./gotm/main.o $(LDFLAGS) -lgotm$(buildtype) $(ALL_LIBS)
-	$(RM) ./gotm/main.o
+gotmrmbm: $(RMBMMOD)
+	 $(MAKE) -C drivers/gotm
 
-makedirs:
-	mkdir -p $(MODDIR) $(LIBDIR)
-
-gotmlib:
-	$(MAKE) -C gotm all
-
-.PHONY: subdirs $(SUBDIRS)
-
-subdirs: $(SUBDIRS)
-
-install: $(EXEC) 
-	$(MV) $(EXEC) $(BINDIR)
-
-$(SUBDIRS):
-	$(MAKE) -C $@
-
-observations airsea meanflow turbulence output: util
-
-features:
-ifdef FEATURES
-	set -e; for i in $(FEATURES); do $(MAKE) -C $$i; done
-endif
-
-doc:
-ifdef SUBDIRS
-	set -e; for i in gotm $(SUBDIRS); do $(MAKE) -C $$i $@; done
-endif
-ifdef FEATURES
-	set -e; for i in $(FEATURES); do $(MAKE) -C $$i $@; done
-endif
-
-bkup: distclean
-	tar -czvf ../../backups/bkup.`date +%y%m%d%H`_`cat ../VERSION`.tar.gz *
+doc:    $(DOCSRC)
+	$(PROTEX) $(DOCSRC) > ../../doc/rmbm.tex 
+	touch doc
 
 clean:
+	$(RM) -f ${LIB} $(MODDIR)/gotm.{m,mod} doc
 
 realclean: clean
-	$(RM) *~
-	$(RM) ../modules/$(FORTRAN_COMPILER)/*.{m,mod} 
-	$(RM) ../lib/$(FORTRAN_COMPILER)/lib*$(buildtype).a
-ifdef SUBDIRS
-	set -e; for i in gotm $(SUBDIRS); do $(MAKE) -C $$i $@; done
-endif
-ifdef FEATURES
-	set -e; for i in $(FEATURES); do $(MAKE) -C $$i $@; done
-endif
+	$(RM) -f *.o *~
 
 distclean: realclean
-	$(RM) gotm_debug_* gotm_prof_* gotm_prod_*
-
