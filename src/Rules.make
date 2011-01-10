@@ -10,20 +10,7 @@ else
 compilation=$(COMPILATION_MODE)
 endif
 
-DEFINES=-DNUDGE_VEL
 DEFINES=-D$(FORTRAN_COMPILER)
-
-# What do we include in this compilation
-NetCDF=false
-NetCDF=true
-SEDIMENT=false
-#SEDIMENT=true
-SEAGRASS=false
-SEAGRASS=true
-BIO=false
-BIO=true
-RMBM=false
-RMBM=true
 
 FEATURES	=
 FEATURE_LIBS	=
@@ -31,97 +18,37 @@ EXTRA_LIBS	=
 INCDIRS		=
 LDFLAGS		=
 
-# If we want NetCDF - where are the include files and the library
-
-ifeq ($(NetCDF),true)
-
-DEFINES += -DNETCDF_FMT
-
-ifdef NETCDFINC
-INCDIRS         += -I$(NETCDFINC)
-endif
-
-ifdef NETCDFLIBDIR
-LINKDIRS        += -L$(NETCDFLIBDIR)
-endif
-
-ifdef NETCDFLIBNAME
-NETCDFLIB       = $(NETCDFLIBNAME)
-else
-NETCDFLIB       = -lnetcdf -lnetcdff
-endif
-
-ifeq ($(NETCDF_VERSION),NETCDF4)
-
-DEFINES         += -DNETCDF4
-ifdef HDF5_DIR
-INCDIRS         += -I$(HDF5_DIR)/include
-LINKDIRS        += -L$(HDF5_DIR)/lib
-endif
-HDF5LIB         = -lhdf5_hl -lhdf5 -lz
-
-else  # NetCDF3 is default
-
-DEFINES         += -DNETCDF3
-HDF5LIB         =
-
-endif
-
-EXTRA_LIBS      += $(NETCDFLIB) $(HDF5LIB)
-
-endif
-# NetCDF/HDF configuration done
-
 #
 # phony targets
 #
 .PHONY: clean realclean distclean dummy
 
-# Top of this version of GOTM.
-ifndef GOTMDIR
-GOTMDIR  := $(HOME)/gotm
+# Top of this version of RMBM.
+ifndef RMBMDIR
+RMBMDIR  := $(HOME)/rmbm
 endif
 
 CPP	= /lib/cpp
 
-# Here you can put defines for the [c|f]pp - some will also be set depending
-# on compilation mode.
-ifeq ($(SEDIMENT),true)
-DEFINES += -DSEDIMENT
-FEATURES += extras/sediment
-FEATURE_LIBS += -lsediment$(buildtype)
-endif
-ifeq ($(SEAGRASS),true)
-DEFINES += -DSEAGRASS
-FEATURES += extras/seagrass
-FEATURE_LIBS += -lseagrass$(buildtype)
-endif
-ifeq ($(BIO),true)
-DEFINES += -DBIO
-FEATURES += extras/bio
-FEATURE_LIBS += -lbio$(buildtype)
-endif
-ifeq ($(RMBM),true)
 DEFINES += -DRMBM
 FEATURES += rmbm
 FEATURE_LIBS += -lrmbm$(buildtype)
-INCDIRS	+= -I$(GOTMDIR)/src/rmbm/drivers/gotm
-endif
+INCDIRS	+= -I$(RMBMDIR)/src/rmbm/drivers/gotm
 
 # Directory related settings.
 
 ifndef BINDIR
-BINDIR	= $(GOTMDIR)/bin
+BINDIR	= $(RMBMDIR)/bin
 endif
 
 ifndef LIBDIR
-LIBDIR	= $(GOTMDIR)/lib/$(FORTRAN_COMPILER)
+LIBDIR	= $(RMBMDIR)/lib/$(FORTRAN_COMPILER)
 endif
 
 ifndef MODDIR
-MODDIR	= $(GOTMDIR)/modules/$(FORTRAN_COMPILER)
+MODDIR	= $(RMBMDIR)/modules/$(FORTRAN_COMPILER)
 endif
-INCDIRS	+= -I/usr/local/include -I$(GOTMDIR)/include -I$(MODDIR)
+INCDIRS	+= -I/usr/local/include -I$(RMBMDIR)/include -I$(MODDIR)
 
 # Normaly this should not be changed - unless you want something very specific.
 
@@ -150,7 +77,7 @@ DEFINES += -DPRODUCTION $(STATIC)
 FLAGS   = $(PROD_FLAGS) 
 endif
 
-include $(GOTMDIR)/compilers/compiler.$(FORTRAN_COMPILER)
+include $(RMBMDIR)/compilers/compiler.$(FORTRAN_COMPILER)
 
 # For making the source code documentation.
 PROTEX	= protex -b -n -s
