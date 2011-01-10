@@ -9,8 +9,11 @@ rmbm_types.F90
 RMBMMOD	= ${LIB}(rmbm.o)
 RMBMBASE = ${LIB}(rmbm_types.o)
 
-all: $(RMBMMOD)
+all: makedirs $(RMBMMOD)
         $(MOVE_MODULES_COMMAND)
+
+makedirs:
+	mkdir -p $(MODDIR) $(LIBDIR)
 
 driver:
 	$(MAKE) -C drivers/gotm
