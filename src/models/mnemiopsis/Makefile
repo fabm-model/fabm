@@ -1,15 +1,15 @@
 #
-# Makefile to build the 0D version of the jellyfish bio-module
+# Makefile to build the 0D version of the mnemiopsis bio-module
 #
 
 include ../../Rules.make
 
 LIB	= $(LIBDIR)/librmbm$(buildtype).a
 
-DOCSRC	=  jellyfish.F90
+DOCSRC	=  mnemiopsis.F90
 
 OBJS   = \
-${LIB}(jellyfish.o)
+${LIB}(mnemiopsis.o)
 
 all: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
