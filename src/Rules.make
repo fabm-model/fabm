@@ -33,7 +33,7 @@ CPP	= /lib/cpp
 DEFINES += -DRMBM
 FEATURES += rmbm
 FEATURE_LIBS += -lrmbm$(buildtype)
-INCDIRS	+= -I$(RMBMDIR)/src/rmbm/drivers/gotm
+INCDIRS	+= -I$(RMBMDIR)/src/drivers/gotm
 
 # Directory related settings.
 
