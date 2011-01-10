@@ -9,11 +9,11 @@ rmbm_types.F90
 RMBMMOD	= ${LIB}(rmbm.o)
 RMBMBASE = ${LIB}(rmbm_types.o)
 
-all: gotmrmbm
+all: $(RMBMMOD)
         $(MOVE_MODULES_COMMAND)
 
 driver:
-	$(MAKE) -C drivers/gotm driver
+	$(MAKE) -C drivers/gotm
 
 $(RMBMBASE): driver
 
@@ -21,9 +21,6 @@ models: driver $(RMBMBASE)
 	$(MAKE) -C models
 
 $(RMBMMOD): $(RMBMBASE) models
-
-gotmrmbm: $(RMBMMOD)
-	 $(MAKE) -C drivers/gotm
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../doc/rmbm.tex 

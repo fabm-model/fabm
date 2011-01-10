@@ -10,8 +10,6 @@ ${LIB}(rmbm_driver.o)
 all: $(OBJ)
         $(MOVE_MODULES_COMMAND)
 
-driver: $(OBJ1)
-
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../../../doc/rmbm.tex 
 	touch doc
