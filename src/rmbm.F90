@@ -58,7 +58,7 @@
    
       ! Model identifier and metadata.
       integer                :: id
-      type (type_model_info) :: info
+      type (type_model_info),public :: info
       
       ! Pointers for linking to parent and child models
       ! (models can be linked to form a tree structure)
