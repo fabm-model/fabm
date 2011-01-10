@@ -2,7 +2,7 @@
 # Makefile to build the 0D version of the carbonate system module
 #
 
-include ../../../Rules.make
+include ../../Rules.make
 
 LIB	= $(LIBDIR)/librmbm$(buildtype).a
 
@@ -16,7 +16,7 @@ all: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../../doc/rmbm.tex 
+	$(PROTEX) $(DOCSRC) > ../../../doc/rmbm.tex 
 	touch doc
 
 clean:
