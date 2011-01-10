@@ -53,12 +53,9 @@
 !
    ! Derived type for a single generic biogeochemical model
    type type_model
-      ! Default: all members are private.
-      private
-   
       ! Model identifier and metadata.
       integer                :: id
-      type (type_model_info),public :: info
+      type (type_model_info) :: info
       
       ! Pointers for linking to parent and child models
       ! (models can be linked to form a tree structure)
