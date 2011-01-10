@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
-Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "gotm", "gotm.vfproj", "{B6A5514C-5B9C-4E70-9BD7-767888D45B30}"
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "rmbm", "rmbm.vfproj", "{B6A5514C-5B9C-4E70-9BD7-767888D45B30}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
