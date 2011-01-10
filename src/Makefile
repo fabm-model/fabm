@@ -1,4 +1,4 @@
-include ../Rules.make
+include Rules.make
 
 LIB	= $(LIBDIR)/librmbm$(buildtype).a
 
@@ -26,11 +26,11 @@ gotmrmbm: $(RMBMMOD)
 	 $(MAKE) -C drivers/gotm
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../doc/rmbm.tex 
+	$(PROTEX) $(DOCSRC) > ../doc/rmbm.tex 
 	touch doc
 
 clean:
-	$(RM) -f ${LIB} $(MODDIR)/gotm.{m,mod} doc
+	$(RM) -f ${LIB} doc
 
 realclean: clean
 	$(RM) -f *.o *~
