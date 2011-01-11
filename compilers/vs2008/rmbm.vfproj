@@ -4,7 +4,7 @@
 		<Platform Name="Win32"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" Interfaces="true" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" Interfaces="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -39,13 +39,7 @@
 		<Filter Name="npzd">
 		<File RelativePath="..\..\src\models\npzd\npzd.F90"/></Filter></Filter>
 		<Filter Name="driver">
-		<File RelativePath="..\..\src\drivers\gotm\rmbm_driver.F90">
-			<FileConfiguration Name="Debug|Win32">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsF90" ArgTempCreatedCheck="true"/></FileConfiguration></File></Filter>
-		<File RelativePath="..\..\src\rmbm.F90">
-			<FileConfiguration Name="Debug|Win32">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsF90" ArgTempCreatedCheck="true"/></FileConfiguration></File>
-		<File RelativePath="..\..\src\rmbm_types.F90">
-			<FileConfiguration Name="Debug|Win32">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsF90" ArgTempCreatedCheck="true"/></FileConfiguration></File></Filter></Files>
+		<File RelativePath="..\..\src\drivers\gotm\rmbm_driver.F90"/></Filter>
+		<File RelativePath="..\..\src\rmbm.F90"/>
+		<File RelativePath="..\..\src\rmbm_types.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
