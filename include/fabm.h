@@ -2,31 +2,19 @@
 #define _ZERO_ 0.0d0
 #define _ONE_  1.0d0
 
-! Preprocessor definition below have been taken from mom4p0d
-
-#if defined(__INTEL_COMPILER) || defined(__IBMC__)
-#define _F95_
-#define _F2000_
-#endif
-
-#ifdef _F95_
-#define _PURE_ PURE
-#else
-#define _PURE_ 
-#endif
-
-! Older Fortran compilers do not allow derived types to contain allocatable members (A Fortran >95 feature).
-! As a workaround, they can be declared with the pointer attribute. By using the below preprocessor definitions,
-! the allocatable attribute is automatically repalced by the pointer attribute where needed, and related function
-! calls are chanegd as well.
-#ifdef _F2000_
-#define _ALLOCATABLE_ ALLOCATABLE
+! Older Fortran compilers do not allow derived types to contain allocatable members
+! (A Fortran >95 feature, defined in ISO Technical Report TR 15581 and part of the Fortran 2003 specification).
+! As a workaround, they can be declared with the pointer attribute, which does bring a slight performance penalty.
+! By using the below preprocessor definitions, the allocatable attribute is automatically replaced by the pointer
+! attribute where needed, and related function calls are changed as well.
+#ifdef _ISO_TR_15581_
+#define _ALLOCATABLE_ allocatable
 #define _NULL_ 
-#define _ALLOCATED_ ALLOCATED
+#define _ALLOCATED_ allocated
 #else
-#define _ALLOCATABLE_ POINTER
-#define _NULL_ =>NULL()
-#define _ALLOCATED_ ASSOCIATED
+#define _ALLOCATABLE_ pointer
+#define _NULL_ =>null()
+#define _ALLOCATED_ associated
 #endif
 
 ! Data type for location variable(s)

@@ -131,7 +131,7 @@
 ! !IROUTINE: Right hand sides of Mnemiopsis model
 !
 ! !INTERFACE:
-   _PURE_ subroutine mnemiopsis_do(self,_FABM_ARGS_DO_RHS_)
+   pure subroutine mnemiopsis_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 !
@@ -396,7 +396,7 @@
    end subroutine mnemiopsis_do
 !EOC
 
-   _PURE_ subroutine trans(mm,mr,ma,t,p7)
+   pure subroutine trans(mm,mr,ma,t,p7)
       implicit none
       
       ! here mm is max and ma actual and mr is the reference weight 

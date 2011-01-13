@@ -184,7 +184,7 @@
 ! variables
 !
 ! !INTERFACE:
-   _PURE_ subroutine npzd_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   pure subroutine npzd_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd), intent(in) :: self
@@ -221,7 +221,7 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   _PURE_ subroutine npzd_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   pure subroutine npzd_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd), intent(in) :: self
@@ -511,7 +511,7 @@
 ! !IROUTINE: Michaelis-Menten formulation for nutrient uptake
 !
 ! !INTERFACE:
-   _PURE_ REALTYPE function fnp(self,n,p,par,iopt)
+   pure REALTYPE function fnp(self,n,p,par,iopt)
 !
 ! !DESCRIPTION:
 ! Here, the classical Michaelis-Menten formulation for nutrient uptake
@@ -541,7 +541,7 @@
 ! !IROUTINE: Ivlev formulation for zooplankton grazing on phytoplankton
 !
 ! !INTERFACE:
-   _PURE_ REALTYPE function fpz(self,p,z)
+   pure REALTYPE function fpz(self,p,z)
 !
 ! !DESCRIPTION:
 ! Here, the classical Ivlev formulation for zooplankton grazing on 
