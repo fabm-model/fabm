@@ -25,7 +25,7 @@ LDFLAGS		=
 
 # Top of this version of FABM.
 ifndef FABMDIR
-FABMDIR  := $(HOME)/rmbm
+FABMDIR  := $(HOME)/fabm
 endif
 
 CPP	= /lib/cpp
