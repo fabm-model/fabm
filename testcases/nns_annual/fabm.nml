@@ -59,13 +59,18 @@
 !-------------------------------------------------------------------------------
 
 &bio_nml
-   rmbm_calc = .true.,
-   models = 'npzd','mnemiopsis'
+   fabm_calc = .true.,
+   models = 'co2sys','npzd'
    cnpar = 1.0,
    w_adv_discr = 6,
    ode_method = 3,
    split_factor = 1,
    bioshade_feedback = .true.,
+/
+
+&co2sys
+	dic_initial = 2100.,
+	pCO2a = 305.
 /
 
 !-------------------------------------------------------------------------------
@@ -120,14 +125,14 @@
 !-------------------------------------------------------------------------------
 
 &npzd
-   n_initial = 6.,
+   n_initial = 4.5,
    p_initial = 1e-15,
    z_initial = 1e-15,
-   d_initial = 1e-15,
+   d_initial = 4.5,
    p0 = 0.0225,
    z0 = 0.0225,
-   w_p = -1.0,	!-1
-   w_d = -5.0,	!-5
+   w_p = -1.0,
+   w_d = -5.0,
    kc = 0.03,
    I_min = 25.0,
    rmax = 1.0,
@@ -136,25 +141,10 @@
    alpha = 1.35,
    rpn = 0.01,
    rzn = 0.01,
-   rdn = 0.3,!0.003,
+   rdn = 0.003,
    rpdu = 0.02,
    rpdl = 0.1,
    rzd = 0.02,
+   dic_variable='co2sys_dic'
 /
-
-&mnemiopsis
-	food_source_variable = 'npzd_zoo',
-	foodmic_source_variable = 'npzd_zoo',
-	respiration_target_variable = 'npzd_nut',
-	mortality_target_variable = 'npzd_det',
-	egb_initial = 0.1
-	jb_initial =  1.,
-	ja_initial =  0.3333,
-	tb_initial =  1.,
-	ta_initial =  0.5,
-	adb_initial = 1.,
-	ada_initial = .1667,
-	food_scale = 79.5
-/
-
 
