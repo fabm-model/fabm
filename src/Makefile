@@ -16,7 +16,7 @@ makedirs:
 	mkdir -p $(MODDIR) $(LIBDIR)
 
 driver:
-	$(MAKE) -C drivers/gotm
+	$(MAKE) -C drivers/$(FABMHOST)
 
 $(FABMBASE): driver
 

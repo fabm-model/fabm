@@ -25,14 +25,18 @@ LDFLAGS		=
 
 # Top of this version of FABM.
 ifndef FABMDIR
-FABMDIR  := $(HOME)/fabm
+FABMDIR := $(HOME)/fabm
+endif
+
+ifndef FABMHOST
+FABMHOST = gotm
 endif
 
 CPP	= /lib/cpp
 
 FEATURES += fabm
 FEATURE_LIBS += -lfabm$(buildtype)
-INCDIRS	+= -I$(FABMDIR)/src/drivers/gotm
+INCDIRS	+= -I$(FABMDIR)/src/drivers/$(FABMHOST)
 
 # Directory related settings.
 
@@ -41,11 +45,11 @@ BINDIR	= $(FABMDIR)/bin
 endif
 
 ifndef LIBDIR
-LIBDIR	= $(FABMDIR)/lib/$(FORTRAN_COMPILER)
+LIBDIR	= $(FABMDIR)/lib/$(FABMHOST)/$(FORTRAN_COMPILER)
 endif
 
 ifndef MODDIR
-MODDIR	= $(FABMDIR)/modules/$(FORTRAN_COMPILER)
+MODDIR	= $(FABMDIR)/modules/$(FABMHOST)/$(FORTRAN_COMPILER)
 endif
 INCDIRS	+= -I/usr/local/include -I$(FABMDIR)/include -I$(MODDIR)
 
