@@ -180,83 +180,6 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Get the light extinction coefficient due to biogeochemical
-! variables
-!
-! !INTERFACE:
-   pure subroutine npzd_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
-!
-! !INPUT PARAMETERS:
-   type (type_npzd), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   REALTYPE                     :: p,d
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_p,p) ! phytoplankton
-   _GET_STATE_(self%id_d,d) ! detritus
-   
-   ! Self-shading with explicit contribution from background phytoplankton concentration.
-   _SET_EXTINCTION_(self%kc*(self%p0+p+d))
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-   
-   end subroutine npzd_get_light_extinction
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
-!
-! !INTERFACE:
-   pure subroutine npzd_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
-!
-! !INPUT PARAMETERS:
-   type (type_npzd), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   REALTYPE                     :: n,p,z,d
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_n,n) ! nutrient
-   _GET_STATE_(self%id_p,p) ! phytoplankton
-   _GET_STATE_(self%id_z,z) ! zooplankton
-   _GET_STATE_(self%id_d,d) ! detritus
-   
-   ! Total nutrient is simply the sum of all variables.
-   _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-   end subroutine npzd_get_conserved_quantities
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
@@ -376,6 +299,83 @@
    _FABM_LOOP_END_
 
    end subroutine npzd_do
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the light extinction coefficient due to biogeochemical
+! variables
+!
+! !INTERFACE:
+   pure subroutine npzd_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+!
+! !INPUT PARAMETERS:
+   type (type_npzd), intent(in) :: self
+   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   REALTYPE                     :: p,d
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_p,p) ! phytoplankton
+   _GET_STATE_(self%id_d,d) ! detritus
+   
+   ! Self-shading with explicit contribution from background phytoplankton concentration.
+   _SET_EXTINCTION_(self%kc*(self%p0+p+d))
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+   
+   end subroutine npzd_get_light_extinction
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
+!
+! !INTERFACE:
+   pure subroutine npzd_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+!
+! !INPUT PARAMETERS:
+   type (type_npzd), intent(in) :: self
+   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   REALTYPE                     :: n,p,z,d
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_n,n) ! nutrient
+   _GET_STATE_(self%id_p,p) ! phytoplankton
+   _GET_STATE_(self%id_z,z) ! zooplankton
+   _GET_STATE_(self%id_d,d) ! detritus
+   
+   ! Total nutrient is simply the sum of all variables.
+   _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+   end subroutine npzd_get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------
