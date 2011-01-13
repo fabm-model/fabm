@@ -1,15 +1,15 @@
-!$Id: rmbm_types.F90 119 2010-12-27 14:23:18Z jornbr $
-#include "rmbm_driver.h"
+!$Id: fabm_types.F90 119 2010-12-27 14:23:18Z jornbr $
+#include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: rmbm_types --- Derived types used by 0D biogeochemical modules
+! !MODULE: fabm_types --- Derived types used by 0D biogeochemical modules
 !
 ! !INTERFACE:
-   module rmbm_types
+   module fabm_types
    
-   use rmbm_driver, only: fatal_error
+   use fabm_driver, only: fatal_error
    
    implicit none
 !
@@ -132,13 +132,13 @@
    type type_environment
 
       ! Pointer(s) to arrays that will hold values of "generic" variables, that is, all internal and external dependencies.
-      ! If _RMBM_MANAGE_DIAGNOSTICS_ is not set, these arrays contains diagnostic variables as well.
+      ! If _FABM_MANAGE_DIAGNOSTICS_ is not set, these arrays contains diagnostic variables as well.
       ! These arrays contain pointers to the state variable data as well.
       type (type_state   ), dimension(:), _ALLOCATABLE_ :: var    _NULL_ ! array of pointers to data of all pelagic variables (state and diagnostic)
       type (type_state_hz), dimension(:), _ALLOCATABLE_ :: var_hz _NULL_ ! array of pointers to data of all horizontal variables (state and diagnostic, surface and bottom)
       
-#ifdef _RMBM_MANAGE_DIAGNOSTICS_
-      ! RMBM will manage the current value of diagnostic variables itself.
+#ifdef _FABM_MANAGE_DIAGNOSTICS_
+      ! FABM will manage the current value of diagnostic variables itself.
       ! Declare the arrays for this purpose.
       REALTYPE,_ALLOCATABLE_ _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_    :: diag    _NULL_
       REALTYPE,_ALLOCATABLE_ _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ :: diag_hz _NULL_
@@ -394,7 +394,7 @@
       if (curinfo%initial_value<curinfo%minimum .or. curinfo%initial_value>curinfo%maximum) then
          write (text,*) 'Initial value',curinfo%initial_value,'for variable "'//trim(name)//'" lies&
                &outside allowed range',curinfo%minimum,'to',curinfo%maximum
-         call fatal_error('rmbm_types::register_state_variable',text)
+         call fatal_error('fabm_types::register_state_variable',text)
       end if
                   
       ! If this model runs as part of a larger collection,
@@ -466,7 +466,7 @@
          case (shape_full)
             variables_old => modelinfo%diagnostic_variables
          case default
-            call fatal_error('rmbm_types::register_diagnostic_variable','unknown value provided for "shape" argument.')
+            call fatal_error('fabm_types::register_diagnostic_variable','unknown value provided for "shape" argument.')
       end select
 
       ! Extend the state variable array and copy over old values.
@@ -502,8 +502,8 @@
                                            time_treatment=curinfo%time_treatment,                           &
                                            shape = shape_eff)
       else
-#ifdef _RMBM_MANAGE_DIAGNOSTICS_
-         ! RMBM manages diagnostic variables - the identifier will be the number of the
+#ifdef _FABM_MANAGE_DIAGNOSTICS_
+         ! FABM manages diagnostic variables - the identifier will be the number of the
          ! diagnostic variable in the global list maintained by the root of the model tree.
          id = ubound(variables_new,1)
 #else
@@ -513,7 +513,7 @@
 #endif
       end if
 
-#ifndef _RMBM_MANAGE_DIAGNOSTICS_
+#ifndef _FABM_MANAGE_DIAGNOSTICS_
       curinfo%dependencyid = id
 #endif
    end function register_diagnostic_variable
@@ -652,7 +652,7 @@
       
       ! If we reaached this point, the variable was not found.
       ! Throw an error if the variable must exist.
-      if (mustexist_eff) call fatal_error('rmbm_types::register_state_dependency', &
+      if (mustexist_eff) call fatal_error('fabm_types::register_state_dependency', &
          'state variable dependency '//trim(name)//' of model '//trim(modelinfo%name)//' was not found.')
       
    end function register_state_dependency
@@ -718,7 +718,7 @@
             statevarinfo => proot%state_variables
             diagvarinfo => proot%diagnostic_variables
          case default
-            call fatal_error('rmbm_types::register_dependency','Invalid shape argument given')
+            call fatal_error('fabm_types::register_dependency','Invalid shape argument given')
       end select
 
       n = ubound(source,1)
@@ -749,16 +749,16 @@
       id = n+1
 
       ! Determine whether this new dependency matches a registered state variable.
-      ! (in that case RMBM can provide the value internally)
+      ! (in that case FABM can provide the value internally)
       do i=1,ubound(statevarinfo,1)
          if (statevarinfo(i)%name==name) then
             statevarinfo(i)%dependencyid = id
          end if
       end do
 
-#ifdef _RMBM_MANAGE_DIAGNOSTICS_
+#ifdef _FABM_MANAGE_DIAGNOSTICS_
       ! Determine whether this new dependency matches a registered diagnostic variable.
-      ! (in that case RMBM can provide the value internally)
+      ! (in that case FABM can provide the value internally)
       do i=1,ubound(diagvarinfo,1)
          if (diagvarinfo(i)%name==name) then
             diagvarinfo(i)%dependencyid = id
@@ -771,7 +771,7 @@
 
 !-----------------------------------------------------------------------
    
-   end module rmbm_types
+   end module fabm_types
 
 !-----------------------------------------------------------------------
 ! Copyright under the GNU Public License - www.gnu.org

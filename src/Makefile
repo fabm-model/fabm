@@ -1,15 +1,15 @@
 include Rules.make
 
-LIB	= $(LIBDIR)/librmbm$(buildtype).a
+LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
 DOCSRC	= \
-rmbm.F90  \
-rmbm_types.F90
+fabm.F90  \
+fabm_types.F90
 
-RMBMMOD	= ${LIB}(rmbm.o)
-RMBMBASE = ${LIB}(rmbm_types.o)
+FABMMOD	= ${LIB}(fabm.o)
+FABMBASE = ${LIB}(fabm_types.o)
 
-all: makedirs $(RMBMMOD)
+all: makedirs $(FABMMOD)
         $(MOVE_MODULES_COMMAND)
 
 makedirs:
@@ -18,15 +18,15 @@ makedirs:
 driver:
 	$(MAKE) -C drivers/gotm
 
-$(RMBMBASE): driver
+$(FABMBASE): driver
 
-models: driver $(RMBMBASE)
+models: driver $(FABMBASE)
 	$(MAKE) -C models
 
-$(RMBMMOD): $(RMBMBASE) models
+$(FABMMOD): $(FABMBASE) models
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../doc/rmbm.tex 
+	$(PROTEX) $(DOCSRC) > ../doc/fabm.tex 
 	touch doc
 
 clean:

@@ -1,4 +1,4 @@
-#include "rmbm_driver.h"
+#include "fabm_driver.h"
 
 ! This file contains a set of FORTRAN subroutines that calculate the carbonate system 
 ! at any given point in marine space time, given values for 

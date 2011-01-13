@@ -27,8 +27,8 @@
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
 	<Files>
 		<Filter Name="Header Files" Filter="fi;fd">
-		<File RelativePath="..\..\include\rmbm.h"/>
-		<File RelativePath="..\..\src\drivers\gotm\rmbm_driver.h"/></Filter>
+		<File RelativePath="..\..\include\fabm.h"/>
+		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.h"/></Filter>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<Filter Name="models">
 		<Filter Name="co2sys">
@@ -39,7 +39,7 @@
 		<Filter Name="npzd">
 		<File RelativePath="..\..\src\models\npzd\npzd.F90"/></Filter></Filter>
 		<Filter Name="driver">
-		<File RelativePath="..\..\src\drivers\gotm\rmbm_driver.F90"/></Filter>
-		<File RelativePath="..\..\src\rmbm.F90"/>
-		<File RelativePath="..\..\src\rmbm_types.F90"/></Filter></Files>
+		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.F90"/></Filter>
+		<File RelativePath="..\..\src\fabm.F90"/>
+		<File RelativePath="..\..\src\fabm_types.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

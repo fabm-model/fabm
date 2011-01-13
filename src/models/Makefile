@@ -5,7 +5,7 @@
 
 include ../Rules.make
 
-LIB	= $(LIBDIR)/librmbm$(buildtype).a
+LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
 DOCSRC  += npzd/npzd.F90
 SUBDIRS += npzd
@@ -23,7 +23,7 @@ OBJS: $(SUBDIRS)
 	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../doc/rmbm.tex 
+	$(PROTEX) $(DOCSRC) > ../../doc/fabm.tex 
 	touch doc
 
 clean:

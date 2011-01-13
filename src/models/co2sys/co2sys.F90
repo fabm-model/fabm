@@ -1,21 +1,21 @@
 !$Id: co2sys.F90 119 2010-12-27 14:23:18Z jornbr $
-#include "rmbm_driver.h"
+#include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: rmbm_co2sys --- shell around CO2/carbonate system model by
-! Jerry Blackford (Plymouth Marine Laboratory), adapted for RMBM by Jorn Bruggeman
+! !MODULE: fabm_co2sys --- shell around CO2/carbonate system model by
+! Jerry Blackford (Plymouth Marine Laboratory), adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
-module rmbm_co2sys
+module fabm_co2sys
 !
 ! !DESCRIPTION:
 ! CO2 system model based on PML code.
 !
 ! !USES:
-   use rmbm_types
-   use rmbm_driver
+   use fabm_types
+   use fabm_driver
 
    implicit none
 
@@ -140,7 +140,7 @@ contains
 ! !IROUTINE: Right hand sides of carbonate system model
 !
 ! !INTERFACE:
-   subroutine co2sys_do(self,_RMBM_ARGS_DO_RHS_)
+   subroutine co2sys_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 !
@@ -149,7 +149,7 @@ contains
 !
 ! !INPUT PARAMETERS:
    type (type_co2sys),    intent(in) :: self
-   _DECLARE_RMBM_ARGS_DO_RHS_
+   _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -163,7 +163,7 @@ contains
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_LOOP_BEGIN_
+   _FABM_LOOP_BEGIN_
 
    ! Get environmental variables.
    _GET_DEPENDENCY_(self%id_temp,temp)
@@ -203,7 +203,7 @@ contains
    end if
 
    ! Leave spatial loops (if any)
-   _RMBM_LOOP_END_
+   _FABM_LOOP_END_
 
    end subroutine co2sys_do
 !EOC
@@ -214,7 +214,7 @@ contains
 ! !IROUTINE: Air-sea exchange for the carbonate system model
 !
 ! !INTERFACE:
-   subroutine co2sys_get_surface_exchange(self,_RMBM_ARGS_GET_SURFACE_EXCHANGE_)
+   subroutine co2sys_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
 !
 ! !DESCRIPTION:
 !
@@ -223,7 +223,7 @@ contains
 !
 ! !INPUT PARAMETERS:
    type (type_co2sys), intent(in)    :: self
-   _DECLARE_RMBM_ARGS_GET_SURFACE_EXCHANGE_
+   _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -244,7 +244,7 @@ contains
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_ENTER_HZ_
+   _FABM_ENTER_HZ_
 
    _GET_DEPENDENCY_(self%id_temp,temp)
    _GET_DEPENDENCY_(self%id_salt,salt)
@@ -269,21 +269,21 @@ contains
    ! Calculate air-sea exchange of CO2 (positive flux is from atmosphere to water)
    call Air_sea_exchange(temp, wnd, PCO2WATER*1.0D6, self%pCO2a, Henry, dens/1.0D3, fl)
    
-   ! Transfer surface exchange value to RMBM.
+   ! Transfer surface exchange value to FABM.
    _SET_SURFACE_EXCHANGE_(self%id_dic,fl/secs_pr_day)
 
    ! Also store surface flux as diagnostic variable.
    _SET_DIAG_HZ_(self%id_co2_flux,fl/secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _RMBM_LEAVE_HZ_
+   _FABM_LEAVE_HZ_
 
    end subroutine co2sys_get_surface_exchange
 !EOC
 
 !-----------------------------------------------------------------------
 
-end module rmbm_co2sys
+end module fabm_co2sys
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

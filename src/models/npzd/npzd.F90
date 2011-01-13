@@ -1,14 +1,14 @@
 !$Id: npzd.F90 119 2010-12-27 14:23:18Z jornbr $
-#include "rmbm_driver.h"
+#include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: rmbm_npzd --- NPZD biogeochemical model taken from GOTM,
-! adapted for RMBM by Jorn Bruggeman
+! !MODULE: fabm_npzd --- NPZD biogeochemical model taken from GOTM,
+! adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
-   module rmbm_npzd
+   module fabm_npzd
 !
 ! !DESCRIPTION:
 ! The NPZD (nutrient-phytoplankton-zooplankton-detritus) model described here
@@ -26,8 +26,8 @@
 ! see \cite{Burchardetal2005b}.
 !
 ! !USES:
-   use rmbm_types
-   use rmbm_driver
+   use fabm_types
+   use fabm_driver
 
 !  default: all is private.
    private
@@ -71,7 +71,7 @@
 !
 ! !DESCRIPTION:
 !  Here, the npzd namelist is read and te variables exported
-!  by the model are registered with RMBM.
+!  by the model are registered with FABM.
 !
 ! !USES:
    implicit none
@@ -184,11 +184,11 @@
 ! variables
 !
 ! !INTERFACE:
-   _PURE_ subroutine npzd_get_light_extinction(self,_RMBM_ARGS_GET_EXTINCTION_)
+   _PURE_ subroutine npzd_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd), intent(in) :: self
-   _DECLARE_RMBM_ARGS_GET_EXTINCTION_
+   _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -200,7 +200,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_LOOP_BEGIN_
+   _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_p,p) ! phytoplankton
@@ -210,7 +210,7 @@
    _SET_EXTINCTION_(self%kc*(self%p0+p+d))
 
    ! Leave spatial loops (if any)
-   _RMBM_LOOP_END_
+   _FABM_LOOP_END_
    
    end subroutine npzd_get_light_extinction
 !EOC
@@ -221,11 +221,11 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   _PURE_ subroutine npzd_get_conserved_quantities(self,_RMBM_ARGS_GET_CONSERVED_QUANTITIES_)
+   _PURE_ subroutine npzd_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    type (type_npzd), intent(in) :: self
-   _DECLARE_RMBM_ARGS_GET_CONSERVED_QUANTITIES_
+   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -237,7 +237,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_LOOP_BEGIN_
+   _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_n,n) ! nutrient
@@ -249,7 +249,7 @@
    _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
 
    ! Leave spatial loops (if any)
-   _RMBM_LOOP_END_
+   _FABM_LOOP_END_
 
    end subroutine npzd_get_conserved_quantities
 !EOC
@@ -260,7 +260,7 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine npzd_do(self,_RMBM_ARGS_DO_RHS_)
+   subroutine npzd_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -314,7 +314,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in) :: self
-   _DECLARE_RMBM_ARGS_DO_RHS_
+   _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -327,7 +327,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_LOOP_BEGIN_
+   _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_n,n) ! nutrient
@@ -373,7 +373,7 @@
    _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
    
    ! Leave spatial loops (if any)
-   _RMBM_LOOP_END_
+   _FABM_LOOP_END_
 
    end subroutine npzd_do
 !EOC
@@ -384,7 +384,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine npzd_do_ppdd(self,_RMBM_ARGS_DO_PPDD_)
+   subroutine npzd_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -438,7 +438,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_npzd),       intent(in) :: self
-   _DECLARE_RMBM_ARGS_DO_PPDD_
+   _DECLARE_FABM_ARGS_DO_PPDD_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -451,7 +451,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_LOOP_BEGIN_
+   _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_n,n) ! nutrient
@@ -500,7 +500,7 @@
    _SET_DIAG_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _RMBM_LOOP_END_
+   _FABM_LOOP_END_
 
    end subroutine npzd_do_ppdd
 !EOC
@@ -567,7 +567,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module rmbm_npzd
+   end module fabm_npzd
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

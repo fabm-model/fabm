@@ -1,17 +1,17 @@
 include ../../Rules.make
 
-LIB	= $(LIBDIR)/librmbm$(buildtype).a
+LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
 DOCSRC	= 
 
 OBJ   = \
-${LIB}(rmbm_driver.o)
+${LIB}(fabm_driver.o)
 
 all: $(OBJ)
         $(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../doc/rmbm.tex 
+	$(PROTEX) $(DOCSRC) > ../../../doc/fabm.tex 
 	touch doc
 
 clean:

@@ -4,7 +4,7 @@
 
 include ../../Rules.make
 
-LIB	= $(LIBDIR)/librmbm$(buildtype).a
+LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
 DOCSRC	=  mnemiopsis.F90
 
@@ -15,7 +15,7 @@ all: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../doc/rmbm.tex 
+	$(PROTEX) $(DOCSRC) > ../../../doc/fabm.tex 
 	touch doc
 
 clean:

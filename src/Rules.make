@@ -23,32 +23,31 @@ LDFLAGS		=
 #
 .PHONY: clean realclean distclean dummy
 
-# Top of this version of RMBM.
-ifndef RMBMDIR
-RMBMDIR  := $(HOME)/rmbm
+# Top of this version of FABM.
+ifndef FABMDIR
+FABMDIR  := $(HOME)/rmbm
 endif
 
 CPP	= /lib/cpp
 
-DEFINES += -DRMBM
-FEATURES += rmbm
-FEATURE_LIBS += -lrmbm$(buildtype)
-INCDIRS	+= -I$(RMBMDIR)/src/drivers/gotm
+FEATURES += fabm
+FEATURE_LIBS += -lfabm$(buildtype)
+INCDIRS	+= -I$(FABMDIR)/src/drivers/gotm
 
 # Directory related settings.
 
 ifndef BINDIR
-BINDIR	= $(RMBMDIR)/bin
+BINDIR	= $(FABMDIR)/bin
 endif
 
 ifndef LIBDIR
-LIBDIR	= $(RMBMDIR)/lib/$(FORTRAN_COMPILER)
+LIBDIR	= $(FABMDIR)/lib/$(FORTRAN_COMPILER)
 endif
 
 ifndef MODDIR
-MODDIR	= $(RMBMDIR)/modules/$(FORTRAN_COMPILER)
+MODDIR	= $(FABMDIR)/modules/$(FORTRAN_COMPILER)
 endif
-INCDIRS	+= -I/usr/local/include -I$(RMBMDIR)/include -I$(MODDIR)
+INCDIRS	+= -I/usr/local/include -I$(FABMDIR)/include -I$(MODDIR)
 
 # Normaly this should not be changed - unless you want something very specific.
 
@@ -77,7 +76,7 @@ DEFINES += -DPRODUCTION $(STATIC)
 FLAGS   = $(PROD_FLAGS) 
 endif
 
-include $(RMBMDIR)/compilers/compiler.$(FORTRAN_COMPILER)
+include $(FABMDIR)/compilers/compiler.$(FORTRAN_COMPILER)
 
 # For making the source code documentation.
 PROTEX	= protex -b -n -s

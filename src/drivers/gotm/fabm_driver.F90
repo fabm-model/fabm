@@ -1,7 +1,7 @@
-!$Id: rmbm_driver.F90 91 2010-12-10 11:59:58Z jornbr $
+!$Id: fabm_driver.F90 91 2010-12-10 11:59:58Z jornbr $
 #include "cppdefs.h"
 
-module rmbm_driver
+module fabm_driver
 
    implicit none
 
@@ -24,4 +24,4 @@ contains
      write (*,*) trim(msg)
    end subroutine log_message
 
-end module rmbm_driver
+end module fabm_driver

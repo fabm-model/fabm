@@ -1,25 +1,25 @@
-!$Id: rmbm.F90 119 2010-12-27 14:23:18Z jornbr $
-#include "rmbm_driver.h"
+!$Id: fabm.F90 119 2010-12-27 14:23:18Z jornbr $
+#include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: RMBM --- Repository of Marine Biogeochemcial Models
+! !MODULE: FABM --- Framework for Aquatic Biogeochemcial Models
 !
 ! !INTERFACE:
-   module rmbm
+   module fabm
 !
 ! !DESCRIPTION:
 ! This module encapsulates various specific biogeochemical models.
 !
 ! !USES:
-   use rmbm_types
-   use rmbm_driver
+   use fabm_types
+   use fabm_driver
 !   
 !  Reference specific biogeochemical models:
-   use rmbm_npzd
-   use rmbm_mnemiopsis
-   use rmbm_co2sys
+   use fabm_npzd
+   use fabm_mnemiopsis
+   use fabm_co2sys
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
    
    implicit none
@@ -28,15 +28,15 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_model, rmbm_create_model, rmbm_init, rmbm_set_domain, rmbm_do, &
-          rmbm_link_benthos_state_data,rmbm_link_state_data, &
-          rmbm_link_data,rmbm_link_data_hz,rmbm_get_variable_id, &
-          rmbm_get_diagnostic_data, rmbm_get_diagnostic_data_hz, &
-          rmbm_check_state, rmbm_get_vertical_movement, rmbm_get_light_extinction, &
-          rmbm_get_conserved_quantities, rmbm_get_surface_exchange, rmbm_do_benthos
+   public type_model, fabm_create_model, fabm_init, fabm_set_domain, fabm_do, &
+          fabm_link_benthos_state_data,fabm_link_state_data, &
+          fabm_link_data,fabm_link_data_hz,fabm_get_variable_id, &
+          fabm_get_diagnostic_data, fabm_get_diagnostic_data_hz, &
+          fabm_check_state, fabm_get_vertical_movement, fabm_get_light_extinction, &
+          fabm_get_conserved_quantities, fabm_get_surface_exchange, fabm_do_benthos
 
-#ifndef _RMBM_MANAGE_DIAGNOSTICS_
-   public rmbm_link_diagnostic_data_hz,rmbm_link_diagnostic_data
+#ifndef _FABM_MANAGE_DIAGNOSTICS_
+   public fabm_link_diagnostic_data_hz,fabm_link_diagnostic_data
 #endif
 !
 ! !PRIVATE DATA MEMBERS:
@@ -77,7 +77,7 @@
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
       
       ! Pointer to the current spatially explicit environment.
-      ! It is assigned to during initialization by RMBM.
+      ! It is assigned to during initialization by FABM.
       type (type_environment),pointer :: environment
       
    end type type_model
@@ -91,34 +91,34 @@
 !
    ! Subroutine calculating local temporal derivatives either as a right-hand side vector,
    ! or production/destruction matrices.
-   interface rmbm_do
-      module procedure rmbm_do_rhs
-      module procedure rmbm_do_ppdd
+   interface fabm_do
+      module procedure fabm_do_rhs
+      module procedure fabm_do_ppdd
    end interface
 
    ! Subroutine calculating local temporal derivatives of bottom layer (benthos & pelagic)
    ! either as a right-hand side vector, or production/destruction matrices.
-   interface rmbm_do_benthos
-      module procedure rmbm_do_benthos_rhs
-      module procedure rmbm_do_benthos_ppdd
+   interface fabm_do_benthos
+      module procedure fabm_do_benthos_rhs
+      module procedure fabm_do_benthos_ppdd
    end interface
    
-   ! Subroutine for providing RMBM with variable data on the full spatial domain.
-   interface rmbm_link_data
-      module procedure rmbm_link_data
-      module procedure rmbm_link_data_char
+   ! Subroutine for providing FABM with variable data on the full spatial domain.
+   interface fabm_link_data
+      module procedure fabm_link_data
+      module procedure fabm_link_data_char
    end interface
 
-   ! Subroutine for providing RMBM with variable data on horizontal slices of the domain.
-   interface rmbm_link_data_hz
-      module procedure rmbm_link_data_hz
-      module procedure rmbm_link_data_hz_char
+   ! Subroutine for providing FABM with variable data on horizontal slices of the domain.
+   interface fabm_link_data_hz
+      module procedure fabm_link_data_hz
+      module procedure fabm_link_data_hz_char
    end interface
    
    ! Function for creating new models based on integer id or name.
-   interface rmbm_create_model
-      module procedure rmbm_create_model_by_id
-      module procedure rmbm_create_model_by_name
+   interface fabm_create_model
+      module procedure fabm_create_model_by_id
+      module procedure fabm_create_model_by_name
    end interface
 !
 ! !REVISION HISTORY:!
@@ -194,10 +194,10 @@
    do i=1,ubound(modelids,1)
       if (modelids(i)==id) then
          write (text,fmt='(a,i4,a)') 'model identifier ',id,' has already been registered.'
-         call fatal_error('rmbm::register_model_name',text)
+         call fatal_error('fabm::register_model_name',text)
       end if
       if (modelnames(i)==name) &
-         call fatal_error('rmbm::register_model_name','model name "'//trim(name)//'" has already been registered.')
+         call fatal_error('fabm::register_model_name','model name "'//trim(name)//'" has already been registered.')
    end do
 
    ! Copy current identifiers and names to temporary storage.
@@ -264,8 +264,8 @@
    end do
    
    ! Model identifier was not found - throw an error.
-   write (text,fmt='(i4,a)') id,' is not a valid model identifier registered in rmbm::register_models.'
-   call fatal_error('rmbm::get_model_name',text)
+   write (text,fmt='(i4,a)') id,' is not a valid model identifier registered in fabm::register_models.'
+   call fatal_error('fabm::get_model_name',text)
    
    end function get_model_name
 !EOC
@@ -306,7 +306,7 @@
    end do
 
    ! Model name was not found - throw an error.
-   call fatal_error('rmbm::get_model_id',trim(name)//' is not a valid model name registered in rmbm::register_models.')
+   call fatal_error('fabm::get_model_id',trim(name)//' is not a valid model name registered in fabm::register_models.')
    
    end function get_model_id
 !EOC
@@ -319,7 +319,7 @@
 ! identifier is omitted.
 !
 ! !INTERFACE:
-   function rmbm_create_model_by_id(modelid,parent) result(model)
+   function fabm_create_model_by_id(modelid,parent) result(model)
 !
 ! !USES:
    implicit none
@@ -364,7 +364,7 @@
    if (present(parent)) then
       ! Make sure the provided parent model is a container.
       if (parent%id.ne.model_container_id) &
-         call fatal_error('rmbm_create_model','A child model can only be added to a container, not to an existing model.')
+         call fatal_error('fabm_create_model','A child model can only be added to a container, not to an existing model.')
 
       ! Link parent container to child.
       if (associated(parent%firstchild)) then
@@ -389,7 +389,7 @@
    else
       ! No parent provided - ensure that the created model is a container.
       if (model%id.ne.model_container_id) &
-         call fatal_error('rmbm_create_model_by_id','Non-container models must be created as children of an existing container.')
+         call fatal_error('fabm_create_model_by_id','Non-container models must be created as children of an existing container.')
    end if
 
    if (model%id.ne.model_container_id) then
@@ -414,7 +414,7 @@
       curmodel%nextmodel => model
    end if
    
-   end function rmbm_create_model_by_id
+   end function fabm_create_model_by_id
 !EOC
 
 !-----------------------------------------------------------------------
@@ -425,7 +425,7 @@
 ! identifier is omitted.
 !
 ! !INTERFACE:
-   function rmbm_create_model_by_name(modelname,parent) result(model)
+   function fabm_create_model_by_name(modelname,parent) result(model)
 !
 ! !USES:
    implicit none
@@ -442,12 +442,12 @@
 !BOC
    ! Obtain the integer model identifier, and redirect to the function operating on that.
    if (present(parent)) then
-      model => rmbm_create_model_by_id(get_model_id(modelname),parent=parent)
+      model => fabm_create_model_by_id(get_model_id(modelname),parent=parent)
    else
-      model => rmbm_create_model_by_id(get_model_id(modelname))
+      model => fabm_create_model_by_id(get_model_id(modelname))
    end if
    
-   end function rmbm_create_model_by_name
+   end function fabm_create_model_by_name
 !EOC
 
 !-----------------------------------------------------------------------
@@ -456,7 +456,7 @@
 ! !IROUTINE: Initialise the biogeochemical model tree.
 !
 ! !INTERFACE:
-   subroutine rmbm_init(root,nmlunit)
+   subroutine fabm_init(root,nmlunit)
 !
 ! !USES:
    implicit none
@@ -475,11 +475,11 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Check whether we are operating on the root of a model tree.
-   if (associated(root%parent)) call fatal_error('rmbm_init','rmbm_init can only be called on the root of a model tree.')
+   if (associated(root%parent)) call fatal_error('fabm_init','fabm_init can only be called on the root of a model tree.')
 
    ! Check whether the unit provided by the host actually refers to an open file.
    inquire(nmlunit,opened=isopen)
-   if (.not.isopen) call fatal_error('rmbm_init','input configuration file has not been opened yet.')
+   if (.not.isopen) call fatal_error('fabm_init','input configuration file has not been opened yet.')
    
    ! Initialize the model (this automatically initializes all contained models)
    call init_model(root,nmlunit)
@@ -500,7 +500,7 @@
    ! Transfer pointer to environment to all child models.
    call set_model_data_members(root,root%environment)
 
-   end subroutine rmbm_init
+   end subroutine fabm_init
 !EOC
 
 
@@ -593,12 +593,12 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Tell RMBM about the extents of the spatial domain.
+! !IROUTINE: Tell FABM about the extents of the spatial domain.
 ! This allows it to create spatially-explicit arrays for internal use.
-! Currently only needed if preprocessor _RMBM_MANAGE_DIAGNOSTICS_ is defined.
+! Currently only needed if preprocessor _FABM_MANAGE_DIAGNOSTICS_ is defined.
 !
 ! !INTERFACE:
-   subroutine rmbm_set_domain(root,LOCATION)
+   subroutine fabm_set_domain(root,LOCATION)
 !
 ! !USES:
    implicit none
@@ -615,8 +615,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifdef _RMBM_MANAGE_DIAGNOSTICS_
-   ! RMBM will manage and store current values of diagnostic variables.
+#ifdef _FABM_MANAGE_DIAGNOSTICS_
+   ! FABM will manage and store current values of diagnostic variables.
 
    ! Allocate arrays for diagnostic variables defined on the full domain and on horizontonal slices.
    allocate(root%environment%diag   (ubound(root%info%diagnostic_variables,1) _ARG_LOCATION_))
@@ -629,15 +629,15 @@
    ! If diagnostic variables also appear as dependency, send the corresponding array slice for generic read-only access.
    do i=1,ubound(root%info%diagnostic_variables,1)
       if (root%info%diagnostic_variables(i)%dependencyid.ne.id_not_used) &
-         call rmbm_link_data(root,root%info%diagnostic_variables(i)%dependencyid,root%environment%diag(i _ARG_LOCATION_DIMENSIONS_))
+         call fabm_link_data(root,root%info%diagnostic_variables(i)%dependencyid,root%environment%diag(i _ARG_LOCATION_DIMENSIONS_))
    end do
    do i=1,ubound(root%info%diagnostic_variables_hz,1)
       if (root%info%diagnostic_variables_hz(i)%dependencyid.ne.id_not_used) &
-         call rmbm_link_data_hz(root,root%info%diagnostic_variables_hz(i)%dependencyid,root%environment%diag_hz(i _ARG_LOCATION_DIMENSIONS_HZ_))
+         call fabm_link_data_hz(root,root%info%diagnostic_variables_hz(i)%dependencyid,root%environment%diag_hz(i _ARG_LOCATION_DIMENSIONS_HZ_))
    end do
 #endif
 
-   end subroutine rmbm_set_domain
+   end subroutine fabm_set_domain
 !EOC
 
 !-----------------------------------------------------------------------
@@ -678,10 +678,10 @@
 !
 ! !IROUTINE: Obtain the integer variable identifier for the given variable
 ! name. Returns id_not_used if the variable name is unknown.
-! The variable identifier can be used later in calls to rmbm_link_data/rmbm_link_data_hz.
+! The variable identifier can be used later in calls to fabm_link_data/fabm_link_data_hz.
 !
 ! !INTERFACE:
-   function rmbm_get_variable_id(model,name,shape) result(id)
+   function fabm_get_variable_id(model,name,shape) result(id)
 !
 ! !USES:
    implicit none
@@ -721,18 +721,18 @@
    ! Return default identifier: variable not found.
    id = id_not_used
    
-   end function rmbm_get_variable_id
+   end function fabm_get_variable_id
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! the specified variable, defined on the full spatial domain. The variable
 ! is identified by its integer id.
 !
 ! !INTERFACE:
-   subroutine rmbm_link_data(model,id,dat)
+   subroutine fabm_link_data(model,id,dat)
 !
 ! !USES:
    implicit none
@@ -751,18 +751,18 @@
    ! Store a pointer to the provided array.
    model%environment%var(id)%data => dat
    
-   end subroutine rmbm_link_data
+   end subroutine fabm_link_data
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! the specified variable, defined on a horizontal slice of the spatial domain.
 ! The variable is identified by its name.
 !
 ! !INTERFACE:
-   subroutine rmbm_link_data_char(model,name,dat)
+   subroutine fabm_link_data_char(model,name,dat)
 !
 ! !USES:
    implicit none
@@ -781,23 +781,23 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Obtain integer identifier of the variable.
-   id = rmbm_get_variable_id(model,name,shape_full)
+   id = fabm_get_variable_id(model,name,shape_full)
    
    ! Only link the data if needed (if the variable identifier is valid).
-   if (id.ne.id_not_used) call rmbm_link_data(model,id,dat)
+   if (id.ne.id_not_used) call fabm_link_data(model,id,dat)
    
-   end subroutine rmbm_link_data_char
+   end subroutine fabm_link_data_char
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! the specified variable, defined on a horizontal slice of the spatial domain.
 ! The variable is identified by its integer id.
 !
 ! !INTERFACE:
-   subroutine rmbm_link_data_hz(model,id,dat)
+   subroutine fabm_link_data_hz(model,id,dat)
 !
 ! !USES:
    implicit none
@@ -816,18 +816,18 @@
    ! Store a pointer to the provided array.
    model%environment%var_hz(id)%data => dat
    
-   end subroutine rmbm_link_data_hz
+   end subroutine fabm_link_data_hz
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! the specified variable, defined on a horizontal slice of the spatial domain.
 ! The variable is identified by its name.
 !
 ! !INTERFACE:
-   subroutine rmbm_link_data_hz_char(model,name,dat)
+   subroutine fabm_link_data_hz_char(model,name,dat)
 !
 ! !USES:
    implicit none
@@ -846,22 +846,22 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Obtain integer identifier of the variable.
-   id = rmbm_get_variable_id(model,name,shape_hz)
+   id = fabm_get_variable_id(model,name,shape_hz)
 
    ! Only link the data if needed (if the variable identifier is valid).
-   if (id.ne.id_not_used) call rmbm_link_data_hz(model,id,dat)
+   if (id.ne.id_not_used) call fabm_link_data_hz(model,id,dat)
    
-   end subroutine rmbm_link_data_hz_char
+   end subroutine fabm_link_data_hz_char
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! a single pelagic state variable.
 !
 ! !INTERFACE:
-   subroutine rmbm_link_state_data(model,id,dat)
+   subroutine fabm_link_state_data(model,id,dat)
 !
 ! !USES:
    implicit none
@@ -880,19 +880,19 @@
    ! Determine whether the state variable also features as dependency. If so, also attach the
    ! array slice to the dependency.
    if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
-      call rmbm_link_data(model,model%info%state_variables(id)%dependencyid,dat)
+      call fabm_link_data(model,model%info%state_variables(id)%dependencyid,dat)
       
-   end subroutine rmbm_link_state_data
+   end subroutine fabm_link_state_data
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! a single benthic state variable.
 !
 ! !INTERFACE:
-   subroutine rmbm_link_benthos_state_data(model,id,dat)
+   subroutine fabm_link_benthos_state_data(model,id,dat)
 !
 ! !USES:
    implicit none
@@ -911,9 +911,9 @@
    ! Determine whether the state variable also features as dependency. If so, also attach the
    ! array slice to the dependency.
    if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
-      call rmbm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat)
+      call fabm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat)
       
-   end subroutine rmbm_link_benthos_state_data
+   end subroutine fabm_link_benthos_state_data
 !EOC
 
 !-----------------------------------------------------------------------
@@ -923,7 +923,7 @@
 ! a single diagnostic variable, defined on the full spatial domain.
 !
 ! !INTERFACE:
-   function rmbm_get_diagnostic_data(model,id) result(dat)
+   function fabm_get_diagnostic_data(model,id) result(dat)
 !
 ! !USES:
    implicit none
@@ -940,13 +940,13 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve a pointer to the array holding the requested data.
-#ifdef _RMBM_MANAGE_DIAGNOSTICS_
+#ifdef _FABM_MANAGE_DIAGNOSTICS_
    dat => model%environment%diag(id _ARG_LOCATION_DIMENSIONS_)
 #else
    dat => model%environment%var(model%info%diagnostic_variables(id)%dependencyid)%data
 #endif
 
-   end function rmbm_get_diagnostic_data
+   end function fabm_get_diagnostic_data
 !EOC
 
 !-----------------------------------------------------------------------
@@ -957,7 +957,7 @@
 ! spatial domain.
 !
 ! !INTERFACE:
-   function rmbm_get_diagnostic_data_hz(model,id) result(dat)
+   function fabm_get_diagnostic_data_hz(model,id) result(dat)
 !
 ! !USES:
    implicit none
@@ -974,25 +974,25 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve a pointer to the array holding the requested data.
-#ifdef _RMBM_MANAGE_DIAGNOSTICS_
+#ifdef _FABM_MANAGE_DIAGNOSTICS_
    dat => model%environment%diag_hz(id _ARG_LOCATION_DIMENSIONS_HZ_)
 #else
    dat => model%environment%var_hz(model%info%diagnostic_variables_hz(id)%dependencyid)%data
 #endif
 
-   end function rmbm_get_diagnostic_data_hz
+   end function fabm_get_diagnostic_data_hz
 !EOC
 
-#ifndef _RMBM_MANAGE_DIAGNOSTICS_
+#ifndef _FABM_MANAGE_DIAGNOSTICS_
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! a single diagnostic state variable, defined on the full spatial domain.
 !
 ! !INTERFACE:
-   subroutine rmbm_link_diagnostic_data(model,id,dat)
+   subroutine fabm_link_diagnostic_data(model,id,dat)
 !
 ! !USES:
    implicit none
@@ -1008,22 +1008,22 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Diagnostic data is managed by the host, which means that RMBM treats it like a generic
+   ! Diagnostic data is managed by the host, which means that FABM treats it like a generic
    ! variable (e.g., an external dependency). Redirect to the generic function.
-   call rmbm_link_data(model,model%info%diagnostic_variables(id)%dependencyid,dat)
+   call fabm_link_data(model,model%info%diagnostic_variables(id)%dependencyid,dat)
    
-   end subroutine rmbm_link_diagnostic_data
+   end subroutine fabm_link_diagnostic_data
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Provide RMBM with (a pointer to) the array with data for
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! a single diagnostic state variable, defined on a horizontal slice of the
 ! spatial domain.
 !
 ! !INTERFACE:
-   subroutine rmbm_link_diagnostic_data_hz(model,id,dat)
+   subroutine fabm_link_diagnostic_data_hz(model,id,dat)
 !
 ! !USES:
    implicit none
@@ -1039,11 +1039,11 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Diagnostic data is managed by the host, which means that RMBM treats it like a generic
+   ! Diagnostic data is managed by the host, which means that FABM treats it like a generic
    ! variable (e.g., an external dependency). Redirect to the generic function.
-   call rmbm_link_data_hz(model,model%info%diagnostic_variables_hz(id)%dependencyid,dat)
+   call fabm_link_data_hz(model,model%info%diagnostic_variables_hz(id)%dependencyid,dat)
    
-   end subroutine rmbm_link_diagnostic_data_hz
+   end subroutine fabm_link_diagnostic_data_hz
 !EOC
 
 #endif
@@ -1055,7 +1055,7 @@
 ! model tree.
 !
 ! !INTERFACE:
-   subroutine rmbm_do_rhs(root,_LOCATION_ND_,dy)
+   subroutine fabm_do_rhs(root,_LOCATION_ND_,dy)
 !
 ! !USES:
    implicit none
@@ -1075,11 +1075,11 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_RHS_ _RMBM_ARGS_ND_IN_,dy
+#define _INPUT_ARGS_DO_RHS_ _FABM_ARGS_ND_IN_,dy
 
    ! Ensure that this subroutine is called on the root of the model tree only.
    if (associated(root%parent)) &
-      call fatal_error('rmbm_do_rhs','rmbm_do_rhs may only be called on the root of the model tree, or on non-container models.')
+      call fatal_error('fabm_do_rhs','fabm_do_rhs may only be called on the root of the model tree, or on non-container models.')
 
    ! Enumerate all non-container models in the tree.
    model => root%nextmodel
@@ -1093,19 +1093,19 @@
             call co2sys_do(model%co2sys,_INPUT_ARGS_DO_RHS_)
          ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
          ! matrices instead of a temporal derivative vector. In that case, add the model to
-         ! rmbm_do_ppdd.
+         ! fabm_do_ppdd.
          !
          ! Typical model call:
          ! call MODELNAME_do(model%MODELNAME,_INPUT_ARGS_DO_RHS_)
          
          case default
-           call fatal_error('rmbm_do_rhs','model "'//trim(model%info%name)//'" does not provide a subroutine &
+           call fatal_error('fabm_do_rhs','model "'//trim(model%info%name)//'" does not provide a subroutine &
               &that calculates local temporal derivatives.')
       end select
       model => model%nextmodel
    end do
 
-   end subroutine rmbm_do_rhs
+   end subroutine fabm_do_rhs
 !EOC
 
 
@@ -1116,7 +1116,7 @@
 ! model tree in the form of production and destruction matrices.
 !
 ! !INTERFACE:
-   recursive subroutine rmbm_do_ppdd(root,_LOCATION_ND_,pp,dd)
+   recursive subroutine fabm_do_ppdd(root,_LOCATION_ND_,pp,dd)
 !
 ! !USES:
    implicit none
@@ -1136,7 +1136,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_PPDD_ _RMBM_ARGS_ND_IN_,pp,dd
+#define _INPUT_ARGS_DO_PPDD_ _FABM_ARGS_ND_IN_,pp,dd
 
    ! Enumerate all non-container models in the tree.
    model => root%nextmodel
@@ -1152,13 +1152,13 @@
          ! call MODELNAME_do_ppdd(model%MODELNAME,_INPUT_ARGS_DO_PPDD_)
          
          case default
-           call fatal_error('rmbm_do_ppdd','model "'//trim(model%info%name)//'" does not provide a subroutine &
+           call fatal_error('fabm_do_ppdd','model "'//trim(model%info%name)//'" does not provide a subroutine &
               &that calculates local production/destruction matrices.')
       end select
       model => model%nextmodel
    end do
 
-   end subroutine rmbm_do_ppdd
+   end subroutine fabm_do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1168,7 +1168,7 @@
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   subroutine rmbm_check_state(root,_LOCATION_ND_,repair,valid)
+   subroutine fabm_check_state(root,_LOCATION_ND_,repair,valid)
 !
 ! !USES:
    implicit none
@@ -1189,7 +1189,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_CHECK_STATE_ _RMBM_ARGS_ND_IN_,repair,valid
+#define _INPUT_ARGS_CHECK_STATE_ _FABM_ARGS_ND_IN_,repair,valid
 
    valid = .true.
 
@@ -1218,7 +1218,7 @@
    ! This is always done, independently of any model-specific checks that may have been called above.
    
    ! Enter spatial loops (if any)
-   _RMBM_LOOP_BEGIN_
+   _FABM_LOOP_BEGIN_
 
    ! Check absolute variable boundaries specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
@@ -1238,9 +1238,9 @@
    end do
 
    ! Leave spatial loops (if any)
-   _RMBM_LOOP_END_
+   _FABM_LOOP_END_
 
-   end subroutine rmbm_check_state
+   end subroutine fabm_check_state
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1251,7 +1251,7 @@
 ! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
-   subroutine rmbm_get_surface_exchange(root,LOCATION,flux)
+   subroutine fabm_get_surface_exchange(root,LOCATION,flux)
 !
 ! !USES:
    implicit none
@@ -1270,7 +1270,7 @@
    type (type_model), pointer       :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_SURFACE_EXCHANGE_ _RMBM_ARGS_IN_0D_,flux
+#define _INPUT_ARGS_GET_SURFACE_EXCHANGE_ _FABM_ARGS_IN_0D_,flux
    flux = _ZERO_
    model => root%nextmodel
    do while (associated(model))
@@ -1286,7 +1286,7 @@
       model => model%nextmodel
    end do
 
-   end subroutine rmbm_get_surface_exchange
+   end subroutine fabm_get_surface_exchange
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1299,7 +1299,7 @@
 ! Positive values denote state variable increases, negative values state variable decreases.
 !
 ! !INTERFACE:
-   subroutine rmbm_do_benthos_rhs(root,LOCATION,flux_pel,flux_ben)
+   subroutine fabm_do_benthos_rhs(root,LOCATION,flux_pel,flux_ben)
 !
 ! !USES:
    implicit none
@@ -1318,7 +1318,7 @@
    type (type_model), pointer               :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_RHS_ _RMBM_ARGS_IN_0D_,flux_pel,flux_ben
+#define _INPUT_ARGS_DO_BENTHOS_RHS_ _FABM_ARGS_IN_0D_,flux_pel,flux_ben
 
    model => root%nextmodel
    do while (associated(model))
@@ -1332,7 +1332,7 @@
       model => model%nextmodel
    end do
 
-   end subroutine rmbm_do_benthos_rhs
+   end subroutine fabm_do_benthos_rhs
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1344,7 +1344,7 @@
 ! for the pelagic, and variable units/s for the benthos.
 !
 ! !INTERFACE:
-   subroutine rmbm_do_benthos_ppdd(root,LOCATION,pp,dd,benthos_offset)
+   subroutine fabm_do_benthos_ppdd(root,LOCATION,pp,dd,benthos_offset)
 !
 ! !USES:
    implicit none
@@ -1364,7 +1364,7 @@
    type (type_model), pointer               :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_PPDD_ _RMBM_ARGS_IN_0D_,pp,dd,benthos_offset
+#define _INPUT_ARGS_DO_BENTHOS_PPDD_ _FABM_ARGS_IN_0D_,pp,dd,benthos_offset
 
    model => root%nextmodel
    do while (associated(model))
@@ -1378,7 +1378,7 @@
       model => model%nextmodel
    end do
 
-   end subroutine rmbm_do_benthos_ppdd
+   end subroutine fabm_do_benthos_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1389,7 +1389,7 @@
 ! and positive values indicate movemment towards the surface, e.g., floating.
 !
 ! !INTERFACE:
-   subroutine rmbm_get_vertical_movement(root,_LOCATION_ND_,vertical_movement)
+   subroutine fabm_get_vertical_movement(root,_LOCATION_ND_,vertical_movement)
 !
 ! !USES:
    implicit none
@@ -1410,7 +1410,7 @@
    _TYPE_STATE_VARIABLE_ID_                 :: varid
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _RMBM_ARGS_ND_IN_,vertical_movement
+#define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _FABM_ARGS_ND_IN_,vertical_movement
 
    model => root%nextmodel
    do while (associated(model))
@@ -1425,7 +1425,7 @@
             ! Default: use the constant sinking rates specified in state variable properties.
 
             ! Enter spatial loops (if any)
-            _RMBM_LOOP_BEGIN_
+            _FABM_LOOP_BEGIN_
 
             ! Use variable-specific vertical movement rates.
             do i=1,ubound(model%info%state_variables,1)
@@ -1434,12 +1434,12 @@
             end do
 
             ! Leave spatial loops (if any)
-            _RMBM_LOOP_END_
+            _FABM_LOOP_END_
       end select
       model => model%nextmodel
    end do
 
-   end subroutine rmbm_get_vertical_movement
+   end subroutine fabm_get_vertical_movement
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1449,7 +1449,7 @@
 ! variables
 !
 ! !INTERFACE:
-   subroutine rmbm_get_light_extinction(root,_LOCATION_ND_,extinction)
+   subroutine fabm_get_light_extinction(root,_LOCATION_ND_,extinction)
 !
 ! !INPUT PARAMETERS:
    type (type_model),           intent(inout) :: root
@@ -1466,7 +1466,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_LIGHT_EXTINCTION_ _RMBM_ARGS_ND_IN_,extinction
+#define _INPUT_ARGS_GET_LIGHT_EXTINCTION_ _FABM_ARGS_ND_IN_,extinction
 
    extinction = _ZERO_
    model => root%nextmodel
@@ -1484,7 +1484,7 @@
             ! Default: use constant specific light extinction values specified in the state variable properties
             
             ! Enter spatial loops (if any)
-            _RMBM_LOOP_BEGIN_
+            _FABM_LOOP_BEGIN_
             
             ! Use variable-specific light extinction coefficients.
             do i=1,ubound(model%info%state_variables,1)
@@ -1496,12 +1496,12 @@
             end do
             
             ! Enter spatial loops (if any)
-            _RMBM_LOOP_END_
+            _FABM_LOOP_END_
       end select
       model => model%nextmodel
    end do
 
-   end subroutine rmbm_get_light_extinction
+   end subroutine fabm_get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1510,7 +1510,7 @@
 ! !IROUTINE: Get the total of all conserved quantities
 !
 ! !INTERFACE:
-   subroutine rmbm_get_conserved_quantities(root,_LOCATION_ND_,sums)
+   subroutine fabm_get_conserved_quantities(root,_LOCATION_ND_,sums)
 !
 ! !USES:
    implicit none
@@ -1528,7 +1528,7 @@
 
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_CONSERVED_QUANTITIES_ _RMBM_ARGS_ND_IN_,sums
+#define _INPUT_ARGS_GET_CONSERVED_QUANTITIES_ _FABM_ARGS_ND_IN_,sums
 
    sums = _ZERO_
    model => root%nextmodel
@@ -1545,17 +1545,17 @@
          case default
             ! Default: the model does not describe any conserved quantities.
             if (ubound(model%info%conserved_quantities,1).gt.0) &
-               call fatal_error('rmbm_get_conserved_quantities','model '//trim(model%info%name)//' registered &
+               call fatal_error('fabm_get_conserved_quantities','model '//trim(model%info%name)//' registered &
                     &one or more conserved quantities, but a function that provides sums of these &
                     &quantities has not been provided.')
       end select
       model => model%nextmodel
    end do
 
-   end subroutine rmbm_get_conserved_quantities
+   end subroutine fabm_get_conserved_quantities
 !EOC
 
-end module rmbm
+end module fabm
 
 !-----------------------------------------------------------------------
 ! Copyright under the GNU Public License - www.gnu.org

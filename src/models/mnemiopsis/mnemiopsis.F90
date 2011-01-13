@@ -1,14 +1,14 @@
 !$Id: mnemiopsis.F90 119 2010-12-27 14:23:18Z jornbr $
-#include "rmbm_driver.h"
+#include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: rmbm_mnemiopsis --- Mnemiopsis (comb jelly species) model
-! by Baris Salihoglu (IMS METU), adapted for RMBM by Jorn Bruggeman
+! !MODULE: fabm_mnemiopsis --- Mnemiopsis (comb jelly species) model
+! by Baris Salihoglu (IMS METU), adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
-   module rmbm_mnemiopsis
+   module fabm_mnemiopsis
 !
 ! !DESCRIPTION:
 ! Black Sea comb jelly (Mnemiopsis) model based on code by Baris Salihoglu.
@@ -16,8 +16,8 @@
 ! prey to the Mnemiopsis population.
 !
 ! !USES:
-   use rmbm_types
-   use rmbm_driver
+   use fabm_types
+   use fabm_driver
 
 !  default: all is private.
    private
@@ -131,7 +131,7 @@
 ! !IROUTINE: Right hand sides of Mnemiopsis model
 !
 ! !INTERFACE:
-   _PURE_ subroutine mnemiopsis_do(self,_RMBM_ARGS_DO_RHS_)
+   _PURE_ subroutine mnemiopsis_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 !
@@ -140,7 +140,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_mnemiopsis), intent(in) :: self
-   _DECLARE_RMBM_ARGS_DO_RHS_
+   _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman, Baris Salihoglu
@@ -183,7 +183,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _RMBM_LOOP_BEGIN_
+   _FABM_LOOP_BEGIN_
 
    ! Obtain current values for environmental variables
    _GET_DEPENDENCY_(self%id_temp,temp)
@@ -391,7 +391,7 @@
    _SET_ODE_(self%id_morttarget, (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale/secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _RMBM_LOOP_END_
+   _FABM_LOOP_END_
 
    end subroutine mnemiopsis_do
 !EOC
@@ -410,7 +410,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module rmbm_mnemiopsis
+   end module fabm_mnemiopsis
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
