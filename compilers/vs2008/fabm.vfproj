@@ -29,6 +29,17 @@
 		<Filter Name="Header Files" Filter="fi;fd">
 		<File RelativePath="..\..\include\fabm.h"/>
 		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.h"/></Filter>
+		<Filter Name="Make Files">
+		<Filter Name="models">
+		<Filter Name="co2sys">
+		<File RelativePath="..\..\src\models\co2sys\Makefile"/></Filter>
+		<Filter Name="mnemiopsis">
+		<File RelativePath="..\..\src\models\mnemiopsis\Makefile"/></Filter>
+		<Filter Name="npzd">
+		<File RelativePath="..\..\src\models\npzd\Makefile"/></Filter>
+		<File RelativePath="..\..\src\models\Makefile"/></Filter>
+		<File RelativePath="..\..\src\Makefile"/>
+		<File RelativePath="..\..\src\Rules.make"/></Filter>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<Filter Name="models">
 		<Filter Name="co2sys">
