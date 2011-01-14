@@ -25,7 +25,7 @@ LDFLAGS		=
 
 # Top of this version of FABM.
 ifndef FABMDIR
-FABMDIR := $(HOME)/fabm
+FABMDIR := $(HOME)/fabm-svn
 endif
 
 ifndef FABMHOST
