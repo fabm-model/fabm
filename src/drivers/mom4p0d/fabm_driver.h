@@ -1,4 +1,4 @@
-#define RMBM_DIMENSIONS 3
+#define FABM_DIMENSIONS 3
 
 ! Variable name and dimension specifyer for full bio fields
 #define LOCATION ii,jj,kk
@@ -12,5 +12,5 @@
 #define VARIABLE_1DLOOP ii
 #define LOCATION_1DLOOP jj,kk
 
-#include "rmbm.h"
+#include "fabm.h"
 

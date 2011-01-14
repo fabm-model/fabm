@@ -105,7 +105,7 @@ use ocmip2_cfc_mod
 use ocmip2_biotic_mod
 use ocean_bgc_restore_mod
 use ocean_bgc_phyto_mod
-use ocean_tracer_rmbm_mod  ! JornB
+use ocean_tracer_fabm_mod  ! JornB
 
 !
 !       force all variables to be "typed"
@@ -440,8 +440,8 @@ character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_nam
 call do_time_calc
 
 ! JornB
-if (do_ocean_tracer_rmbm) then  !{
-  call ocean_tracer_rmbm_bbc
+if (do_ocean_tracer_fabm) then  !{
+  call ocean_tracer_fabm_bbc
 endif  !}
 
 if (do_ocmip2_biotic) then  !{
@@ -502,8 +502,8 @@ if (do_ocmip2_cfc) then  !{
 endif  !}
 
 ! JornB
-if (do_ocean_tracer_rmbm) then  !{
-  call ocean_tracer_rmbm_end(Thickness)
+if (do_ocean_tracer_fabm) then  !{
+  call ocean_tracer_fabm_end(Thickness)
 endif  !}
 
 if (do_ocmip2_biotic) then  !{
@@ -566,8 +566,8 @@ if (do_ocmip2_cfc) then  !{
 endif  !}
 
 ! JornB
-if (do_ocean_tracer_rmbm) then  !{
-  call ocean_tracer_rmbm_sbc(robert)
+if (do_ocean_tracer_fabm) then  !{
+  call ocean_tracer_fabm_sbc(robert)
 endif  !}
 
 if (do_ocmip2_biotic) then  !{
@@ -696,7 +696,7 @@ call ocean_age_tracer_init
 call ocmip2_cfc_init
 
 ! JornB
-call ocean_tracer_rmbm_init
+call ocean_tracer_fabm_init
 
 call ocmip2_biotic_init
 
@@ -750,8 +750,8 @@ if (do_ocean_age_tracer) then
 endif 
 
 ! JornB
-if (do_ocean_tracer_rmbm) then
-  call ocean_tracer_rmbm_source(Thickness)
+if (do_ocean_tracer_fabm) then
+  call ocean_tracer_fabm_source(Thickness)
 endif 
 
 if (do_ocmip2_biotic) then
@@ -835,8 +835,8 @@ if (do_ocmip2_cfc) then  !{
 endif  !}
 
 ! JornB
-if (do_ocean_tracer_rmbm) then  !{
-  call ocean_tracer_rmbm_start(Dens)
+if (do_ocean_tracer_fabm) then  !{
+  call ocean_tracer_fabm_start(Dens)
 endif  !}
 
 if (do_ocmip2_biotic) then  !{
@@ -894,8 +894,8 @@ if (do_ocean_age_tracer) then  !{
 endif  !}
 
 ! JornB
-if (do_ocean_tracer_rmbm) then  !{
-  call ocean_tracer_rmbm_tracer
+if (do_ocean_tracer_fabm) then  !{
+  call ocean_tracer_fabm_tracer
 endif  !}
 
 if (do_ocmip2_biotic) then  !{

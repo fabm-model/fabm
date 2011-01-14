@@ -1,6 +1,6 @@
-#include "rmbm_driver.h"
+#include "fabm_driver.h"
 
-module rmbm_driver
+module fabm_driver
 
    use mpp_mod,    only: mpp_error, FATAL, stdout
 
@@ -24,4 +24,4 @@ contains
      write (stdout(),*) trim(msg)
    end subroutine log_message
 
-end module rmbm_driver
+end module fabm_driver

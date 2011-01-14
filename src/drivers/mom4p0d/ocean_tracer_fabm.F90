@@ -33,7 +33,7 @@
 !</REVIEWER>
 !
 !<OVERVIEW>
-! MOM4 driver for the Repository of Marine Biogeochemical Models (RMBM)
+! MOM4 driver for the Framework for Aquatic Biogeochemical Models (FABM)
 !</OVERVIEW>
 !
 !<DESCRIPTION>
@@ -47,20 +47,20 @@
 !
 ! </INFO>
 !
-! $Id: ocean_tracer_rmbm.F90 69 2010-09-07 15:00:18Z jornbr $
+! $Id: ocean_tracer_fabm.F90 69 2010-09-07 15:00:18Z jornbr $
 !
 
 !
 !------------------------------------------------------------------
 !
-!       Module ocean_tracer_rmbm_mod
+!       Module ocean_tracer_fabm_mod
 !
 !       TODO
 !
 !------------------------------------------------------------------
 !
 
-module  ocean_tracer_rmbm_mod  !{
+module  ocean_tracer_fabm_mod  !{
 
 !
 !------------------------------------------------------------------
@@ -101,8 +101,8 @@ use ocean_tpm_util_mod, only: end_of_year, end_of_month
 use ocean_sbc_mod,      only: use_waterflux
 use ocean_types_mod,    only: ocean_thickness_type,ocean_density_type
 
-use rmbm
-use rmbm_types
+use fabm
+use fabm_types
 
 !
 !----------------------------------------------------------------------
@@ -132,13 +132,13 @@ private
 !----------------------------------------------------------------------
 !
 
-public  :: ocean_tracer_rmbm_bbc
-public  :: ocean_tracer_rmbm_end
-public  :: ocean_tracer_rmbm_init
-public  :: ocean_tracer_rmbm_sbc
-public  :: ocean_tracer_rmbm_source
-public  :: ocean_tracer_rmbm_start
-public  :: ocean_tracer_rmbm_tracer
+public  :: ocean_tracer_fabm_bbc
+public  :: ocean_tracer_fabm_end
+public  :: ocean_tracer_fabm_init
+public  :: ocean_tracer_fabm_sbc
+public  :: ocean_tracer_fabm_source
+public  :: ocean_tracer_fabm_start
+public  :: ocean_tracer_fabm_tracer
 
 !
 !----------------------------------------------------------------------
@@ -156,10 +156,10 @@ public  :: ocean_tracer_rmbm_tracer
 !----------------------------------------------------------------------
 !
 
-character(len=fm_field_name_len), parameter     :: package_name = 'ocean_tracer_rmbm'
-character(len=48), parameter                    :: mod_name = 'ocean_tracer_rmbm_mod'
-character(len=fm_string_len), parameter         :: default_file_in = 'INPUT/ocean_tracer_rmbm.res.nc'
-character(len=fm_string_len), parameter         :: default_file_out = 'RESTART/ocean_tracer_rmbm.res.nc'
+character(len=fm_field_name_len), parameter     :: package_name = 'ocean_tracer_fabm'
+character(len=48), parameter                    :: mod_name = 'ocean_tracer_fabm_mod'
+character(len=fm_string_len), parameter         :: default_file_in = 'INPUT/ocean_tracer_fabm.res.nc'
+character(len=fm_string_len), parameter         :: default_file_out = 'RESTART/ocean_tracer_fabm.res.nc'
 
 !
 !----------------------------------------------------------------------
@@ -191,7 +191,7 @@ end type biotic_type  !}
 !----------------------------------------------------------------------
 !
 
-logical, public :: do_ocean_tracer_rmbm
+logical, public :: do_ocean_tracer_fabm
 
 !
 !----------------------------------------------------------------------
@@ -248,14 +248,14 @@ contains
 
 
 !#######################################################################
-! <SUBROUTINE NAME="ocean_tracer_rmbm_bbc">
+! <SUBROUTINE NAME="ocean_tracer_fabm_bbc">
 !
 ! <DESCRIPTION>
 !     calculate the surface boundary conditions
 ! </DESCRIPTION>
 !
 
-subroutine ocean_tracer_rmbm_bbc  !{
+subroutine ocean_tracer_fabm_bbc  !{
 
 !
 !-----------------------------------------------------------------------
@@ -274,7 +274,7 @@ subroutine ocean_tracer_rmbm_bbc  !{
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_tracer_rmbm_bbc'
+character(len=64), parameter    :: sub_name = 'ocean_tracer_fabm_bbc'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: warn_header =                                &
@@ -305,19 +305,19 @@ integer  :: i, j
 
 return
 
-end subroutine  ocean_tracer_rmbm_bbc  !}
-! </SUBROUTINE> NAME="ocean_tracer_rmbm_bbc"
+end subroutine  ocean_tracer_fabm_bbc  !}
+! </SUBROUTINE> NAME="ocean_tracer_fabm_bbc"
 
 
 !#######################################################################
-! <SUBROUTINE NAME="ocean_tracer_rmbm_end">
+! <SUBROUTINE NAME="ocean_tracer_fabm_end">
 !
 ! <DESCRIPTION>
 !     Clean up various BIOTIC quantities for this run.
 ! </DESCRIPTION>
 !
 
-subroutine ocean_tracer_rmbm_end(Thickness)  !{ 
+subroutine ocean_tracer_fabm_end(Thickness)  !{ 
 
 type(ocean_thickness_type), intent(in) :: Thickness
 
@@ -332,7 +332,7 @@ type(ocean_thickness_type), intent(in) :: Thickness
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_tracer_rmbm_end'
+character(len=64), parameter    :: sub_name = 'ocean_tracer_fabm_end'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: warn_header =                                &
@@ -421,19 +421,19 @@ enddo  !} k
   !     total_phosphate * 1.0e-09
 
 return
-end subroutine  ocean_tracer_rmbm_end  !}
-! </SUBROUTINE> NAME="ocean_tracer_rmbm_end"
+end subroutine  ocean_tracer_fabm_end  !}
+! </SUBROUTINE> NAME="ocean_tracer_fabm_end"
 
 
 !#######################################################################
-! <SUBROUTINE NAME="ocean_tracer_rmbm_sbc">
+! <SUBROUTINE NAME="ocean_tracer_fabm_sbc">
 !
 ! <DESCRIPTION>
 !     Calculate the surface boundary conditions
 ! </DESCRIPTION>
 !
 
-subroutine ocean_tracer_rmbm_sbc(robert)  !{
+subroutine ocean_tracer_fabm_sbc(robert)  !{
 
 !
 !-----------------------------------------------------------------------
@@ -460,7 +460,7 @@ real, intent(in)        :: robert       ! robert time-filter coefficient
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_tracer_rmbm_sbc'
+character(len=64), parameter    :: sub_name = 'ocean_tracer_fabm_sbc'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: warn_header =                                &
@@ -489,19 +489,19 @@ call time_interp_external(wind_id, time%model_time, wind)
 
 do n = 1, instances  !{
   ! Set pointers to environmental variables.
-  if (biotic(n)%id_temp.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,tau))
-  if (biotic(n)%id_salt.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,tau))
+  if (biotic(n)%id_temp.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,tau))
+  if (biotic(n)%id_salt.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,tau))
 
   ! Set pointers to biotic variables.
-  do ivar=1,biotic(n)%model%info%state_variable_count
-    biotic(n)%model%state(ivar)%data => t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,tau)
+  do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+    call fabm_link_state_data(biotic(n)%model,ivar,t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,tau))
   end do
 
    if (use_waterflux) then  !{
-     do ivar=1,biotic(n)%model%info%state_variable_count
-       if (biotic(n)%model%info%variables(ivar)%no_precipitation_dilution) &
+     do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+       if (biotic(n)%model%info%state_variables(ivar)%no_precipitation_dilution) &
          T_prog(biotic(n)%inds(ivar))%tpme  (isc:iec,jsc:jec) = T_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,1,tau)
-       if (biotic(n)%model%info%variables(ivar)%no_river_dilution) &
+       if (biotic(n)%model%info%state_variables(ivar)%no_river_dilution) &
          T_prog(biotic(n)%inds(ivar))%triver(isc:iec,jsc:jec) = T_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,1,tau)
      end do
    endif  !}
@@ -511,9 +511,9 @@ do n = 1, instances  !{
     biotic(n)%work_dy = 0.d0
     do i = isc, iec  !{
       if (grid%tmask(i,j,1).eq.1.) &
-         call rmbm_update_air_sea_exchange(biotic(n)%model,i-isc+1,j-jsc+1,1,biotic(n)%work_dy(i,:))
+         call fabm_get_surface_exchange(biotic(n)%model,i-isc+1,j-jsc+1,1,biotic(n)%work_dy(i,:))
     enddo  !} i
-    do ivar=1,biotic(n)%model%info%state_variable_count
+    do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
       t_prog(biotic(n)%inds(ivar))%stf(isc:iec,j) = biotic(n)%work_dy(isc:iec,ivar)
     end do
    enddo  !} j 
@@ -547,12 +547,12 @@ enddo
 
 return
 
-end subroutine  ocean_tracer_rmbm_sbc  !}
-! </SUBROUTINE> NAME="ocean_tracer_rmbm_sbc"
+end subroutine  ocean_tracer_fabm_sbc  !}
+! </SUBROUTINE> NAME="ocean_tracer_fabm_sbc"
 
 
 !#######################################################################
-! <SUBROUTINE NAME="ocean_tracer_rmbm_init">
+! <SUBROUTINE NAME="ocean_tracer_fabm_init">
 !
 ! <DESCRIPTION>
 !       Set up any extra fields needed by the tracer packages
@@ -560,7 +560,7 @@ end subroutine  ocean_tracer_rmbm_sbc  !}
 !       Save pointers to various "types", such as Grid and Domains.
 ! </DESCRIPTION>
 
-subroutine ocean_tracer_rmbm_init  !{
+subroutine ocean_tracer_fabm_init  !{
 
 use fms_mod, only : open_namelist_file,close_file
 use diag_manager_mod, only: register_diag_field
@@ -569,7 +569,7 @@ use diag_manager_mod, only: register_diag_field
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_tracer_rmbm_init'
+character(len=64), parameter    :: sub_name = 'ocean_tracer_fabm_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: warn_header =                                &
@@ -614,7 +614,7 @@ character(len=256)                                      :: namelist_file
 type (type_model), pointer                              :: childmodel
 
 !
-!       Initialize the RMBM package
+!       Initialize the FABM package
 !
 
 package_index = otpm_set_tracer_package(package_name,            &
@@ -638,14 +638,14 @@ endif  !}
 write (stdout(),*)
 if (instances .eq. 0) then  !{
   write (stdout(),*) trim(note_header), ' No instances'
-  do_ocean_tracer_rmbm = .false.
+  do_ocean_tracer_fabm = .false.
 else  !}{
   if (instances .eq. 1) then  !{
     write (stdout(),*) trim(note_header), ' ', instances, ' instance'
   else  !}{
     write (stdout(),*) trim(note_header), ' ', instances, ' instances'
   endif  !}
-  do_ocean_tracer_rmbm = .true.
+  do_ocean_tracer_fabm = .true.
 endif  !}
 
 !
@@ -653,7 +653,7 @@ endif  !}
 !       after changing the list back
 !
 
-if (.not. do_ocean_tracer_rmbm) then  !{
+if (.not. do_ocean_tracer_fabm) then  !{
   return
 endif  !}
 
@@ -726,7 +726,7 @@ do n = 1, instances  !{
   call otpm_start_namelist(package_name, biotic(n)%name, caller = caller_str, no_overwrite = .true., &
        check = .true.)
 
-  call otpm_set_value('namelist_file', 'bio.nml')
+  call otpm_set_value('namelist_file', 'fabm.nml')
   call otpm_set_value('models', models, 0)
   call otpm_set_value('dt', -1.)
 
@@ -769,43 +769,43 @@ do n = 1, instances  !{
     long_suffix = ' (' // trim(name) // ')'
   endif  !}
   
-  ! Create the RMBM model tree
-  biotic(n)%model => rmbm_create_model()
+  ! Create the FABM model tree
+  biotic(n)%model => fabm_create_model()
   do i=1,ubound(modelids,1)
-    childmodel => rmbm_create_model(modelids(i),parent=biotic(n)%model)
+    childmodel => fabm_create_model(modelids(i),parent=biotic(n)%model)
   end do
   
-  ! Allow RMBM to initialize
+  ! Allow FABM to initialize
   nmlunit = open_namelist_file(trim(namelist_file))
-  call rmbm_init(biotic(n)%model,nmlunit)
+  call fabm_init(biotic(n)%model,nmlunit)
   call close_file (nmlunit)
 
   ! Register state variables
-  allocate(biotic(n)%inds(biotic(n)%model%info%state_variable_count))
-  do i=1,biotic(n)%model%info%state_variable_count
+  allocate(biotic(n)%inds(ubound(biotic(n)%model%info%state_variables,1)))
+  do i=1,ubound(biotic(n)%model%info%state_variables,1)
      biotic(n)%inds(i) = otpm_set_prog_tracer(                                               &
-          trim(biotic(n)%model%info%variables(i)%name) // suffix,                            &
+          trim(biotic(n)%model%info%state_variables(i)%name) // suffix,                      &
           package_name,                                                                      &
-          longname = trim(biotic(n)%model%info%variables(i)%longname) // trim(long_suffix),  &
-          units = trim(biotic(n)%model%info%variables(i)%units),                             &
-          flux_units = trim(biotic(n)%model%info%variables(i)%units)//'/s',                  &
+          longname = trim(biotic(n)%model%info%state_variables(i)%longname) // trim(long_suffix),  &
+          units = trim(biotic(n)%model%info%state_variables(i)%units),                       &
+          flux_units = trim(biotic(n)%model%info%state_variables(i)%units)//'/s',            &
           caller = trim(mod_name)//'('//trim(sub_name)//')',                                 &
-          min_tracer_limit = biotic(n)%model%info%variables(i)%minimum,                      &
-          max_tracer_limit = biotic(n)%model%info%variables(i)%maximum,                      &
-!          min_tracer = biotic(n)%model%info%variables(i)%minimum,                      &
-          max_tracer = biotic(n)%model%info%variables(i)%maximum,                      &
+          min_tracer_limit = biotic(n)%model%info%state_variables(i)%minimum,                &
+          max_tracer_limit = biotic(n)%model%info%state_variables(i)%maximum,                &
+          min_tracer = biotic(n)%model%info%state_variables(i)%minimum,                      &
+          max_tracer = biotic(n)%model%info%state_variables(i)%maximum,                      &
           const_init_tracer = .true.,                                                        &
-          const_init_value = biotic(n)%model%info%variables(i)%initial_value)
+          const_init_value = biotic(n)%model%info%state_variables(i)%initial_value)
   end do
   
   ! Obtain ids of required external variables
-  biotic(n)%id_temp   = rmbm_get_variable_id(biotic(n)%model,varname_temp,   shape3d)
-  biotic(n)%id_salt   = rmbm_get_variable_id(biotic(n)%model,varname_salt,   shape3d)
-  biotic(n)%id_pres   = rmbm_get_variable_id(biotic(n)%model,varname_pres,   shape3d)
-  biotic(n)%id_dens   = rmbm_get_variable_id(biotic(n)%model,varname_dens,   shape3d)
-  biotic(n)%id_par    = rmbm_get_variable_id(biotic(n)%model,varname_par,    shape3d)
-  biotic(n)%id_wind   = rmbm_get_variable_id(biotic(n)%model,varname_wind_sf,shape2d)
-  biotic(n)%id_par_sf = rmbm_get_variable_id(biotic(n)%model,varname_par_sf, shape2d)
+  biotic(n)%id_temp   = fabm_get_variable_id(biotic(n)%model,varname_temp,   shape_full)
+  biotic(n)%id_salt   = fabm_get_variable_id(biotic(n)%model,varname_salt,   shape_full)
+  biotic(n)%id_pres   = fabm_get_variable_id(biotic(n)%model,varname_pres,   shape_full)
+  biotic(n)%id_dens   = fabm_get_variable_id(biotic(n)%model,varname_dens,   shape_full)
+  biotic(n)%id_par    = fabm_get_variable_id(biotic(n)%model,varname_par,    shape_full)
+  biotic(n)%id_wind   = fabm_get_variable_id(biotic(n)%model,varname_wind_sf,shape_hz)
+  biotic(n)%id_par_sf = fabm_get_variable_id(biotic(n)%model,varname_par_sf, shape_hz)
 
 enddo  !} n
 
@@ -836,8 +836,8 @@ do n = 1, instances  !{
   endif  !}
 
   ! Register diagnostic variables
-  allocate(biotic(n)%inds_diag(biotic(n)%model%info%diagnostic_variable_count))
-  do i=1,biotic(n)%model%info%diagnostic_variable_count
+  allocate(biotic(n)%inds_diag(ubound(biotic(n)%model%info%diagnostic_variables,1)))
+  do i=1,ubound(biotic(n)%model%info%diagnostic_variables,1)
      biotic(n)%inds_diag(i) = register_diag_field('ocean_model',      &
           trim(biotic(n)%model%info%diagnostic_variables(i)%name)//str, grid%tracer_axes(1:3),                       &
           Time%model_time, trim(biotic(n)%model%info%diagnostic_variables(i)%longname), &
@@ -853,14 +853,14 @@ end if
 
 return
 
-99 call mpp_error(FATAL,trim(error_header) // ' Unable to open RMBM namelist file "' // trim(namelist_file) // '"')
+99 call mpp_error(FATAL,trim(error_header) // ' Unable to open FABM namelist file "' // trim(namelist_file) // '"')
 
-end subroutine ocean_tracer_rmbm_init  !}
-! </SUBROUTINE> NAME="ocean_tracer_rmbm_init"
+end subroutine ocean_tracer_fabm_init  !}
+! </SUBROUTINE> NAME="ocean_tracer_fabm_init"
 
 
 !#######################################################################
-! <SUBROUTINE NAME="ocean_tracer_rmbm_source">
+! <SUBROUTINE NAME="ocean_tracer_fabm_source">
 !
 ! <DESCRIPTION>
 !     compute the source terms for the BIOTICs, including boundary
@@ -869,7 +869,7 @@ end subroutine ocean_tracer_rmbm_init  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocean_tracer_rmbm_source(Thickness)  !{
+subroutine ocean_tracer_fabm_source(Thickness)  !{
 
 type(ocean_thickness_type),         intent(in) :: Thickness
 
@@ -884,7 +884,7 @@ type(ocean_thickness_type),         intent(in) :: Thickness
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_tracer_rmbm_source'
+character(len=64), parameter    :: sub_name = 'ocean_tracer_fabm_source'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: warn_header =                                &
@@ -928,8 +928,8 @@ dtsb = dtts/biotic_split
 
 do n = 1, instances  !{
   ! Set pointers to environmental variables.
-  if (biotic(n)%id_temp.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
-  if (biotic(n)%id_salt.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
+  if (biotic(n)%id_temp.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
+  if (biotic(n)%id_salt.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
 
   !do ivar=1,biotic(n)%model%info%state_variable_count
   !   biotic(n)%model%state(ivar)%data => t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1)
@@ -940,16 +940,16 @@ do n = 1, instances  !{
   !  do j = jsc, jec  !{
   !    do i = isc, iec  !{
   !      if (grid%tmask(i,j,k).eq.1.) &
-  !        valid = rmbm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.)
+  !        valid = fabm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.)
   !    end do
   !  end do
   !end do
 
   ! Copy current bio state to temporary storage (we will use this temporary array to
   ! update state at the internal time step).
-  do ivar=1,biotic(n)%model%info%state_variable_count
+  do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
      biotic(n)%work_state(isc:iec,jsc:jec,:,ivar) = t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1)
-     biotic(n)%model%state(ivar)%data => biotic(n)%work_state(isc:iec,jsc:jec,:,ivar)
+     call fabm_link_state_data(biotic(n)%model,ivar,biotic(n)%work_state(isc:iec,jsc:jec,:,ivar))
   end do
 
   ! Repair bio state at the start of the time step
@@ -957,7 +957,7 @@ do n = 1, instances  !{
     do j = jsc, jec  !{
       do i = isc, iec  !{
         if (grid%tmask(i,j,k).eq.1.) &
-          valid = rmbm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.)
+          call fabm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.,valid)
       end do
     end do
   end do
@@ -981,7 +981,7 @@ do it=1,biotic_split
          do i = isc, iec  !{
            ! Call bio model for current grid point, provided that it is wet
            if (grid%tmask(i,j,k).eq.1.) &
-              call rmbm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:),biotic(n)%work_diag(i,j,k,:))
+              call fabm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:))
          end do  !} i
          
          ! Update current state according to supplied temporal derivatives (Forward Euler)
@@ -990,7 +990,7 @@ do it=1,biotic_split
          ! Repair bio state at the end of the internal time step
          do i = isc, iec  !{
            if (grid%tmask(i,j,k).eq.1.) &
-             valid = rmbm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.)
+             call fabm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.,valid)
          end do
 
        end do  !} j
@@ -1002,13 +1002,13 @@ enddo   !} t
 do n = 1, instances  !{
 
    ! Use updated state variable values to calculate tendencies.
-   do ivar=1,biotic(n)%model%info%state_variable_count
+   do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
       t_prog(biotic(n)%inds(ivar))%th_tendency(isc:iec,jsc:jec,:) = t_prog(biotic(n)%inds(ivar))%th_tendency(isc:iec,jsc:jec,:) &
          + (biotic(n)%work_state(isc:iec,jsc:jec,:,ivar)-t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1))/dtts*Thickness%dht(isc:iec,jsc:jec,:,tau)
    end do
 
   ! Save diagnostic variables
-  do ivar=1,biotic(n)%model%info%diagnostic_variable_count
+  do ivar=1,ubound(biotic(n)%model%info%diagnostic_variables,1)
       if (biotic(n)%inds_diag(ivar) .gt. 0) then
         used = send_data(biotic(n)%inds_diag(ivar),                        &
              biotic(n)%work_diag(isc:iec,jsc:jec,:,ivar),                  &
@@ -1023,11 +1023,11 @@ do n = 1, instances  !{
     
      !  Get sinking speed over entire column for all state variables.
      do k=1,grid%kmt(i,j)
-       call rmbm_get_vertical_movement(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%w(k,:))
+       call fabm_get_vertical_movement(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%w(k,:))
      end do
      
      ! Interpolate to sinking speed at interfaces
-     do ivar=1,biotic(n)%model%info%state_variable_count
+     do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
        biotic(n)%w(2:grid%kmt(i,j),ivar) = (biotic(n)%w(2:grid%kmt(i,j),ivar) + biotic(n)%w(1:grid%kmt(i,j)-1,ivar))*0.5d0
      end do
      biotic(n)%w(1,              :) = 0.0d0   ! Surface boundary condition
@@ -1035,7 +1035,7 @@ do n = 1, instances  !{
      
      biotic(n)%adv = 0.d0
      
-     do ivar=1,biotic(n)%model%info%state_variable_count
+     do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
      
         ! Get upstream state variable values at all interfaces.
         do k=2,grid%kmt(i,j)
@@ -1064,12 +1064,12 @@ enddo  !} n
 
 return
 
-end subroutine  ocean_tracer_rmbm_source  !}
-! </SUBROUTINE> NAME="ocean_tracer_rmbm_source"
+end subroutine  ocean_tracer_fabm_source  !}
+! </SUBROUTINE> NAME="ocean_tracer_fabm_source"
 
 
 !#######################################################################
-! <SUBROUTINE NAME="ocean_tracer_rmbm_start">
+! <SUBROUTINE NAME="ocean_tracer_fabm_start">
 !
 ! <DESCRIPTION>
 ! Initialize variables, read in namelists, calculate constants
@@ -1077,7 +1077,7 @@ end subroutine  ocean_tracer_rmbm_source  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocean_tracer_rmbm_start(Dens)  !{
+subroutine ocean_tracer_fabm_start(Dens)  !{
 
 !
 !-----------------------------------------------------------------------
@@ -1099,7 +1099,7 @@ type(ocean_density_type),   target, intent(in) :: Dens
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_tracer_rmbm_start'
+character(len=64), parameter    :: sub_name = 'ocean_tracer_fabm_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: warn_header =                                &
@@ -1175,27 +1175,31 @@ endif  !}
 allocate(wind(isd:ied,jsd:jed) )
 
 do n=1,instances
-   allocate(biotic(n)%work_state(isc:iec,jsc:jec,nk,biotic(n)%model%info%state_variable_count))
-   allocate(biotic(n)%work_dy   (isc:iec,           biotic(n)%model%info%state_variable_count))
-   allocate(biotic(n)%work_diag (isc:iec,jsc:jec,nk,biotic(n)%model%info%diagnostic_variable_count))
-   allocate(biotic(n)%w  (nk+1,biotic(n)%model%info%state_variable_count))
-   allocate(biotic(n)%adv(nk+1,biotic(n)%model%info%state_variable_count))
+   allocate(biotic(n)%work_state(isc:iec,jsc:jec,nk,ubound(biotic(n)%model%info%state_variables,1)))
+   allocate(biotic(n)%work_dy   (isc:iec,           ubound(biotic(n)%model%info%state_variables,1)))
+   allocate(biotic(n)%work_diag (isc:iec,jsc:jec,nk,ubound(biotic(n)%model%info%diagnostic_variables,1)))
+   allocate(biotic(n)%w  (nk+1,ubound(biotic(n)%model%info%state_variables,1)))
+   allocate(biotic(n)%adv(nk+1,ubound(biotic(n)%model%info%state_variables,1)))
+   
+   do i=1,ubound(biotic(n)%model%info%diagnostic_variables,1)
+      call fabm_link_diagnostic_data(biotic(n)%model,i,biotic(n)%work_diag(isc:iec,jsc:jec,1:nk,i))
+   end do
 
-   if (biotic(n)%id_pres  .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth (isc:iec,jsc:jec,:))
-   if (biotic(n)%id_dens  .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_dens,  Dens%rho               (isc:iec,jsc:jec,:))
-   if (biotic(n)%id_par   .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_par ,  t_diag(index_irr)%field(isc:iec,jsc:jec,:))
-   if (biotic(n)%id_par_sf.ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_par_sf,t_diag(index_irr)%field(isc:iec,jsc:jec,1))
-   if (biotic(n)%id_wind  .ne.-1) call rmbm_link_variable_data(biotic(n)%model,biotic(n)%id_wind,  wind                   (isc:iec,jsc:jec))
+   if (biotic(n)%id_pres  .ne.-1) call fabm_link_data   (biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth (isc:iec,jsc:jec,:))
+   if (biotic(n)%id_dens  .ne.-1) call fabm_link_data   (biotic(n)%model,biotic(n)%id_dens,  Dens%rho               (isc:iec,jsc:jec,:))
+   if (biotic(n)%id_par   .ne.-1) call fabm_link_data   (biotic(n)%model,biotic(n)%id_par ,  t_diag(index_irr)%field(isc:iec,jsc:jec,:))
+   if (biotic(n)%id_par_sf.ne.-1) call fabm_link_data_hz(biotic(n)%model,biotic(n)%id_par_sf,t_diag(index_irr)%field(isc:iec,jsc:jec,1))
+   if (biotic(n)%id_wind  .ne.-1) call fabm_link_data_hz(biotic(n)%model,biotic(n)%id_wind,  wind                   (isc:iec,jsc:jec))
 end do
 
 return
 
-end subroutine  ocean_tracer_rmbm_start  !}
-! </SUBROUTINE> NAME="ocean_tracer_rmbm_start"
+end subroutine  ocean_tracer_fabm_start  !}
+! </SUBROUTINE> NAME="ocean_tracer_fabm_start"
 
 
 !#######################################################################
-! <SUBROUTINE NAME="ocean_tracer_rmbm_tracer">
+! <SUBROUTINE NAME="ocean_tracer_fabm_tracer">
 !
 ! <DESCRIPTION>
 !     Perform things that should be done in tracer, but are done here
@@ -1203,7 +1207,7 @@ end subroutine  ocean_tracer_rmbm_start  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocean_tracer_rmbm_tracer  !{
+subroutine ocean_tracer_fabm_tracer  !{
 
 !
 !-----------------------------------------------------------------------
@@ -1219,7 +1223,7 @@ use mpp_mod, only : mpp_sum
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_tracer_rmbm_tracer'
+character(len=64), parameter    :: sub_name = 'ocean_tracer_fabm_tracer'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: warn_header =                                &
@@ -1245,7 +1249,7 @@ integer :: n
 
 return
 
-end subroutine  ocean_tracer_rmbm_tracer  !}
-! </SUBROUTINE> NAME="ocean_tracer_rmbm_tracer"
+end subroutine  ocean_tracer_fabm_tracer  !}
+! </SUBROUTINE> NAME="ocean_tracer_fabm_tracer"
 
-end module  ocean_tracer_rmbm_mod  !}
+end module  ocean_tracer_fabm_mod  !}
