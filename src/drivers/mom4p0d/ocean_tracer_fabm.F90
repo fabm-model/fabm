@@ -792,8 +792,8 @@ do n = 1, instances  !{
           caller = trim(mod_name)//'('//trim(sub_name)//')',                                 &
           min_tracer_limit = biotic(n)%model%info%state_variables(i)%minimum,                &
           max_tracer_limit = biotic(n)%model%info%state_variables(i)%maximum,                &
-          min_tracer = biotic(n)%model%info%state_variables(i)%minimum,                      &
-          max_tracer = biotic(n)%model%info%state_variables(i)%maximum,                      &
+          !min_tracer = biotic(n)%model%info%state_variables(i)%minimum,                      &
+          !max_tracer = biotic(n)%model%info%state_variables(i)%maximum,                      &
           const_init_tracer = .true.,                                                        &
           const_init_value = biotic(n)%model%info%state_variables(i)%initial_value)
   end do
