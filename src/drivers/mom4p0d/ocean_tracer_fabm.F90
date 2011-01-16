@@ -177,7 +177,7 @@ type biotic_type  !{
   
   character(len=fm_field_name_len)                 :: name
   logical                                          :: do_virtual_flux = .false.
-  integer,_ALLOCATABLE,dimension(:)                :: inds,inds_diag
+  integer,_ALLOCATABLE,dimension(:)                :: inds,inds_diag,inds_diag_hz
   double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_state _NULL,work_diag _NULL
   double precision,_ALLOCATABLE,dimension(:,:,:)   :: work_diag_hz _NULL
   double precision,_ALLOCATABLE,dimension(:,:)     :: w _NULL,adv _NULL,work_dy _NULL
@@ -846,6 +846,15 @@ do n = 1, instances  !{
           missing_value = -1.0e+10)
   end do
 
+  allocate(biotic(n)%inds_diag_hz(ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
+  do i=1,ubound(biotic(n)%model%info%diagnostic_variables_hz,1)
+     biotic(n)%inds_diag_hz(i) = register_diag_field('ocean_model',      &
+          trim(biotic(n)%model%info%diagnostic_variables_hz(i)%name)//str, grid%tracer_axes(1:2),                       &
+          Time%model_time, trim(biotic(n)%model%info%diagnostic_variables_hz(i)%longname), &
+          trim(biotic(n)%model%info%diagnostic_variables_hz(i)%units),            &
+          missing_value = -1.0e+10)
+  end do
+
 enddo  !} n
 
 if (index_irr.eq.-1 .or. index_chl.eq.-1) then
@@ -963,9 +972,6 @@ do n = 1, instances  !{
     end do
   end do
 
-  ! Set array with diagnostic variables to zero, because values for land points will not be set.
-  biotic(n)%work_diag = 0.d0
-  biotic(n)%work_diag_hz = 0.d0
 end do
 
 do it=1,biotic_split
@@ -1017,6 +1023,17 @@ do n = 1, instances  !{
              time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,:))
       endif
   end do
+  do ivar=1,ubound(biotic(n)%model%info%diagnostic_variables_hz,1)
+      if (biotic(n)%inds_diag_hz(ivar) .gt. 0) then
+        used = send_data(biotic(n)%inds_diag_hz(ivar),                        &
+             biotic(n)%work_diag_hz(isc:iec,jsc:jec,ivar),                  &
+             time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+      endif
+  end do
+  
+  ! Reset diagnostic variables to zero, because values for land points will not be set.
+  biotic(n)%work_diag = 0.d0
+  biotic(n)%work_diag_hz = 0.d0
 
   ! Vertical movement is applied with a first-order upwind scheme.
   do j = jsc, jec
@@ -1177,13 +1194,17 @@ endif  !}
 allocate(wind(isd:ied,jsd:jed) )
 
 do n=1,instances
-   allocate(biotic(n)%work_state(isc:iec,jsc:jec,nk,ubound(biotic(n)%model%info%state_variables,1)))
-   allocate(biotic(n)%work_dy   (isc:iec,           ubound(biotic(n)%model%info%state_variables,1)))
-   allocate(biotic(n)%work_diag (isc:iec,jsc:jec,nk,ubound(biotic(n)%model%info%diagnostic_variables,1)))
-   allocate(biotic(n)%work_diag_hz(isc:iec,jsc:jec,ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
+   allocate(biotic(n)%work_state  (isc:iec,jsc:jec,nk,ubound(biotic(n)%model%info%state_variables,1)))
+   allocate(biotic(n)%work_dy     (isc:iec,           ubound(biotic(n)%model%info%state_variables,1)))
+   allocate(biotic(n)%work_diag   (isc:iec,jsc:jec,nk,ubound(biotic(n)%model%info%diagnostic_variables,1)))
+   allocate(biotic(n)%work_diag_hz(isc:iec,jsc:jec,   ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
    allocate(biotic(n)%w  (nk+1,ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%adv(nk+1,ubound(biotic(n)%model%info%state_variables,1)))
    
+   ! Set diagnostic variables to zero, because values for land points will not be set.
+   biotic(n)%work_diag = 0.d0
+   biotic(n)%work_diag_hz = 0.d0
+
    do i=1,ubound(biotic(n)%model%info%diagnostic_variables,1)
       call fabm_link_diagnostic_data(biotic(n)%model,i,biotic(n)%work_diag(isc:iec,jsc:jec,1:nk,i))
    end do
