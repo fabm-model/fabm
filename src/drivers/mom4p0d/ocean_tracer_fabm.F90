@@ -179,6 +179,7 @@ type biotic_type  !{
   logical                                          :: do_virtual_flux = .false.
   integer,_ALLOCATABLE,dimension(:)                :: inds,inds_diag
   double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_state _NULL,work_diag _NULL
+  double precision,_ALLOCATABLE,dimension(:,:,:)   :: work_diag_hz _NULL
   double precision,_ALLOCATABLE,dimension(:,:)     :: w _NULL,adv _NULL,work_dy _NULL
 
 end type biotic_type  !}
@@ -964,6 +965,7 @@ do n = 1, instances  !{
 
   ! Set array with diagnostic variables to zero, because values for land points will not be set.
   biotic(n)%work_diag = 0.d0
+  biotic(n)%work_diag_hz = 0.d0
 end do
 
 do it=1,biotic_split
@@ -1178,11 +1180,15 @@ do n=1,instances
    allocate(biotic(n)%work_state(isc:iec,jsc:jec,nk,ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%work_dy   (isc:iec,           ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%work_diag (isc:iec,jsc:jec,nk,ubound(biotic(n)%model%info%diagnostic_variables,1)))
+   allocate(biotic(n)%work_diag_hz(isc:iec,jsc:jec,ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
    allocate(biotic(n)%w  (nk+1,ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%adv(nk+1,ubound(biotic(n)%model%info%state_variables,1)))
    
    do i=1,ubound(biotic(n)%model%info%diagnostic_variables,1)
       call fabm_link_diagnostic_data(biotic(n)%model,i,biotic(n)%work_diag(isc:iec,jsc:jec,1:nk,i))
+   end do
+   do i=1,ubound(biotic(n)%model%info%diagnostic_variables_hz,1)
+      call fabm_link_diagnostic_data_hz(biotic(n)%model,i,biotic(n)%work_diag_hz(isc:iec,jsc:jec,i))
    end do
 
    if (biotic(n)%id_pres  .ne.-1) call fabm_link_data   (biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth (isc:iec,jsc:jec,:))
