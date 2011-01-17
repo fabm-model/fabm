@@ -511,10 +511,14 @@ do n = 1, instances  !{
    ! Set surface fluxes for biota
    do j = jsc, jec  !{
     biotic(n)%work_dy = 0.d0
+#ifdef _FABM_USE_1D_LOOP_
+    call fabm_get_surface_exchange(biotic(n)%model,1,iec-isc+1,j-jsc+1,1,biotic(n)%work_dy(:,:))
+#else
     do i = isc, iec  !{
       if (grid%tmask(i,j,1).eq.1.) &
          call fabm_get_surface_exchange(biotic(n)%model,i-isc+1,j-jsc+1,1,biotic(n)%work_dy(i,:))
     enddo  !} i
+#endif
     do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
       t_prog(biotic(n)%inds(ivar))%stf(isc:iec,j) = biotic(n)%work_dy(isc:iec,ivar)
     end do

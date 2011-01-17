@@ -10,6 +10,7 @@
 
 ! Tell FABM that we want a 1D vectorized version
 #define _FABM_USE_1D_LOOP_
+#define _FABM_1D_LOOP_IN_VERTICAL_
 
 ! GOTM uses a different order of dimensions for rhs,pp,dd than expected by FABM.
 ! (FABM expects the vectorized spatial dimension to come first, which would benefit performance)

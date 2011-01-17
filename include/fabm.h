@@ -2,6 +2,15 @@
 #ifndef _FABM_DIMENSION_COUNT_
 #error Preprocessor variable _FABM_DIMENSION_COUNT_ must be defined.
 #endif
+
+! If the spatial context is 0D, some preprocessor variables can be inferred.
+#if _FABM_DIMENSION_COUNT_==0
+#define _LOCATION_
+#define _LOCATION_DIMENSIONS_
+#define _FABM_HORIZONTAL_IS_SCALAR_
+#endif
+
+! Check for additional required preprocessor variables.
 #ifndef _LOCATION_
 #error Preprocessor variable _LOCATION_ must be defined.
 #endif
@@ -17,6 +26,7 @@
 #endif
 #endif
 
+! Constants related to floating point precision.
 #define REALTYPE double precision
 #define _ZERO_ 0.0d0
 #define _ONE_  1.0d0
@@ -55,30 +65,33 @@
 #endif
 
 ! Define dimension attribute and index specifyer for full 3D fields.
+#if _FABM_DIMENSION_COUNT_>0
 #define _INDEX_LOCATION_ (_LOCATION_)
 #define _ATTR_LOCATION_DIMENSIONS_ ,dimension(_LOCATION_DIMENSIONS_)
 #define _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_ ,dimension(:,_LOCATION_DIMENSIONS_)
 #define _ARG_LOCATION_ ,_LOCATION_
 #define _ARG_LOCATION_DIMENSIONS_ ,:
-
-#define _FABM_ARGS_0D_ environment _ARG_LOCATION_
-#define _DECLARE_FABM_ARGS_0D_ type (type_environment),intent(inout) :: environment;_LOCATION_TYPE_,intent(in) :: _LOCATION_
-#define _FABM_ARGS_IN_0D_ root%environment _ARG_LOCATION_
-
-! Spatial loop for quantities defined on hortizontal slice of the full spatial domain.
-#define _FABM_ENTER_HZ_
-#define _FABM_LEAVE_HZ_
-
-! Expressions for indexing space-dependent FABM variables defined on horizontal slices of the domain.
-#define _INDEX_SURFACE_EXCHANGE_(index) (index)
+#define _DECLARE_LOCATION_ARG_ _LOCATION_TYPE_,intent(in) :: _LOCATION_
+#else
+#define _INDEX_LOCATION_
+#define _ATTR_LOCATION_DIMENSIONS_
+#define _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_ ,dimension(:)
+#define _ARG_LOCATION_
+#define _ARG_LOCATION_DIMENSIONS_
+#define _DECLARE_LOCATION_ARG_
+#endif
 
 #ifdef _FABM_USE_1D_LOOP_
 
+! 1D vectorized: FABM subroutines operate on one spatial dimension.
+
+! Make sure there is at least one dimension to vectorize.
 #if _FABM_DIMENSION_COUNT_<1
 #error Cannot build 1D vectorized version of FABM (_FABM_USE_1D_LOOP_) with the total number of spatial dimensions (_FABM_DIMENSION_COUNT_) being less than 1.
 #endif
 
-! For a 1D spatial domain, the vectorzied version of FABM must ioterate over that sole dimension.
+! For a 1D spatial domain, the vectorzied version of FABM must iterate over that sole dimension.
+! Therefore, the _LOCATION_1DLOOP_ and _VARIABLE_1DLOOP_ macros can be inferred.
 #if _FABM_DIMENSION_COUNT_>1
 #define _ARG_LOCATION_1DLOOP_ ,_LOCATION_1DLOOP_
 #else
@@ -87,6 +100,7 @@
 #define _VARIABLE_1DLOOP_ _LOCATION_
 #endif
 
+! Check for additional preprocessor macros that a required when _FABM_USE_1D_LOOP_ is defined.
 #ifndef _VARIABLE_1DLOOP_
 #error Building 1D vectorized version of FABM: preprocessor variable _VARIABLE_1DLOOP_ must be defined.
 #endif
@@ -94,10 +108,8 @@
 #error Building 1D vectorized version of FABM: preprocessor variable _LOCATION_1DLOOP_ must be defined.
 #endif
 
-! 1D vectorized: FABM subroutines operate on one spatial dimension.
-
 ! Dummy argument and argument declaration for location specification.
-#define _LOCATION_ND_ fabm_loop_start,fabm_loop_stop _ARG_LOCATION_1DLOOP_
+#define _ARG_LOCATION_ND_ ,fabm_loop_start,fabm_loop_stop _ARG_LOCATION_1DLOOP_
 #define _DECLARE_LOCATION_ARG_ND_ _LOCATION_TYPE_,intent(in) :: fabm_loop_start,fabm_loop_stop _ARG_LOCATION_1DLOOP_; _LOCATION_TYPE_ :: _VARIABLE_1DLOOP_
 
 ! Beginning and end of spatial loop
@@ -131,8 +143,8 @@
 ! Not vectorized: FABM subroutines operate one the local state only.
 
 ! Dummy argument and argument declaration for location specification.
-#define _LOCATION_ND_ _LOCATION_
-#define _DECLARE_LOCATION_ARG_ND_ _LOCATION_TYPE_,intent(in) :: _LOCATION_
+#define _ARG_LOCATION_ND_ _ARG_LOCATION_
+#define _DECLARE_LOCATION_ARG_ND_ _DECLARE_LOCATION_ARG_
 
 ! Beginning and end of spatial loop
 #define _FABM_LOOP_BEGIN_
@@ -152,24 +164,71 @@
 
 #endif
 
+#if defined(_FABM_USE_1D_LOOP_)&&(!defined(_FABM_1D_LOOP_IN_VERTICAL_))
+
+! Functions operating on horizontonal slices of the domain will be vectorized just like the full domain.
+
+#define _ARG_LOCATION_VARS_HZ_ _ARG_LOCATION_ND_
+#define _DECLARE_LOCATION_ARG_HZ_ _DECLARE_LOCATION_ARG_ND_
+
+! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
+#define _FABM_HZ_LOOP_BEGIN_ _FABM_LOOP_BEGIN_
+#define _FABM_HZ_LOOP_END_ _FABM_LOOP_END_
+
+! Vertical dimension is not among those vectorized:
+! dimensionality of horizontal arrays will be equal to that of full domain arrays.
+#define _ATTR_DIMENSIONS_0_HZ_ _ATTR_DIMENSIONS_0_
+#define _ATTR_DIMENSIONS_1_HZ_ _ATTR_DIMENSIONS_1_
+#define _ATTR_DIMENSIONS_2_HZ_ _ATTR_DIMENSIONS_2_
+
+! Expressions for indexing space-dependent FABM variables defined on horizontal slices of the domain.
+! May be overridden by host to reverse the dimension order.
+#ifndef _INDEX_SURFACE_EXCHANGE_
+#define _INDEX_SURFACE_EXCHANGE_(index) (_VARIABLE_1DLOOP_-fabm_loop_start+1,index)
+#endif
+
+#else
+
+! Functions operating on horizontal slices of the domain only will not be vectorized
+
+#define _ARG_LOCATION_VARS_HZ_ _ARG_LOCATION_
+#define _DECLARE_LOCATION_ARG_HZ_ _DECLARE_LOCATION_ARG_
+
+! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
+#define _FABM_HZ_LOOP_BEGIN_
+#define _FABM_HZ_LOOP_END_
+
+! Expressions for indexing space-dependent FABM variables defined on horizontal slices of the domain.
+#define _INDEX_SURFACE_EXCHANGE_(index) (index)
+
+#define _ATTR_DIMENSIONS_0_HZ_
+#define _ATTR_DIMENSIONS_1_HZ_ ,dimension(:)
+#define _ATTR_DIMENSIONS_2_HZ_ ,dimension(:,:)
+
+#endif
+
+
 ! For FABM: standard arguments used in calling biogeochemical routines.
-#define _FABM_ARGS_ND_IN_ root%environment,_LOCATION_ND_
+#define _FABM_ARGS_ND_IN_ root%environment _ARG_LOCATION_ND_
+#define _FABM_ARGS_IN_HZ_ root%environment _ARG_LOCATION_VARS_HZ_
 
 ! For BGC models: FABM arguments to routines implemented by biogeochemical models.
-#define _FABM_ARGS_ND_ environment,_LOCATION_ND_
+#define _FABM_ARGS_ND_ environment _ARG_LOCATION_ND_
+#define _FABM_ARGS_HZ_ environment _ARG_LOCATION_VARS_HZ_
 #define _FABM_ARGS_DO_RHS_ _FABM_ARGS_ND_,rhs
 #define _FABM_ARGS_DO_PPDD_ _FABM_ARGS_ND_,pp,dd
 #define _FABM_ARGS_GET_EXTINCTION_ _FABM_ARGS_ND_,extinction
 #define _FABM_ARGS_GET_CONSERVED_QUANTITIES_ _FABM_ARGS_ND_,sums
-#define _FABM_ARGS_GET_SURFACE_EXCHANGE_ _FABM_ARGS_0D_,flux
+#define _FABM_ARGS_GET_SURFACE_EXCHANGE_ _FABM_ARGS_HZ_,flux
 
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
 #define _DECLARE_FABM_ARGS_ND_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_ND_
+#define _DECLARE_FABM_ARGS_HZ_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_HZ_
 #define _DECLARE_FABM_ARGS_DO_RHS_  _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: rhs
 #define _DECLARE_FABM_ARGS_DO_PPDD_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_2_,intent(inout) :: pp,dd
 #define _DECLARE_FABM_ARGS_GET_EXTINCTION_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_0_,intent(inout) :: extinction
 #define _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: sums
-#define _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_FABM_ARGS_0D_;REALTYPE,dimension(:),intent(inout) :: flux
+#define _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux
 
 ! Macros for declaring/accessing variable identifiers of arbitrary type.
 #define _TYPE_STATE_VARIABLE_ID_ type (type_state_variable_id)

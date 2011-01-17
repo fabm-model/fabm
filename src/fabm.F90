@@ -598,14 +598,14 @@
 ! Currently only needed if preprocessor _FABM_MANAGE_DIAGNOSTICS_ is defined.
 !
 ! !INTERFACE:
-   subroutine fabm_set_domain(root,_LOCATION_)
+   subroutine fabm_set_domain(root _ARG_LOCATION_)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: root
-   _LOCATION_TYPE_,                        intent(in)    :: _LOCATION_
+   _DECLARE_LOCATION_ARG_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1055,14 +1055,14 @@
 ! model tree.
 !
 ! !INTERFACE:
-   subroutine fabm_do_rhs(root,_LOCATION_ND_,dy)
+   subroutine fabm_do_rhs(root _ARG_LOCATION_ND_,dy)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(inout) :: root
-   _LOCATION_TYPE_,        intent(in)    :: _LOCATION_ND_
+   _DECLARE_LOCATION_ARG_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE _ATTR_DIMENSIONS_1_, intent(inout) :: dy
@@ -1116,14 +1116,14 @@
 ! model tree in the form of production and destruction matrices.
 !
 ! !INTERFACE:
-   recursive subroutine fabm_do_ppdd(root,_LOCATION_ND_,pp,dd)
+   recursive subroutine fabm_do_ppdd(root _ARG_LOCATION_ND_,pp,dd)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),           intent(inout) :: root
-   _LOCATION_TYPE_,             intent(in)    :: _LOCATION_ND_
+  _DECLARE_LOCATION_ARG_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE _ATTR_DIMENSIONS_2_,intent(inout) :: pp,dd
@@ -1168,7 +1168,7 @@
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   subroutine fabm_check_state(root,_LOCATION_ND_,repair,valid)
+   subroutine fabm_check_state(root _ARG_LOCATION_ND_,repair,valid)
 !
 ! !USES:
    implicit none
@@ -1251,17 +1251,17 @@
 ! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
-   subroutine fabm_get_surface_exchange(root,_LOCATION_,flux)
+   subroutine fabm_get_surface_exchange(root _ARG_LOCATION_VARS_HZ_,flux)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model), intent(inout) :: root
-   _LOCATION_TYPE_,   intent(in)    :: _LOCATION_
+   _DECLARE_LOCATION_ARG_HZ_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,          intent(out)   :: flux(:)
+   REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(out)   :: flux
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1270,7 +1270,7 @@
    type (type_model), pointer       :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_SURFACE_EXCHANGE_ _FABM_ARGS_IN_0D_,flux
+#define _INPUT_ARGS_GET_SURFACE_EXCHANGE_ _FABM_ARGS_IN_HZ_,flux
    flux = _ZERO_
    model => root%nextmodel
    do while (associated(model))
@@ -1299,17 +1299,17 @@
 ! Positive values denote state variable increases, negative values state variable decreases.
 !
 ! !INTERFACE:
-   subroutine fabm_do_benthos_rhs(root,_LOCATION_,flux_pel,flux_ben)
+   subroutine fabm_do_benthos_rhs(root _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),         intent(in)    :: root
-   _LOCATION_TYPE_,           intent(in)    :: _LOCATION_
+   _DECLARE_LOCATION_ARG_HZ_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,dimension(:),     intent(inout) :: flux_pel,flux_ben
+   REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux_pel,flux_ben
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1318,7 +1318,7 @@
    type (type_model), pointer               :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_RHS_ _FABM_ARGS_IN_0D_,flux_pel,flux_ben
+#define _INPUT_ARGS_DO_BENTHOS_RHS_ _FABM_ARGS_IN_HZ_,flux_pel,flux_ben
 
    model => root%nextmodel
    do while (associated(model))
@@ -1344,18 +1344,18 @@
 ! for the pelagic, and variable units/s for the benthos.
 !
 ! !INTERFACE:
-   subroutine fabm_do_benthos_ppdd(root,_LOCATION_,pp,dd,benthos_offset)
+   subroutine fabm_do_benthos_ppdd(root _ARG_LOCATION_VARS_HZ_,pp,dd,benthos_offset)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),         intent(in)    :: root
-   _LOCATION_TYPE_,           intent(in)    :: _LOCATION_
+   _DECLARE_LOCATION_ARG_HZ_
    integer,                   intent(in)    :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE,dimension(:,:),   intent(inout) :: pp,dd
+   REALTYPE _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1364,7 +1364,7 @@
    type (type_model), pointer               :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_PPDD_ _FABM_ARGS_IN_0D_,pp,dd,benthos_offset
+#define _INPUT_ARGS_DO_BENTHOS_PPDD_ _FABM_ARGS_IN_HZ_,pp,dd,benthos_offset
 
    model => root%nextmodel
    do while (associated(model))
@@ -1389,7 +1389,7 @@
 ! and positive values indicate movemment towards the surface, e.g., floating.
 !
 ! !INTERFACE:
-   subroutine fabm_get_vertical_movement(root,_LOCATION_ND_,vertical_movement)
+   subroutine fabm_get_vertical_movement(root _ARG_LOCATION_ND_,vertical_movement)
 !
 ! !USES:
    implicit none
@@ -1449,7 +1449,7 @@
 ! variables
 !
 ! !INTERFACE:
-   subroutine fabm_get_light_extinction(root,_LOCATION_ND_,extinction)
+   subroutine fabm_get_light_extinction(root _ARG_LOCATION_ND_,extinction)
 !
 ! !INPUT PARAMETERS:
    type (type_model),           intent(inout) :: root
@@ -1510,7 +1510,7 @@
 ! !IROUTINE: Get the total of all conserved quantities
 !
 ! !INTERFACE:
-   subroutine fabm_get_conserved_quantities(root,_LOCATION_ND_,sums)
+   subroutine fabm_get_conserved_quantities(root _ARG_LOCATION_ND_,sums)
 !
 ! !USES:
    implicit none

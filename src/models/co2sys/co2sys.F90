@@ -244,7 +244,7 @@ contains
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_ENTER_HZ_
+   _FABM_HZ_LOOP_BEGIN_
 
    _GET_DEPENDENCY_(self%id_temp,temp)
    _GET_DEPENDENCY_(self%id_salt,salt)
@@ -276,7 +276,7 @@ contains
    _SET_DIAG_HZ_(self%id_co2_flux,fl/secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _FABM_LEAVE_HZ_
+   _FABM_HZ_LOOP_END_
 
    end subroutine co2sys_get_surface_exchange
 !EOC
