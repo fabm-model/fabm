@@ -1,3 +1,22 @@
+! Make sure required preprocessor macros have been defined.
+#ifndef _FABM_DIMENSION_COUNT_
+#error Preprocessor variable _FABM_DIMENSION_COUNT_ must be defined.
+#endif
+#ifndef _LOCATION_
+#error Preprocessor variable _LOCATION_ must be defined.
+#endif
+#ifndef _LOCATION_DIMENSIONS_
+#error Preprocessor variable _LOCATION_DIMENSIONS_ must be defined.
+#endif
+#ifndef _FABM_HORIZONTAL_IS_SCALAR_
+#ifndef _LOCATION_HZ_
+#error Preprocessor variable _LOCATION_HZ_ must be defined.
+#endif
+#ifndef _LOCATION_DIMENSIONS_
+#error Preprocessor variable _LOCATION_DIMENSIONS_HZ_ must be defined.
+#endif
+#endif
+
 #define REALTYPE double precision
 #define _ZERO_ 0.0d0
 #define _ONE_  1.0d0
@@ -20,16 +39,6 @@
 ! Data type for location variable(s)
 #define _LOCATION_TYPE_ integer
 
-! Define remaining dimensions in a 1D loop.
-! NB if there is only one spatial dimension, there are no remaining dimensions!
-#if _FABM_DIMENSION_COUNT_>1
-#define _ARG_LOCATION_1DLOOP_ ,_LOCATION_1DLOOP_
-#else
-#define _ARG_LOCATION_1DLOOP_
-#define _LOCATION_1DLOOP_
-#define _VARIABLE_1DLOOP_ LOCATION
-#endif
-
 ! Define dimension attribute and index specifyer for horizontal (2D) fields.
 #ifdef _FABM_HORIZONTAL_IS_SCALAR_
 #define _INDEX_LOCATION_HZ_
@@ -38,22 +47,22 @@
 #define _ARG_LOCATION_HZ_
 #define _ARG_LOCATION_DIMENSIONS_HZ_
 #else
-#define _INDEX_LOCATION_HZ_ (LOCATION_HZ)
-#define _ATTR_LOCATION_DIMENSIONS_HZ_ ,dimension(LOCATION_DIMENSIONS_HZ)
-#define _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ ,dimension(:,LOCATION_DIMENSIONS_HZ)
-#define _ARG_LOCATION_HZ_ ,LOCATION_HZ
-#define _ARG_LOCATION_DIMENSIONS_HZ_ ,LOCATION_DIMENSIONS_HZ
+#define _INDEX_LOCATION_HZ_ (_LOCATION_HZ_)
+#define _ATTR_LOCATION_DIMENSIONS_HZ_ ,dimension(_LOCATION_DIMENSIONS_HZ_)
+#define _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ ,dimension(:,_LOCATION_DIMENSIONS_HZ_)
+#define _ARG_LOCATION_HZ_ ,_LOCATION_HZ_
+#define _ARG_LOCATION_DIMENSIONS_HZ_ ,_LOCATION_DIMENSIONS_HZ_
 #endif
 
 ! Define dimension attribute and index specifyer for full 3D fields.
-#define _INDEX_LOCATION_ (LOCATION)
-#define _ATTR_LOCATION_DIMENSIONS_ ,dimension(LOCATION_DIMENSIONS)
-#define _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_ ,dimension(:,LOCATION_DIMENSIONS)
-#define _ARG_LOCATION_ ,LOCATION
+#define _INDEX_LOCATION_ (_LOCATION_)
+#define _ATTR_LOCATION_DIMENSIONS_ ,dimension(_LOCATION_DIMENSIONS_)
+#define _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_ ,dimension(:,_LOCATION_DIMENSIONS_)
+#define _ARG_LOCATION_ ,_LOCATION_
 #define _ARG_LOCATION_DIMENSIONS_ ,:
 
 #define _FABM_ARGS_0D_ environment _ARG_LOCATION_
-#define _DECLARE_FABM_ARGS_0D_ type (type_environment),intent(inout) :: environment;_LOCATION_TYPE_,intent(in) :: LOCATION
+#define _DECLARE_FABM_ARGS_0D_ type (type_environment),intent(inout) :: environment;_LOCATION_TYPE_,intent(in) :: _LOCATION_
 #define _FABM_ARGS_IN_0D_ root%environment _ARG_LOCATION_
 
 ! Spatial loop for quantities defined on hortizontal slice of the full spatial domain.
@@ -64,6 +73,26 @@
 #define _INDEX_SURFACE_EXCHANGE_(index) (index)
 
 #ifdef _FABM_USE_1D_LOOP_
+
+#if _FABM_DIMENSION_COUNT_<1
+#error Cannot build 1D vectorized version of FABM (_FABM_USE_1D_LOOP_) with the total number of spatial dimensions (_FABM_DIMENSION_COUNT_) being less than 1.
+#endif
+
+! For a 1D spatial domain, the vectorzied version of FABM must ioterate over that sole dimension.
+#if _FABM_DIMENSION_COUNT_>1
+#define _ARG_LOCATION_1DLOOP_ ,_LOCATION_1DLOOP_
+#else
+#define _ARG_LOCATION_1DLOOP_
+#define _LOCATION_1DLOOP_
+#define _VARIABLE_1DLOOP_ _LOCATION_
+#endif
+
+#ifndef _VARIABLE_1DLOOP_
+#error Building 1D vectorized version of FABM: preprocessor variable _VARIABLE_1DLOOP_ must be defined.
+#endif
+#ifndef _LOCATION_1DLOOP_
+#error Building 1D vectorized version of FABM: preprocessor variable _LOCATION_1DLOOP_ must be defined.
+#endif
 
 ! 1D vectorized: FABM subroutines operate on one spatial dimension.
 
@@ -102,8 +131,8 @@
 ! Not vectorized: FABM subroutines operate one the local state only.
 
 ! Dummy argument and argument declaration for location specification.
-#define _LOCATION_ND_ LOCATION
-#define _DECLARE_LOCATION_ARG_ND_ _LOCATION_TYPE_,intent(in) :: LOCATION
+#define _LOCATION_ND_ _LOCATION_
+#define _DECLARE_LOCATION_ARG_ND_ _LOCATION_TYPE_,intent(in) :: _LOCATION_
 
 ! Beginning and end of spatial loop
 #define _FABM_LOOP_BEGIN_
@@ -174,7 +203,7 @@
 
 ! For BGC models: write access to diagnostic variables
 #ifdef _FABM_MANAGE_DIAGNOSTICS_
-#define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%diag(index,LOCATION) = value
+#define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%diag(index,_LOCATION_) = value
 #define _SET_DIAG_HZ_(index,value) if (index.ne.id_not_used) environment%diag_hz(index) = value
 #else
 #define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%var(index)%data _INDEX_LOCATION_ = value

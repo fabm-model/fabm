@@ -598,14 +598,14 @@
 ! Currently only needed if preprocessor _FABM_MANAGE_DIAGNOSTICS_ is defined.
 !
 ! !INTERFACE:
-   subroutine fabm_set_domain(root,LOCATION)
+   subroutine fabm_set_domain(root,_LOCATION_)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: root
-   _LOCATION_TYPE_,                        intent(in)    :: LOCATION
+   _LOCATION_TYPE_,                        intent(in)    :: _LOCATION_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1251,14 +1251,14 @@
 ! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
-   subroutine fabm_get_surface_exchange(root,LOCATION,flux)
+   subroutine fabm_get_surface_exchange(root,_LOCATION_,flux)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model), intent(inout) :: root
-   _LOCATION_TYPE_,   intent(in)    :: LOCATION
+   _LOCATION_TYPE_,   intent(in)    :: _LOCATION_
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE,          intent(out)   :: flux(:)
@@ -1299,14 +1299,14 @@
 ! Positive values denote state variable increases, negative values state variable decreases.
 !
 ! !INTERFACE:
-   subroutine fabm_do_benthos_rhs(root,LOCATION,flux_pel,flux_ben)
+   subroutine fabm_do_benthos_rhs(root,_LOCATION_,flux_pel,flux_ben)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),         intent(in)    :: root
-   _LOCATION_TYPE_,           intent(in)    :: LOCATION
+   _LOCATION_TYPE_,           intent(in)    :: _LOCATION_
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE,dimension(:),     intent(inout) :: flux_pel,flux_ben
@@ -1344,14 +1344,14 @@
 ! for the pelagic, and variable units/s for the benthos.
 !
 ! !INTERFACE:
-   subroutine fabm_do_benthos_ppdd(root,LOCATION,pp,dd,benthos_offset)
+   subroutine fabm_do_benthos_ppdd(root,_LOCATION_,pp,dd,benthos_offset)
 !
 ! !USES:
    implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),         intent(in)    :: root
-   _LOCATION_TYPE_,           intent(in)    :: LOCATION
+   _LOCATION_TYPE_,           intent(in)    :: _LOCATION_
    integer,                   intent(in)    :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:

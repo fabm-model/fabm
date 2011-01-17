@@ -204,7 +204,7 @@
    foodmic = foodmic*self%food_scale
    foodno  = max(_ONE_,food/0.0024) !0.0024 is mg C per copepod
    
-   !write (*,*) LOCATION,numc,food,foodmic
+   !write (*,*) _LOCATION_,numc,food,foodmic
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
 
    resp_mn = 0.04+0.11*(foodno/(30.+foodno))

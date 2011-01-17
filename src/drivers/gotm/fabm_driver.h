@@ -2,8 +2,8 @@
 #define _FABM_HORIZONTAL_IS_SCALAR_
 
 ! Variable name and dimension specifyer for full bio fields
-#define LOCATION kk
-#define LOCATION_DIMENSIONS :
+#define _LOCATION_ kk
+#define _LOCATION_DIMENSIONS_ :
 
 ! Let FABM manage (declare and allocate) arrays for diagnostic variables - slight performance gain.
 #define _FABM_MANAGE_DIAGNOSTICS_
@@ -15,8 +15,8 @@
 ! (FABM expects the vectorized spatial dimension to come first, which would benefit performance)
 ! Therefore, prescribe how to access spatially-localized rhs,pp,dd elements here.
 ! Note that this is only relevant if _FABM_USE_1D_LOOP_ is defined.
-#define _INDEX_ODE_(i) (i,LOCATION-fabm_loop_start+1)
-#define _INDEX_PPDD_(i,j) (i,j,LOCATION-fabm_loop_start+1)
+#define _INDEX_ODE_(i) (i,_LOCATION_-fabm_loop_start+1)
+#define _INDEX_PPDD_(i,j) (i,j,_LOCATION_-fabm_loop_start+1)
 
 ! Include FABM preprocessor definitions.
 ! This *must* be done after the host-specific variables are defined (above),
@@ -24,5 +24,5 @@
 #include "fabm.h"
 
 ! Not used by FABM itself; only by GOTM-FABM driver gotm_fabm.F90
-#define LOCATION_RANGE 0:kk
+#define _LOCATION_RANGE_ 0:kk
 
