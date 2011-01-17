@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
-Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "rmbm", "rmbm.vfproj", "{7D63F885-F1D8-469C-A076-488A23EB592B}"
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "fabm", "fabm.vfproj", "{7D63F885-F1D8-469C-A076-488A23EB592B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
