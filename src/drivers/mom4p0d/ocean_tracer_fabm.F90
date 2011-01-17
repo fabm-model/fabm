@@ -23,6 +23,7 @@
 !!                                                                   !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include <fms_platform.h>
+#include "fabm_driver.h"
 
 !
 ! 
@@ -179,8 +180,8 @@ type biotic_type  !{
   logical                                          :: do_virtual_flux = .false.
   integer,_ALLOCATABLE,dimension(:)                :: inds,inds_diag,inds_diag_hz
   double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_state _NULL,work_diag _NULL
-  double precision,_ALLOCATABLE,dimension(:,:,:)   :: work_diag_hz _NULL
-  double precision,_ALLOCATABLE,dimension(:,:)     :: w _NULL,adv _NULL,work_dy _NULL
+  double precision,_ALLOCATABLE,dimension(:,:,:)   :: work_diag_hz _NULL,w _NULL
+  double precision,_ALLOCATABLE,dimension(:,:)     :: adv _NULL,work_dy _NULL
 
 end type biotic_type  !}
 
@@ -965,10 +966,14 @@ do n = 1, instances  !{
   ! Repair bio state at the start of the time step
   do k = 1, nk  !{
     do j = jsc, jec  !{
+#ifdef _FABM_USE_1D_LOOP_
+      call fabm_check_state(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,.true.,valid)
+#else
       do i = isc, iec  !{
         if (grid%tmask(i,j,k).eq.1.) &
           call fabm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.,valid)
       end do
+#endif
     end do
   end do
 
@@ -986,20 +991,28 @@ do it=1,biotic_split
          ! Initialize derivatives to zero, because the bio model will increment/decrement values rather than set them.
          biotic(n)%work_dy = 0.d0
 
+#ifdef _FABM_USE_1D_LOOP_
+         call fabm_do(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,biotic(n)%work_dy(isc:iec,:))
+#else
          do i = isc, iec  !{
            ! Call bio model for current grid point, provided that it is wet
            if (grid%tmask(i,j,k).eq.1.) &
               call fabm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:))
          end do  !} i
+#endif
          
          ! Update current state according to supplied temporal derivatives (Forward Euler)
          biotic(n)%work_state(isc:iec,j,k,:) = biotic(n)%work_state(isc:iec,j,k,:) + dtsb*biotic(n)%work_dy(isc:iec,:)
 
          ! Repair bio state at the end of the internal time step
+#ifdef _FABM_USE_1D_LOOP_
+         call fabm_check_state(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,.true.,valid)
+#else
          do i = isc, iec  !{
            if (grid%tmask(i,j,k).eq.1.) &
              call fabm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.,valid)
          end do
+#endif
 
        end do  !} j
      end do  !} k
@@ -1037,20 +1050,29 @@ do n = 1, instances  !{
 
   ! Vertical movement is applied with a first-order upwind scheme.
   do j = jsc, jec
+    ! For every i: get sinking speed over entire column for all state variables.
+#ifdef _FABM_USE_1D_LOOP_
+    do k=1,nk
+      call fabm_get_vertical_movement(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,biotic(n)%w(:,k,:))
+    end do
+#else
+    do i = isc, iec
+      if (grid%tmask(i,j,1).ne.1.) cycle
+      do k=1,grid%kmt(i,j)
+        call fabm_get_vertical_movement(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%w(i,k,:))
+      end do
+    end do
+#endif
+
     do i = isc, iec
      if (grid%tmask(i,j,1).ne.1.) cycle
     
-     !  Get sinking speed over entire column for all state variables.
-     do k=1,grid%kmt(i,j)
-       call fabm_get_vertical_movement(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%w(k,:))
-     end do
-     
      ! Interpolate to sinking speed at interfaces
      do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
-       biotic(n)%w(2:grid%kmt(i,j),ivar) = (biotic(n)%w(2:grid%kmt(i,j),ivar) + biotic(n)%w(1:grid%kmt(i,j)-1,ivar))*0.5d0
+       biotic(n)%w(i,2:grid%kmt(i,j),ivar) = (biotic(n)%w(i,2:grid%kmt(i,j),ivar) + biotic(n)%w(i,1:grid%kmt(i,j)-1,ivar))*0.5d0
      end do
-     biotic(n)%w(1,              :) = 0.0d0   ! Surface boundary condition
-     biotic(n)%w(grid%kmt(i,j)+1,:) = 0.0d0   ! Bottom boundary condition
+     biotic(n)%w(i,1,              :) = 0.0d0   ! Surface boundary condition
+     biotic(n)%w(i,grid%kmt(i,j)+1,:) = 0.0d0   ! Bottom boundary condition
      
      biotic(n)%adv = 0.d0
      
@@ -1058,12 +1080,12 @@ do n = 1, instances  !{
      
         ! Get upstream state variable values at all interfaces.
         do k=2,grid%kmt(i,j)
-          if (biotic(n)%w(k,ivar)>0.) then
+          if (biotic(n)%w(i,k,ivar)>0.) then
             ! floating
-            biotic(n)%adv(k,ivar) = biotic(n)%w(k,ivar)*t_prog(biotic(n)%inds(ivar))%field(i,j,k,taum1)
-          elseif (biotic(n)%w(k,ivar)<0.) then
+            biotic(n)%adv(k,ivar) = biotic(n)%w(i,k,ivar)*t_prog(biotic(n)%inds(ivar))%field(i,j,k,taum1)
+          elseif (biotic(n)%w(i,k,ivar)<0.) then
             ! sinking
-            biotic(n)%adv(k,ivar) = biotic(n)%w(k,ivar)*t_prog(biotic(n)%inds(ivar))%field(i,j,k-1,taum1)
+            biotic(n)%adv(k,ivar) = biotic(n)%w(i,k,ivar)*t_prog(biotic(n)%inds(ivar))%field(i,j,k-1,taum1)
           end if
         end do
 
@@ -1198,7 +1220,7 @@ do n=1,instances
    allocate(biotic(n)%work_dy     (isc:iec,           ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%work_diag   (isc:iec,jsc:jec,nk,ubound(biotic(n)%model%info%diagnostic_variables,1)))
    allocate(biotic(n)%work_diag_hz(isc:iec,jsc:jec,   ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
-   allocate(biotic(n)%w  (nk+1,ubound(biotic(n)%model%info%state_variables,1)))
+   allocate(biotic(n)%w  (isc:iec,nk+1,ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%adv(nk+1,ubound(biotic(n)%model%info%state_variables,1)))
    
    ! Set diagnostic variables to zero, because values for land points will not be set.

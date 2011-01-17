@@ -12,7 +12,7 @@
 #define _VARIABLE_1DLOOP_ ii
 #define _LOCATION_1DLOOP_ jj,kk
 
-!#define _FABM_USE_1D_LOOP_
+#define _FABM_USE_1D_LOOP_
 
 #include "fabm.h"
 
