@@ -1,4 +1,4 @@
-! Make sure required preprocessor macros have been defined.
+! Make sure that the primary preprocessor macro has been defined.
 #ifndef _FABM_DIMENSION_COUNT_
 #error Preprocessor variable _FABM_DIMENSION_COUNT_ must be defined.
 #endif
@@ -26,7 +26,7 @@
 #endif
 #endif
 
-! Constants related to floating point precision.
+! Constants related to floating point precision; used throughout FABM.
 #define REALTYPE double precision
 #define _ZERO_ 0.0d0
 #define _ONE_  1.0d0
@@ -36,6 +36,7 @@
 ! As a workaround, they can be declared with the pointer attribute, which does bring a slight performance penalty.
 ! By using the below preprocessor definitions, the allocatable attribute is automatically replaced by the pointer
 ! attribute where needed, and related function calls are changed as well.
+! These are used through FABM.
 #ifdef _ISO_TR_15581_
 #define _ALLOCATABLE_ allocatable
 #define _NULL_ 
@@ -46,7 +47,7 @@
 #define _ALLOCATED_ associated
 #endif
 
-! Data type for location variable(s)
+! Data type for location variable(s); only used within this file.
 #define _LOCATION_TYPE_ integer
 
 ! Define dimension attribute and index specifyer for horizontal (2D) fields.
