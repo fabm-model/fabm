@@ -293,6 +293,9 @@
    integer :: i
 !-----------------------------------------------------------------------
 !BOC
+   ! Default id: model not found.
+   id = id_not_used
+
    ! If models have not been registered yet, do this first.
    if (.not.allocated(modelnames)) call register_models()
 
