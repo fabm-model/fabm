@@ -14,6 +14,7 @@
 ! !USES:
    use time
    use fabm
+   use fabm_types
 
    IMPLICIT NONE
    private
@@ -47,9 +48,9 @@
    logical  :: apply_self_shading = .true., add_environment = .false., add_conserved_quantities = .false.
    
    ! Environment
-   REALTYPE,target :: temp,salt,par,depth
+   REALTYPE,target :: temp,salt,par,depth,dens,wind_sf,par_sf
    
-   REALTYPE,allocatable                   :: cc(:,:),totals(:)
+   REALTYPE,allocatable                   :: cc(:,:),totals(:),diag(:),diag_hz(:)
    type (type_model),pointer              :: model
    character(len=128)                     :: cbuf
 
@@ -150,11 +151,34 @@
    ! Allocate space for totals of conserved quantities.
    allocate(totals(1:ubound(model%info%conserved_quantities,1)))
 
-   ! Create state variable vector, using the initial values specified by the model.
+   ! Create state variable vector, using the initial values specified by the model,
+   ! and link state data to FABM.
    allocate(cc(ubound(model%info%state_variables,1),0:1))
    do i=1,ubound(model%info%state_variables,1)
       cc(i,1) = model%info%state_variables(i)%initial_value
+      call fabm_link_state_data(model,i,cc(i,1))
    end do
+
+   ! Create diagnostic variable vector for the full spatial domain, and link it to FABM.
+   allocate(diag(ubound(model%info%diagnostic_variables,1)))
+   do i=1,ubound(model%info%diagnostic_variables,1)
+      call fabm_link_diagnostic_data(model,i,diag(i))
+   end do
+
+   ! Create diagnostic variable vector for data on horitontal slices, and link it to FABM.
+   allocate(diag_hz(ubound(model%info%diagnostic_variables_hz,1)))
+   do i=1,ubound(model%info%diagnostic_variables_hz,1)
+      call fabm_link_diagnostic_data_hz(model,i,diag_hz(i))
+   end do
+   
+   ! Link environmental data to FABM
+   call fabm_link_data(model,varname_temp,   temp)
+   call fabm_link_data(model,varname_salt,   salt)
+   call fabm_link_data(model,varname_par,    par)
+   call fabm_link_data(model,varname_pres,   depth)
+   call fabm_link_data(model,varname_dens,   dens)
+   call fabm_link_data(model,varname_wind_sf,wind_sf)
+   call fabm_link_data(model,varname_par_sf, par_sf)
 
    ! Open the output file.
    open(out_unit,file=output_file,action='write', &
@@ -307,21 +331,23 @@
       ! Calculate photosynthetically active radiation if it is not provided in the input file.
       if (swr_method.eq.0) then
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
-         call short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,par)
+         call short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,par_sf)
       end if
       
+      ! Multiply by fraction of short-wave radiation that is photosynthetically active.
+      par_sf = par_fraction*par_sf
+
       ! Apply light attentuation with depth, unless local light is provided in the input file.
       if (swr_method.ne.2) then
          ! Either we calculate surface PAR, or surface PAR is provided.
          ! Calculate the local PAR at the given depth from par fraction, extinction coefficient, and depth.
          extinction = par_background_extinction
          if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
-         par = par*exp(depth*extinction)
+         par = par_sf*exp(depth*extinction)
+      else
+         par = par_sf
       end if
       
-      ! Multiply by fraction of short-wave radiation that is photosynthetically active.
-      par = par_fraction*par
-
       ! Integrate one time step
       call ode_solver(ode_method,ubound(model%info%state_variables,1),1,dt,cc,get_rhs,get_ppdd)
       
