@@ -99,7 +99,8 @@ contains
      self%id_alk = register_state_variable(modelinfo,'alk','mEq/m**3','alkalinity', &
                                     alk_initial,minimum=_ZERO_,no_precipitation_dilution=.true.,no_river_dilution=.true.)
    else
-     self%id_alk_diag = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity',time_treatment=time_treatment_averaged)
+     self%id_alk_diag = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity', &
+                                                     time_treatment=time_treatment_averaged)
    end if
                                     
    ! Register diagnostic variables.

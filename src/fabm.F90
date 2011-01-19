@@ -1145,7 +1145,7 @@
          case (npzd_id)
             call npzd_do_ppdd(model%npzd,_INPUT_ARGS_DO_PPDD_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model provides a subroutine for calculating local
-         ! production/destruction matrices. This is required fro certain temporal integration schemes,
+         ! production/destruction matrices. This is required for certain temporal integration schemes,
          ! e.g., Patankar, Modified Patankar.
          !
          ! Typical model call:

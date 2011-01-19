@@ -62,7 +62,7 @@
 
       REALTYPE :: initial_value              ! Initial state variable value
       REALTYPE :: minimum,maximum            ! Valid range
-      REALTYPE :: vertical_movement          ! Vertical movement (m/s) due to e.g. sinking, floating or activity. Note: positive for upward movement!
+      REALTYPE :: vertical_movement          ! Vertical movement (m/s) due to e.g. sinking, floating. Positive for up.
       REALTYPE :: specific_light_extinction  ! Specific light extinction (/m/state variable unit)
       logical :: no_precipitation_dilution,no_river_dilution
       
@@ -134,8 +134,8 @@
       ! Pointer(s) to arrays that will hold values of "generic" variables, that is, all internal and external dependencies.
       ! If _FABM_MANAGE_DIAGNOSTICS_ is not set, these arrays contains diagnostic variables as well.
       ! These arrays contain pointers to the state variable data as well.
-      type (type_state   ), dimension(:), _ALLOCATABLE_ :: var    _NULL_ ! array of pointers to data of all pelagic variables (state and diagnostic)
-      type (type_state_hz), dimension(:), _ALLOCATABLE_ :: var_hz _NULL_ ! array of pointers to data of all horizontal variables (state and diagnostic, surface and bottom)
+      type (type_state   ), dimension(:), _ALLOCATABLE_ :: var    _NULL_ ! pelagic variables (state and diagnostic)
+      type (type_state_hz), dimension(:), _ALLOCATABLE_ :: var_hz _NULL_ ! horizontal variables (state and diagnostic, surface and bottom)
       
 #ifdef _FABM_MANAGE_DIAGNOSTICS_
       ! FABM will manage the current value of diagnostic variables itself.
