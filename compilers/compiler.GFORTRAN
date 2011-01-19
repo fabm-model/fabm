@@ -6,8 +6,8 @@ DEFINES += -D_ISO_TR_15581_
 can_do_F90=true
 F90_to_f90=
 MODULES=-M $(MODDIR)
-EXTRAS = -ffree-form -Wall -std=f95 -pedantic
-EXTRAS = -ffree-form -Wall -std=gnu
+EXTRAS = -ffree-form -Wall -std=f95 -pedantic -ffree-line-length-none
+EXTRAS = -ffree-form -Wall -std=gnu -ffree-line-length-none
 DEBUG_FLAGS = -g 
 PROF_FLAGS  = -p
 PROD_FLAGS  = -O3
