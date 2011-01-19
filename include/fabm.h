@@ -238,11 +238,11 @@
 #define _TYPE_CONSERVED_QUANTITY_ID_ integer
 
 ! For BGC models: Expressions for setting space-dependent FABM variables defined on the full spatial domain.
-#define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%id) = rhs _INDEX_ODE_(variable%id) + value
-#define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1%id,variable2%id) = dd _INDEX_PPDD_(variable1%id,variable2%id) + value
-#define _SET_PP_(variable1,variable2,value) pp _INDEX_PPDD_(variable1%id,variable2%id) = pp _INDEX_PPDD_(variable1%id,variable2%id) + value
-#define _SET_EXTINCTION_(value) extinction _INDEX_EXTINCTION_ = extinction _INDEX_EXTINCTION_ + value
-#define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_CONSERVED_QUANTITY_(variable) = sums _INDEX_CONSERVED_QUANTITY_(variable) + value
+#define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%id) = rhs _INDEX_ODE_(variable%id) + (value)
+#define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1%id,variable2%id) = dd _INDEX_PPDD_(variable1%id,variable2%id) + (value)
+#define _SET_PP_(variable1,variable2,value) pp _INDEX_PPDD_(variable1%id,variable2%id) = pp _INDEX_PPDD_(variable1%id,variable2%id) + (value)
+#define _SET_EXTINCTION_(value) extinction _INDEX_EXTINCTION_ = extinction _INDEX_EXTINCTION_ + (value)
+#define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_CONSERVED_QUANTITY_(variable) = sums _INDEX_CONSERVED_QUANTITY_(variable) + (value)
 #define _SET_VERTICAL_MOVEMENT_(variable,value) vertical_movement _INDEX_VERTICAL_MOVEMENT_(variable%id) = value
 #define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_SURFACE_EXCHANGE_(variable%id) = value
 
@@ -269,5 +269,3 @@
 #define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%var(index)%data _INDEX_LOCATION_ = value
 #define _SET_DIAG_HZ_(index,value) if (index.ne.id_not_used) environment%var_hz(index)%data _INDEX_LOCATION_HZ_ = value
 #endif
-
-!#define _SET_ODE_(variable,value) if (variable%id.ne.id_not_used) rhs _INDEX_ODE_(variable%id) = rhs _INDEX_ODE_(variable%id) + value
