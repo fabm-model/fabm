@@ -619,7 +619,9 @@
 !
 !-----------------------------------------------------------------------
 !BOC
+      ! Default id: not found.
       id%id = id_not_used
+      id%dependencyid = id_not_used
       
       ! If this model does not have a parent, there is no context to search variables in.
       if (.not. associated(modelinfo%parent)) return
