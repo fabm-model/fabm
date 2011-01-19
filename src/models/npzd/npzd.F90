@@ -477,8 +477,8 @@
    primprod = fnp(self,n,p,par,iopt)
 
    ! Assign destruction rates to different elements of the destruction matrix.
-   ! By assigning with SET_DD_SYM (as opposed to SET_DD), assignments to dd(i,j)
-   ! are automatically assigned to pp(j,i) as well.
+   ! By assigning with _SET_DD_SYM_(i,j,val) as opposed to _SET_DD_(i,j,val),
+   ! assignments to dd(i,j) are automatically assigned to pp(j,i) as well.
    _SET_DD_SYM_(self%id_n,self%id_p,primprod)               ! snp
    _SET_DD_SYM_(self%id_p,self%id_z,fpz(self,p,z))          ! spz
    _SET_DD_SYM_(self%id_p,self%id_n,self%rpn*p)             ! spn
