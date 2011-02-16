@@ -16,8 +16,9 @@
    use fabm_types
    use fabm_driver
    use global_declarations
-   use ersem, ONLY:allocate_ersem,init_ersem
+   use ersem, ONLY:allocate_ersem,init_ersem,ersem_loop
    use allocationHelpers, ONLY: allocerr
+   use ncdfRestartErsem, ONLY: readErsemRestart
 
    implicit none
 
@@ -46,8 +47,9 @@
 !     Model parameters
 !      REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
 !      REALTYPE :: dic_per_n
-!      logical  :: use_dic
    end type
+   logical  :: bioshade_feedback
+   integer :: nbudget
 !EOP
 !-----------------------------------------------------------------------
 
@@ -76,8 +78,15 @@
 !
 ! !LOCAL VARIABLES:
    integer :: n,ialloc
+   character(len=255) :: ncdfErsemFile,ncdfErsemTitle
 
 !   REALTYPE, parameter :: secs_pr_day = 86400.
+
+   namelist /fabmersem_nml/ ncdfErsemFile,ncdfErsemTitle, &
+                    bioshade_feedback, &
+                    nbudget,readErsemRestart, &
+                    ncdfInstOut,ncdfDailyOut,ncdfWeeklyOut,ncdfMonthlyOut
+
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -172,7 +181,7 @@
    _GET_DEPENDENCY_1D_   (self%id_x1X,x1X)  ! local salinity
 !   _GET_DEPENDENCY_1D_   (self%id_EPW,EPW)  ! local pressure
 
-   call ersem_loop
+   call ersem_loop()
 
    ! Set temporal derivatives
    _SET_ODE_1D_(self%id_ccc,sccc)
