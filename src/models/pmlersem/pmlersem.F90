@@ -83,7 +83,7 @@
    character(len=255) :: ncdfErsemFile,ncdfErsemTitle
 
 !   REALTYPE, parameter :: secs_pr_day = 86400.
-
+#ifdef FABM_PMLERSEM
    namelist /fabmersem_nml/ ncdfErsemFile,ncdfErsemTitle, &
                     bioshade_feedback, &
                     nbudget,readErsemRestart, &
@@ -95,7 +95,6 @@
    ! Read the namelist
    !read(namlst,nml=fabmersem,err=99)
 
-#ifdef FABM_PMLERSEM
    N_COMP=_GET_NLEV_
    call allocate_ersem()
 
