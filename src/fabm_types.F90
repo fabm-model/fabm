@@ -42,6 +42,7 @@
    character(len=64),parameter,public :: &
      varname_temp    = 'env_temp',    & ! Temperature (degrees Celsius)
      varname_salt    = 'env_salt',    & ! Salinity (psu)
+     varname_swr     = 'env_swr',     & ! Shortwave radiation (W/m^2)
      varname_par     = 'env_par',     & ! Photosynthetically Active Radiation (W/m^2)
      varname_pres    = 'env_pres',    & ! Pressure (dbar = 10 kPa)
      varname_dens    = 'env_dens',    & ! Density (kg/m^3)
