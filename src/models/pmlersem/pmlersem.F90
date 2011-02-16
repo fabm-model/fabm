@@ -25,8 +25,8 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_pmlersem, pmlersem_init, pmlersem_do, pmlersem_do_ppdd, &
-          pmlersem_get_light_extinction, pmlersem_get_conserved_quantities
+   public type_pmlersem, pmlersem_init, pmlersem_do, &
+          pmlersem_get_light_extinction
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -69,7 +69,7 @@
 ! !INPUT PARAMETERS:
    type (type_pmlersem),      intent(out)   :: self
    type (type_model_info),intent(inout) :: modelinfo
-!   integer,               intent(in)    :: namlst !needed? happens inside ERSEM, need correspondence to gotmersem.nml though!
+   integer,               intent(in)    :: namlst 
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard & Karsten Bolding
@@ -84,7 +84,7 @@
    ! Read the namelist
    !read(namlst,nml=fabmersem,err=99)
 
-   N_COMP=GET_NLEV
+   N_COMP=_GET_NLEV_
    call allocate_ersem()
 
    allocate(self%id_ccc(I_STATE),stat=ialloc)
@@ -119,7 +119,7 @@
    ! Register environmental dependencies
    self%id_ETW = register_dependency(modelinfo, varname_temp)
    self%id_EIR = register_dependency(modelinfo, varname_swr)
-   self%id_EPW = register_dependency(modelinfo, varname_press)
+   self%id_EPW = register_dependency(modelinfo, varname_pres)
    self%id_x1X = register_dependency(modelinfo, varname_salt)
 
    return
@@ -151,6 +151,7 @@
 !
 ! !LOCAL VARIABLES:
    REALTYPE, parameter        :: secs_pr_day = 86400.
+   integer :: n
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -158,10 +159,10 @@
    _FABM_LOOP_BEGIN_1D_
 
    ! Retrieve current (local) state variable values.
-   DO n=1,ISTATE
+   DO n=1,I_STATE
         _GET_STATE_1D_(self%id_ccc(n),ccc(_DOMAIN_1D_,n)) ! pelagic
    ENDDO
-!   DO n=1,ISTATEBEN
+!   DO n=1,I_STATEBEN
 !        _GET_STATE_HZ(self%id_ccb(:,n),ccb(:,n)) ! benthic
 !   ENDDO
    
@@ -169,7 +170,7 @@
    _GET_DEPENDENCY_1D_   (self%id_EIR,EIR)  ! local short wave radiation
    _GET_DEPENDENCY_1D_   (self%id_ETW,ETW)  ! local temperature
    _GET_DEPENDENCY_1D_   (self%id_x1X,x1X)  ! local salinity
-   _GET_DEPENDENCY_1D_   (self%id_EPW,EPW)  ! local pressure
+!   _GET_DEPENDENCY_1D_   (self%id_EPW,EPW)  ! local pressure
 
    call ersem_loop
 
@@ -210,7 +211,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: p,d
+   integer                     :: n
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -219,7 +220,7 @@
    _FABM_LOOP_BEGIN_1D_
 
    ! Retrieve current (local) state variable values.
-   DO n=1,ISTATE
+   DO n=1,I_STATE
         _GET_STATE_1D_(self%id_ccc(n),ccc(_DOMAIN_1D_,n)) ! pelagic
    ENDDO
    call calculate_extinction() 
