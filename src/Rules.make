@@ -53,6 +53,10 @@ MODDIR	= $(FABMDIR)/modules/$(FABMHOST)/$(FORTRAN_COMPILER)
 endif
 INCDIRS	+= -I/usr/local/include -I$(FABMDIR)/include -I$(MODDIR)
 
+ifdef FABM_PMLERSEM
+DEFINES += -DFABM_PMLERSEM
+endif
+
 # Normaly this should not be changed - unless you want something very specific.
 
 # The Fortran compiler is determined from the EV FORTRAN_COMPILER - options 
