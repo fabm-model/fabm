@@ -10,6 +10,9 @@ LIB	= $(LIBDIR)/libfabm$(buildtype).a
 DOCSRC  += npzd/npzd.F90
 SUBDIRS += npzd
 
+DOCSRC  += pmlersem/pmlersem.F90
+SUBDIRS += pmlersem
+
 DOCSRC  += mnemiopsis/mnemiopsis.F90
 SUBDIRS += mnemiopsis
 

@@ -18,6 +18,7 @@
 !   
 !  Reference specific biogeochemical models:
    use fabm_npzd
+   use fabm_pmlersem
    use fabm_mnemiopsis
    use fabm_co2sys
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
@@ -44,6 +45,7 @@
 !  Identifiers for specific biogeochemical models.
    integer, parameter :: model_container_id = -1
    integer, parameter :: npzd_id            =  1
+   integer, parameter :: pmlersem_id      =  99
    integer, parameter :: co2sys_id          =  101
    integer, parameter :: mnemiopsis_id      =  102
    ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
@@ -72,6 +74,7 @@
 
       ! Derived types that belong to specific biogeochemical models.
       type (type_npzd)       :: npzd
+      type (type_pmlersem)       :: pmlersem
       type (type_mnemiopsis) :: mnemiopsis
       type (type_co2sys)     :: co2sys
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
@@ -154,6 +157,7 @@
    ! Register specific biogeochemical models.
    call register_model(model_container_id,'')
    call register_model(npzd_id           ,'npzd')
+   call register_model(pmlersem_id           ,'pmlersem')
    call register_model(mnemiopsis_id     ,'mnemiopsis')
    call register_model(co2sys_id         ,'co2sys')
    ! ADD_NEW_MODEL_HERE - required
@@ -1090,6 +1094,8 @@
       select case (model%id)
          case (npzd_id)
             call npzd_do(model%npzd,_INPUT_ARGS_DO_RHS_)
+         case (pmlersem_id)
+            call pmlersem_do(model%pmlersem,_INPUT_ARGS_DO_RHS_)
          case (mnemiopsis_id)
             call mnemiopsis_do(model%mnemiopsis,_INPUT_ARGS_DO_RHS_)
          case (co2sys_id)
