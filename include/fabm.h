@@ -278,8 +278,8 @@
 
 ! Work-in-progress: extra definitions for coupling to pure-1D models [ERSEM]
 #define _GET_NLEV_ 150
-#define _GET_STATE_1D_(variable,target) target(fabm_loop_start:fabm_loop_stop) = env%var(variable%dependencyid)%data(fabm_loop_start:fabm_loop_stop)
-#define _GET_DEPENDENCY_1D_(variable,target) target(fabm_loop_start:fabm_loop_stop) = env%var(variable)%data(fabm_loop_start:fabm_loop_stop)
+#define _GET_STATE_1D_(variable,target) target = env%var(variable%dependencyid)%data(fabm_loop_start:fabm_loop_stop)
+#define _GET_DEPENDENCY_1D_(variable,target) target = env%var(variable)%data(fabm_loop_start:fabm_loop_stop)
 #define _FABM_LOOP_BEGIN_1D_
 #define _FABM_LOOP_END_1D_
 #ifndef _INDEX_ODE_1D_
@@ -287,3 +287,4 @@
 #endif
 #define _SET_ODE_1D_ rhs _INDEX_ODE_1D_(variable%id) = rhs _INDEX_ODE_1D_(variable%id) + (value)
 #define _SET_EXTINCTION_1D_ extinction(fabm_loop_start:fabm_loop_stop) = extinction(fabm_loop_start:fabm_loop_stop) + value(fabm_loop_start:fabm_loop_stop)
+#define _DOMAIN_1D_ fabm_loop_start:fabm_loop_stop
