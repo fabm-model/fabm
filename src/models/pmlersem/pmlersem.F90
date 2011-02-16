@@ -15,10 +15,12 @@
 ! !USES:
    use fabm_types
    use fabm_driver
+#ifdef FABM_PMLERSEM
    use global_declarations
    use ersem, ONLY:allocate_ersem,init_ersem,ersem_loop
    use allocationHelpers, ONLY: allocerr
    use ncdfRestartErsem, ONLY: readErsemRestart
+#endif
 
    implicit none
 
@@ -93,6 +95,7 @@
    ! Read the namelist
    !read(namlst,nml=fabmersem,err=99)
 
+#ifdef FABM_PMLERSEM
    N_COMP=_GET_NLEV_
    call allocate_ersem()
 
@@ -104,6 +107,7 @@
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
    ! wdepth = WILL NEED TO BE ASSIGNED FOR ANALYTIC BEN INIT TO WORK
+
    call init_ersem() 
 ! Register state variables
    do n=1,I_STATE
@@ -114,6 +118,7 @@
         self%id_ccb(n) = register_state_variable(modelinfo,ccbstr(n),'undefined','undefined',     &
                                     ccb(1,n)) ! EVENTUALLY SET A MINIMUM AT LATER STAGE
    enddo
+#endif
 
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
@@ -167,6 +172,7 @@
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_1D_
 
+#ifdef FABM_PMLERSEM
    ! Retrieve current (local) state variable values.
    DO n=1,I_STATE
         _GET_STATE_1D_(self%id_ccc(n),ccc(_DOMAIN_1D_,n)) ! pelagic
@@ -196,6 +202,7 @@
 !   _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
 !   _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
 !   _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
+#endif
    
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_1D_
@@ -228,6 +235,7 @@
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_1D_
 
+#ifdef FABM_PMLERSEM
    ! Retrieve current (local) state variable values.
    DO n=1,I_STATE
         _GET_STATE_1D_(self%id_ccc(n),ccc(_DOMAIN_1D_,n)) ! pelagic
@@ -235,6 +243,7 @@
    call calculate_extinction() 
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_1D_(xEPS(_DOMAIN_1D_))
+#endif
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_1D_
