@@ -27,9 +27,10 @@
 #endif
 
 ! Constants related to floating point precision; used throughout FABM.
-#define REALTYPE double precision
-#define _ZERO_ 0.0d0
-#define _ONE_  1.0d0
+#define _NP_ 8
+#define REALTYPE real(kind=_NP_)
+#define _ZERO_ 0.0__NP_
+#define _ONE_  1.0__NP_
 
 ! Older Fortran compilers do not allow derived types to contain allocatable members
 ! (A Fortran >95 feature, defined in ISO Technical Report TR 15581 and part of the Fortran 2003 specification).
@@ -221,6 +222,7 @@
 #define _FABM_ARGS_GET_EXTINCTION_ _FABM_ARGS_ND_,extinction
 #define _FABM_ARGS_GET_CONSERVED_QUANTITIES_ _FABM_ARGS_ND_,sums
 #define _FABM_ARGS_GET_SURFACE_EXCHANGE_ _FABM_ARGS_HZ_,flux
+#define _FABM_ARGS_CHECK_STATE_ _FABM_ARGS_ND_,repair,valid
 
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
 #define _DECLARE_FABM_ARGS_ND_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_ND_
@@ -230,6 +232,7 @@
 #define _DECLARE_FABM_ARGS_GET_EXTINCTION_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_0_,intent(inout) :: extinction
 #define _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: sums
 #define _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux
+#define _DECLARE_FABM_ARGS_CHECK_STATE_ _DECLARE_FABM_ARGS_ND_;logical,intent(in) :: repair;logical,intent(inout) :: valid
 
 ! Macros for declaring/accessing variable identifiers of arbitrary type.
 #define _TYPE_STATE_VARIABLE_ID_ type (type_state_variable_id)
@@ -245,6 +248,8 @@
 #define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_CONSERVED_QUANTITY_(variable) = sums _INDEX_CONSERVED_QUANTITY_(variable) + (value)
 #define _SET_VERTICAL_MOVEMENT_(variable,value) vertical_movement _INDEX_VERTICAL_MOVEMENT_(variable%id) = value
 #define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_SURFACE_EXCHANGE_(variable%id) = value
+#define _INVALIDATE_STATE_ valid = .false.
+#define _REPAIR_STATE_ repair
 
 ! For BGC models: quick expressions for setting a single element in both the destruction and production matrix.
 #define _SET_DD_SYM_(variable1,variable2,value) _SET_DD_(variable1,variable2,value);_SET_PP_(variable1,variable2,value)
@@ -258,8 +263,9 @@
 #define _GET_STATE_EX_(env,variable,target) target = env%var(variable%dependencyid)%data _INDEX_LOCATION_
 #define _SET_STATE_EX_(env,variable,value) env%var(variable%dependencyid)%data _INDEX_LOCATION_ = value
 
-! For BGC models: read-only access to state variable values
+! For BGC models: read/write access to state variable values
 #define _GET_STATE_(variable,target) _GET_STATE_EX_(environment,variable,target)
+#define _SET_STATE_(variable,target) _SET_STATE_EX_(environment,variable,target)
 
 ! For BGC models: write access to diagnostic variables
 #ifdef _FABM_MANAGE_DIAGNOSTICS_
@@ -269,3 +275,15 @@
 #define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%var(index)%data _INDEX_LOCATION_ = value
 #define _SET_DIAG_HZ_(index,value) if (index.ne.id_not_used) environment%var_hz(index)%data _INDEX_LOCATION_HZ_ = value
 #endif
+
+
+! Work-in-progress: extra definitions for coupling to pure-1D models [ERSEM]
+#define _GET_NLEV_ 150
+#define _GET_STATE_1D_(variable,target) target = env%var(variable%dependencyid)%data
+#define _GET_DEPENDENCY_1D_(variable,target) target = env%var(variable)%data
+#define _FABM_LOOP_BEGIN_1D_
+#define _FABM_LOOP_END_1D_
+#ifndef _INDEX_ODE_1D_
+#define _INDEX_ODE_1D_(variable) (fabm_loop_start:fabm_loop_stop,variable(fabm_loop_start:fabm_loop_stop))
+#endif
+#define _SET_ODE_1D_ rhs _INDEX_ODE_1D_(variable%id) = rhs _INDEX_ODE_1D_(variable%id) + (value)
