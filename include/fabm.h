@@ -286,5 +286,5 @@
 #ifndef _INDEX_ODE_1D_
 #define _INDEX_ODE_1D_(variable) (fabm_loop_start:fabm_loop_stop,variable)
 #endif
-#define _SET_ODE_1D_ rhs _INDEX_ODE_1D_(variable%id) = rhs _INDEX_ODE_1D_(variable%id) + (value)
+#define _SET_ODE_1D_(variable) rhs _INDEX_ODE_1D_(variable%id) = rhs _INDEX_ODE_1D_(variable%id) + (value)
 #define _SET_EXTINCTION_1D_ extinction(fabm_loop_start:fabm_loop_stop) = extinction(fabm_loop_start:fabm_loop_stop) + value
