@@ -545,6 +545,8 @@
    select case (model%id)
       case (npzd_id)
          call npzd_init(model%npzd,model%info,nmlunit)
+      case (pmlersem_id)
+         call pmlersem_init(model%pmlersem,model%info,nmlunit)
       case (mnemiopsis_id)
          call mnemiopsis_init(model%mnemiopsis,model%info,nmlunit)
       case (co2sys_id)
