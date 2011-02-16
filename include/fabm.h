@@ -27,10 +27,9 @@
 #endif
 
 ! Constants related to floating point precision; used throughout FABM.
-#define _NP_ 8
-#define REALTYPE real(kind=_NP_)
-#define _ZERO_ 0.0__NP_
-#define _ONE_  1.0__NP_
+#define REALTYPE double precision
+#define _ZERO_ 0.0d0
+#define _ONE_  1.0d0
 
 ! Older Fortran compilers do not allow derived types to contain allocatable members
 ! (A Fortran >95 feature, defined in ISO Technical Report TR 15581 and part of the Fortran 2003 specification).
