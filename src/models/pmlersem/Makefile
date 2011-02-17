@@ -15,7 +15,11 @@ PPERSEM = -DMASSTRACER
 OBJS   = \
 ${LIB}(pmlersem.o)
 
+ifdef FABM_PMLERSEM
 all:  $(ERSEMLIB) ${OBJS}
+else
+all: $(OBJS)
+endif
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
