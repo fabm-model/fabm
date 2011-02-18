@@ -17,6 +17,7 @@
 ! Therefore, prescribe how to access spatially-localized rhs,pp,dd elements here.
 ! Note that this is only relevant if _FABM_USE_1D_LOOP_ is defined.
 #define _INDEX_ODE_(i) (i,_LOCATION_-fabm_loop_start+1)
+#define _INDEX_ODE_1D_(i) (i,1:fabm_loop_stop-fabm_loop_start+1)
 #define _INDEX_PPDD_(i,j) (i,j,_LOCATION_-fabm_loop_start+1)
 
 ! Include FABM preprocessor definitions.
