@@ -29,7 +29,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_model, fabm_create_model, fabm_init, fabm_set_domain, fabm_do, &
+   public type_model, fabm_create_model, fabm_init, fabm_do, &
           fabm_link_benthos_state_data,fabm_link_state_data, &
           fabm_link_data,fabm_link_data_hz,fabm_get_variable_id, &
           fabm_get_diagnostic_data, fabm_get_diagnostic_data_hz, &
@@ -463,7 +463,7 @@
 ! !IROUTINE: Initialise the biogeochemical model tree.
 !
 ! !INTERFACE:
-   subroutine fabm_init(root,nmlunit)
+   subroutine fabm_init(root,nmlunit _ARG_LOCATION_)
 !
 ! !USES:
    implicit none
@@ -471,6 +471,7 @@
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: root
    integer,                                intent(in)    :: nmlunit
+   _DECLARE_LOCATION_ARG_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -489,7 +490,7 @@
    if (.not.isopen) call fatal_error('fabm_init','input configuration file has not been opened yet.')
    
    ! Initialize the model (this automatically initializes all contained models)
-   call init_model(root,nmlunit)
+   call init_model(root,nmlunit _ARG_LOCATION_)
 
    ! Allocate arrays for storage of (references to) data.
    allocate(root%environment)
@@ -507,6 +508,29 @@
    ! Transfer pointer to environment to all child models.
    call set_model_data_members(root,root%environment)
 
+#ifdef _FABM_MANAGE_DIAGNOSTICS_
+   ! FABM will manage and store current values of diagnostic variables.
+   ! Allocate memory for this, and link this memory to FABM's variable data pointers.
+
+   ! Allocate arrays for diagnostic variables defined on the full domain and on horizontonal slices.
+   allocate(root%environment%diag   (ubound(root%info%diagnostic_variables,1) _ARG_LOCATION_))
+   allocate(root%environment%diag_hz(ubound(root%info%diagnostic_variables_hz,1) _ARG_LOCATION_HZ_))
+
+   ! Initialize diagnostic variables to zero.
+   root%environment%diag    = _ZERO_
+   root%environment%diag_hz = _ZERO_
+   
+   ! If diagnostic variables also appear as dependency, send the corresponding array slice for generic read-only access.
+   do ivar=1,ubound(root%info%diagnostic_variables,1)
+      if (root%info%diagnostic_variables(ivar)%dependencyid.ne.id_not_used) &
+         call fabm_link_data(root,root%info%diagnostic_variables(ivar)%dependencyid,root%environment%diag(ivar _ARG_LOCATION_DIMENSIONS_))
+   end do
+   do ivar=1,ubound(root%info%diagnostic_variables_hz,1)
+      if (root%info%diagnostic_variables_hz(ivar)%dependencyid.ne.id_not_used) &
+         call fabm_link_data_hz(root,root%info%diagnostic_variables_hz(ivar)%dependencyid,root%environment%diag_hz(ivar _ARG_LOCATION_DIMENSIONS_HZ_))
+   end do
+#endif
+
    end subroutine fabm_init
 !EOC
 
@@ -517,7 +541,7 @@
 ! !IROUTINE: Initialise the provided biogeochemical model
 !
 ! !INTERFACE:
-   recursive subroutine init_model(model,nmlunit)
+   recursive subroutine init_model(model,nmlunit _ARG_LOCATION_)
 !
 ! !USES:
    implicit none
@@ -525,6 +549,7 @@
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: model
    integer,                                intent(in)    :: nmlunit
+   _DECLARE_LOCATION_ARG_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -546,7 +571,7 @@
       case (npzd_id)
          call npzd_init(model%npzd,model%info,nmlunit)
       case (pmlersem_id)
-         call pmlersem_init(model%pmlersem,model%info,nmlunit)
+         call pmlersem_init(model%pmlersem,model%info,nmlunit,_VARIABLE_1DLOOP_)
       case (mnemiopsis_id)
          call mnemiopsis_init(model%mnemiopsis,model%info,nmlunit)
       case (co2sys_id)
@@ -578,7 +603,7 @@
             end if
 
             ! Initialize child model.
-            call init_model(curchild,nmlunit)
+            call init_model(curchild,nmlunit _ARG_LOCATION_)
             
             ! Move to next child model.
             curchild => curchild%nextsibling
@@ -597,56 +622,6 @@
    if (.not.isopen) call fatal_error('init_model','input configuration file was closed by model "'//trim(model%info%name)//'".')
 
    end subroutine init_model
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Tell FABM about the extents of the spatial domain.
-! This allows it to create spatially-explicit arrays for internal use.
-! Currently only needed if preprocessor _FABM_MANAGE_DIAGNOSTICS_ is defined.
-!
-! !INTERFACE:
-   subroutine fabm_set_domain(root _ARG_LOCATION_)
-!
-! !USES:
-   implicit none
-!
-! !INPUT PARAMETERS:
-   type (type_model),target,               intent(inout) :: root
-   _DECLARE_LOCATION_ARG_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-  integer                    :: i
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-#ifdef _FABM_MANAGE_DIAGNOSTICS_
-   ! FABM will manage and store current values of diagnostic variables.
-
-   ! Allocate arrays for diagnostic variables defined on the full domain and on horizontonal slices.
-   allocate(root%environment%diag   (ubound(root%info%diagnostic_variables,1) _ARG_LOCATION_))
-   allocate(root%environment%diag_hz(ubound(root%info%diagnostic_variables_hz,1) _ARG_LOCATION_HZ_))
-
-   ! Initialize diagnostic variables to zero.
-   root%environment%diag    = _ZERO_
-   root%environment%diag_hz = _ZERO_
-   
-   ! If diagnostic variables also appear as dependency, send the corresponding array slice for generic read-only access.
-   do i=1,ubound(root%info%diagnostic_variables,1)
-      if (root%info%diagnostic_variables(i)%dependencyid.ne.id_not_used) &
-         call fabm_link_data(root,root%info%diagnostic_variables(i)%dependencyid,root%environment%diag(i _ARG_LOCATION_DIMENSIONS_))
-   end do
-   do i=1,ubound(root%info%diagnostic_variables_hz,1)
-      if (root%info%diagnostic_variables_hz(i)%dependencyid.ne.id_not_used) &
-         call fabm_link_data_hz(root,root%info%diagnostic_variables_hz(i)%dependencyid,root%environment%diag_hz(i _ARG_LOCATION_DIMENSIONS_HZ_))
-   end do
-#endif
-
-   end subroutine fabm_set_domain
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1238,12 +1213,16 @@
       if (val<root%info%state_variables(i)%minimum) then
          ! State variable value lies below prescribed minimum.
          valid = .false.
-         if (.not.repair) return
+         if (.not.repair) then
+            return
+         end if
          _SET_STATE_EX_(root%environment,root%info%state_variables(i)%globalid,root%info%state_variables(i)%minimum)
       elseif (val>root%info%state_variables(i)%maximum) then
          ! State variable value exceeds prescribed maximum.
          valid = .false.
-         if (.not.repair) return
+         if (.not.repair) then
+            return
+         end if
          _SET_STATE_EX_(root%environment,root%info%state_variables(i)%globalid,root%info%state_variables(i)%maximum)
       end if
    end do

@@ -63,7 +63,7 @@
 ! !IROUTINE: Initialise the PML-ERSEM model
 !
 ! !INTERFACE:
-   subroutine pmlersem_init(self,modelinfo,namlst)
+   subroutine pmlersem_init(self,modelinfo,namlst,domainsize)
 !
 ! !DESCRIPTION:
 !
@@ -71,9 +71,9 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_pmlersem),      intent(out)   :: self
+   type (type_pmlersem),  intent(out)   :: self
    type (type_model_info),intent(inout) :: modelinfo
-   integer,               intent(in)    :: namlst 
+   integer,               intent(in)    :: namlst,domainsize
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard & Karsten Bolding
@@ -95,7 +95,7 @@
    ! Read the namelist
    !read(namlst,nml=fabmersem,err=99)
 
-   N_COMP=_GET_NLEV_
+   N_COMP=domainsize
    call allocate_ersem()
 
    allocate(self%id_ccc(I_STATE),stat=ialloc)
