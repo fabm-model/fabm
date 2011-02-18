@@ -190,7 +190,7 @@
 
    ! Set temporal derivatives
    do n=1,I_STATE
-     _SET_ODE_1D_(self%id_ccc(n),sccc(_DOMAIN_1D_,n))
+     _SET_ODE_1D_(self%id_ccc(n),sccc(_DOMAIN_1D_,n)/secs_pr_day)
    enddo
    !_SET_ODE_1D_(self%id_ccb,sccb)
 
