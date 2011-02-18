@@ -783,7 +783,7 @@ do n = 1, instances  !{
   
   ! Allow FABM to initialize
   nmlunit = open_namelist_file(trim(namelist_file))
-  call fabm_init(biotic(n)%model,nmlunit)
+  call fabm_init(biotic(n)%model,nmlunit,iec-isc+1,jec-jsc+1,nk)
   call close_file (nmlunit)
 
   ! Register state variables
