@@ -115,7 +115,7 @@
    enddo
    do n=1,I_STATEBEN
         self%id_ccb(n) = register_state_variable(modelinfo,ccbstr(n),'undefined','undefined',     &
-                                    ccb(1,n)) ! EVENTUALLY SET A MINIMUM AT LATER STAGE
+                                    ccb(0,n),benthic=.true.) ! EVENTUALLY SET A MINIMUM AT LATER STAGE
    enddo
 #endif
 
@@ -181,15 +181,17 @@
 !   ENDDO
    
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_1D_   (self%id_EIR,EIR)  ! local short wave radiation
-   _GET_DEPENDENCY_1D_   (self%id_ETW,ETW)  ! local temperature
-   _GET_DEPENDENCY_1D_   (self%id_x1X,x1X)  ! local salinity
-!   _GET_DEPENDENCY_1D_   (self%id_EPW,EPW)  ! local pressure
+   _GET_DEPENDENCY_1D_   (self%id_EIR,EIR(_DOMAIN_1D_))  ! local short wave radiation
+   _GET_DEPENDENCY_1D_   (self%id_ETW,ETW(_DOMAIN_1D_))  ! local temperature
+   _GET_DEPENDENCY_1D_   (self%id_x1X,x1X(_DOMAIN_1D_))  ! local salinity
+!   _GET_DEPENDENCY_1D_   (self%id_EPW,EPW(_DOMAIN_1D_))  ! local pressure
 
    call ersem_loop()
 
    ! Set temporal derivatives
-   _SET_ODE_1D_(self%id_ccc,sccc)
+   do n=1,I_STATE
+     _SET_ODE_1D_(self%id_ccc(n),sccc(_DOMAIN_1D_,n))
+   enddo
    !_SET_ODE_1D_(self%id_ccb,sccb)
 
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
