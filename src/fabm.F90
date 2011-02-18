@@ -141,9 +141,6 @@
 ! !INTERFACE:
    subroutine register_models()
 !
-! !USES:
-   implicit none
-!
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
@@ -173,9 +170,6 @@
 !
 ! !INTERFACE:
    subroutine register_model(id,name)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    integer, intent(in)         :: id
@@ -240,9 +234,6 @@
 ! !INTERFACE:
    function get_model_name(id) result(name)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    integer, intent(in) :: id
    character(len=64)   :: name
@@ -282,9 +273,6 @@
 !
 ! !INTERFACE:
    function get_model_id(name) result(id)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    character(len=*),intent(in) :: name
@@ -327,9 +315,6 @@
 !
 ! !INTERFACE:
    function fabm_create_model_by_id(modelid,parent) result(model)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    integer,                 optional,intent(in)    :: modelid
@@ -434,9 +419,6 @@
 ! !INTERFACE:
    function fabm_create_model_by_name(modelname,parent) result(model)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    character(len=*),                 intent(in)    :: modelname
    type (type_model),target,optional,intent(inout) :: parent
@@ -464,9 +446,6 @@
 !
 ! !INTERFACE:
    subroutine fabm_init(root,nmlunit _ARG_LOCATION_)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: root
@@ -542,9 +521,6 @@
 !
 ! !INTERFACE:
    recursive subroutine init_model(model,nmlunit _ARG_LOCATION_)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: model
@@ -632,9 +608,6 @@
 ! !INTERFACE:
    recursive subroutine set_model_data_members(model,environment)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_model),             intent(inout) :: model
    type (type_environment),target,intent(in)    :: environment
@@ -666,9 +639,6 @@
 !
 ! !INTERFACE:
    function fabm_get_variable_id(model,name,shape) result(id)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),             intent(in)  :: model
@@ -718,9 +688,6 @@
 ! !INTERFACE:
    subroutine fabm_link_data(model,id,dat)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_model),                       intent(inout) :: model
    integer,                                 intent(in)    :: id
@@ -747,9 +714,6 @@
 !
 ! !INTERFACE:
    subroutine fabm_link_data_char(model,name,dat)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),                       intent(inout) :: model
@@ -783,9 +747,6 @@
 ! !INTERFACE:
    subroutine fabm_link_data_hz(model,id,dat)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
@@ -812,9 +773,6 @@
 !
 ! !INTERFACE:
    subroutine fabm_link_data_hz_char(model,name,dat)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),                          intent(inout) :: model
@@ -847,9 +805,6 @@
 ! !INTERFACE:
    subroutine fabm_link_state_data(model,id,dat)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_model),                         intent(inout) :: model
    integer,                                   intent(in)    :: id
@@ -878,9 +833,6 @@
 ! !INTERFACE:
    subroutine fabm_link_benthos_state_data(model,id,dat)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_model),                          intent(inout) :: model
    integer,                                    intent(in)    :: id
@@ -908,9 +860,6 @@
 !
 ! !INTERFACE:
    function fabm_get_diagnostic_data(model,id) result(dat)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),                       intent(in) :: model
@@ -942,9 +891,6 @@
 !
 ! !INTERFACE:
    function fabm_get_diagnostic_data_hz(model,id) result(dat)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),                          intent(in) :: model
@@ -978,9 +924,6 @@
 ! !INTERFACE:
    subroutine fabm_link_diagnostic_data(model,id,dat)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_model),                         intent(inout) :: model
    integer,                                   intent(in)    :: id
@@ -1008,9 +951,6 @@
 !
 ! !INTERFACE:
    subroutine fabm_link_diagnostic_data_hz(model,id,dat)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),                          intent(inout) :: model
@@ -1040,9 +980,6 @@
 !
 ! !INTERFACE:
    subroutine fabm_do_rhs(root _ARG_LOCATION_ND_,dy)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(inout) :: root
@@ -1104,9 +1041,6 @@
 ! !INTERFACE:
    recursive subroutine fabm_do_ppdd(root _ARG_LOCATION_ND_,pp,dd)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_model),           intent(inout) :: root
   _DECLARE_LOCATION_ARG_ND_
@@ -1156,9 +1090,6 @@
 ! !INTERFACE:
    subroutine fabm_check_state(root _ARG_LOCATION_ND_,repair,valid)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_model),      intent(inout) :: root
    _DECLARE_LOCATION_ARG_ND_
@@ -1166,7 +1097,7 @@
    logical,                intent(out)   :: valid
 !
 ! !LOCAL PARAMETERS:
-   integer                               :: i
+   integer                               :: ivar
    type (type_model), pointer            :: model
    REALTYPE                              :: val
 !
@@ -1208,22 +1139,22 @@
 
    ! Check absolute variable boundaries specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
-   do i=1,ubound(root%info%state_variables,1)
-      _GET_STATE_EX_(root%environment,root%info%state_variables(i)%globalid,val)
-      if (val<root%info%state_variables(i)%minimum) then
+   do ivar=1,ubound(root%info%state_variables,1)
+      _GET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid,val)
+      if (val<root%info%state_variables(ivar)%minimum) then
          ! State variable value lies below prescribed minimum.
          valid = .false.
          if (.not.repair) then
             return
          end if
-         _SET_STATE_EX_(root%environment,root%info%state_variables(i)%globalid,root%info%state_variables(i)%minimum)
-      elseif (val>root%info%state_variables(i)%maximum) then
+         _SET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid,root%info%state_variables(ivar)%minimum)
+      elseif (val>root%info%state_variables(ivar)%maximum) then
          ! State variable value exceeds prescribed maximum.
          valid = .false.
          if (.not.repair) then
             return
          end if
-         _SET_STATE_EX_(root%environment,root%info%state_variables(i)%globalid,root%info%state_variables(i)%maximum)
+         _SET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid,root%info%state_variables(ivar)%maximum)
       end if
    end do
 
@@ -1242,9 +1173,6 @@
 !
 ! !INTERFACE:
    subroutine fabm_get_surface_exchange(root _ARG_LOCATION_VARS_HZ_,flux)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model), intent(inout) :: root
@@ -1291,9 +1219,6 @@
 ! !INTERFACE:
    subroutine fabm_do_benthos_rhs(root _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_model),         intent(in)    :: root
    _DECLARE_LOCATION_ARG_HZ_
@@ -1336,9 +1261,6 @@
 ! !INTERFACE:
    subroutine fabm_do_benthos_ppdd(root _ARG_LOCATION_VARS_HZ_,pp,dd,benthos_offset)
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_model),         intent(in)    :: root
    _DECLARE_LOCATION_ARG_HZ_
@@ -1380,9 +1302,6 @@
 !
 ! !INTERFACE:
    subroutine fabm_get_vertical_movement(root _ARG_LOCATION_ND_,vertical_movement)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model),           intent(in)  :: root
@@ -1501,9 +1420,6 @@
 !
 ! !INTERFACE:
    subroutine fabm_get_conserved_quantities(root _ARG_LOCATION_ND_,sums)
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_model), intent(inout)         :: root
