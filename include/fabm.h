@@ -218,7 +218,9 @@
 #define _FABM_ARGS_HZ_ environment _ARG_LOCATION_VARS_HZ_
 #define _FABM_ARGS_DO_RHS_ _FABM_ARGS_ND_,rhs
 #define _FABM_ARGS_DO_PPDD_ _FABM_ARGS_ND_,pp,dd
+#define _FABM_ARGS_DO_BENTHOS_RHS_ _FABM_ARGS_ND_,flux_pel,flux_ben
 #define _FABM_ARGS_GET_EXTINCTION_ _FABM_ARGS_ND_,extinction
+#define _FABM_ARGS_GET_VERTICAL_MOVEMENT_ _FABM_ARGS_ND_,velocity
 #define _FABM_ARGS_GET_CONSERVED_QUANTITIES_ _FABM_ARGS_ND_,sums
 #define _FABM_ARGS_GET_SURFACE_EXCHANGE_ _FABM_ARGS_HZ_,flux
 #define _FABM_ARGS_CHECK_STATE_ _FABM_ARGS_ND_,repair,valid
@@ -228,7 +230,9 @@
 #define _DECLARE_FABM_ARGS_HZ_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_HZ_
 #define _DECLARE_FABM_ARGS_DO_RHS_  _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: rhs
 #define _DECLARE_FABM_ARGS_DO_PPDD_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_2_,intent(inout) :: pp,dd
+#define _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux_pel,flux_ben
 #define _DECLARE_FABM_ARGS_GET_EXTINCTION_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_0_,intent(inout) :: extinction
+#define _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: velocity
 #define _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: sums
 #define _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux
 #define _DECLARE_FABM_ARGS_CHECK_STATE_ _DECLARE_FABM_ARGS_ND_;logical,intent(in) :: repair;logical,intent(inout) :: valid
@@ -277,13 +281,27 @@
 
 
 ! Work-in-progress: extra definitions for coupling to pure-1D models [ERSEM]
-#define _DOMAIN_1D_ 1:fabm_loop_stop-fabm_loop_start+1
-#define _GET_STATE_1D_(variable,target) target = environment%var(variable%dependencyid)%data(fabm_loop_start:fabm_loop_stop)
-#define _GET_DEPENDENCY_1D_(variable,target) target = environment%var(variable)%data(fabm_loop_start:fabm_loop_stop)
+! Currently these are GOTM-specific - more logic will be needed to set these to
+! appropriate values for non-column or non-vectorized models.
+#define _DOMAIN_1D_ fabm_loop_start:fabm_loop_stop
+#define _GET_STATE_1D_(variable,target) target = environment%var(variable%dependencyid)%data(_DOMAIN_1D_)
+#define _GET_DEPENDENCY_1D_(variable,target) target = environment%var(variable)%data(_DOMAIN_1D_)
 #define _FABM_LOOP_BEGIN_1D_
 #define _FABM_LOOP_END_1D_
+#define _FABM_HZ_LOOP_BEGIN_1D_
+#define _FABM_HZ_LOOP_END_1D_
 #ifndef _INDEX_ODE_1D_
-#define _INDEX_ODE_1D_(variable) (fabm_loop_start:fabm_loop_stop,variable)
+#define _INDEX_ODE_1D_(variable) (1:fabm_loop_stop-fabm_loop_start+1,variable)
 #endif
 #define _SET_ODE_1D_(variable,value) rhs _INDEX_ODE_1D_(variable%id) = rhs _INDEX_ODE_1D_(variable%id) + (value)
-#define _SET_EXTINCTION_1D_(value) extinction(fabm_loop_start:fabm_loop_stop) = extinction(fabm_loop_start:fabm_loop_stop) + value
+#define _SET_EXTINCTION_1D_(value) extinction(1:fabm_loop_stop-fabm_loop_start+1) = extinction(fabm_loop_start:fabm_loop_stop) + value
+#define _SET_VERTICAL_MOVEMENT_1D_(variable,value) velocity(1:fabm_loop_stop-fabm_loop_start+1,variable%id) = value
+
+! For the definitions below, it is assuemd that the vertical dimension is vectorized!
+#define _DOMAIN_HZ_1D_ 1
+#define _INDEX_HZ_1D_ _VARIABLE_1DLOOP_
+#define _GET_STATE_HZ_1D_(variable,target) target = environment%var(variable%dependencyid)%data(_INDEX_HZ_1D_)
+#define _GET_DEPENDENCY_HZ_1D_(variable,target) target = environment%var(variable)%data(_INDEX_HZ_1D_)
+#define _GET_STATE_BEN_1D_(variable,target) target = environment%var_hz(variable%dependencyid)%data
+#define _SET_BOTTOM_FLUX_1D_(variable,value) flux_pel(variable%id) = flux_pel(variable%id) + (value)
+#define _SET_ODE_BEN_1D_(variable,value) flux_ben(variable%id) = flux_ben(variable%id) + (value)
