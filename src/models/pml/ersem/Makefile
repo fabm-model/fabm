@@ -1,19 +1,19 @@
 #
-# Makefile to build the 0D version of the npzd bio-module
+# Makefile to build the FABM-ERSEM interface
 #
 
 include ../../../Rules.make
 
 LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC	=  pmlersem.F90
+DOCSRC	=  ersem.F90
 ERSEMDIR = /common/work/ERSEM/FABM
 ERSEMLIBDIR = $(LIBDIR)/
 ERSEMLIB=$(ERSEMLIBDIR)libersem.a
 ERSEMINCDIR = $(MODDIR)/
 PPERSEM = -DMASSTRACER 
 OBJS   = \
-${LIB}(pmlersem.o)
+${LIB}(ersem.o)
 
 ifdef FABM_PMLERSEM
 all:  $(ERSEMLIB) ${OBJS}
