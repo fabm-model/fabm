@@ -547,7 +547,7 @@
       case (npzd_id)
          call npzd_init(model%npzd,model%info,nmlunit)
       case (pmlersem_id)
-         call pmlersem_init(model%pmlersem,model%info,nmlunit,_VARIABLE_1DLOOP_)
+         call pmlersem_init(model%pmlersem,model%info,nmlunit,_DOMAIN_SIZE_1D_)
       case (mnemiopsis_id)
          call mnemiopsis_init(model%mnemiopsis,model%info,nmlunit)
       case (co2sys_id)

@@ -91,7 +91,7 @@
 #error Cannot build 1D vectorized version of FABM (_FABM_USE_1D_LOOP_) with the total number of spatial dimensions (_FABM_DIMENSION_COUNT_) being less than 1.
 #endif
 
-! For a 1D spatial domain, the vectorzied version of FABM must iterate over that sole dimension.
+! For a 1D spatial domain, the vectorized version of FABM must iterate over that sole dimension.
 ! Therefore, the _LOCATION_1DLOOP_ and _VARIABLE_1DLOOP_ macros can be inferred.
 #if _FABM_DIMENSION_COUNT_>1
 #define _ARG_LOCATION_1DLOOP_ ,_LOCATION_1DLOOP_
@@ -108,6 +108,9 @@
 #ifndef _LOCATION_1DLOOP_
 #error Building 1D vectorized version of FABM: preprocessor variable _LOCATION_1DLOOP_ must be defined.
 #endif
+
+! Length of the vectorized dimension, used in fabm_init only.
+#define _DOMAIN_SIZE_1D_ _VARIABLE_1DLOOP_
 
 ! Dummy argument and argument declaration for location specification.
 #define _ARG_LOCATION_ND_ ,fabm_loop_start,fabm_loop_stop _ARG_LOCATION_1DLOOP_
@@ -142,6 +145,9 @@
 #else
 
 ! Not vectorized: FABM subroutines operate one the local state only.
+
+! Length of the vectorized dimension, used in fabm_init only.
+#define _DOMAIN_SIZE_1D_ 1
 
 ! Dummy argument and argument declaration for location specification.
 #define _ARG_LOCATION_ND_ _ARG_LOCATION_
