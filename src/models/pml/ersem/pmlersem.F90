@@ -110,12 +110,12 @@
    call init_ersem() 
 ! Register state variables
    do n=1,I_STATE
-        self%id_ccc(n) = register_state_variable(modelinfo,cccstr(n),'undefined','undefined',     &
-                                    ccc(1,n)) ! EVENTUALLY SET A MINIMUM AT LATER STAGE
+        self%id_ccc(n) = register_state_variable(modelinfo,cccstr(n),'undefined',cccstr(n),     &
+                                    ccc(1,n)) ! EVENTUALLY SET A MINIMUM AT LATER STAGE, replace 2nd cccstr(n) with real long name
    enddo
    do n=1,I_STATEBEN
-        self%id_ccb(n) = register_state_variable(modelinfo,ccbstr(n),'undefined','undefined',     &
-                                    ccb(0,n),benthic=.true.) ! EVENTUALLY SET A MINIMUM AT LATER STAGE
+        self%id_ccb(n) = register_state_variable(modelinfo,ccbstr(n),'undefined',ccbstr(n),     &
+                                    ccb(0,n),benthic=.true.) ! EVENTUALLY SET A MINIMUM AT LATER STAGE, replace 2nd ccbstr(n) with real long name
    enddo
 #endif
 
@@ -170,9 +170,6 @@
    DO n=1,I_STATE
         _GET_STATE_1D_(self%id_ccc(n),ccc(_DOMAIN_1D_,n)) ! pelagic
    ENDDO
-!   DO n=1,I_STATEBEN
-!        _GET_STATE_HZ(self%id_ccb(:,n),ccb(:,n)) ! benthic
-!   ENDDO
    
    ! Retrieve current environmental conditions.
    _GET_DEPENDENCY_1D_(self%id_EIR,EIR(_DOMAIN_1D_))  ! local short wave radiation
