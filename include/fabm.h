@@ -278,8 +278,8 @@
 
 ! For BGC models: write access to diagnostic variables
 #ifdef _FABM_MANAGE_DIAGNOSTICS_
-#define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%diag(index,_LOCATION_) = value
-#define _SET_DIAG_HZ_(index,value) if (index.ne.id_not_used) environment%diag_hz(index) = value
+#define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%diag(index _ARG_LOCATION_) = value
+#define _SET_DIAG_HZ_(index,value) if (index.ne.id_not_used) environment%diag_hz(index _ARG_LOCATION_HZ_) = value
 #else
 #define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%var(index)%data _INDEX_LOCATION_ = value
 #define _SET_DIAG_HZ_(index,value) if (index.ne.id_not_used) environment%var_hz(index)%data _INDEX_LOCATION_HZ_ = value
