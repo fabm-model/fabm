@@ -7,17 +7,11 @@ include ../Rules.make
 
 LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC  += gotm/npzd/npzd.F90
-SUBDIRS += gotm/npzd
+SUBDIRS += gotm/
 
-DOCSRC  += pml/ersem/pmlersem.F90
-SUBDIRS += pml/ersem
+SUBDIRS += pml/
 
-DOCSRC  += metu/mnemiopsis/mnemiopsis.F90
-SUBDIRS += metu/mnemiopsis
-
-DOCSRC  += pml/co2sys/co2sys.F90
-SUBDIRS += pml/co2sys
+SUBDIRS += metu/
 
 all: OBJS
 	$(MOVE_MODULES_COMMAND)
@@ -26,8 +20,7 @@ OBJS: $(SUBDIRS)
 	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../doc/fabm.tex 
-	touch doc
+	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
 
 clean:
 	$(RM) ${LIB} doc
