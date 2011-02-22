@@ -7,17 +7,17 @@ include ../Rules.make
 
 LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC  += npzd/npzd.F90
-SUBDIRS += npzd
+DOCSRC  += gotm/npzd/npzd.F90
+SUBDIRS += gotm/npzd
 
-DOCSRC  += pmlersem/pmlersem.F90
-SUBDIRS += pmlersem
+DOCSRC  += pml/ersem/pmlersem.F90
+SUBDIRS += pml/ersem
 
-DOCSRC  += mnemiopsis/mnemiopsis.F90
-SUBDIRS += mnemiopsis
+DOCSRC  += metu/mnemiopsis/mnemiopsis.F90
+SUBDIRS += metu/mnemiopsis
 
-DOCSRC  += co2sys/co2sys.F90
-SUBDIRS += co2sys
+DOCSRC  += pml/co2sys/co2sys.F90
+SUBDIRS += pml/co2sys
 
 all: OBJS
 	$(MOVE_MODULES_COMMAND)
