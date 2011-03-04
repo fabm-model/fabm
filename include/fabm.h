@@ -261,8 +261,8 @@
 #define _REPAIR_STATE_ repair
 
 ! For BGC models: quick expressions for setting a single element in both the destruction and production matrix.
-#define _SET_DD_SYM_(variable1,variable2,value) _SET_DD_(variable1,variable2,value);_SET_PP_(variable1,variable2,value)
-#define _SET_PP_SYM_(variable1,variable2,value) _SET_PP_(variable1,variable2,value);_SET_DD_(variable1,variable2,value)
+#define _SET_DD_SYM_(variable1,variable2,value) _SET_DD_(variable1,variable2,value);_SET_PP_(variable2,variable1,value)
+#define _SET_PP_SYM_(variable1,variable2,value) _SET_PP_(variable1,variable2,value);_SET_DD_(variable2,variable1,value)
 
 ! For BGC models: read-only access to values of external dependencies
 #define _GET_DEPENDENCY_(variable,target) target = environment%var(variable)%data _INDEX_LOCATION_
