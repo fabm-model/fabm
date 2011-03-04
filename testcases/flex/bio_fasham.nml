@@ -1,0 +1,122 @@
+!-------------------------------------------------------------------------------
+! bio_fasham_nml
+!-------------------------------------------------------------------------------
+! numc      [integer]
+!             number of compartments for geobiochemical model
+! p_initial [float, unit = mmol N/m^3]
+!             initial phytoplankton concentration
+! z_initial [float, unit = mmol N/m^3]
+!             initial zooplakton concentration
+! b_initial [float, unit = mmol N/m^3]
+!             initial bacteria concentration
+! d_initial [float, unit = mmol N/m^3]
+!             initial detritus concentration
+! n_initial [float, unit = mmol N/m^3]
+!             initial nitrate concentration
+! a_initial [float, unit = mmol N/m^3]
+!             initial ammonium concentration
+! l_initial [float, unit = mmol N/m^3]
+!             initial LDON concentration
+! p0        [float, unit = mmol N/m^3]
+!             minimum phytoplankton concentration
+! z0        [float, unit = mmol N/m^3]
+!             minimum zooplakton concentration
+! b0        [float, unit = mmol N/m^3]
+!             minimum bacteria concentration
+! vp        [float, unit = 1/d]
+!             maximum phytoplankton uptake rate
+! alpha     [float, unit = m^2/(W d)]
+!             slope of the PI-curve
+! k1        [float, unit = mmol N/m^3]
+!             half saturation constant nitrate uptake
+! k2        [float, unit = mmol N/m^3]
+!             half saturation constant ammonium uptake
+! mu1       [float, unit = 1/d]
+!             phytoplankton mortality rate
+! k5        [float, unit = mmol N/m^3]
+!             half saturation constant phytoplankton mortality
+! gamma     [float]
+!             exudation fraction
+! w_p       [float, unit = m/d]
+!             phytoplankton settling velocity
+! gmax      [float, unit = 1/d]
+!             maximum ingestion rate
+! k3        [float, unit = mmol N/m^3]
+!             half saturation constant ingestion
+! beta      [float]
+!             grazing efficiency
+! mu2       [float, unit = 1/d]
+!             maximum zooplankton loss rate
+! k6        [float, unit = mmol N/m^3]
+!             half saturation zooplankton loss
+! delta     [float]
+!             fractional zooplankton loss to LDON
+! epsi      [float]
+!             fractional zooplankton loss to ammonium
+! r1        [float]
+!             grazing preference phytoplankton
+! r2        [float]
+!             grazing preference bacteria
+! r3        [float]
+!             grazing preference detritus
+! vb        [float, unit = 1/d]
+!             maximum bacterial uptake rate
+! k4        [float, unit = mmol N/m^3]
+!             half saturation bacterial uptake
+! mu3       [float, unit = 1/d]
+!             bacteria excretion rate
+! eta       [float]
+!             uptake ratio ammonium:LDON
+! mu4       [float, unit = 1/d]
+!             detritus breakdown rate
+! w_d       [float, unit = m/d]
+!             detritus settling velocity
+! kc        [float, unit = m^2/mmol N]
+!             attenuation constant for the self shading effect
+! aa        [float]
+!             weighting factor for visible light fraction
+! g2        [float, unit = m]
+!             attenuation length for visible light
+!-------------------------------------------------------------------------------
+
+&bio_fasham_nml
+   numc = 7,
+   p_initial = 5.6666665999999997d-02,
+   z_initial = 5.0000000000000003d-02,
+   b_initial = 1.0000000000000000d-03,
+   d_initial = 4.1666666600000002d-01,
+   n_initial = 8.3000000000000007d+00,
+   a_initial = 2.2000000000000000d-01,
+   l_initial = 1.4000000000000001d-01,
+   p0 = 1.0000000000000000d-04,
+   z0 = 1.0000000000000000d-04,
+   b0 = 1.0000000000000000d-04,
+   vp = 1.5000000000000000d+00,
+   alpha = 6.5000000000000002d-02,
+   k1 = 2.0000000000000001d-01,
+   k2 = 8.0000000000000004d-01,
+   mu1 = 5.0000000000000003d-02,
+   k5 = 2.0000000000000001d-01,
+   gamma = 5.0000000000000003d-02,
+   w_p = -1.0000000000000000d+00,
+   gmax = 1.0000000000000000d+00,
+   k3 = 1.0000000000000000d+00,
+   beta = 6.2500000000000000d-01,
+   mu2 = 2.9999999999999999d-01,
+   k6 = 2.0000000000000001d-01,
+   delta = 1.0000000000000001d-01,
+   epsi = 6.9999999999999996d-01,
+   r1 = 5.5000000000000004d-01,
+   r2 = 4.0000000000000002d-01,
+   r3 = 5.0000000000000003d-02,
+   vb = 1.2000000000000000d+00,
+   k4 = 5.0000000000000000d-01,
+   mu3 = 1.4999999999999999d-01,
+   eta = 0.0000000000000000d+00,
+   mu4 = 2.0000000000000000d-02,
+   w_d = -2.0000000000000000d+00,
+   kc = 2.9999999999999999d-02,
+   aa = 6.2000000000000000d-01,
+   g2 = 2.0000000000000000d+01,
+/
+

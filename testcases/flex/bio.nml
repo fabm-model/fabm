@@ -1,0 +1,72 @@
+!-------------------------------------------------------------------------------
+! bio_nml
+!-------------------------------------------------------------------------------
+! bio_calc          [bool]
+!                     calculate biological model
+! bio_model         [integer]
+!                     biological model
+!                     1: NPZD (4 variables)
+!                     2: IOW-ERGOM (4 variables)
+!                     3: Suspended matter only (1 variable)
+!                     4: Fasham et al. 1990 (7 variables)
+!                     7: NPZD_Fe biological model
+!                     20: adaption model according to Nagai et al. (2003)
+!                     8: cl (2 variables)
+!                     10: Mangan (6 variables)
+!                     This variable is used only if bio_calc = True
+! bio_eulerian      [bool]
+!                     state variables are Eulerian
+!                     This variable is used only if bio_calc = True
+! cnpar             [float]
+!                     Cranck-Nicholson parameter for vertical diffusion
+!                     This variable is used only if bio_calc = True
+! w_adv_discr       [integer]
+!                     advection scheme for vertical motion
+!                     1: first-order upstream
+!                     2: not coded yet
+!                     3: third-order polynomial
+!                     4: TVD with Superbee limiter
+!                     5: TVD with MUSCL limiter
+!                     6: TVD with ULTIMATE QUICKEST
+!                     This variable is used only if bio_calc = True
+! ode_method        [integer]
+!                     ODE scheme for source and sink dynamics
+!                     1: first-order explicit (not positive)
+!                     2: second-order explicit Runge-Kutta (not positive)
+!                     3: fourth-order explicit Runge-Kutta (not positive)
+!                     4: Patankar (first-order, not conservative)
+!                     5: Patankar-RK (second-order, not conservative)
+!                     6: Patankar-RK (does not work, not conservative)
+!                     7: Modified Patankar (1st-order, conservat., posit.)
+!                     8: Modified Patankar-RK (2nd-order, conservat., posit.)
+!                     9: Modified Patankar-RK (does not work, conservat.,
+!                       posit.)
+!                     10: Extended Modified Patankar (1st-order, conservat.,
+!                       posit.)
+!                     11: Extended Modified Patankar-RK (2nd-order, conservat.,
+!                       posit.)
+!                     This variable is used only if bio_calc = True
+! split_factor      [integer, minimum = 1]
+!                     number of biogeochemical time steps per physical time step
+!                     This variable is used only if bio_calc = True
+! bioshade_feedback [bool]
+!                     feedback of bio-turbidity to temperature equation
+!                     This variable is used only if bio_calc = True
+! npar              [integer]
+!                     total number of Lagrangian particles
+!                     This variable is used only if (bio_calc = True and
+!                       bio_eulerian = False)
+!-------------------------------------------------------------------------------
+
+&bio_nml
+   bio_calc = .true.,
+   bio_model = 4,
+   bio_eulerian = .true.,
+   cnpar = 1.0000000000000000d+00,
+   w_adv_discr = 6,
+   ode_method = 3,
+   split_factor = 1,
+   bioshade_feedback = .true.,
+   npar = 1000,
+/
+

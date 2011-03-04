@@ -1,0 +1,397 @@
+!-------------------------------------------------------------------------------
+! general
+!-------------------------------------------------------------------------------
+! turb_method      [integer]
+!                    type of turbulence closure
+!                    0: convective adjustment
+!                    1: analytical eddy visc. and diff. profiles, not coded yet
+!                    2: turbulence Model calculating TKE and length scale
+!                    3: second-order model
+!                    99: KPP model
+! tke_method       [integer]
+!                    type of equation for TKE
+!                    1: algebraic equation
+!                    2: dynamic equation (k-epsilon style)
+!                    3: dynamic equation (Mellor-Yamada style)
+!                    This variable is used only if (turb_method = 2 or
+!                      turb_method = 3)
+! len_scale_method [integer]
+!                    type of model for dissipative length scale
+!                    1: parabolic shape
+!                    2: triangle shape
+!                    3: Xing and Davies [1995]
+!                    4: Robert and Ouellet [1987]
+!                    5: Blackadar (two boundaries) [1962]
+!                    6: Bougeault and Andre [1986]
+!                    7: Eifler and Schrimpf (ISPRAMIX) [1992]
+!                    8: dynamic dissipation rate equation
+!                    9: dynamic Mellor-Yamada q^2l-equation
+!                    10: generic length scale (GLS)
+!                    This variable is used only if (turb_method = 2 or
+!                      turb_method = 3)
+! stab_method      [integer]
+!                    type of stability function
+!                    1: constant stability functions
+!                    2: Munk and Anderson [1954]
+!                    3: Schumann and Gerz [1995]
+!                    4: Eifler and Schrimpf [1992]
+!                    This variable is used only if turb_method = 2
+!-------------------------------------------------------------------------------
+
+&turbulence
+   turb_method = 3,
+   tke_method = 2,
+   len_scale_method = 8,
+   stab_method = 3,
+/
+
+!-------------------------------------------------------------------------------
+! boundary conditions
+!-------------------------------------------------------------------------------
+! k_ubc    [integer]
+!            upper boundary condition for k-equation
+!            0: prescribed BC
+!            1: flux BC
+! k_lbc    [integer]
+!            lower boundary condition for k-equation
+!            0: prescribed BC
+!            1: flux BC
+! psi_ubc  [integer]
+!            upper boundary condition for the length-scale equation (e.g.
+!              epsilon, kl, omega, GLS)
+!            0: prescribed BC
+!            1: flux BC
+! psi_lbc  [integer]
+!            lower boundary condition for the length-scale equation (e.g.
+!              epsilon, kl, omega, GLS)
+!            0: prescribed BC
+!            1: flux BC
+! ubc_type [integer]
+!            type of upper boundary layer
+!            0: viscous sublayer (not yet impl.)
+!            1: logarithmic law of the wall
+!            2: tke-injection (breaking waves)
+! lbc_type [integer]
+!            type of lower boundary layer
+!            0: viscous sublayer (not yet impl.)
+!            1: logarithmic law of the wall
+!-------------------------------------------------------------------------------
+
+&bc
+   k_ubc = 1,
+   k_lbc = 1,
+   psi_ubc = 1,
+   psi_lbc = 1,
+   ubc_type = 1,
+   lbc_type = 1,
+/
+
+!-------------------------------------------------------------------------------
+! turbulence parameters
+!-------------------------------------------------------------------------------
+! cm0_fix       [float]
+!                 value of cm0
+!                 This variable is used only if /gotmturb/turbulence/turb_method
+!                   = 2
+! Prandtl0_fix  [float]
+!                 value of the turbulent Prandtl-number
+!                 This variable is used only if /gotmturb/turbulence/turb_method
+!                   = 2
+! cw            [float]
+!                 constant of the wave-breaking model (Craig & Banner (1994) use
+!                   cw=100)
+! compute_kappa [bool]
+!                 compute von Karman constant from model parameters
+! kappa         [float]
+!                 the desired von Karman constant
+!                 This variable is used only if compute_kappa = True
+! compute_c3    [bool]
+!                 compute c3 (E3 for Mellor-Yamada) for given Ri_st
+! Ri_st         [float]
+!                 the desired steady-state Richardson number
+!                 This variable is used only if compute_c3 = True
+! length_lim    [bool]
+!                 apply length scale limitation (see Galperin et al. 1988)
+! galp          [float]
+!                 coef. for length scale limitation
+!                 This variable is used only if length_lim = True
+! const_num     [float, unit = m^2/s]
+!                 minimum eddy diffusivity
+!                 This variable is used only if /gotmturb/turbulence/turb_method
+!                   = 0
+! const_nuh     [float, unit = m^2/s]
+!                 minimum heat diffusivity
+!                 This variable is used only if /gotmturb/turbulence/turb_method
+!                   = 0
+! k_min         [float, unit = m^2/s^2]
+!                 minimum TKE
+! eps_min       [float, unit = m^2/s^3]
+!                 minimum dissipation rate
+! kb_min        [float, unit = m^2/s^4]
+!                 minimum buoyancy variance
+! epsb_min      [float, unit = m^2/s^5]
+!                 minimum buoyancy variance destruction rate
+!-------------------------------------------------------------------------------
+
+&turb_param
+   cm0_fix = 5.4769999999999996d-01,
+   Prandtl0_fix = 7.3999999999999999d-01,
+   cw = 1.0000000000000000d+02,
+   compute_kappa = .false.,
+   kappa = 4.0000000000000002d-01,
+   compute_c3 = .true.,
+   Ri_st = 2.5000000000000000d-01,
+   length_lim = .true.,
+   galp = 5.3000000000000003d-01,
+   const_num = 5.0000000000000001d-04,
+   const_nuh = 5.0000000000000001d-04,
+   k_min = 1.0000000000000000d-10,
+   eps_min = 9.9999999999999998d-13,
+   kb_min = 1.0000000000000000d-10,
+   epsb_min = 1.0000000000000000d-14,
+/
+
+!-------------------------------------------------------------------------------
+! the generic model (Umlauf & Burchard, J. Mar. Res., 2003)
+!-------------------------------------------------------------------------------
+! compute_param [bool]
+!                 compute the model parameters
+! gen_m         [float]
+!                 exponent for k
+! gen_n         [float]
+!                 exponent for l
+!                 This variable is used only if compute_param = False
+! gen_p         [float]
+!                 exponent for cm0
+!                 This variable is used only if compute_param = False
+! cpsi1         [float]
+!                 emp. coef. cpsi1 in psi equation
+!                 This variable is used only if compute_param = False
+! cpsi2         [float]
+!                 emp. coef. cpsi2 in psi equation
+!                 This variable is used only if compute_param = False
+! cpsi3minus    [float]
+!                 cpsi3 for stable stratification
+!                 This variable is used only if compute_param = False
+! cpsi3plus     [float]
+!                 cpsi3 for unstable stratification
+!                 This variable is used only if compute_param = False
+! sig_kpsi      [float]
+!                 Schmidt number for TKE diffusivity
+!                 This variable is used only if compute_param = False
+! sig_psi       [float]
+!                 Schmidt number for psi diffusivity
+!                 This variable is used only if compute_param = False
+! gen_d         [float]
+!                 gen_d
+!                 This variable is used only if compute_param = False
+! gen_alpha     [float]
+!                 gen_alpha
+!                 This variable is used only if compute_param = False
+! gen_l         [float]
+!                 gen_l
+!                 This variable is used only if compute_param = False
+!-------------------------------------------------------------------------------
+
+&generic
+   compute_param = .false.,
+   gen_m = 1.0000000000000000d+00,
+   gen_n = -6.7000000000000004d-01,
+   gen_p = 3.0000000000000000d+00,
+   cpsi1 = 1.0000000000000000d+00,
+   cpsi2 = 1.2200000000000000d+00,
+   cpsi3minus = 5.0000000000000003d-02,
+   cpsi3plus = 1.0000000000000000d+00,
+   sig_kpsi = 8.0000000000000004d-01,
+   sig_psi = 1.0700000000000001d+00,
+   gen_d = -1.2000000000000000d+00,
+   gen_alpha = -2.0000000000000000d+00,
+   gen_l = 2.0000000000000001d-01,
+/
+
+!-------------------------------------------------------------------------------
+! the k-epsilon model (Rodi 1987)
+!-------------------------------------------------------------------------------
+! ce1      [float]
+!            emp. coef. ce1 in diss. eq.
+! ce2      [float]
+!            emp. coef. ce2 in diss. eq.
+! ce3minus [float]
+!            ce3 for stable stratification
+!            This variable is used only if /gotmturb/turb_param/compute_c3 !=
+!              True
+! ce3plus  [float]
+!            ce3 for unstable stratification (Rodi 1987: ce3plus=1.0)
+! sig_k    [float]
+!            Schmidt number for TKE diffusivity
+! sig_e    [float]
+!            Schmidt number for diss. diffusivity
+! sig_peps [bool]
+!            if .true. -> the wave breaking parameterisation suggested by
+!              Burchard (JPO 31, 2001, 3133-3145) will be used.
+!-------------------------------------------------------------------------------
+
+&keps
+   ce1 = 1.4399999999999999d+00,
+   ce2 = 1.9199999999999999d+00,
+   ce3minus = -4.0000000000000002d-01,
+   ce3plus = 1.0000000000000000d+00,
+   sig_k = 1.0000000000000000d+00,
+   sig_e = 1.3000000000000000d+00,
+   sig_peps = .false.,
+/
+
+!-------------------------------------------------------------------------------
+! the Mellor-Yamada model (Mellor & Yamada 1982)
+!-------------------------------------------------------------------------------
+! e1         [float]
+!              coef. e1 in MY q**2 l equation
+! e2         [float]
+!              coef. e2 in MY q**2 l equation
+! e3         [float]
+!              coef. e3 in MY q**2 l equation
+! sq         [float]
+!              turbulent diffusivities of q**2 (= 2k)
+! sl         [float]
+!              turbulent diffusivities of q**2 l
+! my_length  [integer]
+!              prescribed barotropic lengthscale in q**2 l equation of MY
+!              1: parabolic
+!              2: triangular
+!              3: lin. from surface
+! new_constr [bool]
+!              stabilisation of Mellor-Yamada stability functions according to
+!                Burchard & Deleersnijder (2001)
+!-------------------------------------------------------------------------------
+
+&my
+   e1 = 1.8000000000000000d+00,
+   e2 = 1.3300000000000001d+00,
+   e3 = 1.8000000000000000d+00,
+   sq = 2.0000000000000001d-01,
+   sl = 2.0000000000000001d-01,
+   my_length = 3,
+   new_constr = .false.,
+/
+
+!-------------------------------------------------------------------------------
+! the second-order model
+!-------------------------------------------------------------------------------
+! scnd_method [integer]
+!               type of second-order model
+!               1: EASM with quasi-equilibrium
+!               2: EASM with weak equilibrium, buoy.-variance algebraic
+!               3: EASM with weak equilibrium, buoy.-variance from PDE
+! kb_method   [integer]
+!               type of equation for buoyancy variance
+!               1: algebraic equation for buoyancy variance
+!               2: PDE for buoyancy variance
+! epsb_method [integer]
+!               type of equation for variance destruction
+!               1: algebraic equation for variance destruction
+!               2: PDE for variance destruction
+! scnd_coeff  [integer]
+!               coefficients of second-order model
+!               0: read the coefficients from this file
+!               1: coefficients of Gibson and Launder (1978)
+!               2: coefficients of Mellor and Yamada (1982)
+!               3: coefficients of Kantha and Clayson (1994)
+!               4: coefficients of Luyten et al. (1996)
+!               5: coefficients of Canuto et al. (2001) (version A)
+!               6: coefficients of Canuto et al. (2001) (version B)
+!               7: coefficients of Cheng et al. (2002)
+! cc1         [float]
+!               coefficient cc1
+!               This variable is used only if scnd_coeff = 0
+! cc2         [float]
+!               coefficient cc2
+!               This variable is used only if scnd_coeff = 0
+! cc3         [float]
+!               coefficient cc3
+!               This variable is used only if scnd_coeff = 0
+! cc4         [float]
+!               coefficient cc4
+!               This variable is used only if scnd_coeff = 0
+! cc5         [float]
+!               coefficient cc5
+!               This variable is used only if scnd_coeff = 0
+! cc6         [float]
+!               coefficient cc6
+!               This variable is used only if scnd_coeff = 0
+! ct1         [float]
+!               coefficient ct1
+!               This variable is used only if scnd_coeff = 0
+! ct2         [float]
+!               coefficient ct2
+!               This variable is used only if scnd_coeff = 0
+! ct3         [float]
+!               coefficient ct3
+!               This variable is used only if scnd_coeff = 0
+! ct4         [float]
+!               coefficient ct4
+!               This variable is used only if scnd_coeff = 0
+! ct5         [float]
+!               coefficient ct5
+!               This variable is used only if scnd_coeff = 0
+! ctt         [float]
+!               coefficient ctt
+!               This variable is used only if scnd_coeff = 0
+!-------------------------------------------------------------------------------
+
+&scnd
+   scnd_method = 1,
+   kb_method = 1,
+   epsb_method = 1,
+   scnd_coeff = 7,
+   cc1 = 3.6000000000000001d+00,
+   cc2 = 8.0000000000000004d-01,
+   cc3 = 1.2000000000000000d+00,
+   cc4 = 1.2000000000000000d+00,
+   cc5 = 0.0000000000000000d+00,
+   cc6 = 2.9999999999999999d-01,
+   ct1 = 3.2799999999999998d+00,
+   ct2 = 4.0000000000000002d-01,
+   ct3 = 4.0000000000000002d-01,
+   ct4 = 0.0000000000000000d+00,
+   ct5 = 4.0000000000000002d-01,
+   ctt = 8.0000000000000004d-01,
+/
+
+!-------------------------------------------------------------------------------
+! internal wave model
+!-------------------------------------------------------------------------------
+! iw_model [integer]
+!            method to compute internal wave mixing
+!            0: no internal wave mixing parameterisation
+!            1: Mellor 1989 internal wave mixing
+!            2: Large et al. 1994 internal wave mixing
+! alpha    [float]
+!            coeff. for Mellor IWmodel (0: no IW, 0.7 Mellor 1989)
+!            This variable is used only if iw_model = 1
+! klimiw   [float, unit = m**2/s**2]
+!            critical value of TKE
+!            This variable is used only if iw_model = 2
+! rich_cr  [float]
+!            critical Richardson number for shear instability
+!            This variable is used only if iw_model = 2
+! numshear [float, unit = m**2/s]
+!            background diffusivity for shear instability
+!            This variable is used only if iw_model = 2
+! numiw    [float, unit = m**2/s]
+!            background viscosity for internal wave breaking
+!            This variable is used only if iw_model = 2
+! nuhiw    [float, unit = m**2/s]
+!            background diffusivity for internal wave breaking
+!            This variable is used only if iw_model = 2
+!-------------------------------------------------------------------------------
+
+&iw
+   iw_model = 0,
+   alpha = 6.9999999999999996d-01,
+   klimiw = 9.9999999999999995d-07,
+   rich_cr = 6.9999999999999996d-01,
+   numshear = 5.0000000000000001d-03,
+   numiw = 1.0000000000000000d-04,
+   nuhiw = 1.0000000000000001d-05,
+/
+
