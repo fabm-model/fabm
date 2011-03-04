@@ -1,5 +1,19 @@
 #include "fabm_driver.h"
 
+! This file is based upon MEECE deliverable D2.2, see http://www.meece.eu.
+!
+! Minor changes were made to make it fit within FABM:
+!
+! - inserted a reference to the FABM include file (fabm_driver.h) to permit use of FABM preprocessor
+!   macros (see below)
+! - removed the program - end program section to allow reuse as software library in other programs.
+! - relaxed lower bound on temperature, from 0 to -4 degrees Celsius, to permit use in cold waters
+!   [after consultation with Jerry Blackford]
+! - replaced fixed double precision type (real*8) by preprocessor macro REALTYPE.
+! - replaced stop statements by calls to fatal_error.
+!
+! Jorn Bruggeman, 4 March 2011
+
 ! This file contains a set of FORTRAN subroutines that calculate the carbonate system 
 ! at any given point in marine space time, given values for 
 ! temperature, salinity, DIC, depth (pressure). 
@@ -208,8 +222,10 @@
 !        BORATE IS NOT INCLUDED IN THE CALCULATION. FOR ICONST=4,5,6 CO
 !        REPRESENTS TOTAL ALKALINITY (CARBONATE + BORATE), THE COMPONEN
 !        WHICH ARE GIVEN IN CONCS(8) AND CONCS(9)
-      IMPLICIT NONE
+      use fabm_driver,only:fatal_error
 
+      IMPLICIT NONE
+      
       REALTYPE PMIN, PMAX, SMIN, SMAX, TMIN, TMAX, CONCS,  &
      &      AKVAL, PD, TD, SD, P, T, S, BTOT
       INTEGER MINJC, MAXJC, MINJK, MAXJK, MINCAL, MAXCAL, MINCON,  &
@@ -227,23 +243,23 @@
       T = TD
 
 !     IF(T.LT.TMIN.OR.T.GT.TMAX)WRITE (*,*) P, S, T, TMIN, TMAX
-      IF(P.LT.PMIN.OR.P.GT.PMAX) STOP'POLYCO - PRESSURE OUT OF RANGE'
-      IF(S.LT.SMIN.OR.S.GT.SMAX) STOP'POLYCO - SALINITY OUT OF RANGE'
-      IF(T.LT.TMIN.OR.T.GT.TMAX) STOP'POLYCO - TEMP. OUT OF RANGE'
+      IF(P.LT.PMIN.OR.P.GT.PMAX) call fatal_error('POLYCO','PRESSURE OUT OF RANGE')
+      IF(S.LT.SMIN.OR.S.GT.SMAX) call fatal_error('POLYCO','SALINITY OUT OF RANGE')
+      IF(T.LT.TMIN.OR.T.GT.TMAX) call fatal_error('POLYCO','TEMP. OUT OF RANGE')
       IF(ICALC.LT.MINCAL.OR.ICALC.GT.MAXCAL)  &
-     &  STOP'POLYCO - ICALC OUT OR RANGE'
+     &  call fatal_error('POLYCO','ICALC OUT OR RANGE')
       IF(ICONST.LT.MINCON.OR.ICONST.GT.MAXCON)  &
-     &  STOP'POLYCO - ICONST OUT OF RANGE'
+     &  call fatal_error('POLYCO','ICONST OUT OF RANGE')
       BORON=(ICONST.GT.3)
       IF(BORON) THEN
         IC=ICONST-3
         BTOT=0.0004128D0*S/35.0D0
-        IF(NCONC.NE.MAXJC) STOP'POLYCO - WRONG NCONC VALUE'
-        IF(NKVAL.NE.MAXJK) STOP'POLYCO - WRONG NKVAL VALUE'
+        IF(NCONC.NE.MAXJC) call fatal_error('POLYCO','WRONG NCONC VALUE')
+        IF(NKVAL.NE.MAXJK) call fatal_error('POLYCO','WRONG NKVAL VALUE')
       ELSE
         IC=ICONST
-        IF(NCONC.NE.MINJC) STOP'POLYCO - WRONG NCONC VALUE'
-        IF(NKVAL.NE.MINJK) STOP'POLYCO - WRONG NKVAL VALUE'
+        IF(NCONC.NE.MINJC) call fatal_error('POLYCO','WRONG NCONC VALUE')
+        IF(NKVAL.NE.MINJK) call fatal_error('POLYCO','WRONG NKVAL VALUE')
       ENDIF
 
       CALL CO2SET(P,T,S,AKVAL,NKVAL,IC)
