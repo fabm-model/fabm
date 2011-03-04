@@ -474,6 +474,7 @@
 !
 ! !LOCAL VARIABLES:
    REALTYPE                   :: p,z,b,d,n,a,l,par
+   REALTYPE                   :: d_p,d_z,d_b,d_d,d_n,d_a,d_l,d_par
    REALTYPE                   :: ff,fac,min67
 !EOP
 !-----------------------------------------------------------------------
@@ -499,43 +500,46 @@
                    self%r1*p**2+self%r2*b**2+self%r3*d**2)
    min67=min(a,self%eta*l)
 
-   ! Set production & destruction terms. Note that SET_DD_SYM is used to assign a
-   ! destruction term, but it will automatically set the corresponding production
-   ! term as well, i.e., pp(j,i) = dd(i,j).
-   _SET_ODE_(self%id_p,-(self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p  &
-              +(1.-self%beta)*self%gmax*self%r1*p**2*fac &
-              + self%gamma*ff*(n/self%k1+a/self%k2)/    &
-                        (1.+n/self%k1+a/self%k2)*p &
-              + self%beta*self%gmax*self%r1*p**2*fac) &
-              + ff*n/self%k1/(1.+n/self%k1+a/self%k2)*(p+self%p0) &
-              + ff*a/self%k2/(1.+n/self%k1+a/self%k2)*(p+self%p0))
-   _SET_ODE_(self%id_d,self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p  &
-                     + (1.-self%beta)*self%gmax*self%r1*p**2*fac &
-                     + (1.-self%beta)*self%gmax*self%r2*b**2*fac &
-                     - self%beta*self%gmax*self%r3*d**2*fac &
-                     - self%mu4*d &
-                     + (1.-self%epsi-self%delta)*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z)
-   _SET_ODE_(self%id_l,self%gamma*ff*(n/self%k1+a/self%k2)/    &
-                        (1.+n/self%k1+a/self%k2)*p)
-   _SET_ODE_(self%id_b,-(1.-self%beta)*self%gmax*self%r2*b**2*fac &
-                       - self%beta*self%gmax*self%r2*b**2*fac &
-                       - self%mu3*b &
-                       + self%vb*min67/(self%k4+min67+l)*(b+self%b0) &
-                       + self%vb*l/(self%k4+min67+l)*(b+self%b0))
-   _SET_ODE_(self%id_z,  self%beta*self%gmax*self%r1*p**2*fac &
-                       + self%beta*self%gmax*self%r2*b**2*fac &
-                       + self%beta*self%gmax*self%r3*d**2*fac &
-                       - (1.-self%epsi-self%delta)*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
-                       - self%epsi*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
-                       - self%delta*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z)
-   _SET_ODE_(self%id_a,  self%mu3*b &
-                       + self%epsi*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
-                       - ff*a/self%k2/(1.+n/self%k1+a/self%k2)*(p+self%p0) &
-                       - self%vb*min67/(self%k4+min67+l)*(b+self%b0))
-   _SET_ODE_(self%id_l,  self%mu4*d &
-                       + self%delta*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
-                       - self%vb*l/(self%k4+min67+l)*(b+self%b0))
-   _SET_ODE_(self%id_n,-ff*n/self%k1/(1.+n/self%k1+a/self%k2)*(p+self%p0))
+   d_p = -(self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p  &
+          +(1.-self%beta)*self%gmax*self%r1*p**2*fac &
+          + self%gamma*ff*(n/self%k1+a/self%k2)/(1.+n/self%k1+a/self%k2)*p &
+          + self%beta*self%gmax*self%r1*p**2*fac) &
+         + ff*n/self%k1/(1.+n/self%k1+a/self%k2)*(p+self%p0) &
+         + ff*a/self%k2/(1.+n/self%k1+a/self%k2)*(p+self%p0)
+   d_d =   self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p  &
+         + (1.-self%beta)*self%gmax*self%r1*p**2*fac &
+         + (1.-self%beta)*self%gmax*self%r2*b**2*fac &
+         - self%beta*self%gmax*self%r3*d**2*fac &
+         - self%mu4*d &
+         + (1.-self%epsi-self%delta)*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z
+   d_l =   self%gamma*ff*(n/self%k1+a/self%k2)/(1.+n/self%k1+a/self%k2)*p &
+         + self%mu4*d &
+         + self%delta*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
+         - self%vb*l/(self%k4+min67+l)*(b+self%b0)
+   d_b = -(1.-self%beta)*self%gmax*self%r2*b**2*fac &
+         - self%beta*self%gmax*self%r2*b**2*fac &
+         - self%mu3*b &
+         + self%vb*min67/(self%k4+min67+l)*(b+self%b0) &
+         + self%vb*l/(self%k4+min67+l)*(b+self%b0)
+   d_z =   self%beta*self%gmax*self%r1*p**2*fac &
+         + self%beta*self%gmax*self%r2*b**2*fac &
+         + self%beta*self%gmax*self%r3*d**2*fac &
+         - (1.-self%epsi-self%delta)*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
+         - self%epsi*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
+         - self%delta*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z
+   d_n = - ff*n/self%k1/(1.+n/self%k1+a/self%k2)*(p+self%p0)
+   d_a =   self%mu3*b &
+         + self%epsi*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
+         - ff*a/self%k2/(1.+n/self%k1+a/self%k2)*(p+self%p0) &
+         - self%vb*min67/(self%k4+min67+l)*(b+self%b0)
+
+   _SET_ODE_(self%id_p,d_p)
+   _SET_ODE_(self%id_z,d_z)
+   _SET_ODE_(self%id_d,d_d)
+   _SET_ODE_(self%id_b,d_b)
+   _SET_ODE_(self%id_n,d_n)
+   _SET_ODE_(self%id_a,d_a)
+   _SET_ODE_(self%id_l,d_l)
    
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
