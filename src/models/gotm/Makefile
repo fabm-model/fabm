@@ -10,6 +10,9 @@ LIB     = $(LIBDIR)/libfabm$(buildtype).a
 DOCSRC  += npzd/npzd.F90
 SUBDIRS += npzd
 
+DOCSRC  += fasham/fasham.F90
+SUBDIRS += fasham
+
 all: OBJS
 	$(MOVE_MODULES_COMMAND)
 

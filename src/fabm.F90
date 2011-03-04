@@ -18,6 +18,7 @@
 !   
 !  Reference specific biogeochemical models:
    use fabm_npzd
+   use fabm_fasham
    use fabm_pmlersem
    use fabm_mnemiopsis
    use fabm_co2sys
@@ -45,6 +46,7 @@
 !  Identifiers for specific biogeochemical models.
    integer, parameter :: model_container_id = -1
    integer, parameter :: npzd_id            =  1
+   integer, parameter :: fasham_id          =  4
    integer, parameter :: pmlersem_id        =  99
    integer, parameter :: co2sys_id          =  101
    integer, parameter :: mnemiopsis_id      =  102
@@ -74,6 +76,7 @@
 
       ! Derived types that belong to specific biogeochemical models.
       type (type_npzd)       :: npzd
+      type (type_fasham)     :: fasham
       type (type_pmlersem)   :: pmlersem
       type (type_mnemiopsis) :: mnemiopsis
       type (type_co2sys)     :: co2sys
@@ -154,6 +157,7 @@
    ! Register specific biogeochemical models.
    call register_model(model_container_id,'')
    call register_model(npzd_id           ,'npzd')
+   call register_model(fasham_id         ,'fasham')
    call register_model(pmlersem_id       ,'pmlersem')
    call register_model(mnemiopsis_id     ,'mnemiopsis')
    call register_model(co2sys_id         ,'co2sys')
@@ -546,6 +550,8 @@
    select case (model%id)
       case (npzd_id)
          call npzd_init(model%npzd,model%info,nmlunit)
+      case (fasham_id)
+         call fasham_init(model%fasham,model%info,nmlunit)
       case (pmlersem_id)
          call pmlersem_init(model%pmlersem,model%info,nmlunit,_DOMAIN_SIZE_1D_)
       case (mnemiopsis_id)
@@ -1008,6 +1014,8 @@
       select case (model%id)
          case (npzd_id)
             call npzd_do(model%npzd,_INPUT_ARGS_DO_RHS_)
+         case (fasham_id)
+            call fasham_do(model%fasham,_INPUT_ARGS_DO_RHS_)
          case (pmlersem_id)
             call pmlersem_do(model%pmlersem,_INPUT_ARGS_DO_RHS_)
          case (mnemiopsis_id)
@@ -1064,6 +1072,8 @@
       select case (model%id)
          case (npzd_id)
             call npzd_do_ppdd(model%npzd,_INPUT_ARGS_DO_PPDD_)
+         case (fasham_id)
+            call fasham_do_ppdd(model%fasham,_INPUT_ARGS_DO_PPDD_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model provides a subroutine for calculating local
          ! production/destruction matrices. This is required for certain temporal integration schemes,
          ! e.g., Patankar, Modified Patankar.
@@ -1383,6 +1393,8 @@
       select case (model%id)
          case (npzd_id)
             call npzd_get_light_extinction(model%npzd,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
+         case (fasham_id)
+            call fasham_get_light_extinction(model%fasham,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
          ! state variable specific extinction coefficients.
          !
@@ -1442,6 +1454,8 @@
       select case (model%id)
          case (npzd_id)
             call npzd_get_conserved_quantities(model%npzd,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
+         case (fasham_id)
+            call fasham_get_conserved_quantities(model%fasham,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
          ! ADD_NEW_MODEL_HERE - optional, required only if the model exports one or more
          ! conserved quantities.
          !
