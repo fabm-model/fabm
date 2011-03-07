@@ -88,7 +88,7 @@ use time_manager_mod,         only: get_date
 use time_interp_external_mod, only: time_interp_external
 
 use ocean_tpm_util_mod, only: otpm_set_tracer_package, otpm_set_prog_tracer, otpm_set_diag_tracer
-use ocean_tpm_util_mod, only: otpm_check_for_bad_fields, otpm_set_value
+use ocean_tpm_util_mod, only: otpm_check_for_bad_fields, otpm_set_value, otpm_set_value_string_array
 use ocean_tpm_util_mod, only: otpm_get_string, otpm_get_integer_array, otpm_get_logical, otpm_get_integer, otpm_get_real
 use ocean_tpm_util_mod, only: otpm_get_logical_array, otpm_get_real_array, otpm_get_string_array
 use ocean_tpm_util_mod, only: otpm_start_namelist, otpm_end_namelist
@@ -604,7 +604,7 @@ character(len=fm_field_name_len+3)                      :: long_suffix
 character(len=256)                                      :: caller_str
 character(len=fm_string_len), pointer, dimension(:)     :: good_list
 integer                                                 :: n
-integer                                                 :: models(1:0)
+character(len=fm_string_len)                            :: models(1:0)
 
 !integer                                                 :: n
 !character(len=fm_field_name_len+1)                      :: suffix
@@ -614,7 +614,7 @@ character(len=fm_field_name_len+1)                      :: str
 integer                                                 :: nmlunit
 integer                                                 :: i
 integer                                                 :: nmodels
-integer, pointer, dimension(:)                          :: modelids
+character(len=fm_string_len), pointer, dimension(:)     :: modelids
 character(len=256)                                      :: namelist_file
 
 type (type_model), pointer                              :: childmodel
@@ -733,7 +733,7 @@ do n = 1, instances  !{
        check = .true.)
 
   call otpm_set_value('namelist_file', 'fabm.nml')
-  call otpm_set_value('models', models, 0)
+  call otpm_set_value_string_array('models', models, 0)
   call otpm_set_value('dt', -1.)
 
   call otpm_end_namelist(package_name, biotic(n)%name, check = .true., caller = caller_str)
@@ -761,7 +761,7 @@ do n = 1, instances  !{
 
   call otpm_start_namelist(package_name, biotic(n)%name, caller = caller_str)
   namelist_file = otpm_get_string ('namelist_file', caller = caller_str, scalar = .true.)
-  modelids      => otpm_get_integer_array('models', caller = caller_str)
+  modelids      => otpm_get_string_array('models', caller = caller_str)
   dt_bio        = otpm_get_real('dt', caller = caller_str, scalar = .true.)
 
   call otpm_end_namelist(package_name, biotic(n)%name, caller = caller_str)
