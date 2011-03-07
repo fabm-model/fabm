@@ -350,9 +350,13 @@
    _GET_DEPENDENCY_(self%id_par,par)
 
    ! Calculate intermediate quantities that will be used multiple times.
-   ff= self%vp*self%alpha*par/sqrt(self%vp**2+self%alpha**2*par**2) 
-   fac=(z+self%z0)/(self%k3*(self%r1*p+self%r2*b+self%r3*d)+  &
-                   self%r1*p**2+self%r2*b**2+self%r3*d**2)
+   ff= self%vp*self%alpha*par/sqrt(self%vp**2+self%alpha**2*par**2)
+   if (p.eq._ZERO_ .and. b.eq._ZERO_ .and. d.eq._ZERO_) then
+      fac = _ZERO_
+   else
+     fac=(z+self%z0)/(self%k3*(self%r1*p+self%r2*b+self%r3*d)+  &
+                      self%r1*p**2+self%r2*b**2+self%r3*d**2)
+   end if
    min67=min(a,self%eta*l)
 
    ! Set production & destruction terms. Note that SET_DD_SYM is used to assign a
@@ -496,8 +500,12 @@
 
    ! Calculate intermediate quantities that will be used multiple times.
    ff= self%vp*self%alpha*par/sqrt(self%vp**2+self%alpha**2*par**2) 
-   fac=(z+self%z0)/(self%k3*(self%r1*p+self%r2*b+self%r3*d)+  &
-                   self%r1*p**2+self%r2*b**2+self%r3*d**2)
+   if (p.eq._ZERO_ .and. b.eq._ZERO_ .and. d.eq._ZERO_) then
+      fac = _ZERO_
+   else
+     fac=(z+self%z0)/(self%k3*(self%r1*p+self%r2*b+self%r3*d)+  &
+                      self%r1*p**2+self%r2*b**2+self%r3*d**2)
+   end if
    min67=min(a,self%eta*l)
 
    d_p = -(self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p  &
