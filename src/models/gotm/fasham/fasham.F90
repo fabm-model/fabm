@@ -4,8 +4,9 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_fasham --- Fasham biogeochemical model taken from GOTM,
-! adapted for FABM by Jorn Bruggeman
+! !MODULE: fabm_fasham --- Fasham et al. (1990, DSR I) biogeochemical model,
+! with slight modifications by Kuehn & Radach (1997, JRM),
+! taken from GOTM and adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
    module fabm_fasham
@@ -128,6 +129,7 @@
    REALTYPE                  ::  p0       = 0.0
    REALTYPE                  ::  z0       = 0.0
    REALTYPE                  ::  b0       = 0.0
+   REALTYPE                  ::  kc       = 0.03
    REALTYPE                  ::  vp       = 1.5
    REALTYPE                  ::  alpha    = 0.065
    REALTYPE                  ::  k1       = 0.2
@@ -152,7 +154,6 @@
    REALTYPE                  ::  eta      = 0.0
    REALTYPE                  ::  mu4      = 0.02
    REALTYPE                  ::  w_d      = -2.0
-   REALTYPE                  ::  kc       = 0.03
 
    REALTYPE, parameter :: secs_pr_day = 86400.
    namelist /fasham/ p_initial,z_initial,b_initial,d_initial,n_initial,&
@@ -499,47 +500,41 @@
    _GET_DEPENDENCY_(self%id_par,par)
 
    ! Calculate intermediate quantities that will be used multiple times.
-   ff= self%vp*self%alpha*par/sqrt(self%vp**2+self%alpha**2*par**2) 
+   ff = self%vp*self%alpha*par/sqrt(self%vp**2+self%alpha**2*par**2) 
    if (p.eq._ZERO_ .and. b.eq._ZERO_ .and. d.eq._ZERO_) then
       fac = _ZERO_
    else
-     fac=(z+self%z0)/(self%k3*(self%r1*p+self%r2*b+self%r3*d)+  &
-                      self%r1*p**2+self%r2*b**2+self%r3*d**2)
+      fac = (z+self%z0)/(self%k3*(self%r1*p+self%r2*b+self%r3*d)+  &
+                         self%r1*p**2+self%r2*b**2+self%r3*d**2)
    end if
-   min67=min(a,self%eta*l)
+   min67 = min(a,self%eta*l)
 
-   d_p = -(self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p  &
-          +(1.-self%beta)*self%gmax*self%r1*p**2*fac &
-          + self%gamma*ff*(n/self%k1+a/self%k2)/(1.+n/self%k1+a/self%k2)*p &
-          + self%beta*self%gmax*self%r1*p**2*fac) &
-         + ff*n/self%k1/(1.+n/self%k1+a/self%k2)*(p+self%p0) &
-         + ff*a/self%k2/(1.+n/self%k1+a/self%k2)*(p+self%p0)
-   d_d =   self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p  &
-         + (1.-self%beta)*self%gmax*self%r1*p**2*fac &
-         + (1.-self%beta)*self%gmax*self%r2*b**2*fac &
-         - self%beta*self%gmax*self%r3*d**2*fac &
-         - self%mu4*d &
-         + (1.-self%epsi-self%delta)*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z
-   d_l =   self%gamma*ff*(n/self%k1+a/self%k2)/(1.+n/self%k1+a/self%k2)*p &
-         + self%mu4*d &
-         + self%delta*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
-         - self%vb*l/(self%k4+min67+l)*(b+self%b0)
-   d_b = -(1.-self%beta)*self%gmax*self%r2*b**2*fac &
-         - self%beta*self%gmax*self%r2*b**2*fac &
-         - self%mu3*b &
-         + self%vb*min67/(self%k4+min67+l)*(b+self%b0) &
-         + self%vb*l/(self%k4+min67+l)*(b+self%b0)
+   d_p = ff*(n/self%k1+a/self%k2)/(_ONE_+n/self%k1+a/self%k2)*(p*(_ONE_-self%gamma)+self%p0) &
+         - self%gmax*self%r1*p**2*fac                                                        &
+         - self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p
    d_z =   self%beta*self%gmax*self%r1*p**2*fac &
          + self%beta*self%gmax*self%r2*b**2*fac &
          + self%beta*self%gmax*self%r3*d**2*fac &
-         - (1.-self%epsi-self%delta)*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
-         - self%epsi*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
-         - self%delta*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z
-   d_n = - ff*n/self%k1/(1.+n/self%k1+a/self%k2)*(p+self%p0)
-   d_a =   self%mu3*b &
-         + self%epsi*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z &
-         - ff*a/self%k2/(1.+n/self%k1+a/self%k2)*(p+self%p0) &
-         - self%vb*min67/(self%k4+min67+l)*(b+self%b0)
+         - self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z
+   d_b =   self%vb*l    /(self%k4+min67+l)*(b+self%b0) &
+         + self%vb*min67/(self%k4+min67+l)*(b+self%b0) &
+         - self%gmax*self%r2*b**2*fac                  &
+         - self%mu3*b
+   d_d =   (_ONE_-self%beta)*self%gmax*self%r1*p**2*fac &
+         + (_ONE_-self%beta)*self%gmax*self%r2*b**2*fac &
+         - self%beta        *self%gmax*self%r3*d**2*fac &
+         - self%mu4*d                                   &
+         + self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p   &
+         + (_ONE_-self%epsi-self%delta)*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z
+   d_n = - ff*n/self%k1/(_ONE_+n/self%k1+a/self%k2)*(p+self%p0)
+   d_a = - ff*a/self%k2/(_ONE_+n/self%k1+a/self%k2)*(p+self%p0) &
+         - self%vb*min67/(self%k4+min67+l)*(b+self%b0)          &
+         + self%mu3*b                                           &
+         + self%epsi*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z
+   d_l =   self%gamma*ff*(n/self%k1+a/self%k2)/(_ONE_+n/self%k1+a/self%k2)*p &
+         + self%mu4*d                                                        &
+         + self%delta*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z             &
+         - self%vb*l/(self%k4+min67+l)*(b+self%b0)
 
    _SET_ODE_(self%id_p,d_p)
    _SET_ODE_(self%id_z,d_z)
