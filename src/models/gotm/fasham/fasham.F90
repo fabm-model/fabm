@@ -496,10 +496,13 @@
    _GET_STATE_(self%id_a,a) ! ammonia
    _GET_STATE_(self%id_l,l) ! labile dissolved organic nitrogen
    
-   ! Retrieve local photosynthetically active radiation.
+   ! Retrieve local environment: photosynthetically active radiation.
    _GET_DEPENDENCY_(self%id_par,par)
 
-   ! Calculate intermediate quantities that will be used multiple times.
+   ! Calculate intermediate quantities:
+   !   ff    = phytoplankton light limitation
+   !   fac   = zooplankton grazing denominator multiplied by zooplankton
+   !   min67 = total bacterial nitrogenous substrate
    ff = self%vp*self%alpha*par/sqrt(self%vp**2+self%alpha**2*par**2) 
    if (p.eq._ZERO_ .and. b.eq._ZERO_ .and. d.eq._ZERO_) then
       fac = _ZERO_
@@ -509,6 +512,7 @@
    end if
    min67 = min(a,self%eta*l)
 
+   ! Calculate temporal derivatives according to Kuehn & Radach (1997, Journal of Marine Research)
    d_p = ff*(n/self%k1+a/self%k2)/(_ONE_+n/self%k1+a/self%k2)*(p*(_ONE_-self%gamma)+self%p0) &
          - self%gmax*self%r1*p**2*fac                                                        &
          - self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p
@@ -536,6 +540,7 @@
          + self%delta*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z             &
          - self%vb*l/(self%k4+min67+l)*(b+self%b0)
 
+   ! Provide temporal derivatives to FABM.
    _SET_ODE_(self%id_p,d_p)
    _SET_ODE_(self%id_z,d_z)
    _SET_ODE_(self%id_d,d_d)
