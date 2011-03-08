@@ -18,6 +18,8 @@
 ! !USES:
    use fabm_types
    use fabm_driver
+   
+   implicit none
 
 !  default: all is private.
    private
@@ -61,9 +63,6 @@
 !  Here, the bio namelist {\tt bio\_jellyfish.nml} is read and 
 !  various variables (rates and settling velocities) 
 !  are transformed into SI units.
-!
-! !USES:
-   IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
    type (type_mnemiopsis),intent(out)   :: self
@@ -135,9 +134,6 @@
 !
 ! !DESCRIPTION:
 !
-! !USES:
-   IMPLICIT NONE
-!
 ! !INPUT PARAMETERS:
    type (type_mnemiopsis), intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
@@ -185,7 +181,7 @@
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
 
-   ! Obtain current values for environmental variables
+   ! Obtain current values for environmental variables.
    _GET_DEPENDENCY_(self%id_temp,temp)
 
    ! Obtain current values for state variables
@@ -198,9 +194,13 @@
    _GET_STATE_(self%id_ada,ada_mn)
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
 
+   ! Obtain current prey densities.
+   ! These are provided externally, i.e., by lower trophic level model or data file.
    _GET_STATE_(self%id_food   ,food)
    _GET_STATE_(self%id_foodmic,foodmic)
-   food = food*self%food_scale
+   
+   ! Scale external prey densities to internal unit (mg C/m**3)
+   food    = food   *self%food_scale
    foodmic = foodmic*self%food_scale
    foodno  = max(_ONE_,food/0.0024) !0.0024 is mg C per copepod
    
@@ -397,8 +397,6 @@
 !EOC
 
    pure subroutine trans(mm,mr,ma,t,p7)
-      implicit none
-      
       ! here mm is max and ma actual and mr is the reference weight 
       REALTYPE,intent(in ) :: mm,mr,ma,p7
       REALTYPE,intent(out) :: t
