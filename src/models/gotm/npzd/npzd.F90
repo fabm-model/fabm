@@ -4,8 +4,10 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_npzd --- NPZD biogeochemical model taken from GOTM,
-! adapted for FABM by Jorn Bruggeman
+! !MODULE: fabm_npzd --- NPZD biogeochemical model based upon
+! Fennel & Neumann (1996, German Journal of Hydrography),
+! with minor modifications by Burchard et al. (2005, Ocean Dynamics)
+! taken from GOTM and adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
    module fabm_npzd
