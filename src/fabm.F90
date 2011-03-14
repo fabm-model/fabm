@@ -1230,7 +1230,7 @@
    subroutine fabm_do_benthos_rhs(root _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),         intent(in)    :: root
+   type (type_model),         intent(inout)    :: root
    _DECLARE_LOCATION_ARG_HZ_
 !
 ! !INPUT/OUTPUT PARAMETERS:
