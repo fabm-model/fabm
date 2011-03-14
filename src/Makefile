@@ -30,9 +30,12 @@ doc:    $(DOCSRC)
 	touch doc
 
 clean:
-	$(RM) -f ${LIB} doc
-
-realclean: clean
 	$(RM) -f *.o *~
 
+realclean: clean
+	$(RM) -r $(FABMDIR)/modules/$(FABMHOST)/$(FORTRAN_COMPILER)
+	$(RM) -r $(FABMDIR)/lib/$(FABMHOST)/$(FORTRAN_COMPILER)
+
 distclean: realclean
+	$(RM) -r doc
+	$(RM) -r $(FABMDIR)/modules/ $(FABMDIR)/lib/
