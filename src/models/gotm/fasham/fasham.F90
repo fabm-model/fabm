@@ -61,6 +61,7 @@
    type type_fasham
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_p,id_z,id_b,id_d,id_n,id_a,id_l
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_pp
       _TYPE_DEPENDENCY_ID_          :: id_par
       _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
       
@@ -225,6 +226,9 @@
    self%id_l = register_state_variable(modelinfo,'ldn','mmol/m**3','labile dissolved organic nitrogen',     &
                                     l_initial,minimum=_ZERO_,no_river_dilution=.true.)
 
+   ! Register diagnostic variables
+   self%id_pp = register_diagnostic_variable(modelinfo,'pp','/d','specific primary production')
+
    ! Register environmental dependencies
    self%id_par = register_dependency(modelinfo, varname_par)
 
@@ -334,6 +338,7 @@
 ! !LOCAL VARIABLES:
    REALTYPE                   :: p,z,b,d,n,a,l,par
    REALTYPE                   :: ff,fac,min67
+   REALTYPE, parameter :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -381,6 +386,9 @@
    _SET_DD_SYM_(self%id_a,self%id_b,self%vb*min67/(self%k4+min67+l)*(b+self%b0))
    _SET_DD_SYM_(self%id_l,self%id_b,self%vb*l/(self%k4+min67+l)*(b+self%b0))
    
+   ! Provide diagnostic variables to FABM.
+   _SET_DIAG_(self%id_pp,secs_pr_day*ff*(n/self%k1+a/self%k2)/(_ONE_+n/self%k1+a/self%k2))
+
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
@@ -481,8 +489,9 @@
 !
 ! !LOCAL VARIABLES:
    REALTYPE                   :: p,z,b,d,n,a,l,par
-   REALTYPE                   :: d_p,d_z,d_b,d_d,d_n,d_a,d_l,d_par
+   REALTYPE                   :: d_p,d_z,d_b,d_d,d_n,d_a,d_l
    REALTYPE                   :: ff,fac,min67
+   REALTYPE, parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -550,6 +559,9 @@
    _SET_ODE_(self%id_n,d_n)
    _SET_ODE_(self%id_a,d_a)
    _SET_ODE_(self%id_l,d_l)
+   
+   ! Provide diagnostic variables to FABM.
+   _SET_DIAG_(self%id_pp,secs_pr_day*ff*(n/self%k1+a/self%k2)/(_ONE_+n/self%k1+a/self%k2))
    
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
