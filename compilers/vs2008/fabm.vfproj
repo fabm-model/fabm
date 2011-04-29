@@ -4,7 +4,7 @@
 		<Platform Name="Win32"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" PreprocessorDefinitions="_ISO_TR_15581_" Interfaces="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" PreprocessorDefinitions="_ISO_TR_15581_;" Interfaces="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -15,7 +15,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" UseProcessorExtensions="codeExclusivelyHost" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" PreprocessorDefinitions="_ISO_TR_15581_" WarnUnusedVariables="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" UseProcessorExtensions="codeExclusivelyHost" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" PreprocessorDefinitions="_ISO_TR_15581_;" VectorizerDiagLevel="vectorizerDiagLevel3" WarnUnusedVariables="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -31,26 +31,38 @@
 		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.h"/></Filter>
 		<Filter Name="Make Files">
 		<Filter Name="models">
+		<Filter Name="gotm">
+		<Filter Name="npzd">
+		<File RelativePath="..\..\src\models\npzd\Makefile"/></Filter></Filter>
+		<Filter Name="metu">
+		<Filter Name="mnemiopsis">
+		<File RelativePath="..\..\src\models\mnemiopsis\Makefile"/></Filter></Filter>
+		<Filter Name="pml">
 		<Filter Name="co2sys">
 		<File RelativePath="..\..\src\models\co2sys\Makefile"/></Filter>
-		<Filter Name="mnemiopsis">
-		<File RelativePath="..\..\src\models\mnemiopsis\Makefile"/></Filter>
-		<Filter Name="npzd">
-		<File RelativePath="..\..\src\models\npzd\Makefile"/></Filter>
+		<Filter Name="ersem">
+		<File RelativePath="..\..\src\models\pmlersem\Makefile"/></Filter></Filter>
 		<File RelativePath="..\..\src\models\Makefile"/></Filter>
 		<File RelativePath="..\..\src\Makefile"/>
 		<File RelativePath="..\..\src\Rules.make"/></Filter>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
-		<Filter Name="models">
-		<Filter Name="co2sys">
-		<File RelativePath="..\..\src\models\co2sys\co2_dyn.F90"/>
-		<File RelativePath="..\..\src\models\co2sys\co2sys.F90"/></Filter>
-		<Filter Name="mnemiopsis">
-		<File RelativePath="..\..\src\models\mnemiopsis\mnemiopsis.F90"/></Filter>
-		<Filter Name="npzd">
-		<File RelativePath="..\..\src\models\npzd\npzd.F90"/></Filter></Filter>
 		<Filter Name="driver">
 		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.F90"/></Filter>
+		<Filter Name="models">
+		<Filter Name="gotm">
+		<Filter Name="fasham">
+		<File RelativePath="..\..\src\models\gotm\fasham\fasham.F90"/></Filter>
+		<Filter Name="npzd">
+		<File RelativePath="..\..\src\models\gotm\npzd\npzd.F90"/></Filter></Filter>
+		<Filter Name="metu">
+		<Filter Name="mnemiopsis">
+		<File RelativePath="..\..\src\models\metu\mnemiopsis\mnemiopsis.F90"/></Filter></Filter>
+		<Filter Name="pml">
+		<Filter Name="co2sys">
+		<File RelativePath="..\..\src\models\pml\co2sys\co2_dyn.F90"/>
+		<File RelativePath="..\..\src\models\pml\co2sys\co2sys.F90"/></Filter>
+		<Filter Name="ersem">
+		<File RelativePath="..\..\src\models\pml\ersem\ersem.F90"/></Filter></Filter></Filter>
 		<File RelativePath="..\..\src\fabm.F90"/>
 		<File RelativePath="..\..\src\fabm_types.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
