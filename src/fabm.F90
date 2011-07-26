@@ -1307,18 +1307,18 @@
 !BOP
 !
 ! !IROUTINE: Get the vertical movement rates (m/s) for the bio state variables.
-! Note that negative values indidcate movement towards the bottom, e.g., sinking,
+! Note that negative values indicate movement towards the bottom, e.g., sinking,
 ! and positive values indicate movemment towards the surface, e.g., floating.
 !
 ! !INTERFACE:
-   subroutine fabm_get_vertical_movement(root _ARG_LOCATION_ND_,vertical_movement)
+   subroutine fabm_get_vertical_movement(root _ARG_LOCATION_ND_,velocity)
 !
 ! !INPUT PARAMETERS:
    type (type_model),           intent(in)  :: root
    _DECLARE_LOCATION_ARG_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE _ATTR_DIMENSIONS_1_,intent(out) :: vertical_movement
+   REALTYPE _ATTR_DIMENSIONS_1_,intent(out) :: velocity
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1329,7 +1329,7 @@
    _TYPE_STATE_VARIABLE_ID_                 :: varid
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _FABM_ARGS_ND_IN_,vertical_movement
+#define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _FABM_ARGS_ND_IN_,velocity
 
    model => root%nextmodel
    do while (associated(model))
