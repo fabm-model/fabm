@@ -91,10 +91,11 @@
    self%K     = K
    
    ! Register state variables
+   ! NOTE the benthic=.true. argument, which specifies the variable is benthic.
    self%id_pred = register_state_variable(modelinfo,'pred','mmol/m**3','predator density', &
                                           pred_initial,minimum=_ZERO_,benthic=.true.)
 
-   ! Register link to external prey and mineral pools.
+   ! Register link to external pelagic prey and mineral pools.
    ! Prey will be used to feed upon, mineral pool to place waste products in.
    self%id_prey = register_state_dependency(modelinfo,prey_variable)
    self%id_nut  = register_state_dependency(modelinfo,nut_variable)
