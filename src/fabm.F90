@@ -1465,8 +1465,6 @@
             call npzd_get_conserved_quantities(model%npzd,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
          case (fasham_id)
             call fasham_get_conserved_quantities(model%fasham,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
-         case (benthic_predator_id)
-            call benthic_predator_get_conserved_quantities(model%benthic_predator,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
          ! ADD_NEW_MODEL_HERE - optional, required only if the model exports one or more
          ! conserved quantities.
          !

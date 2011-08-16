@@ -10,6 +10,11 @@
    module fabm_benthic_predator
 !
 ! !DESCRIPTION:
+! This is a very simple model for a benthic predator, grazing according to a
+! Monod/Michaelis-Menten functional response on a pelagic prey, and
+! respiring/dying according to a linear loss term. Variables for the prey
+! (e.g., phytoplankon or zooplankton) and the target for the losses (typically
+! a detrital or mineral pool) must be provided by an external model, e.g., npzd.
 !
 ! !USES:
    use fabm_types
@@ -21,7 +26,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_benthic_predator, benthic_predator_init, benthic_predator_do_benthos, benthic_predator_get_conserved_quantities
+   public type_benthic_predator, benthic_predator_init, benthic_predator_do_benthos
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -33,9 +38,8 @@
    type type_benthic_predator
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_prey,id_pred,id_nut
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totmass
       
-!     Model parameters
+!     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
       REALTYPE :: g_max,K,h
    end type
 !EOP
@@ -64,11 +68,11 @@
    integer,                     intent(in)    :: namlst
 !
 ! !REVISION HISTORY:
-!  Original author(s): Hans Burchard & Karsten Bolding
+!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
    REALTYPE                  :: pred_initial=0.01
-   REALTYPE                  :: g_max = 2., K=1., h=.1
+   REALTYPE                  :: g_max = 1., K=1., h=0.05
    character(len=64)         :: nut_variable='',prey_variable=''
 
    REALTYPE, parameter :: secs_pr_day = 86400.
@@ -87,19 +91,13 @@
    self%K     = K
    
    ! Register state variables
-   !self%id_nut  = register_state_variable(modelinfo,'nut','mmol/m**3', 'nutrient', &
-   !                                 prey_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   !self%id_prey = register_state_variable(modelinfo,'prey','mmol/m**3','prey', &
-   !                                 prey_initial,minimum=_ZERO_)
-   self%id_pred = register_state_variable(modelinfo,'pred','mmol/m**3','benthic predator', &
-                                    pred_initial,minimum=_ZERO_,benthic=.true.)
+   self%id_pred = register_state_variable(modelinfo,'pred','mmol/m**3','predator density', &
+                                          pred_initial,minimum=_ZERO_,benthic=.true.)
 
-   ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   self%id_nut  = register_state_dependency(modelinfo,nut_variable)
+   ! Register link to external prey and mineral pools.
+   ! Prey will be used to feed upon, mineral pool to place waste products in.
    self%id_prey = register_state_dependency(modelinfo,prey_variable)
-
-   ! Register conserved quantities
-   self%id_totmass = register_conserved_quantity(modelinfo,'mass','mmol/m**3','mass')
+   self%id_nut  = register_state_dependency(modelinfo,nut_variable)
 
    return
 
@@ -125,7 +123,7 @@
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 ! !REVISION HISTORY:
-!  Original author(s): Hans Burchard, Karsten Bolding
+!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
    REALTYPE                   :: prey,pred,g
@@ -153,43 +151,6 @@
    _FABM_HZ_LOOP_END_
 
    end subroutine benthic_predator_do_benthos
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
-!
-! !INTERFACE:
-   pure subroutine benthic_predator_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
-!
-! !INPUT PARAMETERS:
-   type (type_benthic_predator), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   REALTYPE                     :: nut,prey
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_nut, nut)
-   _GET_STATE_(self%id_prey,prey)
-   
-   ! Total nutrient is simply the sum of all variables.
-   _SET_CONSERVED_QUANTITY_(self%id_totmass,nut+prey)
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-   end subroutine benthic_predator_get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------
