@@ -130,8 +130,8 @@
    _FABM_HZ_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_prey,prey)     ! prey density
-   _GET_STATE_BEN_(self%id_pred,pred) ! predator density
+   _GET_STATE_(self%id_prey,prey)     ! prey density - pelagic
+   _GET_STATE_BEN_(self%id_pred,pred) ! predator density - benthic
    
    ! Calculate grazing rate
    g = self%g_max*pred*prey/(prey+self%K)
