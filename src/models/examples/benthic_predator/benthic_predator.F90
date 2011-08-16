@@ -92,7 +92,7 @@
    
    ! Register state variables
    ! NOTE the benthic=.true. argument, which specifies the variable is benthic.
-   self%id_pred = register_state_variable(modelinfo,'pred','mmol/m**3','predator density', &
+   self%id_pred = register_state_variable(modelinfo,'pred','mmol/m**2','predator density', &
                                           pred_initial,minimum=_ZERO_,benthic=.true.)
 
    ! Register link to external pelagic prey and mineral pools.
