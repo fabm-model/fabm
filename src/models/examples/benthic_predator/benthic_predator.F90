@@ -28,20 +28,18 @@
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_benthic_predator, benthic_predator_init, benthic_predator_do_benthos
 !
-! !PRIVATE DATA MEMBERS:
-!
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
-!
-!
-! !PUBLIC DERIVED TYPES:
+! !PUBLIC TYPES:
    type type_benthic_predator
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_prey,id_pred,id_nut
+      _TYPE_STATE_VARIABLE_ID_ :: id_prey,id_pred,id_nut
       
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
       REALTYPE :: g_max,K,h
    end type
+!
+! !REVISION HISTORY:!
+!  Original author(s): Jorn Bruggeman
+!
 !EOP
 !-----------------------------------------------------------------------
 
@@ -58,9 +56,6 @@
 ! !DESCRIPTION:
 !  Here, the benthic_predator namelist is read and te variables exported
 !  by the model are registered with FABM.
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_benthic_predator),intent(out)   :: self
@@ -116,8 +111,8 @@
    subroutine benthic_predator_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 ! !DESCRIPTION:
-!
-! !USES:
+! This routine calculates the benthic sink and source terms, as well as
+! (matching) bottom fluxes for pelagic variables. Both have units mmol/m**2/s.
 !
 ! !INPUT PARAMETERS:
    type (type_benthic_predator),       intent(in) :: self
@@ -131,11 +126,11 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Enter spatial loops (if any)
+   ! Enter spatial loops over the horizontal domain (if any).
    _FABM_HZ_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_prey,prey) ! prey density
+   _GET_STATE_(self%id_prey,prey)     ! prey density
    _GET_STATE_BEN_(self%id_pred,pred) ! predator density
    
    ! Calculate grazing rate
@@ -148,7 +143,7 @@
    _SET_BOTTOM_EXCHANGE_(self%id_prey,-g)
    _SET_BOTTOM_EXCHANGE_(self%id_nut,self%h*pred)
    
-   ! Leave spatial loops (if any)
+   ! Leave spatial loops over the horizontal domain (if any).
    _FABM_HZ_LOOP_END_
 
    end subroutine benthic_predator_do_benthos
