@@ -1,25 +1,14 @@
 !-------------------------------------------------------------------------------
 ! bio_nml
 !-------------------------------------------------------------------------------
-! bio_calc          [bool]
-!                     calculate biological model
-! bio_model         [integer]
-!                     biological model
-!                     1: NPZD (4 variables)
-!                     1001: NPZD 0D (4 variables)
-!                     2: IOW-ERGOM (4 variables)
-!                     3: Suspended matter only (1 variable)
-!                     4: Fasham et al. 1990 (7 variables)
-!                     7: NPZD_Fe biological model
-!                     20: adaption model according to Nagai et al. (2003)
-!                     8: cl (2 variables)
-!                     This variable is used only if bio_calc = True
-! bio_eulerian      [bool]
-!                     state variables are Eulerian
-!                     This variable is used only if bio_calc = True
+! fabm_calc          [bool]
+!                     use the Framework for Aquatic Biogeochemical Models
+! models             [string array]
+!                     a comma-separated list of one or model model names
+!                     This variable is used only if fabm_calc = True
 ! cnpar             [float]
 !                     Cranck-Nicholson parameter for vertical diffusion
-!                     This variable is used only if bio_calc = True
+!                     This variable is used only if fabm_calc = True
 ! w_adv_discr       [integer]
 !                     advection scheme for vertical motion
 !                     1: first-order upstream
@@ -28,7 +17,7 @@
 !                     4: TVD with Superbee limiter
 !                     5: TVD with MUSCL limiter
 !                     6: TVD with ULTIMATE QUICKEST
-!                     This variable is used only if bio_calc = True
+!                     This variable is used only if fabm_calc = True
 ! ode_method        [integer]
 !                     ODE scheme for source and sink dynamics
 !                     1: first-order explicit (not positive)
@@ -45,17 +34,13 @@
 !                       posit.)
 !                     11: Extended Modified Patankar-RK (2nd-order, conservat.,
 !                       posit.)
-!                     This variable is used only if bio_calc = True
+!                     This variable is used only if fabm_calc = True
 ! split_factor      [integer, minimum = 1]
 !                     number of biogeochemical time steps per physical time step
-!                     This variable is used only if bio_calc = True
+!                     This variable is used only if fabm_calc = True
 ! bioshade_feedback [bool]
-!                     feedback of bio-turbidity to temperature equation
-!                     This variable is used only if bio_calc = True
-! npar              [integer]
-!                     total number of Lagrangian particles
-!                     This variable is used only if (bio_calc = True and
-!                       bio_eulerian = False)
+!                     Whether to feed back bio-turbidity to temperature equation
+!                     This variable is used only if fabm_calc = True
 !-------------------------------------------------------------------------------
 
 &bio_nml
@@ -69,10 +54,8 @@
 /
 
 !-------------------------------------------------------------------------------
-! bio_npzd_nml
+! npzd - GOTM nutrient-phytoplankton-zooplankton-detritus model
 !-------------------------------------------------------------------------------
-! numc      [integer]
-!             number of compartments for geobiochemical model
 ! n_initial [float, unit = mmol/m^3]
 !             initial nutrient concentration
 ! p_initial [float, unit = mmol/m^3]
@@ -113,10 +96,6 @@
 !             p --> d rate (p mortality), below euphotic zone
 ! rzd       [float, unit = 1/d]
 !             z --> d rate (z mortality)
-! aa        [float]
-!             weighting factor for visible light fraction
-! g2        [float, unit = m]
-!             attenuation length for visible light
 !-------------------------------------------------------------------------------
 
 &npzd
@@ -141,6 +120,10 @@
    rpdl = 0.1,
    rzd = 0.02,
 /
+
+!-------------------------------------------------------------------------------
+! mnemiopsis - IMS-METU Mnemiopsis model
+!-------------------------------------------------------------------------------
 
 &mnemiopsis
 	food_source_variable = 'npzd_zoo',
