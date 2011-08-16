@@ -49,6 +49,9 @@
 		<Filter Name="driver">
 		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.F90"/></Filter>
 		<Filter Name="models">
+		<Filter Name="examples">
+		<Filter Name="benthic_predator">
+		<File RelativePath="..\..\src\models\examples\benthic_predator\benthic_predator.F90"/></Filter></Filter>
 		<Filter Name="gotm">
 		<Filter Name="fasham">
 		<File RelativePath="..\..\src\models\gotm\fasham\fasham.F90"/></Filter>

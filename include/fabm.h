@@ -194,6 +194,10 @@
 #define _INDEX_SURFACE_EXCHANGE_(index) (_VARIABLE_1DLOOP_-fabm_loop_start+1,index)
 #endif
 
+#ifndef _INDEX_BOTTOM_FLUX_
+#define _INDEX_BOTTOM_FLUX_(index) (_VARIABLE_1DLOOP_-fabm_loop_start+1,index)
+#endif
+
 #else
 
 ! Functions operating on horizontal slices of the domain only will not be vectorized
@@ -207,6 +211,8 @@
 
 ! Expressions for indexing space-dependent FABM variables defined on horizontal slices of the domain.
 #define _INDEX_SURFACE_EXCHANGE_(index) (index)
+
+#define _INDEX_BOTTOM_FLUX_(index) (index)
 
 #define _ATTR_DIMENSIONS_0_HZ_
 #define _ATTR_DIMENSIONS_1_HZ_ ,dimension(:)
@@ -251,6 +257,9 @@
 
 ! For BGC models: Expressions for setting space-dependent FABM variables defined on the full spatial domain.
 #define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%id) = rhs _INDEX_ODE_(variable%id) + (value)
+#define _SET_ODE_BEN_(variable,value) flux_ben _INDEX_BOTTOM_FLUX_(variable%id) = flux_ben _INDEX_BOTTOM_FLUX_(variable%id) + (value)
+#define _SET_BOTTOM_EXCHANGE_(variable,value) flux_pel _INDEX_BOTTOM_FLUX_(variable%id) = flux_pel _INDEX_BOTTOM_FLUX_(variable%id) + (value)
+#define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%id) = rhs _INDEX_ODE_(variable%id) + (value)
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1%id,variable2%id) = dd _INDEX_PPDD_(variable1%id,variable2%id) + (value)
 #define _SET_PP_(variable1,variable2,value) pp _INDEX_PPDD_(variable1%id,variable2%id) = pp _INDEX_PPDD_(variable1%id,variable2%id) + (value)
 #define _SET_EXTINCTION_(value) extinction _INDEX_EXTINCTION_ = extinction _INDEX_EXTINCTION_ + (value)
@@ -268,13 +277,21 @@
 #define _GET_DEPENDENCY_(variable,target) target = environment%var(variable)%data _INDEX_LOCATION_
 #define _GET_DEPENDENCY_HZ_(variable,target) target = environment%var_hz(variable)%data _INDEX_LOCATION_HZ_
 
-! For FABM: read/write access to state variables
+! For FABM: read/write access to pelagic state variables
 #define _GET_STATE_EX_(env,variable,target) target = env%var(variable%dependencyid)%data _INDEX_LOCATION_
 #define _SET_STATE_EX_(env,variable,value) env%var(variable%dependencyid)%data _INDEX_LOCATION_ = value
 
-! For BGC models: read/write access to state variable values
+! For FABM: read/write access to benthic state variables
+#define _GET_STATE_BEN_EX_(env,variable,target) target = env%var_hz(variable%dependencyid)%data _INDEX_LOCATION_HZ_
+#define _SET_STATE_BEN_EX_(env,variable,value) env%var_hz(variable%dependencyid)%data _INDEX_LOCATION_HZ_ = value
+
+! For BGC models: read/write access to pelagic state variable values
 #define _GET_STATE_(variable,target) _GET_STATE_EX_(environment,variable,target)
 #define _SET_STATE_(variable,target) _SET_STATE_EX_(environment,variable,target)
+
+! For BGC models: read/write access to benthic state variable values
+#define _GET_STATE_BEN_(variable,target) _GET_STATE_BEN_EX_(environment,variable,target)
+#define _SET_STATE_BEN_(variable,target) _SET_STATE_BEN_EX_(environment,variable,target)
 
 ! For BGC models: write access to diagnostic variables
 #ifdef _FABM_MANAGE_DIAGNOSTICS_
@@ -303,7 +320,7 @@
 #define _SET_EXTINCTION_1D_(value) extinction(1:fabm_loop_stop-fabm_loop_start+1) = extinction(fabm_loop_start:fabm_loop_stop) + value
 #define _SET_VERTICAL_MOVEMENT_1D_(variable,value) velocity(1:fabm_loop_stop-fabm_loop_start+1,variable%id) = value
 
-! For the definitions below, it is assuemd that the vertical dimension is vectorized!
+! For the definitions below, it is assumed that the vertical dimension is vectorized!
 #define _DOMAIN_HZ_1D_ 1
 #define _INDEX_HZ_1D_ _VARIABLE_1DLOOP_
 #define _GET_STATE_HZ_1D_(variable,target) target = environment%var(variable%dependencyid)%data(_INDEX_HZ_1D_)

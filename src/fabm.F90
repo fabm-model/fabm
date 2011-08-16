@@ -22,6 +22,7 @@
    use fabm_pmlersem
    use fabm_mnemiopsis
    use fabm_co2sys
+   use fabm_benthic_predator
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
    
    implicit none
@@ -50,6 +51,7 @@
    integer, parameter :: pmlersem_id        =  99
    integer, parameter :: co2sys_id          =  101
    integer, parameter :: mnemiopsis_id      =  102
+   integer, parameter :: benthic_predator_id = 103
    ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
    ! Note: values <=100 are reserved for models ported from the General Ocean Turbulence Model.
 
@@ -75,11 +77,12 @@
       type (type_model),pointer :: nextmodel
 
       ! Derived types that belong to specific biogeochemical models.
-      type (type_npzd)       :: npzd
-      type (type_fasham)     :: fasham
-      type (type_pmlersem)   :: pmlersem
-      type (type_mnemiopsis) :: mnemiopsis
-      type (type_co2sys)     :: co2sys
+      type (type_npzd)             :: npzd
+      type (type_fasham)           :: fasham
+      type (type_pmlersem)         :: pmlersem
+      type (type_mnemiopsis)       :: mnemiopsis
+      type (type_co2sys)           :: co2sys
+      type (type_benthic_predator) :: benthic_predator
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
       
       ! Pointer to the current spatially explicit environment.
@@ -161,6 +164,7 @@
    call register_model(pmlersem_id       ,'pmlersem')
    call register_model(mnemiopsis_id     ,'mnemiopsis')
    call register_model(co2sys_id         ,'co2sys')
+   call register_model(benthic_predator_id,'benthic_predator')
    ! ADD_NEW_MODEL_HERE - required
    
    end subroutine register_models
@@ -558,6 +562,8 @@
          call mnemiopsis_init(model%mnemiopsis,model%info,nmlunit)
       case (co2sys_id)
          call co2sys_init(model%co2sys,model%info,nmlunit)
+      case (benthic_predator_id)
+         call benthic_predator_init(model%benthic_predator,model%info,nmlunit)
       ! ADD_NEW_MODEL_HERE - required
       
       case (model_container_id)
@@ -1022,6 +1028,7 @@
             call mnemiopsis_do(model%mnemiopsis,_INPUT_ARGS_DO_RHS_)
          case (co2sys_id)
             call co2sys_do(model%co2sys,_INPUT_ARGS_DO_RHS_)
+         case (benthic_predator_id)
          ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
          ! matrices instead of a temporal derivative vector. In that case, add the model to
          ! fabm_do_ppdd.
@@ -1248,6 +1255,8 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
+         case (benthic_predator_id)
+            call benthic_predator_do_benthos(model%benthic_predator,_INPUT_ARGS_DO_BENTHOS_RHS_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
          ! or specifies bottom fluxes for its pelagic state variables.
          !
@@ -1456,6 +1465,8 @@
             call npzd_get_conserved_quantities(model%npzd,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
          case (fasham_id)
             call fasham_get_conserved_quantities(model%fasham,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
+         case (benthic_predator_id)
+            call benthic_predator_get_conserved_quantities(model%benthic_predator,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
          ! ADD_NEW_MODEL_HERE - optional, required only if the model exports one or more
          ! conserved quantities.
          !
