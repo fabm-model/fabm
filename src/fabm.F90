@@ -828,8 +828,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Determine whether the state variable also features as dependency. If so, also attach the
-   ! array slice to the dependency.
+   ! Determine whether this pelagic state variable is needed by any of the loaded biogeochemical models.
+   ! If so, forward the provided array slice, in order to stored in the list of dependencies.
    if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
       call fabm_link_data(model,model%info%state_variables(id)%dependencyid,dat)
       
@@ -856,8 +856,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Determine whether the state variable also features as dependency. If so, also attach the
-   ! array slice to the dependency.
+   ! Determine whether this benthic state variable is needed by any of the loaded biogeochemical models.
+   ! If so, forward the provided array slice, in order to stored in the list of dependencies.
    if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
       call fabm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat)
       
@@ -1342,27 +1342,29 @@
 
    model => root%nextmodel
    do while (associated(model))
+      ! First set constant sinking rates.
+   
+      do i=1,ubound(model%info%state_variables,1)
+         varid = model%info%state_variables(i)%globalid
+
+         ! Enter spatial loops (if any)
+         _FABM_LOOP_BEGIN_
+
+         ! Use variable-specific constant vertical velocities.
+         _SET_VERTICAL_MOVEMENT_(varid,model%info%state_variables(i)%vertical_movement)
+
+         ! Leave spatial loops (if any)
+         _FABM_LOOP_END_
+      end do
+
+      ! Now allow models to overwrite with spatially-varying sinking rates - if any.
+
       select case (model%id)
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies time- and/or space
          ! varying vertical velocities for one or more state variables.
          !
          ! Typical model call:
          ! call MODELNAME_get_vertical_movement(model%MODELNAME,_INPUT_ARGS_GET_VERTICAL_MOVEMENT_)
-         
-         case default
-            ! Default: use the constant sinking rates specified in state variable properties.
-
-            ! Enter spatial loops (if any)
-            _FABM_LOOP_BEGIN_
-
-            ! Use variable-specific vertical movement rates.
-            do i=1,ubound(model%info%state_variables,1)
-               varid = model%info%state_variables(i)%globalid
-               _SET_VERTICAL_MOVEMENT_(varid,model%info%state_variables(i)%vertical_movement)
-            end do
-
-            ! Leave spatial loops (if any)
-            _FABM_LOOP_END_
       end select
       model => model%nextmodel
    end do
