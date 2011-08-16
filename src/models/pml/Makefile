@@ -1,6 +1,6 @@
 #$Id$
 #
-# Makefile to build the pml FABM models
+# Makefile to build the FABM models from the Plymouth Marine Laboratory
 #
 
 include ../../Rules.make

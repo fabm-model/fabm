@@ -1,6 +1,6 @@
 #$Id$
 #
-# Makefile to build the pml FABM models
+# Makefile to build the FABM models that have been ported from GOTM
 #
 
 include ../../Rules.make

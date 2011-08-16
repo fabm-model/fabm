@@ -1,7 +1,6 @@
 #$Id$
 #
-# Makefile to build the pml FABM models
-#
+# Makefile to build the FABM models from the Middle East Technical University (METU)
 
 include ../../Rules.make
 
