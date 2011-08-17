@@ -4,13 +4,21 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: FABM --- Framework for Aquatic Biogeochemcial Models
+! !MODULE: FABM --- Framework for Aquatic Biogeochemical Models
 !
 ! !INTERFACE:
    module fabm
 !
 ! !DESCRIPTION:
-! This module encapsulates various specific biogeochemical models.
+! This is the core module of FABM, serving as the "glue layer" between a
+! physical host model (e.g., a general circulation model), and one or more
+! specific biogeochemical models. A physical host model will call the interfaces
+! of this module to access biogeochemistry. Specific biogeochemical models must
+! be referenced in this module to be available in FABM. Locations where
+! specific biogeochemical models may be referenced are indicated by
+! ADD_NEW_MODEL_HERE strings in the code comments.
+!
+! For more information, see the documentation at /doc/documentation.pdf.
 !
 ! !USES:
    use fabm_types
@@ -41,19 +49,6 @@
 #ifndef _FABM_MANAGE_DIAGNOSTICS_
    public fabm_link_diagnostic_data_hz,fabm_link_diagnostic_data
 #endif
-!
-! !PRIVATE DATA MEMBERS:
-
-!  Identifiers for specific biogeochemical models.
-   integer, parameter :: model_container_id = -1
-   integer, parameter :: npzd_id            =  1
-   integer, parameter :: fasham_id          =  4
-   integer, parameter :: pmlersem_id        =  99
-   integer, parameter :: co2sys_id          =  101
-   integer, parameter :: mnemiopsis_id      =  102
-   integer, parameter :: benthic_predator_id = 103
-   ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
-   ! Note: values <=100 are reserved for models ported from the General Ocean Turbulence Model.
 
 ! !PUBLIC TYPES:
 !
@@ -90,11 +85,6 @@
       type (type_environment),pointer :: environment
       
    end type type_model
-   
-   ! Arrays for integer identifiers and names of all available biogeochemical models.
-   ! Allocated and set on demand when model names are first used.
-   integer,          allocatable,dimension(:) :: modelids
-   character(len=64),allocatable,dimension(:) :: modelnames
 !
 ! !PUBLIC INTERFACES:
 !
@@ -130,6 +120,24 @@
       module procedure fabm_create_model_by_name
    end interface
 !
+! !PRIVATE DATA MEMBERS:
+
+!  Identifiers for specific biogeochemical models.
+   integer, parameter :: model_container_id = -1
+   integer, parameter :: npzd_id            =  1
+   integer, parameter :: fasham_id          =  4
+   integer, parameter :: pmlersem_id        =  99
+   integer, parameter :: co2sys_id          =  101
+   integer, parameter :: mnemiopsis_id      =  102
+   integer, parameter :: benthic_predator_id = 103
+   ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
+   ! Note: values <=100 are reserved for models ported from the General Ocean Turbulence Model.
+   
+   ! Arrays for integer identifiers and names of all available biogeochemical models.
+   ! Allocated and set on demand when model names are first used.
+   integer,          allocatable,dimension(:) :: modelids
+   character(len=64),allocatable,dimension(:) :: modelnames
+!
 ! !REVISION HISTORY:!
 !  Original author(s): Jorn Bruggeman
 !
@@ -158,12 +166,12 @@
    allocate(modelnames(0))
 
    ! Register specific biogeochemical models.
-   call register_model(model_container_id,'')
-   call register_model(npzd_id           ,'npzd')
-   call register_model(fasham_id         ,'fasham')
-   call register_model(pmlersem_id       ,'pmlersem')
-   call register_model(mnemiopsis_id     ,'mnemiopsis')
-   call register_model(co2sys_id         ,'co2sys')
+   call register_model(model_container_id, '')
+   call register_model(npzd_id,            'npzd')
+   call register_model(fasham_id,          'fasham')
+   call register_model(pmlersem_id,        'pmlersem')
+   call register_model(mnemiopsis_id,      'mnemiopsis')
+   call register_model(co2sys_id,          'co2sys')
    call register_model(benthic_predator_id,'benthic_predator')
    ! ADD_NEW_MODEL_HERE - required
    
@@ -219,7 +227,7 @@
    allocate(modelnames(oldcount+1))
    
    ! Copy the old identifiers and names to the new extended array.
-   modelids  (1:oldcount) = modelids_old(:)
+   modelids  (1:oldcount) = modelids_old  (:)
    modelnames(1:oldcount) = modelnames_old(:)
       
    ! Deallocate the temporary arrays with old values.
@@ -546,7 +554,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Log initialization of this model, unless it is a container only.
+   ! Log start of initialization of this model, unless it is a container only.
    if (model%id.ne.model_container_id) &
       call log_message('Initializing biogeochemical model "'//trim(model%info%name)//'"...')
    
@@ -602,10 +610,11 @@
          
    end select
    
+   ! Log successful initialization of this model, unless it is a container only.
    if (model%id.ne.model_container_id) &
       call log_message('model "'//trim(model%info%name)//'" initialized successfully.')
 
-   ! Check whether the unit provided by the host has not been closed by the biogeochemical model.
+   ! Debug check: make sure the unit provided by the host has not been closed by the biogeochemical model.
    inquire(nmlunit,opened=isopen)
    if (.not.isopen) call fatal_error('init_model','input configuration file was closed by model "'//trim(model%info%name)//'".')
 
@@ -829,7 +838,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Determine whether this pelagic state variable is needed by any of the loaded biogeochemical models.
-   ! If so, forward the provided array slice, in order to stored in the list of dependencies.
+   ! If so, forward the provided array slice, in order to be stored in the list of dependencies.
    if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
       call fabm_link_data(model,model%info%state_variables(id)%dependencyid,dat)
       
@@ -846,9 +855,9 @@
    subroutine fabm_link_benthos_state_data(model,id,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                          intent(inout) :: model
-   integer,                                    intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)  :: dat
+   type (type_model),                            intent(inout) :: model
+   integer,                                      intent(in)    :: id
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -857,7 +866,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Determine whether this benthic state variable is needed by any of the loaded biogeochemical models.
-   ! If so, forward the provided array slice, in order to stored in the list of dependencies.
+   ! If so, forward the provided array slice, in order to be stored in the list of dependencies.
    if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
       call fabm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat)
       
@@ -965,9 +974,9 @@
    subroutine fabm_link_diagnostic_data_hz(model,id,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                          intent(inout) :: model
-   integer,                                    intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)  :: dat
+   type (type_model),                            intent(inout) :: model
+   integer,                                      intent(in)    :: id
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
