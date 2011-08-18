@@ -114,7 +114,7 @@
       module procedure fabm_link_data_hz_char
    end interface
    
-   ! Function for creating new models based on integer id or name.
+   ! Function for creating new models based on integer id [deprecated] or name.
    interface fabm_create_model
       module procedure fabm_create_model_by_id
       module procedure fabm_create_model_by_name
@@ -642,6 +642,7 @@
 !-----------------------------------------------------------------------
 !BOC
    model%environment => environment
+   model%info%frozen = .true.
    curchild => model%firstchild
    do while (associated(curchild))
       call set_model_data_members(curchild,environment)

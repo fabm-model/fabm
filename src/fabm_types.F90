@@ -98,6 +98,8 @@
    
 !  Derived type for storing properties of a generic model.
    type type_model_info
+      ! Flag determining whether the contents of the type are "frozen", i.e., they will not change anymore.
+      logical :: frozen
    
       ! Arrays with metadata on model variables.
       type (type_state_variable_info),     pointer,dimension(:) :: state_variables_ben,state_variables
@@ -176,6 +178,8 @@
 !
 !-----------------------------------------------------------------------
 !BOC
+      modelinfo%frozen = .false.
+
       allocate(modelinfo%state_variables_ben(0))
       allocate(modelinfo%state_variables(0))
       allocate(modelinfo%diagnostic_variables_hz(0))
@@ -347,6 +351,10 @@
 !
 !-----------------------------------------------------------------------
 !BOC
+      ! Check whether the model information may be written to (only during initialization)
+      if (modelinfo%frozen) call fatal_error('fabm_types::register_state_variable', &
+                                             'State variables may only be registered during initialization.')
+
       ! Determine whether this is a benthic variable (.false. by default)
       ! If so, select the corresponding array of state variables instead of the normal one.
       benthic_eff = .false.
@@ -458,6 +466,10 @@
 !
 !-----------------------------------------------------------------------
 !BOC
+      ! Check whether the model information may be written to (only during initialization)
+      if (modelinfo%frozen) call fatal_error('fabm_types::register_diagnostic_variable',&
+                                             'Diagnostic variables may only be registered during initialization.')
+
       ! Determine whether this is a benthic state variable (.false. by default)
       shape_eff = shape_full
       if (present(shape)) shape_eff = shape
@@ -554,6 +566,10 @@
 !
 !-----------------------------------------------------------------------
 !BOC
+      ! Check whether the model information may be written to (only during initialization)
+      if (modelinfo%frozen) call fatal_error('fabm_types::register_conserved_quantity',&
+                                             'Conserved quantities may only be registered during initialization.')
+
       ! Extend array with conserved quantities, if needed
       allocate(quantities_new(ubound(modelinfo%conserved_quantities,1)+1))
       quantities_new(1:ubound(modelinfo%conserved_quantities,1)) = modelinfo%conserved_quantities(:)
@@ -620,6 +636,10 @@
 !
 !-----------------------------------------------------------------------
 !BOC
+      ! Check whether the model information may be written to (only during initialization)
+      if (modelinfo%frozen) call fatal_error('fabm_types::register_state_dependency',&
+                                             'State variable dependencies may only be registered during initialization.')
+
       ! Default id: not found.
       id%id = id_not_used
       id%dependencyid = id_not_used
@@ -700,6 +720,10 @@
 !
 !-----------------------------------------------------------------------
 !BOC
+      ! Check whether the model information may be written to (only during initialization)
+      if (modelinfo%frozen) call fatal_error('fabm_types::register_dependency',&
+                                             'Dependencies may only be registered during initialization.')
+
       ! Get effective shape argument - defaults to the full domain (instead of a horizontal slice).
       realshape = shape_full
       if (present(shape)) realshape = shape
