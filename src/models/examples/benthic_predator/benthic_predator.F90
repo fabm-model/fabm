@@ -68,10 +68,10 @@
 ! !LOCAL VARIABLES:
    REALTYPE                  :: pred_initial=0.01
    REALTYPE                  :: g_max = 1., K=1., h=0.05
-   character(len=64)         :: nut_variable='',prey_variable=''
+   character(len=64)         :: waste_target_variable='',prey_source_variable=''
 
    REALTYPE, parameter :: secs_pr_day = 86400.
-   namelist /examples_benthic_predator/ nut_variable,prey_variable,pred_initial,g_max,K,h
+   namelist /examples_benthic_predator/ waste_target_variable,prey_source_variable,pred_initial,g_max,K,h
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -92,8 +92,8 @@
 
    ! Register link to external pelagic prey and mineral pools.
    ! Prey will be used to feed upon, mineral pool to place waste products in.
-   self%id_prey = register_state_dependency(modelinfo,prey_variable)
-   self%id_nut  = register_state_dependency(modelinfo,nut_variable)
+   self%id_prey = register_state_dependency(modelinfo,prey_source_variable)
+   self%id_nut  = register_state_dependency(modelinfo,waste_target_variable)
 
    return
 
