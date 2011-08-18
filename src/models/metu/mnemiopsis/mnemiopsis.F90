@@ -1,14 +1,14 @@
-!$Id: mnemiopsis.F90 119 2010-12-27 14:23:18Z jornbr $
+!$Id: metu_mnemiopsis.F90 119 2010-12-27 14:23:18Z jornbr $
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_mnemiopsis --- Mnemiopsis (comb jelly species) model
+! !MODULE: fabm_metu_mnemiopsis --- Mnemiopsis (comb jelly species) model
 ! by Baris Salihoglu (IMS METU), adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
-   module fabm_mnemiopsis
+   module fabm_metu_mnemiopsis
 !
 ! !DESCRIPTION:
 ! Black Sea comb jelly (Mnemiopsis) model based on code by Baris Salihoglu.
@@ -25,7 +25,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_mnemiopsis, mnemiopsis_init, mnemiopsis_do
+   public type_metu_mnemiopsis, metu_mnemiopsis_init, metu_mnemiopsis_do
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -34,7 +34,7 @@
 !
 !
 ! !PUBLIC DERIVED TYPES:
-   type type_mnemiopsis
+   type type_metu_mnemiopsis
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_ :: id_egb, id_jb, id_ja, id_tb, id_ta, id_adb, id_ada
       _TYPE_STATE_VARIABLE_ID_ :: id_food, id_foodmic, id_resptarget, id_morttarget
@@ -57,7 +57,7 @@
 ! !IROUTINE: Initialise the bio module
 !
 ! !INTERFACE:
-   subroutine mnemiopsis_init(self,modelinfo,namlst)
+   subroutine metu_mnemiopsis_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Here, the bio namelist {\tt bio\_jellyfish.nml} is read and 
@@ -65,7 +65,7 @@
 !  are transformed into SI units.
 !
 ! !INPUT PARAMETERS:
-   type (type_mnemiopsis),intent(out)   :: self
+   type (type_metu_mnemiopsis),intent(out)   :: self
    type (type_model_info),intent(inout) :: modelinfo
    integer,               intent(in )   :: namlst
 !
@@ -79,7 +79,7 @@
    character(len=64)   :: food_source_variable,foodmic_source_variable, &
                           respiration_target_variable, mortality_target_variable
    REALTYPE, parameter :: secs_pr_day = 86400.
-   namelist /mnemiopsis/ egb_initial,jb_initial,ja_initial, &
+   namelist /metu_mnemiopsis/ egb_initial,jb_initial,ja_initial, &
                          tb_initial,ta_initial,adb_initial,ada_initial, &
                          food_source_variable,foodmic_source_variable, &
                          respiration_target_variable, mortality_target_variable, &
@@ -88,7 +88,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(namlst,nml=mnemiopsis,err=99)
+   read(namlst,nml=metu_mnemiopsis,err=99,end=100)
 
    ! Register state variables
    self%id_egb = register_state_variable(modelinfo,'egb','mg C/m**3','egg biomass',        &
@@ -119,9 +119,10 @@
 
    return
 
-99 call fatal_error('mnemiopsis_init','Error reading namelist mnemiopsis')
+99 call fatal_error('metu_mnemiopsis_init','Error reading namelist metu_mnemiopsis')
+100 call fatal_error('metu_mnemiopsis_init','Namelist metu_mnemiopsis was not found')
    
-   end subroutine mnemiopsis_init
+   end subroutine metu_mnemiopsis_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -130,12 +131,12 @@
 ! !IROUTINE: Right hand sides of Mnemiopsis model
 !
 ! !INTERFACE:
-   pure subroutine mnemiopsis_do(self,_FABM_ARGS_DO_RHS_)
+   pure subroutine metu_mnemiopsis_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 !
 ! !INPUT PARAMETERS:
-   type (type_mnemiopsis), intent(in) :: self
+   type (type_metu_mnemiopsis), intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
@@ -393,7 +394,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine mnemiopsis_do
+   end subroutine metu_mnemiopsis_do
 !EOC
 
    pure subroutine trans(mm,mr,ma,t,p7)
@@ -408,7 +409,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module fabm_mnemiopsis
+   end module fabm_metu_mnemiopsis
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

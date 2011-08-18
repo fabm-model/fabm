@@ -7,8 +7,8 @@ include ../../Rules.make
 
 LIB     = $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC  += co2sys/co2sys.F90 ersem/pmlersem.F90
-SUBDIRS += co2sys ersem
+DOCSRC  += carbonate/carbonate.F90 ersem/pml_ersem.F90
+SUBDIRS += carbonate ersem
 
 all: OBJS
 	$(MOVE_MODULES_COMMAND)

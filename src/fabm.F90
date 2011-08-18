@@ -24,13 +24,13 @@
    use fabm_types
    use fabm_driver
 !   
-!  Reference specific biogeochemical models:
-   use fabm_npzd
-   use fabm_fasham
-   use fabm_pmlersem
-   use fabm_mnemiopsis
-   use fabm_co2sys
-   use fabm_benthic_predator
+!  Reference modules of specific biogeochemical models
+   use fabm_gotm_npzd
+   use fabm_gotm_fasham
+   use fabm_metu_mnemiopsis
+   use fabm_pml_ersem
+   use fabm_pml_carbonate
+   use fabm_examples_benthic_predator
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
    
    implicit none
@@ -72,12 +72,12 @@
       type (type_model),pointer :: nextmodel
 
       ! Derived types that belong to specific biogeochemical models.
-      type (type_npzd)             :: npzd
-      type (type_fasham)           :: fasham
-      type (type_pmlersem)         :: pmlersem
-      type (type_mnemiopsis)       :: mnemiopsis
-      type (type_co2sys)           :: co2sys
-      type (type_benthic_predator) :: benthic_predator
+      type (type_gotm_npzd)                 :: gotm_npzd
+      type (type_gotm_fasham)               :: gotm_fasham
+      type (type_metu_mnemiopsis)           :: metu_mnemiopsis
+      type (type_pml_ersem)                 :: pml_ersem
+      type (type_pml_carbonate)             :: pml_carbonate
+      type (type_examples_benthic_predator) :: examples_benthic_predator
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
       
       ! Pointer to the current spatially explicit environment.
@@ -123,13 +123,13 @@
 ! !PRIVATE DATA MEMBERS:
 
 !  Identifiers for specific biogeochemical models.
-   integer, parameter :: model_container_id = -1
-   integer, parameter :: npzd_id            =  1
-   integer, parameter :: fasham_id          =  4
-   integer, parameter :: pmlersem_id        =  99
-   integer, parameter :: co2sys_id          =  101
-   integer, parameter :: mnemiopsis_id      =  102
-   integer, parameter :: benthic_predator_id = 103
+   integer, parameter :: model_container_id           = -1
+   integer, parameter :: gotm_npzd_id                 =  1
+   integer, parameter :: gotm_fasham_id               =  4
+   integer, parameter :: pml_ersem_id                 =  99
+   integer, parameter :: pml_carbonate_id             =  101
+   integer, parameter :: metu_mnemiopsis_id           =  102
+   integer, parameter :: examples_benthic_predator_id =  103
    ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
    ! Note: values <=100 are reserved for models ported from the General Ocean Turbulence Model.
    
@@ -166,13 +166,13 @@
    allocate(modelnames(0))
 
    ! Register specific biogeochemical models.
-   call register_model(model_container_id, '')
-   call register_model(npzd_id,            'npzd')
-   call register_model(fasham_id,          'fasham')
-   call register_model(pmlersem_id,        'pmlersem')
-   call register_model(mnemiopsis_id,      'mnemiopsis')
-   call register_model(co2sys_id,          'co2sys')
-   call register_model(benthic_predator_id,'benthic_predator')
+   call register_model(model_container_id,          '')
+   call register_model(gotm_npzd_id,                'gotm_npzd')
+   call register_model(gotm_fasham_id,              'gotm_fasham')
+   call register_model(metu_mnemiopsis_id,          'metu_mnemiopsis')
+   call register_model(pml_ersem_id,                'pml_ersem')
+   call register_model(pml_carbonate_id,            'pml_carbonate')
+   call register_model(examples_benthic_predator_id,'examples_benthic_predator')
    ! ADD_NEW_MODEL_HERE - required
    
    end subroutine register_models
@@ -560,18 +560,18 @@
    
    ! Allow the selected model to initialize
    select case (model%id)
-      case (npzd_id)
-         call npzd_init(model%npzd,model%info,nmlunit)
-      case (fasham_id)
-         call fasham_init(model%fasham,model%info,nmlunit)
-      case (pmlersem_id)
-         call pmlersem_init(model%pmlersem,model%info,nmlunit,_DOMAIN_SIZE_1D_)
-      case (mnemiopsis_id)
-         call mnemiopsis_init(model%mnemiopsis,model%info,nmlunit)
-      case (co2sys_id)
-         call co2sys_init(model%co2sys,model%info,nmlunit)
-      case (benthic_predator_id)
-         call benthic_predator_init(model%benthic_predator,model%info,nmlunit)
+      case (gotm_npzd_id)
+         call gotm_npzd_init(model%gotm_npzd,model%info,nmlunit)
+      case (gotm_fasham_id)
+         call gotm_fasham_init(model%gotm_fasham,model%info,nmlunit)
+      case (pml_ersem_id)
+         call pml_ersem_init(model%pml_ersem,model%info,nmlunit,_DOMAIN_SIZE_1D_)
+      case (metu_mnemiopsis_id)
+         call metu_mnemiopsis_init(model%metu_mnemiopsis,model%info,nmlunit)
+      case (pml_carbonate_id)
+         call pml_carbonate_init(model%pml_carbonate,model%info,nmlunit)
+      case (examples_benthic_predator_id)
+         call examples_benthic_predator_init(model%examples_benthic_predator,model%info,nmlunit)
       ! ADD_NEW_MODEL_HERE - required
       
       case (model_container_id)
@@ -737,9 +737,9 @@
    subroutine fabm_link_data_char(model,name,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                       intent(inout) :: model
-   character(len=*),                        intent(in)    :: name
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)  :: dat
+   type (type_model),                         intent(inout) :: model
+   character(len=*),                          intent(in)    :: name
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -769,9 +769,9 @@
    subroutine fabm_link_data_hz(model,id,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                          intent(inout) :: model
-   integer,                                    intent(in)    :: id
-   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)  :: dat
+   type (type_model),                            intent(inout) :: model
+   integer,                                      intent(in)    :: id
+   REALTYPE _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1027,17 +1027,17 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
-         case (npzd_id)
-            call npzd_do(model%npzd,_INPUT_ARGS_DO_RHS_)
-         case (fasham_id)
-            call fasham_do(model%fasham,_INPUT_ARGS_DO_RHS_)
-         case (pmlersem_id)
-            call pmlersem_do(model%pmlersem,_INPUT_ARGS_DO_RHS_)
-         case (mnemiopsis_id)
-            call mnemiopsis_do(model%mnemiopsis,_INPUT_ARGS_DO_RHS_)
-         case (co2sys_id)
-            call co2sys_do(model%co2sys,_INPUT_ARGS_DO_RHS_)
-         case (benthic_predator_id)
+         case (gotm_npzd_id)
+            call gotm_npzd_do(model%gotm_npzd,_INPUT_ARGS_DO_RHS_)
+         case (gotm_fasham_id)
+            call gotm_fasham_do(model%gotm_fasham,_INPUT_ARGS_DO_RHS_)
+         case (pml_ersem_id)
+            call pml_ersem_do(model%pml_ersem,_INPUT_ARGS_DO_RHS_)
+         case (metu_mnemiopsis_id)
+            call metu_mnemiopsis_do(model%metu_mnemiopsis,_INPUT_ARGS_DO_RHS_)
+         case (pml_carbonate_id)
+            call pml_carbonate_do(model%pml_carbonate,_INPUT_ARGS_DO_RHS_)
+         case (examples_benthic_predator_id)
          ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
          ! matrices instead of a temporal derivative vector. In that case, add the model to
          ! fabm_do_ppdd.
@@ -1086,10 +1086,10 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
-         case (npzd_id)
-            call npzd_do_ppdd(model%npzd,_INPUT_ARGS_DO_PPDD_)
-         case (fasham_id)
-            call fasham_do_ppdd(model%fasham,_INPUT_ARGS_DO_PPDD_)
+         case (gotm_npzd_id)
+            call gotm_npzd_do_ppdd(model%gotm_npzd,_INPUT_ARGS_DO_PPDD_)
+         case (gotm_fasham_id)
+            call gotm_fasham_do_ppdd(model%gotm_fasham,_INPUT_ARGS_DO_PPDD_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model provides a subroutine for calculating local
          ! production/destruction matrices. This is required for certain temporal integration schemes,
          ! e.g., Patankar, Modified Patankar.
@@ -1219,8 +1219,8 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
-         case (co2sys_id)
-            call co2sys_get_surface_exchange(model%co2sys,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
+         case (pml_carbonate_id)
+            call pml_carbonate_get_surface_exchange(model%pml_carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies fluxes of one or
          ! more of its state variables across the air-water interface.
          !
@@ -1264,8 +1264,8 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
-         case (benthic_predator_id)
-            call benthic_predator_do_benthos(model%benthic_predator,_INPUT_ARGS_DO_BENTHOS_RHS_)
+         case (examples_benthic_predator_id)
+            call examples_benthic_predator_do_benthos(model%examples_benthic_predator,_INPUT_ARGS_DO_BENTHOS_RHS_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
          ! or specifies bottom fluxes for its pelagic state variables.
          !
@@ -1411,10 +1411,10 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
-         case (npzd_id)
-            call npzd_get_light_extinction(model%npzd,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
-         case (fasham_id)
-            call fasham_get_light_extinction(model%fasham,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
+         case (gotm_npzd_id)
+            call gotm_npzd_get_light_extinction(model%gotm_npzd,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
+         case (gotm_fasham_id)
+            call gotm_fasham_get_light_extinction(model%gotm_fasham,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
          ! state variable specific extinction coefficients.
          !
@@ -1472,10 +1472,10 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
-         case (npzd_id)
-            call npzd_get_conserved_quantities(model%npzd,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
-         case (fasham_id)
-            call fasham_get_conserved_quantities(model%fasham,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
+         case (gotm_npzd_id)
+            call gotm_npzd_get_conserved_quantities(model%gotm_npzd,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
+         case (gotm_fasham_id)
+            call gotm_fasham_get_conserved_quantities(model%gotm_fasham,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
          ! ADD_NEW_MODEL_HERE - optional, required only if the model exports one or more
          ! conserved quantities.
          !

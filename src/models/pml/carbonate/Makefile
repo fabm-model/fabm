@@ -6,11 +6,11 @@ include ../../../Rules.make
 
 LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC	=  co2sys.F90
+DOCSRC	=  carbonate.F90
 
 OBJS   = \
 ${LIB}(co2_dyn.o)	\
-${LIB}(co2sys.o)
+${LIB}(carbonate.o)
 
 all: ${OBJS}
 	$(MOVE_MODULES_COMMAND)

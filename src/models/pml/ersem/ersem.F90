@@ -1,14 +1,14 @@
-!$Id: pmlersem.F90 119 2010-12-27 14:23:18Z jornbr $
+!$Id: pml_ersem.F90 119 2010-12-27 14:23:18Z jornbr $
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_pmlersem --- PML's ERSEM biogeochemical model ,
+! !MODULE: fabm_pml_ersem --- PML's ERSEM biogeochemical model ,
 ! adapted for FABM by momm@pml.ac.uk
 !
 ! !INTERFACE:
-   module fabm_pmlersem
+   module fabm_pml_ersem
 !
 ! !DESCRIPTION:
 !
@@ -28,8 +28,8 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_pmlersem, pmlersem_init, pmlersem_do, &
-          pmlersem_get_light_extinction
+   public type_pml_ersem, pml_ersem_init, pml_ersem_do, &
+          pml_ersem_get_light_extinction
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -39,7 +39,7 @@
 !
 !
 ! !PUBLIC DERIVED TYPES:
-   type type_pmlersem
+   type type_pml_ersem
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_,allocatable      :: id_ccc(:),id_ccb(:)
       _TYPE_DEPENDENCY_ID_          :: id_EIR,id_ETW,id_x1X,id_EPW
@@ -63,7 +63,7 @@
 ! !IROUTINE: Initialise the PML-ERSEM model
 !
 ! !INTERFACE:
-   subroutine pmlersem_init(self,modelinfo,namlst,domainsize)
+   subroutine pml_ersem_init(self,modelinfo,namlst,domainsize)
 !
 ! !DESCRIPTION:
 !
@@ -71,7 +71,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_pmlersem),  intent(out)   :: self
+   type (type_pml_ersem),  intent(out)   :: self
    type (type_model_info),intent(inout) :: modelinfo
    integer,               intent(in)    :: namlst,domainsize
 !
@@ -84,16 +84,16 @@
 
 !   REALTYPE, parameter :: secs_pr_day = 86400.
 #ifdef FABM_PMLERSEM
-   namelist /fabmersem_nml/ ncdfErsemFile,ncdfErsemTitle, &
-                    bioshade_feedback, &
-                    nbudget,readErsemRestart, &
-                    ncdfInstOut,ncdfDailyOut,ncdfWeeklyOut,ncdfMonthlyOut
+   namelist /pml_ersem/ ncdfErsemFile,ncdfErsemTitle, &
+                        bioshade_feedback, &
+                        nbudget,readErsemRestart, &
+                        ncdfInstOut,ncdfDailyOut,ncdfWeeklyOut,ncdfMonthlyOut
 
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   !read(namlst,nml=fabmersem,err=99)
+   !read(namlst,nml=pml_ersem,err=99,end=100)
 
    N_COMP = domainsize
    call allocate_ersem()
@@ -132,9 +132,10 @@
 
    return
 
-99 call fatal_error('pmlersem_init','Error reading namelist fabmersem')
-   
-   end subroutine pmlersem_init
+99 call fatal_error('pml_ersem_init','Error reading namelist pml_ersem')
+100 call fatal_error('pml_ersem_init','Namelist pml_ersem was not found')
+
+   end subroutine pml_ersem_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -143,14 +144,14 @@
 ! !IROUTINE: Calculate sink and source terms (rates) of the pelagic component of ERSEM.
 !
 ! !INTERFACE:
-   subroutine pmlersem_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine pml_ersem_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 !
 ! !USES:
 !
 ! !INPUT PARAMETERS:
-   type (type_pmlersem),       intent(in) :: self
+   type (type_pml_ersem),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
@@ -180,7 +181,7 @@
    ! TODO:
    ! (1) Benthos should be disabled in ersem_loop; it must be called separately instead.
    ! (2) Inclusion of subsidence in sink and source terms may be disabled (no call to calc_subsidence)
-   !     See discussion in pmlersem_get_vertical_movement below.
+   !     See discussion in pml_ersem_get_vertical_movement below.
    call ersem_loop()
 
    ! Set temporal derivatives
@@ -197,7 +198,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_1D_
 
-   end subroutine pmlersem_do
+   end subroutine pml_ersem_do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -207,14 +208,14 @@
 ! Everything in units per surface area (not volume!) per time.
 !
 ! !INTERFACE:
-   subroutine pmlersem_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine pml_ersem_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 ! !DESCRIPTION:
 !
 ! !USES:
 !
 ! !INPUT PARAMETERS:
-   type (type_pmlersem),       intent(in) :: self
+   type (type_pml_ersem),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 ! !REVISION HISTORY:
@@ -265,7 +266,7 @@
    ! Leave spatial loops (if any)
    _FABM_HZ_LOOP_END_1D_
 
-   end subroutine pmlersem_do_benthos
+   end subroutine pml_ersem_do_benthos
 !EOC
 
 !-----------------------------------------------------------------------
@@ -275,10 +276,10 @@
 ! variables
 !
 ! !INTERFACE:
-   subroutine pmlersem_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   subroutine pml_ersem_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
-   type (type_pmlersem), intent(in) :: self
+   type (type_pml_ersem), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
@@ -306,7 +307,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_1D_
    
-   end subroutine pmlersem_get_light_extinction
+   end subroutine pml_ersem_get_light_extinction
 !EOC
 !-----------------------------------------------------------------------
 
@@ -317,10 +318,10 @@
 ! [not needed as long as ERSEM handles subsidence as part of its sink and source terms]
 !
 ! !INTERFACE:
-   subroutine pmlersem_get_vertical_movement(self,_FABM_ARGS_GET_VERTICAL_MOVEMENT_)
+   subroutine pml_ersem_get_vertical_movement(self,_FABM_ARGS_GET_VERTICAL_MOVEMENT_)
 !
 ! !INPUT PARAMETERS:
-   type (type_pmlersem), intent(in) :: self
+   type (type_pml_ersem), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_
 !
 ! !REVISION HISTORY:
@@ -345,7 +346,7 @@
    ! (1) let ERSEM handle subsidence as part of its sinks and source terms
    !     (all vertical velocities would be set to zero for FABM). This is the fastest solution.
    ! (2) Cache the full 3D field for sdCCC while calcualting sink and source terms
-   !     per column [pmlersem_do], and re-use it here. ERSEM does not include subsidence
+   !     per column [pml_ersem_do], and re-use it here. ERSEM does not include subsidence
    !     in sink ands oruce terms. Expensive in terms of memory.
    ! (3) Rework the ERSEM code to isolate the calculation of subsidence rates from the
    !     calculation of sink and soruce terms. Bets in the long term, but requires
@@ -360,11 +361,11 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_1D_
    
-   end subroutine pmlersem_get_vertical_movement
+   end subroutine pml_ersem_get_vertical_movement
 !EOC
 !-----------------------------------------------------------------------
 
-   end module fabm_pmlersem
+   end module fabm_pml_ersem
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

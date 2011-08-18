@@ -44,7 +44,7 @@
 !-------------------------------------------------------------------------------
 &bio_nml
    fabm_calc = .true.,
-   models = 'co2sys','npzd'
+   models = 'pml_carbonate','gotm_npzd'
    cnpar = 1.0,
    w_adv_discr = 6,
    ode_method = 3,
@@ -53,16 +53,16 @@
 /
 
 !-------------------------------------------------------------------------------
-! co2sys - PML carbonate system model
+! pml_carbonate - PML carbonate system model
 !-------------------------------------------------------------------------------
 
-&co2sys
+&pml_carbonate
 	dic_initial = 2100.,
 	pCO2a = 305.
 /
 
 !-------------------------------------------------------------------------------
-! npzd - GOTM nutrient-phytoplankton-zooplankton-detritus model
+! gotm_npzd - GOTM nutrient-phytoplankton-zooplankton-detritus model
 !-------------------------------------------------------------------------------
 ! n_initial [float, unit = mmol/m^3]
 !             initial nutrient concentration
@@ -106,7 +106,7 @@
 !             z --> d rate (z mortality)
 !-------------------------------------------------------------------------------
 
-&npzd
+&gotm_npzd
    n_initial = 4.5,
    p_initial = 1e-15,
    z_initial = 1e-15,
@@ -127,6 +127,6 @@
    rpdu = 0.02,
    rpdl = 0.1,
    rzd = 0.02,
-   dic_variable='co2sys_dic'
+   dic_variable='pml_carbonate_dic'
 /
 

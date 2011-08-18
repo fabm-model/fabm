@@ -10,7 +10,7 @@
 ! taken from GOTM and adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
-   module fabm_npzd
+   module fabm_gotm_npzd
 !
 ! !DESCRIPTION:
 ! The NPZD (nutrient-phytoplankton-zooplankton-detritus) model described here
@@ -35,8 +35,8 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_npzd, npzd_init, npzd_do, npzd_do_ppdd, &
-          npzd_get_light_extinction, npzd_get_conserved_quantities
+   public type_gotm_npzd, gotm_npzd_init, gotm_npzd_do, gotm_npzd_do_ppdd, &
+          gotm_npzd_get_light_extinction, gotm_npzd_get_conserved_quantities
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -45,7 +45,7 @@
 !
 !
 ! !PUBLIC DERIVED TYPES:
-   type type_npzd
+   type type_gotm_npzd
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_n,id_p,id_z,id_d
       _TYPE_STATE_VARIABLE_ID_      :: id_dic
@@ -69,7 +69,7 @@
 ! !IROUTINE: Initialise the NPZD model
 !
 ! !INTERFACE:
-   subroutine npzd_init(self,modelinfo,namlst)
+   subroutine gotm_npzd_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Here, the npzd namelist is read and te variables exported
@@ -79,7 +79,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd),      intent(out)   :: self
+   type (type_gotm_npzd), intent(out)   :: self
    type (type_model_info),intent(inout) :: modelinfo
    integer,               intent(in)    :: namlst
 !
@@ -111,14 +111,14 @@
    character(len=64)         :: dic_variable=''
 
    REALTYPE, parameter :: secs_pr_day = 86400.
-   namelist /npzd/ n_initial,p_initial,z_initial,d_initial,   &
-                   p0,z0,w_p,w_d,kc,i_min,rmax,gmax,iv,alpha,rpn,  &
-                   rzn,rdn,rpdu,rpdl,rzd,dic_variable,dic_per_n
+   namelist /gotm_npzd/ n_initial,p_initial,z_initial,d_initial,   &
+                        p0,z0,w_p,w_d,kc,i_min,rmax,gmax,iv,alpha,rpn,  &
+                        rzn,rdn,rpdu,rpdl,rzd,dic_variable,dic_per_n
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(namlst,nml=npzd,err=99)
+   read(namlst,nml=gotm_npzd,err=99,end=100)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -174,9 +174,11 @@
 
    return
 
-99 call fatal_error('npzd_init','Error reading namelist npzd')
+99 call fatal_error('gotm_npzd_init','Error reading namelist gotm_npzd.')
+
+100 call fatal_error('gotm_npzd_init','Namelist gotm_npzd was not found.')
    
-   end subroutine npzd_init
+   end subroutine gotm_npzd_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -185,7 +187,7 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine npzd_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine gotm_npzd_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -238,7 +240,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd),       intent(in) :: self
+   type (type_gotm_npzd),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
@@ -300,7 +302,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine npzd_do
+   end subroutine gotm_npzd_do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -310,10 +312,10 @@
 ! variables
 !
 ! !INTERFACE:
-   pure subroutine npzd_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   pure subroutine gotm_npzd_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd), intent(in) :: self
+   type (type_gotm_npzd), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
@@ -338,7 +340,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
    
-   end subroutine npzd_get_light_extinction
+   end subroutine gotm_npzd_get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -347,10 +349,10 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   pure subroutine npzd_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   pure subroutine gotm_npzd_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd), intent(in) :: self
+   type (type_gotm_npzd), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 ! !REVISION HISTORY:
@@ -377,7 +379,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine npzd_get_conserved_quantities
+   end subroutine gotm_npzd_get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------
@@ -386,7 +388,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine npzd_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine gotm_npzd_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -439,7 +441,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd),       intent(in) :: self
+   type (type_gotm_npzd),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 ! !REVISION HISTORY:
@@ -504,7 +506,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine npzd_do_ppdd
+   end subroutine gotm_npzd_do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -523,7 +525,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd), intent(in) :: self
+   type (type_gotm_npzd), intent(in) :: self
    REALTYPE, intent(in)         :: n,p,par,iopt
 !
 ! !REVISION HISTORY:
@@ -553,7 +555,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_npzd), intent(in) :: self
+   type (type_gotm_npzd), intent(in) :: self
    REALTYPE, intent(in)         :: p,z
 !
 ! !REVISION HISTORY:
@@ -569,7 +571,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module fabm_npzd
+   end module fabm_gotm_npzd
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

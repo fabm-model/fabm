@@ -21,7 +21,7 @@
 ! ode_method        [integer]
 !                     ODE scheme for source and sink dynamics
 !                     1: first-order explicit (not positive)
-!                     2: second-order explicit Runge-Kutta (not positive)
+!                     2: second-order explicit Runge-Kutta (not positive) 
 !                     3: fourth-order explicit Runge-Kutta (not positive)
 !                     4: Patankar (first-order, not conservative)
 !                     5: Patankar-RK (second-order, not conservative)
@@ -45,7 +45,7 @@
 
 &bio_nml
    fabm_calc = .true.,
-   models = 'npzd','mnemiopsis'
+   models = 'gotm_npzd','metu_mnemiopsis'
    cnpar = 1.0,
    w_adv_discr = 6,
    ode_method = 3,
@@ -54,7 +54,7 @@
 /
 
 !-------------------------------------------------------------------------------
-! npzd - GOTM nutrient-phytoplankton-zooplankton-detritus model
+! gotm_npzd - GOTM nutrient-phytoplankton-zooplankton-detritus model
 !-------------------------------------------------------------------------------
 ! n_initial [float, unit = mmol/m^3]
 !             initial nutrient concentration
@@ -98,7 +98,7 @@
 !             z --> d rate (z mortality)
 !-------------------------------------------------------------------------------
 
-&npzd
+&gotm_npzd
    n_initial = 6.,
    p_initial = 1e-15,
    z_initial = 1e-15,
@@ -122,14 +122,14 @@
 /
 
 !-------------------------------------------------------------------------------
-! mnemiopsis - IMS-METU Mnemiopsis model
+! metu_mnemiopsis - IMS-METU Mnemiopsis model
 !-------------------------------------------------------------------------------
 
-&mnemiopsis
-	food_source_variable = 'npzd_zoo',
-	foodmic_source_variable = 'npzd_zoo',
-	respiration_target_variable = 'npzd_nut',
-	mortality_target_variable = 'npzd_det',
+&metu_mnemiopsis
+	food_source_variable = 'gotm_npzd_zoo',
+	foodmic_source_variable = 'gotm_npzd_zoo',
+	respiration_target_variable = 'gotm_npzd_nut',
+	mortality_target_variable = 'gotm_npzd_det',
 	egb_initial = 0.1
 	jb_initial =  1.,
 	ja_initial =  0.3333,

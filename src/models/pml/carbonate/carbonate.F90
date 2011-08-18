@@ -1,14 +1,14 @@
-!$Id: co2sys.F90 119 2010-12-27 14:23:18Z jornbr $
+!$Id: pml_carbonate.F90 119 2010-12-27 14:23:18Z jornbr $
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_co2sys --- shell around CO2/carbonate system model by
+! !MODULE: fabm_pml_carbonate --- shell around CO2/carbonate system model by
 ! Jerry Blackford (Plymouth Marine Laboratory), adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
-module fabm_co2sys
+module fabm_pml_carbonate
 !
 ! !DESCRIPTION:
 ! CO2 system model based on PML code.
@@ -23,7 +23,7 @@ module fabm_co2sys
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_co2sys, co2sys_init, co2sys_do, co2sys_get_surface_exchange
+   public type_pml_carbonate, pml_carbonate_init, pml_carbonate_do, pml_carbonate_get_surface_exchange
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -32,7 +32,7 @@ module fabm_co2sys
 !
 !
 ! !PUBLIC DERIVED TYPES:
-   type type_co2sys
+   type type_pml_carbonate
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_dic, id_alk
       _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt, id_pres, id_wind, id_dens
@@ -54,7 +54,7 @@ contains
 ! !IROUTINE: Initialise the bio module
 !
 ! !INTERFACE:
-   subroutine co2sys_init(self,modelinfo,namlst)
+   subroutine pml_carbonate_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Here, the bio namelist is read and 
@@ -65,7 +65,7 @@ contains
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_co2sys), intent(out)     :: self
+   type (type_pml_carbonate), intent(out)     :: self
    type (type_model_info),intent(inout) :: modelinfo
    integer,               intent(in )   :: namlst
 !
@@ -76,12 +76,12 @@ contains
    REALTYPE :: dic_initial, alk_initial
    REALTYPE  :: alk_offset = 520.1, alk_slope = 51.24, pCO2a = 390.
    logical :: alk_param = .true.
-   namelist /co2sys/ dic_initial, alk_initial, alk_param, alk_offset, alk_slope, pCO2a
+   namelist /pml_carbonate/ dic_initial, alk_initial, alk_param, alk_offset, alk_slope, pCO2a
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(namlst,nml=co2sys,err=99)
+   read(namlst,nml=pml_carbonate,err=99,end=100)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day, and are converted here to values per second.
@@ -130,9 +130,10 @@ contains
 
    return
 
-99 call fatal_error('co2sys_init','Error reading namelist co2sys')
+99 call fatal_error('pml_carbonate_init','Error reading namelist pml_carbonate')
+100 call fatal_error('pml_carbonate_init','Namelist pml_carbonate was not found')
    
-   end subroutine co2sys_init
+   end subroutine pml_carbonate_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -141,7 +142,7 @@ contains
 ! !IROUTINE: Right hand sides of carbonate system model
 !
 ! !INTERFACE:
-   subroutine co2sys_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine pml_carbonate_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 !
@@ -149,7 +150,7 @@ contains
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_co2sys),    intent(in) :: self
+   type (type_pml_carbonate),    intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
@@ -206,7 +207,7 @@ contains
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine co2sys_do
+   end subroutine pml_carbonate_do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -215,7 +216,7 @@ contains
 ! !IROUTINE: Air-sea exchange for the carbonate system model
 !
 ! !INTERFACE:
-   subroutine co2sys_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+   subroutine pml_carbonate_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
 !
 ! !DESCRIPTION:
 !
@@ -223,7 +224,7 @@ contains
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_co2sys), intent(in)    :: self
+   type (type_pml_carbonate), intent(in)    :: self
    _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
 !
 ! !REVISION HISTORY:
@@ -279,12 +280,12 @@ contains
    ! Leave spatial loops (if any)
    _FABM_HZ_LOOP_END_
 
-   end subroutine co2sys_get_surface_exchange
+   end subroutine pml_carbonate_get_surface_exchange
 !EOC
 
 !-----------------------------------------------------------------------
 
-end module fabm_co2sys
+end module fabm_pml_carbonate
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

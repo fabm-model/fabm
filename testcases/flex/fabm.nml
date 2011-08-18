@@ -45,7 +45,7 @@
 
 &bio_nml
    fabm_calc = .true.,
-   models = 'fasham'
+   models = 'gotm_fasham'
    cnpar = 1.0,
    w_adv_discr = 6,
    ode_method = 3,
@@ -54,10 +54,10 @@
 /
 
 !-------------------------------------------------------------------------------
-! fasham - GOTM version of the Fasham et al. (1990) model
+! gotm_fasham - GOTM version of the Fasham et al. (1990) model
 !-------------------------------------------------------------------------------
 
-&fasham
+&gotm_fasham
    p_initial = 5.6666665999999997d-02,
    z_initial = 5.0000000000000003d-02,
    b_initial = 1.0000000000000000d-03,

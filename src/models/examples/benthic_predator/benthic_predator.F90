@@ -1,20 +1,20 @@
-!$Id: benthic_predator.F90 119 2010-12-27 14:23:18Z jornbr $
+!$Id: examples_benthic_predator.F90 119 2010-12-27 14:23:18Z jornbr $
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_benthic_predator --- test for benthic interfaces in FABM
+! !MODULE: fabm_examples_benthic_predator --- test for benthic interfaces in FABM
 !
 ! !INTERFACE:
-   module fabm_benthic_predator
+   module fabm_examples_benthic_predator
 !
 ! !DESCRIPTION:
 ! This is a very simple model for a benthic predator, grazing according to a
 ! Monod/Michaelis-Menten functional response on a pelagic prey, and
 ! respiring/dying according to a linear loss term. Variables for the prey
 ! (e.g., phytoplankon or zooplankton) and the target for the losses (typically
-! a detrital or mineral pool) must be provided by an external model, e.g., npzd.
+! a detrital or mineral pool) must be provided by an external model, e.g., gotm_npzd.
 !
 ! !USES:
    use fabm_types
@@ -26,10 +26,10 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_benthic_predator, benthic_predator_init, benthic_predator_do_benthos
+   public type_examples_benthic_predator, examples_benthic_predator_init, examples_benthic_predator_do_benthos
 !
 ! !PUBLIC TYPES:
-   type type_benthic_predator
+   type type_examples_benthic_predator
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_ :: id_prey,id_pred,id_nut
       
@@ -48,17 +48,17 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Initialise the benthic_predator model
+! !IROUTINE: Initialise the benthic predator model
 !
 ! !INTERFACE:
-   subroutine benthic_predator_init(self,modelinfo,namlst)
+   subroutine examples_benthic_predator_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
-!  Here, the benthic_predator namelist is read and te variables exported
+!  Here, the examples_benthic_predator namelist is read and te variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   type (type_benthic_predator),intent(out)   :: self
+   type (type_examples_benthic_predator),intent(out)   :: self
    type (type_model_info),      intent(inout) :: modelinfo
    integer,                     intent(in)    :: namlst
 !
@@ -71,12 +71,12 @@
    character(len=64)         :: nut_variable='',prey_variable=''
 
    REALTYPE, parameter :: secs_pr_day = 86400.
-   namelist /benthic_predator/ nut_variable,prey_variable,pred_initial,g_max,K,h
+   namelist /examples_benthic_predator/ nut_variable,prey_variable,pred_initial,g_max,K,h
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(namlst,nml=benthic_predator,err=99)
+   read(namlst,nml=examples_benthic_predator,err=99,end=100)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -97,9 +97,10 @@
 
    return
 
-99 call fatal_error('benthic_predator_init','Error reading namelist benthic_predator')
+99 call fatal_error('examples_benthic_predator_init','Error reading namelist examples_benthic_predator')
+100 call fatal_error('examples_benthic_predator_init','Namelist examples_benthic_predator was not found')
    
-   end subroutine benthic_predator_init
+   end subroutine examples_benthic_predator_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -108,14 +109,14 @@
 ! !IROUTINE: Right hand sides of benthic_predator model
 !
 ! !INTERFACE:
-   subroutine benthic_predator_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine examples_benthic_predator_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 ! !DESCRIPTION:
 ! This routine calculates the benthic sink and source terms, as well as
 ! (matching) bottom fluxes for pelagic variables. Both have units mmol/m**2/s.
 !
 ! !INPUT PARAMETERS:
-   type (type_benthic_predator),       intent(in) :: self
+   type (type_examples_benthic_predator),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 ! !REVISION HISTORY:
@@ -146,12 +147,12 @@
    ! Leave spatial loops over the horizontal domain (if any).
    _FABM_HZ_LOOP_END_
 
-   end subroutine benthic_predator_do_benthos
+   end subroutine examples_benthic_predator_do_benthos
 !EOC
 
 !-----------------------------------------------------------------------
 
-   end module fabm_benthic_predator
+   end module fabm_examples_benthic_predator
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

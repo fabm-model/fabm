@@ -11,7 +11,7 @@
 ! taken from GOTM and adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
-   module fabm_fasham
+   module fabm_gotm_fasham
 !
 ! !DESCRIPTION:
 !  The model developed by \cite{Fashametal1990} 
@@ -48,8 +48,8 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_fasham, fasham_init, fasham_do, fasham_do_ppdd, &
-          fasham_get_light_extinction, fasham_get_conserved_quantities
+   public type_gotm_fasham, gotm_fasham_init, gotm_fasham_do, gotm_fasham_do_ppdd, &
+          gotm_fasham_get_light_extinction, gotm_fasham_get_conserved_quantities
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -58,7 +58,7 @@
 !
 !
 ! !PUBLIC DERIVED TYPES:
-   type type_fasham
+   type type_gotm_fasham
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_p,id_z,id_b,id_d,id_n,id_a,id_l
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_pp
@@ -104,7 +104,7 @@
 ! !IROUTINE: Initialise the Fasham model
 !
 ! !INTERFACE:
-   subroutine fasham_init(self,modelinfo,namlst)
+   subroutine gotm_fasham_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Here, the fasham namelist is read and te variables exported
@@ -114,7 +114,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_fasham),      intent(out)   :: self
+   type (type_gotm_fasham),      intent(out)   :: self
    type (type_model_info),intent(inout) :: modelinfo
    integer,               intent(in)    :: namlst
 !
@@ -159,15 +159,15 @@
    REALTYPE                  ::  w_d      = -2.0
 
    REALTYPE, parameter :: secs_pr_day = 86400.
-   namelist /fasham/ p_initial,z_initial,b_initial,d_initial,n_initial,&
-                     a_initial,l_initial,p0,z0,b0,vp,alpha,k1,k2,mu1,k5,&
-                     gamma,w_p,gmax,k3,beta,mu2,k6,delta,epsi,r1,r2,r3, &
-                     vb,k4,mu3,eta,mu4,w_d,kc
+   namelist /gotm_fasham/ p_initial,z_initial,b_initial,d_initial,n_initial,&
+                          a_initial,l_initial,p0,z0,b0,vp,alpha,k1,k2,mu1,k5,&
+                          gamma,w_p,gmax,k3,beta,mu2,k6,delta,epsi,r1,r2,r3, &
+                          vb,k4,mu3,eta,mu4,w_d,kc
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(namlst,nml=fasham,err=99,end=100)
+   read(namlst,nml=gotm_fasham,err=99,end=100)
 
    ! All rates must be provided in values per day,
    ! and are converted here to values per second.
@@ -237,10 +237,10 @@
 
    return
 
-99 call fatal_error('fasham_init','Error reading namelist fasham')
-100 call fatal_error('fasham_init','Namelist fasham was not found')
+99 call fatal_error('gotm_fasham_init','Error reading namelist gotm_fasham')
+100 call fatal_error('gotm_fasham_init','Namelist gotm_fasham was not found')
    
-   end subroutine fasham_init
+   end subroutine gotm_fasham_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -249,7 +249,7 @@
 ! !IROUTINE: Right hand sides of Fasham model
 !
 ! !INTERFACE:
-   subroutine fasham_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine gotm_fasham_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !
 ! !DESCRIPTION:
 ! The \cite{Fashametal1990} model consisting of the $I=7$
@@ -329,7 +329,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_fasham),       intent(in) :: self
+   type (type_gotm_fasham),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 ! !REVISION HISTORY:
@@ -392,7 +392,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine fasham_do_ppdd
+   end subroutine gotm_fasham_do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -401,7 +401,7 @@
 ! !IROUTINE: Right hand sides of Fasham model
 !
 ! !INTERFACE:
-   subroutine fasham_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine gotm_fasham_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 ! The \cite{Fashametal1990} model consisting of the $I=7$
@@ -481,7 +481,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_fasham),       intent(in) :: self
+   type (type_gotm_fasham),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
@@ -566,7 +566,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine fasham_do
+   end subroutine gotm_fasham_do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -576,10 +576,10 @@
 ! variables
 !
 ! !INTERFACE:
-   pure subroutine fasham_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   pure subroutine gotm_fasham_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
-   type (type_fasham), intent(in) :: self
+   type (type_gotm_fasham), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
@@ -603,7 +603,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
    
-   end subroutine fasham_get_light_extinction
+   end subroutine gotm_fasham_get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -612,10 +612,10 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   pure subroutine fasham_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   pure subroutine gotm_fasham_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
-   type (type_fasham), intent(in) :: self
+   type (type_gotm_fasham), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 ! !REVISION HISTORY:
@@ -645,12 +645,12 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine fasham_get_conserved_quantities
+   end subroutine gotm_fasham_get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------
 
-   end module fabm_fasham
+   end module fabm_gotm_fasham
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
