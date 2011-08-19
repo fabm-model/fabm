@@ -1,0 +1,12 @@
+This test case comes with 3 different FABM configuration:
+
+1) npzd model coupled with carbonate model - fabm-npzd-carbonate.nml
+
+2) npzd model coupled with benthos model - fabm-npzd-benthos.nml
+
+3) multiple (3) different npzd models - fabm-multiple-npzd.nml - (differ 
+   only in initial nutrient conc.)
+
+In order to run the the test case you must copy one of the above mentioned 
+namelist files to fabm.nml.
+
