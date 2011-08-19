@@ -39,7 +39,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_model, fabm_create_model, fabm_init, fabm_do, &
+   public type_model, fabm_create_model, fabm_create_model_from_file, fabm_init, fabm_do, &
           fabm_link_benthos_state_data,fabm_link_state_data, &
           fabm_link_data,fabm_link_data_hz,fabm_get_variable_id, &
           fabm_get_diagnostic_data, fabm_get_diagnostic_data_hz, &
@@ -454,6 +454,78 @@
    
    end function fabm_create_model_by_name
 !EOC
+
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Create a new model tree from a configuration file.
+!
+! !INTERFACE:
+   function fabm_create_model_from_file(file,unit) result(model)
+!
+! !INPUT PARAMETERS:
+   character(len=*),optional,intent(in) :: file
+   integer,         optional,intent(in) :: unit
+   type (type_model),pointer            :: model
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+
+   character(len=256) :: file_eff
+   integer            :: file_unit,i
+   character(len=64)  :: models(256)
+   type (type_model),pointer :: childmodel
+   namelist /fabm/ models
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   if (present(unit)) then
+      ! A unit to read from has been provided - use that.
+      file_unit = unit
+   else
+      ! No unit has been provided - open a file instead.
+      if (present(file)) then
+         ! A file path has been provided - use that.
+         file_eff = file
+      else
+         ! No file path has been provided - use default.
+         file_eff = 'fabm.nml'
+      end if
+
+      ! Open configuration file.
+      open(file_unit,file=file_eff,action='read',status='old',err=98)
+   end if
+   
+   ! Read main FABM namelist.
+   read(file_unit,nml=fabm,err=99,end=100)
+
+   ! Create model tree
+   model => fabm_create_model()
+   do i=1,ubound(models,1)
+      if (trim(models(i)).ne.'') &
+         childmodel => fabm_create_model(trim(models(i)),parent=model)
+   end do
+
+   if (.not. present(unit)) then
+      ! A unit to read from has been not provided - close the file we opened.
+      close(file_unit)
+   end if
+
+   return
+   
+98 call fatal_error('fabm_create_model_by_name','Unable to open FABM configuration file '//trim(file_eff)//'.')
+   return
+
+99 call fatal_error('fabm_create_model_by_name','Unable to read namelist "fabm".')
+   return
+
+100 call fatal_error('fabm_create_model_by_name','Unable to find namelist "fabm".')
+   return
+   
+   end function fabm_create_model_from_file
+!EOC
+
 
 !-----------------------------------------------------------------------
 !BOP
