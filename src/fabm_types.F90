@@ -31,7 +31,7 @@
    
    public type_model_info
    public type_state_variable_info,type_diagnostic_variable_info,type_conserved_quantity_info
-   public init_model_info
+   public init_model_info,freeze_model_info
    public register_state_variable, register_diagnostic_variable, register_conserved_quantity, &
           register_state_dependency, register_dependency
    public type_environment,type_state_hz,type_state,type_state_variable_id
@@ -99,7 +99,7 @@
 !  Derived type for storing properties of a generic model.
    type type_model_info
       ! Flag determining whether the contents of the type are "frozen", i.e., they will not change anymore.
-      logical :: frozen
+      logical,private :: frozen
    
       ! Arrays with metadata on model variables.
       type (type_state_variable_info),     pointer,dimension(:) :: state_variables_ben,state_variables
@@ -197,6 +197,38 @@
       modelinfo%longnameprefix = ''
             
    end subroutine init_model_info
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Make model information read-only.
+!
+! !INTERFACE:
+   subroutine freeze_model_info(modelinfo)
+!
+! !DESCRIPTION:
+!  This function sets the "frozen" flag of a model information derived type,
+!  which means that functions in this module will refuse to modify its members.
+!  This is used after initialization to prevent models for changing the model
+!  defintion at a later stage.
+!
+! !USES:
+   implicit none
+!
+! !INPUT/OUTPUT PARAMETER:
+      type (type_model_info),intent(inout) :: modelinfo
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+!-----------------------------------------------------------------------
+!BOC
+      modelinfo%frozen = .true.
+            
+   end subroutine freeze_model_info
 !EOC
 
 !-----------------------------------------------------------------------

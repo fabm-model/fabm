@@ -714,7 +714,7 @@
 !-----------------------------------------------------------------------
 !BOC
    model%environment => environment
-   model%info%frozen = .true.
+   call freeze_model_info(model%info)
    curchild => model%firstchild
    do while (associated(curchild))
       call set_model_data_members(curchild,environment)
