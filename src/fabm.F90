@@ -462,29 +462,30 @@
 ! !IROUTINE: Create a new model tree from a configuration file.
 !
 ! !INTERFACE:
-   function fabm_create_model_from_file(file,unit) result(model)
+   function fabm_create_model_from_file(file_unit,file) result(model)
 !
 ! !INPUT PARAMETERS:
    character(len=*),optional,intent(in) :: file
-   integer,         optional,intent(in) :: unit
+   integer,                  intent(in) :: file_unit
    type (type_model),pointer            :: model
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 
-   character(len=256) :: file_eff
-   integer            :: file_unit,i
-   character(len=64)  :: models(256)
+   logical                   :: isopen
+   character(len=256)        :: file_eff
+   integer                   :: i
+   character(len=64)         :: models(256)
    type (type_model),pointer :: childmodel
    namelist /fabm/ models
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   if (present(unit)) then
-      ! A unit to read from has been provided - use that.
-      file_unit = unit
-   else
-      ! No unit has been provided - open a file instead.
+   ! Determine whether the provided unit has been opened already.
+   inquire(file_unit,opened=isopen)
+
+   if (.not.isopen) then
+      ! Unit has not been openend - we need to open the configuration file ourselves.
       if (present(file)) then
          ! A file path has been provided - use that.
          file_eff = file
@@ -507,8 +508,8 @@
          childmodel => fabm_create_model(trim(models(i)),parent=model)
    end do
 
-   if (.not. present(unit)) then
-      ! A unit to read from has been not provided - close the file we opened.
+   if (.not.isopen) then
+      ! We have opened the configruation file ourselves - close it.
       close(file_unit)
    end if
 
