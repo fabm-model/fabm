@@ -28,15 +28,18 @@
 ! !USES:
 !  default: all is private.
    private
-   
+!
+! !PUBLIC MEMBER FUNCTIONS:
+!
    public type_model_info
    public type_state_variable_info,type_diagnostic_variable_info,type_conserved_quantity_info
    public init_model_info,freeze_model_info
    public register_state_variable, register_diagnostic_variable, register_conserved_quantity, &
           register_state_dependency, register_dependency
    public type_environment,type_state_hz,type_state,type_state_variable_id
-
-   ! Named constants
+!
+! !PUBLIC DATA MEMBERS:
+!
    integer, parameter, public         :: shape_hz=2,shape_full=3
    integer, parameter, public         :: id_not_used=-1
    character(len=64),parameter,public :: &
@@ -48,9 +51,8 @@
      varname_dens    = 'env_dens',    & ! Density (kg/m^3)
      varname_wind_sf = 'env_wind_sf', & ! Wind speed at 10 m above surface (m/s)
      varname_par_sf  = 'env_par_sf'     ! Photosynthetically Active Radiation at surface (W/m^2)
-
 !
-! !PUBLIC DERIVED TYPES:
+! !PUBLIC TYPES:
 !
    ! Derived type for state variable identifiers.
    type type_state_variable_id
@@ -89,7 +91,7 @@
    integer, parameter,public  :: time_treatment_last=0,time_treatment_integrated=1, &
                                  time_treatment_averaged=2,time_treatment_step_integrated=3
 
-!  Properties of a conserved quantity
+!  Derived type describing a conserved quantity
    type type_conserved_quantity_info
       character(len=64)            :: name, longname, units
       _TYPE_CONSERVED_QUANTITY_ID_ :: globalid
