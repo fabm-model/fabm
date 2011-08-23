@@ -63,10 +63,10 @@
    type type_state_variable_info
       character(len=64) :: name, longname, units
 
-      REALTYPE :: initial_value              ! Initial state variable value
-      REALTYPE :: minimum,maximum            ! Valid range
-      REALTYPE :: vertical_movement          ! Vertical movement (m/s) due to e.g. sinking, floating. Positive for up.
-      REALTYPE :: specific_light_extinction  ! Specific light extinction (/m/state variable unit)
+      REALTYPE :: initial_value                 ! Initial state variable value
+      REALTYPE :: minimum,maximum,missing_value ! Valid range and value denoting missing data
+      REALTYPE :: vertical_movement             ! Vertical movement (m/s) due to e.g. sinking, floating. Positive for up.
+      REALTYPE :: specific_light_extinction     ! Specific light extinction (/m/state variable unit)
       logical :: no_precipitation_dilution,no_river_dilution
       
       _TYPE_DEPENDENCY_ID_     :: dependencyid ! This is a globally unique identifier for the variable that can be used to retrieve values.
@@ -77,6 +77,7 @@
 !  Derived type describing a diagnostic variable
    type type_diagnostic_variable_info
       character(len=64)    :: name, longname, units
+      REALTYPE :: missing_value ! Value denoting missing data
       _TYPE_DEPENDENCY_ID_ :: dependencyid
       integer              :: externalid
       
@@ -264,6 +265,7 @@
       varinfo%initial_value = _ZERO_
       varinfo%minimum = -1.e20
       varinfo%maximum = 1.e20
+      varinfo%missing_value = -2.e20
       varinfo%vertical_movement = _ZERO_
       varinfo%specific_light_extinction = _ZERO_
       varinfo%no_precipitation_dilution = .false.
@@ -301,6 +303,7 @@
       varinfo%name = ''
       varinfo%units = ''
       varinfo%longname = ''
+      varinfo%missing_value = -2.e20
       varinfo%time_treatment = time_treatment_last
       varinfo%externalid = 0
       varinfo%dependencyid = id_not_used
@@ -348,7 +351,7 @@
 ! !INTERFACE:
    recursive function register_state_variable(modelinfo, name, units, longname, &
                                     initial_value, vertical_movement, specific_light_extinction, &
-                                    minimum, maximum, &
+                                    minimum, maximum, missing_value, &
                                     no_precipitation_dilution,no_river_dilution,benthic) &
                                     result(id)
 !
@@ -365,7 +368,7 @@
 ! !INPUT PARAMETERS:
       character(len=*),      intent(in)          :: name, longname, units
       REALTYPE,              intent(in),optional :: initial_value,vertical_movement,specific_light_extinction
-      REALTYPE,              intent(in),optional :: minimum, maximum
+      REALTYPE,              intent(in),optional :: minimum, maximum,missing_value
       logical,               intent(in),optional :: no_precipitation_dilution,no_river_dilution
       logical,               intent(in),optional :: benthic
 !
@@ -425,6 +428,7 @@
       if (present(initial_value))             curinfo%initial_value = initial_value
       if (present(minimum))                   curinfo%minimum = minimum
       if (present(maximum))                   curinfo%maximum = maximum
+      if (present(missing_value))             curinfo%missing_value = missing_value
       if (present(vertical_movement))         curinfo%vertical_movement = vertical_movement
       if (present(specific_light_extinction)) curinfo%specific_light_extinction = specific_light_extinction
       if (present(no_precipitation_dilution)) curinfo%no_precipitation_dilution = no_precipitation_dilution
@@ -450,6 +454,7 @@
                 specific_light_extinction = curinfo%specific_light_extinction, &
                 minimum                   = curinfo%minimum,                   &
                 maximum                   = curinfo%maximum,                   &
+                missing_value             = curinfo%missing_value,             &
                 no_precipitation_dilution = curinfo%no_precipitation_dilution, &
                 no_river_dilution         = curinfo%no_river_dilution,         &
                 benthic                   = benthic_eff)
@@ -471,7 +476,7 @@
 ! !IROUTINE: Registers a new diagnostic variable
 !
 ! !INTERFACE:
-   recursive function register_diagnostic_variable(modelinfo, name, units, longname, shape, time_treatment) result(id)
+   recursive function register_diagnostic_variable(modelinfo, name, units, longname, shape, time_treatment, missing_value) result(id)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -485,6 +490,7 @@
 ! !INPUT PARAMETERS:
       character(len=*),      intent(in)          :: name, longname, units
       integer, optional,     intent(in)          :: time_treatment,shape
+      REALTYPE,optional,     intent(in)          :: missing_value
 !
 ! !OUTPUT PARAMETER:
       _TYPE_DIAGNOSTIC_VARIABLE_ID_              :: id
@@ -539,6 +545,7 @@
       curinfo%units    = units
       curinfo%longname = longname
       if (present(time_treatment)) curinfo%time_treatment = time_treatment
+      if (present(missing_value))  curinfo%missing_value = missing_value
                   
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the diagnostic variable id.
@@ -547,6 +554,7 @@
                                            trim(curinfo%units),                                             &
                                            trim(modelinfo%longnameprefix)//' '//trim(curinfo%longname),     &
                                            time_treatment=curinfo%time_treatment,                           &
+                                           missing_value=missing_value,                                     &
                                            shape = shape_eff)
       else
 #ifdef _FABM_MANAGE_DIAGNOSTICS_
