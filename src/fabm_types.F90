@@ -102,7 +102,7 @@
 !  Derived type for storing properties of a generic model.
    type type_model_info
       ! Flag determining whether the contents of the type are "frozen", i.e., they will not change anymore.
-      logical,private :: frozen
+      logical :: frozen
    
       ! Arrays with metadata on model variables.
       type (type_state_variable_info),     pointer,dimension(:) :: state_variables_ben,state_variables
