@@ -58,10 +58,12 @@
    type type_state_variable_id
       integer :: id,dependencyid
    end type type_state_variable_id
+   
+   integer, parameter, private :: attribute_length = 256
 
 !  Derived type describing a state variable
    type type_state_variable_info
-      character(len=64) :: name, longname, units
+      character(len=attribute_length) :: name, longname, units
 
       REALTYPE :: initial_value                 ! Initial state variable value
       REALTYPE :: minimum,maximum,missing_value ! Valid range and value denoting missing data
@@ -76,7 +78,7 @@
 
 !  Derived type describing a diagnostic variable
    type type_diagnostic_variable_info
-      character(len=64)    :: name, longname, units
+      character(len=attribute_length)    :: name, longname, units
       REALTYPE :: missing_value ! Value denoting missing data
       _TYPE_DEPENDENCY_ID_ :: dependencyid
       integer              :: externalid
@@ -94,7 +96,7 @@
 
 !  Derived type describing a conserved quantity
    type type_conserved_quantity_info
-      character(len=64)            :: name, longname, units
+      character(len=attribute_length)            :: name, longname, units
       _TYPE_CONSERVED_QUANTITY_ID_ :: globalid
       integer                      :: externalid
    end type type_conserved_quantity_info
@@ -476,7 +478,8 @@
 ! !IROUTINE: Registers a new diagnostic variable
 !
 ! !INTERFACE:
-   recursive function register_diagnostic_variable(modelinfo, name, units, longname, shape, time_treatment, missing_value) result(id)
+   recursive function register_diagnostic_variable(modelinfo, name, units, longname, &
+                                                   shape, time_treatment, missing_value) result(id)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
