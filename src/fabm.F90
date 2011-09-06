@@ -512,7 +512,7 @@
    call fabm_init(model,file_unit)
 
    if (.not.isopen) then
-      ! We have opened the configruation file ourselves - close it.
+      ! We have opened the configuration file ourselves - close it.
       close(file_unit)
    end if
 
@@ -598,14 +598,17 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-  integer                    :: ivar
   type (type_model), pointer :: model
+#ifdef _FABM_MANAGE_DIAGNOSTICS_
+  integer                    :: ivar
+#endif
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Check whether we are operating on the root of a model tree.
-   if (associated(root%parent)) call fatal_error('fabm_set_domain','fabm_set_domain can only be called on the root of a model tree.')
+   if (associated(root%parent)) &
+      call fatal_error('fabm_set_domain','fabm_set_domain can only be called on the root of a model tree.')
 
    ! Enumerate all non-container models in the tree.
    model => root%nextmodel
@@ -1290,7 +1293,8 @@
          ! State variable value lies below prescribed minimum.
          valid = .false.
          if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables(ivar)%name),' below minimum value ',root%info%state_variables(ivar)%minimum
+            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables(ivar)%name), &
+                                                       & ' below minimum value ',root%info%state_variables(ivar)%minimum
             call log_message(err)
             return
          end if
@@ -1299,7 +1303,8 @@
          ! State variable value exceeds prescribed maximum.
          valid = .false.
          if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables(ivar)%name),' above maximum value ',root%info%state_variables(ivar)%maximum
+            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables(ivar)%name), &
+                                                       & ' above maximum value ',root%info%state_variables(ivar)%maximum
             call log_message(err)
             return
          end if
