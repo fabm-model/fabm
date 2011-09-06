@@ -39,7 +39,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_model, fabm_create_model, fabm_create_model_from_file, fabm_init, fabm_do, &
+   public type_model, fabm_create_model, fabm_create_model_from_file, fabm_init, fabm_set_domain, fabm_do, &
           fabm_link_benthos_state_data,fabm_link_state_data, &
           fabm_link_data,fabm_link_data_hz,fabm_get_variable_id, &
           fabm_get_diagnostic_data, fabm_get_diagnostic_data_hz, &
@@ -317,7 +317,7 @@
    end do
 
    ! Model name was not found - throw an error.
-   call fatal_error('fabm::get_model_id',trim(name)//' is not a valid model name registered in fabm::register_models.')
+   call fatal_error('fabm::get_model_id','"'//trim(name)//'" is not a valid model name registered in fabm::register_models.')
    
    end function get_model_id
 !EOC
@@ -499,14 +499,17 @@
    end if
    
    ! Read main FABM namelist.
+   models = ''
    read(file_unit,nml=fabm,err=99,end=100)
 
    ! Create model tree
    model => fabm_create_model()
    do i=1,ubound(models,1)
-      if (trim(models(i)).ne.'') &
-         childmodel => fabm_create_model(trim(models(i)),parent=model)
+      if (models(i).ne.'') childmodel => fabm_create_model(trim(models(i)),parent=model)
    end do
+   
+   ! Initialize model tree
+   call fabm_init(model,file_unit)
 
    if (.not.isopen) then
       ! We have opened the configruation file ourselves - close it.
@@ -515,13 +518,13 @@
 
    return
    
-98 call fatal_error('fabm_create_model_by_name','Unable to open FABM configuration file '//trim(file_eff)//'.')
+98 call fatal_error('fabm_create_model_from_file','Unable to open FABM configuration file '//trim(file_eff)//'.')
    return
 
-99 call fatal_error('fabm_create_model_by_name','Unable to read namelist "fabm".')
+99 call fatal_error('fabm_create_model_from_file','Unable to read namelist "fabm".')
    return
 
-100 call fatal_error('fabm_create_model_by_name','Unable to find namelist "fabm".')
+100 call fatal_error('fabm_create_model_from_file','Unable to find namelist "fabm".')
    return
    
    end function fabm_create_model_from_file
@@ -534,12 +537,11 @@
 ! !IROUTINE: Initialise the biogeochemical model tree.
 !
 ! !INTERFACE:
-   subroutine fabm_init(root,nmlunit _ARG_LOCATION_)
+   subroutine fabm_init(root,nmlunit)
 !
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: root
    integer,                                intent(in)    :: nmlunit
-   _DECLARE_LOCATION_ARG_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -558,7 +560,7 @@
    if (.not.isopen) call fatal_error('fabm_init','input configuration file has not been opened yet.')
    
    ! Initialize the model (this automatically initializes all contained models)
-   call init_model(root,nmlunit _ARG_LOCATION_)
+   call init_model(root,nmlunit)
 
    ! Allocate arrays for storage of (references to) data.
    allocate(root%environment)
@@ -575,6 +577,31 @@
 
    ! Transfer pointer to environment to all child models.
    call set_model_data_members(root,root%environment)
+
+   end subroutine fabm_init
+!EOC
+
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with the extents of the spatial domain.
+!
+! !INTERFACE:
+   subroutine fabm_set_domain(root _ARG_LOCATION_)
+!
+! !INPUT PARAMETERS:
+   type (type_model),target,               intent(inout) :: root
+   _DECLARE_LOCATION_ARG_
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Check whether we are operating on the root of a model tree.
+   if (associated(root%parent)) call fatal_error('fabm_set_domain','fabm_set_domain can only be called on the root of a model tree.')
 
 #ifdef _FABM_MANAGE_DIAGNOSTICS_
    ! FABM will manage and store current values of diagnostic variables.
@@ -599,7 +626,7 @@
    end do
 #endif
 
-   end subroutine fabm_init
+   end subroutine fabm_set_domain
 !EOC
 
 
@@ -609,12 +636,11 @@
 ! !IROUTINE: Initialise the provided biogeochemical model
 !
 ! !INTERFACE:
-   recursive subroutine init_model(model,nmlunit _ARG_LOCATION_)
+   recursive subroutine init_model(model,nmlunit)
 !
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: model
    integer,                                intent(in)    :: nmlunit
-   _DECLARE_LOCATION_ARG_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -672,7 +698,7 @@
             end if
 
             ! Initialize child model.
-            call init_model(curchild,nmlunit _ARG_LOCATION_)
+            call init_model(curchild,nmlunit)
             
             ! Move to next child model.
             curchild => curchild%nextsibling
@@ -1200,6 +1226,7 @@
    integer                               :: ivar
    type (type_model), pointer            :: model
    REALTYPE                              :: val
+   character(len=256)                    :: err
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1245,6 +1272,8 @@
          ! State variable value lies below prescribed minimum.
          valid = .false.
          if (.not.repair) then
+            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables(ivar)%name),' below minimum value ',root%info%state_variables(ivar)%minimum
+            call log_message(err)
             return
          end if
          _SET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid,root%info%state_variables(ivar)%minimum)
@@ -1252,6 +1281,8 @@
          ! State variable value exceeds prescribed maximum.
          valid = .false.
          if (.not.repair) then
+            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables(ivar)%name),' above maximum value ',root%info%state_variables(ivar)%maximum
+            call log_message(err)
             return
          end if
          _SET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid,root%info%state_variables(ivar)%maximum)
@@ -1340,6 +1371,8 @@
       select case (model%id)
          case (examples_benthic_predator_id)
             call examples_benthic_predator_do_benthos(model%examples_benthic_predator,_INPUT_ARGS_DO_BENTHOS_RHS_)
+
+
          ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
          ! or specifies bottom fluxes for its pelagic state variables.
          !
