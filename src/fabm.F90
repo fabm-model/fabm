@@ -477,7 +477,7 @@
    integer                   :: i
    character(len=64)         :: models(256)
    type (type_model),pointer :: childmodel
-   namelist /fabm/ models
+   namelist /fabm_nml/ models
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -500,7 +500,7 @@
    
    ! Read main FABM namelist.
    models = ''
-   read(file_unit,nml=fabm,err=99,end=100)
+   read(file_unit,nml=fabm_nml,err=99,end=100)
 
    ! Create model tree
    model => fabm_create_model()
@@ -597,11 +597,29 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
+! !LOCAL VARIABLES:
+  integer                    :: ivar
+  type (type_model), pointer :: model
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Check whether we are operating on the root of a model tree.
    if (associated(root%parent)) call fatal_error('fabm_set_domain','fabm_set_domain can only be called on the root of a model tree.')
+
+   ! Enumerate all non-container models in the tree.
+   model => root%nextmodel
+   do while (associated(model))
+      select case (model%id)
+         case (pml_ersem_id)
+            call pml_ersem_set_domain(model%pml_ersem,_DOMAIN_SIZE_1D_)
+         ! ADD_NEW_MODEL_HERE - optional, only needed if the model needs to be informed about the spatial domain.
+         !
+         ! Typical model call:
+         ! call MODELNAME_set_domain(model%MODELNAME,_DOMAIN_SIZE_1D_)
+      end select
+      model => model%nextmodel
+   end do
 
 #ifdef _FABM_MANAGE_DIAGNOSTICS_
    ! FABM will manage and store current values of diagnostic variables.
@@ -664,7 +682,7 @@
       case (gotm_fasham_id)
          call gotm_fasham_init(model%gotm_fasham,model%info,nmlunit)
       case (pml_ersem_id)
-         call pml_ersem_init(model%pml_ersem,model%info,nmlunit,_DOMAIN_SIZE_1D_)
+         call pml_ersem_init(model%pml_ersem,model%info,nmlunit)
       case (metu_mnemiopsis_id)
          call metu_mnemiopsis_init(model%metu_mnemiopsis,model%info,nmlunit)
       case (pml_carbonate_id)

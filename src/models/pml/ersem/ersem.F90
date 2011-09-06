@@ -28,8 +28,8 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_pml_ersem, pml_ersem_init, pml_ersem_do, &
-          pml_ersem_get_light_extinction
+   public type_pml_ersem, pml_ersem_init, pml_ersem_set_domain, &
+          pml_ersem_do, pml_ersem_get_light_extinction
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -63,7 +63,7 @@
 ! !IROUTINE: Initialise the PML-ERSEM model
 !
 ! !INTERFACE:
-   subroutine pml_ersem_init(self,modelinfo,namlst,domainsize)
+   subroutine pml_ersem_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !
@@ -73,7 +73,7 @@
 ! !INPUT PARAMETERS:
    type (type_pml_ersem),  intent(out)   :: self
    type (type_model_info),intent(inout) :: modelinfo
-   integer,               intent(in)    :: namlst,domainsize
+   integer,               intent(in)    :: namlst
 !
 ! !REVISION HISTORY:
 !  Original author(s): Momme Butenschön
@@ -95,8 +95,14 @@
    ! Read the namelist
    !read(namlst,nml=pml_ersem,err=99,end=100)
 
-   N_COMP = domainsize
-   call allocate_ersem()
+   ! CURRENTLY BROKEN!
+   ! ERSEM allocates arrays that describe the model (cccstr, ccbstr) and arrays that
+   ! have a spatial dimension simultaneously (call to allocate_ersem).
+   ! This is no longer allowed in FABM - non-spatial model information must be set during
+   ! initialization, and spatial information is provided in a call to set_domain.
+   ! Currently I_STATE, I_STATEBEN, cccstr and ccbstr will not be available,
+   ! causing the code below to break.
+   !call allocate_ersem()
 
    allocate(self%id_ccc(I_STATE),stat=ialloc)
    call allocerr ('id_ccc',1,i_state,ialloc)
@@ -137,6 +143,39 @@
 
    end subroutine pml_ersem_init
 !EOC
+
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Specify the spatial domain
+!
+! !INTERFACE:
+   subroutine pml_ersem_set_domain(self,domainsize)
+!
+! !DESCRIPTION:
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_pml_ersem),  intent(out)   :: self
+   integer,               intent(in)     :: domainsize
+!
+! !REVISION HISTORY:
+!  Original author(s): Momme Butenschön
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#ifdef FABM_PMLERSEM
+   N_COMP = domainsize
+   call allocate_ersem()
+#endif
+
+   end subroutine pml_ersem_set_domain
+!EOC
+
 
 !-----------------------------------------------------------------------
 !BOP
