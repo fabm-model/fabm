@@ -4,9 +4,10 @@
 		<Platform Name="Win32"/>
 		<Platform Name="x64"/></Platforms>
 	<Configurations>
-		<Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
+		<Configuration Name="Debug|Win32" OutputDirectory="mom4p0d\$(PlatformName)-$(ConfigurationName)" IntermediateDirectory="mom4p0d\$(PlatformName)-$(ConfigurationName)" ConfigurationType="typeStaticLibrary">
 				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(NETCDF_PREFIX)\include;$(MSMPI_INC);..\..\include;..\..\src\shared\mpp\include;..\..\src\mom4\ocean_core;$(FABMDIR)\include;$(FABMDIR)\src\drivers\mom4p0d" PreprocessorDefinitions="use_libMPI;use_netCDF;FLUSH=flush_ifort;GETENV=getenv_ifort;_ISO_TR_15581_" Interfaces="true" WarnInterfaces="true" RealKIND="realKIND8" SafeCRAYPointers="true" ExternalNameInterpretation="extNameLowerCase" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
 				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\mom4p0d.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(NETCDF_PREFIX)\lib;$(MSMPI_LIB32)" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="128000000" AdditionalDependencies="netcdfs.lib msmpi.lib msmpifec.lib"/>
+				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -14,9 +15,10 @@
 				<Tool Name="VFPreBuildEventTool"/>
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
-		<Configuration Name="Release|Win32" ConfigurationType="typeStaticLibrary">
+		<Configuration Name="Release|Win32" OutputDirectory="mom4p0d\$(PlatformName)-$(ConfigurationName)" IntermediateDirectory="mom4p0d\$(PlatformName)-$(ConfigurationName)" ConfigurationType="typeStaticLibrary">
 				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(NETCDF_PREFIX)\include;$(MSMPI_INC);..\..\include;..\..\src\shared\mpp\include;..\..\src\mom4\ocean_core;$(FABMDIR)\include;$(FABMDIR)\src\drivers\mom4p0d" PreprocessorDefinitions="use_libMPI;use_netCDF;FLUSH=flush_ifort;GETENV=getenv_ifort;_ISO_TR_15581_" RealKIND="realKIND8" SafeCRAYPointers="true" ExternalNameInterpretation="extNameLowerCase"/>
 				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\mom4p0d.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(NETCDF_PREFIX)\lib;$(MSMPI_LIB32)" SubSystem="subSystemConsole" StackReserveSize="128000000" AdditionalDependencies="netcdfs.lib msmpi.lib msmpifec.lib"/>
+				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -24,9 +26,10 @@
 				<Tool Name="VFPreBuildEventTool"/>
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
-		<Configuration Name="Debug|x64" ConfigurationType="typeStaticLibrary">
+		<Configuration Name="Debug|x64" OutputDirectory="mom4p0d\$(PlatformName)-$(ConfigurationName)" IntermediateDirectory="mom4p0d\$(PlatformName)-$(ConfigurationName)" ConfigurationType="typeStaticLibrary">
 				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(NETCDF_PREFIX)\include;$(MSMPI_INC);..\..\include;..\..\src\shared\mpp\include;..\..\src\mom4\ocean_core;$(FABMDIR)\include;$(FABMDIR)\src\drivers\mom4p0d" PreprocessorDefinitions="use_libMPI;use_netCDF;FLUSH=flush_ifort;GETENV=getenv_ifort" Interfaces="true" WarnInterfaces="true" RealKIND="realKIND8" SafeCRAYPointers="true" ExternalNameInterpretation="extNameLowerCase" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
 				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\mom4p0d.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(NETCDF_PREFIX)\lib64;$(MSMPI_LIB64)" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="256000000" AdditionalDependencies="netcdfs.lib msmpi.lib msmpifec.lib"/>
+				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -34,9 +37,10 @@
 				<Tool Name="VFPreBuildEventTool"/>
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
-		<Configuration Name="Release|x64" ConfigurationType="typeStaticLibrary">
+		<Configuration Name="Release|x64" OutputDirectory="mom4p0d\$(PlatformName)-$(ConfigurationName)" IntermediateDirectory="mom4p0d\$(PlatformName)-$(ConfigurationName)" ConfigurationType="typeStaticLibrary">
 				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" UseProcessorExtensions="codeExclusivelyHost" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(NETCDF_PREFIX)\include;$(MSMPI_INC);..\..\include;..\..\src\shared\mpp\include;..\..\src\mom4\ocean_core;$(FABMDIR)\include;$(FABMDIR)\src\drivers\mom4p0d" PreprocessorDefinitions="use_libMPI;use_netCDF;FLUSH=flush_ifort;GETENV=getenv_ifort" VectorizerDiagLevel="vectorizerDiagLevel1" RealKIND="realKIND8" SafeCRAYPointers="true" ExternalNameInterpretation="extNameLowerCase"/>
 				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\mom4p0d.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(NETCDF_PREFIX)\lib64;$(MSMPI_LIB64)" SubSystem="subSystemConsole" StackReserveSize="256000000" AdditionalDependencies="netcdfs.lib msmpi.lib msmpifec.lib"/>
+				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
