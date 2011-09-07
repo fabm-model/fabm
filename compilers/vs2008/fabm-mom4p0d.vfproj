@@ -59,15 +59,6 @@
 		<File RelativePath="..\..\src\models\gotm\fasham\fasham.F90"/></Filter>
 		<Filter Name="npzd">
 		<File RelativePath="..\..\src\models\gotm\npzd\npzd.F90"/></Filter></Filter>
-		<Filter Name="jbruggeman">
-		<Filter Name="mixotroph">
-		<File RelativePath="..\..\src\models\jbruggeman\mixotroph\mixotroph.F90"/>
-		<File RelativePath="..\..\src\models\jbruggeman\mixotroph\ntrait_mom_generic.F90"/>
-		<File RelativePath="..\..\src\models\jbruggeman\mixotroph\statistics.F90"/></Filter>
-		<Filter Name="si_fractionation">
-		<File RelativePath="..\..\src\models\jbruggeman\si_fractionation\si_fractionation.F90"/></Filter>
-		<Filter Name="phytosize">
-		<File RelativePath="..\..\src\models\jbruggeman\phytosize\phytosize.F90"/></Filter></Filter>
 		<Filter Name="metu">
 		<File RelativePath="..\..\src\models\metu\mnemiopsis\mnemiopsis.F90"/></Filter>
 		<Filter Name="pml">
