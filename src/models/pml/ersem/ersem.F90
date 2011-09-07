@@ -159,8 +159,8 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_pml_ersem),  intent(out)   :: self
-   integer,               intent(in)     :: domainsize
+   type (type_pml_ersem), intent(in)    :: self
+   integer,               intent(in)    :: domainsize
 !
 ! !REVISION HISTORY:
 !  Original author(s): Momme Butenschön
