@@ -604,7 +604,6 @@ character(len=fm_field_name_len+3)                      :: long_suffix
 character(len=256)                                      :: caller_str
 character(len=fm_string_len), pointer, dimension(:)     :: good_list
 integer                                                 :: n
-character(len=fm_string_len)                            :: models(1:0)
 
 !integer                                                 :: n
 !character(len=fm_field_name_len+1)                      :: suffix
@@ -613,11 +612,7 @@ character(len=fm_string_len)                            :: models(1:0)
 character(len=fm_field_name_len+1)                      :: str
 integer                                                 :: nmlunit
 integer                                                 :: i
-integer                                                 :: nmodels
-character(len=fm_string_len), pointer, dimension(:)     :: modelids
 character(len=256)                                      :: namelist_file
-
-type (type_model), pointer                              :: childmodel
 
 !
 !       Initialize the FABM package
@@ -733,7 +728,6 @@ do n = 1, instances  !{
        check = .true.)
 
   call otpm_set_value('namelist_file', 'fabm.nml')
-  call otpm_set_value_string_array('models', models, 0)
   call otpm_set_value('dt', -1.)
 
   call otpm_end_namelist(package_name, biotic(n)%name, check = .true., caller = caller_str)
@@ -761,7 +755,6 @@ do n = 1, instances  !{
 
   call otpm_start_namelist(package_name, biotic(n)%name, caller = caller_str)
   namelist_file = otpm_get_string ('namelist_file', caller = caller_str, scalar = .true.)
-  modelids      => otpm_get_string_array('models', caller = caller_str)
   dt_bio        = otpm_get_real('dt', caller = caller_str, scalar = .true.)
 
   call otpm_end_namelist(package_name, biotic(n)%name, caller = caller_str)
@@ -775,16 +768,12 @@ do n = 1, instances  !{
     long_suffix = ' (' // trim(name) // ')'
   endif  !}
   
-  ! Create the FABM model tree
-  biotic(n)%model => fabm_create_model()
-  do i=1,ubound(modelids,1)
-    childmodel => fabm_create_model(modelids(i),parent=biotic(n)%model)
-  end do
-  
   ! Allow FABM to initialize
   nmlunit = open_namelist_file(trim(namelist_file))
-  call fabm_init(biotic(n)%model,nmlunit,iec-isc+1,jec-jsc+1,nk)
+  biotic(n)%model => fabm_create_model_from_file(nmlunit)
   call close_file (nmlunit)
+
+  call fabm_set_domain(biotic(n)%model,iec-isc+1,jec-jsc+1,nk)
 
   ! Register state variables
   allocate(biotic(n)%inds(ubound(biotic(n)%model%info%state_variables,1)))
