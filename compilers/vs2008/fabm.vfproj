@@ -15,7 +15,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" UseProcessorExtensions="codeExclusivelyHost" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" PreprocessorDefinitions="_ISO_TR_15581_;" VectorizerDiagLevel="vectorizerDiagLevel3" WarnUnusedVariables="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" PreprocessorDefinitions="_ISO_TR_15581_;" VectorizerDiagLevel="vectorizerDiagLevel3" WarnUnusedVariables="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
