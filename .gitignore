@@ -1,3 +1,6 @@
 *.i90
 *.mod
 *.obj
+*.suo
+*.u2d
+*.nc
