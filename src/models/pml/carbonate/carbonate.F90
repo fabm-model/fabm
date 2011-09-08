@@ -91,7 +91,7 @@ contains
    self%alk_param  = alk_param
       
    ! First state variable: total dissolved inorganic carbon
-   self%id_dic = register_state_variable(modelinfo,'dic','mol C/m**3','total dissolved inorganic carbon', &
+   self%id_dic = register_state_variable(modelinfo,'dic','mmol/m**3','total dissolved inorganic carbon', &
                                     dic_initial,minimum=_ZERO_,no_precipitation_dilution=.true.,no_river_dilution=.true.)
                                     
    ! Alkalinity may be apoproximated from salinity and temperature, or feature as separate state variable.
