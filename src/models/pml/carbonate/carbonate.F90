@@ -92,12 +92,12 @@ contains
       
    ! First state variable: total dissolved inorganic carbon
    self%id_dic = register_state_variable(modelinfo,'dic','mmol/m**3','total dissolved inorganic carbon', &
-                                    dic_initial,minimum=_ZERO_,no_precipitation_dilution=.true.,no_river_dilution=.true.)
+                                    dic_initial,minimum=_ZERO_,no_precipitation_dilution=.false.,no_river_dilution=.true.)
                                     
    ! Alkalinity may be apoproximated from salinity and temperature, or feature as separate state variable.
    if (.not. alk_param) then
      self%id_alk = register_state_variable(modelinfo,'alk','mEq/m**3','alkalinity', &
-                                    alk_initial,minimum=_ZERO_,no_precipitation_dilution=.true.,no_river_dilution=.true.)
+                                    alk_initial,minimum=_ZERO_,no_precipitation_dilution=.false.,no_river_dilution=.true.)
    else
      self%id_alk_diag = register_diagnostic_variable(modelinfo, 'alk', 'mEq/m**3','alkalinity', &
                                                      time_treatment=time_treatment_averaged)
