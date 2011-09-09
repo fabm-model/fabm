@@ -13,8 +13,11 @@
 !-------------------------------------------------------------------------------
 
 &pml_carbonate
-	dic_initial = 2100.,
-	pCO2a = 305.
+   dic_initial = 2200.,  ! Initial concentration of total dissolved inorganic carbon
+   pCO2a       = 367.    ! Atmospheric partial pressure of CO2 (ppm)
+   alk_param   = .true.  ! Parameterize alkalintiy as linear function of salinity
+   alk_offset  = 520.1,  ! Millero 1998 value for Atlantic
+   alk_slope   = 51.24   ! Millero 1998 value for Atlantic
 /
 
 !-------------------------------------------------------------------------------
