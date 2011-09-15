@@ -4,14 +4,14 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_pml_carbonate --- shell around CO2/carbonate system model by
+! !MODULE: fabm_pml_carbonate --- shell around carbonate chemistry model by
 ! Jerry Blackford (Plymouth Marine Laboratory), adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
 module fabm_pml_carbonate
 !
 ! !DESCRIPTION:
-! CO2 system model based on PML code.
+! Carbonate chemistry model system model based on PML code.
 !
 ! !USES:
    use fabm_types
@@ -35,7 +35,7 @@ module fabm_pml_carbonate
    type type_pml_carbonate
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_dic, id_alk
-      _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt, id_pres, id_wind, id_dens
+      _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt, id_pres, id_wind, id_dens, id_pco2_surf
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_ph, id_pco2, id_CarbA, id_Bicarb, &
                                      & id_Carb, id_Om_cal, id_Om_arg, id_co2_flux, id_alk_diag
                                      
@@ -74,7 +74,7 @@ contains
 !
 ! !LOCAL VARIABLES:
    REALTYPE :: dic_initial, alk_initial
-   REALTYPE  :: alk_offset = 520.1, alk_slope = 51.24, pCO2a = 390.
+   REALTYPE  :: alk_offset = 520.1, alk_slope = 51.24, pCO2a = _ZERO_
    logical :: alk_param = .true.
    namelist /pml_carbonate/ dic_initial, alk_initial, alk_param, alk_offset, alk_slope, pCO2a
 !EOP
@@ -87,8 +87,8 @@ contains
    ! NB: all rates must be provided in values per day, and are converted here to values per second.
    self%TA_offset = alk_offset
    self%TA_slope  = alk_slope
+   self%alk_param = alk_param
    self%pCO2a     = pCO2a
-   self%alk_param  = alk_param
       
    ! First state variable: total dissolved inorganic carbon
    self%id_dic = register_state_variable(modelinfo,'dic','mmol/m**3','total dissolved inorganic carbon', &
@@ -127,6 +127,7 @@ contains
    self%id_pres = register_dependency(modelinfo, varname_pres)
    self%id_dens = register_dependency(modelinfo, varname_dens)
    self%id_wind = register_dependency(modelinfo, varname_wind_sf,shape=shape_hz)
+   if (self%pCO2a.eq._ZERO_) self%id_pco2_surf = register_dependency(modelinfo, 'pco2_surf',shape=shape_hz)
 
    return
 
@@ -238,7 +239,7 @@ contains
    REALTYPE :: dic, TA
    
    ! Temporary variables
-   REALTYPE :: PCO2WATER, pH, HENRY, ca, bc, cb, fl
+   REALTYPE :: PCO2WATER, pH, HENRY, ca, bc, cb, fl, pCO2a
 
    ! Parameters
    REALTYPE, parameter :: secs_pr_day = 86400.
@@ -252,6 +253,11 @@ contains
    _GET_DEPENDENCY_(self%id_salt,salt)
    _GET_DEPENDENCY_(self%id_dens,dens)
    _GET_DEPENDENCY_HZ_(self%id_wind,wnd)
+   if (self%pCO2a.eq._ZERO_) then
+      _GET_DEPENDENCY_HZ_(self%id_pco2_surf,pCO2a)
+   else
+      pCO2a = self%pCO2a
+   end if
 
    _GET_STATE_(self%id_dic,dic)
 
@@ -269,7 +275,7 @@ contains
    call CO2DYN(dic/1.0D3/dens, TA/1.0D6, temp, salt, PCO2WATER, pH, HENRY, ca, bc, cb)
 
    ! Calculate air-sea exchange of CO2 (positive flux is from atmosphere to water)
-   call Air_sea_exchange(temp, wnd, PCO2WATER*1.0D6, self%pCO2a, Henry, dens/1.0D3, fl)
+   call Air_sea_exchange(temp, wnd, PCO2WATER*1.0D6, pCO2a, Henry, dens/1.0D3, fl)
    
    ! Transfer surface exchange value to FABM.
    _SET_SURFACE_EXCHANGE_(self%id_dic,fl/secs_pr_day)
