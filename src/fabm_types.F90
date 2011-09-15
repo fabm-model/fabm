@@ -36,7 +36,7 @@
    public init_model_info,freeze_model_info
    public register_state_variable, register_diagnostic_variable, register_conserved_quantity, &
           register_state_dependency, register_dependency
-   public type_environment,type_state_hz,type_state,type_state_variable_id
+   public type_environment,type_state_hz,type_state,type_state_variable_id,type_diagnostic_variable_id
 !
 ! !PUBLIC DATA MEMBERS:
 !
@@ -58,6 +58,10 @@
    type type_state_variable_id
       integer :: id,dependencyid
    end type type_state_variable_id
+
+   type type_diagnostic_variable_id
+      integer :: id,dependencyid
+   end type type_diagnostic_variable_id
    
    integer, parameter, private :: attribute_length = 256
 
@@ -71,7 +75,6 @@
       REALTYPE :: specific_light_extinction     ! Specific light extinction (/m/state variable unit)
       logical :: no_precipitation_dilution,no_river_dilution
       
-      _TYPE_DEPENDENCY_ID_     :: dependencyid ! This is a globally unique identifier for the variable that can be used to retrieve values.
       _TYPE_STATE_VARIABLE_ID_ :: globalid
       integer  :: externalid
    end type type_state_variable_info
@@ -80,7 +83,7 @@
    type type_diagnostic_variable_info
       character(len=attribute_length)    :: name, longname, units
       REALTYPE :: missing_value ! Value denoting missing data
-      _TYPE_DEPENDENCY_ID_ :: dependencyid
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: globalid
       integer              :: externalid
       
       ! Time treatment:
@@ -272,7 +275,7 @@
       varinfo%specific_light_extinction = _ZERO_
       varinfo%no_precipitation_dilution = .false.
       varinfo%no_river_dilution         = .false.
-      varinfo%dependencyid = id_not_used
+      varinfo%globalid%dependencyid = id_not_used
       varinfo%globalid%id = id_not_used
    end subroutine init_state_variable_info
 !EOC
@@ -308,7 +311,8 @@
       varinfo%missing_value = -2.e20
       varinfo%time_treatment = time_treatment_last
       varinfo%externalid = 0
-      varinfo%dependencyid = id_not_used
+      varinfo%globalid%id = id_not_used
+      varinfo%globalid%dependencyid = id_not_used
    end subroutine init_diagnostic_variable_info
 !EOC
 
@@ -560,20 +564,11 @@
                                            missing_value=missing_value,                                     &
                                            shape = shape_eff)
       else
-#ifdef _FABM_MANAGE_DIAGNOSTICS_
-         ! FABM manages diagnostic variables - the identifier will be the number of the
-         ! diagnostic variable in the global list maintained by the root of the model tree.
-         id = ubound(variables_new,1)
-#else
-         ! The host manages diagnostic variables - the identifier will be the number of the
-         ! diagnostic variable in the global list of dependencies, maintained by the root of the model tree.
-         id = register_dependency(modelinfo,curinfo%name,shape)
-#endif
+         id%id = ubound(variables_new,1)
+         id%dependencyid = register_dependency(modelinfo,curinfo%name,shape)
       end if
 
-#ifndef _FABM_MANAGE_DIAGNOSTICS_
-      curinfo%dependencyid = id
-#endif
+      curinfo%globalid = id
    end function register_diagnostic_variable
 !EOC
 
@@ -721,7 +716,7 @@
       ! If we reaached this point, the variable was not found.
       ! Throw an error if the variable must exist.
       if (mustexist_eff) call fatal_error('fabm_types::register_state_dependency', &
-         'state variable dependency '//trim(name)//' of model '//trim(modelinfo%name)//' was not found.')
+         'state variable dependency "'//trim(name)//'" of model "'//trim(modelinfo%name)//'" was not found.')
       
    end function register_state_dependency
 !EOC
@@ -817,26 +812,8 @@
             proot%dependencies => dependencies_new
       end select
 
-      ! Variable identifier equal the previous number of dependencies plus 1.
+      ! Variable identifier equals the previous number of dependencies plus 1.
       id = n+1
-
-      ! Determine whether this new dependency matches a registered state variable.
-      ! (in that case FABM can provide the value internally)
-      do i=1,ubound(statevarinfo,1)
-         if (statevarinfo(i)%name==name) then
-            statevarinfo(i)%dependencyid = id
-         end if
-      end do
-
-#ifdef _FABM_MANAGE_DIAGNOSTICS_
-      ! Determine whether this new dependency matches a registered diagnostic variable.
-      ! (in that case FABM can provide the value internally)
-      do i=1,ubound(diagvarinfo,1)
-         if (diagvarinfo(i)%name==name) then
-            diagvarinfo(i)%dependencyid = id
-         end if
-      end do
-#endif
       
    end function register_dependency
 !EOC

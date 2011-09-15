@@ -251,7 +251,7 @@
 
 ! Macros for declaring/accessing variable identifiers of arbitrary type.
 #define _TYPE_STATE_VARIABLE_ID_ type (type_state_variable_id)
-#define _TYPE_DIAGNOSTIC_VARIABLE_ID_ integer
+#define _TYPE_DIAGNOSTIC_VARIABLE_ID_ type (type_diagnostic_variable_id)
 #define _TYPE_DEPENDENCY_ID_ integer
 #define _TYPE_CONSERVED_QUANTITY_ID_ integer
 
@@ -295,11 +295,11 @@
 
 ! For BGC models: write access to diagnostic variables
 #ifdef _FABM_MANAGE_DIAGNOSTICS_
-#define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%diag(index _ARG_LOCATION_) = value
-#define _SET_DIAG_HZ_(index,value) if (index.ne.id_not_used) environment%diag_hz(index _ARG_LOCATION_HZ_) = value
+#define _SET_DIAG_(index,value) environment%diag(index%id _ARG_LOCATION_) = value
+#define _SET_DIAG_HZ_(index,value) environment%diag_hz(index%id _ARG_LOCATION_HZ_) = value
 #else
-#define _SET_DIAG_(index,value) if (index.ne.id_not_used) environment%var(index)%data _INDEX_LOCATION_ = value
-#define _SET_DIAG_HZ_(index,value) if (index.ne.id_not_used) environment%var_hz(index)%data _INDEX_LOCATION_HZ_ = value
+#define _SET_DIAG_(index,value) if (index%dependencyid.ne.id_not_used) environment%var(index%dependencyid)%data _INDEX_LOCATION_ = value
+#define _SET_DIAG_HZ_(index,value) if (index%dependencyid.ne.id_not_used) environment%var_hz(index%dependencyid)%data _INDEX_LOCATION_HZ_ = value
 #endif
 
 

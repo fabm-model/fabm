@@ -39,11 +39,10 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_model, fabm_create_model, fabm_create_model_from_file, fabm_init, fabm_set_domain, fabm_do, &
-          fabm_link_benthos_state_data,fabm_link_state_data, &
-          fabm_link_data,fabm_link_data_hz,fabm_get_variable_id, &
+   public type_model, fabm_create_model, fabm_create_model_from_file, fabm_init, fabm_set_domain, fabm_check_ready, &
+          fabm_get_variable_id,fabm_link_benthos_state_data, fabm_link_state_data, fabm_link_data,fabm_link_data_hz, &
           fabm_get_diagnostic_data, fabm_get_diagnostic_data_hz, &
-          fabm_check_state, fabm_get_vertical_movement, fabm_get_light_extinction, &
+          fabm_do, fabm_check_state, fabm_get_vertical_movement, fabm_get_light_extinction, &
           fabm_get_conserved_quantities, fabm_get_surface_exchange, fabm_do_benthos
 
 #ifndef _FABM_MANAGE_DIAGNOSTICS_
@@ -638,18 +637,60 @@
    
    ! If diagnostic variables also appear as dependency, send the corresponding array slice for generic read-only access.
    do ivar=1,ubound(root%info%diagnostic_variables,1)
-      if (root%info%diagnostic_variables(ivar)%dependencyid.ne.id_not_used) &
-         call fabm_link_data(root,root%info%diagnostic_variables(ivar)%dependencyid,root%environment%diag(ivar _ARG_LOCATION_DIMENSIONS_))
+      call fabm_link_data(root,root%info%diagnostic_variables(ivar)%globalid%dependencyid,root%environment%diag(ivar _ARG_LOCATION_DIMENSIONS_))
    end do
    do ivar=1,ubound(root%info%diagnostic_variables_hz,1)
-      if (root%info%diagnostic_variables_hz(ivar)%dependencyid.ne.id_not_used) &
-         call fabm_link_data_hz(root,root%info%diagnostic_variables_hz(ivar)%dependencyid,root%environment%diag_hz(ivar _ARG_LOCATION_DIMENSIONS_HZ_))
+      call fabm_link_data_hz(root,root%info%diagnostic_variables_hz(ivar)%globalid%dependencyid,root%environment%diag_hz(ivar _ARG_LOCATION_DIMENSIONS_HZ_))
    end do
 #endif
 
    end subroutine fabm_set_domain
 !EOC
 
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Check whether FABM has been provided with all required data.
+!
+! !INTERFACE:
+   subroutine fabm_check_ready(root)
+!
+! !INPUT PARAMETERS:
+   type (type_model),intent(in) :: root
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+  integer                    :: ivar
+  logical                    :: ready
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Check whether we are operating on the root of a model tree.
+   if (associated(root%parent)) &
+      call fatal_error('fabm_check_ready','fabm_check_ready can only be called on the root of a model tree.')
+
+   ready = .true.
+   do ivar=1,ubound(root%environment%var,1)
+      if (.not.associated(root%environment%var(ivar)%data)) then
+         call log_message('data for dependency "'//trim(root%info%dependencies(ivar))// &
+            & '", defined on the full model domain, have not been provided.')
+         ready = .false.
+      end if
+   end do
+   do ivar=1,ubound(root%environment%var_hz,1)
+      if (.not.associated(root%environment%var_hz(ivar)%data)) then
+         call log_message('data for dependency "'//trim(root%info%dependencies_hz(ivar))// &
+            &  '", defined on a horizontal slice of the model domain, have not been provided.')
+         ready = .false.
+      end if
+   end do
+   if (.not.ready) call fatal_error('fabm_check_ready','FABM is lacking required data.')
+   
+   end subroutine fabm_check_ready
+!EOC
 
 !-----------------------------------------------------------------------
 !BOP
@@ -958,10 +999,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Determine whether this pelagic state variable is needed by any of the loaded biogeochemical models.
-   ! If so, forward the provided array slice, in order to be stored in the list of dependencies.
-   if (model%info%state_variables(id)%dependencyid.ne.id_not_used) &
-      call fabm_link_data(model,model%info%state_variables(id)%dependencyid,dat)
+   call fabm_link_data(model,model%info%state_variables(id)%globalid%dependencyid,dat)
       
    end subroutine fabm_link_state_data
 !EOC
@@ -986,10 +1024,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Determine whether this benthic state variable is needed by any of the loaded biogeochemical models.
-   ! If so, forward the provided array slice, in order to be stored in the list of dependencies.
-   if (model%info%state_variables_ben(id)%dependencyid.ne.id_not_used) &
-      call fabm_link_data_hz(model,model%info%state_variables_ben(id)%dependencyid,dat)
+   call fabm_link_data_hz(model,model%info%state_variables_ben(id)%globalid%dependencyid,dat)
       
    end subroutine fabm_link_benthos_state_data
 !EOC
@@ -1015,11 +1050,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve a pointer to the array holding the requested data.
-#ifdef _FABM_MANAGE_DIAGNOSTICS_
-   dat => model%environment%diag(id _ARG_LOCATION_DIMENSIONS_)
-#else
-   dat => model%environment%var(model%info%diagnostic_variables(id)%dependencyid)%data
-#endif
+   dat => model%environment%var(model%info%diagnostic_variables(id)%globalid%dependencyid)%data
 
    end function fabm_get_diagnostic_data
 !EOC
@@ -1046,11 +1077,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve a pointer to the array holding the requested data.
-#ifdef _FABM_MANAGE_DIAGNOSTICS_
-   dat => model%environment%diag_hz(id _ARG_LOCATION_DIMENSIONS_HZ_)
-#else
-   dat => model%environment%var_hz(model%info%diagnostic_variables_hz(id)%dependencyid)%data
-#endif
+   dat => model%environment%var_hz(model%info%diagnostic_variables_hz(id)%globalid%dependencyid)%data
 
    end function fabm_get_diagnostic_data_hz
 !EOC
@@ -1079,7 +1106,7 @@
 !BOC
    ! Diagnostic data is managed by the host, which means that FABM treats it like a generic
    ! variable (e.g., an external dependency). Redirect to the generic function.
-   call fabm_link_data(model,model%info%diagnostic_variables(id)%dependencyid,dat)
+   call fabm_link_data(model,model%info%diagnostic_variables(id)%globalid%dependencyid,dat)
    
    end subroutine fabm_link_diagnostic_data
 !EOC
@@ -1107,7 +1134,7 @@
 !BOC
    ! Diagnostic data is managed by the host, which means that FABM treats it like a generic
    ! variable (e.g., an external dependency). Redirect to the generic function.
-   call fabm_link_data_hz(model,model%info%diagnostic_variables_hz(id)%dependencyid,dat)
+   call fabm_link_data_hz(model,model%info%diagnostic_variables_hz(id)%globalid%dependencyid,dat)
    
    end subroutine fabm_link_diagnostic_data_hz
 !EOC
