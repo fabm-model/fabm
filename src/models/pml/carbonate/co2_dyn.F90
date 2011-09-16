@@ -265,6 +265,13 @@
       CALL CO2SET(P,T,S,AKVAL,NKVAL,IC)
       IF(ICALC.LT.MAXCAL)  &
      & CALL CO2CLC(CONCS,NCONC,AKVAL,NKVAL,ICALC,BORON,BTOT)
+     
+      if (concs(4).eq.100.) then
+         write (*,*) 'S,T,P',S,T,P
+         write (*,*) 'CONCS',CONCS
+         call fatal_error('co2_dyn:POLYCO','Haltafall iteration did not converge.')
+      end if
+      
       RETURN
       END SUBROUTINE
 
@@ -413,6 +420,8 @@
      &            (AKP   , AKVAL2(1)), (AK1C  , AKVAL2(2)),  &
      &            (AK2C  , AKVAL2(3)), (AKB   , AKVAL2(4))
       LOGICAL BORON,DONE
+      integer :: it
+      integer,parameter :: maxiter = 1000
 
 
       DO 100 II=1,NCONC
@@ -446,70 +455,75 @@
           STEG=2.0D0
           FAK=1.0D0
           STEGBY=0.4D0
-10        DONE=.TRUE.
-          IF(ICALC.EQ.4) THEN
-!         *** PCO2 IS FIXED ***
-            Y=AHPLUS*AHPLUS*CO3/(AK1C*AK2C)
-            IF(ABS(Y-H2CO3).GT.TOL2) THEN
-              CO3=CO3*H2CO3/Y
-              DONE=.FALSE.
-            ENDIF
-          ELSEIF(ICALC.EQ.1) THEN
-!           *** CTOT IS FIXED ***
-            Y=CO3*(1.0D0+AHPLUS/AK2C+AHPLUS*AHPLUS/(AK1C*AK2C))
-            IF(ABS(Y-CTOT).GT.TOL3) THEN
-              CO3=CO3*CTOT/Y
-              DONE=.FALSE.
-            ENDIF
-          ENDIF
-          Y=ALKB*(1.0D0+AHPLUS/AKB)
-          IF(ABS(Y-BTOT).GT.TOL4) THEN
-            ALKB=ALKB*BTOT/Y
-            DONE=.FALSE.
-          ENDIF
+          do it=1,maxiter
+             DONE=.TRUE.
+             IF(ICALC.EQ.4) THEN
+   !         *** PCO2 IS FIXED ***
+               Y=AHPLUS*AHPLUS*CO3/(AK1C*AK2C)
+               IF(ABS(Y-H2CO3).GT.TOL2) THEN
+                 CO3=CO3*H2CO3/Y
+                 DONE=.FALSE.
+               ENDIF
+             ELSEIF(ICALC.EQ.1) THEN
+   !           *** CTOT IS FIXED ***
+               Y=CO3*(1.0D0+AHPLUS/AK2C+AHPLUS*AHPLUS/(AK1C*AK2C))
+               IF(ABS(Y-CTOT).GT.TOL3) THEN
+                 CO3=CO3*CTOT/Y
+                 DONE=.FALSE.
+               ENDIF
+             ENDIF
+             Y=ALKB*(1.0D0+AHPLUS/AKB)
+             IF(ABS(Y-BTOT).GT.TOL4) THEN
+               ALKB=ALKB*BTOT/Y
+               DONE=.FALSE.
+             ENDIF
 
-! Alkalinity is equivalent to -(total H+), so the sign of W is opposite
-! to that normally used
+   ! Alkalinity is equivalent to -(total H+), so the sign of W is opposite
+   ! to that normally used
 
-          Y=CO3*(2.0D0+AHPLUS/AK2C)+ALKB
-          IF(ABS(Y-ALK).GT.TOL1) THEN
-            DONE=.FALSE.
-            X=LOG(AHPLUS)
-            W=SIGN(1.0D0,Y-ALK)
-            IF(W.GE.0.0D0) THEN
-              X1=X
-              Y1=Y
-            ELSE
-              X2=X
-              Y2=Y
-            ENDIF
-            LQ=KARL
-            IF(LQ.EQ.1) THEN
-              KARL=2*NINT(W)
-            ELSEIF(IABS(LQ).EQ.2.AND.(LQ*W).LT.0.) THEN
-              FAK=0.5D0
-              KARL=3
-            ENDIF
-            IF(KARL.EQ.3.AND.STEG.LT.STEGBY) THEN
-              W=(X2-X1)/(Y2-Y1)
-              X=X1+W*(ALK-Y1)
-            ELSE
-              STEG=STEG*FAK
-              X=X+STEG*W
-            ENDIF
-            AHPLUS=EXP(X)  
-          ENDIF
-          IF(.NOT.DONE) GOTO 10
-          
-          HCO3=CO3*AHPLUS/AK2C
-          IF(ICALC.EQ.4) THEN
-            CTOT=H2CO3+HCO3+CO3
-          ELSEIF(ICALC.EQ.1) THEN
-            H2CO3=HCO3*AHPLUS/AK1C
-            PCO2=H2CO3/AKP
-          ENDIF
-          PH=-LOG10(AHPLUS)
-          ALKC=ALK-ALKB
+             Y=CO3*(2.0D0+AHPLUS/AK2C)+ALKB
+             IF(ABS(Y-ALK).GT.TOL1) THEN
+               DONE=.FALSE.
+               X=LOG(AHPLUS)
+               W=SIGN(1.0D0,Y-ALK)
+               IF(W.GE.0.0D0) THEN
+                 X1=X
+                 Y1=Y
+               ELSE
+                 X2=X
+                 Y2=Y
+               ENDIF
+               LQ=KARL
+               IF(LQ.EQ.1) THEN
+                 KARL=2*NINT(W)
+               ELSEIF(IABS(LQ).EQ.2.AND.(LQ*W).LT.0.) THEN
+                 FAK=0.5D0
+                 KARL=3
+               ENDIF
+               IF(KARL.EQ.3.AND.STEG.LT.STEGBY) THEN
+                 W=(X2-X1)/(Y2-Y1)
+                 X=X1+W*(ALK-Y1)
+               ELSE
+                 STEG=STEG*FAK
+                 X=X+STEG*W
+               ENDIF
+               AHPLUS=EXP(X)  
+             ENDIF
+             IF(DONE) exit
+          end do
+          if (.not. DONE) then
+            PH = 100.
+          else
+             HCO3=CO3*AHPLUS/AK2C
+             IF(ICALC.EQ.4) THEN
+               CTOT=H2CO3+HCO3+CO3
+             ELSEIF(ICALC.EQ.1) THEN
+               H2CO3=HCO3*AHPLUS/AK1C
+               PCO2=H2CO3/AKP
+             ENDIF
+             PH=-LOG10(AHPLUS)
+             ALKC=ALK-ALKB
+          end if
         ELSEIF(ICALC.EQ.2) THEN
 !         *** CTOT, PCO2, AND BTOT FIXED ***
           Y=SQRT(PROD*(PROD-4.0D0*AKP*PCO2+4.0D0*CTOT))
