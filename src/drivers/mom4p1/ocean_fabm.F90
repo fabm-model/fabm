@@ -189,7 +189,7 @@ type biotic_type  !{
   character(len=fm_field_name_len)                 :: name
   logical                                          :: do_virtual_flux = .false.
   integer,_ALLOCATABLE,dimension(:)                :: inds,inds_diag,inds_diag_hz
-  double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_state _NULL,work_diag _NULL
+  double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_diag _NULL
   double precision,_ALLOCATABLE,dimension(:,:,:)   :: work_diag_hz _NULL,w _NULL,sf_fluxes _NULL
   double precision,_ALLOCATABLE,dimension(:,:)     :: adv _NULL,work_dy _NULL
 
@@ -709,7 +709,6 @@ write(stdout(),*)
 
 do n=1,instances
 
-   allocate(biotic(n)%work_state  (isc:iec,jsc:jec,nk,  ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%work_dy     (isc:iec,             ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%work_diag   (isc:iec,jsc:jec,nk,  ubound(biotic(n)%model%info%diagnostic_variables,1)))
    allocate(biotic(n)%work_diag_hz(isc:iec,jsc:jec,     ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
@@ -763,7 +762,7 @@ do n = 1, instances  !{
       biotic(n)%ext_3d_variables = ''
       allocate(dummy(isc:iec,jsc:jec,1:nk))  ! 3D dummy array used to receive external values, needed as long as the real target array is not allocated yet
       do i=1,size(biotic(n)%model%info%dependencies)
-         call data_override ('OCN', trim(biotic(n)%model%info%dependencies(i)), dummy, model_time, override=used )
+         call data_override ('OCN', 'fabm_'//trim(biotic(n)%model%info%dependencies(i)), dummy, model_time, override=used )
          if (used) then
             extcount = extcount + 1
             biotic(n)%ext_3d_variables(extcount) = trim(biotic(n)%model%info%dependencies(i))
@@ -782,7 +781,7 @@ do n = 1, instances  !{
       biotic(n)%ext_2d_variables = ''
       allocate(dummy_hz(isc:iec,jsc:jec))  ! 2D dummy array used to receive external values, needed as long as the real target array is not allocated yet
       do i=1,size(biotic(n)%model%info%dependencies_hz)
-         call data_override ('OCN', trim(biotic(n)%model%info%dependencies_hz(i)), dummy_hz, model_time, override=used )
+         call data_override ('OCN', 'fabm_'//trim(biotic(n)%model%info%dependencies_hz(i)), dummy_hz, model_time, override=used )
          if (used) then
             extcount = extcount + 1
             biotic(n)%ext_2d_variables(extcount) = trim(biotic(n)%model%info%dependencies_hz(i))
@@ -798,10 +797,10 @@ do n = 1, instances  !{
    
    ! Update values of external variables.
    do i=1,ubound(biotic(n)%ext_3d_data,4)
-      call data_override('OCN',biotic(n)%ext_3d_variables(i), biotic(n)%ext_3d_data(:,:,:,i), model_time)
+      call data_override('OCN','fabm_'//trim(biotic(n)%ext_3d_variables(i)), biotic(n)%ext_3d_data(:,:,:,i), model_time)
    end do
    do i=1,ubound(biotic(n)%ext_2d_data,3)
-      call data_override('OCN',biotic(n)%ext_2d_variables(i), biotic(n)%ext_2d_data(:,:,i), model_time)
+      call data_override('OCN','fabm_'//trim(biotic(n)%ext_2d_variables(i)), biotic(n)%ext_2d_data(:,:,i), model_time)
    end do
 end do
 
