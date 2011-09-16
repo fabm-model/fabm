@@ -89,6 +89,7 @@ use mpp_mod,                  only: mpp_clock_id, mpp_clock_begin, mpp_clock_end
 use time_manager_mod,         only: get_date
 use time_interp_external_mod, only: time_interp_external
 use mpp_domains_mod,          only: domain2d
+use data_override_mod,only: data_override
 
 use ocean_tpm_util_mod, only: otpm_set_tracer_package, otpm_set_prog_tracer, otpm_set_diag_tracer
 use fm_util_mod, only: fm_util_check_for_bad_fields, fm_util_set_value, fm_util_set_value_string_array
@@ -183,7 +184,7 @@ character(len=fm_string_len), parameter         :: default_ocean_restart_file = 
 type biotic_type  !{
 
   type (type_model),pointer :: model
-  integer                                          :: id_temp,id_salt,id_wind,id_pres,id_par,id_par_sf,id_dens
+  integer                                          :: id_temp,id_salt,id_pres,id_par,id_par_sf,id_dens
   
   character(len=fm_field_name_len)                 :: name
   logical                                          :: do_virtual_flux = .false.
@@ -193,12 +194,8 @@ type biotic_type  !{
   double precision,_ALLOCATABLE,dimension(:,:)     :: adv _NULL,work_dy _NULL
 
   ! Arrays to hold information on externally provided fields
-  character*128,allocatable, dimension(:) :: ext_2d_files,ext_3d_files
-  character*32,allocatable, dimension(:)  :: ext_2d_names,ext_3d_names
-  character*128,allocatable, dimension(:) :: ext_2d_variables,ext_3d_variables
-  integer,allocatable, dimension(:)     :: ext_2d_ids,ext_3d_ids
-  real, allocatable, dimension(:,:,:)   :: ext_2d_data
-  real, allocatable, dimension(:,:,:,:) :: ext_3d_data
+  character*128,_ALLOCATABLE, dimension(:) :: ext_2d_variables _NULL,ext_3d_variables _NULL
+  real,         _ALLOCATABLE               :: ext_2d_data(:,:,:) _NULL, ext_3d_data(:,:,:,:) _NULL
 
 end type biotic_type  !}
 
@@ -254,9 +251,6 @@ integer                                             :: instances
 type(biotic_type), allocatable, dimension(:),target :: biotic
 integer                                             :: index_irr,index_chl
 double precision                                    :: dt_bio
-
-integer                                   :: wind_id
-real, allocatable, dimension(:,:), target :: wind
 
 !
 !-----------------------------------------------------------------------
@@ -323,12 +317,7 @@ integer                                                 :: n,extcount
 !character(len=fm_field_name_len)                        :: name
 integer                                                 :: nmlunit
 integer                                                 :: i
-integer                                                 :: nmodels
 character(len=256)                                      :: namelist_file
-character*128 :: cur_file
-character*32  :: cur_name
-
-type (type_model), pointer                              :: childmodel
 
 !
 !       Initialize the FABM package
@@ -493,54 +482,6 @@ do n = 1, instances  !{
           const_init_value = biotic(n)%model%info%state_variables(i)%initial_value)
   end do
 
-  ! Find externally provided fields for 3D variables
-  extcount = 0
-  do i=1,ubound(biotic(n)%model%info%dependencies,1)
-     call fm_util_set_value(trim(biotic(n)%model%info%dependencies(i))//'_file', '')
-     call fm_util_set_value(trim(biotic(n)%model%info%dependencies(i))//'_name', '')
-     cur_file = fm_util_get_string (trim(biotic(n)%model%info%dependencies(i))//'_file', caller = caller_str, scalar = .true.)
-     if (cur_file.ne.'') extcount = extcount + 1
-  end do
-  allocate(biotic(n)%ext_3d_files(extcount))
-  allocate(biotic(n)%ext_3d_names(extcount))
-  allocate(biotic(n)%ext_3d_variables(extcount))
-  extcount = 0
-  do i=1,ubound(biotic(n)%model%info%dependencies,1)
-     cur_file = fm_util_get_string (trim(biotic(n)%model%info%dependencies(i))//'_file', caller = caller_str, scalar = .true.)
-     if (cur_file.ne.'') then
-       extcount = extcount+1
-       biotic(n)%ext_3d_variables(extcount) = biotic(n)%model%info%dependencies(i)
-       biotic(n)%ext_3d_files(extcount) = cur_file
-       biotic(n)%ext_3d_names(extcount) = fm_util_get_string (trim(biotic(n)%model%info%dependencies(i))//'_name', caller = caller_str, scalar = .true.)
-       if (biotic(n)%ext_3d_names(extcount).eq.'') &
-          call mpp_error(FATAL,trim(error_header) // ' Parameter "'//trim(biotic(n)%model%info%dependencies(i))//'_name" not set in field_table.')
-     end if
-  end do
-
-  ! Find externally provided fields for 3D variables
-  extcount = 0
-  do i=1,ubound(biotic(n)%model%info%dependencies_hz,1)
-     call fm_util_set_value(trim(biotic(n)%model%info%dependencies_hz(i))//'_file', '')
-     call fm_util_set_value(trim(biotic(n)%model%info%dependencies_hz(i))//'_name', '')
-     cur_file = fm_util_get_string (trim(biotic(n)%model%info%dependencies_hz(i))//'_file', caller = caller_str, scalar = .true.)
-     if (cur_file.ne.'') extcount = extcount + 1
-  end do
-  allocate(biotic(n)%ext_2d_files(extcount))
-  allocate(biotic(n)%ext_2d_names(extcount))
-  allocate(biotic(n)%ext_2d_variables(extcount))
-  extcount = 0
-  do i=1,ubound(biotic(n)%model%info%dependencies_hz,1)
-     cur_file = fm_util_get_string (trim(biotic(n)%model%info%dependencies_hz(i))//'_file', caller = caller_str, scalar = .true.)
-     if (cur_file.ne.'') then
-       extcount = extcount+1
-       biotic(n)%ext_2d_variables(extcount) = biotic(n)%model%info%dependencies_hz(i)
-       biotic(n)%ext_2d_files(extcount) = cur_file
-       biotic(n)%ext_2d_names(extcount) = fm_util_get_string (trim(biotic(n)%model%info%dependencies_hz(i))//'_name', caller = caller_str, scalar = .true.)
-       if (biotic(n)%ext_2d_names(extcount).eq.'') &
-          call mpp_error(FATAL,trim(error_header) // ' Parameter "'//trim(biotic(n)%model%info%dependencies_hz(i))//'_name" not set in field_table.')
-     end if
-  end do
-
 !  call fm_util_end_namelist(package_name, biotic(n)%name, caller = caller_str)
   call fm_util_end_namelist(package_name, biotic(n)%name, check = .true., caller = caller_str)
   
@@ -550,7 +491,6 @@ do n = 1, instances  !{
   biotic(n)%id_pres   = fabm_get_variable_id(biotic(n)%model,varname_pres,   shape_full)
   biotic(n)%id_dens   = fabm_get_variable_id(biotic(n)%model,varname_dens,   shape_full)
   biotic(n)%id_par    = fabm_get_variable_id(biotic(n)%model,varname_par,    shape_full)
-  !biotic(n)%id_wind   = fabm_get_variable_id(biotic(n)%model,varname_wind_sf,shape_hz)
   biotic(n)%id_par_sf = fabm_get_variable_id(biotic(n)%model,varname_par_sf, shape_hz)
 
 enddo  !} n
@@ -714,10 +654,6 @@ caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str)
 
-! Request variable values
-!wind_file =  fm_util_get_string ('wind_file', scalar = .true.)
-!wind_name =  fm_util_get_string ('wind_name', scalar = .true.)
-
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str)
       
 !
@@ -771,36 +707,7 @@ write(stdout(),*)
 write(stdout(),*) trim(note_header), 'Tracer runs initialized'
 write(stdout(),*)
 
-
-#ifdef REQ_WIND
-wind_id = init_external_field(wind_file,wind_name,domain = Domain%domain2d)
-if (wind_id .eq. 0) then  !{
-  call mpp_error(FATAL, trim(error_header) //                   &
-       'Could not open wind file: ' //                   &
-       trim(wind_file))
-endif  !}
-allocate(wind(isd:ied,jsd:jed) )
-#else
-wind_id = -1
-#endif
-
 do n=1,instances
-   allocate(biotic(n)%ext_2d_ids (1:ubound(biotic(n)%ext_2d_files,1)))
-   allocate(biotic(n)%ext_2d_data(isd:ied,jsd:jed,1:ubound(biotic(n)%ext_2d_files,1)))
-   do i=1,ubound(biotic(n)%ext_2d_ids,1)
-      biotic(n)%ext_2d_ids(i) = init_external_field(biotic(n)%ext_2d_files(i),biotic(n)%ext_2d_names(i),domain = mpp_domain2d)
-      if (biotic(n)%ext_2d_ids(i) .eq. 0) &
-         & call mpp_error(FATAL, trim(error_header)//'Could not open '//trim(biotic(n)%ext_2d_variables(i))//' file: '//trim(biotic(n)%ext_2d_files(i)))
-      call fabm_link_data_hz(biotic(n)%model,biotic(n)%ext_2d_variables(i),biotic(n)%ext_2d_data(isc:iec,jsc:jec,i))
-   end do
-   allocate(biotic(n)%ext_3d_ids (1:ubound(biotic(n)%ext_3d_files,1)))
-   allocate(biotic(n)%ext_3d_data(isd:ied,jsd:jed,nk,1:ubound(biotic(n)%ext_3d_files,1)))
-   do i=1,ubound(biotic(n)%ext_3d_ids,1)
-      biotic(n)%ext_3d_ids(i) = init_external_field(biotic(n)%ext_3d_files(i),biotic(n)%ext_3d_names(i))
-      if (biotic(n)%ext_3d_ids(i) .eq. 0) &
-         & call mpp_error(FATAL, trim(error_header)//'Could not open '//trim(biotic(n)%ext_3d_variables(i))//' file: '//trim(biotic(n)%ext_3d_files(i)))
-      call fabm_link_data(biotic(n)%model,biotic(n)%ext_3d_variables(i),biotic(n)%ext_3d_data(isc:iec,jsc:jec,:,i))
-   end do
 
    allocate(biotic(n)%work_state  (isc:iec,jsc:jec,nk,  ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%work_dy     (isc:iec,             ubound(biotic(n)%model%info%state_variables,1)))
@@ -808,7 +715,7 @@ do n=1,instances
    allocate(biotic(n)%work_diag_hz(isc:iec,jsc:jec,     ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
    allocate(biotic(n)%w           (isc:iec,        nk+1,ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%adv         (                nk+1,ubound(biotic(n)%model%info%state_variables,1)))
-   
+
    ! Set diagnostic variables to zero, because values for land points will not be set.
    biotic(n)%work_diag    = 0.d0
    biotic(n)%work_diag_hz = 0.d0
@@ -823,13 +730,82 @@ do n=1,instances
    !if (biotic(n)%id_pres  .ne.-1) call fabm_link_data   (biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth (isc:iec,jsc:jec,:))
    if (biotic(n)%id_par   .ne.-1) call fabm_link_data   (biotic(n)%model,biotic(n)%id_par ,  t_diag(index_irr)%field(isc:iec,jsc:jec,:))
    if (biotic(n)%id_par_sf.ne.-1) call fabm_link_data_hz(biotic(n)%model,biotic(n)%id_par_sf,t_diag(index_irr)%field(isc:iec,jsc:jec,1))
-   !if (biotic(n)%id_wind  .ne.-1) call fabm_link_data_hz(biotic(n)%model,biotic(n)%id_wind,  wind                   (isc:iec,jsc:jec))
 end do
 
 return
 
 end subroutine  ocean_fabm_start  !}
 ! </SUBROUTINE> NAME="ocean_fabm_start"
+
+subroutine get_external_fields(isc, iec, jsc, jec, nk, model_time)
+
+integer,intent(in)                                      :: isc, iec, jsc, jec, nk
+type(time_type), intent(in)                             :: model_time
+real, allocatable                                       :: dummy(:,:,:),dummy_hz(:,:)
+logical                                                 :: used
+integer                                                 :: extcount,n,i
+
+do n = 1, instances  !{
+   if (.not. _ALLOCATED(biotic(n)%ext_3d_variables)) then
+      ! This is the first time that this subroutine is called. Therefore, probe for
+      ! each FABM variable whether external fields have been provided. If so, register
+      ! the field name and increment the number of external fields. The total count
+      ! is then used to allocate arrays for the external data, which are then coupled to
+      ! FABM.
+      !
+      ! It would have been nice to do this during initialization (_init or _start),
+      ! instead of on demand, but during initialization the data override module has not
+      ! been told the ocean domain yet. Thus, data_override cannot be called.
+   
+      ! Process 3D variables.
+      extcount = 0
+      allocate(biotic(n)%ext_3d_variables(1:ubound(biotic(n)%model%info%dependencies,1)))
+      biotic(n)%ext_3d_variables = ''
+      allocate(dummy(isc:iec,jsc:jec,1:nk))  ! 3D dummy array used to receive external values, needed as long as the real target array is not allocated yet
+      do i=1,size(biotic(n)%model%info%dependencies)
+         call data_override ('OCN', trim(biotic(n)%model%info%dependencies(i)), dummy, model_time, override=used )
+         if (used) then
+            extcount = extcount + 1
+            biotic(n)%ext_3d_variables(extcount) = trim(biotic(n)%model%info%dependencies(i))
+         end if
+      end do
+      deallocate(dummy)
+      allocate(biotic(n)%ext_3d_data(isc:iec,jsc:jec,1:nk,1:extcount))
+      do i=1,size(biotic(n)%ext_3d_variables)
+         if (biotic(n)%ext_3d_variables(i).eq.'') exit
+         call fabm_link_data(biotic(n)%model,biotic(n)%ext_3d_variables(i),biotic(n)%ext_3d_data(isc:iec,jsc:jec,1:nk,i))
+      end do
+
+      ! Process 2D variables.
+      extcount = 0
+      allocate(biotic(n)%ext_2d_variables(1:ubound(biotic(n)%model%info%dependencies_hz,1)))
+      biotic(n)%ext_2d_variables = ''
+      allocate(dummy_hz(isc:iec,jsc:jec))  ! 2D dummy array used to receive external values, needed as long as the real target array is not allocated yet
+      do i=1,size(biotic(n)%model%info%dependencies_hz)
+         call data_override ('OCN', trim(biotic(n)%model%info%dependencies_hz(i)), dummy_hz, model_time, override=used )
+         if (used) then
+            extcount = extcount + 1
+            biotic(n)%ext_2d_variables(extcount) = trim(biotic(n)%model%info%dependencies_hz(i))
+         end if
+      end do
+      deallocate(dummy_hz)
+      allocate(biotic(n)%ext_2d_data(isc:iec,jsc:jec,1:extcount))
+      do i=1,size(biotic(n)%ext_2d_variables)
+         if (biotic(n)%ext_2d_variables(i).eq.'') exit
+         call fabm_link_data_hz(biotic(n)%model,biotic(n)%ext_2d_variables(i),biotic(n)%ext_2d_data(isc:iec,jsc:jec,i))
+      end do
+   end if
+   
+   ! Update values of external variables.
+   do i=1,ubound(biotic(n)%ext_3d_data,4)
+      call data_override('OCN',biotic(n)%ext_3d_variables(i), biotic(n)%ext_3d_data(:,:,:,i), model_time)
+   end do
+   do i=1,ubound(biotic(n)%ext_2d_data,3)
+      call data_override('OCN',biotic(n)%ext_2d_variables(i), biotic(n)%ext_2d_data(:,:,i), model_time)
+   end do
+end do
+
+end subroutine get_external_fields
 
 !#######################################################################
 ! <SUBROUTINE NAME="ocean_fabm_source">
@@ -909,7 +885,6 @@ integer :: j
 integer :: k
 integer :: n
 integer :: ivar
-integer :: it
 logical :: used,valid
 
 !
@@ -923,14 +898,10 @@ call mpp_clock_begin(id_clock_fabm_source)
 ! Set a reasonable chlorophyll concentration
 T_diag(index_chl)%field(isc:iec,jsc:jec,:) = 0.08
 
+! Update values of external variables.
+call get_external_fields(isc, iec, jsc, jec, nk, model_time)
+
 do n = 1, instances  !{
-   ! Update values of external variables.
-   do ivar=1,ubound(biotic(n)%ext_2d_ids,1)
-      call time_interp_external(biotic(n)%ext_2d_ids(ivar), model_time, biotic(n)%ext_2d_data(:,:,ivar))
-   end do
-   do ivar=1,ubound(biotic(n)%ext_3d_ids,1)
-      call time_interp_external(biotic(n)%ext_3d_ids(ivar), model_time, biotic(n)%ext_3d_data(:,:,:,ivar))
-   end do
 
   ! Set pointers to environmental variables.
   if (biotic(n)%id_temp.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
@@ -1559,7 +1530,6 @@ character(len=256), parameter   :: note_header =                                
 !
 
 integer         :: n
-integer         :: ivar
 
 do n = 1, instances  !{
 
@@ -1655,14 +1625,9 @@ real            :: epsln=1.0e-30
 
 call mpp_clock_begin(id_clock_fabm_sbc)
 
+call get_external_fields(isc, iec, jsc, jec, nk, model_time)
+
 do n = 1, instances  !{
-   ! Update values of external variables.
-   do ivar=1,ubound(biotic(n)%ext_2d_ids,1)
-      call time_interp_external(biotic(n)%ext_2d_ids(ivar), model_time, biotic(n)%ext_2d_data(:,:,ivar))
-   end do
-   do ivar=1,ubound(biotic(n)%ext_3d_ids,1)
-      call time_interp_external(biotic(n)%ext_3d_ids(ivar), model_time, biotic(n)%ext_3d_data(:,:,:,ivar))
-   end do
 
   ! Set pointers to environmental variables.
   if (biotic(n)%id_temp.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
@@ -1688,7 +1653,7 @@ do n = 1, instances  !{
     enddo  !} i
 #endif
     do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
-      biotic(n)%sf_fluxes(isc:iec,j,ivar) = biotic(n)%sf_fluxes(isc:iec,j,ivar) + biotic(n)%work_dy(isc:iec,ivar)
+      biotic(n)%sf_fluxes(isc:iec,j,ivar) = biotic(n)%sf_fluxes(isc:iec,j,ivar) + biotic(n)%work_dy(isc:iec,ivar)*rho(isc:iec,j,1,taum1)
     end do
    enddo  !} j
 
