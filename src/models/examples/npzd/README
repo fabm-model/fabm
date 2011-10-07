@@ -1,0 +1,4 @@
+This example is a proof of concept carried out at AED/UWA.
+
+The original gotm/npzd model has been split into 4 components and FABM
+is responsible for the coupling.
