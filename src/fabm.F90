@@ -1306,7 +1306,7 @@
       model => model%nextmodel
    end do
 
-   ! Finally check whether all state variabel values lie within their prescribed [constant] bounds.
+   ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
    ! This is always done, independently of any model-specific checks that may have been called above.
    
    ! Enter spatial loops (if any)
