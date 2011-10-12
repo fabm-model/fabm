@@ -1,4 +1,3 @@
-!$Id: fabm_driver.F90 91 2010-12-10 11:59:58Z jornbr $
 #include "fabm_driver.h"
 
 module fabm_driver
