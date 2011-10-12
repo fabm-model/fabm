@@ -83,10 +83,8 @@
 ! !LOCAL VARIABLES:
    character(len=PATH_MAX)   :: env_file,output_file
    integer                   :: i
-   character(len=64)         :: models(256)
-   type (type_model),pointer :: childmodel
 
-   namelist /model_setup/ title,models,start,stop,dt,ode_method
+   namelist /model_setup/ title,start,stop,dt,ode_method
    namelist /environment/ env_file,swr_method, &
                           latitude,longitude,cloud,par_fraction, &
                           depth,par_background_extinction,apply_self_shading
@@ -103,7 +101,7 @@
    open(namlst,file='run.nml',status='old',action='read',err=90)
 
    ! Read all namelists
-   models = ''
+   depth = -1.
    read(namlst,nml=model_setup,err=91)
    read(namlst,nml=environment,err=92)
    read(namlst,nml=output     ,err=93)
@@ -121,8 +119,20 @@
 
    ! Write information for this run to the console.
    LEVEL2 trim(title)
-   LEVEL2 'The simulated location is situated at (lat,long) ',      &
-           latitude,longitude
+   select case (swr_method)
+      case (0)
+         LEVEL2 'Surface photosynthetically active radiation will be calculated from time,'
+         LEVEL2 'cloud cover, and the simulated location at (lat,long)'
+         LEVEL2 latitude,longitude
+         LEVEL2 'Local PAR will be calculated from the surface value,'
+         LEVEL2 'depth, and light extinction coefficient.'
+      case (1)
+         LEVEL2 'Surface photosynthetically active radiation (PAR) is provided as input.'
+         LEVEL2 'Local PAR will be calculated from the surface value,'
+         LEVEL2 'depth, and light extinction coefficient.'
+      case (2)
+         LEVEL2 'Local photosynthetically active radiation is provided as input.'
+   end select
 
    LEVEL2 'initializing modules....'
 
@@ -136,16 +146,7 @@
    LEVEL3 trim(env_file)
    
    ! Build FABM model tree.
-   model => fabm_create_model()
-   do i=1,ubound(models,1)
-      if (models(i).ne.'') &
-         childmodel => fabm_create_model(trim(models(i)),parent=model)
-   end do
-
-   ! Initialize FABM model
-   open(namlst,file='fabm.nml',status='old',action='read',err=97)
-   call fabm_init(model,namlst)
-   close (namlst)
+   model => fabm_create_model_from_file(namlst)
    
    ! Allocate space for totals of conserved quantities.
    allocate(totals(1:ubound(model%info%conserved_quantities,1)))
@@ -164,7 +165,7 @@
       call fabm_link_diagnostic_data(model,i,diag(i))
    end do
 
-   ! Create diagnostic variable vector for data on horitontal slices, and link it to FABM.
+   ! Create diagnostic variable vector for data on horizontal slices, and link it to FABM.
    allocate(diag_hz(ubound(model%info%diagnostic_variables_hz,1)))
    do i=1,ubound(model%info%diagnostic_variables_hz,1)
       call fabm_link_diagnostic_data_hz(model,i,diag_hz(i))
@@ -195,6 +196,9 @@
    end if
    do i=1,ubound(model%info%state_variables,1)
       write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables(i)%longname),trim(model%info%state_variables(i)%units)
+   end do
+   do i=1,ubound(model%info%diagnostic_variables,1)
+      write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables(i)%longname),trim(model%info%diagnostic_variables(i)%units)
    end do
    if (add_conserved_quantities) then
       do i=1,ubound(model%info%conserved_quantities,1)
@@ -254,6 +258,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   pp(:,:,1) = _ZERO_
+   dd(:,:,1) = _ZERO_
    call fabm_do(model,pp(:,:,1),dd(:,:,1))
    
    end subroutine get_ppdd
@@ -285,6 +291,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   rhs(:,1) = _ZERO_
    call fabm_do(model,rhs(:,1))
    
    end subroutine get_rhs
@@ -355,17 +362,20 @@
          call write_time_string(julianday,secondsofday,timestr)
          write (out_unit,FMT='(A)',ADVANCE='NO') timestr
          if (add_environment) then
-            write (out_unit,FMT='(A,E14.8E2)',ADVANCE='NO') separator,par
-            write (out_unit,FMT='(A,E14.8E2)',ADVANCE='NO') separator,temp
-            write (out_unit,FMT='(A,E14.8E2)',ADVANCE='NO') separator,salt
+            write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,par
+            write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,temp
+            write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,salt
          end if
          do i=1,ubound(model%info%state_variables,1)
-            write (out_unit,FMT='(A,E14.8E2)',ADVANCE='NO') separator,cc(i,1)
+            write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,cc(i,1)
+         end do
+         do i=1,ubound(model%info%diagnostic_variables,1)
+            write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,diag(i)
          end do
          if (add_conserved_quantities) then
             call fabm_get_conserved_quantities(model,totals)
             do i=1,ubound(model%info%conserved_quantities,1)
-               write (out_unit,FMT='(A,E14.8E2)',ADVANCE='NO') separator,totals(i)
+               write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,totals(i)
             end do
          end if
          write (out_unit,*)
