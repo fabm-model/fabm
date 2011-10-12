@@ -12,6 +12,9 @@ FABMBASE = ${LIB}(fabm_types.o)
 all: makedirs $(FABMMOD)
         $(MOVE_MODULES_COMMAND)
 
+0d getm gotm mom4p0d mom4p1:
+	( export FABMHOST=$@ ; $(MAKE) )
+
 makedirs:
 	mkdir -p $(MODDIR) $(LIBDIR)
 

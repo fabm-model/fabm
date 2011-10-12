@@ -31,6 +31,10 @@
    use fabm_pml_ersem
    use fabm_pml_carbonate
    use fabm_examples_benthic_predator
+   use fabm_examples_npzd_det
+   use fabm_examples_npzd_nut
+   use fabm_examples_npzd_phy
+   use fabm_examples_npzd_zoo
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
    
    implicit none
@@ -77,6 +81,10 @@
       type (type_pml_ersem)                 :: pml_ersem
       type (type_pml_carbonate)             :: pml_carbonate
       type (type_examples_benthic_predator) :: examples_benthic_predator
+      type (type_examples_npzd_det)         :: examples_npzd_det
+      type (type_examples_npzd_nut)         :: examples_npzd_nut
+      type (type_examples_npzd_phy)         :: examples_npzd_phy
+      type (type_examples_npzd_zoo)         :: examples_npzd_zoo
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
       
       ! Pointer to the current spatially explicit environment.
@@ -129,6 +137,10 @@
    integer, parameter :: pml_carbonate_id             =  101
    integer, parameter :: metu_mnemiopsis_id           =  102
    integer, parameter :: examples_benthic_predator_id =  103
+   integer, parameter :: examples_npzd_det_id         =  104
+   integer, parameter :: examples_npzd_nut_id         =  105
+   integer, parameter :: examples_npzd_phy_id         =  106
+   integer, parameter :: examples_npzd_zoo_id         =  107
    ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
    ! Note: values <=100 are reserved for models ported from the General Ocean Turbulence Model.
    
@@ -172,6 +184,10 @@
    call register_model(pml_ersem_id,                'pml_ersem')
    call register_model(pml_carbonate_id,            'pml_carbonate')
    call register_model(examples_benthic_predator_id,'examples_benthic_predator')
+   call register_model(examples_npzd_det_id,        'examples_npzd_det')
+   call register_model(examples_npzd_nut_id,        'examples_npzd_nut')
+   call register_model(examples_npzd_phy_id,        'examples_npzd_phy')
+   call register_model(examples_npzd_zoo_id,        'examples_npzd_zoo')
    ! ADD_NEW_MODEL_HERE - required
    
    end subroutine register_models
@@ -733,6 +749,14 @@
          call pml_carbonate_init(model%pml_carbonate,model%info,nmlunit)
       case (examples_benthic_predator_id)
          call examples_benthic_predator_init(model%examples_benthic_predator,model%info,nmlunit)
+      case (examples_npzd_det_id)
+         call examples_npzd_det_init(model%examples_npzd_det,model%info,nmlunit)
+      case (examples_npzd_nut_id)
+         call examples_npzd_nut_init(model%examples_npzd_nut,model%info,nmlunit)
+      case (examples_npzd_phy_id)
+         call examples_npzd_phy_init(model%examples_npzd_phy,model%info,nmlunit)
+      case (examples_npzd_zoo_id)
+         call examples_npzd_zoo_init(model%examples_npzd_zoo,model%info,nmlunit)
       ! ADD_NEW_MODEL_HERE - required
       
       case (model_container_id)
@@ -1186,6 +1210,14 @@
          case (pml_carbonate_id)
             call pml_carbonate_do(model%pml_carbonate,_INPUT_ARGS_DO_RHS_)
          case (examples_benthic_predator_id)
+         case (examples_npzd_det_id)
+            call examples_npzd_det_do(model%examples_npzd_det,_INPUT_ARGS_DO_RHS_)
+         case (examples_npzd_nut_id)
+            call examples_npzd_nut_do(model%examples_npzd_nut,_INPUT_ARGS_DO_RHS_)
+         case (examples_npzd_phy_id)
+            call examples_npzd_phy_do(model%examples_npzd_phy,_INPUT_ARGS_DO_RHS_)
+         case (examples_npzd_zoo_id)
+            call examples_npzd_zoo_do(model%examples_npzd_zoo,_INPUT_ARGS_DO_RHS_)
          ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
          ! matrices instead of a temporal derivative vector. In that case, add the model to
          ! fabm_do_ppdd.

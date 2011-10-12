@@ -1,0 +1,28 @@
+The namelist file - fabm.nml - specifying a FABM is driver independent. This
+means that any of the example fabm.nml provided here can be used by any driver
+model.
+
+The different namelist files demonstrates different ways of configuring FABM
+at run-time. The first namelist in each file lists the individual models
+in the given FABM configuration.
+
+The different example files have been tested using the GOTM driver model. If
+you experience any problems with another driver model - please report it
+at fabm-users@googlegroups.com.
+
+Howto use:
+
+1) Provide the necessary information for your driver model to integrate with
+FABM.
+	a) For GOTM - copy the file .../GOTM/gotm_fabm.nml to your GOTM set-up
+	directory.
+
+	b) Information for driver ...
+
+
+2) Copy (or link) one of the example fabm-*.nml files to the directory where 
+you have your model setup. Name the file fabm.nml.
+
+
+3) Run your model
+

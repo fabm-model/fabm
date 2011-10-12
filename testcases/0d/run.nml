@@ -1,0 +1,33 @@
+&model_setup
+title=test
+models='gotm_npzd'
+start="2002-01-01 00:00:00"
+stop="2002-02-01 00:00:00"
+dt=60
+ode_method=9
+/
+
+!-------------------------------------------------------------------
+! swr_method: 0 - calculate from cloud,time,lon,lat
+!             1 - read from file, but calculate PAR incl. extinction
+!             2 - read from file, assume values to be PAR
+! ------------------------------------------------------------------
+
+&environment
+env_file='env.dat'
+swr_method=1
+latitude=54.0
+longitude=9.0
+cloud=0.0
+par_fraction=1.0
+depth=10.
+par_background_extinction=-0.05
+apply_self_shading=.false.
+/
+
+&output
+output_file='output.dat'
+nsave=1
+add_environment=.true.
+add_conserved_quantities=.false.
+/

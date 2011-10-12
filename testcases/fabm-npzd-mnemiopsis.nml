@@ -1,0 +1,99 @@
+!-------------------------------------------------------------------------------
+! fabm_nml
+!-------------------------------------------------------------------------------
+! models             [string array]
+!                     a comma-separated list of one or model model names
+!-------------------------------------------------------------------------------
+
+&fabm_nml
+   models = 'gotm_npzd','metu_mnemiopsis'
+/
+
+!-------------------------------------------------------------------------------
+! gotm_npzd - GOTM nutrient-phytoplankton-zooplankton-detritus model
+!-------------------------------------------------------------------------------
+! n_initial [float, unit = mmol/m^3]
+!             initial nutrient concentration
+! p_initial [float, unit = mmol/m^3]
+!             initial phytoplankton concentration
+! z_initial [float, unit = mmol/m^3]
+!             initial zooplankton concentration
+! d_initial [float, unit = mmol/m^3]
+!             initial detritus concentration
+! p0        [float, unit = mmol/m^3]
+!             minimum phytoplankton concentration
+! z0        [float, unit = mmol/m^3]
+!             minimum zooplankton concentration
+! w_p       [float, unit = m/d]
+!             settling velocity of phytoplankton
+! w_d       [float, unit = m/d]
+!             settling velocity of detritus
+! kc        [float, unit = m^2/mmol N]
+!             attenuation constant for the self shading effect
+! I_min     [float, unit = W/m^2]
+!             minimum photosynthetically active radiation (PAR)
+! rmax      [float, unit = 1/d]
+!             maximum nutrient uptake rate
+! gmax      [float, unit = 1/d]
+!             maximum grazing rate
+! Iv        [float]
+!             Ivlev constant
+! alpha     [float, unit = mmol N/m^3]
+!             half saturation
+! rpn       [float, unit = 1/d]
+!             p --> n rate (p metabolism)
+! rzn       [float, unit = 1/d]
+!             z --> n rate (z metabolism)
+! rdn       [float, unit = 1/d]
+!             d --> n rate (remineralisation)
+! rpdu      [float, unit = 1/d]
+!             p --> d rate (p mortality), in euphotic zone
+! rpdl      [float, unit = 1/d]
+!             p --> d rate (p mortality), below euphotic zone
+! rzd       [float, unit = 1/d]
+!             z --> d rate (z mortality)
+!-------------------------------------------------------------------------------
+
+&gotm_npzd
+   n_initial = 6.,
+   p_initial = 1e-15,
+   z_initial = 1e-15,
+   d_initial = 1e-15,
+   p0 = 0.0225,
+   z0 = 0.0225,
+   w_p = -1.0,	!-1
+   w_d = -5.0,	!-5
+   kc = 0.03,
+   I_min = 25.0,
+   rmax = 1.0,
+   gmax = 0.2,
+   Iv = 1.1,
+   alpha = 1.35,
+   rpn = 0.01,
+   rzn = 0.01,
+   rdn = 0.3,!0.003,
+   rpdu = 0.02,
+   rpdl = 0.1,
+   rzd = 0.02,
+/
+
+!-------------------------------------------------------------------------------
+! metu_mnemiopsis - IMS-METU Mnemiopsis model
+!-------------------------------------------------------------------------------
+
+&metu_mnemiopsis
+	food_source_variable = 'gotm_npzd_zoo',
+	foodmic_source_variable = 'gotm_npzd_zoo',
+	respiration_target_variable = 'gotm_npzd_nut',
+	mortality_target_variable = 'gotm_npzd_det',
+	egb_initial = 0.1
+	jb_initial =  1.,
+	ja_initial =  0.3333,
+	tb_initial =  1.,
+	ta_initial =  0.5,
+	adb_initial = 1.,
+	ada_initial = .1667,
+	food_scale = 79.5
+/
+
+

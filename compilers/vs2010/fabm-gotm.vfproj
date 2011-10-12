@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioProject ProjectType="typeStaticLibrary" ProjectCreator="Intel Fortran" Keyword="Static Library" Version="11.0" ProjectIdGuid="{7D63F885-F1D8-469C-A076-488A23EB592B}">
+	<Platforms>
+		<Platform Name="Win32"/></Platforms>
+	<Configurations>
+		<Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" PreprocessorDefinitions="_ISO_TR_15581_;" Interfaces="true" F2003Semantics="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|Win32" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" UseProcessorExtensions="codeExclusivelyHost" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" PreprocessorDefinitions="_ISO_TR_15581_;" VectorizerDiagLevel="vectorizerDiagLevel3" WarnUnusedVariables="true"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
+	<Files>
+		<Filter Name="Header Files" Filter="fi;fd">
+		<File RelativePath="..\..\include\fabm.h"/>
+		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.h"/></Filter>
+		<Filter Name="Make Files">
+		<Filter Name="models">
+		<Filter Name="examples">
+		<Filter Name="benthic_predator">
+		<File RelativePath="..\..\src\models\examples\benthic_predator\Makefile"/></Filter>
+		<File RelativePath="..\..\src\models\examples\Makefile"/></Filter>
+		<Filter Name="gotm">
+		<Filter Name="fasham">
+		<File RelativePath="..\..\src\models\gotm\fasham\Makefile"/></Filter>
+		<Filter Name="npzd">
+		<File RelativePath="..\..\src\models\npzd\Makefile"/></Filter>
+		<File RelativePath="..\..\src\models\gotm\Makefile"/></Filter>
+		<Filter Name="metu">
+		<Filter Name="mnemiopsis">
+		<File RelativePath="..\..\src\models\mnemiopsis\Makefile"/></Filter>
+		<File RelativePath="..\..\src\models\metu\Makefile"/></Filter>
+		<Filter Name="pml">
+		<Filter Name="carbonate">
+		<File RelativePath="..\..\src\models\pml\carbonate\Makefile"/></Filter>
+		<Filter Name="ersem">
+		<File RelativePath="..\..\src\models\pmlersem\Makefile"/></Filter>
+		<File RelativePath="..\..\src\models\pml\Makefile"/></Filter>
+		<File RelativePath="..\..\src\models\Makefile"/></Filter>
+		<File RelativePath="..\..\src\Makefile"/>
+		<File RelativePath="..\..\src\Rules.make"/></Filter>
+		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<Filter Name="driver">
+		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.F90"/></Filter>
+		<Filter Name="models">
+		<Filter Name="examples">
+		<Filter Name="benthic_predator">
+		<File RelativePath="..\..\src\models\examples\benthic_predator\benthic_predator.F90"/></Filter></Filter>
+		<Filter Name="gotm">
+		<Filter Name="fasham">
+		<File RelativePath="..\..\src\models\gotm\fasham\fasham.F90"/></Filter>
+		<Filter Name="npzd">
+		<File RelativePath="..\..\src\models\gotm\npzd\npzd.F90"/></Filter></Filter>
+		<Filter Name="metu">
+		<Filter Name="mnemiopsis">
+		<File RelativePath="..\..\src\models\metu\mnemiopsis\mnemiopsis.F90"/></Filter></Filter>
+		<Filter Name="pml">
+		<Filter Name="carbonate">
+		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>
+		<File RelativePath="..\..\src\models\pml\carbonate\co2_dyn.F90"/></Filter>
+		<Filter Name="ersem">
+		<File RelativePath="..\..\src\models\pml\ersem\ersem.F90"/></Filter></Filter></Filter>
+		<File RelativePath="..\..\src\fabm.F90"/>
+		<File RelativePath="..\..\src\fabm_types.F90"/></Filter></Files>
+	<Globals/></VisualStudioProject>
