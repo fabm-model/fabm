@@ -25,6 +25,8 @@
 #include <fms_platform.h>
 #include "fabm_driver.h"
 
+#define INPLACE_REPAIR
+
 !
 ! 
 !<CONTACT EMAIL="jorn@bolding-burchard.com"> Jorn Bruggeman
@@ -192,6 +194,9 @@ type biotic_type  !{
   double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_diag _NULL
   double precision,_ALLOCATABLE,dimension(:,:,:)   :: work_diag_hz _NULL,w _NULL,sf_fluxes _NULL
   double precision,_ALLOCATABLE,dimension(:,:)     :: adv _NULL,work_dy _NULL
+#ifndef INPLACE_REPAIR
+  double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_state _NULL
+#endif
 
   ! Arrays to hold information on externally provided fields
   character*128,_ALLOCATABLE, dimension(:) :: ext_2d_variables _NULL,ext_3d_variables _NULL
@@ -714,6 +719,9 @@ do n=1,instances
    allocate(biotic(n)%work_diag_hz(isc:iec,jsc:jec,     ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
    allocate(biotic(n)%w           (isc:iec,        nk+1,ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%adv         (                nk+1,ubound(biotic(n)%model%info%state_variables,1)))
+#ifndef INPLACE_REPAIR
+   allocate(biotic(n)%work_state  (isc:iec,jsc:jec,nk,  ubound(biotic(n)%model%info%state_variables,1)))
+#endif
 
    ! Set diagnostic variables to zero, because values for land points will not be set.
    biotic(n)%work_diag    = 0.d0
@@ -910,8 +918,15 @@ do n = 1, instances  !{
 
   ! Link to current biogeochemical state variable values, as maintained by MOM4.
   do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+#ifdef INPLACE_REPAIR
      call fabm_link_state_data(biotic(n)%model,ivar,t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1))
+#else
+     biotic(n)%work_state(isc:iec,jsc:jec,:,ivar) = t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1)
+     call fabm_link_state_data(biotic(n)%model,ivar,biotic(n)%work_state(isc:iec,jsc:jec,:,ivar))
+#endif
   end do
+
+  call fabm_check_ready(biotic(n)%model)
 
   ! Repair bio state at the start of the time step
   do k = 1, nk  !{
@@ -934,8 +949,6 @@ end do
 !
 do n = 1, instances  !{
 
-  call fabm_check_ready(biotic(n)%model)
-
   do k = 1, nk  !{
     do j = jsc, jec  !{
     
@@ -944,17 +957,20 @@ do n = 1, instances  !{
 
 #ifdef _FABM_USE_1D_LOOP_
       call fabm_do(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,biotic(n)%work_dy(isc:iec,:))
-#else
-      do i = isc, iec  !{
-        ! Call bio model for current grid point, provided that it is wet
-        if (grid_tmask(i,j,k).eq.1.) &
-           call fabm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:))
-      end do  !} i
-#endif
-
       if (any(isnan(biotic(n)%work_dy(isc:iec,:)))) then
          call mpp_error(FATAL,trim(error_header) // ' NaN in FABM sink/source terms.')
       end if
+#else
+      do i = isc, iec  !{
+        ! Call bio model for current grid point, provided that it is wet
+        if (grid_tmask(i,j,k).eq.1.) then
+           call fabm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:))
+           if (any(isnan(biotic(n)%work_dy(i,:)))) then
+              call mpp_error(FATAL,trim(error_header) // ' NaN in FABM sink/source terms.')
+           end if
+        end if
+      end do  !} i
+#endif
 
       ! Update tendencies with current sink and source terms.
       do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
