@@ -1,6 +1,5 @@
 &model_setup
 title=test
-models='gotm_npzd'
 start="2002-01-01 00:00:00"
 stop="2002-02-01 00:00:00"
 dt=60
