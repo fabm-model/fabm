@@ -23,6 +23,7 @@
 ! !USES:
    use fabm_types
    use fabm_driver
+   use fabm_library
 !   
 !  Reference modules of specific biogeochemical models
    use fabm_gotm_npzd
@@ -59,7 +60,7 @@
    type type_model
       ! Model identifier and metadata.
       integer                :: id
-      type (type_model_info) :: info
+      _CLASS_ (type_model_info),pointer :: info
       
       ! Pointers for linking to parent and child models
       ! (models can be linked to form a tree structure)
@@ -131,6 +132,9 @@
 
 !  Identifiers for specific biogeochemical models.
    integer, parameter :: model_container_id           = -1
+#ifdef _FABM_F2003_
+   integer, parameter :: model_f2003_id               =  0
+#endif
    integer, parameter :: gotm_npzd_id                 =  1
    integer, parameter :: gotm_fasham_id               =  4
    integer, parameter :: pml_ersem_id                 =  99
@@ -330,9 +334,6 @@
          return
       end if
    end do
-
-   ! Model name was not found - throw an error.
-   call fatal_error('fabm::get_model_id','"'//trim(name)//'" is not a valid model name registered in fabm::register_models.')
    
    end function get_model_id
 !EOC
@@ -345,24 +346,48 @@
 ! identifier is omitted.
 !
 ! !INTERFACE:
-   function fabm_create_model_by_id(modelid,parent) result(model)
+   function fabm_create_model_by_id(modelid,parent,info) result(model)
 !
 ! !INPUT PARAMETERS:
    integer,                 optional,intent(in)    :: modelid
    type (type_model),target,optional,intent(inout) :: parent
+   _CLASS_ (type_model_info),pointer,optional         :: info
    type (type_model),pointer                       :: model
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
    type (type_model),pointer                       :: curmodel
+   integer                                         :: modelid_eff
+   _CLASS_ (type_model_info),pointer               :: info_eff
 !-----------------------------------------------------------------------
 !BOC
+   ! Determine effective model identifier.
+   if (present(modelid)) then
+      modelid_eff = modelid
+   else
+      modelid_eff = model_container_id
+   end if
+   
+   ! Determine effective model info (null if not present).
+   if (present(info)) then
+      info_eff => info
+   else
+      nullify(info_eff)
+   end if
+
    ! Allocate storage space for the model.
    allocate(model)
 
-   ! Initialize model info.
-   call init_model_info(model%info)
+   if (associated(info_eff)) then
+      ! Use user-supplied model info.
+      model%info => info_eff
+   else
+      ! Allocate and initialize model info.
+      allocate(model%info)
+      call init_model_info(model%info)
+      model%info%name = get_model_name(modelid_eff)
+   end if
 
    ! Make sure the pointers to parent and sibling models are dissociated.
    nullify(model%parent)
@@ -374,14 +399,7 @@
    nullify(model%environment)
 
    ! Set the model identifier.
-   if (present(modelid)) then
-      model%id = modelid
-   else
-      model%id = model_container_id
-   end if
-
-   ! Set the model name.
-   model%info%name = get_model_name(model%id)
+   model%id = modelid_eff
 
    ! Connect to parent container if provided.
    if (present(parent)) then
@@ -458,13 +476,35 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
+   integer :: modelid
+   _CLASS_ (type_model_info),pointer :: modelinfo
 !-----------------------------------------------------------------------
 !BOC
+   nullify(modelinfo)
+
+   ! Resolve model name.
+   modelid = get_model_id(modelname)
+
+#ifdef _FABM_F2003_
+   ! Try to get model from Fortran 2003 model library
+   if (modelid.eq.id_not_used) then
+      modelinfo => fabm_library_create_model(modelname)
+      if (associated(modelinfo)) then
+         modelinfo%name = modelname
+         modelid = model_f2003_id
+      end if
+   end if
+#endif
+
+   ! If we have not found the model now, throw an error.
+   if (modelid.eq.id_not_used) &
+      call fatal_error('fabm_create_model_by_name','"'//trim(modelname)//'" is not a valid model name registered in fabm::register_models.')
+
    ! Obtain the integer model identifier, and redirect to the function operating on that.
    if (present(parent)) then
-      model => fabm_create_model_by_id(get_model_id(modelname),parent=parent)
+      model => fabm_create_model_by_id(modelid,parent=parent,info=modelinfo)
    else
-      model => fabm_create_model_by_id(get_model_id(modelname))
+      model => fabm_create_model_by_id(modelid,info=modelinfo)
    end if
    
    end function fabm_create_model_by_name
@@ -629,6 +669,10 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%set_domain(_LOCATION_)
+#endif
          case (pml_ersem_id)
             call pml_ersem_set_domain(model%pml_ersem,_DOMAIN_SIZE_1D_)
          ! ADD_NEW_MODEL_HERE - optional, only needed if the model needs to be informed about the spatial domain.
@@ -737,6 +781,10 @@
    
    ! Allow the selected model to initialize
    select case (model%id)
+#ifdef _FABM_F2003_
+      case (model_f2003_id)
+         call model%info%initialize(nmlunit)
+#endif
       case (gotm_npzd_id)
          call gotm_npzd_init(model%gotm_npzd,model%info,nmlunit)
       case (gotm_fasham_id)
@@ -1199,6 +1247,10 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%do(_INPUT_ARGS_DO_RHS_)
+#endif
          case (gotm_npzd_id)
             call gotm_npzd_do(model%gotm_npzd,_INPUT_ARGS_DO_RHS_)
          case (gotm_fasham_id)
@@ -1266,6 +1318,10 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%do_ppdd(_INPUT_ARGS_DO_PPDD_)
+#endif
          case (gotm_npzd_id)
             call gotm_npzd_do_ppdd(model%gotm_npzd,_INPUT_ARGS_DO_PPDD_)
          case (gotm_fasham_id)
@@ -1321,6 +1377,10 @@
    model => root%nextmodel
    do while (associated(model) .and. valid)
       select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%check_state(_INPUT_ARGS_CHECK_STATE_)
+#endif
          ! ADD_NEW_MODEL_HERE - optional, only if the validity of state variable values cannot
          ! be checked simply by ascertaining whether its values lie within prescribed [constant] bounds.
          !
@@ -1406,6 +1466,10 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%get_surface_exchange(_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
+#endif
          case (pml_carbonate_id)
             call pml_carbonate_get_surface_exchange(model%pml_carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies fluxes of one or
@@ -1451,6 +1515,10 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%do_benthos(_INPUT_ARGS_DO_BENTHOS_RHS_)
+#endif
          case (examples_benthic_predator_id)
             call examples_benthic_predator_do_benthos(model%examples_benthic_predator,_INPUT_ARGS_DO_BENTHOS_RHS_)
 
@@ -1498,6 +1566,10 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%do_benthos_ppdd(_INPUT_ARGS_DO_BENTHOS_PPDD_)
+#endif
          ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
          ! or specifies bottom fluxes for its pelagic state variables.
          !
@@ -1558,6 +1630,10 @@
       ! Now allow models to overwrite with spatially-varying sinking rates - if any.
 
       select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%get_vertical_movement(_INPUT_ARGS_GET_VERTICAL_MOVEMENT_)
+#endif
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies time- and/or space
          ! varying vertical velocities for one or more state variables.
          !
@@ -1600,6 +1676,10 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%get_light_extinction(_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
+#endif
          case (gotm_npzd_id)
             call gotm_npzd_get_light_extinction(model%gotm_npzd,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          case (gotm_fasham_id)
@@ -1661,6 +1741,10 @@
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%get_conserved_quantities(_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
+#endif
          case (gotm_npzd_id)
             call gotm_npzd_get_conserved_quantities(model%gotm_npzd,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
          case (gotm_fasham_id)

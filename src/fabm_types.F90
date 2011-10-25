@@ -125,8 +125,32 @@
       ! Arrays with names of external dependencies.
       character(len=64),pointer,dimension(:) :: dependencies,dependencies_hz
       
+#ifdef _FABM_F2003_
+      contains
+      
+      ! Procedures that may be used to register model variables and dependencies during initialization.
+      procedure :: register_state_variable      => register_state_variable
+      procedure :: register_diagnostic_variable => register_diagnostic_variable
+      procedure :: register_dependency          => register_dependency
+      procedure :: register_state_dependency    => register_state_dependency
+      procedure :: register_conserved_quantity  => register_conserved_quantity
+      
+      ! Procedures that may be overridden by biogeochemical models to provide custom data or functionality.
+      procedure :: initialize               => base_initialize
+      procedure :: set_domain               => base_set_domain
+      procedure :: do                       => base_do
+      procedure :: do_ppdd                  => base_do_ppdd
+      procedure :: do_benthos               => base_do_benthos
+      procedure :: do_benthos_ppdd          => base_do_benthos_ppdd
+      procedure :: get_light_extinction     => base_get_light_extinction
+      procedure :: get_conserved_quantities => base_get_conserved_quantities
+      procedure :: get_surface_exchange     => base_get_surface_exchange
+      procedure :: get_vertical_movement    => base_get_vertical_movement
+      procedure :: check_state              => base_check_state
+#endif
+      
    end type type_model_info
-   
+
    ! Derived type for pointer to data defined on the full spatial domain;
    ! usable as base type of arrays.
    type type_state
@@ -160,6 +184,53 @@
 !-----------------------------------------------------------------------
 
    contains
+
+#ifdef _FABM_F2003_
+   subroutine base_initialize(self,namlst)
+      class (type_model_info),intent(inout) :: self
+      integer,                intent(in)    :: namlst
+   end subroutine base_initialize
+   subroutine base_set_domain(self _ARG_LOCATION_)
+      class (type_model_info),intent(inout) :: self
+      _DECLARE_LOCATION_ARG_
+   end subroutine base_set_domain
+   subroutine base_do(self,_FABM_ARGS_DO_RHS_)
+      class (type_model_info),intent(in) ::  self
+      _DECLARE_FABM_ARGS_DO_RHS_
+   end subroutine base_do
+   subroutine base_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+      class (type_model_info),intent(in) :: self
+      _DECLARE_FABM_ARGS_DO_PPDD_
+   end subroutine base_do_ppdd
+   subroutine base_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_FABM_ARGS_GET_EXTINCTION_
+   end subroutine base_get_light_extinction
+   subroutine base_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+   end subroutine base_get_conserved_quantities
+   subroutine base_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+      class (type_model_info),intent(in) :: self
+      _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   end subroutine base_do_benthos
+   subroutine base_do_benthos_ppdd(self,_FABM_ARGS_DO_BENTHOS_PPDD_)
+      class (type_model_info),intent(in) :: self
+      _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_
+   end subroutine base_do_benthos_ppdd
+   subroutine base_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
+   end subroutine base_get_surface_exchange
+   subroutine base_get_vertical_movement(self,_FABM_ARGS_GET_VERTICAL_MOVEMENT_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_
+   end subroutine base_get_vertical_movement
+   subroutine base_check_state(self,_FABM_ARGS_CHECK_STATE_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_FABM_ARGS_CHECK_STATE_
+   end subroutine base_check_state
+#endif
    
 !-----------------------------------------------------------------------
 !BOP
@@ -369,7 +440,7 @@
    implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
-      type (type_model_info),intent(inout)       :: modelinfo
+      _CLASS_ (type_model_info),intent(inout)       :: modelinfo
 !
 ! !INPUT PARAMETERS:
       character(len=*),      intent(in)          :: name, longname, units
@@ -492,7 +563,7 @@
    implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
-      type (type_model_info),intent(inout)       :: modelinfo
+      _CLASS_ (type_model_info),intent(inout)       :: modelinfo
 !
 ! !INPUT PARAMETERS:
       character(len=*),      intent(in)          :: name, longname, units
@@ -588,7 +659,7 @@
    implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
-      type (type_model_info),intent(inout)       :: modelinfo
+      _CLASS_ (type_model_info),intent(inout)       :: modelinfo
 !
 ! !INPUT PARAMETERS:
       character(len=*),      intent(in)          :: name, longname, units
@@ -656,7 +727,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-      type (type_model_info),target,          intent(in) :: modelinfo
+      _CLASS_ (type_model_info),target,          intent(in) :: modelinfo
       character(len=*),                       intent(in) :: name
       logical,optional,                       intent(in) :: benthic,mustexist
 !
@@ -738,7 +809,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-      type (type_model_info),target,          intent(inout) :: modelinfo
+      _CLASS_ (type_model_info),target,          intent(inout) :: modelinfo
       character(len=*),                       intent(in)    :: name
       integer,optional,                       intent(in)    :: shape
 !

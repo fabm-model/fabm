@@ -10,6 +10,7 @@ LIB     = $(LIBDIR)/libfabm$(buildtype).a
 DOCSRC  += benthic_predator/benthic_predator.F90
 SUBDIRS += benthic_predator
 SUBDIRS += npzd
+SUBDIRS += npzd_f2003
 
 all: OBJS
 	$(MOVE_MODULES_COMMAND)

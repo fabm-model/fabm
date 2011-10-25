@@ -1,3 +1,9 @@
+#ifdef _FABM_F2003_
+#define _CLASS_ class
+#else
+#define _CLASS_ type
+#endif
+
 ! Make sure that the primary preprocessor macro has been defined.
 #ifndef _FABM_DIMENSION_COUNT_
 #error Preprocessor variable _FABM_DIMENSION_COUNT_ must be defined.
@@ -231,6 +237,7 @@
 #define _FABM_ARGS_DO_RHS_ _FABM_ARGS_ND_,rhs
 #define _FABM_ARGS_DO_PPDD_ _FABM_ARGS_ND_,pp,dd
 #define _FABM_ARGS_DO_BENTHOS_RHS_ _FABM_ARGS_HZ_,flux_pel,flux_ben
+#define _FABM_ARGS_DO_BENTHOS_PPDD_ _FABM_ARGS_HZ_,pp,dd,benthos_offset
 #define _FABM_ARGS_GET_EXTINCTION_ _FABM_ARGS_ND_,extinction
 #define _FABM_ARGS_GET_VERTICAL_MOVEMENT_ _FABM_ARGS_ND_,velocity
 #define _FABM_ARGS_GET_CONSERVED_QUANTITIES_ _FABM_ARGS_ND_,sums
@@ -243,6 +250,7 @@
 #define _DECLARE_FABM_ARGS_DO_RHS_  _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: rhs
 #define _DECLARE_FABM_ARGS_DO_PPDD_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_2_,intent(inout) :: pp,dd
 #define _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux_pel,flux_ben
+#define _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd;integer :: benthos_offset
 #define _DECLARE_FABM_ARGS_GET_EXTINCTION_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_0_,intent(inout) :: extinction
 #define _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: velocity
 #define _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: sums

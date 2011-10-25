@@ -8,6 +8,7 @@ fabm_types.F90
 
 FABMMOD	= ${LIB}(fabm.o)
 FABMBASE = ${LIB}(fabm_types.o)
+FABMMODELLIB = ${LIB}(fabm_library.o)
 
 all: makedirs $(FABMMOD)
         $(MOVE_MODULES_COMMAND)
@@ -26,7 +27,7 @@ $(FABMBASE): driver
 models: driver $(FABMBASE)
 	$(MAKE) -C models
 
-$(FABMMOD): $(FABMBASE) models
+$(FABMMOD): $(FABMBASE) models $(FABMMODELLIB)
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../doc/fabm.tex 

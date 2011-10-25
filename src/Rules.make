@@ -57,7 +57,11 @@ ifdef FABM_PMLERSEM
 DEFINES += -DFABM_PMLERSEM
 endif
 
-# Normaly this should not be changed - unless you want something very specific.
+ifdef FABM_F2003
+DEFINES += -D_FABM_F2003_
+endif
+
+# Normally this should not be changed - unless you want something very specific.
 
 # The Fortran compiler is determined from the EV FORTRAN_COMPILER - options 
 # sofar NAG(linux), FUJITSU(Linux), DECF90 (OSF1 and likely Linux on alpha),
