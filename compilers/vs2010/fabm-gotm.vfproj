@@ -4,7 +4,7 @@
 		<Platform Name="Win32"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" PreprocessorDefinitions="_ISO_TR_15581_;" Interfaces="true" F2003Semantics="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm" PreprocessorDefinitions="_ISO_TR_15581_;" F2003Semantics="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -60,7 +60,14 @@
 		<Filter Name="models">
 		<Filter Name="examples">
 		<Filter Name="benthic_predator">
-		<File RelativePath="..\..\src\models\examples\benthic_predator\benthic_predator.F90"/></Filter></Filter>
+		<File RelativePath="..\..\src\models\examples\benthic_predator\benthic_predator.F90"/></Filter>
+		<Filter Name="npzd">
+		<File RelativePath="..\..\src\models\examples\npzd\det.F90"/>
+		<File RelativePath="..\..\src\models\examples\npzd\nut.F90"/>
+		<File RelativePath="..\..\src\models\examples\npzd\phy.F90"/>
+		<File RelativePath="..\..\src\models\examples\npzd\zoo.F90"/></Filter>
+		<Filter Name="npzd_f2003">
+		<File RelativePath="..\..\src\models\examples\npzd_f2003\npzd_f2003.F90"/></Filter></Filter>
 		<Filter Name="gotm">
 		<Filter Name="fasham">
 		<File RelativePath="..\..\src\models\gotm\fasham\fasham.F90"/></Filter>
@@ -76,5 +83,6 @@
 		<Filter Name="ersem">
 		<File RelativePath="..\..\src\models\pml\ersem\ersem.F90"/></Filter></Filter></Filter>
 		<File RelativePath="..\..\src\fabm.F90"/>
+		<File RelativePath="..\..\src\fabm_library.F90"/>
 		<File RelativePath="..\..\src\fabm_types.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
