@@ -1547,7 +1547,7 @@
    subroutine fabm_do_benthos_ppdd(root _ARG_LOCATION_VARS_HZ_,pp,dd,benthos_offset)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),         intent(in)    :: root
+   type (type_model),         intent(inout) :: root
    _DECLARE_LOCATION_ARG_HZ_
    integer,                   intent(in)    :: benthos_offset
 !
