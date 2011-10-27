@@ -535,7 +535,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_f2003), intent(in) :: self
+   class (type_examples_npzd_f2003), intent(in) :: self
    REALTYPE, intent(in)         :: n,p,par,iopt
 !
 ! !REVISION HISTORY:
@@ -565,7 +565,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_f2003), intent(in) :: self
+   class (type_examples_npzd_f2003), intent(in) :: self
    REALTYPE, intent(in)         :: p,z
 !
 ! !REVISION HISTORY:

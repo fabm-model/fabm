@@ -248,7 +248,7 @@
    implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
-      type (type_model_info),intent(inout) :: modelinfo
+      _CLASS_ (type_model_info),intent(inout) :: modelinfo
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -296,7 +296,7 @@
    implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
-      type (type_model_info),intent(inout) :: modelinfo
+      _CLASS_ (type_model_info),intent(inout) :: modelinfo
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
