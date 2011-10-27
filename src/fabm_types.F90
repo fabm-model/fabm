@@ -114,10 +114,10 @@
       type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables_hz,diagnostic_variables
       type (type_conserved_quantity_info), pointer,dimension(:) :: conserved_quantities
       
-      ! Pointers to linked models in the moel tree.
-      type (type_model_info),pointer :: parent
-      type (type_model_info),pointer :: firstchild
-      type (type_model_info),pointer :: nextsibling
+      ! Pointers to linked models in the model tree.
+      _CLASS_ (type_model_info),pointer :: parent
+      _CLASS_ (type_model_info),pointer :: firstchild
+      _CLASS_ (type_model_info),pointer :: nextsibling
       
       ! Model name and variable prefixes.
       character(len=64) :: name,nameprefix,longnameprefix
@@ -727,7 +727,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-      _CLASS_ (type_model_info),target,          intent(in) :: modelinfo
+      _CLASS_ (type_model_info),target,       intent(in) :: modelinfo
       character(len=*),                       intent(in) :: name
       logical,optional,                       intent(in) :: benthic,mustexist
 !
@@ -742,7 +742,7 @@
 ! !LOCAL VARIABLES:
       integer                                 :: i
       logical                                 :: benthic_eff,mustexist_eff
-      type (type_model_info),pointer          :: curinfo
+      _CLASS_ (type_model_info),pointer       :: curinfo
       type (type_state_variable_info),pointer :: variables(:)
 !
 !-----------------------------------------------------------------------
@@ -823,7 +823,7 @@
 !
 ! !LOCAL VARIABLES:
       integer                                      :: n,i,realshape
-      type (type_model_info),pointer               :: proot
+      _CLASS_ (type_model_info),pointer            :: proot
       character(len=64),pointer                    :: dependencies_new(:)
       character(len=64),pointer                    :: source(:)
       type (type_state_variable_info),     pointer :: statevarinfo(:)
