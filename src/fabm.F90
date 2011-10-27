@@ -1593,11 +1593,11 @@
    subroutine fabm_get_vertical_movement(root _ARG_LOCATION_ND_,velocity)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),           intent(in)  :: root
+   type (type_model),           intent(inout) :: root
    _DECLARE_LOCATION_ARG_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   REALTYPE _ATTR_DIMENSIONS_1_,intent(out) :: velocity
+   REALTYPE _ATTR_DIMENSIONS_1_,intent(out)  :: velocity
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
