@@ -576,10 +576,10 @@
 98 call fatal_error('fabm_create_model_from_file','Unable to open FABM configuration file '//trim(file_eff)//'.')
    return
 
-99 call fatal_error('fabm_create_model_from_file','Unable to read namelist "fabm".')
+99 call fatal_error('fabm_create_model_from_file','Unable to read namelist "fabm_nml".')
    return
 
-100 call fatal_error('fabm_create_model_from_file','Unable to find namelist "fabm".')
+100 call fatal_error('fabm_create_model_from_file','Unable to find namelist "fabm_nml".')
    return
    
    end function fabm_create_model_from_file
