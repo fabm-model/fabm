@@ -1,30 +1,22 @@
-#$Id: Makefile 103 2010-12-15 12:38:33Z jornbr $
 #
-# Makefile to build the Bio Module - libbio.a
+# Makefile to build the FABM version of the iow module
 #
 
-include ../Rules.make
+include ../../../Rules.make
 
 LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
-SUBDIRS += examples/
+DOCSRC	=  ergom.F90
 
-SUBDIRS += gotm/
+OBJS   = \
+${LIB}(ergom.o)
 
-SUBDIRS += pml/
-
-SUBDIRS += metu/
-
-SUBDIRS += iow/
-
-all: OBJS
+all: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 
-OBJS: $(SUBDIRS)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
-
 doc:    $(DOCSRC)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
+	$(PROTEX) $(DOCSRC) > ../../../../doc/fabm.tex 
+	touch doc
 
 clean:
 	$(RM) ${LIB} doc

@@ -24,7 +24,7 @@
    use fabm_types
    use fabm_driver
    use fabm_library
-!   
+!
 !  Reference modules of specific biogeochemical models
    use fabm_gotm_npzd
    use fabm_gotm_fasham
@@ -36,10 +36,11 @@
    use fabm_examples_npzd_nut
    use fabm_examples_npzd_phy
    use fabm_examples_npzd_zoo
+   use fabm_iow_ergom
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
-   
+
    implicit none
-!   
+!
 !  default: all is private.
    private
 !
@@ -61,13 +62,13 @@
       ! Model identifier and metadata.
       integer                :: id
       _CLASS_ (type_model_info),pointer :: info
-      
+
       ! Pointers for linking to parent and child models
       ! (models can be linked to form a tree structure)
       type (type_model),pointer :: parent
       type (type_model),pointer :: firstchild
       type (type_model),pointer :: nextsibling
-      
+
       ! Pointer to next non-container model.
       ! To speed up iterations over all models in the tree, non-container models are
       ! connected in a singly linked list.
@@ -86,12 +87,13 @@
       type (type_examples_npzd_nut)         :: examples_npzd_nut
       type (type_examples_npzd_phy)         :: examples_npzd_phy
       type (type_examples_npzd_zoo)         :: examples_npzd_zoo
+      type (type_iow_ergom)                 :: iow_ergom
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
-      
+
       ! Pointer to the current spatially explicit environment.
       ! It is assigned to during initialization by FABM.
       type (type_environment),pointer :: environment
-      
+
    end type type_model
 !
 ! !PUBLIC INTERFACES:
@@ -109,7 +111,7 @@
       module procedure fabm_do_benthos_rhs
       module procedure fabm_do_benthos_ppdd
    end interface
-   
+
    ! Subroutine for providing FABM with variable data on the full spatial domain.
    interface fabm_link_data
       module procedure fabm_link_data
@@ -121,7 +123,7 @@
       module procedure fabm_link_data_hz
       module procedure fabm_link_data_hz_char
    end interface
-   
+
    ! Function for creating new models based on integer id [deprecated] or name.
    interface fabm_create_model
       module procedure fabm_create_model_by_id
@@ -145,9 +147,10 @@
    integer, parameter :: examples_npzd_nut_id         =  105
    integer, parameter :: examples_npzd_phy_id         =  106
    integer, parameter :: examples_npzd_zoo_id         =  107
+   integer, parameter :: iow_ergom_id                 =  108
    ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
    ! Note: values <=100 are reserved for models ported from the General Ocean Turbulence Model.
-   
+
    ! Arrays for integer identifiers and names of all available biogeochemical models.
    ! Allocated and set on demand when model names are first used.
    integer,          allocatable,dimension(:) :: modelids
@@ -158,7 +161,7 @@
 !
 !EOP
 !-----------------------------------------------------------------------
-   
+
    contains
 
 !-----------------------------------------------------------------------
@@ -192,8 +195,9 @@
    call register_model(examples_npzd_nut_id,        'examples_npzd_nut')
    call register_model(examples_npzd_phy_id,        'examples_npzd_phy')
    call register_model(examples_npzd_zoo_id,        'examples_npzd_zoo')
+   call register_model(iow_ergom_id,                'iow_ergom')
    ! ADD_NEW_MODEL_HERE - required
-   
+
    end subroutine register_models
 !EOC
 
@@ -222,7 +226,7 @@
 !BOC
    ! Determine original model count.
    oldcount = ubound(modelids,1)
-   
+
    ! First check whether the provided model identifier or name are not in use yet.
    do i=1,ubound(modelids,1)
       if (modelids(i)==id) then
@@ -238,25 +242,25 @@
    allocate(modelnames_old(oldcount))
    modelids_old  (:) = modelids
    modelnames_old(:) = modelnames
-   
+
    ! Create extended arrays
    deallocate(modelids)
    deallocate(modelnames)
    allocate(modelids  (oldcount+1))
    allocate(modelnames(oldcount+1))
-   
+
    ! Copy the old identifiers and names to the new extended array.
    modelids  (1:oldcount) = modelids_old  (:)
    modelnames(1:oldcount) = modelnames_old(:)
-      
+
    ! Deallocate the temporary arrays with old values.
    deallocate(modelids_old)
    deallocate(modelnames_old)
-   
+
    ! Add the new identifier and name.
    modelids  (oldcount+1) = id
    modelnames(oldcount+1) = name
-   
+
    end subroutine register_model
 !EOC
 
@@ -283,7 +287,7 @@
 !BOC
    ! If models have not been registered yet, do this first.
    if (.not.allocated(modelids)) call register_models()
-   
+
    ! Enumerate all models and compare their integer id with the supplied one.
    ! Return the name if a match is found.
    do i=1,ubound(modelids,1)
@@ -292,11 +296,11 @@
          return
       end if
    end do
-   
+
    ! Model identifier was not found - throw an error.
    write (text,fmt='(i4,a)') id,' is not a valid model identifier registered in fabm::register_models.'
    call fatal_error('fabm::get_model_name',text)
-   
+
    end function get_model_name
 !EOC
 
@@ -334,7 +338,7 @@
          return
       end if
    end do
-   
+
    end function get_model_id
 !EOC
 
@@ -368,7 +372,7 @@
    else
       modelid_eff = model_container_id
    end if
-   
+
    ! Determine effective model info (null if not present).
    if (present(info)) then
       info_eff => info
@@ -394,7 +398,7 @@
    nullify(model%firstchild)
    nullify(model%nextsibling)
    nullify(model%nextmodel)
-   
+
    ! Make sure the pointer to the current environment is dissociated.
    nullify(model%environment)
 
@@ -423,7 +427,7 @@
          parent%firstchild => model
          parent%info%firstchild => model%info
       end if
-      
+
       ! Link the child model to its parent container.
       model%parent => parent
       model%info%parent => parent%info
@@ -444,17 +448,17 @@
       do while (associated(curmodel%parent))
          curmodel => curmodel%parent
       end do
-      
+
       ! Find the last model in the flattened list of non-container models.
       ! (first model is pointed to by the root of the tree)
       do while (associated(curmodel%nextmodel))
          curmodel => curmodel%nextmodel
       end do
-      
+
       ! Add current model to the flattened list of non-container models.
       curmodel%nextmodel => model
    end if
-   
+
    end function fabm_create_model_by_id
 !EOC
 
@@ -506,7 +510,7 @@
    else
       model => fabm_create_model_by_id(modelid,info=modelinfo)
    end if
-   
+
    end function fabm_create_model_by_name
 !EOC
 
@@ -552,7 +556,7 @@
       ! Open configuration file.
       open(file_unit,file=file_eff,action='read',status='old',err=98)
    end if
-   
+
    ! Read main FABM namelist.
    models = ''
    read(file_unit,nml=fabm_nml,err=99,end=100)
@@ -562,7 +566,7 @@
    do i=1,ubound(models,1)
       if (models(i).ne.'') childmodel => fabm_create_model(trim(models(i)),parent=model)
    end do
-   
+
    ! Initialize model tree
    call fabm_init(model,file_unit)
 
@@ -572,7 +576,7 @@
    end if
 
    return
-   
+
 98 call fatal_error('fabm_create_model_from_file','Unable to open FABM configuration file '//trim(file_eff)//'.')
    return
 
@@ -581,7 +585,7 @@
 
 100 call fatal_error('fabm_create_model_from_file','Unable to find namelist "fabm_nml".')
    return
-   
+
    end function fabm_create_model_from_file
 !EOC
 
@@ -613,7 +617,7 @@
    ! Check whether the unit provided by the host actually refers to an open file.
    inquire(nmlunit,opened=isopen)
    if (.not.isopen) call fatal_error('fabm_init','input configuration file has not been opened yet.')
-   
+
    ! Initialize the model (this automatically initializes all contained models)
    call init_model(root,nmlunit)
 
@@ -694,7 +698,7 @@
    ! Initialize diagnostic variables to zero.
    root%environment%diag    = _ZERO_
    root%environment%diag_hz = _ZERO_
-   
+
    ! If diagnostic variables also appear as dependency, send the corresponding array slice for generic read-only access.
    do ivar=1,ubound(root%info%diagnostic_variables,1)
       call fabm_link_data(root,root%info%diagnostic_variables(ivar)%globalid%dependencyid,root%environment%diag(ivar _ARG_LOCATION_DIMENSIONS_))
@@ -748,7 +752,7 @@
       end if
    end do
    if (.not.ready) call fatal_error('fabm_check_ready','FABM is lacking required data.')
-   
+
    end subroutine fabm_check_ready
 !EOC
 
@@ -778,7 +782,7 @@
    ! Log start of initialization of this model, unless it is a container only.
    if (model%id.ne.model_container_id) &
       call log_message('Initializing biogeochemical model "'//trim(model%info%name)//'"...')
-   
+
    ! Allow the selected model to initialize
    select case (model%id)
 #ifdef _FABM_F2003_
@@ -805,8 +809,10 @@
          call examples_npzd_phy_init(model%examples_npzd_phy,model%info,nmlunit)
       case (examples_npzd_zoo_id)
          call examples_npzd_zoo_init(model%examples_npzd_zoo,model%info,nmlunit)
-      ! ADD_NEW_MODEL_HERE - required
-      
+      case (iow_ergom_id)
+         call iow_ergom_init(model%iow_ergom,model%info,nmlunit)
+     ! ADD_NEW_MODEL_HERE - required
+
       case (model_container_id)
          ! This is a container of models. Loop over all children and allow each to initialize.
          curchild => model%firstchild
@@ -833,16 +839,16 @@
 
             ! Initialize child model.
             call init_model(curchild,nmlunit)
-            
+
             ! Move to next child model.
             curchild => curchild%nextsibling
          end do
-         
+
       case default
          call fatal_error('init_model','model "'//trim(model%info%name)//'" has not been registered in init_model.')
-         
+
    end select
-   
+
    ! Log successful initialization of this model, unless it is a container only.
    if (model%id.ne.model_container_id) &
       call log_message('model "'//trim(model%info%name)//'" initialized successfully.')
@@ -881,7 +887,7 @@
       call set_model_data_members(curchild,environment)
       curchild => curchild%nextsibling
    end do
-   
+
    end subroutine set_model_data_members
 !EOC
 
@@ -926,10 +932,10 @@
          if (source(id)==name) return
       end do
    end if
-   
+
    ! Return default identifier: variable not found.
    id = id_not_used
-   
+
    end function fabm_get_variable_id
 !EOC
 
@@ -956,7 +962,7 @@
 !BOC
    ! Store a pointer to the provided array.
    model%environment%var(id)%data => dat
-   
+
    end subroutine fabm_link_data
 !EOC
 
@@ -985,10 +991,10 @@
 !BOC
    ! Obtain integer identifier of the variable.
    id = fabm_get_variable_id(model,name,shape_full)
-   
+
    ! Only link the data if needed (if the variable identifier is valid).
    if (id.ne.id_not_used) call fabm_link_data(model,id,dat)
-   
+
    end subroutine fabm_link_data_char
 !EOC
 
@@ -1015,7 +1021,7 @@
 !BOC
    ! Store a pointer to the provided array.
    model%environment%var_hz(id)%data => dat
-   
+
    end subroutine fabm_link_data_hz
 !EOC
 
@@ -1047,7 +1053,7 @@
 
    ! Only link the data if needed (if the variable identifier is valid).
    if (id.ne.id_not_used) call fabm_link_data_hz(model,id,dat)
-   
+
    end subroutine fabm_link_data_hz_char
 !EOC
 
@@ -1072,7 +1078,7 @@
 !-----------------------------------------------------------------------
 !BOC
    call fabm_link_data(model,model%info%state_variables(id)%globalid%dependencyid,dat)
-      
+
    end subroutine fabm_link_state_data
 !EOC
 
@@ -1097,7 +1103,7 @@
 !-----------------------------------------------------------------------
 !BOC
    call fabm_link_data_hz(model,model%info%state_variables_ben(id)%globalid%dependencyid,dat)
-      
+
    end subroutine fabm_link_benthos_state_data
 !EOC
 
@@ -1179,7 +1185,7 @@
    ! Diagnostic data is managed by the host, which means that FABM treats it like a generic
    ! variable (e.g., an external dependency). Redirect to the generic function.
    call fabm_link_data(model,model%info%diagnostic_variables(id)%globalid%dependencyid,dat)
-   
+
    end subroutine fabm_link_diagnostic_data
 !EOC
 
@@ -1207,7 +1213,7 @@
    ! Diagnostic data is managed by the host, which means that FABM treats it like a generic
    ! variable (e.g., an external dependency). Redirect to the generic function.
    call fabm_link_data_hz(model,model%info%diagnostic_variables_hz(id)%globalid%dependencyid,dat)
-   
+
    end subroutine fabm_link_diagnostic_data_hz
 !EOC
 
@@ -1270,13 +1276,15 @@
             call examples_npzd_phy_do(model%examples_npzd_phy,_INPUT_ARGS_DO_RHS_)
          case (examples_npzd_zoo_id)
             call examples_npzd_zoo_do(model%examples_npzd_zoo,_INPUT_ARGS_DO_RHS_)
+         case(iow_ergom_id)
+            call iow_ergom_do(model%iow_ergom,_INPUT_ARGS_DO_RHS_)
          ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
          ! matrices instead of a temporal derivative vector. In that case, add the model to
          ! fabm_do_ppdd.
          !
          ! Typical model call:
          ! call MODELNAME_do(model%MODELNAME,_INPUT_ARGS_DO_RHS_)
-         
+
          case default
            call fatal_error('fabm_do_rhs','model "'//trim(model%info%name)//'" does not provide a subroutine &
               &that calculates local temporal derivatives.')
@@ -1332,7 +1340,7 @@
          !
          ! Typical model call:
          ! call MODELNAME_do_ppdd(model%MODELNAME,_INPUT_ARGS_DO_PPDD_)
-         
+
          case default
            call fatal_error('fabm_do_ppdd','model "'//trim(model%info%name)//'" does not provide a subroutine &
               &that calculates local production/destruction matrices.')
@@ -1394,13 +1402,13 @@
 
       ! If the present values are invalid and repair is not permitted, we are done.
       if (.not. (valid .or. repair)) return
-      
+
       model => model%nextmodel
    end do
 
    ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
    ! This is always done, independently of any model-specific checks that may have been called above.
-   
+
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
 
@@ -1521,8 +1529,8 @@
 #endif
          case (examples_benthic_predator_id)
             call examples_benthic_predator_do_benthos(model%examples_benthic_predator,_INPUT_ARGS_DO_BENTHOS_RHS_)
-
-
+         case(iow_ergom_id)
+            call iow_ergom_do_benthos(model%iow_ergom,_INPUT_ARGS_DO_BENTHOS_RHS_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
          ! or specifies bottom fluxes for its pelagic state variables.
          !
@@ -1549,7 +1557,7 @@
 ! !INPUT PARAMETERS:
    type (type_model),         intent(inout) :: root
    _DECLARE_LOCATION_ARG_HZ_
-   integer,                   intent(in)    :: benthos_offset
+   integer,                   intent(inout) :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd
@@ -1613,7 +1621,7 @@
    model => root%nextmodel
    do while (associated(model))
       ! First set constant sinking rates.
-   
+
       do i=1,ubound(model%info%state_variables,1)
          varid = model%info%state_variables(i)%globalid
 
@@ -1684,6 +1692,8 @@
             call gotm_npzd_get_light_extinction(model%gotm_npzd,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          case (gotm_fasham_id)
             call gotm_fasham_get_light_extinction(model%gotm_fasham,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
+         case (iow_ergom_id)
+            call iow_ergom_get_light_extinction(model%iow_ergom,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
          ! state variable specific extinction coefficients.
          !
@@ -1692,10 +1702,10 @@
 
          case default
             ! Default: use constant specific light extinction values specified in the state variable properties
-            
+
             ! Enter spatial loops (if any)
             _FABM_LOOP_BEGIN_
-            
+
             ! Use variable-specific light extinction coefficients.
             do i=1,ubound(model%info%state_variables,1)
                curext = model%info%state_variables(i)%specific_light_extinction
@@ -1704,7 +1714,7 @@
                   _SET_EXTINCTION_(val*curext)
                end if
             end do
-            
+
             ! Enter spatial loops (if any)
             _FABM_LOOP_END_
       end select
@@ -1754,7 +1764,7 @@
          !
          ! Typical model call:
          ! call MODELNAME_get_conserved_quantities(model%MODELNAME,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
-         
+
          case default
             ! Default: the model does not describe any conserved quantities.
             if (ubound(model%info%conserved_quantities,1).gt.0) &
