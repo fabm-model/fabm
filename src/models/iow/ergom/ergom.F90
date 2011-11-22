@@ -83,7 +83,6 @@
   type type_iow_ergom
 ! Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_p1,id_p2,id_p3,id_zo,id_de,id_am,id_ni,id_po,id_o2,id_fl
-      _TYPE_STATE_VARIABLE_ID_      :: id_deb,id_amb,id_nib,id_pob,id_oxb
       _TYPE_DEPENDENCY_ID_          :: id_par,id_I_0,id_temp,id_salt,id_wind,id_taub
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR
 ! Model parameters
@@ -183,11 +182,6 @@
    REALTYPE           :: bsa=0.15
    REALTYPE           :: ph1=0.15
    REALTYPE           :: ph2=0.1
-   character(len=64)  :: ben_de='iow_ergom_det'
-   character(len=64)  :: ben_am='iow_ergom_amm'
-   character(len=64)  :: ben_ni='iow_ergom_nit'
-   character(len=64)  :: ben_po='iow_ergom_pho'
-   character(len=64)  :: ben_ox='iow_ergom_oxy'
 
    REALTYPE,parameter           :: secs_pr_day=86400.
    namelist /iow_ergom/ p1_initial,p2_initial,p3_initial,zo_initial,  &
@@ -287,15 +281,6 @@
    self%id_salt = register_dependency(modelinfo, varname_salt)
    self%id_wind = register_dependency(modelinfo, varname_wind_sf,shape=shape_hz)
    if (self%fluff) self%id_taub=register_dependency(modelinfo,varname_taub,shape=shape_hz)
-
-! Register state dependencies for benthic processes
-   if (self%fluff) then
-   self%id_deb=register_state_dependency(modelinfo,ben_de)
-   self%id_amb=register_state_dependency(modelinfo,ben_am)
-   self%id_nib=register_state_dependency(modelinfo,ben_ni)
-   self%id_pob=register_state_dependency(modelinfo,ben_po)
-   self%id_oxb=register_state_dependency(modelinfo,ben_ox)
-   end if
    
    RETURN
 
@@ -664,11 +649,11 @@
 
    ! Retrieve current (local) state variable values.
    if (self%fluff) then
-   _GET_STATE_(self%id_amb,amb)
-   _GET_STATE_(self%id_deb,deb)
-   _GET_STATE_(self%id_nib,nib)
-   _GET_STATE_(self%id_pob,pob)
-   _GET_STATE_(self%id_oxb,oxb)
+   _GET_STATE_(self%id_am,amb)
+   _GET_STATE_(self%id_de,deb)
+   _GET_STATE_(self%id_ni,nib)
+   _GET_STATE_(self%id_po,pob)
+   _GET_STATE_(self%id_o2,oxb)
    _GET_STATE_BEN_(self%id_fl,fl)
 
    _GET_DEPENDENCY_HZ_(self%id_taub,taub)
@@ -698,11 +683,11 @@
          end if
 
    _SET_ODE_BEN_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,_ZERO_,_ONE_)*llsa*fl)
-   _SET_BOTTOM_EXCHANGE_(self%id_deb,-llds*deb+llsd*fl)
-   _SET_BOTTOM_EXCHANGE_(self%id_amb,llsa*fl)
-   _SET_BOTTOM_EXCHANGE_(self%id_nib,self%s1*thomnp*llsa*fl)
-   _SET_BOTTOM_EXCHANGE_(self%id_pob,self%sr*(_ONE_-self%ph1*th(oxb,wo,_ZERO_,_ONE_)*yy(self%ph2,oxb))*llsa*fl)
-   _SET_BOTTOM_EXCHANGE_(self%id_oxb,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
+   _SET_BOTTOM_EXCHANGE_(self%id_de,-llds*deb+llsd*fl)
+   _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
+   _SET_BOTTOM_EXCHANGE_(self%id_ni,self%s1*thomnp*llsa*fl)
+   _SET_BOTTOM_EXCHANGE_(self%id_po,self%sr*(_ONE_-self%ph1*th(oxb,wo,_ZERO_,_ONE_)*yy(self%ph2,oxb))*llsa*fl)
+   _SET_BOTTOM_EXCHANGE_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
    end if
    
    ! Leave spatial loops over the horizontal domain (if any).
