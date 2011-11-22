@@ -67,6 +67,8 @@
 ! !USE:
    use fabm_types
    use fabm_driver
+
+   implicit none
    
    private
 !
@@ -637,8 +639,8 @@
 !
 ! !LOCAL VARIABLES:
    REALTYPE                   :: fl,amb,nib,pob,deb,oxb,taub,temp
-   !logical                   :: fluff
-   REALTYPE                   :: ltaub,llds,llsd,llsa,wo=30.,wn=0.1,dot2=0.2
+   !logical                   :: fluff,ltaub
+   REALTYPE                   :: llds,llsd,llsa,wo=30.,wn=0.1,dot2=0.2
    REALTYPE                   :: thopnp,thomnp,thomnm,thsum
 
 !EOP
@@ -669,15 +671,15 @@
 
   llsa=self%lsa*exp(self%bsa*temp)*(th(oxb,wo,dot2,_ONE_))
 
-  ltaub=taub**2*1000.
+  !ltaub=taub**2*1000.
 
-        if (self%tau_crit .gt. ltaub) then
-            llds=self%lds*(self%tau_crit-ltaub)/self%tau_crit
+        if (self%tau_crit .gt. taub) then
+            llds=self%lds*(self%tau_crit-taub)/self%tau_crit
          else
             llds=0.
          end if
-         if (self%tau_crit .lt. ltaub) then
-            llsd=self%lsd*(ltaub-self%tau_crit)/self%tau_crit
+         if (self%tau_crit .lt. taub) then
+            llsd=self%lsd*(taub-self%tau_crit)/self%tau_crit
          else
             llsd=_ZERO_
          end if
