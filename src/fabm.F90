@@ -1557,7 +1557,7 @@
 ! !INPUT PARAMETERS:
    type (type_model),         intent(inout) :: root
    _DECLARE_LOCATION_ARG_HZ_
-   integer,                   intent(inout) :: benthos_offset
+   integer,                   intent(in)    :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd
