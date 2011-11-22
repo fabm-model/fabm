@@ -13,7 +13,7 @@ FABMMODELLIB = ${LIB}(fabm_library.o)
 all: makedirs $(FABMMOD)
         $(MOVE_MODULES_COMMAND)
 
-0d getm gotm mom4p0d mom4p1:
+0d getm gotm:
 	( export FABMHOST=$@ ; $(MAKE) )
 
 makedirs:
