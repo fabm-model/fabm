@@ -45,7 +45,7 @@
 ! These are used through FABM.
 #ifdef _ISO_TR_15581_
 #define _ALLOCATABLE_ allocatable
-#define _NULL_ 
+#define _NULL_
 #define _ALLOCATED_ allocated
 #else
 #define _ALLOCATABLE_ pointer

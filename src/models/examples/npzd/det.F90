@@ -34,7 +34,7 @@
       _TYPE_STATE_VARIABLE_ID_      :: id_d
       _TYPE_STATE_VARIABLE_ID_      :: id_zoo, id_phy, id_mintarget
       _TYPE_DEPENDENCY_ID_          :: id_temp
-      
+
 !     Model parameters
       REALTYPE :: kc,rdn
       REALTYPE :: zoo_per_n
@@ -90,7 +90,7 @@
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
    self%rdn  = rdn /secs_pr_day
-   
+
    ! Register state variables
    self%id_d = register_state_variable(modelinfo,'det','mmol/m**3','detritus', &
                                     d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day)
@@ -100,16 +100,16 @@
    if (self%do_min) self%id_mintarget = register_state_dependency(modelinfo,mineralisation_target_variable)
 
    ! Register diagnostic variables
-   
+
    ! Register conserved quantities
-   
+
    ! Register environmental dependencies
    self%id_temp = register_dependency(modelinfo, varname_temp)
 
    return
 
 99 call fatal_error('examples_npzd_det_init','Error reading namelist npzd')
-   
+
    end subroutine examples_npzd_det_init
 !EOC
 
@@ -145,7 +145,7 @@
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_d,d) ! detritus
-   
+
    ! Retrieve current environmental conditions.
    _GET_DEPENDENCY_(self%id_temp,temp)  ! temperature
 
@@ -153,13 +153,13 @@
    _SET_ODE_(self%id_d,-self%rdn*d)
 
 
-   ! If an externally maintained NUT pool is present, add mineralisation to it 
+   ! If an externally maintained NUT pool is present, add mineralisation to it
    if (self%do_min) then
      _SET_ODE_(self%id_mintarget, self%rdn*d)
    end if
 
    ! Export diagnostic variables
-   
+
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
@@ -193,13 +193,13 @@
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_d,d) ! detritus
-   
+
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(self%kc*d)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
-   
+
    end subroutine aed_d_get_light_extinction
 !EOC
 
@@ -229,7 +229,7 @@
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_d,d) ! detritus
-   
+
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
@@ -266,10 +266,10 @@
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_d,d) ! detritus
-   
+
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_(self%id_temp,temp)  
-   
+   _GET_DEPENDENCY_(self%id_temp,temp)
+
    ! Assign destruction rates to different elements of the destruction matrix.
    ! By assigning with _SET_DD_SYM_ [as opposed to _SET_DD_], assignments to dd(i,j)
    ! are automatically assigned to pp(j,i) as well.

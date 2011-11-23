@@ -2,7 +2,7 @@ include ../../Rules.make
 
 LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC	= 
+DOCSRC	=
 
 OBJ   = \
 ${LIB}(fabm_driver.o)
@@ -11,7 +11,7 @@ all: $(OBJ)
         $(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../doc/fabm.tex 
+	$(PROTEX) $(DOCSRC) > ../../../doc/fabm.tex
 	touch doc
 
 clean:

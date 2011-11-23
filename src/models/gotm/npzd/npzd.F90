@@ -24,7 +24,7 @@
 ! is modelled by means of an Ivlev formulation, see eq.\ (\ref{dpz}).
 ! All other processes are based on linear first-order kinematics,
 ! see eqs.\ (\ref{dpn}) - (\ref{dzd}).
-! For all details of the NPZD model implemented here, 
+! For all details of the NPZD model implemented here,
 ! see \cite{Burchardetal2005b}.
 !
 ! !USES:
@@ -52,7 +52,7 @@
       _TYPE_DEPENDENCY_ID_          :: id_par,id_I_0
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
       _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
-      
+
 !     Model parameters
       REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
       REALTYPE :: dic_per_n
@@ -138,7 +138,7 @@
    self%rpdl = rpdl/secs_pr_day
    self%rzd  = rzd /secs_pr_day
    self%dic_per_n = dic_per_n
-   
+
    ! Register state variables
    self%id_n = register_state_variable(modelinfo,'nut','mmol/m**3','nutrients',     &
                                     n_initial,minimum=_ZERO_,no_river_dilution=.true.)
@@ -164,10 +164,10 @@
                      time_treatment=time_treatment_averaged)
    self%id_dPAR = register_diagnostic_variable(modelinfo,'PAR','W/m**2',     'photosynthetically active radiation',&
                      time_treatment=time_treatment_averaged)
-   
+
    ! Register conserved quantities
    self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
-   
+
    ! Register environmental dependencies
    self%id_par = register_dependency(modelinfo, varname_par)
    self%id_I_0 = register_dependency(modelinfo, varname_par_sf, shape=shape_hz)
@@ -177,7 +177,7 @@
 99 call fatal_error('gotm_npzd_init','Error reading namelist gotm_npzd.')
 
 100 call fatal_error('gotm_npzd_init','Namelist gotm_npzd was not found.')
-   
+
    end subroutine gotm_npzd_init
 !EOC
 
@@ -199,38 +199,38 @@
 ! \exp\left(1-\frac{I_{PAR}}{I_{opt}}\right)
 ! \frac{c_n}{\alpha+c_n}c_p
 ! \end{equation}
-! 
+!
 ! with
-! 
+!
 ! \begin{equation}
 ! I_{opt}=\max\left(\frac14I_{PAR},I_{\min}\right).
 ! \end{equation}
-! 
+!
 ! Grazing of zooplankton on phytoplankton:
 ! \begin{equation}\label{dpz}
 ! d_{pz}=g_{\max}\left(1-\exp\left(-I_v^2c_p^2\right)\right)c_z
 ! \end{equation}
-! 
+!
 ! Phytoplankton excretion:
 ! \begin{equation}\label{dpn}
 ! d_{pn} = r_{pn} c_p
 ! \end{equation}
-! 
+!
 ! Zooplankton excretion:
 ! \begin{equation}\label{dzn}
 ! d_{zn} = r_{zn} c_z
 ! \end{equation}
-! 
+!
 ! Remineralisation of detritus into nutrients:
 ! \begin{equation}\label{ddn}
 ! d_{dn} = r_{dn} c_d
 ! \end{equation}
-! 
+!
 ! Phytoplankton mortality:
 ! \begin{equation}\label{dpd}
 ! d_{pd} = r_{pd} c_p
 ! \end{equation}
-! 
+!
 ! Zooplankton mortality:
 ! \begin{equation}\label{dzd}
 ! d_{zd} = r_{zd} c_z
@@ -261,7 +261,7 @@
    _GET_STATE_(self%id_p,p) ! phytoplankton
    _GET_STATE_(self%id_z,z) ! zooplankton
    _GET_STATE_(self%id_d,d) ! detritus
-   
+
    ! Retrieve current environmental conditions.
    _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
    _GET_DEPENDENCY_HZ_(self%id_I_0,I_0)  ! surface short wave radiation
@@ -275,11 +275,11 @@
    else
       rpd = self%rpdl
    end if
-   
+
    ! Define some intermediate quantities that will be reused multiple times.
    primprod = fnp(self,n,p,par,iopt)
    dn = - primprod + self%rpn*p + self%rzn*z + self%rdn*d
-   
+
    ! Set temporal derivatives
    _SET_ODE_(self%id_n,dn)
    _SET_ODE_(self%id_p,primprod - fpz(self,p,z) - self%rpn*p - rpd*p)
@@ -298,7 +298,7 @@
    _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
    _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
    _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
-   
+
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
@@ -333,13 +333,13 @@
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_p,p) ! phytoplankton
    _GET_STATE_(self%id_d,d) ! detritus
-   
+
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(self%kc*(self%p0+p+d))
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
-   
+
    end subroutine gotm_npzd_get_light_extinction
 !EOC
 
@@ -372,7 +372,7 @@
    _GET_STATE_(self%id_p,p) ! phytoplankton
    _GET_STATE_(self%id_z,z) ! zooplankton
    _GET_STATE_(self%id_d,d) ! detritus
-   
+
    ! Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
 
@@ -400,38 +400,38 @@
 ! \exp\left(1-\frac{I_{PAR}}{I_{opt}}\right)
 ! \frac{c_n}{\alpha+c_n}c_p
 ! \end{equation}
-! 
+!
 ! with
-! 
+!
 ! \begin{equation}
 ! I_{opt}=\max\left(\frac14I_{PAR},I_{\min}\right).
 ! \end{equation}
-! 
+!
 ! Grazing of zooplankton on phytoplankton:
 ! \begin{equation}\label{dpz}
 ! d_{pz}=g_{\max}\left(1-\exp\left(-I_v^2c_p^2\right)\right)c_z
 ! \end{equation}
-! 
+!
 ! Phytoplankton excretion:
 ! \begin{equation}\label{dpn}
 ! d_{pn} = r_{pn} c_p
 ! \end{equation}
-! 
+!
 ! Zooplankton excretion:
 ! \begin{equation}\label{dzn}
 ! d_{zn} = r_{zn} c_z
 ! \end{equation}
-! 
+!
 ! Remineralisation of detritus into nutrients:
 ! \begin{equation}\label{ddn}
 ! d_{dn} = r_{dn} c_d
 ! \end{equation}
-! 
+!
 ! Phytoplankton mortality:
 ! \begin{equation}\label{dpd}
 ! d_{pd} = r_{pd} c_p
 ! \end{equation}
-! 
+!
 ! Zooplankton mortality:
 ! \begin{equation}\label{dzd}
 ! d_{zd} = r_{zd} c_z
@@ -462,11 +462,11 @@
    _GET_STATE_(self%id_p,p) ! phytoplankton
    _GET_STATE_(self%id_z,z) ! zooplankton
    _GET_STATE_(self%id_d,d) ! detritus
-   
+
    ! Retrieve current environmental conditions.
    _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
    _GET_DEPENDENCY_HZ_(self%id_I_0,I_0)  ! surface short wave radiation
-   
+
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
 
@@ -476,7 +476,7 @@
    else
       rpd = self%rpdl
    end if
-   
+
    ! Rate of primary production will be reused multiple times - calculate it once.
    primprod = fnp(self,n,p,par,iopt)
 
@@ -548,7 +548,7 @@
    pure REALTYPE function fpz(self,p,z)
 !
 ! !DESCRIPTION:
-! Here, the classical Ivlev formulation for zooplankton grazing on 
+! Here, the classical Ivlev formulation for zooplankton grazing on
 ! phytoplankton is formulated.
 !
 ! !USES:

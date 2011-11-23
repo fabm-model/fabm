@@ -34,7 +34,7 @@
       _TYPE_STATE_VARIABLE_ID_      :: id_z
       _TYPE_STATE_VARIABLE_ID_      :: id_exctarget,id_morttarget,id_grztarget
       _TYPE_DEPENDENCY_ID_          :: id_temp
-      
+
 !     Model parameters
       REALTYPE :: z0,gmax,iv,rzn,rzd
       logical  :: do_exc,do_mort,do_grz
@@ -96,7 +96,7 @@
    self%iv    = iv
    self%rzn  = rzn /secs_pr_day
    self%rzd  = rzd /secs_pr_day
-   
+
    ! Register state variables
    self%id_z = register_state_variable(modelinfo,'zoo','mmol/m**3','zooplankton', &
                                     z_initial,minimum=_ZERO_)
@@ -109,16 +109,16 @@
    self%do_grz = grazing_target_variable.ne.''
    if (self%do_grz) self%id_grztarget = register_state_dependency(modelinfo,grazing_target_variable)
    ! Register diagnostic variables
- 
+
    ! Register conserved quantities
- 
+
    ! Register environmental dependencies
    self%id_temp = register_dependency(modelinfo, varname_temp)
 
    return
 
 99 call fatal_error('examples_npzd_zoo_init','Error reading namelist aed_z')
-   
+
    end subroutine examples_npzd_zoo_init
 !EOC
 
@@ -154,13 +154,13 @@
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_z,z) ! zooplankton
    _GET_STATE_(self%id_grztarget,p) ! phytoplankton
-   
+
    ! Retrieve current environmental conditions.
    _GET_DEPENDENCY_   (self%id_temp,temp)  ! local photosynthetically active radiation
 
    ! Loss rate of zooplankton to detritus depends on mortality
-   
-   
+
+
    ! Set temporal derivatives
     _SET_ODE_(self%id_z,fpz(self,p,z) - self%rzn*z - self%rzd*z)
 
@@ -181,7 +181,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_zoo_do 
+   end subroutine examples_npzd_zoo_do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -213,7 +213,7 @@
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
-   
+
    end subroutine aed_z_get_light_extinction
 !EOC
 
@@ -243,7 +243,7 @@
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_z,z) ! zooplankton
- 
+
    ! Total nutrient is simply the sum of all variables.
 !#   _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
 
@@ -285,10 +285,10 @@
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_z,z) ! zooplankton
-   
+
    ! Retrieve current environmental conditions.
    _GET_DEPENDENCY_   (self%id_temp,temp)  ! local photosynthetically active radiation
-   
+
 
    ! Assign destruction rates to different elements of the destruction matrix.
    ! By assigning with _SET_DD_SYM_ [as opposed to _SET_DD_], assignments to dd(i,j)
@@ -317,8 +317,8 @@
    if (self%do_exc) then
       _SET_PP_(self%id_exctarget,self%id_grztarget,self%rzn*z)
    end if
-   
-   
+
+
    ! Export diagnostic variables
 
    ! Leave spatial loops (if any)
@@ -338,7 +338,7 @@
    pure REALTYPE function fpz(self,p,z)
 !
 ! !DESCRIPTION:
-! Here, the classical Ivlev formulation for zooplankton grazing on 
+! Here, the classical Ivlev formulation for zooplankton grazing on
 ! phytoplankton is formulated.
 !
 ! !USES:

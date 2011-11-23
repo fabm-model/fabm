@@ -23,7 +23,7 @@
 !!                                                                   !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module ocean_tpm_mod  !{
-! 
+!
 !<CONTACT EMAIL="Richard.Slater@noaa.gov"> Richard D. Slater
 !</CONTACT>
 !
@@ -52,7 +52,7 @@ module ocean_tpm_mod  !{
 !               routine will call specified routines to set default
 !               values for each tracer for such things as advection
 !               scheme, tracer name, etc.
-!               
+!
 !       ocean_tpm_start: This routine calls specified routines to
 !               allocate appropriate storage for the tracer packages,
 !               perform pre-processing and initialization (possibly
@@ -606,7 +606,7 @@ use ocean_tpm_util_mod, only: domain, grid, time, dtts, isc, iec, jsc, jec, nk, 
      isd, ied, jsd, jed, indtemp, indsal
 use field_manager_mod,           only: fm_get_index
 use ocean_types_mod,             only: ocean_domain_type, ocean_grid_type
-use ocean_types_mod,             only: ocean_time_type, ocean_prog_tracer_type    
+use ocean_types_mod,             only: ocean_time_type, ocean_prog_tracer_type
 !
 !-----------------------------------------------------------------------
 !       arguments
@@ -718,7 +718,7 @@ end subroutine ocean_tpm_init  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocean_tpm_source(Thickness)  
+subroutine ocean_tpm_source(Thickness)
 
  type(ocean_thickness_type), intent(in) :: Thickness
 !
@@ -745,18 +745,18 @@ call do_time_calc
 !       Call subroutines to determine the source array
 !
 
-if (do_ocean_age_tracer) then 
+if (do_ocean_age_tracer) then
   call ocean_age_tracer_source(Thickness)
-endif 
+endif
 
 ! JornB
 if (do_ocean_tracer_fabm) then
   call ocean_tracer_fabm_source(Thickness)
-endif 
+endif
 
 if (do_ocmip2_biotic) then
   call ocmip2_biotic_source(Thickness)
-endif 
+endif
 
 if (do_ocean_bgc_restore) then  !{
   call ocean_bgc_restore_source(Thickness)
@@ -768,7 +768,7 @@ endif  !}
 
 return
 
-end subroutine ocean_tpm_source 
+end subroutine ocean_tpm_source
 ! </SUBROUTINE> NAME="ocean_tpm_source"
 
 
