@@ -1,4 +1,3 @@
-#$Id$
 #
 # Makefile for making the source code documentation.
 #
