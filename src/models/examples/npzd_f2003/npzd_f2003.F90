@@ -1,4 +1,3 @@
-!$Id: npzd.F90 119 2010-12-27 14:23:18Z jornbr $
 #include "fabm_driver.h"
 
 #ifdef _FABM_F2003_
