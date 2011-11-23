@@ -18,7 +18,7 @@
 ! !USES:
    use fabm_types
    use fabm_driver
-   
+
    implicit none
 
 !  default: all is private.
@@ -39,7 +39,7 @@
       _TYPE_STATE_VARIABLE_ID_ :: id_egb, id_jb, id_ja, id_tb, id_ta, id_adb, id_ada
       _TYPE_STATE_VARIABLE_ID_ :: id_food, id_foodmic, id_resptarget, id_morttarget
       _TYPE_DEPENDENCY_ID_     :: id_temp
-      
+
 !     Model parameters
       REALTYPE :: food_scale
    end type
@@ -60,8 +60,8 @@
    subroutine metu_mnemiopsis_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
-!  Here, the bio namelist {\tt bio\_jellyfish.nml} is read and 
-!  various variables (rates and settling velocities) 
+!  Here, the bio namelist {\tt bio\_jellyfish.nml} is read and
+!  various variables (rates and settling velocities)
 !  are transformed into SI units.
 !
 ! !INPUT PARAMETERS:
@@ -105,13 +105,13 @@
                                     adb_initial,minimum=_ZERO_)
    self%id_ada = register_state_variable(modelinfo,'ada','#/m**3','adult abundance',       &
                                     ada_initial,minimum=_ZERO_)
-                                    
+
    ! Register external state variable dependencies
    self%id_food       = register_state_dependency(modelinfo,food_source_variable)
    self%id_foodmic    = register_state_dependency(modelinfo,foodmic_source_variable)
    self%id_resptarget = register_state_dependency(modelinfo,respiration_target_variable)
    self%id_morttarget = register_state_dependency(modelinfo,mortality_target_variable)
-   
+
    ! Register environmental dependencies
    self%id_temp = register_dependency(modelinfo, varname_temp)
 
@@ -121,7 +121,7 @@
 
 99 call fatal_error('metu_mnemiopsis_init','Error reading namelist metu_mnemiopsis')
 100 call fatal_error('metu_mnemiopsis_init','Namelist metu_mnemiopsis was not found')
-   
+
    end subroutine metu_mnemiopsis_init
 !EOC
 
@@ -145,17 +145,17 @@
 ! !LOCAL VARIABLES:
    ! Internal states
    REALTYPE :: egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
-   
+
    ! External food variables
    REALTYPE :: food,foodmic,foodno
-   
+
    ! Environment
    REALTYPE :: temp
-   
+
    ! Rates
    REALTYPE :: tab_mn,teb_mn,tea_mn,tjb_mn,tja_mn,ttb_mn,tta_mn
    REALTYPE :: gj_mn,mj_mn,lj_mn,gt_mn,mt_mn,lt_mn,ga_mn,ma_mn,la_mn,mea_mn
-   
+
    ! Temporary variables
    REALTYPE :: resp_mn
    REALTYPE :: eppley
@@ -199,12 +199,12 @@
    ! These are provided externally, i.e., by lower trophic level model or data file.
    _GET_STATE_(self%id_food   ,food)
    _GET_STATE_(self%id_foodmic,foodmic)
-   
+
    ! Scale external prey densities to internal unit (mg C/m**3)
    food    = food   *self%food_scale
    foodmic = foodmic*self%food_scale
    foodno  = max(_ONE_,food/0.0024) !0.0024 is mg C per copepod
-   
+
    !write (*,*) _LOCATION_,numc,food,foodmic
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
 
@@ -216,11 +216,11 @@
    eppley = exp(0.05*temp)
 
    ! Calculate transfer rate from egg to juveniles
-   if (temp.lt.4.0) then 
+   if (temp.lt.4.0) then
       teb_mn = 0.
       tea_mn = 0.
    else
-      teb_mn = 0.27*exp(a*(temp-4.)) !biomass 0.27 is set so that at 25 degrees eggs hatch in 1 day 
+      teb_mn = 0.27*exp(a*(temp-4.)) !biomass 0.27 is set so that at 25 degrees eggs hatch in 1 day
       tea_mn = teb_mn/mne_mn
    end if
 
@@ -231,7 +231,7 @@
    ! Calculate nauplii mortality
    mj_mn = 0.93+0.0003*ja_mn**2.
 
-   if (jb_mn.gt.0.0.and.ja_mn.gt.0.0) then 
+   if (jb_mn.gt.0.0.and.ja_mn.gt.0.0) then
       ma = jb_mn/ja_mn ! Biomass per individual nauplius
       mm = mmj_mn
       mr = mrj_mn
@@ -241,7 +241,7 @@
          call trans(mm,mr,ma,tr,p7)
       else
          tr=0.
-      end if 
+      end if
       AEj=0.70!0.85-0.09*alog(foodno)
       gj_mn=betaj_mn*(((jb_mn/0.574/ja_mn)**0.574)*12.3)+0.1 !grazing of microzoo
 
@@ -253,13 +253,13 @@
       gj_mn = gj_mn*AEj*foodmic*ja_mn/jb_mn ! ja_mn/jb_mn is to estimate ind/mgC
       gj_mn = min(gj_mn,4.d0)!after Sorokin
       tjb_mn = gj_mn*tr     !transfer rate from nauplii to copepods
-      tja_mn = tjb_mn/mm    !           
+      tja_mn = tjb_mn/mm    !
    else                   !if biomass or abundance is zero
       gj_mn  = 0.
       tjb_mn = 0.
       tja_mn = 0.
       lj_mn  = 0.
-      mj_mn  = 0. 
+      mj_mn  = 0.
       jb_mn  = 0.0
       ja_mn  = 0.0
 
@@ -270,7 +270,7 @@
 
    ! Calculate transfer rate from "trans" to adult
    mt_mn = 0.3+0.003*ta_mn**2.
-   
+
    if (ta_mn.le.0.0) then
       ma = 0.0
    else
@@ -279,7 +279,7 @@
 
    AEt = 0.85-0.09*log(foodno)
 
-   if (tb_mn.gt.0.0.and.ta_mn.gt.0.0.and.Ma.le.1.0) then 
+   if (tb_mn.gt.0.0.and.ta_mn.gt.0.0.and.Ma.le.1.0) then
 
       mm = mmt_mn
       mr = mrt_mn
@@ -289,29 +289,29 @@
          call trans(mm,mr,ma,tr,p7)
       else
          tr = 0.
-      endif 
-      
+      endif
+
       gt_mn = betat_mn*eppley*((tb_mn/0.574/ta_mn)**(-0.5))*(0.01*foodno)**(0.65*tb_mn/ta_mn-0.65)
       ! cl_t=gt_mn
       gt_mn = gt_mn*AEt*73.*food
 
       ttb_mn = gt_mn*tr       ! t to a
-      tta_mn = ttb_mn/mm      
+      tta_mn = ttb_mn/mm
    end if
 
-  !Estimate trans stage gt than 1.0 
-   if (tb_mn.gt.0.0.and.ta_mn.gt.0.0.and.Ma.gt.1.0) then 
+  !Estimate trans stage gt than 1.0
+   if (tb_mn.gt.0.0.and.ta_mn.gt.0.0.and.Ma.gt.1.0) then
 
       Ma = tb_mn/ta_mn
-      mm = mmt_mn     
-      mr = mrt_mn     
+      mm = mmt_mn
+      mr = mrt_mn
 
       if (ma.ge.mr) then
          p7 = 4.
          call trans(mm,mr,ma,tr,p7)
       else
          tr = 0.
-      endif 
+      endif
 
       gt_mn = betat_mn*eppley*((tb_mn/0.574/ta_mn)**(-0.5))
       gt_mn = gt_mn*AEt*73.*food
@@ -322,8 +322,8 @@
 
       tta_mn = ttb_mn/mm
    end if
-   
-   if (tb_mn.le.0.0.or.ta_mn.le.0.0) then 
+
+   if (tb_mn.le.0.0.or.ta_mn.le.0.0) then
       gt_mn  = 0.
       ttb_mn = 0.
       tta_mn = 0.
@@ -334,19 +334,19 @@
       ! f =0.
       ! tr=0.
    end if
-   
+
    ! Estimating adults
-   if (adb_mn .gt. 0.0) then 
-      ma_mn = .01           
+   if (adb_mn .gt. 0.0) then
+      ma_mn = .01
    else
       ma_mn  = 0.0
       la_mn  = 0.0
    end if
 
-   if (adb_mn.gt.0.0.and.ada_mn.gt.0.0) then 
+   if (adb_mn.gt.0.0.and.ada_mn.gt.0.0) then
       Ma=adb_mn/ada_mn
-      mm=mma_mn       
-      mr=mra_mn       
+      mm=mma_mn
+      mr=mra_mn
 
       if (ma.ge.mr) then
          p7=4.
@@ -354,7 +354,7 @@
       else
          tr=0.
       end if
-      
+
       AEa = 0.85-0.09*log(foodno)
       ga_mn = betaa_mn*eppley*((adb_mn/0.574/ada_mn)**(-0.5))
       ! cl_a=ga_mn
@@ -371,7 +371,7 @@
    else !if biomass or abundance is zero
       ga_mn  = 0.
       tab_mn = 0.
-      la_mn  = 0. 
+      la_mn  = 0.
       ma_mn  = 0.
       ma     = 0.
    end if
@@ -384,7 +384,7 @@
    _SET_ODE_(self%id_ta ,(tja_mn* jb_mn -        mt_mn       * ta_mn - tta_mn* tb_mn)/secs_pr_day) ! c1 abundance
    _SET_ODE_(self%id_adb,(ttb_mn* tb_mn + (ga_mn-ma_mn-la_mn)*adb_mn - tab_mn*adb_mn)/secs_pr_day) ! adult biomass
    _SET_ODE_(self%id_ada,(tta_mn* tb_mn         -ma_mn       *ada_mn                )/secs_pr_day) ! adult abundance
-   
+
    ! Increment/decrement derivatives for external variables (prey, respiration/mortality target variables)
    _SET_ODE_(self%id_foodmic,   -(gj_mn*jb_mn)/self%food_scale/secs_pr_day)
    _SET_ODE_(self%id_food,      -(gt_mn*tb_mn+ga_mn*adb_mn)/self%food_scale/secs_pr_day)
@@ -398,10 +398,10 @@
 !EOC
 
    pure subroutine trans(mm,mr,ma,t,p7)
-      ! here mm is max and ma actual and mr is the reference weight 
+      ! here mm is max and ma actual and mr is the reference weight
       REALTYPE,intent(in ) :: mm,mr,ma,p7
       REALTYPE,intent(out) :: t
-      
+
       ! p7 =4.
       t = ((ma-mr)**p7)/((ma-mr)**p7+(mm-mr)**p7)
    end subroutine trans

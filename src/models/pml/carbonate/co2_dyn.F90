@@ -14,16 +14,16 @@
 !
 ! Jorn Bruggeman, 4 March 2011
 
-! This file contains a set of FORTRAN subroutines that calculate the carbonate system 
-! at any given point in marine space time, given values for 
-! temperature, salinity, DIC, depth (pressure). 
+! This file contains a set of FORTRAN subroutines that calculate the carbonate system
+! at any given point in marine space time, given values for
+! temperature, salinity, DIC, depth (pressure).
 ! This is essentially an implimentation of the Haltafall speciation code
 ! (Ingri et al 1967, Talanta 14, 1261 - if it ain't broke don't fix it)
 ! Another routine calulates the air sea exchange of CO2 given wind speed and atmospheric pCO2.
 ! Code developed by Jerry blackford and others at PML, based on pre-existing code.
 ! We accept no liability for errors or inaccuracies.
-! See Zeebe & Wolf-Gladrow, 2001. CO2 in seawater: equilibrium, kinetics and isotopes. 
-! Elsevier Oceanography Series 65, 346. for a reasonable overview. 
+! See Zeebe & Wolf-Gladrow, 2001. CO2 in seawater: equilibrium, kinetics and isotopes.
+! Elsevier Oceanography Series 65, 346. for a reasonable overview.
 ! Many other packages exist, replicating the same functionality in different languages.
 ! See http://cdiac.ornl.gov/oceans/co2rprt.html (CO2sys)
 ! or  http://neon.otago.ac.nz/research/mfc/people/keith_hunter/software/swco2/
@@ -34,7 +34,7 @@
 ! 17/02/2010. Update calculation of K1, K2, Kb to make consistant with the OCMIP protocols.
 
    subroutine CO2_dynamics(T,S,Z,DIC,pco2w,TA,ph,carba,bicarb,carb,henry,om_cal,om_arg,TCO2,dcf)
-  
+
    IMPLICIT NONE
 ! INPUT PARAMETERS:
       REALTYPE   :: T, S, Z, DIC
@@ -51,16 +51,16 @@
       REALTYPE   :: a,b,c,dcf
 
 !!!!!!!! provide an expression for total alkalinity.!!!!!!!!!!!!!!
-! Note, for oceanic regimes there is generally a well constrained relationship between salinity and 
+! Note, for oceanic regimes there is generally a well constrained relationship between salinity and
 ! total alkalinity as TA is conservative. However the slope and intercept vary according to region.
 ! For coastal regions, such relationships are unsatisfactory.
 ! If you have the data then one possibility is to introduce riverine alkalinity as a seperate tracer.
 ! note that uptake/release of nutrients and Calcium carbonate also make small modifications to local TA.
-! See Zeebe & Wolf-Gladrow; Millero et al 1998, Mar Chem 60, 111-130; Lee et al, 2006, GRL 33, L19605, 
+! See Zeebe & Wolf-Gladrow; Millero et al 1998, Mar Chem 60, 111-130; Lee et al, 2006, GRL 33, L19605,
 ! Wolf-Gladrow et al, Mar Chem 106 (2007).
 
 ! deriving alkalinity (umol/kg) from salinity
-!          TA = 66.96*S - 36.803 ! Nordic, N Atlantic, Bellerby et al 2005. 
+!          TA = 66.96*S - 36.803 ! Nordic, N Atlantic, Bellerby et al 2005.
 !          TA = 520.1 + 51.24*S  ! Atlantic (Millero 1998)
 !          TA = 399.0 + 54.629*S ! Pacific (Millero, 1998)
 !          TA = -114.0 + 68.80*S ! Indian (Millero, 1998)
@@ -74,7 +74,7 @@
 ! valid for 0<T<40 and 0.5<S<43. Density Conversion factor (dcf) = * density * 1.0D3
 
           a=  8.24493d-1 - 4.0899d-3*T +  7.6438d-5*T**2 - 8.2467d-7*T**3 + 5.3875d-9*T**4
-          b= -5.72466d-3 + 1.0227d-4*T - 1.6546d-6*T**2 
+          b= -5.72466d-3 + 1.0227d-4*T - 1.6546d-6*T**2
           c= 4.8314d-4
           dcf= (999.842594 + 6.793952d-2*T- 9.095290d-3*T**2 + 1.001685d-4*T**3 &
                       - 1.120083d-6*T**4 + 6.536332d-9*T**5+a*S+b*S**1.5+c*S**2)/1.0D3
@@ -87,7 +87,7 @@
 
 ! Adjust outputs back to units used in the parent model code (e.g. mmol/m3) if appropriate
 
-          PCO2W = PCO2WATER*1.0D6   ! partial pressure of co2 in water 
+          PCO2W = PCO2WATER*1.0D6   ! partial pressure of co2 in water
           TA = TA*(1.0D6)           ! total alkalinity (umol/kg)
           CarbA= ca*(1.0D6*dcf)     ! carbonic acid concentration (mmol/m3)
           Bicarb=bc*(1.0D6*dcf)     ! bicarbonate ion concentration (mmol/m3)
@@ -100,16 +100,16 @@
 
 ! outputs are
 !         Om_cal        calcite saturation state
-!         Om_arg        aragonite saturation state 
+!         Om_arg        aragonite saturation state
 
    RETURN
    END SUBROUTINE CO2_dynamics
-   
+
    SUBROUTINE Air_sea_exchange (T, Wnd, pCO2w, pCO2a, Henry, dcf, flux)
-!  this routine should be called for the surface box only 
+!  this routine should be called for the surface box only
 !  Uses the Nightingale and Liss parameterisation (GBC 14, 373-388 (2000).
 !  SC is the Schmidt number from Wanninkhof (1992, JGR 97,7373-7382), the Nightingale et al (2000)
-!  transfer velocity being for Sc=600 and the dependence of tranfer velocity on Sc coming 
+!  transfer velocity being for Sc=600 and the dependence of tranfer velocity on Sc coming
 !  from Jahne et al (1987, J. Geophys Res 92, 1937-1949).
 
 !  Inputs
@@ -121,7 +121,7 @@
 !  density  the density of water for conversion between mmol/m3 and umol/kg
 
 !  Outputs are
-!  flux     flux of CO2 in mmol C /m2/d 
+!  flux     flux of CO2 in mmol C /m2/d
 !           +ve is in-gassing (air to sea), -ve is outgassing (sea to air).
 
    IMPLICIT NONE
@@ -138,7 +138,7 @@
 ! here it is rescaled to mmol/m2/d
           flux = fwind * HENRY * ( PCO2A - PCO2W ) * dcf
 
-  RETURN 
+  RETURN
   END SUBROUTINE Air_sea_exchange
 
       SUBROUTINE CO2dyn ( TCO2, TA, T, S, pco2, ph, henry, ca, bc, cb)
@@ -149,7 +149,7 @@
       IMPLICIT NONE
 
       REALTYPE PRSS, PH, AKVAL, CONCS,                       &
-     &                 TCO2, TA, T, S, PCO2,            & 
+     &                 TCO2, TA, T, S, PCO2,            &
      &                 SOLBTY, CCO2,                                 &
      &                 A1, A2, A3, B1, B2, B3, TK, TK1, SOL1, SOL2,  &
      &                 HENRY, ca, bc, cb
@@ -165,7 +165,7 @@
       CONCS(1) = TCO2
       CONCS(2) = TA
       ICALC = 1
-      
+
       CALL POLYCO(PRSS,T,S,CONCS,MCONC,AKVAL,MKVAL,ICALC,ICONST)
 
       PCO2   = CONCS(3)
@@ -174,7 +174,7 @@
       bc = CONCS(6)
       cb = CONCS(7)
       HENRY = AKVAL(1)
-    
+
       RETURN
       END SUBROUTINE
 
@@ -225,7 +225,7 @@
       use fabm_driver,only:fatal_error
 
       IMPLICIT NONE
-      
+
       REALTYPE PMIN, PMAX, SMIN, SMAX, TMIN, TMAX, CONCS,  &
      &      AKVAL, PD, TD, SD, P, T, S, BTOT
       INTEGER MINJC, MAXJC, MINJK, MAXJK, MINCAL, MAXCAL, MINCON,  &
@@ -265,13 +265,13 @@
       CALL CO2SET(P,T,S,AKVAL,NKVAL,IC)
       IF(ICALC.LT.MAXCAL)  &
      & CALL CO2CLC(CONCS,NCONC,AKVAL,NKVAL,ICALC,BORON,BTOT)
-     
+
       if (concs(4).eq.100.) then
          write (*,*) 'S,T,P',S,T,P
          write (*,*) 'CONCS',CONCS
          call fatal_error('co2_dyn:POLYCO','Haltafall iteration did not converge.')
       end if
-      
+
       RETURN
       END SUBROUTINE
 
@@ -311,7 +311,7 @@
 ! ***
 !      IMPLICIT REALTYPE (A-H,O-Z)
 
-!     Modified by jcb 17/02/10 to use OCMIP calculations of K1, K2, Kb. 
+!     Modified by jcb 17/02/10 to use OCMIP calculations of K1, K2, Kb.
 !     Differences are subtle rather than significant
       IMPLICIT NONE
 
@@ -372,7 +372,7 @@
    S15 = S**1.5
 ! k1 = [H][HCO3]/[H2CO3]
 ! k2 = [H][CO3]/[HCO3]
-! Millero p.664 (1995) using Mehrbach et al. data on seawater scale 
+! Millero p.664 (1995) using Mehrbach et al. data on seawater scale
    k1=10**(-1*(3670.7/TK - 62.008 + 9.7944*dlogTK - &
      &      0.0118 * S + 0.000116*S2))
    k2=10**(-1*(1394.7/TK + 4.777 - &
@@ -433,7 +433,7 @@
       AKR = AK1C/AK2C
       AHPLUS=10.0D0**(-PH)
       PROD=AKR*AKP*PCO2
-     
+
       IF(BORON) THEN
 
         IF(ICALC.EQ.1.OR.ICALC.EQ.4) THEN
@@ -507,7 +507,7 @@
                  STEG=STEG*FAK
                  X=X+STEG*W
                ENDIF
-               AHPLUS=EXP(X)  
+               AHPLUS=EXP(X)
              ENDIF
              IF(DONE) exit
           end do
@@ -630,30 +630,30 @@
 
 !-----------------------------------------------------------------------
       SUBROUTINE CaCO3_Saturation (Tc, S, D, CO3, Om_cal, Om_arg)
-      
-! Routine to calculate the saturation state of calcite and aragonite    
-! Inputs:                                                               
-!               Tc      Temperature (C)                                 
-!               S       Salinity                                        
-!               D       Depth (m)                                       
+
+! Routine to calculate the saturation state of calcite and aragonite
+! Inputs:
+!               Tc      Temperature (C)
+!               S       Salinity
+!               D       Depth (m)
 !               CO3     Carbonate ion concentration (mol.kg-1 ie /1D6)
-!                                                                       
-! Outputs                                                               
-!               Om_cal  Calite saturation                               
-!               Om_arg  Aragonite saturation                            
-!                                                                       
-! Intermediates                                                         
-!               K_cal   Stoichiometric solubility product for calcite   
-!               K_arg   Stoichiometric solubility product for aragonite 
-!               Ca      Calcium 2+ concentration (mol.kg-1) 
+!
+! Outputs
+!               Om_cal  Calite saturation
+!               Om_arg  Aragonite saturation
+!
+! Intermediates
+!               K_cal   Stoichiometric solubility product for calcite
+!               K_arg   Stoichiometric solubility product for aragonite
+!               Ca      Calcium 2+ concentration (mol.kg-1)
 !               P       Pressure (bars)
-!                                                                       
-! Source                                                                
-!       Zeebe & Wolf-Gladrow 2001 following Mucci (1983)                
-!       with pressure corrections from Millero (1995)                   
+!
+! Source
+!       Zeebe & Wolf-Gladrow 2001 following Mucci (1983)
+!       with pressure corrections from Millero (1995)
 !       Code tested against reference values given in Z & W-G
 !       Built Jerry Blackford, 2008
-!                                                                       
+!
 
         IMPLICIT None
         REALTYPE Tc, Tk, Kelvin, S, D, Ca, CO3
@@ -661,21 +661,21 @@
         REALTYPE logKspa, Kspa, Om_arg
         REALTYPE tmp1, tmp2, tmp3
         REALTYPE dV, dK, P, R
-               
+
 ! setup
         Kelvin = 273.15
-        Tk = Tc + Kelvin 
+        Tk = Tc + Kelvin
         Ca = 0.01028    ! Currently oceanic mean value at S=25, needs refining)
         R = 83.131      !(cm3.bar.mol-1.K-1)
         P = D / 10.0    !pressure in bars
 
 ! calculate K for calcite
-        tmp1 = -171.9065 - (0.077993*Tk) + (2839.319/Tk) + 71.595*log10(Tk) 
-        tmp2 = + (-0.77712 + (0.0028426*Tk) + (178.34/Tk))*SQRT(S) 
+        tmp1 = -171.9065 - (0.077993*Tk) + (2839.319/Tk) + 71.595*log10(Tk)
+        tmp2 = + (-0.77712 + (0.0028426*Tk) + (178.34/Tk))*SQRT(S)
         tmp3 = - (0.07711*S) + (0.0041249*(S**1.5))
         logKspc = tmp1 + tmp2 + tmp3
         Kspc = 10.0**logKspc
-      
+
 ! correction for pressure for calcite
         IF ( D .GT. 0) THEN
           dV = -48.76 + 0.5304*Tc
@@ -684,14 +684,14 @@
           Kspc = Kspc*exp(tmp1)
           logKspc = log10(Kspc)
         END IF
-        
+
 ! calculate K for aragonite
         tmp1 = -171.945 - 0.077993*Tk + 2903.293 / Tk + 71.595* log10(Tk)
-        tmp2 = + (-0.068393 + 0.0017276*Tk + 88.135/Tk)*SQRT(S)    
+        tmp2 = + (-0.068393 + 0.0017276*Tk + 88.135/Tk)*SQRT(S)
         tmp3 = - 0.10018*S + 0.0059415*S**1.5
         logKspa = tmp1 + tmp2 + tmp3
         Kspa = 10.0**logKspa
-     
+
 ! correction for pressure for aragonite
         IF ( D .GT. 0) THEN
           dV = -46.00 + 0.5304*Tc
@@ -700,10 +700,10 @@
           Kspa = Kspa*exp(tmp1)
           logKspa = log10(Kspa)
         END IF
-        
+
 ! calculate saturation states
         Om_cal = (CO3 * Ca) / Kspc
         Om_arg = (CO3 * Ca) / Kspa
-      
+
       RETURN
       END SUBROUTINE

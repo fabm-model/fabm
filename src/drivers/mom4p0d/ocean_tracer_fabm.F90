@@ -26,7 +26,7 @@
 #include "fabm_driver.h"
 
 !
-! 
+!
 !<CONTACT EMAIL="jorn@bolding-burchard.com"> Jorn Bruggeman
 !</CONTACT>
 !
@@ -93,8 +93,8 @@ use ocean_tpm_util_mod, only: otpm_get_string, otpm_get_integer_array, otpm_get_
 use ocean_tpm_util_mod, only: otpm_get_logical_array, otpm_get_real_array, otpm_get_string_array
 use ocean_tpm_util_mod, only: otpm_start_namelist, otpm_end_namelist
 use ocean_tpm_util_mod, only: domain, grid, time, dtts
-use ocean_tpm_util_mod, only: isc, iec, jsc, jec, nk, isd, ied, jsd, jed 
-use ocean_tpm_util_mod, only: taum1, tau, taup1 
+use ocean_tpm_util_mod, only: isc, iec, jsc, jec, nk, isd, ied, jsd, jed
+use ocean_tpm_util_mod, only: taum1, tau, taup1
 use ocean_tpm_util_mod, only: t_prog, t_diag
 use ocean_tpm_util_mod, only: indsal, indtemp
 use ocean_tpm_util_mod, only: end_of_year, end_of_month
@@ -169,13 +169,13 @@ character(len=fm_string_len), parameter         :: default_file_out = 'RESTART/o
 !
 !----------------------------------------------------------------------
 !
- 
+
 
 type biotic_type  !{
 
   type (type_model),pointer :: model
   integer                                          :: id_temp,id_salt,id_wind,id_pres,id_par,id_par_sf,id_dens
-  
+
   character(len=fm_field_name_len)                 :: name
   logical                                          :: do_virtual_flux = .false.
   integer,_ALLOCATABLE,dimension(:)                :: inds,inds_diag,inds_diag_hz
@@ -319,7 +319,7 @@ end subroutine  ocean_tracer_fabm_bbc  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocean_tracer_fabm_end(Thickness)  !{ 
+subroutine ocean_tracer_fabm_end(Thickness)  !{
 
 type(ocean_thickness_type), intent(in) :: Thickness
 
@@ -522,7 +522,7 @@ do n = 1, instances  !{
     do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
       t_prog(biotic(n)%inds(ivar))%stf(isc:iec,j) = biotic(n)%work_dy(isc:iec,ivar)
     end do
-   enddo  !} j 
+   enddo  !} j
 
    !
    !---------------------------------------------------------------------
@@ -767,7 +767,7 @@ do n = 1, instances  !{
     suffix = '_' // name
     long_suffix = ' (' // trim(name) // ')'
   endif  !}
-  
+
   ! Allow FABM to initialize
   nmlunit = open_namelist_file(trim(namelist_file))
   biotic(n)%model => fabm_create_model_from_file(nmlunit)
@@ -792,7 +792,7 @@ do n = 1, instances  !{
           const_init_tracer = .true.,                                                        &
           const_init_value = biotic(n)%model%info%state_variables(i)%initial_value)
   end do
-  
+
   ! Obtain ids of required external variables
   biotic(n)%id_temp   = fabm_get_variable_id(biotic(n)%model,varname_temp,   shape_full)
   biotic(n)%id_salt   = fabm_get_variable_id(biotic(n)%model,varname_salt,   shape_full)
@@ -895,7 +895,7 @@ character(len=256), parameter   :: warn_header =                                
      '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-     
+
 !
 !-----------------------------------------------------------------------
 !     arguments
@@ -980,7 +980,7 @@ do it=1,biotic_split
 
      do k = 1, nk  !{
        do j = jsc, jec  !{
-       
+
          ! Initialize derivatives to zero, because the bio model will increment/decrement values rather than set them.
          biotic(n)%work_dy = 0.d0
 
@@ -993,7 +993,7 @@ do it=1,biotic_split
               call fabm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:))
          end do  !} i
 #endif
-         
+
          ! Update current state according to supplied temporal derivatives (Forward Euler)
          biotic(n)%work_state(isc:iec,j,k,:) = biotic(n)%work_state(isc:iec,j,k,:) + dtsb*biotic(n)%work_dy(isc:iec,:)
 
@@ -1036,7 +1036,7 @@ do n = 1, instances  !{
              time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
       endif
   end do
-  
+
   ! Reset diagnostic variables to zero, because values for land points will not be set.
   biotic(n)%work_diag = 0.d0
   biotic(n)%work_diag_hz = 0.d0
@@ -1059,18 +1059,18 @@ do n = 1, instances  !{
 
     do i = isc, iec
      if (grid%tmask(i,j,1).ne.1.) cycle
-    
+
      ! Interpolate to sinking speed at interfaces
      do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
        biotic(n)%w(i,2:grid%kmt(i,j),ivar) = (biotic(n)%w(i,2:grid%kmt(i,j),ivar) + biotic(n)%w(i,1:grid%kmt(i,j)-1,ivar))*0.5d0
      end do
      biotic(n)%w(i,1,              :) = 0.0d0   ! Surface boundary condition
      biotic(n)%w(i,grid%kmt(i,j)+1,:) = 0.0d0   ! Bottom boundary condition
-     
+
      biotic(n)%adv = 0.d0
-     
+
      do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
-     
+
         ! Get upstream state variable values at all interfaces.
         do k=2,grid%kmt(i,j)
           if (biotic(n)%w(i,k,ivar)>0.) then
@@ -1090,7 +1090,7 @@ do n = 1, instances  !{
            t_prog(biotic(n)%inds(ivar))%th_tendency(i,j,k) = t_prog(biotic(n)%inds(ivar))%th_tendency(i,j,k) + &
                grid%tmask(i,j,k)*(biotic(n)%adv(k+1,ivar)-biotic(n)%adv(k,ivar))
         end do  !} k
-        
+
       end do  !} ivar
     end do  !} i
   end do  !} j
@@ -1160,7 +1160,7 @@ integer                                                 :: i,n=1,index_wind
 !-----------------------------------------------------------------------
 !
 
-write(stdout(),*) 
+write(stdout(),*)
 write(stdout(),*) trim(note_header),                     &
                   'Starting ', trim(package_name), ' module'
 
@@ -1179,7 +1179,7 @@ wind_file =  otpm_get_string ('wind_file', scalar = .true.)
 wind_name =  otpm_get_string ('wind_name', scalar = .true.)
 
 call otpm_end_namelist(package_name, '*global*', caller = caller_str)
-      
+
 !
 !-----------------------------------------------------------------------
 !       read in the namelists for each instance
@@ -1215,7 +1215,7 @@ do n=1,instances
    allocate(biotic(n)%work_diag_hz(isc:iec,jsc:jec,   ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
    allocate(biotic(n)%w  (isc:iec,nk+1,ubound(biotic(n)%model%info%state_variables,1)))
    allocate(biotic(n)%adv(nk+1,ubound(biotic(n)%model%info%state_variables,1)))
-   
+
    ! Set diagnostic variables to zero, because values for land points will not be set.
    biotic(n)%work_diag = 0.d0
    biotic(n)%work_diag_hz = 0.d0

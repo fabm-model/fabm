@@ -17,7 +17,7 @@ OBJS: $(SUBDIRS)
 	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../doc/fabm.tex 
+	$(PROTEX) $(DOCSRC) > ../../doc/fabm.tex
 
 clean:
 	$(RM) ${LIB} doc

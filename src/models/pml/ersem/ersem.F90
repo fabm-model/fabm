@@ -45,7 +45,7 @@
       _TYPE_DEPENDENCY_ID_          :: id_EIR,id_ETW,id_x1X,id_EPW
 !      _TYPE_DEPENDENCY_ID_          :: id_Water,id_SeaSurface,id_BoxDepth
 !      _TYPE_DEPENDENCY_ID_          :: id_SeaFloor,id_BoxFaces,id_Bathymetry
-      
+
 !     Model parameters
 !      REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
 !      REALTYPE :: dic_per_n
@@ -113,7 +113,7 @@
    ! and are converted here to values per second.
    ! wdepth = WILL NEED TO BE ASSIGNED FOR ANALYTIC BEN INIT TO WORK
 
-   call init_ersem() 
+   call init_ersem()
 ! Register state variables
    do n=1,I_STATE
         self%id_ccc(n) = register_state_variable(modelinfo,cccstr(n),'undefined',cccstr(n),     &
@@ -126,10 +126,10 @@
 #endif
 
    ! Register diagnostic variables
-   ! NONE FOR NOW   
+   ! NONE FOR NOW
    ! Register conserved quantities
 !   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen') LATER
-   
+
    ! Register environmental dependencies
    self%id_ETW = register_dependency(modelinfo, varname_temp)
    self%id_EIR = register_dependency(modelinfo, varname_swr)
@@ -210,7 +210,7 @@
    DO n=1,I_STATE
         _GET_STATE_1D_(self%id_ccc(n),ccc(_DOMAIN_1D_,n)) ! pelagic
    ENDDO
-   
+
    ! Retrieve current environmental conditions.
    _GET_DEPENDENCY_1D_(self%id_EIR,EIR(_DOMAIN_1D_))  ! local short wave radiation
    _GET_DEPENDENCY_1D_(self%id_ETW,ETW(_DOMAIN_1D_))  ! local temperature
@@ -233,7 +233,7 @@
    call reset_ersem()
 
 #endif
-   
+
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_1D_
 
@@ -279,7 +279,7 @@
    DO n=1,I_STATEBEN
         _GET_STATE_BEN_1D_(self%id_ccb(n),ccb(_DOMAIN_HZ_1D_,n))
    ENDDO
-   
+
    ! Retrieve current environmental conditions for the bottom pelagic layer.
    _GET_DEPENDENCY_HZ_1D_(self%id_EIR,EIR(_INDEX_HZ_1D_))  ! local short wave radiation
    _GET_DEPENDENCY_HZ_1D_(self%id_ETW,ETW(_INDEX_HZ_1D_))  ! local temperature
@@ -301,7 +301,7 @@
      _SET_ODE_BEN_1D_(self%id_ccb(n),sccb(_DOMAIN_HZ_1D_,n))
    enddo
 #endif
-   
+
    ! Leave spatial loops (if any)
    _FABM_HZ_LOOP_END_1D_
 
@@ -338,14 +338,14 @@
    DO n=1,I_STATE
         _GET_STATE_1D_(self%id_ccc(n),ccc(_DOMAIN_1D_,n)) ! pelagic
    ENDDO
-   call calculate_extinction() 
+   call calculate_extinction()
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_1D_(xEPS(_DOMAIN_1D_))
 #endif
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_1D_
-   
+
    end subroutine pml_ersem_get_light_extinction
 !EOC
 !-----------------------------------------------------------------------
@@ -375,7 +375,7 @@
 !BOC
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_1D_
-   
+
    ! Here a call would be needed to ensure sdCCC contains the correct velocities
    ! for the current point in horizontal space. This may be non-trivial, though,
    ! as ERSEM seems to calculate these velocities in the same code that handles sink and source
@@ -399,7 +399,7 @@
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_1D_
-   
+
    end subroutine pml_ersem_get_vertical_movement
 !EOC
 !-----------------------------------------------------------------------

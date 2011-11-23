@@ -45,10 +45,10 @@
    integer  :: swr_method = 0
    REALTYPE :: cloud = _ZERO_, par_fraction = _ONE_, par_background_extinction = _ZERO_
    logical  :: apply_self_shading = .true., add_environment = .false., add_conserved_quantities = .false.
-   
+
    ! Environment
    REALTYPE,target :: temp,salt,par,depth,dens,wind_sf,par_sf
-   
+
    REALTYPE,allocatable                   :: cc(:,:),totals(:),diag(:),diag_hz(:)
    type (type_model),pointer              :: model
    character(len=128)                     :: cbuf
@@ -105,7 +105,7 @@
    read(namlst,nml=model_setup,err=91)
    read(namlst,nml=environment,err=92)
    read(namlst,nml=output     ,err=93)
-   
+
    ! Close the namelist file.
    close (namlst)
 
@@ -144,10 +144,10 @@
         status='old',err=95)
    LEVEL2 'Reading local environment data from:'
    LEVEL3 trim(env_file)
-   
+
    ! Build FABM model tree.
    model => fabm_create_model_from_file(namlst)
-   
+
    ! Allocate space for totals of conserved quantities.
    allocate(totals(1:ubound(model%info%conserved_quantities,1)))
 
@@ -170,7 +170,7 @@
    do i=1,ubound(model%info%diagnostic_variables_hz,1)
       call fabm_link_diagnostic_data_hz(model,i,diag_hz(i))
    end do
-   
+
    ! Link environmental data to FABM
    call fabm_link_data(model,varname_temp,   temp)
    call fabm_link_data(model,varname_salt,   salt)
@@ -261,7 +261,7 @@
    pp(:,:,1) = _ZERO_
    dd(:,:,1) = _ZERO_
    call fabm_do(model,pp(:,:,1),dd(:,:,1))
-   
+
    end subroutine get_ppdd
 !EOC
 !BOP
@@ -293,7 +293,7 @@
 !BOC
    rhs(:,1) = _ZERO_
    call fabm_do(model,rhs(:,1))
-   
+
    end subroutine get_rhs
 !EOC
 !-----------------------------------------------------------------------
@@ -330,16 +330,16 @@
 
       ! Update time
       call update_time(n)
-      
+
       ! Update environment
       call read_environment(julianday,secondsofday)
-      
+
       ! Calculate photosynthetically active radiation if it is not provided in the input file.
       if (swr_method.eq.0) then
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
          call short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,par_sf)
       end if
-      
+
       ! Multiply by fraction of short-wave radiation that is photosynthetically active.
       par_sf = par_fraction*par_sf
 
@@ -353,10 +353,10 @@
       else
          par = par_sf
       end if
-      
+
       ! Integrate one time step
       call ode_solver(ode_method,ubound(model%info%state_variables,1),1,dt,cc,get_rhs,get_ppdd)
-      
+
       ! Do output
       if (mod(n,nsave).eq.0) then
          call write_time_string(julianday,secondsofday,timestr)
@@ -433,10 +433,10 @@
          env_jul1  = env_jul2
          env_secs1 = env_secs2
          obs1      = obs2
-         
+
          ! Try to read another observation
          call read_obs(env_unit,yy,mm,dd,hh,min,ss,nobs,obs2,rc)
-         
+
          ! Interpret the status code that was returned.
          if (rc==END_OF_FILE) then
             ! Unable to read more observations: set the last observation equal to the first
@@ -450,15 +450,15 @@
             ! Unknown error occurred: fail.
             stop 'read_environment: error when reading environment from file.'
          end if
-         
+
          ! Calculate the time of the observation we just read.
          call julian_day(yy,mm,dd,env_jul2)
          env_secs2 = hh*3600 + min*60 + ss
-         
+
          ! If the new observation lies beyond the current time, we are done.
          if(time_diff(env_jul2,env_secs2,jul,secs) .gt. 0) EXIT
       end do
-      
+
       if (env_jul1.eq.0) then
          ! The time of the very first observation already lies beyond current time.
          ! Set the left-side observation equal to the right-side one that we just read.
@@ -466,7 +466,7 @@
          env_secs1 = env_secs2
          obs1      = obs2
       end if
-      
+
       ! Calculate the difference in time between the left- and right-side observation.
       dt = time_diff(env_jul2,env_secs2,env_jul1,env_secs1)
    end if
@@ -488,7 +488,7 @@
    salt   = curobs(3)
 
    end subroutine read_environment
-   
+
 
 !-----------------------------------------------------------------------
 !BOP
@@ -545,7 +545,7 @@
    end subroutine read_obs
 !EOC
 
-   
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -567,7 +567,7 @@
 !-----------------------------------------------------------------------
 !BOC
    LEVEL1 'clean_up'
-   
+
    close(env_unit)
    close(out_unit)
 

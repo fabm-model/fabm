@@ -30,7 +30,7 @@ models: driver $(FABMBASE)
 $(FABMMOD): $(FABMBASE) models $(FABMMODELLIB)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../doc/fabm.tex 
+	$(PROTEX) $(DOCSRC) > ../doc/fabm.tex
 	touch doc
 
 clean:
