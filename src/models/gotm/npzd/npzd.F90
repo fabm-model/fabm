@@ -30,6 +30,8 @@
    use fabm_types
    use fabm_driver
 
+   implicit none
+
 !  default: all is private.
    private
 !
@@ -73,9 +75,6 @@
 ! !DESCRIPTION:
 !  Here, the npzd namelist is read and te variables exported
 !  by the model are registered with FABM.
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_npzd), intent(out)   :: self
@@ -234,9 +233,6 @@
 ! \begin{equation}\label{dzd}
 ! d_{zd} = r_{zd} c_z
 ! \end{equation}
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_npzd),       intent(in) :: self
@@ -436,9 +432,6 @@
 ! d_{zd} = r_{zd} c_z
 ! \end{equation}
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_gotm_npzd),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
@@ -520,9 +513,6 @@
 ! Here, the classical Michaelis-Menten formulation for nutrient uptake
 ! is formulated.
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_gotm_npzd), intent(in) :: self
    REALTYPE, intent(in)         :: n,p,par,iopt
@@ -549,9 +539,6 @@
 ! !DESCRIPTION:
 ! Here, the classical Ivlev formulation for zooplankton grazing on
 ! phytoplankton is formulated.
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_npzd), intent(in) :: self

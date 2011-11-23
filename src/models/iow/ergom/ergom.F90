@@ -74,7 +74,7 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_iow_ergom, iow_ergom_init, iow_ergom_do, iow_ergom_get_light_extinction, &
-   surface_fluxes_ergom,iow_ergom_do_benthos
+   iow_ergom_get_surface_exchange,iow_ergom_do_benthos
 ! !PUBLIC DATA MEMBERS:
 !
 ! !REVISION HISTORY:
@@ -776,7 +776,7 @@
 ! !IROUTINE: Surface fluxes for the ergom model
 !
 ! !INTERFACE:
-  subroutine surface_fluxes_ergom(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+  subroutine iow_ergom_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
 !
 ! !DESCRIPTION:
 !
@@ -878,7 +878,7 @@
    _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po/secs_pr_day)
 
    _FABM_HZ_LOOP_END_
-   end subroutine surface_fluxes_ergom
+   end subroutine iow_ergom_get_surface_exchange
 !EOC
 
 !-----------------------------------------------------------------------
