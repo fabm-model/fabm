@@ -39,7 +39,7 @@
       _TYPE_DEPENDENCY_ID_          :: id_par,id_I_0
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
       _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
-      
+
 !     Model parameters
       REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
       REALTYPE :: dic_per_n
@@ -108,7 +108,7 @@
    self%rpn  = rpn /secs_pr_day
    self%rpdu = rpdu/secs_pr_day
    self%rpdl = rpdl/secs_pr_day
-   
+
    ! Register state variables
    self%id_p = register_state_variable(modelinfo,'phy','mmol/m**3','phytoplankton', &
                                     p_initial,minimum=_ZERO_,vertical_movement=w_p/secs_pr_day)
@@ -133,10 +133,10 @@
                      time_treatment=time_treatment_averaged)
    self%id_dPAR = register_diagnostic_variable(modelinfo,'PAR','W/m**2',     'photosynthetically active radiation',&
                      time_treatment=time_treatment_averaged)
-   
+
    ! Register conserved quantities
 !KB   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
-   
+
    ! Register environmental dependencies
    self%id_par = register_dependency(modelinfo, varname_par)
    self%id_I_0 = register_dependency(modelinfo, varname_par_sf, shape=shape_hz)
@@ -144,7 +144,7 @@
    return
 
 99 call fatal_error('fabm_examples_npzd_phy','Error reading namelist npzd')
-   
+
    end subroutine examples_npzd_phy_init
 !EOC
 
@@ -181,7 +181,7 @@
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_p,p) ! phytoplankton
    _GET_STATE_(self%id_upttarget,n) ! nutrients
-   
+
    ! Retrieve current environmental conditions.
    _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
    _GET_DEPENDENCY_HZ_(self%id_I_0,I_0)  ! surface short wave radiation
@@ -195,7 +195,7 @@
    else
       rpd = self%rpdl
    end if
-   
+
    ! Define some intermediate quantities that will be reused multiple times.
    primprod = fnp(self,n,p,par,iopt)
 
@@ -219,7 +219,7 @@
    _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
    _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
    _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
-   
+
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
@@ -253,13 +253,13 @@
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_p,p) ! phytoplankton
-   
+
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(0.0*p)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
-   
+
    end subroutine aed_p_get_light_extinction
 !EOC
 
@@ -289,7 +289,7 @@
 
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_p,p) ! phytoplankton
-   
+
    ! Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totN,p)
 
@@ -332,10 +332,10 @@
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_p,p) ! phytoplankton
    _GET_STATE_(self%id_upttarget,n) ! nutrients
-   
+
    ! Retrieve current environmental conditions.
    _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
-   
+
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
 
@@ -345,7 +345,7 @@
    else
       rpd = self%rpdl
    end if
-   
+
    ! Rate of primary production will be reused multiple times - calculate it once.
    primprod = fnp(self,n,p,par,iopt)
 
@@ -364,7 +364,7 @@
    _SET_DD_(self%id_p,self%id_p,primprod)
    _SET_DD_(self%id_p,self%id_p,- self%rpn*p)
    _SET_DD_(self%id_p,self%id_p,- rpd*p)
-   
+
    ! If an externally maintained ...
    if (self%do_upt) then
       _SET_PP_(self%id_upttarget,self%id_upttarget,-primprod)
@@ -375,7 +375,7 @@
    if (self%do_exc) then
       _SET_PP_(self%id_exctarget,self%id_exctarget,self%rpn*p)
    end if
-   
+
    ! Export diagnostic variables
    _SET_DIAG_(self%id_dPAR,par)
    _SET_DIAG_(self%id_GPP,primprod)

@@ -1,4 +1,3 @@
-!$Id: examples_benthic_predator.F90 119 2010-12-27 14:23:18Z jornbr $
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
@@ -19,7 +18,7 @@
 ! !USES:
    use fabm_types
    use fabm_driver
-   
+
    implicit none
 
 !  default: all is private.
@@ -32,7 +31,7 @@
    type type_examples_benthic_predator
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_ :: id_prey,id_pred,id_nut
-      
+
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
       REALTYPE :: g_max,K,h
    end type
@@ -84,7 +83,7 @@
    self%g_max = g_max/secs_pr_day
    self%h     = h/secs_pr_day
    self%K     = K
-   
+
    ! Register state variables
    ! NOTE the benthic=.true. argument, which specifies the variable is benthic.
    self%id_pred = register_state_variable(modelinfo,'pred','mmol/m**2','predator density', &
@@ -99,7 +98,7 @@
 
 99 call fatal_error('examples_benthic_predator_init','Error reading namelist examples_benthic_predator')
 100 call fatal_error('examples_benthic_predator_init','Namelist examples_benthic_predator was not found')
-   
+
    end subroutine examples_benthic_predator_init
 !EOC
 
@@ -133,17 +132,17 @@
    ! Retrieve current (local) state variable values.
    _GET_STATE_(self%id_prey,prey)     ! prey density - pelagic
    _GET_STATE_BEN_(self%id_pred,pred) ! predator density - benthic
-   
+
    ! Calculate grazing rate
    g = self%g_max*pred*prey/(prey+self%K)
 
    ! Set local temporal derivatives of benthic variables
    _SET_ODE_BEN_(self%id_pred,g-self%h*pred)
-   
+
    ! Set bottom fluxes of pelagic variables (these mirror local benthic derivatives)
    _SET_BOTTOM_EXCHANGE_(self%id_prey,-g)
    _SET_BOTTOM_EXCHANGE_(self%id_nut,self%h*pred)
-   
+
    ! Leave spatial loops over the horizontal domain (if any).
    _FABM_HZ_LOOP_END_
 

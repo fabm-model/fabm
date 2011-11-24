@@ -23,7 +23,7 @@
 !!                                                                   !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module ocean_tpm_mod  !{
-! 
+!
 !<CONTACT EMAIL="Richard.Slater@noaa.gov"> Richard D. Slater
 !</CONTACT>
 !
@@ -52,7 +52,7 @@ module ocean_tpm_mod  !{
 !               routine will call specified routines to set default
 !               values for each tracer for such things as advection
 !               scheme, tracer name, etc.
-!               
+!
 !       ocean_tpm_flux_init: this routine initalizes field elements
 !               relating to the ocean-atmosphere gas fluxes
 !
@@ -134,7 +134,7 @@ use ocean_residency_mod, only: ocean_residency_source
 use ocean_residency_mod, only: ocean_residency_start
 use ocean_residency_mod, only: ocean_residency_tracer
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 use ocean_pert_co2_mod, only: do_ocean_pert_co2
 use ocean_pert_co2_mod, only: ocean_pert_co2_avg_sfc
 use ocean_pert_co2_mod, only: ocean_pert_co2_end
@@ -264,7 +264,7 @@ use ocean_fabm_mod, only: ocean_fabm_flux_init
 use ocean_fabm_mod, only: ocean_fabm_sfc_end
 use ocean_fabm_mod, only: ocean_fabm_init_sfc
 
-#endif 
+#endif
 
 use ocean_frazil_mod,     only: ocean_frazil_init
 use ocean_tempsalt_mod,   only: ocean_tempsalt_init
@@ -423,10 +423,10 @@ endif  !}
 !-----------------------------------------------------------------------
 !
 ! Check that old ifdef is not accidently defined
-#ifdef USE_OCEAN_OCMIP2 
+#ifdef USE_OCEAN_OCMIP2
   call mpp_error(FATAL, &
   '==>Error in ocean_tmp_mod: cpp option USE_OCEAN_OCMIP2 is now called USE_OCEAN_BGC. Please recompile...sorry.')
-#endif 
+#endif
 
 
 time_tau = time%tau
@@ -647,7 +647,7 @@ character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_nam
 !
 
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
 if (do_ocmip2_biotic) then  !{
   call ocmip2_biotic_bbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,        &
@@ -664,7 +664,7 @@ if (do_ocean_fabm) then  !{
                          Domain%isd, Domain%ied, Domain%jsd, Domain%jed, T_prog, Grid%kmt)
 endif  !}
 
-#endif 
+#endif
 
 return
 
@@ -680,7 +680,7 @@ end subroutine ocean_tpm_bbc  !}
 subroutine ocean_tpm_restart(time_stamp)
   character(len=*),           intent(in), optional :: time_stamp
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
 if (do_ocmip2_abiotic) call ocmip2_abiotic_restart(time_stamp)
 if (do_ocmip2_biotic) call ocmip2_biotic_restart(time_stamp)
@@ -739,7 +739,7 @@ character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_nam
 !       call subroutines to finish up the run
 !
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
 if (do_ocmip2_cfc) then  !{
   call ocmip2_cfc_end(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,  &
@@ -805,7 +805,7 @@ if (do_ocean_fabm) then  !{
                          Thickness%rho_dzt, Time%taup1)
 endif  !}
 
-#endif 
+#endif
 
 return
 
@@ -870,7 +870,7 @@ if (.not. initialized) then  !{
 
   call mpp_get_compute_domain(Ocean%Domain, isc_bnd, iec_bnd, jsc_bnd, jec_bnd)
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
   if (do_ocmip2_cfc) then  !{
     call ocmip2_cfc_init_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,           &
@@ -920,7 +920,7 @@ if (.not. initialized) then  !{
                             isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                        &
                             Ocean%fields, T_prog, Dens%rho, Time%taum1, Grid%tmask)
   endif  !}
-  
+
   if (do_ocean_ibgc) then  !{
     call ocean_ibgc_init_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,      &
                               Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                   &
@@ -937,7 +937,7 @@ if (.not. initialized) then  !{
                               Grid%tmask)
   endif  !}
 
-#endif 
+#endif
 
 
   initialized = .true.
@@ -999,7 +999,7 @@ character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_nam
 !-----------------------------------------------------------------------
 !
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
 if (do_ocmip2_cfc) then  !{
   call ocmip2_cfc_sum_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,            &
@@ -1069,7 +1069,7 @@ if (do_ocean_fabm) then  !{
                              Grid%tmask)
 endif  !}
 
-#endif 
+#endif
 
 return
 
@@ -1123,7 +1123,7 @@ character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_nam
 !-----------------------------------------------------------------------
 !
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
 if (do_ocmip2_cfc) then  !{
   call ocmip2_cfc_avg_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,        &
@@ -1182,7 +1182,7 @@ if (do_ocean_fabm) then  !{
 endif  !}
 
 
-#endif 
+#endif
 
 
 return
@@ -1226,7 +1226,7 @@ character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_nam
                                                  '(' // trim(sub_name) // '):'
 
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
 if (do_ocmip2_cfc) then  !{
   call ocmip2_cfc_zero_sfc(Ocean%fields)
@@ -1262,7 +1262,7 @@ if (do_ocean_fabm) then  !{
   call ocean_fabm_zero_sfc(Ocean%fields)
 endif  !}
 
-#endif 
+#endif
 
 return
 
@@ -1303,7 +1303,7 @@ character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_nam
                                                  '(' // trim(sub_name) // '):'
 
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
 if (do_ocmip2_cfc) then  !{
   call ocmip2_cfc_sfc_end
@@ -1329,7 +1329,7 @@ if (do_ocean_fabm) then  !{
   call ocean_fabm_sfc_end
 endif  !}
 
-#endif 
+#endif
 
 
 return
@@ -1392,7 +1392,7 @@ character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_nam
 !
 
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
 if (do_ocmip2_cfc) then  !{
   call ocmip2_cfc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,          &
@@ -1460,7 +1460,7 @@ if (do_ocean_fabm) then  !{
 endif  !}
 
 
-#endif 
+#endif
 
 return
 
@@ -1526,18 +1526,18 @@ character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_nam
 !       Call subroutines to perform initialization operations
 !
 
-call ocean_tempsalt_init (Domain, Grid, Time, Ocean_options, index_temp, index_salt, debug)  
+call ocean_tempsalt_init (Domain, Grid, Time, Ocean_options, index_temp, index_salt, debug)
 
 call ocean_frazil_init (Domain, Grid, Time, Time_steps, Ocean_options, &
-                        index_temp, index_salt, debug)  
+                        index_temp, index_salt, debug)
 
-call ocean_passive_init (Domain, Grid, Ocean_options, debug)  
+call ocean_passive_init (Domain, Grid, Ocean_options, debug)
 
 call ocean_residency_init       ! must come first
 
 call ocean_age_tracer_init
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
 call ocmip2_cfc_init
 
@@ -1559,7 +1559,7 @@ call ocean_generic_init(Domain,Grid,Time)
 
 call ocean_fabm_init
 
-#endif 
+#endif
 
 call transport_matrix_init
 
@@ -1625,7 +1625,7 @@ character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_nam
 !       we're using that package on the oceanic processors.
 !
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
 call ocmip2_cfc_flux_init
 
@@ -1645,7 +1645,7 @@ call ocean_generic_flux_init
 
 call ocean_fabm_flux_init
 
-#endif 
+#endif
 
 return
 
@@ -1685,7 +1685,7 @@ type(ocean_time_type), intent(in)                               :: Time
 type(ocean_thickness_type), intent(in)                          :: Thickness
 type(ocean_density_type), intent(in)                            :: Dens
 real, intent(in), dimension(isd:,jsd:)                          :: hblt_depth
-real, intent(in), dimension(isd:,jsd:,:)                        :: opacity 
+real, intent(in), dimension(isd:,jsd:,:)                        :: opacity
 real, intent(in)                                                :: dtts
 !
 !-----------------------------------------------------------------------
@@ -1706,31 +1706,31 @@ character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_nam
 !       Call subroutines to determine the source array
 !
 
-if (do_ocean_age_tracer) then 
+if (do_ocean_age_tracer) then
   call ocean_age_tracer_source(isd, ied, jsd, jed, Grid%nk,     &
                                Time%model_time, Grid%tmask, T_prog)
-endif 
+endif
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 if (do_ocean_pert_co2) then
   call ocean_pert_co2_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,   &
                              isd, ied, jsd, jed, T_prog,                                &
                              Time%model_time, grid%tmask )
-endif 
+endif
 
 if (do_ocmip2_abiotic) then
   call ocmip2_abiotic_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,   &
                              isd, ied, jsd, jed, T_prog,                                &
                              Time%taum1, Time%model_time, Grid%tmask,                   &
                              Thickness%rho_dzt)
-endif 
+endif
 
 if (do_ocmip2_biotic) then
   call ocmip2_biotic_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,    &
                             isd, ied, jsd, jed, T_prog,                                 &
                             Time%taum1, Time%model_time, Grid%zw, Grid%ht, Grid%tmask,  &
                             Thickness%rho_dzt)
-endif 
+endif
 
 if (do_ocean_bgc_restore) then  !{
   call ocean_bgc_restore_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,&
@@ -1758,9 +1758,9 @@ if (do_ocean_fabm) then
                             isd, ied, jsd, jed, T_prog, T_diag,                           &
                             Time%taum1, Time%model_time, Grid%zw, Grid%ht, Grid%tmask,  &
                             Grid%kmt, Thickness%rho_dzt, Dens)
-endif 
+endif
 
-#endif 
+#endif
 
 if (do_ocean_residency) then  !{        ! must come last
   call ocean_residency_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,           &
@@ -1770,7 +1770,7 @@ endif  !}
 
 return
 
-end subroutine ocean_tpm_source 
+end subroutine ocean_tpm_source
 ! </SUBROUTINE> NAME="ocean_tpm_source"
 
 
@@ -1829,7 +1829,7 @@ if (do_ocean_age_tracer) then  !{
                               Grid%xt, Grid%yt, Grid%kmt)
 endif  !}
 
-#ifdef USE_OCEAN_BGC 
+#ifdef USE_OCEAN_BGC
 
 if (do_ocmip2_cfc) then  !{
   call ocmip2_cfc_start(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,        &
@@ -1900,7 +1900,7 @@ if (do_ocean_ibgc) then  !{
                              Grid%dat, Grid%tmask, Grid%kmt, Grid%xt, Grid%yt,          &
                              Thickness%depth_zt, Grid%zw, Grid%dzt, Grid%name,&
                              Grid%tracer_axes, Domain%domain2d, Thickness%rho_dzt)
-                             
+
 endif  !}
 
 if (do_ocean_fabm) then  !{
@@ -1913,7 +1913,7 @@ if (do_ocean_fabm) then  !{
                            Thickness%rho_dzt)
 endif  !}
 
-#endif 
+#endif
 
 if (do_transport_matrix) then  !{
   call transport_matrix_start(Time, T_prog, Domain%isd, Domain%ied, Domain%jsd,         &
@@ -2016,20 +2016,20 @@ if (do_ocean_ibgc) then  !{
                               Domain%isd, Domain%ied, Domain%jsd, Domain%jed, Grid%nk, &
                               Time, T_prog, Thickness, Dens,                           &
                               Thickness%depth_zt, hblt_depth)
-                              
+
 endif  !}
 
-if (do_generic_tracer) then 
+if (do_generic_tracer) then
    call ocean_generic_column_physics(Thickness, hblt_depth, Time, &
         Grid, dtts, Domain%isd,Domain%jsd, T_prog, T_diag,sw_pen,opacity, diff_cbt, Dens )
 endif
 
 if (do_ocean_fabm) then  !{
   call ocean_fabm_tracer()
-                              
+
 endif  !}
 
-#endif 
+#endif
 
 if (do_transport_matrix) then !{
   call transport_matrix_store_implicit(Time, T_prog, Domain%isd, Domain%ied, Domain%jsd, Domain%jed,    &

@@ -28,7 +28,7 @@
 #define INPLACE_REPAIR
 
 !
-! 
+!
 !<CONTACT EMAIL="jorn@bolding-burchard.com"> Jorn Bruggeman
 !</CONTACT>
 !
@@ -99,7 +99,7 @@ use fm_util_mod, only: fm_util_get_string, fm_util_get_integer_array, fm_util_ge
 use fm_util_mod, only: fm_util_get_logical_array, fm_util_get_real_array, fm_util_get_string_array
 use fm_util_mod, only: fm_util_start_namelist, fm_util_end_namelist
 !use fm_util_mod, only: grid, dtts
-!use fm_util_mod, only: taum1, tau, taup1 
+!use fm_util_mod, only: taum1, tau, taup1
 !use fm_util_mod, only: t_prog, t_diag
 use coupler_types_mod,  only: coupler_2d_bc_type ! ind_alpha, ind_csurf
 use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_diag_tracer_type, ocean_density_type
@@ -181,13 +181,13 @@ character(len=fm_string_len), parameter         :: default_ocean_restart_file = 
 !
 !----------------------------------------------------------------------
 !
- 
+
 
 type biotic_type  !{
 
   type (type_model),pointer :: model
   integer                                          :: id_temp,id_salt,id_pres,id_par,id_par_sf,id_dens
-  
+
   character(len=fm_field_name_len)                 :: name
   logical                                          :: do_virtual_flux = .false.
   integer,_ALLOCATABLE,dimension(:)                :: inds,inds_diag,inds_diag_hz
@@ -463,7 +463,7 @@ do n = 1, instances  !{
     suffix = '_' // name
     long_suffix = ' (' // trim(name) // ')'
   endif  !}
-  
+
   ! Create the FABM model tree
   nmlunit = open_namelist_file(namelist_file)
   biotic(n)%model => fabm_create_model_from_file(nmlunit)
@@ -489,7 +489,7 @@ do n = 1, instances  !{
 
 !  call fm_util_end_namelist(package_name, biotic(n)%name, caller = caller_str)
   call fm_util_end_namelist(package_name, biotic(n)%name, check = .true., caller = caller_str)
-  
+
   ! Obtain ids of required external variables
   biotic(n)%id_temp   = fabm_get_variable_id(biotic(n)%model,varname_temp,   shape_full)
   biotic(n)%id_salt   = fabm_get_variable_id(biotic(n)%model,varname_salt,   shape_full)
@@ -635,7 +635,7 @@ integer                                                 :: i,n=1,index_wind
 !-----------------------------------------------------------------------
 !
 
-write(stdout(),*) 
+write(stdout(),*)
 write(stdout(),*) trim(note_header),                     &
                   'Starting ', trim(package_name), ' module'
 
@@ -660,7 +660,7 @@ caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str)
 
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str)
-      
+
 !
 !-----------------------------------------------------------------------
 !       read in the namelists for each instance
@@ -763,7 +763,7 @@ do n = 1, instances  !{
       ! It would have been nice to do this during initialization (_init or _start),
       ! instead of on demand, but during initialization the data override module has not
       ! been told the ocean domain yet. Thus, data_override cannot be called.
-   
+
       ! Process 3D variables.
       extcount = 0
       allocate(biotic(n)%ext_3d_variables(1:ubound(biotic(n)%model%info%dependencies,1)))
@@ -802,7 +802,7 @@ do n = 1, instances  !{
          call fabm_link_data_hz(biotic(n)%model,biotic(n)%ext_2d_variables(i),biotic(n)%ext_2d_data(isc:iec,jsc:jec,i))
       end do
    end if
-   
+
    ! Update values of external variables.
    do i=1,ubound(biotic(n)%ext_3d_data,4)
       call data_override('OCN','fabm_'//trim(biotic(n)%ext_3d_variables(i)), biotic(n)%ext_3d_data(:,:,:,i), model_time)
@@ -874,7 +874,7 @@ character(len=256), parameter   :: warn_header =                                
      '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-     
+
 !
 !-----------------------------------------------------------------------
 !     arguments
@@ -951,7 +951,7 @@ do n = 1, instances  !{
 
   do k = 1, nk  !{
     do j = jsc, jec  !{
-    
+
       ! Initialize derivatives to zero, because the bio model will increment/decrement values rather than set them.
       biotic(n)%work_dy = 0.d0
 
@@ -998,14 +998,14 @@ do n = 1, instances  !{
              model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
       endif
   end do
-  
+
   ! Reset diagnostic variables to zero, because values for land points will not be set.
   biotic(n)%work_diag = 0.d0
   biotic(n)%work_diag_hz = 0.d0
 end do
 
 call mpp_clock_end(id_clock_fabm_source)
-  
+
 call mpp_clock_begin(id_clock_fabm_vertmov)
 
 do n = 1, instances  !{
@@ -1029,18 +1029,18 @@ do n = 1, instances  !{
 
     do i = isc, iec
      if (grid_tmask(i,j,1).ne.1.) cycle
-    
+
      ! Interpolate to sinking speed at interfaces
      do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
        biotic(n)%w(i,2:grid_kmt(i,j),ivar) = (biotic(n)%w(i,2:grid_kmt(i,j),ivar) + biotic(n)%w(i,1:grid_kmt(i,j)-1,ivar))*0.5d0
      end do
      biotic(n)%w(i,1,              :) = 0.0d0   ! Surface boundary condition
      biotic(n)%w(i,grid_kmt(i,j)+1,:) = 0.0d0   ! Bottom boundary condition
-     
+
      biotic(n)%adv = 0.d0
-     
+
      do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
-     
+
         ! Get tracer flux at all interfaces.
         do k=2,grid_kmt(i,j)
           if (biotic(n)%w(i,k,ivar)>0.) then
@@ -1060,7 +1060,7 @@ do n = 1, instances  !{
            t_prog(biotic(n)%inds(ivar))%th_tendency(i,j,k) = t_prog(biotic(n)%inds(ivar))%th_tendency(i,j,k) + &
                grid_tmask(i,j,k)*(biotic(n)%adv(k+1,ivar)-biotic(n)%adv(k,ivar))*Dens%rho(i,j,k,taum1)
         end do  !} k
-        
+
       end do  !} ivar
     end do  !} i
   end do  !} j
@@ -1169,8 +1169,8 @@ character(len=fm_path_name_len)                         :: path_to_names
 character(len=fm_field_name_len+1)                      :: suffix
 character(len=256)                                      :: caller_str
 
-  integer :: stdoutunit 
-  stdoutunit=stdout() 
+  integer :: stdoutunit
+  stdoutunit=stdout()
 
 !
 !       First, perform some initialization if this module has not been
@@ -1187,7 +1187,7 @@ if (.not. module_initialized) then  !{
 !
 
   package_index = otpm_set_tracer_package(package_name,            &
-       restart_file = default_restart_file,                        &              
+       restart_file = default_restart_file,                        &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
 !
@@ -1396,7 +1396,7 @@ do n = 1, instances  !{
 !
 !!
 !!---------------------------------------------------------------------
-!!  Compute the Schmidt number of CO2 in seawater using the 
+!!  Compute the Schmidt number of CO2 in seawater using the
 !!  formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
 !!  7373-7382).
 !!---------------------------------------------------------------------
@@ -1463,7 +1463,7 @@ do n = 1, instances  !{
 !                 (b_0 + b_1*ts(i) + b_2*ts2(i) + b_3*ts3(i) +           &
 !                  c_0*t_prog(indsal)%field(i,j,1,taum1)))
 !      enddo  !} i
-!    enddo  !} j 
+!    enddo  !} j
 !
 !!
 !!       convert from ml/l to mol/m^3
@@ -1473,11 +1473,11 @@ do n = 1, instances  !{
 !      do i = isc, iec  !{
 !        o2_saturation(i,j) = o2_saturation(i,j) * (1000.0/22391.6)
 !      enddo  !} i
-!    enddo  !} j 
+!    enddo  !} j
 !
 !!
 !!---------------------------------------------------------------------
-!!  Compute the Schmidt number of O2 in seawater using the 
+!!  Compute the Schmidt number of O2 in seawater using the
 !!  formulation proposed by Keeling et al. (1998, Global Biogeochem.
 !!  Cycles, 12, 141-163).
 !!---------------------------------------------------------------------
@@ -1688,7 +1688,7 @@ do n = 1, instances  !{
 !
 !!
 !!---------------------------------------------------------------------
-!!  Compute the Schmidt number of CO2 in seawater using the 
+!!  Compute the Schmidt number of CO2 in seawater using the
 !!  formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
 !!  7373-7382).
 !!---------------------------------------------------------------------
@@ -1749,7 +1749,7 @@ do n = 1, instances  !{
 !                 (b_0 + b_1*ts(i) + b_2*ts2(i) + b_3*ts3(i) +       &
 !                  c_0*t_prog(indsal)%field(i,j,1,taum1)))
 !      enddo  !} i
-!    enddo  !} j 
+!    enddo  !} j
 !
 !!
 !!       convert from ml/l to mol/m^3
@@ -1759,11 +1759,11 @@ do n = 1, instances  !{
 !      do i = isc, iec  !{
 !        o2_saturation(i,j) = o2_saturation(i,j) * (1000.0/22391.6)
 !      enddo  !} i
-!    enddo  !} j 
+!    enddo  !} j
 !
 !!
 !!---------------------------------------------------------------------
-!!  Compute the Schmidt number of O2 in seawater using the 
+!!  Compute the Schmidt number of O2 in seawater using the
 !!  formulation proposed by Keeling et al. (1998, Global Biogeochem.
 !!  Cycles, 12, 141-163).
 !!---------------------------------------------------------------------
@@ -2001,7 +2001,7 @@ do n = 1, instances  !{
     do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
       t_prog(biotic(n)%inds(ivar))%stf(isc:iec,jsc:jec) = biotic(n)%sf_fluxes(isc:iec,jsc:jec,ivar)
     end do
-!   enddo  !} j 
+!   enddo  !} j
 end do !} n
 
 return
@@ -2192,8 +2192,8 @@ integer :: j
 integer :: k
 integer :: n
 
-  integer :: stdoutunit 
-  stdoutunit=stdout() 
+  integer :: stdoutunit
+  stdoutunit=stdout()
 
 !
 !-----------------------------------------------------------------------

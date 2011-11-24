@@ -11,7 +11,7 @@ ERSEMDIR = /common/work/ERSEM/FABM
 ERSEMLIBDIR = $(LIBDIR)/
 ERSEMLIB=$(ERSEMLIBDIR)libersem.a
 ERSEMINCDIR = $(MODDIR)/
-PPERSEM = -DMASSTRACER 
+PPERSEM = -DMASSTRACER
 OBJS   = \
 ${LIB}(ersem.o)
 
@@ -23,7 +23,7 @@ endif
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../../doc/fabm.tex 
+	$(PROTEX) $(DOCSRC) > ../../../../doc/fabm.tex
 	touch doc
 
 $(ERSEMLIB):

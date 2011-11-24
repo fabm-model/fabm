@@ -1,6 +1,4 @@
-!$Id: fabm.F90 119 2010-12-27 14:23:18Z jornbr $
 #include "fabm_driver.h"
-
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -1480,6 +1478,8 @@
 #endif
          case (pml_carbonate_id)
             call pml_carbonate_get_surface_exchange(model%pml_carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
+         case (iow_ergom_id)
+            call iow_ergom_get_surface_exchange(model%iow_ergom,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies fluxes of one or
          ! more of its state variables across the air-water interface.
          !
@@ -1557,7 +1557,7 @@
 ! !INPUT PARAMETERS:
    type (type_model),         intent(inout) :: root
    _DECLARE_LOCATION_ARG_HZ_
-   integer,                   intent(inout) :: benthos_offset
+   integer,                   intent(in)    :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:
    REALTYPE _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd

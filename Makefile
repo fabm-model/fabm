@@ -1,4 +1,3 @@
-#$Id$
 #
 # Makefile for making new release of GOTM.
 #

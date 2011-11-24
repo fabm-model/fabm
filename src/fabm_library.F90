@@ -12,7 +12,7 @@
 ! !USES:
    ! FABM modules
    use fabm_types
-   
+
 #ifdef _FABM_F2003_
    ! Specific biogeochemical models
    use fabm_examples_npzd_f2003
@@ -20,7 +20,7 @@
 #endif
 
    implicit none
-!   
+!
 !  default: all is private.
    private
 !
@@ -54,14 +54,14 @@
 !-----------------------------------------------------------------------
 !BOC
       nullify(model)
-      
+
 #ifdef _FABM_F2003_
       select case (name)
          case ('examples_npzd_f2003'); allocate(type_examples_npzd_f2003 :: model)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
       end select
 #endif
-   
+
       if (associated(model)) call init_model_info(model)
 
    end function fabm_library_create_model
@@ -70,7 +70,7 @@
 !-----------------------------------------------------------------------
 
    end module fabm_library
-   
+
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------

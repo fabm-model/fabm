@@ -1,6 +1,4 @@
-!$Id: fabm_types.F90 119 2010-12-27 14:23:18Z jornbr $
 #include "fabm_driver.h"
-
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -8,9 +6,9 @@
 !
 ! !INTERFACE:
    module fabm_types
-   
+
    use fabm_driver, only: fatal_error
-   
+
    implicit none
 !
 ! !DESCRIPTION:
@@ -49,7 +47,7 @@
      varname_par     = 'env_par',     & ! Photosynthetically Active Radiation (W/m^2)
      varname_pres    = 'env_pres',    & ! Pressure (dbar = 10 kPa)
      varname_dens    = 'env_dens',    & ! Density (kg/m^3)
-     varname_taub    = 'env_taub',    & ! Bottom stress
+     varname_taub    = 'env_taub',    & ! Bottom stress (Pa)
      varname_wind_sf = 'env_wind_sf', & ! Wind speed at 10 m above surface (m/s)
      varname_par_sf  = 'env_par_sf'     ! Photosynthetically Active Radiation at surface (W/m^2)
 !
@@ -63,7 +61,7 @@
    type type_diagnostic_variable_id
       integer :: id,dependencyid
    end type type_diagnostic_variable_id
-   
+
    integer, parameter, private :: attribute_length = 256
 
 !  Derived type describing a state variable
@@ -75,7 +73,7 @@
       REALTYPE :: vertical_movement             ! Vertical movement (m/s) due to e.g. sinking, floating. Positive for up.
       REALTYPE :: specific_light_extinction     ! Specific light extinction (/m/state variable unit)
       logical :: no_precipitation_dilution,no_river_dilution
-      
+
       _TYPE_STATE_VARIABLE_ID_ :: globalid
       integer  :: externalid
    end type type_state_variable_info
@@ -86,7 +84,7 @@
       REALTYPE :: missing_value ! Value denoting missing data
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: globalid
       integer              :: externalid
-      
+
       ! Time treatment:
       ! 0: last value
       ! 1: time-integrated
@@ -94,7 +92,7 @@
       ! 3: time step-integrated
       integer           :: time_treatment
    end type type_diagnostic_variable_info
-   
+
    integer, parameter,public  :: time_treatment_last=0,time_treatment_integrated=1, &
                                  time_treatment_averaged=2,time_treatment_step_integrated=3
 
@@ -104,38 +102,38 @@
       _TYPE_CONSERVED_QUANTITY_ID_ :: globalid
       integer                      :: externalid
    end type type_conserved_quantity_info
-   
+
 !  Derived type for storing properties of a generic model.
    type type_model_info
       ! Flag determining whether the contents of the type are "frozen", i.e., they will not change anymore.
       logical :: frozen
-   
+
       ! Arrays with metadata on model variables.
       type (type_state_variable_info),     pointer,dimension(:) :: state_variables_ben,state_variables
       type (type_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables_hz,diagnostic_variables
       type (type_conserved_quantity_info), pointer,dimension(:) :: conserved_quantities
-      
+
       ! Pointers to linked models in the model tree.
       _CLASS_ (type_model_info),pointer :: parent
       _CLASS_ (type_model_info),pointer :: firstchild
       _CLASS_ (type_model_info),pointer :: nextsibling
-      
+
       ! Model name and variable prefixes.
       character(len=64) :: name,nameprefix,longnameprefix
-      
+
       ! Arrays with names of external dependencies.
       character(len=64),pointer,dimension(:) :: dependencies,dependencies_hz
-      
+
 #ifdef _FABM_F2003_
       contains
-      
+
       ! Procedures that may be used to register model variables and dependencies during initialization.
       procedure :: register_state_variable      => register_state_variable
       procedure :: register_diagnostic_variable => register_diagnostic_variable
       procedure :: register_dependency          => register_dependency
       procedure :: register_state_dependency    => register_state_dependency
       procedure :: register_conserved_quantity  => register_conserved_quantity
-      
+
       ! Procedures that may be overridden by biogeochemical models to provide custom data or functionality.
       procedure :: initialize               => base_initialize
       procedure :: set_domain               => base_set_domain
@@ -149,7 +147,7 @@
       procedure :: get_vertical_movement    => base_get_vertical_movement
       procedure :: check_state              => base_check_state
 #endif
-      
+
    end type type_model_info
 
    ! Derived type for pointer to data defined on the full spatial domain;
@@ -172,7 +170,7 @@
       ! These arrays contain pointers to the state variable data as well.
       type (type_state   ), dimension(:), _ALLOCATABLE_ :: var    _NULL_ ! pelagic variables (state and diagnostic)
       type (type_state_hz), dimension(:), _ALLOCATABLE_ :: var_hz _NULL_ ! horizontal variables (state and diagnostic, surface and bottom)
-      
+
 #ifdef _FABM_MANAGE_DIAGNOSTICS_
       ! FABM will manage the current value of diagnostic variables itself.
       ! Declare the arrays for this purpose.
@@ -232,7 +230,7 @@
       _DECLARE_FABM_ARGS_CHECK_STATE_
    end subroutine base_check_state
 #endif
-   
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -265,17 +263,17 @@
       allocate(modelinfo%diagnostic_variables_hz(0))
       allocate(modelinfo%diagnostic_variables(0))
       allocate(modelinfo%conserved_quantities(0))
-      
+
       nullify(modelinfo%parent)
       nullify(modelinfo%firstchild)
       nullify(modelinfo%nextsibling)
 
       allocate(modelinfo%dependencies_hz(0))
       allocate(modelinfo%dependencies(0))
-      
+
       modelinfo%nameprefix     = ''
       modelinfo%longnameprefix = ''
-            
+
    end subroutine init_model_info
 !EOC
 
@@ -307,7 +305,7 @@
 !-----------------------------------------------------------------------
 !BOC
       modelinfo%frozen = .true.
-            
+
    end subroutine freeze_model_info
 !EOC
 
@@ -420,7 +418,7 @@
       conservedinfo%externalid = 0
    end subroutine init_conserved_quantity_info
 !EOC
-   
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -486,19 +484,19 @@
       allocate(variables_new(ubound(variables_old,1)+1))
       variables_new(1:ubound(variables_old,1)) = variables_old(:)
       deallocate(variables_old)
-      
+
       ! Assign new state variable array.
       if (benthic_eff) then
          modelinfo%state_variables_ben => variables_new
       else
          modelinfo%state_variables => variables_new
       end if
-      
+
       curinfo => variables_new(ubound(variables_new,1))
-      
+
       ! Initialize state variable info.
       call init_state_variable_info(curinfo)
-      
+
       ! Store customized information on state variable.
       curinfo%name     = name
       curinfo%units    = units
@@ -521,7 +519,7 @@
                &outside allowed range',curinfo%minimum,'to',curinfo%maximum
          call fatal_error('fabm_types::register_state_variable',text)
       end if
-                  
+
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the variable id.
       if (associated(modelinfo%parent)) then
@@ -540,11 +538,11 @@
          id%id = ubound(variables_new,1)
          id%dependencyid = register_dependency(modelinfo,curinfo%name,shape)
       end if
-      
+
       ! Save the state variable's global id
       ! (index into state variable array of the root of the model tree).
       curinfo%globalid = id
-      
+
    end function register_state_variable
 !EOC
 
@@ -605,7 +603,7 @@
       allocate(variables_new(ubound(variables_old,1)+1))
       variables_new(1:ubound(variables_old,1)) = variables_old(:)
       deallocate(variables_old)
-      
+
       ! Assign new state variable array.
       select case (shape_eff)
          case (shape_hz)
@@ -613,19 +611,19 @@
          case (shape_full)
             modelinfo%diagnostic_variables => variables_new
       end select
-      
+
       curinfo => variables_new(ubound(variables_new,1))
 
       ! Initialize diagnostic variable info.
       call init_diagnostic_variable_info(curinfo)
-      
+
       ! Store customized information on diagnostic variable.
       curinfo%name     = name
       curinfo%units    = units
       curinfo%longname = longname
       if (present(time_treatment)) curinfo%time_treatment = time_treatment
       if (present(missing_value))  curinfo%missing_value = missing_value
-                  
+
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the diagnostic variable id.
       if (associated(modelinfo%parent)) then
@@ -687,30 +685,30 @@
       quantities_new(1:ubound(modelinfo%conserved_quantities,1)) = modelinfo%conserved_quantities(:)
       deallocate(modelinfo%conserved_quantities)
       modelinfo%conserved_quantities => quantities_new
-      
+
       ! By default, the conserved quantity id is its index within the model.
       id = ubound(quantities_new,1)
 
       ! Initialize conserved quantity info.
       call init_conserved_quantity_info(quantities_new(id))
-      
+
       ! Store customized information on conserved quantity.
       quantities_new(id)%name     = name
       quantities_new(id)%units    = units
       quantities_new(id)%longname = longname
-                  
+
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the conserved quantity id.
       if (associated(modelinfo%parent)) &
          id = register_conserved_quantity(modelinfo%parent,trim(modelinfo%nameprefix)//name, &
                  units,trim(modelinfo%longnameprefix)//' '//longname)
-                
+
       ! Save the conserved quantity's global id.
       quantities_new(ubound(quantities_new,1))%globalid = id
-      
+
    end function register_conserved_quantity
 !EOC
-   
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -755,10 +753,10 @@
       ! Default id: not found.
       id%id = id_not_used
       id%dependencyid = id_not_used
-      
+
       ! If this model does not have a parent, there is no context to search variables in.
       if (.not. associated(modelinfo%parent)) return
-      
+
       ! Determine whether this must be a benthos state varible (default: no).
       benthic_eff = .false.
       if (present(benthic)) benthic_eff = benthic
@@ -784,12 +782,12 @@
          end do
          curinfo => curinfo%parent
       end do
-      
+
       ! If we reaached this point, the variable was not found.
       ! Throw an error if the variable must exist.
       if (mustexist_eff) call fatal_error('fabm_types::register_state_dependency', &
          'state variable dependency "'//trim(name)//'" of model "'//trim(modelinfo%name)//'" was not found.')
-      
+
    end function register_state_dependency
 !EOC
 
@@ -845,7 +843,7 @@
       do while (associated(proot%parent))
          proot => proot%parent
       end do
-      
+
       ! Get pointer to array with dependencies (use shape argument to determine which)
       select case (realshape)
          case (shape_hz)
@@ -869,13 +867,13 @@
             return
          end if
       end do
-      
+
       ! Dependency was not registered yet - create extended array to hold new dependency.
       allocate(dependencies_new(n+1))
       dependencies_new(1:n) = source(:)
       deallocate(source)
       dependencies_new(n+1) = name
-      
+
       ! Assign new array with dependencies (variable to assign to depends on shape argument)
       select case (realshape)
          case (shape_hz)
@@ -886,12 +884,12 @@
 
       ! Variable identifier equals the previous number of dependencies plus 1.
       id = n+1
-      
+
    end function register_dependency
 !EOC
 
 !-----------------------------------------------------------------------
-   
+
    end module fabm_types
 
 !-----------------------------------------------------------------------
