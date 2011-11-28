@@ -4,3 +4,6 @@
 *.suo
 *.u2d
 *.nc
+lib/
+modules/
+timestamp
