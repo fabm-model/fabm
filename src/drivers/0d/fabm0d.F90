@@ -32,8 +32,6 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-!EOP
-!
 !  private data members initialised via namelists
    character(len=80)         :: title
    REALTYPE                  :: dt
@@ -43,17 +41,21 @@
    ! Bio model info
    integer  :: ode_method, nsave = 1
    integer  :: swr_method = 0
-   REALTYPE :: cloud = _ZERO_, par_fraction = _ONE_, par_background_extinction = _ZERO_
-   logical  :: apply_self_shading = .true., add_environment = .false., add_conserved_quantities = .false.
+   REALTYPE :: cloud = _ZERO_
+   REALTYPE :: par_fraction = _ONE_
+   REALTYPE :: par_background_extinction = _ZERO_
+   logical  :: apply_self_shading = .true.
+   logical  :: add_environment = .false.
+   logical  :: add_conserved_quantities = .false.
+   logical  :: add_diagnostic_variables=.false.
 
    ! Environment
-   REALTYPE,target :: temp,salt,par,depth,dens,wind_sf,par_sf
+   REALTYPE,target :: temp,salt,par,depth,dens,wind_sf,par_sf,taub
 
-   REALTYPE,allocatable                   :: cc(:,:),totals(:),diag(:),diag_hz(:)
-   type (type_model),pointer              :: model
-   character(len=128)                     :: cbuf
-
-!
+   REALTYPE,allocatable      :: cc(:,:),totals(:),diag(:),diag_hz(:)
+   type (type_model),pointer :: model
+   character(len=128)        :: cbuf
+!EOP
 !-----------------------------------------------------------------------
 
    contains
@@ -89,7 +91,7 @@
                           latitude,longitude,cloud,par_fraction, &
                           depth,par_background_extinction,apply_self_shading
    namelist /output/      output_file,nsave,add_environment, &
-                          add_conserved_quantities
+                          add_diagnostic_variables, add_conserved_quantities
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -102,6 +104,7 @@
 
    ! Read all namelists
    depth = -1.
+   taub  = _ZERO_
    read(namlst,nml=model_setup,err=91)
    read(namlst,nml=environment,err=92)
    read(namlst,nml=output     ,err=93)
@@ -153,11 +156,19 @@
 
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
-   allocate(cc(ubound(model%info%state_variables,1),0:1))
+   allocate(cc(ubound(model%info%state_variables,1)+ubound(model%info%state_variables_ben,1),0:1))
    do i=1,ubound(model%info%state_variables,1)
       cc(i,1) = model%info%state_variables(i)%initial_value
       call fabm_link_state_data(model,i,cc(i,1))
    end do
+
+   ! Create benthos variable vector, using the initial values specified by the model,
+   ! and link state data to FABM.
+   do i=1,ubound(model%info%state_variables_ben,1)
+      cc(ubound(model%info%state_variables,1)+i,1) = model%info%state_variables_ben(i)%initial_value
+      call fabm_link_benthos_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
+   end do
+
 
    ! Create diagnostic variable vector for the full spatial domain, and link it to FABM.
    allocate(diag(ubound(model%info%diagnostic_variables,1)))
@@ -179,6 +190,7 @@
    call fabm_link_data(model,varname_dens,   dens)
    call fabm_link_data_hz(model,varname_wind_sf,wind_sf)
    call fabm_link_data_hz(model,varname_par_sf, par_sf)
+   call fabm_link_data_hz(model,varname_taub, taub)
 
    ! Open the output file.
    open(out_unit,file=output_file,action='write', &
@@ -197,9 +209,14 @@
    do i=1,ubound(model%info%state_variables,1)
       write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables(i)%longname),trim(model%info%state_variables(i)%units)
    end do
-   do i=1,ubound(model%info%diagnostic_variables,1)
-      write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables(i)%longname),trim(model%info%diagnostic_variables(i)%units)
+   do i=1,ubound(model%info%state_variables_ben,1)
+      write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables_ben(i)%longname),trim(model%info%state_variables_ben(i)%units)
    end do
+   if (add_diagnostic_variables) then
+      do i=1,ubound(model%info%diagnostic_variables,1)
+         write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables(i)%longname),trim(model%info%diagnostic_variables(i)%units)
+      end do
+   end if
    if (add_conserved_quantities) then
       do i=1,ubound(model%info%conserved_quantities,1)
          write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%conserved_quantities(i)%longname),trim(model%info%conserved_quantities(i)%units)
@@ -255,15 +272,31 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
+! !LOCAL PARAMETERS:
+   integer                              :: n
 !EOP
+
 !-----------------------------------------------------------------------
 !BOC
    pp(:,:,1) = _ZERO_
    dd(:,:,1) = _ZERO_
+
+   ! Shortcut to the number of pelagic state variables.
+   n = ubound(model%info%state_variables,1)
+
+   ! Calculate temporal derivatives due to benthic processes.
+   call fabm_do_benthos(model,pp(:,:,1),dd(:,:,1),n)
+
+   ! Bottom flux to concentration rate
+   pp(1:n,:,1) = pp(1:n,:,1)/depth
+   dd(1:n,:,1) = dd(1:n,:,1)/depth
+
    call fabm_do(model,pp(:,:,1),dd(:,:,1))
 
    end subroutine get_ppdd
 !EOC
+
+!-----------------------------------------------------------------------
 !BOP
 !
 ! !IROUTINE: Get the right-hand side of the ODE system.
@@ -285,6 +318,9 @@
 ! !OUTPUT PARAMETERS:
    REALTYPE, intent(out)                :: rhs(1:numc,0:nlev)
 !
+! !LOCAL PARAMETERS:
+   integer                              :: n
+!
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
@@ -292,10 +328,21 @@
 !-----------------------------------------------------------------------
 !BOC
    rhs(:,1) = _ZERO_
+
+   ! Shortcut to the number of pelagic state variables.
+   n = ubound(model%info%state_variables,1)
+
+   ! Calculate temporal derivatives due to benthic processes.
+   call fabm_do_benthos(model,rhs(1:n,1),rhs(n+1:,1))
+
+   ! Bottom flux to concentration rate
+   rhs(1:n,1) = rhs(1:n,1)/depth
+
    call fabm_do(model,rhs(:,1))
 
    end subroutine get_rhs
 !EOC
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -315,13 +362,11 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-!EOP
-!
 ! !LOCAL VARIABLES:
    integer                   :: i,n
    REALTYPE                  :: extinction
    character(len=19)         :: ts
-!
+!EOP
 !-----------------------------------------------------------------------
 !BOC
    LEVEL1 'time_loop'
@@ -347,15 +392,16 @@
       if (swr_method.ne.2) then
          ! Either we calculate surface PAR, or surface PAR is provided.
          ! Calculate the local PAR at the given depth from par fraction, extinction coefficient, and depth.
-         extinction = par_background_extinction
+         extinction = _ZERO_
          if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
-         par = par_sf*exp(depth*extinction)
+         extinction = extinction + par_background_extinction
+         par = par_sf*exp(-0.5d0*depth*extinction)
       else
          par = par_sf
       end if
 
       ! Integrate one time step
-      call ode_solver(ode_method,ubound(model%info%state_variables,1),1,dt,cc,get_rhs,get_ppdd)
+      call ode_solver(ode_method,ubound(model%info%state_variables,1)+ubound(model%info%state_variables_ben,1),1,dt,cc,get_rhs,get_ppdd)
 
       ! Do output
       if (mod(n,nsave).eq.0) then
@@ -366,12 +412,14 @@
             write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,temp
             write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,salt
          end if
-         do i=1,ubound(model%info%state_variables,1)
+         do i=1,(ubound(model%info%state_variables,1)+ubound(model%info%state_variables_ben,1))
             write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,cc(i,1)
          end do
-         do i=1,ubound(model%info%diagnostic_variables,1)
-            write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,diag(i)
-         end do
+         if (add_diagnostic_variables) then
+            do i=1,ubound(model%info%diagnostic_variables,1)
+               write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,diag(i)
+            end do
+         end if
          if (add_conserved_quantities) then
             call fabm_get_conserved_quantities(model,totals)
             do i=1,ubound(model%info%conserved_quantities,1)
@@ -409,8 +457,6 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-!EOP
-!
 ! !LOCAL VARIABLES:
    integer,parameter         :: nobs = 3
    integer                   :: yy,mm,dd,hh,min,ss
@@ -421,7 +467,7 @@
    REALTYPE, save            :: obs1(nobs),obs2(nobs)=0.
    logical, save             :: endoffile = .false.
    integer                   :: rc
-!
+!EOP
 !-----------------------------------------------------------------------
 !BOC
    ! This part reads in new observations if the last read observation lies
@@ -488,7 +534,7 @@
    salt   = curobs(3)
 
    end subroutine read_environment
-
+!EOC
 
 !-----------------------------------------------------------------------
 !BOP
@@ -523,12 +569,10 @@
 !
 !  See observation module
 !
-!EOP
-!
 ! !LOCAL VARIABLES:
    character                 :: c1,c2,c3,c4
    integer                   :: i
-!
+!EOP
 !-----------------------------------------------------------------------
 !BOC
    ierr=0
@@ -544,7 +588,6 @@
 900 format(i4,a1,i2,a1,i2,1x,i2,a1,i2,a1,i2)
    end subroutine read_obs
 !EOC
-
 
 !-----------------------------------------------------------------------
 !BOP

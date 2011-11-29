@@ -1,4 +1,5 @@
 #define _FABM_DIMENSION_COUNT_ 0
+#define _FABM_HORIZONTAL_IS_SCALAR_
 
 ! Include FABM preprocessor definitions.
 ! This *must* be done after the host-specific variables are defined (above),
