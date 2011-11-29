@@ -81,7 +81,7 @@
 !  Derived type describing a diagnostic variable
    type type_diagnostic_variable_info
       character(len=attribute_length)    :: name, longname, units
-      REALTYPE :: missing_value ! Value denoting missing data
+      REALTYPE :: minimum,maximum,missing_value ! Valid range and value denoting missing data
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: globalid
       integer              :: externalid
 
@@ -378,6 +378,8 @@
       varinfo%name = ''
       varinfo%units = ''
       varinfo%longname = ''
+      varinfo%minimum = -1.e20
+      varinfo%maximum = 1.e20
       varinfo%missing_value = -2.e20
       varinfo%time_treatment = time_treatment_last
       varinfo%externalid = 0
