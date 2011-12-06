@@ -6,7 +6,7 @@
 !-------------------------------------------------------------------------------
 
 &fabm_nml
-   models = 'bb_passive'
+   models = 'bb_passive', 'bb_passive', 'bb_passive'
 /
 
 !-------------------------------------------------------------------------------
@@ -16,9 +16,34 @@
 !                             downwards, positive for upwards]
 !  specific_light_absorption: specific light absorption of tracer [/m/tracer]
 !-------------------------------------------------------------------------------
-
 &bb_passive
-   initial_concentration = 1.,
-   vertical_velocity = 0.
+   initial_concentration = 1.
+   vertical_velocity     = 0.
+   specific_light_absorption = 0.
+/
+
+!-------------------------------------------------------------------------------
+! bb_passive - passive tracer model
+!  initial_concentration:     initial concentration of passive tracer
+!  vertical_velocity:         vertical velocity of tracer [m/d, negative for
+!                             downwards, positive for upwards]
+!  specific_light_absorption: specific light absorption of tracer [/m/tracer]
+!-------------------------------------------------------------------------------
+&bb_passive
+   initial_concentration = 2.
+   vertical_velocity     = 1.0
+   specific_light_absorption = 0.
+/
+
+!-------------------------------------------------------------------------------
+! bb_passive - passive tracer model
+!  initial_concentration:     initial concentration of passive tracer
+!  vertical_velocity:         vertical velocity of tracer [m/d, negative for
+!                             downwards, positive for upwards]
+!  specific_light_absorption: specific light absorption of tracer [/m/tracer]
+!-------------------------------------------------------------------------------
+&bb_passive
+   initial_concentration = 3.
+   vertical_velocity     = -1.0 
    specific_light_absorption = 0.
 /
