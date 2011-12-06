@@ -1,4 +1,4 @@
-ifndef GOTMDIR
+ifndef FABMDIR
 FABMDIR = $(HOME)/FABM/fabm-git
 endif
 
