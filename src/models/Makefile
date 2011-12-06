@@ -16,6 +16,8 @@ SUBDIRS += metu/
 
 SUBDIRS += iow/
 
+SUBDIRS += bb/
+
 all: OBJS
 	$(MOVE_MODULES_COMMAND)
 

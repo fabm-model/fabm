@@ -35,6 +35,7 @@
    use fabm_examples_npzd_phy
    use fabm_examples_npzd_zoo
    use fabm_iow_ergom
+   use fabm_bb_passive
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
 
    implicit none
@@ -86,6 +87,7 @@
       type (type_examples_npzd_phy)         :: examples_npzd_phy
       type (type_examples_npzd_zoo)         :: examples_npzd_zoo
       type (type_iow_ergom)                 :: iow_ergom
+      type (type_bb_passive)                :: bb_passive
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
 
       ! Pointer to the current spatially explicit environment.
@@ -146,6 +148,7 @@
    integer, parameter :: examples_npzd_phy_id         =  106
    integer, parameter :: examples_npzd_zoo_id         =  107
    integer, parameter :: iow_ergom_id                 =  108
+   integer, parameter :: bb_passive_id                =  109
    ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
    ! Note: values <=100 are reserved for models ported from the General Ocean Turbulence Model.
 
@@ -194,6 +197,7 @@
    call register_model(examples_npzd_phy_id,        'examples_npzd_phy')
    call register_model(examples_npzd_zoo_id,        'examples_npzd_zoo')
    call register_model(iow_ergom_id,                'iow_ergom')
+   call register_model(bb_passive_id,               'bb_passive')
    ! ADD_NEW_MODEL_HERE - required
 
    end subroutine register_models
@@ -809,6 +813,8 @@
          call examples_npzd_zoo_init(model%examples_npzd_zoo,model%info,nmlunit)
       case (iow_ergom_id)
          call iow_ergom_init(model%iow_ergom,model%info,nmlunit)
+      case (bb_passive_id)
+         call bb_passive_init(model%bb_passive,model%info,nmlunit)
      ! ADD_NEW_MODEL_HERE - required
 
       case (model_container_id)
@@ -1276,16 +1282,12 @@
             call examples_npzd_zoo_do(model%examples_npzd_zoo,_INPUT_ARGS_DO_RHS_)
          case(iow_ergom_id)
             call iow_ergom_do(model%iow_ergom,_INPUT_ARGS_DO_RHS_)
-         ! ADD_NEW_MODEL_HERE - required, unless the model provides production/destruction
-         ! matrices instead of a temporal derivative vector. In that case, add the model to
-         ! fabm_do_ppdd.
+         ! ADD_NEW_MODEL_HERE - required if the model features one or more active pelagic state variables,
+         ! unless the model provides production/destruction matrices instead of a temporal derivative vector.
+         ! In that case, add the model to fabm_do_ppdd.
          !
          ! Typical model call:
          ! call MODELNAME_do(model%MODELNAME,_INPUT_ARGS_DO_RHS_)
-
-         case default
-           call fatal_error('fabm_do_rhs','model "'//trim(model%info%name)//'" does not provide a subroutine &
-              &that calculates local temporal derivatives.')
       end select
       model => model%nextmodel
    end do
