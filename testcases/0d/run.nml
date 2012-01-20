@@ -20,7 +20,7 @@ longitude=9.0
 cloud=0.0
 par_fraction=1.0
 depth=10.
-par_background_extinction=-0.05
+par_background_extinction=0.05
 apply_self_shading=.false.
 /
 
