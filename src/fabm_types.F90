@@ -38,7 +38,7 @@
 !
 ! !PUBLIC DATA MEMBERS:
 !
-   integer, parameter, public         :: shape_hz=2,shape_full=3
+   integer, parameter, public         :: shape_scalar=0,shape_hz=2,shape_full=3
    integer, parameter, public         :: id_not_used=-1
    character(len=64),parameter,public :: &
      varname_temp    = 'env_temp',    & ! Temperature (degrees Celsius)
@@ -122,7 +122,7 @@
       character(len=64) :: name,nameprefix,longnameprefix
 
       ! Arrays with names of external dependencies.
-      character(len=64),pointer,dimension(:) :: dependencies,dependencies_hz
+      character(len=64),pointer,dimension(:) :: dependencies,dependencies_hz,dependencies_scalar
 
 #ifdef _FABM_F2003_
       contains
@@ -162,6 +162,12 @@
       REALTYPE,pointer _ATTR_LOCATION_DIMENSIONS_HZ_ :: data
    end type type_state_hz
 
+   ! Derived type for pointer to scalar data;
+   ! usable as base type of arrays.
+   type type_scalar
+      REALTYPE,pointer  :: data
+   end type type_scalar
+
    ! Derived type described the spatially explicit model environment.
    type type_environment
 
@@ -170,6 +176,7 @@
       ! These arrays contain pointers to the state variable data as well.
       type (type_state   ), dimension(:), _ALLOCATABLE_ :: var    _NULL_ ! pelagic variables (state and diagnostic)
       type (type_state_hz), dimension(:), _ALLOCATABLE_ :: var_hz _NULL_ ! horizontal variables (state and diagnostic, surface and bottom)
+      type (type_scalar),   dimension(:), _ALLOCATABLE_ :: var_scalar _NULL_ ! scalar variables (e.g., day of the year, time of the day)
 
 #ifdef _FABM_MANAGE_DIAGNOSTICS_
       ! FABM will manage the current value of diagnostic variables itself.
@@ -268,6 +275,7 @@
       nullify(modelinfo%firstchild)
       nullify(modelinfo%nextsibling)
 
+      allocate(modelinfo%dependencies_scalar(0))
       allocate(modelinfo%dependencies_hz(0))
       allocate(modelinfo%dependencies(0))
 
@@ -827,8 +835,6 @@
       _CLASS_ (type_model_info),pointer            :: proot
       character(len=64),pointer                    :: dependencies_new(:)
       character(len=64),pointer                    :: source(:)
-      type (type_state_variable_info),     pointer :: statevarinfo(:)
-      type (type_diagnostic_variable_info),pointer :: diagvarinfo(:)
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -848,14 +854,12 @@
 
       ! Get pointer to array with dependencies (use shape argument to determine which)
       select case (realshape)
+         case (shape_scalar)
+            source => proot%dependencies_scalar
          case (shape_hz)
             source => proot%dependencies_hz
-            statevarinfo => proot%state_variables_ben
-            diagvarinfo => proot%diagnostic_variables_hz
          case (shape_full)
             source => proot%dependencies
-            statevarinfo => proot%state_variables
-            diagvarinfo => proot%diagnostic_variables
          case default
             call fatal_error('fabm_types::register_dependency','Invalid shape argument given')
       end select
@@ -878,6 +882,8 @@
 
       ! Assign new array with dependencies (variable to assign to depends on shape argument)
       select case (realshape)
+         case (shape_scalar)
+            proot%dependencies_scalar => dependencies_new
          case (shape_hz)
             proot%dependencies_hz => dependencies_new
          case (shape_full)

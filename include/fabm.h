@@ -284,6 +284,7 @@
 ! For BGC models: read-only access to values of external dependencies
 #define _GET_DEPENDENCY_(variable,target) target = environment%var(variable)%data _INDEX_LOCATION_
 #define _GET_DEPENDENCY_HZ_(variable,target) target = environment%var_hz(variable)%data _INDEX_LOCATION_HZ_
+#define _GET_DEPENDENCY_SCALAR_(variable,target) target = environment%var_scalar(variable)%data
 
 ! For FABM: read/write access to pelagic state variables
 #define _GET_STATE_EX_(env,variable,target) target = env%var(variable%dependencyid)%data _INDEX_LOCATION_

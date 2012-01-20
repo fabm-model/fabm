@@ -45,7 +45,8 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_model, fabm_create_model, fabm_create_model_from_file, fabm_init, fabm_set_domain, fabm_check_ready, &
-          fabm_get_variable_id,fabm_link_benthos_state_data, fabm_link_state_data, fabm_link_data,fabm_link_data_hz, &
+          fabm_get_variable_id,fabm_link_benthos_state_data, fabm_link_state_data, &
+          fabm_link_data,fabm_link_data_hz,fabm_link_scalar, &
           fabm_get_diagnostic_data, fabm_get_diagnostic_data_hz, &
           fabm_do, fabm_check_state, fabm_get_vertical_movement, fabm_get_light_extinction, &
           fabm_get_conserved_quantities, fabm_get_surface_exchange, fabm_do_benthos
@@ -122,6 +123,12 @@
    interface fabm_link_data_hz
       module procedure fabm_link_data_hz
       module procedure fabm_link_data_hz_char
+   end interface
+
+   ! Subroutine for providing FABM with scalar variable data.
+   interface fabm_link_scalar
+      module procedure fabm_link_scalar
+      module procedure fabm_link_scalar_char
    end interface
 
    ! Function for creating new models based on integer id [deprecated] or name.
@@ -627,13 +634,17 @@
    allocate(root%environment)
 
    ! Set all pointers to external data to dissociated.
-   allocate(root%environment%var   (ubound(root%info%dependencies,   1)))
-   allocate(root%environment%var_hz(ubound(root%info%dependencies_hz,1)))
+   allocate(root%environment%var       (ubound(root%info%dependencies,       1)))
+   allocate(root%environment%var_hz    (ubound(root%info%dependencies_hz,    1)))
+   allocate(root%environment%var_scalar(ubound(root%info%dependencies_scalar,1)))
    do ivar=1,ubound(root%environment%var,1)
       nullify(root%environment%var(ivar)%data)
    end do
    do ivar=1,ubound(root%environment%var_hz,1)
       nullify(root%environment%var_hz(ivar)%data)
+   end do
+   do ivar=1,ubound(root%environment%var_scalar,1)
+      nullify(root%environment%var_scalar(ivar)%data)
    end do
 
    ! Transfer pointer to environment to all child models.
@@ -749,6 +760,13 @@
    do ivar=1,ubound(root%environment%var_hz,1)
       if (.not.associated(root%environment%var_hz(ivar)%data)) then
          call log_message('data for dependency "'//trim(root%info%dependencies_hz(ivar))// &
+            &  '", defined on a horizontal slice of the model domain, have not been provided.')
+         ready = .false.
+      end if
+   end do
+   do ivar=1,ubound(root%environment%var_scalar,1)
+      if (.not.associated(root%environment%var_scalar(ivar)%data)) then
+         call log_message('data for dependency "'//trim(root%info%dependencies_scalar(ivar))// &
             &  '", defined on a horizontal slice of the model domain, have not been provided.')
          ready = .false.
       end if
@@ -1059,6 +1077,63 @@
    if (id.ne.id_not_used) call fabm_link_data_hz(model,id,dat)
 
    end subroutine fabm_link_data_hz_char
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with (a pointer to) the scalar that will hold
+! data for the specified variable. The variable is identified by its integer id.
+!
+! !INTERFACE:
+   subroutine fabm_link_scalar(model,id,dat)
+!
+! !INPUT PARAMETERS:
+   type (type_model),                            intent(inout) :: model
+   integer,                                      intent(in)    :: id
+   REALTYPE,target,                              intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Store a pointer to the provided array.
+   model%environment%var_scalar(id)%data => dat
+
+   end subroutine fabm_link_scalar
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with (a pointer to) the scalar that will hold
+! data for the specified variable. The variable is identified by its name.
+!
+! !INTERFACE:
+   subroutine fabm_link_scalar_char(model,name,dat)
+!
+! !INPUT PARAMETERS:
+   type (type_model),                          intent(inout) :: model
+   character(len=*),                           intent(in)    :: name
+   REALTYPE,target,                            intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   integer                                                   :: id
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Obtain integer identifier of the variable.
+   id = fabm_get_variable_id(model,name,shape_scalar)
+
+   ! Only link the data if needed (if the variable identifier is valid).
+   if (id.ne.id_not_used) call fabm_link_scalar(model,id,dat)
+
+   end subroutine fabm_link_scalar_char
 !EOC
 
 !-----------------------------------------------------------------------
