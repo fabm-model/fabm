@@ -767,7 +767,7 @@
    do ivar=1,ubound(root%environment%var_scalar,1)
       if (.not.associated(root%environment%var_scalar(ivar)%data)) then
          call log_message('data for dependency "'//trim(root%info%dependencies_scalar(ivar))// &
-            &  '", defined on a horizontal slice of the model domain, have not been provided.')
+            &  '", defined as global scalar quantity, have not been provided.')
          ready = .false.
       end if
    end do
