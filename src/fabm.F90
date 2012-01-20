@@ -1487,7 +1487,7 @@
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
 
-   ! Check absolute variable boundaries specified by the models.
+   ! Check boundaries for pelagic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
    do ivar=1,ubound(root%info%state_variables,1)
       _GET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid,val)
@@ -1511,6 +1511,33 @@
             return
          end if
          _SET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid,root%info%state_variables(ivar)%maximum)
+      end if
+   end do
+
+   ! Check boundaries for benthic state variables specified by the models.
+   ! If repair is permitted, this clips invalid values to the closest boundary.
+   do ivar=1,ubound(root%info%state_variables_ben,1)
+      _GET_STATE_BEN_EX_(root%environment,root%info%state_variables_ben(ivar)%globalid,val)
+      if (val<root%info%state_variables_ben(ivar)%minimum) then
+         ! State variable value lies below prescribed minimum.
+         valid = .false.
+         if (.not.repair) then
+            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables_ben(ivar)%name), &
+                                                       & ' below minimum value ',root%info%state_variables_ben(ivar)%minimum
+            call log_message(err)
+            return
+         end if
+         _SET_STATE_BEN_EX_(root%environment,root%info%state_variables_ben(ivar)%globalid,root%info%state_variables_ben(ivar)%minimum)
+      elseif (val>root%info%state_variables_ben(ivar)%maximum) then
+         ! State variable value exceeds prescribed maximum.
+         valid = .false.
+         if (.not.repair) then
+            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables_ben(ivar)%name), &
+                                                       & ' above maximum value ',root%info%state_variables_ben(ivar)%maximum
+            call log_message(err)
+            return
+         end if
+         _SET_STATE_BEN_EX_(root%environment,root%info%state_variables_ben(ivar)%globalid,root%info%state_variables_ben(ivar)%maximum)
       end if
    end do
 
