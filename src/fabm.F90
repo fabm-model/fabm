@@ -14,7 +14,7 @@
 ! of this module to access biogeochemistry. Specific biogeochemical models must
 ! be referenced in this module to be available in FABM. Locations where
 ! specific biogeochemical models may be referenced are indicated by
-! ADD_NEW_MODEL_HERE strings in the code comments.
+! ADD\_NEW\_MODEL\_HERE strings in the code comments.
 !
 ! For more information, see the documentation at /doc/documentation.pdf.
 !
@@ -917,8 +917,9 @@
 !BOP
 !
 ! !IROUTINE: Obtain the integer variable identifier for the given variable
-! name. Returns id_not_used if the variable name is unknown.
-! The variable identifier can be used later in calls to fabm_link_data/fabm_link_data_hz.
+! name. Returns id\_not\_used if the variable name is unknown.
+! The variable identifier can be used later in calls to 
+! fabm\_link\_data/fabm\_link\_data\_hz.
 !
 ! !INTERFACE:
    function fabm_get_variable_id(model,name,shape) result(id)

@@ -15,8 +15,7 @@ all: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../../doc/fabm.tex 
-	touch doc
+	$(PROTEX) $(DOCSRC) > ../../../../doc/gotm_fasham.tex 
 
 clean:
 	$(RM) ${LIB} doc

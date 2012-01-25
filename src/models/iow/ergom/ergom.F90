@@ -1,8 +1,5 @@
 #include "fabm_driver.h"
 
-!-----------------------------------------------------------------------
-!BOP
-!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                        !
 !                                                                        !
@@ -12,11 +9,14 @@
 !                                                                        !
 !                                                                        !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!-----------------------------------------------------------------------
+!BOP
 !
-! !MODULE:fabm_ergom -- IOW biogeochemical model ERGOM \label{sec:bio-iow}
+! !MODULE: fabm\_ergom --- IOW biogeochemical model ERGOM 
 !
 ! !INTERFACE:
-   MODULE fabm_iow_ergom
+   module fabm_iow_ergom
 !
 ! !DESCRIPTION:
 ! The biogeochemical model by
@@ -64,7 +64,7 @@
 ! \end{center}
 ! \end{figure}
 !
-! !USE:
+! !USES:
    use fabm_types
    use fabm_driver
 
@@ -75,11 +75,11 @@
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_iow_ergom, iow_ergom_init, iow_ergom_do, iow_ergom_get_light_extinction, &
    iow_ergom_get_surface_exchange,iow_ergom_do_benthos
+!
 ! !PUBLIC DATA MEMBERS:
 !
 ! !REVISION HISTORY:
 !  Author(s):
-!
 !
 ! !PUBLIC_DERIVED_TYPES:
   type type_iow_ergom
@@ -88,7 +88,6 @@
       _TYPE_DEPENDENCY_ID_          :: id_par,id_I_0,id_temp,id_salt,id_wind,id_taub
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR
 ! Model parameters
-
       REALTYPE :: sfl_po,sfl_am,sfl_ni,p10,p20,p30,zo0,kc,i_min,r1max,r2max,r3max,alpha1,alpha2,alpha3,lpa,lpd
       REALTYPE :: tf,tbg,beta_bg,g1max,g2max,g3max,lza,lzd,iv,topt,lan,oan,beta_an,lda,tda,beta_da
       REALTYPE :: pvel,sr,s1,s2,s3,s4,a0,a1,a2,lds,lsd,tau_crit,lsa,bsa,ph1,ph2
@@ -582,6 +581,8 @@
 ! !IROUTINE: Get the light extinction coefficient due to biogeochemical
 ! variables
 !
+! !DESCRIPTION:
+
 ! !INTERFACE:
    pure subroutine iow_ergom_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
 !
@@ -594,7 +595,6 @@
 !
 ! !LOCAL VARIABLES:
    REALTYPE                     :: p1,p2,p3,de
-!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -628,7 +628,8 @@
 ! !DESCRIPTION:
 ! This routine calculates the benthic sink and source terms, as well as
 ! (matching) bottom fluxes for pelagic variables. Both have units mmol/m**2/s.
-! Benthic processes are explained in the description of iow_ergom_do subroutine.
+! Benthic processes are explained in the description of iow\_ergom\_do 
+! subroutine.
 !
 ! !INPUT PARAMETERS:
    type (type_iow_ergom),       intent(in) :: self
@@ -758,7 +759,6 @@
   REALTYPE                 :: b3=-0.001700
   REALTYPE                 :: kelvin=273.16
   REALTYPE                 :: mol_per_liter=44.661
-
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -768,7 +768,6 @@
    return
    end function osat_weiss
 !EOC
-!-----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
 !BOP
@@ -779,7 +778,6 @@
   subroutine iow_ergom_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
 !
 ! !DESCRIPTION:
-!
 ! Here, those surface fluxes which have been read from a file are transformed
 ! to SI units. The surface oxygen flux is calculated by means of the
 ! following formula:
@@ -816,7 +814,6 @@
 ! O_{sat}= a_0\left(a_1-a_2T  \right).
 ! \end{equation}
 !
-!
 ! !USES:
    IMPLICIT NONE
 !
@@ -834,11 +831,9 @@
 ! !LOCAL VARIABLES:
   REALTYPE                 :: p_vel,sc,flo2
   integer,parameter        :: newflux=1
-
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-!
    _FABM_HZ_LOOP_BEGIN_
 
    _GET_DEPENDENCY_(self%id_temp,temp)
@@ -905,7 +900,6 @@
 ! !INPUT PARAMETERS:
    ! type(type_iow_ergom), INTENT(IN) :: self
     REALTYPE, intent(in)            :: x,w,min,max
-!
 !
 ! !LOCAL VARIABLES:
 !
@@ -998,5 +992,5 @@
   END MODULE fabm_iow_ergom
 
 !-----------------------------------------------------------------------
-
-!Copyright (C) 2000 - NAME
+! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
+!-----------------------------------------------------------------------

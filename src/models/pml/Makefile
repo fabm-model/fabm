@@ -6,7 +6,6 @@ include ../../Rules.make
 
 LIB     = $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC  += carbonate/carbonate.F90 ersem/pml_ersem.F90
 SUBDIRS += carbonate ersem
 
 all: OBJS
@@ -16,7 +15,7 @@ OBJS: $(SUBDIRS)
 	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../doc/fabm.tex
+	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
 
 clean:
 	$(RM) ${LIB} doc

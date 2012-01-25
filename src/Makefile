@@ -2,6 +2,9 @@ include Rules.make
 
 LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
+SUBDIRS = models drivers
+SUBDIRS = models
+
 DOCSRC	= \
 fabm.F90  \
 fabm_types.F90
@@ -30,8 +33,9 @@ models: driver $(FABMBASE)
 $(FABMMOD): $(FABMBASE) models $(FABMMODELLIB)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../doc/fabm.tex
-	touch doc
+	$(PROTEX) $(DOCSRC) > ../doc/fabm_interface_code.tex
+	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
+
 
 clean:
 	$(RM) -f *.o *~

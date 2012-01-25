@@ -23,8 +23,7 @@ endif
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../../doc/fabm.tex
-	touch doc
+	$(PROTEX) $(DOCSRC) > ../../../../doc/pml_ersem.tex
 
 $(ERSEMLIB):
 	$(MAKE) -C $(ERSEMDIR) incremental ERSEMLIB=$(ERSEMLIB) ERSEMLIBDIR=$(ERSEMLIBDIR) ERSEMINCDIR=$(ERSEMINCDIR) CPP=$(CPP) FC=$(FC) AC="$(AR) -r" ERSEMROOT=$(ERSEMDIR) PPDEFS=$(PPERSEM)

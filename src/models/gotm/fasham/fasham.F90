@@ -4,7 +4,7 @@
 !BOP
 !
 ! !MODULE: fabm_fasham --- Fasham et al. (1990, DSR I) biogeochemical model,
-! with slight modifications by Kuehn & Radach (1997, JRM),
+! with slight modifications by Kuehn \& Radach (1997, JRM),
 ! and minimum concentration for phytoplankton, zooplankton and bacteria
 ! as decribed in Burchard et al. (2006, JMS)
 ! taken from GOTM and adapted for FABM by Jorn Bruggeman
