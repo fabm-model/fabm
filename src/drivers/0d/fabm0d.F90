@@ -50,7 +50,7 @@
    logical  :: add_diagnostic_variables=.false.
 
    ! Environment
-   REALTYPE,target :: temp,salt,par,depth,dens,wind_sf,par_sf,taub
+   REALTYPE,target :: temp,salt,par,depth,dens,wind_sf,par_sf,taub,decimal_yearday
 
    REALTYPE,allocatable      :: cc(:,:),totals(:),diag(:),diag_hz(:)
    type (type_model),pointer :: model
@@ -191,6 +191,7 @@
    call fabm_link_data_hz(model,varname_wind_sf,wind_sf)
    call fabm_link_data_hz(model,varname_par_sf, par_sf)
    call fabm_link_data_hz(model,varname_taub, taub)
+   call fabm_link_scalar(model,varname_yearday, decimal_yearday)
 
    ! Open the output file.
    open(out_unit,file=output_file,action='write', &
@@ -375,6 +376,8 @@
 
       ! Update time
       call update_time(n)
+      
+      decimal_yearday = yearday-1 + dble(secondsofday)/86400.
 
       ! Update environment
       call read_environment(julianday,secondsofday)
