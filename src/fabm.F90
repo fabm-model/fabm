@@ -942,6 +942,8 @@
 !BOC
    ! Obtain a reference to the appropriate array with variable names.
    select case (shape)
+      case (shape_scalar)
+         source => model%info%dependencies_scalar
       case (shape_hz)
          source => model%info%dependencies_hz
       case (shape_full)
