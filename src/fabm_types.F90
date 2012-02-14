@@ -49,7 +49,8 @@
      varname_dens    = 'env_dens',    & ! Density (kg/m^3)
      varname_taub    = 'env_taub',    & ! Bottom stress (Pa)
      varname_wind_sf = 'env_wind_sf', & ! Wind speed at 10 m above surface (m/s)
-     varname_par_sf  = 'env_par_sf'     ! Photosynthetically Active Radiation at surface (W/m^2)
+     varname_par_sf  = 'env_par_sf', &  ! Photosynthetically Active Radiation at surface (W/m^2)
+     varname_yearday = 'env_yearday' ! Day of the year, decimal number equal to 0.0 at 00:00 1 Jan UTC
 !
 ! !PUBLIC TYPES:
 !
