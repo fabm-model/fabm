@@ -25,8 +25,6 @@
 #include <fms_platform.h>
 #include "fabm_driver.h"
 
-#define INPLACE_REPAIR
-
 !
 !
 !<CONTACT EMAIL="jorn@bolding-burchard.com"> Jorn Bruggeman
@@ -90,7 +88,7 @@ use mpp_mod,                  only: stdout, stdlog, mpp_error, mpp_sum, FATAL
 use mpp_mod,                  only: mpp_clock_id, mpp_clock_begin, mpp_clock_end, CLOCK_ROUTINE
 use time_manager_mod,         only: get_date
 use time_interp_external_mod, only: time_interp_external
-use mpp_domains_mod,          only: domain2d
+use mpp_domains_mod,          only: domain2d, mpp_global_sum, BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
 use data_override_mod,only: data_override
 
 use ocean_tpm_util_mod, only: otpm_set_tracer_package, otpm_set_prog_tracer, otpm_set_diag_tracer
@@ -190,19 +188,19 @@ type biotic_type  !{
 
   character(len=fm_field_name_len)                 :: name
   logical                                          :: do_virtual_flux = .false.
-  integer,_ALLOCATABLE,dimension(:)                :: inds,inds_diag,inds_diag_hz
-  double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_diag _NULL
+  integer,_ALLOCATABLE,dimension(:)                :: inds,inds_clip,inds_diag,inds_diag_hz,inds_cons,inds_cons_tot,inds_cons_ave
+  double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_diag _NULL,work_cons _NULL
   double precision,_ALLOCATABLE,dimension(:,:,:)   :: work_diag_hz _NULL,w _NULL,sf_fluxes _NULL
   double precision,_ALLOCATABLE,dimension(:,:)     :: adv _NULL,work_dy _NULL
-#ifndef INPLACE_REPAIR
-  double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_state _NULL
-#endif
 
   ! Arrays to hold information on externally provided fields
   character*128,_ALLOCATABLE, dimension(:) :: ext_2d_variables _NULL,ext_3d_variables _NULL
   real,         _ALLOCATABLE               :: ext_2d_data(:,:,:) _NULL, ext_3d_data(:,:,:,:) _NULL
 
+  integer :: ind_diag_clip
 end type biotic_type  !}
+
+double precision,_ALLOCATABLE,dimension(:,:,:) :: clipped _NULL
 
 !
 !----------------------------------------------------------------------
@@ -255,7 +253,8 @@ integer                                 :: id_clock_fabm_source,id_clock_fabm_ve
 integer                                             :: instances
 type(biotic_type), allocatable, dimension(:),target :: biotic
 integer                                             :: index_irr,index_chl
-double precision                                    :: dt_bio
+logical                                             :: inplace_repair,zero_river_concentration
+logical                                             :: disable_sources,disable_vertical_movement
 
 !
 !-----------------------------------------------------------------------
@@ -421,6 +420,10 @@ call fm_util_start_namelist(package_name, '*global*', caller = caller_str, no_ov
 
 call fm_util_set_value('wind_file', 'INPUT/scalar_wind_ongrid.nc')
 call fm_util_set_value('wind_name', 'scalar_wind')
+call fm_util_set_value('inplace_repair', .false.)
+call fm_util_set_value('zero_river_concentration', .false.)
+call fm_util_set_value('disable_sources', .false.)
+call fm_util_set_value('disable_vertical_movement', .false.)
 
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str, check = .true.)
 
@@ -659,6 +662,11 @@ caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str)
 
+inplace_repair           = fm_util_get_logical('inplace_repair',           scalar = .true.)
+zero_river_concentration = fm_util_get_logical('zero_river_concentration', scalar = .true.)
+disable_sources          = fm_util_get_logical('disable_sources',          scalar = .true.)
+disable_vertical_movement          = fm_util_get_logical('disable_vertical_movement',          scalar = .true.)
+
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str)
 
 !
@@ -682,23 +690,61 @@ do n = 1, instances  !{
     str = '_' // biotic(n)%name
   endif  !}
 
+  ! Register diagnostic variables defined on full model domain.
   allocate(biotic(n)%inds_diag(ubound(biotic(n)%model%info%diagnostic_variables,1)))
   do i=1,ubound(biotic(n)%model%info%diagnostic_variables,1)
      biotic(n)%inds_diag(i) = register_diag_field('ocean_model',      &
           trim(biotic(n)%model%info%diagnostic_variables(i)%name)//str, grid_tracer_axes(1:3),                       &
           model_time, trim(biotic(n)%model%info%diagnostic_variables(i)%longname), &
           trim(biotic(n)%model%info%diagnostic_variables(i)%units),            &
-          missing_value = -1.0e+10)
+          missing_value = biotic(n)%model%info%diagnostic_variables(i)%missing_value)
   end do
 
+  ! Register diagnostic variables defined on horizontal slice of domain.
   allocate(biotic(n)%inds_diag_hz(ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
   do i=1,ubound(biotic(n)%model%info%diagnostic_variables_hz,1)
      biotic(n)%inds_diag_hz(i) = register_diag_field('ocean_model',      &
           trim(biotic(n)%model%info%diagnostic_variables_hz(i)%name)//str, grid_tracer_axes(1:2),                       &
           model_time, trim(biotic(n)%model%info%diagnostic_variables_hz(i)%longname), &
           trim(biotic(n)%model%info%diagnostic_variables_hz(i)%units),            &
+          missing_value = biotic(n)%model%info%diagnostic_variables_hz(i)%missing_value)
+  end do
+
+  ! Register clipping diagnostic (increase/time) for pelagic state variables.
+  allocate(biotic(n)%inds_clip(ubound(biotic(n)%model%info%state_variables,1)))
+  do i=1,ubound(biotic(n)%model%info%state_variables,1)
+     biotic(n)%inds_clip(i) = register_diag_field('ocean_model',      &
+          trim(biotic(n)%model%info%state_variables(i)%name)//'_clip'//str, grid_tracer_axes(1:3),                       &
+          model_time, trim(biotic(n)%model%info%state_variables(i)%longname)//' clipping increase', &
+          trim(biotic(n)%model%info%state_variables(i)%units),            &
           missing_value = -1.0e+10)
   end do
+
+  ! Register local values anf domain-wide integrals of conserved quantities.
+  allocate(biotic(n)%inds_cons    (size(biotic(n)%model%info%conserved_quantities)))
+  allocate(biotic(n)%inds_cons_tot(size(biotic(n)%model%info%conserved_quantities)))
+  allocate(biotic(n)%inds_cons_ave(size(biotic(n)%model%info%conserved_quantities)))
+  do i=1,ubound(biotic(n)%model%info%conserved_quantities,1)
+     biotic(n)%inds_cons(i) = register_diag_field('ocean_model',                            &
+          trim(biotic(n)%model%info%conserved_quantities(i)%name)//str, grid_tracer_axes(1:3),                 &
+          model_time, trim(biotic(n)%model%info%conserved_quantities(i)%longname), &
+          trim(biotic(n)%model%info%conserved_quantities(i)%units),                     &
+          missing_value = -1.0e+10)
+     biotic(n)%inds_cons_tot(i) = register_diag_field('ocean_model',                            &
+          trim(biotic(n)%model%info%conserved_quantities(i)%name)//'_total'//str,                 &
+          model_time, 'mass integrated '//trim(biotic(n)%model%info%conserved_quantities(i)%longname), &
+          trim(biotic(n)%model%info%conserved_quantities(i)%units)//'*m3/1e21',                     &
+          missing_value = -1.0e+10)
+     biotic(n)%inds_cons_ave(i) = register_diag_field('ocean_model',                            &
+          trim(biotic(n)%model%info%conserved_quantities(i)%name)//'_global_ave'//str,                 &
+          model_time, 'global mass weighted mean '//trim(biotic(n)%model%info%conserved_quantities(i)%longname)//' in liquid seawater', &
+          trim(biotic(n)%model%info%conserved_quantities(i)%units),                     &
+          missing_value = -1.0e+10)
+  end do
+
+  biotic(n)%ind_diag_clip = register_diag_field('ocean_model',      &
+    'fabm_clip', grid_tracer_axes(1:3), model_time, 'fabm_clip', &
+    '-', missing_value = -1.0e+10)
 
 enddo  !} n
 
@@ -712,16 +758,19 @@ write(stdout(),*)
 write(stdout(),*) trim(note_header), 'Tracer runs initialized'
 write(stdout(),*)
 
+allocate(clipped(isc:iec,jsc:jec,nk))
+
 do n=1,instances
 
-   allocate(biotic(n)%work_dy     (isc:iec,             ubound(biotic(n)%model%info%state_variables,1)))
-   allocate(biotic(n)%work_diag   (isc:iec,jsc:jec,nk,  ubound(biotic(n)%model%info%diagnostic_variables,1)))
-   allocate(biotic(n)%work_diag_hz(isc:iec,jsc:jec,     ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
-   allocate(biotic(n)%w           (isc:iec,        nk+1,ubound(biotic(n)%model%info%state_variables,1)))
-   allocate(biotic(n)%adv         (                nk+1,ubound(biotic(n)%model%info%state_variables,1)))
-#ifndef INPLACE_REPAIR
-   allocate(biotic(n)%work_state  (isc:iec,jsc:jec,nk,  ubound(biotic(n)%model%info%state_variables,1)))
-#endif
+   allocate(biotic(n)%work_dy     (isc:iec,             size(biotic(n)%model%info%state_variables)))
+   allocate(biotic(n)%work_diag   (isc:iec,jsc:jec,nk,  size(biotic(n)%model%info%diagnostic_variables)))
+   allocate(biotic(n)%work_diag_hz(isc:iec,jsc:jec,     size(biotic(n)%model%info%diagnostic_variables_hz)))
+   allocate(biotic(n)%w           (isc:iec,        nk+1,size(biotic(n)%model%info%state_variables)))
+   allocate(biotic(n)%adv         (                nk+1,size(biotic(n)%model%info%state_variables)))
+   if (any(biotic(n)%inds_cons.gt.0).or.any(biotic(n)%inds_cons_tot.gt.0).or.any(biotic(n)%inds_cons_ave.gt.0)) then
+      allocate(biotic(n)%work_cons(isd:ied,jsd:jed,nk,  size(biotic(n)%model%info%conserved_quantities)))
+      biotic(n)%work_cons = _ZERO_
+   end if
 
    ! Set diagnostic variables to zero, because values for land points will not be set.
    biotic(n)%work_diag    = 0.d0
@@ -825,7 +874,7 @@ end subroutine get_external_fields
 !
 
 subroutine ocean_fabm_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,     &
-     T_prog, T_diag, taum1, model_time, grid_zw, grid_ht, grid_tmask, grid_kmt, rho_dzt, Dens)  !{
+     T_prog, T_diag, taum1, model_time, grid_dat, grid_zw, grid_ht, grid_tmask, grid_kmt, rho_dzt, dzt, Dens, dtts, mpp_domain2d)  !{
 
 !
 !-----------------------------------------------------------------------
@@ -854,12 +903,16 @@ type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 type(ocean_diag_tracer_type), intent(inout), dimension(:)       :: T_diag
 integer, intent(in)                                             :: taum1
 type(time_type), intent(in)                                     :: model_time
+real, dimension(isd:,jsd:), intent(in)                          :: grid_dat
 real, dimension(nk), intent(in)                                 :: grid_zw
 real, dimension(isd:,jsd:), intent(in)                          :: grid_ht
 real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
 integer, dimension(isd:,jsd:), intent(in)                       :: grid_kmt
 real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho_dzt
+real, dimension(isd:ied,jsd:jed,nk), intent(in)                 :: dzt
 type(ocean_density_type), intent(in)                            :: Dens
+real, intent(in)                                                :: dtts
+type(domain2d), intent(in)                                      :: mpp_domain2d
 
 !
 !-----------------------------------------------------------------------
@@ -893,6 +946,8 @@ integer :: k
 integer :: n
 integer :: ivar
 logical :: used,valid
+real, dimension(isd:ied,jsd:jed) :: tracer_k
+real :: total_tracer,total_volume
 
 !
 ! =====================================================================
@@ -918,29 +973,88 @@ do n = 1, instances  !{
 
   ! Link to current biogeochemical state variable values, as maintained by MOM4.
   do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
-#ifdef INPLACE_REPAIR
-     call fabm_link_state_data(biotic(n)%model,ivar,t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1))
-#else
-     biotic(n)%work_state(isc:iec,jsc:jec,:,ivar) = t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1)
-     call fabm_link_state_data(biotic(n)%model,ivar,biotic(n)%work_state(isc:iec,jsc:jec,:,ivar))
-#endif
+     t_prog(biotic(n)%inds(ivar))%wrk1(isc:iec,jsc:jec,:) = t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1)
+     call fabm_link_state_data(biotic(n)%model,ivar,t_prog(biotic(n)%inds(ivar))%wrk1(isc:iec,jsc:jec,:))
   end do
 
   call fabm_check_ready(biotic(n)%model)
 
   ! Repair bio state at the start of the time step
+  clipped = _ZERO_
   do k = 1, nk  !{
     do j = jsc, jec  !{
 #ifdef _FABM_USE_1D_LOOP_
       call fabm_check_state(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,.true.,valid)
 #else
       do i = isc, iec  !{
-        if (grid_tmask(i,j,k).eq.1.) &
+        if (grid_tmask(i,j,k).eq.1.) then
           call fabm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.,valid)
+          if (.not.valid) clipped(i,j,k) = _ONE_
+        end if
       end do
 #endif
     end do
   end do
+
+  ! Send per-grid-point clipping status (0 = no clipping, 1 = clipped) to diagnostic manager
+  if (biotic(n)%ind_diag_clip.gt.0) &
+     used = send_data(biotic(n)%ind_diag_clip,clipped(isc:iec,jsc:jec,:),model_time,rmask=grid_tmask(isc:iec,jsc:jec,:))
+
+  ! Send per-grid-point, per-variable clipping0induced change to diagnostic manager
+  do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+     if (biotic(n)%inds_clip(ivar).gt.0) then
+        clipped(isc:iec,jsc:jec,:) = t_prog(biotic(n)%inds(ivar))%wrk1(isc:iec,jsc:jec,:) - t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1)
+        used = send_data(biotic(n)%inds_clip(ivar),clipped(isc:iec,jsc:jec,:),model_time,rmask=grid_tmask(isc:iec,jsc:jec,:))
+     end if
+  end do
+
+  if (any(biotic(n)%inds_cons.gt.0).or.any(biotic(n)%inds_cons_tot.gt.0).or.any(biotic(n)%inds_cons_ave.gt.0)) then
+     ! Get 3D fields of conserved quantities from FABM
+     do k = 1, nk  !{
+       do j = jsc, jec  !{
+#ifdef _FABM_USE_1D_LOOP_
+         call fabm_get_conserved_quantities(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,biotic(n)%work_cons(isc:iec,j,k,:))
+#else
+         do i = isc, iec  !{
+           if (grid_tmask(i,j,k).eq.1.) then
+             call fabm_get_conserved_quantities(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_cons(i,j,k,:))
+           end if
+         end do
+#endif
+       end do
+     end do
+     
+     ! If we need the global average for any variable, calculate the global integral of mass here.
+     if (any(biotic(n)%inds_cons_ave.gt.0)) then
+        total_volume = 0.0
+        do k=1,nk
+           tracer_k(:,:) =  grid_tmask(:,:,k)*grid_dat(:,:)*rho_dzt(:,:,k,taum1) !*dzt(:,:,k)
+           !if(have_obc) tracer_k(:,:) = tracer_k(:,:)*Grd%obc_tmask(:,:)
+           total_volume  = total_volume + mpp_global_sum(mpp_domain2d,tracer_k(:,:), NON_BITWISE_EXACT_SUM)
+        end do
+     end if
+     
+     do ivar=1,size(biotic(n)%model%info%conserved_quantities)
+        ! Send full 3D conserved quantity field to diagnostic manager.
+        if (biotic(n)%inds_cons(ivar).gt.0) then
+           used = send_data(biotic(n)%inds_cons(ivar),biotic(n)%work_cons(isc:iec,jsc:jec,:,ivar),model_time,rmask=grid_tmask(isc:iec,jsc:jec,:))
+        end if
+
+        if (biotic(n)%inds_cons_tot(ivar).gt.0.or.biotic(n)%inds_cons_ave(ivar).gt.0) then
+           ! Integrate tracer across full domain.
+           total_tracer = 0.0
+           do k=1,nk
+              tracer_k(:,:) =  grid_tmask(:,:,k)*grid_dat(:,:)*biotic(n)%work_cons(:,:,k,ivar)*rho_dzt(:,:,k,taum1) !*dzt(:,:,k)
+              !if(have_obc) tracer_k(:,:) = tracer_k(:,:)*Grd%obc_tmask(:,:)
+              total_tracer  = total_tracer + mpp_global_sum(mpp_domain2d,tracer_k(:,:), NON_BITWISE_EXACT_SUM)
+           end do
+           
+           ! Send global integral and mean to diagnostic manager.
+           if (biotic(n)%inds_cons_tot(ivar).gt.0) used = send_data(biotic(n)%inds_cons_tot(ivar),total_tracer*1e-21,model_time)
+           if (biotic(n)%inds_cons_ave(ivar).gt.0) used = send_data(biotic(n)%inds_cons_ave(ivar),total_tracer/total_volume,model_time)
+        end if
+     end do
+  end if
 
 end do
 
@@ -972,11 +1086,19 @@ do n = 1, instances  !{
       end do  !} i
 #endif
 
-      ! Update tendencies with current sink and source terms.
-      do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
-         t_prog(biotic(n)%inds(ivar))%th_tendency(isc:iec,j,k) = t_prog(biotic(n)%inds(ivar))%th_tendency(isc:iec,j,k) &
-            + biotic(n)%work_dy(isc:iec,ivar)*rho_dzt(isc:iec,j,k,taum1)
-      end do
+      if (.not.disable_sources) then
+         ! Update tendencies with current sink and source terms.
+         do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+            if (inplace_repair) then
+               ! Add clipping difference divided by time step as tracer source term
+               biotic(n)%work_dy(isc:iec,ivar) = biotic(n)%work_dy(isc:iec,ivar) + &
+                                     (t_prog(biotic(n)%inds(ivar))%wrk1(isc:iec,j,k) - t_prog(biotic(n)%inds(ivar))%field(isc:iec,j,k,taum1))/dtts
+            endif
+
+            t_prog(biotic(n)%inds(ivar))%th_tendency(isc:iec,j,k) = t_prog(biotic(n)%inds(ivar))%th_tendency(isc:iec,j,k) &
+               + biotic(n)%work_dy(isc:iec,ivar)*rho_dzt(isc:iec,j,k,taum1)*grid_tmask(isc:iec,j,k)
+         end do
+      end if
 
     end do  !} j
   end do  !} k
@@ -1045,21 +1167,23 @@ do n = 1, instances  !{
         do k=2,grid_kmt(i,j)
           if (biotic(n)%w(i,k,ivar)>0.) then
             ! floating
-            biotic(n)%adv(k,ivar) = biotic(n)%w(i,k,ivar)*t_prog(biotic(n)%inds(ivar))%field(i,j,k,taum1)
+            biotic(n)%adv(k,ivar) = biotic(n)%w(i,k,ivar)*t_prog(biotic(n)%inds(ivar))%field(i,j,k,taum1)*Dens%rho(i,j,k,taum1)
           elseif (biotic(n)%w(i,k,ivar)<0.) then
             ! sinking
-            biotic(n)%adv(k,ivar) = biotic(n)%w(i,k,ivar)*t_prog(biotic(n)%inds(ivar))%field(i,j,k-1,taum1)
+            biotic(n)%adv(k,ivar) = biotic(n)%w(i,k,ivar)*t_prog(biotic(n)%inds(ivar))%field(i,j,k-1,taum1)*Dens%rho(i,j,k-1,taum1)
           end if
         end do
 
-        ! Add transport to tracer tendencies (conservative formulation)
-        ! Note: normally the transport terms should be divided by the layer thickness.
-        ! However, as MOM4 needs thickness (and density)-weighted tendencies (multiplication by thickness)
-        ! that can be skipped here.
-        do k=1,grid_kmt(i,j)
-           t_prog(biotic(n)%inds(ivar))%th_tendency(i,j,k) = t_prog(biotic(n)%inds(ivar))%th_tendency(i,j,k) + &
-               grid_tmask(i,j,k)*(biotic(n)%adv(k+1,ivar)-biotic(n)%adv(k,ivar))*Dens%rho(i,j,k,taum1)
-        end do  !} k
+        if (.not.disable_vertical_movement) then
+           ! Add transport to tracer tendencies (conservative formulation)
+           ! Note: normally the transport terms should be divided by the layer thickness.
+           ! However, as MOM4 needs thickness (and density)-weighted tendencies (multiplication by thickness)
+           ! that can be skipped here.
+           do k=1,grid_kmt(i,j)
+              t_prog(biotic(n)%inds(ivar))%th_tendency(i,j,k) = t_prog(biotic(n)%inds(ivar))%th_tendency(i,j,k) + &
+                  grid_tmask(i,j,k)*(biotic(n)%adv(k+1,ivar)-biotic(n)%adv(k,ivar)) !*Dens%rho(i,j,k,taum1)
+           end do  !} k
+        end if
 
       end do  !} ivar
     end do  !} i
@@ -1983,7 +2107,7 @@ do n = 1, instances  !{
   do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
     if (biotic(n)%model%info%state_variables(ivar)%no_precipitation_dilution) &
       T_prog(biotic(n)%inds(ivar))%tpme  (isc:iec,jsc:jec) = T_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,1,taum1)
-    if (biotic(n)%model%info%state_variables(ivar)%no_river_dilution) &
+    if ((.not.zero_river_concentration).and.biotic(n)%model%info%state_variables(ivar)%no_river_dilution) &
       T_prog(biotic(n)%inds(ivar))%triver(isc:iec,jsc:jec) = T_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,1,taum1)
   end do
 

@@ -1756,8 +1756,8 @@ endif
 if (do_ocean_fabm) then
   call ocean_fabm_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,    &
                             isd, ied, jsd, jed, T_prog, T_diag,                           &
-                            Time%taum1, Time%model_time, Grid%zw, Grid%ht, Grid%tmask,  &
-                            Grid%kmt, Thickness%rho_dzt, Dens)
+                            Time%taum1, Time%model_time, Grid%dat, Grid%zw, Grid%ht, Grid%tmask,  &
+                            Grid%kmt, Thickness%rho_dzt, Thickness%dzt, Dens, dtts, Domain%domain2d)
 endif
 
 #endif
