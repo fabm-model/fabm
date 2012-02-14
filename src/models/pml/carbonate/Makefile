@@ -6,7 +6,7 @@ include ../../../Rules.make
 
 LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC	=  carbonate.F90
+DOCSRC	=  co2_dyn.F90 carbonate.F90
 
 OBJS   = \
 ${LIB}(co2_dyn.o)	\
@@ -16,8 +16,7 @@ all: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../../doc/fabm.tex
-	touch doc
+	$(PROTEX) $(DOCSRC) > ../../../../doc/pml_carbonate.tex
 
 clean:
 	$(RM) ${LIB} doc

@@ -6,7 +6,6 @@ include ../../Rules.make
 
 LIB     = $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC  += benthic_predator/benthic_predator.F90
 SUBDIRS += benthic_predator
 SUBDIRS += npzd
 SUBDIRS += npzd_f2003
@@ -18,6 +17,6 @@ OBJS: $(SUBDIRS)
 	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../doc/fabm.tex
+	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
 
 clean:

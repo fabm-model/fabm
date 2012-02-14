@@ -6,7 +6,7 @@
 !BOP
 !
 ! !MODULE: fabm_npzd --- Fortran 2003 version of NPZD biogeochemical model based upon
-! Fennel & Neumann (1996, German Journal of Hydrography),
+! Fennel \& Neumann (1996, German Journal of Hydrography),
 ! with minor modifications by Burchard et al. (2005, Ocean Dynamics)
 ! taken from GOTM and adapted for FABM by Jorn Bruggeman
 !

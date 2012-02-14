@@ -6,7 +6,6 @@ include ../../Rules.make
 
 LIB     = $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC  += ergom/ergom.F90
 SUBDIRS += ergom
 
 all: OBJS
@@ -16,7 +15,7 @@ OBJS: $(SUBDIRS)
 	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../doc/fabm.tex
+	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
 
 clean:
 	$(RM) ${LIB} doc

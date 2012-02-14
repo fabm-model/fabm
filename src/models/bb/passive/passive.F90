@@ -10,7 +10,8 @@
 ! !DESCRIPTION:
 ! This model describe a single passive tracer. Optionally, a vertical velocity
 ! (sinking/floating) and a light absorption coefficient can be specified. The
-! unit is mol/m^3 by default, but may be explicitly set in the namelist instead.
+! unit is mol/m\^3 by default, but may be explicitly set in the namelist 
+! instead.
 !
 ! !USES:
    use fabm_types
@@ -48,7 +49,7 @@
    subroutine bb_passive_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
-!  Here, the bb_passive namelist is read and the variables exported
+!  Here, the bb\_passive namelist is read and the variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
