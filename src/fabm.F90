@@ -1587,6 +1587,8 @@
             call pml_carbonate_get_surface_exchange(model%pml_carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
          case (iow_ergom_id)
             call iow_ergom_get_surface_exchange(model%iow_ergom,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
+         case (bb_passive_id)
+            call bb_passive_get_surface_exchange(model%bb_passive,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies fluxes of one or
          ! more of its state variables across the air-water interface.
          !

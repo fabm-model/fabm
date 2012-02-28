@@ -23,12 +23,13 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_bb_passive, bb_passive_init
+   public type_bb_passive, bb_passive_init, bb_passive_get_surface_exchange
 !
 ! !PUBLIC DERIVED TYPES:
    type type_bb_passive
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_ :: id_tracer
+      REALTYPE                 :: surface_flux
    end type
 !
 ! !PRIVATE DATA MEMBERS:
@@ -64,9 +65,10 @@
    REALTYPE                  :: initial_concentration     = _ONE_
    REALTYPE                  :: vertical_velocity         = _ZERO_
    REALTYPE                  :: specific_light_absorption = _ZERO_
+   REALTYPE                  :: surface_flux              = _ZERO_
    character(len=64)         :: unit                      = 'mol/m**3'
    REALTYPE, parameter       :: secs_pr_day=86400.
-   namelist /bb_passive/ initial_concentration,vertical_velocity,specific_light_absorption
+   namelist /bb_passive/ initial_concentration,vertical_velocity,specific_light_absorption,surface_flux
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -78,11 +80,49 @@
                                             initial_concentration,minimum=_ZERO_, &
                                             vertical_movement=vertical_velocity/secs_pr_day, &
                                             specific_light_extinction=specific_light_absorption)
+                                            
+   self%surface_flux = surface_flux/secs_pr_day
+   
    return
 
 99 call fatal_error('bb_passive_init','Error reading namelist bb_passive')
 
    end subroutine bb_passive_init
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Air-sea exchange for the passive tracer model
+!
+! !INTERFACE:
+   subroutine bb_passive_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+!
+! !DESCRIPTION:
+!
+! !USES:
+   IMPLICIT NONE
+!
+! !INPUT PARAMETERS:
+   type (type_bb_passive), intent(in)    :: self
+   _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Enter spatial loops (if any)
+   _FABM_HZ_LOOP_BEGIN_
+
+   ! Transfer surface exchange value to FABM.
+   _SET_SURFACE_EXCHANGE_(self%id_tracer,self%surface_flux)
+
+   ! Leave spatial loops (if any)
+   _FABM_HZ_LOOP_END_
+
+   end subroutine bb_passive_get_surface_exchange
 !EOC
 
 !-----------------------------------------------------------------------
