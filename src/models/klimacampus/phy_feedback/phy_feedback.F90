@@ -1,0 +1,444 @@
+!$Id: phy_feedback.F90 108 2012-02-29 10:00:00 ihense $
+#include "fabm_driver.h"
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !MODULE: fabm_klimacampus_phy_feedback --- is the implementation of a
+! PND-model including 3 different biological-physical feedback mechanisms 
+! as described in Sonntag and Hense (2011). Here, only the N2-fixing
+! cyanobacteria are included.
+!
+! !INTERFACE:
+
+   module fabm_klimacampus_phy_feedback
+!
+! !DESCRIPTION:
+! This PND (phytoplankton (cyanobacteria)-nutrient-detritus) model 
+! described here consists of 3 state variables. 
+! Cyanobacteria growth is limited by light and temperature. 
+! Cyanobacteria (PHY) die and the biomass goes into
+! the detritus (DET) which can be remineralized to nutrients (NUT)
+! We assume that the pool of N2 is infinite and therefore do not 
+! introduce an additional state variable for N2. Thus, the mass 
+! balance is not closed!
+! For all details of the PND-feedback model implemented here, 
+! see Sonntag and Hense (2011).
+!
+! !USES:
+!#ifdef _FABM_PHY_FEEDBACK_
+   use fabm_types
+   use fabm_driver
+!  default: all is private.
+   private
+!
+! !PUBLIC MEMBER FUNCTIONS:
+   public type_klimacampus_phy_feedback,                         &
+               klimacampus_phy_feedback_init,                    &
+               klimacampus_phy_feedback_do,                      &
+               klimacampus_phy_feedback_get_light_extinction,    &
+!               klimacampus_phy_feedback_get_albedo,              &
+!               klimacampus_phy_feedback_get_drag,                &
+               klimacampus_phy_feedback_do_benthos,              &
+               klimacampus_phy_feedback_get_conserved_quantities
+!
+! !PRIVATE DATA MEMBERS:
+!
+! !REVISION HISTORY:!
+!  Original author(s): Inga Hense
+!
+!
+! !PUBLIC DERIVED TYPES:
+   type type_klimacampus_phy_feedback
+!     Variable identifiers
+      _TYPE_STATE_VARIABLE_ID_      :: id_nut,id_phy,id_det
+      _TYPE_DEPENDENCY_ID_          :: id_par,id_temp
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_NFIX, id_dPAR
+      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
+      
+!     Model parameters
+      REALTYPE :: rkc,muemax_phy,alpha,mortphy,rem,w_phy,w_det, &
+                  topt,tl1,tl2,depo,nbot,albedo_bio,drag_bio
+      
+   end type
+!EOP
+!-----------------------------------------------------------------------
+
+   contains
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initialise the phy-feedback (PND) model
+!
+! !INTERFACE:
+  subroutine klimacampus_phy_feedback_init(self,modelinfo,namlst)
+!
+! !DESCRIPTION:
+!  Here, the phy_feedback model namelist is read and the variables 
+!  exported by the model are registered in FABM.
+!
+! !USES:
+   implicit none
+
+! !INPUT PARAMETERS:
+   type (type_klimacampus_phy_feedback), intent(inout)    :: self
+   type (type_model_info),intent(inout)                   :: modelinfo
+   integer,               intent(in)                      :: namlst
+!
+! !REVISION HISTORY:
+!  Original author(s): Inga Hense
+!
+! !LOCAL VARIABLES:
+   REALTYPE                  :: nut_initial=4.5                  !nutrients
+   REALTYPE                  :: phy_initial=0.                   !phytolankton (cyanobacteria)
+   REALTYPE                  :: det_initial=4.5                  !detritus
+   REALTYPE                  :: rkc=0.03                         !attenuation coefficient (organic matter)
+   REALTYPE                  :: alpha=0.3                        !initial slope of the PI-curve
+   REALTYPE                  :: muemax_phy=0.25                  !maximum growth rate
+   REALTYPE                  :: mortphy=0.04                     !mortality rate
+   REALTYPE                  :: rem=0.048                        !remineralization rate
+   REALTYPE                  :: topt=25.                         !optimum temperature for growth
+   REALTYPE                  :: tl1=2.                           !slope (temp. function)
+   REALTYPE                  :: tl2=3.                           !slope (temp. function) 
+   REALTYPE                  :: w_phy=1.                         !positive buoyancy
+   REALTYPE                  :: w_det=-18.                       !sinking of detritus
+   REALTYPE                  :: depo=0.05                        !detritus burial rate
+   REALTYPE                  :: nbot=35.                         !bottom nutrient concentration 
+   REALTYPE                  :: albedo_bio=0.002                 !factor for albedo changes through surface phy
+   REALTYPE                  :: drag_bio=0.05                    !factor for drag coef. changes through surface phy
+
+   REALTYPE, parameter :: secs_pr_day  = 86400.
+
+   namelist /klimacampus_phy_feedback/ &
+              nut_initial,phy_initial,det_initial,rkc,alpha,   &
+              muemax_phy,mortphy,rem,topt,tl1,tl2,w_phy,w_det, &
+              depo,nbot
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Read the namelist
+   read(namlst,nml=klimacampus_phy_feedback,err=99,end=100)
+    
+   ! Store parameter values in our own derived type
+   ! NB: all rates must be provided in values per day,
+   ! and are converted here to values per second.
+   self%rkc         = rkc
+   self%alpha       = alpha/secs_pr_day
+   self%muemax_phy  = muemax_phy/secs_pr_day
+   self%mortphy     = 1./mortphy/secs_pr_day
+   self%rem         = rem/secs_pr_day
+   self%topt        = topt
+   self%tl1         = tl1
+   self%tl2         = tl2
+   self%depo        = depo/secs_pr_day
+   self%nbot        = nbot
+   self%albedo_bio  = albedo_bio
+   self%drag_bio    = drag_bio
+   
+   ! Register state variables
+  self%id_nut = register_state_variable(modelinfo,'nut','mmol/m**3','nutrients',     &
+                                    nut_initial,minimum=_ZERO_,no_river_dilution=.true.           )
+  self%id_phy = register_state_variable(modelinfo,'phy','mmol/m**3','phytoplankton', &
+                                    phy_initial,minimum=_ZERO_,vertical_movement=    &
+                                    w_phy/secs_pr_day)
+  self%id_det = register_state_variable(modelinfo,'det','mmol/m**3','detritus',      &
+                                    det_initial,minimum=_ZERO_,vertical_movement=    &
+                                    w_det/secs_pr_day)
+
+
+
+   ! Register diagnostic variables
+   self%id_NFIX  = register_diagnostic_variable(modelinfo,'NFIX','mmol/m**3',        &
+                     'nitrogen fixation',                                            &
+                     time_treatment=time_treatment_step_integrated)
+   self%id_dPAR  = register_diagnostic_variable(modelinfo,'PAR','W/m**2',            &
+                     'photosynthetically active radiation',                          &
+                     time_treatment=time_treatment_averaged)
+   
+   ! Register conserved quantities
+  self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
+   
+   ! Register environmental dependencies
+  self%id_par  = register_dependency(modelinfo,varname_par)
+  self%id_temp = register_dependency(modelinfo,varname_temp)
+
+   return
+
+99 call fatal_error('klimacampus_phy_feedback_init','Error reading namelist klimacampus_phy_feedback.')
+
+100 call fatal_error('klimacampus_phy_feedback_init','Namelist klimacampus_phy_feedback was not found.')
+   
+   end subroutine klimacampus_phy_feedback_init
+!EOC
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Right hand sides of  model
+!
+! !INTERFACE:
+   subroutine klimacampus_phy_feedback_do(self,_FABM_ARGS_DO_RHS_)
+!
+! !DESCRIPTION:
+! The sources and sinks of the PND model are calculated. Please note,
+! that phy are cyanobacteria which are assumed to fix nitrogen and bring 
+! nitrogen into the system.
+!
+! !USES:
+   implicit none
+!
+! !INPUT PARAMETERS:
+   type (type_klimacampus_phy_feedback),       intent(in) :: self
+   _DECLARE_FABM_ARGS_DO_RHS_
+!
+! !REVISION HISTORY:
+!  Original author(s): Inga Hense
+!
+! !LOCAL VARIABLES:
+   REALTYPE                   :: nut,phy,det,par,temp
+   REALTYPE                   :: ta_phy,mue_par_phy,mue_phy
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_nut,nut) ! nutrient
+   _GET_STATE_(self%id_phy,phy) ! phytoplankton
+   _GET_STATE_(self%id_det,det) ! detritus
+   
+   ! Retrieve current environmental conditions.
+   _GET_DEPENDENCY_ (self%id_par,par)    ! local photosynthetically active radiation
+   _GET_DEPENDENCY_ (self%id_temp,temp)  ! local temperature
+   
+   !growth rates and limitation functions for temperature and light.
+   ta_phy      = exp(-(temp-self%topt)**4/(self%tl1-sign(self%tl2,temp-self%topt))**4) ! temperature dependence
+
+   mue_par_phy = (self%alpha * par) /          &                                       ! light limitation
+                    (self%muemax_phy**2 + (self%alpha*par)**2) **0.5 
+   mue_phy     = self%muemax_phy * ta_phy * mue_par_phy                                ! actual growth rate
+
+   ! Set temporal derivatives
+  _SET_ODE_(self%id_phy, + mue_phy*phy - self%mortphy*phy                  )
+  _SET_ODE_(self%id_det,               + self%mortphy*phy - self%rem*det   )
+  _SET_ODE_(self%id_nut,                                  + self%rem*det   )
+
+   ! Export diagnostic variables
+   _SET_DIAG_(self%id_dPAR,par)
+   _SET_DIAG_(self%id_NFIX,mue_phy*phy)
+    
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+   end subroutine klimacampus_phy_feedback_do
+!EOC
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the light extinction coefficient 
+!
+! !DESCRIPTION:
+! This is the first feedback considered here: feedback through light absorption,
+! leading to temperature changes.
+!
+! !INTERFACE:
+   subroutine klimacampus_phy_feedback_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+!
+! !INPUT PARAMETERS:
+   type (type_klimacampus_phy_feedback), intent(in) :: self
+   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+!
+! !REVISION HISTORY:
+!  Original author(s): Inga Hense
+!
+! !LOCAL VARIABLES:
+   REALTYPE                     :: phy,det
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_phy,phy) ! phytoplankton
+   _GET_STATE_(self%id_det,det) ! detritus
+   
+   ! Self-shading with explicit contribution from background phytoplankton and detritus concentration.
+   _SET_EXTINCTION_(self%rkc*(phy+det))
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+   
+   end subroutine klimacampus_phy_feedback_get_light_extinction
+!EOC
+!-----------------------------------------------------------------------
+#ifdef FEEDBACK-ALBEDO
+!BOP
+!
+! !IROUTINE: Get the albedo coefficient 
+!
+! !DESCRIPTION:
+! This is the second feedback considered here: feedback through changes in the albedo,
+! leading to changes in light reflection and thus temperature.
+!
+! !INTERFACE:
+   subroutine klimacampus_phy_feedback_get_albedo(self,_FABM_ARGS_GET_ALBEDO_)
+!
+! !INPUT PARAMETERS:
+   type (type_klimacampus_phy_feedback), intent(in) :: self
+   _DECLARE_FABM_ARGS_GET_ALBEDO
+!
+! !REVISION HISTORY:
+!  Original author(s): Inga Hense
+!
+! !LOCAL VARIABLES:
+   REALTYPE                     :: phys
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Enter spatial loops (if any)
+   _FABM_HZ_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_phy,phys)                 ! surface phytoplankton
+   
+   ! Changes in Albedo due to phytoplankton surface scums.
+   ! Phy must be the surface concentration!
+   _SET_ALBEDO_(self%albedo_bio*phys)
+
+   ! Leave spatial loops (if any)
+   _FABM_HZ_LOOP_END_
+   
+   end subroutine klimacampus_phy_feedback_get_albedo
+!EOC
+#endif 
+!-----------------------------------------------------------------------
+#ifdef FEEDBACK-DRAG
+!BOP
+!
+! !IROUTINE: Get the drag coefficient
+!
+! !DESCRIPTION:
+! This is the third feedback considered here: feedback through changes in the drag
+! coefficient, leading to changes in the momentum flux.
+!
+! !INTERFACE:
+   subroutine klimacampus_phy_feedback_get_drag(self,_FABM_ARGS_GET_DRAG_)
+!
+! !INPUT PARAMETERS:
+   type (type_klimacampus_phy_feedback), intent(in) :: self
+   _DECLARE_FABM_ARGS_GET_DRAG
+!
+! !REVISION HISTORY:
+!  Original author(s): Inga Hense
+!
+! !LOCAL VARIABLES:
+   REALTYPE                     :: phys
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Enter spatial loops (if any)
+   _FABM_HZ_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_phy,phys) ! surface phytoplankton
+   
+   ! Changes in drag coefficient due to surface scums.
+   ! Phy must be the surface concentration!
+   _SET_DRAG_(1.0 - max(self%drag_bio*phys,0.))
+
+   ! Leave spatial loops (if any)
+   _FABM_HZ_LOOP_END_
+   
+   end subroutine klimacampus_phy_feedback_get_drag
+!EOC
+#endif 
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Right hand sides of benthic_predator model
+!
+! !INTERFACE:
+   subroutine klimacampus_phy_feedback_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+!
+! !DESCRIPTION:
+! Detritus burial and nutrient restoring are considered to achieve a quasi-steady state. 
+!
+! !INPUT PARAMETERS:
+   type (type_klimacampus_phy_feedback),       intent(in) :: self
+   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+!
+! !REVISION HISTORY:
+!  Original author(s): Inga Hense
+!
+! !LOCAL VARIABLES:
+   REALTYPE                   :: deb,nub
+   REALTYPE, parameter        :: secs_pr_hour = 3600.
+
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Enter spatial loops over the horizontal domain (if any).
+   _FABM_HZ_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_nut,nub)
+   _GET_STATE_(self%id_det,deb)
+
+   _SET_BOTTOM_EXCHANGE_(self%id_det,-self%depo*deb*deb)           !detritus burial
+   _SET_BOTTOM_EXCHANGE_(self%id_nut,(self%nbot-nub)/secs_pr_hour) !nutrient restoring
+
+   ! Leave spatial loops over the horizontal domain (if any).
+   _FABM_HZ_LOOP_END_
+
+   end subroutine klimacampus_phy_feedback_do_benthos
+!EOC
+!------------------------------------------------------------------------
+
+
+!BOP
+!
+! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
+!
+! !INTERFACE:
+   subroutine klimacampus_phy_feedback_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+!
+! !INPUT PARAMETERS:
+   type (type_klimacampus_phy_feedback), intent(in) :: self
+   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+!
+! !REVISION HISTORY:
+!  Original author(s): Inga Hense
+!
+! !LOCAL VARIABLES:
+   REALTYPE                     :: nut,phy,det
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_nut,nut) ! nutrient
+   _GET_STATE_(self%id_phy,phy) ! phytoplankton
+   _GET_STATE_(self%id_det,det) ! detritus
+   
+   ! Total nutrient is simply the sum of all variables.
+   _SET_CONSERVED_QUANTITY_(self%id_totN,nut+det)
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+   end subroutine klimacampus_phy_feedback_get_conserved_quantities
+
+!-----------------------------------------------------------------------
+   end module fabm_klimacampus_phy_feedback
+!EOC
+!-----------------------------------------------------------------------
+! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
+!-----------------------------------------------------------------------

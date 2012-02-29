@@ -45,6 +45,9 @@
 		<Filter Name="mnemiopsis">
 		<File RelativePath="..\..\src\models\mnemiopsis\Makefile"/></Filter>
 		<File RelativePath="..\..\src\models\metu\Makefile"/></Filter>
+		<Filter Name="klimacampus">
+		<Filter Name="phy_feedback">
+		<File RelativePath="..\..\src\models\klimacampus\phy_feedback\phy_feedback.F90"/></Filter></Filter>
 		<Filter Name="pml">
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\Makefile"/></Filter>
@@ -58,6 +61,9 @@
 		<Filter Name="driver">
 		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.F90"/></Filter>
 		<Filter Name="models">
+		<Filter Name="bb">
+		<Filter Name="passive">
+		<File RelativePath="..\..\src\models\bb\passive\passive.F90"/></Filter></Filter>
 		<Filter Name="examples">
 		<Filter Name="benthic_predator">
 		<File RelativePath="..\..\src\models\examples\benthic_predator\benthic_predator.F90"/></Filter>
@@ -78,9 +84,6 @@
 		<Filter Name="metu">
 		<Filter Name="mnemiopsis">
 		<File RelativePath="..\..\src\models\metu\mnemiopsis\mnemiopsis.F90"/></Filter></Filter>
-		<Filter Name="bb">
-		<Filter Name="passive">
-		<File RelativePath="..\..\src\models\bb\passive\passive.F90"/></Filter></Filter>
 		<Filter Name="pml">
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>

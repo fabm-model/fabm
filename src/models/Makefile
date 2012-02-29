@@ -18,6 +18,8 @@ SUBDIRS += iow/
 
 SUBDIRS += bb/
 
+SUBDIRS += klimacampus/
+
 all: OBJS
 	$(MOVE_MODULES_COMMAND)
 
