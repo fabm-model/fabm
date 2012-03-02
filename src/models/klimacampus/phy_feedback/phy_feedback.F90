@@ -429,7 +429,7 @@
    _GET_STATE_(self%id_det,det) ! detritus
    
    ! Total nutrient is simply the sum of all variables.
-   _SET_CONSERVED_QUANTITY_(self%id_totN,nut+det)
+   _SET_CONSERVED_QUANTITY_(self%id_totN,nut+phy+det)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
