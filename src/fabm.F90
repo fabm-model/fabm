@@ -1813,8 +1813,6 @@
             call gotm_fasham_get_light_extinction(model%gotm_fasham,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          case (iow_ergom_id)
             call iow_ergom_get_light_extinction(model%iow_ergom,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
-         case (klimacampus_phy_feedback_id)
-            call klimacampus_phy_feedback_get_light_extinction(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
          ! state variable specific extinction coefficients.
          !

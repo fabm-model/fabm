@@ -36,7 +36,6 @@
    public type_klimacampus_phy_feedback,                         &
                klimacampus_phy_feedback_init,                    &
                klimacampus_phy_feedback_do,                      &
-               klimacampus_phy_feedback_get_light_extinction,    &
 !               klimacampus_phy_feedback_get_albedo,              &
 !               klimacampus_phy_feedback_get_drag,                &
                klimacampus_phy_feedback_do_benthos,              &
@@ -57,7 +56,7 @@
       _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
       
 !     Model parameters
-      REALTYPE :: rkc,muemax_phy,alpha,mortphy,rem,w_phy,w_det, &
+      REALTYPE :: muemax_phy,alpha,mortphy,rem, &
                   topt,tl1,tl2,depo,nbot,albedo_bio,drag_bio
       
    end type
@@ -123,7 +122,6 @@
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   self%rkc         = rkc
    self%alpha       = alpha/secs_pr_day
    self%muemax_phy  = muemax_phy/secs_pr_day
    self%mortphy     = 1./mortphy/secs_pr_day
@@ -138,15 +136,13 @@
    
    ! Register state variables
   self%id_nut = register_state_variable(modelinfo,'nut','mmol/m**3','nutrients',     &
-                                    nut_initial,minimum=_ZERO_,no_river_dilution=.true.           )
+                                    nut_initial,minimum=_ZERO_,no_river_dilution=.true.)
   self%id_phy = register_state_variable(modelinfo,'phy','mmol/m**3','phytoplankton', &
                                     phy_initial,minimum=_ZERO_,vertical_movement=    &
-                                    w_phy/secs_pr_day)
+                                    w_phy/secs_pr_day,specific_light_extinction=rkc)
   self%id_det = register_state_variable(modelinfo,'det','mmol/m**3','detritus',      &
                                     det_initial,minimum=_ZERO_,vertical_movement=    &
-                                    w_det/secs_pr_day)
-
-
+                                    w_det/secs_pr_day,specific_light_extinction=rkc)
 
    ! Register diagnostic variables
    self%id_NFIX  = register_diagnostic_variable(modelinfo,'NFIX','mmol/m**3',        &
@@ -234,47 +230,7 @@
    end subroutine klimacampus_phy_feedback_do
 !EOC
 !-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the light extinction coefficient 
-!
-! !DESCRIPTION:
-! This is the first feedback considered here: feedback through light absorption,
-! leading to temperature changes.
-!
-! !INTERFACE:
-   subroutine klimacampus_phy_feedback_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
-!
-! !INPUT PARAMETERS:
-   type (type_klimacampus_phy_feedback), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
-!
-! !REVISION HISTORY:
-!  Original author(s): Inga Hense
-!
-! !LOCAL VARIABLES:
-   REALTYPE                     :: phy,det
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_phy,phy) ! phytoplankton
-   _GET_STATE_(self%id_det,det) ! detritus
-   
-   ! Self-shading with explicit contribution from background phytoplankton and detritus concentration.
-   _SET_EXTINCTION_(self%rkc*(phy+det))
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-   
-   end subroutine klimacampus_phy_feedback_get_light_extinction
-!EOC
-!-----------------------------------------------------------------------
-#ifdef FEEDBACK-ALBEDO
+#ifdef FEEDBACK_ALBEDO
 !BOP
 !
 ! !IROUTINE: Get the albedo coefficient 
@@ -316,7 +272,7 @@
 !EOC
 #endif 
 !-----------------------------------------------------------------------
-#ifdef FEEDBACK-DRAG
+#ifdef FEEDBACK_DRAG
 !BOP
 !
 ! !IROUTINE: Get the drag coefficient
