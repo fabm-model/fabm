@@ -54,8 +54,8 @@
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   type (type_bb_passive), intent(out)   :: self
-   type (type_model_info),       intent(inout) :: modelinfo
+   type (type_bb_passive),       intent(out)   :: self
+   _CLASS_ (type_model_info),    intent(inout) :: modelinfo
    integer,                      intent(in)    :: namlst
 !
 ! !REVISION HISTORY:

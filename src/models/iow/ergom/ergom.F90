@@ -114,9 +114,9 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type(type_iow_ergom),intent(out)     ::self
-   type(type_model_info),intent(inout) :: modelinfo
-   integer,intent(in)                  ::namlst
+   type(type_iow_ergom),    intent(out)   ::self
+   _CLASS_(type_model_info),intent(inout) :: modelinfo
+   integer,                 intent(in)    ::namlst
 !
 ! !LOCAL VARIABLES:
    REALTYPE           :: p1_initial=4.5

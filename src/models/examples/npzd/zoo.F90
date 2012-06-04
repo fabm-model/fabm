@@ -60,9 +60,9 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_zoo), intent(out)    :: self
-   type (type_model_info),intent(inout)          :: modelinfo
-   integer,               intent(in)             :: namlst
+   type (type_examples_npzd_zoo), intent(out)   :: self
+   _CLASS_ (type_model_info),     intent(inout) :: modelinfo
+   integer,                       intent(in)    :: namlst
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard & Karsten Bolding

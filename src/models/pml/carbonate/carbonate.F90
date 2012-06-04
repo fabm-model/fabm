@@ -64,9 +64,9 @@ contains
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_pml_carbonate), intent(out)     :: self
-   type (type_model_info),intent(inout) :: modelinfo
-   integer,               intent(in )   :: namlst
+   type (type_pml_carbonate), intent(out)   :: self
+   _CLASS_ (type_model_info), intent(inout) :: modelinfo
+   integer,                   intent(in )   :: namlst
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard & Karsten Bolding

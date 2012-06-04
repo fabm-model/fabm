@@ -59,8 +59,8 @@
 !
 ! !INPUT PARAMETERS:
    type (type_examples_benthic_predator),intent(out)   :: self
-   type (type_model_info),      intent(inout) :: modelinfo
-   integer,                     intent(in)    :: namlst
+   _CLASS_ (type_model_info),            intent(inout) :: modelinfo
+   integer,                              intent(in)    :: namlst
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman

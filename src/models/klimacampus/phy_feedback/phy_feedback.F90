@@ -77,9 +77,9 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_klimacampus_phy_feedback), intent(inout)    :: self
-   type (type_model_info),intent(inout)                   :: modelinfo
-   integer,               intent(in)                      :: namlst
+   type (type_klimacampus_phy_feedback), intent(inout) :: self
+   _CLASS_ (type_model_info),            intent(inout) :: modelinfo
+   integer,                              intent(in)    :: namlst
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
