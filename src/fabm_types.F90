@@ -245,7 +245,7 @@
 ! !IROUTINE: Initializes model information.
 !
 ! !INTERFACE:
-   subroutine init_model_info(modelinfo)
+   subroutine init_model_info(modelinfo,name,parent)
 !
 ! !DESCRIPTION:
 !  This function initializes the members of a model information derived type,
@@ -255,12 +255,17 @@
    implicit none
 !
 ! !INPUT/OUTPUT PARAMETER:
-      _CLASS_ (type_model_info),intent(inout) :: modelinfo
+      _CLASS_ (type_model_info),target,intent(inout)          :: modelinfo
+      _CLASS_ (type_model_info),target,intent(inout),optional :: parent
+      character(len=*),                intent(in)             :: name
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
+!
+! !LOCAL VARIABLES:
+      _CLASS_ (type_model_info),pointer :: lastchild
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -280,8 +285,22 @@
       allocate(modelinfo%dependencies_hz(0))
       allocate(modelinfo%dependencies(0))
 
-      modelinfo%nameprefix     = ''
-      modelinfo%longnameprefix = ''
+      modelinfo%name           = name
+      modelinfo%nameprefix     = trim(name)//'_'
+      modelinfo%longnameprefix = trim(name)//' '
+      
+      if (present(parent)) then
+         modelinfo%parent => parent
+         if (.not.associated(parent%firstchild)) then
+            parent%firstchild => modelinfo
+         else
+            lastchild => parent%firstchild
+            do while (associated(lastchild%nextsibling))
+               lastchild => lastchild%nextsibling
+            end do
+            lastchild%nextsibling => modelinfo
+         end if
+      end if
 
    end subroutine init_model_info
 !EOC
@@ -492,8 +511,8 @@
       end if
 
       ! Extend the state variable array and copy over old values.
-      allocate(variables_new(ubound(variables_old,1)+1))
-      variables_new(1:ubound(variables_old,1)) = variables_old(:)
+      allocate(variables_new(size(variables_old)+1))
+      variables_new(1:size(variables_old)) = variables_old(:)
       deallocate(variables_old)
 
       ! Assign new state variable array.
@@ -503,7 +522,7 @@
          modelinfo%state_variables => variables_new
       end if
 
-      curinfo => variables_new(ubound(variables_new,1))
+      curinfo => variables_new(size(variables_new))
 
       ! Initialize state variable info.
       call init_state_variable_info(curinfo)
@@ -546,7 +565,7 @@
                 no_river_dilution         = curinfo%no_river_dilution,         &
                 benthic                   = benthic_eff)
       else
-         id%id = ubound(variables_new,1)
+         id%id = size(variables_new)
          id%dependencyid = register_dependency(modelinfo,curinfo%name,shape)
       end if
 
@@ -611,8 +630,8 @@
       end select
 
       ! Extend the state variable array and copy over old values.
-      allocate(variables_new(ubound(variables_old,1)+1))
-      variables_new(1:ubound(variables_old,1)) = variables_old(:)
+      allocate(variables_new(size(variables_old)+1))
+      variables_new(1:size(variables_old)) = variables_old(:)
       deallocate(variables_old)
 
       ! Assign new state variable array.
@@ -623,7 +642,7 @@
             modelinfo%diagnostic_variables => variables_new
       end select
 
-      curinfo => variables_new(ubound(variables_new,1))
+      curinfo => variables_new(size(variables_new))
 
       ! Initialize diagnostic variable info.
       call init_diagnostic_variable_info(curinfo)
@@ -645,7 +664,7 @@
                                            missing_value=missing_value,                                     &
                                            shape = shape_eff)
       else
-         id%id = ubound(variables_new,1)
+         id%id = size(variables_new)
          id%dependencyid = register_dependency(modelinfo,curinfo%name,shape)
       end if
 
@@ -692,13 +711,13 @@
                                              'Conserved quantities may only be registered during initialization.')
 
       ! Extend array with conserved quantities, if needed
-      allocate(quantities_new(ubound(modelinfo%conserved_quantities,1)+1))
-      quantities_new(1:ubound(modelinfo%conserved_quantities,1)) = modelinfo%conserved_quantities(:)
+      allocate(quantities_new(size(modelinfo%conserved_quantities)+1))
+      quantities_new(1:size(modelinfo%conserved_quantities)) = modelinfo%conserved_quantities(:)
       deallocate(modelinfo%conserved_quantities)
       modelinfo%conserved_quantities => quantities_new
 
       ! By default, the conserved quantity id is its index within the model.
-      id = ubound(quantities_new,1)
+      id = size(quantities_new)
 
       ! Initialize conserved quantity info.
       call init_conserved_quantity_info(quantities_new(id))
@@ -715,7 +734,7 @@
                  units,trim(modelinfo%longnameprefix)//' '//longname)
 
       ! Save the conserved quantity's global id.
-      quantities_new(ubound(quantities_new,1))%globalid = id
+      quantities_new(size(quantities_new))%globalid = id
 
    end function register_conserved_quantity
 !EOC
@@ -785,7 +804,7 @@
          else
             variables => curinfo%state_variables
          end if
-         do i = 1,ubound(variables,1)
+         do i = 1,size(variables)
             if (variables(i)%name==name) then
                id = variables(i)%globalid
                return
@@ -865,7 +884,7 @@
             call fatal_error('fabm_types::register_dependency','Invalid shape argument given')
       end select
 
-      n = ubound(source,1)
+      n = size(source)
 
       ! Search existing dependencies and return the corresponding id if found.
       do i=1,n

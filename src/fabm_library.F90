@@ -41,10 +41,12 @@
 ! !IROUTINE: Function returning specific biogeochemical model given a model name.
 !
 ! !INTERFACE:
-   function fabm_library_create_model(name) result(model)
+   function fabm_library_create_model(modelname,instancename,parent,configunit) result(model)
 !
 ! !INPUT PARAMETERS:
-      character(*),intent(in) :: name
+      character(*),intent(in) :: modelname,instancename
+      integer,     intent(in) :: configunit
+      _CLASS_ (type_model_info),target :: parent
       _CLASS_ (type_model_info),pointer :: model
 !
 ! !REVISION HISTORY:
@@ -56,13 +58,11 @@
       nullify(model)
 
 #ifdef _FABM_F2003_
-      select case (name)
-         case ('examples_npzd_f2003'); allocate(type_examples_npzd_f2003 :: model)
+      select case (modelname)
+         case ('examples_npzd_f2003'); model => examples_npzd_f2003_create(configunit,instancename,parent)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
       end select
 #endif
-
-      if (associated(model)) call init_model_info(model)
 
    end function fabm_library_create_model
 !EOC

@@ -45,7 +45,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_model, fabm_create_model, fabm_create_model_from_file, fabm_init, fabm_set_domain, fabm_check_ready, &
+   public type_model, fabm_create_model_from_file, fabm_init, fabm_set_domain, fabm_check_ready, &
           fabm_get_variable_id,fabm_link_benthos_state_data, fabm_link_state_data, &
           fabm_link_data,fabm_link_data_hz,fabm_link_scalar, &
           fabm_get_diagnostic_data, fabm_get_diagnostic_data_hz, &
@@ -131,12 +131,6 @@
    interface fabm_link_scalar
       module procedure fabm_link_scalar
       module procedure fabm_link_scalar_char
-   end interface
-
-   ! Function for creating new models based on integer id [deprecated] or name.
-   interface fabm_create_model
-      module procedure fabm_create_model_by_id
-      module procedure fabm_create_model_by_name
    end interface
 !
 ! !PRIVATE DATA MEMBERS:
@@ -238,10 +232,10 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Determine original model count.
-   oldcount = ubound(modelids,1)
+   oldcount = size(modelids)
 
    ! First check whether the provided model identifier or name are not in use yet.
-   do i=1,ubound(modelids,1)
+   do i=1,size(modelids)
       if (modelids(i)==id) then
          write (text,fmt='(a,i4,a)') 'model identifier ',id,' has already been registered.'
          call fatal_error('fabm::register_model_name',text)
@@ -303,7 +297,7 @@
 
    ! Enumerate all models and compare their integer id with the supplied one.
    ! Return the name if a match is found.
-   do i=1,ubound(modelids,1)
+   do i=1,size(modelids)
       if (modelids(i)==id) then
          name = modelnames(i)
          return
@@ -345,7 +339,7 @@
 
    ! Enumerate all models and compare their name with the supplied one.
    ! Return the integer id if a match is found.
-   do i=1,ubound(modelnames,1)
+   do i=1,size(modelnames)
       if (modelnames(i)==name) then
          id = modelids(i)
          return
@@ -368,7 +362,7 @@
 ! !INPUT PARAMETERS:
    integer,                 optional,intent(in)    :: modelid
    type (type_model),target,optional,intent(inout) :: parent
-   _CLASS_ (type_model_info),pointer,optional         :: info
+   _CLASS_ (type_model_info),pointer,optional      :: info
    type (type_model),pointer                       :: model
 !
 ! !REVISION HISTORY:
@@ -402,8 +396,7 @@
    else
       ! Allocate and initialize model info.
       allocate(model%info)
-      call init_model_info(model%info)
-      model%info%name = get_model_name(modelid_eff)
+      call init_model_info(model%info,get_model_name(modelid_eff))
    end if
 
    ! Make sure the pointers to parent and sibling models are dissociated.
@@ -433,17 +426,14 @@
             curmodel => curmodel%nextsibling
          end do
          curmodel%nextsibling => model
-         curmodel%info%nextsibling => model%info
       else
          ! The target container does not contain any children yet.
          ! Add the current model as first child.
          parent%firstchild => model
-         parent%info%firstchild => model%info
       end if
 
       ! Link the child model to its parent container.
       model%parent => parent
-      model%info%parent => parent%info
    else
       ! No parent provided - ensure that the created model is a container.
       if (model%id.ne.model_container_id) &
@@ -483,39 +473,60 @@
 ! identifier is omitted.
 !
 ! !INTERFACE:
-   function fabm_create_model_by_name(modelname,parent) result(model)
+   function fabm_create_model(modelname,configunit,parent,instancename) result(model)
 !
 ! !INPUT PARAMETERS:
    character(len=*),                 intent(in)    :: modelname
+   integer,                          intent(in)    :: configunit
    type (type_model),target,optional,intent(inout) :: parent
+   character(len=*),        optional,intent(in)    :: instancename
    type (type_model),pointer                       :: model
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
-   integer :: modelid
+   integer                           :: modelid
    _CLASS_ (type_model_info),pointer :: modelinfo
+   character(len=64)                 :: instancename_eff
+   logical                           :: isopen
 !-----------------------------------------------------------------------
 !BOC
+   if (present(instancename)) then
+      instancename_eff = instancename
+   else
+      instancename_eff = modelname
+   end if
+
+   ! Log start of initialization of this model, unless it is a container only.
+   call log_message('Initializing biogeochemical model "'//trim(instancename_eff)//'"...')
+
+   modelid = id_not_used
    nullify(modelinfo)
-
-   ! Resolve model name.
-   modelid = get_model_id(modelname)
-
+      
 #ifdef _FABM_F2003_
    ! Try to get model from Fortran 2003 model library
    if (modelid.eq.id_not_used) then
-      modelinfo => fabm_library_create_model(modelname)
-      if (associated(modelinfo)) then
-         modelinfo%name = modelname
-         modelid = model_f2003_id
-      end if
+      modelinfo => fabm_library_create_model(modelname,instancename_eff,parent%info,configunit)
+      if (associated(modelinfo)) modelid = model_f2003_id
    end if
 #endif
 
+   ! Resolve model name.
+   if (modelid.eq.id_not_used) then
+      modelid = get_model_id(modelname)
+      if (modelid.ne.id_not_used) then
+         allocate(modelinfo)
+         if (present(parent)) then
+            call init_model_info(modelinfo,instancename_eff,parent%info)
+         else
+            call init_model_info(modelinfo,instancename_eff)
+         end if
+      end if
+   end if
+
    ! If we have not found the model now, throw an error.
    if (modelid.eq.id_not_used) &
-      call fatal_error('fabm_create_model_by_name','"'//trim(modelname)//'" is not a valid model name registered in fabm::register_models.')
+      call fatal_error('fabm_create_model','"'//trim(modelname)//'" is not a valid model name registered in fabm::register_models.')
 
    ! Obtain the integer model identifier, and redirect to the function operating on that.
    if (present(parent)) then
@@ -523,8 +534,20 @@
    else
       model => fabm_create_model_by_id(modelid,info=modelinfo)
    end if
+   
+   if (modelid.ne.model_f2003_id) then
+      ! Initialize the model
+      call init_model(model,configunit)
+   end if
 
-   end function fabm_create_model_by_name
+   ! Log successful initialization of this model, unless it is a container only.
+   call log_message('model "'//trim(instancename_eff)//'" initialized successfully.')
+
+   ! Debug check: make sure the unit provided by the host has not been closed by the biogeochemical model.
+   inquire(configunit,opened=isopen)
+   if (.not.isopen) call fatal_error('init_model','input configuration file was closed by model "'//trim(instancename_eff)//'".')
+   
+   end function fabm_create_model
 !EOC
 
 
@@ -546,9 +569,10 @@
 
    logical                   :: isopen
    character(len=256)        :: file_eff
-   integer                   :: i
-   character(len=64)         :: models(256)
+   integer                   :: i,j,modelcount,ownindex
+   character(len=64)         :: models(256),instancename
    type (type_model),pointer :: childmodel
+   logical,parameter          :: alwayspostfixindex=.false.
    namelist /fabm_nml/ models
 !EOP
 !-----------------------------------------------------------------------
@@ -575,13 +599,32 @@
    read(file_unit,nml=fabm_nml,err=99,end=100)
 
    ! Create model tree
-   model => fabm_create_model()
-   do i=1,ubound(models,1)
-      if (models(i).ne.'') childmodel => fabm_create_model(trim(models(i)),parent=model)
+   model => fabm_create_model_by_id()
+   do i=1,size(models)
+      if (models(i).ne.'') then
+         ! Determine if this model name is used multiple times.
+         modelcount = 0
+         do j=1,size(models)
+            if (models(i).eq.models(j)) then
+               modelcount = modelcount + 1
+               if (i.eq.j) ownindex = modelcount
+            end if
+         end do
+         
+         ! If another model uses this name too, append a number to the model name.
+         if (alwayspostfixindex .or. modelcount>1) then
+            write (unit=instancename,fmt='(a,i2.2)') trim(models(i)),ownindex
+         else
+            instancename = models(i)
+         end if
+         
+         ! Create the model. This will initialize the model automatically.
+         childmodel => fabm_create_model(trim(models(i)),file_unit,parent=model,instancename=trim(instancename))
+      end if
    end do
 
    ! Initialize model tree
-   call fabm_init(model,file_unit)
+   call fabm_init(model)
 
    if (.not.isopen) then
       ! We have opened the configuration file ourselves - close it.
@@ -609,11 +652,10 @@
 ! !IROUTINE: Initialise the biogeochemical model tree.
 !
 ! !INTERFACE:
-   subroutine fabm_init(root,nmlunit)
+   subroutine fabm_init(root)
 !
 ! !INPUT PARAMETERS:
    type (type_model),target,               intent(inout) :: root
-   integer,                                intent(in)    :: nmlunit
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -627,27 +669,20 @@
    ! Check whether we are operating on the root of a model tree.
    if (associated(root%parent)) call fatal_error('fabm_init','fabm_init can only be called on the root of a model tree.')
 
-   ! Check whether the unit provided by the host actually refers to an open file.
-   inquire(nmlunit,opened=isopen)
-   if (.not.isopen) call fatal_error('fabm_init','input configuration file has not been opened yet.')
-
-   ! Initialize the model (this automatically initializes all contained models)
-   call init_model(root,nmlunit)
-
    ! Allocate arrays for storage of (references to) data.
    allocate(root%environment)
 
    ! Set all pointers to external data to dissociated.
-   allocate(root%environment%var       (ubound(root%info%dependencies,       1)))
-   allocate(root%environment%var_hz    (ubound(root%info%dependencies_hz,    1)))
-   allocate(root%environment%var_scalar(ubound(root%info%dependencies_scalar,1)))
-   do ivar=1,ubound(root%environment%var,1)
+   allocate(root%environment%var       (size(root%info%dependencies)))
+   allocate(root%environment%var_hz    (size(root%info%dependencies_hz)))
+   allocate(root%environment%var_scalar(size(root%info%dependencies_scalar)))
+   do ivar=1,size(root%environment%var)
       nullify(root%environment%var(ivar)%data)
    end do
-   do ivar=1,ubound(root%environment%var_hz,1)
+   do ivar=1,size(root%environment%var_hz)
       nullify(root%environment%var_hz(ivar)%data)
    end do
-   do ivar=1,ubound(root%environment%var_scalar,1)
+   do ivar=1,size(root%environment%var_scalar)
       nullify(root%environment%var_scalar(ivar)%data)
    end do
 
@@ -709,18 +744,18 @@
    ! Allocate memory for this, and link this memory to FABM's variable data pointers.
 
    ! Allocate arrays for diagnostic variables defined on the full domain and on horizontonal slices.
-   allocate(root%environment%diag   (ubound(root%info%diagnostic_variables,1) _ARG_LOCATION_))
-   allocate(root%environment%diag_hz(ubound(root%info%diagnostic_variables_hz,1) _ARG_LOCATION_HZ_))
+   allocate(root%environment%diag   (size(root%info%diagnostic_variables) _ARG_LOCATION_))
+   allocate(root%environment%diag_hz(size(root%info%diagnostic_variables_hz) _ARG_LOCATION_HZ_))
 
    ! Initialize diagnostic variables to zero.
    root%environment%diag    = _ZERO_
    root%environment%diag_hz = _ZERO_
 
    ! If diagnostic variables also appear as dependency, send the corresponding array slice for generic read-only access.
-   do ivar=1,ubound(root%info%diagnostic_variables,1)
+   do ivar=1,size(root%info%diagnostic_variables)
       call fabm_link_data(root,root%info%diagnostic_variables(ivar)%globalid%dependencyid,root%environment%diag(ivar _ARG_LOCATION_DIMENSIONS_))
    end do
-   do ivar=1,ubound(root%info%diagnostic_variables_hz,1)
+   do ivar=1,size(root%info%diagnostic_variables_hz)
       call fabm_link_data_hz(root,root%info%diagnostic_variables_hz(ivar)%globalid%dependencyid,root%environment%diag_hz(ivar _ARG_LOCATION_DIMENSIONS_HZ_))
    end do
 #endif
@@ -754,21 +789,21 @@
       call fatal_error('fabm_check_ready','fabm_check_ready can only be called on the root of a model tree.')
 
    ready = .true.
-   do ivar=1,ubound(root%environment%var,1)
+   do ivar=1,size(root%environment%var)
       if (.not.associated(root%environment%var(ivar)%data)) then
          call log_message('data for dependency "'//trim(root%info%dependencies(ivar))// &
             & '", defined on the full model domain, have not been provided.')
          ready = .false.
       end if
    end do
-   do ivar=1,ubound(root%environment%var_hz,1)
+   do ivar=1,size(root%environment%var_hz)
       if (.not.associated(root%environment%var_hz(ivar)%data)) then
          call log_message('data for dependency "'//trim(root%info%dependencies_hz(ivar))// &
             &  '", defined on a horizontal slice of the model domain, have not been provided.')
          ready = .false.
       end if
    end do
-   do ivar=1,ubound(root%environment%var_scalar,1)
+   do ivar=1,size(root%environment%var_scalar)
       if (.not.associated(root%environment%var_scalar(ivar)%data)) then
          call log_message('data for dependency "'//trim(root%info%dependencies_scalar(ivar))// &
             &  '", defined as global scalar quantity, have not been provided.')
@@ -795,24 +830,11 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-! !LOCAL VARIABLES:
-  integer                    :: count,ownindex
-  type (type_model), pointer :: curchild,curchild2
-  logical                    :: isopen
-  logical,parameter          :: alwayspostfixindex=.false.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Log start of initialization of this model, unless it is a container only.
-   if (model%id.ne.model_container_id) &
-      call log_message('Initializing biogeochemical model "'//trim(model%info%name)//'"...')
-
    ! Allow the selected model to initialize
    select case (model%id)
-#ifdef _FABM_F2003_
-      case (model_f2003_id)
-         call model%info%initialize(nmlunit)
-#endif
       case (gotm_npzd_id)
          call gotm_npzd_init(model%gotm_npzd,model%info,nmlunit)
       case (gotm_fasham_id)
@@ -840,50 +862,9 @@
       case (klimacampus_phy_feedback_id)
          call klimacampus_phy_feedback_init(model%klimacampus_phy_feedback,model%info,nmlunit)
      ! ADD_NEW_MODEL_HERE - required
-
-      case (model_container_id)
-         ! This is a container of models. Loop over all children and allow each to initialize.
-         curchild => model%firstchild
-         do while (associated(curchild))
-            ! Find the number of the child model. This will be used in the prefix of model variable names.
-            count = 0
-            curchild2 => model%firstchild
-            do while (associated(curchild2))
-               if (curchild2%info%name.eq.curchild%info%name) then
-                  count = count + 1
-                  if (associated(curchild,curchild2)) ownindex = count
-               end if
-               curchild2 => curchild2%nextsibling
-            end do
-
-            ! Create prefixes for names of variables of the child model.
-            if (alwayspostfixindex .or. count>1) then
-               write (unit=curchild%info%nameprefix,     fmt='(a,i2.2,a)') trim(curchild%info%name),ownindex,'_'
-               write (unit=curchild%info%longnameprefix, fmt='(a,i2.2,a)') trim(curchild%info%name),ownindex,' '
-            else
-               curchild%info%nameprefix     = trim(curchild%info%name)//'_'
-               curchild%info%longnameprefix = trim(curchild%info%name)//' '
-            end if
-
-            ! Initialize child model.
-            call init_model(curchild,nmlunit)
-
-            ! Move to next child model.
-            curchild => curchild%nextsibling
-         end do
-
       case default
          call fatal_error('init_model','model "'//trim(model%info%name)//'" has not been registered in init_model.')
-
    end select
-
-   ! Log successful initialization of this model, unless it is a container only.
-   if (model%id.ne.model_container_id) &
-      call log_message('model "'//trim(model%info%name)//'" initialized successfully.')
-
-   ! Debug check: make sure the unit provided by the host has not been closed by the biogeochemical model.
-   inquire(nmlunit,opened=isopen)
-   if (.not.isopen) call fatal_error('init_model','input configuration file was closed by model "'//trim(model%info%name)//'".')
 
    end subroutine init_model
 !EOC
@@ -959,7 +940,7 @@
    ! Try to locate the variable in the array with variable names.
    ! Return the identifier when found.
    if (associated(source)) then
-      do id=1,ubound(source,1)
+      do id=1,size(source)
          if (source(id)==name) return
       end do
    end if
@@ -1500,7 +1481,7 @@
 
    ! Check boundaries for pelagic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
-   do ivar=1,ubound(root%info%state_variables,1)
+   do ivar=1,size(root%info%state_variables)
       _GET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid,val)
       if (val<root%info%state_variables(ivar)%minimum) then
          ! State variable value lies below prescribed minimum.
@@ -1527,7 +1508,7 @@
 
    ! Check boundaries for benthic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
-   do ivar=1,ubound(root%info%state_variables_ben,1)
+   do ivar=1,size(root%info%state_variables_ben)
       _GET_STATE_BEN_EX_(root%environment,root%info%state_variables_ben(ivar)%globalid,val)
       if (val<root%info%state_variables_ben(ivar)%minimum) then
          ! State variable value lies below prescribed minimum.
@@ -1741,7 +1722,7 @@
    do while (associated(model))
       ! First set constant sinking rates.
 
-      do i=1,ubound(model%info%state_variables,1)
+      do i=1,size(model%info%state_variables)
          varid = model%info%state_variables(i)%globalid
 
          ! Enter spatial loops (if any)
@@ -1826,7 +1807,7 @@
             _FABM_LOOP_BEGIN_
 
             ! Use variable-specific light extinction coefficients.
-            do i=1,ubound(model%info%state_variables,1)
+            do i=1,size(model%info%state_variables)
                curext = model%info%state_variables(i)%specific_light_extinction
                if (curext.ne._ZERO_) then
                   _GET_STATE_EX_(root%environment,model%info%state_variables(i)%globalid,val)
@@ -1888,7 +1869,7 @@
 
          case default
             ! Default: the model does not describe any conserved quantities.
-            if (ubound(model%info%conserved_quantities,1).gt.0) &
+            if (size(model%info%conserved_quantities).gt.0) &
                call fatal_error('fabm_get_conserved_quantities','model '//trim(model%info%name)//' registered &
                     &one or more conserved quantities, but a function that provides sums of these &
                     &quantities has not been provided.')

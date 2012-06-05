@@ -36,9 +36,10 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_examples_npzd_f2003
+   public examples_npzd_f2003_create
 !
 ! !PRIVATE DATA MEMBERS:
+   REALTYPE, parameter :: secs_pr_day = 86400.
 !
 ! !REVISION HISTORY:!
 !  Original author(s): Jorn Bruggeman
@@ -61,11 +62,10 @@
       contains
 
 !     Model procedures
-      procedure :: initialize               => examples_npzd_f2003_init
-      procedure :: do                       => examples_npzd_f2003_do
-      procedure :: do_ppdd                  => examples_npzd_f2003_do_ppdd
-      procedure :: get_light_extinction     => examples_npzd_f2003_get_light_extinction
-      procedure :: get_conserved_quantities => examples_npzd_f2003_get_conserved_quantities
+      procedure :: do
+      procedure :: do_ppdd
+      procedure :: get_light_extinction
+      procedure :: get_conserved_quantities
 
    end type
 !EOP
@@ -79,7 +79,7 @@
 ! !IROUTINE: Initialise the NPZD model
 !
 ! !INTERFACE:
-   subroutine examples_npzd_f2003_init(self,namlst)
+   function examples_npzd_f2003_create(configunit,name,parent) result(self)
 !
 ! !DESCRIPTION:
 !  Here, the npzd namelist is read and the variables exported
@@ -89,8 +89,10 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   class (type_examples_npzd_f2003), intent(inout) :: self
-   integer,                          intent(in)    :: namlst
+   integer,                          intent(in)    :: configunit
+   character(len=*),                 intent(in)    :: name
+   class (type_model_info),target,   intent(inout) :: parent
+   class (type_examples_npzd_f2003),pointer        :: self
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard & Karsten Bolding
@@ -119,15 +121,17 @@
    REALTYPE                  :: dic_per_n=106.d0/16.d0
    character(len=64)         :: dic_variable=''
 
-   REALTYPE, parameter :: secs_pr_day = 86400.
    namelist /examples_npzd_f2003/ n_initial,p_initial,z_initial,d_initial,   &
                         p0,z0,w_p,w_d,kc,i_min,rmax,gmax,iv,alpha,rpn,  &
                         rzn,rdn,rpdu,rpdl,rzd,dic_variable,dic_per_n
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   allocate(self)
+   call init_model_info(self,name,parent)
+
    ! Read the namelist
-   read(namlst,nml=examples_npzd_f2003,err=99,end=100)
+   read(configunit,nml=examples_npzd_f2003,err=99,end=100)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -187,7 +191,7 @@
 
 100 call fatal_error('examples_npzd_f2003_init','Namelist examples_npzd_f2003 was not found.')
 
-   end subroutine examples_npzd_f2003_init
+   end function examples_npzd_f2003_create
 !EOC
 
 !-----------------------------------------------------------------------
@@ -196,7 +200,7 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine examples_npzd_f2003_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -258,7 +262,6 @@
 ! !LOCAL VARIABLES:
    REALTYPE                   :: n,p,z,d,par,I_0
    REALTYPE                   :: iopt,rpd,primprod,dn
-   REALTYPE, parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -311,7 +314,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_f2003_do
+   end subroutine do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -321,7 +324,7 @@
 ! variables
 !
 ! !INTERFACE:
-   subroutine examples_npzd_f2003_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   subroutine get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_f2003), intent(in) :: self
@@ -349,7 +352,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_f2003_get_light_extinction
+   end subroutine get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -358,7 +361,7 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   subroutine examples_npzd_f2003_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   subroutine get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_f2003), intent(in) :: self
@@ -388,7 +391,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_f2003_get_conserved_quantities
+   end subroutine get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------
@@ -397,7 +400,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine examples_npzd_f2003_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -459,7 +462,6 @@
 ! !LOCAL VARIABLES:
    REALTYPE                   :: n,p,z,d,par,I_0
    REALTYPE                   :: iopt,rpd,dn,primprod
-   REALTYPE, parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -515,7 +517,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_f2003_do_ppdd
+   end subroutine do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
