@@ -138,9 +138,7 @@
 
 !  Identifiers for specific biogeochemical models.
    integer, parameter :: model_container_id           = -1
-#ifdef _FABM_F2003_
    integer, parameter :: model_f2003_id               =  0
-#endif
    integer, parameter :: gotm_npzd_id                 =  1
    integer, parameter :: gotm_fasham_id               =  4
    integer, parameter :: pml_ersem_id                 =  99
@@ -536,11 +534,9 @@
       model => fabm_create_model_by_id(modelid,info=modelinfo)
    end if
    
-   if (modelid.ne.model_f2003_id) then
-      ! Initialize the model
-      call init_model(model,configunit)
-   end if
-
+   ! Initialize the model if that has not been done before
+   if (modelid.ne.model_f2003_id) call init_model(model,configunit)
+   
    ! Log successful initialization of this model, unless it is a container only.
    call log_message('model "'//trim(instancename_eff)//'" initialized successfully.')
 
