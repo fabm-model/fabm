@@ -50,7 +50,8 @@
           fabm_link_data,fabm_link_data_hz,fabm_link_scalar, &
           fabm_get_diagnostic_data, fabm_get_diagnostic_data_hz, &
           fabm_do, fabm_check_state, fabm_get_vertical_movement, fabm_get_light_extinction, &
-          fabm_get_conserved_quantities, fabm_get_surface_exchange, fabm_do_benthos
+          fabm_get_conserved_quantities, fabm_get_surface_exchange, fabm_do_benthos, &
+          fabm_get_albedo, fabm_get_drag
 
 #ifndef _FABM_MANAGE_DIAGNOSTICS_
    public fabm_link_diagnostic_data_hz,fabm_link_diagnostic_data
@@ -1822,6 +1823,105 @@
    end do
 
    end subroutine fabm_get_light_extinction
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get biogeochemistry-induced change in wind drag
+! This feedback is represented by a scale factor (0-1), with
+! 1 leaving drag unchanged, and 0 suppressing it completely.
+!
+! !INTERFACE:
+   subroutine fabm_get_drag(root _ARG_LOCATION_VARS_HZ_,drag)
+!
+! !INPUT PARAMETERS:
+   type (type_model),           intent(inout) :: root
+   _DECLARE_LOCATION_ARG_HZ_
+   REALTYPE _ATTR_DIMENSIONS_0_HZ_,intent(out)   :: drag
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL PARAMETERS:
+   type (type_model), pointer                 :: model
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#define _INPUT_ARGS_GET_DRAG_ _FABM_ARGS_IN_HZ_,drag
+
+   drag = _ONE_
+   model => root%nextmodel
+   do while (associated(model))
+      select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%get_drag(_INPUT_ARGS_GET_DRAG_)
+#endif
+         case (klimacampus_phy_feedback_id)
+            call klimacampus_phy_feedback_get_drag(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_DRAG_)
+         ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
+         ! state variable specific extinction coefficients.
+         !
+         ! Typical model call:
+         ! call MODELNAME_get_light_extinction(model%MODELNAME,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
+
+         case default
+            ! Default: no change in drag
+      end select
+      model => model%nextmodel
+   end do
+
+   end subroutine fabm_get_drag
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get biogeochemistry-induced change in surface albedo
+! This feedback is represented by an albedo value (0-1) relating to biogeochemistry.
+!
+! !INTERFACE:
+   subroutine fabm_get_albedo(root _ARG_LOCATION_VARS_HZ_,albedo)
+!
+! !INPUT PARAMETERS:
+   type (type_model),           intent(inout) :: root
+   _DECLARE_LOCATION_ARG_HZ_
+   REALTYPE _ATTR_DIMENSIONS_0_HZ_,intent(out)   :: albedo
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL PARAMETERS:
+   type (type_model), pointer                 :: model
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#define _INPUT_ARGS_GET_ALBEDO_ _FABM_ARGS_IN_HZ_,albedo
+
+   albedo = _ZERO_
+   model => root%nextmodel
+   do while (associated(model))
+      select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%get_albedo(_INPUT_ARGS_GET_ALBEDO_)
+#endif
+         case (klimacampus_phy_feedback_id)
+            call klimacampus_phy_feedback_get_albedo(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_ALBEDO_)
+         ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
+         ! state variable specific extinction coefficients.
+         !
+         ! Typical model call:
+         ! call MODELNAME_get_light_extinction(model%MODELNAME,_INPUT_ARGS_GET_ALBEDO_)
+
+         case default
+            ! Default: no change in albedo
+      end select
+      model => model%nextmodel
+   end do
+
+   end subroutine fabm_get_albedo
 !EOC
 
 !-----------------------------------------------------------------------

@@ -31,6 +31,8 @@
 ! !USES:
    use fabm_types
    use fabm_driver
+   
+   implicit none
 
 !  default: all is private.
    private
@@ -67,7 +69,7 @@
       procedure :: get_light_extinction
       procedure :: get_conserved_quantities
 
-   end type
+   end type type_examples_npzd_f2003
 !EOP
 !-----------------------------------------------------------------------
 
@@ -85,14 +87,11 @@
 !  Here, the npzd namelist is read and the variables exported
 !  by the model are registered with FABM.
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    integer,                          intent(in)    :: configunit
    character(len=*),                 intent(in)    :: name
    class (type_model_info),target,   intent(inout) :: parent
-   class (type_examples_npzd_f2003),pointer        :: self
+   class (type_examples_npzd_f2003), pointer       :: self
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard & Karsten Bolding
@@ -128,7 +127,7 @@
 !-----------------------------------------------------------------------
 !BOC
    allocate(self)
-   call init_model_info(self,name,parent)
+   call self%initialize(name,parent)
 
    ! Read the namelist
    read(configunit,nml=examples_npzd_f2003,err=99,end=100)
@@ -248,9 +247,6 @@
 ! \begin{equation}\label{dzd}
 ! d_{zd} = r_{zd} c_z
 ! \end{equation}
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_f2003),       intent(in) :: self
@@ -449,9 +445,6 @@
 ! d_{zd} = r_{zd} c_z
 ! \end{equation}
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_f2003),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
@@ -532,9 +525,6 @@
 ! Here, the classical Michaelis-Menten formulation for nutrient uptake
 ! is formulated.
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_f2003), intent(in) :: self
    REALTYPE, intent(in)         :: n,p,par,iopt
@@ -561,9 +551,6 @@
 ! !DESCRIPTION:
 ! Here, the classical Ivlev formulation for zooplankton grazing on
 ! phytoplankton is formulated.
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_f2003), intent(in) :: self

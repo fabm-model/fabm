@@ -204,6 +204,8 @@
 #define _INDEX_BOTTOM_FLUX_(index) (_VARIABLE_1DLOOP_-fabm_loop_start+1,index)
 #endif
 
+#define _INDEX_HZ_0_ (_VARIABLE_1DLOOP_-fabm_loop_start+1)
+
 #else
 
 ! Functions operating on horizontal slices of the domain only will not be vectorized
@@ -219,6 +221,8 @@
 #define _INDEX_SURFACE_EXCHANGE_(index) (index)
 
 #define _INDEX_BOTTOM_FLUX_(index) (index)
+
+#define _INDEX_HZ_0_
 
 #define _ATTR_DIMENSIONS_0_HZ_
 #define _ATTR_DIMENSIONS_1_HZ_ ,dimension(:)
@@ -239,6 +243,8 @@
 #define _FABM_ARGS_DO_BENTHOS_RHS_ _FABM_ARGS_HZ_,flux_pel,flux_ben
 #define _FABM_ARGS_DO_BENTHOS_PPDD_ _FABM_ARGS_HZ_,pp,dd,benthos_offset
 #define _FABM_ARGS_GET_EXTINCTION_ _FABM_ARGS_ND_,extinction
+#define _FABM_ARGS_GET_DRAG_ _FABM_ARGS_HZ_,drag
+#define _FABM_ARGS_GET_ALBEDO_ _FABM_ARGS_HZ_,albedo
 #define _FABM_ARGS_GET_VERTICAL_MOVEMENT_ _FABM_ARGS_ND_,velocity
 #define _FABM_ARGS_GET_CONSERVED_QUANTITIES_ _FABM_ARGS_ND_,sums
 #define _FABM_ARGS_GET_SURFACE_EXCHANGE_ _FABM_ARGS_HZ_,flux
@@ -252,6 +258,8 @@
 #define _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux_pel,flux_ben
 #define _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd;integer :: benthos_offset
 #define _DECLARE_FABM_ARGS_GET_EXTINCTION_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_0_,intent(inout) :: extinction
+#define _DECLARE_FABM_ARGS_GET_DRAG_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: drag
+#define _DECLARE_FABM_ARGS_GET_ALBEDO_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: albedo
 #define _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: velocity
 #define _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: sums
 #define _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux
@@ -271,6 +279,8 @@
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1%id,variable2%id) = dd _INDEX_PPDD_(variable1%id,variable2%id) + (value)
 #define _SET_PP_(variable1,variable2,value) pp _INDEX_PPDD_(variable1%id,variable2%id) = pp _INDEX_PPDD_(variable1%id,variable2%id) + (value)
 #define _SET_EXTINCTION_(value) extinction _INDEX_EXTINCTION_ = extinction _INDEX_EXTINCTION_ + (value)
+#define _SET_DRAG_(value) drag _INDEX_HZ_0_ = drag _INDEX_HZ_0_ * (value)
+#define _SET_ALBEDO_(value) albedo _INDEX_HZ_0_ = albedo _INDEX_HZ_0_ + (value)
 #define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_CONSERVED_QUANTITY_(variable) = sums _INDEX_CONSERVED_QUANTITY_(variable) + (value)
 #define _SET_VERTICAL_MOVEMENT_(variable,value) velocity _INDEX_VERTICAL_MOVEMENT_(variable%id) = value
 #define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_SURFACE_EXCHANGE_(variable%id) = value

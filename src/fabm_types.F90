@@ -136,13 +136,15 @@
       procedure :: register_conserved_quantity  => register_conserved_quantity
 
       ! Procedures that may be overridden by biogeochemical models to provide custom data or functionality.
-      procedure :: initialize               => base_initialize
+      procedure :: initialize               => init_model_info
       procedure :: set_domain               => base_set_domain
       procedure :: do                       => base_do
       procedure :: do_ppdd                  => base_do_ppdd
       procedure :: do_benthos               => base_do_benthos
       procedure :: do_benthos_ppdd          => base_do_benthos_ppdd
       procedure :: get_light_extinction     => base_get_light_extinction
+      procedure :: get_drag                 => base_get_drag
+      procedure :: get_albedo               => base_get_albedo
       procedure :: get_conserved_quantities => base_get_conserved_quantities
       procedure :: get_surface_exchange     => base_get_surface_exchange
       procedure :: get_vertical_movement    => base_get_vertical_movement
@@ -193,10 +195,6 @@
    contains
 
 #ifdef _FABM_F2003_
-   subroutine base_initialize(self,namlst)
-      class (type_model_info),intent(inout) :: self
-      integer,                intent(in)    :: namlst
-   end subroutine base_initialize
    subroutine base_set_domain(self _ARG_LOCATION_)
       class (type_model_info),intent(inout) :: self
       _DECLARE_LOCATION_ARG_
@@ -213,6 +211,14 @@
       class (type_model_info), intent(in) :: self
       _DECLARE_FABM_ARGS_GET_EXTINCTION_
    end subroutine base_get_light_extinction
+   subroutine base_get_drag(self,_FABM_ARGS_GET_DRAG_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_FABM_ARGS_GET_DRAG_
+   end subroutine base_get_drag
+   subroutine base_get_albedo(self,_FABM_ARGS_GET_ALBEDO_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_FABM_ARGS_GET_ALBEDO_
+   end subroutine base_get_albedo
    subroutine base_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
       class (type_model_info), intent(in) :: self
       _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_

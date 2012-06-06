@@ -23,9 +23,11 @@
 !  see Sonntag and Hense (2011).
 !
 ! !USES:
-!#ifdef _FABM_PHY_FEEDBACK_
    use fabm_types
    use fabm_driver
+!
+   implicit none
+!
 !  default: all is private.
    private
 !
@@ -33,13 +35,13 @@
    public type_klimacampus_phy_feedback,                         &
                klimacampus_phy_feedback_init,                    &
                klimacampus_phy_feedback_do,                      &
-!               klimacampus_phy_feedback_get_albedo,              &
-!               klimacampus_phy_feedback_get_drag,                &
+               klimacampus_phy_feedback_get_albedo,              &
+               klimacampus_phy_feedback_get_drag,                &
                klimacampus_phy_feedback_do_benthos,              &
                klimacampus_phy_feedback_get_conserved_quantities
 !
 ! !PRIVATE DATA MEMBERS:
-   REALTYPE, parameter :: secs_pr_day  = 86400.
+   REALTYPE, parameter :: secs_pr_day  = 86400., secs_pr_hour = 3600.
 !
 ! !REVISION HISTORY:!
 !  Original author(s): Inga Hense
@@ -72,9 +74,6 @@
 ! !DESCRIPTION:
 !  Here, the phy_feedback model namelist is read and the variables
 !  exported by the model are registered in FABM.
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback), intent(inout) :: self
@@ -175,9 +174,6 @@
 ! that phy are cyanobacteria which are assumed to fix nitrogen and bring
 ! nitrogen into the system.
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
@@ -225,7 +221,6 @@
    end subroutine klimacampus_phy_feedback_do
 !EOC
 
-#ifdef FEEDBACK_ALBEDO
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -240,7 +235,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_ALBEDO
+   _DECLARE_FABM_ARGS_GET_ALBEDO_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -266,9 +261,7 @@
 
    end subroutine klimacampus_phy_feedback_get_albedo
 !EOC
-#endif
 
-#ifdef FEEDBACK_DRAG
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -283,7 +276,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_DRAG
+   _DECLARE_FABM_ARGS_GET_DRAG_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -309,7 +302,6 @@
 
    end subroutine klimacampus_phy_feedback_get_drag
 !EOC
-#endif
 
 !-----------------------------------------------------------------------
 !BOP
