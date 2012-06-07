@@ -295,7 +295,7 @@
 
 !  Changes in drag coefficient due to surface scums.
 !  Phy must be the surface concentration!
-   _SET_DRAG_(max(_ONE_-self%drag_bio*phys,_ZERO_))
+   _SCALE_DRAG_(max(_ONE_-self%drag_bio*phys,_ZERO_))
 
 !  Leave spatial loops (if any)
    _FABM_HZ_LOOP_END_

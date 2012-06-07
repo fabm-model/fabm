@@ -279,7 +279,7 @@
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1%id,variable2%id) = dd _INDEX_PPDD_(variable1%id,variable2%id) + (value)
 #define _SET_PP_(variable1,variable2,value) pp _INDEX_PPDD_(variable1%id,variable2%id) = pp _INDEX_PPDD_(variable1%id,variable2%id) + (value)
 #define _SET_EXTINCTION_(value) extinction _INDEX_EXTINCTION_ = extinction _INDEX_EXTINCTION_ + (value)
-#define _SET_DRAG_(value) drag _INDEX_HZ_0_ = drag _INDEX_HZ_0_ * (value)
+#define _SCALE_DRAG_(value) drag _INDEX_HZ_0_ = drag _INDEX_HZ_0_ * (value)
 #define _SET_ALBEDO_(value) albedo _INDEX_HZ_0_ = albedo _INDEX_HZ_0_ + (value)
 #define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_CONSERVED_QUANTITY_(variable) = sums _INDEX_CONSERVED_QUANTITY_(variable) + (value)
 #define _SET_VERTICAL_MOVEMENT_(variable,value) velocity _INDEX_VERTICAL_MOVEMENT_(variable%id) = value
