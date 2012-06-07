@@ -153,6 +153,11 @@
 
    end type type_model_info
 
+#ifdef _FABM_F2003_
+   type,extends(type_model_info),public :: type_base_model
+   end type type_base_model
+#endif
+
    ! Derived type for pointer to data defined on the full spatial domain;
    ! usable as base type of arrays.
    type type_state

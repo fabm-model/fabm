@@ -48,7 +48,7 @@
 !
 !
 ! !PUBLIC DERIVED TYPES:
-   type,extends(type_model_info) :: type_examples_npzd_f2003
+   type,extends(type_base_model) :: type_examples_npzd_f2003
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_n,id_p,id_z,id_d
       _TYPE_STATE_VARIABLE_ID_      :: id_dic
