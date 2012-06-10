@@ -4,12 +4,9 @@
 
 include ../../../Rules.make
 
-LIB	= $(LIBDIR)/libfabm$(buildtype).a
+DOCSRC	= benthic_predator.F90
 
-DOCSRC	=  benthic_predator.F90
-
-OBJS   = \
-${LIB}(benthic_predator.o)
+OBJS    = ${LIBFABM}(benthic_predator.o)
 
 all: objs
 

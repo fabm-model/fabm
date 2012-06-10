@@ -4,11 +4,9 @@
 
 include ../../../Rules.make
 
-LIB	= $(LIBDIR)/libfabm$(buildtype).a
-
 DOCSRC	=  npzd_f2003.F90
 
-OBJS    = ${LIB}(npzd_f2003.o)
+OBJS    = ${LIBFABM}(npzd_f2003.o)
 
 all: objs
 

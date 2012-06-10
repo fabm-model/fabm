@@ -48,6 +48,8 @@ ifndef LIBDIR
 LIBDIR	= $(FABMDIR)/lib/$(FABMHOST)/$(FORTRAN_COMPILER)
 endif
 
+LIBFABM = $(LIBDIR)/libfabm$(buildtype).a
+
 ifndef MODDIR
 MODDIR	= $(FABMDIR)/modules/$(FABMHOST)/$(FORTRAN_COMPILER)
 endif

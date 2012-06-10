@@ -4,11 +4,7 @@
 
 include ../../../Rules.make
 
-LIB	= $(LIBDIR)/libfabm$(buildtype).a
-
-DOCSRC	= mnemiopsis.F90
-
-OBJS    = ${LIB}(mnemiopsis.o)
+OBJS    = ${LIBFABM}(mnemiopsis.o)
 
 all: objs
 

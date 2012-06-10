@@ -4,11 +4,9 @@
 
 include ../../../Rules.make
 
-LIB	= $(LIBDIR)/libfabm$(buildtype).a
-
 DOCSRC	= det.F90 nut.F90 phy.F90 zoo.F90
 
-OBJS    = ${LIB}(det.o) ${LIB}(nut.o) ${LIB}(phy.o) ${LIB}(zoo.o)
+OBJS    = ${LIBFABM}(det.o) ${LIBFABM}(nut.o) ${LIBFABM}(phy.o) ${LIBFABM}(zoo.o)
 
 all: objs
 

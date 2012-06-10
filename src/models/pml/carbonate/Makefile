@@ -4,11 +4,9 @@
 
 include ../../../Rules.make
 
-LIB	= $(LIBDIR)/libfabm$(buildtype).a
-
 DOCSRC	= co2_dyn.F90 carbonate.F90
 
-OBJS    = ${LIB}(co2_dyn.o) ${LIB}(carbonate.o)
+OBJS    = ${LIBFABM}(co2_dyn.o) ${LIBFABM}(carbonate.o)
 
 all: objs
 

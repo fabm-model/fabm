@@ -4,11 +4,9 @@
 
 include ../../../Rules.make
 
-LIB	= $(LIBDIR)/libfabm$(buildtype).a
-
 DOCSRC	= phy_feedback.F90
 
-OBJS    = ${LIB}(phy_feedback.o)
+OBJS    = ${LIBFABM}(phy_feedback.o)
 
 all: objs
 

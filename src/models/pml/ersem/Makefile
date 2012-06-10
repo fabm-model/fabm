@@ -4,15 +4,14 @@
 
 include ../../../Rules.make
 
-LIB	= $(LIBDIR)/libfabm$(buildtype).a
-
 DOCSRC	=  ersem.F90
+
 ERSEMDIR = /common/work/ERSEM/FABM
 ERSEMLIBDIR = $(LIBDIR)/
 ERSEMLIB=$(ERSEMLIBDIR)libersem.a
 ERSEMINCDIR = $(MODDIR)/
 PPERSEM = -DMASSTRACER
-OBJS    = ${LIB}(ersem.o)
+OBJS    = ${LIBFABM}(ersem.o)
 
 all: objs
 
