@@ -8,21 +8,18 @@ LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
 DOCSRC	=  npzd_f2003.F90
 
-OBJS   = ${LIB}(npzd_f2003.o)
+OBJS    = ${LIB}(npzd_f2003.o)
 
-all: ${OBJS}
+all: objs
+
+objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../../../../doc/examples_npzd_f2003.tex
 
 clean:
-	$(RM) ${LIB} doc
-
-realclean: clean
 	$(RM) *.o *~
-
-distclean: realclean
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2011 - Jorn Bruggeman                                  !

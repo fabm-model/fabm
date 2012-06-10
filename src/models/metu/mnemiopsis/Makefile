@@ -6,24 +6,20 @@ include ../../../Rules.make
 
 LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC	=  mnemiopsis.F90
+DOCSRC	= mnemiopsis.F90
 
-OBJS   = \
-${LIB}(mnemiopsis.o)
+OBJS    = ${LIB}(mnemiopsis.o)
 
-all: ${OBJS}
+all: objs
+
+objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../../../../doc/metu_mnemiopsis.tex
 
 clean:
-	$(RM) ${LIB} doc
-
-realclean: clean
 	$(RM) *.o *~
-
-distclean: realclean
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2008 - Hans Burchard and Karsten Bolding (BBH)         !

@@ -108,6 +108,7 @@ LDFLAGS		+= $(FFLAGS) $(LINKDIRS)
 #
 ifeq  ($(can_do_F90),true)
 %.o: %.F90
+#	@ echo "Compiling $<"
 	$(FC) $(F90FLAGS) $(EXTRA_FFLAGS) -c $< -o $@
 else
 %.f90: %.F90

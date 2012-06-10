@@ -2,19 +2,11 @@
 # Makefile to build Bolding & Burchard models
 #
 
-include ../../Rules.make
-
-LIB     = $(LIBDIR)/libfabm$(buildtype).a
-
 SUBDIRS += passive
 
-all: OBJS
-	$(MOVE_MODULES_COMMAND)
+#all: objs
 
-OBJS: $(SUBDIRS)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
+objs doc clean:
+	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@ ; done
 
-doc:    $(DOCSRC)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
-
-clean:
+.PHONY: objs doc clean $(SUBDIRS)

@@ -1,42 +1,24 @@
 #
-# Makefile to build the Bio Module - libbio.a
+# Makefile to build the FABM model library - libfabm.a
 #
 
-include ../Rules.make
-
-LIB	= $(LIBDIR)/libfabm$(buildtype).a
-
+SUBDIRS += bb/
 SUBDIRS += examples/
-
 SUBDIRS += gotm/
-
+SUBDIRS += iow/
+SUBDIRS += klimacampus/
+SUBDIRS += metu/
 SUBDIRS += pml/
 
-SUBDIRS += metu/
-
-SUBDIRS += iow/
-
-SUBDIRS += bb/
-
-SUBDIRS += klimacampus/
-
-all: OBJS
-	$(MOVE_MODULES_COMMAND)
-
-OBJS: $(SUBDIRS)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
-
-doc:    $(DOCSRC)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
-
-clean:
-	$(RM) ${LIB} doc
+objs doc clean:
+	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@; done
 
 realclean: clean
-	$(RM) *.o *~
 
 distclean: realclean
 
+.PHONY: objs doc clean $(SUBDIRS)
+
 #-----------------------------------------------------------------------
-# Copyright (C) 2008 - Hans Burchard and Karsten Bolding (BBH)         !
+# Copyright (C) 2008 - Hans Burchard and Karsten Bolding (BB)          !
 #-----------------------------------------------------------------------

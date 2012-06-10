@@ -8,22 +8,18 @@ LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
 DOCSRC	=  ergom.F90
 
-OBJS   = \
-${LIB}(ergom.o)
+OBJS    = ${LIB}(ergom.o)
 
-all: ${OBJS}
+all: objs
+
+objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../../../../doc/iow_ergom.tex
 
 clean:
-	$(RM) ${LIB} doc
-
-realclean: clean
 	$(RM) *.o *~
-
-distclean: realclean
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2008 - Hans Burchard and Karsten Bolding (BBH)         !

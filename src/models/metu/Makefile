@@ -1,21 +1,12 @@
 #
 # Makefile to build the FABM models from the Middle East Technical University (METU)
 
-include ../../Rules.make
-
-LIB     = $(LIBDIR)/libfabm$(buildtype).a
-
 SUBDIRS += mnemiopsis
 
-all: OBJS
-	$(MOVE_MODULES_COMMAND)
+#all: OBJS
+#       $(MOVE_MODULES_COMMAND)
 
-OBJS: $(SUBDIRS)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
+objs doc clean: 
+	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@ ; done
 
-doc:    $(DOCSRC)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
-
-clean:
-	$(RM) ${LIB} doc
-
+.PHONY: objs doc clean $(SUBDIRS)

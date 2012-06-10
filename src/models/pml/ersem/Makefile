@@ -12,13 +12,14 @@ ERSEMLIBDIR = $(LIBDIR)/
 ERSEMLIB=$(ERSEMLIBDIR)libersem.a
 ERSEMINCDIR = $(MODDIR)/
 PPERSEM = -DMASSTRACER
-OBJS   = \
-${LIB}(ersem.o)
+OBJS    = ${LIB}(ersem.o)
+
+all: objs
 
 ifdef FABM_PMLERSEM
-all:  $(ERSEMLIB) ${OBJS}
+objs: $(ERSEMLIB) ${OBJS}
 else
-all: $(OBJS)
+objs: $(OBJS)
 endif
 	$(MOVE_MODULES_COMMAND)
 
@@ -29,12 +30,7 @@ $(ERSEMLIB):
 	$(MAKE) -C $(ERSEMDIR) incremental ERSEMLIB=$(ERSEMLIB) ERSEMLIBDIR=$(ERSEMLIBDIR) ERSEMINCDIR=$(ERSEMINCDIR) CPP=$(CPP) FC=$(FC) AC="$(AR) -r" ERSEMROOT=$(ERSEMDIR) PPDEFS=$(PPERSEM)
 
 clean:
-	$(RM) ${LIB} doc
-
-realclean: clean
 	$(RM) *.o *~
-
-distclean: realclean
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2008 - Hans Burchard and Karsten Bolding (BBH)         !

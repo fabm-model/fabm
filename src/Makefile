@@ -5,11 +5,9 @@ LIB	= $(LIBDIR)/libfabm$(buildtype).a
 SUBDIRS = models drivers
 SUBDIRS = models
 
-DOCSRC	= \
-fabm.F90  \
-fabm_types.F90
+DOCSRC	= fabm.F90 fabm_types.F90
 
-FABMMOD	= ${LIB}(fabm.o)
+FABMMOD	 = ${LIB}(fabm.o)
 FABMBASE = ${LIB}(fabm_types.o)
 FABMMODELLIB = ${LIB}(fabm_library.o)
 
@@ -36,9 +34,9 @@ doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../doc/fabm_interface_code.tex
 	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
 
-
 clean:
 	$(RM) -f *.o *~
+	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
 
 realclean: clean
 	$(RM) -r $(FABMDIR)/modules/$(FABMHOST)/$(FORTRAN_COMPILER)
@@ -47,3 +45,5 @@ realclean: clean
 distclean: realclean
 	$(RM) -r doc
 	$(RM) -r $(FABMDIR)/modules/ $(FABMDIR)/lib/
+
+.PHONY: models driver

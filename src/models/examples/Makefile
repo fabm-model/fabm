@@ -2,21 +2,15 @@
 # Makefile to build the FABM example models
 #
 
-include ../../Rules.make
-
-LIB     = $(LIBDIR)/libfabm$(buildtype).a
-
 SUBDIRS += benthic_predator
 SUBDIRS += npzd
 SUBDIRS += npzd_f2003
 
-all: OBJS
-	$(MOVE_MODULES_COMMAND)
+#all: OBJS
+#	$(MOVE_MODULES_COMMAND)
 
-OBJS: $(SUBDIRS)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
+objs doc clean:
+	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@ ; done
 
-doc:    $(DOCSRC)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
+.PHONY: objs doc clean $(SUBDIRS)
 
-clean:

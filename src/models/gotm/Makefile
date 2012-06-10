@@ -2,22 +2,12 @@
 # Makefile to build the FABM models that have been ported from GOTM
 #
 
-include ../../Rules.make
-
-LIB     = $(LIBDIR)/libfabm$(buildtype).a
-
 SUBDIRS += npzd
-
 SUBDIRS += fasham
 
-all: OBJS
-	$(MOVE_MODULES_COMMAND)
+#all: objs
 
-OBJS: $(SUBDIRS)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
+objs doc clean:
+	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@ ; done
 
-doc:    $(SUBDIRS)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
-#	$(PROTEX) $(DOCSRC) > ../../../doc/driver_gotm_code.tex
-
-clean:
+.PHONY: objs doc clean $(SUBDIRS)

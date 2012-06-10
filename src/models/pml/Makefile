@@ -2,21 +2,12 @@
 # Makefile to build the FABM models from the Plymouth Marine Laboratory
 #
 
-include ../../Rules.make
+SUBDIRS += carbonate
+SUBDIRS += ersem
 
-LIB     = $(LIBDIR)/libfabm$(buildtype).a
+#all: objs
 
-SUBDIRS += carbonate ersem
+objs doc clean:
+	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@ ; done
 
-all: OBJS
-	$(MOVE_MODULES_COMMAND)
-
-OBJS: $(SUBDIRS)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
-
-doc:    $(DOCSRC)
-	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
-
-clean:
-	$(RM) ${LIB} doc
-
+.PHONY: objs doc clean $(SUBDIRS)
