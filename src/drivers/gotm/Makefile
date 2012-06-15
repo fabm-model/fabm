@@ -1,22 +1,25 @@
 include ../../Rules.make
 
-LIB	= $(LIBDIR)/libfabm$(buildtype).a
-
 DOCSRC	= fabm_driver.F90
 
-OBJ   = \
-${LIB}(fabm_driver.o)
+OBJ = ${LIBFABM}(fabm_driver.o)
 
-all: $(OBJ)
+all: obj
+
+obj: $(OBJ) makedirs
+
+makedirs:
+	$(MAKE) -C $(FABMDIR)/src $@
+
+all: obj
+
+obj: $(OBJ)
         $(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../../../doc/driver_code_gotm.tex
 
 clean:
-	$(RM) -f ${LIB} doc
-
-realclean: clean
 	$(RM) -f *.o *~
 
-distclean: realclean
+.PHONY: makedirs

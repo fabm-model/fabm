@@ -13,7 +13,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm\_ergom --- IOW biogeochemical model ERGOM 
+! !MODULE: fabm\_ergom --- IOW biogeochemical model ERGOM
 !
 ! !INTERFACE:
    module fabm_iow_ergom
@@ -628,7 +628,7 @@
 ! !DESCRIPTION:
 ! This routine calculates the benthic sink and source terms, as well as
 ! (matching) bottom fluxes for pelagic variables. Both have units mmol/m**2/s.
-! Benthic processes are explained in the description of iow\_ergom\_do 
+! Benthic processes are explained in the description of iow\_ergom\_do
 ! subroutine.
 !
 ! !INPUT PARAMETERS:

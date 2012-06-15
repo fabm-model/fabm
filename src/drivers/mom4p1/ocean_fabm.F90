@@ -1023,7 +1023,7 @@ do n = 1, instances  !{
 #endif
        end do
      end do
-     
+
      ! If we need the global average for any variable, calculate the global integral of mass here.
      if (any(biotic(n)%inds_cons_ave.gt.0)) then
         total_volume = 0.0
@@ -1033,7 +1033,7 @@ do n = 1, instances  !{
            total_volume  = total_volume + mpp_global_sum(mpp_domain2d,tracer_k(:,:), NON_BITWISE_EXACT_SUM)
         end do
      end if
-     
+
      do ivar=1,size(biotic(n)%model%info%conserved_quantities)
         ! Send full 3D conserved quantity field to diagnostic manager.
         if (biotic(n)%inds_cons(ivar).gt.0) then
@@ -1048,7 +1048,7 @@ do n = 1, instances  !{
               !if(have_obc) tracer_k(:,:) = tracer_k(:,:)*Grd%obc_tmask(:,:)
               total_tracer  = total_tracer + mpp_global_sum(mpp_domain2d,tracer_k(:,:), NON_BITWISE_EXACT_SUM)
            end do
-           
+
            ! Send global integral and mean to diagnostic manager.
            if (biotic(n)%inds_cons_tot(ivar).gt.0) used = send_data(biotic(n)%inds_cons_tot(ivar),total_tracer*1e-21,model_time)
            if (biotic(n)%inds_cons_ave(ivar).gt.0) used = send_data(biotic(n)%inds_cons_ave(ivar),total_tracer/total_volume,model_time)

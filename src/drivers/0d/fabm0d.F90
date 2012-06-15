@@ -376,7 +376,7 @@
 
       ! Update time
       call update_time(n)
-      
+
       decimal_yearday = yearday-1 + dble(secondsofday)/86400.
 
       ! Update environment

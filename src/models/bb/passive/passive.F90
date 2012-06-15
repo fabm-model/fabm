@@ -10,13 +10,13 @@
 ! !DESCRIPTION:
 ! This model describe a single passive tracer. Optionally, a vertical velocity
 ! (sinking/floating) and a light absorption coefficient can be specified. The
-! unit is mol/m\^3 by default, but may be explicitly set in the namelist 
+! unit is mol/m\^3 by default, but may be explicitly set in the namelist
 ! instead.
 !
 ! !USES:
    use fabm_types
    use fabm_driver
-   
+
    implicit none
 
 !  default: all is private.
@@ -80,9 +80,9 @@
                                             initial_concentration,minimum=_ZERO_, &
                                             vertical_movement=vertical_velocity/secs_pr_day, &
                                             specific_light_extinction=specific_light_absorption)
-                                            
+
    self%surface_flux = surface_flux/secs_pr_day
-   
+
    return
 
 99 call fatal_error('bb_passive_init','Error reading namelist bb_passive')

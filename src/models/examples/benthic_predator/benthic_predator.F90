@@ -13,7 +13,7 @@
 ! Monod/Michaelis-Menten functional response on a pelagic prey, and
 ! respiring/dying according to a linear loss term. Variables for the prey
 ! (e.g., phytoplankon or zooplankton) and the target for the losses (typically
-! a detrital or mineral pool) must be provided by an external model, e.g., 
+! a detrital or mineral pool) must be provided by an external model, e.g.,
 ! gotm\_npzd.
 !
 ! !USES:
@@ -54,7 +54,7 @@
    subroutine examples_benthic_predator_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
-!  Here, the examples\_benthic\_predator namelist is read and te variables 
+!  Here, the examples\_benthic\_predator namelist is read and te variables
 !  exported by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
