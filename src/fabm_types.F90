@@ -299,7 +299,7 @@
       modelinfo%name           = name
       modelinfo%nameprefix     = trim(name)//'_'
       modelinfo%longnameprefix = trim(name)//' '
-      
+
       if (present(parent)) then
          modelinfo%parent => parent
          if (.not.associated(parent%firstchild)) then
