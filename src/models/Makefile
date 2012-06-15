@@ -2,13 +2,13 @@
 # Makefile to build the FABM model library - libfabm.a
 #
 
-SUBDIRS += bb/
-SUBDIRS += examples/
-SUBDIRS += gotm/
-SUBDIRS += iow/
-SUBDIRS += klimacampus/
-SUBDIRS += metu/
-SUBDIRS += pml/
+SUBDIRS += bb/           # Bolding & Burchard
+SUBDIRS += examples/     # Test examples
+SUBDIRS += gotm/         # Converted from old GOTM/BIO models
+SUBDIRS += iow/          # Institute for Ostsee Forchung
+SUBDIRS += klimacampus/  # Hamburg ??
+SUBDIRS += metu/         # Middle East Technical University
+SUBDIRS += pml/          # Plymouth Marine Laboratory
 
 objs doc clean:
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@; done
