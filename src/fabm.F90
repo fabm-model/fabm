@@ -501,7 +501,7 @@
 
    modelid = id_not_used
    nullify(modelinfo)
-      
+
 #ifdef _FABM_F2003_
    ! Try to get model from Fortran 2003 model library
    if (modelid.eq.id_not_used) then
@@ -533,17 +533,17 @@
    else
       model => fabm_create_model_by_id(modelid,info=modelinfo)
    end if
-   
+
    ! Initialize the model if that has not been done before
    if (modelid.ne.model_f2003_id) call init_model(model,configunit)
-   
+
    ! Log successful initialization of this model, unless it is a container only.
    call log_message('model "'//trim(instancename_eff)//'" initialized successfully.')
 
    ! Debug check: make sure the unit provided by the host has not been closed by the biogeochemical model.
    inquire(configunit,opened=isopen)
    if (.not.isopen) call fatal_error('init_model','input configuration file was closed by model "'//trim(instancename_eff)//'".')
-   
+
    end function fabm_create_model
 !EOC
 
@@ -607,14 +607,14 @@
                if (i.eq.j) ownindex = modelcount
             end if
          end do
-         
+
          ! If another model uses this name too, append a number to the model name.
          if (alwayspostfixindex .or. modelcount>1) then
             write (unit=instancename,fmt='(a,i2.2)') trim(models(i)),ownindex
          else
             instancename = models(i)
          end if
-         
+
          ! Create the model. This will initialize the model automatically.
          childmodel => fabm_create_model(trim(models(i)),file_unit,parent=model,instancename=trim(instancename))
       end if
@@ -902,7 +902,7 @@
 !
 ! !IROUTINE: Obtain the integer variable identifier for the given variable
 ! name. Returns id\_not\_used if the variable name is unknown.
-! The variable identifier can be used later in calls to 
+! The variable identifier can be used later in calls to
 ! fabm\_link\_data/fabm\_link\_data\_hz.
 !
 ! !INTERFACE:
