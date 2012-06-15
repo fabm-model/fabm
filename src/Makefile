@@ -1,34 +1,32 @@
 include Rules.make
 
-LIB	= $(LIBDIR)/libfabm$(buildtype).a
-
-SUBDIRS = models drivers
 SUBDIRS = models
+SUBDIRS = models drivers
 
 DOCSRC	= fabm.F90 fabm_types.F90
 
-FABMMOD	 = ${LIB}(fabm.o)
-FABMBASE = ${LIB}(fabm_types.o)
-FABMMODELLIB = ${LIB}(fabm_library.o)
+FABMMOD	 = ${LIBFABM}(fabm.o)
+FABMBASE = ${LIBFABM}(fabm_types.o)
+FABMMODELLIB = ${LIBFABM}(fabm_library.o)
 
-all: makedirs $(FABMMOD)
+all: makedirs $(FABMBASE) $(FABMMOD)
         $(MOVE_MODULES_COMMAND)
-
-0d getm gotm:
-	( export FABMHOST=$@ ; $(MAKE) )
 
 makedirs:
 	mkdir -p $(MODDIR) $(LIBDIR)
 
+$(FABMBASE): driver
+
 driver:
 	$(MAKE) -C drivers/$(FABMHOST)
 
-$(FABMBASE): driver
+$(FABMMOD): models $(FABMMODELLIB)
 
 models: driver $(FABMBASE)
 	$(MAKE) -C models
 
-$(FABMMOD): $(FABMBASE) models $(FABMMODELLIB)
+0d getm gotm:
+	( export FABMHOST=$@ ; $(MAKE) )
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../doc/fabm_interface_code.tex
@@ -46,4 +44,4 @@ distclean: realclean
 	$(RM) -r doc
 	$(RM) -r $(FABMDIR)/modules/ $(FABMDIR)/lib/
 
-.PHONY: models driver
+.PHONY: makedirs models driver

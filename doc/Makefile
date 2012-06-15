@@ -6,7 +6,7 @@ SRCDIR = ../src
 
 SHELL	   = /bin/sh
 
-all: doc 
+all: doc
 
 doc:
 	$(MAKE) -C $(SRCDIR) doc
