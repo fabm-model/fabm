@@ -35,7 +35,6 @@
    use fabm_examples_npzd_phy
    use fabm_examples_npzd_zoo
    use fabm_iow_ergom
-   use fabm_bb_passive
    use fabm_klimacampus_phy_feedback
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
 
@@ -90,7 +89,6 @@
       type (type_examples_npzd_phy)         :: examples_npzd_phy
       type (type_examples_npzd_zoo)         :: examples_npzd_zoo
       type (type_iow_ergom)                 :: iow_ergom
-      type (type_bb_passive)                :: bb_passive
       type (type_klimacampus_phy_feedback)  :: klimacampus_phy_feedback
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
 
@@ -150,7 +148,6 @@
    integer, parameter :: examples_npzd_phy_id         =  106
    integer, parameter :: examples_npzd_zoo_id         =  107
    integer, parameter :: iow_ergom_id                 =  108
-   integer, parameter :: bb_passive_id                =  109
    integer, parameter :: klimacampus_phy_feedback_id  =  110
    ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
    ! Note: values <=100 are reserved for models ported from the General Ocean Turbulence Model.
@@ -200,7 +197,6 @@
    call register_model(examples_npzd_phy_id,        'examples_npzd_phy')
    call register_model(examples_npzd_zoo_id,        'examples_npzd_zoo')
    call register_model(iow_ergom_id,                'iow_ergom')
-   call register_model(bb_passive_id,               'bb_passive')
    call register_model(klimacampus_phy_feedback_id, 'klimacampus_phy_feedback')
    ! ADD_NEW_MODEL_HERE - required
 
@@ -854,8 +850,6 @@
          call examples_npzd_zoo_init(model%examples_npzd_zoo,model%info,nmlunit)
       case (iow_ergom_id)
          call iow_ergom_init(model%iow_ergom,model%info,nmlunit)
-      case (bb_passive_id)
-         call bb_passive_init(model%bb_passive,model%info,nmlunit)
       case (klimacampus_phy_feedback_id)
          call klimacampus_phy_feedback_init(model%klimacampus_phy_feedback,model%info,nmlunit)
      ! ADD_NEW_MODEL_HERE - required
@@ -1573,8 +1567,6 @@
             call pml_carbonate_get_surface_exchange(model%pml_carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
          case (iow_ergom_id)
             call iow_ergom_get_surface_exchange(model%iow_ergom,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
-         case (bb_passive_id)
-            call bb_passive_get_surface_exchange(model%bb_passive,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies fluxes of one or
          ! more of its state variables across the air-water interface.
          !

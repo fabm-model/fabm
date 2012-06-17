@@ -15,6 +15,7 @@
 
 #ifdef _FABM_F2003_
    ! Specific biogeochemical models
+   use fabm_bb_passive
    use fabm_examples_npzd_f2003
    ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
 #endif
@@ -59,7 +60,10 @@
 
 #ifdef _FABM_F2003_
       select case (modelname)
-         case ('examples_npzd_f2003'); model => examples_npzd_f2003_create(configunit,instancename,parent)
+         case ('bb_passive') 
+            model => bb_passive_create(configunit,instancename,parent)
+         case ('examples_npzd_f2003') 
+            model => examples_npzd_f2003_create(configunit,instancename,parent)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
       end select
 #endif

@@ -1,4 +1,7 @@
 #include "fabm_driver.h"
+
+#ifdef _FABM_F2003_
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -23,14 +26,14 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_bb_passive, bb_passive_init, bb_passive_get_surface_exchange
+   public bb_passive_create
 !
 ! !PUBLIC DERIVED TYPES:
-   type type_bb_passive
+   type, extends(type_base_model) :: type_bb_passive
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_ :: id_tracer
       REALTYPE                 :: surface_flux
-   end type
+   end type type_bb_passive
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -47,16 +50,17 @@
 ! !IROUTINE: Initialise the passive tracer model
 !
 ! !INTERFACE:
-   subroutine bb_passive_init(self,modelinfo,namlst)
+   function bb_passive_create(configunit,name,parent) result(self)
 !
 ! !DESCRIPTION:
 !  Here, the bb\_passive namelist is read and the variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   type (type_bb_passive),       intent(out)   :: self
-   _CLASS_ (type_model_info),    intent(inout) :: modelinfo
-   integer,                      intent(in)    :: namlst
+   integer,                        intent(in)    :: configunit
+   character(len=*),               intent(in)    :: name
+   class (type_model_info),target, intent(inout) :: parent
+   type (type_bb_passive),         pointer       :: self
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -68,26 +72,34 @@
    REALTYPE                  :: surface_flux              = _ZERO_
    character(len=64)         :: unit                      = 'mol/m**3'
    REALTYPE, parameter       :: secs_pr_day=86400.
-   namelist /bb_passive/ initial_concentration,vertical_velocity,specific_light_absorption,surface_flux
+
+   namelist /bb_passive/     initial_concentration,vertical_velocity, &
+                             specific_light_absorption,surface_flux
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Read the namelist
-   read(namlst,nml=bb_passive,err=99)
+   allocate(self)
+   call self%initialize(name,parent)
 
-   ! Register state variables
-   self%id_tracer = register_state_variable(modelinfo,'tracer',unit,'tracer',     &
-                                            initial_concentration,minimum=_ZERO_, &
-                                            vertical_movement=vertical_velocity/secs_pr_day, &
-                                            specific_light_extinction=specific_light_absorption)
+   ! Read the namelist
+   read(configunit,nml=bb_passive,err=99,end=100)
 
    self%surface_flux = surface_flux/secs_pr_day
 
+   ! Register state variables
+   self%id_tracer = self%register_state_variable( &
+                    'tracer',unit,'tracer', &
+                    initial_concentration,minimum=_ZERO_, &
+                    vertical_movement=vertical_velocity/secs_pr_day, &
+                    specific_light_extinction=specific_light_absorption)
+
    return
 
-99 call fatal_error('bb_passive_init','Error reading namelist bb_passive')
+99 call fatal_error('bb_passive_create','Error reading namelist bb_passive')
 
-   end subroutine bb_passive_init
+100 call fatal_error('bb_passive_create','Namelist bb_passive was not found.')
+
+   end function bb_passive_create
 !EOC
 
 !-----------------------------------------------------------------------
@@ -96,7 +108,7 @@
 ! !IROUTINE: Air-sea exchange for the passive tracer model
 !
 ! !INTERFACE:
-   subroutine bb_passive_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+   subroutine get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
 !
 ! !DESCRIPTION:
 !
@@ -104,7 +116,7 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_bb_passive), intent(in)    :: self
+   class (type_bb_passive), intent(in)    :: self
    _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
 !
 ! !REVISION HISTORY:
@@ -122,7 +134,7 @@
    ! Leave spatial loops (if any)
    _FABM_HZ_LOOP_END_
 
-   end subroutine bb_passive_get_surface_exchange
+   end subroutine get_surface_exchange
 !EOC
 
 !-----------------------------------------------------------------------
@@ -132,3 +144,5 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
+
+#endif
