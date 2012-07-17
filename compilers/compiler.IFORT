@@ -1,14 +1,13 @@
 # Set options for the Intel Fortran 95 compiler - ver. 8.
 ifeq ($(FORTRAN_COMPILER),IFORT)
 FC=ifort
-DEFINES += -DFORTRAN95
+DEFINES += -DFORTRAN2003
 DEFINES += -D_ISO_TR_15581_
 can_do_F90=true
 F90_to_f90=
 MODULES=
 MODULES=-module $(MODDIR)
-EXTRAS  = -w95 -fPIC -stand f03
-EXTRAS  = -fPIC
+EXTRAS  = -fPIC -stand f03
 DEBUG_FLAGS = -g -C
 PROF_FLAGS  = -qp -p
 PROD_FLAGS  = -O3
