@@ -45,6 +45,8 @@
 		<Filter Name="mnemiopsis">
 		<File RelativePath="..\..\src\models\mnemiopsis\Makefile"/></Filter>
 		<File RelativePath="..\..\src\models\metu\Makefile"/></Filter>
+		<Filter Name="iow">
+		<File RelativePath="..\..\src\models\iow\Makefile"/></Filter>
 		<Filter Name="pml">
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\Makefile"/></Filter>
@@ -77,7 +79,10 @@
 		<Filter Name="npzd">
 		<File RelativePath="..\..\src\models\gotm\npzd\npzd.F90"/></Filter></Filter>
 		<Filter Name="iow">
+		<Filter Name="ergom">
 		<File RelativePath="..\..\src\models\iow\ergom\ergom.F90"/></Filter>
+		<Filter Name="getmspm">
+		<File RelativePath="..\..\src\models\iow\getmspm\spm.F90"/></Filter></Filter>
 		<Filter Name="klimacampus">
 		<Filter Name="phy_feedback">
 		<File RelativePath="..\..\src\models\klimacampus\phy_feedback\phy_feedback.F90"/></Filter></Filter>

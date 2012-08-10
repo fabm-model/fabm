@@ -3,6 +3,7 @@
 #
 
 SUBDIRS += ergom
+SUBDIRS += getmspm
 
 #all: objs
 #	$(MOVE_MODULES_COMMAND)
