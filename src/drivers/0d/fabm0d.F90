@@ -55,6 +55,16 @@
    REALTYPE,allocatable      :: cc(:,:),totals(:),diag(:),diag_hz(:)
    type (type_model),pointer :: model
    character(len=128)        :: cbuf
+
+   interface
+      function short_wave_radiation(jul,secs,dlon,dlat,cloud,bio_albedo) result(swr)
+         integer, intent(in)                 :: jul,secs
+         REALTYPE, intent(in)                :: dlon,dlat
+         REALTYPE, intent(in)                :: cloud
+         REALTYPE, intent(in)                :: bio_albedo
+         REALTYPE                            :: swr
+      end function short_wave_radiation
+   end interface
 !EOP
 !-----------------------------------------------------------------------
 
@@ -365,7 +375,7 @@
 !
 ! !LOCAL VARIABLES:
    integer                   :: i,n
-   REALTYPE                  :: extinction
+   REALTYPE                  :: extinction,bio_albedo
    character(len=19)         :: ts
 !EOP
 !-----------------------------------------------------------------------
@@ -385,7 +395,8 @@
       ! Calculate photosynthetically active radiation if it is not provided in the input file.
       if (swr_method.eq.0) then
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
-         call short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,par_sf)
+         call fabm_get_albedo(model,bio_albedo)
+         par_sf = short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,bio_albedo)
       end if
 
       ! Multiply by fraction of short-wave radiation that is photosynthetically active.
