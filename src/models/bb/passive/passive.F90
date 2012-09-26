@@ -59,7 +59,7 @@
 ! !INPUT PARAMETERS:
    integer,                        intent(in)    :: configunit
    character(len=*),               intent(in)    :: name
-   class (type_model_info),target, intent(inout) :: parent
+   class (type_base_model),target, intent(inout) :: parent
    type (type_bb_passive),         pointer       :: self
 !
 ! !REVISION HISTORY:

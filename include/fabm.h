@@ -347,3 +347,5 @@
 #define _GET_STATE_BEN_1D_(variable,target) target = environment%var_hz(variable%dependencyid)%data
 #define _SET_BOTTOM_FLUX_1D_(variable,value) flux_pel(variable%id) = flux_pel(variable%id) + (value)
 #define _SET_ODE_BEN_1D_(variable,value) flux_ben(variable%id) = flux_ben(variable%id) + (value)
+
+#define type_base_model type_model_info

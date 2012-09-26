@@ -45,9 +45,9 @@
    function fabm_library_create_model(modelname,instancename,parent,configunit) result(model)
 !
 ! !INPUT PARAMETERS:
-      character(*),intent(in) :: modelname,instancename
-      integer,     intent(in) :: configunit
-      _CLASS_ (type_model_info),target :: parent
+      character(*),intent(in)           :: modelname,instancename
+      integer,     intent(in)           :: configunit
+      _CLASS_ (type_model_info),target  :: parent
       _CLASS_ (type_model_info),pointer :: model
 !
 ! !REVISION HISTORY:
