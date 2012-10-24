@@ -26,7 +26,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public bb_passive_create
+   public bb_passive_create, type_bb_passive
 !
 ! !PUBLIC DERIVED TYPES:
    type, extends(type_base_model) :: type_bb_passive
