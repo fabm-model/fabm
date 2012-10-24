@@ -38,7 +38,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public examples_npzd_f2003_create
+   public examples_npzd_f2003_create, type_examples_npzd_f2003 
 !
 ! !PRIVATE DATA MEMBERS:
    REALTYPE, parameter :: secs_pr_day = 86400.
