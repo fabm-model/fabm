@@ -16,7 +16,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32" OutputDirectory="mom4p1\$(PlatformName)-$(ConfigurationName)" IntermediateDirectory="mom4p1\$(PlatformName)-$(ConfigurationName)" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" UseProcessorExtensions="codeExclusivelyHost" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\mom4p1" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_" VectorizerDiagLevel="vectorizerDiagLevel3" WarnUnusedVariables="true" ExternalNameInterpretation="extNameLowerCase"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\mom4p1" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_" VectorizerDiagLevel="vectorizerDiagLevel3" WarnUnusedVariables="true" ExternalNameInterpretation="extNameLowerCase"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -81,6 +81,9 @@
 		<Filter Name="driver">
 		<File RelativePath="..\..\src\drivers\mom4p1\fabm_driver.F90"/></Filter>
 		<Filter Name="models">
+		<Filter Name="bb">
+		<Filter Name="passive">
+		<File RelativePath="..\..\src\models\bb\passive\passive.F90"/></Filter></Filter>
 		<Filter Name="examples">
 		<Filter Name="benthic_predator">
 		<File RelativePath="..\..\src\models\examples\benthic_predator\benthic_predator.F90"/></Filter>
@@ -102,9 +105,9 @@
 		<Filter Name="metu">
 		<Filter Name="mnemiopsis">
 		<File RelativePath="..\..\src\models\metu\mnemiopsis\mnemiopsis.F90"/></Filter></Filter>
-		<Filter Name="bb">
-		<Filter Name="passive">
-		<File RelativePath="..\..\src\models\bb\passive\passive.F90"/></Filter></Filter>
+		<Filter Name="klimacampus">
+		<Filter Name="phy_feedback">
+		<File RelativePath="..\..\src\models\klimacampus\phy_feedback\phy_feedback.F90"/></Filter></Filter>
 		<Filter Name="pml">
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>
