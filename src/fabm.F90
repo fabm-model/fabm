@@ -554,17 +554,18 @@
 ! !IROUTINE: Create a new model tree from a configuration file.
 !
 ! !INTERFACE:
-   function fabm_create_model_from_file(file_unit,file) result(model)
+   function fabm_create_model_from_file(file_unit,file,do_not_initialize) result(model)
 !
 ! !INPUT PARAMETERS:
    character(len=*),optional,intent(in) :: file
    integer,                  intent(in) :: file_unit
+   logical,optional,         intent(in) :: do_not_initialize
    type (type_model),pointer            :: model
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 
-   logical                   :: isopen
+   logical                   :: isopen,initialize
    character(len=256)        :: file_eff
    integer                   :: i,j,modelcount,ownindex
    character(len=64)         :: models(256),instancename
@@ -621,7 +622,9 @@
    end do
 
    ! Initialize model tree
-   call fabm_init(model)
+   initialize = .not.present(do_not_initialize)
+   if (.not.initialize) initialize = .not.do_not_initialize
+   if (initialize) call fabm_init(model)
 
    if (.not.isopen) then
       ! We have opened the configuration file ourselves - close it.
