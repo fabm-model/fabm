@@ -46,7 +46,7 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_model, fabm_create_model_from_file, fabm_init, fabm_set_domain, fabm_check_ready, &
-          fabm_get_variable_id,fabm_link_benthos_state_data, fabm_link_state_data, &
+          fabm_get_variable_id,fabm_get_variable_name,fabm_link_benthos_state_data, fabm_link_state_data, &
           fabm_link_data,fabm_link_data_hz,fabm_link_scalar, &
           fabm_get_diagnostic_data, fabm_get_diagnostic_data_hz, &
           fabm_do, fabm_check_state, fabm_get_vertical_movement, fabm_get_light_extinction, &
@@ -949,6 +949,46 @@
    id = id_not_used
 
    end function fabm_get_variable_id
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Obtain the integer variable name for the given variable
+! identifier.
+!
+! !INTERFACE:
+   function fabm_get_variable_name(model,id,shape) result(name)
+!
+! !INPUT PARAMETERS:
+   type (type_model),             intent(in)  :: model
+   integer,                       intent(in)  :: id
+   integer,                       intent(in)  :: shape
+!
+! !RETURN VALUE:
+   character(len=64)                          :: name
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   character(len=64),pointer                  :: source(:)
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Obtain a reference to the appropriate array with variable names.
+   select case (shape)
+      case (shape_scalar)
+         source => model%info%dependencies_scalar
+      case (shape_hz)
+         source => model%info%dependencies_hz
+      case (shape_full)
+         source => model%info%dependencies
+   end select
+
+   name = source(id)
+
+   end function fabm_get_variable_name
 !EOC
 
 !-----------------------------------------------------------------------
