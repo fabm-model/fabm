@@ -47,8 +47,11 @@
      varname_par     = 'env_par',     & ! Photosynthetically Active Radiation (W/m^2)
      varname_pres    = 'env_pres',    & ! Pressure (dbar = 10 kPa)
      varname_dens    = 'env_dens',    & ! Density (kg/m^3)
+     varname_lon     = 'longitude',   & ! Longitude (degrees East)
+     varname_lat     = 'latitude',    & ! Latitude (degrees North)
      varname_taub    = 'env_taub',    & ! Bottom stress (Pa)
      varname_wind_sf = 'env_wind_sf', & ! Wind speed at 10 m above surface (m/s)
+     varname_cloud   = 'cloud_area_fraction', & ! Cloud cover (0-1)
      varname_par_sf  = 'env_par_sf', &  ! Photosynthetically Active Radiation at surface (W/m^2)
      varname_yearday = 'env_yearday' ! Day of the year, decimal number equal to 0.0 at 00:00 1 Jan UTC
 !
