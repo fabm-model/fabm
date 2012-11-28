@@ -40,20 +40,41 @@
 !
    integer, parameter, public         :: shape_scalar=0,shape_hz=2,shape_full=3
    integer, parameter, public         :: id_not_used=-1
+   
+   ! Below a list of names of standard physical-biogeochemical variables that have a well-defined interpretation and unit.
+   ! These variables can be used from biogeochemical models by calling register_dependency with
+   ! the name of the desired variable during model initialization.
+   !
+   ! Names are based on the Standard Name Table from the NetCDF Climate and Forecast (CF) Metadata Convention.
+   ! See http://cf-pcmdi.llnl.gov/documents/cf-standard-names/.
+   ! In deriving names from the CF convention, the following exceptions are made to account for the fact
+   ! that FABM handles both marine and limnic systems and has the water column as default domain:
+   ! - "sea_water_" prefix is suppressed
+   ! - "_in_sea_water" suffix is suppressed
+   ! - instead of the "_at_sea_floor" suffix a "bottom_" prefix is used, analogous to the "surface" prefix used in CF.
+
+   ! Variables defined throughout the water column.
    character(len=64),parameter,public :: &
-     varname_temp    = 'env_temp',    & ! Temperature (degrees Celsius)
-     varname_salt    = 'env_salt',    & ! Salinity (psu)
-     varname_swr     = 'env_swr',     & ! Shortwave radiation (W/m^2)
-     varname_par     = 'env_par',     & ! Photosynthetically Active Radiation (W/m^2)
-     varname_pres    = 'env_pres',    & ! Pressure (dbar = 10 kPa)
-     varname_dens    = 'env_dens',    & ! Density (kg/m^3)
-     varname_lon     = 'longitude',   & ! Longitude (degrees East)
-     varname_lat     = 'latitude',    & ! Latitude (degrees North)
-     varname_taub    = 'env_taub',    & ! Bottom stress (Pa)
-     varname_wind_sf = 'env_wind_sf', & ! Wind speed at 10 m above surface (m/s)
-     varname_cloud   = 'cloud_area_fraction', & ! Cloud cover (0-1)
-     varname_par_sf  = 'env_par_sf', &  ! Photosynthetically Active Radiation at surface (W/m^2)
-     varname_yearday = 'env_yearday' ! Day of the year, decimal number equal to 0.0 at 00:00 1 Jan UTC
+     varname_temp    = 'temperature',                                      & ! Temperature (degrees Celsius)
+     varname_salt    = 'practical_salinity',                               & ! Salinity (psu)
+     varname_swr     = 'downwelling_shortwave_flux',                       & ! Shortwave radiation (W/m^2)
+     varname_par     = 'downwelling_photosynthetic_radiative_flux',        & ! Photosynthetically Active Radiation (W/m^2)
+     varname_pres    = 'pressure',                                         & ! Pressure (dbar = 10 kPa)
+     varname_dens    = 'density'                                             ! Density (kg/m^3)
+
+   ! Variables defined on a horizontal surface (e.g., water surface or bottom).
+   character(len=64),parameter,public :: &
+     varname_lon     = 'longitude',                                        & ! Longitude (degrees East)
+     varname_lat     = 'latitude',                                         & ! Latitude (degrees North)
+     varname_wind_sf = 'wind_speed',                                       & ! Wind speed, defined at 10 m above water surface (m/s)
+     varname_cloud   = 'cloud_area_fraction',                              & ! Cloud cover (0-1)
+     varname_par_sf  = 'downwelling_photosynthetic_radiative_flux_in_air', & ! Photosynthetically Active Radiation, defined at water surface (W/m^2)
+     varname_swr_sf  = 'downwelling_shortwave_flux_in_air',                & ! Shortwave radiation, defined at water surface (W/m^2)
+     varname_taub    = 'bottom_stress'                                       ! Bottom stress (Pa)
+
+   ! Non-spatial (scalar) variables.
+   character(len=64),parameter,public :: &
+     varname_yearday = 'number_of_days_since_start_of_the_year'              ! Day of the year, decimal number equal to 0.0 at 00:00 1 Jan UTC
 !
 ! !PUBLIC TYPES:
 !
