@@ -55,12 +55,12 @@
 
    ! Variables defined throughout the water column.
    character(len=64),parameter,public :: &
-     varname_temp    = 'temperature',                                      & ! Temperature (degree_Celsius)
+     varname_temp    = 'temperature',                                      & ! In-situ temperature (degree_Celsius)
      varname_salt    = 'practical_salinity',                               & ! Salinity on Practical Salinity Scale (1e-3)
-     varname_swr     = 'downwelling_shortwave_flux',                       & ! Shortwave radiation (W m-2), 200-4000 nm
-     varname_par     = 'downwelling_photosynthetic_radiative_flux',        & ! Photosynthetically Active Radiation (W m-2), 400-700 nm
+     varname_swr     = 'downwelling_shortwave_flux',                       & ! Shortwave [200-4000 nm] radiation (W m-2)
+     varname_par     = 'downwelling_photosynthetic_radiative_flux',        & ! Photosynthetically Active [400-700 nm] Radiation (W m-2)
      varname_pres    = 'pressure',                                         & ! Pressure (dbar = 10 kPa)
-     varname_dens    = 'density'                                             ! Density (kg m-3)
+     varname_dens    = 'density'                                             ! In-situ density (kg m-3)
 
    ! Variables defined on a horizontal surface (e.g., water surface or bottom).
    character(len=64),parameter,public :: &
@@ -68,8 +68,8 @@
      varname_lat     = 'latitude',                                         & ! Latitude (degree_North)
      varname_wind_sf = 'wind_speed',                                       & ! Wind speed, defined at 10 m above water surface (m s-1)
      varname_cloud   = 'cloud_area_fraction',                              & ! Cloud cover (1), i.e., a fraction between 0 and 1
-     varname_swr_sf  = 'downwelling_shortwave_flux_in_air',                & ! Shortwave radiation, defined at water surface (W m-2), 200-4000 nm
-     varname_par_sf  = 'downwelling_photosynthetic_radiative_flux_in_air', & ! Photosynthetically Active Radiation, defined at water surface (W m-2), 400-700 nm
+     varname_swr_sf  = 'downwelling_shortwave_flux_in_air',                & ! Shortwave [200-4000 nm] radiation, defined at water surface (W m-2)
+     varname_par_sf  = 'downwelling_photosynthetic_radiative_flux_in_air', & ! Photosynthetically Active [400-700 nm] Radiation, defined at water surface (W m-2)
      varname_taub    = 'bottom_stress'                                       ! Bottom stress (Pa)
 
    ! Non-spatial (scalar) variables.
