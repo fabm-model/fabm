@@ -51,30 +51,30 @@
    ! that FABM handles both marine and limnic systems and has the water column as default domain:
    ! - "sea_water_" prefix is suppressed
    ! - "_in_sea_water" suffix is suppressed
-   ! - instead of the "_at_sea_floor" suffix a "bottom_" prefix is used, analogous to the "surface" prefix used in CF.
+   ! - instead of the "_at_sea_floor" suffix a "bottom_" prefix is used, analogous to the "surface_" prefix used in CF.
 
    ! Variables defined throughout the water column.
    character(len=64),parameter,public :: &
-     varname_temp    = 'temperature',                                      & ! Temperature (degrees Celsius)
-     varname_salt    = 'practical_salinity',                               & ! Salinity (psu)
-     varname_swr     = 'downwelling_shortwave_flux',                       & ! Shortwave radiation (W/m^2)
-     varname_par     = 'downwelling_photosynthetic_radiative_flux',        & ! Photosynthetically Active Radiation (W/m^2)
+     varname_temp    = 'temperature',                                      & ! Temperature (degree_Celsius)
+     varname_salt    = 'practical_salinity',                               & ! Salinity on Practical Salinity Scale (1e-3)
+     varname_swr     = 'downwelling_shortwave_flux',                       & ! Shortwave radiation (W m-2)
+     varname_par     = 'downwelling_photosynthetic_radiative_flux',        & ! Photosynthetically Active Radiation (W m-2)
      varname_pres    = 'pressure',                                         & ! Pressure (dbar = 10 kPa)
-     varname_dens    = 'density'                                             ! Density (kg/m^3)
+     varname_dens    = 'density'                                             ! Density (kg m-3)
 
    ! Variables defined on a horizontal surface (e.g., water surface or bottom).
    character(len=64),parameter,public :: &
-     varname_lon     = 'longitude',                                        & ! Longitude (degrees East)
-     varname_lat     = 'latitude',                                         & ! Latitude (degrees North)
-     varname_wind_sf = 'wind_speed',                                       & ! Wind speed, defined at 10 m above water surface (m/s)
-     varname_cloud   = 'cloud_area_fraction',                              & ! Cloud cover (0-1)
-     varname_par_sf  = 'downwelling_photosynthetic_radiative_flux_in_air', & ! Photosynthetically Active Radiation, defined at water surface (W/m^2)
-     varname_swr_sf  = 'downwelling_shortwave_flux_in_air',                & ! Shortwave radiation, defined at water surface (W/m^2)
+     varname_lon     = 'longitude',                                        & ! Longitude (degree_East)
+     varname_lat     = 'latitude',                                         & ! Latitude (degree_North)
+     varname_wind_sf = 'wind_speed',                                       & ! Wind speed, defined at 10 m above water surface (m s-1)
+     varname_cloud   = 'cloud_area_fraction',                              & ! Cloud cover (1), i.e., a fraction between 0 and 1
+     varname_par_sf  = 'downwelling_photosynthetic_radiative_flux_in_air', & ! Photosynthetically Active Radiation, defined at water surface (W m-2)
+     varname_swr_sf  = 'downwelling_shortwave_flux_in_air',                & ! Shortwave radiation, defined at water surface (W m-2)
      varname_taub    = 'bottom_stress'                                       ! Bottom stress (Pa)
 
    ! Non-spatial (scalar) variables.
    character(len=64),parameter,public :: &
-     varname_yearday = 'number_of_days_since_start_of_the_year'              ! Day of the year, decimal number equal to 0.0 at 00:00 1 Jan UTC
+     varname_yearday = 'number_of_days_since_start_of_the_year'              ! Decimal day of the year (day), equal to 0.0 at 00:00 1 Jan UTC 
 !
 ! !PUBLIC TYPES:
 !
