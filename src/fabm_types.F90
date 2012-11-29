@@ -70,6 +70,7 @@
      varname_cloud   = 'cloud_area_fraction',                              & ! Cloud cover (1), i.e., a fraction between 0 and 1
      varname_swr_sf  = 'downwelling_shortwave_flux_in_air',                & ! Shortwave [200-4000 nm] radiation, defined at water surface (W m-2)
      varname_par_sf  = 'downwelling_photosynthetic_radiative_flux_in_air', & ! Photosynthetically Active [400-700 nm] Radiation, defined at water surface (W m-2)
+     varname_zbot    = 'bottom_depth',                                     & ! Basin floor depth below geoid (approx. sea level) (m)
      varname_taub    = 'bottom_stress'                                       ! Bottom stress (Pa)
 
    ! Non-spatial (scalar) variables.
