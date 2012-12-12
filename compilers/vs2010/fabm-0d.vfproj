@@ -31,6 +31,13 @@
 		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.h"/></Filter>
 		<Filter Name="Make Files">
 		<Filter Name="models">
+		<Filter Name="aed">
+		<File RelativePath="..\..\src\models\aed\aed_nitrogen.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_organic_matter.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_oxygen.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_phosphorus.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_phytoplankton.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_silica.F90"/></Filter>
 		<Filter Name="examples">
 		<Filter Name="benthic_predator">
 		<File RelativePath="..\..\src\models\examples\benthic_predator\Makefile"/></Filter>

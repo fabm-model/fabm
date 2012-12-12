@@ -1,0 +1,388 @@
+!###############################################################################
+!#                                                                             #
+!# aed_oxygen.F90                                                              #
+!#                                                                             #
+!# Developed by :                                                              #
+!#     AquaticEcoDynamics (AED) Group                                          #
+!#     School of Earth & Environment                                           #
+!# (C) The University of Western Australia                                     #
+!#                                                                             #
+!# Copyright by the AED-team @ UWA under the GNU Public License - www.gnu.org  #
+!#                                                                             #
+!#   -----------------------------------------------------------------------   #
+!#                                                                             #
+!# Created May 2011                                                            #
+!#                                                                             #
+!###############################################################################
+
+#ifdef _FABM_F2003_
+
+#include "fabm_driver.h"
+
+MODULE aed_oxygen
+!-------------------------------------------------------------------------------
+! aed_oxygen --- oxygen biogeochemical model
+!
+! The AED module oxygen contains equations that describe exchange of
+! oxygen across the air/water interface and sediment flux.
+!-------------------------------------------------------------------------------
+   USE fabm_types
+   USE fabm_driver
+
+   USE aed_util,  ONLY: aed_gas_piston_velocity
+
+   IMPLICIT NONE
+
+   PRIVATE
+!
+   PUBLIC type_aed_oxygen, aed_oxygen_create
+!
+   TYPE,extends(type_base_model) :: type_aed_oxygen
+!     Variable identifiers
+      _TYPE_STATE_VARIABLE_ID_      :: id_oxy
+      _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt, id_wind
+      _TYPE_STATE_VARIABLE_ID_      :: id_Fsed_oxy
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_oxy, id_atm_oxy_exch, id_oxy_sat !, id_atm_oxy_exch3d
+
+!     Model parameters
+      REALTYPE :: Fsed_oxy,Ksed_oxy,theta_sed_oxy
+      LOGICAL  :: use_sed_model
+
+      CONTAINS     ! Model Procedures
+!       procedure :: initialize               => aed_oxygen_init
+        procedure :: do                       => aed_oxygen_do
+        procedure :: do_ppdd                  => aed_oxygen_do_ppdd
+        procedure :: do_benthos               => aed_oxygen_do_benthos
+        procedure :: get_surface_exchange     => aed_oxygen_get_surface_exchange
+   END TYPE
+
+
+!===============================================================================
+CONTAINS
+
+
+!###############################################################################
+FUNCTION aed_oxygen_create(namlst,name,parent) RESULT(self)
+!-------------------------------------------------------------------------------
+! Initialise the aed_oxygen model
+!
+!  Here, the oxygen namelist is read and te variables exported
+!  by the model are registered with FABM.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   INTEGER,INTENT(in)                      :: namlst
+   CHARACTER(len=*),INTENT(in)              :: name
+   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
+!
+!LOCALS
+   _CLASS_ (type_aed_oxygen),POINTER :: self
+
+   REALTYPE :: oxy_initial=300.
+   REALTYPE :: Fsed_oxy = 48.0
+   REALTYPE :: Ksed_oxy = 30.0
+   REALTYPE :: theta_sed_oxy = 1.0
+   CHARACTER(len=64) :: Fsed_oxy_variable=''
+
+   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   NAMELIST /aed_oxygen/ oxy_initial,Fsed_oxy,Ksed_oxy,theta_sed_oxy,  &
+                         Fsed_oxy_variable
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   ALLOCATE(self)
+   CALL self%initialize(name,parent)
+
+   ! Read the namelist
+   read(namlst,nml=aed_oxygen,err=99)
+
+   ! Store parameter values in our own derived type
+   ! NB: all rates must be provided in values per day,
+   ! and are converted here to values per second.
+
+   self%Fsed_oxy = Fsed_oxy/secs_pr_day
+   self%Ksed_oxy  = Ksed_oxy
+   self%theta_sed_oxy = theta_sed_oxy
+
+   ! Register state variables
+   self%id_oxy = self%register_state_variable('oxy','mmol/m**3','oxygen',   &
+                                    oxy_initial,minimum=_ZERO_,no_river_dilution=.TRUE.)
+
+   ! Register link to external pools
+
+   self%use_sed_model = Fsed_oxy_variable .NE. ''
+   IF (self%use_sed_model) THEN
+     self%id_Fsed_oxy = self%register_state_dependency(Fsed_oxy_variable,benthic=.true.)
+   ENDIF
+
+   ! Register diagnostic variables
+   self%id_sed_oxy = self%register_diagnostic_variable(                     &
+                     'sed_oxy', 'mmol/m**2/d', 'Oxygen sediment flux',      &
+                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+
+   self%id_atm_oxy_exch = self%register_diagnostic_variable(                &
+                     'atm_oxy_exch', 'mmol/m**2/d', 'Oxygen exchange across atm/water interface',   &
+                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+
+!  self%id_atm_oxy_exch3d = self%register_diagnostic_variable(              &
+!                    'atm_oxy_exch3d', 'mmol/m**2/d', 'Oxygen exchange across atm/water interface', &
+!                    time_treatment=time_treatment_step_integrated)
+
+   self%id_oxy_sat = self%register_diagnostic_variable(              &
+                     'aed_oxygen_sat', 'mmol/m**2/d', 'Oxygen saturation', &
+                     time_treatment=time_treatment_step_integrated)
+
+   ! Register conserved quantities
+
+   ! Register environmental dependencies
+   self%id_temp = self%register_dependency(varname_temp) ! Temperature (degrees Celsius)
+   self%id_salt = self%register_dependency(varname_salt) ! Salinity (psu)
+!  self%id_pres = self%register_dependency(varname_pres, shape=shape_hz) ! Pressure (dbar = 10 kPa)
+!  self%id_pres = self%register_dependency(varname_pres) ! Pressure (dbar = 10 kPa)
+   self%id_wind = self%register_dependency(varname_wind_sf, shape=shape_hz) ! Wind speed at 10 m above surface (m/s)
+
+   RETURN
+
+99 CALL fatal_error('aed_oxygen_init','Error reading namelist aed_oxygen')
+
+END FUNCTION aed_oxygen_create
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+PURE REALTYPE FUNCTION aed_oxygen_sat(salt,temp)
+!-------------------------------------------------------------------------------
+!  Calculated saturated oxygen concentration at salinity and temperature
+! Taken from Riley and Skirrow (1974)
+!
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   REALTYPE,INTENT(in) :: salt,temp
+!
+!LOCALS
+   REALTYPE :: Tabs
+   REALTYPE :: buf1, buf2, buf3, sol_coeff
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   buf1 = _ZERO_ ; buf2 = _ZERO_ ; buf3 = _ZERO_ ; sol_coeff = _ZERO_
+
+   Tabs = temp + 273.15
+   buf1 = -173.4292 + 249.6339 * 100.0 / Tabs + 143.3483 * LOG(Tabs/100.0)
+   buf2 = 21.8492 * Tabs / 100.0
+   buf3 = salt * (-0.033096 + 0.014259 * Tabs / 100.0 - 0.0017 * (Tabs / 100.0)**2.0)
+   sol_coeff = buf1 - buf2 + buf3
+
+   aed_oxygen_sat = 1.42763 * exp(sol_coeff) !in g/m3
+
+   !Convert to mmol/m3
+   aed_oxygen_sat = (aed_oxygen_sat / 32.) * 1e3
+END FUNCTION aed_oxygen_sat
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+SUBROUTINE aed_oxygen_do(self,_FABM_ARGS_DO_RHS_)
+!-------------------------------------------------------------------------------
+! Right hand sides of aed_oxygen model
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_(type_aed_oxygen),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_DO_RHS_
+!
+!LOCALS
+   REALTYPE :: oxy
+   REALTYPE :: diff_oxy
+!  REALTYPE,PARAMETER :: secs_pr_day = 86400.
+
+!-------------------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_oxy,oxy) ! oxygen
+
+   ! Set temporal derivatives
+   diff_oxy = 0.
+
+   _SET_ODE_(self%id_oxy,diff_oxy)
+
+   ! If an externally maintained pool is present, change the pool according
+
+   ! Export diagnostic variables
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+END SUBROUTINE aed_oxygen_do
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+SUBROUTINE aed_oxygen_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+!-------------------------------------------------------------------------------
+! Right hand sides of oxygen biogeochemical model exporting
+! production/destruction matrices
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_oxygen),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_DO_PPDD_
+!
+!LOCALS
+   REALTYPE :: oxy
+   REALTYPE :: diff_oxy
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_oxy,oxy) ! oxygen
+
+   ! Set temporal derivatives
+   diff_oxy = 0.
+
+   _SET_PP_(self%id_oxy,self%id_oxy,diff_oxy)
+
+   ! If an externally maintained pool is present, change the  pool according
+
+   ! Export diagnostic variables
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+END SUBROUTINE aed_oxygen_do_ppdd
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+SUBROUTINE aed_oxygen_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+!-------------------------------------------------------------------------------
+! Air-sea exchange for the aed oxygen model
+!
+! NOTE THIS FUNCTION IS NOT CURRENTLY USED - see aed_oxygen_do_surface_exchange
+!
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_oxygen),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
+!
+!LOCALS
+   ! Environment
+   REALTYPE :: temp, salt, wind
+
+   ! State
+   REALTYPE :: oxy
+
+   ! Temporary variables
+   REALTYPE :: oxy_atm_flux = _ZERO_
+   REALTYPE :: Coxy_air = _ZERO_ !Dissolved oxygen in the air phase
+   REALTYPE :: koxy_trans = _ZERO_
+   REALTYPE :: windHt !, Tabs
+   REALTYPE :: f_pres  = 1.0      ! Pressure correction function only applicable at high altitudes
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_HZ_LOOP_BEGIN_
+
+   !Get dependent state variables from physical driver
+   _GET_DEPENDENCY_(self%id_temp,temp)     ! Temperature (degrees Celsius)
+   _GET_DEPENDENCY_(self%id_salt,salt)     ! Salinity (psu)
+   _GET_DEPENDENCY_HZ_(self%id_wind,wind)  ! Wind speed at 10 m above surface (m/s)
+   windHt = 10.
+
+    ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_oxy,oxy) ! Concentration of oxygen in surface layer
+
+   koxy_trans = aed_gas_piston_velocity(windHt,wind,temp,salt)
+
+   ! First get the oxygen concentration in the air phase at interface
+   ! Taken from Riley and Skirrow (1974)
+   f_pres = 1.0
+   Coxy_air = f_pres * aed_oxygen_sat(salt,temp)
+
+   ! Get the oxygen flux
+   oxy_atm_flux = koxy_trans * (Coxy_air - oxy)
+
+   ! Transfer surface exchange value to FABM (mmmol/m2) converted by driver.
+   _SET_SURFACE_EXCHANGE_(self%id_oxy,oxy_atm_flux)
+
+   ! Also store oxygen flux across the atm/water interface as diagnostic variable (mmmol/m2).
+   _SET_DIAG_HZ_(self%id_atm_oxy_exch,oxy_atm_flux)
+   _SET_DIAG_(self%id_oxy_sat, Coxy_air)
+
+   ! Leave spatial loops (if any)
+   _FABM_HZ_LOOP_END_
+
+END SUBROUTINE aed_oxygen_get_surface_exchange
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+!###############################################################################
+SUBROUTINE aed_oxygen_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+!-------------------------------------------------------------------------------
+! !IROUTINE: Calculate pelagic bottom fluxes and benthic sink and source terms of AED oxygen.
+! Everything in units per surface area (not volume!) per time.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_oxygen),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+!
+!LOCALS
+   ! Environment
+   REALTYPE :: temp !, layer_ht
+
+   ! State
+   REALTYPE :: oxy
+
+   ! Temporary variables
+   REALTYPE :: oxy_flux, Fsed_oxy
+
+   ! Parameters
+   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_HZ_LOOP_BEGIN_
+
+   ! Retrieve current environmental conditions for the bottom pelagic layer.
+   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+
+    ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_oxy,oxy) ! oxygen
+
+   IF (self%use_sed_model) THEN
+       _GET_STATE_BEN_(self%id_Fsed_oxy,Fsed_oxy)
+   ELSE
+       Fsed_oxy = self%Fsed_oxy
+   ENDIF
+
+    ! Sediment flux dependent on oxygen and temperature
+   oxy_flux = Fsed_oxy * oxy/(self%Ksed_oxy+oxy) * (self%theta_sed_oxy**(temp-20.0))
+
+
+   ! Set bottom fluxes for the pelagic (change per surface area per second)
+   ! Transfer sediment flux value to FABM.
+   _SET_BOTTOM_EXCHANGE_(self%id_oxy,oxy_flux)
+   !_SET_ODE_SED_FLUX_(self%id_oxy,oxy_flux)
+
+   ! Set sink and source terms for the benthos (change per surface area per second)
+   ! Note that this must include the fluxes to and from the pelagic.
+   !_SET_ODE_BEN_(self%id_ben_oxy,-oxy_flux)
+
+   ! Also store sediment flux as diagnostic variable.
+   _SET_DIAG_HZ_(self%id_sed_oxy,oxy_flux)
+
+   ! Leave spatial loops (if any)
+   _FABM_HZ_LOOP_END_
+
+END SUBROUTINE aed_oxygen_do_benthos
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+END MODULE aed_oxygen
+#endif

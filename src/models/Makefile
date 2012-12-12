@@ -9,6 +9,7 @@ SUBDIRS += iow/          # Institute for Ostsee Forchung
 SUBDIRS += klimacampus/  # Hamburg ??
 SUBDIRS += metu/         # Middle East Technical University
 SUBDIRS += pml/          # Plymouth Marine Laboratory
+SUBDIRS += aed/          # AED models
 
 objs doc clean:
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@; done

@@ -1,0 +1,278 @@
+!###############################################################################
+!#                                                                             #
+!# aed_bacteria.F90                                                            #
+!#                                                                             #
+!# Developed by :                                                              #
+!#     AquaticEcoDynamics (AED) Group                                          #
+!#     School of Earth & Environment                                           #
+!# (C) The University of Western Australia                                     #
+!#                                                                             #
+!# Copyright by the AED-team @ UWA under the GNU Public License - www.gnu.org  #
+!#                                                                             #
+!#   -----------------------------------------------------------------------   #
+!#                                                                             #
+!# Created March 2012                                                          #
+!#                                                                             #
+!###############################################################################
+
+#ifdef _FABM_F2003_
+
+#include "fabm_driver.h"
+
+!
+MODULE aed_bacteria
+!-------------------------------------------------------------------------------
+! aed_bacteria --- bacteria biogeochemical model
+!
+! The AED module bacteria contains equations that describe exchange of
+! dynamics of hetertrophic bacteria
+!-------------------------------------------------------------------------------
+   USE fabm_types
+   USE fabm_driver
+
+   IMPLICIT NONE
+
+   PRIVATE
+!
+   PUBLIC type_aed_bacteria, aed_bacteria_create
+
+   type,extends(type_base_model) :: type_aed_bacteria
+!     Variable identifiers
+      _TYPE_STATE_VARIABLE_ID_      :: id_bact
+      _TYPE_DEPENDENCY_ID_          :: id_temp
+    ! _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_bact
+      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totB
+
+!     Model parameters
+      REALTYPE :: growth,mortality
+
+      CONTAINS
+!     Model Procedures
+!       procedure :: initialize               => aed_bacteria_init
+        procedure :: do                       => aed_bacteria_do
+        procedure :: do_ppdd                  => aed_bacteria_do_ppdd
+        procedure :: do_benthos               => aed_bacteria_do_benthos
+        procedure :: get_conserved_quantities => aed_bacteria_get_conserved_quantities
+   END TYPE
+
+
+!===============================================================================
+CONTAINS
+
+
+
+!###############################################################################
+FUNCTION aed_bacteria_create(namlst,name,parent) RESULT(self)
+!-------------------------------------------------------------------------------
+! Initialise the AED model
+!
+!  Here, the aed namelist is read and te variables exported
+!  by the model are registered with FABM.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   INTEGER,INTENT(in)                        :: namlst
+   CHARACTER(len=*),INTENT(in)              :: name
+   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
+!
+!LOCALS
+   _CLASS_ (type_aed_bacteria),POINTER :: self
+
+   REALTYPE          :: growth
+   REALTYPE          :: mortality
+
+   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   REALTYPE,PARAMETER :: bact_initial = 0.
+   NAMELIST /aed_bacteria/ growth,mortality
+
+!-------------------------------------------------------------------------------
+!BEGIN
+   print *,"WARNING! aed_bacteria model is currently under development"
+
+   ! Read the namelist
+   read(namlst,nml=aed_bacteria,err=99)
+
+   ! Store parameter values in our own derived type
+   ! NB: all rates must be provided in values per day,
+   ! and are converted here to values per second.
+   self%growth = growth
+   self%mortality = mortality
+
+   ! Register state variables
+   self%id_bact = self%register_state_variable('bact','mmol/m**3','bacteria',     &
+                                    bact_initial,minimum=_ZERO_,no_river_dilution=.false.)
+
+   ! Register diagnostic variables
+!  self%id_sed_bact = self%register_diagnostic_variable('sed_bact','mmol/m**2/d',   &
+!                    'Filterable reactive bacteria',                                     &
+!                    time_treatment=time_treatment_step_integrated, shape=shape_hz)
+
+   ! Register conserved quantities
+   self%id_totB = self%register_conserved_quantity('TB','mmol/m**3','Total bacteria')
+
+   ! Register environmental dependencies
+   self%id_temp = self%register_dependency(varname_temp)
+
+   RETURN
+
+99 CALL fatal_error('aed_bacteria_init','Error reading namelist aed_bacteria')
+
+END FUNCTION aed_bacteria_create
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+SUBROUTINE aed_bacteria_do(self,_FABM_ARGS_DO_RHS_)
+!-------------------------------------------------------------------------------
+! Right hand sides of aed_bacteria model
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_bacteria),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_DO_RHS_
+!
+!LOCALS
+   REALTYPE           :: bact,diff_bact
+   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+
+!-------------------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_bact,bact) ! bacteria
+
+   ! Set temporal derivatives
+   diff_bact = 0.
+
+   PRINT *,' WARNING: Bacteria module is currently inactive'
+
+   _SET_ODE_(self%id_bact,diff_bact)
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+END SUBROUTINE aed_bacteria_do
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+!###############################################################################
+SUBROUTINE aed_bacteria_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+!-------------------------------------------------------------------------------
+! Right hand sides of bacteria biogeochemical model exporting
+! production/destruction matrices
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_bacteria),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_DO_PPDD_
+!
+!LOCALS
+   REALTYPE                   :: bact
+   REALTYPE                   :: diff_bact
+   REALTYPE, parameter        :: secs_pr_day = 86400.
+
+!-------------------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_bact,bact) ! bacteria
+
+   ! Set temporal derivatives
+   diff_bact = 0.
+
+   _SET_PP_(self%id_bact,self%id_bact,diff_bact)
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+END SUBROUTINE aed_bacteria_do_ppdd
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+!###############################################################################
+SUBROUTINE aed_bacteria_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+!-------------------------------------------------------------------------------
+! Calculate pelagic bottom fluxes and benthic sink and source terms of AED bacteria.
+! Everything in units per surface area (not volume!) per time.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_bacteria),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+!
+!LOCALS
+   ! Environment
+   REALTYPE :: temp
+
+   ! State
+   REALTYPE :: bact
+
+   ! Temporary variables
+   REALTYPE :: bact_flux
+
+   ! Parameters
+   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+
+!-------------------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_HZ_LOOP_BEGIN_
+
+   ! Retrieve current environmental conditions for the bottom pelagic layer.
+   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+
+    ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_bact,bact) ! bacteria
+
+!  _SET_BOTTOM_EXCHANGE_(self%id_bact,bact_flux)
+
+   ! Set sink and source terms for the benthos (change per surface area per second)
+   ! Note that this must include the fluxes to and from the pelagic.
+   !_SET_ODE_BEN_(self%id_ben_bact,-bact_flux/secs_pr_day)
+
+   ! Also store sediment flux as diagnostic variable.
+!  _SET_DIAG_HZ_(self%id_sed_bact,bact_flux)
+
+   ! Leave spatial loops (if any)
+   _FABM_HZ_LOOP_END_
+
+END SUBROUTINE aed_bacteria_do_benthos
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+!###############################################################################
+SUBROUTINE aed_bacteria_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+!-------------------------------------------------------------------------------
+! Get the total of conserved quantities (currently only bacteria)
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_bacteria),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+!
+!LOCALS
+   REALTYPE :: bact
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_bact,bact) ! bacteria
+
+   ! Total nutrient is simply the sum of all variables.
+   _SET_CONSERVED_QUANTITY_(self%id_totB,bact)
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+END SUBROUTINE aed_bacteria_get_conserved_quantities
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+END MODULE aed_bacteria
+#endif

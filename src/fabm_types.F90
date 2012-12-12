@@ -73,6 +73,13 @@
      varname_zbot    = 'bottom_depth',                                     & ! Basin floor depth below geoid (approx. mean sea level) (m)
      varname_taub    = 'bottom_stress'                                       ! Bottom stress (Pa)
 
+   ! Added for aed modules
+   character(len=64),parameter,public :: &
+     varname_layer_ht= 'env_layer_ht',    &! Layer thickness in m
+     varname_extc    = 'env_extc_coef',   &! Extinction coefficient
+     varname_tss     = 'env_tss',         &! Total suspended solids
+     varname_sed_zone= 'env_sed_zone'      ! sedimentation zone
+
    ! Non-spatial (scalar) variables.
    character(len=64),parameter,public :: &
      varname_yearday = 'number_of_days_since_start_of_the_year'              ! Decimal day of the year (day), equal to 0.0 at 00:00 1 Jan UTC 

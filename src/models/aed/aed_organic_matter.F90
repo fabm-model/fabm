@@ -1,0 +1,892 @@
+!###############################################################################
+!#                                                                             #
+!# aed_organic_matter.F90                                                      #
+!#                                                                             #
+!# Developed by :                                                              #
+!#     AquaticEcoDynamics (AED) Group                                          #
+!#     School of Earth & Environment                                           #
+!# (C) The University of Western Australia                                     #
+!#                                                                             #
+!# Copyright by the AED-team @ UWA under the GNU Public License - www.gnu.org  #
+!#                                                                             #
+!#   -----------------------------------------------------------------------   #
+!#                                                                             #
+!# Created 6 June 2011                                                         #
+!#                                                                             #
+!###############################################################################
+
+#ifdef _FABM_F2003_
+
+#include "fabm_driver.h"
+
+MODULE aed_organic_matter
+!-------------------------------------------------------------------------------
+! aed_organic_matter --- organic matter biogeochemical model
+!
+! Organic Matter module contains equations for mineralisation
+! of particulate and dissolved organic matter.
+! In future to include adsorption/desorption to suspended solids.
+!-------------------------------------------------------------------------------
+   USE fabm_types
+   USE fabm_driver
+
+   IMPLICIT NONE
+
+   PRIVATE  ! By default make everything private
+!
+   PUBLIC type_aed_organic_matter, aed_organic_matter_create
+!
+   TYPE,extends(type_base_model) :: type_aed_organic_matter
+!     Variable identifiers
+      _TYPE_STATE_VARIABLE_ID_      :: id_pon,id_don !particulate and dissolved organic nitrogen
+      _TYPE_STATE_VARIABLE_ID_      :: id_pop,id_dop !particulate and dissolved organic phosphorus
+      _TYPE_STATE_VARIABLE_ID_      :: id_poc,id_doc !particulate and dissolved organic carbon
+      _TYPE_STATE_VARIABLE_ID_      :: id_oxy,id_amm,id_frp,id_dic
+      _TYPE_STATE_VARIABLE_ID_      :: id_Fsed_pon,id_Fsed_don !sed. rate organic nitrogen
+      _TYPE_STATE_VARIABLE_ID_      :: id_Fsed_pop,id_Fsed_dop !sed. rate organic phosphorus
+      _TYPE_STATE_VARIABLE_ID_      :: id_Fsed_poc,id_Fsed_doc !sed. rate organic carbon
+      _TYPE_STATE_VARIABLE_ID_      :: id_Psed_poc, id_Psed_pon, id_Psed_pop !sedimentation rates
+      _TYPE_DEPENDENCY_ID_          :: id_temp
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_pon_miner, id_don_miner, id_sed_pon, id_sed_don
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_pop_miner, id_dop_miner, id_sed_pop, id_sed_dop
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_poc_miner, id_doc_miner, id_sed_poc, id_sed_doc
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_bod
+      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN,id_totP,id_totC
+
+!     Model parameters
+      REALTYPE :: w_pon,Rpon_miner,Rdon_miner,Fsed_pon,Fsed_don, &
+                          Kpon_miner, Kdon_miner, Ksed_don, &
+                          theta_pon_miner, theta_don_miner, theta_sed_don
+      REALTYPE :: w_pop,Rpop_miner,Rdop_miner,Fsed_pop,Fsed_dop, &
+                          Kpop_miner, Kdop_miner, Ksed_dop, &
+                          theta_pop_miner, theta_dop_miner, theta_sed_dop
+      REALTYPE :: w_poc,Rpoc_miner,Rdoc_miner,Fsed_poc,Fsed_doc, &
+                          Kpoc_miner, Kdoc_miner, Ksed_doc, &
+                          theta_poc_miner, theta_doc_miner, theta_sed_doc, &
+                          KeDOM, KePOM
+      LOGICAL  :: use_oxy, use_amm, use_frp, use_dic, use_sed_model, use_sedmtn_model
+
+      CONTAINS    ! Model Procedures
+!       procedure :: initialize               => aed_organic_matter_init
+        procedure :: do                       => aed_organic_matter_do
+        procedure :: do_ppdd                  => aed_organic_matter_do_ppdd
+        procedure :: do_benthos               => aed_organic_matter_do_benthos
+        procedure :: get_light_extinction     => aed_organic_matter_get_light_extinction
+        procedure :: get_conserved_quantities => aed_organic_matter_get_conserved_quantities
+   END TYPE
+
+
+!===============================================================================
+CONTAINS
+
+!###############################################################################
+FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
+!-------------------------------------------------------------------------------
+! Initialise the AED model
+!
+!  Here, the aed namelist is read and te variables exported
+!  by the model are registered with FABM.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   INTEGER,INTENT(in)                              :: namlst
+   CHARACTER(len=*),INTENT(in)              :: name
+   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
+!
+!LOCALS
+   _CLASS_ (type_aed_organic_matter),POINTER :: self
+
+   REALTYPE                  :: pon_initial = 4.5
+   REALTYPE                  :: don_initial = 4.5
+   REALTYPE                  :: w_pon       = 0.0
+   REALTYPE                  :: Rpon_miner  = 0.01
+   REALTYPE                  :: Rdon_miner  = 0.01
+   REALTYPE                  :: Fsed_pon    = 30.0
+   REALTYPE                  :: Fsed_don    = 30.0
+   REALTYPE                  :: Kpon_miner  = 30.0
+   REALTYPE                  :: Kdon_miner  = 30.0
+   REALTYPE                  :: Ksed_don    = 4.5
+   REALTYPE                  :: theta_pon_miner = 1.0
+   REALTYPE                  :: theta_don_miner = 1.0
+   REALTYPE                  :: theta_sed_don   = 1.0
+   CHARACTER(len=64)         :: don_miner_product_variable=''
+   CHARACTER(len=64)         :: Fsed_pon_variable=''
+   CHARACTER(len=64)         :: Fsed_don_variable=''
+
+   REALTYPE                  :: pop_initial= 4.5
+   REALTYPE                  :: dop_initial= 4.5
+   REALTYPE                  :: w_pop      = 0.0
+   REALTYPE                  :: Rpop_miner = 0.01
+   REALTYPE                  :: Rdop_miner = 0.01
+   REALTYPE                  :: Fsed_pop   = 30.0
+   REALTYPE                  :: Fsed_dop   = 30.0
+   REALTYPE                  :: Kpop_miner = 30.0
+   REALTYPE                  :: Kdop_miner = 30.0
+   REALTYPE                  :: Ksed_dop   = 4.5
+   REALTYPE                  :: theta_pop_miner = 1.0
+   REALTYPE                  :: theta_dop_miner = 1.0
+   REALTYPE                  :: theta_sed_dop   = 1.0
+   CHARACTER(len=64)         :: dop_miner_product_variable=''
+   CHARACTER(len=64)         :: Fsed_pop_variable=''
+   CHARACTER(len=64)         :: Fsed_dop_variable=''
+
+   REALTYPE                  :: poc_initial = 4.5
+   REALTYPE                  :: doc_initial = 4.5
+   REALTYPE                  :: w_poc       = 0.0
+   REALTYPE                  :: Rpoc_miner  = 0.01
+   REALTYPE                  :: Rdoc_miner  = 0.01
+   REALTYPE                  :: Fsed_poc    = 30.0
+   REALTYPE                  :: Fsed_doc    = 30.0
+   REALTYPE                  :: Kpoc_miner  = 30.0
+   REALTYPE                  :: Kdoc_miner  = 30.0
+   REALTYPE                  :: Ksed_doc    = 4.5
+   REALTYPE                  :: theta_poc_miner = 1.0
+   REALTYPE                  :: theta_doc_miner = 1.0
+   REALTYPE                  :: theta_sed_doc   = 1.0
+   REALTYPE                  :: KeDOM = 0.01
+   REALTYPE                  :: KePOM = 0.01
+   CHARACTER(len=64)         :: doc_miner_product_variable=''
+   CHARACTER(len=64)         :: doc_miner_reactant_variable=''
+   CHARACTER(len=64)         :: Fsed_poc_variable=''
+   CHARACTER(len=64)         :: Fsed_doc_variable=''
+
+   CHARACTER(len=64)         :: Psed_poc_variable=''
+   CHARACTER(len=64)         :: Psed_pon_variable=''
+   CHARACTER(len=64)         :: Psed_pop_variable=''
+
+
+
+   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   NAMELIST /aed_organic_matter/ &
+             pon_initial, don_initial, w_pon, Rpon_miner, Rdon_miner, Fsed_pon, Fsed_don, &
+             Kpon_miner, Kdon_miner, Ksed_don,                &
+             theta_pon_miner, theta_don_miner, theta_sed_don, &
+             don_miner_product_variable,                      &
+             Fsed_pon_variable, Fsed_don_variable,            &
+             pop_initial, dop_initial, w_pop, Rpop_miner, Rdop_miner, Fsed_pop, Fsed_dop, &
+             Kpop_miner, Kdop_miner, Ksed_dop,                &
+             theta_pop_miner, theta_dop_miner, theta_sed_dop, &
+             dop_miner_product_variable,                      &
+             Fsed_pop_variable, Fsed_dop_variable,            &
+             poc_initial, doc_initial, w_poc, Rpoc_miner, Rdoc_miner, Fsed_poc, Fsed_doc, &
+             Kpoc_miner, Kdoc_miner, Ksed_doc,                &
+             theta_poc_miner, theta_doc_miner, theta_sed_doc, KeDOM, KePOM, &
+             doc_miner_reactant_variable, doc_miner_product_variable, &
+             Fsed_poc_variable, Fsed_doc_variable, &
+             Psed_poc_variable, Psed_pon_variable, Psed_pop_variable
+
+!-------------------------------------------------------------------------------
+!BEGIN
+   ALLOCATE(self)
+   CALL self%initialize(name,parent)
+
+   ! Read the namelist
+   read(namlst,nml=aed_organic_matter,err=99)
+
+   ! Store parameter values in our own derived type
+   ! NB: all rates must be provided in values per day,
+   ! and are converted here to values per second.
+   self%w_pon       = w_pon/secs_pr_day
+   self%Rpon_miner  = Rpon_miner/secs_pr_day
+   self%Rdon_miner  = Rdon_miner/secs_pr_day
+   self%Fsed_pon    = Fsed_pon/secs_pr_day
+   self%Fsed_don    = Fsed_don/secs_pr_day
+   self%Kpon_miner  = Kpon_miner
+   self%Kdon_miner  = Kdon_miner
+   self%Ksed_don  = Ksed_don
+   self%theta_pon_miner = theta_pon_miner
+   self%theta_don_miner = theta_don_miner
+   self%theta_sed_don = theta_sed_don
+
+   self%w_pop       = w_pop/secs_pr_day
+   self%Rpop_miner  = Rpop_miner/secs_pr_day
+   self%Rdop_miner  = Rdop_miner/secs_pr_day
+   self%Fsed_pop    = Fsed_pop/secs_pr_day
+   self%Fsed_dop    = Fsed_dop/secs_pr_day
+   self%Kpop_miner  = Kpop_miner
+   self%Kdop_miner  = Kdop_miner
+   self%Ksed_dop  = Ksed_dop
+   self%theta_pop_miner = theta_pop_miner
+   self%theta_dop_miner = theta_dop_miner
+   self%theta_sed_dop = theta_sed_dop
+
+   self%w_poc       = w_poc/secs_pr_day
+   self%Rpoc_miner  = Rpoc_miner/secs_pr_day
+   self%Rdoc_miner  = Rdoc_miner/secs_pr_day
+   self%Fsed_poc    = Fsed_poc/secs_pr_day
+   self%Fsed_doc    = Fsed_doc/secs_pr_day
+   self%Kpoc_miner  = Kpoc_miner
+   self%Kdoc_miner  = Kdoc_miner
+   self%Ksed_doc  = Ksed_doc
+   self%theta_poc_miner = theta_poc_miner
+   self%theta_doc_miner = theta_doc_miner
+   self%theta_sed_doc = theta_sed_doc
+   self%KeDOM       = KeDOM
+   self%KePOM       = KePOM
+
+   ! Register state variables
+   self%id_don = self%register_state_variable('don','mmol/m**3','dissolved organic nitrogen',     &
+                                    don_initial,minimum=_ZERO_,no_river_dilution=.true.)
+
+   self%id_pon = self%register_state_variable('pon','mmol/m**3','particulate organic nitrogen',   &
+                                    pon_initial,minimum=_ZERO_,no_river_dilution=.true.,vertical_movement=self%w_pon)
+
+   self%id_dop = self%register_state_variable('dop','mmol/m**3','dissolved organic phosphorus',   &
+                                    dop_initial,minimum=_ZERO_,no_river_dilution=.true.)
+   self%id_pop = self%register_state_variable('pop','mmol/m**3','particulate organic phosphorus', &
+                                    pop_initial,minimum=_ZERO_,no_river_dilution=.true.,vertical_movement=self%w_pop)
+
+   self%id_doc = self%register_state_variable('doc','mmol/m**3','dissolved organic carbon',       &
+                                    doc_initial,minimum=_ZERO_,no_river_dilution=.true.)
+   self%id_poc = self%register_state_variable('poc','mmol/m**3','particulate organic carbon',     &
+                                    poc_initial,minimum=_ZERO_,no_river_dilution=.true.,vertical_movement=self%w_poc)
+
+   ! Register external state variable dependencies (carbon)
+   self%use_oxy = doc_miner_reactant_variable .NE. '' !This means oxygen module switched on
+   IF (self%use_oxy) THEN
+     self%id_oxy = self%register_state_dependency(doc_miner_reactant_variable)
+   ENDIF
+
+   self%use_dic = doc_miner_product_variable .NE. '' !This means carbon module switched on
+   IF (self%use_dic) THEN
+     self%id_dic = self%register_state_dependency(doc_miner_product_variable)
+   ENDIF
+
+   ! Register external state variable dependencies (nitrogen)
+   self%use_amm = don_miner_product_variable .NE. '' !This means nitrogen module switched on
+   IF (self%use_amm) THEN
+     self%id_amm = self%register_state_dependency(don_miner_product_variable)
+   ENDIF
+
+   ! Register external state variable dependencies (phosphorous)
+   self%use_frp = dop_miner_product_variable .NE. '' !This means phosphorus module switched on
+   IF (self%use_frp) THEN
+     self%id_frp = self%register_state_dependency(dop_miner_product_variable)
+   ENDIF
+
+   self%use_sed_model = Fsed_pon_variable .NE. ''
+   IF (self%use_sed_model) THEN
+     self%id_Fsed_pon = self%register_state_dependency(Fsed_pon_variable,benthic=.true.)
+     self%id_Fsed_don = self%register_state_dependency(Fsed_don_variable,benthic=.true.)
+     self%id_Fsed_pop = self%register_state_dependency(Fsed_pop_variable,benthic=.true.)
+     self%id_Fsed_dop = self%register_state_dependency(Fsed_dop_variable,benthic=.true.)
+     self%id_Fsed_poc = self%register_state_dependency(Fsed_poc_variable,benthic=.true.)
+     self%id_Fsed_doc = self%register_state_dependency(Fsed_doc_variable,benthic=.true.)
+   ENDIF
+
+   self%use_sedmtn_model = Psed_poc_variable .NE. ''
+   IF (self%use_sedmtn_model) THEN
+     self%id_Psed_poc = self%register_state_dependency(Psed_poc_variable,benthic=.true.)
+     self%id_Psed_pon = self%register_state_dependency(Psed_pon_variable,benthic=.true.)
+     self%id_Psed_pop = self%register_state_dependency(Psed_pop_variable,benthic=.true.)
+   ENDIF
+
+   ! Register diagnostic variables
+   self%id_pon_miner = self%register_diagnostic_variable('pon_miner','mmol/m**3/d',  'PON mineralisation',      &
+                     time_treatment=time_treatment_step_integrated)
+   self%id_don_miner = self%register_diagnostic_variable('don_miner','mmol/m**3/d',  'DON mineralisation',      &
+                     time_treatment=time_treatment_step_integrated)
+   self%id_sed_pon = self%register_diagnostic_variable('sed_pon','mmol/m**2/d',  'PON sediment flux',           &
+                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+   self%id_sed_don = self%register_diagnostic_variable('sed_don','mmol/m**2/d',  'DON sediment flux',           &
+                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+
+   self%id_pop_miner = self%register_diagnostic_variable('pop_miner','mmol/m**3/d',  'POP mineralisation',      &
+                     time_treatment=time_treatment_step_integrated)
+   self%id_dop_miner = self%register_diagnostic_variable('dop_miner','mmol/m**3/d',  'DOP mineralisation',      &
+                     time_treatment=time_treatment_step_integrated)
+   self%id_sed_pop = self%register_diagnostic_variable('sed_pop','mmol/m**2/d',  'POP sediment flux',           &
+                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+   self%id_sed_dop = self%register_diagnostic_variable('sed_dop','mmol/m**2/d',  'DOP sediment flux',           &
+                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+
+   self%id_poc_miner = self%register_diagnostic_variable('poc_miner','mmol/m**3/d',  'POC mineralisation',      &
+                     time_treatment=time_treatment_step_integrated)
+   self%id_doc_miner = self%register_diagnostic_variable('doc_miner','mmol/m**3/d',  'DOC mineralisation',      &
+                     time_treatment=time_treatment_step_integrated)
+   self%id_sed_poc = self%register_diagnostic_variable('sed_poc','mmol/m**2/d',  'POC sediment flux',           &
+                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+   self%id_sed_doc = self%register_diagnostic_variable('sed_doc','mmol/m**2/d',  'DOC sediment flux',           &
+                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+
+   self%id_bod     = self%register_diagnostic_variable('BOD','mmol/m**3',  'Biochemical Oxygen Demand (BOD)',   &
+                     time_treatment=time_treatment_step_integrated)
+
+   ! Register conserved quantities
+   self%id_totN = self%register_conserved_quantity('TN','mmol/m**3','Total nitrogen')
+   self%id_totP = self%register_conserved_quantity('TP','mmol/m**3','Total phosphorus')
+   self%id_totC = self%register_conserved_quantity('TC','mmol/m**3','Total carbon')
+
+   ! Register environmental dependencies
+   self%id_temp = self%register_dependency(varname_temp)
+
+   RETURN
+
+99 CALL fatal_error('aed_organic_matter_init','Error reading namelist aed_organic_matter')
+
+END FUNCTION aed_organic_matter_create
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+SUBROUTINE aed_organic_matter_do(self,_FABM_ARGS_DO_RHS_)
+!-------------------------------------------------------------------------------
+! Right hand sides of aed_organic_matter model
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_DO_RHS_
+!
+!LOCALS
+   REALTYPE                   :: pon,don,amm,oxy,temp !State variables
+   REALTYPE                   :: pon_mineralisation, don_mineralisation
+   REALTYPE                   :: pop,dop,frp !State variables
+   REALTYPE                   :: pop_mineralisation, dop_mineralisation
+   REALTYPE                   :: poc,doc,dic !State variables
+   REALTYPE                   :: poc_mineralisation, doc_mineralisation
+   REALTYPE, parameter        :: secs_pr_day = 86400.
+ ! REALTYPE, parameter        :: Yoxy_don_miner = 6.625 !ratio of oxygen to nitrogen utilised during don mineralisation
+ ! REALTYPE, parameter        :: Yoxy_dop_miner = 6.625 !ratio of oxygen to phosphoros utilised during dop mineralisation
+   REALTYPE, parameter        :: Yoxy_doc_miner = 32./12. !ratio of oxygen to carbon utilised during doc mineralisation
+
+!-----------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+    !call log_message('model aed_organic_matter enter do loop successfully.')
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_pon,pon) ! particulate organic nitrogen
+   _GET_STATE_(self%id_don,don) ! dissolved organic nitrogen
+   _GET_STATE_(self%id_pop,pop) ! particulate organic phosphorus
+   _GET_STATE_(self%id_dop,dop) ! dissolved organic phosphorus
+   _GET_STATE_(self%id_poc,poc) ! particulate organic carbon
+   _GET_STATE_(self%id_doc,doc) ! dissolved organic carbon
+
+
+   IF (self%use_oxy) THEN ! & use_oxy
+      _GET_STATE_(self%id_oxy,oxy) ! oxygen
+   ELSE
+      oxy = 0.0
+   ENDIF
+   IF (self%use_dic) THEN ! & use_amm
+      _GET_STATE_(self%id_dic,dic) ! disolved inorganic carbon
+   ELSE
+      dic = 0.0
+   ENDIF
+   IF (self%use_amm) THEN ! & use_amm
+      _GET_STATE_(self%id_amm,amm) ! ammonium
+   ELSE
+      amm = 0.0
+   ENDIF
+   IF (self%use_frp) THEN ! & use_frp
+      _GET_STATE_(self%id_frp,frp) ! phosphate
+   ELSE
+      frp = 0.0
+   ENDIF
+
+   ! Retrieve current environmental conditions.
+   _GET_DEPENDENCY_(self%id_temp,temp)  ! temperature
+
+   ! Define some intermediate quantities units mmol N/m3/day
+   pon_mineralisation = fpon_miner(self,oxy,temp)
+   don_mineralisation = fdon_miner(self,oxy,temp)
+   pop_mineralisation = fpop_miner(self,oxy,temp)
+   dop_mineralisation = fdop_miner(self,oxy,temp)
+   poc_mineralisation = fpoc_miner(self,oxy,temp)
+   doc_mineralisation = fdoc_miner(self,oxy,temp)
+
+   ! Set temporal derivatives
+   _SET_ODE_(self%id_pon,-pon*pon_mineralisation)
+   _SET_ODE_(self%id_don,pon*pon_mineralisation-don*don_mineralisation)
+   _SET_ODE_(self%id_pop,-pop*pop_mineralisation)
+   _SET_ODE_(self%id_dop,pop*pop_mineralisation-dop*dop_mineralisation)
+   _SET_ODE_(self%id_poc,-poc*poc_mineralisation)
+   _SET_ODE_(self%id_doc,poc*poc_mineralisation-doc*doc_mineralisation)
+
+   ! If an externally maintained oxygen pool is present, take mineralisation from it
+   IF (self%use_oxy) THEN
+      _SET_ODE_(self%id_oxy,-Yoxy_doc_miner*doc*doc_mineralisation)
+   ENDIF
+   if (self%use_dic) THEN
+      _SET_ODE_(self%id_dic,doc*doc_mineralisation)
+   ENDIF
+   IF (self%use_amm) THEN
+      _SET_ODE_(self%id_amm,don*don_mineralisation)
+   ENDIF
+   IF (self%use_frp) THEN
+      _SET_ODE_(self%id_frp,dop*dop_mineralisation)
+   ENDIF
+
+   ! Export diagnostic variables
+   _SET_DIAG_(self%id_pon_miner,pon_mineralisation)
+   _SET_DIAG_(self%id_don_miner,don_mineralisation)
+   _SET_DIAG_(self%id_pop_miner,pop_mineralisation)
+   _SET_DIAG_(self%id_dop_miner,dop_mineralisation)
+   _SET_DIAG_(self%id_poc_miner,poc_mineralisation)
+   _SET_DIAG_(self%id_doc_miner,doc_mineralisation)
+
+   _SET_DIAG_(self%id_bod,poc+doc)
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+END SUBROUTINE aed_organic_matter_do
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+SUBROUTINE aed_organic_matter_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+!-------------------------------------------------------------------------------
+! Right hand sides of oxygen biogeochemical model exporting
+! production/destruction matrices
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_DO_PPDD_
+!
+!LOCALS
+   REALTYPE           :: pon,don,amm,oxy,temp !State variables
+   REALTYPE           :: pon_mineralisation, don_mineralisation
+   REALTYPE           :: pop,dop,frp !State variables
+   REALTYPE           :: pop_mineralisation, dop_mineralisation
+   REALTYPE           :: poc,doc,dic !State variables
+   REALTYPE           :: poc_mineralisation, doc_mineralisation
+   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+ ! REALTYPE,PARAMETER :: Yoxy_don_miner = 6.625   ! ratio of oxygen to nitrogen utilised during don mineralisation
+ ! REALTYPE,PARAMETER :: Yoxy_dop_miner = 6.625   ! ratio of oxygen to phosphoros utilised during dop mineralisation
+   REALTYPE,PARAMETER :: Yoxy_doc_miner = 32./12. ! ratio of oxygen to carbon utilised during doc mineralisation
+
+!-----------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+    !call log_message('model aed_organic_matter enter do loop successfully.')
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_pon,pon) ! particulate organic nitrogen
+   _GET_STATE_(self%id_don,don) ! dissolved organic nitrogen
+   _GET_STATE_(self%id_pop,pop) ! particulate organic phosphorus
+   _GET_STATE_(self%id_dop,dop) ! dissolved organic phosphorus
+   _GET_STATE_(self%id_poc,poc) ! particulate organic carbon
+   _GET_STATE_(self%id_doc,doc) ! dissolved organic carbon
+
+   IF (self%use_oxy) THEN
+      _GET_STATE_(self%id_oxy,oxy) ! oxygen
+   ELSE
+      oxy = 0.0
+   ENDIF
+   IF (self%use_dic) THEN
+      _GET_STATE_(self%id_dic,dic) ! disolved inorganic carbon
+   ELSE
+      dic = 0.0
+   ENDIF
+   IF (self%use_amm) THEN
+      _GET_STATE_(self%id_amm,amm) ! ammonium
+   ELSE
+      amm = 0.0
+   ENDIF
+   IF (self%use_frp) THEN
+      _GET_STATE_(self%id_frp,frp) ! phosphate
+   ELSE
+      frp = 0.0
+   ENDIF
+
+   ! Retrieve current environmental conditions.
+   _GET_DEPENDENCY_(self%id_temp,temp)  ! temperature
+
+   ! Define some intermediate quantities units mmol N/m3/day
+   pon_mineralisation = fpon_miner(self,oxy,temp)
+   don_mineralisation = fdon_miner(self,oxy,temp)
+   pop_mineralisation = fpop_miner(self,oxy,temp)
+   dop_mineralisation = fdop_miner(self,oxy,temp)
+   poc_mineralisation = fpoc_miner(self,oxy,temp)
+   doc_mineralisation = fdoc_miner(self,oxy,temp)
+
+   ! Assign destruction rates to different elements of the destruction matrix.
+   ! By assigning with _SET_DD_SYM_(i,j,val) as opposed to _SET_DD_(i,j,val),
+   ! assignments to dd(i,j) are automatically assigned to pp(j,i) as well.
+   !Set for particulate organic matter mineralisation
+#if 0
+   _SET_DD_SYM_(self%id_pon,self%id_don,pon*pon_mineralisation)
+   _SET_DD_SYM_(self%id_pop,self%id_dop,pop*pop_mineralisation)
+   _SET_DD_SYM_(self%id_poc,self%id_doc,poc*poc_mineralisation)
+
+   ! If an externally maintained oxygen pool is present, take mineralisation from it
+   IF (self%use_oxy) THEN
+      _SET_DD_(self%id_oxy,self%id_oxy,Yoxy_doc_miner*doc*doc_mineralisation)
+   ENDIF
+
+   !If simulating inorganic nutrients then add dissolved organic mineralisation
+   !Otherwise just take from the dissolved organic matter
+   IF (self%use_amm) THEN
+      _SET_DD_SYM_(self%id_don,self%id_amm,don*don_mineralisation)
+   ELSE
+      _SET_DD_(self%id_don,self%id_don,don*don_mineralisation)
+   ENDIF
+   IF (self%use_frp) THEN
+      _SET_DD_SYM_(self%id_dop,self%id_frp,dop*dop_mineralisation)
+   ELSE
+      _SET_DD_(self%id_dop,self%id_dop,dop*dop_mineralisation)
+   ENDIF
+   IF (self%use_dic) THEN
+      _SET_DD_SYM_(self%id_doc,self%id_dic,doc*doc_mineralisation)
+   ELSE
+      _SET_DD_(self%id_doc,self%id_doc,doc*doc_mineralisation)
+   ENDIF
+#endif
+   ! Export diagnostic variables
+   _SET_DIAG_(self%id_pon_miner,pon_mineralisation)
+   _SET_DIAG_(self%id_don_miner,don_mineralisation)
+   _SET_DIAG_(self%id_pop_miner,pop_mineralisation)
+   _SET_DIAG_(self%id_dop_miner,dop_mineralisation)
+   _SET_DIAG_(self%id_poc_miner,poc_mineralisation)
+   _SET_DIAG_(self%id_doc_miner,doc_mineralisation)
+
+   _SET_DIAG_(self%id_bod,poc+doc)
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+END SUBROUTINE aed_organic_matter_do_ppdd
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+SUBROUTINE aed_organic_matter_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+!-------------------------------------------------------------------------------
+! !IROUTINE: Calculate pelagic bottom fluxes and benthic sink and source terms of AED nitrogen.
+! Everything in units per surface area (not volume!) per time.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+!
+!LOCALS
+   ! Environment
+   REALTYPE :: temp !, layer_ht
+
+   ! State
+   REALTYPE :: pon,don
+   REALTYPE :: pop,dop
+   REALTYPE :: poc,doc
+
+   ! Temporary variables
+   REALTYPE :: pon_flux,don_flux
+   REALTYPE :: pop_flux,dop_flux
+   REALTYPE :: poc_flux,doc_flux
+
+   REALTYPE :: Fsed_pon,Fsed_don
+   REALTYPE :: Fsed_pop,Fsed_dop
+   REALTYPE :: Fsed_poc,Fsed_doc
+   REALTYPE :: Psed_poc, Psed_pon, Psed_pop
+
+   ! Parameters
+   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+
+!-------------------------------------------------------------------------------
+!BEGIN
+
+   _FABM_HZ_LOOP_BEGIN_
+
+   ! Retrieve current environmental conditions for the bottom pelagic layer.
+   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+
+    ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_pon,pon) ! particulate organic matter
+   _GET_STATE_(self%id_don,don) ! particulate organic matter
+   _GET_STATE_(self%id_pop,pop) ! particulate organic matter
+   _GET_STATE_(self%id_dop,dop) ! particulate organic matter
+   _GET_STATE_(self%id_poc,poc) ! particulate organic matter
+   _GET_STATE_(self%id_doc,doc) ! particulate organic matter
+
+   IF (self%use_sed_model) THEN
+      _GET_STATE_BEN_(self%id_Fsed_pon,Fsed_pon)
+      _GET_STATE_BEN_(self%id_Fsed_don,Fsed_don)
+      _GET_STATE_BEN_(self%id_Fsed_pop,Fsed_pop)
+      _GET_STATE_BEN_(self%id_Fsed_dop,Fsed_dop)
+      _GET_STATE_BEN_(self%id_Fsed_poc,Fsed_poc)
+      _GET_STATE_BEN_(self%id_Fsed_doc,Fsed_doc)
+   ELSE
+      Fsed_pon = self%Fsed_pon
+      Fsed_don = self%Fsed_don * self%Ksed_don/(self%Ksed_don+don) * (self%theta_sed_don**(temp-20.0))
+      Fsed_pop = self%Fsed_pop
+      Fsed_dop = self%Fsed_dop * self%Ksed_dop/(self%Ksed_dop+dop) * (self%theta_sed_dop**(temp-20.0))
+      Fsed_poc = self%Fsed_poc
+      Fsed_doc = self%Fsed_doc * self%Ksed_doc/(self%Ksed_doc+doc) * (self%theta_sed_doc**(temp-20.0))
+   ENDIF
+
+   ! Calculate sedimentation flux (mmmol/m2/s) loss from benthos.
+   IF (self%use_sedmtn_model) THEN
+       Psed_poc = self%w_poc * max(_ZERO_,poc)
+       Psed_pon = self%w_pon * max(_ZERO_,pon)
+       Psed_pop = self%w_pop * max(_ZERO_,pop)
+   ELSE
+       Psed_poc = _ZERO_
+       Psed_pon = _ZERO_
+       Psed_pop = _ZERO_
+   ENDIF
+
+   pon_flux = Fsed_pon + Psed_pon
+   don_flux = Fsed_don
+   pop_flux = Fsed_pop + Psed_pop
+   dop_flux = Fsed_dop
+   poc_flux = Fsed_poc + Psed_poc
+   doc_flux = Fsed_doc
+
+   ! Set bottom fluxes for the pelagic (change per surface area per second)
+   ! Transfer sediment flux value to FABM.
+   _SET_BOTTOM_EXCHANGE_(self%id_pon,pon_flux)
+   _SET_BOTTOM_EXCHANGE_(self%id_don,don_flux)
+   _SET_BOTTOM_EXCHANGE_(self%id_pop,pop_flux)
+   _SET_BOTTOM_EXCHANGE_(self%id_dop,dop_flux)
+   _SET_BOTTOM_EXCHANGE_(self%id_poc,poc_flux)
+   _SET_BOTTOM_EXCHANGE_(self%id_doc,doc_flux)
+
+
+  ! Set sedimentation flux (mmmol/m2) as calculated by organic matter.
+   IF (self%use_sedmtn_model) THEN
+      _SET_STATE_BEN_(self%id_Psed_poc,Psed_poc)
+      _SET_STATE_BEN_(self%id_Psed_pon,Psed_pon)
+      _SET_STATE_BEN_(self%id_Psed_pop,Psed_pop)
+   ENDIF
+
+
+   ! Set sink and source terms for the benthos (change per surface area per second)
+   ! Note that this must include the fluxes to and from the pelagic.
+   !_SET_ODE_BEN_(self%id_ben_amm,-amm_flux/secs_pr_day)
+
+   ! Also store sediment flux as diagnostic variable.
+   _SET_DIAG_HZ_(self%id_sed_pon,-pon_flux)
+   _SET_DIAG_HZ_(self%id_sed_don,-don_flux)
+   _SET_DIAG_HZ_(self%id_sed_pop,-pop_flux)
+   _SET_DIAG_HZ_(self%id_sed_dop,-dop_flux)
+   _SET_DIAG_HZ_(self%id_sed_poc,-poc_flux)
+   _SET_DIAG_HZ_(self%id_sed_doc,-doc_flux)
+
+   ! Leave spatial loops (if any)
+   _FABM_HZ_LOOP_END_
+
+END SUBROUTINE aed_organic_matter_do_benthos
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+SUBROUTINE aed_organic_matter_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+!-------------------------------------------------------------------------------
+! Get the light extinction coefficient due to biogeochemical variables
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+!
+!LOCALS
+   REALTYPE :: doc,poc
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_doc,doc)
+   _GET_STATE_(self%id_poc,poc)
+
+   ! Self-shading with explicit contribution from background OM concentration.
+   _SET_EXTINCTION_(self%KeDOM*doc +self%KePOM*poc)
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+END SUBROUTINE aed_organic_matter_get_light_extinction
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+SUBROUTINE aed_organic_matter_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+!-------------------------------------------------------------------------------
+! Get the total of conserved quantities (currently only nitrogen)
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+!
+   REALTYPE :: pon, don, pop, dop, poc, doc
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _FABM_LOOP_BEGIN_
+
+   ! Retrieve current (local) state variable values.
+   _GET_STATE_(self%id_pon,pon) ! particulate organic nitrogen
+   _GET_STATE_(self%id_don,don) ! disolved organic nitrogen !lcb added don 18/7/11
+   _GET_STATE_(self%id_pop,pop) ! particulate organic nitrogen
+   _GET_STATE_(self%id_dop,dop) ! disolved organic nitrogen !lcb added don 18/7/11
+   _GET_STATE_(self%id_poc,poc) ! particulate organic nitrogen
+   _GET_STATE_(self%id_doc,doc) ! disolved organic nitrogen !lcb added don 18/7/11
+
+   ! Total nutrient is simply the sum of all variables.
+   _SET_CONSERVED_QUANTITY_(self%id_totN,pon + don) !lcb added don 18/7/11
+   _SET_CONSERVED_QUANTITY_(self%id_totP,pop + dop) !lcb added don 18/7/11
+   _SET_CONSERVED_QUANTITY_(self%id_totC,poc + doc) !lcb added don 18/7/11
+
+   ! Leave spatial loops (if any)
+   _FABM_LOOP_END_
+
+END SUBROUTINE aed_organic_matter_get_conserved_quantities
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+PURE REALTYPE FUNCTION fpon_miner(self,oxy,temp)
+!-------------------------------------------------------------------------------
+! Nitrogen
+!
+! Michaelis-Menten formulation for mineralisation
+! Here, the classical Michaelis-Menten formulation for mineralisation
+! is formulated.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   REALTYPE,INTENT(in) :: oxy,temp
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   IF (self%use_oxy) THEN
+      fpon_miner = self%Rpon_miner * oxy/(self%Kpon_miner+oxy) * (self%theta_pon_miner**(temp-20.0))
+   ELSE
+      fpon_miner = self%Rpon_miner * (self%theta_pon_miner**(temp-20.0))
+   ENDIF
+
+END FUNCTION fpon_miner
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+PURE REALTYPE FUNCTION fdon_miner(self,oxy,temp)
+!-------------------------------------------------------------------------------
+! Michaelis-Menten formulation for mineralisation added 18/7/11
+!
+! Here, the classical Michaelis-Menten formulation for mineralisation
+! is formulated.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   REALTYPE,INTENT(in)                          :: oxy,temp
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   IF (self%use_oxy) THEN
+      fdon_miner = self%Rdon_miner * oxy/(self%Kdon_miner+oxy) * (self%theta_don_miner**(temp-20.0))
+   ELSE
+      fdon_miner = self%Rdon_miner * (self%theta_don_miner**(temp-20.0))
+   ENDIF
+
+END FUNCTION fdon_miner
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+!###############################################################################
+PURE REALTYPE FUNCTION fpop_miner(self,oxy,temp)
+!-------------------------------------------------------------------------------
+! Phosphorus
+!
+! Michaelis-Menten formulation for mineralisation
+!
+! Here, the classical Michaelis-Menten formulation for mineralisation
+! is formulated.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   REALTYPE,INTENT(in)                          :: oxy,temp
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   IF (self%use_oxy) THEN
+      fpop_miner = self%Rpop_miner * oxy/(self%Kpop_miner+oxy) * (self%theta_pop_miner**(temp-20.0))
+   ELSE
+      fpop_miner = self%Rpop_miner * (self%theta_pop_miner**(temp-20.0))
+   ENDIF
+
+END FUNCTION fpop_miner
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+PURE REALTYPE FUNCTION fdop_miner(self,oxy,temp)
+!-------------------------------------------------------------------------------
+! Michaelis-Menten formulation for mineralisation added 18/7/11
+!
+! Here, the classical Michaelis-Menten formulation for mineralisation
+! is formulated.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   REALTYPE,INTENT(in)                          :: oxy,temp
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   IF (self%use_oxy) THEN
+      fdop_miner = self%Rdop_miner * oxy/(self%Kdop_miner+oxy) * (self%theta_dop_miner**(temp-20.0))
+   ELSE
+      fdop_miner = self%Rdop_miner * (self%theta_dop_miner**(temp-20.0))
+   ENDIF
+
+END FUNCTION fdop_miner
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+!###############################################################################
+PURE REALTYPE FUNCTION fpoc_miner(self,oxy,temp)
+!-------------------------------------------------------------------------------
+! Carbon
+!
+! Michaelis-Menten formulation for mineralisation
+!
+! Here, the classical Michaelis-Menten formulation for mineralisation
+! is formulated.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   REALTYPE,INTENT(in)                          :: oxy,temp
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   IF (self%use_oxy) THEN
+      fpoc_miner = self%Rpoc_miner * oxy/(self%Kpoc_miner+oxy) * (self%theta_poc_miner**(temp-20.0))
+   ELSE
+      fpoc_miner = self%Rpoc_miner * (self%theta_poc_miner**(temp-20.0))
+   ENDIF
+
+END FUNCTION fpoc_miner
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+PURE REALTYPE FUNCTION fdoc_miner(self,oxy,temp)
+!-------------------------------------------------------------------------------
+! Michaelis-Menten formulation for mineralisation added 18/7/11
+!
+! Here, the classical Michaelis-Menten formulation for mineralisation
+! is formulated.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   REALTYPE,INTENT(in)                          :: oxy,temp
+!
+!-----------------------------------------------------------------------
+!BEGIN
+   IF (self%use_oxy) THEN
+      fdoc_miner = self%Rdoc_miner * oxy/(self%Kdoc_miner+oxy) * (self%theta_doc_miner**(temp-20.0))
+   ELSE
+      fdoc_miner = self%Rdoc_miner * (self%theta_doc_miner**(temp-20.0))
+   ENDIF
+
+END FUNCTION fdoc_miner
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+END MODULE aed_organic_matter
+#endif
