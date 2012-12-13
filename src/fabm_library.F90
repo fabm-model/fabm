@@ -18,6 +18,7 @@
    use fabm_bb_passive
    use fabm_examples_npzd_f2003
    ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
+   use aed_models
 #endif
 
    implicit none
@@ -60,11 +61,14 @@
 
 #ifdef _FABM_F2003_
       select case (modelname)
-         case ('bb_passive') 
+         case ('bb_passive')
             model => bb_passive_create(configunit,instancename,parent)
-         case ('examples_npzd_f2003') 
+         case ('examples_npzd_f2003')
             model => examples_npzd_f2003_create(configunit,instancename,parent)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
+         case default
+            if ( modelname(1:4) .eq. 'aed_' ) &
+               model => aed_create_model(configunit,modelname,instancename,parent);
       end select
 #endif
 

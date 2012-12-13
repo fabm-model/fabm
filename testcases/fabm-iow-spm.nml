@@ -5,14 +5,14 @@
 !                     a comma-separated list of one or model model names
 !-------------------------------------------------------------------------------
 &fabm_nml
-   models = 'iow_getmspm'
+   models = 'iow_spm'
 /
 
 !-------------------------------------------------------------------------------
-! iow_getmspm - the GETM SPM model
+! iow_spm - the GETM SPM model
 !-------------------------------------------------------------------------------
 
-&iow_getmspm
+&iow_spm
    c_init=1.0
    shading=1.0,
    mass_sed_init=100.
