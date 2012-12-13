@@ -174,15 +174,15 @@ END FUNCTION exp_integral
 
 
 !###############################################################################
-SUBROUTINE aed_bio_temp_function(numg, theta, T_max, T_std, T_opt, aTn, kTn, bTn, name)
+SUBROUTINE aed_bio_temp_function(numg, theta, T_std, T_opt, T_max, aTn, bTn, kTn, name)
 !-------------------------------------------------------------------------------
 ! Numerically solver for continuos temperature function
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    INTEGER,INTENT(in)       :: numg        ! Number of groups
    REALTYPE,INTENT(in)      :: theta(:)
-   REALTYPE,INTENT(inout)   :: T_max(:), T_std(:), T_opt(:)
-   REALTYPE,INTENT(out)     :: aTn(:), kTn(:), bTn(:)
+   REALTYPE,INTENT(inout)   :: T_std(:), T_opt(:), T_max(:)
+   REALTYPE,INTENT(out)     :: aTn(:), bTn(:), kTn(:)
    CHARACTER(64),INTENT(in) :: name(:)
 !
 !LOCALS

@@ -331,12 +331,12 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
 
    CALL aed_bio_temp_function(self%num_phytos,              &
                               self%phytos%theta_growth,     &
-                              self%phytos%T_max,            &
                               self%phytos%T_std,            &
                               self%phytos%T_opt,            &
+                              self%phytos%T_max,            &
                               self%phytos%aTn,              &
-                              self%phytos%kTn,              &
                               self%phytos%bTn,              &
+                              self%phytos%kTn,              &
                               self%phytos%p_name)
 
 
