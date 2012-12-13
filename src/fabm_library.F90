@@ -61,9 +61,9 @@
 
 #ifdef _FABM_F2003_
       select case (modelname)
-         case ('bb_passive') 
+         case ('bb_passive')
             model => bb_passive_create(configunit,instancename,parent)
-         case ('examples_npzd_f2003') 
+         case ('examples_npzd_f2003')
             model => examples_npzd_f2003_create(configunit,instancename,parent)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
          case default

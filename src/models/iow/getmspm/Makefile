@@ -15,7 +15,7 @@ objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../doc/fabm.tex 
+	$(PROTEX) $(DOCSRC) > ../../../doc/fabm.tex
 
 realclean:
 	$(RM) *.o *~

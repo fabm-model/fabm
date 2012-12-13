@@ -40,7 +40,7 @@
 !
    integer, parameter, public         :: shape_scalar=0,shape_hz=2,shape_full=3
    integer, parameter, public         :: id_not_used=-1
-   
+
    ! Below a list of names of standard physical-biogeochemical variables that have a well-defined interpretation and unit.
    ! These variables can be used from biogeochemical models by calling register_dependency with
    ! the name of the desired variable during model initialization.
@@ -82,7 +82,7 @@
 
    ! Non-spatial (scalar) variables.
    character(len=64),parameter,public :: &
-     varname_yearday = 'number_of_days_since_start_of_the_year'              ! Decimal day of the year (day), equal to 0.0 at 00:00 1 Jan UTC 
+     varname_yearday = 'number_of_days_since_start_of_the_year'              ! Decimal day of the year (day), equal to 0.0 at 00:00 1 Jan UTC
 !
 ! !PUBLIC TYPES:
 !

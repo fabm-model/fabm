@@ -30,7 +30,7 @@
       _TYPE_STATE_VARIABLE_ID_      :: id_spm !concentrations
       _TYPE_STATE_VARIABLE_ID_      :: id_pmpool !sediment pool
       _TYPE_DEPENDENCY_ID_          :: id_taub    !bottom stress
-      
+
 !     Model parameters
       REALTYPE :: ws
       REALTYPE :: c_init
@@ -79,7 +79,7 @@
    REALTYPE            :: erosion_const=1.d-2
    REALTYPE            :: ws=-10.0d0               ! m/d
    REALTYPE            :: shading=1.0d0            ! 1/m per mg/l
-            
+
    namelist /iow_getmspm/ c_init, shading, &
                          mass_sed_init, &
                          tauc_erosion, &
@@ -118,7 +118,7 @@
    return
 
 99 call fatal_error('spm_init','Error reading namelist spm')
-   
+
    end subroutine iow_getmspm_init
 !EOC
 
@@ -146,7 +146,7 @@
    REALTYPE                     :: Erosion_Flux,Sedimentation_Flux
 !
 ! !REVISION HISTORY:
-!  Original author(s): Richard Hofmeister 
+!  Original author(s): Richard Hofmeister
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -168,7 +168,7 @@
    else
       Erosion_Flux = _ZERO_
    end if
-   
+
 
    !sedimentation flux:
    Sedimentation_Flux = min(_ZERO_,self%ws * spm * (1.d0-taub / self%tauc_sedimentation))
@@ -177,7 +177,7 @@
    _SET_BOTTOM_EXCHANGE_(self%id_spm,Sedimentation_Flux+Erosion_Flux)
    ! unit is g/m**2/s
    _SET_ODE_BEN_(self%id_pmpool,-Erosion_Flux-Sedimentation_Flux)
-         
+
    _FABM_HZ_LOOP_END_
 
    end subroutine iow_getmspm_do_benthos
@@ -200,11 +200,11 @@
    REALTYPE      :: spm
 !
 ! !REVISION HISTORY:
-!  Original author(s): Richard Hofmeister 
+!  Original author(s): Richard Hofmeister
 !
 !EOP
 !-----------------------------------------------------------------------
-!BOC   
+!BOC
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
 
