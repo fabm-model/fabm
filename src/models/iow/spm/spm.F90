@@ -3,10 +3,10 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_iow_getmspm --- 1-class SPM model,
+! !MODULE: fabm_iow_spm --- 1-class SPM model,
 !
 ! !INTERFACE:
-   module fabm_iow_getmspm
+   module fabm_iow_spm
 !
 ! !USES:
    use fabm_types
@@ -16,7 +16,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_iow_getmspm, iow_getmspm_init, iow_getmspm_do, iow_getmspm_do_benthos, iow_getmspm_get_light_extinction
+   public type_iow_spm, iow_spm_init, iow_spm_do, iow_spm_do_benthos, iow_spm_get_light_extinction
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -25,7 +25,7 @@
 !
 !
 ! !PUBLIC DERIVED TYPES:
-   type type_iow_getmspm
+   type type_iow_spm
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_spm !concentrations
       _TYPE_STATE_VARIABLE_ID_      :: id_pmpool !sediment pool
@@ -52,7 +52,7 @@
 ! !ROUTINE: Initialise the sediment model
 !
 ! !INTERFACE:
-   subroutine iow_getmspm_init(self,modelinfo,namlst)
+   subroutine iow_spm_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Here, the spm namelist is read and te variables exported
@@ -62,7 +62,7 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   type (type_iow_getmspm),      intent(out)   :: self
+   type (type_iow_spm),      intent(out)   :: self
    type (type_model_info),intent(inout) :: modelinfo
    integer,               intent(in)    :: namlst
 !
@@ -80,7 +80,7 @@
    REALTYPE            :: ws=-10.0d0               ! m/d
    REALTYPE            :: shading=1.0d0            ! 1/m per mg/l
 
-   namelist /iow_getmspm/ c_init, shading, &
+   namelist /iow_spm/ c_init, shading, &
                          mass_sed_init, &
                          tauc_erosion, &
                          tauc_sedimentation, &
@@ -90,7 +90,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(namlst,nml=iow_getmspm,err=99)
+   read(namlst,nml=iow_spm,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -119,7 +119,7 @@
 
 99 call fatal_error('spm_init','Error reading namelist spm')
 
-   end subroutine iow_getmspm_init
+   end subroutine iow_spm_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -128,7 +128,7 @@
 ! !ROUTINE: Sedimentation/Erosion
 !
 ! !INTERFACE:
-   subroutine iow_getmspm_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine iow_spm_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 ! !DESCRIPTION:
 ! Calculating the benthic fluxes
@@ -136,7 +136,7 @@
    implicit none
 
 ! !INPUT PARAMETERS:
-   type (type_iow_getmspm), intent(in) :: self
+   type (type_iow_spm), intent(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 
 ! !LOCAL VARIABLES:
@@ -180,21 +180,21 @@
 
    _FABM_HZ_LOOP_END_
 
-   end subroutine iow_getmspm_do_benthos
+   end subroutine iow_spm_do_benthos
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !ROUTINE: iow_getmspm_get_light_extinction
+! !ROUTINE: iow_spm_get_light_extinction
 !
 ! !INTERFACE:
-   subroutine iow_getmspm_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   subroutine iow_spm_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
 
    implicit none
 
 ! !INPUT PARAMETERS:
-   type (type_iow_getmspm), intent(in) :: self
+   type (type_iow_spm), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 ! !LOCAL VARIABLES
    REALTYPE      :: spm
@@ -213,9 +213,9 @@
 
    _FABM_LOOP_END_
 
-   end subroutine iow_getmspm_get_light_extinction
+   end subroutine iow_spm_get_light_extinction
 !EOC
 !-----------------------------------------------------------------------
 
-   end module fabm_iow_getmspm
+   end module fabm_iow_spm
 
