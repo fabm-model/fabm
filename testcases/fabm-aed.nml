@@ -1,0 +1,269 @@
+!-------------------------------------------------------------------------------
+! fabm_nml
+!-------------------------------------------------------------------------------
+&fabm_nml
+   models = 'aed_sedflux',
+            'aed_oxygen',
+            'aed_carbon',
+            'aed_silica',
+            'aed_nitrogen',
+            'aed_phosphorus',
+            'aed_organic_matter',
+            'aed_phytoplankton',
+            'aed_zooplankton',
+            'aed_pathogens',
+            'aed_tracer',
+            'aed_totals'
+/
+
+!-------------------------------------------------------------------------------
+! aed_sedflux
+!  sediment flux model types :
+!       "Constant" = sedimentation fluxes are constant values.
+!       "Constant2d" = Sedimentation fluxes may be different for
+!                                different benthic cells - provided by driver
+!       "Dynamic" = Sedimentation fluxes may be different for
+!                                different benthic cells at different times
+!                                        - computed by model
+!       "Dynamic2d" = Sedimentation fluxes may be different for
+!                                different benthic cells at different times
+!                                        - computed by model
+!-------------------------------------------------------------------------------
+&aed_sedflux
+   sedflux_model = 'Constant'
+/
+
+&aed_sed_constant
+   Fsed_oxy = -3.0
+   Fsed_rsi = 1.8
+   Fsed_amm = 3.0
+   Fsed_nit = -0.5
+   Fsed_frp = 0.008
+   Fsed_pon = -0.01
+   Fsed_don = 5.0
+   Fsed_pop = -0.01
+   Fsed_dop = -900.0
+   Fsed_poc = -0.01
+   Fsed_doc = 30.0
+   Fsed_dic = 3.0
+   Fsed_ch4 = 0.0
+   Fsed_feii = 0.0
+/
+
+!-------------------------------------------------------------------------------
+&aed_oxygen
+   oxy_initial = 225.0
+   Fsed_oxy = -3.0
+   Ksed_oxy = 50.0
+   theta_sed_oxy = 1.08
+!  Fsed_oxy_variable = 'aed_sedflux_Fsed_oxy'
+/
+
+!-------------------------------------------------------------------------------
+&aed_carbon
+   !-- DIC and pH
+   dic_initial = 1600.5
+   Fsed_dic = 3.0
+   Ksed_dic = 20.0
+   theta_sed_dic = 1.08
+   Fsed_dic_variable='aed_sedflux_Fsed_dic'
+   pH_initial = 7.5
+   atmco2 = 370e-6
+   ionic = 0.1
+   !-- CH4
+   ch4_initial = 27.6
+   Rch4ox = 0.01
+   Kch4ox = 0.5
+   vTch4ox = 1.08
+   Fsed_ch4 = 0.5
+   Ksed_ch4 = 100.0
+   theta_sed_ch4 = 1.08
+   methane_reactant_variable='aed_oxygen_oxy'
+!  Fsed_ch4_variable='aed_sedflux_Fsed_ch4'
+/
+
+!-------------------------------------------------------------------------------
+&aed_silica
+   rsi_initial = 12.5
+   Fsed_rsi = 1.8
+   Ksed_rsi = 50.0
+   theta_sed_rsi = 1.08
+   silica_reactant_variable='aed_oxygen_oxy'
+   Fsed_rsi_variable = 'aed_sedflux_Fsed_rsi'
+/
+
+!-------------------------------------------------------------------------------
+&aed_nitrogen
+   amm_initial = 12.5
+   nit_initial = 27.6
+   Rnitrif = 0.1
+   Rdenit = 0.5
+   Fsed_amm = 3.0
+   Fsed_nit = -0.5
+   Knitrif = 78.1
+   Kdenit = 2.0
+   Ksed_amm = 20.0
+   Ksed_nit = 100.0
+   theta_nitrif = 1.08
+   theta_denit = 1.08
+   theta_sed_amm = 1.08
+   theta_sed_nit = 1.08
+   nitrif_reactant_variable='aed_oxygen_oxy'
+   denit_product_variable=''  !'aed_nitrogen_N20'
+   Fsed_amm_variable='aed_sedflux_Fsed_amm'
+   Fsed_nit_variable='aed_sedflux_Fsed_nit'
+/
+
+!-------------------------------------------------------------------------------
+&aed_phosphorus
+   frp_initial = 0.29
+   Fsed_frp = 0.008
+   Ksed_frp = 50.0
+   theta_sed_frp = 1.08
+   phosphorus_reactant_variable = '' !'aed_oxygen_oxy'
+!  Fsed_frp_variable ='aed_sedflux_Fsed_frp'
+   simPO4Adsorption = .true.
+   ads_use_external_tss = .true.
+   po4sorption_target_variable =''
+   PO4AdsorptionModel = 1
+   Kpo4p = 0.1
+   ads_use_pH = .false.
+   Kadsratio= 1.0
+   Qmax = 1.0
+   w_po4ads = -1.2   ! doesnt seem to work
+/
+
+!-------------------------------------------------------------------------------
+&aed_organic_matter
+   !-- ORGANIC NITROGEN
+   pon_initial = 50.0
+   don_initial = 50.0
+   w_pon = -0.01
+   Rpon_miner = 0.01
+   Rdon_miner = 0.01
+   Fsed_pon = -0.01
+   Fsed_don = 5.0
+   Kpon_miner = 31.25
+   Kdon_miner = 31.25
+   Ksed_don = 4.5
+   theta_pon_miner = 1.08
+   theta_don_miner = 1.08
+   theta_sed_don = 1.08
+   don_miner_product_variable='aed_nitrogen_amm'
+   !-- ORGANIC PHOSPHORUS
+   pop_initial = 1.0
+   dop_initial = 1.0
+   w_pop = -0.01
+   Rpop_miner = 0.001
+   Rdop_miner = 0.0001
+   Fsed_pop = -0.01
+   Fsed_dop = -900.0
+   Kpop_miner = 31.25
+   Kdop_miner = 31.25
+   Ksed_dop = 40.5
+   theta_pop_miner = 1.08
+   theta_dop_miner = 1.08
+   theta_sed_dop = 1.08
+   dop_miner_product_variable='aed_phosphorus_frp'
+   !-- ORGANIC CARBON
+   poc_initial = 80.0
+   doc_initial = 80.0
+   w_poc = -0.01
+   Rpoc_miner = 0.01
+   Rdoc_miner = 0.01
+   Fsed_poc = 0.00
+   Fsed_doc = 10.0
+   Kpoc_miner = 31.25
+   Kdoc_miner = 31.25
+   Ksed_doc = 4.5
+   theta_poc_miner = 1.08
+   theta_doc_miner = 1.08
+   theta_sed_doc = 1.08
+   KeDOM=0.001
+   KePOM=0.001
+   doc_miner_reactant_variable='aed_oxygen_oxy'
+   doc_miner_product_variable= 'aed_carbon_dic'
+!  Fsed_pon_variable='aed_sedflux_Fsed_pon'
+!  Fsed_don_variable='aed_sedflux_Fsed_don'
+!  Fsed_pop_variable='aed_sedflux_Fsed_pop'
+!  Fsed_dop_variable='aed_sedflux_Fsed_dop'
+!  Fsed_poc_variable='aed_sedflux_Fsed_poc'
+!  Fsed_doc_variable='aed_sedflux_Fsed_doc'
+/
+
+!-------------------------------------------------------------------------------
+&aed_phytoplankton
+   num_phytos = 3
+   the_phytos = 3,7,8
+   p_excretion_target_variable='aed_organic_matter_dop'
+   n_excretion_target_variable='aed_organic_matter_don'
+   c_excretion_target_variable='aed_organic_matter_doc'
+   si_excretion_target_variable=''
+   p_mortality_target_variable='aed_organic_matter_pop'
+   n_mortality_target_variable='aed_organic_matter_pon'
+   c_mortality_target_variable='aed_organic_matter_poc'
+   si_mortality_target_variable=''
+   p1_uptake_target_variable='aed_phosphorus_frp'
+   n1_uptake_target_variable='aed_nitrogen_nit'
+   n2_uptake_target_variable='aed_nitrogen_amm'
+   si_uptake_target_variable='aed_silica_rsi'
+   do_uptake_target_variable='aed_oxygen_oxy'
+   c_uptake_target_variable='aed_carbon_dic'
+/
+
+!-------------------------------------------------------------------------------
+&aed_zooplankton
+   num_zoops = 1
+   the_zoops = 1
+   dn_target_variable='aed_organic_matter_don'  ! dissolved nitrogen target variable
+   pn_target_variable='aed_organic_matter_pon'  ! particulate nitrogen target variable
+   dp_target_variable='aed_organic_matter_dop'  ! dissolved phosphorus target variable
+   pp_target_variable='aed_organic_matter_pop'  ! particulate phosphorus target variable
+   dc_target_variable='aed_organic_matter_doc'  ! dissolved carbon target variable
+   pc_target_variable='aed_organic_matter_poc'  ! particulate carbon target variable
+/
+
+!-------------------------------------------------------------------------------
+&aed_pathogens
+   num_pathogens = 1
+   the_pathogens = 1 !,3,5
+/
+
+!-------------------------------------------------------------------------------
+&aed_bacteria
+   growth = 1.0
+   mortality = 1.0
+/
+
+!-------------------------------------------------------------------------------
+&aed_viruses
+   num_viruses = 1
+/
+
+!-------------------------------------------------------------------------------
+&aed_tracer
+   num_tracers = 1
+   decay = 0 !, 0, 0, ...
+   settling = 0 !, 0, 0, ....
+   fsed = 0 !, 0, 0, ...
+/
+
+!-------------------------------------------------------------------------------
+&aed_totals
+   TN =  'aed_nitrogen_nit',
+         'aed_nitrogen_amm',
+         'aed_organic_matter_don',
+         'aed_organic_matter_don',
+         'aed_phytoplankton_green_IN'
+   TP =  'aed_phosphorus_frp',
+         'aed_phosphorus_frp_ads',
+         'aed_organic_matter_dop',
+         'aed_organic_matter_dop',
+         'aed_phytoplankton_green_IP'
+   TOC = 'aed_organic_matter_doc',
+         'aed_organic_matter_poc',
+         'aed_phytoplankton_green'
+   TSS = 'aed_tracer_ss1',
+         'aed_phytoplankton_green' !, .... 
+   turbidity = 0.1,0.1            !,  <vector same length as TSS names>
+/
