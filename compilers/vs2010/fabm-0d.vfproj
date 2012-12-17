@@ -15,7 +15,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32" OutputDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" UseProcessorExtensions="codeExclusivelyHost" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\0d" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_" VectorizerDiagLevel="vectorizerDiagLevel3" WarnUnusedVariables="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" UseProcessorExtensions="codeExclusivelyHost" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\0d;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_" VectorizerDiagLevel="vectorizerDiagLevel3" WarnUnusedVariables="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -65,6 +65,20 @@
 		<Filter Name="driver">
 		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.F90"/></Filter>
 		<Filter Name="models">
+		<Filter Name="aed">
+		<File RelativePath="..\..\src\models\aed\aed_bacteria.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_carbon.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_chlorophylla.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_iron.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_models.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_pathogens.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_sedflux.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_sulfur.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_totals.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_tracer.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_util.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_viruses.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_zooplankton.F90"/></Filter>
 		<Filter Name="bb">
 		<Filter Name="passive">
 		<File RelativePath="..\..\src\models\bb\passive\passive.F90"/></Filter></Filter>
@@ -86,8 +100,8 @@
 		<Filter Name="iow">
 		<Filter Name="ergom">
 		<File RelativePath="..\..\src\models\iow\ergom\ergom.F90"/></Filter>
-		<Filter Name="getmspm">
-		<File RelativePath="..\..\src\models\iow\getmspm\spm.F90"/></Filter></Filter>
+		<Filter Name="spm">
+		<File RelativePath="..\..\src\models\iow\spm\spm.F90"/></Filter></Filter>
 		<Filter Name="klimacampus">
 		<Filter Name="phy_feedback">
 		<File RelativePath="..\..\src\models\klimacampus\phy_feedback\phy_feedback.F90"/></Filter></Filter>
