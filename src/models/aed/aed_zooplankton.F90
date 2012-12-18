@@ -22,7 +22,7 @@
 
 MODULE aed_zooplankton
 !-------------------------------------------------------------------------------
-!  aed_zoolankton --- multi zooplankton biogeochemical model
+!  aed_zooplankton --- multi zooplankton biogeochemical model
 !-------------------------------------------------------------------------------
    USE fabm_types
    USE fabm_driver
@@ -238,8 +238,8 @@ FUNCTION aed_zooplankton_create(namlst,name,parent) RESULT(self)
                               self%zoops%Topt_zoo,       &
                               self%zoops%Tmax_zoo,       &
                               self%zoops%aTn,            &
-                              self%zoops%kTn,            &
                               self%zoops%bTn,            &
+                              self%zoops%kTn,            &
                               self%zoops%zoop_name)
 
 
@@ -445,8 +445,13 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
       phy_i = 0
       DO prey_i = 1,self%zoops(zoop_i)%num_prey
          IF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey .EQ. 'aed_organic_matter_poc') THEN
-            grazing_n = grazing_n + grazing_prey(prey_i) * pon/poc
-            grazing_p = grazing_p + grazing_prey(prey_i) * pop/poc
+            IF (poc > _ZERO_) THEN
+                grazing_n = grazing_n + grazing_prey(prey_i) * pon/poc
+                grazing_p = grazing_p + grazing_prey(prey_i) * pop/poc
+            ELSE
+                grazing_n = _ZERO_
+                grazing_p = _ZERO_
+            ENDIF
          ELSEIF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey(1:17).EQ.'aed_phytoplankton') THEN
             phy_i = phy_i + 1
             _GET_STATE_(self%zoops(zoop_i)%id_phyIN(phy_i),phy_INcon(phy_i))
@@ -540,21 +545,14 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
       DO prey_i = 1,self%zoops(zoop_i)%num_prey
          _SET_ODE_(self%zoops(zoop_i)%id_prey(prey_i), -1.0 * grazing_prey(prey_i))
           IF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey .EQ. 'aed_organic_matter_poc') THEN
-                     _SET_ODE_(self%id_Nmorttarget, -1.0 * grazing_prey(prey_i) * pon/poc)
-                     _SET_ODE_(self%id_Pmorttarget, -1.0 * grazing_prey(prey_i) * pop/poc)
-          ELSEIF ((self%zoops(zoop_i)%prey(prey_i)%zoop_prey.EQ.'aed_phytoplankton_phy01') &
-                .OR.  (self%zoops(zoop_i)%prey(prey_i)%zoop_prey.EQ.'aed_phytoplankton_phy02') &
-                .OR.  (self%zoops(zoop_i)%prey(prey_i)%zoop_prey.EQ.'aed_phytoplankton_green') &
-                .OR.  (self%zoops(zoop_i)%prey(prey_i)%zoop_prey.EQ.'aed_phytoplankton_phy04') &
-                .OR.  (self%zoops(zoop_i)%prey(prey_i)%zoop_prey.EQ.'aed_phytoplankton_phy05') &
-                .OR.  (self%zoops(zoop_i)%prey(prey_i)%zoop_prey.EQ.'aed_phytoplankton_phy06') &
-                .OR.  (self%zoops(zoop_i)%prey(prey_i)%zoop_prey.EQ.'aed_phytoplankton_diatom') &
-                .OR.  (self%zoops(zoop_i)%prey(prey_i)%zoop_prey.EQ.'aed_phytoplankton_crypto') &
-                .OR.  (self%zoops(zoop_i)%prey(prey_i)%zoop_prey.EQ.'aed_phytoplankton_phy09') &
-                .OR.  (self%zoops(zoop_i)%prey(prey_i)%zoop_prey.EQ.'aed_phytoplankton_phy10')) THEN
+                      IF (poc > _ZERO_) THEN
+                         _SET_ODE_(self%id_Nmorttarget, -1.0 * grazing_prey(prey_i) * pon/poc)
+                         _SET_ODE_(self%id_Pmorttarget, -1.0 * grazing_prey(prey_i) * pop/poc)
+                      ENDIF
+          ELSEIF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey(1:17).EQ.'aed_phytoplankton') THEN
             phy_i = phy_i + 1
                      _SET_ODE_(self%zoops(zoop_i)%id_phyIN(phy_i), -1.0 * grazing_prey(prey_i) / prey(prey_i) * phy_INcon(phy_i))
-                     _SET_ODE_(self%zoops(zoop_i)%id_phyIN(phy_i), -1.0 * grazing_prey(prey_i) / prey(prey_i) * phy_IPcon(phy_i))
+                     _SET_ODE_(self%zoops(zoop_i)%id_phyIP(phy_i), -1.0 * grazing_prey(prey_i) / prey(prey_i) * phy_IPcon(phy_i))
          ENDIF
       ENDDO
 
