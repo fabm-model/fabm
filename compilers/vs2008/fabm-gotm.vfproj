@@ -27,6 +27,9 @@
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
 	<Files>
 		<Filter Name="Header Files" Filter="fi;fd">
+		<Filter Name="models">
+		<Filter Name="aed">
+		<File RelativePath="..\..\src\models\aed\aed.h"/></Filter></Filter>
 		<File RelativePath="..\..\include\fabm.h"/>
 		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.h"/></Filter>
 		<Filter Name="Make Files">

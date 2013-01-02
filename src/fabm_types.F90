@@ -75,10 +75,10 @@
 
    ! Added for aed modules
    character(len=64),parameter,public :: &
-     varname_layer_ht= 'env_layer_ht',    &! Layer thickness in m
-     varname_extc    = 'env_extc_coef',   &! Extinction coefficient
-     varname_tss     = 'env_tss',         &! Total suspended solids
-     varname_sed_zone= 'env_sed_zone'      ! sedimentation zone
+     varname_layer_ht= 'cell_thickness',                                                       & ! Layer thickness (m)
+     varname_extc    = 'attenuation_coefficient_of_downwelling_photosynthetic_radiative_flux', & ! Attenuation coefficient for Photosynthetically Active [400-700 nm] Radiation (m-1)
+     varname_tss     = 'mass_concentration_of_suspended_matter',                               & ! Total suspended matter or suspended solids (g m-3)
+     varname_sed_zone= 'env_sed_zone'                                                            ! sedimentation zone
 
    ! Non-spatial (scalar) variables.
    character(len=64),parameter,public :: &
