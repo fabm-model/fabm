@@ -87,16 +87,16 @@ contains
 
    ! First state variable: total dissolved inorganic carbon
    call register_state_variable(modelinfo,self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon', &
-                                dic_initial,minimum=_ZERO_,no_precipitation_dilution=.false.,no_river_dilution=.true.)
+                                dic_initial,minimum=0.0_rk,no_precipitation_dilution=.false.,no_river_dilution=.true.)
 
-   if (.not. alk_param) then
-     ! Alkalinity is a state variable.
-     call register_state_variable(modelinfo,self%id_alk,'alk','mEq/m**3','alkalinity', &
-                                  alk_initial,minimum=_ZERO_,no_precipitation_dilution=.false.,no_river_dilution=.true.)
-   else
+   if (alk_param) then
      ! Alkalinity is diagnosed from temperature and salinity. Register it as output variable.
      call register_diagnostic_variable(modelinfo,self%id_alk_diag,'alk', 'mEq/m**3','alkalinity', &
                                        time_treatment=time_treatment_averaged)
+   else
+     ! Alkalinity is a state variable.
+     call register_state_variable(modelinfo,self%id_alk,'alk','mEq/m**3','alkalinity', &
+                                  alk_initial,minimum=0.0_rk,no_precipitation_dilution=.false.,no_river_dilution=.true.)
    end if
 
    ! Register diagnostic variables.
@@ -123,7 +123,7 @@ contains
    call register_dependency(modelinfo,self%id_pres,varname_pres)
    call register_dependency(modelinfo,self%id_dens,varname_dens)
    call register_dependency(modelinfo,self%id_wind,varname_wind_sf)
-   if (self%pCO2a.eq._ZERO_) call register_dependency(modelinfo,self%id_pco2_surf,'pco2_surf')
+   if (self%pCO2a==0.0_rk) call register_dependency(modelinfo,self%id_pco2_surf,'pco2_surf')
 
    return
 
@@ -240,7 +240,7 @@ contains
    _GET_(self%id_salt,salt)
    _GET_(self%id_dens,dens)
    _GET_HORIZONTAL_(self%id_wind,wnd)
-   if (self%pCO2a.eq._ZERO_) then
+   if (self%pCO2a==0.0_rk) then
       _GET_HORIZONTAL_(self%id_pco2_surf,pCO2a)
    else
       pCO2a = self%pCO2a
@@ -259,10 +259,10 @@ contains
    end if
 
    ! Calculate carbonate system equilibrium to get pCO2 and Henry constant.
-   call CO2DYN(dic/1.0D3/dens, TA/1.0D6, temp, salt, PCO2WATER, pH, HENRY, ca, bc, cb)
+   call CO2DYN(dic/1.0e3_rk/dens, TA/1.0e6_rk, temp, salt, PCO2WATER, pH, HENRY, ca, bc, cb)
 
    ! Calculate air-sea exchange of CO2 (positive flux is from atmosphere to water)
-   call Air_sea_exchange(temp, wnd, PCO2WATER*1.0D6, pCO2a, Henry, dens/1.0e3_rk, fl)
+   call Air_sea_exchange(temp, wnd, PCO2WATER*1.0e6_rk, pCO2a, Henry, dens/1.0e3_rk, fl)
 
    ! Transfer surface exchange value to FABM.
    _SET_SURFACE_EXCHANGE_(self%id_dic,fl/secs_pr_day)
