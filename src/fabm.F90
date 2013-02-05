@@ -598,6 +598,8 @@ interface fabm_link_data
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   nullify(model)
+
    ! Determine whether the provided unit has been opened already.
    inquire(file_unit,opened=isopen)
 
@@ -683,9 +685,6 @@ interface fabm_link_data
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-! !LOCAL VARIABLES:
-  logical                    :: isopen
-  integer                    :: ivar
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1436,9 +1435,6 @@ interface fabm_link_data
    integer,                                   intent(in)    :: id
    real(rk) _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
 !
-! !LOCAL PARAMETERS:
-   integer :: i
-!
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
@@ -1463,9 +1459,6 @@ interface fabm_link_data
    type (type_model),                            intent(inout) :: model
    integer,                                      intent(in)    :: id
    real(rk) _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
-!
-! !LOCAL PARAMETERS:
-   integer :: i
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
