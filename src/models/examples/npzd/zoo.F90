@@ -36,7 +36,7 @@
       type (type_dependency_id)          :: id_temp
 
 !     Model parameters
-      REALTYPE :: z0,gmax,iv,rzn,rzd
+      real(rk) :: z0,gmax,iv,rzn,rzd
       logical  :: do_exc,do_mort,do_grz
    end type
 !EOP
@@ -68,17 +68,17 @@
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                  :: z_initial=0.
-   REALTYPE                  :: z0=0.0225
-   REALTYPE                  :: gmax=5.787037e-06
-   REALTYPE                  :: iv=1.1
-   REALTYPE                  :: rzn=1.157407e-07
-   REALTYPE                  :: rzd=2.314814e-07
+   real(rk)                  :: z_initial=0.
+   real(rk)                  :: z0=0.0225
+   real(rk)                  :: gmax=5.787037e-06
+   real(rk)                  :: iv=1.1
+   real(rk)                  :: rzn=1.157407e-07
+   real(rk)                  :: rzd=2.314814e-07
    character(len=64)         :: excretion_target_variable=''
    character(len=64)         :: mortality_target_variable=''
    character(len=64)         :: grazing_target_variable=''
 
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
    namelist /examples_npzd_zoo/ &
             z_initial,z0,gmax,iv,rzn,rzd,excretion_target_variable, &
             mortality_target_variable,grazing_target_variable
@@ -143,8 +143,8 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: p,z,temp
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: p,z,temp
+   real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -201,7 +201,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: p,d
+   real(rk)                     :: p,d
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -233,7 +233,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: n,p,z,d
+   real(rk)                     :: n,p,z,d
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -274,9 +274,9 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: p,z,temp
-   REALTYPE                   :: iopt,rpd,dn,primprod
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: p,z,temp
+   real(rk)                   :: iopt,rpd,dn,primprod
+   real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -335,7 +335,7 @@
 ! !IROUTINE: Ivlev formulation for zooplankton grazing on phytoplankton
 !
 ! !INTERFACE:
-   pure REALTYPE function fpz(self,p,z)
+   pure real(rk) function fpz(self,p,z)
 !
 ! !DESCRIPTION:
 ! Here, the classical Ivlev formulation for zooplankton grazing on
@@ -346,7 +346,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_zoo), intent(in)     :: self
-   REALTYPE, intent(in)          :: p,z
+   real(rk), intent(in)          :: p,z
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding

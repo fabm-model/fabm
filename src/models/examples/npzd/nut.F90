@@ -73,8 +73,8 @@
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                  :: n_initial=4.5
-   REALTYPE, parameter       :: secs_pr_day=86400.
+   real(rk)                  :: n_initial=4.5
+   real(rk), parameter       :: secs_pr_day=86400.
    namelist /examples_npzd_nut/ n_initial
 !EOP
 !-----------------------------------------------------------------------

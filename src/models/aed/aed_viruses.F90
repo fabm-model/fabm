@@ -44,7 +44,7 @@ MODULE aed_viruses
       type (type_conserved_quantity_id)  :: id_totV
 
 !     Model parameters
-      REALTYPE :: num_viruses
+      real(rk) :: num_viruses
 !     LOGICAL  :: use_oxy,use_vir
 
       CONTAINS      ! Model Methods
@@ -76,10 +76,10 @@ FUNCTION aed_viruses_create(namlst,name,parent) RESULT(self)
 !LOCALS
    _CLASS_ (type_aed_viruses),POINTER :: self
 
-   REALTYPE          :: num_viruses
+   real(rk)          :: num_viruses
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
-   REALTYPE,PARAMETER :: vir_initial = 0.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: vir_initial = 0.
    NAMELIST /aed_viruses/ num_viruses
 !
 !-------------------------------------------------------------------------------
@@ -130,8 +130,8 @@ SUBROUTINE aed_viruses_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   REALTYPE           :: vir,diff_vir
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk)           :: vir,diff_vir
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -165,9 +165,9 @@ SUBROUTINE aed_viruses_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE                   :: vir
-   REALTYPE                   :: diff_vir
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: vir
+   real(rk)                   :: diff_vir
+   real(rk), parameter        :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -202,16 +202,16 @@ SUBROUTINE aed_viruses_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp
+   real(rk) :: temp
 
    ! State
-   REALTYPE :: vir
+   real(rk) :: vir
 
    ! Temporary variables
-!  REALTYPE :: vir_flux
+!  real(rk) :: vir_flux
 
    ! Parameters
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -243,7 +243,7 @@ SUBROUTINE aed_viruses_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QU
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
-   REALTYPE :: vir
+   real(rk) :: vir
 !
 !-------------------------------------------------------------------------------
 !BEGIN

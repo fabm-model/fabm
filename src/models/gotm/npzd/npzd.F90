@@ -56,8 +56,8 @@
       type (type_conserved_quantity_id)  :: id_totN
 
 !     Model parameters
-      REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
-      REALTYPE :: dic_per_n
+      real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
+      real(rk) :: dic_per_n
       logical  :: use_dic
    end type
 !EOP
@@ -86,30 +86,30 @@
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                  :: n_initial=4.5
-   REALTYPE                  :: p_initial=0.
-   REALTYPE                  :: z_initial=0.
-   REALTYPE                  :: d_initial=4.5
-   REALTYPE                  :: p0=0.0225
-   REALTYPE                  :: z0=0.0225
-   REALTYPE                  :: w_p=-1.157407e-05
-   REALTYPE                  :: w_d=-5.787037e-05
-   REALTYPE                  :: kc=0.03
-   REALTYPE                  :: i_min=25.
-   REALTYPE                  :: rmax=1.157407e-05
-   REALTYPE                  :: gmax=5.787037e-06
-   REALTYPE                  :: iv=1.1
-   REALTYPE                  :: alpha=0.3
-   REALTYPE                  :: rpn=1.157407e-07
-   REALTYPE                  :: rzn=1.157407e-07
-   REALTYPE                  :: rdn=3.472222e-08
-   REALTYPE                  :: rpdu=2.314814e-07
-   REALTYPE                  :: rpdl=1.157407e-06
-   REALTYPE                  :: rzd=2.314814e-07
-   REALTYPE                  :: dic_per_n=106.d0/16.d0
+   real(rk)                  :: n_initial=4.5
+   real(rk)                  :: p_initial=0.
+   real(rk)                  :: z_initial=0.
+   real(rk)                  :: d_initial=4.5
+   real(rk)                  :: p0=0.0225
+   real(rk)                  :: z0=0.0225
+   real(rk)                  :: w_p=-1.157407e-05
+   real(rk)                  :: w_d=-5.787037e-05
+   real(rk)                  :: kc=0.03
+   real(rk)                  :: i_min=25.
+   real(rk)                  :: rmax=1.157407e-05
+   real(rk)                  :: gmax=5.787037e-06
+   real(rk)                  :: iv=1.1
+   real(rk)                  :: alpha=0.3
+   real(rk)                  :: rpn=1.157407e-07
+   real(rk)                  :: rzn=1.157407e-07
+   real(rk)                  :: rdn=3.472222e-08
+   real(rk)                  :: rpdu=2.314814e-07
+   real(rk)                  :: rpdl=1.157407e-06
+   real(rk)                  :: rzd=2.314814e-07
+   real(rk)                  :: dic_per_n=106.d0/16.d0
    character(len=64)         :: dic_variable=''
 
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
    namelist /gotm_npzd/ n_initial,p_initial,z_initial,d_initial,   &
                         p0,z0,w_p,w_d,kc,i_min,rmax,gmax,iv,alpha,rpn,  &
                         rzn,rdn,rpdu,rpdl,rzd,dic_variable,dic_per_n
@@ -243,9 +243,9 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,z,d,par,I_0
-   REALTYPE                   :: iopt,rpd,primprod,dn
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: n,p,z,d,par,I_0
+   real(rk)                   :: iopt,rpd,primprod,dn
+   real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -318,7 +318,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: p,d
+   real(rk)                     :: p,d
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -355,7 +355,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: n,p,z,d
+   real(rk)                     :: n,p,z,d
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -441,9 +441,9 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,z,d,par,I_0
-   REALTYPE                   :: iopt,rpd,dn,primprod
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: n,p,z,d,par,I_0
+   real(rk)                   :: iopt,rpd,dn,primprod
+   real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -508,7 +508,7 @@
 ! !IROUTINE: Michaelis-Menten formulation for nutrient uptake
 !
 ! !INTERFACE:
-   pure REALTYPE function fnp(self,n,p,par,iopt)
+   pure real(rk) function fnp(self,n,p,par,iopt)
 !
 ! !DESCRIPTION:
 ! Here, the classical Michaelis-Menten formulation for nutrient uptake
@@ -516,7 +516,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_npzd), intent(in) :: self
-   REALTYPE, intent(in)         :: n,p,par,iopt
+   real(rk), intent(in)         :: n,p,par,iopt
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -535,7 +535,7 @@
 ! !IROUTINE: Ivlev formulation for zooplankton grazing on phytoplankton
 !
 ! !INTERFACE:
-   pure REALTYPE function fpz(self,p,z)
+   pure real(rk) function fpz(self,p,z)
 !
 ! !DESCRIPTION:
 ! Here, the classical Ivlev formulation for zooplankton grazing on
@@ -543,7 +543,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_npzd), intent(in) :: self
-   REALTYPE, intent(in)         :: p,z
+   real(rk), intent(in)         :: p,z
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding

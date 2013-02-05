@@ -9,7 +9,7 @@
 ! - removed the program - end program section to allow reuse as software library in other programs.
 ! - relaxed lower bound on temperature, from 0 to -4 degrees Celsius, to permit use in cold waters
 !   [after consultation with Jerry Blackford]
-! - replaced fixed double precision type (real*8) by preprocessor macro REALTYPE.
+! - replaced fixed double precision type (real*8) by preprocessor macro real(rk).
 ! - replaced stop statements by calls to fatal_error.
 !
 ! Jorn Bruggeman, 4 March 2011
@@ -39,7 +39,7 @@
 
    IMPLICIT NONE
 ! INPUT PARAMETERS:
-      REALTYPE   :: T, S, Z, DIC
+      real(rk)   :: T, S, Z, DIC
 ! T: temperature (C)
 ! S: salinity (psu)
 ! Z: depth (metres)
@@ -47,10 +47,10 @@
 ! pCO2a: partial pressure of co2 in atmosphere (eg ~390 in 2010, 280=preindustrial)
 
 ! LOCAL VARIABLES:
-      REALTYPE   :: TCO2, TA, ph, pco2w
-      REALTYPE   :: pco2water,fairco2, henry
-      REALTYPE   :: ca, bc, cb, carba, bicarb, carb, om_cal, om_arg
-      REALTYPE   :: a,b,c,dcf
+      real(rk)   :: TCO2, TA, ph, pco2w
+      real(rk)   :: pco2water,fairco2, henry
+      real(rk)   :: ca, bc, cb, carba, bicarb, carb, om_cal, om_arg
+      real(rk)   :: a,b,c,dcf
 
 !!!!!!!! provide an expression for total alkalinity.!!!!!!!!!!!!!!
 ! Note, for oceanic regimes there is generally a well constrained relationship between salinity and
@@ -128,9 +128,9 @@
    use fabm_types
 
    IMPLICIT NONE
-      REALTYPE   :: T, wnd, pco2w, pco2a, henry, dcf    ! INPUT PARAMETERS:
-      REALTYPE   :: sc, fwind    ! LOCAL VARIABLES:
-      REALTYPE   :: flux    ! OUTPUT Variables
+      real(rk)   :: T, wnd, pco2w, pco2a, henry, dcf    ! INPUT PARAMETERS:
+      real(rk)   :: sc, fwind    ! LOCAL VARIABLES:
+      real(rk)   :: flux    ! OUTPUT Variables
 
 ! calculate the scmidt number and unit conversions
           sc=2073.1-125.62*T+3.6276*T**2.0-0.0432190*T**3.0
@@ -153,7 +153,7 @@
 
       IMPLICIT NONE
 
-      REALTYPE PRSS, PH, AKVAL, CONCS,                       &
+      real(rk) PRSS, PH, AKVAL, CONCS,                       &
      &                 TCO2, TA, T, S, PCO2,            &
      &                 SOLBTY, CCO2,                                 &
      &                 A1, A2, A3, B1, B2, B3, TK, TK1, SOL1, SOL2,  &
@@ -232,7 +232,7 @@
 
       IMPLICIT NONE
 
-      REALTYPE PMIN, PMAX, SMIN, SMAX, TMIN, TMAX, CONCS,  &
+      real(rk) PMIN, PMAX, SMIN, SMAX, TMIN, TMAX, CONCS,  &
      &      AKVAL, PD, TD, SD, P, T, S, BTOT
       INTEGER MINJC, MAXJC, MINJK, MAXJK, MINCAL, MAXCAL, MINCON,  &
      &      MAXCON, NCONC, NKVAL, ICALC, ICONST, IC
@@ -315,7 +315,7 @@
 !                                                              (KB ONLY
 
 ! ***
-!      IMPLICIT REALTYPE (A-H,O-Z)
+!      IMPLICIT real(rk) (A-H,O-Z)
 
 !     Modified by jcb 17/02/10 to use OCMIP calculations of K1, K2, Kb.
 !     Differences are subtle rather than significant
@@ -326,12 +326,12 @@
       INTEGER MAXK, MAXCON, NKVAL, ICON, IC, IK
 ! ***
       PARAMETER(MAXK=4,MAXCON=3)
-      REALTYPE,DIMENSION(:) :: A(MAXK),B(MAXK),C(MAXK)
-      REALTYPE,DIMENSION(:) :: A0(MAXK,MAXCON),A1(MAXK,MAXCON),A2(MAXK,MAXCON)
-      REALTYPE,DIMENSION(:) :: B0(MAXK,MAXCON),B1(MAXK,MAXCON),B2(MAXK,MAXCON)
-      REALTYPE,DIMENSION(:) :: AKVAL(NKVAL)
-      REALTYPE              :: P,T,S,VAL,TK
-      REALTYPE              :: dlogTK, S2, sqrtS, S15, k1, k2, kb
+      real(rk),DIMENSION(:) :: A(MAXK),B(MAXK),C(MAXK)
+      real(rk),DIMENSION(:) :: A0(MAXK,MAXCON),A1(MAXK,MAXCON),A2(MAXK,MAXCON)
+      real(rk),DIMENSION(:) :: B0(MAXK,MAXCON),B1(MAXK,MAXCON),B2(MAXK,MAXCON)
+      real(rk),DIMENSION(:) :: AKVAL(NKVAL)
+      real(rk)              :: P,T,S,VAL,TK
+      real(rk)              :: dlogTK, S2, sqrtS, S15, k1, k2, kb
       DATA A/-167.8108D0, 290.9097D0, 207.6548D0, 148.0248D0/
       DATA B/9345.17D0, -14554.21D0, -11843.79D0, -8966.9D0/
       DATA C/23.3585D0, -45.0575D0, -33.6485D0, -24.4344D0/
@@ -410,18 +410,18 @@
 ! WITH ADDITIONS FOR INCLUDING BORON IF BORON=.TRUE.
 
 
-!      IMPLICIT REALTYPE (A-H,O-Z)
+!      IMPLICIT real(rk) (A-H,O-Z)
       use fabm_types
       
       IMPLICIT NONE
 
       INTEGER NCONC, NKVAL, ICALC, II, KARL, LQ
-      REALTYPE              :: CTOT,ALK,PCO2,PH,H2CO3,HCO3,CO3,ALKC
-      REALTYPE              :: ALKB,AKP,AK1C,AK2C,AKB,BTOT
-      REALTYPE              :: AKR,AHPLUS
-      REALTYPE              :: PROD,tol1,tol2,tol3,tol4,steg,fak
-      REALTYPE              :: STEGBY,Y,X,W,X1,Y1,X2,Y2,FACTOR,TERM,Z
-      REALTYPE,DIMENSION(:) :: CONCS(NCONC),AKVAL(NKVAL),CONCS2(9),AKVAL2(4)
+      real(rk)              :: CTOT,ALK,PCO2,PH,H2CO3,HCO3,CO3,ALKC
+      real(rk)              :: ALKB,AKP,AK1C,AK2C,AKB,BTOT
+      real(rk)              :: AKR,AHPLUS
+      real(rk)              :: PROD,tol1,tol2,tol3,tol4,steg,fak
+      real(rk)              :: STEGBY,Y,X,W,X1,Y1,X2,Y2,FACTOR,TERM,Z
+      real(rk),DIMENSION(:) :: CONCS(NCONC),AKVAL(NKVAL),CONCS2(9),AKVAL2(4)
       EQUIVALENCE (CTOT  , CONCS2(1)), (ALK   , CONCS2(2)),  &
      &            (PCO2  , CONCS2(3)), (PH    , CONCS2(4)),  &
      &            (H2CO3 , CONCS2(5)), (HCO3  , CONCS2(6)),  &
@@ -667,11 +667,11 @@
         use fabm_types
 
         IMPLICIT None
-        REALTYPE Tc, Tk, Kelvin, S, D, Ca, CO3
-        REALTYPE logKspc, Kspc, Om_cal
-        REALTYPE logKspa, Kspa, Om_arg
-        REALTYPE tmp1, tmp2, tmp3
-        REALTYPE dV, dK, P, R
+        real(rk) Tc, Tk, Kelvin, S, D, Ca, CO3
+        real(rk) logKspc, Kspc, Om_cal
+        real(rk) logKspa, Kspa, Om_arg
+        real(rk) tmp1, tmp2, tmp3
+        real(rk) dV, dK, P, R
 
 ! setup
         Kelvin = 273.15

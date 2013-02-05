@@ -65,32 +65,32 @@
       type (type_conserved_quantity_id)  :: id_totN
       
 !     Model parameters
-      REALTYPE :: p0
-      REALTYPE :: z0
-      REALTYPE :: b0
-      REALTYPE :: vp
-      REALTYPE :: alpha
-      REALTYPE :: k1
-      REALTYPE :: k2
-      REALTYPE :: mu1
-      REALTYPE :: k5
-      REALTYPE :: gamma
-      REALTYPE :: gmax
-      REALTYPE :: k3
-      REALTYPE :: beta
-      REALTYPE :: mu2
-      REALTYPE :: k6
-      REALTYPE :: delta
-      REALTYPE :: epsi
-      REALTYPE :: r1
-      REALTYPE :: r2
-      REALTYPE :: r3
-      REALTYPE :: vb
-      REALTYPE :: k4
-      REALTYPE :: mu3
-      REALTYPE :: eta
-      REALTYPE :: mu4
-      REALTYPE :: kc
+      real(rk) :: p0
+      real(rk) :: z0
+      real(rk) :: b0
+      real(rk) :: vp
+      real(rk) :: alpha
+      real(rk) :: k1
+      real(rk) :: k2
+      real(rk) :: mu1
+      real(rk) :: k5
+      real(rk) :: gamma
+      real(rk) :: gmax
+      real(rk) :: k3
+      real(rk) :: beta
+      real(rk) :: mu2
+      real(rk) :: k6
+      real(rk) :: delta
+      real(rk) :: epsi
+      real(rk) :: r1
+      real(rk) :: r2
+      real(rk) :: r3
+      real(rk) :: vb
+      real(rk) :: k4
+      real(rk) :: mu3
+      real(rk) :: eta
+      real(rk) :: mu4
+      real(rk) :: kc
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -121,43 +121,43 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                  ::  p_initial= 0.056666666
-   REALTYPE                  ::  z_initial= 0.05
-   REALTYPE                  ::  b_initial= 0.001
-   REALTYPE                  ::  d_initial= 0.416666666
-   REALTYPE                  ::  n_initial= 8.3
-   REALTYPE                  ::  a_initial= 0.22
-   REALTYPE                  ::  l_initial= 0.14
-   REALTYPE                  ::  p0       = 0.0
-   REALTYPE                  ::  z0       = 0.0
-   REALTYPE                  ::  b0       = 0.0
-   REALTYPE                  ::  kc       = 0.03
-   REALTYPE                  ::  vp       = 1.5
-   REALTYPE                  ::  alpha    = 0.065
-   REALTYPE                  ::  k1       = 0.2
-   REALTYPE                  ::  k2       = 0.8
-   REALTYPE                  ::  mu1      = 0.05
-   REALTYPE                  ::  k5       = 0.2
-   REALTYPE                  ::  gamma    = 0.05
-   REALTYPE                  ::  w_p      = -1.0
-   REALTYPE                  ::  gmax     = 1.0
-   REALTYPE                  ::  k3       = 1.0
-   REALTYPE                  ::  beta     = 0.625
-   REALTYPE                  ::  mu2      = 0.3
-   REALTYPE                  ::  k6       = 0.2
-   REALTYPE                  ::  delta    = 0.1
-   REALTYPE                  ::  epsi     = 0.70
-   REALTYPE                  ::  r1       = 0.55
-   REALTYPE                  ::  r2       = 0.4
-   REALTYPE                  ::  r3       = 0.05
-   REALTYPE                  ::  vb       = 1.2
-   REALTYPE                  ::  k4       = 0.5
-   REALTYPE                  ::  mu3      = 0.15
-   REALTYPE                  ::  eta      = 0.0
-   REALTYPE                  ::  mu4      = 0.02
-   REALTYPE                  ::  w_d      = -2.0
+   real(rk)                  ::  p_initial= 0.056666666
+   real(rk)                  ::  z_initial= 0.05
+   real(rk)                  ::  b_initial= 0.001
+   real(rk)                  ::  d_initial= 0.416666666
+   real(rk)                  ::  n_initial= 8.3
+   real(rk)                  ::  a_initial= 0.22
+   real(rk)                  ::  l_initial= 0.14
+   real(rk)                  ::  p0       = 0.0
+   real(rk)                  ::  z0       = 0.0
+   real(rk)                  ::  b0       = 0.0
+   real(rk)                  ::  kc       = 0.03
+   real(rk)                  ::  vp       = 1.5
+   real(rk)                  ::  alpha    = 0.065
+   real(rk)                  ::  k1       = 0.2
+   real(rk)                  ::  k2       = 0.8
+   real(rk)                  ::  mu1      = 0.05
+   real(rk)                  ::  k5       = 0.2
+   real(rk)                  ::  gamma    = 0.05
+   real(rk)                  ::  w_p      = -1.0
+   real(rk)                  ::  gmax     = 1.0
+   real(rk)                  ::  k3       = 1.0
+   real(rk)                  ::  beta     = 0.625
+   real(rk)                  ::  mu2      = 0.3
+   real(rk)                  ::  k6       = 0.2
+   real(rk)                  ::  delta    = 0.1
+   real(rk)                  ::  epsi     = 0.70
+   real(rk)                  ::  r1       = 0.55
+   real(rk)                  ::  r2       = 0.4
+   real(rk)                  ::  r3       = 0.05
+   real(rk)                  ::  vb       = 1.2
+   real(rk)                  ::  k4       = 0.5
+   real(rk)                  ::  mu3      = 0.15
+   real(rk)                  ::  eta      = 0.0
+   real(rk)                  ::  mu4      = 0.02
+   real(rk)                  ::  w_d      = -2.0
 
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
    namelist /gotm_fasham/ p_initial,z_initial,b_initial,d_initial,n_initial,&
                           a_initial,l_initial,p0,z0,b0,vp,alpha,k1,k2,mu1,k5,&
                           gamma,w_p,gmax,k3,beta,mu2,k6,delta,epsi,r1,r2,r3, &
@@ -335,9 +335,9 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: p,z,b,d,n,a,l,par
-   REALTYPE                   :: ff,fac,min67
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk)                   :: p,z,b,d,n,a,l,par
+   real(rk)                   :: ff,fac,min67
+   real(rk), parameter :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -487,10 +487,10 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: p,z,b,d,n,a,l,par
-   REALTYPE                   :: d_p,d_z,d_b,d_d,d_n,d_a,d_l
-   REALTYPE                   :: ff,fac,min67
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: p,z,b,d,n,a,l,par
+   real(rk)                   :: d_p,d_z,d_b,d_d,d_n,d_a,d_l
+   real(rk)                   :: ff,fac,min67
+   real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -585,7 +585,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: p
+   real(rk)                     :: p
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -621,7 +621,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: p,z,b,d,n,a,l
+   real(rk)                     :: p,z,b,d,n,a,l
 !
 !EOP
 !-----------------------------------------------------------------------

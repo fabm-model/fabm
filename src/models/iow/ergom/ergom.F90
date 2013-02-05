@@ -90,9 +90,9 @@
       type (type_horizontal_dependency_id) :: id_I_0,id_wind,id_taub
       type (type_diagnostic_variable_id)   :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR
 ! Model parameters
-      REALTYPE :: sfl_po,sfl_am,sfl_ni,p10,p20,p30,zo0,kc,i_min,r1max,r2max,r3max,alpha1,alpha2,alpha3,lpa,lpd
-      REALTYPE :: tf,tbg,beta_bg,g1max,g2max,g3max,lza,lzd,iv,topt,lan,oan,beta_an,lda,tda,beta_da
-      REALTYPE :: pvel,sr,s1,s2,s3,s4,a0,a1,a2,lds,lsd,tau_crit,lsa,bsa,ph1,ph2
+      real(rk) :: sfl_po,sfl_am,sfl_ni,p10,p20,p30,zo0,kc,i_min,r1max,r2max,r3max,alpha1,alpha2,alpha3,lpa,lpd
+      real(rk) :: tf,tbg,beta_bg,g1max,g2max,g3max,lza,lzd,iv,topt,lan,oan,beta_an,lda,tda,beta_da
+      real(rk) :: pvel,sr,s1,s2,s3,s4,a0,a1,a2,lds,lsd,tau_crit,lsa,bsa,ph1,ph2
       logical  :: fluff
   end type
 !EOP
@@ -121,72 +121,72 @@
    integer,                 intent(in)    ::namlst
 !
 ! !LOCAL VARIABLES:
-   REALTYPE           :: p1_initial=4.5
-   REALTYPE           :: p2_initial=4.5
-   REALTYPE           :: p3_initial=4.5
-   REALTYPE           :: zo_initial=4.5
-   REALTYPE           :: de_initial=4.5
-   REALTYPE           :: am_initial=4.5
-   REALTYPE           :: ni_initial=4.5
-   REALTYPE           :: po_initial=4.5
-   REALTYPE           :: o2_initial=4.5
-   REALTYPE           :: sfl_po=0.0015
-   REALTYPE           :: sfl_am=0.07
-   REALTYPE           :: sfl_ni=0.09
+   real(rk)           :: p1_initial=4.5
+   real(rk)           :: p2_initial=4.5
+   real(rk)           :: p3_initial=4.5
+   real(rk)           :: zo_initial=4.5
+   real(rk)           :: de_initial=4.5
+   real(rk)           :: am_initial=4.5
+   real(rk)           :: ni_initial=4.5
+   real(rk)           :: po_initial=4.5
+   real(rk)           :: o2_initial=4.5
+   real(rk)           :: sfl_po=0.0015
+   real(rk)           :: sfl_am=0.07
+   real(rk)           :: sfl_ni=0.09
    logical            :: fluff=.false.
-   REALTYPE           :: fl_initial=0.0
-   REALTYPE           :: p10=0.0225
-   REALTYPE           :: p20=0.0225
-   REALTYPE           :: p30=0.0225
-   REALTYPE           :: zo0=0.0225
-   REALTYPE           :: w_p1=-1.157407e-05
-   REALTYPE           :: w_p2=-5.787037e-05
-   REALTYPE           :: w_p3=-5.787037e-05
-   REALTYPE           :: w_de=-3.
-   REALTYPE           :: kc=0.03
-   REALTYPE           :: i_min=25.
-   REALTYPE           :: r1max=2.0
-   REALTYPE           :: r2max=0.7
-   REALTYPE           :: r3max=0.5
-   REALTYPE           :: alpha1=1.35
-   REALTYPE           :: alpha2=0.675
-   REALTYPE           :: alpha3=0.5
-   REALTYPE           :: lpa=0.01
-   REALTYPE           :: lpd=0.02
-   REALTYPE           :: tf=10.
-   REALTYPE           :: tbg=14.
-   REALTYPE           :: beta_bg=1.
-   REALTYPE           :: g1max=0.5
-   REALTYPE           :: g2max=0.5
-   REALTYPE           :: g3max=0.25
-   REALTYPE           :: lza=0.0666666666
-   REALTYPE           :: lzd=0.1333333333
-   REALTYPE           :: iv=0.24444444
-   REALTYPE           :: topt=20.
-   REALTYPE           :: lan=0.1
-   REALTYPE           :: oan=0.01
-   REALTYPE           :: beta_an=0.11
-   REALTYPE           :: lda=0.003
-   REALTYPE           :: tda=13.
-   REALTYPE           :: beta_da=20.
-   REALTYPE           :: pvel=5.
-   REALTYPE           :: sr=0.0625
-   REALTYPE           :: s1=5.3
-   REALTYPE           :: s2=6.625
-   REALTYPE           :: s3=8.625
-   REALTYPE           :: s4=2.0
-   REALTYPE           :: a0=31.25
-   REALTYPE           :: a1=14.603
-   REALTYPE           :: a2=0.4025
-   REALTYPE           :: lds=3.5
-   REALTYPE           :: lsd=25.0
-   REALTYPE           :: tau_crit=0.07
-   REALTYPE           :: lsa=0.001
-   REALTYPE           :: bsa=0.15
-   REALTYPE           :: ph1=0.15
-   REALTYPE           :: ph2=0.1
+   real(rk)           :: fl_initial=0.0
+   real(rk)           :: p10=0.0225
+   real(rk)           :: p20=0.0225
+   real(rk)           :: p30=0.0225
+   real(rk)           :: zo0=0.0225
+   real(rk)           :: w_p1=-1.157407e-05
+   real(rk)           :: w_p2=-5.787037e-05
+   real(rk)           :: w_p3=-5.787037e-05
+   real(rk)           :: w_de=-3.
+   real(rk)           :: kc=0.03
+   real(rk)           :: i_min=25.
+   real(rk)           :: r1max=2.0
+   real(rk)           :: r2max=0.7
+   real(rk)           :: r3max=0.5
+   real(rk)           :: alpha1=1.35
+   real(rk)           :: alpha2=0.675
+   real(rk)           :: alpha3=0.5
+   real(rk)           :: lpa=0.01
+   real(rk)           :: lpd=0.02
+   real(rk)           :: tf=10.
+   real(rk)           :: tbg=14.
+   real(rk)           :: beta_bg=1.
+   real(rk)           :: g1max=0.5
+   real(rk)           :: g2max=0.5
+   real(rk)           :: g3max=0.25
+   real(rk)           :: lza=0.0666666666
+   real(rk)           :: lzd=0.1333333333
+   real(rk)           :: iv=0.24444444
+   real(rk)           :: topt=20.
+   real(rk)           :: lan=0.1
+   real(rk)           :: oan=0.01
+   real(rk)           :: beta_an=0.11
+   real(rk)           :: lda=0.003
+   real(rk)           :: tda=13.
+   real(rk)           :: beta_da=20.
+   real(rk)           :: pvel=5.
+   real(rk)           :: sr=0.0625
+   real(rk)           :: s1=5.3
+   real(rk)           :: s2=6.625
+   real(rk)           :: s3=8.625
+   real(rk)           :: s4=2.0
+   real(rk)           :: a0=31.25
+   real(rk)           :: a1=14.603
+   real(rk)           :: a2=0.4025
+   real(rk)           :: lds=3.5
+   real(rk)           :: lsd=25.0
+   real(rk)           :: tau_crit=0.07
+   real(rk)           :: lsa=0.001
+   real(rk)           :: bsa=0.15
+   real(rk)           :: ph1=0.15
+   real(rk)           :: ph2=0.1
 
-   REALTYPE,parameter           :: secs_pr_day=86400.
+   real(rk),parameter           :: secs_pr_day=86400.
    namelist /iow_ergom/ p1_initial,p2_initial,p3_initial,zo_initial,  &
                         de_initial,am_initial,ni_initial,po_initial,  &
                         o2_initial,sfl_po,sfl_am,sfl_ni,fluff,        &
@@ -502,11 +502,11 @@
 !
 !
 ! !LOCAL VARIABLES:
-    REALTYPE        :: p1,p2,p3,zo,am,ni,po,de,o2,par,I_0
-    REALTYPE        :: iopt,ppi,temp,psum,llda,llan,lp,r1,r2,r3
-    REALTYPE        :: wo=30.,wn=0.1
-    REALTYPE        :: thopnp,thomnp,thomnm,thsum
-    REALTYPE        :: secs_pr_day=86400.
+    real(rk)        :: p1,p2,p3,zo,am,ni,po,de,o2,par,I_0
+    real(rk)        :: iopt,ppi,temp,psum,llda,llan,lp,r1,r2,r3
+    real(rk)        :: wo=30.,wn=0.1
+    real(rk)        :: thopnp,thomnp,thomnm,thsum
+    real(rk)        :: secs_pr_day=86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -596,7 +596,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: p1,p2,p3,de
+   real(rk)                     :: p1,p2,p3,de
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -641,10 +641,10 @@
 !  Original author(s):
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: fl,amb,nib,pob,deb,oxb,taub,temp
+   real(rk)                   :: fl,amb,nib,pob,deb,oxb,taub,temp
    !logical                   :: fluff,ltaub
-   REALTYPE                   :: llds,llsd,llsa,wo=30.,wn=0.1,dot2=0.2
-   REALTYPE                   :: thopnp,thomnp,thomnm,thsum
+   real(rk)                   :: llds,llsd,llsa,wo=30.,wn=0.1,dot2=0.2
+   real(rk)                   :: thopnp,thomnp,thomnm,thsum
 
 !EOP
 !-----------------------------------------------------------------------
@@ -707,7 +707,7 @@
 ! !IROUTINE: Weiss formula for the saturation oxygen (osat)
 !
 ! !INTERFACE:
-   REALTYPE function osat_weiss(t,s)
+   real(rk) function osat_weiss(t,s)
 !
 ! !DESCRIPTION:
 ! Weiss formula for the saturation oxygen (osat) \cite{Weiss1970}:
@@ -745,22 +745,22 @@
 !
 ! !INPUT PARAMETERS:
 !  type (type_iow_ergom), intent(in) :: self
-  REALTYPE, intent(in)                 :: t,s
+  real(rk), intent(in)                 :: t,s
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-  REALTYPE                 :: tk
-  REALTYPE                 :: aa1=-173.4292
-  REALTYPE                 :: aa2=249.6339
-  REALTYPE                 :: a3=143.3483
-  REALTYPE                 :: a4=-21.8492
-  REALTYPE                 :: b1=-0.033096
-  REALTYPE                 :: b2=0.014259
-  REALTYPE                 :: b3=-0.001700
-  REALTYPE                 :: kelvin=273.16
-  REALTYPE                 :: mol_per_liter=44.661
+  real(rk)                 :: tk
+  real(rk)                 :: aa1=-173.4292
+  real(rk)                 :: aa2=249.6339
+  real(rk)                 :: a3=143.3483
+  real(rk)                 :: a4=-21.8492
+  real(rk)                 :: b1=-0.033096
+  real(rk)                 :: b2=0.014259
+  real(rk)                 :: b3=-0.001700
+  real(rk)                 :: kelvin=273.16
+  real(rk)                 :: mol_per_liter=44.661
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -824,14 +824,14 @@
 
   _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
 
-  REALTYPE             :: temp,wnd,salt,o2,ni,am,po
-  REALTYPE,parameter           :: secs_pr_day=86400.
+  real(rk)             :: temp,wnd,salt,o2,ni,am,po
+  real(rk),parameter           :: secs_pr_day=86400.
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-  REALTYPE                 :: p_vel,sc,flo2
+  real(rk)                 :: p_vel,sc,flo2
   integer,parameter        :: newflux=1
 !EOP
 !-----------------------------------------------------------------------
@@ -884,7 +884,7 @@
 ! !IROUTINE: Step function
 !
 ! !INTERFACE:
-   pure REALTYPE function th(x,w,min,max)
+   pure real(rk) function th(x,w,min,max)
 !
 ! !DESCRIPTION:
 ! Instead of the
@@ -901,7 +901,7 @@
 !
 ! !INPUT PARAMETERS:
    ! type(type_iow_ergom), INTENT(IN) :: self
-    REALTYPE, intent(in)            :: x,w,min,max
+    real(rk), intent(in)            :: x,w,min,max
 !
 ! !LOCAL VARIABLES:
 !
@@ -927,7 +927,7 @@
 ! !IROUTINE: Michaelis-Menten formulation for nutrient uptake
 !
 ! !INTERFACE:
-   pure REALTYPE function yy(a,x)
+   pure real(rk) function yy(a,x)
 !
 ! !DESCRIPTION:
 ! This is a squared Michaelis-Menten type of limiter:
@@ -939,7 +939,7 @@
   IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-  REALTYPE,intent(in)        :: a,x
+  real(rk),intent(in)        :: a,x
 !
 ! !REVISION HISTORY:
 !
@@ -957,7 +957,7 @@
 ! !ROUTINE: Ivlev formulation for zooplankton grazing on phytoplankton
 !
 ! !INTERFACE:
-  pure REALTYPE function fpz(self,g,t,topt,psum)
+  pure real(rk) function fpz(self,g,t,topt,psum)
 !
 ! !DESCRIPTION:
 ! The Ivlev formulation for zooplankton grazing on the three phytoplankton
@@ -975,7 +975,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_iow_ergom), intent(in) :: self
-   REALTYPE, intent(in)                :: g,t,topt,psum
+   real(rk), intent(in)                :: g,t,topt,psum
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding

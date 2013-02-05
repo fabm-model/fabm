@@ -45,9 +45,9 @@ MODULE aed_phosphorus
       type (type_conserved_quantity_id)  :: id_totP
 
 !     Model parameters
-      REALTYPE :: Fsed_frp,Ksed_frp,theta_sed_frp      ! Benthic
+      real(rk) :: Fsed_frp,Ksed_frp,theta_sed_frp      ! Benthic
       LOGICAL  :: ben_use_oxy,ben_use_aedsed
-      REALTYPE :: Kpo4p,Kadsratio,Qmax, w_po4ads       ! Adsorption
+      real(rk) :: Kpo4p,Kadsratio,Qmax, w_po4ads       ! Adsorption
       LOGICAL  :: simPO4Adsorption, ads_use_pH, ads_use_external_tss
       INTEGER  :: PO4AdsorptionModel
 
@@ -80,25 +80,25 @@ FUNCTION aed_phosphorus_create(namlst,name,parent) RESULT(self)
 !LOCALS
    _CLASS_ (type_aed_phosphorus),POINTER :: self
 
-   REALTYPE          :: frp_initial   = 4.5
+   real(rk)          :: frp_initial   = 4.5
    ! Benthic
-   REALTYPE          :: Fsed_frp      = 3.5
-   REALTYPE          :: Ksed_frp      = 30.0
-   REALTYPE          :: theta_sed_frp = 1.05
+   real(rk)          :: Fsed_frp      = 3.5
+   real(rk)          :: Ksed_frp      = 30.0
+   real(rk)          :: theta_sed_frp = 1.05
    CHARACTER(len=64) :: phosphorus_reactant_variable=''
    CHARACTER(len=64) :: Fsed_frp_variable=''
    ! Adsorption
    LOGICAL           :: simPO4Adsorption = .FALSE.
    LOGICAL           :: ads_use_external_tss = .FALSE.
    LOGICAL           :: ads_use_pH = .FALSE.
-   REALTYPE          :: Kpo4p = 1.05
-   REALTYPE          :: Kadsratio = 1.05
-   REALTYPE          :: Qmax = 1.05
-   REALTYPE          :: w_po4ads = 0.00
+   real(rk)          :: Kpo4p = 1.05
+   real(rk)          :: Kadsratio = 1.05
+   real(rk)          :: Qmax = 1.05
+   real(rk)          :: w_po4ads = 0.00
    INTEGER           :: PO4AdsorptionModel = 1
    CHARACTER(len=64) :: po4sorption_target_variable=''
 
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
 
    NAMELIST /aed_phosphorus/ frp_initial,Fsed_frp,Ksed_frp,theta_sed_frp,      &
                              phosphorus_reactant_variable,Fsed_frp_variable,   &
@@ -201,7 +201,7 @@ SUBROUTINE aed_phosphorus_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-!  REALTYPE           :: frp,frpads,diff_frp
+!  real(rk)           :: frp,frpads,diff_frp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -244,9 +244,9 @@ SUBROUTINE aed_phosphorus_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE           :: frp
-   REALTYPE           :: diff_frp
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk)           :: frp
+   real(rk)           :: diff_frp
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -281,16 +281,16 @@ SUBROUTINE aed_phosphorus_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp
+   real(rk) :: temp
 
    ! State
-   REALTYPE :: frp,oxy
+   real(rk) :: frp,oxy
 
    ! Temporary variables
-   REALTYPE :: frp_flux, Fsed_frp
+   real(rk) :: frp_flux, Fsed_frp
 
    ! Parameters
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -352,7 +352,7 @@ SUBROUTINE aed_phosphorus_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
-   REALTYPE :: frp
+   real(rk) :: frp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -384,15 +384,15 @@ SUBROUTINE aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp, tss
+   real(rk) :: temp, tss
 
    ! State
-   REALTYPE :: frp,frpads,pH
+   real(rk) :: frp,frpads,pH
 
    ! Temporary variables
-   REALTYPE :: SSconc, PO4dis, PO4par, PO4tot, buffer, f_pH, K, Qm
+   real(rk) :: SSconc, PO4dis, PO4par, PO4tot, buffer, f_pH, K, Qm
 
-   REALTYPE,PARAMETER :: one_e_neg_ten = 1e-10
+   real(rk),PARAMETER :: one_e_neg_ten = 1e-10
 
 !-------------------------------------------------------------------------------
 !BEGIN

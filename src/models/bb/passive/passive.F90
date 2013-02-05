@@ -32,7 +32,7 @@
    type, extends(type_base_model) :: type_bb_passive
 !     Variable identifiers
       type (type_state_variable_id) :: id_tracer
-      REALTYPE                 :: surface_flux
+      real(rk)                 :: surface_flux
       
       contains
       
@@ -70,12 +70,12 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                  :: initial_concentration     = _ONE_
-   REALTYPE                  :: vertical_velocity         = _ZERO_
-   REALTYPE                  :: specific_light_absorption = _ZERO_
-   REALTYPE                  :: surface_flux              = _ZERO_
+   real(rk)                  :: initial_concentration     = _ONE_
+   real(rk)                  :: vertical_velocity         = _ZERO_
+   real(rk)                  :: specific_light_absorption = _ZERO_
+   real(rk)                  :: surface_flux              = _ZERO_
    character(len=64)         :: unit                      = 'mol/m**3'
-   REALTYPE, parameter       :: secs_pr_day=86400.
+   real(rk), parameter       :: secs_pr_day=86400.
 
    namelist /bb_passive/     initial_concentration,vertical_velocity, &
                              specific_light_absorption,surface_flux

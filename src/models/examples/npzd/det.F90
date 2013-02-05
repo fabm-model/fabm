@@ -36,8 +36,8 @@
       type (type_dependency_id)          :: id_temp
 
 !     Model parameters
-      REALTYPE :: kc,rdn
-      REALTYPE :: zoo_per_n
+      real(rk) :: kc,rdn
+      real(rk) :: zoo_per_n
       logical  :: use_zoo
       logical  :: use_phy
       logical  :: do_min
@@ -71,13 +71,13 @@
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                  :: d_initial=4.5
-   REALTYPE                  :: w_d=-5.787037e-05
-   REALTYPE                  :: rdn=3.472222e-08
-   REALTYPE                  :: kc=0.03
+   real(rk)                  :: d_initial=4.5
+   real(rk)                  :: w_d=-5.787037e-05
+   real(rk)                  :: rdn=3.472222e-08
+   real(rk)                  :: kc=0.03
    character(len=64)         :: mineralisation_target_variable=''
 
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
    namelist /examples_npzd_det/ &
             d_initial, w_d, rdn, kc, mineralisation_target_variable
 !EOP
@@ -134,9 +134,9 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: d,temp
-   REALTYPE                   :: rpd
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: d,temp
+   real(rk)                   :: rpd
+   real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -183,7 +183,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: d
+   real(rk)                     :: d
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -219,7 +219,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: d
+   real(rk)                     :: d
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -257,7 +257,7 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: d,temp
+   real(rk)                   :: d,temp
 !EOP
 !-----------------------------------------------------------------------
 !BOC

@@ -44,7 +44,7 @@ MODULE aed_bacteria
       type (type_conserved_quantity_id)  :: id_totB
 
 !     Model parameters
-      REALTYPE :: growth,mortality
+      real(rk) :: growth,mortality
 
       CONTAINS
 !     Model Procedures
@@ -77,11 +77,11 @@ FUNCTION aed_bacteria_create(namlst,name,parent) RESULT(self)
 !LOCALS
    _CLASS_ (type_aed_bacteria),POINTER :: self
 
-   REALTYPE          :: growth
-   REALTYPE          :: mortality
+   real(rk)          :: growth
+   real(rk)          :: mortality
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
-   REALTYPE,PARAMETER :: bact_initial = 0.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: bact_initial = 0.
    NAMELIST /aed_bacteria/ growth,mortality
 
 !-------------------------------------------------------------------------------
@@ -130,8 +130,8 @@ SUBROUTINE aed_bacteria_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   REALTYPE           :: bact,diff_bact
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk)           :: bact,diff_bact
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -167,9 +167,9 @@ SUBROUTINE aed_bacteria_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE                   :: bact
-   REALTYPE                   :: diff_bact
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: bact
+   real(rk)                   :: diff_bact
+   real(rk), parameter        :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -204,16 +204,16 @@ SUBROUTINE aed_bacteria_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp
+   real(rk) :: temp
 
    ! State
-   REALTYPE :: bact
+   real(rk) :: bact
 
    ! Temporary variables
-   REALTYPE :: bact_flux
+   real(rk) :: bact_flux
 
    ! Parameters
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -253,7 +253,7 @@ SUBROUTINE aed_bacteria_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_Q
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
-   REALTYPE :: bact
+   real(rk) :: bact
 !
 !-------------------------------------------------------------------------------
 !BEGIN

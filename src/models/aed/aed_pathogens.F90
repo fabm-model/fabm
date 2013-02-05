@@ -40,25 +40,25 @@ MODULE aed_pathogens
 
    TYPE pathogen_nml_data
       CHARACTER(64) :: p_name
-      REALTYPE      :: coef_grwth_uMAX                     !-- Max growth rate at 20C
-      REALTYPE      :: coef_grwth_Tmin, coef_grwth_Tmax    !-- Tmin and Tmax, f(T)
-      REALTYPE      :: coef_grwth_T1, coef_grwth_T2        !-- coef_grwth_T1  and  coef_grwth_T2
-      REALTYPE      :: coef_grwth_Kdoc                     !-- Half-saturation for growth, coef_grwth_Kdoc
-      REALTYPE      :: coef_grwth_ic                       !-- coef_grwth_ic
-      REALTYPE      :: coef_mort_kd20                      !-- Mortality rate (Dark death rate) @ 20C and 0 psu
-      REALTYPE      :: coef_mort_theta                     !-- Temperature multiplier for mortality: coef_mort_theta
-      REALTYPE      :: coef_mort_c_SM, coef_mort_alpha, coef_mort_beta  !-- Salinity effect on mortality
-      REALTYPE      :: coef_mort_c_PHM, coef_mort_K_PHM, coef_mort_delta_M  !-- pH effect on mortality
-      REALTYPE      :: coef_mort_fdoc                      !-- Fraction of mortality back to doc
-      REALTYPE      :: coef_light_kb_vis, coef_light_kb_uva, coef_light_kb_uvb !-- Light inactivation
-      REALTYPE      :: coef_light_cSb_vis, coef_light_cSb_uva, coef_light_cSb_uvb !-- Salinity effect on light inactivation
-      REALTYPE      :: coef_light_kDOb_vis, coef_light_kDOb_uva, coef_light_kDOb_uvb !-- DO effect on light
-      REALTYPE      :: coef_light_cpHb_vis, coef_light_cpHb_uva, coef_light_cpHb_uvb !-- pH effect on light inactivation
-      REALTYPE      :: coef_light_KpHb_vis, coef_light_KpHb_uva, coef_light_KpHb_uvb !-- pH effect on light inactivation
-      REALTYPE      :: coef_light_delb_vis, coef_light_delb_uva, coef_light_delb_uvb !-- exponent for pH effect on light inactivation
-      REALTYPE      :: coef_pred_kp20, coef_pred_theta_P   !-- Loss rate due to predation and temp multiplier
-      REALTYPE      :: coef_sett_fa                        !-- Attached fraction in water column
-      REALTYPE      :: coef_sett_w_path      !-- Sedimentation velocity (m/d) at 20C (-ve means down) for NON-ATTACHED orgs
+      real(rk)      :: coef_grwth_uMAX                     !-- Max growth rate at 20C
+      real(rk)      :: coef_grwth_Tmin, coef_grwth_Tmax    !-- Tmin and Tmax, f(T)
+      real(rk)      :: coef_grwth_T1, coef_grwth_T2        !-- coef_grwth_T1  and  coef_grwth_T2
+      real(rk)      :: coef_grwth_Kdoc                     !-- Half-saturation for growth, coef_grwth_Kdoc
+      real(rk)      :: coef_grwth_ic                       !-- coef_grwth_ic
+      real(rk)      :: coef_mort_kd20                      !-- Mortality rate (Dark death rate) @ 20C and 0 psu
+      real(rk)      :: coef_mort_theta                     !-- Temperature multiplier for mortality: coef_mort_theta
+      real(rk)      :: coef_mort_c_SM, coef_mort_alpha, coef_mort_beta  !-- Salinity effect on mortality
+      real(rk)      :: coef_mort_c_PHM, coef_mort_K_PHM, coef_mort_delta_M  !-- pH effect on mortality
+      real(rk)      :: coef_mort_fdoc                      !-- Fraction of mortality back to doc
+      real(rk)      :: coef_light_kb_vis, coef_light_kb_uva, coef_light_kb_uvb !-- Light inactivation
+      real(rk)      :: coef_light_cSb_vis, coef_light_cSb_uva, coef_light_cSb_uvb !-- Salinity effect on light inactivation
+      real(rk)      :: coef_light_kDOb_vis, coef_light_kDOb_uva, coef_light_kDOb_uvb !-- DO effect on light
+      real(rk)      :: coef_light_cpHb_vis, coef_light_cpHb_uva, coef_light_cpHb_uvb !-- pH effect on light inactivation
+      real(rk)      :: coef_light_KpHb_vis, coef_light_KpHb_uva, coef_light_KpHb_uvb !-- pH effect on light inactivation
+      real(rk)      :: coef_light_delb_vis, coef_light_delb_uva, coef_light_delb_uvb !-- exponent for pH effect on light inactivation
+      real(rk)      :: coef_pred_kp20, coef_pred_theta_P   !-- Loss rate due to predation and temp multiplier
+      real(rk)      :: coef_sett_fa                        !-- Attached fraction in water column
+      real(rk)      :: coef_sett_w_path      !-- Sedimentation velocity (m/d) at 20C (-ve means down) for NON-ATTACHED orgs
    END TYPE
 
    TYPE pathogen_data
@@ -81,7 +81,7 @@ MODULE aed_pathogens
       TYPE(pathogen_nml_data),DIMENSION(:),ALLOCATABLE :: pathogens
       LOGICAL                                   :: do_Pexc, do_Nexc, do_Cexc, do_Siexc
       INTEGER :: nnup, npup
-      REALTYPE :: dic_per_n
+      real(rk) :: dic_per_n
 
       CONTAINS     ! Model Methods
 !       procedure :: initialize               => aed_pathogens_init
@@ -92,7 +92,7 @@ MODULE aed_pathogens
 !       procedure :: get_conserved_quantities => aed_pathogens_get_conserved_quantities
    END TYPE
 
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
 
 !===============================================================================
 CONTAINS
@@ -161,7 +161,7 @@ SUBROUTINE aed_pathogens_load_params(self, count, list)
    INTEGER,INTENT(in) :: list(*)
 
    INTEGER     :: i,tfil
-   REALTYPE    :: minPath
+   real(rk)    :: minPath
 
    TYPE(pathogen_nml_data) :: pd(MAX_PATHO_TYPES)
    NAMELIST /pathogen_data/ pd
@@ -225,10 +225,10 @@ SUBROUTINE aed_pathogens_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   REALTYPE           :: pth
-   REALTYPE           :: temp,par,Io,salinity
-   REALTYPE           :: growth,light,mortality, predation
-   REALTYPE           :: f_AOC,f_pH,f_DO,phi,lightBW,phstar
+   real(rk)           :: pth
+   real(rk)           :: temp,par,Io,salinity
+   real(rk)           :: growth,light,mortality, predation
+   real(rk)           :: f_AOC,f_pH,f_DO,phi,lightBW,phstar
 
    INTEGER            :: pth_i,c
 
@@ -319,9 +319,9 @@ SUBROUTINE aed_pathogens_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS
-   REALTYPE :: pth        ! State
+   real(rk) :: pth        ! State
    INTEGER  :: pth_i
-   REALTYPE :: pth_flux
+   real(rk) :: pth_flux
 
    ! Parameters
 !
@@ -359,9 +359,9 @@ SUBROUTINE aed_pathogens_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE            :: n,p,par,I_0
+   real(rk)            :: n,p,par,I_0
    INTEGER             :: pth_i
-   REALTYPE            :: iopt,rpd,primprod
+   real(rk)            :: iopt,rpd,primprod
 !
 !-------------------------------------------------------------------------------
 !BEGIN

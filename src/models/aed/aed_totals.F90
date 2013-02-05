@@ -43,11 +43,11 @@ MODULE aed_totals
                                               id_totals_tss, id_totals_turbidity
       type (type_state_variable_id),ALLOCATABLE :: id_dep_tn(:), id_dep_tp(:), id_dep_toc(:),  &
                                               id_dep_tss(:)
-      REALTYPE,ALLOCATABLE                 :: turbidity(:)
+      real(rk),ALLOCATABLE                 :: turbidity(:)
 
 
 !     Model parameters
-      REALTYPE :: Fsed_dic,Ksed_dic,theta_sed_dic
+      real(rk) :: Fsed_dic,Ksed_dic,theta_sed_dic
       LOGICAL  :: use_oxy,use_dic
 
       CONTAINS      ! Model Methods
@@ -78,7 +78,7 @@ FUNCTION aed_totals_create(namlst,name,parent) RESULT(self)
 
    INTEGER           :: i, num_tn,num_tp,num_toc,num_tss
    CHARACTER(len=40) :: tn(100), tp(100), toc(100), tss(100)
-   REALTYPE          :: turbidity(100)
+   real(rk)          :: turbidity(100)
 
    NAMELIST /aed_totals/ tn,tp,toc,tss,turbidity
 !
@@ -152,7 +152,7 @@ SUBROUTINE aed_totals_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
 !
 !LOCALS
    INTEGER :: i,count
-   REALTYPE :: val, tot, tot2
+   real(rk) :: val, tot, tot2
 
 !-------------------------------------------------------------------------------
 !BEGIN

@@ -38,56 +38,56 @@ MODULE aed_phytoplankton
    TYPE phyto_data
       ! General Attributes
       CHARACTER(64) :: p_name
-      REALTYPE :: p0, Ycc, kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
+      real(rk) :: p0, Ycc, kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
       ! Growth rate parameters
       INTEGER  :: fT_Method
-      REALTYPE :: R_growth, theta_growth, T_std, T_opt, T_max, kTn, aTn, bTn
+      real(rk) :: R_growth, theta_growth, T_std, T_opt, T_max, kTn, aTn, bTn
       ! Light configuration and parameters
       INTEGER  :: lightModel
-      REALTYPE :: I_K, I_S, KePHY
+      real(rk) :: I_K, I_S, KePHY
       ! Respiration parameters
-      REALTYPE :: f_pr, R_resp, k_fdom, k_fres, theta_resp
+      real(rk) :: f_pr, R_resp, k_fdom, k_fres, theta_resp
       ! Salinity parameters
       INTEGER  :: salTol
-      REALTYPE :: S_bep, S_maxsp, S_opt
+      real(rk) :: S_bep, S_maxsp, S_opt
       ! Nitrogen parameters
       INTEGER  :: simDINUptake, simDONUptake, simNFixation, simINDynamics
-      REALTYPE :: N_o, K_N, X_nmin, X_nmax, X_ncon, R_nuptake, k_nfix, R_nfix
+      real(rk) :: N_o, K_N, X_nmin, X_nmax, X_ncon, R_nuptake, k_nfix, R_nfix
       ! Phosphorus parameters
       INTEGER  :: simDIPUptake, simIPDynamics
-      REALTYPE :: P_0, K_P, X_pmin, X_pmax, X_pcon, R_puptake
+      real(rk) :: P_0, K_P, X_pmin, X_pmax, X_pcon, R_puptake
       ! Silica parameters
       INTEGER  :: simSiUptake
-      REALTYPE :: Si_0, K_Si, X_sicon
+      real(rk) :: Si_0, K_Si, X_sicon
       ! Carbon parameters
       INTEGER  :: simCUptake, dic_mode
       ! Sedimentation parameters
-      REALTYPE :: w_p
+      real(rk) :: w_p
    END TYPE
 
 
    TYPE phyto_nml_data
       CHARACTER(64) :: p_name
-      REALTYPE :: p_initial
-      REALTYPE :: p0, w_p, Ycc, R_growth !i_min,rmax,alpha,rpn,rpdu,rpdl
+      real(rk) :: p_initial
+      real(rk) :: p0, w_p, Ycc, R_growth !i_min,rmax,alpha,rpn,rpdu,rpdl
       INTEGER  :: fT_Method
-      REALTYPE :: theta_growth, T_std, T_opt, T_max
+      real(rk) :: theta_growth, T_std, T_opt, T_max
       INTEGER  :: lightModel
-      REALTYPE :: I_K, I_S, KePHY
+      real(rk) :: I_K, I_S, KePHY
       ! Respiration parameters
-      REALTYPE :: f_pr, R_resp, theta_resp, k_fres, k_fdom
+      real(rk) :: f_pr, R_resp, theta_resp, k_fres, k_fdom
       ! Salinity parameters
       INTEGER  :: salTol
-      REALTYPE :: S_bep, S_maxsp, S_opt
+      real(rk) :: S_bep, S_maxsp, S_opt
       ! Nitrogen parameters
       INTEGER  :: simDINUptake, simDONUptake, simNFixation, simINDynamics
-      REALTYPE :: N_o, K_N, X_ncon, X_nmin, X_nmax, R_nuptake, k_nfix, R_nfix
+      real(rk) :: N_o, K_N, X_ncon, X_nmin, X_nmax, R_nuptake, k_nfix, R_nfix
       ! Phosphorus parameters
       INTEGER  :: simDIPUptake, simIPDynamics
-      REALTYPE :: P_0, K_P, X_pcon, X_pmin, X_pmax, R_puptake
+      real(rk) :: P_0, K_P, X_pcon, X_pmin, X_pmax, R_puptake
       ! Silica parameters
       INTEGER  :: simSiUptake
-      REALTYPE :: Si_0, K_Si, X_sicon
+      real(rk) :: Si_0, K_Si, X_sicon
     !  ! Carbon parameters
     !  INTEGER  :: simCUptake, dic_mode
    END TYPE
@@ -117,7 +117,7 @@ MODULE aed_phytoplankton
       LOGICAL                                   :: do_Pmort, do_Nmort, do_Cmort, do_Simort
       LOGICAL                                   :: do_Pexc, do_Nexc, do_Cexc, do_Siexc
       INTEGER :: nnup, npup
-      REALTYPE :: dic_per_n
+      real(rk) :: dic_per_n
 
       CONTAINS     ! Model Methods
 !       procedure :: initialize               => aed_phytoplankton_init
@@ -141,20 +141,20 @@ SUBROUTINE aed_phytoplankton_load_params(self, count, list)
    INTEGER,INTENT(in)                             :: count
    INTEGER,INTENT(in)                             :: list(*)
 
-!  REALTYPE    :: p_initial=0.
-!  REALTYPE    :: p0=0.0225
-!  REALTYPE    :: w_p=-1.157407e-05
-!  REALTYPE    :: i_min=25.
-!  REALTYPE    :: rmax=1.157407e-05
-!  REALTYPE    :: alpha=0.3
-!  REALTYPE    :: rpn=1.157407e-07
-!  REALTYPE    :: rpdu=2.314814e-07
-!  REALTYPE    :: rpdl=1.157407e-06
+!  real(rk)    :: p_initial=0.
+!  real(rk)    :: p0=0.0225
+!  real(rk)    :: w_p=-1.157407e-05
+!  real(rk)    :: i_min=25.
+!  real(rk)    :: rmax=1.157407e-05
+!  real(rk)    :: alpha=0.3
+!  real(rk)    :: rpn=1.157407e-07
+!  real(rk)    :: rpdu=2.314814e-07
+!  real(rk)    :: rpdl=1.157407e-06
 
    INTEGER     :: i,tfil
-   REALTYPE    :: minNut
+   real(rk)    :: minNut
 
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
    TYPE(phyto_nml_data) :: pd(MAX_PHYTO_TYPES)
    NAMELIST /phyto_data/ pd
 !-------------------------------------------------------------------------------
@@ -306,7 +306,7 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
    CHARACTER(len=64)  :: si_uptake_target_variable=''
 
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_phytoplankton/ num_phytos, the_phytos,                        &
                     p_excretion_target_variable,p_mortality_target_variable,   &
                      p1_uptake_target_variable, p2_uptake_target_variable,     &
@@ -458,24 +458,24 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   REALTYPE           :: phy, tphy, tin, tip
-   REALTYPE           :: INi, IPi
-   REALTYPE           :: pup !,pex,pmt
-   REALTYPE           :: no3up,nh4up!,donup
-   REALTYPE           :: cup, rsiup
-   REALTYPE           :: temp,par,Io,salinity, extc,dz
-   REALTYPE           :: primprod, exudation, a_nfix, respiration
-   REALTYPE           :: cuptake, cexcretion, cmortality
-   REALTYPE           :: nuptake(1:4), nexcretion, nmortality
-   REALTYPE           :: puptake(1:2), pexcretion, pmortality
-   REALTYPE           :: siuptake, siexcretion, simortality
-   REALTYPE           :: fT, fNit, fPho, fSil, fI, fXl, fSal, PNf
+   real(rk)           :: phy, tphy, tin, tip
+   real(rk)           :: INi, IPi
+   real(rk)           :: pup !,pex,pmt
+   real(rk)           :: no3up,nh4up!,donup
+   real(rk)           :: cup, rsiup
+   real(rk)           :: temp,par,Io,salinity, extc,dz
+   real(rk)           :: primprod, exudation, a_nfix, respiration
+   real(rk)           :: cuptake, cexcretion, cmortality
+   real(rk)           :: nuptake(1:4), nexcretion, nmortality
+   real(rk)           :: puptake(1:2), pexcretion, pmortality
+   real(rk)           :: siuptake, siexcretion, simortality
+   real(rk)           :: fT, fNit, fPho, fSil, fI, fXl, fSal, PNf
 
    INTEGER            :: phy_i,c
 
 ! MH to fix
-!  REALTYPE           :: dt = 3600. ! just for now, hard code it
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+!  real(rk)           :: dt = 3600. ! just for now, hard code it
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -757,13 +757,13 @@ SUBROUTINE phyto_internal_phosphorus(self,group,phy,IP,primprod,&
 !ARGUMENTS
    _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
-   REALTYPE,INTENT(in)                         :: phy
-   REALTYPE,INTENT(in)                         :: IP
-   REALTYPE,INTENT(in)                         :: primprod
-   REALTYPE,INTENT(in)                         :: fT,pup,respiration,exudation
-   REALTYPE,INTENT(out)                        :: uptake(:),excretion,mortality
+   real(rk),INTENT(in)                         :: phy
+   real(rk),INTENT(in)                         :: IP
+   real(rk),INTENT(in)                         :: primprod
+   real(rk),INTENT(in)                         :: fT,pup,respiration,exudation
+   real(rk),INTENT(out)                        :: uptake(:),excretion,mortality
 !LOCALS
-   REALTYPE :: dumdum1,dumdum2,theX_pcon
+   real(rk) :: dumdum1,dumdum2,theX_pcon
    INTEGER  :: c
 !
 !-------------------------------------------------------------------------------
@@ -826,21 +826,21 @@ SUBROUTINE phyto_internal_nitrogen(self,group,phy,IN,primprod,fT,no3up,nh4up,   
 !ARGUMENTS
    _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
-   REALTYPE,INTENT(in)                         :: phy
-   REALTYPE,INTENT(in)                         :: IN
-   REALTYPE,INTENT(in)                         :: primprod
-   REALTYPE,INTENT(in)                         :: fT,no3up,nh4up
-   REALTYPE,INTENT(out)                        :: a_nfix
-   REALTYPE,INTENT(in)                         :: respiration,exudation
- !  REALTYPE,INTENT(in)                         :: nh4,no3
-   REALTYPE,INTENT(out)                        :: PNf
-   REALTYPE,INTENT(out)                        :: uptake(:),excretion,mortality
+   real(rk),INTENT(in)                         :: phy
+   real(rk),INTENT(in)                         :: IN
+   real(rk),INTENT(in)                         :: primprod
+   real(rk),INTENT(in)                         :: fT,no3up,nh4up
+   real(rk),INTENT(out)                        :: a_nfix
+   real(rk),INTENT(in)                         :: respiration,exudation
+ !  real(rk),INTENT(in)                         :: nh4,no3
+   real(rk),INTENT(out)                        :: PNf
+   real(rk),INTENT(out)                        :: uptake(:),excretion,mortality
 !
 !CONSTANTS
-   REALTYPE,PARAMETER :: one_e_neg5 = 1e-5
+   real(rk),PARAMETER :: one_e_neg5 = 1e-5
 !
 !LOCALS
-   REALTYPE  :: dumdum1,dumdum2,theX_ncon
+   real(rk)  :: dumdum1,dumdum2,theX_ncon
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -929,12 +929,12 @@ SUBROUTINE aed_phytoplankton_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS
-   REALTYPE :: phy        ! State
+   real(rk) :: phy        ! State
    INTEGER  :: phy_i
-   REALTYPE :: phy_flux
+   real(rk) :: phy_flux
 
    ! Parameters
-!  REALTYPE,PARAMETER :: secs_pr_day = 86400.
+!  real(rk),PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -971,7 +971,7 @@ SUBROUTINE aed_phytoplankton_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
 !LOCALS
-   REALTYPE :: phy
+   real(rk) :: phy
    INTEGER  :: phy_i
 !
 !-----------------------------------------------------------------------
@@ -1005,7 +1005,7 @@ SUBROUTINE aed_phytoplankton_get_conserved_quantities(self,_FABM_ARGS_GET_CONSER
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
-   REALTYPE :: phy,p
+   real(rk) :: phy,p
    INTEGER  :: phy_i
 !
 !-------------------------------------------------------------------------------
@@ -1041,10 +1041,10 @@ SUBROUTINE aed_phytoplankton_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE            :: n,p,par,I_0
+   real(rk)            :: n,p,par,I_0
    INTEGER             :: phy_i
-   REALTYPE            :: iopt,rpd,primprod
-   REALTYPE,PARAMETER  :: secs_pr_day = 86400.
+   real(rk)            :: iopt,rpd,primprod
+   real(rk),PARAMETER  :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -1095,13 +1095,13 @@ FUNCTION phyto_fN(self, group, IN, din, don) RESULT(fN)
 !ARGUMENTS
    _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
-   REALTYPE,INTENT(in),OPTIONAL                :: IN
-   REALTYPE,INTENT(in),OPTIONAL                :: din
-   REALTYPE,INTENT(in),OPTIONAL                :: don
+   real(rk),INTENT(in),OPTIONAL                :: IN
+   real(rk),INTENT(in),OPTIONAL                :: din
+   real(rk),INTENT(in),OPTIONAL                :: don
 !
 !LOCALS
-   REALTYPE :: fN
-   REALTYPE :: nup
+   real(rk) :: fN
+   real(rk) :: nup
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -1137,11 +1137,11 @@ FUNCTION phyto_fP(self, group, IP, frp) RESULT(fP)
 !ARGUMENTS
    _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
-   REALTYPE,INTENT(in), OPTIONAL               :: IP
-   REALTYPE,INTENT(in), OPTIONAL               :: frp
+   real(rk),INTENT(in), OPTIONAL               :: IP
+   real(rk),INTENT(in), OPTIONAL               :: frp
 !
 !LOCALS
-   REALTYPE :: fP
+   real(rk) :: fP
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -1170,10 +1170,10 @@ FUNCTION phyto_fSi(self, group, Si) RESULT(fSi)
 !ARGUMENTS
    _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
-   REALTYPE,INTENT(in)                         :: Si
+   real(rk),INTENT(in)                         :: Si
 !
 !LOCALS
-   REALTYPE :: fSi
+   real(rk) :: fSi
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -1200,11 +1200,11 @@ FUNCTION phyto_pN(self,group,NH4,NO3) RESULT(pN)
    !-- Incoming
    _CLASS_ (type_aed_phytoplankton), INTENT(in) :: self
    INTEGER,INTENT(in)                           :: group
-   REALTYPE,INTENT(IN)                          :: NH4
-   REALTYPE,INTENT(IN)                          :: NO3
+   real(rk),INTENT(IN)                          :: NH4
+   real(rk),INTENT(IN)                          :: NO3
 !
 !LOCALS
-   REALTYPE :: pN
+   real(rk) :: pN
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -1224,9 +1224,9 @@ END FUNCTION phyto_pN
 FUNCTION findMin(a1,a2,a3,a4) RESULT(theMin)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   REALTYPE,INTENT(in) :: a1,a2,a3,a4
+   real(rk),INTENT(in) :: a1,a2,a3,a4
 !LOCALS
-   REALTYPE     :: theMin
+   real(rk)     :: theMin
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -1247,10 +1247,10 @@ FUNCTION phyto_respiration(self,group,temp) RESULT(respiration)
 !ARGUMENTS
    _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
-   REALTYPE,INTENT(in)                         :: temp
+   real(rk),INTENT(in)                         :: temp
 !
 !LOCALS
-   REALTYPE :: respiration ! Returns the phytoplankton respiration.
+   real(rk) :: respiration ! Returns the phytoplankton respiration.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -1268,11 +1268,11 @@ FUNCTION phyto_salinity(self,group,salinity) RESULT(fSal)
 !ARGUMENTS
    _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
-   REALTYPE,INTENT(in)                         :: salinity
+   real(rk),INTENT(in)                         :: salinity
 !
 !LOCALS
-   REALTYPE   :: fSal ! Returns the salinity function
-   REALTYPE   :: tmp1,tmp2,tmp3
+   real(rk)   :: fSal ! Returns the salinity function
+   real(rk)   :: tmp1,tmp2,tmp3
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -1307,18 +1307,18 @@ FUNCTION phyto_light(self, group, par, extc, Io, dz) RESULT(fI)
 !ARGUMENTS
    _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
-   REALTYPE,INTENT(in)                         :: par
-   REALTYPE,INTENT(in)                         :: extc
-   REALTYPE,INTENT(in)                         :: Io
-   REALTYPE,INTENT(in)                         :: dz
+   real(rk),INTENT(in)                         :: par
+   real(rk),INTENT(in)                         :: extc
+   real(rk),INTENT(in)                         :: Io
+   real(rk),INTENT(in)                         :: dz
 !
 !CONSTANTS
-   REALTYPE,PARAMETER :: one_e_neg3 = 1e-3
+   real(rk),PARAMETER :: one_e_neg3 = 1e-3
 !
 !LOCALS
-   REALTYPE  :: fI !-- Returns the light limitation
-   REALTYPE  :: par_t,par_b,par_c
-   REALTYPE  :: z1,z2
+   real(rk)  :: fI !-- Returns the light limitation
+   real(rk)  :: par_t,par_b,par_c
+   real(rk)  :: z1,z2
 !
 !-------------------------------------------------------------------------------
 !BEGIN

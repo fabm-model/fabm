@@ -44,7 +44,7 @@ MODULE aed_iron
       type (type_conserved_quantity_id)  :: id_totFe
 
 !     Model parameters
-      REALTYPE :: Fsed_dic,Ksed_dic,theta_sed_dic
+      real(rk) :: Fsed_dic,Ksed_dic,theta_sed_dic
       LOGICAL  :: use_oxy,use_dic
 
       CONTAINS    ! Model Procedures
@@ -77,18 +77,18 @@ FUNCTION aed_iron_create(namlst,name,parent) RESULT(self)
 !LOCALS
    _CLASS_ (type_aed_iron),POINTER :: self
 
-   REALTYPE          :: dic_initial=4.5
-   REALTYPE          :: Fsed_dic = 3.5
-   REALTYPE          :: Ksed_dic = 30.0
-   REALTYPE          :: theta_sed_dic = 1.0
+   real(rk)          :: dic_initial=4.5
+   real(rk)          :: Fsed_dic = 3.5
+   real(rk)          :: Ksed_dic = 30.0
+   real(rk)          :: theta_sed_dic = 1.0
    CHARACTER(len=64) :: iron_reactant_variable=''
 
    INTEGER           :: num_irons
-   REALTYPE          :: decay(100)
-   REALTYPE          :: settling(100)
-   REALTYPE          :: Fsed(100)
+   real(rk)          :: decay(100)
+   real(rk)          :: settling(100)
+   real(rk)          :: Fsed(100)
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_iron/ num_irons,decay,settling,Fsed
 
 
@@ -128,8 +128,8 @@ SUBROUTINE aed_iron_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   REALTYPE           :: dic,diff_dic
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk)           :: dic,diff_dic
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -163,9 +163,9 @@ SUBROUTINE aed_iron_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE                   :: dic
-   REALTYPE                   :: diff_dic
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: dic
+   real(rk)                   :: diff_dic
+   real(rk), parameter        :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -200,16 +200,16 @@ SUBROUTINE aed_iron_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 !LOCALS
    ! Environment
-!  REALTYPE :: temp
+!  real(rk) :: temp
 
    ! State
-!  REALTYPE :: dic,oxy
+!  real(rk) :: dic,oxy
 
    ! Temporary variables
-!  REALTYPE :: dic_flux
+!  real(rk) :: dic_flux
 
    ! Parameters
-!  REALTYPE,PARAMETER :: secs_pr_day = 86400.
+!  real(rk),PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -266,7 +266,7 @@ SUBROUTINE aed_iron_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANT
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
-!  REALTYPE :: dic
+!  real(rk) :: dic
 !
 !-------------------------------------------------------------------------------
 !BEGIN

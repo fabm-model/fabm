@@ -42,8 +42,8 @@ MODULE aed_chlorophylla
       type (type_conserved_quantity_id)  :: id_totN
 
 !     Model parameters
-      REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
-      REALTYPE :: dic_per_n
+      real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
+      real(rk) :: dic_per_n
       logical  :: do_exc,do_mort,do_upt
 
       CONTAINS  ! Model Procedures
@@ -76,20 +76,20 @@ FUNCTION aed_chla_create(namlst,name,parent) RESULT(self)
 !LOCALS
    _CLASS_ (type_aed_chla),POINTER       :: self
 
-   REALTYPE           :: p_initial=0.
-   REALTYPE           :: p0=0.0225
-   REALTYPE           :: w_p=-1.157407e-05
-   REALTYPE           :: i_min=25.
-   REALTYPE           :: rmax=1.157407e-05
-   REALTYPE           :: alpha=0.3
-   REALTYPE           :: rpn=1.157407e-07
-   REALTYPE           :: rpdu=2.314814e-07
-   REALTYPE           :: rpdl=1.157407e-06
+   real(rk)           :: p_initial=0.
+   real(rk)           :: p0=0.0225
+   real(rk)           :: w_p=-1.157407e-05
+   real(rk)           :: i_min=25.
+   real(rk)           :: rmax=1.157407e-05
+   real(rk)           :: alpha=0.3
+   real(rk)           :: rpn=1.157407e-07
+   real(rk)           :: rpdu=2.314814e-07
+   real(rk)           :: rpdl=1.157407e-06
    CHARACTER(len=64)  :: excretion_target_variable=''
    CHARACTER(len=64)  :: mortality_target_variable=''
    CHARACTER(len=64)  :: uptake_target_variable=''
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_chla/ p_initial,p0,w_p,i_min,rmax,alpha,rpn,rpdu,rpdl, &
                     excretion_target_variable,mortality_target_variable,uptake_target_variable
 
@@ -166,9 +166,9 @@ SUBROUTINE aed_chla_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   REALTYPE           :: n,p,par,I_0
-   REALTYPE           :: iopt,rpd,primprod
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk)           :: n,p,par,I_0
+   real(rk)           :: iopt,rpd,primprod
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -235,7 +235,7 @@ SUBROUTINE aed_chla_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
 !LOCALS
-   REALTYPE                     :: p
+   real(rk)                     :: p
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -265,7 +265,7 @@ SUBROUTINE aed_chla_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANT
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 
 !LOCALS
-   REALTYPE :: p
+   real(rk) :: p
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -295,9 +295,9 @@ SUBROUTINE aed_chla_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE           :: n,p,par,I_0=0.
-   REALTYPE           :: iopt,rpd,primprod
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk)           :: n,p,par,I_0=0.
+   real(rk)           :: iopt,rpd,primprod
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
@@ -354,13 +354,13 @@ END SUBROUTINE aed_chla_do_ppdd
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION fnp(self,n,p,par,iopt)
+PURE real(rk) FUNCTION fnp(self,n,p,par,iopt)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for nutrient uptake
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_chla),INTENT(in) :: self
-   REALTYPE,INTENT(in)                :: n,p,par,iopt
+   real(rk),INTENT(in)                :: n,p,par,iopt
 !
 !-------------------------------------------------------------------------------
 !BEGIN

@@ -42,8 +42,8 @@
       type (type_conserved_quantity_id)    :: id_totN
 
 !     Model parameters
-      REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
-      REALTYPE :: dic_per_n
+      real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
+      real(rk) :: dic_per_n
       logical  :: do_exc,do_mort,do_upt
    end type
 !EOP
@@ -75,20 +75,20 @@
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                  :: p_initial=0.
-   REALTYPE                  :: p0=0.0225
-   REALTYPE                  :: w_p=-1.157407e-05
-   REALTYPE                  :: i_min=25.
-   REALTYPE                  :: rmax=1.157407e-05
-   REALTYPE                  :: alpha=0.3
-   REALTYPE                  :: rpn=1.157407e-07
-   REALTYPE                  :: rpdu=2.314814e-07
-   REALTYPE                  :: rpdl=1.157407e-06
+   real(rk)                  :: p_initial=0.
+   real(rk)                  :: p0=0.0225
+   real(rk)                  :: w_p=-1.157407e-05
+   real(rk)                  :: i_min=25.
+   real(rk)                  :: rmax=1.157407e-05
+   real(rk)                  :: alpha=0.3
+   real(rk)                  :: rpn=1.157407e-07
+   real(rk)                  :: rpdu=2.314814e-07
+   real(rk)                  :: rpdl=1.157407e-06
    character(len=64)         :: excretion_target_variable=''
    character(len=64)         :: mortality_target_variable=''
    character(len=64)         :: uptake_target_variable=''
 
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
    namelist /examples_npzd_phy/ &
              p_initial,p0,w_p,i_min,rmax,alpha,rpn,rpdu,rpdl,     &
              excretion_target_variable,mortality_target_variable, &
@@ -170,9 +170,9 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,par,I_0
-   REALTYPE                   :: iopt,rpd,primprod,dn
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: n,p,par,I_0
+   real(rk)                   :: iopt,rpd,primprod,dn
+   real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -244,7 +244,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: p
+   real(rk)                     :: p
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -280,7 +280,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: p
+   real(rk)                     :: p
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -321,9 +321,9 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,par,I_0
-   REALTYPE                   :: iopt,rpd,dn,primprod
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: n,p,par,I_0
+   real(rk)                   :: iopt,rpd,dn,primprod
+   real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -396,7 +396,7 @@
 ! !IROUTINE: Michaelis-Menten formulation for nutrient uptake
 !
 ! !INTERFACE:
-   pure REALTYPE function fnp(self,n,p,par,iopt)
+   pure real(rk) function fnp(self,n,p,par,iopt)
 !
 ! !DESCRIPTION:
 ! Here, the classical Michaelis-Menten formulation for nutrient uptake
@@ -407,7 +407,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_phy), intent(in)     :: self
-   REALTYPE, intent(in)         :: n,p,par,iopt
+   real(rk), intent(in)         :: n,p,par,iopt
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding

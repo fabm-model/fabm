@@ -40,11 +40,11 @@
       type (type_dependency_id)     :: id_temp
 
 !     Model parameters
-      REALTYPE :: food_scale
+      real(rk) :: food_scale
    end type
 !
 ! !PRIVATE PARAMETERS:
-   REALTYPE,parameter :: min_bm = 1.d-15
+   real(rk),parameter :: min_bm = 1.d-15
 !EOP
 !-----------------------------------------------------------------------
 
@@ -72,12 +72,12 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE            :: egb_initial=_ZERO_,jb_initial=_ZERO_,ja_initial=_ZERO_, &
+   real(rk)            :: egb_initial=_ZERO_,jb_initial=_ZERO_,ja_initial=_ZERO_, &
                           tb_initial=_ZERO_,ta_initial=_ZERO_,adb_initial=_ZERO_,ada_initial=_ZERO_, &
                           food_scale=_ONE_
    character(len=64)   :: food_source_variable,foodmic_source_variable, &
                           respiration_target_variable, mortality_target_variable
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
    namelist /metu_mnemiopsis/ egb_initial,jb_initial,ja_initial, &
                          tb_initial,ta_initial,adb_initial,ada_initial, &
                          food_source_variable,foodmic_source_variable, &
@@ -143,37 +143,37 @@
 !
 ! !LOCAL VARIABLES:
    ! Internal states
-   REALTYPE :: egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
+   real(rk) :: egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
 
    ! External food variables
-   REALTYPE :: food,foodmic,foodno
+   real(rk) :: food,foodmic,foodno
 
    ! Environment
-   REALTYPE :: temp
+   real(rk) :: temp
 
    ! Rates
-   REALTYPE :: tab_mn,teb_mn,tea_mn,tjb_mn,tja_mn,ttb_mn,tta_mn
-   REALTYPE :: gj_mn,mj_mn,lj_mn,gt_mn,mt_mn,lt_mn,ga_mn,ma_mn,la_mn,mea_mn
+   real(rk) :: tab_mn,teb_mn,tea_mn,tjb_mn,tja_mn,ttb_mn,tta_mn
+   real(rk) :: gj_mn,mj_mn,lj_mn,gt_mn,mt_mn,lt_mn,ga_mn,ma_mn,la_mn,mea_mn
 
    ! Temporary variables
-   REALTYPE :: resp_mn
-   REALTYPE :: eppley
-   REALTYPE :: mm,mr,ma,tr,p7
-   REALTYPE :: AEj,AEt,AEa
+   real(rk) :: resp_mn
+   real(rk) :: eppley
+   real(rk) :: mm,mr,ma,tr,p7
+   real(rk) :: AEj,AEt,AEa
 
    ! Model parameters
-   REALTYPE,parameter :: betaj_mn = 0.4
-   REALTYPE,parameter :: betat_mn = 0.09
-   REALTYPE,parameter :: betaa_mn = 0.08
-   REALTYPE,parameter :: mmj_mn   = 0.15 ! molting mass (max) these are after kremer 1976
-   REALTYPE,parameter :: mmt_mn   = 1.5
-   REALTYPE,parameter :: mma_mn   = 3.10
-   REALTYPE,parameter :: mne_mn   = 0.0001 ! egg mg C mean mass table I
-   REALTYPE,parameter :: mrj_mn   = 0.13 ! mg C reference  mass table I when thisincreases juvenile biomass and abundance increases
-   REALTYPE,parameter :: mrt_mn   = 1.2
-   REALTYPE,parameter :: mra_mn   = 2.8
-   REALTYPE,parameter :: a        = 0.063 !Q10 factor used in the egg hatching
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk),parameter :: betaj_mn = 0.4
+   real(rk),parameter :: betat_mn = 0.09
+   real(rk),parameter :: betaa_mn = 0.08
+   real(rk),parameter :: mmj_mn   = 0.15 ! molting mass (max) these are after kremer 1976
+   real(rk),parameter :: mmt_mn   = 1.5
+   real(rk),parameter :: mma_mn   = 3.10
+   real(rk),parameter :: mne_mn   = 0.0001 ! egg mg C mean mass table I
+   real(rk),parameter :: mrj_mn   = 0.13 ! mg C reference  mass table I when thisincreases juvenile biomass and abundance increases
+   real(rk),parameter :: mrt_mn   = 1.2
+   real(rk),parameter :: mra_mn   = 2.8
+   real(rk),parameter :: a        = 0.063 !Q10 factor used in the egg hatching
+   real(rk), parameter :: secs_pr_day = 86400.
 
 !EOP
 !-----------------------------------------------------------------------
@@ -398,8 +398,8 @@
 
    pure subroutine trans(mm,mr,ma,t,p7)
       ! here mm is max and ma actual and mr is the reference weight
-      REALTYPE,intent(in ) :: mm,mr,ma,p7
-      REALTYPE,intent(out) :: t
+      real(rk),intent(in ) :: mm,mr,ma,p7
+      real(rk),intent(out) :: t
 
       ! p7 =4.
       t = ((ma-mr)**p7)/((ma-mr)**p7+(mm-mr)**p7)

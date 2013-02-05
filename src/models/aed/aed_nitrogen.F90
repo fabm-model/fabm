@@ -46,7 +46,7 @@ MODULE aed_nitrogen
       type (type_conserved_quantity_id)  :: id_totN
 
 !     Model parameters
-      REALTYPE :: Rnitrif,Rdenit,Fsed_amm,Fsed_nit,Knitrif,Kdenit,Ksed_amm,Ksed_nit, &
+      real(rk) :: Rnitrif,Rdenit,Fsed_amm,Fsed_nit,Knitrif,Kdenit,Ksed_amm,Ksed_nit, &
                           theta_nitrif,theta_denit,theta_sed_amm,theta_sed_nit
       LOGICAL  :: use_oxy,use_no2,use_sed_model
 
@@ -79,27 +79,27 @@ FUNCTION aed_nitrogen_create(namlst,name,parent) RESULT(self)
 !LOCALS
    _CLASS_ (type_aed_nitrogen),POINTER :: self
 
-   REALTYPE          :: nit_initial=4.5
-   REALTYPE          :: amm_initial=4.5
-   REALTYPE          :: Rnitrif = 0.01
-   REALTYPE          :: Rdenit = 0.01
-   REALTYPE          :: Fsed_amm = 3.5
-   REALTYPE          :: Fsed_nit = 3.5
-   REALTYPE          :: Knitrif = 150.0
-   REALTYPE          :: Kdenit = 150.0
-   REALTYPE          :: Ksed_amm = 30.0
-   REALTYPE          :: Ksed_nit = 30.0
-   REALTYPE          :: theta_nitrif = 1.0
-   REALTYPE          :: theta_denit = 1.0
-   REALTYPE          :: theta_sed_amm = 1.0
-   REALTYPE          :: theta_sed_nit = 1.0
+   real(rk)          :: nit_initial=4.5
+   real(rk)          :: amm_initial=4.5
+   real(rk)          :: Rnitrif = 0.01
+   real(rk)          :: Rdenit = 0.01
+   real(rk)          :: Fsed_amm = 3.5
+   real(rk)          :: Fsed_nit = 3.5
+   real(rk)          :: Knitrif = 150.0
+   real(rk)          :: Kdenit = 150.0
+   real(rk)          :: Ksed_amm = 30.0
+   real(rk)          :: Ksed_nit = 30.0
+   real(rk)          :: theta_nitrif = 1.0
+   real(rk)          :: theta_denit = 1.0
+   real(rk)          :: theta_sed_amm = 1.0
+   real(rk)          :: theta_sed_nit = 1.0
    CHARACTER(len=64) :: nitrif_reactant_variable=''
    CHARACTER(len=64) :: denit_product_variable=''
    CHARACTER(len=64) :: Fsed_amm_variable=''
    CHARACTER(len=64) :: Fsed_nit_variable=''
 
 
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
    NAMELIST /aed_nitrogen/ nit_initial,amm_initial,Rnitrif,Rdenit,Fsed_amm,Fsed_nit, &
                     Knitrif,Kdenit,Ksed_amm,Ksed_nit,                     &
                     theta_nitrif,theta_denit,theta_sed_amm,theta_sed_nit, &
@@ -187,10 +187,10 @@ SUBROUTINE aed_nitrogen_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   REALTYPE           :: amm,nit,oxy,temp !State variables
-   REALTYPE           :: nitrification,denitrification
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
-   REALTYPE,PARAMETER :: Yoxy_nitrif = 3. !ratio of oxygen to nitrogen utilised during nitrification
+   real(rk)           :: amm,nit,oxy,temp !State variables
+   real(rk)           :: nitrification,denitrification
+   real(rk),PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: Yoxy_nitrif = 3. !ratio of oxygen to nitrogen utilised during nitrification
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -247,10 +247,10 @@ SUBROUTINE aed_nitrogen_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE           :: amm,nit,oxy,temp !State variables
-   REALTYPE           :: nitrification,denitrification
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
-   REALTYPE,PARAMETER :: Yoxy_nitrif = 3. !ratio of oxygen to nitrogen utilised during nitrification
+   real(rk)           :: amm,nit,oxy,temp !State variables
+   real(rk)           :: nitrification,denitrification
+   real(rk),PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: Yoxy_nitrif = 3. !ratio of oxygen to nitrogen utilised during nitrification
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -312,17 +312,17 @@ SUBROUTINE aed_nitrogen_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp !, layer_ht
+   real(rk) :: temp !, layer_ht
 
    ! State
-   REALTYPE :: amm,nit,oxy
+   real(rk) :: amm,nit,oxy
 
    ! Temporary variables
-   REALTYPE :: amm_flux,nit_flux
-   REALTYPE :: Fsed_amm, Fsed_nit
+   real(rk) :: amm_flux,nit_flux
+   real(rk) :: Fsed_amm, Fsed_nit
 
    ! Parameters
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -391,7 +391,7 @@ SUBROUTINE aed_nitrogen_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_Q
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
-   REALTYPE                     :: amm,nit
+   real(rk)                     :: amm,nit
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -413,7 +413,7 @@ END SUBROUTINE aed_nitrogen_get_conserved_quantities
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION fnitrif(self,oxy,temp)
+PURE real(rk) FUNCTION fnitrif(self,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for nitrification
 !
@@ -422,7 +422,7 @@ PURE REALTYPE FUNCTION fnitrif(self,oxy,temp)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_nitrogen),INTENT(in) :: self
-   REALTYPE,INTENT(in)                 :: oxy,temp
+   real(rk),INTENT(in)                 :: oxy,temp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -437,7 +437,7 @@ END FUNCTION fnitrif
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION fdenit(self,oxy,temp)
+PURE real(rk) FUNCTION fdenit(self,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for denitrification
 !
@@ -446,7 +446,7 @@ PURE REALTYPE FUNCTION fdenit(self,oxy,temp)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_nitrogen),INTENT(in) :: self
-   REALTYPE,INTENT(in)                    :: oxy,temp
+   real(rk),INTENT(in)                    :: oxy,temp
 !
 !-------------------------------------------------------------------------------
 !BEGIN

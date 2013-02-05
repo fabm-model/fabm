@@ -51,9 +51,9 @@ MODULE aed_carbon
       type (type_conserved_quantity_id)  :: id_totC
 
 !     Model parameters
-      REALTYPE :: Fsed_dic,Ksed_dic,theta_sed_dic
-      REALTYPE :: Fsed_ch4,Ksed_ch4,theta_sed_ch4
-      REALTYPE :: Rch4ox,Kch4ox,vTch4ox,atmco2,ionic
+      real(rk) :: Fsed_dic,Ksed_dic,theta_sed_dic
+      real(rk) :: Fsed_ch4,Ksed_ch4,theta_sed_ch4
+      real(rk) :: Rch4ox,Kch4ox,vTch4ox,atmco2,ionic
       LOGICAL  :: use_oxy,use_dic,use_sed_model
       LOGICAL  :: simDIC, simCH4
 
@@ -88,26 +88,26 @@ FUNCTION aed_carbon_create(namlst,name,parent) RESULT(self)
 !LOCALS
    _CLASS_ (type_aed_carbon),POINTER :: self
 
-   REALTYPE          :: pH_initial=7.5
-   REALTYPE          :: ionic = 0.0
-   REALTYPE          :: dic_initial=4.5
-   REALTYPE          :: Fsed_dic = 3.5
-   REALTYPE          :: Ksed_dic = 30.0
-   REALTYPE          :: theta_sed_dic = 1.0
+   real(rk)          :: pH_initial=7.5
+   real(rk)          :: ionic = 0.0
+   real(rk)          :: dic_initial=4.5
+   real(rk)          :: Fsed_dic = 3.5
+   real(rk)          :: Ksed_dic = 30.0
+   real(rk)          :: theta_sed_dic = 1.0
    CHARACTER(len=64) :: Fsed_dic_variable=''
-   REALTYPE          :: ch4_initial=4.5
-   REALTYPE          :: Fsed_ch4 = 3.5
-   REALTYPE          :: Ksed_ch4 = 30.0
-   REALTYPE          :: theta_sed_ch4 = 1.0
+   real(rk)          :: ch4_initial=4.5
+   real(rk)          :: Fsed_ch4 = 3.5
+   real(rk)          :: Ksed_ch4 = 30.0
+   real(rk)          :: theta_sed_ch4 = 1.0
    CHARACTER(len=64) :: Fsed_ch4_variable=''
-   REALTYPE          :: Rch4ox = 0.01
-   REALTYPE          :: Kch4ox = 0.01
-   REALTYPE          :: vTch4ox= 1.05
-   REALTYPE          :: atmco2 = 367e-6
+   real(rk)          :: Rch4ox = 0.01
+   real(rk)          :: Kch4ox = 0.01
+   real(rk)          :: vTch4ox= 1.05
+   real(rk)          :: atmco2 = 367e-6
    CHARACTER(len=64) :: methane_reactant_variable=''
 
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_carbon/ dic_initial,pH_initial,ionic,Fsed_dic,Ksed_dic,theta_sed_dic,Fsed_dic_variable, &
                          ch4_initial,Fsed_ch4,Ksed_ch4,theta_sed_ch4,Fsed_ch4_variable, &
                          atmco2,Rch4ox,Kch4ox,vTch4ox,methane_reactant_variable
@@ -201,8 +201,8 @@ SUBROUTINE aed_carbon_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   REALTYPE           :: dic,ch4,oxy,temp
-   REALTYPE           :: ch4oxidation
+   real(rk)           :: dic,ch4,oxy,temp
+   real(rk)           :: ch4oxidation
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -259,9 +259,9 @@ SUBROUTINE aed_carbon_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE                   :: dic
-   REALTYPE                   :: diff_dic
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: dic
+   real(rk)                   :: diff_dic
+   real(rk), parameter        :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -298,16 +298,16 @@ SUBROUTINE aed_carbon_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp
+   real(rk) :: temp
 
    ! State
-   REALTYPE :: dic,oxy
+   real(rk) :: dic,oxy
 
    ! Temporary variables
-   REALTYPE :: dic_flux, Fsed_dic
+   real(rk) :: dic_flux, Fsed_dic
 
    ! Parameters
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -373,7 +373,7 @@ SUBROUTINE aed_carbon_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
-   REALTYPE :: dic,ch4
+   real(rk) :: dic,ch4
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -403,7 +403,7 @@ END SUBROUTINE aed_carbon_get_conserved_quantities
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION aed_carbon_fch4ox(self,oxy,temp)
+PURE real(rk) FUNCTION aed_carbon_fch4ox(self,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for methane oxidation
 !
@@ -412,7 +412,7 @@ PURE REALTYPE FUNCTION aed_carbon_fch4ox(self,oxy,temp)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_carbon),INTENT(in) :: self
-   REALTYPE,INTENT(in)                  :: oxy,temp
+   real(rk),INTENT(in)                  :: oxy,temp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -439,15 +439,15 @@ SUBROUTINE aed_carbon_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp, salt, wind
+   real(rk) :: temp, salt, wind
 
    ! State
-   REALTYPE :: dic,ph
+   real(rk) :: dic,ph
 
    ! Temporary variables
-   REALTYPE :: pCO2,FCO2
-   REALTYPE :: Ko, KCO2
-   REALTYPE :: Tabs,windHt
+   real(rk) :: pCO2,FCO2
+   real(rk) :: Ko, KCO2
+   real(rk) :: Tabs,windHt
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -501,18 +501,18 @@ END SUBROUTINE aed_carbon_get_surface_exchange
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION aed_carbon_co2(self,temp,dic,pH)
+PURE real(rk) FUNCTION aed_carbon_co2(self,temp,dic,pH)
 !-------------------------------------------------------------------------------
 ! CO2 concentration of DIC at fixed T
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_carbon),INTENT(in) :: self
-   REALTYPE, INTENT(IN)                 :: dic, temp, pH
+   real(rk), INTENT(IN)                 :: dic, temp, pH
 !
 !LOCALS
    ! Temporary variables
-   REALTYPE :: K_h, Kw, Ka1, Ka2, i_f
-   REALTYPE :: H, CO2, HCO3, CO3, TA
+   real(rk) :: K_h, Kw, Ka1, Ka2, i_f
+   real(rk) :: H, CO2, HCO3, CO3, TA
 !-------------------------------------------------------------------------------
 !BEGIN
 

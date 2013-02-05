@@ -36,7 +36,7 @@ MODULE aed_silica
       type (type_horizontal_diagnostic_variable_id) :: id_sed_rsi
 
 !     Model parameters
-      REALTYPE :: Fsed_rsi,Ksed_rsi,theta_sed_rsi
+      real(rk) :: Fsed_rsi,Ksed_rsi,theta_sed_rsi
       LOGICAL  :: use_oxy,use_rsi,use_sed_model
 
       CONTAINS      ! Model Methods
@@ -66,14 +66,14 @@ FUNCTION aed_silica_create(namlst,name,parent) RESULT(self)
 !LOCALS
    _CLASS_ (type_aed_silica),POINTER :: self
 
-   REALTYPE          :: rsi_initial=4.5
-   REALTYPE          :: Fsed_rsi = 3.5
-   REALTYPE          :: Ksed_rsi = 30.0
-   REALTYPE          :: theta_sed_rsi = 1.0
+   real(rk)          :: rsi_initial=4.5
+   real(rk)          :: Fsed_rsi = 3.5
+   real(rk)          :: Ksed_rsi = 30.0
+   real(rk)          :: theta_sed_rsi = 1.0
    CHARACTER(len=64) :: silica_reactant_variable=''
    CHARACTER(len=64) :: Fsed_rsi_variable=''
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_silica/ rsi_initial,Fsed_rsi,Ksed_rsi,theta_sed_rsi,silica_reactant_variable, &
                          Fsed_rsi_variable
 !
@@ -132,8 +132,8 @@ SUBROUTINE aed_silica_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !ARGUMENT
-   !REALTYPE                   :: rsi,oxy,temp,tss !State variables
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   !real(rk)                   :: rsi,oxy,temp,tss !State variables
+   real(rk), parameter        :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -159,7 +159,7 @@ SUBROUTINE aed_silica_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !ARGUMENT
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk), parameter        :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -186,16 +186,16 @@ SUBROUTINE aed_silica_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp
+   real(rk) :: temp
 
    ! State
-   REALTYPE :: rsi,oxy
+   real(rk) :: rsi,oxy
 
    ! Temporary variables
-   REALTYPE :: rsi_flux, Fsed_rsi
+   real(rk) :: rsi_flux, Fsed_rsi
 
    ! Parameters
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -255,7 +255,7 @@ SUBROUTINE aed_silica_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
-   REALTYPE :: rsi
+   real(rk) :: rsi
 !
 !-------------------------------------------------------------------------------
 !BEGIN

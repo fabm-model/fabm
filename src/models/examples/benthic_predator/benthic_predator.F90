@@ -35,7 +35,7 @@
       type (type_state_variable_id)        :: id_prey,id_nut
 
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
-      REALTYPE :: g_max,K,h
+      real(rk) :: g_max,K,h
    end type
 !
 ! !REVISION HISTORY:!
@@ -67,11 +67,11 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                  :: pred_initial=0.01
-   REALTYPE                  :: g_max = 1., K=1., h=0.05
+   real(rk)                  :: pred_initial=0.01
+   real(rk)                  :: g_max = 1., K=1., h=0.05
    character(len=64)         :: waste_target_variable='',prey_source_variable=''
 
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
    namelist /examples_benthic_predator/ waste_target_variable,prey_source_variable,pred_initial,g_max,K,h
 !EOP
 !-----------------------------------------------------------------------
@@ -124,7 +124,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: prey,pred,g
+   real(rk)                   :: prey,pred,g
 !EOP
 !-----------------------------------------------------------------------
 !BOC

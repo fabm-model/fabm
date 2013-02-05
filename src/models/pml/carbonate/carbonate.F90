@@ -41,7 +41,7 @@ module fabm_pml_carbonate
       type (type_horizontal_diagnostic_variable_id) :: id_co2_flux
 
 !     Model parameters
-      REALTYPE :: TA_offset, TA_slope, pCO2a
+      real(rk) :: TA_offset, TA_slope, pCO2a
       logical  :: alk_param
    end type
 !EOP
@@ -74,8 +74,8 @@ contains
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE :: dic_initial, alk_initial
-   REALTYPE  :: alk_offset = 520.1, alk_slope = 51.24, pCO2a = _ZERO_
+   real(rk) :: dic_initial, alk_initial
+   real(rk)  :: alk_offset = 520.1, alk_slope = 51.24, pCO2a = _ZERO_
    logical :: alk_param = .true.
    namelist /pml_carbonate/ dic_initial, alk_initial, alk_param, alk_offset, alk_slope, pCO2a
 !EOP
@@ -160,9 +160,9 @@ contains
 !
 ! !LOCAL VARIABLES:
    ! Environment
-   REALTYPE :: temp, salt, pres, dens
-   REALTYPE :: dic, TA
-   REALTYPE :: PCO2WATER, pH, HENRY, ca, bc, cb,Om_cal,Om_arg
+   real(rk) :: temp, salt, pres, dens
+   real(rk) :: dic, TA
+   real(rk) :: PCO2WATER, pH, HENRY, ca, bc, cb,Om_cal,Om_arg
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -234,16 +234,16 @@ contains
 !
 ! !LOCAL VARIABLES:
    ! Environment
-   REALTYPE :: temp, salt, wnd, dens
+   real(rk) :: temp, salt, wnd, dens
 
    ! State
-   REALTYPE :: dic, TA
+   real(rk) :: dic, TA
 
    ! Temporary variables
-   REALTYPE :: PCO2WATER, pH, HENRY, ca, bc, cb, fl, pCO2a
+   real(rk) :: PCO2WATER, pH, HENRY, ca, bc, cb, fl, pCO2a
 
    ! Parameters
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC

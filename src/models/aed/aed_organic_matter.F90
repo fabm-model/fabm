@@ -57,13 +57,13 @@ MODULE aed_organic_matter
       type (type_conserved_quantity_id)  :: id_totN,id_totP,id_totC
 
 !     Model parameters
-      REALTYPE :: w_pon,Rpon_miner,Rdon_miner,Fsed_pon,Fsed_don, &
+      real(rk) :: w_pon,Rpon_miner,Rdon_miner,Fsed_pon,Fsed_don, &
                           Kpon_miner, Kdon_miner, Ksed_don, &
                           theta_pon_miner, theta_don_miner, theta_sed_don
-      REALTYPE :: w_pop,Rpop_miner,Rdop_miner,Fsed_pop,Fsed_dop, &
+      real(rk) :: w_pop,Rpop_miner,Rdop_miner,Fsed_pop,Fsed_dop, &
                           Kpop_miner, Kdop_miner, Ksed_dop, &
                           theta_pop_miner, theta_dop_miner, theta_sed_dop
-      REALTYPE :: w_poc,Rpoc_miner,Rdoc_miner,Fsed_poc,Fsed_doc, &
+      real(rk) :: w_poc,Rpoc_miner,Rdoc_miner,Fsed_poc,Fsed_doc, &
                           Kpoc_miner, Kdoc_miner, Ksed_doc, &
                           theta_poc_miner, theta_doc_miner, theta_sed_doc, &
                           KeDOM, KePOM
@@ -98,55 +98,55 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
 !LOCALS
    _CLASS_ (type_aed_organic_matter),POINTER :: self
 
-   REALTYPE                  :: pon_initial = 4.5
-   REALTYPE                  :: don_initial = 4.5
-   REALTYPE                  :: w_pon       = 0.0
-   REALTYPE                  :: Rpon_miner  = 0.01
-   REALTYPE                  :: Rdon_miner  = 0.01
-   REALTYPE                  :: Fsed_pon    = 30.0
-   REALTYPE                  :: Fsed_don    = 30.0
-   REALTYPE                  :: Kpon_miner  = 30.0
-   REALTYPE                  :: Kdon_miner  = 30.0
-   REALTYPE                  :: Ksed_don    = 4.5
-   REALTYPE                  :: theta_pon_miner = 1.0
-   REALTYPE                  :: theta_don_miner = 1.0
-   REALTYPE                  :: theta_sed_don   = 1.0
+   real(rk)                  :: pon_initial = 4.5
+   real(rk)                  :: don_initial = 4.5
+   real(rk)                  :: w_pon       = 0.0
+   real(rk)                  :: Rpon_miner  = 0.01
+   real(rk)                  :: Rdon_miner  = 0.01
+   real(rk)                  :: Fsed_pon    = 30.0
+   real(rk)                  :: Fsed_don    = 30.0
+   real(rk)                  :: Kpon_miner  = 30.0
+   real(rk)                  :: Kdon_miner  = 30.0
+   real(rk)                  :: Ksed_don    = 4.5
+   real(rk)                  :: theta_pon_miner = 1.0
+   real(rk)                  :: theta_don_miner = 1.0
+   real(rk)                  :: theta_sed_don   = 1.0
    CHARACTER(len=64)         :: don_miner_product_variable=''
    CHARACTER(len=64)         :: Fsed_pon_variable=''
    CHARACTER(len=64)         :: Fsed_don_variable=''
 
-   REALTYPE                  :: pop_initial= 4.5
-   REALTYPE                  :: dop_initial= 4.5
-   REALTYPE                  :: w_pop      = 0.0
-   REALTYPE                  :: Rpop_miner = 0.01
-   REALTYPE                  :: Rdop_miner = 0.01
-   REALTYPE                  :: Fsed_pop   = 30.0
-   REALTYPE                  :: Fsed_dop   = 30.0
-   REALTYPE                  :: Kpop_miner = 30.0
-   REALTYPE                  :: Kdop_miner = 30.0
-   REALTYPE                  :: Ksed_dop   = 4.5
-   REALTYPE                  :: theta_pop_miner = 1.0
-   REALTYPE                  :: theta_dop_miner = 1.0
-   REALTYPE                  :: theta_sed_dop   = 1.0
+   real(rk)                  :: pop_initial= 4.5
+   real(rk)                  :: dop_initial= 4.5
+   real(rk)                  :: w_pop      = 0.0
+   real(rk)                  :: Rpop_miner = 0.01
+   real(rk)                  :: Rdop_miner = 0.01
+   real(rk)                  :: Fsed_pop   = 30.0
+   real(rk)                  :: Fsed_dop   = 30.0
+   real(rk)                  :: Kpop_miner = 30.0
+   real(rk)                  :: Kdop_miner = 30.0
+   real(rk)                  :: Ksed_dop   = 4.5
+   real(rk)                  :: theta_pop_miner = 1.0
+   real(rk)                  :: theta_dop_miner = 1.0
+   real(rk)                  :: theta_sed_dop   = 1.0
    CHARACTER(len=64)         :: dop_miner_product_variable=''
    CHARACTER(len=64)         :: Fsed_pop_variable=''
    CHARACTER(len=64)         :: Fsed_dop_variable=''
 
-   REALTYPE                  :: poc_initial = 4.5
-   REALTYPE                  :: doc_initial = 4.5
-   REALTYPE                  :: w_poc       = 0.0
-   REALTYPE                  :: Rpoc_miner  = 0.01
-   REALTYPE                  :: Rdoc_miner  = 0.01
-   REALTYPE                  :: Fsed_poc    = 30.0
-   REALTYPE                  :: Fsed_doc    = 30.0
-   REALTYPE                  :: Kpoc_miner  = 30.0
-   REALTYPE                  :: Kdoc_miner  = 30.0
-   REALTYPE                  :: Ksed_doc    = 4.5
-   REALTYPE                  :: theta_poc_miner = 1.0
-   REALTYPE                  :: theta_doc_miner = 1.0
-   REALTYPE                  :: theta_sed_doc   = 1.0
-   REALTYPE                  :: KeDOM = 0.01
-   REALTYPE                  :: KePOM = 0.01
+   real(rk)                  :: poc_initial = 4.5
+   real(rk)                  :: doc_initial = 4.5
+   real(rk)                  :: w_poc       = 0.0
+   real(rk)                  :: Rpoc_miner  = 0.01
+   real(rk)                  :: Rdoc_miner  = 0.01
+   real(rk)                  :: Fsed_poc    = 30.0
+   real(rk)                  :: Fsed_doc    = 30.0
+   real(rk)                  :: Kpoc_miner  = 30.0
+   real(rk)                  :: Kdoc_miner  = 30.0
+   real(rk)                  :: Ksed_doc    = 4.5
+   real(rk)                  :: theta_poc_miner = 1.0
+   real(rk)                  :: theta_doc_miner = 1.0
+   real(rk)                  :: theta_sed_doc   = 1.0
+   real(rk)                  :: KeDOM = 0.01
+   real(rk)                  :: KePOM = 0.01
    CHARACTER(len=64)         :: doc_miner_product_variable=''
    CHARACTER(len=64)         :: doc_miner_reactant_variable=''
    CHARACTER(len=64)         :: Fsed_poc_variable=''
@@ -158,7 +158,7 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
 
 
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_organic_matter/ &
              pon_initial, don_initial, w_pon, Rpon_miner, Rdon_miner, Fsed_pon, Fsed_don, &
              Kpon_miner, Kdon_miner, Ksed_don,                &
@@ -340,16 +340,16 @@ SUBROUTINE aed_organic_matter_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   REALTYPE                   :: pon,don,amm,oxy,temp !State variables
-   REALTYPE                   :: pon_mineralisation, don_mineralisation
-   REALTYPE                   :: pop,dop,frp !State variables
-   REALTYPE                   :: pop_mineralisation, dop_mineralisation
-   REALTYPE                   :: poc,doc,dic !State variables
-   REALTYPE                   :: poc_mineralisation, doc_mineralisation
-   REALTYPE, parameter        :: secs_pr_day = 86400.
- ! REALTYPE, parameter        :: Yoxy_don_miner = 6.625 !ratio of oxygen to nitrogen utilised during don mineralisation
- ! REALTYPE, parameter        :: Yoxy_dop_miner = 6.625 !ratio of oxygen to phosphoros utilised during dop mineralisation
-   REALTYPE, parameter        :: Yoxy_doc_miner = 32./12. !ratio of oxygen to carbon utilised during doc mineralisation
+   real(rk)                   :: pon,don,amm,oxy,temp !State variables
+   real(rk)                   :: pon_mineralisation, don_mineralisation
+   real(rk)                   :: pop,dop,frp !State variables
+   real(rk)                   :: pop_mineralisation, dop_mineralisation
+   real(rk)                   :: poc,doc,dic !State variables
+   real(rk)                   :: poc_mineralisation, doc_mineralisation
+   real(rk), parameter        :: secs_pr_day = 86400.
+ ! real(rk), parameter        :: Yoxy_don_miner = 6.625 !ratio of oxygen to nitrogen utilised during don mineralisation
+ ! real(rk), parameter        :: Yoxy_dop_miner = 6.625 !ratio of oxygen to phosphoros utilised during dop mineralisation
+   real(rk), parameter        :: Yoxy_doc_miner = 32./12. !ratio of oxygen to carbon utilised during doc mineralisation
 
 !-----------------------------------------------------------------------
 !BEGIN
@@ -448,16 +448,16 @@ SUBROUTINE aed_organic_matter_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE           :: pon,don,amm,oxy,temp !State variables
-   REALTYPE           :: pon_mineralisation, don_mineralisation
-   REALTYPE           :: pop,dop,frp !State variables
-   REALTYPE           :: pop_mineralisation, dop_mineralisation
-   REALTYPE           :: poc,doc,dic !State variables
-   REALTYPE           :: poc_mineralisation, doc_mineralisation
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
- ! REALTYPE,PARAMETER :: Yoxy_don_miner = 6.625   ! ratio of oxygen to nitrogen utilised during don mineralisation
- ! REALTYPE,PARAMETER :: Yoxy_dop_miner = 6.625   ! ratio of oxygen to phosphoros utilised during dop mineralisation
-   REALTYPE,PARAMETER :: Yoxy_doc_miner = 32./12. ! ratio of oxygen to carbon utilised during doc mineralisation
+   real(rk)           :: pon,don,amm,oxy,temp !State variables
+   real(rk)           :: pon_mineralisation, don_mineralisation
+   real(rk)           :: pop,dop,frp !State variables
+   real(rk)           :: pop_mineralisation, dop_mineralisation
+   real(rk)           :: poc,doc,dic !State variables
+   real(rk)           :: poc_mineralisation, doc_mineralisation
+   real(rk),PARAMETER :: secs_pr_day = 86400.
+ ! real(rk),PARAMETER :: Yoxy_don_miner = 6.625   ! ratio of oxygen to nitrogen utilised during don mineralisation
+ ! real(rk),PARAMETER :: Yoxy_dop_miner = 6.625   ! ratio of oxygen to phosphoros utilised during dop mineralisation
+   real(rk),PARAMETER :: Yoxy_doc_miner = 32./12. ! ratio of oxygen to carbon utilised during doc mineralisation
 
 !-----------------------------------------------------------------------
 !BEGIN
@@ -566,25 +566,25 @@ SUBROUTINE aed_organic_matter_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp !, layer_ht
+   real(rk) :: temp !, layer_ht
 
    ! State
-   REALTYPE :: pon,don
-   REALTYPE :: pop,dop
-   REALTYPE :: poc,doc
+   real(rk) :: pon,don
+   real(rk) :: pop,dop
+   real(rk) :: poc,doc
 
    ! Temporary variables
-   REALTYPE :: pon_flux,don_flux
-   REALTYPE :: pop_flux,dop_flux
-   REALTYPE :: poc_flux,doc_flux
+   real(rk) :: pon_flux,don_flux
+   real(rk) :: pop_flux,dop_flux
+   real(rk) :: poc_flux,doc_flux
 
-   REALTYPE :: Fsed_pon,Fsed_don
-   REALTYPE :: Fsed_pop,Fsed_dop
-   REALTYPE :: Fsed_poc,Fsed_doc
-   REALTYPE :: Psed_poc, Psed_pon, Psed_pop
+   real(rk) :: Fsed_pon,Fsed_don
+   real(rk) :: Fsed_pop,Fsed_dop
+   real(rk) :: Fsed_poc,Fsed_doc
+   real(rk) :: Psed_poc, Psed_pon, Psed_pop
 
    ! Parameters
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -683,7 +683,7 @@ SUBROUTINE aed_organic_matter_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTIO
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
 !LOCALS
-   REALTYPE :: doc,poc
+   real(rk) :: doc,poc
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -713,7 +713,7 @@ SUBROUTINE aed_organic_matter_get_conserved_quantities(self,_FABM_ARGS_GET_CONSE
    _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
-   REALTYPE :: pon, don, pop, dop, poc, doc
+   real(rk) :: pon, don, pop, dop, poc, doc
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -741,7 +741,7 @@ END SUBROUTINE aed_organic_matter_get_conserved_quantities
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION fpon_miner(self,oxy,temp)
+PURE real(rk) FUNCTION fpon_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Nitrogen
 !
@@ -751,7 +751,7 @@ PURE REALTYPE FUNCTION fpon_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
-   REALTYPE,INTENT(in) :: oxy,temp
+   real(rk),INTENT(in) :: oxy,temp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -766,7 +766,7 @@ END FUNCTION fpon_miner
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION fdon_miner(self,oxy,temp)
+PURE real(rk) FUNCTION fdon_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for mineralisation added 18/7/11
 !
@@ -775,7 +775,7 @@ PURE REALTYPE FUNCTION fdon_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
-   REALTYPE,INTENT(in)                          :: oxy,temp
+   real(rk),INTENT(in)                          :: oxy,temp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -791,7 +791,7 @@ END FUNCTION fdon_miner
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION fpop_miner(self,oxy,temp)
+PURE real(rk) FUNCTION fpop_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Phosphorus
 !
@@ -802,7 +802,7 @@ PURE REALTYPE FUNCTION fpop_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
-   REALTYPE,INTENT(in)                          :: oxy,temp
+   real(rk),INTENT(in)                          :: oxy,temp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -817,7 +817,7 @@ END FUNCTION fpop_miner
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION fdop_miner(self,oxy,temp)
+PURE real(rk) FUNCTION fdop_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for mineralisation added 18/7/11
 !
@@ -826,7 +826,7 @@ PURE REALTYPE FUNCTION fdop_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
-   REALTYPE,INTENT(in)                          :: oxy,temp
+   real(rk),INTENT(in)                          :: oxy,temp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -842,7 +842,7 @@ END FUNCTION fdop_miner
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION fpoc_miner(self,oxy,temp)
+PURE real(rk) FUNCTION fpoc_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Carbon
 !
@@ -853,7 +853,7 @@ PURE REALTYPE FUNCTION fpoc_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
-   REALTYPE,INTENT(in)                          :: oxy,temp
+   real(rk),INTENT(in)                          :: oxy,temp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -868,7 +868,7 @@ END FUNCTION fpoc_miner
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION fdoc_miner(self,oxy,temp)
+PURE real(rk) FUNCTION fdoc_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for mineralisation added 18/7/11
 !
@@ -877,7 +877,7 @@ PURE REALTYPE FUNCTION fdoc_miner(self,oxy,temp)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
-   REALTYPE,INTENT(in)                          :: oxy,temp
+   real(rk),INTENT(in)                          :: oxy,temp
 !
 !-----------------------------------------------------------------------
 !BEGIN

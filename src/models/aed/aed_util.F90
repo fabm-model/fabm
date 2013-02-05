@@ -68,19 +68,19 @@ END FUNCTION find_free_lun
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION aed_gas_piston_velocity(wshgt,wind,tem,sal)
+PURE real(rk) FUNCTION aed_gas_piston_velocity(wshgt,wind,tem,sal)
 !-------------------------------------------------------------------------------
 ! Atmospheric-surface water exchange piston velocity for O2, CO2 etc
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   REALTYPE,INTENT(IN)    :: wshgt,wind,tem,sal
+   real(rk),INTENT(IN)    :: wshgt,wind,tem,sal
 !
 !LOCALS
    ! Temporary variables
-   REALTYPE :: schmidt,k_wind,k_flow,temp,salt,hgtCorrx
+   real(rk) :: schmidt,k_wind,k_flow,temp,salt,hgtCorrx
    ! Parameters
-   REALTYPE,PARAMETER :: roughlength = 0.000114  ! momn roughness length(m)
-   REALTYPE,PARAMETER :: SCHMIDT_MODEL = 2.0
+   real(rk),PARAMETER :: roughlength = 0.000114  ! momn roughness length(m)
+   real(rk),PARAMETER :: SCHMIDT_MODEL = 2.0
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -135,12 +135,12 @@ END FUNCTION aed_gas_piston_velocity
 !###############################################################################
 FUNCTION exp_integral(inp) RESULT(E_ib)
 !ARGUMENTS
-   REALTYPE  :: inp
+   real(rk)  :: inp
 !
 !LOCALS
-   REALTYPE  :: E_ib !-- Outgoing
+   real(rk)  :: E_ib !-- Outgoing
    INTEGER   :: j
-   REALTYPE  :: ff
+   real(rk)  :: ff
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -180,29 +180,29 @@ SUBROUTINE aed_bio_temp_function(numg, theta, T_std, T_opt, T_max, aTn, bTn, kTn
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    INTEGER,INTENT(in)       :: numg        ! Number of groups
-   REALTYPE,INTENT(in)      :: theta(:)
-   REALTYPE,INTENT(inout)   :: T_std(:), T_opt(:), T_max(:)
-   REALTYPE,INTENT(out)     :: aTn(:), bTn(:), kTn(:)
+   real(rk),INTENT(in)      :: theta(:)
+   real(rk),INTENT(inout)   :: T_std(:), T_opt(:), T_max(:)
+   real(rk),INTENT(out)     :: aTn(:), bTn(:), kTn(:)
    CHARACTER(64),INTENT(in) :: name(:)
 !
 !LOCALS
-   REALTYPE :: Ts     ! Min. temperature where fT(Ts)=I (usually 1)
-   REALTYPE :: To     ! Optimum temperature where d(fT(To))/dT=0
-   REALTYPE :: Tm     ! Maximum temperature where fT(Tm)=0
-   REALTYPE :: in     ! Constant for fT(Ts)=in
-   REALTYPE :: v      ! Constant v
-   REALTYPE :: k,a,b  ! Model constants
-   REALTYPE :: G      ! Function fT()
-   REALTYPE :: devG       ! Derivative of fT()
-   REALTYPE :: a0,a1,a2   ! Dummies
-   REALTYPE :: tol        ! Tolerance
+   real(rk) :: Ts     ! Min. temperature where fT(Ts)=I (usually 1)
+   real(rk) :: To     ! Optimum temperature where d(fT(To))/dT=0
+   real(rk) :: Tm     ! Maximum temperature where fT(Tm)=0
+   real(rk) :: in     ! Constant for fT(Ts)=in
+   real(rk) :: v      ! Constant v
+   real(rk) :: k,a,b  ! Model constants
+   real(rk) :: G      ! Function fT()
+   real(rk) :: devG       ! Derivative of fT()
+   real(rk) :: a0,a1,a2   ! Dummies
+   real(rk) :: tol        ! Tolerance
    INTEGER :: group       ! Group counter
    INTEGER :: i           ! Counters
-   REALTYPE,PARAMETER :: t20=20.0
+   real(rk),PARAMETER :: t20=20.0
    LOGICAL,PARAMETER :: curvef=.true. ! T : f(T)=v**(T-20) at T=Tsta
                                       ! F : f(T) = 1 at T=Tsta
 
-   REALTYPE,ALLOCATABLE,DIMENSION(:,:) :: value
+   real(rk),ALLOCATABLE,DIMENSION(:,:) :: value
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -330,12 +330,12 @@ FUNCTION fTemp_function(method,T_max,T_std,theta,aTn,bTn,kTn,temp) RESULT(fT)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    INTEGER,INTENT(in)  :: method
-   REALTYPE,INTENT(in) :: T_max, T_std,theta,aTn,bTn,kTn
-   REALTYPE,INTENT(in) :: temp  ! Temperature
+   real(rk),INTENT(in) :: T_max, T_std,theta,aTn,bTn,kTn
+   real(rk),INTENT(in) :: temp  ! Temperature
 !
 !LOCALS
-   REALTYPE  :: fT        !-- Value of the temperature function
-   REALTYPE,PARAMETER  :: tp = 20.0
+   real(rk)  :: fT        !-- Value of the temperature function
+   real(rk),PARAMETER  :: tp = 20.0
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -368,7 +368,7 @@ END FUNCTION fTemp_function
 RECURSIVE SUBROUTINE qsort(RA,IA,start,end)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   REALTYPE,INTENT(in) :: RA(:)
+   real(rk),INTENT(in) :: RA(:)
    INTEGER,INTENT(inout) :: IA(:)
    INTEGER,INTENT(in) :: start,end
 !

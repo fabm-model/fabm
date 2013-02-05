@@ -39,35 +39,35 @@ MODULE aed_zooplankton
       !State variable name for zooplankton prey
       CHARACTER(64) :: zoop_prey
       !Preference factors for zooplankton predators grazing on prey
-      REALTYPE      :: Pzoo_prey
+      real(rk)      :: Pzoo_prey
    END TYPE type_zoop_prey
 
 
    TYPE type_zoop_params
       ! General Attributes
       CHARACTER(64) :: zoop_name
-      REALTYPE :: zoop_initial, min_zoo
+      real(rk) :: zoop_initial, min_zoo
       ! Growth rate parameters
-      REALTYPE :: Rgrz_zoo, fassim_zoo, Kgrz_zoo, theta_grz_zoo
+      real(rk) :: Rgrz_zoo, fassim_zoo, Kgrz_zoo, theta_grz_zoo
       ! Respiration, mortaility and excretion parameters
-      REALTYPE :: Rresp_zoo, Rmort_zoo, ffecal_zoo, fexcr_zoo, ffecal_sed
+      real(rk) :: Rresp_zoo, Rmort_zoo, ffecal_zoo, fexcr_zoo, ffecal_sed
       ! Temperature limitation on zooplankton loss terms
-      REALTYPE :: theta_resp_zoo, Tstd_zoo, Topt_zoo, Tmax_zoo
+      real(rk) :: theta_resp_zoo, Tstd_zoo, Topt_zoo, Tmax_zoo
       ! Salinity parameters
       INTEGER  :: saltfunc_zoo
-      REALTYPE :: Smin_zoo, Smax_zoo, Sint_zoo
+      real(rk) :: Smin_zoo, Smax_zoo, Sint_zoo
       ! Nutrient parameters
-       REALTYPE :: INC_zoo, IPC_zoo
+       real(rk) :: INC_zoo, IPC_zoo
       ! Dissolved oxygen parameters
-      REALTYPE :: DOmin_zoo
+      real(rk) :: DOmin_zoo
       ! Minumum prey concentration parameters
-      REALTYPE :: Cmin_grz_zoo
+      real(rk) :: Cmin_grz_zoo
       ! Prey information
       INTEGER  :: num_prey
       TYPE(type_zoop_prey)      :: prey(MAX_ZOOP_PREY)
       INTEGER  :: simDOlim
       ! Temperature limitation derived terms
-      REALTYPE :: kTn, aTn, bTn
+      real(rk) :: kTn, aTn, bTn
    END TYPE
 
    TYPE,extends(type_zoop_params) :: type_zoop_data
@@ -117,9 +117,9 @@ SUBROUTINE aed_zooplankton_load_params(self, count, list)
    INTEGER,INTENT(in)                           :: list(*) !List of zooplankton groups to simulate
 
    INTEGER  :: i,j,tfil,sort_i(MAX_ZOOP_PREY)
-   REALTYPE :: Pzoo_prey(MAX_ZOOP_PREY)
+   real(rk) :: Pzoo_prey(MAX_ZOOP_PREY)
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
    TYPE(type_zoop_params)  :: zoop_param(MAX_ZOOP_TYPES)
    NAMELIST /zoop_params/ zoop_param
 !-------------------------------------------------------------------------------
@@ -213,7 +213,7 @@ FUNCTION aed_zooplankton_create(namlst,name,parent) RESULT(self)
    CHARACTER(len=64)  :: dc_target_variable='' !dissolved carbon target variable
    CHARACTER(len=64)  :: pc_target_variable='' !particulate carbon target variable
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
    INTEGER            :: zoop_i, prey_i, phy_i
 
    NAMELIST /aed_zooplankton/ num_zoops, the_zoops, &
@@ -330,19 +330,19 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   REALTYPE           :: zoo,temp,salinity !State variables
-   REALTYPE           :: prey(MAX_ZOOP_PREY), grazing_prey(MAX_ZOOP_PREY) !Prey state variables
-   REALTYPE           :: phy_INcon(MAX_ZOOP_PREY), phy_IPcon(MAX_ZOOP_PREY) !Internal nutrients for phytoplankton
-   REALTYPE           :: dn_excr, dp_excr, dc_excr !Excretion state variables
-   REALTYPE           :: pon, pop, poc !Mortaility and fecal pellet state variables
-   REALTYPE           :: FGrazing_Limitation, f_T, f_Salinity
-   REALTYPE           :: pref_factor, Ctotal_prey !total concentration of available prey
-   REALTYPE           :: food, grazing, respiration, mortality !Growth & decay functions
-   REALTYPE           :: grazing_n, grazing_p !Grazing on nutrients
-   REALTYPE           :: pon_excr, pop_excr, poc_excr !POM excretion rates
-   REALTYPE           :: don_excr, dop_excr, doc_excr, delta_C !DOM excretion rates
+   real(rk)           :: zoo,temp,salinity !State variables
+   real(rk)           :: prey(MAX_ZOOP_PREY), grazing_prey(MAX_ZOOP_PREY) !Prey state variables
+   real(rk)           :: phy_INcon(MAX_ZOOP_PREY), phy_IPcon(MAX_ZOOP_PREY) !Internal nutrients for phytoplankton
+   real(rk)           :: dn_excr, dp_excr, dc_excr !Excretion state variables
+   real(rk)           :: pon, pop, poc !Mortaility and fecal pellet state variables
+   real(rk)           :: FGrazing_Limitation, f_T, f_Salinity
+   real(rk)           :: pref_factor, Ctotal_prey !total concentration of available prey
+   real(rk)           :: food, grazing, respiration, mortality !Growth & decay functions
+   real(rk)           :: grazing_n, grazing_p !Grazing on nutrients
+   real(rk)           :: pon_excr, pop_excr, poc_excr !POM excretion rates
+   real(rk)           :: don_excr, dop_excr, doc_excr, delta_C !DOM excretion rates
    INTEGER            :: zoop_i,prey_i,prey_j,phy_i
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -608,15 +608,15 @@ SUBROUTINE aed_zooplankton_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE                   :: zoo,temp,salinity !State variables
-   REALTYPE, ALLOCATABLE,DIMENSION(:)      :: prey !Prey state variables
-   REALTYPE                   :: dn_excr, dp_excr, dc_excr !Excretion state variables
-   REALTYPE                   :: pon, pop, poc !Mortaility and fecal pellet state variables
-   REALTYPE                   :: FGrazing_Limitation, f_T, f_Salinity
-   REALTYPE                   :: Ctotal_prey !total concentration of available prey
-   REALTYPE                   :: grazing, respiration, mortality !Growth & decay functions
+   real(rk)                   :: zoo,temp,salinity !State variables
+   real(rk), ALLOCATABLE,DIMENSION(:)      :: prey !Prey state variables
+   real(rk)                   :: dn_excr, dp_excr, dc_excr !Excretion state variables
+   real(rk)                   :: pon, pop, poc !Mortaility and fecal pellet state variables
+   real(rk)                   :: FGrazing_Limitation, f_T, f_Salinity
+   real(rk)                   :: Ctotal_prey !total concentration of available prey
+   real(rk)                   :: grazing, respiration, mortality !Growth & decay functions
    INTEGER                    :: zoop_i,prey_i
-   REALTYPE,PARAMETER         :: secs_pr_day = 86400.
+   real(rk),PARAMETER         :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -733,8 +733,8 @@ SUBROUTINE aed_zooplankton_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVE
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
-   REALTYPE  :: zoo
-   REALTYPE  :: Total_zoo, TN_zoo, TP_zoo
+   real(rk)  :: zoo
+   real(rk)  :: Total_zoo, TN_zoo, TP_zoo
    INTEGER   :: zoo_i
 !
 !-------------------------------------------------------------------------------
@@ -779,11 +779,11 @@ FUNCTION fPrey_Limitation(self,group,C) RESULT(fPlim)
    !-- Incoming
    _CLASS_ (type_aed_zooplankton),INTENT(in) :: self
    INTEGER                                   :: group
-   REALTYPE,INTENT(in)                       :: C !total concentration of available prey
+   real(rk),INTENT(in)                       :: C !total concentration of available prey
 !
 !LOCALS
    ! Returns the M-M limitation function
-   REALTYPE                                 :: fPlim
+   real(rk)                                 :: fPlim
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -805,11 +805,11 @@ FUNCTION fSalinity_Limitation(self,group,S) RESULT(fSal)
 !ARGUMENTS
    _CLASS_ (type_aed_zooplankton),INTENT(in) :: self
    INTEGER                                   :: group
-   REALTYPE,INTENT(in)                       :: S
+   real(rk),INTENT(in)                       :: S
 !
 !LOCALS
-   REALTYPE  :: fSal ! Returns the salinity function
-   REALTYPE  :: Smin,Smax,Sint
+   real(rk)  :: fSal ! Returns the salinity function
+   real(rk)  :: Smin,Smax,Sint
 !
 !-------------------------------------------------------------------------------
 !BEGIN

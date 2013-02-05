@@ -48,7 +48,7 @@ MODULE aed_oxygen
       type (type_horizontal_diagnostic_variable_id) :: id_sed_oxy
 
 !     Model parameters
-      REALTYPE :: Fsed_oxy,Ksed_oxy,theta_sed_oxy
+      real(rk) :: Fsed_oxy,Ksed_oxy,theta_sed_oxy
       LOGICAL  :: use_sed_model
 
       CONTAINS     ! Model Procedures
@@ -80,13 +80,13 @@ FUNCTION aed_oxygen_create(namlst,name,parent) RESULT(self)
 !LOCALS
    _CLASS_ (type_aed_oxygen),POINTER :: self
 
-   REALTYPE :: oxy_initial=300.
-   REALTYPE :: Fsed_oxy = 48.0
-   REALTYPE :: Ksed_oxy = 30.0
-   REALTYPE :: theta_sed_oxy = 1.0
+   real(rk) :: oxy_initial=300.
+   real(rk) :: Fsed_oxy = 48.0
+   real(rk) :: Ksed_oxy = 30.0
+   real(rk) :: theta_sed_oxy = 1.0
    CHARACTER(len=64) :: Fsed_oxy_variable=''
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_oxygen/ oxy_initial,Fsed_oxy,Ksed_oxy,theta_sed_oxy,  &
                          Fsed_oxy_variable
 !
@@ -152,18 +152,18 @@ END FUNCTION aed_oxygen_create
 
 
 !###############################################################################
-PURE REALTYPE FUNCTION aed_oxygen_sat(salt,temp)
+PURE real(rk) FUNCTION aed_oxygen_sat(salt,temp)
 !-------------------------------------------------------------------------------
 !  Calculated saturated oxygen concentration at salinity and temperature
 ! Taken from Riley and Skirrow (1974)
 !
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   REALTYPE,INTENT(in) :: salt,temp
+   real(rk),INTENT(in) :: salt,temp
 !
 !LOCALS
-   REALTYPE :: Tabs
-   REALTYPE :: buf1, buf2, buf3, sol_coeff
+   real(rk) :: Tabs
+   real(rk) :: buf1, buf2, buf3, sol_coeff
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -193,9 +193,9 @@ SUBROUTINE aed_oxygen_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   REALTYPE :: oxy
-   REALTYPE :: diff_oxy
-!  REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk) :: oxy
+   real(rk) :: diff_oxy
+!  real(rk),PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -232,8 +232,8 @@ SUBROUTINE aed_oxygen_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE :: oxy
-   REALTYPE :: diff_oxy
+   real(rk) :: oxy
+   real(rk) :: diff_oxy
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -273,17 +273,17 @@ SUBROUTINE aed_oxygen_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp, salt, wind
+   real(rk) :: temp, salt, wind
 
    ! State
-   REALTYPE :: oxy
+   real(rk) :: oxy
 
    ! Temporary variables
-   REALTYPE :: oxy_atm_flux = _ZERO_
-   REALTYPE :: Coxy_air = _ZERO_ !Dissolved oxygen in the air phase
-   REALTYPE :: koxy_trans = _ZERO_
-   REALTYPE :: windHt !, Tabs
-   REALTYPE :: f_pres  = 1.0      ! Pressure correction function only applicable at high altitudes
+   real(rk) :: oxy_atm_flux = _ZERO_
+   real(rk) :: Coxy_air = _ZERO_ !Dissolved oxygen in the air phase
+   real(rk) :: koxy_trans = _ZERO_
+   real(rk) :: windHt !, Tabs
+   real(rk) :: f_pres  = 1.0      ! Pressure correction function only applicable at high altitudes
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -336,16 +336,16 @@ SUBROUTINE aed_oxygen_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp !, layer_ht
+   real(rk) :: temp !, layer_ht
 
    ! State
-   REALTYPE :: oxy
+   real(rk) :: oxy
 
    ! Temporary variables
-   REALTYPE :: oxy_flux, Fsed_oxy
+   real(rk) :: oxy_flux, Fsed_oxy
 
    ! Parameters
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN

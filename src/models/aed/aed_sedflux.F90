@@ -82,10 +82,10 @@ MODULE aed_sedflux
 
 !     Model parameters
       INTEGER  :: sed_modl, n_zones
-      REALTYPE :: Fsed_oxy, Fsed_rsi, Fsed_amm, Fsed_nit, Fsed_frp, &
+      real(rk) :: Fsed_oxy, Fsed_rsi, Fsed_amm, Fsed_nit, Fsed_frp, &
                   Fsed_pon, Fsed_don, Fsed_pop, Fsed_dop, &
                   Fsed_poc, Fsed_doc, Fsed_dic, Fsed_ch4, Fsed_feii
-      REALTYPE,DIMENSION(:),ALLOCATABLE :: &
+      real(rk),DIMENSION(:),ALLOCATABLE :: &
                   Fsed_oxy_P, Fsed_rsi_P, Fsed_amm_P, Fsed_nit_P, Fsed_frp_P, &
                   Fsed_pon_P, Fsed_don_P, Fsed_pop_P, Fsed_dop_P, &
                   Fsed_poc_P, Fsed_doc_P, Fsed_dic_P, Fsed_ch4_P, Fsed_feii_P
@@ -95,7 +95,7 @@ MODULE aed_sedflux
         procedure :: do_benthos               => aed_sedflux_do_benthos
    END TYPE
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 
 
 !===============================================================================
@@ -110,11 +110,11 @@ SUBROUTINE load_sed_zone_data(self,namlst)
    INTEGER,INTENT(in)                       :: namlst
 !
 !LOCALS
-   REALTYPE          :: FsedA_initial=0.01
-   REALTYPE          :: FsedN_initial=0.01
+   real(rk)          :: FsedA_initial=0.01
+   real(rk)          :: FsedN_initial=0.01
 
    INTEGER  :: n_zones
-   REALTYPE :: Fsed_oxy(_MAX_ZONES_) = MISVAL, Fsed_rsi(_MAX_ZONES_) = MISVAL, &
+   real(rk) :: Fsed_oxy(_MAX_ZONES_) = MISVAL, Fsed_rsi(_MAX_ZONES_) = MISVAL, &
                Fsed_amm(_MAX_ZONES_) = MISVAL, Fsed_nit(_MAX_ZONES_) = MISVAL, &
                Fsed_frp(_MAX_ZONES_) = MISVAL, Fsed_pon(_MAX_ZONES_) = MISVAL, &
                Fsed_don(_MAX_ZONES_) = MISVAL, Fsed_pop(_MAX_ZONES_) = MISVAL, &
@@ -198,12 +198,12 @@ FUNCTION aed_sedflux_create(namlst,name,parent) RESULT(self)
 !LOCALS
    _CLASS_ (type_aed_sedflux), POINTER      :: self
 
-   REALTYPE          :: FsedA_initial=0.01
-   REALTYPE          :: FsedN_initial=0.01
+   real(rk)          :: FsedA_initial=0.01
+   real(rk)          :: FsedN_initial=0.01
    CHARACTER(len=64) :: sedflux_model=''
 
    INTEGER  :: nzones = 1
-   REALTYPE :: Fsed_oxy = MISVAL, Fsed_rsi = MISVAL, Fsed_amm = MISVAL, Fsed_nit = MISVAL, &
+   real(rk) :: Fsed_oxy = MISVAL, Fsed_rsi = MISVAL, Fsed_amm = MISVAL, Fsed_nit = MISVAL, &
                Fsed_pon = MISVAL, Fsed_don = MISVAL, Fsed_pop = MISVAL, Fsed_dop = MISVAL, &
                Fsed_poc = MISVAL, Fsed_doc = MISVAL, Fsed_dic = MISVAL, Fsed_frp = MISVAL, &
                Fsed_ch4 = MISVAL, Fsed_feii = MISVAL
@@ -347,16 +347,16 @@ SUBROUTINE aed_sedflux_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS
-   REALTYPE :: Rzone
+   real(rk) :: Rzone
    INTEGER  :: zone
    ! Temporary variables
-   REALTYPE :: Fsed_oxy, Fsed_rsi
-   REALTYPE :: Fsed_amm, Fsed_nit
-   REALTYPE :: Fsed_pon, Fsed_don
-   REALTYPE :: Fsed_pop, Fsed_dop
-   REALTYPE :: Fsed_poc, Fsed_doc
-   REALTYPE :: Fsed_dic, Fsed_frp
-   REALTYPE :: Fsed_ch4, Fsed_feii
+   real(rk) :: Fsed_oxy, Fsed_rsi
+   real(rk) :: Fsed_amm, Fsed_nit
+   real(rk) :: Fsed_pon, Fsed_don
+   real(rk) :: Fsed_pop, Fsed_dop
+   real(rk) :: Fsed_poc, Fsed_doc
+   real(rk) :: Fsed_dic, Fsed_frp
+   real(rk) :: Fsed_ch4, Fsed_feii
 !
 !-------------------------------------------------------------------------------
 !BEGIN

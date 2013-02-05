@@ -46,8 +46,8 @@
 !      type (type_dependency_id)          :: id_SeaFloor,id_BoxFaces,id_Bathymetry
 
 !     Model parameters
-!      REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
-!      REALTYPE :: dic_per_n
+!      real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
+!      real(rk) :: dic_per_n
    end type
    logical  :: bioshade_feedback
    integer :: nbudget
@@ -81,7 +81,7 @@
    integer :: n,ialloc
    character(len=255) :: ncdfErsemFile,ncdfErsemTitle
 
-!   REALTYPE, parameter :: secs_pr_day = 86400.
+!   real(rk), parameter :: secs_pr_day = 86400.
 #ifdef FABM_PMLERSEM
    namelist /pml_ersem/ ncdfErsemFile,ncdfErsemTitle, &
                         bioshade_feedback, &
@@ -196,7 +196,7 @@
 !  Original author(s): Momme Butenschön
 !
 ! !LOCAL VARIABLES:
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk), parameter        :: secs_pr_day = 86400.
    integer :: n
 !EOP
 !-----------------------------------------------------------------------
@@ -260,7 +260,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk), parameter        :: secs_pr_day = 86400.
    integer                    :: n
 !EOP
 !-----------------------------------------------------------------------
@@ -367,7 +367,7 @@
 !
 ! !LOCAL VARIABLES:
    integer                    :: n
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk), parameter        :: secs_pr_day = 86400.
 !
 !EOP
 !-----------------------------------------------------------------------

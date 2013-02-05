@@ -42,7 +42,7 @@ MODULE aed_tracer
       type (type_dependency_id)                 :: id_temp
 
 !     Model parameters
-      REALTYPE,ALLOCATABLE :: decay(:),settling(:), Fsed(:)
+      real(rk),ALLOCATABLE :: decay(:),settling(:), Fsed(:)
 
       CONTAINS      ! Model Methods
 !       procedure :: initialize               => aed_tracer_init
@@ -74,14 +74,14 @@ FUNCTION aed_tracer_create(namlst,name,parent) RESULT(self)
    _CLASS_ (type_aed_tracer),POINTER :: self
 
    INTEGER  :: num_tracers
-   REALTYPE :: decay(100)
-   REALTYPE :: settling(100)
-   REALTYPE :: Fsed(100)
-   REALTYPE :: trace_initial = _ZERO_
+   real(rk) :: decay(100)
+   real(rk) :: settling(100)
+   real(rk) :: Fsed(100)
+   real(rk) :: trace_initial = _ZERO_
    INTEGER  :: i
    CHARACTER(4) :: trac_name
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_tracer/ num_tracers,decay,settling,Fsed
 !
 !-------------------------------------------------------------------------------
@@ -177,13 +177,13 @@ SUBROUTINE aed_tracer_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp
+   real(rk) :: temp
 
    ! State
-   REALTYPE :: ss
+   real(rk) :: ss
 
    ! Temporary variables
-   REALTYPE :: ss_flux, theta_sed_ss = 1.0
+   real(rk) :: ss_flux, theta_sed_ss = 1.0
    INTEGER  :: i
 
 !-------------------------------------------------------------------------------
@@ -223,7 +223,7 @@ SUBROUTINE aed_tracer_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
-!  REALTYPE :: ss
+!  real(rk) :: ss
 !  INTEGER  :: i
 !
 !-------------------------------------------------------------------------------

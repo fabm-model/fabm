@@ -32,13 +32,13 @@
       type (type_horizontal_dependency_id) :: id_taub    !bottom stress
 
 !     Model parameters
-      REALTYPE :: ws
-      REALTYPE :: c_init
-      REALTYPE :: mass_sed_init
-      REALTYPE :: tauc_erosion
-      REALTYPE :: tauc_sedimentation
-      REALTYPE :: erosion_const
-      REALTYPE :: shading
+      real(rk) :: ws
+      real(rk) :: c_init
+      real(rk) :: mass_sed_init
+      real(rk) :: tauc_erosion
+      real(rk) :: tauc_sedimentation
+      real(rk) :: erosion_const
+      real(rk) :: shading
 
    end type
 !EOP
@@ -71,14 +71,14 @@
 !
 ! !LOCAL VARIABLES:
 
-   REALTYPE, parameter :: secs_pr_day = 86400.d0   ! s
-   REALTYPE            :: c_init=5.0d0             ! mg/l
-   REALTYPE            :: mass_sed_init=100.d0     ! g/m**2
-   REALTYPE            :: tauc_erosion=2.d-2       ! N/m**2
-   REALTYPE            :: tauc_sedimentation=2.d-2 ! N/m**2
-   REALTYPE            :: erosion_const=1.d-2
-   REALTYPE            :: ws=-10.0d0               ! m/d
-   REALTYPE            :: shading=1.0d0            ! 1/m per mg/l
+   real(rk), parameter :: secs_pr_day = 86400.d0   ! s
+   real(rk)            :: c_init=5.0d0             ! mg/l
+   real(rk)            :: mass_sed_init=100.d0     ! g/m**2
+   real(rk)            :: tauc_erosion=2.d-2       ! N/m**2
+   real(rk)            :: tauc_sedimentation=2.d-2 ! N/m**2
+   real(rk)            :: erosion_const=1.d-2
+   real(rk)            :: ws=-10.0d0               ! m/d
+   real(rk)            :: shading=1.0d0            ! 1/m per mg/l
 
    namelist /iow_spm/ c_init, shading, &
                          mass_sed_init, &
@@ -138,10 +138,10 @@
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: taub,spm,pmpool
-   REALTYPE                     :: porosity
-   REALTYPE, parameter          :: rho_0=1025.d0 ! [g/l]
-   REALTYPE                     :: Erosion_Flux,Sedimentation_Flux
+   real(rk)                     :: taub,spm,pmpool
+   real(rk)                     :: porosity
+   real(rk), parameter          :: rho_0=1025.d0 ! [g/l]
+   real(rk)                     :: Erosion_Flux,Sedimentation_Flux
 !
 ! !REVISION HISTORY:
 !  Original author(s): Richard Hofmeister
@@ -195,7 +195,7 @@
    type (type_iow_spm), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 ! !LOCAL VARIABLES
-   REALTYPE      :: spm
+   real(rk)      :: spm
 !
 ! !REVISION HISTORY:
 !  Original author(s): Richard Hofmeister

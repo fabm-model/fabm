@@ -41,7 +41,7 @@
                klimacampus_phy_feedback_get_conserved_quantities
 !
 ! !PRIVATE DATA MEMBERS:
-   REALTYPE, parameter :: secs_pr_day  = 86400., secs_pr_hour = 3600.
+   real(rk), parameter :: secs_pr_day  = 86400., secs_pr_hour = 3600.
 !
 ! !REVISION HISTORY:!
 !  Original author(s): Inga Hense
@@ -55,7 +55,7 @@
       type (type_conserved_quantity_id)  :: id_totN
 
 !     Model parameters
-      REALTYPE :: muemax_phy,alpha,mortphy,rem, &
+      real(rk) :: muemax_phy,alpha,mortphy,rem, &
                   topt,tl1,tl2,depo,nbot,albedo_bio,drag_bio
    end type
 !EOP
@@ -84,23 +84,23 @@
 !  Original author(s): Inga Hense
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                  :: nut_initial=4.5   ! nutrients
-   REALTYPE                  :: phy_initial=0.    ! phytolankton (cyanobacteria)
-   REALTYPE                  :: det_initial=4.5   ! detritus
-   REALTYPE                  :: rkc=0.03          ! attenuation coefficient (organic matter)
-   REALTYPE                  :: alpha=0.3         ! initial slope of the PI-curve
-   REALTYPE                  :: muemax_phy=0.25   ! maximum growth rate
-   REALTYPE                  :: mortphy=0.04      ! mortality rate
-   REALTYPE                  :: rem=0.048         ! remineralization rate
-   REALTYPE                  :: topt=25.          ! optimum temperature for growth
-   REALTYPE                  :: tl1=2.            ! slope (temp. function)
-   REALTYPE                  :: tl2=3.            ! slope (temp. function)
-   REALTYPE                  :: w_phy=1.          ! positive buoyancy
-   REALTYPE                  :: w_det=-18.        ! sinking of detritus
-   REALTYPE                  :: depo=0.05         ! detritus burial rate
-   REALTYPE                  :: nbot=35.          ! bottom nutrient concentration
-   REALTYPE                  :: albedo_bio=0.002  ! factor for albedo changes through surface phy
-   REALTYPE                  :: drag_bio=0.05     ! factor for drag coef. changes through surface phy
+   real(rk)                  :: nut_initial=4.5   ! nutrients
+   real(rk)                  :: phy_initial=0.    ! phytolankton (cyanobacteria)
+   real(rk)                  :: det_initial=4.5   ! detritus
+   real(rk)                  :: rkc=0.03          ! attenuation coefficient (organic matter)
+   real(rk)                  :: alpha=0.3         ! initial slope of the PI-curve
+   real(rk)                  :: muemax_phy=0.25   ! maximum growth rate
+   real(rk)                  :: mortphy=0.04      ! mortality rate
+   real(rk)                  :: rem=0.048         ! remineralization rate
+   real(rk)                  :: topt=25.          ! optimum temperature for growth
+   real(rk)                  :: tl1=2.            ! slope (temp. function)
+   real(rk)                  :: tl2=3.            ! slope (temp. function)
+   real(rk)                  :: w_phy=1.          ! positive buoyancy
+   real(rk)                  :: w_det=-18.        ! sinking of detritus
+   real(rk)                  :: depo=0.05         ! detritus burial rate
+   real(rk)                  :: nbot=35.          ! bottom nutrient concentration
+   real(rk)                  :: albedo_bio=0.002  ! factor for albedo changes through surface phy
+   real(rk)                  :: drag_bio=0.05     ! factor for drag coef. changes through surface phy
 
    namelist /klimacampus_phy_feedback/ &
               nut_initial,phy_initial,det_initial,rkc,alpha,   &
@@ -182,8 +182,8 @@
 !  Original author(s): Inga Hense
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: nut,phy,det,par,temp
-   REALTYPE                   :: ta_phy,mue_par_phy,mue_phy
+   real(rk)                   :: nut,phy,det,par,temp
+   real(rk)                   :: ta_phy,mue_par_phy,mue_phy
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -241,7 +241,7 @@
 !  Original author(s): Inga Hense
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: phys
+   real(rk)                     :: phys
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -282,7 +282,7 @@
 !  Original author(s): Inga Hense
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: phys
+   real(rk)                     :: phys
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -321,7 +321,7 @@
 !  Original author(s): Inga Hense
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: deb,nub
+   real(rk)                   :: deb,nub
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -357,7 +357,7 @@
 !  Original author(s): Inga Hense
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: nut,phy,det
+   real(rk)                     :: nut,phy,det
 !
 !EOP
 !-----------------------------------------------------------------------

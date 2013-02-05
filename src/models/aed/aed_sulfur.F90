@@ -44,7 +44,7 @@ MODULE aed_sulfur
       type (type_conserved_quantity_id)  :: id_totS
 
 !     Model parameters
-      REALTYPE :: Fsed_dic,Ksed_dic,theta_sed_dic
+      real(rk) :: Fsed_dic,Ksed_dic,theta_sed_dic
       LOGICAL  :: use_oxy,use_dic
 
       CONTAINS     ! Model Methods
@@ -77,11 +77,11 @@ FUNCTION aed_sulfur_create(namlst,name,parent) RESULT(self)
    _CLASS_ (type_aed_sulfur),POINTER :: self
 
    INTEGER           :: num_sulfurs
-   REALTYPE          :: decay(100)
-   REALTYPE          :: settling(100)
-   REALTYPE          :: Fsed(100)
+   real(rk)          :: decay(100)
+   real(rk)          :: settling(100)
+   real(rk)          :: Fsed(100)
 
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_sulfur/ num_sulfurs,decay,settling,Fsed
 !
 !-------------------------------------------------------------------------------
@@ -120,8 +120,8 @@ SUBROUTINE aed_sulfur_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-!  REALTYPE           :: dic,diff_dic
-!  REALTYPE,PARAMETER :: secs_pr_day = 86400.
+!  real(rk)           :: dic,diff_dic
+!  real(rk),PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -154,9 +154,9 @@ SUBROUTINE aed_sulfur_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   REALTYPE                   :: dic
-   REALTYPE                   :: diff_dic
-   REALTYPE, parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: dic
+   real(rk)                   :: diff_dic
+   real(rk), parameter        :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -190,16 +190,16 @@ SUBROUTINE aed_sulfur_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !
 !LOCALS
    ! Environment
-   REALTYPE :: temp
+   real(rk) :: temp
 
    ! State
-!  REALTYPE :: dic,oxy
+!  real(rk) :: dic,oxy
 
    ! Temporary variables
-!  REALTYPE :: dic_flux
+!  real(rk) :: dic_flux
 
    ! Parameters
-   REALTYPE,PARAMETER :: secs_pr_day = 86400.
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -255,7 +255,7 @@ SUBROUTINE aed_sulfur_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
-   REALTYPE :: dic
+   real(rk) :: dic
 !
 !-------------------------------------------------------------------------------
 !BEGIN

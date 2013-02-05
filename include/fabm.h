@@ -430,16 +430,16 @@
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
 #define _DECLARE_FABM_ARGS_ND_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_ND_
 #define _DECLARE_FABM_ARGS_HZ_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_HZ_
-#define _DECLARE_FABM_ARGS_DO_RHS_  _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: rhs
-#define _DECLARE_FABM_ARGS_DO_PPDD_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_2_,intent(inout) :: pp,dd
-#define _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux_pel,flux_ben
-#define _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
-#define _DECLARE_FABM_ARGS_GET_EXTINCTION_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_0_,intent(inout) :: extinction
-#define _DECLARE_FABM_ARGS_GET_DRAG_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: drag
-#define _DECLARE_FABM_ARGS_GET_ALBEDO_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: albedo
-#define _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: velocity
-#define _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: sums
-#define _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux
+#define _DECLARE_FABM_ARGS_DO_RHS_  _DECLARE_FABM_ARGS_ND_;real(rk) _ATTR_DIMENSIONS_1_,intent(inout) :: rhs
+#define _DECLARE_FABM_ARGS_DO_PPDD_ _DECLARE_FABM_ARGS_ND_;real(rk) _ATTR_DIMENSIONS_2_,intent(inout) :: pp,dd
+#define _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_ _DECLARE_FABM_ARGS_HZ_;real(rk) _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux_pel,flux_ben
+#define _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_ _DECLARE_FABM_ARGS_HZ_;real(rk) _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
+#define _DECLARE_FABM_ARGS_GET_EXTINCTION_ _DECLARE_FABM_ARGS_ND_;real(rk) _ATTR_DIMENSIONS_0_,intent(inout) :: extinction
+#define _DECLARE_FABM_ARGS_GET_DRAG_ _DECLARE_FABM_ARGS_HZ_;real(rk) _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: drag
+#define _DECLARE_FABM_ARGS_GET_ALBEDO_ _DECLARE_FABM_ARGS_HZ_;real(rk) _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: albedo
+#define _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_ _DECLARE_FABM_ARGS_ND_;real(rk) _ATTR_DIMENSIONS_1_,intent(inout) :: velocity
+#define _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_ _DECLARE_FABM_ARGS_ND_;real(rk) _ATTR_DIMENSIONS_1_,intent(inout) :: sums
+#define _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_FABM_ARGS_HZ_;real(rk) _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux
 #define _DECLARE_FABM_ARGS_CHECK_STATE_ _DECLARE_FABM_ARGS_ND_;logical,intent(in) :: repair;logical,intent(inout) :: valid
 
 ! Macros for declaring/accessing variable identifiers of arbitrary type.
