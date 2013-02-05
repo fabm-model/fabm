@@ -836,7 +836,7 @@ interface fabm_link_data
 
    link => info%first_link
    do while (associated(link))
-      if (_ALLOCATED_(link%target%alldata)) then
+      if (_ALLOCATED_(link%target%alldata).and..not.link%coupled) then
          if (.not.associated(link%target%alldata(1)%p%p)) then
             call log_message('data for dependency "'//trim(link%name)// &
                & '", defined on the full model domain, have not been provided.')
@@ -848,7 +848,7 @@ interface fabm_link_data
 
    horizontal_link => info%first_horizontal_link
    do while (associated(horizontal_link))
-      if (_ALLOCATED_(horizontal_link%target%alldata)) then
+      if (_ALLOCATED_(horizontal_link%target%alldata).and..not.horizontal_link%coupled) then
          if (.not.associated(horizontal_link%target%alldata(1)%p%p)) then
             call log_message('data for dependency "'//trim(horizontal_link%name)// &
                &  '", defined on a horizontal slice of the model domain, have not been provided.')
@@ -860,7 +860,7 @@ interface fabm_link_data
 
    scalar_link => info%first_scalar_link
    do while (associated(scalar_link))
-      if (_ALLOCATED_(scalar_link%target%alldata)) then
+      if (_ALLOCATED_(scalar_link%target%alldata).and..not.scalar_link%coupled) then
          if (.not.associated(scalar_link%target%alldata(1)%p%p)) then
             call log_message('data for dependency "'//trim(scalar_link%name)// &
                &  '", defined as global scalar quantity, have not been provided.')
