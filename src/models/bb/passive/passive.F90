@@ -32,17 +32,13 @@
    type, extends(type_base_model) :: type_bb_passive
 !     Variable identifiers
       type (type_state_variable_id) :: id_tracer
-      real(rk)                 :: surface_flux
+      real(rk)                      :: surface_flux
       
       contains
       
       procedure get_surface_exchange
    end type type_bb_passive
 !
-! !PRIVATE DATA MEMBERS:
-!
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 
@@ -66,16 +62,13 @@
    class (type_base_model),target, intent(inout) :: parent
    type (type_bb_passive),         pointer       :: self
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
-   real(rk)                  :: initial_concentration     = _ONE_
-   real(rk)                  :: vertical_velocity         = _ZERO_
-   real(rk)                  :: specific_light_absorption = _ZERO_
-   real(rk)                  :: surface_flux              = _ZERO_
-   character(len=64)         :: unit                      = 'mol/m**3'
-   real(rk), parameter       :: secs_pr_day=86400.
+   real(rk)                  :: initial_concentration
+   real(rk)                  :: vertical_velocity
+   real(rk)                  :: specific_light_absorption
+   real(rk)                  :: surface_flux
+   character(len=64)         :: unit
+   real(rk), parameter       :: secs_pr_day = 86400.0_rk
 
    namelist /bb_passive/     initial_concentration,vertical_velocity, &
                              specific_light_absorption,surface_flux
@@ -85,6 +78,12 @@
    allocate(self)
    call self%initialize(name,parent)
 
+   initial_concentration     = 1.0_rk
+   vertical_velocity         = 0.0_rk
+   specific_light_absorption = 0.0_rk
+   surface_flux              = 0.0_rk
+   unit                      = 'mol/m**3'
+
    ! Read the namelist
    read(configunit,nml=bb_passive,err=99,end=100)
 
@@ -93,7 +92,7 @@
    ! Register state variables
    call self%register_state_variable(self%id_tracer, &
                     'tracer',unit,'tracer', &
-                    initial_concentration,minimum=_ZERO_, &
+                    initial_concentration,minimum=0.0_rk, &
                     vertical_movement=vertical_velocity/secs_pr_day, &
                     specific_light_extinction=specific_light_absorption)
 
@@ -114,17 +113,9 @@
 ! !INTERFACE:
    subroutine get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
 !
-! !DESCRIPTION:
-!
-! !USES:
-   IMPLICIT NONE
-!
 ! !INPUT PARAMETERS:
    class (type_bb_passive), intent(in)    :: self
    _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 !EOP
 !-----------------------------------------------------------------------
