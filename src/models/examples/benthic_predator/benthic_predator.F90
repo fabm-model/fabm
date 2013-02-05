@@ -31,7 +31,8 @@
 ! !PUBLIC TYPES:
    type type_examples_benthic_predator
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_ :: id_prey,id_pred,id_nut
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_pred
+      _TYPE_STATE_VARIABLE_ID_        :: id_prey,id_nut
 
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
       REALTYPE :: g_max,K,h
@@ -87,13 +88,13 @@
 
    ! Register state variables
    ! NOTE the benthic=.true. argument, which specifies the variable is benthic.
-   self%id_pred = register_state_variable(modelinfo,'pred','mmol/m**2','predator density', &
-                                          pred_initial,minimum=_ZERO_,benthic=.true.)
+   call register_state_variable(modelinfo,self%id_pred,'pred','mmol/m**2','predator density', &
+                                          pred_initial,minimum=_ZERO_)
 
    ! Register link to external pelagic prey and mineral pools.
    ! Prey will be used to feed upon, mineral pool to place waste products in.
-   self%id_prey = register_state_dependency(modelinfo,prey_source_variable)
-   self%id_nut  = register_state_dependency(modelinfo,waste_target_variable)
+   call register_state_dependency(modelinfo,self%id_prey,prey_source_variable)
+   call register_state_dependency(modelinfo,self%id_nut,waste_target_variable)
 
    return
 
@@ -128,11 +129,11 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops over the horizontal domain (if any).
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_prey,prey)     ! prey density - pelagic
-   _GET_STATE_BEN_(self%id_pred,pred) ! predator density - benthic
+   _GET_(self%id_prey,prey)     ! prey density - pelagic
+   _GET_HORIZONTAL_(self%id_pred,pred) ! predator density - benthic
 
    ! Calculate grazing rate
    g = self%g_max*pred*prey/(prey+self%K)
@@ -145,7 +146,7 @@
    _SET_BOTTOM_EXCHANGE_(self%id_nut,self%h*pred)
 
    ! Leave spatial loops over the horizontal domain (if any).
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
    end subroutine examples_benthic_predator_do_benthos
 !EOC

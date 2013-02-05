@@ -108,7 +108,7 @@ FUNCTION aed_iron_create(namlst,name,parent) RESULT(self)
 
 
 !  ! Register environmental dependencies
-   self%id_temp = self%register_dependency(varname_temp)
+   call self%register_dependency(self%id_temp,varname_temp)
 
    RETURN
 
@@ -137,7 +137,7 @@ SUBROUTINE aed_iron_do(self,_FABM_ARGS_DO_RHS_)
    _FABM_LOOP_BEGIN_
 
 !  ! Retrieve current (local) state variable values.
-!  _GET_STATE_(self%id_dic,dic) ! iron
+!  _GET_(self%id_dic,dic) ! iron
 
 !  ! Set temporal derivatives
 !  diff_dic = 0.
@@ -173,7 +173,7 @@ SUBROUTINE aed_iron_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-!  _GET_STATE_(self%id_dic,dic) ! iron
+!  _GET_(self%id_dic,dic) ! iron
 
 !  ! Set temporal derivatives
 !  diff_dic = 0.
@@ -214,17 +214,17 @@ SUBROUTINE aed_iron_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
-!  _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+!  _GET_(self%id_temp,temp)  ! local temperature
 
     ! Retrieve current (local) state variable values.
-!  _GET_STATE_(self%id_dic,dic) ! iron
+!  _GET_(self%id_dic,dic) ! iron
 
 !  IF (self%use_oxy) THEN
 !     ! Sediment flux dependent on oxygen and temperature
-!     _GET_STATE_(self%id_oxy,oxy)
+!     _GET_(self%id_oxy,oxy)
 !     dic_flux = self%Fsed_dic * self%Ksed_dic/(self%Ksed_dic+oxy) * (self%theta_sed_dic**(temp-20.0))
 !  ELSE
 !     ! Sediment flux dependent on temperature only.
@@ -249,7 +249,7 @@ SUBROUTINE aed_iron_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !  _SET_DIAG_HZ_(self%id_sed_dic,dic_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_iron_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -274,7 +274,7 @@ SUBROUTINE aed_iron_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANT
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-!  _GET_STATE_(self%id_dic,dic) ! iron
+!  _GET_(self%id_dic,dic) ! iron
 
    ! Total nutrient is simply the sum of all variables.
 !  _SET_CONSERVED_QUANTITY_(self%id_totC,dic)

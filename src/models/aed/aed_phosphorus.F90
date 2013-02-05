@@ -38,9 +38,10 @@ MODULE aed_phosphorus
 !
    TYPE,extends(type_base_model) :: type_aed_phosphorus
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_frp, id_frpads, id_oxy, id_Fsed_frp, id_tssfabm, id_pH
+      _TYPE_STATE_VARIABLE_ID_ :: id_frp, id_frpads, id_oxy,  id_tssfabm, id_pH
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_Fsed_frp
       _TYPE_DEPENDENCY_ID_          :: id_temp, id_tssext
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_frp
+      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_frp
       _TYPE_CONSERVED_QUANTITY_ID_  :: id_totP
 
 !     Model parameters
@@ -130,18 +131,18 @@ FUNCTION aed_phosphorus_create(namlst,name,parent) RESULT(self)
 
 
    ! Register main state variable
-   self%id_frp = self%register_state_variable('frp','mmol/m**3','phosphorus',     &
+   call self%register_state_variable(self%id_frp,'frp','mmol/m**3','phosphorus',     &
                                     frp_initial,minimum=_ZERO_,no_river_dilution=.false.)
 
    ! Register external state variable dependencies (for benthic flux)
    self%ben_use_oxy = phosphorus_reactant_variable .NE. '' !This means oxygen module switched on
    IF (self%ben_use_oxy) THEN
-     self%id_oxy = self%register_state_dependency(phosphorus_reactant_variable)
+     call self%register_state_dependency(self%id_oxy,phosphorus_reactant_variable)
    ENDIF
 
    self%ben_use_aedsed = Fsed_frp_variable .NE. '' !This means aed sediment module switched on
    IF (self%ben_use_aedsed) THEN
-     self%id_Fsed_frp = self%register_state_dependency(Fsed_frp_variable,benthic=.true.)
+     call self%register_bottom_state_dependency(self%id_Fsed_frp,Fsed_frp_variable)
    ENDIF
 
    ! Check if particles and PO4 adsorption are simulated
@@ -150,37 +151,37 @@ FUNCTION aed_phosphorus_create(namlst,name,parent) RESULT(self)
      IF (self%ads_use_external_tss) THEN
 
          PRINT *,'PO4 adsorption is configured to use external TSS'
-         self%id_tssext = self%register_dependency( varname_tss)
+         call self%register_dependency(self%id_tssext,varname_tss)
 
      ELSE
 
        IF (po4sorption_target_variable .NE. '' ) THEN
-         self%id_tssfabm = self%register_state_dependency(po4sorption_target_variable)
+         call self%register_state_dependency(self%id_tssfabm,po4sorption_target_variable)
        ELSE
          PRINT *,'PO4 adsorption is configured but no internal or external target variable is set'
        END IF
 
      ENDIF
 
-     self%id_frpads = self%register_state_variable('frp_ads','mmol/m**3','adsorbed phosphorus',     &
+     call self%register_state_variable(self%id_frpads,'frp_ads','mmol/m**3','adsorbed phosphorus',     &
                       _ZERO_,minimum=_ZERO_,no_river_dilution=.false.,vertical_movement=self%w_po4ads )
 
      IF (self%ads_use_pH) THEN
-       self%id_pH = self%register_state_dependency('aed_carbon_pH')
+       call self%register_state_dependency(self%id_pH,'aed_carbon_pH')
      ENDIF
 
    ENDIF
 
    ! Register diagnostic variables
-   self%id_sed_frp = self%register_diagnostic_variable('sed_frp','mmol/m**2/d', &
+   call self%register_horizontal_diagnostic_variable(self%id_sed_frp,'sed_frp','mmol/m**2/d', &
                                          'Filterable reactive phosphorus',           &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                     time_treatment=time_treatment_step_integrated)
 
    ! Register conserved quantities
-   self%id_totP = self%register_conserved_quantity('TP','mmol/m**3','Total phosphorus')
+   call self%register_conserved_quantity(self%id_totP,'TP','mmol/m**3','Total phosphorus')
 
    ! Register environmental dependencies
-   self%id_temp = self%register_dependency(varname_temp)
+   call self%register_dependency(self%id_temp,varname_temp)
 
    RETURN
 
@@ -211,9 +212,9 @@ SUBROUTINE aed_phosphorus_do(self,_FABM_ARGS_DO_RHS_)
    CALL aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
 
  !  ! Retrieve current (local) state variable values.
- !  _GET_STATE_(self%id_frp,frp) ! phosphorus
+ !  _GET_(self%id_frp,frp) ! phosphorus
  !  IF(self%simPO4Adsorption) THEN
- !    _GET_STATE_(self%id_frpads,frpads) ! phosphorus
+ !    _GET_(self%id_frpads,frpads) ! phosphorus
  !  END IF
  !
  !
@@ -253,7 +254,7 @@ SUBROUTINE aed_phosphorus_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_frp,frp) ! phosphorus
+   _GET_(self%id_frp,frp) ! phosphorus
 
    ! Set temporal derivatives
    diff_frp = 0.
@@ -294,23 +295,23 @@ SUBROUTINE aed_phosphorus_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+   _GET_(self%id_temp,temp)  ! local temperature
 
     ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_frp,frp) ! phosphorus
+   _GET_(self%id_frp,frp) ! phosphorus
 
    IF (self%ben_use_aedsed) THEN
-      _GET_STATE_BEN_(self%id_Fsed_frp,Fsed_frp)
+      _GET_HORIZONTAL_(self%id_Fsed_frp,Fsed_frp)
    ELSE
       Fsed_frp = self%Fsed_frp
    ENDIF
 
    IF (self%ben_use_oxy) THEN
       ! Sediment flux dependent on oxygen and temperature
-      _GET_STATE_(self%id_oxy,oxy)
+      _GET_(self%id_oxy,oxy)
       frp_flux = Fsed_frp * self%Ksed_frp/(self%Ksed_frp+oxy) * (self%theta_sed_frp**(temp-20.0))
    ELSE
       ! Sediment flux dependent on temperature only.
@@ -332,10 +333,10 @@ SUBROUTINE aed_phosphorus_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    !_SET_ODE_BEN_(self%id_ben_frp,-frp_flux/secs_pr_day)
 
    ! Also store sediment flux as diagnostic variable.
-   _SET_DIAG_HZ_(self%id_sed_frp,frp_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_frp,frp_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_phosphorus_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -359,7 +360,7 @@ SUBROUTINE aed_phosphorus_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_frp,frp) ! phosphorus
+   _GET_(self%id_frp,frp) ! phosphorus
 
    ! Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totP,frp)
@@ -401,16 +402,16 @@ SUBROUTINE aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the cell.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+   _GET_(self%id_temp,temp)  ! local temperature
    IF(self%ads_use_external_tss) THEN
-     _GET_DEPENDENCY_(self%id_tssext,tss)  ! externally supplied total susp solids
+     _GET_(self%id_tssext,tss)  ! externally supplied total susp solids
    END IF
 
     ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_frp,frp)         ! dissolved PO4
-   _GET_STATE_(self%id_frpads,frpads)   ! adsorped PO4
+   _GET_(self%id_frp,frp)         ! dissolved PO4
+   _GET_(self%id_frpads,frpads)   ! adsorped PO4
    IF(.NOT.self%ads_use_external_tss) THEN
-     _GET_STATE_(self%id_tssfabm,tss)       ! local total susp solids
+     _GET_(self%id_tssfabm,tss)       ! local total susp solids
    END IF
 
 
@@ -445,7 +446,7 @@ SUBROUTINE aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
 
 
      IF(self%ads_use_pH) THEN
-       _GET_STATE_(self%id_pH,pH) ! pH
+       _GET_(self%id_pH,pH) ! pH
 
        IF(pH > 11.) pH = 11.0
        IF(pH < 3.)  pH = 3.0

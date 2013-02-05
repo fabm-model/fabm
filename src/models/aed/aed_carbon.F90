@@ -41,9 +41,13 @@ MODULE aed_carbon
 !
    TYPE,extends(type_base_model) :: type_aed_carbon
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_dic, id_pH, id_ch4, id_oxy, id_Fsed_dic
-      _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt, id_wind
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_dic, id_ch4ox, id_atm_co2_exch
+      _TYPE_STATE_VARIABLE_ID_      :: id_dic, id_pH, id_ch4, id_oxy
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_Fsed_dic
+      _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt
+      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_wind
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_ch4ox
+      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_dic
+      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_atm_co2_exch
       _TYPE_CONSERVED_QUANTITY_ID_  :: id_totC
 
 !     Model parameters
@@ -136,15 +140,15 @@ FUNCTION aed_carbon_create(namlst,name,parent) RESULT(self)
 
    ! Register state variables
    IF(dic_initial>MISVAL) THEN
-     self%id_dic = self%register_state_variable('dic','mmol/m**3','dissolved inorganic carbon',     &
+     call self%register_state_variable(self%id_dic,'dic','mmol/m**3','dissolved inorganic carbon',     &
                                       dic_initial,minimum=_ZERO_,no_river_dilution=.false.)
      self%simDIC = .true.
-     self%id_pH = self%register_state_variable('pH','-','pH',     &
+     call self%register_state_variable(self%id_pH,'pH','-','pH',     &
                                       pH_initial,minimum=_ZERO_,no_river_dilution=.true.)
    END IF
 
    IF(ch4_initial>MISVAL) THEN
-     self%id_ch4 = self%register_state_variable('ch4','mmol/m**3','methane',    &
+     call self%register_state_variable(self%id_ch4,'ch4','mmol/m**3','methane',    &
                                     ch4_initial,minimum=_ZERO_,no_river_dilution=.false.)
      self%simCH4 = .true.
    END IF
@@ -152,32 +156,32 @@ FUNCTION aed_carbon_create(namlst,name,parent) RESULT(self)
    ! Register external state variable dependencies
    self%use_oxy = methane_reactant_variable .NE. '' !This means oxygen module switched on
    IF (self%use_oxy) THEN
-     self%id_oxy = self%register_state_dependency(methane_reactant_variable)
+     call self%register_state_dependency(self%id_oxy,methane_reactant_variable)
    ENDIF
 
    self%use_sed_model = Fsed_dic_variable .NE. ''
    IF (self%use_sed_model) &
-       self%id_Fsed_dic = self%register_state_dependency(Fsed_dic_variable,benthic=.true.)
+       call self%register_bottom_state_dependency(self%id_Fsed_dic,Fsed_dic_variable)
 
    ! Register diagnostic variables
-   self%id_ch4ox  = self%register_diagnostic_variable('ch4ox','/d',                    &
+   call self%register_diagnostic_variable(self%id_ch4ox,'ch4ox','/d',                    &
                                                            'methane oxidation rate',   &
                                         time_treatment=time_treatment_step_integrated)
-   self%id_sed_dic = self%register_diagnostic_variable('sed_dic','mmol/m**2/d',        &
+   call self%register_horizontal_diagnostic_variable(self%id_sed_dic,'sed_dic','mmol/m**2/d',        &
                                                       'Filterable reactive carbon',    &
-                          time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                          time_treatment=time_treatment_step_integrated)
 
-   self%id_atm_co2_exch = self%register_diagnostic_variable('atm_co2_exch',            &
+   call self%register_horizontal_diagnostic_variable(self%id_atm_co2_exch,'atm_co2_exch',            &
                              'mmol/m**2/d', 'CO2 exchange across atm/water interface', &
-                          time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                          time_treatment=time_treatment_step_integrated)
 
    ! Register conserved quantities
-   self%id_totC = self%register_conserved_quantity('TP','mmol/m**3','Total carbon')
+   call self%register_conserved_quantity(self%id_totC,'TP','mmol/m**3','Total carbon')
 
    ! Register environmental dependencies
-   self%id_temp = self%register_dependency(varname_temp)
-   self%id_salt = self%register_dependency(varname_salt)
-   self%id_wind = self%register_dependency(varname_wind_sf,  shape=shape_hz)
+   call self%register_dependency(self%id_temp,varname_temp)
+   call self%register_dependency(self%id_salt,varname_salt)
+   call self%register_dependency(self%id_wind,varname_wind_sf)
 
    RETURN
 
@@ -207,18 +211,18 @@ SUBROUTINE aed_carbon_do(self,_FABM_ARGS_DO_RHS_)
 
    IF(self%simDIC .AND. self%simCH4) THEN
       ! Retrieve current (local) state variable values.
-      _GET_STATE_(self%id_dic,dic) ! carbon
-      _GET_STATE_(self%id_ch4,ch4) ! carbon
+      _GET_(self%id_dic,dic) ! carbon
+      _GET_(self%id_ch4,ch4) ! carbon
 
       ! Retrieve current dependent state variable values.
       IF (self%use_oxy) THEN ! & use_oxy
-         _GET_STATE_(self%id_oxy,oxy) ! oxygen
+         _GET_(self%id_oxy,oxy) ! oxygen
       ELSE
          oxy = 0.0
       ENDIF
 
       ! Retrieve current environmental conditions.
-      _GET_DEPENDENCY_(self%id_temp,temp)  ! temperature
+      _GET_(self%id_temp,temp)  ! temperature
 
       ! Define some intermediate quantities units mmol C/m3/day
       ch4oxidation = aed_carbon_fch4ox(self,oxy,temp)
@@ -266,7 +270,7 @@ SUBROUTINE aed_carbon_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 
    IF(self%simDIC .AND. self%simCH4) THEN
       ! Retrieve current (local) state variable values.
-      _GET_STATE_(self%id_dic,dic) ! carbon
+      _GET_(self%id_dic,dic) ! carbon
 
       ! Set temporal derivatives
       diff_dic = 0.
@@ -311,23 +315,23 @@ SUBROUTINE aed_carbon_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    IF(.NOT.self%simDIC) RETURN
 
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+   _GET_(self%id_temp,temp)  ! local temperature
 
     ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_dic,dic) ! carbon
+   _GET_(self%id_dic,dic) ! carbon
 
    IF ( self%use_sed_model ) THEN
-      _GET_STATE_BEN_(self%id_Fsed_dic,Fsed_dic)
+      _GET_HORIZONTAL_(self%id_Fsed_dic,Fsed_dic)
    ELSE
        Fsed_dic = self%Fsed_dic
    ENDIF
 
    IF (self%use_oxy) THEN
       ! Sediment flux dependent on oxygen and temperature
-      _GET_STATE_(self%id_oxy,oxy)
+      _GET_(self%id_oxy,oxy)
       dic_flux = Fsed_dic * self%Ksed_dic/(self%Ksed_dic+oxy) * (self%theta_sed_dic**(temp-20.0))
    ELSE
       ! Sediment flux dependent on temperature only.
@@ -349,10 +353,10 @@ SUBROUTINE aed_carbon_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    !_SET_ODE_BEN_(self%id_ben_dic,-dic_flux/secs_pr_day)
 
    ! Also store sediment flux as diagnostic variable.
-   _SET_DIAG_HZ_(self%id_sed_dic,dic_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_dic,dic_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_carbon_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -381,10 +385,10 @@ SUBROUTINE aed_carbon_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
 
    ! Retrieve current (local) state variable values.
    IF(self%simDIC) THEN
-     _GET_STATE_(self%id_dic,dic) ! DIC
+     _GET_(self%id_dic,dic) ! DIC
    END IF
    IF(self%simCH4) THEN
-     _GET_STATE_(self%id_ch4,ch4) ! CH4
+     _GET_(self%id_ch4,ch4) ! CH4
    END IF
 
    ! Total is simply the sum of all variables.
@@ -451,17 +455,17 @@ SUBROUTINE aed_carbon_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_
    IF(.NOT.self%simDIC) RETURN
 
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    !Get dependent state variables from physical driver
-   _GET_DEPENDENCY_(self%id_temp,temp)     ! Temperature (degrees Celsius)
-   _GET_DEPENDENCY_(self%id_salt,salt)     ! Salinity (psu)
-   _GET_DEPENDENCY_HZ_(self%id_wind,wind)  ! Wind speed at 10 m above surface (m/s)
+   _GET_(self%id_temp,temp)     ! Temperature (degrees Celsius)
+   _GET_(self%id_salt,salt)     ! Salinity (psu)
+   _GET_HORIZONTAL_(self%id_wind,wind)  ! Wind speed at 10 m above surface (m/s)
    windHt = 10.
 
     ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_dic,dic) ! Concentration of carbon in surface layer
-   _GET_STATE_(self%id_pH,ph) ! Concentration of carbon in surface layer
+   _GET_(self%id_dic,dic) ! Concentration of carbon in surface layer
+   _GET_(self%id_pH,ph) ! Concentration of carbon in surface layer
 
    kCO2 = aed_gas_piston_velocity(windHt,wind,temp,salt)
 
@@ -485,10 +489,10 @@ SUBROUTINE aed_carbon_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_
    _SET_SURFACE_EXCHANGE_(self%id_dic,FCO2)
 
    ! Also store oxygen flux across the atm/water interface as diagnostic variable (mmmol/m2).
-   _SET_DIAG_HZ_(self%id_atm_co2_exch,FCO2)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_atm_co2_exch,FCO2)
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_carbon_get_surface_exchange
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

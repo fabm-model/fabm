@@ -36,7 +36,8 @@
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_p
       _TYPE_STATE_VARIABLE_ID_      :: id_exctarget,id_morttarget,id_upttarget
-      _TYPE_DEPENDENCY_ID_          :: id_par,id_I_0
+      _TYPE_DEPENDENCY_ID_          :: id_par
+      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_I_0
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
       _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
 
@@ -110,36 +111,36 @@
    self%rpdl = rpdl/secs_pr_day
 
    ! Register state variables
-   self%id_p = register_state_variable(modelinfo,'phy','mmol/m**3','phytoplankton', &
+   call register_state_variable(modelinfo,self%id_p,'phy','mmol/m**3','phytoplankton', &
                                     p_initial,minimum=_ZERO_,vertical_movement=w_p/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%do_exc = excretion_target_variable.ne.''
-   if (self%do_exc) self%id_exctarget = register_state_dependency(modelinfo,excretion_target_variable)
+   if (self%do_exc) call register_state_dependency(modelinfo,self%id_exctarget,excretion_target_variable)
    self%do_mort = mortality_target_variable.ne.''
-   if (self%do_mort) self%id_morttarget = register_state_dependency(modelinfo,mortality_target_variable)
+   if (self%do_mort) call register_state_dependency(modelinfo,self%id_morttarget,mortality_target_variable)
    self%do_upt = uptake_target_variable.ne.''
-   if (self%do_upt) self%id_upttarget = register_state_dependency(modelinfo,uptake_target_variable)
+   if (self%do_upt) call register_state_dependency(modelinfo,self%id_upttarget,uptake_target_variable)
 
 
    ! Register diagnostic variables
-   self%id_GPP  = register_diagnostic_variable(modelinfo,'GPP','mmol/m**3',  'gross primary production',           &
+   call register_diagnostic_variable(modelinfo,self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
                      time_treatment=time_treatment_step_integrated)
-   self%id_NCP  = register_diagnostic_variable(modelinfo,'NCP','mmol/m**3',  'net community production',           &
+   call register_diagnostic_variable(modelinfo,self%id_NCP,'NCP','mmol/m**3',  'net community production',           &
                      time_treatment=time_treatment_step_integrated)
-   self%id_PPR  = register_diagnostic_variable(modelinfo,'PPR','mmol/m**3/d','gross primary production rate',      &
+   call register_diagnostic_variable(modelinfo,self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',      &
                      time_treatment=time_treatment_averaged)
-   self%id_NPR  = register_diagnostic_variable(modelinfo,'NPR','mmol/m**3/d','net community production rate',      &
+   call register_diagnostic_variable(modelinfo,self%id_NPR,'NPR','mmol/m**3/d','net community production rate',      &
                      time_treatment=time_treatment_averaged)
-   self%id_dPAR = register_diagnostic_variable(modelinfo,'PAR','W/m**2',     'photosynthetically active radiation',&
+   call register_diagnostic_variable(modelinfo,self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
 !KB   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
 
    ! Register environmental dependencies
-   self%id_par = register_dependency(modelinfo, varname_par)
-   self%id_I_0 = register_dependency(modelinfo, varname_par_sf, shape=shape_hz)
+   call register_dependency(modelinfo, self%id_par, varname_par)
+   call register_dependency(modelinfo, self%id_I_0, varname_par_sf)
 
    return
 
@@ -179,12 +180,12 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_p,p) ! phytoplankton
-   _GET_STATE_(self%id_upttarget,n) ! nutrients
+   _GET_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_upttarget,n) ! nutrients
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
-   _GET_DEPENDENCY_HZ_(self%id_I_0,I_0)  ! surface short wave radiation
+   _GET_   (self%id_par,par)  ! local photosynthetically active radiation
+   _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
 
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -252,7 +253,7 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_p,p) ! phytoplankton
 
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(0.0*p)
@@ -288,7 +289,7 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_p,p) ! phytoplankton
 
    ! Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totN,p)
@@ -330,11 +331,11 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_p,p) ! phytoplankton
-   _GET_STATE_(self%id_upttarget,n) ! nutrients
+   _GET_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_upttarget,n) ! nutrients
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
+   _GET_   (self%id_par,par)  ! local photosynthetically active radiation
 
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)

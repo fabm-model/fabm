@@ -52,12 +52,13 @@
    ! Environment
    REALTYPE,target :: temp,salt,par,depth,dens,wind_sf,par_sf,taub,decimal_yearday
 
-   REALTYPE,allocatable      :: cc(:,:),totals(:),diag(:),diag_hz(:)
+   REALTYPE,allocatable      :: cc(:,:),totals(:)
    type (type_model),pointer :: model
    character(len=128)        :: cbuf
 
    interface
       function short_wave_radiation(jul,secs,dlon,dlat,cloud,bio_albedo) result(swr)
+         import
          integer, intent(in)                 :: jul,secs
          REALTYPE, intent(in)                :: dlon,dlat
          REALTYPE, intent(in)                :: cloud
@@ -169,39 +170,26 @@
    allocate(cc(ubound(model%info%state_variables,1)+ubound(model%info%state_variables_ben,1),0:1))
    do i=1,ubound(model%info%state_variables,1)
       cc(i,1) = model%info%state_variables(i)%initial_value
-      call fabm_link_state_data(model,i,cc(i,1))
+      call fabm_link_bulk_state_data(model,i,cc(i,1))
    end do
 
    ! Create benthos variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
    do i=1,ubound(model%info%state_variables_ben,1)
       cc(ubound(model%info%state_variables,1)+i,1) = model%info%state_variables_ben(i)%initial_value
-      call fabm_link_benthos_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
-   end do
-
-
-   ! Create diagnostic variable vector for the full spatial domain, and link it to FABM.
-   allocate(diag(ubound(model%info%diagnostic_variables,1)))
-   do i=1,ubound(model%info%diagnostic_variables,1)
-      call fabm_link_diagnostic_data(model,i,diag(i))
-   end do
-
-   ! Create diagnostic variable vector for data on horizontal slices, and link it to FABM.
-   allocate(diag_hz(ubound(model%info%diagnostic_variables_hz,1)))
-   do i=1,ubound(model%info%diagnostic_variables_hz,1)
-      call fabm_link_diagnostic_data_hz(model,i,diag_hz(i))
+      call fabm_link_bottom_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
    end do
 
    ! Link environmental data to FABM
-   call fabm_link_data(model,varname_temp,   temp)
-   call fabm_link_data(model,varname_salt,   salt)
-   call fabm_link_data(model,varname_par,    par)
-   call fabm_link_data(model,varname_pres,   depth)
-   call fabm_link_data(model,varname_dens,   dens)
-   call fabm_link_data_hz(model,varname_wind_sf,wind_sf)
-   call fabm_link_data_hz(model,varname_par_sf, par_sf)
-   call fabm_link_data_hz(model,varname_taub, taub)
-   call fabm_link_scalar(model,varname_yearday, decimal_yearday)
+   call fabm_link_bulk_data(model,varname_temp,   temp)
+   call fabm_link_bulk_data(model,varname_salt,   salt)
+   call fabm_link_bulk_data(model,varname_par,    par)
+   call fabm_link_bulk_data(model,varname_pres,   depth)
+   call fabm_link_bulk_data(model,varname_dens,   dens)
+   call fabm_link_horizontal_data(model,varname_wind_sf,wind_sf)
+   call fabm_link_horizontal_data(model,varname_par_sf, par_sf)
+   call fabm_link_horizontal_data(model,varname_taub, taub)
+   call fabm_link_scalar_data(model,varname_yearday, decimal_yearday)
 
    ! Open the output file.
    open(out_unit,file=output_file,action='write', &
@@ -218,19 +206,19 @@
       write(out_unit,FMT=100,ADVANCE='NO') separator,'salinity',                           'kg/m3'
    end if
    do i=1,ubound(model%info%state_variables,1)
-      write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables(i)%longname),trim(model%info%state_variables(i)%units)
+      write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables(i)%long_name),trim(model%info%state_variables(i)%units)
    end do
    do i=1,ubound(model%info%state_variables_ben,1)
-      write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables_ben(i)%longname),trim(model%info%state_variables_ben(i)%units)
+      write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables_ben(i)%long_name),trim(model%info%state_variables_ben(i)%units)
    end do
    if (add_diagnostic_variables) then
       do i=1,ubound(model%info%diagnostic_variables,1)
-         write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables(i)%longname),trim(model%info%diagnostic_variables(i)%units)
+         write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables(i)%long_name),trim(model%info%diagnostic_variables(i)%units)
       end do
    end if
    if (add_conserved_quantities) then
       do i=1,ubound(model%info%conserved_quantities,1)
-         write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%conserved_quantities(i)%longname),trim(model%info%conserved_quantities(i)%units)
+         write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%conserved_quantities(i)%long_name),trim(model%info%conserved_quantities(i)%units)
       end do
    end if
    write(out_unit,*)
@@ -431,7 +419,7 @@
          end do
          if (add_diagnostic_variables) then
             do i=1,ubound(model%info%diagnostic_variables,1)
-               write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,diag(i)
+               write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
             end do
          end if
          if (add_conserved_quantities) then

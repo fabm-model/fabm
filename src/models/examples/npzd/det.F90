@@ -32,7 +32,7 @@
    type type_examples_npzd_det
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_d
-      _TYPE_STATE_VARIABLE_ID_      :: id_zoo, id_phy, id_mintarget
+      _TYPE_STATE_VARIABLE_ID_      :: id_mintarget
       _TYPE_DEPENDENCY_ID_          :: id_temp
 
 !     Model parameters
@@ -92,19 +92,19 @@
    self%rdn  = rdn /secs_pr_day
 
    ! Register state variables
-   self%id_d = register_state_variable(modelinfo,'det','mmol/m**3','detritus', &
+   call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus', &
                                     d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day)
 
    ! Register external state variable dependencies
    self%do_min = mineralisation_target_variable .ne. ''
-   if (self%do_min) self%id_mintarget = register_state_dependency(modelinfo,mineralisation_target_variable)
+   if (self%do_min) call register_state_dependency(modelinfo,self%id_mintarget,mineralisation_target_variable)
 
    ! Register diagnostic variables
 
    ! Register conserved quantities
 
    ! Register environmental dependencies
-   self%id_temp = register_dependency(modelinfo, varname_temp)
+   call register_dependency(modelinfo, self%id_temp, varname_temp)
 
    return
 
@@ -144,10 +144,10 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_d,d) ! detritus
+   _GET_(self%id_d,d) ! detritus
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! temperature
+   _GET_(self%id_temp,temp)  ! temperature
 
    ! Set temporal derivatives
    _SET_ODE_(self%id_d,-self%rdn*d)
@@ -192,7 +192,7 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_d,d) ! detritus
+   _GET_(self%id_d,d) ! detritus
 
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(self%kc*d)
@@ -228,7 +228,7 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_d,d) ! detritus
+   _GET_(self%id_d,d) ! detritus
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -265,10 +265,10 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_d,d) ! detritus
+   _GET_(self%id_d,d) ! detritus
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_(self%id_temp,temp)
+   _GET_(self%id_temp,temp)
 
    ! Assign destruction rates to different elements of the destruction matrix.
    ! By assigning with _SET_DD_SYM_ [as opposed to _SET_DD_], assignments to dd(i,j)

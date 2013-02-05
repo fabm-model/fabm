@@ -1,19 +1,149 @@
-#ifdef _FABM_F2003_
-#define _CLASS_ class
-#else
-#define _CLASS_ type
-#endif
+! ========================================================
+! Process spatial domain and set derived macros:
+!   _LOCATION_
+!	_LOCATION_DIMENSIONS_
+!   _LOCATION_HZ_
+!   _LOCATION_HZ_DIMENSIONS_
+!   _VARIABLE_1DLOOP_
+!   _LOCATION_1DLOOP_
+!   _FABM_HORIZONTAL_IS_SCALAR_
+! ========================================================
 
-! Make sure that the primary preprocessor macro has been defined.
 #ifndef _FABM_DIMENSION_COUNT_
 #error Preprocessor variable _FABM_DIMENSION_COUNT_ must be defined.
 #endif
 
-! If the spatial context is 0D, some preprocessor variables can be inferred.
 #if _FABM_DIMENSION_COUNT_==0
+
+! ---------------------
+! 0D spatial context
+! ---------------------
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#error _FABM_DEPTH_DIMENSION_INDEX_ cannot be set if _FABM_DIMENSION_COUNT_==0
+#endif
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+#error _FABM_VECTORIZED_DIMENSION_INDEX_ cannot be set if _FABM_DIMENSION_COUNT_==0
+#endif
+
 #define _LOCATION_
 #define _LOCATION_DIMENSIONS_
 #define _FABM_HORIZONTAL_IS_SCALAR_
+
+#elif _FABM_DIMENSION_COUNT_==1
+
+! ---------------------
+! 1D spatial context
+! ---------------------
+
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&(_FABM_DEPTH_DIMENSION_INDEX_!=1)
+#error _FABM_DEPTH_DIMENSION_INDEX_ must be absent [no depth dimension] or 1 if _FABM_DIMENSION_COUNT_==1
+#endif
+#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=1)
+#error _FABM_VECTORIZED_DIMENSION_INDEX_ must be absent [no vectorization] or 1 if _FABM_DIMENSION_COUNT_==1
+#endif
+
+#define _LOCATION_ i__
+#define _LOCATION_DIMENSIONS_ :
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#define _FABM_HORIZONTAL_IS_SCALAR_
+#endif
+
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+#define _VARIABLE_1DLOOP_ i__
+#define _LOCATION_1DLOOP_
+#endif
+
+#elif _FABM_DIMENSION_COUNT_==2
+
+! ---------------------
+! 2D spatial context
+! ---------------------
+
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&(_FABM_DEPTH_DIMENSION_INDEX_!=1)&&(_FABM_DEPTH_DIMENSION_INDEX_!=2)
+#error _FABM_DEPTH_DIMENSION_INDEX_ must be absent [no depth dimension], 1 or 2 if _FABM_DIMENSION_COUNT_==2
+#endif
+#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=1)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=2)
+#error _FABM_VECTORIZED_DIMENSION_INDEX_ must be absent [no vectorization], 1 or 2 if _FABM_DIMENSION_COUNT_==2
+#endif
+
+#define _LOCATION_ i__,j__
+#define _LOCATION_DIMENSIONS_ :,:
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#if _FABM_DEPTH_DIMENSION_INDEX_==1
+#define _LOCATION_HZ_ j__
+#elif _FABM_DEPTH_DIMENSION_INDEX_==2
+#define _LOCATION_HZ_ i__
+#endif
+#define _LOCATION_DIMENSIONS_HZ_ :
+#endif
+
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+#if _FABM_VECTORIZED_DIMENSION_INDEX_==1
+#define _VARIABLE_1DLOOP_ i__
+#define _LOCATION_1DLOOP_ j__
+#elif _FABM_VECTORIZED_DIMENSION_INDEX_==2
+#define _VARIABLE_1DLOOP_ j__
+#define _LOCATION_1DLOOP_ i__
+#endif
+#endif
+
+#elif _FABM_DIMENSION_COUNT_==3
+
+! ---------------------
+! 3D spatial context
+! ---------------------
+
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&(_FABM_DEPTH_DIMENSION_INDEX_!=1)&&(_FABM_DEPTH_DIMENSION_INDEX_!=2)&&(_FABM_DEPTH_DIMENSION_INDEX_!=3)
+#error _FABM_DEPTH_DIMENSION_INDEX_ must be absent [no depth dimension], 1, 2 or 3 if _FABM_DIMENSION_COUNT_==3
+#endif
+#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=1)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=2)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=3)
+#error _FABM_VECTORIZED_DIMENSION_INDEX_ must be absent [no vectorization], 1, 2 or 3 if _FABM_DIMENSION_COUNT_==3
+#endif
+
+#define _LOCATION_ i__,j__,k__
+#define _LOCATION_DIMENSIONS_ :,:,:
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#if _FABM_DEPTH_DIMENSION_INDEX_==1
+#define _LOCATION_HZ_ j__,k__
+#elif _FABM_DEPTH_DIMENSION_INDEX_==2
+#define _LOCATION_HZ_ i__,k__
+#elif _FABM_DEPTH_DIMENSION_INDEX_==3
+#define _LOCATION_HZ_ i__,j__
+#endif
+#define _LOCATION_DIMENSIONS_HZ_ :,:
+#endif
+
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+#if _FABM_VECTORIZED_DIMENSION_INDEX_==1
+#define _VARIABLE_1DLOOP_ i__
+#define _LOCATION_1DLOOP_ j__,k__
+#elif _FABM_VECTORIZED_DIMENSION_INDEX_==2
+#define _VARIABLE_1DLOOP_ j__
+#define _LOCATION_1DLOOP_ i__,k__
+#elif _FABM_VECTORIZED_DIMENSION_INDEX_==3
+#define _VARIABLE_1DLOOP_ k__
+#define _LOCATION_1DLOOP_ i__,j__
+#endif
+#endif
+
+#endif
+
+! If there is no depth dimension, horizontal dimensions match full dimensions.
+#ifndef _FABM_DEPTH_DIMENSION_INDEX_
+#define _LOCATION_HZ_ _LOCATION_
+#define _LOCATION_DIMENSIONS_HZ_ _LOCATION_DIMENSIONS_
+#endif
+
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+#define _FABM_USE_1D_LOOP_
+#endif
+
+#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&(_FABM_DEPTH_DIMENSION_INDEX_!=_FABM_VECTORIZED_DIMENSION_INDEX_)
+#define _FABM_USE_1D_LOOP_IN_HORIZONTAL_
 #endif
 
 ! Check for additional required preprocessor variables.
@@ -32,10 +162,46 @@
 #endif
 #endif
 
+! =====================
+! Process spatial mask
+! =====================
+
+#ifdef _FABM_MASK_TYPE_
+#define _FABM_MASK_
+#endif
+
+#ifdef _FABM_MASK_
+
+#ifndef _FABM_USE_1D_LOOP_
+#error _FABM_MASK_TYPE_/_FABM_MASKED_VALUE_/_FABM_UNMASKED_VALUE_ are not used if no dimension is vectorized.
+#endif
+
+#ifdef _FABM_MASKED_VALUE_
+#define _FABM_IS_UNMASKED_(maskvalue) maskvalue/=_FABM_MASKED_VALUE_
+#elif defined(_FABM_UNMASKED_VALUE_)
+#define _FABM_IS_UNMASKED_(maskvalue) maskvalue==_FABM_UNMASKED_VALUE_
+#endif
+
+#endif
+
+! =====================
+! Portability macros
+! =====================
+
+#ifndef _FABM_REAL_KIND_
+#define _FABM_REAL_KIND_ selected_real_kind(13)
+#endif 
+
 ! Constants related to floating point precision; used throughout FABM.
-#define REALTYPE double precision
-#define _ZERO_ 0.0d0
-#define _ONE_  1.0d0
+#define REALTYPE real(rk)
+#define _ZERO_ 0._rk
+#define _ONE_  1._rk
+
+#ifdef _FABM_F2003_
+#define _CLASS_ class
+#else
+#define _CLASS_ type
+#endif
 
 ! Older Fortran compilers do not allow derived types to contain allocatable members
 ! (A Fortran >95 feature, defined in ISO Technical Report TR 15581 and part of the Fortran 2003 specification).
@@ -53,78 +219,82 @@
 #define _ALLOCATED_ associated
 #endif
 
-! Data type for location variable(s); only used within this file.
-#define _LOCATION_TYPE_ integer
+! =================================================================================
+! Further preprocessor macros for specifying spatial dimensionality and position
+! =================================================================================
 
-! Define dimension attribute and index specifyer for horizontal (2D) fields.
+! ---------------------------------------------------------------------------------
+! Dimension attribute and index specifyer for horizontal (2D) fields.
+! ---------------------------------------------------------------------------------
+
 #ifdef _FABM_HORIZONTAL_IS_SCALAR_
 #define _INDEX_LOCATION_HZ_
 #define _ATTR_LOCATION_DIMENSIONS_HZ_
-#define _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ ,dimension(:)
 #define _ARG_LOCATION_HZ_
 #define _ARG_LOCATION_DIMENSIONS_HZ_
+#define _PREARG_LOCATION_HZ_
+#define _PREARG_LOCATION_DIMENSIONS_HZ_
 #else
 #define _INDEX_LOCATION_HZ_ (_LOCATION_HZ_)
 #define _ATTR_LOCATION_DIMENSIONS_HZ_ ,dimension(_LOCATION_DIMENSIONS_HZ_)
-#define _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ ,dimension(:,_LOCATION_DIMENSIONS_HZ_)
 #define _ARG_LOCATION_HZ_ ,_LOCATION_HZ_
 #define _ARG_LOCATION_DIMENSIONS_HZ_ ,_LOCATION_DIMENSIONS_HZ_
+#define _PREARG_LOCATION_HZ_ _LOCATION_HZ_,
+#define _PREARG_LOCATION_DIMENSIONS_HZ_ _LOCATION_DIMENSIONS_HZ_,
 #endif
 
-! Define dimension attribute and index specifyer for full 3D fields.
+! ---------------------------------------------------------------------------------
+! Dimension attribute and index specifyer for full 3D fields.
+! ---------------------------------------------------------------------------------
+
 #if _FABM_DIMENSION_COUNT_>0
 #define _INDEX_LOCATION_ (_LOCATION_)
 #define _ATTR_LOCATION_DIMENSIONS_ ,dimension(_LOCATION_DIMENSIONS_)
-#define _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_ ,dimension(:,_LOCATION_DIMENSIONS_)
 #define _ARG_LOCATION_ ,_LOCATION_
 #define _ARG_LOCATION_DIMENSIONS_ ,_LOCATION_DIMENSIONS_
-#define _DECLARE_LOCATION_ARG_ _LOCATION_TYPE_,intent(in) :: _LOCATION_
+#define _PREARG_LOCATION_ _LOCATION_,
+#define _PREARG_LOCATION_DIMENSIONS_ _LOCATION_DIMENSIONS_,
+#define _DECLARE_LOCATION_ARG_ integer,intent(in) :: _LOCATION_
 #else
 #define _INDEX_LOCATION_
 #define _ATTR_LOCATION_DIMENSIONS_
-#define _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_ ,dimension(:)
 #define _ARG_LOCATION_
 #define _ARG_LOCATION_DIMENSIONS_
+#define _PREARG_LOCATION_
+#define _PREARG_LOCATION_DIMENSIONS_
 #define _DECLARE_LOCATION_ARG_
 #endif
 
+#define _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_ ,dimension(_PREARG_LOCATION_DIMENSIONS_ :)
+#define _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ ,dimension(_PREARG_LOCATION_DIMENSIONS_HZ_ :)
+
 #ifdef _FABM_USE_1D_LOOP_
 
+! ---------------------------------------------------------------------------------
 ! 1D vectorized: FABM subroutines operate on one spatial dimension.
+! ---------------------------------------------------------------------------------
 
-! Make sure there is at least one dimension to vectorize.
-#if _FABM_DIMENSION_COUNT_<1
-#error Cannot build 1D vectorized version of FABM (_FABM_USE_1D_LOOP_) with the total number of spatial dimensions (_FABM_DIMENSION_COUNT_) being less than 1.
-#endif
-
-! For a 1D spatial domain, the vectorized version of FABM must iterate over that sole dimension.
-! Therefore, the _LOCATION_1DLOOP_ and _VARIABLE_1DLOOP_ macros can be inferred.
 #if _FABM_DIMENSION_COUNT_>1
 #define _ARG_LOCATION_1DLOOP_ ,_LOCATION_1DLOOP_
 #else
 #define _ARG_LOCATION_1DLOOP_
-#define _LOCATION_1DLOOP_
-#define _VARIABLE_1DLOOP_ _LOCATION_
 #endif
 
-! Check for additional preprocessor macros that a required when _FABM_USE_1D_LOOP_ is defined.
-#ifndef _VARIABLE_1DLOOP_
-#error Building 1D vectorized version of FABM: preprocessor variable _VARIABLE_1DLOOP_ must be defined.
-#endif
-#ifndef _LOCATION_1DLOOP_
-#error Building 1D vectorized version of FABM: preprocessor variable _LOCATION_1DLOOP_ must be defined.
-#endif
-
-! Length of the vectorized dimension, used in fabm_init only.
+! Length of the vectorized dimension, used in fabm_initialize only.
 #define _DOMAIN_SIZE_1D_ _VARIABLE_1DLOOP_
 
 ! Dummy argument and argument declaration for location specification.
 #define _ARG_LOCATION_ND_ ,fabm_loop_start,fabm_loop_stop _ARG_LOCATION_1DLOOP_
-#define _DECLARE_LOCATION_ARG_ND_ _LOCATION_TYPE_,intent(in) :: fabm_loop_start,fabm_loop_stop _ARG_LOCATION_1DLOOP_; _LOCATION_TYPE_ :: _VARIABLE_1DLOOP_
+#define _DECLARE_LOCATION_ARG_ND_ integer,intent(in) :: fabm_loop_start,fabm_loop_stop _ARG_LOCATION_1DLOOP_;integer :: _VARIABLE_1DLOOP_
 
 ! Beginning and end of spatial loop
-#define _FABM_LOOP_BEGIN_ do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop
+#ifdef _FABM_MASK_
+#define _FABM_LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop;if (_FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)) then
+#define _FABM_LOOP_END_ end if;end do
+#else
+#define _FABM_LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop
 #define _FABM_LOOP_END_ end do
+#endif
 
 ! Dimensionality of generic space-dependent arguments.
 #define _ATTR_DIMENSIONS_0_ ,dimension(:)
@@ -150,9 +320,11 @@
 
 #else
 
+! ---------------------------------------------------------------------------------
 ! Not vectorized: FABM subroutines operate one the local state only.
+! ---------------------------------------------------------------------------------
 
-! Length of the vectorized dimension, used in fabm_init only.
+! Length of the vectorized dimension, used in fabm_initialize only.
 #define _DOMAIN_SIZE_1D_ 1
 
 ! Dummy argument and argument declaration for location specification.
@@ -160,7 +332,7 @@
 #define _DECLARE_LOCATION_ARG_ND_ _DECLARE_LOCATION_ARG_
 
 ! Beginning and end of spatial loop
-#define _FABM_LOOP_BEGIN_
+#define _FABM_LOOP_BEGIN_EX_(environment)
 #define _FABM_LOOP_END_
 
 ! Dimensionality of generic space-dependent arguments.
@@ -177,16 +349,20 @@
 
 #endif
 
-#if defined(_FABM_USE_1D_LOOP_)&&(!defined(_FABM_1D_LOOP_IN_VERTICAL_))
+#define _FABM_LOOP_BEGIN_ _FABM_LOOP_BEGIN_EX_(environment)
 
+#ifdef _FABM_USE_1D_LOOP_IN_HORIZONTAL_
+
+! ---------------------------------------------------------------------------------
 ! Functions operating on horizontonal slices of the domain will be vectorized just like the full domain.
+! ---------------------------------------------------------------------------------
 
 #define _ARG_LOCATION_VARS_HZ_ _ARG_LOCATION_ND_
 #define _DECLARE_LOCATION_ARG_HZ_ _DECLARE_LOCATION_ARG_ND_
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
-#define _FABM_HZ_LOOP_BEGIN_ _FABM_LOOP_BEGIN_
-#define _FABM_HZ_LOOP_END_ _FABM_LOOP_END_
+#define _FABM_HORIZONTAL_LOOP_BEGIN_ _FABM_LOOP_BEGIN_
+#define _FABM_HORIZONTAL_LOOP_END_ _FABM_LOOP_END_
 
 ! Vertical dimension is not among those vectorized:
 ! dimensionality of horizontal arrays will be equal to that of full domain arrays.
@@ -208,14 +384,16 @@
 
 #else
 
+! ---------------------------------------------------------------------------------
 ! Functions operating on horizontal slices of the domain only will not be vectorized
+! ---------------------------------------------------------------------------------
 
 #define _ARG_LOCATION_VARS_HZ_ _ARG_LOCATION_
 #define _DECLARE_LOCATION_ARG_HZ_ _DECLARE_LOCATION_ARG_
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
-#define _FABM_HZ_LOOP_BEGIN_
-#define _FABM_HZ_LOOP_END_
+#define _FABM_HORIZONTAL_LOOP_BEGIN_
+#define _FABM_HORIZONTAL_LOOP_END_
 
 ! Expressions for indexing space-dependent FABM variables defined on horizontal slices of the domain.
 #define _INDEX_SURFACE_EXCHANGE_(index) (index)
@@ -229,7 +407,6 @@
 #define _ATTR_DIMENSIONS_2_HZ_ ,dimension(:,:)
 
 #endif
-
 
 ! For FABM: standard arguments used in calling biogeochemical routines.
 #define _FABM_ARGS_ND_IN_ root%environment _ARG_LOCATION_ND_
@@ -256,7 +433,7 @@
 #define _DECLARE_FABM_ARGS_DO_RHS_  _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_1_,intent(inout) :: rhs
 #define _DECLARE_FABM_ARGS_DO_PPDD_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_2_,intent(inout) :: pp,dd
 #define _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux_pel,flux_ben
-#define _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd;integer :: benthos_offset
+#define _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
 #define _DECLARE_FABM_ARGS_GET_EXTINCTION_ _DECLARE_FABM_ARGS_ND_;REALTYPE _ATTR_DIMENSIONS_0_,intent(inout) :: extinction
 #define _DECLARE_FABM_ARGS_GET_DRAG_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: drag
 #define _DECLARE_FABM_ARGS_GET_ALBEDO_ _DECLARE_FABM_ARGS_HZ_;REALTYPE _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: albedo
@@ -267,23 +444,27 @@
 
 ! Macros for declaring/accessing variable identifiers of arbitrary type.
 #define _TYPE_STATE_VARIABLE_ID_ type (type_state_variable_id)
+#define _TYPE_BOTTOM_STATE_VARIABLE_ID_ type (type_bottom_state_variable_id)
 #define _TYPE_DIAGNOSTIC_VARIABLE_ID_ type (type_diagnostic_variable_id)
-#define _TYPE_DEPENDENCY_ID_ integer
-#define _TYPE_CONSERVED_QUANTITY_ID_ integer
+#define _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ type (type_horizontal_diagnostic_variable_id)
+#define _TYPE_DEPENDENCY_ID_ type (type_dependency_id)
+#define _TYPE_HORIZONTAL_DEPENDENCY_ID_ type (type_horizontal_dependency_id)
+#define _TYPE_GLOBAL_DEPENDENCY_ID_ type (type_global_dependency_id)
+#define _TYPE_CONSERVED_QUANTITY_ID_ type(type_conserved_quantity_id)
 
 ! For BGC models: Expressions for setting space-dependent FABM variables defined on the full spatial domain.
-#define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%id) = rhs _INDEX_ODE_(variable%id) + (value)
-#define _SET_ODE_BEN_(variable,value) flux_ben _INDEX_BOTTOM_FLUX_(variable%id) = flux_ben _INDEX_BOTTOM_FLUX_(variable%id) + (value)
-#define _SET_BOTTOM_EXCHANGE_(variable,value) flux_pel _INDEX_BOTTOM_FLUX_(variable%id) = flux_pel _INDEX_BOTTOM_FLUX_(variable%id) + (value)
-#define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%id) = rhs _INDEX_ODE_(variable%id) + (value)
-#define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1%id,variable2%id) = dd _INDEX_PPDD_(variable1%id,variable2%id) + (value)
-#define _SET_PP_(variable1,variable2,value) pp _INDEX_PPDD_(variable1%id,variable2%id) = pp _INDEX_PPDD_(variable1%id,variable2%id) + (value)
+#define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%state_index) = rhs _INDEX_ODE_(variable%state_index) + (value)
+#define _SET_ODE_BEN_(variable,value) flux_ben _INDEX_BOTTOM_FLUX_(variable%bottom_state_index) = flux_ben _INDEX_BOTTOM_FLUX_(variable%bottom_state_index) + (value)
+#define _SET_BOTTOM_EXCHANGE_(variable,value) flux_pel _INDEX_BOTTOM_FLUX_(variable%state_index) = flux_pel _INDEX_BOTTOM_FLUX_(variable%state_index) + (value)
+#define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%state_index) = rhs _INDEX_ODE_(variable%state_index) + (value)
+#define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1%state_index,variable2%state_index) = dd _INDEX_PPDD_(variable1%state_index,variable2%state_index) + (value)
+#define _SET_PP_(variable1,variable2,value) pp _INDEX_PPDD_(variable1%state_index,variable2%state_index) = pp _INDEX_PPDD_(variable1%state_index,variable2%state_index) + (value)
 #define _SET_EXTINCTION_(value) extinction _INDEX_EXTINCTION_ = extinction _INDEX_EXTINCTION_ + (value)
 #define _SCALE_DRAG_(value) drag _INDEX_HZ_0_ = drag _INDEX_HZ_0_ * (value)
 #define _SET_ALBEDO_(value) albedo _INDEX_HZ_0_ = albedo _INDEX_HZ_0_ + (value)
-#define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_CONSERVED_QUANTITY_(variable) = sums _INDEX_CONSERVED_QUANTITY_(variable) + (value)
-#define _SET_VERTICAL_MOVEMENT_(variable,value) velocity _INDEX_VERTICAL_MOVEMENT_(variable%id) = value
-#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_SURFACE_EXCHANGE_(variable%id) = value
+#define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_CONSERVED_QUANTITY_(variable%cons_index) = sums _INDEX_CONSERVED_QUANTITY_(variable%cons_index) + (value)
+#define _SET_VERTICAL_MOVEMENT_(variable,value) velocity _INDEX_VERTICAL_MOVEMENT_(variable%state_index) = value
+#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_SURFACE_EXCHANGE_(variable%state_index) = value
 #define _INVALIDATE_STATE_ valid = .false.
 #define _REPAIR_STATE_ repair
 
@@ -291,36 +472,43 @@
 #define _SET_DD_SYM_(variable1,variable2,value) _SET_DD_(variable1,variable2,value);_SET_PP_(variable2,variable1,value)
 #define _SET_PP_SYM_(variable1,variable2,value) _SET_PP_(variable1,variable2,value);_SET_DD_(variable2,variable1,value)
 
-! For BGC models: read-only access to values of external dependencies
-#define _GET_DEPENDENCY_(variable,target) target = environment%var(variable)%data _INDEX_LOCATION_
-#define _GET_DEPENDENCY_HZ_(variable,target) target = environment%var_hz(variable)%data _INDEX_LOCATION_HZ_
-#define _GET_DEPENDENCY_SCALAR_(variable,target) target = environment%var_scalar(variable)%data
+! For BGC models: macro to determine whether a variable identifier is in use (i.e., has been registered with FABM)
+#define _VARIABLE_REGISTERED_(variable) variable%name/=''
 
-! For FABM: read/write access to pelagic state variables
-#define _GET_STATE_EX_(env,variable,target) target = env%var(variable%dependencyid)%data _INDEX_LOCATION_
-#define _SET_STATE_EX_(env,variable,value) env%var(variable%dependencyid)%data _INDEX_LOCATION_ = value
+! Within FABM: read/write variable access.
+#define _GET_EX_(variable,target) target = variable%p _INDEX_LOCATION_
+#define _GET_HORIZONTAL_EX_(variable,target) target = variable%p _INDEX_LOCATION_HZ_
+#define _GET_GLOBAL_EX_(variable,target) target = variable%p
+#define _SET_EX_(variable,value) variable%p _INDEX_LOCATION_ = value
+#define _SET_HORIZONTAL_EX_(variable,value) variable%p _INDEX_LOCATION_HZ_ = value
+#define _SET_GLOBAL_EX_(variable,value) variable%p = value
 
-! For FABM: read/write access to benthic state variables
-#define _GET_STATE_BEN_EX_(env,variable,target) target = env%var_hz(variable%dependencyid)%data _INDEX_LOCATION_HZ_
-#define _SET_STATE_BEN_EX_(env,variable,value) env%var_hz(variable%dependencyid)%data _INDEX_LOCATION_HZ_ = value
+! For BGC models: read/write variable access.
+#define _GET_(variable,target) _GET_EX_(variable%data,target)
+#define _GET_HORIZONTAL_(variable,target) _GET_HORIZONTAL_EX_(variable%horizontal_data,target)
+#define _GET_GLOBAL_(variable,target) _GET_GLOBAL_EX_(variable%global_data,target)
+#define _SET_(variable,value) _SET_EX_(variable%data,value)
+#define _SET_HORIZONTAL_(variable,value) _SET_HORIZONTAL_EX_(variable%horizontal_data,value)
+#define _SET_GLOBAL_(variable,value) _SET_GLOBAL_EX_(variable%global_data,value)
+#define _SET_DIAGNOSTIC_(variable,value) environment%diag(_PREARG_LOCATION_ variable%diag_index) = value
+#define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) environment%diag_hz(_PREARG_LOCATION_HZ_ variable%horizontal_diag_index) = value
 
-! For BGC models: read/write access to pelagic state variable values
-#define _GET_STATE_(variable,target) _GET_STATE_EX_(environment,variable,target)
-#define _SET_STATE_(variable,target) _SET_STATE_EX_(environment,variable,target)
-
-! For BGC models: read/write access to benthic state variable values
-#define _GET_STATE_BEN_(variable,target) _GET_STATE_BEN_EX_(environment,variable,target)
-#define _SET_STATE_BEN_(variable,target) _SET_STATE_BEN_EX_(environment,variable,target)
-
-! For BGC models: write access to diagnostic variables
-#ifdef _FABM_MANAGE_DIAGNOSTICS_
-#define _SET_DIAG_(index,value) environment%diag(index%id _ARG_LOCATION_) = value
-#define _SET_DIAG_HZ_(index,value) environment%diag_hz(index%id _ARG_LOCATION_HZ_) = value
-#else
-#define _SET_DIAG_(index,value) if (index%dependencyid.ne.id_not_used) environment%var(index%dependencyid)%data _INDEX_LOCATION_ = value
-#define _SET_DIAG_HZ_(index,value) if (index%dependencyid.ne.id_not_used) environment%var_hz(index%dependencyid)%data _INDEX_LOCATION_HZ_ = value
-#endif
-
+! For backward compatibility: old macros to access variable data.
+#define _GET_DEPENDENCY_(variable,target) _GET_(variable,target)
+#define _GET_DEPENDENCY_HZ_(variable,target) _GET_HORIZONTAL_(variable,target)
+#define _GET_DEPENDENCY_SCALAR_(variable,target) _GET_GLOBAL_(variable,target)
+#define _GET_STATE_(variable,target) _GET_(variable,target)
+#define _GET_STATE_BEN_(variable,target) _GET_HORIZONTAL_(variable,target)
+#define _SET_STATE_(variable,target) _SET_(variable,target)
+#define _SET_STATE_BEN_(variable,target) _SET_HORIZONTAL_(variable,target)
+#define _GET_STATE_EX_(env,variable,target) _GET_EX_(variable,target)
+#define _GET_STATE_BEN_EX_(env,variable,target) _GET_HORIZONTAL_EX_(variable,target)
+#define _SET_STATE_EX_(env,variable,value) _SET_EX_(variable,value)
+#define _SET_STATE_BEN_EX_(env,variable,value) _SET_HORIZONTAL_EX_(variable,value)
+#define _SET_DIAG_(variable,value) _SET_DIAGNOSTIC_(variable,value)
+#define _SET_DIAG_HZ_(variable,value) _SET_HORIZONTAL_DIAGNOSTIC_(variable,value)
+#define _FABM_HZ_LOOP_BEGIN_ _FABM_HORIZONTAL_LOOP_BEGIN_
+#define _FABM_HZ_LOOP_END_ _FABM_HORIZONTAL_LOOP_END_
 
 ! Work-in-progress: extra definitions for coupling to pure-1D models [ERSEM]
 ! Currently these are GOTM-specific - more logic will be needed to set these to
@@ -330,8 +518,8 @@
 #define _GET_DEPENDENCY_1D_(variable,target) target = environment%var(variable)%data(_DOMAIN_1D_)
 #define _FABM_LOOP_BEGIN_1D_
 #define _FABM_LOOP_END_1D_
-#define _FABM_HZ_LOOP_BEGIN_1D_
-#define _FABM_HZ_LOOP_END_1D_
+#define _FABM_HORIZONTAL_LOOP_BEGIN_1D_
+#define _FABM_HORIZONTAL_LOOP_END_1D_
 #ifndef _INDEX_ODE_1D_
 #define _INDEX_ODE_1D_(variable) (1:fabm_loop_stop-fabm_loop_start+1,variable)
 #endif

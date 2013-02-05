@@ -34,6 +34,8 @@
 ! 17/02/2010. Update calculation of K1, K2, Kb to make consistant with the OCMIP protocols.
 
    subroutine CO2_dynamics(T,S,Z,DIC,pco2w,TA,ph,carba,bicarb,carb,henry,om_cal,om_arg,TCO2,dcf)
+   
+   use fabm_types
 
    IMPLICIT NONE
 ! INPUT PARAMETERS:
@@ -123,6 +125,7 @@
 !  Outputs are
 !  flux     flux of CO2 in mmol C /m2/d
 !           +ve is in-gassing (air to sea), -ve is outgassing (sea to air).
+   use fabm_types
 
    IMPLICIT NONE
       REALTYPE   :: T, wnd, pco2w, pco2a, henry, dcf    ! INPUT PARAMETERS:
@@ -146,6 +149,8 @@
 !.......................................................................
 !     This subroutine acts as an interface to the Haltafall iteration, setting options etc.
 !.......................................................................
+      use fabm_types
+
       IMPLICIT NONE
 
       REALTYPE PRSS, PH, AKVAL, CONCS,                       &
@@ -223,6 +228,7 @@
 !        REPRESENTS TOTAL ALKALINITY (CARBONATE + BORATE), THE COMPONEN
 !        WHICH ARE GIVEN IN CONCS(8) AND CONCS(9)
       use fabm_driver,only:fatal_error
+      use fabm_types
 
       IMPLICIT NONE
 
@@ -313,6 +319,8 @@
 
 !     Modified by jcb 17/02/10 to use OCMIP calculations of K1, K2, Kb.
 !     Differences are subtle rather than significant
+      use fabm_types
+      
       IMPLICIT NONE
 
       INTEGER MAXK, MAXCON, NKVAL, ICON, IC, IK
@@ -403,6 +411,8 @@
 
 
 !      IMPLICIT REALTYPE (A-H,O-Z)
+      use fabm_types
+      
       IMPLICIT NONE
 
       INTEGER NCONC, NKVAL, ICALC, II, KARL, LQ
@@ -654,6 +664,7 @@
 !       Code tested against reference values given in Z & W-G
 !       Built Jerry Blackford, 2008
 !
+        use fabm_types
 
         IMPLICIT None
         REALTYPE Tc, Tk, Kelvin, S, D, Ca, CO3

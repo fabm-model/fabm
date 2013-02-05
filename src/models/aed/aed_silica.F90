@@ -30,9 +30,10 @@ MODULE aed_silica
 !
    TYPE,extends(type_base_model) :: type_aed_silica
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_rsi,id_oxy,id_Fsed_rsi
+      _TYPE_STATE_VARIABLE_ID_      :: id_rsi,id_oxy
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_  :: id_Fsed_rsi
       _TYPE_DEPENDENCY_ID_          :: id_temp
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_rsi
+      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_rsi
 
 !     Model parameters
       REALTYPE :: Fsed_rsi,Ksed_rsi,theta_sed_rsi
@@ -92,25 +93,25 @@ FUNCTION aed_silica_create(namlst,name,parent) RESULT(self)
    self%theta_sed_rsi = theta_sed_rsi
 
    ! Register state variables
-   self%id_rsi = self%register_state_variable('rsi','mmol/m**3', 'silica',     &
+   call self%register_state_variable(self%id_rsi,'rsi','mmol/m**3', 'silica',     &
                                     rsi_initial,minimum=_ZERO_,no_river_dilution=.false.)
 
    ! Register external state variable dependencies
    self%use_oxy = silica_reactant_variable .NE. '' !This means oxygen module switched on
    IF (self%use_oxy) &
-      self%id_oxy = self%register_state_dependency(silica_reactant_variable)
+      call self%register_state_dependency(self%id_oxy,silica_reactant_variable)
 
    self%use_sed_model = Fsed_rsi_variable .NE. ''
    IF (self%use_sed_model) &
-      self%id_Fsed_rsi = self%register_state_dependency(Fsed_rsi_variable,benthic=.true.)
+      call self%register_bottom_state_dependency(self%id_Fsed_rsi,Fsed_rsi_variable)
 
    ! Register diagnostic variables
-   self%id_sed_rsi = self%register_diagnostic_variable('sed_rsi','mmol/m**2/d', &
+   call self%register_horizontal_diagnostic_variable(self%id_sed_rsi,'sed_rsi','mmol/m**2/d', &
                      'reactive silica',                                              &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                     time_treatment=time_treatment_step_integrated)
 
    ! Register environmental dependencies
-   self%id_temp = self%register_dependency(varname_temp)
+   call self%register_dependency(self%id_temp,varname_temp)
 
    RETURN
 
@@ -199,23 +200,23 @@ SUBROUTINE aed_silica_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+   _GET_(self%id_temp,temp)  ! local temperature
 
     ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_rsi,rsi) ! silica
+   _GET_(self%id_rsi,rsi) ! silica
 
    IF (self%use_sed_model) THEN
-       _GET_STATE_BEN_(self%id_Fsed_rsi,Fsed_rsi)
+       _GET_HORIZONTAL_(self%id_Fsed_rsi,Fsed_rsi)
    ELSE
        Fsed_rsi = self%Fsed_rsi
    ENDIF
 
    IF (self%use_oxy) THEN
       ! Sediment flux dependent on oxygen and temperature
-       _GET_STATE_(self%id_oxy,oxy)
+       _GET_(self%id_oxy,oxy)
        rsi_flux = Fsed_rsi * self%Ksed_rsi/(self%Ksed_rsi+oxy) * (self%theta_sed_rsi**(temp-20.0))
    ELSE
       ! Sediment flux dependent on temperature only.
@@ -235,10 +236,10 @@ SUBROUTINE aed_silica_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    !_SET_ODE_BEN_(self%id_ben_rsi,-rsi_flux/secs_pr_day)
 
    ! Also store sediment flux as diagnostic variable.
-   _SET_DIAG_HZ_(self%id_sed_rsi,rsi_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_rsi,rsi_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_silica_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -262,7 +263,7 @@ SUBROUTINE aed_silica_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_rsi,rsi) ! silica
+   _GET_(self%id_rsi,rsi) ! silica
 
    ! Total nutrient is simply the sum of all variables.
 !   _SET_CONSERVED_QUANTITY_(self%id_totP,rsi)

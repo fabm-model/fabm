@@ -103,12 +103,12 @@ FUNCTION aed_tracer_create(namlst,name,parent) RESULT(self)
    ! Register state variables
    DO i=1,num_tracers
       trac_name(3:3) = CHAR(ICHAR('0') + i)
-      self%id_ss(i) = self%register_state_variable(TRIM(trac_name),'mmol/m**3','tracer', &
+      call self%register_state_variable(self%id_ss(i),TRIM(trac_name),'mmol/m**3','tracer', &
                                    trace_initial,minimum=_ZERO_,no_river_dilution=.false.)
    ENDDO
 
    ! Register environmental dependencies
-   self%id_temp = self%register_dependency(varname_temp)
+   call self%register_dependency(self%id_temp,varname_temp)
 
    RETURN
 
@@ -189,14 +189,14 @@ SUBROUTINE aed_tracer_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+   _GET_(self%id_temp,temp)  ! local temperature
 
     DO i=1,ubound(self%id_ss,1)
     ! Retrieve current (local) state variable values.
-       _GET_STATE_(self%id_ss(i),ss)
+       _GET_(self%id_ss(i),ss)
 
       ! Sediment flux dependent on temperature only.
       ss_flux = self%Fsed(i) * (theta_sed_ss**(temp-20.0))
@@ -207,7 +207,7 @@ SUBROUTINE aed_tracer_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    ENDDO
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_tracer_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -233,7 +233,7 @@ SUBROUTINE aed_tracer_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
 
 !  DO i,ubound(self%id_ss,1)
       ! Retrieve current (local) state variable values.
-!     _GET_STATE_(self%id_ss(i),ss) ! tracer
+!     _GET_(self%id_ss(i),ss) ! tracer
 
       ! Total nutrient is simply the sum of all variables.
 !     _SET_CONSERVED_QUANTITY_(self%id_ss(i),ss)

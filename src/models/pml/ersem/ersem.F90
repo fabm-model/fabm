@@ -130,10 +130,10 @@
 !   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen') LATER
 
    ! Register environmental dependencies
-   self%id_ETW = register_dependency(modelinfo, varname_temp)
-   self%id_EIR = register_dependency(modelinfo, varname_swr)
-   self%id_EPW = register_dependency(modelinfo, varname_pres)
-   self%id_x1X = register_dependency(modelinfo, varname_salt)
+   call register_dependency(modelinfo, self%id_ETW, varname_temp)
+   call register_dependency(modelinfo, self%id_EIR, varname_swr)
+   call register_dependency(modelinfo, self%id_EPW, varname_pres)
+   call register_dependency(modelinfo, self%id_x1X, varname_salt)
 
    return
 
@@ -266,7 +266,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_1D_
+   _FABM_HORIZONTAL_LOOP_BEGIN_1D_
 
 #ifdef FABM_PMLERSEM
    ! Retrieve current (local) state variable values for the bottom pelagic layer.
@@ -302,7 +302,7 @@
 #endif
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_1D_
+   _FABM_HORIZONTAL_LOOP_END_1D_
 
    end subroutine pml_ersem_do_benthos
 !EOC

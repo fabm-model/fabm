@@ -33,6 +33,10 @@
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_ :: id_tracer
       REALTYPE                 :: surface_flux
+      
+      contains
+      
+      procedure get_surface_exchange
    end type type_bb_passive
 !
 ! !PRIVATE DATA MEMBERS:
@@ -87,7 +91,7 @@
    self%surface_flux = surface_flux/secs_pr_day
 
    ! Register state variables
-   self%id_tracer = self%register_state_variable( &
+   call self%register_state_variable(self%id_tracer, &
                     'tracer',unit,'tracer', &
                     initial_concentration,minimum=_ZERO_, &
                     vertical_movement=vertical_velocity/secs_pr_day, &
@@ -126,13 +130,13 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Transfer surface exchange value to FABM.
    _SET_SURFACE_EXCHANGE_(self%id_tracer,self%surface_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
    end subroutine get_surface_exchange
 !EOC

@@ -98,7 +98,7 @@ FUNCTION aed_bacteria_create(namlst,name,parent) RESULT(self)
    self%mortality = mortality
 
    ! Register state variables
-   self%id_bact = self%register_state_variable('bact','mmol/m**3','bacteria',     &
+   call self%register_state_variable(self%id_bact,'bact','mmol/m**3','bacteria',     &
                                     bact_initial,minimum=_ZERO_,no_river_dilution=.false.)
 
    ! Register diagnostic variables
@@ -107,10 +107,10 @@ FUNCTION aed_bacteria_create(namlst,name,parent) RESULT(self)
 !                    time_treatment=time_treatment_step_integrated, shape=shape_hz)
 
    ! Register conserved quantities
-   self%id_totB = self%register_conserved_quantity('TB','mmol/m**3','Total bacteria')
+   call self%register_conserved_quantity(self%id_totB,'TB','mmol/m**3','Total bacteria')
 
    ! Register environmental dependencies
-   self%id_temp = self%register_dependency(varname_temp)
+   call self%register_dependency(self%id_temp,varname_temp)
 
    RETURN
 
@@ -139,7 +139,7 @@ SUBROUTINE aed_bacteria_do(self,_FABM_ARGS_DO_RHS_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_bact,bact) ! bacteria
+   _GET_(self%id_bact,bact) ! bacteria
 
    ! Set temporal derivatives
    diff_bact = 0.
@@ -177,7 +177,7 @@ SUBROUTINE aed_bacteria_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_bact,bact) ! bacteria
+   _GET_(self%id_bact,bact) ! bacteria
 
    ! Set temporal derivatives
    diff_bact = 0.
@@ -218,13 +218,13 @@ SUBROUTINE aed_bacteria_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+   _GET_(self%id_temp,temp)  ! local temperature
 
     ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_bact,bact) ! bacteria
+   _GET_(self%id_bact,bact) ! bacteria
 
 !  _SET_BOTTOM_EXCHANGE_(self%id_bact,bact_flux)
 
@@ -236,7 +236,7 @@ SUBROUTINE aed_bacteria_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !  _SET_DIAG_HZ_(self%id_sed_bact,bact_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_bacteria_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -261,7 +261,7 @@ SUBROUTINE aed_bacteria_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_Q
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_bact,bact) ! bacteria
+   _GET_(self%id_bact,bact) ! bacteria
 
    ! Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totB,bact)

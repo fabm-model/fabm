@@ -27,9 +27,7 @@
 !
 !-----------------------------------------------------------------------
 !BOC
-#ifdef FORTRAN95
    call CPU_Time(t1)
-#endif
    call Date_And_Time(datestr,timestr)
    STDERR LINE
    STDERR '0D biogeochemical driver based on GOTM ver. ',RELEASE,': Started on  ',datestr,' ',timestr
@@ -39,16 +37,12 @@
    call time_loop()
    call clean_up()
 
-#ifdef FORTRAN95
    call CPU_Time(t2)
-#endif
    call Date_And_Time(datestr,timestr)
    STDERR LINE
    STDERR '0D biogeochemical driver based on GOTM ver. ',RELEASE,': Finished on ',datestr,' ',timestr
-#ifdef FORTRAN95
    STDERR 'CPU-time was in loop:  ',t2-t1,' seconds'
    STDERR 'Sim-time/CPU-time:     ',simtime/(t2-t1)
-#endif
    STDERR LINE
    STDERR LINE
 

@@ -95,7 +95,7 @@ FUNCTION aed_create_model(namlst,modelname,instancename,parent) RESULT(model)
            print *,'*** Unknown module ',modelname
     END SELECT
 
-!   IF (ASSOCIATED(model)) CALL init_model_info(model)
+!   IF (ASSOCIATED(model)) CALL initialize_model_info(model)
 
 END FUNCTION aed_create_model
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

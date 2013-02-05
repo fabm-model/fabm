@@ -103,7 +103,8 @@ MODULE aed_phytoplankton
       _TYPE_STATE_VARIABLE_ID_      :: id_Cexctarget,id_Cmorttarget,id_Cupttarget
       _TYPE_STATE_VARIABLE_ID_      :: id_Siexctarget,id_Simorttarget,id_Siupttarget
       _TYPE_STATE_VARIABLE_ID_      :: id_DOupttarget
-      _TYPE_DEPENDENCY_ID_          :: id_par,id_I_0, id_tem, id_sal, id_dz, id_extc
+      _TYPE_DEPENDENCY_ID_          :: id_par, id_tem, id_sal, id_dz, id_extc
+      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_I_0
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR, id_TCHLA, id_TIN, id_TIP
       _TYPE_CONSERVED_QUANTITY_ID_  :: id_totP
 
@@ -220,7 +221,7 @@ SUBROUTINE aed_phytoplankton_load_params(self, count, list)
        self%phytos(i)%X_sicon      = pd(list(i))%X_sicon
 
        ! Register group as a state variable
-       self%id_p(i) = self%register_state_variable(                            &
+       call self%register_state_variable(self%id_p(i),                            &
                               TRIM(self%phytos(i)%p_name),                     &
                               'mmol/m**3', 'phytoplankton',                    &
                               pd(list(i))%p_initial,                           &
@@ -235,7 +236,7 @@ SUBROUTINE aed_phytoplankton_load_params(self, count, list)
             minNut = self%phytos(i)%p0*self%phytos(i)%X_nmin
           ENDIF
           ! Register IN group as a state variable
-          self%id_in(i) = self%register_state_variable(                        &
+          call self%register_state_variable(self%id_in(i),                        &
                               TRIM(self%phytos(i)%p_name)//'_IN',              &
                               'mmol/m**3', 'phytoplankton IN',                 &
                               pd(list(i))%p_initial*self%phytos(i)%X_ncon,      &
@@ -250,7 +251,7 @@ SUBROUTINE aed_phytoplankton_load_params(self, count, list)
             minNut = self%phytos(i)%p0*self%phytos(i)%X_pmin
           ENDIF
           ! Register IP group as a state variable
-          self%id_ip(i) = self%register_state_variable(                        &
+          call self%register_state_variable(self%id_ip(i),                        &
                               TRIM(self%phytos(i)%p_name)//'_IP',              &
                               'mmol/m**3', 'phytoplankton IP',                 &
                               pd(list(i))%p_initial*self%phytos(i)%X_pcon,      &
@@ -343,36 +344,36 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
    ! Register link to nutrient pools, if variable names are provided in namelist.
    self%do_Pexc = p_excretion_target_variable .NE. ''
    IF (self%do_Pexc) THEN
-     self%id_Pexctarget  = self%register_state_dependency(p_excretion_target_variable)
+     call self%register_state_dependency(self%id_Pexctarget,p_excretion_target_variable)
    ENDIF
    self%do_Nexc = n_excretion_target_variable .NE. ''
    IF (self%do_Pexc) THEN
-     self%id_Nexctarget  = self%register_state_dependency(n_excretion_target_variable)
+     call self%register_state_dependency(self%id_Nexctarget,n_excretion_target_variable)
    ENDIF
    self%do_Cexc = c_excretion_target_variable .NE. ''
    IF (self%do_Pexc) THEN
-     self%id_Cexctarget  = self%register_state_dependency(c_excretion_target_variable)
+     call self%register_state_dependency(self%id_Cexctarget,c_excretion_target_variable)
    ENDIF
    self%do_Siexc = si_excretion_target_variable .NE. ''
    IF (self%do_Siexc) THEN
-     self%id_Siexctarget = self%register_state_dependency(si_excretion_target_variable)
+     call self%register_state_dependency(self%id_Siexctarget,si_excretion_target_variable)
    ENDIF
 
    self%do_Pmort = p_mortality_target_variable .NE. ''
    IF (self%do_Pmort) THEN
-     self%id_Pmorttarget  = self%register_state_dependency(p_mortality_target_variable)
+     call self%register_state_dependency(self%id_Pmorttarget,p_mortality_target_variable)
    ENDIF
    self%do_Nmort = n_mortality_target_variable .NE. ''
    IF (self%do_Nmort) THEN
-     self%id_Nmorttarget  = self%register_state_dependency(n_mortality_target_variable)
+     call self%register_state_dependency(self%id_Nmorttarget,n_mortality_target_variable)
    ENDIF
    self%do_Cmort = c_mortality_target_variable .NE. ''
    IF (self%do_Cmort) THEN
-     self%id_Cmorttarget  = self%register_state_dependency(c_mortality_target_variable)
+     call self%register_state_dependency(self%id_Cmorttarget,c_mortality_target_variable)
    ENDIF
    self%do_Simort = si_mortality_target_variable .NE. ''
    IF (self%do_Simort) THEN
-     self%id_Simorttarget = self%register_state_dependency(si_mortality_target_variable)
+     call self%register_state_dependency(self%id_Simorttarget,si_mortality_target_variable)
    ENDIF
 
    self%npup = 0
@@ -381,8 +382,8 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
    self%do_Puptake = .FALSE.
    IF (self%npup>0) self%do_Puptake=.TRUE.
    IF (self%do_Puptake) THEN
-     IF (self%npup>0) self%id_Pupttarget(1) = self%register_state_dependency(p1_uptake_target_variable); ifrp=1
-     IF (self%npup>1) self%id_Pupttarget(2) = self%register_state_dependency(p2_uptake_target_variable); idop=2
+     IF (self%npup>0) call self%register_state_dependency(self%id_Pupttarget(1),p1_uptake_target_variable); ifrp=1
+     IF (self%npup>1) call self%register_state_dependency(self%id_Pupttarget(2),p2_uptake_target_variable); idop=2
    ENDIF
    self%nnup = 0
    IF (n1_uptake_target_variable .NE. '') self%nnup = 1
@@ -392,52 +393,52 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
    self%do_Nuptake = .false.
    IF (self%nnup>0) self%do_Nuptake=.true.
    IF (self%do_Nuptake) THEN
-     IF (self%nnup>0) self%id_Nupttarget(1) = self%register_state_dependency(n1_uptake_target_variable); ino3=1
-     IF (self%nnup>1) self%id_Nupttarget(2) = self%register_state_dependency(n2_uptake_target_variable); inh4=2
-     IF (self%nnup>2) self%id_Nupttarget(3) = self%register_state_dependency(n3_uptake_target_variable); idon=3
-     IF (self%nnup>3) self%id_Nupttarget(4) = self%register_state_dependency(n4_uptake_target_variable); in2 =4
+     IF (self%nnup>0) call self%register_state_dependency(self%id_Nupttarget(1),n1_uptake_target_variable); ino3=1
+     IF (self%nnup>1) call self%register_state_dependency(self%id_Nupttarget(2),n2_uptake_target_variable); inh4=2
+     IF (self%nnup>2) call self%register_state_dependency(self%id_Nupttarget(3),n3_uptake_target_variable); idon=3
+     IF (self%nnup>3) call self%register_state_dependency(self%id_Nupttarget(4),n4_uptake_target_variable); in2 =4
    ENDIF
    self%do_Cuptake = c_uptake_target_variable .NE. ''
    IF (self%do_Cuptake) THEN
-     self%id_Cupttarget = self%register_state_dependency(c_uptake_target_variable)
+     call self%register_state_dependency(self%id_Cupttarget,c_uptake_target_variable)
    ENDIF
    self%do_DOuptake = do_uptake_target_variable .NE. ''
    IF (self%do_DOuptake) THEN
-     self%id_DOupttarget = self%register_state_dependency(do_uptake_target_variable)
+     call self%register_state_dependency(self%id_DOupttarget,do_uptake_target_variable)
    ENDIF
    self%do_Siuptake = si_uptake_target_variable .NE. ''
    IF (self%do_Siuptake) THEN
-     self%id_Siupttarget = self%register_state_dependency(si_uptake_target_variable)
+     call self%register_state_dependency(self%id_Siupttarget,si_uptake_target_variable)
    ENDIF
 
    ! Register diagnostic variables
-   self%id_GPP   = self%register_diagnostic_variable('GPP','mmol/m**3',  'gross primary production',           &
+   call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
                      time_treatment=time_treatment_step_integrated)
-   self%id_NCP   = self%register_diagnostic_variable('NCP','mmol/m**3',  'net community production',           &
+   call self%register_diagnostic_variable(self%id_NCP,'NCP','mmol/m**3',  'net community production',           &
                      time_treatment=time_treatment_step_integrated)
-   self%id_PPR   = self%register_diagnostic_variable('PPR','mmol/m**3/d','gross primary production rate',      &
+   call self%register_diagnostic_variable(self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',      &
                      time_treatment=time_treatment_averaged)
-   self%id_NPR   = self%register_diagnostic_variable('NPR','mmol/m**3/d','net community production rate',      &
+   call self%register_diagnostic_variable(self%id_NPR,'NPR','mmol/m**3/d','net community production rate',      &
                      time_treatment=time_treatment_averaged)
-   self%id_dPAR  = self%register_diagnostic_variable('PAR','W/m**2',     'photosynthetically active radiation',&
+   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
                      time_treatment=time_treatment_averaged)
-   self%id_TCHLA = self%register_diagnostic_variable('TCHLA','ug/L',    'Total Chlorophyll-a',&
+   call self%register_diagnostic_variable(self%id_TCHLA,'TCHLA','ug/L',    'Total Chlorophyll-a',&
                      time_treatment=time_treatment_averaged)
-   self%id_TIN = self%register_diagnostic_variable('IN','ug/L',    'Total Chlorophyll-a',&
+   call self%register_diagnostic_variable(self%id_TIN,'IN','ug/L',    'Total Chlorophyll-a',&
                      time_treatment=time_treatment_averaged)
-   self%id_TIP = self%register_diagnostic_variable('IP','ug/L',    'Total Chlorophyll-a',&
+   call self%register_diagnostic_variable(self%id_TIP,'IP','ug/L',    'Total Chlorophyll-a',&
                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
-   self%id_totP = self%register_conserved_quantity('TPHY','mmol/m**3','phytoplankton')
+   call self%register_conserved_quantity(self%id_totP,'TPHY','mmol/m**3','phytoplankton')
 
    ! Register environmental dependencies
-   self%id_tem  = self%register_dependency( varname_temp)
-   self%id_sal  = self%register_dependency( varname_salt)
-   self%id_par  = self%register_dependency( varname_par)
-   self%id_I_0  = self%register_dependency( varname_par_sf, shape=shape_hz)
-   self%id_dz   = self%register_dependency( varname_layer_ht)
-   self%id_extc = self%register_dependency( varname_extc)
+   call self%register_dependency(self%id_tem,varname_temp)
+   call self%register_dependency(self%id_sal,varname_salt)
+   call self%register_dependency(self%id_par,varname_par)
+   call self%register_dependency(self%id_I_0,varname_par_sf)
+   call self%register_dependency(self%id_dz,varname_layer_ht)
+   call self%register_dependency(self%id_extc,varname_extc)
 
    RETURN
 
@@ -482,26 +483,26 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_   (self%id_tem,temp)     ! local temperature
-   _GET_DEPENDENCY_   (self%id_sal,salinity) ! local salinity
-   _GET_DEPENDENCY_   (self%id_par,par)      ! local photosynthetically active radiation
-   _GET_DEPENDENCY_HZ_(self%id_I_0,Io)       ! surface short wave radiation
+   _GET_   (self%id_tem,temp)     ! local temperature
+   _GET_   (self%id_sal,salinity) ! local salinity
+   _GET_   (self%id_par,par)      ! local photosynthetically active radiation
+   _GET_HORIZONTAL_(self%id_I_0,Io)       ! surface short wave radiation
 
    pup = 0.
    ! Retrieve current (local) state variable values.
    IF (self%do_Puptake) THEN
-      _GET_STATE_(self%id_Pupttarget(1), pup)
+      _GET_(self%id_Pupttarget(1), pup)
    ENDIF
    no3up = 0.
    nh4up = 0.
    IF (self%do_Nuptake) THEN
-      _GET_STATE_(self%id_Nupttarget(1), no3up)
-      _GET_STATE_(self%id_Nupttarget(2), nh4up)
+      _GET_(self%id_Nupttarget(1), no3up)
+      _GET_(self%id_Nupttarget(2), nh4up)
    ENDIF
    cup = 0.
-   IF (self%do_Cuptake) _GET_STATE_(self%id_Cupttarget, cup)
+   IF (self%do_Cuptake) _GET_(self%id_Cupttarget, cup)
    rsiup = 0.
-   IF (self%do_Siuptake) _GET_STATE_(self%id_Siupttarget, rsiup)
+   IF (self%do_Siuptake) _GET_(self%id_Siupttarget, rsiup)
 
    tphy = 0.0
    tin  = 0.0
@@ -512,7 +513,7 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
    DO phy_i=1,self%num_phytos
 
       ! Retrieve this phytoplankton group
-      _GET_STATE_(self%id_p(phy_i),phy)
+      _GET_(self%id_p(phy_i),phy)
 
       primprod    = _ZERO_
       exudation   = _ZERO_
@@ -538,7 +539,7 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
       fNit = 0.0
       IF(self%phytos(phy_i)%simINDynamics /= 0) THEN
         ! IN variable available
-        _GET_STATE_(self%id_in(phy_i),INi)
+        _GET_(self%id_in(phy_i),INi)
       END IF
 
       ! Estimate fN limitation from IN or ext N value
@@ -565,7 +566,7 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
       fPho = _ZERO_
       IF (self%phytos(phy_i)%simIPDynamics /= 0) THEN
         ! IP variable available
-        _GET_STATE_(self%id_ip(phy_i),IPi)
+        _GET_(self%id_ip(phy_i),IPi)
       END IF
 
       ! Estimate fP limitation from IP or ext P value
@@ -586,9 +587,9 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
 
 
       ! LIGHT
-      _GET_DEPENDENCY_(self%id_extc,extc)
+      _GET_(self%id_extc,extc)
       ! dz = 0.5     !MH: to fix
-      _GET_DEPENDENCY_(self%id_dz,dz)
+      _GET_(self%id_dz,dz)
       fI = phyto_light(self, phy_i, par, extc, Io, dz)
       ! fI = 0.1
 
@@ -938,11 +939,11 @@ SUBROUTINE aed_phytoplankton_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !-------------------------------------------------------------------------------
 !BEGIN
 
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    DO phy_i=1,self%num_phytos
       ! Retrieve current (local) state variable values.
-      _GET_STATE_(self%id_p(phy_i),phy) ! phytoplankton
+      _GET_(self%id_p(phy_i),phy) ! phytoplankton
 
       phy_flux = _ZERO_  !self%phytos(phy_i)%w_p*MAX(phy,_ZERO_)
 
@@ -953,7 +954,7 @@ SUBROUTINE aed_phytoplankton_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    ENDDO
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_phytoplankton_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -980,7 +981,7 @@ SUBROUTINE aed_phytoplankton_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION
 
    DO phy_i=1,self%num_phytos
       ! Retrieve current (local) state variable values.
-      _GET_STATE_(self%id_p(phy_i),phy) ! phytoplankton
+      _GET_(self%id_p(phy_i),phy) ! phytoplankton
 
       ! Self-shading with explicit contribution from background phytoplankton concentration.
       _SET_EXTINCTION_(self%phytos(phy_i)%KePHY*phy)
@@ -1015,7 +1016,7 @@ SUBROUTINE aed_phytoplankton_get_conserved_quantities(self,_FABM_ARGS_GET_CONSER
    phy = _ZERO_
    DO phy_i=1,self%num_phytos
       ! Retrieve current (local) state variable values.
-      _GET_STATE_(self%id_p(phy_i),p) ! phytoplankton
+      _GET_(self%id_p(phy_i),p) ! phytoplankton
       phy = phy + p
    ENDDO
 
@@ -1052,13 +1053,13 @@ SUBROUTINE aed_phytoplankton_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 
    DO phy_i=1,self%num_phytos
       ! Retrieve current (local) state variable values.
-      _GET_STATE_(self%id_p(phy_i),p) ! phytoplankton
-      _GET_STATE_(self%id_Pupttarget(1),n) ! nutrients
+      _GET_(self%id_p(phy_i),p) ! phytoplankton
+      _GET_(self%id_Pupttarget(1),n) ! nutrients
 
       ! Retrieve current environmental conditions.
-      _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
+      _GET_   (self%id_par,par)  ! local photosynthetically active radiation
 
-      _GET_DEPENDENCY_HZ_(self%id_I_0,I_0)  ! surface short wave radiation
+      _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
 
       ! Light acclimation formulation based on surface light intensity.
       iopt = max(0.25*I_0,self%phytos(phy_i)%I_min)

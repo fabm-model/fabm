@@ -16,7 +16,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_iow_spm, iow_spm_init, iow_spm_do, iow_spm_do_benthos, iow_spm_get_light_extinction
+   public type_iow_spm, iow_spm_init, iow_spm_do_benthos, iow_spm_get_light_extinction
 !
 ! !PRIVATE DATA MEMBERS:
 !
@@ -27,9 +27,9 @@
 ! !PUBLIC DERIVED TYPES:
    type type_iow_spm
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_spm !concentrations
-      _TYPE_STATE_VARIABLE_ID_      :: id_pmpool !sediment pool
-      _TYPE_DEPENDENCY_ID_          :: id_taub    !bottom stress
+      _TYPE_STATE_VARIABLE_ID_        :: id_spm !concentrations
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_pmpool !sediment pool
+      _TYPE_HORIZONTAL_DEPENDENCY_ID_ :: id_taub    !bottom stress
 
 !     Model parameters
       REALTYPE :: ws
@@ -102,18 +102,16 @@
    self%ws = ws/secs_pr_day
 
    ! Register state variables
-   self%id_spm = register_state_variable(modelinfo,'spm','mg/l','concentration of SPM',     &
+   call register_state_variable(modelinfo,self%id_spm,'spm','mg/l','concentration of SPM',     &
                                     c_init,minimum=_ZERO_, &
                                     vertical_movement=self%ws, &
                                     no_river_dilution=.true.)
 
-   self%id_pmpool = register_state_variable(modelinfo,'pmpool','g/sqm','mass/sqm of PM in sediment',  &
-                                    mass_sed_init, &
-                                    no_river_dilution=.true., &
-                                    benthic=.true.)
+   call register_state_variable(modelinfo,self%id_pmpool,'pmpool','g/sqm','mass/sqm of PM in sediment',  &
+                                    mass_sed_init)
 
    ! Register environmental dependencies
-   self%id_taub = register_dependency(modelinfo, varname_taub, shape=shape_hz)
+   call register_dependency(modelinfo, self%id_taub, varname_taub)
 
    return
 
@@ -153,11 +151,11 @@
 !BOC
    porosity=0.d0
 
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
-   _GET_STATE_(self%id_spm,spm)
-   _GET_STATE_BEN_(self%id_pmpool,pmpool)
-   _GET_DEPENDENCY_HZ_(self%id_taub,taub)
+   _GET_(self%id_spm,spm)
+   _GET_HORIZONTAL_(self%id_pmpool,pmpool)
+   _GET_HORIZONTAL_(self%id_taub,taub)
 
    ! 1-spm_porosity is the fractional bed concentration
    if(pmpool .gt. _ZERO_) then
@@ -178,7 +176,7 @@
    ! unit is g/m**2/s
    _SET_ODE_BEN_(self%id_pmpool,-Erosion_Flux-Sedimentation_Flux)
 
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
    end subroutine iow_spm_do_benthos
 !EOC
@@ -208,7 +206,7 @@
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
 
-   _GET_STATE_(self%id_spm,spm)
+   _GET_(self%id_spm,spm)
    _SET_EXTINCTION_(self%shading*spm)
 
    _FABM_LOOP_END_

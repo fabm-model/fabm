@@ -40,9 +40,12 @@ MODULE aed_oxygen
    TYPE,extends(type_base_model) :: type_aed_oxygen
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_oxy
-      _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt, id_wind
-      _TYPE_STATE_VARIABLE_ID_      :: id_Fsed_oxy
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_oxy, id_atm_oxy_exch, id_oxy_sat !, id_atm_oxy_exch3d
+      _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt
+      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_wind
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_Fsed_oxy
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_oxy_sat !, id_atm_oxy_exch3d
+      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_atm_oxy_exch
+      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_oxy
 
 !     Model parameters
       REALTYPE :: Fsed_oxy,Ksed_oxy,theta_sed_oxy
@@ -104,41 +107,41 @@ FUNCTION aed_oxygen_create(namlst,name,parent) RESULT(self)
    self%theta_sed_oxy = theta_sed_oxy
 
    ! Register state variables
-   self%id_oxy = self%register_state_variable('oxy','mmol/m**3','oxygen',   &
+   call self%register_state_variable(self%id_oxy,'oxy','mmol/m**3','oxygen',   &
                                     oxy_initial,minimum=_ZERO_,no_river_dilution=.TRUE.)
 
    ! Register link to external pools
 
    self%use_sed_model = Fsed_oxy_variable .NE. ''
    IF (self%use_sed_model) THEN
-     self%id_Fsed_oxy = self%register_state_dependency(Fsed_oxy_variable,benthic=.true.)
+     call self%register_bottom_state_dependency(self%id_Fsed_oxy,Fsed_oxy_variable)
    ENDIF
 
    ! Register diagnostic variables
-   self%id_sed_oxy = self%register_diagnostic_variable(                     &
+   call self%register_horizontal_diagnostic_variable(self%id_sed_oxy,                     &
                      'sed_oxy', 'mmol/m**2/d', 'Oxygen sediment flux',      &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                     time_treatment=time_treatment_step_integrated)
 
-   self%id_atm_oxy_exch = self%register_diagnostic_variable(                &
+   call self%register_horizontal_diagnostic_variable(self%id_atm_oxy_exch,                &
                      'atm_oxy_exch', 'mmol/m**2/d', 'Oxygen exchange across atm/water interface',   &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                     time_treatment=time_treatment_step_integrated)
 
-!  self%id_atm_oxy_exch3d = self%register_diagnostic_variable(              &
+!  call self%register_diagnostic_variable(self%id_atm_oxy_exch3d,              &
 !                    'atm_oxy_exch3d', 'mmol/m**2/d', 'Oxygen exchange across atm/water interface', &
 !                    time_treatment=time_treatment_step_integrated)
 
-   self%id_oxy_sat = self%register_diagnostic_variable(              &
+   call self%register_diagnostic_variable(self%id_oxy_sat,              &
                      'aed_oxygen_sat', 'mmol/m**2/d', 'Oxygen saturation', &
                      time_treatment=time_treatment_step_integrated)
 
    ! Register conserved quantities
 
    ! Register environmental dependencies
-   self%id_temp = self%register_dependency(varname_temp) ! Temperature (degrees Celsius)
-   self%id_salt = self%register_dependency(varname_salt) ! Salinity (psu)
-!  self%id_pres = self%register_dependency(varname_pres, shape=shape_hz) ! Pressure (dbar = 10 kPa)
-!  self%id_pres = self%register_dependency(varname_pres) ! Pressure (dbar = 10 kPa)
-   self%id_wind = self%register_dependency(varname_wind_sf, shape=shape_hz) ! Wind speed at 10 m above surface (m/s)
+   call self%register_dependency(self%id_temp,varname_temp) ! Temperature (degrees Celsius)
+   call self%register_dependency(self%id_salt,varname_salt) ! Salinity (psu)
+!  call self%register_dependency(self%id_pres,varname_pres, shape=shape_hz) ! Pressure (dbar = 10 kPa)
+!  call self%register_dependency(self%id_pres,varname_pres) ! Pressure (dbar = 10 kPa)
+   call self%register_dependency(self%id_wind,varname_wind_sf) ! Wind speed at 10 m above surface (m/s)
 
    RETURN
 
@@ -200,7 +203,7 @@ SUBROUTINE aed_oxygen_do(self,_FABM_ARGS_DO_RHS_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_oxy,oxy) ! oxygen
+   _GET_(self%id_oxy,oxy) ! oxygen
 
    ! Set temporal derivatives
    diff_oxy = 0.
@@ -238,7 +241,7 @@ SUBROUTINE aed_oxygen_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_oxy,oxy) ! oxygen
+   _GET_(self%id_oxy,oxy) ! oxygen
 
    ! Set temporal derivatives
    diff_oxy = 0.
@@ -285,16 +288,16 @@ SUBROUTINE aed_oxygen_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    !Get dependent state variables from physical driver
-   _GET_DEPENDENCY_(self%id_temp,temp)     ! Temperature (degrees Celsius)
-   _GET_DEPENDENCY_(self%id_salt,salt)     ! Salinity (psu)
-   _GET_DEPENDENCY_HZ_(self%id_wind,wind)  ! Wind speed at 10 m above surface (m/s)
+   _GET_(self%id_temp,temp)     ! Temperature (degrees Celsius)
+   _GET_(self%id_salt,salt)     ! Salinity (psu)
+   _GET_HORIZONTAL_(self%id_wind,wind)  ! Wind speed at 10 m above surface (m/s)
    windHt = 10.
 
     ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_oxy,oxy) ! Concentration of oxygen in surface layer
+   _GET_(self%id_oxy,oxy) ! Concentration of oxygen in surface layer
 
    koxy_trans = aed_gas_piston_velocity(windHt,wind,temp,salt)
 
@@ -310,11 +313,11 @@ SUBROUTINE aed_oxygen_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_
    _SET_SURFACE_EXCHANGE_(self%id_oxy,oxy_atm_flux)
 
    ! Also store oxygen flux across the atm/water interface as diagnostic variable (mmmol/m2).
-   _SET_DIAG_HZ_(self%id_atm_oxy_exch,oxy_atm_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_atm_oxy_exch,oxy_atm_flux)
    _SET_DIAG_(self%id_oxy_sat, Coxy_air)
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_oxygen_get_surface_exchange
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -347,16 +350,16 @@ SUBROUTINE aed_oxygen_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+   _GET_(self%id_temp,temp)  ! local temperature
 
     ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_oxy,oxy) ! oxygen
+   _GET_(self%id_oxy,oxy) ! oxygen
 
    IF (self%use_sed_model) THEN
-       _GET_STATE_BEN_(self%id_Fsed_oxy,Fsed_oxy)
+       _GET_HORIZONTAL_(self%id_Fsed_oxy,Fsed_oxy)
    ELSE
        Fsed_oxy = self%Fsed_oxy
    ENDIF
@@ -375,10 +378,10 @@ SUBROUTINE aed_oxygen_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    !_SET_ODE_BEN_(self%id_ben_oxy,-oxy_flux)
 
    ! Also store sediment flux as diagnostic variable.
-   _SET_DIAG_HZ_(self%id_sed_oxy,oxy_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_oxy,oxy_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_oxygen_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

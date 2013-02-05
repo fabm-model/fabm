@@ -210,29 +210,29 @@
    self%kc    = kc
    
    ! Register state variables
-   self%id_p = register_state_variable(modelinfo,'phy','mmol/m**3','phytoplankton',     &
+   call register_state_variable(modelinfo,self%id_p,'phy','mmol/m**3','phytoplankton',     &
                                     p_initial,minimum=_ZERO_,vertical_movement=w_p)
-   self%id_z = register_state_variable(modelinfo,'zoo','mmol/m**3','zooplankton',     &
+   call register_state_variable(modelinfo,self%id_z,'zoo','mmol/m**3','zooplankton',     &
                                     z_initial,minimum=_ZERO_)
-   self%id_b = register_state_variable(modelinfo,'bac','mmol/m**3','bacteria',     &
+   call register_state_variable(modelinfo,self%id_b,'bac','mmol/m**3','bacteria',     &
                                     b_initial,minimum=_ZERO_)
-   self%id_d = register_state_variable(modelinfo,'det','mmol/m**3','detritus',     &
+   call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus',     &
                                     d_initial,minimum=_ZERO_,vertical_movement=w_d)
-   self%id_n = register_state_variable(modelinfo,'nit','mmol/m**3','nitrate',     &
+   call register_state_variable(modelinfo,self%id_n,'nit','mmol/m**3','nitrate',     &
                                     n_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   self%id_a = register_state_variable(modelinfo,'amm','mmol/m**3','ammonium',     &
+   call register_state_variable(modelinfo,self%id_a,'amm','mmol/m**3','ammonium',     &
                                     a_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   self%id_l = register_state_variable(modelinfo,'ldn','mmol/m**3','labile dissolved organic nitrogen',     &
+   call register_state_variable(modelinfo,self%id_l,'ldn','mmol/m**3','labile dissolved organic nitrogen',     &
                                     l_initial,minimum=_ZERO_,no_river_dilution=.true.)
 
    ! Register diagnostic variables
-   self%id_pp = register_diagnostic_variable(modelinfo,'pp','/d','specific primary production')
+   call register_diagnostic_variable(modelinfo,self%id_pp,'pp','/d','specific primary production')
 
    ! Register environmental dependencies
-   self%id_par = register_dependency(modelinfo, varname_par)
+   call register_dependency(modelinfo,self%id_par,varname_par)
 
    ! Register conserved quantities
-   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
+   call register_conserved_quantity(modelinfo,self%id_totN,'N','mmol/m**3','nitrogen')
 
    return
 
@@ -345,16 +345,16 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_p,p) ! phytoplankton
-   _GET_STATE_(self%id_z,z) ! zooplankton
-   _GET_STATE_(self%id_b,b) ! bacteria
-   _GET_STATE_(self%id_d,d) ! detritus
-   _GET_STATE_(self%id_n,n) ! nitrate
-   _GET_STATE_(self%id_a,a) ! ammonia
-   _GET_STATE_(self%id_l,l) ! labile dissolved organic nitrogen
+   _GET_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_z,z) ! zooplankton
+   _GET_(self%id_b,b) ! bacteria
+   _GET_(self%id_d,d) ! detritus
+   _GET_(self%id_n,n) ! nitrate
+   _GET_(self%id_a,a) ! ammonia
+   _GET_(self%id_l,l) ! labile dissolved organic nitrogen
    
    ! Retrieve local photosynthetically active radiation.
-   _GET_DEPENDENCY_(self%id_par,par)
+   _GET_(self%id_par,par)
 
    ! Calculate intermediate quantities that will be used multiple times.
    ff= self%vp*self%alpha*par/sqrt(self%vp**2+self%alpha**2*par**2)
@@ -498,16 +498,16 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_p,p) ! phytoplankton
-   _GET_STATE_(self%id_z,z) ! zooplankton
-   _GET_STATE_(self%id_b,b) ! bacteria
-   _GET_STATE_(self%id_d,d) ! detritus
-   _GET_STATE_(self%id_n,n) ! nitrate
-   _GET_STATE_(self%id_a,a) ! ammonia
-   _GET_STATE_(self%id_l,l) ! labile dissolved organic nitrogen
+   _GET_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_z,z) ! zooplankton
+   _GET_(self%id_b,b) ! bacteria
+   _GET_(self%id_d,d) ! detritus
+   _GET_(self%id_n,n) ! nitrate
+   _GET_(self%id_a,a) ! ammonia
+   _GET_(self%id_l,l) ! labile dissolved organic nitrogen
    
    ! Retrieve local environment: photosynthetically active radiation.
-   _GET_DEPENDENCY_(self%id_par,par)
+   _GET_(self%id_par,par)
 
    ! Calculate intermediate quantities:
    !   ff    = phytoplankton light limitation
@@ -594,7 +594,7 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_p,p) ! phytoplankton
    
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(self%kc*(self%p0+p))
@@ -630,13 +630,13 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_p,p) ! phytoplankton
-   _GET_STATE_(self%id_z,z) ! zooplankton
-   _GET_STATE_(self%id_b,b) ! bacteria
-   _GET_STATE_(self%id_d,d) ! detritus
-   _GET_STATE_(self%id_n,n) ! nitrate
-   _GET_STATE_(self%id_a,a) ! ammonia
-   _GET_STATE_(self%id_l,l) ! labile dissolved organic nitrogen
+   _GET_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_z,z) ! zooplankton
+   _GET_(self%id_b,b) ! bacteria
+   _GET_(self%id_d,d) ! detritus
+   _GET_(self%id_n,n) ! nitrate
+   _GET_(self%id_a,a) ! ammonia
+   _GET_(self%id_l,l) ! labile dissolved organic nitrogen
    
    ! Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totN,p+z+b+d+n+a+l)

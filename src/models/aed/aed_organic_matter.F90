@@ -42,14 +42,17 @@ MODULE aed_organic_matter
       _TYPE_STATE_VARIABLE_ID_      :: id_pop,id_dop !particulate and dissolved organic phosphorus
       _TYPE_STATE_VARIABLE_ID_      :: id_poc,id_doc !particulate and dissolved organic carbon
       _TYPE_STATE_VARIABLE_ID_      :: id_oxy,id_amm,id_frp,id_dic
-      _TYPE_STATE_VARIABLE_ID_      :: id_Fsed_pon,id_Fsed_don !sed. rate organic nitrogen
-      _TYPE_STATE_VARIABLE_ID_      :: id_Fsed_pop,id_Fsed_dop !sed. rate organic phosphorus
-      _TYPE_STATE_VARIABLE_ID_      :: id_Fsed_poc,id_Fsed_doc !sed. rate organic carbon
-      _TYPE_STATE_VARIABLE_ID_      :: id_Psed_poc, id_Psed_pon, id_Psed_pop !sedimentation rates
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_      :: id_Fsed_pon,id_Fsed_don !sed. rate organic nitrogen
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_      :: id_Fsed_pop,id_Fsed_dop !sed. rate organic phosphorus
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_      :: id_Fsed_poc,id_Fsed_doc !sed. rate organic carbon
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_      :: id_Psed_poc, id_Psed_pon, id_Psed_pop !sedimentation rates
       _TYPE_DEPENDENCY_ID_          :: id_temp
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_pon_miner, id_don_miner, id_sed_pon, id_sed_don
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_pop_miner, id_dop_miner, id_sed_pop, id_sed_dop
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_poc_miner, id_doc_miner, id_sed_poc, id_sed_doc
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_pon_miner, id_don_miner
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_pop_miner, id_dop_miner
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_poc_miner, id_doc_miner
+      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_pon, id_sed_don
+      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_pop, id_sed_dop
+      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_poc, id_sed_doc
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_bod
       _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN,id_totP,id_totC
 
@@ -224,100 +227,100 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
    self%KePOM       = KePOM
 
    ! Register state variables
-   self%id_don = self%register_state_variable('don','mmol/m**3','dissolved organic nitrogen',     &
+   call self%register_state_variable(self%id_don,'don','mmol/m**3','dissolved organic nitrogen',     &
                                     don_initial,minimum=_ZERO_,no_river_dilution=.true.)
 
-   self%id_pon = self%register_state_variable('pon','mmol/m**3','particulate organic nitrogen',   &
+   call self%register_state_variable(self%id_pon,'pon','mmol/m**3','particulate organic nitrogen',   &
                                     pon_initial,minimum=_ZERO_,no_river_dilution=.true.,vertical_movement=self%w_pon)
 
-   self%id_dop = self%register_state_variable('dop','mmol/m**3','dissolved organic phosphorus',   &
+   call self%register_state_variable(self%id_dop,'dop','mmol/m**3','dissolved organic phosphorus',   &
                                     dop_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   self%id_pop = self%register_state_variable('pop','mmol/m**3','particulate organic phosphorus', &
+   call self%register_state_variable(self%id_pop,'pop','mmol/m**3','particulate organic phosphorus', &
                                     pop_initial,minimum=_ZERO_,no_river_dilution=.true.,vertical_movement=self%w_pop)
 
-   self%id_doc = self%register_state_variable('doc','mmol/m**3','dissolved organic carbon',       &
+   call self%register_state_variable(self%id_doc,'doc','mmol/m**3','dissolved organic carbon',       &
                                     doc_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   self%id_poc = self%register_state_variable('poc','mmol/m**3','particulate organic carbon',     &
+   call self%register_state_variable(self%id_poc,'poc','mmol/m**3','particulate organic carbon',     &
                                     poc_initial,minimum=_ZERO_,no_river_dilution=.true.,vertical_movement=self%w_poc)
 
    ! Register external state variable dependencies (carbon)
    self%use_oxy = doc_miner_reactant_variable .NE. '' !This means oxygen module switched on
    IF (self%use_oxy) THEN
-     self%id_oxy = self%register_state_dependency(doc_miner_reactant_variable)
+     call self%register_state_dependency(self%id_oxy,doc_miner_reactant_variable)
    ENDIF
 
    self%use_dic = doc_miner_product_variable .NE. '' !This means carbon module switched on
    IF (self%use_dic) THEN
-     self%id_dic = self%register_state_dependency(doc_miner_product_variable)
+     call self%register_state_dependency(self%id_dic,doc_miner_product_variable)
    ENDIF
 
    ! Register external state variable dependencies (nitrogen)
    self%use_amm = don_miner_product_variable .NE. '' !This means nitrogen module switched on
    IF (self%use_amm) THEN
-     self%id_amm = self%register_state_dependency(don_miner_product_variable)
+     call self%register_state_dependency(self%id_amm,don_miner_product_variable)
    ENDIF
 
    ! Register external state variable dependencies (phosphorous)
    self%use_frp = dop_miner_product_variable .NE. '' !This means phosphorus module switched on
    IF (self%use_frp) THEN
-     self%id_frp = self%register_state_dependency(dop_miner_product_variable)
+     call self%register_state_dependency(self%id_frp,dop_miner_product_variable)
    ENDIF
 
    self%use_sed_model = Fsed_pon_variable .NE. ''
    IF (self%use_sed_model) THEN
-     self%id_Fsed_pon = self%register_state_dependency(Fsed_pon_variable,benthic=.true.)
-     self%id_Fsed_don = self%register_state_dependency(Fsed_don_variable,benthic=.true.)
-     self%id_Fsed_pop = self%register_state_dependency(Fsed_pop_variable,benthic=.true.)
-     self%id_Fsed_dop = self%register_state_dependency(Fsed_dop_variable,benthic=.true.)
-     self%id_Fsed_poc = self%register_state_dependency(Fsed_poc_variable,benthic=.true.)
-     self%id_Fsed_doc = self%register_state_dependency(Fsed_doc_variable,benthic=.true.)
+     call self%register_bottom_state_dependency(self%id_Fsed_pon,Fsed_pon_variable)
+     call self%register_bottom_state_dependency(self%id_Fsed_don,Fsed_don_variable)
+     call self%register_bottom_state_dependency(self%id_Fsed_pop,Fsed_pop_variable)
+     call self%register_bottom_state_dependency(self%id_Fsed_dop,Fsed_dop_variable)
+     call self%register_bottom_state_dependency(self%id_Fsed_poc,Fsed_poc_variable)
+     call self%register_bottom_state_dependency(self%id_Fsed_doc,Fsed_doc_variable)
    ENDIF
 
    self%use_sedmtn_model = Psed_poc_variable .NE. ''
    IF (self%use_sedmtn_model) THEN
-     self%id_Psed_poc = self%register_state_dependency(Psed_poc_variable,benthic=.true.)
-     self%id_Psed_pon = self%register_state_dependency(Psed_pon_variable,benthic=.true.)
-     self%id_Psed_pop = self%register_state_dependency(Psed_pop_variable,benthic=.true.)
+     call self%register_bottom_state_dependency(self%id_Psed_poc,Psed_poc_variable)
+     call self%register_bottom_state_dependency(self%id_Psed_pon,Psed_pon_variable)
+     call self%register_bottom_state_dependency(self%id_Psed_pop,Psed_pop_variable)
    ENDIF
 
    ! Register diagnostic variables
-   self%id_pon_miner = self%register_diagnostic_variable('pon_miner','mmol/m**3/d',  'PON mineralisation',      &
+   call self%register_diagnostic_variable(self%id_pon_miner,'pon_miner','mmol/m**3/d',  'PON mineralisation',      &
                      time_treatment=time_treatment_step_integrated)
-   self%id_don_miner = self%register_diagnostic_variable('don_miner','mmol/m**3/d',  'DON mineralisation',      &
+   call self%register_diagnostic_variable(self%id_don_miner,'don_miner','mmol/m**3/d',  'DON mineralisation',      &
                      time_treatment=time_treatment_step_integrated)
-   self%id_sed_pon = self%register_diagnostic_variable('sed_pon','mmol/m**2/d',  'PON sediment flux',           &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
-   self%id_sed_don = self%register_diagnostic_variable('sed_don','mmol/m**2/d',  'DON sediment flux',           &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+   call self%register_horizontal_diagnostic_variable(self%id_sed_pon,'sed_pon','mmol/m**2/d',  'PON sediment flux',           &
+                     time_treatment=time_treatment_step_integrated)
+   call self%register_horizontal_diagnostic_variable(self%id_sed_don,'sed_don','mmol/m**2/d',  'DON sediment flux',           &
+                     time_treatment=time_treatment_step_integrated)
 
-   self%id_pop_miner = self%register_diagnostic_variable('pop_miner','mmol/m**3/d',  'POP mineralisation',      &
+   call self%register_diagnostic_variable(self%id_pop_miner,'pop_miner','mmol/m**3/d',  'POP mineralisation',      &
                      time_treatment=time_treatment_step_integrated)
-   self%id_dop_miner = self%register_diagnostic_variable('dop_miner','mmol/m**3/d',  'DOP mineralisation',      &
+   call self%register_diagnostic_variable(self%id_dop_miner,'dop_miner','mmol/m**3/d',  'DOP mineralisation',      &
                      time_treatment=time_treatment_step_integrated)
-   self%id_sed_pop = self%register_diagnostic_variable('sed_pop','mmol/m**2/d',  'POP sediment flux',           &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
-   self%id_sed_dop = self%register_diagnostic_variable('sed_dop','mmol/m**2/d',  'DOP sediment flux',           &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+   call self%register_horizontal_diagnostic_variable(self%id_sed_pop,'sed_pop','mmol/m**2/d',  'POP sediment flux',           &
+                     time_treatment=time_treatment_step_integrated)
+   call self%register_horizontal_diagnostic_variable(self%id_sed_dop,'sed_dop','mmol/m**2/d',  'DOP sediment flux',           &
+                     time_treatment=time_treatment_step_integrated)
 
-   self%id_poc_miner = self%register_diagnostic_variable('poc_miner','mmol/m**3/d',  'POC mineralisation',      &
+   call self%register_diagnostic_variable(self%id_poc_miner,'poc_miner','mmol/m**3/d',  'POC mineralisation',      &
                      time_treatment=time_treatment_step_integrated)
-   self%id_doc_miner = self%register_diagnostic_variable('doc_miner','mmol/m**3/d',  'DOC mineralisation',      &
+   call self%register_diagnostic_variable(self%id_doc_miner,'doc_miner','mmol/m**3/d',  'DOC mineralisation',      &
                      time_treatment=time_treatment_step_integrated)
-   self%id_sed_poc = self%register_diagnostic_variable('sed_poc','mmol/m**2/d',  'POC sediment flux',           &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
-   self%id_sed_doc = self%register_diagnostic_variable('sed_doc','mmol/m**2/d',  'DOC sediment flux',           &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+   call self%register_horizontal_diagnostic_variable(self%id_sed_poc,'sed_poc','mmol/m**2/d',  'POC sediment flux',           &
+                     time_treatment=time_treatment_step_integrated)
+   call self%register_horizontal_diagnostic_variable(self%id_sed_doc,'sed_doc','mmol/m**2/d',  'DOC sediment flux',           &
+                     time_treatment=time_treatment_step_integrated)
 
-   self%id_bod     = self%register_diagnostic_variable('BOD','mmol/m**3',  'Biochemical Oxygen Demand (BOD)',   &
+   call self%register_diagnostic_variable(self%id_bod,'BOD','mmol/m**3',  'Biochemical Oxygen Demand (BOD)',   &
                      time_treatment=time_treatment_step_integrated)
 
    ! Register conserved quantities
-   self%id_totN = self%register_conserved_quantity('TN','mmol/m**3','Total nitrogen')
-   self%id_totP = self%register_conserved_quantity('TP','mmol/m**3','Total phosphorus')
-   self%id_totC = self%register_conserved_quantity('TC','mmol/m**3','Total carbon')
+   call self%register_conserved_quantity(self%id_totN,'TN','mmol/m**3','Total nitrogen')
+   call self%register_conserved_quantity(self%id_totP,'TP','mmol/m**3','Total phosphorus')
+   call self%register_conserved_quantity(self%id_totC,'TC','mmol/m**3','Total carbon')
 
    ! Register environmental dependencies
-   self%id_temp = self%register_dependency(varname_temp)
+   call self%register_dependency(self%id_temp,varname_temp)
 
    RETURN
 
@@ -355,37 +358,37 @@ SUBROUTINE aed_organic_matter_do(self,_FABM_ARGS_DO_RHS_)
     !call log_message('model aed_organic_matter enter do loop successfully.')
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_pon,pon) ! particulate organic nitrogen
-   _GET_STATE_(self%id_don,don) ! dissolved organic nitrogen
-   _GET_STATE_(self%id_pop,pop) ! particulate organic phosphorus
-   _GET_STATE_(self%id_dop,dop) ! dissolved organic phosphorus
-   _GET_STATE_(self%id_poc,poc) ! particulate organic carbon
-   _GET_STATE_(self%id_doc,doc) ! dissolved organic carbon
+   _GET_(self%id_pon,pon) ! particulate organic nitrogen
+   _GET_(self%id_don,don) ! dissolved organic nitrogen
+   _GET_(self%id_pop,pop) ! particulate organic phosphorus
+   _GET_(self%id_dop,dop) ! dissolved organic phosphorus
+   _GET_(self%id_poc,poc) ! particulate organic carbon
+   _GET_(self%id_doc,doc) ! dissolved organic carbon
 
 
    IF (self%use_oxy) THEN ! & use_oxy
-      _GET_STATE_(self%id_oxy,oxy) ! oxygen
+      _GET_(self%id_oxy,oxy) ! oxygen
    ELSE
       oxy = 0.0
    ENDIF
    IF (self%use_dic) THEN ! & use_amm
-      _GET_STATE_(self%id_dic,dic) ! disolved inorganic carbon
+      _GET_(self%id_dic,dic) ! disolved inorganic carbon
    ELSE
       dic = 0.0
    ENDIF
    IF (self%use_amm) THEN ! & use_amm
-      _GET_STATE_(self%id_amm,amm) ! ammonium
+      _GET_(self%id_amm,amm) ! ammonium
    ELSE
       amm = 0.0
    ENDIF
    IF (self%use_frp) THEN ! & use_frp
-      _GET_STATE_(self%id_frp,frp) ! phosphate
+      _GET_(self%id_frp,frp) ! phosphate
    ELSE
       frp = 0.0
    ENDIF
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! temperature
+   _GET_(self%id_temp,temp)  ! temperature
 
    ! Define some intermediate quantities units mmol N/m3/day
    pon_mineralisation = fpon_miner(self,oxy,temp)
@@ -463,36 +466,36 @@ SUBROUTINE aed_organic_matter_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
     !call log_message('model aed_organic_matter enter do loop successfully.')
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_pon,pon) ! particulate organic nitrogen
-   _GET_STATE_(self%id_don,don) ! dissolved organic nitrogen
-   _GET_STATE_(self%id_pop,pop) ! particulate organic phosphorus
-   _GET_STATE_(self%id_dop,dop) ! dissolved organic phosphorus
-   _GET_STATE_(self%id_poc,poc) ! particulate organic carbon
-   _GET_STATE_(self%id_doc,doc) ! dissolved organic carbon
+   _GET_(self%id_pon,pon) ! particulate organic nitrogen
+   _GET_(self%id_don,don) ! dissolved organic nitrogen
+   _GET_(self%id_pop,pop) ! particulate organic phosphorus
+   _GET_(self%id_dop,dop) ! dissolved organic phosphorus
+   _GET_(self%id_poc,poc) ! particulate organic carbon
+   _GET_(self%id_doc,doc) ! dissolved organic carbon
 
    IF (self%use_oxy) THEN
-      _GET_STATE_(self%id_oxy,oxy) ! oxygen
+      _GET_(self%id_oxy,oxy) ! oxygen
    ELSE
       oxy = 0.0
    ENDIF
    IF (self%use_dic) THEN
-      _GET_STATE_(self%id_dic,dic) ! disolved inorganic carbon
+      _GET_(self%id_dic,dic) ! disolved inorganic carbon
    ELSE
       dic = 0.0
    ENDIF
    IF (self%use_amm) THEN
-      _GET_STATE_(self%id_amm,amm) ! ammonium
+      _GET_(self%id_amm,amm) ! ammonium
    ELSE
       amm = 0.0
    ENDIF
    IF (self%use_frp) THEN
-      _GET_STATE_(self%id_frp,frp) ! phosphate
+      _GET_(self%id_frp,frp) ! phosphate
    ELSE
       frp = 0.0
    ENDIF
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! temperature
+   _GET_(self%id_temp,temp)  ! temperature
 
    ! Define some intermediate quantities units mmol N/m3/day
    pon_mineralisation = fpon_miner(self,oxy,temp)
@@ -586,26 +589,26 @@ SUBROUTINE aed_organic_matter_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !-------------------------------------------------------------------------------
 !BEGIN
 
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+   _GET_(self%id_temp,temp)  ! local temperature
 
     ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_pon,pon) ! particulate organic matter
-   _GET_STATE_(self%id_don,don) ! particulate organic matter
-   _GET_STATE_(self%id_pop,pop) ! particulate organic matter
-   _GET_STATE_(self%id_dop,dop) ! particulate organic matter
-   _GET_STATE_(self%id_poc,poc) ! particulate organic matter
-   _GET_STATE_(self%id_doc,doc) ! particulate organic matter
+   _GET_(self%id_pon,pon) ! particulate organic matter
+   _GET_(self%id_don,don) ! particulate organic matter
+   _GET_(self%id_pop,pop) ! particulate organic matter
+   _GET_(self%id_dop,dop) ! particulate organic matter
+   _GET_(self%id_poc,poc) ! particulate organic matter
+   _GET_(self%id_doc,doc) ! particulate organic matter
 
    IF (self%use_sed_model) THEN
-      _GET_STATE_BEN_(self%id_Fsed_pon,Fsed_pon)
-      _GET_STATE_BEN_(self%id_Fsed_don,Fsed_don)
-      _GET_STATE_BEN_(self%id_Fsed_pop,Fsed_pop)
-      _GET_STATE_BEN_(self%id_Fsed_dop,Fsed_dop)
-      _GET_STATE_BEN_(self%id_Fsed_poc,Fsed_poc)
-      _GET_STATE_BEN_(self%id_Fsed_doc,Fsed_doc)
+      _GET_HORIZONTAL_(self%id_Fsed_pon,Fsed_pon)
+      _GET_HORIZONTAL_(self%id_Fsed_don,Fsed_don)
+      _GET_HORIZONTAL_(self%id_Fsed_pop,Fsed_pop)
+      _GET_HORIZONTAL_(self%id_Fsed_dop,Fsed_dop)
+      _GET_HORIZONTAL_(self%id_Fsed_poc,Fsed_poc)
+      _GET_HORIZONTAL_(self%id_Fsed_doc,Fsed_doc)
    ELSE
       Fsed_pon = self%Fsed_pon
       Fsed_don = self%Fsed_don * self%Ksed_don/(self%Ksed_don+don) * (self%theta_sed_don**(temp-20.0))
@@ -656,15 +659,15 @@ SUBROUTINE aed_organic_matter_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    !_SET_ODE_BEN_(self%id_ben_amm,-amm_flux/secs_pr_day)
 
    ! Also store sediment flux as diagnostic variable.
-   _SET_DIAG_HZ_(self%id_sed_pon,-pon_flux)
-   _SET_DIAG_HZ_(self%id_sed_don,-don_flux)
-   _SET_DIAG_HZ_(self%id_sed_pop,-pop_flux)
-   _SET_DIAG_HZ_(self%id_sed_dop,-dop_flux)
-   _SET_DIAG_HZ_(self%id_sed_poc,-poc_flux)
-   _SET_DIAG_HZ_(self%id_sed_doc,-doc_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_pon,-pon_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_don,-don_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_pop,-pop_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_dop,-dop_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_poc,-poc_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_doc,-doc_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_organic_matter_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -688,8 +691,8 @@ SUBROUTINE aed_organic_matter_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTIO
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_doc,doc)
-   _GET_STATE_(self%id_poc,poc)
+   _GET_(self%id_doc,doc)
+   _GET_(self%id_poc,poc)
 
    ! Self-shading with explicit contribution from background OM concentration.
    _SET_EXTINCTION_(self%KeDOM*doc +self%KePOM*poc)
@@ -718,12 +721,12 @@ SUBROUTINE aed_organic_matter_get_conserved_quantities(self,_FABM_ARGS_GET_CONSE
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_pon,pon) ! particulate organic nitrogen
-   _GET_STATE_(self%id_don,don) ! disolved organic nitrogen !lcb added don 18/7/11
-   _GET_STATE_(self%id_pop,pop) ! particulate organic nitrogen
-   _GET_STATE_(self%id_dop,dop) ! disolved organic nitrogen !lcb added don 18/7/11
-   _GET_STATE_(self%id_poc,poc) ! particulate organic nitrogen
-   _GET_STATE_(self%id_doc,doc) ! disolved organic nitrogen !lcb added don 18/7/11
+   _GET_(self%id_pon,pon) ! particulate organic nitrogen
+   _GET_(self%id_don,don) ! disolved organic nitrogen !lcb added don 18/7/11
+   _GET_(self%id_pop,pop) ! particulate organic nitrogen
+   _GET_(self%id_dop,dop) ! disolved organic nitrogen !lcb added don 18/7/11
+   _GET_(self%id_poc,poc) ! particulate organic nitrogen
+   _GET_(self%id_doc,doc) ! disolved organic nitrogen !lcb added don 18/7/11
 
    ! Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totN,pon + don) !lcb added don 18/7/11

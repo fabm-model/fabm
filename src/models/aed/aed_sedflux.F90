@@ -72,12 +72,12 @@ MODULE aed_sedflux
 !
    TYPE,extends(type_base_model) :: type_aed_sedflux
 !     Variable identifiers
-      _TYPE_DEPENDENCY_ID_         :: id_zone
-      _TYPE_STATE_VARIABLE_ID_     :: id_Fsed_oxy, id_Fsed_rsi, id_Fsed_amm, id_Fsed_nit
-      _TYPE_STATE_VARIABLE_ID_     :: id_Fsed_frp, id_Fsed_pon, id_Fsed_don
-      _TYPE_STATE_VARIABLE_ID_     :: id_Fsed_pop, id_Fsed_dop, id_Fsed_poc, id_Fsed_doc
-      _TYPE_STATE_VARIABLE_ID_     :: id_Fsed_dic, id_Fsed_ch4, id_Fsed_feii
-      _TYPE_DEPENDENCY_ID_         :: id_zones
+      _TYPE_HORIZONTAL_DEPENDENCY_ID_         :: id_zone
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_     :: id_Fsed_oxy, id_Fsed_rsi, id_Fsed_amm, id_Fsed_nit
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_     :: id_Fsed_frp, id_Fsed_pon, id_Fsed_don
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_     :: id_Fsed_pop, id_Fsed_dop, id_Fsed_poc, id_Fsed_doc
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_     :: id_Fsed_dic, id_Fsed_ch4, id_Fsed_feii
+      _TYPE_HORIZONTAL_DEPENDENCY_ID_         :: id_zones
 !     _TYPE_CONSERVED_QUANTITY_ID_ :: id_tot_sed
 
 !     Model parameters
@@ -245,7 +245,7 @@ FUNCTION aed_sedflux_create(namlst,name,parent) RESULT(self)
       self%Fsed_feii = Fsed_feii/secs_pr_day
       self%sed_modl = 1
    ELSEIF ( sedflux_model .EQ. "Spatially Variable" ) THEN
-      self%id_zones = self%register_dependency(varname_sed_zone, shape=shape_hz)
+      call self%register_dependency(self%id_zones,varname_sed_zone)
       self%sed_modl = 2
       CALL load_sed_zone_data(self,namlst)
       IF (ALLOCATED(self%Fsed_oxy_P)) Fsed_oxy = self%Fsed_oxy_P(1)
@@ -264,80 +264,66 @@ FUNCTION aed_sedflux_create(namlst,name,parent) RESULT(self)
       IF (ALLOCATED(self%Fsed_feii_P)) Fsed_dic = self%Fsed_feii_P(1)
    ENDIF
 
-   self%id_Fsed_oxy%dependencyid = id_not_used
-   self%id_Fsed_rsi%dependencyid = id_not_used
-   self%id_Fsed_amm%dependencyid = id_not_used
-   self%id_Fsed_nit%dependencyid = id_not_used
-   self%id_Fsed_frp%dependencyid = id_not_used
-   self%id_Fsed_pon%dependencyid = id_not_used
-   self%id_Fsed_don%dependencyid = id_not_used
-   self%id_Fsed_pop%dependencyid = id_not_used
-   self%id_Fsed_dop%dependencyid = id_not_used
-   self%id_Fsed_poc%dependencyid = id_not_used
-   self%id_Fsed_doc%dependencyid = id_not_used
-   self%id_Fsed_dic%dependencyid = id_not_used
-   self%id_Fsed_ch4%dependencyid = id_not_used
-   self%id_Fsed_feii%dependencyid = id_not_used
    ! Register state variables
    ! NOTE the benthic=.true. argument, which specifies the variable is benthic.
    IF ( Fsed_oxy .GT. MISVAL ) &
-      self%id_Fsed_oxy = self%register_state_variable('Fsed_oxy','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_oxy,'Fsed_oxy','mmol/m**2',      &
                                           'sedimentation rate of oxygen',          &
-                                          Fsed_oxy,minimum=_OXY_MIN_,benthic=.true.)
+                                          Fsed_oxy,minimum=_OXY_MIN_)
    IF ( Fsed_rsi .GT. MISVAL ) &
-      self%id_Fsed_rsi = self%register_state_variable('Fsed_rsi','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_rsi,'Fsed_rsi','mmol/m**2',      &
                                           'sedimentation rate of silica',          &
-                                          Fsed_rsi,minimum=_RSI_MIN_,benthic=.true.)
+                                          Fsed_rsi,minimum=_RSI_MIN_)
    IF ( Fsed_amm .GT. MISVAL ) &
-      self%id_Fsed_amm = self%register_state_variable('Fsed_amm','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_amm,'Fsed_amm','mmol/m**2',      &
                                           'sedimentation rate of ammonia',         &
-                                          Fsed_amm,minimum=_AMM_MIN_,benthic=.true.)
+                                          Fsed_amm,minimum=_AMM_MIN_)
    IF ( Fsed_nit .GT. MISVAL ) &
-      self%id_Fsed_nit = self%register_state_variable('Fsed_nit','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_nit,'Fsed_nit','mmol/m**2',      &
                                           'sedimentation rate of nitrate',         &
-                                          Fsed_nit,minimum=_NIT_MIN_,benthic=.true.)
+                                          Fsed_nit,minimum=_NIT_MIN_)
    IF ( Fsed_frp .GT. MISVAL ) &
-      self%id_Fsed_frp = self%register_state_variable('Fsed_frp','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_frp,'Fsed_frp','mmol/m**2',      &
                                           'sedimentation rate of phosphorus',      &
-                                          Fsed_frp,minimum=_FRP_MIN_,benthic=.true.)
+                                          Fsed_frp,minimum=_FRP_MIN_)
    IF ( Fsed_pon .GT. MISVAL ) &
-      self%id_Fsed_pon = self%register_state_variable('Fsed_pon','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_pon,'Fsed_pon','mmol/m**2',      &
                                           'sedimentation rate of pon',             &
-                                          Fsed_pon,minimum=_PON_MIN_,benthic=.true.)
+                                          Fsed_pon,minimum=_PON_MIN_)
    IF ( Fsed_don .GT. MISVAL ) &
-      self%id_Fsed_don = self%register_state_variable('Fsed_don','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_don,'Fsed_don','mmol/m**2',      &
                                           'sedimentation rate of don',             &
-                                          Fsed_don,minimum=_DON_MIN_,benthic=.true.)
+                                          Fsed_don,minimum=_DON_MIN_)
    IF ( Fsed_pop .GT. MISVAL ) &
-      self%id_Fsed_pop = self%register_state_variable('Fsed_pop','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_pop,'Fsed_pop','mmol/m**2',      &
                                           'sedimentation rate of pop',             &
-                                          Fsed_pop,minimum=_POP_MIN_,benthic=.true.)
+                                          Fsed_pop,minimum=_POP_MIN_)
    IF ( Fsed_dop .GT. MISVAL ) &
-      self%id_Fsed_dop = self%register_state_variable('Fsed_dop','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_dop,'Fsed_dop','mmol/m**2',      &
                                           'sedimentation rate of dop',             &
-                                          Fsed_dop,minimum=_DOP_MIN_,benthic=.true.)
+                                          Fsed_dop,minimum=_DOP_MIN_)
    IF ( Fsed_poc .GT. MISVAL ) &
-      self%id_Fsed_poc = self%register_state_variable('Fsed_poc','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_poc,'Fsed_poc','mmol/m**2',      &
                                           'sedimentation rate of poc',             &
-                                          Fsed_poc,minimum=_POC_MIN_,benthic=.true.)
+                                          Fsed_poc,minimum=_POC_MIN_)
    IF ( Fsed_doc .GT. MISVAL ) &
-      self%id_Fsed_doc = self%register_state_variable('Fsed_doc','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_doc,'Fsed_doc','mmol/m**2',      &
                                           'sedimentation rate of doc',             &
-                                          Fsed_doc,minimum=_DOC_MIN_,benthic=.true.)
+                                          Fsed_doc,minimum=_DOC_MIN_)
    IF ( Fsed_dic .GT. MISVAL ) &
-      self%id_Fsed_dic = self%register_state_variable('Fsed_dic','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_dic,'Fsed_dic','mmol/m**2',      &
                                           'sedimentation rate of carbon',          &
-                                          Fsed_dic,minimum=_DIC_MIN_,benthic=.true.)
+                                          Fsed_dic,minimum=_DIC_MIN_)
 
    IF ( Fsed_ch4 .GT. MISVAL ) &
-      self%id_Fsed_ch4 = self%register_state_variable('Fsed_ch4','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_ch4,'Fsed_ch4','mmol/m**2',      &
                                           'sedimentation rate of carbon',          &
-                                          Fsed_ch4,minimum=_CH4_MIN_,benthic=.true.)
+                                          Fsed_ch4,minimum=_CH4_MIN_)
 
    IF ( Fsed_feii .GT. MISVAL ) &
-      self%id_Fsed_feii = self%register_state_variable('Fsed_feii','mmol/m**2',      &
+      call self%register_state_variable(self%id_Fsed_feii,'Fsed_feii','mmol/m**2',      &
                                           'sedimentation rate of carbon',          &
-                                          Fsed_feii,minimum=_FEIIMIN_,benthic=.true.)
+                                          Fsed_feii,minimum=_FEIIMIN_)
 
    RETURN
 
@@ -398,52 +384,52 @@ SUBROUTINE aed_sedflux_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    ENDIF
 
    !# Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    IF ( self%sed_modl .EQ. 2) THEN
       !# Get the zone array dependency
       !# select the material zone for this cell
       !# set sediment values accordingly
-      _GET_DEPENDENCY_HZ_(self%id_zones,Rzone)
+      _GET_HORIZONTAL_(self%id_zones,Rzone)
       zone = Rzone
 !     print *,'kk ',kk,' from zone ',zone,' Rzone ',Rzone
 
       IF (zone .LE. 0 .OR. zone .GT. self%n_zones ) zone = 1
 
-      IF ( self%id_Fsed_oxy%dependencyid /= id_not_used ) Fsed_oxy = self%Fsed_oxy_P(zone)
-      IF ( self%id_Fsed_rsi%dependencyid /= id_not_used ) Fsed_rsi = self%Fsed_rsi_P(zone)
-      IF ( self%id_Fsed_amm%dependencyid /= id_not_used ) Fsed_amm = self%Fsed_amm_P(zone)
-      IF ( self%id_Fsed_nit%dependencyid /= id_not_used ) Fsed_nit = self%Fsed_nit_P(zone)
-      IF ( self%id_Fsed_frp%dependencyid /= id_not_used ) Fsed_frp = self%Fsed_frp_P(zone)
-      IF ( self%id_Fsed_pon%dependencyid /= id_not_used ) Fsed_pon = self%Fsed_pon_P(zone)
-      IF ( self%id_Fsed_don%dependencyid /= id_not_used ) Fsed_don = self%Fsed_don_P(zone)
-      IF ( self%id_Fsed_pop%dependencyid /= id_not_used ) Fsed_pop = self%Fsed_pop_P(zone)
-      IF ( self%id_Fsed_dop%dependencyid /= id_not_used ) Fsed_dop = self%Fsed_dop_P(zone)
-      IF ( self%id_Fsed_poc%dependencyid /= id_not_used ) Fsed_poc = self%Fsed_poc_P(zone)
-      IF ( self%id_Fsed_doc%dependencyid /= id_not_used ) Fsed_doc = self%Fsed_doc_P(zone)
-      IF ( self%id_Fsed_dic%dependencyid /= id_not_used ) Fsed_dic = self%Fsed_dic_P(zone)
-      IF ( self%id_Fsed_ch4%dependencyid /= id_not_used ) Fsed_ch4 = self%Fsed_ch4_P(zone)
-      IF ( self%id_Fsed_feii%dependencyid /= id_not_used ) Fsed_feii = self%Fsed_feii_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_oxy)) Fsed_oxy = self%Fsed_oxy_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_rsi)) Fsed_rsi = self%Fsed_rsi_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_amm)) Fsed_amm = self%Fsed_amm_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_nit)) Fsed_nit = self%Fsed_nit_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_frp)) Fsed_frp = self%Fsed_frp_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_pon)) Fsed_pon = self%Fsed_pon_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_don)) Fsed_don = self%Fsed_don_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_pop)) Fsed_pop = self%Fsed_pop_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_dop)) Fsed_dop = self%Fsed_dop_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_poc)) Fsed_poc = self%Fsed_poc_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_doc)) Fsed_doc = self%Fsed_doc_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_dic)) Fsed_dic = self%Fsed_dic_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_ch4)) Fsed_ch4 = self%Fsed_ch4_P(zone)
+      IF (_VARIABLE_REGISTERED_(self%id_Fsed_feii)) Fsed_feii = self%Fsed_feii_P(zone)
    ENDIF
 
    !# Also store sediment flux as diagnostic variable.
-   IF ( self%id_Fsed_oxy%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_oxy, Fsed_oxy)
-   IF ( self%id_Fsed_rsi%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_rsi, Fsed_rsi)
-   IF ( self%id_Fsed_amm%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_amm, Fsed_amm)
-   IF ( self%id_Fsed_nit%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_nit, Fsed_nit)
-   IF ( self%id_Fsed_frp%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_frp, Fsed_frp)
-   IF ( self%id_Fsed_pon%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_pon, Fsed_pon)
-   IF ( self%id_Fsed_don%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_don, Fsed_don)
-   IF ( self%id_Fsed_pop%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_pop, Fsed_pop)
-   IF ( self%id_Fsed_dop%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_dop, Fsed_dop)
-   IF ( self%id_Fsed_poc%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_poc, Fsed_poc)
-   IF ( self%id_Fsed_doc%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_doc, Fsed_doc)
-   IF ( self%id_Fsed_dic%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_dic, Fsed_dic)
-   IF ( self%id_Fsed_ch4%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_ch4, Fsed_ch4)
-   IF ( self%id_Fsed_feii%dependencyid /= id_not_used ) _SET_STATE_BEN_(self%id_Fsed_feii, Fsed_feii)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_oxy)) _SET_STATE_BEN_(self%id_Fsed_oxy, Fsed_oxy)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_rsi)) _SET_STATE_BEN_(self%id_Fsed_rsi, Fsed_rsi)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_amm)) _SET_STATE_BEN_(self%id_Fsed_amm, Fsed_amm)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_nit)) _SET_STATE_BEN_(self%id_Fsed_nit, Fsed_nit)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_frp)) _SET_STATE_BEN_(self%id_Fsed_frp, Fsed_frp)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_pon)) _SET_STATE_BEN_(self%id_Fsed_pon, Fsed_pon)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_don)) _SET_STATE_BEN_(self%id_Fsed_don, Fsed_don)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_pop)) _SET_STATE_BEN_(self%id_Fsed_pop, Fsed_pop)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_dop)) _SET_STATE_BEN_(self%id_Fsed_dop, Fsed_dop)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_poc)) _SET_STATE_BEN_(self%id_Fsed_poc, Fsed_poc)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_doc)) _SET_STATE_BEN_(self%id_Fsed_doc, Fsed_doc)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_dic)) _SET_STATE_BEN_(self%id_Fsed_dic, Fsed_dic)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_ch4)) _SET_STATE_BEN_(self%id_Fsed_ch4, Fsed_ch4)
+   IF (_VARIABLE_REGISTERED_(self%id_Fsed_feii)) _SET_STATE_BEN_(self%id_Fsed_feii, Fsed_feii)
 
    !# Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 END SUBROUTINE aed_sedflux_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

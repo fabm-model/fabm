@@ -90,29 +90,29 @@
    read(namlst,nml=metu_mnemiopsis,err=99,end=100)
 
    ! Register state variables
-   self%id_egb = register_state_variable(modelinfo,'egb','mg C/m**3','egg biomass',        &
+   call register_state_variable(modelinfo,self%id_egb,'egb','mg C/m**3','egg biomass',        &
                                     egb_initial,minimum=_ZERO_)
-   self%id_jb  = register_state_variable(modelinfo,'jb','mg C/m**3','nauplii biomass',     &
+   call register_state_variable(modelinfo,self%id_jb,'jb','mg C/m**3','nauplii biomass',     &
                                     jb_initial,minimum=_ZERO_)
-   self%id_ja  = register_state_variable(modelinfo,'ja','#/m**3','nauplii abundance',      &
+   call register_state_variable(modelinfo,self%id_ja,'ja','#/m**3','nauplii abundance',      &
                                     ja_initial,minimum=_ZERO_)
-   self%id_tb  = register_state_variable(modelinfo,'tb','mg C/m**3','transitional biomass',&
+   call register_state_variable(modelinfo,self%id_tb,'tb','mg C/m**3','transitional biomass',&
                                     tb_initial,minimum=_ZERO_)
-   self%id_ta  = register_state_variable(modelinfo,'ta','#/m**3','transitional abundance', &
+   call register_state_variable(modelinfo,self%id_ta,'ta','#/m**3','transitional abundance', &
                                     ta_initial,minimum=_ZERO_)
-   self%id_adb = register_state_variable(modelinfo,'adb','mg C/m**3','adult biomass',      &
+   call register_state_variable(modelinfo,self%id_adb,'adb','mg C/m**3','adult biomass',      &
                                     adb_initial,minimum=_ZERO_)
-   self%id_ada = register_state_variable(modelinfo,'ada','#/m**3','adult abundance',       &
+   call register_state_variable(modelinfo,self%id_ada,'ada','#/m**3','adult abundance',       &
                                     ada_initial,minimum=_ZERO_)
 
    ! Register external state variable dependencies
-   self%id_food       = register_state_dependency(modelinfo,food_source_variable)
-   self%id_foodmic    = register_state_dependency(modelinfo,foodmic_source_variable)
-   self%id_resptarget = register_state_dependency(modelinfo,respiration_target_variable)
-   self%id_morttarget = register_state_dependency(modelinfo,mortality_target_variable)
+   call register_state_dependency(modelinfo,self%id_food,food_source_variable)
+   call register_state_dependency(modelinfo,self%id_foodmic,foodmic_source_variable)
+   call register_state_dependency(modelinfo,self%id_resptarget,respiration_target_variable)
+   call register_state_dependency(modelinfo,self%id_morttarget,mortality_target_variable)
 
    ! Register environmental dependencies
-   self%id_temp = register_dependency(modelinfo, varname_temp)
+   call register_dependency(modelinfo, self%id_temp, varname_temp)
 
    self%food_scale = food_scale
 
@@ -182,22 +182,22 @@
    _FABM_LOOP_BEGIN_
 
    ! Obtain current values for environmental variables.
-   _GET_DEPENDENCY_(self%id_temp,temp)
+   _GET_(self%id_temp,temp)
 
    ! Obtain current values for state variables
-   _GET_STATE_(self%id_egb,egb_mn)
-   _GET_STATE_(self%id_jb, jb_mn)
-   _GET_STATE_(self%id_ja, ja_mn)
-   _GET_STATE_(self%id_tb, tb_mn)
-   _GET_STATE_(self%id_ta, ta_mn)
-   _GET_STATE_(self%id_adb,adb_mn)
-   _GET_STATE_(self%id_ada,ada_mn)
+   _GET_(self%id_egb,egb_mn)
+   _GET_(self%id_jb, jb_mn)
+   _GET_(self%id_ja, ja_mn)
+   _GET_(self%id_tb, tb_mn)
+   _GET_(self%id_ta, ta_mn)
+   _GET_(self%id_adb,adb_mn)
+   _GET_(self%id_ada,ada_mn)
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn
 
    ! Obtain current prey densities.
    ! These are provided externally, i.e., by lower trophic level model or data file.
-   _GET_STATE_(self%id_food   ,food)
-   _GET_STATE_(self%id_foodmic,foodmic)
+   _GET_(self%id_food   ,food)
+   _GET_(self%id_foodmic,foodmic)
 
    ! Scale external prey densities to internal unit (mg C/m**3)
    food    = food   *self%food_scale

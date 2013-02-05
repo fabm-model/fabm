@@ -98,7 +98,7 @@ FUNCTION aed_viruses_create(namlst,name,parent) RESULT(self)
    self%num_viruses = num_viruses
 
    ! Register state variables
-   self%id_vir = self%register_state_variable('vir','mmol/m**3','viruses',     &
+   call self%register_state_variable(self%id_vir,'vir','mmol/m**3','viruses',     &
                                     vir_initial,minimum=_ZERO_,no_river_dilution=.false.)
 
    ! Register external state variable dependencies
@@ -107,10 +107,10 @@ FUNCTION aed_viruses_create(namlst,name,parent) RESULT(self)
 
 
    ! Register conserved quantities
-   self%id_totV = self%register_conserved_quantity('TV','mmol/m**3','Total viruses')
+   call self%register_conserved_quantity(self%id_totV,'TV','mmol/m**3','Total viruses')
 
    ! Register environmental dependencies
-   self%id_temp = self%register_dependency(varname_temp)
+   call self%register_dependency(self%id_temp,varname_temp)
 
    RETURN
 
@@ -139,7 +139,7 @@ SUBROUTINE aed_viruses_do(self,_FABM_ARGS_DO_RHS_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_vir,vir) ! viruses
+   _GET_(self%id_vir,vir) ! viruses
 
    ! Set temporal derivatives
    diff_vir = 0.
@@ -175,7 +175,7 @@ SUBROUTINE aed_viruses_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_vir,vir) ! viruses
+   _GET_(self%id_vir,vir) ! viruses
 
    ! Set temporal derivatives
    diff_vir = 0.
@@ -216,18 +216,18 @@ SUBROUTINE aed_viruses_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+   _GET_(self%id_temp,temp)  ! local temperature
 
     ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_vir,vir) ! viruses
+   _GET_(self%id_vir,vir) ! viruses
 
 
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_viruses_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -251,7 +251,7 @@ SUBROUTINE aed_viruses_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QU
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-!  _GET_STATE_(self%id_vir,vir) ! viruses
+!  _GET_(self%id_vir,vir) ! viruses
 
    ! Total nutrient is simply the sum of all variables.
 !  _SET_CONSERVED_QUANTITY_(self%id_totV,vir)

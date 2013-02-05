@@ -1,18 +1,9 @@
 #define _FABM_DIMENSION_COUNT_ 3
+#define _FABM_DEPTH_DIMENSION_INDEX_ 3
+#define _FABM_VECTORIZED_DIMENSION_INDEX_ 1
 
-! Variable name and dimension specifyer for full bio fields
-#define _LOCATION_ ii,jj,kk
-#define _LOCATION_DIMENSIONS_ :,:,:
-
-! Variable name and dimension specifyer for horizontal-only bio fields
-#define _LOCATION_HZ_ ii,jj
-#define _LOCATION_DIMENSIONS_HZ_ :,:
-
-! Divide location variables over a single iterator variable and remaining variables.
-#define _VARIABLE_1DLOOP_ ii
-#define _LOCATION_1DLOOP_ jj,kk
-
-!#define _FABM_USE_1D_LOOP_
+#define _FABM_MASK_TYPE_ real
+#define _FABM_UNMASKED_VALUE_ 1.
 
 #include "fabm.h"
 

@@ -70,8 +70,9 @@ MODULE aed_pathogens
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_,ALLOCATABLE :: id_p(:)
       _TYPE_STATE_VARIABLE_ID_      :: id_growth, id_mortality, id_sunlight, id_grazing
-      _TYPE_DEPENDENCY_ID_          :: id_par, id_I_0, id_tem, id_sal
+      _TYPE_DEPENDENCY_ID_          :: id_par, id_tem, id_sal
       _TYPE_DEPENDENCY_ID_          :: id_oxy, id_pH,  id_doc, id_tss
+      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_I_0
 !     _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: ??
 !     _TYPE_CONSERVED_QUANTITY_ID_  :: ??
 
@@ -140,10 +141,10 @@ FUNCTION aed_pathogens_create(namlst,name,parent) RESULT(self)
 
 
    ! Register environmental dependencies
-   self%id_tem  = self%register_dependency(varname_temp)
-   self%id_sal  = self%register_dependency(varname_salt)
-   self%id_par  = self%register_dependency(varname_par)
-   self%id_I_0  = self%register_dependency(varname_par_sf, shape=shape_hz)
+   call self%register_dependency(self%id_tem,varname_temp)
+   call self%register_dependency(self%id_sal,varname_salt)
+   call self%register_dependency(self%id_par,varname_par)
+   call self%register_dependency(self%id_I_0,varname_par_sf)
 
    RETURN
 
@@ -181,7 +182,7 @@ SUBROUTINE aed_pathogens_load_params(self, count, list)
        self%pathogens(i)          = pd(list(i))
 
        ! Register group as a state variable
-       self%id_p(i) = self%register_state_variable(                           &
+       call self%register_state_variable(self%id_p(i),                           &
                              TRIM(self%pathogens(i)%p_name),                  &
                              'mmol/m**3', 'pathogen',                         &
                              minPath,                                             &
@@ -237,20 +238,20 @@ SUBROUTINE aed_pathogens_do(self,_FABM_ARGS_DO_RHS_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_   (self%id_tem,temp)     ! local temperature
-   _GET_DEPENDENCY_   (self%id_sal,salinity) ! local salinity
-   _GET_DEPENDENCY_   (self%id_par,par)      ! local photosynthetically active radiation
-   _GET_DEPENDENCY_HZ_(self%id_I_0,Io)       ! surface short wave radiation
-   !_GET_DEPENDENCY_   (self%id_doc,doc)     ! local DOC
-   !_GET_DEPENDENCY_   (self%id_oxy,oxy)     ! local oxygen
-   !_GET_DEPENDENCY_   (self%id_ph,ph)       ! local pH
+   _GET_   (self%id_tem,temp)     ! local temperature
+   _GET_   (self%id_sal,salinity) ! local salinity
+   _GET_   (self%id_par,par)      ! local photosynthetically active radiation
+   _GET_HORIZONTAL_(self%id_I_0,Io)       ! surface short wave radiation
+   !_GET_   (self%id_doc,doc)     ! local DOC
+   !_GET_   (self%id_oxy,oxy)     ! local oxygen
+   !_GET_   (self%id_ph,ph)       ! local pH
    phstar = 0.0 !abs(ph-7.)
 
 
    DO pth_i=1,self%num_pathogens
 
       ! Retrieve this pathogen group
-      _GET_STATE_(self%id_p(pth_i),pth)
+      _GET_(self%id_p(pth_i),pth)
 
       growth    = _ZERO_
       predation = _ZERO_
@@ -327,11 +328,11 @@ SUBROUTINE aed_pathogens_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !-------------------------------------------------------------------------------
 !BEGIN
 
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    DO pth_i=1,self%num_pathogens
       ! Retrieve current (local) state variable values.
-      _GET_STATE_(self%id_p(pth_i),pth) ! pathogen
+      _GET_(self%id_p(pth_i),pth) ! pathogen
 
       pth_flux = _ZERO_  !self%pathogens(pth_i)%w_p*MAX(pth,_ZERO_)
 
@@ -342,7 +343,7 @@ SUBROUTINE aed_pathogens_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    ENDDO
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 END SUBROUTINE aed_pathogens_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -369,10 +370,10 @@ SUBROUTINE aed_pathogens_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 
    DO pth_i=1,self%num_pathogens
       ! Retrieve current (local) state variable values.
-!     _GET_STATE_(self%id_p(pth_i),p) ! pathogen
+!     _GET_(self%id_p(pth_i),p) ! pathogen
 
       ! Retrieve current environmental conditions.
-!     _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
+!     _GET_   (self%id_par,par)  ! local photosynthetically active radiation
 !     _GET_DEPENDENCY_HZ_(self%id_I_0,I_0)  ! surface short wave radiation
 
    ENDDO

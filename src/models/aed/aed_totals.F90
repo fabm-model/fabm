@@ -105,32 +105,32 @@ FUNCTION aed_totals_create(namlst,name,parent) RESULT(self)
    ALLOCATE(self%turbidity(num_tss))
 
    ! Register external state variable dependencies
-   DO i=1,num_tn  ; self%id_dep_tn(i)  = self%register_state_dependency(tn(i))  ; ENDDO
-   DO i=1,num_tp  ; self%id_dep_tp(i)  = self%register_state_dependency(tp(i))  ; ENDDO
-   DO i=1,num_toc ; self%id_dep_toc(i) = self%register_state_dependency(toc(i)) ; ENDDO
-   DO i=1,num_tss ; self%id_dep_tss(i) = self%register_state_dependency(tss(i)) ; ENDDO
+   DO i=1,num_tn  ; call self%register_state_dependency(self%id_dep_tn(i),tn(i))  ; ENDDO
+   DO i=1,num_tp  ; call self%register_state_dependency(self%id_dep_tp(i),tp(i))  ; ENDDO
+   DO i=1,num_toc ; call self%register_state_dependency(self%id_dep_toc(i),toc(i)) ; ENDDO
+   DO i=1,num_tss ; call self%register_state_dependency(self%id_dep_tss(i),tss(i)) ; ENDDO
    self%turbidity = turbidity(1:num_tss)
 
    ! Register diagnostic variables
-   self%id_totals_tn = self%register_diagnostic_variable('aed_totals_tn',               &
+   call self%register_diagnostic_variable(self%id_totals_tn,'aed_totals_tn',               &
                      'mmol/m**2/d', 'Filterable reactive totals',                       &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                     time_treatment=time_treatment_step_integrated)
 
-   self%id_totals_tp = self%register_diagnostic_variable('aed_totals_tp',               &
+   call self%register_diagnostic_variable(self%id_totals_tp,'aed_totals_tp',               &
                      'mmol/m**2/d', 'Filterable reactive totals',                       &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                     time_treatment=time_treatment_step_integrated)
 
-   self%id_totals_toc = self%register_diagnostic_variable('aed_totals_toc',             &
+   call self%register_diagnostic_variable(self%id_totals_toc,'aed_totals_toc',             &
                      'mmol/m**2/d', 'Filterable reactive totals',                       &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                     time_treatment=time_treatment_step_integrated)
 
-   self%id_totals_tss = self%register_diagnostic_variable('aed_totals_tss',             &
+   call self%register_diagnostic_variable(self%id_totals_tss,'aed_totals_tss',             &
                      'mmol/m**2/d', 'Filterable reactive totals',                       &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                     time_treatment=time_treatment_step_integrated)
 
-   self%id_totals_turbidity = self%register_diagnostic_variable('aed_totals_turbidity', &
+   call self%register_diagnostic_variable(self%id_totals_turbidity,'aed_totals_turbidity', &
                      'mmol/m**2/d', 'Filterable reactive totals',                       &
-                     time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                     time_treatment=time_treatment_step_integrated)
 
 
    RETURN
@@ -162,24 +162,24 @@ SUBROUTINE aed_totals_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
    ! Retrieve current (local) state variable values.
    tot = 0.
    count = ubound(self%id_dep_tn,1)
-   DO i=1,count ; _GET_STATE_(self%id_dep_tn(i),val) ; tot = tot + val ; ENDDO
+   DO i=1,count ; _GET_(self%id_dep_tn(i),val) ; tot = tot + val ; ENDDO
    _SET_DIAG_(self%id_totals_tn, tot)
 
    tot = 0.
    count = ubound(self%id_dep_tp,1)
-   DO i=1,count ; _GET_STATE_(self%id_dep_tp(i),val) ; tot = tot + val ; ENDDO
+   DO i=1,count ; _GET_(self%id_dep_tp(i),val) ; tot = tot + val ; ENDDO
    _SET_DIAG_(self%id_totals_tp, tot)
 
    tot = 0.
    count = ubound(self%id_dep_toc,1)
-   DO i=1,count ; _GET_STATE_(self%id_dep_toc(i),val) ; tot = tot + val ; ENDDO
+   DO i=1,count ; _GET_(self%id_dep_toc(i),val) ; tot = tot + val ; ENDDO
    _SET_DIAG_(self%id_totals_toc, tot)
 
    tot = 0.
    tot2 = 0.
    count = ubound(self%id_dep_tss,1)
    DO i=1,count
-      _GET_STATE_(self%id_dep_tss(i),val)
+      _GET_(self%id_dep_tss(i),val)
       tot = tot + val
       tot2 = tot2 + val*(self%turbidity(i))
    ENDDO

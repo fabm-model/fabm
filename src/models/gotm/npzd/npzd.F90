@@ -50,7 +50,8 @@
 !     Variable identifiers
       _TYPE_STATE_VARIABLE_ID_      :: id_n,id_p,id_z,id_d
       _TYPE_STATE_VARIABLE_ID_      :: id_dic
-      _TYPE_DEPENDENCY_ID_          :: id_par,id_I_0
+      _TYPE_DEPENDENCY_ID_          :: id_par
+      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_I_0
       _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
       _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
 
@@ -138,37 +139,37 @@
    self%dic_per_n = dic_per_n
 
    ! Register state variables
-   self%id_n = register_state_variable(modelinfo,'nut','mmol/m**3','nutrients',     &
+   call register_state_variable(modelinfo,self%id_n,'nut','mmol/m**3','nutrients',     &
                                     n_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   self%id_p = register_state_variable(modelinfo,'phy','mmol/m**3','phytoplankton', &
+   call register_state_variable(modelinfo,self%id_p,'phy','mmol/m**3','phytoplankton', &
                                     p_initial,minimum=_ZERO_,vertical_movement=w_p/secs_pr_day)
-   self%id_z = register_state_variable(modelinfo,'zoo','mmol/m**3','zooplankton', &
+   call register_state_variable(modelinfo,self%id_z,'zoo','mmol/m**3','zooplankton', &
                                     z_initial,minimum=_ZERO_)
-   self%id_d = register_state_variable(modelinfo,'det','mmol/m**3','detritus', &
+   call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus', &
                                     d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%use_dic = dic_variable.ne.''
-   if (self%use_dic) self%id_dic = register_state_dependency(modelinfo,dic_variable)
+   if (self%use_dic) call register_state_dependency(modelinfo,self%id_dic,dic_variable)
 
    ! Register diagnostic variables
-   self%id_GPP  = register_diagnostic_variable(modelinfo,'GPP','mmol/m**3',  'gross primary production',           &
+   call register_diagnostic_variable(modelinfo,self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
                      time_treatment=time_treatment_step_integrated)
-   self%id_NCP  = register_diagnostic_variable(modelinfo,'NCP','mmol/m**3',  'net community production',           &
+   call register_diagnostic_variable(modelinfo,self%id_NCP,'NCP','mmol/m**3',  'net community production',           &
                      time_treatment=time_treatment_step_integrated)
-   self%id_PPR  = register_diagnostic_variable(modelinfo,'PPR','mmol/m**3/d','gross primary production rate',      &
+   call register_diagnostic_variable(modelinfo,self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',      &
                      time_treatment=time_treatment_averaged)
-   self%id_NPR  = register_diagnostic_variable(modelinfo,'NPR','mmol/m**3/d','net community production rate',      &
+   call register_diagnostic_variable(modelinfo,self%id_NPR,'NPR','mmol/m**3/d','net community production rate',      &
                      time_treatment=time_treatment_averaged)
-   self%id_dPAR = register_diagnostic_variable(modelinfo,'PAR','W/m**2',     'photosynthetically active radiation',&
+   call register_diagnostic_variable(modelinfo,self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
-   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
+   call register_conserved_quantity(modelinfo,self%id_totN,'N','mmol/m**3','nitrogen')
 
    ! Register environmental dependencies
-   self%id_par = register_dependency(modelinfo, varname_par)
-   self%id_I_0 = register_dependency(modelinfo, varname_par_sf, shape=shape_hz)
+   call register_dependency(modelinfo, self%id_par, varname_par)
+   call register_dependency(modelinfo, self%id_I_0, varname_par_sf)
 
    return
 
@@ -252,14 +253,14 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_n,n) ! nutrient
-   _GET_STATE_(self%id_p,p) ! phytoplankton
-   _GET_STATE_(self%id_z,z) ! zooplankton
-   _GET_STATE_(self%id_d,d) ! detritus
+   _GET_(self%id_n,n) ! nutrient
+   _GET_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_z,z) ! zooplankton
+   _GET_(self%id_d,d) ! detritus
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
-   _GET_DEPENDENCY_HZ_(self%id_I_0,I_0)  ! surface short wave radiation
+   _GET_   (self%id_par,par)  ! local photosynthetically active radiation
+   _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
 
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -326,8 +327,8 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_p,p) ! phytoplankton
-   _GET_STATE_(self%id_d,d) ! detritus
+   _GET_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_d,d) ! detritus
 
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(self%kc*(self%p0+p+d))
@@ -363,10 +364,10 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_n,n) ! nutrient
-   _GET_STATE_(self%id_p,p) ! phytoplankton
-   _GET_STATE_(self%id_z,z) ! zooplankton
-   _GET_STATE_(self%id_d,d) ! detritus
+   _GET_(self%id_n,n) ! nutrient
+   _GET_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_z,z) ! zooplankton
+   _GET_(self%id_d,d) ! detritus
 
    ! Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
@@ -450,14 +451,14 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_n,n) ! nutrient
-   _GET_STATE_(self%id_p,p) ! phytoplankton
-   _GET_STATE_(self%id_z,z) ! zooplankton
-   _GET_STATE_(self%id_d,d) ! detritus
+   _GET_(self%id_n,n) ! nutrient
+   _GET_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_z,z) ! zooplankton
+   _GET_(self%id_d,d) ! detritus
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_   (self%id_par,par)  ! local photosynthetically active radiation
-   _GET_DEPENDENCY_HZ_(self%id_I_0,I_0)  ! surface short wave radiation
+   _GET_   (self%id_par,par)  ! local photosynthetically active radiation
+   _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
 
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)

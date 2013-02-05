@@ -40,8 +40,9 @@ MODULE aed_nitrogen
       _TYPE_STATE_VARIABLE_ID_      :: id_nit, id_amm !nitrate & ammonium
       _TYPE_STATE_VARIABLE_ID_      :: id_oxy,id_denit_product
       _TYPE_DEPENDENCY_ID_          :: id_temp
-      _TYPE_STATE_VARIABLE_ID_      :: id_Fsed_amm,id_Fsed_nit
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_nitrif,id_denit,id_sed_amm,id_sed_nit
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_      :: id_Fsed_amm,id_Fsed_nit
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_nitrif,id_denit
+      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_amm,id_sed_nit
       _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
 
 !     Model parameters
@@ -130,43 +131,43 @@ FUNCTION aed_nitrogen_create(namlst,name,parent) RESULT(self)
    self%theta_sed_nit = theta_sed_nit
 
    ! Register state variables
-   self%id_amm = self%register_state_variable('amm','mmol/m**3','ammonium',            &
+   call self%register_state_variable(self%id_amm,'amm','mmol/m**3','ammonium',            &
                                     amm_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   self%id_nit = self%register_state_variable('nit','mmol/m**3','nitrate',             &
+   call self%register_state_variable(self%id_nit,'nit','mmol/m**3','nitrate',             &
                                     nit_initial,minimum=_ZERO_,no_river_dilution=.true.)
    ! Register external state variable dependencies
    self%use_oxy = nitrif_reactant_variable .NE. '' !This means oxygen module switched on
    IF (self%use_oxy) THEN
-     self%id_oxy = self%register_state_dependency(nitrif_reactant_variable)
+     call self%register_state_dependency(self%id_oxy,nitrif_reactant_variable)
    ENDIF
    self%use_no2 = denit_product_variable .NE. '' !This means n2 module switched on
-   IF (self%use_no2) self%id_denit_product = self%register_state_dependency(denit_product_variable)
+   IF (self%use_no2) call self%register_state_dependency(self%id_denit_product,denit_product_variable)
 
    self%use_sed_model = Fsed_amm_variable .NE. ''
    IF (self%use_sed_model) THEN
-     self%id_Fsed_amm = self%register_state_dependency(Fsed_amm_variable,benthic=.true.)
-     self%id_Fsed_nit = self%register_state_dependency(Fsed_nit_variable,benthic=.true.)
+     call self%register_bottom_state_dependency(self%id_Fsed_amm,Fsed_amm_variable)
+     call self%register_bottom_state_dependency(self%id_Fsed_nit,Fsed_nit_variable)
    ENDIF
 
    ! Register diagnostic variables
-   self%id_nitrif  = self%register_diagnostic_variable('nitrif','mmol/m**3/d',       &
+   call self%register_diagnostic_variable(self%id_nitrif,'nitrif','mmol/m**3/d',       &
                                                          'Nitrification rate',       &
                                         time_treatment=time_treatment_step_integrated)
-   self%id_denit  = self%register_diagnostic_variable('denit','mmol/m**3/d',         &
+   call self%register_diagnostic_variable(self%id_denit,'denit','mmol/m**3/d',         &
                                                          'De-nitrification rate',    &
                                         time_treatment=time_treatment_step_integrated)
-   self%id_sed_amm = self%register_diagnostic_variable('sed_amm','mmol/m**2/d',      &
+   call self%register_horizontal_diagnostic_variable(self%id_sed_amm,'sed_amm','mmol/m**2/d',      &
                                                          'Ammonium sediment flux',   &
-                        time_treatment=time_treatment_step_integrated, shape=shape_hz)
-   self%id_sed_nit = self%register_diagnostic_variable('sed_nit','mmol/m**2/d',      &
+                        time_treatment=time_treatment_step_integrated)
+   call self%register_horizontal_diagnostic_variable(self%id_sed_nit,'sed_nit','mmol/m**2/d',      &
                                                          'Nitrate sediment flux',    &
-                        time_treatment=time_treatment_step_integrated, shape=shape_hz)
+                        time_treatment=time_treatment_step_integrated)
 
    ! Register conserved quantities
-   self%id_totN = self%register_conserved_quantity('TN','mmol/m**3','Total nitrogen')
+   call self%register_conserved_quantity(self%id_totN,'TN','mmol/m**3','Total nitrogen')
 
    ! Register environmental dependencies
-   self%id_temp = self%register_dependency(varname_temp)
+   call self%register_dependency(self%id_temp,varname_temp)
 
    RETURN
 
@@ -197,16 +198,16 @@ SUBROUTINE aed_nitrogen_do(self,_FABM_ARGS_DO_RHS_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_amm,amm) ! ammonium
-   _GET_STATE_(self%id_nit,nit) ! nitrate
+   _GET_(self%id_amm,amm) ! ammonium
+   _GET_(self%id_nit,nit) ! nitrate
    IF (self%use_oxy) THEN ! & use_oxy
-      _GET_STATE_(self%id_oxy,oxy) ! oxygen
+      _GET_(self%id_oxy,oxy) ! oxygen
    ELSE
       oxy = 0.0
    ENDIF
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! temperature
+   _GET_(self%id_temp,temp)  ! temperature
 
    ! Define some intermediate quantities units mmol N/m3/day
    nitrification = fnitrif(self,oxy,temp)
@@ -258,16 +259,16 @@ SUBROUTINE aed_nitrogen_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_amm,amm) ! ammonium
-   _GET_STATE_(self%id_nit,nit) ! nitrate
+   _GET_(self%id_amm,amm) ! ammonium
+   _GET_(self%id_nit,nit) ! nitrate
    IF (self%use_oxy) THEN ! & use_oxy
-      _GET_STATE_(self%id_oxy,oxy) ! oxygen
+      _GET_(self%id_oxy,oxy) ! oxygen
    ELSE
       oxy = 0.0
    ENDIF
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! temperature
+   _GET_(self%id_temp,temp)  ! temperature
 
    ! Define some intermediate quantities units mmol N/m3/day
    nitrification = fnitrif(self,oxy,temp)
@@ -326,18 +327,18 @@ SUBROUTINE aed_nitrogen_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
-   _GET_DEPENDENCY_(self%id_temp,temp)  ! local temperature
+   _GET_(self%id_temp,temp)  ! local temperature
 
     ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_amm,amm) ! ammonium
-   _GET_STATE_(self%id_nit,nit) ! nitrate
+   _GET_(self%id_amm,amm) ! ammonium
+   _GET_(self%id_nit,nit) ! nitrate
 
    IF (self%use_sed_model) THEN
-       _GET_STATE_BEN_(self%id_Fsed_amm,Fsed_amm)
-       _GET_STATE_BEN_(self%id_Fsed_nit,Fsed_nit)
+       _GET_HORIZONTAL_(self%id_Fsed_amm,Fsed_amm)
+       _GET_HORIZONTAL_(self%id_Fsed_nit,Fsed_nit)
 !print *,'Fsed_amm = ',Fsed_amm,' Fsed_nit = ',Fsed_nit
    ELSE
        Fsed_amm = self%Fsed_amm
@@ -346,7 +347,7 @@ SUBROUTINE aed_nitrogen_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 
    IF (self%use_oxy) THEN
       ! Sediment flux dependent on oxygen and temperature
-       _GET_STATE_(self%id_oxy,oxy)
+       _GET_(self%id_oxy,oxy)
        amm_flux = Fsed_amm * self%Ksed_amm/(self%Ksed_amm+oxy) * (self%theta_sed_amm**(temp-20.0))
        nit_flux = Fsed_nit * oxy/(self%Ksed_nit+oxy) * (self%theta_sed_nit**(temp-20.0))
    ELSE
@@ -370,11 +371,11 @@ SUBROUTINE aed_nitrogen_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    !_SET_ODE_BEN_(self%id_ben_amm,-amm_flux/secs_pr_day)
 
    ! Also store sediment flux as diagnostic variable.
-   _SET_DIAG_HZ_(self%id_sed_amm,amm_flux)
-   _SET_DIAG_HZ_(self%id_sed_nit,nit_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_amm,amm_flux)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_nit,nit_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_nitrogen_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -398,8 +399,8 @@ SUBROUTINE aed_nitrogen_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_Q
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_amm,amm) ! ammonium
-   _GET_STATE_(self%id_nit,nit) ! nitrate
+   _GET_(self%id_amm,amm) ! ammonium
+   _GET_(self%id_nit,nit) ! nitrate
 
    ! Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totN,amm+nit)

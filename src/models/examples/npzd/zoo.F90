@@ -98,22 +98,22 @@
    self%rzd  = rzd /secs_pr_day
 
    ! Register state variables
-   self%id_z = register_state_variable(modelinfo,'zoo','mmol/m**3','zooplankton', &
+   call register_state_variable(modelinfo,self%id_z,'zoo','mmol/m**3','zooplankton', &
                                     z_initial,minimum=_ZERO_)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%do_exc = excretion_target_variable.ne.''
-   if (self%do_exc) self%id_exctarget = register_state_dependency(modelinfo,excretion_target_variable)
+   if (self%do_exc) call register_state_dependency(modelinfo,self%id_exctarget,excretion_target_variable)
    self%do_mort = mortality_target_variable.ne.''
-   if (self%do_mort) self%id_morttarget = register_state_dependency(modelinfo,mortality_target_variable)
+   if (self%do_mort) call register_state_dependency(modelinfo,self%id_morttarget,mortality_target_variable)
    self%do_grz = grazing_target_variable.ne.''
-   if (self%do_grz) self%id_grztarget = register_state_dependency(modelinfo,grazing_target_variable)
+   if (self%do_grz) call register_state_dependency(modelinfo,self%id_grztarget,grazing_target_variable)
    ! Register diagnostic variables
 
    ! Register conserved quantities
 
    ! Register environmental dependencies
-   self%id_temp = register_dependency(modelinfo, varname_temp)
+   call register_dependency(modelinfo,self%id_temp,varname_temp)
 
    return
 
@@ -152,11 +152,11 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_z,z) ! zooplankton
-   _GET_STATE_(self%id_grztarget,p) ! phytoplankton
+   _GET_(self%id_z,z) ! zooplankton
+   _GET_(self%id_grztarget,p) ! phytoplankton
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_   (self%id_temp,temp)  ! local photosynthetically active radiation
+   _GET_   (self%id_temp,temp)  ! local photosynthetically active radiation
 
    ! Loss rate of zooplankton to detritus depends on mortality
 
@@ -242,7 +242,7 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_z,z) ! zooplankton
+   _GET_(self%id_z,z) ! zooplankton
 
    ! Total nutrient is simply the sum of all variables.
 !#   _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
@@ -284,10 +284,10 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_z,z) ! zooplankton
+   _GET_(self%id_z,z) ! zooplankton
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_   (self%id_temp,temp)  ! local photosynthetically active radiation
+   _GET_   (self%id_temp,temp)  ! local photosynthetically active radiation
 
 
    ! Assign destruction rates to different elements of the destruction matrix.

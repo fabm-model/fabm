@@ -128,29 +128,29 @@
    self%drag_bio    = drag_bio
 
 !  Register state variables
-   self%id_nut = register_state_variable(modelinfo,'nut','mmol/m**3','nutrients',     &
+   call register_state_variable(modelinfo,self%id_nut,'nut','mmol/m**3','nutrients',     &
                                     nut_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   self%id_phy = register_state_variable(modelinfo,'phy','mmol/m**3','phytoplankton', &
+   call register_state_variable(modelinfo,self%id_phy,'phy','mmol/m**3','phytoplankton', &
                                     phy_initial,minimum=_ZERO_,vertical_movement=    &
                                     w_phy/secs_pr_day,specific_light_extinction=rkc)
-   self%id_det = register_state_variable(modelinfo,'det','mmol/m**3','detritus',      &
+   call register_state_variable(modelinfo,self%id_det,'det','mmol/m**3','detritus',      &
                                     det_initial,minimum=_ZERO_,vertical_movement=    &
                                     w_det/secs_pr_day,specific_light_extinction=rkc)
 
 !  Register diagnostic variables
-   self%id_NFIX  = register_diagnostic_variable(modelinfo,'NFIX','mmol/m**3',        &
+   call register_diagnostic_variable(modelinfo,self%id_NFIX,'NFIX','mmol/m**3',        &
                      'nitrogen fixation',                                            &
                      time_treatment=time_treatment_step_integrated)
-   self%id_dPAR  = register_diagnostic_variable(modelinfo,'PAR','W/m**2',            &
+   call register_diagnostic_variable(modelinfo,self%id_dPAR,'PAR','W/m**2',            &
                      'photosynthetically active radiation',                          &
                      time_treatment=time_treatment_averaged)
 
 !  Register conserved quantities
-   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
+   call register_conserved_quantity(modelinfo,self%id_totN,'N','mmol/m**3','nitrogen')
 
 !  Register environmental dependencies
-   self%id_par  = register_dependency(modelinfo,varname_par)
-   self%id_temp = register_dependency(modelinfo,varname_temp)
+   call register_dependency(modelinfo,self%id_par,varname_par)
+   call register_dependency(modelinfo,self%id_temp,varname_temp)
 
    return
 
@@ -191,13 +191,13 @@
    _FABM_LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_nut,nut) ! nutrient
-   _GET_STATE_(self%id_phy,phy) ! phytoplankton
-   _GET_STATE_(self%id_det,det) ! detritus
+   _GET_(self%id_nut,nut) ! nutrient
+   _GET_(self%id_phy,phy) ! phytoplankton
+   _GET_(self%id_det,det) ! detritus
 
 !  Retrieve current environmental conditions.
-   _GET_DEPENDENCY_ (self%id_par,par)    ! local photosynthetically active radiation
-   _GET_DEPENDENCY_ (self%id_temp,temp)  ! local temperature
+   _GET_ (self%id_par,par)    ! local photosynthetically active radiation
+   _GET_ (self%id_temp,temp)  ! local temperature
 
 !  growth rates and limitation functions for temperature and light.
    ta_phy      = exp(-(temp-self%topt)**4/(self%tl1-sign(self%tl2,temp-self%topt))**4) ! temperature dependence
@@ -247,17 +247,17 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_phy,phys)                 ! surface phytoplankton
+   _GET_(self%id_phy,phys)                 ! surface phytoplankton
 
 !  Changes in Albedo due to phytoplankton surface scums.
 !  Phy must be the surface concentration!
    _SET_ALBEDO_(self%albedo_bio*phys)
 
 !  Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
    end subroutine klimacampus_phy_feedback_get_albedo
 !EOC
@@ -288,17 +288,17 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops (if any)
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_phy,phys) ! surface phytoplankton
+   _GET_(self%id_phy,phys) ! surface phytoplankton
 
 !  Changes in drag coefficient due to surface scums.
 !  Phy must be the surface concentration!
    _SCALE_DRAG_(max(_ONE_-self%drag_bio*phys,_ZERO_))
 
 !  Leave spatial loops (if any)
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
    end subroutine klimacampus_phy_feedback_get_drag
 !EOC
@@ -326,17 +326,17 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops over the horizontal domain (if any).
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_nut,nub)
-   _GET_STATE_(self%id_det,deb)
+   _GET_(self%id_nut,nub)
+   _GET_(self%id_det,deb)
 
    _SET_BOTTOM_EXCHANGE_(self%id_det,-self%depo*deb*deb)           !detritus burial
    _SET_BOTTOM_EXCHANGE_(self%id_nut,(self%nbot-nub)/secs_pr_hour) !nutrient restoring
 
 !  Leave spatial loops over the horizontal domain (if any).
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
    end subroutine klimacampus_phy_feedback_do_benthos
 !EOC
@@ -366,9 +366,9 @@
    _FABM_LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_nut,nut) ! nutrient
-   _GET_STATE_(self%id_phy,phy) ! phytoplankton
-   _GET_STATE_(self%id_det,det) ! detritus
+   _GET_(self%id_nut,nut) ! nutrient
+   _GET_(self%id_phy,phy) ! phytoplankton
+   _GET_(self%id_det,det) ! detritus
 
 !  Total nutrient is simply the sum of all variables.
    _SET_CONSERVED_QUANTITY_(self%id_totN,nut+phy+det)

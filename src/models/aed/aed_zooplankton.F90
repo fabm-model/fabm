@@ -65,11 +65,14 @@ MODULE aed_zooplankton
       ! Prey information
       INTEGER  :: num_prey
       TYPE(type_zoop_prey)      :: prey(MAX_ZOOP_PREY)
-      _TYPE_STATE_VARIABLE_ID_  :: id_prey(MAX_ZOOP_PREY)
-      _TYPE_STATE_VARIABLE_ID_  :: id_phyIN(MAX_ZOOP_PREY),id_phyIP(MAX_ZOOP_PREY)
       INTEGER  :: simDOlim
       ! Temperature limitation derived terms
       REALTYPE :: kTn, aTn, bTn
+   END TYPE
+
+   TYPE,extends(type_zoop_params) :: type_zoop_data
+      _TYPE_STATE_VARIABLE_ID_  :: id_prey(MAX_ZOOP_PREY)
+      _TYPE_STATE_VARIABLE_ID_  :: id_phyIN(MAX_ZOOP_PREY),id_phyIP(MAX_ZOOP_PREY)
    END TYPE
 
    TYPE,extends(type_base_model) :: type_aed_zooplankton
@@ -87,7 +90,7 @@ MODULE aed_zooplankton
 
 !     Model parameters
       INTEGER                                   :: num_zoops
-      TYPE(type_zoop_params),dimension(:),allocatable :: zoops
+      TYPE(type_zoop_data),dimension(:),allocatable :: zoops
       LOGICAL  :: simDNexcr, simDPexcr, simDCexcr
       LOGICAL  :: simPNexcr, simPPexcr, simPCexcr
 
@@ -169,7 +172,7 @@ SUBROUTINE aed_zooplankton_load_params(self, count, list)
        ENDDO
 
        ! Register group as a state variable
-       self%id_zoo(i) = self%register_state_variable(              &
+       call self%register_state_variable(self%id_zoo(i),              &
                               zoop_param(list(i))%zoop_name,       &
                               'mmolC/m**3', 'zooplankton',         &
                               zoop_param(list(i))%zoop_initial,    &
@@ -247,15 +250,15 @@ FUNCTION aed_zooplankton_create(namlst,name,parent) RESULT(self)
    phy_i = 0
    DO zoop_i = 1,num_zoops
       DO prey_i = 1,self%zoops(zoop_i)%num_prey
-          self%zoops(zoop_i)%id_prey(prey_i) = self%register_state_dependency( &
+          call self%register_state_dependency(self%zoops(zoop_i)%id_prey(prey_i), &
                                        self%zoops(zoop_i)%prey(prey_i)%zoop_prey)
           !If the zooplankton prey is phytoplankton then also register state dependency on
           !internal nitrogen and phosphorus
           IF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey(1:17).EQ.'aed_phytoplankton') THEN
               phy_i = phy_i + 1
-              self%zoops(zoop_i)%id_phyIN(phy_i) = self%register_state_dependency( &
+              call self%register_state_dependency(self%zoops(zoop_i)%id_phyIN(phy_i), &
                                        TRIM(self%zoops(zoop_i)%prey(prey_i)%zoop_prey)//'_IN')
-              self%zoops(zoop_i)%id_phyIP(phy_i) = self%register_state_dependency( &
+              call self%register_state_dependency(self%zoops(zoop_i)%id_phyIP(phy_i), &
                                        TRIM(self%zoops(zoop_i)%prey(prey_i)%zoop_prey)//'_IP')
 
           ENDIF
@@ -265,49 +268,49 @@ FUNCTION aed_zooplankton_create(namlst,name,parent) RESULT(self)
    ! Register link to nutrient pools, if variable names are provided in namelist.
    self%simDNexcr = dn_target_variable .NE. ''
    IF (self%simDNexcr) THEN
-     self%id_Nexctarget  = self%register_state_dependency(dn_target_variable)
+     call self%register_state_dependency(self%id_Nexctarget,dn_target_variable)
    ENDIF
    self%simDPexcr = dp_target_variable .NE. ''
    IF (self%simDPexcr) THEN
-     self%id_Pexctarget  = self%register_state_dependency(dp_target_variable)
+     call self%register_state_dependency(self%id_Pexctarget,dp_target_variable)
    ENDIF
    self%simDCexcr = dc_target_variable .NE. ''
    IF (self%simDCexcr) THEN
-     self%id_Cexctarget  = self%register_state_dependency(dc_target_variable)
+     call self%register_state_dependency(self%id_Cexctarget,dc_target_variable)
    ENDIF
 
    self%simPNexcr = pn_target_variable .NE. ''
    IF (self%simPNexcr) THEN
-     self%id_Nmorttarget  = self%register_state_dependency(pn_target_variable)
+     call self%register_state_dependency(self%id_Nmorttarget,pn_target_variable)
    ENDIF
    self%simPPexcr = pp_target_variable .NE. ''
    IF (self%simPPexcr) THEN
-     self%id_Pmorttarget  = self%register_state_dependency(pp_target_variable)
+     call self%register_state_dependency(self%id_Pmorttarget,pp_target_variable)
    ENDIF
    self%simPCexcr = pc_target_variable .NE. ''
    IF (self%simPCexcr) THEN
-     self%id_Cmorttarget  = self%register_state_dependency(pc_target_variable)
+     call self%register_state_dependency(self%id_Cmorttarget,pc_target_variable)
    ENDIF
 
 
    ! Register diagnostic variables
-   self%id_grz   = self%register_diagnostic_variable('grz','mmolC/m**3',  'net zooplankton grazing',           &
+   call self%register_diagnostic_variable(self%id_grz,'grz','mmolC/m**3',  'net zooplankton grazing',           &
                      time_treatment=time_treatment_averaged)
-   self%id_resp  = self%register_diagnostic_variable('resp','mmolC/m**3',  'net zooplankton respiration',           &
+   call self%register_diagnostic_variable(self%id_resp,'resp','mmolC/m**3',  'net zooplankton respiration',           &
                      time_treatment=time_treatment_averaged)
-   self%id_mort  = self%register_diagnostic_variable('mort','mmolC/m**3/d','net zooplankton mortality',      &
+   call self%register_diagnostic_variable(self%id_mort,'mort','mmolC/m**3/d','net zooplankton mortality',      &
                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
-   self%id_totZOO = self%register_conserved_quantity('TZOO','mmolC/m**3','Total zooplankton')
-   self%id_totN   = self%register_conserved_quantity('TN','mmol/m**3','Total nitrogen')
-   self%id_totP   = self%register_conserved_quantity('TP','mmol/m**3','Total phosphorus')
-   self%id_totC   = self%register_conserved_quantity('TC','mmol/m**3','Total carbon')
+   call self%register_conserved_quantity(self%id_totZOO,'TZOO','mmolC/m**3','Total zooplankton')
+   call self%register_conserved_quantity(self%id_totN,'TN','mmol/m**3','Total nitrogen')
+   call self%register_conserved_quantity(self%id_totP,'TP','mmol/m**3','Total phosphorus')
+   call self%register_conserved_quantity(self%id_totC,'TC','mmol/m**3','Total carbon')
 
    ! Register environmental dependencies
-   self%id_tem  = self%register_dependency(varname_temp)
-   self%id_sal  = self%register_dependency(varname_salt)
-   self%id_extc = self%register_dependency(varname_extc)
+   call self%register_dependency(self%id_tem,varname_temp)
+   call self%register_dependency(self%id_sal,varname_salt)
+   call self%register_dependency(self%id_extc,varname_extc)
 
    RETURN
 
@@ -347,26 +350,26 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_   (self%id_tem,temp)     ! local temperature
-   _GET_DEPENDENCY_   (self%id_sal,salinity) ! local salinity
+   _GET_   (self%id_tem,temp)     ! local temperature
+   _GET_   (self%id_sal,salinity) ! local salinity
 
    ! Retrieve current (local) state variable values.
-   IF (self%simDNexcr) _GET_STATE_(self%id_Nexctarget, dn_excr)
-   IF (self%simDPexcr) _GET_STATE_(self%id_Pexctarget, dp_excr)
-   IF (self%simDCexcr) _GET_STATE_(self%id_Cexctarget, dc_excr)
+   IF (self%simDNexcr) _GET_(self%id_Nexctarget, dn_excr)
+   IF (self%simDPexcr) _GET_(self%id_Pexctarget, dp_excr)
+   IF (self%simDCexcr) _GET_(self%id_Cexctarget, dc_excr)
 
-   IF (self%simPNexcr) _GET_STATE_(self%id_Nmorttarget, pon)
-   IF (self%simPPexcr) _GET_STATE_(self%id_Pmorttarget, pop)
-   IF (self%simPCexcr) _GET_STATE_(self%id_Cmorttarget, poc)
+   IF (self%simPNexcr) _GET_(self%id_Nmorttarget, pon)
+   IF (self%simPPexcr) _GET_(self%id_Pmorttarget, pop)
+   IF (self%simPCexcr) _GET_(self%id_Cmorttarget, poc)
 
    DO zoop_i=1,self%num_zoops
 
       ! Retrieve this zooplankton group
-      _GET_STATE_(self%id_zoo(zoop_i),zoo)
+      _GET_(self%id_zoo(zoop_i),zoo)
       !Retrieve prey groups
       Ctotal_prey   = _ZERO_
       DO prey_i=1,self%zoops(zoop_i)%num_prey
-         _GET_STATE_(self%zoops(zoop_i)%id_prey(prey_i),prey(prey_i))
+         _GET_(self%zoops(zoop_i)%id_prey(prey_i),prey(prey_i))
          Ctotal_prey = Ctotal_prey + prey(prey_i)
       ENDDO
 
@@ -454,8 +457,8 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
             ENDIF
          ELSEIF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey(1:17).EQ.'aed_phytoplankton') THEN
             phy_i = phy_i + 1
-            _GET_STATE_(self%zoops(zoop_i)%id_phyIN(phy_i),phy_INcon(phy_i))
-            _GET_STATE_(self%zoops(zoop_i)%id_phyIP(phy_i),phy_IPcon(phy_i))
+            _GET_(self%zoops(zoop_i)%id_phyIN(phy_i),phy_INcon(phy_i))
+            _GET_(self%zoops(zoop_i)%id_phyIP(phy_i),phy_IPcon(phy_i))
             grazing_n = grazing_n + grazing_prey(prey_i) / prey(prey_i) * phy_INcon(phy_i) /14.0
             grazing_p = grazing_p + grazing_prey(prey_i) / prey(prey_i) * phy_IPcon(phy_i) /31.0
          ELSEIF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey(1:15).EQ.'aed_zooplankton') THEN
@@ -621,27 +624,27 @@ SUBROUTINE aed_zooplankton_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions.
-   _GET_DEPENDENCY_   (self%id_tem,temp)     ! local temperature
-   _GET_DEPENDENCY_   (self%id_sal,salinity) ! local salinity
+   _GET_   (self%id_tem,temp)     ! local temperature
+   _GET_   (self%id_sal,salinity) ! local salinity
 
    ! Retrieve current (local) state variable values.
-   IF (self%simDNexcr) _GET_STATE_(self%id_Nexctarget, dn_excr)
-   IF (self%simDPexcr) _GET_STATE_(self%id_Pexctarget, dp_excr)
-   IF (self%simDCexcr) _GET_STATE_(self%id_Cexctarget, dc_excr)
+   IF (self%simDNexcr) _GET_(self%id_Nexctarget, dn_excr)
+   IF (self%simDPexcr) _GET_(self%id_Pexctarget, dp_excr)
+   IF (self%simDCexcr) _GET_(self%id_Cexctarget, dc_excr)
 
-   IF (self%simPNexcr) _GET_STATE_(self%id_Nmorttarget, pon)
-   IF (self%simPPexcr) _GET_STATE_(self%id_Pmorttarget, pop)
-   IF (self%simPCexcr) _GET_STATE_(self%id_Cmorttarget, poc)
+   IF (self%simPNexcr) _GET_(self%id_Nmorttarget, pon)
+   IF (self%simPPexcr) _GET_(self%id_Pmorttarget, pop)
+   IF (self%simPCexcr) _GET_(self%id_Cmorttarget, poc)
 
    DO zoop_i=1,self%num_zoops
 
       ! Retrieve this zooplankton group
-      _GET_STATE_(self%id_zoo(zoop_i),zoo)
+      _GET_(self%id_zoo(zoop_i),zoo)
 
       !Retrieve prey groups
       Ctotal_prey   = _ZERO_
       DO prey_i=1,self%zoops(zoop_i)%num_prey
-         _GET_STATE_(self%zoops(zoop_i)%id_prey(prey_i),prey(prey_i))
+         _GET_(self%zoops(zoop_i)%id_prey(prey_i),prey(prey_i))
          Ctotal_prey = Ctotal_prey + prey(prey_i)
       ENDDO
 
@@ -744,7 +747,7 @@ SUBROUTINE aed_zooplankton_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVE
    TP_zoo = _ZERO_
    DO zoo_i=1,self%num_zoops
       ! Retrieve current (local) state variable values.
-      _GET_STATE_(self%id_zoo(zoo_i),zoo) ! zooplankton
+      _GET_(self%id_zoo(zoo_i),zoo) ! zooplankton
       Total_zoo = Total_zoo + zoo
       TN_zoo = TN_zoo + zoo * self%zoops(zoo_i)%INC_zoo
       TP_zoo = TP_zoo + zoo * self%zoops(zoo_i)%IPC_zoo

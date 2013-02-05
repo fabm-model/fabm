@@ -84,9 +84,11 @@
 ! !PUBLIC_DERIVED_TYPES:
   type type_iow_ergom
 ! Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_p1,id_p2,id_p3,id_zo,id_de,id_am,id_ni,id_po,id_o2,id_fl
-      _TYPE_DEPENDENCY_ID_          :: id_par,id_I_0,id_temp,id_salt,id_wind,id_taub
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR
+      _TYPE_STATE_VARIABLE_ID_        :: id_p1,id_p2,id_p3,id_zo,id_de,id_am,id_ni,id_po,id_o2
+      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_fl
+      _TYPE_DEPENDENCY_ID_            :: id_par,id_temp,id_salt
+      _TYPE_HORIZONTAL_DEPENDENCY_ID_ :: id_I_0,id_wind,id_taub
+      _TYPE_DIAGNOSTIC_VARIABLE_ID_   :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR
 ! Model parameters
       REALTYPE :: sfl_po,sfl_am,sfl_ni,p10,p20,p30,zo0,kc,i_min,r1max,r2max,r3max,alpha1,alpha2,alpha3,lpa,lpd
       REALTYPE :: tf,tbg,beta_bg,g1max,g2max,g3max,lza,lzd,iv,topt,lan,oan,beta_an,lda,tda,beta_da
@@ -257,31 +259,31 @@
    end if
 
 !  Register state variables
-   self%id_p1=register_state_variable(modelinfo,'dia','mmol n/m**3','diatoms',p1_initial,minimum=_ZERO_,vertical_movement=w_p1/secs_pr_day)
-   self%id_p2=register_state_variable(modelinfo,'fla','mmol n/m**3','flagellates',p2_initial,minimum=_ZERO_,vertical_movement=w_p2/secs_pr_day)
-   self%id_p3=register_state_variable(modelinfo,'cya','mmol n/m**3','cyanobacteria',p3_initial,minimum=_ZERO_,vertical_movement=w_p3/secs_pr_day)
-   self%id_zo=register_state_variable(modelinfo,'zoo','mmol n/m**3','zooplankton',zo_initial,minimum=_ZERO_)
-   self%id_de=register_state_variable(modelinfo,'det','mmol n/m**3','detritus',de_initial,minimum=_ZERO_,vertical_movement=w_de/secs_pr_day)
-   self%id_am=register_state_variable(modelinfo,'amm','mmol n/m**3','ammonium',am_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   self%id_ni=register_state_variable(modelinfo,'nit','mmol n/m**3','nitrate',ni_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   self%id_po=register_state_variable(modelinfo,'pho','mmol p/m**3','phosphate',po_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   self%id_o2=register_state_variable(modelinfo,'oxy','mmol o2/m**3','oxygen',o2_initial)
-   if (self%fluff) self%id_fl=register_state_variable(modelinfo,'flf','mmol n/m**2','fluff',fl_initial,benthic=.true.,minimum=_ZERO_)
+   call register_state_variable(modelinfo,self%id_p1,'dia','mmol n/m**3','diatoms',p1_initial,minimum=_ZERO_,vertical_movement=w_p1/secs_pr_day)
+   call register_state_variable(modelinfo,self%id_p2,'fla','mmol n/m**3','flagellates',p2_initial,minimum=_ZERO_,vertical_movement=w_p2/secs_pr_day)
+   call register_state_variable(modelinfo,self%id_p3,'cya','mmol n/m**3','cyanobacteria',p3_initial,minimum=_ZERO_,vertical_movement=w_p3/secs_pr_day)
+   call register_state_variable(modelinfo,self%id_zo,'zoo','mmol n/m**3','zooplankton',zo_initial,minimum=_ZERO_)
+   call register_state_variable(modelinfo,self%id_de,'det','mmol n/m**3','detritus',de_initial,minimum=_ZERO_,vertical_movement=w_de/secs_pr_day)
+   call register_state_variable(modelinfo,self%id_am,'amm','mmol n/m**3','ammonium',am_initial,minimum=_ZERO_,no_river_dilution=.true.)
+   call register_state_variable(modelinfo,self%id_ni,'nit','mmol n/m**3','nitrate',ni_initial,minimum=_ZERO_,no_river_dilution=.true.)
+   call register_state_variable(modelinfo,self%id_po,'pho','mmol p/m**3','phosphate',po_initial,minimum=_ZERO_,no_river_dilution=.true.)
+   call register_state_variable(modelinfo,self%id_o2,'oxy','mmol o2/m**3','oxygen',o2_initial)
+   if (self%fluff) call register_state_variable(modelinfo,self%id_fl,'flf','mmol n/m**2','fluff',fl_initial,minimum=_ZERO_)
 
 ! Register diagnostic variables
-   self%id_dPAR = register_diagnostic_variable(modelinfo,'PAR','W/m**2','photosynthetically active radiation',time_treatment=time_treatment_averaged)
-   self%id_GPP  = register_diagnostic_variable(modelinfo,'GPP','mmol/m**3','gross primary production',time_treatment=time_treatment_step_integrated)
-   self%id_NCP  = register_diagnostic_variable(modelinfo,'NCP','mmol/m**3','net community production',time_treatment=time_treatment_step_integrated)
-   self%id_PPR  = register_diagnostic_variable(modelinfo,'PPR','mmol/m**3/d','gross primary production rate',time_treatment=time_treatment_averaged)
-   self%id_NPR  = register_diagnostic_variable(modelinfo,'NPR','mmol/m**3/d','net community production rate',time_treatment=time_treatment_averaged)
+   call register_diagnostic_variable(modelinfo,self%id_dPAR,'PAR','W/m**2','photosynthetically active radiation',time_treatment=time_treatment_averaged)
+   call register_diagnostic_variable(modelinfo,self%id_GPP,'GPP','mmol/m**3','gross primary production',time_treatment=time_treatment_step_integrated)
+   call register_diagnostic_variable(modelinfo,self%id_NCP,'NCP','mmol/m**3','net community production',time_treatment=time_treatment_step_integrated)
+   call register_diagnostic_variable(modelinfo,self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',time_treatment=time_treatment_averaged)
+   call register_diagnostic_variable(modelinfo,self%id_NPR,'NPR','mmol/m**3/d','net community production rate',time_treatment=time_treatment_averaged)
 
 ! Register environmental dependencies
-   self%id_par = register_dependency(modelinfo, varname_par)
-   self%id_I_0 = register_dependency(modelinfo, varname_par_sf, shape=shape_hz)
-   self%id_temp = register_dependency(modelinfo, varname_temp)
-   self%id_salt = register_dependency(modelinfo, varname_salt)
-   self%id_wind = register_dependency(modelinfo, varname_wind_sf,shape=shape_hz)
-   if (self%fluff) self%id_taub=register_dependency(modelinfo,varname_taub,shape=shape_hz)
+   call register_dependency(modelinfo,self%id_par,varname_par)
+   call register_dependency(modelinfo,self%id_temp,varname_temp)
+   call register_dependency(modelinfo,self%id_salt,varname_salt)
+   call register_dependency(modelinfo,self%id_I_0,varname_par_sf)
+   call register_dependency(modelinfo,self%id_wind,varname_wind_sf)
+   if (self%fluff) call register_dependency(modelinfo,self%id_taub,varname_taub)
 
    RETURN
 
@@ -512,20 +514,20 @@
     _FABM_LOOP_BEGIN_
 
 !   Retrieve current (local) state variable values
-    _GET_STATE_(self%id_p1,p1) !diatoms
-    _GET_STATE_(self%id_p2,p2) !flagellates
-    _GET_STATE_(self%id_p3,p3) !cyanobacteria
-    _GET_STATE_(self%id_zo,zo) !zooplankton
-    _GET_STATE_(self%id_de,de) !detritus
-    _GET_STATE_(self%id_am,am) !ammonium
-    _GET_STATE_(self%id_ni,ni) !nitrate
-    _GET_STATE_(self%id_po,po) !phosphate
-    _GET_STATE_(self%id_o2,o2) !oxygen
+    _GET_(self%id_p1,p1) !diatoms
+    _GET_(self%id_p2,p2) !flagellates
+    _GET_(self%id_p3,p3) !cyanobacteria
+    _GET_(self%id_zo,zo) !zooplankton
+    _GET_(self%id_de,de) !detritus
+    _GET_(self%id_am,am) !ammonium
+    _GET_(self%id_ni,ni) !nitrate
+    _GET_(self%id_po,po) !phosphate
+    _GET_(self%id_o2,o2) !oxygen
 
 !   Retrieve current environmental conditions
-    _GET_DEPENDENCY_   (self%id_par,par) ! local photosynthetically active radiation
-    _GET_DEPENDENCY_HZ_(self%id_I_0,I_0) ! surface short wave radiation
-    _GET_DEPENDENCY_   (self%id_temp,temp) !local water temperature
+    _GET_   (self%id_par,par) ! local photosynthetically active radiation
+    _GET_HORIZONTAL_(self%id_I_0,I_0) ! surface short wave radiation
+    _GET_   (self%id_temp,temp) !local water temperature
 
 !   Light acclimation formulation based on surface light intensity
     iopt = max(0.25*I_0,self%i_min)
@@ -602,10 +604,10 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_STATE_(self%id_p1,p1) ! diatoms
-   _GET_STATE_(self%id_p2,p2) !flagellates
-   _GET_STATE_(self%id_p3,p3) !cyanobacteria
-   _GET_STATE_(self%id_de,de) ! detritus
+   _GET_(self%id_p1,p1) ! diatoms
+   _GET_(self%id_p2,p2) !flagellates
+   _GET_(self%id_p3,p3) !cyanobacteria
+   _GET_(self%id_de,de) ! detritus
 
 
    ! Self-shading with explicit contribution from background phytoplankton concentration.
@@ -648,19 +650,19 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops over the horizontal domain (if any).
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    if (self%fluff) then
-   _GET_STATE_(self%id_am,amb)
-   _GET_STATE_(self%id_de,deb)
-   _GET_STATE_(self%id_ni,nib)
-   _GET_STATE_(self%id_po,pob)
-   _GET_STATE_(self%id_o2,oxb)
-   _GET_STATE_BEN_(self%id_fl,fl)
+   _GET_(self%id_am,amb)
+   _GET_(self%id_de,deb)
+   _GET_(self%id_ni,nib)
+   _GET_(self%id_po,pob)
+   _GET_(self%id_o2,oxb)
+   _GET_HORIZONTAL_(self%id_fl,fl)
 
-   _GET_DEPENDENCY_HZ_(self%id_taub,taub)
-   _GET_DEPENDENCY_(self%id_temp,temp)
+   _GET_HORIZONTAL_(self%id_taub,taub)
+   _GET_(self%id_temp,temp)
 
     thopnp=th( oxb,wo,_ZERO_,_ONE_)*yy(wn,nib)
     thomnp=th(-oxb,wo,_ZERO_,_ONE_)*yy(wn,nib)
@@ -694,7 +696,7 @@
    end if
 
    ! Leave spatial loops over the horizontal domain (if any).
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
 
    end subroutine iow_ergom_do_benthos
 !EOC
@@ -834,16 +836,16 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   _FABM_HZ_LOOP_BEGIN_
+   _FABM_HORIZONTAL_LOOP_BEGIN_
 
-   _GET_DEPENDENCY_(self%id_temp,temp)
-   _GET_DEPENDENCY_(self%id_salt,salt)
-   _GET_DEPENDENCY_HZ_(self%id_wind,wnd)
+   _GET_(self%id_temp,temp)
+   _GET_(self%id_salt,salt)
+   _GET_HORIZONTAL_(self%id_wind,wnd)
 
-   _GET_STATE_(self%id_o2,o2)
-   _GET_STATE_(self%id_ni,ni)
-   _GET_STATE_(self%id_am,am)
-   _GET_STATE_(self%id_po,po)
+   _GET_(self%id_o2,o2)
+   _GET_(self%id_ni,ni)
+   _GET_(self%id_am,am)
+   _GET_(self%id_po,po)
 
 !  Calculation of the surface oxygen flux
    if (newflux .eq. 1) then
@@ -872,7 +874,7 @@
    _SET_SURFACE_EXCHANGE_(self%id_am,self%sfl_am/secs_pr_day)
    _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po/secs_pr_day)
 
-   _FABM_HZ_LOOP_END_
+   _FABM_HORIZONTAL_LOOP_END_
    end subroutine iow_ergom_get_surface_exchange
 !EOC
 
