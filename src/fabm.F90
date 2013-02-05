@@ -814,7 +814,7 @@ interface fabm_link_data
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-  type (type_model_info),              pointer :: info
+  _CLASS_ (type_model_info),           pointer :: info
   type (type_variable_link),           pointer :: link
   type (type_horizontal_variable_link),pointer :: horizontal_link
   type (type_scalar_variable_link),    pointer :: scalar_link
@@ -979,7 +979,7 @@ interface fabm_link_data
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
-   type (type_model_info),   pointer ::info
+   _CLASS_(type_model_info), pointer :: info
    type (type_variable_link),pointer :: link
 !
 !EOP
@@ -1018,7 +1018,7 @@ interface fabm_link_data
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
-   type (type_model_info),pointer ::info
+   _CLASS_ (type_model_info),           pointer :: info
    type (type_horizontal_variable_link),pointer :: link
 !
 !EOP
@@ -1057,7 +1057,7 @@ interface fabm_link_data
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
-   type (type_model_info),pointer ::info
+   _CLASS_ (type_model_info),       pointer :: info
    type (type_scalar_variable_link),pointer :: link
 !
 !EOP
