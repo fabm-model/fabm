@@ -159,7 +159,7 @@
    end type
 
    type type_horizontal_diagnostic_variable_id
-      character(len=attribute_length) :: name              = ''
+      character(len=attribute_length) :: name                  = ''
       integer                         :: horizontal_diag_index = -1
    end type
 
@@ -2157,6 +2157,7 @@ recursive subroutine classify_variables(model)
 
    ! Classify horizontal variables
    nread_hz = 0
+   horizontal_link => model%first_horizontal_link
    do while (associated(horizontal_link))
       if (.not.horizontal_link%coupled) then
          ! The model owns this variable (no external master variable has been assigned)

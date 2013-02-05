@@ -24,26 +24,21 @@ module fabm_pml_carbonate
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_pml_carbonate, pml_carbonate_init, pml_carbonate_do, pml_carbonate_get_surface_exchange
 !
-! !PRIVATE DATA MEMBERS:
-!
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
-!
-!
 ! !PUBLIC DERIVED TYPES:
    type type_pml_carbonate
 !     Variable identifiers
-      type (type_state_variable_id)      :: id_dic, id_alk
-      type (type_dependency_id)          :: id_temp, id_salt, id_pres, id_dens
-      type (type_horizontal_dependency_id)  :: id_wind, id_pco2_surf
-      type (type_diagnostic_variable_id) :: id_ph, id_pco2, id_CarbA, id_Bicarb, &
-                                     & id_Carb, id_Om_cal, id_Om_arg, id_alk_diag
+      type (type_state_variable_id)                 :: id_dic, id_alk
+      type (type_dependency_id)                     :: id_temp, id_salt, id_pres, id_dens
+      type (type_horizontal_dependency_id)          :: id_wind, id_pco2_surf
+      type (type_diagnostic_variable_id)            :: id_ph, id_pco2, id_CarbA, id_Bicarb, &
+                                                       id_Carb, id_Om_cal, id_Om_arg, id_alk_diag
       type (type_horizontal_diagnostic_variable_id) :: id_co2_flux
 
 !     Model parameters
       real(rk) :: TA_offset, TA_slope, pCO2a
       logical  :: alk_param
    end type
+!
 !EOP
 !-----------------------------------------------------------------------
 
@@ -58,29 +53,28 @@ contains
    subroutine pml_carbonate_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
-!  Here, the bio namelist is read and
-!  various variables (rates and settling velocities)
-!  are transformed into SI units.
-!
-! !USES:
-   IMPLICIT NONE
+!  Read pml_carbonate namelist and store settings in the model's derived type.
 !
 ! !INPUT PARAMETERS:
    type (type_pml_carbonate), intent(out)   :: self
    _CLASS_ (type_model_info), intent(inout) :: modelinfo
    integer,                   intent(in )   :: namlst
 !
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard & Karsten Bolding
-!
 ! !LOCAL VARIABLES:
    real(rk) :: dic_initial, alk_initial
-   real(rk)  :: alk_offset = 520.1, alk_slope = 51.24, pCO2a = _ZERO_
-   logical :: alk_param = .true.
+   real(rk) :: alk_offset, alk_slope, pCO2a
+   logical  :: alk_param
    namelist /pml_carbonate/ dic_initial, alk_initial, alk_param, alk_offset, alk_slope, pCO2a
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   dic_initial = 2185.0_rk
+   alk_initial = 2333.0_rk
+   alk_offset  = 520.1_rk
+   alk_slope   = 51.24_rk
+   pCO2a       = 0.0_rk
+   alk_param   = .true.
+
    ! Read the namelist
    read(namlst,nml=pml_carbonate,err=99,end=100)
 
@@ -93,33 +87,34 @@ contains
 
    ! First state variable: total dissolved inorganic carbon
    call register_state_variable(modelinfo,self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon', &
-                                    dic_initial,minimum=_ZERO_,no_precipitation_dilution=.false.,no_river_dilution=.true.)
+                                dic_initial,minimum=_ZERO_,no_precipitation_dilution=.false.,no_river_dilution=.true.)
 
-   ! Alkalinity may be apoproximated from salinity and temperature, or feature as separate state variable.
    if (.not. alk_param) then
+     ! Alkalinity is a state variable.
      call register_state_variable(modelinfo,self%id_alk,'alk','mEq/m**3','alkalinity', &
-                                    alk_initial,minimum=_ZERO_,no_precipitation_dilution=.false.,no_river_dilution=.true.)
+                                  alk_initial,minimum=_ZERO_,no_precipitation_dilution=.false.,no_river_dilution=.true.)
    else
+     ! Alkalinity is diagnosed from temperature and salinity. Register it as output variable.
      call register_diagnostic_variable(modelinfo,self%id_alk_diag,'alk', 'mEq/m**3','alkalinity', &
-                                                     time_treatment=time_treatment_averaged)
+                                       time_treatment=time_treatment_averaged)
    end if
 
    ! Register diagnostic variables.
-   call register_diagnostic_variable(modelinfo,self%id_ph, 'pH',      '-',          'pH',                              &
+   call register_diagnostic_variable(modelinfo,self%id_ph,      'pH',      '-',          'pH',                           &
                          time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_pco2,'pCO2',    'ppm',        'CO2 partial pressure',           &
+   call register_diagnostic_variable(modelinfo,self%id_pco2,    'pCO2',    'ppm',        'CO2 partial pressure',         &
                          time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_CarbA,'CarbA',   'mmol/m**3',  'carbonic acid concentration',   &
+   call register_diagnostic_variable(modelinfo,self%id_CarbA,   'CarbA',   'mmol/m**3',  'carbonic acid concentration',  &
                          time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_Bicarb,'Bicarb',  'mmol/m**3',  'bicarbonate ion concentration',&
+   call register_diagnostic_variable(modelinfo,self%id_Bicarb,  'Bicarb',  'mmol/m**3',  'bicarbonate ion concentration',&
                          time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_Carb,'Carb',    'mmol/m**3',  'carbonate ion concentration',    &
+   call register_diagnostic_variable(modelinfo,self%id_Carb,    'Carb',    'mmol/m**3',  'carbonate ion concentration',  &
                          time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_Om_cal,'Om_cal',  '-',          'calcite saturation state',     &
+   call register_diagnostic_variable(modelinfo,self%id_Om_cal,  'Om_cal',  '-',          'calcite saturation state',     &
                          time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_Om_arg,'Om_arg',  '-',          'aragonite saturation state',   &
+   call register_diagnostic_variable(modelinfo,self%id_Om_arg,  'Om_arg',  '-',          'aragonite saturation state',   &
                          time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_co2_flux,'CO2_flux','mmol/m**2/s','surface CO2 flux',   &
+   call register_diagnostic_variable(modelinfo,self%id_co2_flux,'CO2_flux','mmol/m**2/s','surface CO2 flux',             &
                          time_treatment=time_treatment_averaged)
 
    ! Register external dependencies.
@@ -147,22 +142,20 @@ contains
    subroutine pml_carbonate_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
-!
-! !USES:
-   IMPLICIT NONE
+!  Calculate carbonate system equilibrium from DIC and alkalinity, and
+!  store values of all carbonate system parameters (e.g., pCO2, pH,
+!  concentrations of inorganic carbon species, calcite and aragonite saturation
+!  states.
 !
 ! !INPUT PARAMETERS:
    type (type_pml_carbonate),    intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
    ! Environment
    real(rk) :: temp, salt, pres, dens
    real(rk) :: dic, TA
-   real(rk) :: PCO2WATER, pH, HENRY, ca, bc, cb,Om_cal,Om_arg
+   real(rk) :: PCO2WATER, pH, HENRY, ca, bc, cb, Om_cal, Om_arg
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -183,28 +176,26 @@ contains
       TA = self%TA_offset + self%TA_slope*salt
    else
       ! Alkalinity (mEq/m**3) is a separate state variable.
-      ! Divide by density/1000 to get alkalinity in uEq/kg.
+      ! Divide by density/1000 to get alkalinity in uEq/kg, as expected by underlying carbonate system model.
       _GET_(self%id_alk,TA)
-      TA = TA/dens*1.0D3
+      TA = TA/dens*1.0e3_rk
    end if
 
    ! Calculate carbonate system equilibrium.
-   call CO2DYN(dic/1.0D3/dens, TA/1.0D6, temp, salt, PCO2WATER, pH, HENRY, ca, bc, cb)
+   call CO2DYN(dic/1.0e3_rk/dens, TA/1.0e6_rk, temp, salt, PCO2WATER, pH, HENRY, ca, bc, cb)
 
-   ! Call carbonate saturation state subroutine to calculate calcite and aragonite calcification states.
+   ! Calculate calcite and aragonite calcification states.
    call CaCO3_Saturation (temp, salt, pres, cb, Om_cal, Om_arg)
 
    ! Store diagnostic variables.
    _SET_DIAG_(self%id_ph    ,ph)
-   _SET_DIAG_(self%id_pco2  ,PCO2WATER*1.0D6)        ! to ppm
-   _SET_DIAG_(self%id_CarbA ,ca       *1.0D3*dens)   ! from mol/kg to mmol/m**3
-   _SET_DIAG_(self%id_Bicarb,bc       *1.0D3*dens)   ! from mol/kg to mmol/m**3
-   _SET_DIAG_(self%id_Carb  ,cb       *1.0D3*dens)   ! from mol/kg to mmol/m**3
+   _SET_DIAG_(self%id_pco2  ,PCO2WATER*1.0e6_rk)        ! to ppm
+   _SET_DIAG_(self%id_CarbA ,ca       *1.0e3_rk*dens)   ! from mol/kg to mmol/m**3
+   _SET_DIAG_(self%id_Bicarb,bc       *1.0e3_rk*dens)   ! from mol/kg to mmol/m**3
+   _SET_DIAG_(self%id_Carb  ,cb       *1.0e3_rk*dens)   ! from mol/kg to mmol/m**3
    _SET_DIAG_(self%id_Om_cal,Om_cal)
    _SET_DIAG_(self%id_Om_arg,Om_arg)
-   if (self%alk_param) then
-      _SET_DIAG_(self%id_alk_diag,TA*dens*1.0D-3)    ! from uEg/kg to mmol/m**3
-   end if
+   if (self%alk_param) _SET_DIAG_(self%id_alk_diag,TA*dens*1.0e-3_rk)    ! from uEg/kg to mmol/m**3
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -221,16 +212,11 @@ contains
    subroutine pml_carbonate_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
 !
 ! !DESCRIPTION:
-!
-! !USES:
-   IMPLICIT NONE
+! Calculate air -> sea CO2 flux.
 !
 ! !INPUT PARAMETERS:
-   type (type_pml_carbonate), intent(in)    :: self
+   type (type_pml_carbonate), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
    ! Environment
@@ -243,7 +229,7 @@ contains
    real(rk) :: PCO2WATER, pH, HENRY, ca, bc, cb, fl, pCO2a
 
    ! Parameters
-   real(rk), parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -269,19 +255,19 @@ contains
       ! Alkalinity (mEq/m**3) is a separate state variable
       ! Divide by density/1000 to get alkalinity in uEq/kg.
       _GET_(self%id_alk,TA)
-      TA = TA/dens*1.0d3
+      TA = TA/dens*1.0e3_rk
    end if
 
-   ! Calculate carbonate system equilibrium.
+   ! Calculate carbonate system equilibrium to get pCO2 and Henry constant.
    call CO2DYN(dic/1.0D3/dens, TA/1.0D6, temp, salt, PCO2WATER, pH, HENRY, ca, bc, cb)
 
    ! Calculate air-sea exchange of CO2 (positive flux is from atmosphere to water)
-   call Air_sea_exchange(temp, wnd, PCO2WATER*1.0D6, pCO2a, Henry, dens/1.0D3, fl)
+   call Air_sea_exchange(temp, wnd, PCO2WATER*1.0D6, pCO2a, Henry, dens/1.0e3_rk, fl)
 
    ! Transfer surface exchange value to FABM.
    _SET_SURFACE_EXCHANGE_(self%id_dic,fl/secs_pr_day)
 
-   ! Also store surface flux as diagnostic variable.
+   ! Store surface flux as diagnostic variable.
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_co2_flux,fl/secs_pr_day)
 
    ! Leave spatial loops (if any)
