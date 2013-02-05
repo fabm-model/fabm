@@ -39,13 +39,13 @@ MODULE aed_oxygen
 !
    TYPE,extends(type_base_model) :: type_aed_oxygen
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_oxy
-      _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_wind
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_Fsed_oxy
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_oxy_sat !, id_atm_oxy_exch3d
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_atm_oxy_exch
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_oxy
+      type (type_state_variable_id)      :: id_oxy
+      type (type_dependency_id)          :: id_temp, id_salt
+      type (type_horizontal_dependency_id)  :: id_wind
+      type (type_bottom_state_variable_id) :: id_Fsed_oxy
+      type (type_diagnostic_variable_id) :: id_oxy_sat !, id_atm_oxy_exch3d
+      type (type_horizontal_diagnostic_variable_id) :: id_atm_oxy_exch
+      type (type_horizontal_diagnostic_variable_id) :: id_sed_oxy
 
 !     Model parameters
       REALTYPE :: Fsed_oxy,Ksed_oxy,theta_sed_oxy

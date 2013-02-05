@@ -95,18 +95,18 @@ MODULE aed_phytoplankton
 
    TYPE,extends(type_base_model) :: type_aed_phytoplankton
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_,ALLOCATABLE :: id_p(:)
-      _TYPE_STATE_VARIABLE_ID_,ALLOCATABLE :: id_in(:)
-      _TYPE_STATE_VARIABLE_ID_,ALLOCATABLE :: id_ip(:)
-      _TYPE_STATE_VARIABLE_ID_      :: id_Pexctarget,id_Pmorttarget,id_Pupttarget(1:2)
-      _TYPE_STATE_VARIABLE_ID_      :: id_Nexctarget,id_Nmorttarget,id_Nupttarget(1:4)
-      _TYPE_STATE_VARIABLE_ID_      :: id_Cexctarget,id_Cmorttarget,id_Cupttarget
-      _TYPE_STATE_VARIABLE_ID_      :: id_Siexctarget,id_Simorttarget,id_Siupttarget
-      _TYPE_STATE_VARIABLE_ID_      :: id_DOupttarget
-      _TYPE_DEPENDENCY_ID_          :: id_par, id_tem, id_sal, id_dz, id_extc
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_I_0
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR, id_TCHLA, id_TIN, id_TIP
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totP
+      type (type_state_variable_id),ALLOCATABLE :: id_p(:)
+      type (type_state_variable_id),ALLOCATABLE :: id_in(:)
+      type (type_state_variable_id),ALLOCATABLE :: id_ip(:)
+      type (type_state_variable_id)      :: id_Pexctarget,id_Pmorttarget,id_Pupttarget(1:2)
+      type (type_state_variable_id)      :: id_Nexctarget,id_Nmorttarget,id_Nupttarget(1:4)
+      type (type_state_variable_id)      :: id_Cexctarget,id_Cmorttarget,id_Cupttarget
+      type (type_state_variable_id)      :: id_Siexctarget,id_Simorttarget,id_Siupttarget
+      type (type_state_variable_id)      :: id_DOupttarget
+      type (type_dependency_id)          :: id_par, id_tem, id_sal, id_dz, id_extc
+      type (type_horizontal_dependency_id)  :: id_I_0
+      type (type_diagnostic_variable_id) :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR, id_TCHLA, id_TIN, id_TIP
+      type (type_conserved_quantity_id)  :: id_totP
 
 !     Model parameters
       INTEGER                                   :: num_phytos

@@ -68,13 +68,13 @@ MODULE aed_pathogens
 
    TYPE,extends(type_base_model) :: type_aed_pathogens
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_,ALLOCATABLE :: id_p(:)
-      _TYPE_STATE_VARIABLE_ID_      :: id_growth, id_mortality, id_sunlight, id_grazing
-      _TYPE_DEPENDENCY_ID_          :: id_par, id_tem, id_sal
-      _TYPE_DEPENDENCY_ID_          :: id_oxy, id_pH,  id_doc, id_tss
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_I_0
-!     _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: ??
-!     _TYPE_CONSERVED_QUANTITY_ID_  :: ??
+      type (type_state_variable_id),ALLOCATABLE :: id_p(:)
+      type (type_state_variable_id)      :: id_growth, id_mortality, id_sunlight, id_grazing
+      type (type_dependency_id)          :: id_par, id_tem, id_sal
+      type (type_dependency_id)          :: id_oxy, id_pH,  id_doc, id_tss
+      type (type_horizontal_dependency_id)  :: id_I_0
+!     type (type_diagnostic_variable_id) :: ??
+!     type (type_conserved_quantity_id)  :: ??
 
 !     Model parameters
       INTEGER                                   :: num_pathogens

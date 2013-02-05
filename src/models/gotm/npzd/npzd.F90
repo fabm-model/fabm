@@ -48,12 +48,12 @@
 ! !PUBLIC DERIVED TYPES:
    type type_gotm_npzd
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_n,id_p,id_z,id_d
-      _TYPE_STATE_VARIABLE_ID_      :: id_dic
-      _TYPE_DEPENDENCY_ID_          :: id_par
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_I_0
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
+      type (type_state_variable_id)      :: id_n,id_p,id_z,id_d
+      type (type_state_variable_id)      :: id_dic
+      type (type_dependency_id)          :: id_par
+      type (type_horizontal_dependency_id)  :: id_I_0
+      type (type_diagnostic_variable_id) :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
+      type (type_conserved_quantity_id)  :: id_totN
 
 !     Model parameters
       REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd

@@ -34,12 +34,12 @@ MODULE aed_chlorophylla
 !
    TYPE,extends(type_base_model) :: type_aed_chla
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_p
-      _TYPE_STATE_VARIABLE_ID_      :: id_exctarget,id_morttarget,id_upttarget
-      _TYPE_DEPENDENCY_ID_          :: id_par
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_I_0
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
+      type (type_state_variable_id)      :: id_p
+      type (type_state_variable_id)      :: id_exctarget,id_morttarget,id_upttarget
+      type (type_dependency_id)          :: id_par
+      type (type_horizontal_dependency_id)  :: id_I_0
+      type (type_diagnostic_variable_id) :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
+      type (type_conserved_quantity_id)  :: id_totN
 
 !     Model parameters
       REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd

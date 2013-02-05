@@ -38,10 +38,10 @@ MODULE aed_viruses
 !
    TYPE,extends(type_base_model) :: type_aed_viruses
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_vir
-      _TYPE_DEPENDENCY_ID_          :: id_temp
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_vir
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totV
+      type (type_state_variable_id)      :: id_vir
+      type (type_dependency_id)          :: id_temp
+      type (type_diagnostic_variable_id) :: id_sed_vir
+      type (type_conserved_quantity_id)  :: id_totV
 
 !     Model parameters
       REALTYPE :: num_viruses

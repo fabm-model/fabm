@@ -31,9 +31,9 @@
 ! !PUBLIC DERIVED TYPES:
    type type_examples_npzd_zoo
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_z
-      _TYPE_STATE_VARIABLE_ID_      :: id_exctarget,id_morttarget,id_grztarget
-      _TYPE_DEPENDENCY_ID_          :: id_temp
+      type (type_state_variable_id)      :: id_z
+      type (type_state_variable_id)      :: id_exctarget,id_morttarget,id_grztarget
+      type (type_dependency_id)          :: id_temp
 
 !     Model parameters
       REALTYPE :: z0,gmax,iv,rzn,rzd

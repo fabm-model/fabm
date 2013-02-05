@@ -444,13 +444,9 @@
 
 ! Macros for declaring/accessing variable identifiers of arbitrary type.
 #define _TYPE_STATE_VARIABLE_ID_ type (type_state_variable_id)
-#define _TYPE_BOTTOM_STATE_VARIABLE_ID_ type (type_bottom_state_variable_id)
 #define _TYPE_DIAGNOSTIC_VARIABLE_ID_ type (type_diagnostic_variable_id)
-#define _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ type (type_horizontal_diagnostic_variable_id)
 #define _TYPE_DEPENDENCY_ID_ type (type_dependency_id)
-#define _TYPE_HORIZONTAL_DEPENDENCY_ID_ type (type_horizontal_dependency_id)
-#define _TYPE_GLOBAL_DEPENDENCY_ID_ type (type_global_dependency_id)
-#define _TYPE_CONSERVED_QUANTITY_ID_ type(type_conserved_quantity_id)
+#define _TYPE_CONSERVED_QUANTITY_ID_ type (type_conserved_quantity_id)
 
 ! For BGC models: Expressions for setting space-dependent FABM variables defined on the full spatial domain.
 #define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%state_index) = rhs _INDEX_ODE_(variable%state_index) + (value)

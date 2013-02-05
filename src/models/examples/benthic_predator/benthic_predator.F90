@@ -31,8 +31,8 @@
 ! !PUBLIC TYPES:
    type type_examples_benthic_predator
 !     Variable identifiers
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_pred
-      _TYPE_STATE_VARIABLE_ID_        :: id_prey,id_nut
+      type (type_bottom_state_variable_id) :: id_pred
+      type (type_state_variable_id)        :: id_prey,id_nut
 
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
       REALTYPE :: g_max,K,h

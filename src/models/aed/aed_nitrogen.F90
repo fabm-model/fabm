@@ -37,13 +37,13 @@ MODULE aed_nitrogen
 !
    TYPE,extends(type_base_model) :: type_aed_nitrogen
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_nit, id_amm !nitrate & ammonium
-      _TYPE_STATE_VARIABLE_ID_      :: id_oxy,id_denit_product
-      _TYPE_DEPENDENCY_ID_          :: id_temp
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_      :: id_Fsed_amm,id_Fsed_nit
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_nitrif,id_denit
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_amm,id_sed_nit
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
+      type (type_state_variable_id)      :: id_nit, id_amm !nitrate & ammonium
+      type (type_state_variable_id)      :: id_oxy,id_denit_product
+      type (type_dependency_id)          :: id_temp
+      type (type_bottom_state_variable_id)      :: id_Fsed_amm,id_Fsed_nit
+      type (type_diagnostic_variable_id) :: id_nitrif,id_denit
+      type (type_horizontal_diagnostic_variable_id) :: id_sed_amm,id_sed_nit
+      type (type_conserved_quantity_id)  :: id_totN
 
 !     Model parameters
       REALTYPE :: Rnitrif,Rdenit,Fsed_amm,Fsed_nit,Knitrif,Kdenit,Ksed_amm,Ksed_nit, &

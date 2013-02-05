@@ -43,7 +43,7 @@
 ! !PUBLIC DERIVED TYPES:
    type type_examples_npzd_nut
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_n
+      type (type_state_variable_id)      :: id_n
 
 !     Model parameters
    end type

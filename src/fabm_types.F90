@@ -861,7 +861,7 @@ end subroutine
 !
 ! !INPUT/OUTPUT PARAMETERS:
       _CLASS_ (type_model_info),intent(inout)                 :: model
-      _TYPE_STATE_VARIABLE_ID_, intent(inout),target          :: id
+      type (type_state_variable_id), intent(inout),target          :: id
       type (type_bulk_variable),intent(inout),target,optional :: target
 !
 ! !INPUT PARAMETERS:
@@ -953,7 +953,7 @@ end subroutine
 !
 ! !INPUT/OUTPUT PARAMETERS:
       _CLASS_ (type_model_info),      intent(inout)                 :: model
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_,intent(inout),target          :: id
+      type (type_bottom_state_variable_id),intent(inout),target          :: id
       type (type_horizontal_variable),intent(inout),target,optional :: target
 !
 ! !INPUT PARAMETERS:
@@ -1035,7 +1035,7 @@ end subroutine
 !
 ! !INPUT/OUTPUT PARAMETERS:
       _CLASS_ (type_model_info),    intent(inout)                 :: model
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_,intent(inout),target          :: id
+      type (type_diagnostic_variable_id),intent(inout),target          :: id
       type (type_bulk_variable),    intent(inout),target,optional :: target
 !
 ! !INPUT PARAMETERS:
@@ -1104,7 +1104,7 @@ end subroutine
 !
 ! !INPUT/OUTPUT PARAMETER:
       _CLASS_ (type_model_info),           intent(inout)                 :: model
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_,intent(inout),target      :: id
+      type (type_horizontal_diagnostic_variable_id),intent(inout),target      :: id
       type (type_horizontal_variable),     intent(inout),target,optional :: target
 !
 ! !INPUT PARAMETERS:
@@ -1173,7 +1173,7 @@ end subroutine
 !
 ! !INPUT/OUTPUT PARAMETERS:
       _CLASS_ (type_model_info),   intent(inout)                 :: model
-      _TYPE_CONSERVED_QUANTITY_ID_,intent(inout),target          :: id
+      type (type_conserved_quantity_id),intent(inout),target          :: id
       type (type_bulk_variable),   intent(inout),target,optional :: target
 !
 ! !INPUT PARAMETERS:
@@ -1237,7 +1237,7 @@ end subroutine
 !
 ! !INPUT/OUTPUT PARAMETERS:
       _CLASS_ (type_model_info),              intent(inout) :: model
-      _TYPE_STATE_VARIABLE_ID_,target,        intent(inout) :: id
+      type (type_state_variable_id),target,        intent(inout) :: id
 !
 ! !INPUT PARAMETERS:
       character(len=*),                       intent(in)    :: name
@@ -1270,7 +1270,7 @@ end subroutine
 !
 ! !INPUT/OUTPUT PARAMETERS:
       _CLASS_ (type_model_info),              intent(inout) :: model
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_,target, intent(inout) :: id
+      type (type_bottom_state_variable_id),target, intent(inout) :: id
 !
 ! !INPUT PARAMETERS:
       character(len=*),                       intent(in)    :: name
@@ -1304,7 +1304,7 @@ end subroutine
 !
 ! !INPUT/OUTPUT PARAMETERS:
       _CLASS_ (type_model_info),intent(inout)                 :: model
-      _TYPE_DEPENDENCY_ID_,     intent(inout),target          :: id
+      type (type_dependency_id),     intent(inout),target          :: id
       type (type_bulk_variable),intent(inout),target,optional :: target
 !
 ! !INPUT PARAMETERS:
@@ -1362,7 +1362,7 @@ end subroutine
 !
 ! !INPUT/OUTPUT PARAMETERS:
       _CLASS_ (type_model_info),      intent(inout)                 :: model
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_,intent(inout),target          :: id
+      type (type_horizontal_dependency_id),intent(inout),target          :: id
       type (type_horizontal_variable),intent(inout),target,optional :: target
 !
 ! !INPUT PARAMETERS:
@@ -1420,7 +1420,7 @@ end subroutine
 !
 ! !INPUT/OUTPUT PARAMETERS:
       _CLASS_ (type_model_info),  intent(inout)                 :: model
-      _TYPE_GLOBAL_DEPENDENCY_ID_,intent(inout),target          :: id
+      type (type_global_dependency_id),intent(inout),target          :: id
       type (type_scalar_variable),intent(inout),target,optional :: target
 !
 ! !INPUT PARAMETERS:

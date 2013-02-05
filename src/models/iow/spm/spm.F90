@@ -27,9 +27,9 @@
 ! !PUBLIC DERIVED TYPES:
    type type_iow_spm
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_        :: id_spm !concentrations
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_pmpool !sediment pool
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_ :: id_taub    !bottom stress
+      type (type_state_variable_id)        :: id_spm !concentrations
+      type (type_bottom_state_variable_id) :: id_pmpool !sediment pool
+      type (type_horizontal_dependency_id) :: id_taub    !bottom stress
 
 !     Model parameters
       REALTYPE :: ws

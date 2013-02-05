@@ -38,11 +38,11 @@ MODULE aed_phosphorus
 !
    TYPE,extends(type_base_model) :: type_aed_phosphorus
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_ :: id_frp, id_frpads, id_oxy,  id_tssfabm, id_pH
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_Fsed_frp
-      _TYPE_DEPENDENCY_ID_          :: id_temp, id_tssext
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_frp
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totP
+      type (type_state_variable_id) :: id_frp, id_frpads, id_oxy,  id_tssfabm, id_pH
+      type (type_bottom_state_variable_id) :: id_Fsed_frp
+      type (type_dependency_id)          :: id_temp, id_tssext
+      type (type_horizontal_diagnostic_variable_id) :: id_sed_frp
+      type (type_conserved_quantity_id)  :: id_totP
 
 !     Model parameters
       REALTYPE :: Fsed_frp,Ksed_frp,theta_sed_frp      ! Benthic

@@ -71,21 +71,21 @@ MODULE aed_zooplankton
    END TYPE
 
    TYPE,extends(type_zoop_params) :: type_zoop_data
-      _TYPE_STATE_VARIABLE_ID_  :: id_prey(MAX_ZOOP_PREY)
-      _TYPE_STATE_VARIABLE_ID_  :: id_phyIN(MAX_ZOOP_PREY),id_phyIP(MAX_ZOOP_PREY)
+      type (type_state_variable_id)  :: id_prey(MAX_ZOOP_PREY)
+      type (type_state_variable_id)  :: id_phyIN(MAX_ZOOP_PREY),id_phyIP(MAX_ZOOP_PREY)
    END TYPE
 
    TYPE,extends(type_base_model) :: type_aed_zooplankton
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_zoo(MAX_ZOOP_TYPES)
-      _TYPE_STATE_VARIABLE_ID_      :: id_Nexctarget,id_Nmorttarget
-      _TYPE_STATE_VARIABLE_ID_      :: id_Pexctarget,id_Pmorttarget
-      _TYPE_STATE_VARIABLE_ID_      :: id_Cexctarget,id_Cmorttarget
-      _TYPE_STATE_VARIABLE_ID_      :: id_DOupttarget
-      _TYPE_DEPENDENCY_ID_          :: id_tem, id_sal, id_extc
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_grz,id_resp,id_mort
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN,id_totP,id_totC
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totZOO
+      type (type_state_variable_id)      :: id_zoo(MAX_ZOOP_TYPES)
+      type (type_state_variable_id)      :: id_Nexctarget,id_Nmorttarget
+      type (type_state_variable_id)      :: id_Pexctarget,id_Pmorttarget
+      type (type_state_variable_id)      :: id_Cexctarget,id_Cmorttarget
+      type (type_state_variable_id)      :: id_DOupttarget
+      type (type_dependency_id)          :: id_tem, id_sal, id_extc
+      type (type_diagnostic_variable_id) :: id_grz,id_resp,id_mort
+      type (type_conserved_quantity_id)  :: id_totN,id_totP,id_totC
+      type (type_conserved_quantity_id)  :: id_totZOO
 
 
 !     Model parameters

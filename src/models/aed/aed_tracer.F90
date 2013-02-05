@@ -38,8 +38,8 @@ MODULE aed_tracer
 !
    TYPE,extends(type_base_model) :: type_aed_tracer
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_,ALLOCATABLE :: id_ss(:)
-      _TYPE_DEPENDENCY_ID_                 :: id_temp
+      type (type_state_variable_id),ALLOCATABLE :: id_ss(:)
+      type (type_dependency_id)                 :: id_temp
 
 !     Model parameters
       REALTYPE,ALLOCATABLE :: decay(:),settling(:), Fsed(:)

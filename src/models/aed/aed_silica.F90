@@ -30,10 +30,10 @@ MODULE aed_silica
 !
    TYPE,extends(type_base_model) :: type_aed_silica
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_rsi,id_oxy
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_  :: id_Fsed_rsi
-      _TYPE_DEPENDENCY_ID_          :: id_temp
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_rsi
+      type (type_state_variable_id)      :: id_rsi,id_oxy
+      type (type_bottom_state_variable_id)  :: id_Fsed_rsi
+      type (type_dependency_id)          :: id_temp
+      type (type_horizontal_diagnostic_variable_id) :: id_sed_rsi
 
 !     Model parameters
       REALTYPE :: Fsed_rsi,Ksed_rsi,theta_sed_rsi

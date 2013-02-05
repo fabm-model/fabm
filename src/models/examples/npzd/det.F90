@@ -31,9 +31,9 @@
 ! !PUBLIC DERIVED TYPES:
    type type_examples_npzd_det
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_d
-      _TYPE_STATE_VARIABLE_ID_      :: id_mintarget
-      _TYPE_DEPENDENCY_ID_          :: id_temp
+      type (type_state_variable_id)      :: id_d
+      type (type_state_variable_id)      :: id_mintarget
+      type (type_dependency_id)          :: id_temp
 
 !     Model parameters
       REALTYPE :: kc,rdn

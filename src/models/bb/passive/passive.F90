@@ -31,7 +31,7 @@
 ! !PUBLIC DERIVED TYPES:
    type, extends(type_base_model) :: type_bb_passive
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_ :: id_tracer
+      type (type_state_variable_id) :: id_tracer
       REALTYPE                 :: surface_flux
       
       contains

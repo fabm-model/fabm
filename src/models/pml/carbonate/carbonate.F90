@@ -33,12 +33,12 @@ module fabm_pml_carbonate
 ! !PUBLIC DERIVED TYPES:
    type type_pml_carbonate
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_dic, id_alk
-      _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt, id_pres, id_dens
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_wind, id_pco2_surf
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_ph, id_pco2, id_CarbA, id_Bicarb, &
+      type (type_state_variable_id)      :: id_dic, id_alk
+      type (type_dependency_id)          :: id_temp, id_salt, id_pres, id_dens
+      type (type_horizontal_dependency_id)  :: id_wind, id_pco2_surf
+      type (type_diagnostic_variable_id) :: id_ph, id_pco2, id_CarbA, id_Bicarb, &
                                      & id_Carb, id_Om_cal, id_Om_arg, id_alk_diag
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_co2_flux
+      type (type_horizontal_diagnostic_variable_id) :: id_co2_flux
 
 !     Model parameters
       REALTYPE :: TA_offset, TA_slope, pCO2a

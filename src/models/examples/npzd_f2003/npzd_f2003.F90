@@ -41,7 +41,7 @@
    public examples_npzd_f2003_create, type_examples_npzd_f2003
 !
 ! !PRIVATE DATA MEMBERS:
-   REALTYPE, parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.0_rk
 !
 ! !REVISION HISTORY:!
 !  Original author(s): Jorn Bruggeman
@@ -50,16 +50,16 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model) :: type_examples_npzd_f2003
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_n,id_p,id_z,id_d
-      _TYPE_STATE_VARIABLE_ID_      :: id_dic
-      _TYPE_DEPENDENCY_ID_          :: id_par
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_I_0
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
+      type (type_state_variable_id)        :: id_n,id_p,id_z,id_d
+      type (type_state_variable_id)        :: id_dic
+      type (type_dependency_id)            :: id_par
+      type (type_horizontal_dependency_id) :: id_I_0
+      type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
+      type (type_conserved_quantity_id)    :: id_totN
 
 !     Model parameters
-      REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
-      REALTYPE :: dic_per_n
+      real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
+      real(rk) :: dic_per_n
       logical  :: use_dic
 
       contains
@@ -98,28 +98,28 @@
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                  :: n_initial=4.5
-   REALTYPE                  :: p_initial=0.
-   REALTYPE                  :: z_initial=0.
-   REALTYPE                  :: d_initial=4.5
-   REALTYPE                  :: p0=0.0225
-   REALTYPE                  :: z0=0.0225
-   REALTYPE                  :: w_p=-1.157407e-05
-   REALTYPE                  :: w_d=-5.787037e-05
-   REALTYPE                  :: kc=0.03
-   REALTYPE                  :: i_min=25.
-   REALTYPE                  :: rmax=1.157407e-05
-   REALTYPE                  :: gmax=5.787037e-06
-   REALTYPE                  :: iv=1.1
-   REALTYPE                  :: alpha=0.3
-   REALTYPE                  :: rpn=1.157407e-07
-   REALTYPE                  :: rzn=1.157407e-07
-   REALTYPE                  :: rdn=3.472222e-08
-   REALTYPE                  :: rpdu=2.314814e-07
-   REALTYPE                  :: rpdl=1.157407e-06
-   REALTYPE                  :: rzd=2.314814e-07
-   REALTYPE                  :: dic_per_n=106.d0/16.d0
-   character(len=64)         :: dic_variable=''
+   real(rk)                  :: n_initial
+   real(rk)                  :: p_initial
+   real(rk)                  :: z_initial
+   real(rk)                  :: d_initial
+   real(rk)                  :: p0
+   real(rk)                  :: z0
+   real(rk)                  :: w_p
+   real(rk)                  :: w_d
+   real(rk)                  :: kc
+   real(rk)                  :: i_min
+   real(rk)                  :: rmax
+   real(rk)                  :: gmax
+   real(rk)                  :: iv
+   real(rk)                  :: alpha
+   real(rk)                  :: rpn
+   real(rk)                  :: rzn
+   real(rk)                  :: rdn
+   real(rk)                  :: rpdu
+   real(rk)                  :: rpdl
+   real(rk)                  :: rzd
+   real(rk)                  :: dic_per_n
+   character(len=64)         :: dic_variable
 
    namelist /examples_npzd_f2003/ n_initial,p_initial,z_initial,d_initial,   &
                         p0,z0,w_p,w_d,kc,i_min,rmax,gmax,iv,alpha,rpn,  &
@@ -130,6 +130,29 @@
    allocate(self)
    call self%initialize(name,parent)
 
+   n_initial = 4.5_rk
+   p_initial = 0.0_rk
+   z_initial = 0.0_rk
+   d_initial = 4.5_rk
+   p0        = 0.0225_rk
+   z0        = 0.0225_rk
+   w_p       = -1.0_rk
+   w_d       = -5.0_rk
+   kc        = 0.03_rk
+   i_min     = 25.0_rk
+   rmax      = 1.0_rk
+   gmax      = 0.5_rk
+   iv        = 1.1_rk
+   alpha     = 0.3_rk
+   rpn       = 0.01_rk
+   rzn       = 0.01_rk
+   rdn       = 0.003_rk
+   rpdu      = 0.02_rk
+   rpdl      = 0.1_rk
+   rzd       = 0.02_rk
+   dic_per_n = 106.0_rk/16.0_rk  ! Redfield C:N
+   dic_variable = ''
+   
    ! Read the namelist
    read(configunit,nml=examples_npzd_f2003,err=99,end=100)
 
@@ -250,15 +273,15 @@
 ! \end{equation}
 !
 ! !INPUT PARAMETERS:
-   class (type_examples_npzd_f2003),       intent(in) :: self
+   class (type_examples_npzd_f2003),intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,z,d,par,I_0
-   REALTYPE                   :: iopt,rpd,primprod,dn
+   real(rk) :: n,p,z,d,par,I_0
+   real(rk) :: iopt,rpd,primprod,dn
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -297,16 +320,14 @@
 
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
-   if (self%use_dic) then
-      _SET_ODE_(self%id_dic,self%dic_per_n*dn)
-   end if
+   if (self%use_dic) _SET_ODE_(self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
-   _SET_DIAG_(self%id_dPAR,par)
-   _SET_DIAG_(self%id_GPP ,primprod)
-   _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
-   _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
-   _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_dPAR,par)
+   _SET_DIAGNOSTIC_(self%id_GPP ,primprod)
+   _SET_DIAGNOSTIC_(self%id_NCP ,primprod - self%rpn*p)
+   _SET_DIAGNOSTIC_(self%id_PPR ,primprod*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -331,7 +352,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: p,d
+   real(rk) :: p,d
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -368,7 +389,7 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                     :: n,p,z,d
+   real(rk) :: n,p,z,d
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -454,8 +475,8 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   REALTYPE                   :: n,p,z,d,par,I_0
-   REALTYPE                   :: iopt,rpd,dn,primprod
+   real(rk) :: n,p,z,d,par,I_0
+   real(rk) :: iopt,rpd,dn,primprod
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -469,8 +490,8 @@
    _GET_(self%id_d,d) ! detritus
 
    ! Retrieve current environmental conditions.
-   _GET_   (self%id_par,par)  ! local photosynthetically active radiation
-   _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
+   _GET_(self%id_par,par)            ! local photosynthetically active radiation
+   _GET_HORIZONTAL_(self%id_I_0,I_0) ! surface short wave radiation
 
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -502,11 +523,11 @@
    if (self%use_dic) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
-   _SET_DIAG_(self%id_dPAR,par)
-   _SET_DIAG_(self%id_GPP,primprod)
-   _SET_DIAG_(self%id_NCP,primprod-self%rpn*p)
-   _SET_DIAG_(self%id_PPR,primprod*secs_pr_day)
-   _SET_DIAG_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_dPAR,par)
+   _SET_DIAGNOSTIC_(self%id_GPP,primprod)
+   _SET_DIAGNOSTIC_(self%id_NCP,primprod-self%rpn*p)
+   _SET_DIAGNOSTIC_(self%id_PPR,primprod*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -520,7 +541,7 @@
 ! !IROUTINE: Michaelis-Menten formulation for nutrient uptake
 !
 ! !INTERFACE:
-   pure REALTYPE function fnp(self,n,p,par,iopt)
+   pure real(rk) function fnp(self,n,p,par,iopt)
 !
 ! !DESCRIPTION:
 ! Here, the classical Michaelis-Menten formulation for nutrient uptake
@@ -528,7 +549,7 @@
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_f2003), intent(in) :: self
-   REALTYPE, intent(in)         :: n,p,par,iopt
+   real(rk),                         intent(in) :: n,p,par,iopt
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -547,7 +568,7 @@
 ! !IROUTINE: Ivlev formulation for zooplankton grazing on phytoplankton
 !
 ! !INTERFACE:
-   pure REALTYPE function fpz(self,p,z)
+   pure real(rk) function fpz(self,p,z)
 !
 ! !DESCRIPTION:
 ! Here, the classical Ivlev formulation for zooplankton grazing on
@@ -555,7 +576,7 @@
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_f2003), intent(in) :: self
-   REALTYPE, intent(in)         :: p,z
+   real(rk),                         intent(in) :: p,z
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding

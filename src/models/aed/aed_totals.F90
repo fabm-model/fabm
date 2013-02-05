@@ -39,9 +39,9 @@ MODULE aed_totals
 !
    TYPE,extends(type_base_model) :: type_aed_totals
 !     Variable identifiers
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_        :: id_totals_tn, id_totals_tp, id_totals_toc,  &
+      type (type_diagnostic_variable_id)        :: id_totals_tn, id_totals_tp, id_totals_toc,  &
                                               id_totals_tss, id_totals_turbidity
-      _TYPE_STATE_VARIABLE_ID_,ALLOCATABLE :: id_dep_tn(:), id_dep_tp(:), id_dep_toc(:),  &
+      type (type_state_variable_id),ALLOCATABLE :: id_dep_tn(:), id_dep_tp(:), id_dep_toc(:),  &
                                               id_dep_tss(:)
       REALTYPE,ALLOCATABLE                 :: turbidity(:)
 

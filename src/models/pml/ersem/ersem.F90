@@ -40,10 +40,10 @@
 ! !PUBLIC DERIVED TYPES:
    type type_pml_ersem
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_,allocatable      :: id_ccc(:),id_ccb(:)
-      _TYPE_DEPENDENCY_ID_          :: id_EIR,id_ETW,id_x1X,id_EPW
-!      _TYPE_DEPENDENCY_ID_          :: id_Water,id_SeaSurface,id_BoxDepth
-!      _TYPE_DEPENDENCY_ID_          :: id_SeaFloor,id_BoxFaces,id_Bathymetry
+      type (type_state_variable_id),allocatable      :: id_ccc(:),id_ccb(:)
+      type (type_dependency_id)          :: id_EIR,id_ETW,id_x1X,id_EPW
+!      type (type_dependency_id)          :: id_Water,id_SeaSurface,id_BoxDepth
+!      type (type_dependency_id)          :: id_SeaFloor,id_BoxFaces,id_Bathymetry
 
 !     Model parameters
 !      REALTYPE :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd

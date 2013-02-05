@@ -35,9 +35,9 @@
 ! !PUBLIC DERIVED TYPES:
    type type_metu_mnemiopsis
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_ :: id_egb, id_jb, id_ja, id_tb, id_ta, id_adb, id_ada
-      _TYPE_STATE_VARIABLE_ID_ :: id_food, id_foodmic, id_resptarget, id_morttarget
-      _TYPE_DEPENDENCY_ID_     :: id_temp
+      type (type_state_variable_id) :: id_egb, id_jb, id_ja, id_tb, id_ta, id_adb, id_ada
+      type (type_state_variable_id) :: id_food, id_foodmic, id_resptarget, id_morttarget
+      type (type_dependency_id)     :: id_temp
 
 !     Model parameters
       REALTYPE :: food_scale

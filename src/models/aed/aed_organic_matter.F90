@@ -38,23 +38,23 @@ MODULE aed_organic_matter
 !
    TYPE,extends(type_base_model) :: type_aed_organic_matter
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_pon,id_don !particulate and dissolved organic nitrogen
-      _TYPE_STATE_VARIABLE_ID_      :: id_pop,id_dop !particulate and dissolved organic phosphorus
-      _TYPE_STATE_VARIABLE_ID_      :: id_poc,id_doc !particulate and dissolved organic carbon
-      _TYPE_STATE_VARIABLE_ID_      :: id_oxy,id_amm,id_frp,id_dic
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_      :: id_Fsed_pon,id_Fsed_don !sed. rate organic nitrogen
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_      :: id_Fsed_pop,id_Fsed_dop !sed. rate organic phosphorus
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_      :: id_Fsed_poc,id_Fsed_doc !sed. rate organic carbon
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_      :: id_Psed_poc, id_Psed_pon, id_Psed_pop !sedimentation rates
-      _TYPE_DEPENDENCY_ID_          :: id_temp
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_pon_miner, id_don_miner
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_pop_miner, id_dop_miner
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_poc_miner, id_doc_miner
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_pon, id_sed_don
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_pop, id_sed_dop
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_poc, id_sed_doc
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_bod
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN,id_totP,id_totC
+      type (type_state_variable_id)      :: id_pon,id_don !particulate and dissolved organic nitrogen
+      type (type_state_variable_id)      :: id_pop,id_dop !particulate and dissolved organic phosphorus
+      type (type_state_variable_id)      :: id_poc,id_doc !particulate and dissolved organic carbon
+      type (type_state_variable_id)      :: id_oxy,id_amm,id_frp,id_dic
+      type (type_bottom_state_variable_id)      :: id_Fsed_pon,id_Fsed_don !sed. rate organic nitrogen
+      type (type_bottom_state_variable_id)      :: id_Fsed_pop,id_Fsed_dop !sed. rate organic phosphorus
+      type (type_bottom_state_variable_id)      :: id_Fsed_poc,id_Fsed_doc !sed. rate organic carbon
+      type (type_bottom_state_variable_id)      :: id_Psed_poc, id_Psed_pon, id_Psed_pop !sedimentation rates
+      type (type_dependency_id)          :: id_temp
+      type (type_diagnostic_variable_id) :: id_pon_miner, id_don_miner
+      type (type_diagnostic_variable_id) :: id_pop_miner, id_dop_miner
+      type (type_diagnostic_variable_id) :: id_poc_miner, id_doc_miner
+      type (type_horizontal_diagnostic_variable_id) :: id_sed_pon, id_sed_don
+      type (type_horizontal_diagnostic_variable_id) :: id_sed_pop, id_sed_dop
+      type (type_horizontal_diagnostic_variable_id) :: id_sed_poc, id_sed_doc
+      type (type_diagnostic_variable_id) :: id_bod
+      type (type_conserved_quantity_id)  :: id_totN,id_totP,id_totC
 
 !     Model parameters
       REALTYPE :: w_pon,Rpon_miner,Rdon_miner,Fsed_pon,Fsed_don, &

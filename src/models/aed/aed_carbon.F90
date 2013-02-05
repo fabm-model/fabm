@@ -41,14 +41,14 @@ MODULE aed_carbon
 !
    TYPE,extends(type_base_model) :: type_aed_carbon
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_dic, id_pH, id_ch4, id_oxy
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_Fsed_dic
-      _TYPE_DEPENDENCY_ID_          :: id_temp, id_salt
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_  :: id_wind
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_ch4ox
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_sed_dic
-      _TYPE_HORIZONTAL_DIAGNOSTIC_VARIABLE_ID_ :: id_atm_co2_exch
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totC
+      type (type_state_variable_id)      :: id_dic, id_pH, id_ch4, id_oxy
+      type (type_bottom_state_variable_id) :: id_Fsed_dic
+      type (type_dependency_id)          :: id_temp, id_salt
+      type (type_horizontal_dependency_id)  :: id_wind
+      type (type_diagnostic_variable_id) :: id_ch4ox
+      type (type_horizontal_diagnostic_variable_id) :: id_sed_dic
+      type (type_horizontal_diagnostic_variable_id) :: id_atm_co2_exch
+      type (type_conserved_quantity_id)  :: id_totC
 
 !     Model parameters
       REALTYPE :: Fsed_dic,Ksed_dic,theta_sed_dic

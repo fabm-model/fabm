@@ -84,11 +84,11 @@
 ! !PUBLIC_DERIVED_TYPES:
   type type_iow_ergom
 ! Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_        :: id_p1,id_p2,id_p3,id_zo,id_de,id_am,id_ni,id_po,id_o2
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_ :: id_fl
-      _TYPE_DEPENDENCY_ID_            :: id_par,id_temp,id_salt
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_ :: id_I_0,id_wind,id_taub
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_   :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR
+      type (type_state_variable_id)        :: id_p1,id_p2,id_p3,id_zo,id_de,id_am,id_ni,id_po,id_o2
+      type (type_bottom_state_variable_id) :: id_fl
+      type (type_dependency_id)            :: id_par,id_temp,id_salt
+      type (type_horizontal_dependency_id) :: id_I_0,id_wind,id_taub
+      type (type_diagnostic_variable_id)   :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR
 ! Model parameters
       REALTYPE :: sfl_po,sfl_am,sfl_ni,p10,p20,p30,zo0,kc,i_min,r1max,r2max,r3max,alpha1,alpha2,alpha3,lpa,lpd
       REALTYPE :: tf,tbg,beta_bg,g1max,g2max,g3max,lza,lzd,iv,topt,lan,oan,beta_an,lda,tda,beta_da

@@ -49,10 +49,10 @@
 ! !PUBLIC DERIVED TYPES:
    type type_klimacampus_phy_feedback
 !     Variable identifiers
-      _TYPE_STATE_VARIABLE_ID_      :: id_nut,id_phy,id_det
-      _TYPE_DEPENDENCY_ID_          :: id_par,id_temp
-      _TYPE_DIAGNOSTIC_VARIABLE_ID_ :: id_NFIX, id_dPAR
-      _TYPE_CONSERVED_QUANTITY_ID_  :: id_totN
+      type (type_state_variable_id)      :: id_nut,id_phy,id_det
+      type (type_dependency_id)          :: id_par,id_temp
+      type (type_diagnostic_variable_id) :: id_NFIX, id_dPAR
+      type (type_conserved_quantity_id)  :: id_totN
 
 !     Model parameters
       REALTYPE :: muemax_phy,alpha,mortphy,rem, &

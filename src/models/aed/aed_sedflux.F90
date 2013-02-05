@@ -72,13 +72,13 @@ MODULE aed_sedflux
 !
    TYPE,extends(type_base_model) :: type_aed_sedflux
 !     Variable identifiers
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_         :: id_zone
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_     :: id_Fsed_oxy, id_Fsed_rsi, id_Fsed_amm, id_Fsed_nit
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_     :: id_Fsed_frp, id_Fsed_pon, id_Fsed_don
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_     :: id_Fsed_pop, id_Fsed_dop, id_Fsed_poc, id_Fsed_doc
-      _TYPE_BOTTOM_STATE_VARIABLE_ID_     :: id_Fsed_dic, id_Fsed_ch4, id_Fsed_feii
-      _TYPE_HORIZONTAL_DEPENDENCY_ID_         :: id_zones
-!     _TYPE_CONSERVED_QUANTITY_ID_ :: id_tot_sed
+      type (type_horizontal_dependency_id)         :: id_zone
+      type (type_bottom_state_variable_id)     :: id_Fsed_oxy, id_Fsed_rsi, id_Fsed_amm, id_Fsed_nit
+      type (type_bottom_state_variable_id)     :: id_Fsed_frp, id_Fsed_pon, id_Fsed_don
+      type (type_bottom_state_variable_id)     :: id_Fsed_pop, id_Fsed_dop, id_Fsed_poc, id_Fsed_doc
+      type (type_bottom_state_variable_id)     :: id_Fsed_dic, id_Fsed_ch4, id_Fsed_feii
+      type (type_horizontal_dependency_id)         :: id_zones
+!     type (type_conserved_quantity_id) :: id_tot_sed
 
 !     Model parameters
       INTEGER  :: sed_modl, n_zones
