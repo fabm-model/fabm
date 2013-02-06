@@ -13,18 +13,27 @@
 #error Preprocessor variable _FABM_DIMENSION_COUNT_ must be defined.
 #endif
 
+#if (_FABM_DIMENSION_COUNT_<0||_FABM_DIMENSION_COUNT_>3)
+#error Preprocessor variable _FABM_DIMENSION_COUNT_ takes values between 0 and 3 only.
+#endif
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#if (_FABM_DEPTH_DIMENSION_INDEX_<1)||(_FABM_DEPTH_DIMENSION_INDEX_>_FABM_DIMENSION_COUNT_)
+#error Preprocessor variable _FABM_DEPTH_DIMENSION_INDEX_ takes values between 1 and _FABM_DIMENSION_COUNT_ only.
+#endif
+#endif
+
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+#if (_FABM_VECTORIZED_DIMENSION_INDEX_<1)||(_FABM_VECTORIZED_DIMENSION_INDEX_>_FABM_DIMENSION_COUNT_)
+#error Preprocessor variable _FABM_VECTORIZED_DIMENSION_INDEX_ takes values between 1 and _FABM_DIMENSION_COUNT_ only.
+#endif
+#endif
+
 #if _FABM_DIMENSION_COUNT_==0
 
 ! ---------------------
 ! 0D spatial context
 ! ---------------------
-
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#error _FABM_DEPTH_DIMENSION_INDEX_ cannot be set if _FABM_DIMENSION_COUNT_==0
-#endif
-#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-#error _FABM_VECTORIZED_DIMENSION_INDEX_ cannot be set if _FABM_DIMENSION_COUNT_==0
-#endif
 
 #define _LOCATION_
 #define _LOCATION_DIMENSIONS_
@@ -35,13 +44,6 @@
 ! ---------------------
 ! 1D spatial context
 ! ---------------------
-
-#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&(_FABM_DEPTH_DIMENSION_INDEX_!=1)
-#error _FABM_DEPTH_DIMENSION_INDEX_ must be absent [no depth dimension] or 1 if _FABM_DIMENSION_COUNT_==1
-#endif
-#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=1)
-#error _FABM_VECTORIZED_DIMENSION_INDEX_ must be absent [no vectorization] or 1 if _FABM_DIMENSION_COUNT_==1
-#endif
 
 #define _LOCATION_ i__
 #define _LOCATION_DIMENSIONS_ :
@@ -61,13 +63,6 @@
 ! 2D spatial context
 ! ---------------------
 
-#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&(_FABM_DEPTH_DIMENSION_INDEX_!=1)&&(_FABM_DEPTH_DIMENSION_INDEX_!=2)
-#error _FABM_DEPTH_DIMENSION_INDEX_ must be absent [no depth dimension], 1 or 2 if _FABM_DIMENSION_COUNT_==2
-#endif
-#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=1)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=2)
-#error _FABM_VECTORIZED_DIMENSION_INDEX_ must be absent [no vectorization], 1 or 2 if _FABM_DIMENSION_COUNT_==2
-#endif
-
 #define _LOCATION_ i__,j__
 #define _LOCATION_DIMENSIONS_ :,:
 
@@ -80,7 +75,6 @@
 #define _LOCATION_DIMENSIONS_HZ_ :
 #endif
 
-#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
 #if _FABM_VECTORIZED_DIMENSION_INDEX_==1
 #define _VARIABLE_1DLOOP_ i__
 #define _LOCATION_1DLOOP_ j__
@@ -88,20 +82,12 @@
 #define _VARIABLE_1DLOOP_ j__
 #define _LOCATION_1DLOOP_ i__
 #endif
-#endif
 
 #elif _FABM_DIMENSION_COUNT_==3
 
 ! ---------------------
 ! 3D spatial context
 ! ---------------------
-
-#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&(_FABM_DEPTH_DIMENSION_INDEX_!=1)&&(_FABM_DEPTH_DIMENSION_INDEX_!=2)&&(_FABM_DEPTH_DIMENSION_INDEX_!=3)
-#error _FABM_DEPTH_DIMENSION_INDEX_ must be absent [no depth dimension], 1, 2 or 3 if _FABM_DIMENSION_COUNT_==3
-#endif
-#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=1)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=2)&&(_FABM_VECTORIZED_DIMENSION_INDEX_!=3)
-#error _FABM_VECTORIZED_DIMENSION_INDEX_ must be absent [no vectorization], 1, 2 or 3 if _FABM_DIMENSION_COUNT_==3
-#endif
 
 #define _LOCATION_ i__,j__,k__
 #define _LOCATION_DIMENSIONS_ :,:,:
@@ -117,7 +103,6 @@
 #define _LOCATION_DIMENSIONS_HZ_ :,:
 #endif
 
-#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
 #if _FABM_VECTORIZED_DIMENSION_INDEX_==1
 #define _VARIABLE_1DLOOP_ i__
 #define _LOCATION_1DLOOP_ j__,k__
@@ -127,7 +112,6 @@
 #elif _FABM_VECTORIZED_DIMENSION_INDEX_==3
 #define _VARIABLE_1DLOOP_ k__
 #define _LOCATION_1DLOOP_ i__,j__
-#endif
 #endif
 
 #endif
