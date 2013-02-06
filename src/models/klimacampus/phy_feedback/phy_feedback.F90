@@ -212,8 +212,8 @@
   _SET_ODE_(self%id_nut,                                  + self%rem*det   )
 
 !  Export diagnostic variables
-   _SET_DIAG_(self%id_dPAR,par)
-   _SET_DIAG_(self%id_NFIX,mue_phy*phy)
+   _SET_DIAGNOSTIC_(self%id_dPAR,par)
+   _SET_DIAGNOSTIC_(self%id_NFIX,mue_phy*phy)
 
 !  Leave spatial loops (if any)
    _FABM_LOOP_END_

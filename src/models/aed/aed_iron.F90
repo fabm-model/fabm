@@ -246,7 +246,7 @@ SUBROUTINE aed_iron_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !  !_SET_ODE_BEN_(self%id_ben_dic,-dic_flux/secs_pr_day)
 
 !  ! Also store sediment flux as diagnostic variable.
-!  _SET_DIAG_HZ_(self%id_sed_dic,dic_flux)
+!  _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_dic,dic_flux)
 
    ! Leave spatial loops (if any)
    _FABM_HORIZONTAL_LOOP_END_

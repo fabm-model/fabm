@@ -226,8 +226,8 @@ SUBROUTINE aed_nitrogen_do(self,_FABM_ARGS_DO_RHS_)
    !end if
 
    ! Export diagnostic variables
-   _SET_DIAG_(self%id_nitrif, nitrification)
-   _SET_DIAG_(self%id_denit, denitrification)
+   _SET_DIAGNOSTIC_(self%id_nitrif, nitrification)
+   _SET_DIAGNOSTIC_(self%id_denit, denitrification)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -290,8 +290,8 @@ SUBROUTINE aed_nitrogen_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    !end if
 
    ! Export diagnostic variables
-   _SET_DIAG_(self%id_nitrif ,nitrification)
-   _SET_DIAG_(self%id_denit ,denitrification)
+   _SET_DIAGNOSTIC_(self%id_nitrif ,nitrification)
+   _SET_DIAGNOSTIC_(self%id_denit ,denitrification)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_

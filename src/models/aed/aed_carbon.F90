@@ -237,7 +237,7 @@ SUBROUTINE aed_carbon_do(self,_FABM_ARGS_DO_RHS_)
       ENDIF
 
       ! Export diagnostic variables
-      _SET_DIAG_(self%id_ch4ox, ch4oxidation)
+      _SET_DIAGNOSTIC_(self%id_ch4ox, ch4oxidation)
    ENDIF
 
    ! Leave spatial loops (if any)

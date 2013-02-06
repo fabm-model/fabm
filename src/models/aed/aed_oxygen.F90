@@ -314,7 +314,7 @@ SUBROUTINE aed_oxygen_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_
 
    ! Also store oxygen flux across the atm/water interface as diagnostic variable (mmmol/m2).
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_atm_oxy_exch,oxy_atm_flux)
-   _SET_DIAG_(self%id_oxy_sat, Coxy_air)
+   _SET_DIAGNOSTIC_(self%id_oxy_sat, Coxy_air)
 
    ! Leave spatial loops (if any)
    _FABM_HORIZONTAL_LOOP_END_

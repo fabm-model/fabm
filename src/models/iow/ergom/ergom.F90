@@ -565,11 +565,11 @@
   _SET_ODE_(self%id_o2,self%s2*(am/(am+ni)*(r1+r2)+r3)-self%s4*(llan*am)+self%s3*(ni/(am+ni)*(r1+r2))-self%s2*(thopnp+thomnm)*llda*de-self%s2*(self%lpa*(p1+p2+p3)+self%lza*zo*(zo+self%zo0)))
 
 ! Export diagnostic variables
-   _SET_DIAG_(self%id_dPAR,par)
-   _SET_DIAG_(self%id_GPP ,r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30))
-   _SET_DIAG_(self%id_NCP ,r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30) - self%lpa*(p1+p2+p3))
-   _SET_DIAG_(self%id_PPR ,(r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30))*secs_pr_day)
-   _SET_DIAG_(self%id_NPR ,(r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30) - self%lpa*(p1+p2+p3))*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_dPAR,par)
+   _SET_DIAGNOSTIC_(self%id_GPP ,r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30))
+   _SET_DIAGNOSTIC_(self%id_NCP ,r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30) - self%lpa*(p1+p2+p3))
+   _SET_DIAGNOSTIC_(self%id_PPR ,(r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30))*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_NPR ,(r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30) - self%lpa*(p1+p2+p3))*secs_pr_day)
 
 !   Leave spatial loops (if any)
    _FABM_LOOP_END_

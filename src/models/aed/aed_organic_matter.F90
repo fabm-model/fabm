@@ -421,14 +421,14 @@ SUBROUTINE aed_organic_matter_do(self,_FABM_ARGS_DO_RHS_)
    ENDIF
 
    ! Export diagnostic variables
-   _SET_DIAG_(self%id_pon_miner,pon_mineralisation)
-   _SET_DIAG_(self%id_don_miner,don_mineralisation)
-   _SET_DIAG_(self%id_pop_miner,pop_mineralisation)
-   _SET_DIAG_(self%id_dop_miner,dop_mineralisation)
-   _SET_DIAG_(self%id_poc_miner,poc_mineralisation)
-   _SET_DIAG_(self%id_doc_miner,doc_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_pon_miner,pon_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_don_miner,don_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_pop_miner,pop_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_dop_miner,dop_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_poc_miner,poc_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_doc_miner,doc_mineralisation)
 
-   _SET_DIAG_(self%id_bod,poc+doc)
+   _SET_DIAGNOSTIC_(self%id_bod,poc+doc)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -538,14 +538,14 @@ SUBROUTINE aed_organic_matter_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    ENDIF
 #endif
    ! Export diagnostic variables
-   _SET_DIAG_(self%id_pon_miner,pon_mineralisation)
-   _SET_DIAG_(self%id_don_miner,don_mineralisation)
-   _SET_DIAG_(self%id_pop_miner,pop_mineralisation)
-   _SET_DIAG_(self%id_dop_miner,dop_mineralisation)
-   _SET_DIAG_(self%id_poc_miner,poc_mineralisation)
-   _SET_DIAG_(self%id_doc_miner,doc_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_pon_miner,pon_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_don_miner,don_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_pop_miner,pop_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_dop_miner,dop_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_poc_miner,poc_mineralisation)
+   _SET_DIAGNOSTIC_(self%id_doc_miner,doc_mineralisation)
 
-   _SET_DIAG_(self%id_bod,poc+doc)
+   _SET_DIAGNOSTIC_(self%id_bod,poc+doc)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_

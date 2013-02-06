@@ -163,17 +163,17 @@ SUBROUTINE aed_totals_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
    tot = 0.
    count = ubound(self%id_dep_tn,1)
    DO i=1,count ; _GET_(self%id_dep_tn(i),val) ; tot = tot + val ; ENDDO
-   _SET_DIAG_(self%id_totals_tn, tot)
+   _SET_DIAGNOSTIC_(self%id_totals_tn, tot)
 
    tot = 0.
    count = ubound(self%id_dep_tp,1)
    DO i=1,count ; _GET_(self%id_dep_tp(i),val) ; tot = tot + val ; ENDDO
-   _SET_DIAG_(self%id_totals_tp, tot)
+   _SET_DIAGNOSTIC_(self%id_totals_tp, tot)
 
    tot = 0.
    count = ubound(self%id_dep_toc,1)
    DO i=1,count ; _GET_(self%id_dep_toc(i),val) ; tot = tot + val ; ENDDO
-   _SET_DIAG_(self%id_totals_toc, tot)
+   _SET_DIAGNOSTIC_(self%id_totals_toc, tot)
 
    tot = 0.
    tot2 = 0.
@@ -184,8 +184,8 @@ SUBROUTINE aed_totals_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
       tot2 = tot2 + val*(self%turbidity(i))
    ENDDO
 
-   _SET_DIAG_(self%id_totals_tss, tot)
-   _SET_DIAG_(self%id_totals_turbidity, tot2)
+   _SET_DIAGNOSTIC_(self%id_totals_tss, tot)
+   _SET_DIAGNOSTIC_(self%id_totals_turbidity, tot2)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_

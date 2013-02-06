@@ -228,7 +228,7 @@
    enddo
 
    ! Export diagnostic variables
-!   _SET_DIAG_1D_(self%id_dPAR,par)
+!   _SET_DIAGNOSTIC_1D_(self%id_dPAR,par)
    call reset_ersem()
 
 #endif

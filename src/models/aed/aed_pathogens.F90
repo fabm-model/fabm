@@ -298,7 +298,7 @@ SUBROUTINE aed_pathogens_do(self,_FABM_ARGS_DO_RHS_)
 
    !-----------------------------------------------------------------
    ! export diagnostic variables
-   ! _SET_DIAG_(self%id_?? ,??)
+   ! _SET_DIAGNOSTIC_(self%id_?? ,??)
 
 
    ! Leave spatial loops (if any)

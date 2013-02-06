@@ -583,9 +583,9 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
       ENDIF
 
       ! Export diagnostic variables
-     _SET_DIAG_(self%id_grz ,grazing*secs_pr_day)
-     _SET_DIAG_(self%id_resp ,respiration*secs_pr_day)
-     _SET_DIAG_(self%id_mort ,mortality*secs_pr_day)
+     _SET_DIAGNOSTIC_(self%id_grz ,grazing*secs_pr_day)
+     _SET_DIAGNOSTIC_(self%id_resp ,respiration*secs_pr_day)
+     _SET_DIAGNOSTIC_(self%id_mort ,mortality*secs_pr_day)
 
    ENDDO
 
@@ -708,9 +708,9 @@ SUBROUTINE aed_zooplankton_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
       !ENDIF
 
       ! Export diagnostic variables
-     _SET_DIAG_(self%id_grz ,grazing*secs_pr_day)
-     _SET_DIAG_(self%id_resp ,respiration*secs_pr_day)
-     _SET_DIAG_(self%id_mort ,mortality*secs_pr_day)
+     _SET_DIAGNOSTIC_(self%id_grz ,grazing*secs_pr_day)
+     _SET_DIAGNOSTIC_(self%id_resp ,respiration*secs_pr_day)
+     _SET_DIAGNOSTIC_(self%id_mort ,mortality*secs_pr_day)
 
 #endif
    ENDDO

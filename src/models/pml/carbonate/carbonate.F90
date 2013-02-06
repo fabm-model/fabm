@@ -188,14 +188,14 @@ contains
    call CaCO3_Saturation (temp, salt, pres, cb, Om_cal, Om_arg)
 
    ! Store diagnostic variables.
-   _SET_DIAG_(self%id_ph    ,ph)
-   _SET_DIAG_(self%id_pco2  ,PCO2WATER*1.0e6_rk)        ! to ppm
-   _SET_DIAG_(self%id_CarbA ,ca       *1.0e3_rk*dens)   ! from mol/kg to mmol/m**3
-   _SET_DIAG_(self%id_Bicarb,bc       *1.0e3_rk*dens)   ! from mol/kg to mmol/m**3
-   _SET_DIAG_(self%id_Carb  ,cb       *1.0e3_rk*dens)   ! from mol/kg to mmol/m**3
-   _SET_DIAG_(self%id_Om_cal,Om_cal)
-   _SET_DIAG_(self%id_Om_arg,Om_arg)
-   if (self%alk_param) _SET_DIAG_(self%id_alk_diag,TA*dens*1.0e-3_rk)    ! from uEg/kg to mmol/m**3
+   _SET_DIAGNOSTIC_(self%id_ph    ,ph)
+   _SET_DIAGNOSTIC_(self%id_pco2  ,PCO2WATER*1.0e6_rk)        ! to ppm
+   _SET_DIAGNOSTIC_(self%id_CarbA ,ca       *1.0e3_rk*dens)   ! from mol/kg to mmol/m**3
+   _SET_DIAGNOSTIC_(self%id_Bicarb,bc       *1.0e3_rk*dens)   ! from mol/kg to mmol/m**3
+   _SET_DIAGNOSTIC_(self%id_Carb  ,cb       *1.0e3_rk*dens)   ! from mol/kg to mmol/m**3
+   _SET_DIAGNOSTIC_(self%id_Om_cal,Om_cal)
+   _SET_DIAGNOSTIC_(self%id_Om_arg,Om_arg)
+   if (self%alk_param) _SET_DIAGNOSTIC_(self%id_alk_diag,TA*dens*1.0e-3_rk)    ! from uEg/kg to mmol/m**3
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_

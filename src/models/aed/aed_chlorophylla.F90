@@ -211,11 +211,11 @@ SUBROUTINE aed_chla_do(self,_FABM_ARGS_DO_RHS_)
    ENDIF
 
    ! Export diagnostic variables
-   _SET_DIAG_(self%id_dPAR,par)
-   _SET_DIAG_(self%id_GPP ,primprod)
-   _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
-   _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
-   _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_dPAR,par)
+   _SET_DIAGNOSTIC_(self%id_GPP ,primprod)
+   _SET_DIAGNOSTIC_(self%id_NCP ,primprod - self%rpn*p)
+   _SET_DIAGNOSTIC_(self%id_PPR ,primprod*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -340,11 +340,11 @@ SUBROUTINE aed_chla_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    ENDIF
 
    ! Export diagnostic variables
-   _SET_DIAG_(self%id_dPAR,par)
-   _SET_DIAG_(self%id_GPP,primprod)
-   _SET_DIAG_(self%id_NCP,primprod-self%rpn*p)
-   _SET_DIAG_(self%id_PPR,primprod*secs_pr_day)
-   _SET_DIAG_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_dPAR,par)
+   _SET_DIAGNOSTIC_(self%id_GPP,primprod)
+   _SET_DIAGNOSTIC_(self%id_NCP,primprod-self%rpn*p)
+   _SET_DIAGNOSTIC_(self%id_PPR,primprod*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
