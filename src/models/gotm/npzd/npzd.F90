@@ -282,7 +282,7 @@
    _GET_(self%id_d,d) ! detritus
 
    ! Retrieve current environmental conditions.
-   _GET_   (self%id_par,par)  ! local photosynthetically active radiation
+   _GET_(self%id_par,par)             ! local photosynthetically active radiation
    _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
 
    ! Light acclimation formulation based on surface light intensity.

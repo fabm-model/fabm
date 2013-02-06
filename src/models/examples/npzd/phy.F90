@@ -13,6 +13,8 @@
 ! !USES:
    use fabm_types
    use fabm_driver
+   
+   implicit none
 
 !  default: all is private.
    private
@@ -21,8 +23,8 @@
    public type_examples_npzd_phy, &
           examples_npzd_phy_init, &
           examples_npzd_phy_do,   &
-          aed_p_do_ppdd, &
-          aed_p_get_light_extinction, &
+          examples_npzd_phy_do_ppdd, &
+          examples_npzd_phy_get_light_extinction, &
           examples_npzd_phy_get_conserved_quantities
 !
 ! !PRIVATE DATA MEMBERS:
@@ -60,42 +62,51 @@
    subroutine examples_npzd_phy_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
-!  Here, the npzd namelist is read and te variables exported
+!  Here, the examples_npzd_phy namelist is read and variables exported
 !  by the model are registered with FABM.
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_phy), intent(out)   :: self
    _CLASS_ (type_model_info),     intent(inout) :: modelinfo
    integer,                       intent(in)    :: namlst
 !
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard & Karsten Bolding
-!
 ! !LOCAL VARIABLES:
-   real(rk)                  :: p_initial=0.
-   real(rk)                  :: p0=0.0225
-   real(rk)                  :: w_p=-1.157407e-05
-   real(rk)                  :: i_min=25.
-   real(rk)                  :: rmax=1.157407e-05
-   real(rk)                  :: alpha=0.3
-   real(rk)                  :: rpn=1.157407e-07
-   real(rk)                  :: rpdu=2.314814e-07
-   real(rk)                  :: rpdl=1.157407e-06
-   character(len=64)         :: excretion_target_variable=''
-   character(len=64)         :: mortality_target_variable=''
-   character(len=64)         :: uptake_target_variable=''
+   real(rk)                  :: p_initial
+   real(rk)                  :: p0
+   real(rk)                  :: w_p
+   real(rk)                  :: kc
+   real(rk)                  :: i_min
+   real(rk)                  :: rmax
+   real(rk)                  :: alpha
+   real(rk)                  :: rpn
+   real(rk)                  :: rpdu
+   real(rk)                  :: rpdl
+   character(len=64)         :: excretion_target_variable
+   character(len=64)         :: mortality_target_variable
+   character(len=64)         :: uptake_target_variable
 
-   real(rk), parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.0_rk
    namelist /examples_npzd_phy/ &
-             p_initial,p0,w_p,i_min,rmax,alpha,rpn,rpdu,rpdl,     &
+             p_initial,p0,w_p,kc,i_min,rmax,alpha,rpn,rpdu,rpdl,     &
              excretion_target_variable,mortality_target_variable, &
              uptake_target_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   p_initial = 0.0_rk
+   p0        = 0.0225_rk
+   w_p       = -1.0_rk
+   kc        = 0.03_rk
+   i_min     = 25.0_rk
+   rmax      = 1.0_rk
+   alpha     = 0.3_rk
+   rpn       = 0.01_rk
+   rpdu      = 0.02_rk
+   rpdl      = 0.1_rk
+   excretion_target_variable = ''
+   mortality_target_variable = ''
+   uptake_target_variable    = ''
+
    ! Read the namelist
    read(namlst,nml=examples_npzd_phy,err=99)
 
@@ -103,25 +114,25 @@
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
    self%p0    = p0
+   self%kc    = kc
    self%i_min = i_min
    self%rmax  = rmax/secs_pr_day
    self%alpha = alpha
-   self%rpn  = rpn /secs_pr_day
-   self%rpdu = rpdu/secs_pr_day
-   self%rpdl = rpdl/secs_pr_day
+   self%rpn   = rpn /secs_pr_day
+   self%rpdu  = rpdu/secs_pr_day
+   self%rpdl  = rpdl/secs_pr_day
 
    ! Register state variables
    call register_state_variable(modelinfo,self%id_p,'phy','mmol/m**3','phytoplankton', &
-                                    p_initial,minimum=_ZERO_,vertical_movement=w_p/secs_pr_day)
+                                p_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   self%do_exc = excretion_target_variable.ne.''
+   self%do_exc = excretion_target_variable/=''
    if (self%do_exc) call register_state_dependency(modelinfo,self%id_exctarget,excretion_target_variable)
-   self%do_mort = mortality_target_variable.ne.''
+   self%do_mort = mortality_target_variable/=''
    if (self%do_mort) call register_state_dependency(modelinfo,self%id_morttarget,mortality_target_variable)
-   self%do_upt = uptake_target_variable.ne.''
+   self%do_upt = uptake_target_variable/=''
    if (self%do_upt) call register_state_dependency(modelinfo,self%id_upttarget,uptake_target_variable)
-
 
    ! Register diagnostic variables
    call register_diagnostic_variable(modelinfo,self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
@@ -144,7 +155,7 @@
 
    return
 
-99 call fatal_error('fabm_examples_npzd_phy','Error reading namelist npzd')
+99 call fatal_error('fabm_examples_npzd_phy','Error reading namelist examples_npzd_phy')
 
    end subroutine examples_npzd_phy_init
 !EOC
@@ -155,19 +166,11 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine examples_npzd_phy_do(self,_FABM_ARGS_DO_RHS_)
-!
-! !DESCRIPTION:
-!
-! !USES:
-   implicit none
+   pure subroutine examples_npzd_phy_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_phy), intent(in)     :: self
    _DECLARE_FABM_ARGS_DO_RHS_
-!
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: n,p,par,I_0
@@ -180,11 +183,11 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_p,p)         ! phytoplankton
    _GET_(self%id_upttarget,n) ! nutrients
 
    ! Retrieve current environmental conditions.
-   _GET_   (self%id_par,par)  ! local photosynthetically active radiation
+   _GET_(self%id_par,par)             ! local photosynthetically active radiation
    _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
 
    ! Light acclimation formulation based on surface light intensity.
@@ -234,14 +237,11 @@
 ! variables
 !
 ! !INTERFACE:
-   pure subroutine aed_p_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   pure subroutine examples_npzd_phy_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_phy), intent(in)     :: self
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
    real(rk)                     :: p
@@ -256,12 +256,12 @@
    _GET_(self%id_p,p) ! phytoplankton
 
    ! Self-shading with explicit contribution from background phytoplankton concentration.
-   _SET_EXTINCTION_(0.0*p)
+   _SET_EXTINCTION_(self%kc*(self%p0+p))
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine aed_p_get_light_extinction
+   end subroutine examples_npzd_phy_get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -275,9 +275,6 @@
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_phy), intent(in)     :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
    real(rk)                     :: p
@@ -306,12 +303,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine aed_p_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
-!
-! !DESCRIPTION:
-!
-! !USES:
-   implicit none
+   pure subroutine examples_npzd_phy_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_phy), intent(in)     :: self
@@ -331,11 +323,11 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_(self%id_p,p) ! phytoplankton
+   _GET_(self%id_p,p)         ! phytoplankton
    _GET_(self%id_upttarget,n) ! nutrients
 
    ! Retrieve current environmental conditions.
-   _GET_   (self%id_par,par)  ! local photosynthetically active radiation
+   _GET_(self%id_par,par)     ! local photosynthetically active radiation
 
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -387,7 +379,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine aed_p_do_ppdd
+   end subroutine examples_npzd_phy_do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -402,9 +394,6 @@
 ! Here, the classical Michaelis-Menten formulation for nutrient uptake
 ! is formulated.
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_phy), intent(in)     :: self
    real(rk), intent(in)         :: n,p,par,iopt
@@ -415,7 +404,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   fnp = self%rmax*par/iopt*exp(_ONE_-par/iopt)*n/(self%alpha+n)*(p+self%p0)
+   fnp = self%rmax*par/iopt*exp(1.0_rk-par/iopt)*n/(self%alpha+n)*(p+self%p0)
 
    end function fnp
 !EOC

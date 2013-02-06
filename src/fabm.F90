@@ -2020,6 +2020,8 @@ interface fabm_link_data
 #endif
          case (gotm_npzd_id)
             call gotm_npzd_get_light_extinction(model%gotm_npzd,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
+         case (examples_npzd_phy_id)
+            call examples_npzd_phy_get_light_extinction(model%examples_npzd_phy,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          case (gotm_fasham_id)
             call gotm_fasham_get_light_extinction(model%gotm_fasham,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          case (iow_ergom_id)

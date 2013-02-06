@@ -12,6 +12,8 @@
 ! !USES:
    use fabm_types
    use fabm_driver
+   
+   implicit none
 
 !  default: all is private.
    private
@@ -20,20 +22,14 @@
    public type_examples_npzd_det, &
           examples_npzd_det_init, &
           examples_npzd_det_do,   &
-          aed_d_do_ppdd, &
-          aed_d_get_light_extinction, aed_d_get_conserved_quantities
-!
-! !PRIVATE DATA MEMBERS:
-!
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
+          examples_npzd_det_do_ppdd, &
+          examples_npzd_det_get_conserved_quantities
 !
 ! !PUBLIC DERIVED TYPES:
    type type_examples_npzd_det
 !     Variable identifiers
-      type (type_state_variable_id)      :: id_d
-      type (type_state_variable_id)      :: id_mintarget
-      type (type_dependency_id)          :: id_temp
+      type (type_state_variable_id) :: id_d
+      type (type_state_variable_id) :: id_mintarget
 
 !     Model parameters
       real(rk) :: kc,rdn
@@ -56,59 +52,52 @@
    subroutine examples_npzd_det_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
-!  Here, the npzd namelist is read and te variables exported
+!  Here, the examples_npzd_det namelist is read and variables exported
 !  by the model are registered with FABM.
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_det), intent(out)   :: self
    _CLASS_ (type_model_info),     intent(inout) :: modelinfo
    integer,                       intent(in)    :: namlst
 !
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard & Karsten Bolding
-!
 ! !LOCAL VARIABLES:
-   real(rk)                  :: d_initial=4.5
-   real(rk)                  :: w_d=-5.787037e-05
-   real(rk)                  :: rdn=3.472222e-08
-   real(rk)                  :: kc=0.03
-   character(len=64)         :: mineralisation_target_variable=''
+   real(rk)                  :: d_initial
+   real(rk)                  :: w_d
+   real(rk)                  :: rdn
+   real(rk)                  :: kc
+   character(len=64)         :: mineralisation_target_variable
 
-   real(rk), parameter :: secs_pr_day = 86400.
-   namelist /examples_npzd_det/ &
-            d_initial, w_d, rdn, kc, mineralisation_target_variable
+   real(rk), parameter :: secs_pr_day = 86400.0_rk
+   namelist /examples_npzd_det/ d_initial, w_d, rdn, kc, mineralisation_target_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   d_initial = 4.5_rk
+   w_d       = -5.0_rk
+   kc        = 0.03_rk
+   rdn       = 0.003_rk
+   mineralisation_target_variable = ''
+
    ! Read the namelist
    read(namlst,nml=examples_npzd_det,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   self%rdn  = rdn /secs_pr_day
+   self%rdn = rdn/secs_pr_day
 
    ! Register state variables
-   call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus', &
-                                    d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day)
+   call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus',               &
+                                    d_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day, &
+                                    specific_light_extinction=kc)
 
    ! Register external state variable dependencies
-   self%do_min = mineralisation_target_variable .ne. ''
+   self%do_min = mineralisation_target_variable/=''
    if (self%do_min) call register_state_dependency(modelinfo,self%id_mintarget,mineralisation_target_variable)
-
-   ! Register diagnostic variables
-
-   ! Register conserved quantities
-
-   ! Register environmental dependencies
-   call register_dependency(modelinfo, self%id_temp, varname_temp)
 
    return
 
-99 call fatal_error('examples_npzd_det_init','Error reading namelist npzd')
+99 call fatal_error('examples_npzd_det_init','Error reading namelist examples_npzd_det')
 
    end subroutine examples_npzd_det_init
 !EOC
@@ -121,22 +110,12 @@
 ! !INTERFACE:
    subroutine examples_npzd_det_do(self,_FABM_ARGS_DO_RHS_)
 !
-! !DESCRIPTION:
-!
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_det), intent(in)     :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard, Karsten Bolding
-!
 ! !LOCAL VARIABLES:
-   real(rk)                   :: d,temp
-   real(rk)                   :: rpd
-   real(rk), parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: d
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -146,19 +125,13 @@
    ! Retrieve current (local) state variable values.
    _GET_(self%id_d,d) ! detritus
 
-   ! Retrieve current environmental conditions.
-   _GET_(self%id_temp,temp)  ! temperature
-
    ! Set temporal derivatives
    _SET_ODE_(self%id_d,-self%rdn*d)
-
 
    ! If an externally maintained NUT pool is present, add mineralisation to it
    if (self%do_min) then
      _SET_ODE_(self%id_mintarget, self%rdn*d)
    end if
-
-   ! Export diagnostic variables
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -169,55 +142,15 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Get the light extinction coefficient due to biogeochemical
-! variables
-!
-! !INTERFACE:
-   pure subroutine aed_d_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
-!
-! !INPUT PARAMETERS:
-   type (type_examples_npzd_det), intent(in)     :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   real(rk)                     :: d
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_d,d) ! detritus
-
-   ! Self-shading with explicit contribution from background phytoplankton concentration.
-   _SET_EXTINCTION_(self%kc*d)
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-   end subroutine aed_d_get_light_extinction
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   pure subroutine aed_d_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   pure subroutine examples_npzd_det_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_det), intent(in)     :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
    real(rk)                     :: d
 !
@@ -233,7 +166,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine aed_d_get_conserved_quantities
+   end subroutine examples_npzd_det_get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------
@@ -242,22 +175,14 @@
 ! !IROUTINE: Right hand sides of Detritus model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine aed_d_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
-!
-! !DESCRIPTION:
-!
-! !USES:
-   implicit none
+   subroutine examples_npzd_det_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_det), intent(in)     :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard, Karsten Bolding
-!
 ! !LOCAL VARIABLES:
-   real(rk)                   :: d,temp
+   real(rk)                   :: d
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -266,9 +191,6 @@
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_d,d) ! detritus
-
-   ! Retrieve current environmental conditions.
-   _GET_(self%id_temp,temp)
 
    ! Assign destruction rates to different elements of the destruction matrix.
    ! By assigning with _SET_DD_SYM_ [as opposed to _SET_DD_], assignments to dd(i,j)
@@ -280,12 +202,10 @@
    ! the change in nutrients (assuming constant C:N ratio)
    if (self%do_min) _SET_PP_(self%id_mintarget,self%id_mintarget,self%rdn*d)
 
-   ! Export diagnostic variables
-
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine aed_d_do_ppdd
+   end subroutine examples_npzd_det_do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------

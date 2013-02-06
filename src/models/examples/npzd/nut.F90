@@ -44,8 +44,6 @@
    type type_examples_npzd_nut
 !     Variable identifiers
       type (type_state_variable_id)      :: id_n
-
-!     Model parameters
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -61,7 +59,7 @@
    subroutine examples_npzd_nut_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
-!  Here, the npzd namelist is read and te variables exported
+!  Here, the examples_npzd_nut namelist is read and te variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
@@ -69,22 +67,20 @@
    _CLASS_ (type_model_info),     intent(inout) :: modelinfo
    integer,                       intent(in)    :: namlst
 !
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard & Karsten Bolding
-!
 ! !LOCAL VARIABLES:
-   real(rk)                  :: n_initial=4.5
-   real(rk), parameter       :: secs_pr_day=86400.
+   real(rk)                  :: n_initial
    namelist /examples_npzd_nut/ n_initial
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   n_initial = 4.5_rk
+
    ! Read the namelist
    read(namlst,nml=examples_npzd_nut,err=99)
 
    ! Register state variables
    call register_state_variable(modelinfo,self%id_n,'nut','mmol/m**3','nutrients',     &
-                                    n_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    n_initial,minimum=0.0_rk,no_river_dilution=.true.)
 
    return
 

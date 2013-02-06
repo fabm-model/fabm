@@ -12,6 +12,8 @@
 ! !USES:
    use fabm_types
    use fabm_driver
+   
+   implicit none
 
 !  default: all is private.
    private
@@ -20,20 +22,14 @@
    public type_examples_npzd_zoo, &
           examples_npzd_zoo_init, &
           examples_npzd_zoo_do,   &
-          aed_z_do_ppdd, &
-          aed_z_get_light_extinction, aed_z_get_conserved_quantities
-!
-! !PRIVATE DATA MEMBERS:
-!
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
+          examples_npzd_zoo_do_ppdd, &
+          examples_npzd_zoo_get_conserved_quantities
 !
 ! !PUBLIC DERIVED TYPES:
    type type_examples_npzd_zoo
 !     Variable identifiers
       type (type_state_variable_id)      :: id_z
       type (type_state_variable_id)      :: id_exctarget,id_morttarget,id_grztarget
-      type (type_dependency_id)          :: id_temp
 
 !     Model parameters
       real(rk) :: z0,gmax,iv,rzn,rzd
@@ -53,71 +49,69 @@
    subroutine examples_npzd_zoo_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
-!  Here, the npzd namelist is read and te variables exported
+!  Here, the examples_npzd_zoo namelist is read and te variables exported
 !  by the model are registered with FABM.
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_zoo), intent(out)   :: self
    _CLASS_ (type_model_info),     intent(inout) :: modelinfo
    integer,                       intent(in)    :: namlst
 !
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard & Karsten Bolding
-!
 ! !LOCAL VARIABLES:
-   real(rk)                  :: z_initial=0.
-   real(rk)                  :: z0=0.0225
-   real(rk)                  :: gmax=5.787037e-06
-   real(rk)                  :: iv=1.1
-   real(rk)                  :: rzn=1.157407e-07
-   real(rk)                  :: rzd=2.314814e-07
-   character(len=64)         :: excretion_target_variable=''
-   character(len=64)         :: mortality_target_variable=''
-   character(len=64)         :: grazing_target_variable=''
+   real(rk)                  :: z_initial
+   real(rk)                  :: z0
+   real(rk)                  :: gmax
+   real(rk)                  :: iv
+   real(rk)                  :: rzn
+   real(rk)                  :: rzd
+   character(len=64)         :: excretion_target_variable
+   character(len=64)         :: mortality_target_variable
+   character(len=64)         :: grazing_target_variable
 
-   real(rk), parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.0_rk
    namelist /examples_npzd_zoo/ &
             z_initial,z0,gmax,iv,rzn,rzd,excretion_target_variable, &
             mortality_target_variable,grazing_target_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   z_initial = 0.0_rk
+   z0        = 0.0225_rk
+   gmax      = 0.5_rk
+   iv        = 1.1_rk
+   rzn       = 0.01_rk
+   rzd       = 0.02_rk
+   excretion_target_variable = ''
+   mortality_target_variable = ''
+   grazing_target_variable   = ''
+
    ! Read the namelist
    read(namlst,nml=examples_npzd_zoo,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   self%z0    = z0
-   self%gmax  = gmax/secs_pr_day
-   self%iv    = iv
+   self%z0   = z0
+   self%gmax = gmax/secs_pr_day
+   self%iv   = iv
    self%rzn  = rzn /secs_pr_day
    self%rzd  = rzd /secs_pr_day
 
    ! Register state variables
    call register_state_variable(modelinfo,self%id_z,'zoo','mmol/m**3','zooplankton', &
-                                    z_initial,minimum=_ZERO_)
+                                z_initial,minimum=0.0_rk)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   self%do_exc = excretion_target_variable.ne.''
+   self%do_exc = excretion_target_variable/=''
    if (self%do_exc) call register_state_dependency(modelinfo,self%id_exctarget,excretion_target_variable)
-   self%do_mort = mortality_target_variable.ne.''
+   self%do_mort = mortality_target_variable/=''
    if (self%do_mort) call register_state_dependency(modelinfo,self%id_morttarget,mortality_target_variable)
-   self%do_grz = grazing_target_variable.ne.''
+   self%do_grz = grazing_target_variable/=''
    if (self%do_grz) call register_state_dependency(modelinfo,self%id_grztarget,grazing_target_variable)
-   ! Register diagnostic variables
-
-   ! Register conserved quantities
-
-   ! Register environmental dependencies
-   call register_dependency(modelinfo,self%id_temp,varname_temp)
 
    return
 
-99 call fatal_error('examples_npzd_zoo_init','Error reading namelist aed_z')
+99 call fatal_error('examples_npzd_zoo_init','Error reading namelist examples_npzd_zoo')
 
    end subroutine examples_npzd_zoo_init
 !EOC
@@ -128,23 +122,14 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine examples_npzd_zoo_do(self,_FABM_ARGS_DO_RHS_)
-!
-! !DESCRIPTION:
-!
-! !USES:
-   implicit none
+   pure subroutine examples_npzd_zoo_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_zoo), intent(in)     :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard, Karsten Bolding
-!
 ! !LOCAL VARIABLES:
-   real(rk)                   :: p,z,temp
-   real(rk), parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: p,z
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -152,14 +137,8 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_(self%id_z,z) ! zooplankton
+   _GET_(self%id_z,z)         ! zooplankton
    _GET_(self%id_grztarget,p) ! phytoplankton
-
-   ! Retrieve current environmental conditions.
-   _GET_   (self%id_temp,temp)  ! local photosynthetically active radiation
-
-   ! Loss rate of zooplankton to detritus depends on mortality
-
 
    ! Set temporal derivatives
     _SET_ODE_(self%id_z,fpz(self,p,z) - self%rzn*z - self%rzd*z)
@@ -176,8 +155,6 @@
       _SET_ODE_(self%id_exctarget,self%rzn*z)
    end if
 
-   ! Export diagnostic variables
-
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
@@ -187,50 +164,14 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Get the light extinction coefficient due to biogeochemical
-! variables
-!
-! !INTERFACE:
-   pure subroutine aed_z_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
-!
-! !INPUT PARAMETERS:
-   type (type_examples_npzd_zoo), intent(in)     :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   real(rk)                     :: p,d
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-   end subroutine aed_z_get_light_extinction
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   pure subroutine aed_z_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   pure subroutine examples_npzd_zoo_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_zoo), intent(in)     :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
    real(rk)                     :: n,p,z,d
@@ -250,7 +191,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine aed_z_get_conserved_quantities
+   end subroutine examples_npzd_zoo_get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------
@@ -259,24 +200,14 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine aed_z_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
-!
-! !DESCRIPTION:
-!
-! !USES:
-   implicit none
+   pure subroutine examples_npzd_zoo_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !
 ! !INPUT PARAMETERS:
    type (type_examples_npzd_zoo), intent(in)     :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard, Karsten Bolding
-!
 ! !LOCAL VARIABLES:
-   real(rk)                   :: p,z,temp
-   real(rk)                   :: iopt,rpd,dn,primprod
-   real(rk), parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: p,z
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -284,11 +215,8 @@
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_(self%id_z,z) ! zooplankton
-
-   ! Retrieve current environmental conditions.
-   _GET_   (self%id_temp,temp)  ! local photosynthetically active radiation
-
+   _GET_(self%id_z,z)         ! zooplankton
+   _GET_(self%id_grztarget,p) ! phytoplankton
 
    ! Assign destruction rates to different elements of the destruction matrix.
    ! By assigning with _SET_DD_SYM_ [as opposed to _SET_DD_], assignments to dd(i,j)
@@ -318,16 +246,11 @@
       _SET_PP_(self%id_exctarget,self%id_grztarget,self%rzn*z)
    end if
 
-
-   ! Export diagnostic variables
-
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine aed_z_do_ppdd
+   end subroutine examples_npzd_zoo_do_ppdd
 !EOC
-
-
 
 !-----------------------------------------------------------------------
 !BOP
@@ -341,12 +264,9 @@
 ! Here, the classical Ivlev formulation for zooplankton grazing on
 ! phytoplankton is formulated.
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_zoo), intent(in)     :: self
-   real(rk), intent(in)          :: p,z
+   type (type_examples_npzd_zoo), intent(in) :: self
+   real(rk),                      intent(in) :: p,z
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
