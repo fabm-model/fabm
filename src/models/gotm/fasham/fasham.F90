@@ -42,6 +42,8 @@
 ! !USES:
    use fabm_types
    use fabm_driver
+   
+   implicit none
 
 !  default: all is private.
    private
@@ -49,12 +51,6 @@
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_gotm_fasham, gotm_fasham_init, gotm_fasham_do, gotm_fasham_do_ppdd, &
           gotm_fasham_get_light_extinction, gotm_fasham_get_conserved_quantities
-!
-! !PRIVATE DATA MEMBERS:
-!
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
-!
 !
 ! !PUBLIC DERIVED TYPES:
    type type_gotm_fasham
@@ -106,58 +102,52 @@
    subroutine gotm_fasham_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
-!  Here, the fasham namelist is read and te variables exported
+!  Here, the gotm_fasham namelist is read and the variables exported
 !  by the model are registered with FABM.
-!
-! !USES:
-   implicit none
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_fasham),   intent(out)   :: self
    _CLASS_ (type_model_info), intent(inout) :: modelinfo
    integer,                   intent(in)    :: namlst
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
-   real(rk)                  ::  p_initial= 0.056666666
-   real(rk)                  ::  z_initial= 0.05
-   real(rk)                  ::  b_initial= 0.001
-   real(rk)                  ::  d_initial= 0.416666666
-   real(rk)                  ::  n_initial= 8.3
-   real(rk)                  ::  a_initial= 0.22
-   real(rk)                  ::  l_initial= 0.14
-   real(rk)                  ::  p0       = 0.0
-   real(rk)                  ::  z0       = 0.0
-   real(rk)                  ::  b0       = 0.0
-   real(rk)                  ::  kc       = 0.03
-   real(rk)                  ::  vp       = 1.5
-   real(rk)                  ::  alpha    = 0.065
-   real(rk)                  ::  k1       = 0.2
-   real(rk)                  ::  k2       = 0.8
-   real(rk)                  ::  mu1      = 0.05
-   real(rk)                  ::  k5       = 0.2
-   real(rk)                  ::  gamma    = 0.05
-   real(rk)                  ::  w_p      = -1.0
-   real(rk)                  ::  gmax     = 1.0
-   real(rk)                  ::  k3       = 1.0
-   real(rk)                  ::  beta     = 0.625
-   real(rk)                  ::  mu2      = 0.3
-   real(rk)                  ::  k6       = 0.2
-   real(rk)                  ::  delta    = 0.1
-   real(rk)                  ::  epsi     = 0.70
-   real(rk)                  ::  r1       = 0.55
-   real(rk)                  ::  r2       = 0.4
-   real(rk)                  ::  r3       = 0.05
-   real(rk)                  ::  vb       = 1.2
-   real(rk)                  ::  k4       = 0.5
-   real(rk)                  ::  mu3      = 0.15
-   real(rk)                  ::  eta      = 0.0
-   real(rk)                  ::  mu4      = 0.02
-   real(rk)                  ::  w_d      = -2.0
+   real(rk) ::  p_initial
+   real(rk) ::  z_initial
+   real(rk) ::  b_initial
+   real(rk) ::  d_initial
+   real(rk) ::  n_initial
+   real(rk) ::  a_initial
+   real(rk) ::  l_initial
+   real(rk) ::  p0
+   real(rk) ::  z0
+   real(rk) ::  b0
+   real(rk) ::  kc
+   real(rk) ::  vp
+   real(rk) ::  alpha
+   real(rk) ::  k1
+   real(rk) ::  k2
+   real(rk) ::  mu1
+   real(rk) ::  k5
+   real(rk) ::  gamma
+   real(rk) ::  w_p
+   real(rk) ::  gmax
+   real(rk) ::  k3
+   real(rk) ::  beta
+   real(rk) ::  mu2
+   real(rk) ::  k6
+   real(rk) ::  delta
+   real(rk) ::  epsi
+   real(rk) ::  r1
+   real(rk) ::  r2
+   real(rk) ::  r3
+   real(rk) ::  vb
+   real(rk) ::  k4
+   real(rk) ::  mu3
+   real(rk) ::  eta
+   real(rk) ::  mu4
+   real(rk) ::  w_d
 
-   real(rk), parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.0_rk
    namelist /gotm_fasham/ p_initial,z_initial,b_initial,d_initial,n_initial,&
                           a_initial,l_initial,p0,z0,b0,vp,alpha,k1,k2,mu1,k5,&
                           gamma,w_p,gmax,k3,beta,mu2,k6,delta,epsi,r1,r2,r3, &
@@ -165,6 +155,42 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   p_initial = 0.056666666_rk
+   z_initial = 0.05_rk
+   b_initial = 0.001_rk
+   d_initial = 0.416666666_rk
+   n_initial = 8.3_rk
+   a_initial = 0.22_rk
+   l_initial = 0.14_rk
+   p0        = 0.0_rk
+   z0        = 0.0_rk
+   b0        = 0.0_rk
+   kc        = 0.03_rk
+   vp        = 1.5_rk
+   alpha     = 0.065_rk
+   k1        = 0.2_rk
+   k2        = 0.8_rk
+   mu1       = 0.05_rk
+   k5        = 0.2_rk
+   gamma     = 0.05_rk
+   w_p       = -1.0_rk
+   gmax      = 1.0_rk
+   k3        = 1.0_rk
+   beta      = 0.625_rk
+   mu2       = 0.3_rk
+   k6        = 0.2_rk
+   delta     = 0.1_rk
+   epsi      = 0.70_rk
+   r1        = 0.55_rk
+   r2        = 0.4_rk
+   r3        = 0.05_rk
+   vb        = 1.2_rk
+   k4        = 0.5_rk
+   mu3       = 0.15_rk
+   eta       = 0.0_rk
+   mu4       = 0.02_rk
+   w_d       = -2.0_rk
+
    ! Read the namelist
    read(namlst,nml=gotm_fasham,err=99,end=100)
 
@@ -211,19 +237,19 @@
    
    ! Register state variables
    call register_state_variable(modelinfo,self%id_p,'phy','mmol/m**3','phytoplankton',     &
-                                    p_initial,minimum=_ZERO_,vertical_movement=w_p)
+                                    p_initial,minimum=0.0_rk,vertical_movement=w_p)
    call register_state_variable(modelinfo,self%id_z,'zoo','mmol/m**3','zooplankton',     &
-                                    z_initial,minimum=_ZERO_)
+                                    z_initial,minimum=0.0_rk)
    call register_state_variable(modelinfo,self%id_b,'bac','mmol/m**3','bacteria',     &
-                                    b_initial,minimum=_ZERO_)
+                                    b_initial,minimum=0.0_rk)
    call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus',     &
-                                    d_initial,minimum=_ZERO_,vertical_movement=w_d)
+                                    d_initial,minimum=0.0_rk,vertical_movement=w_d)
    call register_state_variable(modelinfo,self%id_n,'nit','mmol/m**3','nitrate',     &
-                                    n_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    n_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call register_state_variable(modelinfo,self%id_a,'amm','mmol/m**3','ammonium',     &
-                                    a_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    a_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call register_state_variable(modelinfo,self%id_l,'ldn','mmol/m**3','labile dissolved organic nitrogen',     &
-                                    l_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    l_initial,minimum=0.0_rk,no_river_dilution=.true.)
 
    ! Register diagnostic variables
    call register_diagnostic_variable(modelinfo,self%id_pp,'pp','/d','specific primary production')
@@ -324,20 +350,14 @@
 ! d_{7,2} = V_b \frac{c_7}{K_4+\min(c_6,\eta c_7)+c_7} (c_2+c_{2}^{\min}).
 ! \end{equation}
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_gotm_fasham),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
-   real(rk)                   :: p,z,b,d,n,a,l,par
-   real(rk)                   :: ff,fac,min67
-   real(rk), parameter :: secs_pr_day = 86400.
+   real(rk)            :: p,z,b,d,n,a,l,par
+   real(rk)            :: ff,fac,min67
+   real(rk), parameter :: secs_pr_day = 86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -358,8 +378,8 @@
 
    ! Calculate intermediate quantities that will be used multiple times.
    ff= self%vp*self%alpha*par/sqrt(self%vp**2+self%alpha**2*par**2)
-   if (p.eq._ZERO_ .and. b.eq._ZERO_ .and. d.eq._ZERO_) then
-      fac = _ZERO_
+   if (p.eq.0.0_rk .and. b.eq.0.0_rk .and. d.eq.0.0_rk) then
+      fac = 0.0_rk
    else
      fac=(z+self%z0)/(self%k3*(self%r1*p+self%r2*b+self%r3*d)+  &
                       self%r1*p**2+self%r2*b**2+self%r3*d**2)
@@ -369,24 +389,24 @@
    ! Set production & destruction terms. Note that SET_DD_SYM is used to assign a
    ! destruction term, but it will automatically set the corresponding production
    ! term as well, i.e., pp(j,i) = dd(i,j).
-   _SET_DD_SYM_(self%id_p,self%id_d,self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p+(_ONE_-self%beta)*self%gmax*self%r1*p**2*fac)
-   _SET_DD_SYM_(self%id_p,self%id_l,self%gamma*ff*(n/self%k1+a/self%k2)/(_ONE_+n/self%k1+a/self%k2)*p)
-   _SET_DD_SYM_(self%id_b,self%id_d,(_ONE_-self%beta)*self%gmax*self%r2*b**2*fac)
+   _SET_DD_SYM_(self%id_p,self%id_d,self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p+(1.0_rk-self%beta)*self%gmax*self%r1*p**2*fac)
+   _SET_DD_SYM_(self%id_p,self%id_l,self%gamma*ff*(n/self%k1+a/self%k2)/(1.0_rk+n/self%k1+a/self%k2)*p)
+   _SET_DD_SYM_(self%id_b,self%id_d,(1.0_rk-self%beta)*self%gmax*self%r2*b**2*fac)
    _SET_DD_SYM_(self%id_p,self%id_z,self%beta*self%gmax*self%r1*p**2*fac)
    _SET_DD_SYM_(self%id_b,self%id_z,self%beta*self%gmax*self%r2*b**2*fac)
    _SET_DD_SYM_(self%id_d,self%id_z,self%beta*self%gmax*self%r3*d**2*fac)
    _SET_DD_SYM_(self%id_b,self%id_a,self%mu3*b)
    _SET_DD_SYM_(self%id_d,self%id_l,self%mu4*d)
-   _SET_DD_SYM_(self%id_z,self%id_d,(_ONE_-self%epsi-self%delta)*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z)
+   _SET_DD_SYM_(self%id_z,self%id_d,(1.0_rk-self%epsi-self%delta)*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z)
    _SET_DD_SYM_(self%id_z,self%id_a,self%epsi*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z)
    _SET_DD_SYM_(self%id_z,self%id_l,self%delta*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z)
-   _SET_DD_SYM_(self%id_n,self%id_p,ff*n/self%k1/(_ONE_+n/self%k1+a/self%k2)*(p+self%p0))
-   _SET_DD_SYM_(self%id_a,self%id_p,ff*a/self%k2/(_ONE_+n/self%k1+a/self%k2)*(p+self%p0))
+   _SET_DD_SYM_(self%id_n,self%id_p,ff*n/self%k1/(1.0_rk+n/self%k1+a/self%k2)*(p+self%p0))
+   _SET_DD_SYM_(self%id_a,self%id_p,ff*a/self%k2/(1.0_rk+n/self%k1+a/self%k2)*(p+self%p0))
    _SET_DD_SYM_(self%id_a,self%id_b,self%vb*min67/(self%k4+min67+l)*(b+self%b0))
    _SET_DD_SYM_(self%id_l,self%id_b,self%vb*l/(self%k4+min67+l)*(b+self%b0))
    
    ! Provide diagnostic variables to FABM.
-   _SET_DIAG_(self%id_pp,secs_pr_day*ff*(n/self%k1+a/self%k2)/(_ONE_+n/self%k1+a/self%k2))
+   _SET_DIAGNOSTIC_(self%id_pp,secs_pr_day*ff*(n/self%k1+a/self%k2)/(1.0_rk+n/self%k1+a/self%k2))
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -400,7 +420,7 @@
 ! !IROUTINE: Right hand sides of Fasham model
 !
 ! !INTERFACE:
-   subroutine gotm_fasham_do(self,_FABM_ARGS_DO_RHS_)
+   pure subroutine gotm_fasham_do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !DESCRIPTION:
 ! The \cite{Fashametal1990} model consisting of the $I=7$
@@ -476,21 +496,15 @@
 ! d_{7,2} = V_b \frac{c_7}{K_4+\min(c_6,\eta c_7)+c_7} (c_2+c_{2}^{\min}).
 ! \end{equation}
 !
-! !USES:
-   implicit none
-!
 ! !INPUT PARAMETERS:
    type (type_gotm_fasham),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
-   real(rk)                   :: p,z,b,d,n,a,l,par
-   real(rk)                   :: d_p,d_z,d_b,d_d,d_n,d_a,d_l
-   real(rk)                   :: ff,fac,min67
-   real(rk), parameter        :: secs_pr_day = 86400.
+   real(rk)            :: p,z,b,d,n,a,l,par
+   real(rk)            :: d_p,d_z,d_b,d_d,d_n,d_a,d_l
+   real(rk)            :: ff,fac,min67
+   real(rk), parameter :: secs_pr_day = 86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -514,8 +528,8 @@
    !   fac   = zooplankton grazing denominator multiplied by zooplankton
    !   min67 = total bacterial nitrogenous substrate
    ff = self%vp*self%alpha*par/sqrt(self%vp**2+self%alpha**2*par**2) 
-   if (p.eq._ZERO_ .and. b.eq._ZERO_ .and. d.eq._ZERO_) then
-      fac = _ZERO_
+   if (p.eq.0.0_rk .and. b.eq.0.0_rk .and. d.eq.0.0_rk) then
+      fac = 0.0_rk
    else
       fac = (z+self%z0)/(self%k3*(self%r1*p+self%r2*b+self%r3*d)+  &
                          self%r1*p**2+self%r2*b**2+self%r3*d**2)
@@ -523,7 +537,7 @@
    min67 = min(a,self%eta*l)
 
    ! Calculate temporal derivatives according to Kuehn & Radach (1997, Journal of Marine Research)
-   d_p = ff*(n/self%k1+a/self%k2)/(_ONE_+n/self%k1+a/self%k2)*(p*(_ONE_-self%gamma)+self%p0) &
+   d_p = ff*(n/self%k1+a/self%k2)/(1.0_rk+n/self%k1+a/self%k2)*(p*(1.0_rk-self%gamma)+self%p0) &
          - self%gmax*self%r1*p**2*fac                                                        &
          - self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p
    d_z =   self%beta*self%gmax*self%r1*p**2*fac &
@@ -534,18 +548,18 @@
          + self%vb*min67/(self%k4+min67+l)*(b+self%b0) &
          - self%gmax*self%r2*b**2*fac                  &
          - self%mu3*b
-   d_d =   (_ONE_-self%beta)*self%gmax*self%r1*p**2*fac &
-         + (_ONE_-self%beta)*self%gmax*self%r2*b**2*fac &
+   d_d =   (1.0_rk-self%beta)*self%gmax*self%r1*p**2*fac &
+         + (1.0_rk-self%beta)*self%gmax*self%r2*b**2*fac &
          - self%beta        *self%gmax*self%r3*d**2*fac &
          - self%mu4*d                                   &
          + self%mu1*(p+self%p0)/(self%k5+p+self%p0)*p   &
-         + (_ONE_-self%epsi-self%delta)*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z
-   d_n = - ff*n/self%k1/(_ONE_+n/self%k1+a/self%k2)*(p+self%p0)
-   d_a = - ff*a/self%k2/(_ONE_+n/self%k1+a/self%k2)*(p+self%p0) &
+         + (1.0_rk-self%epsi-self%delta)*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z
+   d_n = - ff*n/self%k1/(1.0_rk+n/self%k1+a/self%k2)*(p+self%p0)
+   d_a = - ff*a/self%k2/(1.0_rk+n/self%k1+a/self%k2)*(p+self%p0) &
          - self%vb*min67/(self%k4+min67+l)*(b+self%b0)          &
          + self%mu3*b                                           &
          + self%epsi*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z
-   d_l =   self%gamma*ff*(n/self%k1+a/self%k2)/(_ONE_+n/self%k1+a/self%k2)*p &
+   d_l =   self%gamma*ff*(n/self%k1+a/self%k2)/(1.0_rk+n/self%k1+a/self%k2)*p &
          + self%mu4*d                                                        &
          + self%delta*self%mu2*(z+self%z0)/(self%k6+z+self%z0)*z             &
          - self%vb*l/(self%k4+min67+l)*(b+self%b0)
@@ -560,7 +574,7 @@
    _SET_ODE_(self%id_l,d_l)
    
    ! Provide diagnostic variables to FABM.
-   _SET_DIAG_(self%id_pp,secs_pr_day*ff*(n/self%k1+a/self%k2)/(_ONE_+n/self%k1+a/self%k2))
+   _SET_DIAGNOSTIC_(self%id_pp,secs_pr_day*ff*(n/self%k1+a/self%k2)/(1.0_rk+n/self%k1+a/self%k2))
    
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -581,11 +595,8 @@
    type (type_gotm_fasham), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
-   real(rk)                     :: p
+   real(rk) :: p
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -617,11 +628,8 @@
    type (type_gotm_fasham), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
-   real(rk)                     :: p,z,b,d,n,a,l
+   real(rk) :: p,z,b,d,n,a,l
 !
 !EOP
 !-----------------------------------------------------------------------
