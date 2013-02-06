@@ -6,9 +6,9 @@
 ! (FABM expects the vectorized spatial dimension to come first, which would benefit performance)
 ! Therefore, prescribe how to access spatially-localized rhs,pp,dd elements here.
 ! Note that this is only relevant if _FABM_VECTORIZED_DIMENSION_INDEX_ is defined.
-#define _INDEX_ODE_(i) (i,i__-fabm_loop_start+1)
-#define _INDEX_ODE_1D_(i) (i,1:fabm_loop_stop-fabm_loop_start+1)
-#define _INDEX_PPDD_(i,j) (i,j,i__-fabm_loop_start+1)
+#define _INDEX_ODE_(i) (i,i__)
+#define _INDEX_ODE_1D_(i) (i,:)
+#define _INDEX_PPDD_(i,j) (i,j,i__)
 
 ! Include FABM preprocessor definitions.
 ! This *must* be done after the host-specific variables are defined (above),

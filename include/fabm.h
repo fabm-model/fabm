@@ -146,9 +146,11 @@
 #endif
 #endif
 
-! =====================
-! Process spatial mask
-! =====================
+! =======================================================================================================
+! Process spatial mask, based on the following variables provided by the driver:
+!   _FABM_MASK_TYPE_ (data type of mask elements, e.g., logical, integer or real)
+!   _FABM_MASKED_VALUE_ or _FABM_UNMASKED_VALUE_ (mask value for masked and unmasked cells, respectively)
+! =======================================================================================================
 
 #ifdef _FABM_MASK_TYPE_
 #define _FABM_MASK_
@@ -164,6 +166,8 @@
 #define _FABM_IS_UNMASKED_(maskvalue) maskvalue/=_FABM_MASKED_VALUE_
 #elif defined(_FABM_UNMASKED_VALUE_)
 #define _FABM_IS_UNMASKED_(maskvalue) maskvalue==_FABM_UNMASKED_VALUE_
+#else
+#error If _FABM_MASK_TYPE_ is set, _FABM_MASKED_VALUE_ and/or _FABM_UNMASKED_VALUE_ must be set as well.
 #endif
 
 #endif
@@ -214,15 +218,11 @@
 #ifdef _FABM_HORIZONTAL_IS_SCALAR_
 #define _INDEX_LOCATION_HZ_
 #define _ATTR_LOCATION_DIMENSIONS_HZ_
-#define _ARG_LOCATION_HZ_
-#define _ARG_LOCATION_DIMENSIONS_HZ_
 #define _PREARG_LOCATION_HZ_
 #define _PREARG_LOCATION_DIMENSIONS_HZ_
 #else
 #define _INDEX_LOCATION_HZ_ (_LOCATION_HZ_)
 #define _ATTR_LOCATION_DIMENSIONS_HZ_ ,dimension(_LOCATION_DIMENSIONS_HZ_)
-#define _ARG_LOCATION_HZ_ ,_LOCATION_HZ_
-#define _ARG_LOCATION_DIMENSIONS_HZ_ ,_LOCATION_DIMENSIONS_HZ_
 #define _PREARG_LOCATION_HZ_ _LOCATION_HZ_,
 #define _PREARG_LOCATION_DIMENSIONS_HZ_ _LOCATION_DIMENSIONS_HZ_,
 #endif
@@ -285,22 +285,9 @@
 #define _ATTR_DIMENSIONS_1_ ,dimension(:,:)
 #define _ATTR_DIMENSIONS_2_ ,dimension(:,:,:)
 
-! Expressions for indexing space-dependent FABM variables defined on the full spatial domain.
-! These may be overridden by the host-specific driver (if it needs another order of dimensions).
-! In that case, do not redefine the expressions here.
-#ifndef _INDEX_ODE_
-#define _INDEX_ODE_(variable) (_VARIABLE_1DLOOP_-fabm_loop_start+1,variable)
-#endif
-#ifndef _INDEX_PPDD_
-#define _INDEX_PPDD_(variable1,variable2) (_VARIABLE_1DLOOP_-fabm_loop_start+1,variable1,variable2)
-#endif
-#ifndef _INDEX_CONSERVED_QUANTITY_
-#define _INDEX_CONSERVED_QUANTITY_(variable) (_VARIABLE_1DLOOP_-fabm_loop_start+1,variable)
-#endif
-#ifndef _INDEX_VERTICAL_MOVEMENT_
-#define _INDEX_VERTICAL_MOVEMENT_(variable) (_VARIABLE_1DLOOP_-fabm_loop_start+1,variable)
-#endif
-#define _INDEX_EXTINCTION_ (_VARIABLE_1DLOOP_-fabm_loop_start+1)
+#define _INDEX_OUTPUT_ (_VARIABLE_1DLOOP_-fabm_loop_start+1)
+#define _INDEX_OUTPUT_1D_(index) (_VARIABLE_1DLOOP_-fabm_loop_start+1,index)
+#define _INDEX_OUTPUT_2D_(index1,index2) (_VARIABLE_1DLOOP_-fabm_loop_start+1,index1,index2)
 
 #else
 
@@ -325,11 +312,9 @@
 #define _ATTR_DIMENSIONS_2_ ,dimension(:,:)
 
 ! Expressions for indexing space-dependent FABM variables defined on the full spatial domain.
-#define _INDEX_ODE_(variable) (variable)
-#define _INDEX_PPDD_(variable1,variable2) (variable1,variable2)
-#define _INDEX_EXTINCTION_
-#define _INDEX_CONSERVED_QUANTITY_(variable) (variable)
-#define _INDEX_VERTICAL_MOVEMENT_(variable) (variable)
+#define _INDEX_OUTPUT_
+#define _INDEX_OUTPUT_1D_(index) (index)
+#define _INDEX_OUTPUT_2D_(index1,index2) (index1,index2)
 
 #endif
 
@@ -354,17 +339,8 @@
 #define _ATTR_DIMENSIONS_1_HZ_ _ATTR_DIMENSIONS_1_
 #define _ATTR_DIMENSIONS_2_HZ_ _ATTR_DIMENSIONS_2_
 
-! Expressions for indexing space-dependent FABM variables defined on horizontal slices of the domain.
-! May be overridden by host to reverse the dimension order.
-#ifndef _INDEX_SURFACE_EXCHANGE_
-#define _INDEX_SURFACE_EXCHANGE_(index) (_VARIABLE_1DLOOP_-fabm_loop_start+1,index)
-#endif
-
-#ifndef _INDEX_BOTTOM_FLUX_
-#define _INDEX_BOTTOM_FLUX_(index) (_VARIABLE_1DLOOP_-fabm_loop_start+1,index)
-#endif
-
-#define _INDEX_HZ_0_ (_VARIABLE_1DLOOP_-fabm_loop_start+1)
+#define _INDEX_HZ_OUTPUT_ _INDEX_OUTPUT_
+#define _INDEX_HZ_OUTPUT_1D_(index) _INDEX_OUTPUT_1D_(index)
 
 #else
 
@@ -379,17 +355,35 @@
 #define _FABM_HORIZONTAL_LOOP_BEGIN_
 #define _FABM_HORIZONTAL_LOOP_END_
 
-! Expressions for indexing space-dependent FABM variables defined on horizontal slices of the domain.
-#define _INDEX_SURFACE_EXCHANGE_(index) (index)
-
-#define _INDEX_BOTTOM_FLUX_(index) (index)
-
-#define _INDEX_HZ_0_
-
 #define _ATTR_DIMENSIONS_0_HZ_
 #define _ATTR_DIMENSIONS_1_HZ_ ,dimension(:)
 #define _ATTR_DIMENSIONS_2_HZ_ ,dimension(:,:)
 
+#define _INDEX_HZ_OUTPUT_
+#define _INDEX_HZ_OUTPUT_1D_(index) (index)
+
+#endif
+
+! Expressions for indexing space-dependent FABM variables defined on the full spatial domain.
+! These may be overridden by the host-specific driver (if it needs another order of dimensions).
+! In that case, do not redefine the expressions here.
+#ifndef _INDEX_ODE_
+#define _INDEX_ODE_(variable) _INDEX_OUTPUT_1D_(variable)
+#endif
+#ifndef _INDEX_PPDD_
+#define _INDEX_PPDD_(variable1,variable2) _INDEX_OUTPUT_2D_(variable1,variable2)
+#endif
+#ifndef _INDEX_CONSERVED_QUANTITY_
+#define _INDEX_CONSERVED_QUANTITY_(variable) _INDEX_OUTPUT_1D_(variable)
+#endif
+#ifndef _INDEX_VERTICAL_MOVEMENT_
+#define _INDEX_VERTICAL_MOVEMENT_(variable) _INDEX_OUTPUT_1D_(variable)
+#endif
+#ifndef _INDEX_SURFACE_FLUX_
+#define _INDEX_SURFACE_FLUX_(index) _INDEX_HZ_OUTPUT_1D_(index)
+#endif
+#ifndef _INDEX_BOTTOM_FLUX_
+#define _INDEX_BOTTOM_FLUX_(index) _INDEX_HZ_OUTPUT_1D_(index)
 #endif
 
 ! For FABM: standard arguments used in calling biogeochemical routines.
@@ -439,12 +433,12 @@
 #define _SET_ODE_(variable,value) rhs _INDEX_ODE_(variable%state_index) = rhs _INDEX_ODE_(variable%state_index) + (value)
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_PPDD_(variable1%state_index,variable2%state_index) = dd _INDEX_PPDD_(variable1%state_index,variable2%state_index) + (value)
 #define _SET_PP_(variable1,variable2,value) pp _INDEX_PPDD_(variable1%state_index,variable2%state_index) = pp _INDEX_PPDD_(variable1%state_index,variable2%state_index) + (value)
-#define _SET_EXTINCTION_(value) extinction _INDEX_EXTINCTION_ = extinction _INDEX_EXTINCTION_ + (value)
-#define _SCALE_DRAG_(value) drag _INDEX_HZ_0_ = drag _INDEX_HZ_0_ * (value)
-#define _SET_ALBEDO_(value) albedo _INDEX_HZ_0_ = albedo _INDEX_HZ_0_ + (value)
+#define _SET_EXTINCTION_(value) extinction _INDEX_OUTPUT_ = extinction _INDEX_OUTPUT_ + (value)
+#define _SCALE_DRAG_(value) drag _INDEX_HZ_OUTPUT_ = drag _INDEX_HZ_OUTPUT_ * (value)
+#define _SET_ALBEDO_(value) albedo _INDEX_HZ_OUTPUT_ = albedo _INDEX_HZ_OUTPUT_ + (value)
 #define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_CONSERVED_QUANTITY_(variable%cons_index) = sums _INDEX_CONSERVED_QUANTITY_(variable%cons_index) + (value)
 #define _SET_VERTICAL_MOVEMENT_(variable,value) velocity _INDEX_VERTICAL_MOVEMENT_(variable%state_index) = value
-#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_SURFACE_EXCHANGE_(variable%state_index) = value
+#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_SURFACE_FLUX_(variable%state_index) = value
 #define _INVALIDATE_STATE_ valid = .false.
 #define _REPAIR_STATE_ repair
 
