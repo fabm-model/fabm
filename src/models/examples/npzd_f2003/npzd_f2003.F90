@@ -98,28 +98,28 @@
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   real(rk)                  :: n_initial
-   real(rk)                  :: p_initial
-   real(rk)                  :: z_initial
-   real(rk)                  :: d_initial
-   real(rk)                  :: p0
-   real(rk)                  :: z0
-   real(rk)                  :: w_p
-   real(rk)                  :: w_d
-   real(rk)                  :: kc
-   real(rk)                  :: i_min
-   real(rk)                  :: rmax
-   real(rk)                  :: gmax
-   real(rk)                  :: iv
-   real(rk)                  :: alpha
-   real(rk)                  :: rpn
-   real(rk)                  :: rzn
-   real(rk)                  :: rdn
-   real(rk)                  :: rpdu
-   real(rk)                  :: rpdl
-   real(rk)                  :: rzd
-   real(rk)                  :: dic_per_n
-   character(len=64)         :: dic_variable
+   real(rk)          :: n_initial
+   real(rk)          :: p_initial
+   real(rk)          :: z_initial
+   real(rk)          :: d_initial
+   real(rk)          :: p0
+   real(rk)          :: z0
+   real(rk)          :: w_p
+   real(rk)          :: w_d
+   real(rk)          :: kc
+   real(rk)          :: i_min
+   real(rk)          :: rmax
+   real(rk)          :: gmax
+   real(rk)          :: iv
+   real(rk)          :: alpha
+   real(rk)          :: rpn
+   real(rk)          :: rzn
+   real(rk)          :: rdn
+   real(rk)          :: rpdu
+   real(rk)          :: rpdl
+   real(rk)          :: rzd
+   real(rk)          :: dic_per_n
+   character(len=64) :: dic_variable
 
    namelist /examples_npzd_f2003/ n_initial,p_initial,z_initial,d_initial,   &
                         p0,z0,w_p,w_d,kc,i_min,rmax,gmax,iv,alpha,rpn,  &
@@ -186,7 +186,7 @@
                                     d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   self%use_dic = dic_variable.ne.''
+   self%use_dic = dic_variable/=''
    if (self%use_dic) call self%register_state_dependency(self%id_dic,dic_variable)
 
    ! Register diagnostic variables
@@ -557,7 +557,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   fnp = self%rmax*par/iopt*exp(_ONE_-par/iopt)*n/(self%alpha+n)*(p+self%p0)
+   fnp = self%rmax*par/iopt*exp(1.0_rk-par/iopt)*n/(self%alpha+n)*(p+self%p0)
 
    end function fnp
 !EOC
@@ -584,7 +584,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   fpz = self%gmax*(_ONE_-exp(-self%iv*self%iv*p*p))*(z+self%z0)
+   fpz = self%gmax*(1.0_rk-exp(-self%iv*self%iv*p*p))*(z+self%z0)
 
    end function fpz
 !EOC

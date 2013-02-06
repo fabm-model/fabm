@@ -48,12 +48,12 @@
 ! !PUBLIC DERIVED TYPES:
    type type_gotm_npzd
 !     Variable identifiers
-      type (type_state_variable_id)      :: id_n,id_p,id_z,id_d
-      type (type_state_variable_id)      :: id_dic
-      type (type_dependency_id)          :: id_par
-      type (type_horizontal_dependency_id)  :: id_I_0
-      type (type_diagnostic_variable_id) :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
-      type (type_conserved_quantity_id)  :: id_totN
+      type (type_state_variable_id)        :: id_n,id_p,id_z,id_d
+      type (type_state_variable_id)        :: id_dic
+      type (type_dependency_id)            :: id_par
+      type (type_horizontal_dependency_id) :: id_I_0
+      type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
+      type (type_conserved_quantity_id)    :: id_totN
 
 !     Model parameters
       real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
@@ -86,56 +86,79 @@
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   real(rk)                  :: n_initial=4.5
-   real(rk)                  :: p_initial=0.
-   real(rk)                  :: z_initial=0.
-   real(rk)                  :: d_initial=4.5
-   real(rk)                  :: p0=0.0225
-   real(rk)                  :: z0=0.0225
-   real(rk)                  :: w_p=-1.157407e-05
-   real(rk)                  :: w_d=-5.787037e-05
-   real(rk)                  :: kc=0.03
-   real(rk)                  :: i_min=25.
-   real(rk)                  :: rmax=1.157407e-05
-   real(rk)                  :: gmax=5.787037e-06
-   real(rk)                  :: iv=1.1
-   real(rk)                  :: alpha=0.3
-   real(rk)                  :: rpn=1.157407e-07
-   real(rk)                  :: rzn=1.157407e-07
-   real(rk)                  :: rdn=3.472222e-08
-   real(rk)                  :: rpdu=2.314814e-07
-   real(rk)                  :: rpdl=1.157407e-06
-   real(rk)                  :: rzd=2.314814e-07
-   real(rk)                  :: dic_per_n=106.d0/16.d0
-   character(len=64)         :: dic_variable=''
+   real(rk)          :: n_initial
+   real(rk)          :: p_initial
+   real(rk)          :: z_initial
+   real(rk)          :: d_initial
+   real(rk)          :: p0
+   real(rk)          :: z0
+   real(rk)          :: w_p
+   real(rk)          :: w_d
+   real(rk)          :: kc
+   real(rk)          :: i_min
+   real(rk)          :: rmax
+   real(rk)          :: gmax
+   real(rk)          :: iv
+   real(rk)          :: alpha
+   real(rk)          :: rpn
+   real(rk)          :: rzn
+   real(rk)          :: rdn
+   real(rk)          :: rpdu
+   real(rk)          :: rpdl
+   real(rk)          :: rzd
+   real(rk)          :: dic_per_n
+   character(len=64) :: dic_variable
 
-   real(rk), parameter :: secs_pr_day = 86400.
+   real(rk), parameter :: secs_pr_day = 86400.0_rk
    namelist /gotm_npzd/ n_initial,p_initial,z_initial,d_initial,   &
                         p0,z0,w_p,w_d,kc,i_min,rmax,gmax,iv,alpha,rpn,  &
                         rzn,rdn,rpdu,rpdl,rzd,dic_variable,dic_per_n
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   n_initial = 4.5_rk
+   p_initial = 0.0_rk
+   z_initial = 0.0_rk
+   d_initial = 4.5_rk
+   p0        = 0.0225_rk
+   z0        = 0.0225_rk
+   w_p       = -1.0_rk
+   w_d       = -5.0_rk
+   kc        = 0.03_rk
+   i_min     = 25.0_rk
+   rmax      = 1.0_rk
+   gmax      = 0.5_rk
+   iv        = 1.1_rk
+   alpha     = 0.3_rk
+   rpn       = 0.01_rk
+   rzn       = 0.01_rk
+   rdn       = 0.003_rk
+   rpdu      = 0.02_rk
+   rpdl      = 0.1_rk
+   rzd       = 0.02_rk
+   dic_per_n = 106.0_rk/16.0_rk  ! Redfield C:N
+   dic_variable = ''
+
    ! Read the namelist
    read(namlst,nml=gotm_npzd,err=99,end=100)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   self%p0    = p0
-   self%z0    = z0
-   self%kc    = kc
-   self%i_min = i_min
-   self%rmax  = rmax/secs_pr_day
-   self%gmax  = gmax/secs_pr_day
-   self%iv    = iv
-   self%alpha = alpha
-   self%rpn  = rpn /secs_pr_day
-   self%rzn  = rzn /secs_pr_day
-   self%rdn  = rdn /secs_pr_day
-   self%rpdu = rpdu/secs_pr_day
-   self%rpdl = rpdl/secs_pr_day
-   self%rzd  = rzd /secs_pr_day
+   self%p0        = p0
+   self%z0        = z0
+   self%kc        = kc
+   self%i_min     = i_min
+   self%rmax      = rmax/secs_pr_day
+   self%gmax      = gmax/secs_pr_day
+   self%iv        = iv
+   self%alpha     = alpha
+   self%rpn       = rpn /secs_pr_day
+   self%rzn       = rzn /secs_pr_day
+   self%rdn       = rdn /secs_pr_day
+   self%rpdu      = rpdu/secs_pr_day
+   self%rpdl      = rpdl/secs_pr_day
+   self%rzd       = rzd /secs_pr_day
    self%dic_per_n = dic_per_n
 
    ! Register state variables
@@ -149,7 +172,7 @@
                                     d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   self%use_dic = dic_variable.ne.''
+   self%use_dic = dic_variable/=''
    if (self%use_dic) call register_state_dependency(modelinfo,self%id_dic,dic_variable)
 
    ! Register diagnostic variables
@@ -289,11 +312,11 @@
    end if
 
    ! Export diagnostic variables
-   _SET_DIAG_(self%id_dPAR,par)
-   _SET_DIAG_(self%id_GPP ,primprod)
-   _SET_DIAG_(self%id_NCP ,primprod - self%rpn*p)
-   _SET_DIAG_(self%id_PPR ,primprod*secs_pr_day)
-   _SET_DIAG_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_dPAR,par)
+   _SET_DIAGNOSTIC_(self%id_GPP ,primprod)
+   _SET_DIAGNOSTIC_(self%id_NCP ,primprod - self%rpn*p)
+   _SET_DIAGNOSTIC_(self%id_PPR ,primprod*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -457,7 +480,7 @@
    _GET_(self%id_d,d) ! detritus
 
    ! Retrieve current environmental conditions.
-   _GET_   (self%id_par,par)  ! local photosynthetically active radiation
+   _GET_(self%id_par,par)  ! local photosynthetically active radiation
    _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
 
    ! Light acclimation formulation based on surface light intensity.
@@ -490,11 +513,11 @@
    if (self%use_dic) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
-   _SET_DIAG_(self%id_dPAR,par)
-   _SET_DIAG_(self%id_GPP,primprod)
-   _SET_DIAG_(self%id_NCP,primprod-self%rpn*p)
-   _SET_DIAG_(self%id_PPR,primprod*secs_pr_day)
-   _SET_DIAG_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_dPAR,par)
+   _SET_DIAGNOSTIC_(self%id_GPP,primprod)
+   _SET_DIAGNOSTIC_(self%id_NCP,primprod-self%rpn*p)
+   _SET_DIAGNOSTIC_(self%id_PPR,primprod*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -524,7 +547,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   fnp = self%rmax*par/iopt*exp(_ONE_-par/iopt)*n/(self%alpha+n)*(p+self%p0)
+   fnp = self%rmax*par/iopt*exp(1.0_rk-par/iopt)*n/(self%alpha+n)*(p+self%p0)
 
    end function fnp
 !EOC
@@ -551,7 +574,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   fpz = self%gmax*(_ONE_-exp(-self%iv*self%iv*p*p))*(z+self%z0)
+   fpz = self%gmax*(1.0_rk-exp(-self%iv*self%iv*p*p))*(z+self%z0)
 
    end function fpz
 !EOC
