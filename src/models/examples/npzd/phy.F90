@@ -135,16 +135,16 @@
    if (self%do_upt) call register_state_dependency(modelinfo,self%id_upttarget,uptake_target_variable)
 
    ! Register diagnostic variables
-   call register_diagnostic_variable(modelinfo,self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
-                     time_treatment=time_treatment_step_integrated)
-   call register_diagnostic_variable(modelinfo,self%id_NCP,'NCP','mmol/m**3',  'net community production',           &
-                     time_treatment=time_treatment_step_integrated)
-   call register_diagnostic_variable(modelinfo,self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',      &
-                     time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_NPR,'NPR','mmol/m**3/d','net community production rate',      &
-                     time_treatment=time_treatment_averaged)
+   call register_diagnostic_variable(modelinfo,self%id_GPP, 'GPP','mmol/m**3',  'gross primary production',           &
+                                     time_treatment=time_treatment_step_integrated)
+   call register_diagnostic_variable(modelinfo,self%id_NCP, 'NCP','mmol/m**3',  'net community production',           &
+                                     time_treatment=time_treatment_step_integrated)
+   call register_diagnostic_variable(modelinfo,self%id_PPR, 'PPR','mmol/m**3/d','gross primary production rate',      &
+                                     time_treatment=time_treatment_averaged)
+   call register_diagnostic_variable(modelinfo,self%id_NPR, 'NPR','mmol/m**3/d','net community production rate',      &
+                                     time_treatment=time_treatment_averaged)
    call register_diagnostic_variable(modelinfo,self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
-                     time_treatment=time_treatment_averaged)
+                                     time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
 !KB   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
@@ -175,7 +175,7 @@
 ! !LOCAL VARIABLES:
    real(rk)                   :: n,p,par,I_0
    real(rk)                   :: iopt,rpd,primprod,dn
-   real(rk), parameter        :: secs_pr_day = 86400.
+   real(rk), parameter        :: secs_pr_day = 86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC

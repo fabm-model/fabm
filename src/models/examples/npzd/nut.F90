@@ -34,12 +34,6 @@
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_examples_npzd_nut, examples_npzd_nut_init
 !
-! !PRIVATE DATA MEMBERS:
-!
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
-!
-!
 ! !PUBLIC DERIVED TYPES:
    type type_examples_npzd_nut
 !     Variable identifiers
@@ -80,7 +74,7 @@
 
    ! Register state variables
    call register_state_variable(modelinfo,self%id_n,'nut','mmol/m**3','nutrients',     &
-                                    n_initial,minimum=0.0_rk,no_river_dilution=.true.)
+                                n_initial,minimum=0.0_rk,no_river_dilution=.true.)
 
    return
 

@@ -87,9 +87,9 @@
    self%rdn = rdn/secs_pr_day
 
    ! Register state variables
-   call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus',               &
-                                    d_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day, &
-                                    specific_light_extinction=kc)
+   call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus',           &
+                                d_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day, &
+                                specific_light_extinction=kc)
 
    ! Register external state variable dependencies
    self%do_min = mineralisation_target_variable/=''
