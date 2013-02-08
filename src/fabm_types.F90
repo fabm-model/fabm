@@ -1699,19 +1699,19 @@ subroutine merge_bulk_variables(master,slave)
    
    call log_message(trim(slave%name)//' --> '//trim(master%name))
    if (_ALLOCATED_(slave%write_indices)) then
-      call fatal_error('merge_scalar_variables','Attempt to couple write-only variable ' &
+      call fatal_error('merge_bulk_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
    end if
    if (_ALLOCATED_(slave%state_indices).and..not._ALLOCATED_(master%state_indices)) then
-      call fatal_error('merge_scalar_variables','Attempt to couple state variable ' &
+      call fatal_error('merge_bulk_variables','Attempt to couple state variable ' &
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
    end if
    if (_ALLOCATED_(slave%cons_indices).and..not._ALLOCATED_(master%cons_indices)) then
-      call fatal_error('merge_scalar_variables','Attempt to couple conserved quantity ' &
+      call fatal_error('merge_bulk_variables','Attempt to couple conserved quantity ' &
          //trim(slave%name)//' with non-conserved quantity '//trim(master%name)//'.')
    end if
    if (_ALLOCATED_(master%cons_indices).and..not._ALLOCATED_(slave%cons_indices)) then
-      call fatal_error('merge_scalar_variables','Attempt to couple non-conserved quantity ' &
+      call fatal_error('merge_bulk_variables','Attempt to couple non-conserved quantity ' &
          //trim(slave%name)//' with conserved quantity '//trim(master%name)//'.')
    end if
    if (_ALLOCATED_(slave%alldata)) then
@@ -1738,19 +1738,19 @@ subroutine merge_horizontal_variables(master,slave)
    
    call log_message(trim(slave%name)//' --> '//trim(master%name))
    if (_ALLOCATED_(slave%write_indices)) then
-      call fatal_error('merge_scalar_variables','Attempt to couple write-only variable ' &
+      call fatal_error('merge_horizontal_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
    end if
    if (_ALLOCATED_(slave%state_indices).and..not._ALLOCATED_(master%state_indices)) then
-      call fatal_error('merge_scalar_variables','Attempt to couple state variable ' &
+      call fatal_error('merge_horizontal_variables','Attempt to couple state variable ' &
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
    end if
    if (_ALLOCATED_(slave%cons_indices).and..not._ALLOCATED_(master%cons_indices)) then
-      call fatal_error('merge_scalar_variables','Attempt to couple conserved quantity ' &
+      call fatal_error('merge_horizontal_variables','Attempt to couple conserved quantity ' &
          //trim(slave%name)//' with non-conserved quantity '//trim(master%name)//'.')
    end if
    if (_ALLOCATED_(master%cons_indices).and..not._ALLOCATED_(slave%cons_indices)) then
-      call fatal_error('merge_scalar_variables','Attempt to couple non-conserved quantity ' &
+      call fatal_error('merge_horizontal_variables','Attempt to couple non-conserved quantity ' &
          //trim(slave%name)//' with conserved quantity '//trim(master%name)//'.')
    end if
    if (_ALLOCATED_(slave%alldata)) then
