@@ -40,7 +40,8 @@
 !                     This variable is used only if fabm_calc = True
 ! salinity_relaxation_to_freshwater_flux [bool]
 !                     Whether to impose relaxation-induced change in column-
-!                     integrated salt to biogeochemical variables via surface flux
+!                     integrated salt (dilution or concentration) to
+!                     biogeochemical variables via surface flux
 !                     This variable is used only if fabm_calc = True
 !-------------------------------------------------------------------------------
 &gotm_fabm_nml
@@ -50,5 +51,5 @@
    ode_method = 3,
    split_factor = 1,
    bioshade_feedback = .true.,
-   salinity_relaxation_to_freshwater_flux = .true.
+   salinity_relaxation_to_freshwater_flux = .false.
 /
