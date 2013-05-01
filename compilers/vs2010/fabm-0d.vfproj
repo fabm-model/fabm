@@ -116,5 +116,6 @@
 		<File RelativePath="..\..\src\models\pml\ersem\ersem.F90"/></Filter></Filter></Filter>
 		<File RelativePath="..\..\src\fabm.F90"/>
 		<File RelativePath="..\..\src\fabm_library.F90"/>
+		<File RelativePath="..\..\src\fabm_standard_variables.F90"/>
 		<File RelativePath="..\..\src\fabm_types.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
