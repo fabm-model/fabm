@@ -40,6 +40,9 @@ module fabm_standard_variables
 
    type (type_bulk_standard_variable),parameter :: &
    
+      alkalinity_expressed_as_mole_equivalent = type_bulk_standard_variable( &
+         'alkalinity_expressed_as_mole_equivalent', &
+         'mmol m^-3'), &
       attenuation_coefficient_of_photosynthetic_radiative_flux = type_bulk_standard_variable( &
          'attenuation_coefficient_of_downwelling_photosynthetic_radiative_flux', &
          'm^-1'), &
@@ -58,9 +61,27 @@ module fabm_standard_variables
       mass_concentration_of_suspended_matter = type_bulk_standard_variable( &
          'mass_concentration_of_suspended_matter', &
          'g m^-3'), &
+      mole_concentration_of_ammonium = type_bulk_standard_variable( &
+         'mole_concentration_of_ammonium', &
+         'mmol m^-3'), &
       mole_concentration_of_dissolved_inorganic_carbon = type_bulk_standard_variable( &
          'mole_concentration_of_dissolved_inorganic_carbon', &
          'mmol m^-3'), &
+      mole_concentration_of_dissolved_iron = type_bulk_standard_variable( &
+         'mole_concentration_of_dissolved_iron', &
+         'umol m^-3'), &
+      mole_concentration_of_nitrate = type_bulk_standard_variable( &
+         'mole_concentration_of_nitrate', &
+         'mmol m^-3'), &
+      mole_concentration_of_phosphate = type_bulk_standard_variable( &
+         'mole_concentration_of_phosphate', &
+         'mmol m^-3'), &
+      mole_concentration_of_silicate = type_bulk_standard_variable( &
+         'mole_concentration_of_silicate', &
+         'mmol m^-3'), &
+      ph_reported_on_total_scale = type_bulk_standard_variable( &
+         'ph_reported_on_total_scale', &
+         '1'), &
       practical_salinity = type_bulk_standard_variable( &
          'practical_salinity', &
          '1e-3'), &
