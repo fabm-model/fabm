@@ -29,6 +29,9 @@
 ! !USES:
    use fabm_types
    use fabm_driver
+   use fabm_standard_variables,only: downwelling_photosynthetic_radiative_flux, &
+                                     downwelling_photosynthetic_radiative_flux_in_air, &
+                                     mole_concentration_of_dissolved_inorganic_carbon
 
    implicit none
 
@@ -172,8 +175,10 @@
                                     d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   self%use_dic = dic_variable/=''
-   if (self%use_dic) call register_state_dependency(modelinfo,self%id_dic,dic_variable)
+   !self%use_dic = dic_variable/=''
+   !if (self%use_dic) call register_state_dependency(modelinfo,self%id_dic,dic_variable)
+   call register_state_variable(modelinfo,self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon', &
+                                2100._rk,minimum=_ZERO_,standard_variable=mole_concentration_of_dissolved_inorganic_carbon)
 
    ! Register diagnostic variables
    call register_diagnostic_variable(modelinfo,self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
@@ -191,8 +196,8 @@
    call register_conserved_quantity(modelinfo,self%id_totN,'N','mmol/m**3','nitrogen')
 
    ! Register environmental dependencies
-   call register_dependency(modelinfo, self%id_par, varname_par)
-   call register_dependency(modelinfo, self%id_I_0, varname_par_sf)
+   call register_dependency(modelinfo, self%id_par, downwelling_photosynthetic_radiative_flux)
+   call register_dependency(modelinfo, self%id_I_0, downwelling_photosynthetic_radiative_flux_in_air)
 
    return
 

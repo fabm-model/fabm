@@ -15,6 +15,7 @@ module fabm_pml_carbonate
 ! !USES:
    use fabm_types
    use fabm_driver
+   use fabm_standard_variables, only: mole_concentration_of_dissolved_inorganic_carbon
 
    implicit none
 
@@ -87,7 +88,8 @@ contains
 
    ! First state variable: total dissolved inorganic carbon
    call register_state_variable(modelinfo,self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon', &
-                                dic_initial,minimum=0.0_rk,no_precipitation_dilution=.false.,no_river_dilution=.true.)
+                                dic_initial,minimum=0.0_rk,no_precipitation_dilution=.false.,no_river_dilution=.true., &
+                                standard_variable=mole_concentration_of_dissolved_inorganic_carbon)
 
    if (alk_param) then
      ! Alkalinity is diagnosed from temperature and salinity. Register it as output variable.

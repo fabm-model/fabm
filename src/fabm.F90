@@ -19,6 +19,8 @@
 ! For more information, see the documentation at /doc/documentation.pdf.
 !
 ! !USES:
+   use fabm_standard_variables,only: type_bulk_standard_variable, type_horizontal_standard_variable, &
+                                     type_global_standard_variable
    use fabm_types
    use fabm_driver
    use fabm_library
@@ -119,7 +121,7 @@
       module procedure fabm_do_benthos_ppdd
    end interface
 
-interface fabm_link_data
+   interface fabm_link_data
       module procedure fabm_link_bulk_data
       module procedure fabm_link_horizontal_data
       module procedure fabm_link_scalar_data
@@ -128,19 +130,43 @@ interface fabm_link_data
    ! Subroutine for providing FABM with variable data on the full spatial domain.
    interface fabm_link_bulk_data
       module procedure fabm_link_bulk_data
-      module procedure fabm_link_bulk_data_char
+      module procedure fabm_link_bulk_data_sn
+      module procedure fabm_link_bulk_data_by_name
    end interface
 
    ! Subroutine for providing FABM with variable data on horizontal slices of the domain.
    interface fabm_link_horizontal_data
       module procedure fabm_link_horizontal_data
-      module procedure fabm_link_horizontal_data_char
+      module procedure fabm_link_horizontal_data_sn
+      module procedure fabm_link_horizontal_data_by_name
    end interface
 
    ! Subroutine for providing FABM with scalar variable data.
    interface fabm_link_scalar_data
       module procedure fabm_link_scalar_data
-      module procedure fabm_link_scalar_char
+      module procedure fabm_link_scalar_data_sn
+      module procedure fabm_link_scalar_by_name
+   end interface
+
+   interface fabm_get_variable_id
+      module procedure fabm_get_bulk_variable_id_sn
+      module procedure fabm_get_horizontal_variable_id_sn
+      module procedure fabm_get_scalar_variable_id_sn
+   end interface
+
+   interface fabm_get_bulk_variable_id
+      module procedure fabm_get_bulk_variable_id
+      module procedure fabm_get_bulk_variable_id_sn
+   end interface
+
+   interface fabm_get_horizontal_variable_id
+      module procedure fabm_get_horizontal_variable_id
+      module procedure fabm_get_horizontal_variable_id_sn
+   end interface
+
+   interface fabm_get_scalar_variable_id
+      module procedure fabm_get_scalar_variable_id
+      module procedure fabm_get_scalar_variable_id_sn
    end interface
    
    interface fabm_get_variable_name
@@ -154,7 +180,6 @@ interface fabm_link_data
       module procedure fabm_is_horizontal_variable_used
       module procedure fabm_is_scalar_variable_used
    end interface
-   
 !
 ! !PRIVATE DATA MEMBERS:
 
@@ -815,7 +840,7 @@ interface fabm_link_data
 !
 ! !LOCAL VARIABLES:
   _CLASS_ (type_model_info),           pointer :: info
-  type (type_variable_link),           pointer :: link
+  type (type_bulk_variable_link),           pointer :: link
   type (type_horizontal_variable_link),pointer :: horizontal_link
   type (type_scalar_variable_link),    pointer :: scalar_link
   logical                                      :: ready
@@ -980,7 +1005,7 @@ interface fabm_link_data
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
    _CLASS_(type_model_info), pointer :: info
-   type (type_variable_link),pointer :: link
+   type (type_bulk_variable_link),pointer :: link
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -989,7 +1014,17 @@ interface fabm_link_data
    link => info%first_link
    do while (associated(link))
       if (link%target%name==name) then
-         id = create_external_variable_id(link%target)
+         id = create_external_variable_id(model%info,link%target)
+         return
+      end if
+      link => link%next
+   end do
+
+   ! Name not found among variable names. Now try standard names that are in use.
+   link => info%first_link
+   do while (associated(link))
+      if (link%target%standard_variable%name==name) then
+         id = create_external_variable_id(model%info,link%target%standard_variable)
          return
       end if
       link => link%next
@@ -1001,10 +1036,32 @@ interface fabm_link_data
 !-----------------------------------------------------------------------
 !BOP
 !
+! !IROUTINE: Obtain the variable identifier for specified standard
+! variable, defined on the full model domain.
+!
+! !INTERFACE:
+   function fabm_get_bulk_variable_id_sn(model,standard_variable) result(id)
+!
+! !INPUT PARAMETERS:
+   type (type_model),target,          intent(in)  :: model
+   type (type_bulk_standard_variable),intent(in)  :: standard_variable
+!
+! !RETURN VALUE:
+   type (type_bulk_variable_id) :: id
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   id = create_external_variable_id(model%info,standard_variable)
+   
+   end function fabm_get_bulk_variable_id_sn
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
 ! !IROUTINE: Obtain the integer variable identifier for the given variable
-! name. Returns id\_not\_used if the variable name is unknown.
-! The variable identifier can be used later in calls to
-! fabm\_link\_data/fabm\_link\_data\_hz.
+! name.
 !
 ! !INTERFACE:
    function fabm_get_horizontal_variable_id(model,name) result(id)
@@ -1028,13 +1085,47 @@ interface fabm_link_data
    link => info%first_horizontal_link
    do while (associated(link))
       if (link%target%name==name) then
-         id = create_external_variable_id(link%target)
+         id = create_external_variable_id(model%info,link%target)
+         return
+      end if
+      link => link%next
+   end do
+
+   ! Name not found among variable names. Now try standard names that are in use.
+   link => info%first_horizontal_link
+   do while (associated(link))
+      if (link%target%standard_variable%name==name) then
+         id = create_external_variable_id(model%info,link%target%standard_variable)
          return
       end if
       link => link%next
    end do
 
    end function fabm_get_horizontal_variable_id
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Obtain the variable identifier for specified standard
+! variable, defined on a horizontal slice of the model domain.
+!
+! !INTERFACE:
+   function fabm_get_horizontal_variable_id_sn(model,standard_variable) result(id)
+!
+! !INPUT PARAMETERS:
+   type (type_model),target,                intent(in) :: model
+   type (type_horizontal_standard_variable),intent(in) :: standard_variable
+!
+! !RETURN VALUE:
+   type (type_horizontal_variable_id) :: id
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   id = create_external_variable_id(model%info,standard_variable)
+   
+   end function fabm_get_horizontal_variable_id_sn
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1067,13 +1158,47 @@ interface fabm_link_data
    link => info%first_scalar_link
    do while (associated(link))
       if (link%target%name==name) then
-         id = create_external_variable_id(link%target)
+         id = create_external_variable_id(model%info,link%target)
+         return
+      end if
+      link => link%next
+   end do
+
+   ! Name not found among variable names. Now try standard names that are in use.
+   link => info%first_scalar_link
+   do while (associated(link))
+      if (link%target%standard_variable%name==name) then
+         id = create_external_variable_id(model%info,link%target%standard_variable)
          return
       end if
       link => link%next
    end do
 
    end function fabm_get_scalar_variable_id
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Obtain the variable identifier for specified space-
+! independent standard variable.
+!
+! !INTERFACE:
+   function fabm_get_scalar_variable_id_sn(model,standard_variable) result(id)
+!
+! !INPUT PARAMETERS:
+   type (type_model),target,                intent(in) :: model
+   type (type_global_standard_variable),intent(in) :: standard_variable
+!
+! !RETURN VALUE:
+   type (type_scalar_variable_id) :: id
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   id = create_external_variable_id(model%info,standard_variable)
+   
+   end function fabm_get_scalar_variable_id_sn
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1177,7 +1302,7 @@ interface fabm_link_data
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   used = associated(id%variable)
+   used = associated(id%p)
 
    end function fabm_is_bulk_variable_used
 !EOC
@@ -1203,7 +1328,7 @@ interface fabm_link_data
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   used = associated(id%variable)
+   used = associated(id%p)
 
    end function fabm_is_horizontal_variable_used
 !EOC
@@ -1229,7 +1354,7 @@ interface fabm_link_data
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   used = associated(id%variable)
+   used = associated(id%p)
 
    end function fabm_is_scalar_variable_used
 !EOC
@@ -1269,11 +1394,44 @@ interface fabm_link_data
 !BOP
 !
 ! !IROUTINE: Provide FABM with (a pointer to) the array with data for
+! the specified variable, defined on the full spatial domain. The variable
+! is identified by its standard name.
+!
+! !INTERFACE:
+   subroutine fabm_link_bulk_data_sn(model,standard_variable,dat)
+!
+! !INPUT PARAMETERS:
+   type (type_model),                         intent(inout) :: model
+   type(type_bulk_standard_variable),         intent(in)    :: standard_variable
+   real(rk) _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   type (type_bulk_variable_id)                             :: id
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Obtain integer identifier of the variable.
+   id = fabm_get_bulk_variable_id_sn(model,standard_variable)
+
+   ! Only link the data if needed (if the variable identifier is valid).
+   if (fabm_is_variable_used(id)) call fabm_link_bulk_data(model,id,dat)
+
+   end subroutine fabm_link_bulk_data_sn
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! the specified variable, defined on a horizontal slice of the spatial domain.
 ! The variable is identified by its name.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bulk_data_char(model,name,dat)
+   subroutine fabm_link_bulk_data_by_name(model,name,dat)
 !
 ! !INPUT PARAMETERS:
    type (type_model),target,                  intent(inout) :: model
@@ -1294,7 +1452,7 @@ interface fabm_link_data
    ! Only link the data if needed (if the variable identifier is valid).
    if (fabm_is_variable_used(id)) call fabm_link_bulk_data(model,id,dat)
 
-   end subroutine fabm_link_bulk_data_char
+   end subroutine fabm_link_bulk_data_by_name
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1332,11 +1490,44 @@ interface fabm_link_data
 !BOP
 !
 ! !IROUTINE: Provide FABM with (a pointer to) the array with data for
+! the specified variable, defined on the full spatial domain. The variable
+! is identified by its standard name.
+!
+! !INTERFACE:
+   subroutine fabm_link_horizontal_data_sn(model,standard_variable,dat)
+!
+! !INPUT PARAMETERS:
+   type (type_model),                            intent(inout) :: model
+   type(type_horizontal_standard_variable),      intent(in)    :: standard_variable
+   real(rk) _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   type (type_horizontal_variable_id)                             :: id
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Obtain integer identifier of the variable.
+   id = fabm_get_horizontal_variable_id_sn(model,standard_variable)
+
+   ! Only link the data if needed (if the variable identifier is valid).
+   if (fabm_is_variable_used(id)) call fabm_link_horizontal_data(model,id,dat)
+
+   end subroutine fabm_link_horizontal_data_sn
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! the specified variable, defined on a horizontal slice of the spatial domain.
 ! The variable is identified by its name.
 !
 ! !INTERFACE:
-   subroutine fabm_link_horizontal_data_char(model,name,dat)
+   subroutine fabm_link_horizontal_data_by_name(model,name,dat)
 !
 ! !INPUT PARAMETERS:
    type (type_model),                            intent(inout) :: model
@@ -1357,7 +1548,7 @@ interface fabm_link_data
    ! Only link the data if needed (if the variable identifier is valid).
    if (fabm_is_variable_used(id)) call fabm_link_horizontal_data(model,id,dat)
 
-   end subroutine fabm_link_horizontal_data_char
+   end subroutine fabm_link_horizontal_data_by_name
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1393,11 +1584,44 @@ interface fabm_link_data
 !-----------------------------------------------------------------------
 !BOP
 !
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
+! the specified variable, defined on the full spatial domain. The variable
+! is identified by its standard name.
+!
+! !INTERFACE:
+   subroutine fabm_link_scalar_data_sn(model,standard_variable,dat)
+!
+! !INPUT PARAMETERS:
+   type (type_model),                         intent(inout) :: model
+   type(type_global_standard_variable),       intent(in)    :: standard_variable
+   real(rk),target,                           intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   type (type_scalar_variable_id)                             :: id
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Obtain integer identifier of the variable.
+   id = fabm_get_scalar_variable_id_sn(model,standard_variable)
+
+   ! Only link the data if needed (if the variable identifier is valid).
+   if (fabm_is_variable_used(id)) call fabm_link_scalar_data(model,id,dat)
+
+   end subroutine fabm_link_scalar_data_sn
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
 ! !IROUTINE: Provide FABM with (a pointer to) the scalar that will hold
 ! data for the specified variable. The variable is identified by its name.
 !
 ! !INTERFACE:
-   subroutine fabm_link_scalar_char(model,name,dat)
+   subroutine fabm_link_scalar_by_name(model,name,dat)
 !
 ! !INPUT PARAMETERS:
    type (type_model),                          intent(inout) :: model
@@ -1418,7 +1642,7 @@ interface fabm_link_data
    ! Only link the data if needed (if the variable identifier is valid).
    if (fabm_is_variable_used(id)) call fabm_link_scalar_data(model,id,dat)
 
-   end subroutine fabm_link_scalar_char
+   end subroutine fabm_link_scalar_by_name
 !EOC
 
 !-----------------------------------------------------------------------
