@@ -364,9 +364,9 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   integer                   :: i,n
+   integer                   :: i
+   integer(timestepkind)     :: n
    REALTYPE                  :: extinction,bio_albedo
-   character(len=19)         :: ts
 !EOP
 !-----------------------------------------------------------------------
 !BOC
