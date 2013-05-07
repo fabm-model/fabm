@@ -28,6 +28,7 @@
    integer, parameter        :: READ_SUCCESS=1
    integer, parameter        :: END_OF_FILE=-1
    integer, parameter        :: READ_ERROR=-2
+   integer, parameter        :: CENTER=0,SURFACE=1,BOTTOM=2
    character, parameter      :: separator = char(9)
 !
 ! !REVISION HISTORY:
@@ -51,7 +52,8 @@
    logical  :: add_diagnostic_variables
 
    ! Environment
-   real(rk),target :: temp,salt,par,depth,dens,wind_sf,par_sf,taub,column_depth,decimal_yearday
+   real(rk),target :: temp,salt,par,current_depth,dens,wind_sf,taub,decimal_yearday
+   real(rk)        :: par_sf,par_bt,par_ct,column_depth
 
    real(rk),allocatable      :: cc(:,:),totals(:)
    type (type_model),pointer :: model
@@ -94,6 +96,7 @@
 ! !LOCAL VARIABLES:
    character(len=PATH_MAX)   :: env_file,output_file
    integer                   :: i
+   real(rk)                  :: depth
 
    namelist /model_setup/ title,start,stop,dt,ode_method
    namelist /environment/ env_file,swr_method, &
@@ -118,6 +121,8 @@
    dens = 0.0_rk
    wind_sf = 0.0_rk
    par_sf = 0.0_rk
+   par_bt = 0.0_rk
+   par_ct = 0.0_rk
    decimal_yearday = 0.0_rk
    taub  = 0.0_rk
 
@@ -178,6 +183,7 @@
       stop 'init_run'
    end if
    column_depth = depth ! For now we have a single depth value only. Use that for both column depth and evaluation depth.
+   call update_depth(CENTER)
    
    ! If longitude and latitude are used, make sure they have been provided and are valid.
    if (swr_method==0) then
@@ -262,7 +268,7 @@
    call fabm_link_bulk_data(model,varname_temp,   temp)
    call fabm_link_bulk_data(model,varname_salt,   salt)
    call fabm_link_bulk_data(model,varname_par,    par)
-   call fabm_link_bulk_data(model,varname_pres,   depth)
+   call fabm_link_bulk_data(model,varname_pres,   current_depth)
    call fabm_link_bulk_data(model,varname_dens,   dens)
    call fabm_link_horizontal_data(model,varname_wind_sf,wind_sf)
    call fabm_link_horizontal_data(model,varname_par_sf, par_sf)
@@ -327,6 +333,22 @@
    end subroutine init_run
 !EOC
 
+   subroutine update_depth(location)
+      integer, intent(in) :: location
+      
+      select case (location)
+         case (SURFACE)
+            current_depth = 0.0_rk
+            par = par_sf
+         case (BOTTOM)
+            current_depth = column_depth            
+            par = par_bt
+         case (CENTER)
+            current_depth = 0.5_rk*column_depth
+            par = par_ct
+      end select
+   end subroutine update_depth
+
 !BOP
 !
 ! !IROUTINE: Get the right-hand side of the ODE system.
@@ -372,6 +394,7 @@
    n = size(model%info%state_variables)
 
    ! Calculate temporal derivatives due to benthic processes.
+   call update_depth(BOTTOM)
    call fabm_do_benthos(model,pp(:,:,1),dd(:,:,1),n)
 
    ! For pelagic variables: translate bottom flux to into change in concentration
@@ -379,6 +402,7 @@
    dd(1:n,:,1) = dd(1:n,:,1)/column_depth
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
+   call update_depth(CENTER)
    call fabm_do(model,pp(:,:,1),dd(:,:,1))
 
    end subroutine get_ppdd
@@ -428,15 +452,18 @@
    n = size(model%info%state_variables)
 
    ! Calculate temporal derivatives due to surface exchange.
+   call update_depth(SURFACE)
    call fabm_get_surface_exchange(model,rhs(1:n,1))
 
    ! Calculate temporal derivatives due to benthic processes.
+   call update_depth(BOTTOM)
    call fabm_do_benthos(model,rhs(1:n,1),rhs(n+1:,1))
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
    rhs(1:n,1) = rhs(1:n,1)/column_depth
 
    ! Add change in pelagic variables.
+   call update_depth(CENTER)
    call fabm_do(model,rhs(:,1))
 
    end subroutine get_rhs
@@ -494,10 +521,13 @@
          extinction = 0.0_rk
          if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
          extinction = extinction + par_background_extinction
-         par = par_sf*exp(-0.5_rk*depth*extinction)
+         par_ct = par_sf*exp(-0.5_rk*column_depth*extinction)
+         par_bt = par_sf*exp(-column_depth*extinction)
       else
-         par = par_sf
+         par_ct = par_sf
+         par_bt = par_sf
       end if
+      call update_depth(CENTER)
 
       ! Integrate one time step
       call ode_solver(ode_method,size(model%info%state_variables)+size(model%info%state_variables_ben),1,dt,cc,get_rhs,get_ppdd)
