@@ -504,6 +504,12 @@
       module procedure compare_horizontal_standard_variables
       module procedure compare_global_standard_variables
    end interface
+   
+   interface is_null_standard_variable
+      module procedure is_null_bulk_standard_variable
+      module procedure is_null_horizontal_standard_variable
+      module procedure is_null_global_standard_variable
+   end interface
 
    interface merge_variables
       module procedure merge_bulk_variables
@@ -1606,13 +1612,13 @@ end subroutine append_string
 !BOC
       bulk_link => model%first_link
       do while (associated(bulk_link))
-         if (.not.compare_standard_variables(bulk_link%target%standard_variable,type_bulk_standard_variable())) then
+         if (.not.is_null_standard_variable(bulk_link%target%standard_variable)) then
             call append_string(processed,bulk_link%target%standard_variable%name,exists=exists)
             if (exists) exit
             bulk_link2 => bulk_link%next
             do while (associated(bulk_link2))
                if (compare_standard_variables(bulk_link%target%standard_variable,bulk_link2%target%standard_variable) .and. .not. &
-                   compare_standard_variables(bulk_link2%target%standard_variable,type_bulk_standard_variable())) &
+                   is_null_standard_variable(bulk_link2%target%standard_variable)) &
                   call couple_variables(model,bulk_link%target,bulk_link2%target)
                bulk_link2 => bulk_link2%next
             end do
@@ -1624,13 +1630,13 @@ end subroutine append_string
 
       horizontal_link => model%first_horizontal_link
       do while (associated(horizontal_link))
-         if (.not.compare_standard_variables(horizontal_link%target%standard_variable,type_horizontal_standard_variable())) then
+         if (.not.is_null_standard_variable(horizontal_link%target%standard_variable)) then
             call append_string(processed,horizontal_link%target%standard_variable%name,exists=exists)
             if (exists) exit
             horizontal_link2 => horizontal_link%next
             do while (associated(horizontal_link2))
                if (compare_standard_variables(horizontal_link%target%standard_variable,horizontal_link2%target%standard_variable).and. .not. &
-                   compare_standard_variables(horizontal_link2%target%standard_variable,type_horizontal_standard_variable())) &
+                   is_null_standard_variable(horizontal_link2%target%standard_variable)) &
                   call couple_variables(model,horizontal_link%target,horizontal_link2%target)
                horizontal_link2 => horizontal_link2%next
             end do
@@ -1642,13 +1648,13 @@ end subroutine append_string
 
       scalar_link => model%first_scalar_link
       do while (associated(scalar_link))
-         if (.not.compare_standard_variables(scalar_link%target%standard_variable,type_global_standard_variable())) then
+         if (.not.is_null_standard_variable(scalar_link%target%standard_variable)) then
             call append_string(processed,scalar_link%target%standard_variable%name,exists=exists)
             if (exists) exit
             scalar_link2 => scalar_link%next
             do while (associated(scalar_link2))
                if (compare_standard_variables(scalar_link%target%standard_variable,scalar_link2%target%standard_variable).and. .not. &
-                   compare_standard_variables(scalar_link2%target%standard_variable,type_global_standard_variable())) &
+                   is_null_standard_variable(scalar_link2%target%standard_variable)) &
                   call couple_variables(model,scalar_link%target,scalar_link2%target)
                scalar_link2 => scalar_link2%next
             end do
@@ -2125,15 +2131,15 @@ function create_external_bulk_id(model,variable) result(id)
    type (type_bulk_variable),intent(inout),target :: variable
    type (type_bulk_variable_id) :: id
    id%variable => variable
-   if (allocated(variable%alldata)) then
+   if (_ALLOCATED_(variable%alldata)) then
       allocate(id%alldata(size(variable%alldata)))
       id%alldata = variable%alldata
       id%p => id%alldata(1)%p
    else
       allocate(id%alldata(0))
    end if
-   if (allocated(variable%state_indices)) id%state_index = variable%state_indices(1)%p
-   if (allocated(variable%write_indices)) id%write_index = variable%write_indices(1)%p
+   if (_ALLOCATED_(variable%state_indices)) id%state_index = variable%state_indices(1)%p
+   if (_ALLOCATED_(variable%write_indices)) id%write_index = variable%write_indices(1)%p
 end function create_external_bulk_id
 
 function create_external_horizontal_id(model,variable) result(id)
@@ -2141,15 +2147,15 @@ function create_external_horizontal_id(model,variable) result(id)
    type (type_horizontal_variable),intent(inout),target :: variable
    type (type_horizontal_variable_id) :: id
    id%variable => variable
-   if (allocated(variable%alldata)) then
+   if (_ALLOCATED_(variable%alldata)) then
       allocate(id%alldata(size(variable%alldata)))
       id%alldata = variable%alldata
       id%p => id%alldata(1)%p
    else
       allocate(id%alldata(0))
    end if
-   if (allocated(variable%state_indices)) id%state_index = variable%state_indices(1)%p
-   if (allocated(variable%write_indices)) id%write_index = variable%write_indices(1)%p
+   if (_ALLOCATED_(variable%state_indices)) id%state_index = variable%state_indices(1)%p
+   if (_ALLOCATED_(variable%write_indices)) id%write_index = variable%write_indices(1)%p
 end function create_external_horizontal_id
 
 function create_external_scalar_id(model,variable) result(id)
@@ -2157,15 +2163,15 @@ function create_external_scalar_id(model,variable) result(id)
    type (type_scalar_variable),intent(inout),target :: variable
    type (type_scalar_variable_id) :: id
    id%variable => variable
-   if (allocated(variable%alldata)) then
+   if (_ALLOCATED_(variable%alldata)) then
       allocate(id%alldata(size(variable%alldata)))
       id%alldata = variable%alldata
       id%p => id%alldata(1)%p
    else
       allocate(id%alldata(0))
    end if
-   if (allocated(variable%state_indices)) id%state_index = variable%state_indices(1)%p
-   if (allocated(variable%write_indices)) id%write_index = variable%write_indices(1)%p
+   if (_ALLOCATED_(variable%state_indices)) id%state_index = variable%state_indices(1)%p
+   if (_ALLOCATED_(variable%write_indices)) id%write_index = variable%write_indices(1)%p
 end function create_external_scalar_id
 
 function compare_bulk_standard_variables(variable1,variable2) result(equal)
@@ -2198,6 +2204,27 @@ function compare_global_standard_variables(variable1,variable2) result(equal)
    equal = .true.
 end function compare_global_standard_variables
 
+function is_null_bulk_standard_variable(variable) result(isnull)
+   type (type_bulk_standard_variable),intent(in) :: variable
+   logical :: isnull
+
+   isnull = (variable%name==''.and. variable%units=='')
+end function
+
+function is_null_horizontal_standard_variable(variable) result(isnull)
+   type (type_horizontal_standard_variable),intent(in) :: variable
+   logical :: isnull
+
+   isnull = (variable%name==''.and. variable%units=='')
+end function
+
+function is_null_global_standard_variable(variable) result(isnull)
+   type (type_global_standard_variable),intent(in) :: variable
+   logical :: isnull
+
+   isnull = (variable%name==''.and. variable%units=='')
+end function
+
 function create_external_bulk_id_for_standard_name(model,standard_variable) result(id)
    _CLASS_ (type_model_info),         intent(in) :: model
    type (type_bulk_standard_variable),intent(in) :: standard_variable
@@ -2205,14 +2232,17 @@ function create_external_bulk_id_for_standard_name(model,standard_variable) resu
 
    type (type_bulk_variable_link), pointer :: link
    integer                            :: i
-   
+
    allocate(id%alldata(0))
    link => model%first_link
    do while (associated(link))
-      if (compare_bulk_standard_variables(link%target%standard_variable,standard_variable)) then
-         do i=1,size(link%target%alldata)
-            call append_data_pointer(id%alldata,link%target%alldata(i)%p)
-         end do
+      if (compare_standard_variables(link%target%standard_variable,standard_variable).and. &
+          .not.is_null_standard_variable(link%target%standard_variable)) then
+         if (_ALLOCATED_(link%target%alldata)) then
+            do i=1,size(link%target%alldata)
+               call append_data_pointer(id%alldata,link%target%alldata(i)%p)
+            end do
+         end if
       end if
       link => link%next
    end do
@@ -2226,14 +2256,17 @@ function create_external_horizontal_id_for_standard_name(model,standard_variable
 
    type (type_horizontal_variable_link), pointer :: link
    integer                                       :: i
-   
+
    allocate(id%alldata(0))
    link => model%first_horizontal_link
    do while (associated(link))
-      if (compare_standard_variables(link%target%standard_variable,standard_variable)) then
-         do i=1,size(link%target%alldata)
-            call append_data_pointer(id%alldata,link%target%alldata(i)%p)
-         end do
+      if (compare_standard_variables(link%target%standard_variable,standard_variable).and. &
+          .not.is_null_standard_variable(link%target%standard_variable)) then
+         if (_ALLOCATED_(link%target%alldata)) then
+            do i=1,size(link%target%alldata)
+               call append_data_pointer(id%alldata,link%target%alldata(i)%p)
+            end do
+         end if
       end if
       link => link%next
    end do
@@ -2247,14 +2280,17 @@ function create_external_scalar_id_for_standard_name(model,standard_variable) re
 
    type (type_scalar_variable_link), pointer :: link
    integer                                   :: i
-   
+
    allocate(id%alldata(0))
    link => model%first_scalar_link
    do while (associated(link))
-      if (compare_standard_variables(link%target%standard_variable,standard_variable)) then
-         do i=1,size(link%target%alldata)
-            call append_data_pointer(id%alldata,link%target%alldata(i)%p)
-         end do
+      if (compare_standard_variables(link%target%standard_variable,standard_variable).and. &
+          .not.is_null_standard_variable(link%target%standard_variable)) then
+         if (_ALLOCATED_(link%target%alldata)) then
+            do i=1,size(link%target%alldata)
+               call append_data_pointer(id%alldata,link%target%alldata(i)%p)
+            end do
+         end if
       end if
       link => link%next
    end do
