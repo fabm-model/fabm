@@ -15,7 +15,7 @@
    use fabm
    use fabm_types
 
-   IMPLICIT NONE
+   implicit none
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
@@ -34,25 +34,25 @@
 !
 !  private data members initialised via namelists
    character(len=80)         :: title
-   REALTYPE                  :: dt
+   real(rk)                  :: dt
 !  station description
-   REALTYPE                  :: latitude,longitude
+   real(rk)                  :: latitude,longitude
 
    ! Bio model info
    integer  :: ode_method, nsave = 1
    integer  :: swr_method = 0
-   REALTYPE :: cloud = _ZERO_
-   REALTYPE :: par_fraction = _ONE_
-   REALTYPE :: par_background_extinction = _ZERO_
+   real(rk) :: cloud = 0.0_rk
+   real(rk) :: par_fraction = 1.0_rk
+   real(rk) :: par_background_extinction = 0.0_rk
    logical  :: apply_self_shading = .true.
    logical  :: add_environment = .false.
    logical  :: add_conserved_quantities = .false.
    logical  :: add_diagnostic_variables=.false.
 
    ! Environment
-   REALTYPE,target :: temp,salt,par,depth,dens,wind_sf,par_sf,taub,decimal_yearday
+   real(rk),target :: temp,salt,par,depth,dens,wind_sf,par_sf,taub,column_depth,decimal_yearday
 
-   REALTYPE,allocatable      :: cc(:,:),totals(:)
+   real(rk),allocatable      :: cc(:,:),totals(:)
    type (type_model),pointer :: model
    character(len=128)        :: cbuf
 
@@ -60,10 +60,10 @@
       function short_wave_radiation(jul,secs,dlon,dlat,cloud,bio_albedo) result(swr)
          import
          integer, intent(in)                 :: jul,secs
-         REALTYPE, intent(in)                :: dlon,dlat
-         REALTYPE, intent(in)                :: cloud
-         REALTYPE, intent(in)                :: bio_albedo
-         REALTYPE                            :: swr
+         real(rk), intent(in)                :: dlon,dlat
+         real(rk), intent(in)                :: cloud
+         real(rk), intent(in)                :: bio_albedo
+         real(rk)                            :: swr
       end function short_wave_radiation
    end interface
 !EOP
@@ -85,9 +85,6 @@
 !  the user specifications. Then, one by one each of the modules are
 !  initialised.
 !
-! !USES:
-  IMPLICIT NONE
-!
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
@@ -106,7 +103,7 @@
 !
 !-----------------------------------------------------------------------
 !BOC
-   LEVEL1 'init_run0d'
+   LEVEL1 'init_run'
    STDERR LINE
 
    ! Open the namelist file.
@@ -114,14 +111,21 @@
    open(namlst,file='run.nml',status='old',action='read',err=90)
 
    ! Read all namelists
-   depth = -1.
-   taub  = _ZERO_
+   depth = -1.0_rk
+   taub  = 0.0_rk
    read(namlst,nml=model_setup,err=91)
    read(namlst,nml=environment,err=92)
    read(namlst,nml=output     ,err=93)
 
    ! Close the namelist file.
    close (namlst)
+
+   ! Make sure depth has been provided.
+   if (depth<=0.0_rk) then
+      FATAL 'A positive value for depth must be provided.'
+      stop 'init_run'
+   end if
+   column_depth = depth ! For now we have a single depth value only. Use that for both column depth and evaluation depth.
 
    LEVEL2 'done.'
 
@@ -132,7 +136,7 @@
    timestep = dt
 
    ! Write information for this run to the console.
-   LEVEL2 trim(title)
+   LEVEL2 'Simulation: '//trim(title)
    select case (swr_method)
       case (0)
          LEVEL2 'Surface photosynthetically active radiation will be calculated from time,'
@@ -161,7 +165,7 @@
 
    ! Build FABM model tree.
    model => fabm_create_model_from_file(namlst)
-   
+
    call fabm_set_domain(model)
 
    ! Allocate space for totals of conserved quantities.
@@ -217,6 +221,9 @@
       do i=1,size(model%info%diagnostic_variables)
          write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables(i)%long_name),trim(model%info%diagnostic_variables(i)%units)
       end do
+      do i=1,size(model%info%diagnostic_variables_hz)
+         write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables_hz(i)%long_name),trim(model%info%diagnostic_variables_hz(i)%units)
+      end do
    end if
    if (add_conserved_quantities) then
       do i=1,size(model%info%conserved_quantities)
@@ -258,17 +265,14 @@
 ! !DESCRIPTION:
 ! TODO
 !
-! !USES:
-   IMPLICIT NONE
-!
 ! !INPUT PARAMETERS:
    logical, intent(in)                  :: first
    integer, intent(in)                  :: numc,nlev
-   REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
+   real(rk), intent(in)                 :: cc(1:numc,0:nlev)
 !
 ! !OUTPUT PARAMETERS:
-   REALTYPE, intent(out)                :: pp(1:numc,1:numc,0:nlev)
-   REALTYPE, intent(out)                :: dd(1:numc,1:numc,0:nlev)
+   real(rk), intent(out)                :: pp(1:numc,1:numc,0:nlev)
+   real(rk), intent(out)                :: dd(1:numc,1:numc,0:nlev)
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -279,8 +283,18 @@
 
 !-----------------------------------------------------------------------
 !BOC
-   pp(:,:,1) = _ZERO_
-   dd(:,:,1) = _ZERO_
+   ! Initialize production/destruction matrices to zero (entries will be incremented by FABM)
+   pp(:,:,1) = 0.0_rk
+   dd(:,:,1) = 0.0_rk
+
+   ! Send current state to FABM
+   ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
+   do n=1,size(model%info%state_variables)
+      call fabm_link_bulk_state_data(model,n,cc(n,1))
+   end do
+   do n=1,size(model%info%state_variables_ben)
+      call fabm_link_bottom_state_data(model,n,cc(size(model%info%state_variables)+n,1))
+   end do
 
    ! Shortcut to the number of pelagic state variables.
    n = size(model%info%state_variables)
@@ -288,10 +302,11 @@
    ! Calculate temporal derivatives due to benthic processes.
    call fabm_do_benthos(model,pp(:,:,1),dd(:,:,1),n)
 
-   ! Bottom flux to concentration rate
-   pp(1:n,:,1) = pp(1:n,:,1)/depth
-   dd(1:n,:,1) = dd(1:n,:,1)/depth
+   ! For pelagic variables: translate bottom flux to into change in concentration
+   pp(1:n,:,1) = pp(1:n,:,1)/column_depth
+   dd(1:n,:,1) = dd(1:n,:,1)/column_depth
 
+   ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
    call fabm_do(model,pp(:,:,1),dd(:,:,1))
 
    end subroutine get_ppdd
@@ -308,16 +323,13 @@
 ! !DESCRIPTION:
 ! TODO
 !
-! !USES:
-   IMPLICIT NONE
-!
 ! !INPUT PARAMETERS:
    logical, intent(in)                  :: first
    integer, intent(in)                  :: numc,nlev
-   REALTYPE, intent(in)                 :: cc(1:numc,0:nlev)
+   real(rk), intent(in)                 :: cc(1:numc,0:nlev)
 !
 ! !OUTPUT PARAMETERS:
-   REALTYPE, intent(out)                :: rhs(1:numc,0:nlev)
+   real(rk), intent(out)                :: rhs(1:numc,0:nlev)
 !
 ! !LOCAL PARAMETERS:
    integer                              :: n
@@ -328,17 +340,31 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   rhs(:,1) = _ZERO_
+   ! Initialize derivatives to zero (entries will be incremented by FABM)
+   rhs(:,1) = 0.0_rk
+
+   ! Send current state to FABM
+   ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
+   do n=1,size(model%info%state_variables)
+      call fabm_link_bulk_state_data(model,n,cc(n,1))
+   end do
+   do n=1,size(model%info%state_variables_ben)
+      call fabm_link_bottom_state_data(model,n,cc(size(model%info%state_variables)+n,1))
+   end do
 
    ! Shortcut to the number of pelagic state variables.
    n = size(model%info%state_variables)
 
+   ! Calculate temporal derivatives due to surface exchange.
+   call fabm_get_surface_exchange(model,rhs(1:n,1))
+
    ! Calculate temporal derivatives due to benthic processes.
    call fabm_do_benthos(model,rhs(1:n,1),rhs(n+1:,1))
 
-   ! Bottom flux to concentration rate
-   rhs(1:n,1) = rhs(1:n,1)/depth
+   ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
+   rhs(1:n,1) = rhs(1:n,1)/column_depth
 
+   ! Add change in pelagic variables.
    call fabm_do(model,rhs(:,1))
 
    end subroutine get_rhs
@@ -357,16 +383,13 @@
 ! the main time-loop inside of which all routines required
 ! during the time step are called.
 !
-! !USES:
-   IMPLICIT NONE
-!
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
    integer                   :: i
    integer(timestepkind)     :: n
-   REALTYPE                  :: extinction,bio_albedo
+   real(rk)                  :: extinction,bio_albedo
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -396,7 +419,7 @@
       if (swr_method/=2) then
          ! Either we calculate surface PAR, or surface PAR is provided.
          ! Calculate the local PAR at the given depth from par fraction, extinction coefficient, and depth.
-         extinction = _ZERO_
+         extinction = 0.0_rk
          if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
          extinction = extinction + par_background_extinction
          par = par_sf*exp(-0.5d0*depth*extinction)
@@ -406,6 +429,15 @@
 
       ! Integrate one time step
       call ode_solver(ode_method,size(model%info%state_variables)+size(model%info%state_variables_ben),1,dt,cc,get_rhs,get_ppdd)
+
+      ! ODE solver may have redirected the current state with to an array with intermediate values.
+      ! Reset to global array.
+      do i=1,size(model%info%state_variables)
+         call fabm_link_bulk_state_data(model,i,cc(i,1))
+      end do
+      do i=1,size(model%info%state_variables_ben)
+         call fabm_link_bottom_state_data(model,i,cc(size(model%info%state_variables)+i,1))
+      end do
 
       ! Do output
       if (mod(n,nsave)==0) then
@@ -422,6 +454,9 @@
          if (add_diagnostic_variables) then
             do i=1,size(model%info%diagnostic_variables)
                write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
+            end do
+            do i=1,size(model%info%diagnostic_variables_hz)
+               write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,fabm_get_horizontal_diagnostic_data(model,i)
             end do
          end if
          if (add_conserved_quantities) then
@@ -452,9 +487,6 @@
 !  This routine reads the local environment from {\tt env\_file} and
 !  interpolates in time.
 !
-! !USES:
-   IMPLICIT NONE
-!
 ! !INPUT PARAMETERS:
    integer, intent(in)                 :: jul,secs
 !
@@ -464,11 +496,11 @@
 ! !LOCAL VARIABLES:
    integer,parameter         :: nobs = 3
    integer                   :: yy,mm,dd,hh,min,ss
-   REALTYPE                  :: t,curobs(nobs)
-   REALTYPE, save            :: dt
+   real(rk)                  :: t,curobs(nobs)
+   real(rk), save            :: dt
    integer, save             :: env_jul1,env_secs1
    integer, save             :: env_jul2=0,env_secs2=0
-   REALTYPE, save            :: obs1(nobs),obs2(nobs)=0.
+   real(rk), save            :: obs1(nobs),obs2(nobs)=0.
    logical, save             :: endoffile = .false.
    integer                   :: rc
 !EOP
@@ -556,16 +588,13 @@
 !  in the 'obs' array. It is up to the calling routine to assign
 !  meaning full variables to the individual elements in {\tt obs}.
 !
-! !USES:
-   IMPLICIT NONE
-!
 ! !INPUT PARAMETERS:
    integer, intent(in)                 :: unit
    integer, intent(in)                 :: N
 !
 ! !OUTPUT PARAMETERS:
    integer, intent(out)                :: yy,mm,dd,hh,min,ss
-   REALTYPE,intent(out)                :: obs(:)
+   real(rk),intent(out)                :: obs(:)
    integer, intent(out)                :: ierr
 !
 ! !REVISION HISTORY:
@@ -603,9 +632,6 @@
 !
 ! !DESCRIPTION:
 ! Close all open files.
-!
-! !USES:
-   IMPLICIT NONE
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
