@@ -12,6 +12,7 @@
 !
 ! !USES:
    use time
+   use input
    use fabm
    use fabm_types
 
@@ -23,7 +24,7 @@
 
 !
 ! !DEFINED PARAMETERS:
-   integer, parameter        :: namlst=10, env_unit=11, out_unit = 12, bio_unit=22
+   integer, parameter        :: namlst=10, out_unit = 12, bio_unit=22
    integer, parameter        :: READ_SUCCESS=1
    integer, parameter        :: END_OF_FILE=-1
    integer, parameter        :: READ_ERROR=-2
@@ -158,10 +159,12 @@
    call init_time(MinN,MaxN)
 
    ! Open the file with observations of the local environment.
-   open(env_unit,file=env_file,action='read', &
-        status='old',err=95)
    LEVEL2 'Reading local environment data from:'
    LEVEL3 trim(env_file)
+   call init_input()
+   call register_input_0d(env_file,1,par_sf)
+   call register_input_0d(env_file,2,temp)
+   call register_input_0d(env_file,3,salt)
 
    ! Build FABM model tree.
    model => fabm_create_model_from_file(namlst)
@@ -403,7 +406,7 @@
       decimal_yearday = yearday-1 + dble(secondsofday)/86400.
 
       ! Update environment
-      call read_environment(julianday,secondsofday)
+      call do_input(julianday,secondsofday)
 
       ! Calculate photosynthetically active radiation if it is not provided in the input file.
       if (swr_method==0) then
@@ -478,153 +481,6 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Read local environment, interpolate in time
-!
-! !INTERFACE:
-   subroutine read_environment(jul,secs)
-!
-! !DESCRIPTION:
-!  This routine reads the local environment from {\tt env\_file} and
-!  interpolates in time.
-!
-! !INPUT PARAMETERS:
-   integer, intent(in)                 :: jul,secs
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   integer,parameter         :: nobs = 3
-   integer                   :: yy,mm,dd,hh,min,ss
-   real(rk)                  :: t,curobs(nobs)
-   real(rk), save            :: dt
-   integer, save             :: env_jul1,env_secs1
-   integer, save             :: env_jul2=0,env_secs2=0
-   real(rk), save            :: obs1(nobs),obs2(nobs)=0.
-   logical, save             :: endoffile = .false.
-   integer                   :: rc
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! This part reads in new observations if the last read observation lies
-   ! before the current time, and the end of the observation file has not yet
-   ! been reached.
-   if(time_diff(env_jul2,env_secs2,jul,secs) < 0 .and. .not. endoffile) then
-      do
-         ! Store the previous right-side observation as the new left-side observation.
-         env_jul1  = env_jul2
-         env_secs1 = env_secs2
-         obs1      = obs2
-
-         ! Try to read another observation
-         call read_obs(env_unit,yy,mm,dd,hh,min,ss,nobs,obs2,rc)
-
-         ! Interpret the status code that was returned.
-         if (rc==END_OF_FILE) then
-            ! Unable to read more observations: set the last observation equal to the first
-            ! (the last valid observation read), and stop reading the observation file.
-            env_jul2  = env_jul1
-            env_secs2 = env_secs1
-            obs2      = obs1
-            endoffile = .true.
-            EXIT
-         elseif (rc==READ_ERROR) then
-            ! Unknown error occurred: fail.
-            stop 'read_environment: error when reading environment from file.'
-         end if
-
-         ! Calculate the time of the observation we just read.
-         call julian_day(yy,mm,dd,env_jul2)
-         env_secs2 = hh*3600 + min*60 + ss
-
-         ! If the new observation lies beyond the current time, we are done.
-         if(time_diff(env_jul2,env_secs2,jul,secs) > 0) EXIT
-      end do
-
-      if (env_jul1==0) then
-         ! The time of the very first observation already lies beyond current time.
-         ! Set the left-side observation equal to the right-side one that we just read.
-         env_jul1  = env_jul2
-         env_secs1 = env_secs2
-         obs1      = obs2
-      end if
-
-      ! Calculate the difference in time between the left- and right-side observation.
-      dt = time_diff(env_jul2,env_secs2,env_jul1,env_secs1)
-   end if
-
-   if (dt==0) then
-      ! The time of both observations is identical: we could not get one observation
-      ! before and one observation after the current time. Do not interpolate and just use
-      ! the only [nearest] observation as-is.
-      curobs = obs1
-   else
-      ! Interpolate in time
-      t  = time_diff(jul,secs,env_jul1,env_secs1)
-      curobs = obs1 + t*(obs2-obs1)/dt
-   end if
-
-   ! Store environment properties.
-   par_sf = curobs(1)
-   temp   = curobs(2)
-   salt   = curobs(3)
-
-   end subroutine read_environment
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: read_obs
-!
-! !INTERFACE:
-   subroutine read_obs(unit,yy,mm,dd,hh,min,ss,N,obs,ierr)
-!
-! !DESCRIPTION:
-!  This routine will read all non-profile observations.
-!  The routine allows for reading more than one scalar variable at a time.
-!  The number of data to be read is specified by {\tt N}.
-!  Data read-in are returned
-!  in the 'obs' array. It is up to the calling routine to assign
-!  meaning full variables to the individual elements in {\tt obs}.
-!
-! !INPUT PARAMETERS:
-   integer, intent(in)                 :: unit
-   integer, intent(in)                 :: N
-!
-! !OUTPUT PARAMETERS:
-   integer, intent(out)                :: yy,mm,dd,hh,min,ss
-   real(rk),intent(out)                :: obs(:)
-   integer, intent(out)                :: ierr
-!
-! !REVISION HISTORY:
-!  Original author(s): Karsten Bolding & Hans Burchard
-!
-!  See observation module
-!
-! !LOCAL VARIABLES:
-   character                 :: c1,c2,c3,c4
-   integer                   :: i
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ierr=0
-   read(unit,'(A128)',ERR=100,END=110) cbuf
-   read(cbuf,900,ERR=100,END=110) yy,c1,mm,c2,dd,hh,c3,min,c4,ss
-   read(cbuf(20:),*,ERR=100,END=110) (obs(i),i=1,N)
-
-   return
-100 ierr=READ_ERROR
-   return
-110 ierr=END_OF_FILE
-   return
-900 format(i4,a1,i2,a1,i2,1x,i2,a1,i2,a1,i2)
-   end subroutine read_obs
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
 ! !IROUTINE: The run is over --- now clean up.
 !
 ! !INTERFACE:
@@ -641,7 +497,6 @@
 !BOC
    LEVEL1 'clean_up'
 
-   close(env_unit)
    close(out_unit)
 
    return
