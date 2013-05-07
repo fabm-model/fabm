@@ -209,7 +209,7 @@ SUBROUTINE aed_phosphorus_do(self,_FABM_ARGS_DO_RHS_)
    _FABM_LOOP_BEGIN_
 
    ! Just stuck it here for now until generic "update_state" interface is made
-   !CALL aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
+   CALL aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
 
  !  ! Retrieve current (local) state variable values.
  !  _GET_(self%id_frp,frp) ! phosphorus
@@ -379,7 +379,7 @@ SUBROUTINE aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
 ! after kinetic transformations are applied
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phosphorus),INTENT(inout) :: self
+   _CLASS_ (type_aed_phosphorus),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
