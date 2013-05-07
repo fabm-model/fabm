@@ -40,15 +40,15 @@
    real(rk)                  :: latitude,longitude
 
    ! Bio model info
-   integer  :: ode_method, nsave = 1
-   integer  :: swr_method = 0
-   real(rk) :: cloud = 0.0_rk
-   real(rk) :: par_fraction = 1.0_rk
-   real(rk) :: par_background_extinction = 0.0_rk
-   logical  :: apply_self_shading = .true.
-   logical  :: add_environment = .false.
-   logical  :: add_conserved_quantities = .false.
-   logical  :: add_diagnostic_variables=.false.
+   integer  :: ode_method, nsave
+   integer  :: swr_method
+   real(rk) :: cloud
+   real(rk) :: par_fraction
+   real(rk) :: par_background_extinction
+   logical  :: apply_self_shading
+   logical  :: add_environment
+   logical  :: add_conserved_quantities
+   logical  :: add_diagnostic_variables
 
    ! Environment
    real(rk),target :: temp,salt,par,depth,dens,wind_sf,par_sf,taub,column_depth,decimal_yearday
@@ -111,22 +111,90 @@
    LEVEL2 'reading model setup namelists..'
    open(namlst,file='run.nml',status='old',action='read',err=90)
 
-   ! Read all namelists
-   depth = -1.0_rk
+   ! Initialize environment
+   temp = 0.0_rk
+   salt = 0.0_rk
+   par = 0.0_rk
+   dens = 0.0_rk
+   wind_sf = 0.0_rk
+   par_sf = 0.0_rk
+   decimal_yearday = 0.0_rk
    taub  = 0.0_rk
+
+   ! Read all namelists
+   title = ''
+   start = ''
+   stop = ''
+   dt = 0.0_rk
+   ode_method = 1
    read(namlst,nml=model_setup,err=91)
+   
+   ! Read environment namelist
+   env_file = ''
+   swr_method = 0
+   latitude = -100.0_rk
+   longitude = -400.0_rk
+   cloud = 0.0_rk
+   par_fraction = 1.0_rk
+   depth = -1.0_rk
+   par_background_extinction = 0.0_rk
+   apply_self_shading = .true.
    read(namlst,nml=environment,err=92)
+
+   ! Read output namelist
+   output_file = ''
+   nsave = 1
+   add_environment = .false.
+   add_conserved_quantities = .false.
+   add_diagnostic_variables=.false.
    read(namlst,nml=output     ,err=93)
 
    ! Close the namelist file.
    close (namlst)
 
+   if (start=='') then
+      FATAL 'run.nml: start time "start" must be set in "model_setup" namelist.'
+      stop 'init_run'
+   end if
+
+   if (stop=='') then
+      FATAL 'run.nml: stop time "stop" must be set in "model_setup" namelist.'
+      stop 'init_run'
+   end if
+
+   if (dt<=0.0_rk) then
+      FATAL 'run.nml: time step "dt" must be set to a positive value in "model_setup" namelist.'
+      stop 'init_run'
+   end if
+
+   if (env_file=='') then
+      FATAL 'run.nml: "env_file" must be set to a valid file path in "environment" namelist.'
+      stop 'init_run'
+   end if
+
    ! Make sure depth has been provided.
    if (depth<=0.0_rk) then
-      FATAL 'A positive value for depth must be provided.'
+      FATAL 'run.nml: a positive value for "depth" must be provided in "environment" namelist.'
       stop 'init_run'
    end if
    column_depth = depth ! For now we have a single depth value only. Use that for both column depth and evaluation depth.
+   
+   ! If longitude and latitude are used, make sure they have been provided and are valid.
+   if (swr_method==0) then
+      if (latitude<-90._rk.or.latitude>90._rk) then
+         FATAL 'run.nml: a valid value for "latitude" must be provided in "environment" if "swr_method" is 0.'
+         stop 'init_run'
+      end if
+      if (longitude<-360._rk.or.longitude>360._rk) then
+         FATAL 'run.nml: a valid value for "longitude" must be provided in "environment" if "swr_method" is 0.'
+         stop 'init_run'
+      end if
+   end if
+   
+   if (output_file=='') then
+      FATAL 'run.nml: "output_file" must be set to a valid file path in "output" namelist.'
+      stop 'init_run'
+   end if
 
    LEVEL2 'done.'
 
@@ -169,6 +237,7 @@
    ! Build FABM model tree.
    model => fabm_create_model_from_file(namlst)
 
+   ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
    call fabm_set_domain(model)
 
    ! Allocate space for totals of conserved quantities.
@@ -425,7 +494,7 @@
          extinction = 0.0_rk
          if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
          extinction = extinction + par_background_extinction
-         par = par_sf*exp(-0.5d0*depth*extinction)
+         par = par_sf*exp(-0.5_rk*depth*extinction)
       else
          par = par_sf
       end if
@@ -497,9 +566,9 @@
 !BOC
    LEVEL1 'clean_up'
 
+   call close_input()
    close(out_unit)
 
-   return
    end subroutine clean_up
 !EOC
 
