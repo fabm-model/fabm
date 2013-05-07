@@ -41,7 +41,8 @@
    real(rk)                  :: latitude,longitude
 
    ! Bio model info
-   integer  :: ode_method, nsave
+   integer  :: ode_method
+   integer(timestepkind)::nsave
    integer  :: swr_method
    real(rk) :: cloud
    real(rk) :: par_fraction
