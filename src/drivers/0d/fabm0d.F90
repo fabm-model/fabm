@@ -161,6 +161,8 @@
 
    ! Build FABM model tree.
    model => fabm_create_model_from_file(namlst)
+   
+   call fabm_set_domain(model)
 
    ! Allocate space for totals of conserved quantities.
    allocate(totals(1:ubound(model%info%conserved_quantities,1)))
