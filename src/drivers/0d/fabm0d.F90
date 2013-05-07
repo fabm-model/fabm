@@ -383,7 +383,7 @@
       call read_environment(julianday,secondsofday)
 
       ! Calculate photosynthetically active radiation if it is not provided in the input file.
-      if (swr_method.eq.0) then
+      if (swr_method==0) then
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
          call fabm_get_albedo(model,bio_albedo)
          par_sf = short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,bio_albedo)
@@ -393,7 +393,7 @@
       par_sf = par_fraction*par_sf
 
       ! Apply light attentuation with depth, unless local light is provided in the input file.
-      if (swr_method.ne.2) then
+      if (swr_method/=2) then
          ! Either we calculate surface PAR, or surface PAR is provided.
          ! Calculate the local PAR at the given depth from par fraction, extinction coefficient, and depth.
          extinction = _ZERO_
@@ -408,7 +408,7 @@
       call ode_solver(ode_method,size(model%info%state_variables)+size(model%info%state_variables_ben),1,dt,cc,get_rhs,get_ppdd)
 
       ! Do output
-      if (mod(n,nsave).eq.0) then
+      if (mod(n,nsave)==0) then
          call write_time_string(julianday,secondsofday,timestr)
          write (out_unit,FMT='(A)',ADVANCE='NO') timestr
          if (add_environment) then
@@ -477,7 +477,7 @@
    ! This part reads in new observations if the last read observation lies
    ! before the current time, and the end of the observation file has not yet
    ! been reached.
-   if(time_diff(env_jul2,env_secs2,jul,secs) .lt. 0 .and. .not. endoffile) then
+   if(time_diff(env_jul2,env_secs2,jul,secs) < 0 .and. .not. endoffile) then
       do
          ! Store the previous right-side observation as the new left-side observation.
          env_jul1  = env_jul2
@@ -506,10 +506,10 @@
          env_secs2 = hh*3600 + min*60 + ss
 
          ! If the new observation lies beyond the current time, we are done.
-         if(time_diff(env_jul2,env_secs2,jul,secs) .gt. 0) EXIT
+         if(time_diff(env_jul2,env_secs2,jul,secs) > 0) EXIT
       end do
 
-      if (env_jul1.eq.0) then
+      if (env_jul1==0) then
          ! The time of the very first observation already lies beyond current time.
          ! Set the left-side observation equal to the right-side one that we just read.
          env_jul1  = env_jul2
@@ -521,7 +521,7 @@
       dt = time_diff(env_jul2,env_secs2,env_jul1,env_secs1)
    end if
 
-   if (dt.eq.0) then
+   if (dt==0) then
       ! The time of both observations is identical: we could not get one observation
       ! before and one observation after the current time. Do not interpolate and just use
       ! the only [nearest] observation as-is.
