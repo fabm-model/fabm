@@ -165,21 +165,21 @@
    call fabm_set_domain(model)
 
    ! Allocate space for totals of conserved quantities.
-   allocate(totals(1:ubound(model%info%conserved_quantities,1)))
+   allocate(totals(1:size(model%info%conserved_quantities)))
 
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
-   allocate(cc(ubound(model%info%state_variables,1)+ubound(model%info%state_variables_ben,1),0:1))
-   do i=1,ubound(model%info%state_variables,1)
+   allocate(cc(size(model%info%state_variables)+size(model%info%state_variables_ben),0:1))
+   do i=1,size(model%info%state_variables)
       cc(i,1) = model%info%state_variables(i)%initial_value
       call fabm_link_bulk_state_data(model,i,cc(i,1))
    end do
 
    ! Create benthos variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
-   do i=1,ubound(model%info%state_variables_ben,1)
-      cc(ubound(model%info%state_variables,1)+i,1) = model%info%state_variables_ben(i)%initial_value
-      call fabm_link_bottom_state_data(model,i,cc(ubound(model%info%state_variables,1)+i,1))
+   do i=1,size(model%info%state_variables_ben)
+      cc(size(model%info%state_variables)+i,1) = model%info%state_variables_ben(i)%initial_value
+      call fabm_link_bottom_state_data(model,i,cc(size(model%info%state_variables)+i,1))
    end do
 
    ! Link environmental data to FABM
@@ -207,19 +207,19 @@
       write(out_unit,FMT=100,ADVANCE='NO') separator,'temperature',                        'degrees C'
       write(out_unit,FMT=100,ADVANCE='NO') separator,'salinity',                           'kg/m3'
    end if
-   do i=1,ubound(model%info%state_variables,1)
+   do i=1,size(model%info%state_variables)
       write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables(i)%long_name),trim(model%info%state_variables(i)%units)
    end do
-   do i=1,ubound(model%info%state_variables_ben,1)
+   do i=1,size(model%info%state_variables_ben)
       write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables_ben(i)%long_name),trim(model%info%state_variables_ben(i)%units)
    end do
    if (add_diagnostic_variables) then
-      do i=1,ubound(model%info%diagnostic_variables,1)
+      do i=1,size(model%info%diagnostic_variables)
          write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables(i)%long_name),trim(model%info%diagnostic_variables(i)%units)
       end do
    end if
    if (add_conserved_quantities) then
-      do i=1,ubound(model%info%conserved_quantities,1)
+      do i=1,size(model%info%conserved_quantities)
          write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%conserved_quantities(i)%long_name),trim(model%info%conserved_quantities(i)%units)
       end do
    end if
@@ -283,7 +283,7 @@
    dd(:,:,1) = _ZERO_
 
    ! Shortcut to the number of pelagic state variables.
-   n = ubound(model%info%state_variables,1)
+   n = size(model%info%state_variables)
 
    ! Calculate temporal derivatives due to benthic processes.
    call fabm_do_benthos(model,pp(:,:,1),dd(:,:,1),n)
@@ -331,7 +331,7 @@
    rhs(:,1) = _ZERO_
 
    ! Shortcut to the number of pelagic state variables.
-   n = ubound(model%info%state_variables,1)
+   n = size(model%info%state_variables)
 
    ! Calculate temporal derivatives due to benthic processes.
    call fabm_do_benthos(model,rhs(1:n,1),rhs(n+1:,1))
@@ -405,7 +405,7 @@
       end if
 
       ! Integrate one time step
-      call ode_solver(ode_method,ubound(model%info%state_variables,1)+ubound(model%info%state_variables_ben,1),1,dt,cc,get_rhs,get_ppdd)
+      call ode_solver(ode_method,size(model%info%state_variables)+size(model%info%state_variables_ben),1,dt,cc,get_rhs,get_ppdd)
 
       ! Do output
       if (mod(n,nsave).eq.0) then
@@ -416,17 +416,17 @@
             write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,temp
             write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,salt
          end if
-         do i=1,(ubound(model%info%state_variables,1)+ubound(model%info%state_variables_ben,1))
+         do i=1,(size(model%info%state_variables)+size(model%info%state_variables_ben))
             write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,cc(i,1)
          end do
          if (add_diagnostic_variables) then
-            do i=1,ubound(model%info%diagnostic_variables,1)
+            do i=1,size(model%info%diagnostic_variables)
                write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
             end do
          end if
          if (add_conserved_quantities) then
             call fabm_get_conserved_quantities(model,totals)
-            do i=1,ubound(model%info%conserved_quantities,1)
+            do i=1,size(model%info%conserved_quantities)
                write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,totals(i)
             end do
          end if
