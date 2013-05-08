@@ -17,8 +17,8 @@
    ! Specific biogeochemical models
    use fabm_bb_passive
    use fabm_examples_npzd_f2003
-   ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
    use aed_models
+   ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
 #endif
 
    implicit none
