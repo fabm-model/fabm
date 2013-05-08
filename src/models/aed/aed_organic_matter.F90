@@ -17,7 +17,7 @@
 
 #ifdef _FABM_F2003_
 
-#include "fabm_driver.h"
+#include "aed.h"
 
 MODULE aed_organic_matter
 !-------------------------------------------------------------------------------
@@ -103,7 +103,7 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
    real(rk)                  :: w_pon       = 0.0
    real(rk)                  :: Rpon_miner  = 0.01
    real(rk)                  :: Rdon_miner  = 0.01
-   real(rk)                  :: Fsed_pon    = 30.0
+   real(rk)                  :: Fsed_pon    =  0.0
    real(rk)                  :: Fsed_don    = 30.0
    real(rk)                  :: Kpon_miner  = 30.0
    real(rk)                  :: Kdon_miner  = 30.0
@@ -115,16 +115,16 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
    CHARACTER(len=64)         :: Fsed_pon_variable=''
    CHARACTER(len=64)         :: Fsed_don_variable=''
 
-   real(rk)                  :: pop_initial= 4.5
-   real(rk)                  :: dop_initial= 4.5
-   real(rk)                  :: w_pop      = 0.0
-   real(rk)                  :: Rpop_miner = 0.01
-   real(rk)                  :: Rdop_miner = 0.01
-   real(rk)                  :: Fsed_pop   = 30.0
-   real(rk)                  :: Fsed_dop   = 30.0
-   real(rk)                  :: Kpop_miner = 30.0
-   real(rk)                  :: Kdop_miner = 30.0
-   real(rk)                  :: Ksed_dop   = 4.5
+   real(rk)                  :: pop_initial = 4.5
+   real(rk)                  :: dop_initial = 4.5
+   real(rk)                  :: w_pop       = 0.0
+   real(rk)                  :: Rpop_miner  = 0.01
+   real(rk)                  :: Rdop_miner  = 0.01
+   real(rk)                  :: Fsed_pop    =  0.0
+   real(rk)                  :: Fsed_dop    = 30.0
+   real(rk)                  :: Kpop_miner  = 30.0
+   real(rk)                  :: Kdop_miner  = 30.0
+   real(rk)                  :: Ksed_dop    = 4.5
    real(rk)                  :: theta_pop_miner = 1.0
    real(rk)                  :: theta_dop_miner = 1.0
    real(rk)                  :: theta_sed_dop   = 1.0
@@ -137,7 +137,7 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
    real(rk)                  :: w_poc       = 0.0
    real(rk)                  :: Rpoc_miner  = 0.01
    real(rk)                  :: Rdoc_miner  = 0.01
-   real(rk)                  :: Fsed_poc    = 30.0
+   real(rk)                  :: Fsed_poc    =  0.0
    real(rk)                  :: Fsed_doc    = 30.0
    real(rk)                  :: Kpoc_miner  = 30.0
    real(rk)                  :: Kdoc_miner  = 30.0
@@ -191,7 +191,8 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
    self%w_pon       = w_pon/secs_pr_day
    self%Rpon_miner  = Rpon_miner/secs_pr_day
    self%Rdon_miner  = Rdon_miner/secs_pr_day
-   self%Fsed_pon    = Fsed_pon/secs_pr_day
+ ! self%Fsed_pon    = Fsed_pon/secs_pr_day
+   self%Fsed_pon    = 0.0
    self%Fsed_don    = Fsed_don/secs_pr_day
    self%Kpon_miner  = Kpon_miner
    self%Kdon_miner  = Kdon_miner
@@ -203,7 +204,8 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
    self%w_pop       = w_pop/secs_pr_day
    self%Rpop_miner  = Rpop_miner/secs_pr_day
    self%Rdop_miner  = Rdop_miner/secs_pr_day
-   self%Fsed_pop    = Fsed_pop/secs_pr_day
+ ! self%Fsed_pop    = Fsed_pop/secs_pr_day
+   self%Fsed_pop    = 0.0
    self%Fsed_dop    = Fsed_dop/secs_pr_day
    self%Kpop_miner  = Kpop_miner
    self%Kdop_miner  = Kdop_miner
@@ -215,7 +217,8 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
    self%w_poc       = w_poc/secs_pr_day
    self%Rpoc_miner  = Rpoc_miner/secs_pr_day
    self%Rdoc_miner  = Rdoc_miner/secs_pr_day
-   self%Fsed_poc    = Fsed_poc/secs_pr_day
+ ! self%Fsed_poc    = Fsed_poc/secs_pr_day
+   self%Fsed_poc    = 0.0
    self%Fsed_doc    = Fsed_doc/secs_pr_day
    self%Kpoc_miner  = Kpoc_miner
    self%Kdoc_miner  = Kdoc_miner

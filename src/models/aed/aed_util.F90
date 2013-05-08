@@ -17,7 +17,7 @@
 
 #ifdef _FABM_F2003_
 
-#include "fabm_driver.h"
+#include "aed.h"
 
 !
 MODULE aed_util
@@ -33,7 +33,7 @@ MODULE aed_util
    PRIVATE
 !
    PUBLIC find_free_lun, qsort
-   PUBLIC aed_gas_piston_velocity, exp_integral
+   PUBLIC aed_gas_piston_velocity, aed_oxygen_sat, exp_integral
    PUBLIC aed_bio_temp_function,fTemp_function
 !
 
@@ -129,6 +129,38 @@ PURE real(rk) FUNCTION aed_gas_piston_velocity(wshgt,wind,tem,sal)
 
     aed_gas_piston_velocity = k_flow + k_wind
 END FUNCTION aed_gas_piston_velocity
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+PURE real(rk) FUNCTION aed_oxygen_sat(salt,temp)
+!-------------------------------------------------------------------------------
+!  Calculated saturated oxygen concentration at salinity and temperature
+! Taken from Riley and Skirrow (1974)
+!
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   real(rk),INTENT(in) :: salt,temp
+!
+!LOCALS
+   real(rk) :: Tabs
+   real(rk) :: buf1, buf2, buf3, sol_coeff
+!
+!-------------------------------------------------------------------------------
+!BEGIN
+   buf1 = _ZERO_ ; buf2 = _ZERO_ ; buf3 = _ZERO_ ; sol_coeff = _ZERO_
+
+   Tabs = temp + 273.15
+   buf1 = -173.4292 + 249.6339 * 100.0 / Tabs + 143.3483 * LOG(Tabs/100.0)
+   buf2 = 21.8492 * Tabs / 100.0
+   buf3 = salt * (-0.033096 + 0.014259 * Tabs / 100.0 - 0.0017 * (Tabs / 100.0)**2.0)
+   sol_coeff = buf1 - buf2 + buf3
+
+   aed_oxygen_sat = 1.42763 * exp(sol_coeff) !in g/m3
+
+   !Convert to mmol/m3
+   aed_oxygen_sat = (aed_oxygen_sat / 32.) * 1e3
+END FUNCTION aed_oxygen_sat
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 

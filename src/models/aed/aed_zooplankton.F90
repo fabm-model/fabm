@@ -17,7 +17,6 @@
 
 #ifdef _FABM_F2003_
 
-#include "fabm_driver.h"
 #include "aed.h"
 
 MODULE aed_zooplankton
@@ -172,7 +171,7 @@ SUBROUTINE aed_zooplankton_load_params(self, count, list)
        ENDDO
 
        ! Register group as a state variable
-       call self%register_state_variable(self%id_zoo(i),              &
+       CALL self%register_state_variable(self%id_zoo(i),           &
                               zoop_param(list(i))%zoop_name,       &
                               'mmolC/m**3', 'zooplankton',         &
                               zoop_param(list(i))%zoop_initial,    &
@@ -247,18 +246,18 @@ FUNCTION aed_zooplankton_create(namlst,name,parent) RESULT(self)
 
 
    !Register link to prey state variables
-   phy_i = 0
    DO zoop_i = 1,num_zoops
+      phy_i = 0
       DO prey_i = 1,self%zoops(zoop_i)%num_prey
-          call self%register_state_dependency(self%zoops(zoop_i)%id_prey(prey_i), &
+          CALL self%register_state_dependency(self%zoops(zoop_i)%id_prey(prey_i), &
                                        self%zoops(zoop_i)%prey(prey_i)%zoop_prey)
           !If the zooplankton prey is phytoplankton then also register state dependency on
           !internal nitrogen and phosphorus
           IF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey(1:17).EQ.'aed_phytoplankton') THEN
               phy_i = phy_i + 1
-              call self%register_state_dependency(self%zoops(zoop_i)%id_phyIN(phy_i), &
+              CALL self%register_state_dependency(self%zoops(zoop_i)%id_phyIN(phy_i), &
                                        TRIM(self%zoops(zoop_i)%prey(prey_i)%zoop_prey)//'_IN')
-              call self%register_state_dependency(self%zoops(zoop_i)%id_phyIP(phy_i), &
+              CALL self%register_state_dependency(self%zoops(zoop_i)%id_phyIP(phy_i), &
                                        TRIM(self%zoops(zoop_i)%prey(prey_i)%zoop_prey)//'_IP')
 
           ENDIF
@@ -268,49 +267,49 @@ FUNCTION aed_zooplankton_create(namlst,name,parent) RESULT(self)
    ! Register link to nutrient pools, if variable names are provided in namelist.
    self%simDNexcr = dn_target_variable .NE. ''
    IF (self%simDNexcr) THEN
-     call self%register_state_dependency(self%id_Nexctarget,dn_target_variable)
+     CALL self%register_state_dependency(self%id_Nexctarget,dn_target_variable)
    ENDIF
    self%simDPexcr = dp_target_variable .NE. ''
    IF (self%simDPexcr) THEN
-     call self%register_state_dependency(self%id_Pexctarget,dp_target_variable)
+     CALL self%register_state_dependency(self%id_Pexctarget,dp_target_variable)
    ENDIF
    self%simDCexcr = dc_target_variable .NE. ''
    IF (self%simDCexcr) THEN
-     call self%register_state_dependency(self%id_Cexctarget,dc_target_variable)
+     CALL self%register_state_dependency(self%id_Cexctarget,dc_target_variable)
    ENDIF
 
    self%simPNexcr = pn_target_variable .NE. ''
    IF (self%simPNexcr) THEN
-     call self%register_state_dependency(self%id_Nmorttarget,pn_target_variable)
+     CALL self%register_state_dependency(self%id_Nmorttarget,pn_target_variable)
    ENDIF
    self%simPPexcr = pp_target_variable .NE. ''
    IF (self%simPPexcr) THEN
-     call self%register_state_dependency(self%id_Pmorttarget,pp_target_variable)
+     CALL self%register_state_dependency(self%id_Pmorttarget,pp_target_variable)
    ENDIF
    self%simPCexcr = pc_target_variable .NE. ''
    IF (self%simPCexcr) THEN
-     call self%register_state_dependency(self%id_Cmorttarget,pc_target_variable)
+     CALL self%register_state_dependency(self%id_Cmorttarget,pc_target_variable)
    ENDIF
 
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_grz,'grz','mmolC/m**3',  'net zooplankton grazing',           &
+   CALL self%register_diagnostic_variable(self%id_grz,'grz','mmolC/m**3',  'net zooplankton grazing',           &
                      time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_resp,'resp','mmolC/m**3',  'net zooplankton respiration',           &
+   CALL self%register_diagnostic_variable(self%id_resp,'resp','mmolC/m**3',  'net zooplankton respiration',           &
                      time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_mort,'mort','mmolC/m**3/d','net zooplankton mortality',      &
+   CALL self%register_diagnostic_variable(self%id_mort,'mort','mmolC/m**3/d','net zooplankton mortality',      &
                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
-   call self%register_conserved_quantity(self%id_totZOO,'TZOO','mmolC/m**3','Total zooplankton')
-   call self%register_conserved_quantity(self%id_totN,'TN','mmol/m**3','Total nitrogen')
-   call self%register_conserved_quantity(self%id_totP,'TP','mmol/m**3','Total phosphorus')
-   call self%register_conserved_quantity(self%id_totC,'TC','mmol/m**3','Total carbon')
+   CALL self%register_conserved_quantity(self%id_totZOO,'TZOO','mmolC/m**3','Total zooplankton')
+   CALL self%register_conserved_quantity(self%id_totN,'TN','mmol/m**3','Total nitrogen')
+   CALL self%register_conserved_quantity(self%id_totP,'TP','mmol/m**3','Total phosphorus')
+   CALL self%register_conserved_quantity(self%id_totC,'TC','mmol/m**3','Total carbon')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_tem,varname_temp)
-   call self%register_dependency(self%id_sal,varname_salt)
-   call self%register_dependency(self%id_extc,varname_extc)
+   CALL self%register_dependency(self%id_tem,varname_temp)
+   CALL self%register_dependency(self%id_sal,varname_salt)
+   CALL self%register_dependency(self%id_extc,varname_extc)
 
    RETURN
 
@@ -350,8 +349,8 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions.
-   _GET_   (self%id_tem,temp)     ! local temperature
-   _GET_   (self%id_sal,salinity) ! local salinity
+   _GET_(self%id_tem,temp)     ! local temperature
+   _GET_(self%id_sal,salinity) ! local salinity
 
    ! Retrieve current (local) state variable values.
    IF (self%simDNexcr) _GET_(self%id_Nexctarget, dn_excr)
@@ -548,14 +547,14 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
       DO prey_i = 1,self%zoops(zoop_i)%num_prey
          _SET_ODE_(self%zoops(zoop_i)%id_prey(prey_i), -1.0 * grazing_prey(prey_i))
           IF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey .EQ. 'aed_organic_matter_poc') THEN
-                      IF (poc > _ZERO_) THEN
-                         _SET_ODE_(self%id_Nmorttarget, -1.0 * grazing_prey(prey_i) * pon/poc)
-                         _SET_ODE_(self%id_Pmorttarget, -1.0 * grazing_prey(prey_i) * pop/poc)
-                      ENDIF
+              IF (poc > _ZERO_) THEN
+                 _SET_ODE_(self%id_Nmorttarget, -1.0 * grazing_prey(prey_i) * pon/poc)
+                 _SET_ODE_(self%id_Pmorttarget, -1.0 * grazing_prey(prey_i) * pop/poc)
+              ENDIF
           ELSEIF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey(1:17).EQ.'aed_phytoplankton') THEN
             phy_i = phy_i + 1
-                     _SET_ODE_(self%zoops(zoop_i)%id_phyIN(phy_i), -1.0 * grazing_prey(prey_i) / prey(prey_i) * phy_INcon(phy_i))
-                     _SET_ODE_(self%zoops(zoop_i)%id_phyIP(phy_i), -1.0 * grazing_prey(prey_i) / prey(prey_i) * phy_IPcon(phy_i))
+            _SET_ODE_(self%zoops(zoop_i)%id_phyIN(phy_i), -1.0 * grazing_prey(prey_i) / prey(prey_i) * phy_INcon(phy_i))
+            _SET_ODE_(self%zoops(zoop_i)%id_phyIP(phy_i), -1.0 * grazing_prey(prey_i) / prey(prey_i) * phy_IPcon(phy_i))
          ENDIF
       ENDDO
 
@@ -583,9 +582,9 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
       ENDIF
 
       ! Export diagnostic variables
-     _SET_DIAGNOSTIC_(self%id_grz ,grazing*secs_pr_day)
-     _SET_DIAGNOSTIC_(self%id_resp ,respiration*secs_pr_day)
-     _SET_DIAGNOSTIC_(self%id_mort ,mortality*secs_pr_day)
+      _SET_DIAGNOSTIC_(self%id_grz ,grazing*secs_pr_day)
+      _SET_DIAGNOSTIC_(self%id_resp ,respiration*secs_pr_day)
+      _SET_DIAGNOSTIC_(self%id_mort ,mortality*secs_pr_day)
 
    ENDDO
 
@@ -608,15 +607,15 @@ SUBROUTINE aed_zooplankton_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
-   real(rk)                   :: zoo,temp,salinity !State variables
-   real(rk), ALLOCATABLE,DIMENSION(:)      :: prey !Prey state variables
-   real(rk)                   :: dn_excr, dp_excr, dc_excr !Excretion state variables
-   real(rk)                   :: pon, pop, poc !Mortaility and fecal pellet state variables
-   real(rk)                   :: FGrazing_Limitation, f_T, f_Salinity
-   real(rk)                   :: Ctotal_prey !total concentration of available prey
-   real(rk)                   :: grazing, respiration, mortality !Growth & decay functions
-   INTEGER                    :: zoop_i,prey_i
-   real(rk),PARAMETER         :: secs_pr_day = 86400.
+   real(rk)           :: zoo,temp,salinity !State variables
+   real(rk), ALLOCATABLE,DIMENSION(:)  :: prey !Prey state variables
+   real(rk)           :: dn_excr, dp_excr, dc_excr !Excretion state variables
+   real(rk)           :: pon, pop, poc !Mortaility and fecal pellet state variables
+   real(rk)           :: FGrazing_Limitation, f_T, f_Salinity
+   real(rk)           :: Ctotal_prey !total concentration of available prey
+   real(rk)           :: grazing, respiration, mortality !Growth & decay functions
+   INTEGER            :: zoop_i,prey_i
+   real(rk),PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -624,8 +623,8 @@ SUBROUTINE aed_zooplankton_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _FABM_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions.
-   _GET_   (self%id_tem,temp)     ! local temperature
-   _GET_   (self%id_sal,salinity) ! local salinity
+   _GET_(self%id_tem,temp)     ! local temperature
+   _GET_(self%id_sal,salinity) ! local salinity
 
    ! Retrieve current (local) state variable values.
    IF (self%simDNexcr) _GET_(self%id_Nexctarget, dn_excr)
@@ -708,9 +707,9 @@ SUBROUTINE aed_zooplankton_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
       !ENDIF
 
       ! Export diagnostic variables
-     _SET_DIAGNOSTIC_(self%id_grz ,grazing*secs_pr_day)
-     _SET_DIAGNOSTIC_(self%id_resp ,respiration*secs_pr_day)
-     _SET_DIAGNOSTIC_(self%id_mort ,mortality*secs_pr_day)
+      _SET_DIAGNOSTIC_(self%id_grz ,grazing*secs_pr_day)
+      _SET_DIAGNOSTIC_(self%id_resp ,respiration*secs_pr_day)
+      _SET_DIAGNOSTIC_(self%id_mort ,mortality*secs_pr_day)
 
 #endif
    ENDDO

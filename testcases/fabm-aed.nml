@@ -16,7 +16,8 @@
             'aed_totals'
 /
 
-!-------------------------------------------------------------------------------
+
+!###############################################################################
 ! aed_sedflux
 !  sediment flux model types :
 !       "Constant" = sedimentation fluxes are constant values.
@@ -33,6 +34,24 @@
    sedflux_model = 'Constant'
 /
 
+
+!###############################################################################
+! aed_sed_constant
+!  Fsed_oxy  = Sedimentation flux for oxygen
+!  Fsed_rsi  = Sedimentation flux for silica
+!  Fsed_amm  = Sedimentation flux for ammonia
+!  Fsed_nit  = Sedimentation flux for nitrogen
+!  Fsed_frp  = Sedimentation flux for phosphorus
+!  Fsed_pon  = Sedimentation flux for particulate organic nitrogen
+!  Fsed_don  = Sedimentation flux for dissolved organic nitrogen
+!  Fsed_pop  = Sedimentation flux for particulate organic phosphorus
+!  Fsed_dop  = Sedimentation flux for dissolved organic phosphorus
+!  Fsed_poc  = Sedimentation flux for particulate organic carbon
+!  Fsed_doc  = Sedimentation flux for dissolved organic carbon
+!  Fsed_dic  = Sedimentation flux for dissolved inorganic carbon
+!  Fsed_ch4  = Sedimentation flux for methane
+!  Fsed_feii = Sedimentation flux for iron
+!-------------------------------------------------------------------------------
 &aed_sed_constant
    Fsed_oxy = -3.0
    Fsed_rsi = 1.8
@@ -50,6 +69,16 @@
    Fsed_feii = 0.0
 /
 
+
+!###############################################################################
+! aed_oxygen
+!  oxy_initial       = Initial value
+!  Fsed_oxy          = Sedimentation flux
+!  Ksed_oxy          = Release rate
+!  theta_sed_oxy     = Temperature multiplier for oxygen sedimentation flux
+!  Fsed_oxy_variable = Oxygen sedimentation variable link
+!                         eg 'aed_sedflux_Fsed_oxy' will use the value supplied
+!                          by the aed_sedflux model for Fsed_oxy
 !-------------------------------------------------------------------------------
 &aed_oxygen
    oxy_initial = 225.0
@@ -59,6 +88,26 @@
 !  Fsed_oxy_variable = 'aed_sedflux_Fsed_oxy'
 /
 
+
+!###############################################################################
+! aed_carbon
+!  dic_initial               = Initial dissolved inorganic carbon value
+!  Fsed_dic                  = Sediment flux for dissolved inorganic carbon
+!  Ksed_dic                  = Release rate for dissolved inorganic carbon
+!  theta_sed_dic             = Temperature multiplier for dissolved inorganic carbon sediment flux
+!  Fsed_dic_variable         = dissolved inorganic carbon variable link
+!  pH_initial                = Initial pH value
+!  atmco2                    = 
+!  ionic                     = 
+!  ch4_initial               = Initial methane level
+!  Rch4ox                    = 
+!  Kch4ox                    = 
+!  vTch4ox                   = 
+!  Fsed_ch4                  = Sediment flux for methane
+!  Ksed_ch4                  = Release rate for methane
+!  theta_sed_ch4             = Temperature multiplier for methane flux
+!  methane_reactant_variable = methane reactant variable link
+!  Fsed_ch4_variable         = methane flux variable link
 !-------------------------------------------------------------------------------
 &aed_carbon
    !-- DIC and pH
@@ -66,7 +115,7 @@
    Fsed_dic = 3.0
    Ksed_dic = 20.0
    theta_sed_dic = 1.08
-   Fsed_dic_variable='aed_sedflux_Fsed_dic'
+   Fsed_dic_variable = 'aed_sedflux_Fsed_dic'
    pH_initial = 7.5
    atmco2 = 370e-6
    ionic = 0.1
@@ -82,6 +131,15 @@
 !  Fsed_ch4_variable='aed_sedflux_Fsed_ch4'
 /
 
+
+!###############################################################################
+! aed_silica
+!  rsi_initial              = Initial silica value
+!  Fsed_rsi                 = Sediment flux for silica
+!  Ksed_rsi                 = Release rate for silica
+!  theta_sed_rsi            = Temperature multiplier for silica flux
+!  silica_reactant_variable = link for silica reactant variable
+!  Fsed_rsi_variable        = silica flux variable link
 !-------------------------------------------------------------------------------
 &aed_silica
    rsi_initial = 12.5
@@ -92,6 +150,27 @@
    Fsed_rsi_variable = 'aed_sedflux_Fsed_rsi'
 /
 
+
+!###############################################################################
+! aed_nitrogen
+!  amm_initial              = Initial ammonia value
+!  nit_initial              = Initial nitrogen value
+!  Rnitrif                  = 
+!  Rdenit                   = 
+!  Fsed_amm                 = Sedimentation flux for ammonia
+!  Fsed_nit                 = Release rate for ammonia
+!  Knitrif                  = 
+!  Kdenit                   = 
+!  Ksed_amm                 = 
+!  Ksed_nit                 = 
+!  theta_nitrif             = 
+!  theta_denit              = 
+!  theta_sed_amm            = Temperature multiplier for ammonia sed flux
+!  theta_sed_nit            = Temperature multiplier for nitrogen sed flux
+!  nitrif_reactant_variable =
+!  denit_product_variable   = 
+!  Fsed_amm_variable        = link variable for ammonia sed flux
+!  Fsed_nit_variable        = link variable for nitrogen sed flux
 !-------------------------------------------------------------------------------
 &aed_nitrogen
    amm_initial = 12.5
@@ -114,6 +193,24 @@
    Fsed_nit_variable='aed_sedflux_Fsed_nit'
 /
 
+
+!###############################################################################
+! aed_phosphorus
+!  frp_initial                  = Inital phosphorus
+!  Fsed_frp                     = Sedimentation flux for phosphorus
+!  Ksed_frp                     = Release rate for phosphorus
+!  theta_sed_frp                = Temperature multiplier for phosphorus sed flux
+!  phosphorus_reactant_variable = 
+!  Fsed_frp_variable            = link variable for phosphorus sed flux
+!  simPO4Adsorption             = 
+!  ads_use_external_tss         = 
+!  po4sorption_target_variable  =
+!  PO4AdsorptionModel           = 
+!  Kpo4p                        = 
+!  ads_use_pH                   = 
+!  Kadsratio                    = 
+!  Qmax                         = 
+!  w_po4ads                     = 
 !-------------------------------------------------------------------------------
 &aed_phosphorus
    frp_initial = 0.29
@@ -133,6 +230,66 @@
    w_po4ads = -1.2   ! doesnt seem to work
 /
 
+
+!###############################################################################
+! aed_organic_matter
+!-- ORGANIC NITROGEN
+!  pon_initial                 = Initial particulate organic nitrogen
+!  don_initial                 = Initial dissolved organic nitrogen
+!  w_pon                       = 
+!  Rpon_miner                  = 
+!  Rdon_miner                  = 
+!  Fsed_pon                    = Sedimentation flux of particulate organic nitrogen
+!  Fsed_don                    = Sedimentation flux of dissolved organic nitrogen
+!  Kpon_miner                  = 
+!  Kdon_miner                  = 
+!  Ksed_don                    = Release rate of dissolved organic nitrogen
+!  theta_pon_miner             = 
+!  theta_don_miner             = 
+!  theta_sed_don               = Temperature multiplier for sed flux of dissolved organic nitrogen
+!  don_miner_product_variable  = 
+!
+!-- ORGANIC PHOSPHORUS
+!  pop_initial                 = Initial particulate organic phosphorus
+!  dop_initial                 = Initial dissolved organic phosphorus
+!  w_pop                       = 
+!  Rpop_miner                  = 
+!  Rdop_miner                  = 
+!  Fsed_pop                    = Sedimentation flux of particulate organic phosphorus
+!  Fsed_dop                    = Sedimentation flux of dissolved organic phosphorus
+!  Kpop_miner                  = 
+!  Kdop_miner                  = 
+!  Ksed_dop                    = Release rate of dissolved organic phosphorus
+!  theta_pop_miner             = 
+!  theta_dop_miner             = 
+!  theta_sed_dop               = Temperature multiplier for sed flux of dissolved organic phosphorus
+!  dop_miner_product_variable  = 
+!
+!-- ORGANIC CARBON
+!  poc_initial                 = Initial particulate organic carbon
+!  doc_initial                 = Initial dissolved organic carbon
+!  w_poc                       = 
+!  Rpoc_miner                  = 
+!  Rdoc_miner                  = 
+!  Fsed_poc                    = Sedimentation flux of particulate organic carbon
+!  Fsed_doc                    = Sedimentation flux of dissolved organic carbon
+!  Kpoc_miner                  = 
+!  Kdoc_miner                  = 
+!  Ksed_doc                    = Release rate of dissolved organic carbon
+!  theta_poc_miner             = 
+!  theta_doc_miner             = 
+!  theta_sed_doc               = Temperature multiplier for sed flux of dissolved organic carbon
+!  KeDOM                       = 
+!  KePOM                       = 
+!  doc_miner_reactant_variable = 
+!  doc_miner_product_variable  = 
+!
+!  Fsed_pon_variable           = link variable for particulate organic nitrogen sed flux
+!  Fsed_don_variable           = link variable for dissolved organic nitrogen sed flux
+!  Fsed_pop_variable           = link variable for particulate organic phosphorus sed flux
+!  Fsed_dop_variable           = link variable for dissolved organic phosphorus sed flux
+!  Fsed_poc_variable           = link variable for particulate organic carbon sed flux
+!  Fsed_doc_variable           = link variable for dissolved organic carbon sed flux
 !-------------------------------------------------------------------------------
 &aed_organic_matter
    !-- ORGANIC NITROGEN
@@ -191,6 +348,25 @@
 !  Fsed_doc_variable='aed_sedflux_Fsed_doc'
 /
 
+
+!###############################################################################
+! aed_phytoplankton
+!  num_phytos = number of phytoplankton groups to model
+!  the_phytos = list os phytoplankton groups (referencing the phytoplankton database)
+!  p_excretion_target_variable  = variable to which we add excreted phosphorus
+!  n_excretion_target_variable  = variable to which we add excreted nitrogen
+!  c_excretion_target_variable  = variable to which we add excreted carbon
+!  si_excretion_target_variable = variable to which we add excreted silica
+!  p_mortality_target_variable  = variable to which we add phosphorus on death
+!  n_mortality_target_variable  = variable to which we add nitrogen on death
+!  c_mortality_target_variable  = variable to which we add carbon on death
+!  si_mortality_target_variable = variable to which we add silic on death
+!  p1_uptake_target_variable    = variable from which we take phosphorus
+!  n1_uptake_target_variable    = variable from which we take nitrogen
+!  n2_uptake_target_variable    = variable from which we take ammonia
+!  si_uptake_target_variable    = variable from which we take silica
+!  do_uptake_target_variable    = variable from which we take dissolved oxygen
+!  c_uptake_target_variable     = variable from which we take carbon
 !-------------------------------------------------------------------------------
 &aed_phytoplankton
    num_phytos = 3
@@ -211,35 +387,67 @@
    c_uptake_target_variable='aed_carbon_dic'
 /
 
+
+!###############################################################################
+! aed_zooplankton
+!  num_zoops          = number of zooplankton classes to model
+!  the_zoops          = list of zooplankton classes (referencing the zooplankton database)
+!  dn_target_variable = dissolved nitrogen target variable
+!  pn_target_variable = particulate nitrogen target variable
+!  dp_target_variable = dissolved phosphorus target variable
+!  pp_target_variable = particulate phosphorus target variable
+!  dc_target_variable = dissolved carbon target variable
+!  pc_target_variable = particulate carbon target variable
 !-------------------------------------------------------------------------------
 &aed_zooplankton
    num_zoops = 1
    the_zoops = 1
-   dn_target_variable='aed_organic_matter_don'  ! dissolved nitrogen target variable
-   pn_target_variable='aed_organic_matter_pon'  ! particulate nitrogen target variable
-   dp_target_variable='aed_organic_matter_dop'  ! dissolved phosphorus target variable
-   pp_target_variable='aed_organic_matter_pop'  ! particulate phosphorus target variable
-   dc_target_variable='aed_organic_matter_doc'  ! dissolved carbon target variable
-   pc_target_variable='aed_organic_matter_poc'  ! particulate carbon target variable
+   dn_target_variable='aed_organic_matter_don'
+   pn_target_variable='aed_organic_matter_pon'
+   dp_target_variable='aed_organic_matter_dop'
+   pp_target_variable='aed_organic_matter_pop'
+   dc_target_variable='aed_organic_matter_doc'
+   pc_target_variable='aed_organic_matter_poc'
 /
 
+
+!###############################################################################
+! aed_pathogens
+!  num_pathogens = number of pathogens to model
+!  the_pathogens = list of pathogens classes (referencing the pathogens database)
 !-------------------------------------------------------------------------------
 &aed_pathogens
    num_pathogens = 1
    the_pathogens = 1 !,3,5
 /
 
+
+!###############################################################################
+! aed_bacteria
+!  growth    = 
+!  mortality = 
 !-------------------------------------------------------------------------------
 &aed_bacteria
    growth = 1.0
    mortality = 1.0
 /
 
+
+!###############################################################################
+! aed_viruses
+!   num_viruses = number of viruses to model
 !-------------------------------------------------------------------------------
 &aed_viruses
    num_viruses = 1
 /
 
+
+!###############################################################################
+! aed_tracer
+!   num_tracers = number of tracers to model
+!   decay       = list of decay rates for the tracers
+!   settling    = list of settling rates for the tracers
+!   fsed        = list of sedimentation fluxes for the tracers
 !-------------------------------------------------------------------------------
 &aed_tracer
    num_tracers = 1
@@ -248,6 +456,14 @@
    fsed = 0 !, 0, 0, ...
 /
 
+
+!###############################################################################
+! aed_totals
+!  TN        = list of variable contributing to total nitrogen
+!  TP        = list of variable contributing to total phosphorus
+!  TOC       = list of variable contributing to total organic carbon
+!  TSS       = list of variable contributing to total suspended solids
+!  turbidity = !,  <vector same length as TSS names>
 !-------------------------------------------------------------------------------
 &aed_totals
    TN =  'aed_nitrogen_nit',

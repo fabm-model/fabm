@@ -122,7 +122,7 @@
 		<File RelativePath="..\..\src\models\gotm\npzd\npzd.F90"/></Filter></Filter>
 		<Filter Name="iow">
 		<File RelativePath="..\..\src\models\iow\ergom\ergom.F90"/>
-		<File RelativePath="..\..\src\models\iow\getmspm\spm.F90"/></Filter>
+		<File RelativePath="..\..\src\models\iow\spm\spm.F90"/></Filter>
 		<Filter Name="Klimacampus">
 		<File RelativePath="..\..\src\models\klimacampus\phy_feedback\phy_feedback.F90"/></Filter>
 		<Filter Name="metu">
@@ -136,5 +136,6 @@
 		<File RelativePath="..\..\src\models\pml\ersem\ersem.F90"/></Filter></Filter></Filter>
 		<File RelativePath="..\..\src\fabm.F90"/>
 		<File RelativePath="..\..\src\fabm_library.F90"/>
+		<File RelativePath="..\..\src\fabm_standard_variables.F90"/>
 		<File RelativePath="..\..\src\fabm_types.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

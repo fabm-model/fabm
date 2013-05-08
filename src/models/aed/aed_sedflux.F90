@@ -17,7 +17,6 @@
 
 #ifdef _FABM_F2003_
 
-#include "fabm_driver.h"
 #include "aed.h"
 
 #ifdef SINGLE
@@ -72,12 +71,12 @@ MODULE aed_sedflux
 !
    TYPE,extends(type_base_model) :: type_aed_sedflux
 !     Variable identifiers
-      type (type_horizontal_dependency_id)         :: id_zone
+      type (type_horizontal_dependency_id)     :: id_zone
       type (type_bottom_state_variable_id)     :: id_Fsed_oxy, id_Fsed_rsi, id_Fsed_amm, id_Fsed_nit
       type (type_bottom_state_variable_id)     :: id_Fsed_frp, id_Fsed_pon, id_Fsed_don
       type (type_bottom_state_variable_id)     :: id_Fsed_pop, id_Fsed_dop, id_Fsed_poc, id_Fsed_doc
       type (type_bottom_state_variable_id)     :: id_Fsed_dic, id_Fsed_ch4, id_Fsed_feii
-      type (type_horizontal_dependency_id)         :: id_zones
+      type (type_horizontal_dependency_id)     :: id_zones
 !     type (type_conserved_quantity_id) :: id_tot_sed
 
 !     Model parameters

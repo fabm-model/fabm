@@ -13,12 +13,16 @@
 #ifndef _AED_H_
 #define _AED_H_
 
-#define AED_VERSION  '0.31'
+#define AED_VERSION  '0.32'
+
+#ifdef _FABM_F2003_
+# include "fabm_driver.h"
+#endif
 
 ! aed_phytoplankton constants
 #define MAX_PHYTO_TYPES 256
 #define MAX_ZOOP_TYPES  256
-#define MAX_ZOOP_PREY  10
+#define MAX_ZOOP_PREY    10
 #define MAX_PATHO_TYPES 256
 
 ! for aed_geochemistry

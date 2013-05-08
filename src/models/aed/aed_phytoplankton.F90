@@ -17,9 +17,7 @@
 
 #ifdef _FABM_F2003_
 
-#include "fabm_driver.h"
 #include "aed.h"
-
 
 MODULE aed_phytoplankton
 !-------------------------------------------------------------------------------
@@ -27,7 +25,10 @@ MODULE aed_phytoplankton
 !-------------------------------------------------------------------------------
    USE fabm_types
    USE fabm_driver
-   USE aed_util,ONLY : find_free_lun,exp_integral, aed_bio_temp_function, fTemp_function
+   USE aed_util,ONLY : find_free_lun, &
+                       exp_integral,  &
+                       aed_bio_temp_function, &
+                       fTemp_function
 
    IMPLICIT NONE
 
@@ -38,7 +39,7 @@ MODULE aed_phytoplankton
    TYPE phyto_data
       ! General Attributes
       CHARACTER(64) :: p_name
-      real(rk) :: p0, Ycc, kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
+      real(rk) :: p0, Xcc, kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
       ! Growth rate parameters
       INTEGER  :: fT_Method
       real(rk) :: R_growth, theta_growth, T_std, T_opt, T_max, kTn, aTn, bTn
@@ -69,7 +70,7 @@ MODULE aed_phytoplankton
    TYPE phyto_nml_data
       CHARACTER(64) :: p_name
       real(rk) :: p_initial
-      real(rk) :: p0, w_p, Ycc, R_growth !i_min,rmax,alpha,rpn,rpdu,rpdl
+      real(rk) :: p0, w_p, Xcc, R_growth !i_min,rmax,alpha,rpn,rpdu,rpdl
       INTEGER  :: fT_Method
       real(rk) :: theta_growth, T_std, T_opt, T_max
       INTEGER  :: lightModel
@@ -98,20 +99,24 @@ MODULE aed_phytoplankton
       type (type_state_variable_id),ALLOCATABLE :: id_p(:)
       type (type_state_variable_id),ALLOCATABLE :: id_in(:)
       type (type_state_variable_id),ALLOCATABLE :: id_ip(:)
-      type (type_state_variable_id)      :: id_Pexctarget,id_Pmorttarget,id_Pupttarget(1:2)
-      type (type_state_variable_id)      :: id_Nexctarget,id_Nmorttarget,id_Nupttarget(1:4)
-      type (type_state_variable_id)      :: id_Cexctarget,id_Cmorttarget,id_Cupttarget
-      type (type_state_variable_id)      :: id_Siexctarget,id_Simorttarget,id_Siupttarget
-      type (type_state_variable_id)      :: id_DOupttarget
-      type (type_dependency_id)          :: id_par, id_tem, id_sal, id_dz, id_extc
-      type (type_horizontal_dependency_id)  :: id_I_0
-      type (type_diagnostic_variable_id) :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR, id_TCHLA, id_TIN, id_TIP
-      type (type_conserved_quantity_id)  :: id_totP
+      type (type_state_variable_id)        :: id_Pexctarget,id_Pmorttarget,id_Pupttarget(1:2)
+      type (type_state_variable_id)        :: id_Nexctarget,id_Nmorttarget,id_Nupttarget(1:4)
+      type (type_state_variable_id)        :: id_Cexctarget,id_Cmorttarget,id_Cupttarget
+      type (type_state_variable_id)        :: id_Siexctarget,id_Simorttarget,id_Siupttarget
+      type (type_state_variable_id)        :: id_DOupttarget
+      type (type_dependency_id)            :: id_par, id_tem, id_sal, id_dz, id_extc
+      type (type_horizontal_dependency_id) :: id_I_0
+      type (type_diagnostic_variable_id)   :: id_GPP, id_NCP, id_PPR, id_NPR, id_dPAR
+      type (type_diagnostic_variable_id)   :: id_TPHY, id_TCHLA, id_TIN, id_TIP
+      type (type_diagnostic_variable_id)   :: id_NUP, id_PUP, id_CUP
+      type (type_diagnostic_variable_id),ALLOCATABLE :: id_NtoP(:)
+      type (type_diagnostic_variable_id),ALLOCATABLE :: id_fT(:), id_fI(:), id_fNit(:), id_fPho(:), id_fSil(:), id_fSal(:)
+      type (type_conserved_quantity_id)    :: id_totP
 
 !     Model parameters
       INTEGER                                   :: num_phytos
       TYPE(phyto_data),DIMENSION(:),ALLOCATABLE :: phytos
-      ! LOGICAL                                   :: do_exc,do_mort,do_upt, do_N2uptake
+      ! LOGICAL                                 :: do_exc,do_mort,do_upt, do_N2uptake
       LOGICAL                                   :: do_Puptake, do_Nuptake, do_Cuptake
       LOGICAL                                   :: do_Siuptake, do_DOuptake, do_N2uptake
       LOGICAL                                   :: do_Pmort, do_Nmort, do_Cmort, do_Simort
@@ -128,7 +133,9 @@ MODULE aed_phytoplankton
         procedure :: get_conserved_quantities => aed_phytoplankton_get_conserved_quantities
    END TYPE
 
-   INTEGER :: ino3, inh4,idon, in2, ifrp, idop
+   INTEGER  :: ino3, inh4,idon, in2, ifrp, idop
+   real(rk) :: dtlim = 0.9 * 3600
+   LOGICAL  :: extra_debug = .false.
 
 !===============================================================================
 CONTAINS
@@ -169,13 +176,22 @@ SUBROUTINE aed_phytoplankton_load_params(self, count, list)
     ALLOCATE(self%id_p(count))
     ALLOCATE(self%id_in(count))
     ALLOCATE(self%id_ip(count))
+    ALLOCATE(self%id_NtoP(count))
+    IF (extra_debug) THEN
+       ALLOCATE(self%id_fT(count))
+       ALLOCATE(self%id_fI(count))
+       ALLOCATE(self%id_fNit(count))
+       ALLOCATE(self%id_fPho(count))
+       ALLOCATE(self%id_fSil(count))
+       ALLOCATE(self%id_fSal(count))
+    ENDIF
 
     DO i=1,count
        ! Assign parameters from database to simulated groups
        self%phytos(i)%p_name       = pd(list(i))%p_name
        self%phytos(i)%p0           = pd(list(i))%p0
        self%phytos(i)%w_p          = pd(list(i))%w_p/secs_pr_day
-       self%phytos(i)%Ycc          = pd(list(i))%Ycc
+       self%phytos(i)%Xcc          = pd(list(i))%Xcc
        self%phytos(i)%R_growth     = pd(list(i))%R_growth/secs_pr_day
        self%phytos(i)%fT_Method    = pd(list(i))%fT_Method
        self%phytos(i)%theta_growth = pd(list(i))%theta_growth
@@ -221,7 +237,7 @@ SUBROUTINE aed_phytoplankton_load_params(self, count, list)
        self%phytos(i)%X_sicon      = pd(list(i))%X_sicon
 
        ! Register group as a state variable
-       call self%register_state_variable(self%id_p(i),                            &
+       CALL self%register_state_variable(self%id_p(i),                         &
                               TRIM(self%phytos(i)%p_name),                     &
                               'mmol/m**3', 'phytoplankton',                    &
                               pd(list(i))%p_initial,                           &
@@ -236,10 +252,10 @@ SUBROUTINE aed_phytoplankton_load_params(self, count, list)
             minNut = self%phytos(i)%p0*self%phytos(i)%X_nmin
           ENDIF
           ! Register IN group as a state variable
-          call self%register_state_variable(self%id_in(i),                        &
+          CALL self%register_state_variable(self%id_in(i),                     &
                               TRIM(self%phytos(i)%p_name)//'_IN',              &
                               'mmol/m**3', 'phytoplankton IN',                 &
-                              pd(list(i))%p_initial*self%phytos(i)%X_ncon,      &
+                              pd(list(i))%p_initial*self%phytos(i)%X_ncon,     &
                               minimum=minNut,                                  &
                               vertical_movement = self%phytos(i)%w_p)
 
@@ -251,13 +267,31 @@ SUBROUTINE aed_phytoplankton_load_params(self, count, list)
             minNut = self%phytos(i)%p0*self%phytos(i)%X_pmin
           ENDIF
           ! Register IP group as a state variable
-          call self%register_state_variable(self%id_ip(i),                        &
+          CALL self%register_state_variable(self%id_ip(i),                     &
                               TRIM(self%phytos(i)%p_name)//'_IP',              &
                               'mmol/m**3', 'phytoplankton IP',                 &
-                              pd(list(i))%p_initial*self%phytos(i)%X_pcon,      &
+                              pd(list(i))%p_initial*self%phytos(i)%X_pcon,     &
                               minimum=minNut,                                  &
                               vertical_movement = self%phytos(i)%w_p)
 
+       ENDIF
+
+       CALL self%register_diagnostic_variable(self%id_NtoP(i), TRIM(self%phytos(i)%p_name)//'_NtoP','mmol/m**3', 'INi/IPi', &
+                     time_treatment=time_treatment_step_integrated)
+
+       IF (extra_debug) THEN
+          CALL self%register_diagnostic_variable(self%id_fT(i), TRIM(self%phytos(i)%p_name)//'_fT','', 'fT', &
+                     time_treatment=time_treatment_step_integrated)
+          CALL self%register_diagnostic_variable(self%id_fI(i), TRIM(self%phytos(i)%p_name)//'_fI','', 'fI', &
+                     time_treatment=time_treatment_step_integrated)
+          CALL self%register_diagnostic_variable(self%id_fNit(i), TRIM(self%phytos(i)%p_name)//'_fNit','', 'fNit', &
+                     time_treatment=time_treatment_step_integrated)
+          CALL self%register_diagnostic_variable(self%id_fPho(i), TRIM(self%phytos(i)%p_name)//'_fPho','', 'fPho', &
+                     time_treatment=time_treatment_step_integrated)
+          CALL self%register_diagnostic_variable(self%id_fSil(i), TRIM(self%phytos(i)%p_name)//'_fSil','', 'fSil', &
+                     time_treatment=time_treatment_step_integrated)
+          CALL self%register_diagnostic_variable(self%id_fSal(i), TRIM(self%phytos(i)%p_name)//'_fSal','', 'fSal', &
+                     time_treatment=time_treatment_step_integrated)
        ENDIF
     ENDDO
 
@@ -307,6 +341,7 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
 
 
    real(rk),PARAMETER :: secs_pr_day = 86400.
+   real(rk)           :: zerolimitfudgefactor = 0.9 * 3600
    NAMELIST /aed_phytoplankton/ num_phytos, the_phytos,                        &
                     p_excretion_target_variable,p_mortality_target_variable,   &
                      p1_uptake_target_variable, p2_uptake_target_variable,     &
@@ -316,7 +351,8 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
                     c_excretion_target_variable,c_mortality_target_variable,   &
                       c_uptake_target_variable, do_uptake_target_variable,     &
                     si_excretion_target_variable,si_mortality_target_variable, &
-                      si_uptake_target_variable
+                      si_uptake_target_variable,                               &
+                    zerolimitfudgefactor, extra_debug
 !-----------------------------------------------------------------------
 !BEGIN
    ALLOCATE(self)
@@ -324,6 +360,7 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
 
    ! Read the namelist
    read(namlst,nml=aed_phytoplankton,err=99)
+   dtlim = zerolimitfudgefactor
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -344,36 +381,36 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
    ! Register link to nutrient pools, if variable names are provided in namelist.
    self%do_Pexc = p_excretion_target_variable .NE. ''
    IF (self%do_Pexc) THEN
-     call self%register_state_dependency(self%id_Pexctarget,p_excretion_target_variable)
+     CALL self%register_state_dependency(self%id_Pexctarget, p_excretion_target_variable)
    ENDIF
    self%do_Nexc = n_excretion_target_variable .NE. ''
    IF (self%do_Pexc) THEN
-     call self%register_state_dependency(self%id_Nexctarget,n_excretion_target_variable)
+     CALL self%register_state_dependency(self%id_Nexctarget, n_excretion_target_variable)
    ENDIF
    self%do_Cexc = c_excretion_target_variable .NE. ''
    IF (self%do_Pexc) THEN
-     call self%register_state_dependency(self%id_Cexctarget,c_excretion_target_variable)
+     CALL self%register_state_dependency(self%id_Cexctarget, c_excretion_target_variable)
    ENDIF
    self%do_Siexc = si_excretion_target_variable .NE. ''
    IF (self%do_Siexc) THEN
-     call self%register_state_dependency(self%id_Siexctarget,si_excretion_target_variable)
+     CALL self%register_state_dependency(self%id_Siexctarget, si_excretion_target_variable)
    ENDIF
 
    self%do_Pmort = p_mortality_target_variable .NE. ''
    IF (self%do_Pmort) THEN
-     call self%register_state_dependency(self%id_Pmorttarget,p_mortality_target_variable)
+     CALL self%register_state_dependency(self%id_Pmorttarget, p_mortality_target_variable)
    ENDIF
    self%do_Nmort = n_mortality_target_variable .NE. ''
    IF (self%do_Nmort) THEN
-     call self%register_state_dependency(self%id_Nmorttarget,n_mortality_target_variable)
+     CALL self%register_state_dependency(self%id_Nmorttarget, n_mortality_target_variable)
    ENDIF
    self%do_Cmort = c_mortality_target_variable .NE. ''
    IF (self%do_Cmort) THEN
-     call self%register_state_dependency(self%id_Cmorttarget,c_mortality_target_variable)
+     CALL self%register_state_dependency(self%id_Cmorttarget, c_mortality_target_variable)
    ENDIF
    self%do_Simort = si_mortality_target_variable .NE. ''
    IF (self%do_Simort) THEN
-     call self%register_state_dependency(self%id_Simorttarget,si_mortality_target_variable)
+     CALL self%register_state_dependency(self%id_Simorttarget, si_mortality_target_variable)
    ENDIF
 
    self%npup = 0
@@ -382,8 +419,8 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
    self%do_Puptake = .FALSE.
    IF (self%npup>0) self%do_Puptake=.TRUE.
    IF (self%do_Puptake) THEN
-     IF (self%npup>0) call self%register_state_dependency(self%id_Pupttarget(1),p1_uptake_target_variable); ifrp=1
-     IF (self%npup>1) call self%register_state_dependency(self%id_Pupttarget(2),p2_uptake_target_variable); idop=2
+     IF (self%npup>0) CALL self%register_state_dependency(self%id_Pupttarget(1), p1_uptake_target_variable); ifrp=1
+     IF (self%npup>1) CALL self%register_state_dependency(self%id_Pupttarget(2), p2_uptake_target_variable); idop=2
    ENDIF
    self%nnup = 0
    IF (n1_uptake_target_variable .NE. '') self%nnup = 1
@@ -393,52 +430,62 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
    self%do_Nuptake = .false.
    IF (self%nnup>0) self%do_Nuptake=.true.
    IF (self%do_Nuptake) THEN
-     IF (self%nnup>0) call self%register_state_dependency(self%id_Nupttarget(1),n1_uptake_target_variable); ino3=1
-     IF (self%nnup>1) call self%register_state_dependency(self%id_Nupttarget(2),n2_uptake_target_variable); inh4=2
-     IF (self%nnup>2) call self%register_state_dependency(self%id_Nupttarget(3),n3_uptake_target_variable); idon=3
-     IF (self%nnup>3) call self%register_state_dependency(self%id_Nupttarget(4),n4_uptake_target_variable); in2 =4
+     IF (self%nnup>0) CALL self%register_state_dependency(self%id_Nupttarget(1), n1_uptake_target_variable); ino3=1
+     IF (self%nnup>1) CALL self%register_state_dependency(self%id_Nupttarget(2), n2_uptake_target_variable); inh4=2
+     IF (self%nnup>2) CALL self%register_state_dependency(self%id_Nupttarget(3), n3_uptake_target_variable); idon=3
+     IF (self%nnup>3) CALL self%register_state_dependency(self%id_Nupttarget(4), n4_uptake_target_variable); in2 =4
    ENDIF
    self%do_Cuptake = c_uptake_target_variable .NE. ''
    IF (self%do_Cuptake) THEN
-     call self%register_state_dependency(self%id_Cupttarget,c_uptake_target_variable)
+     CALL self%register_state_dependency(self%id_Cupttarget, c_uptake_target_variable)
    ENDIF
    self%do_DOuptake = do_uptake_target_variable .NE. ''
    IF (self%do_DOuptake) THEN
-     call self%register_state_dependency(self%id_DOupttarget,do_uptake_target_variable)
+     CALL self%register_state_dependency(self%id_DOupttarget, do_uptake_target_variable)
    ENDIF
    self%do_Siuptake = si_uptake_target_variable .NE. ''
    IF (self%do_Siuptake) THEN
-     call self%register_state_dependency(self%id_Siupttarget,si_uptake_target_variable)
+     CALL self%register_state_dependency(self%id_Siupttarget, si_uptake_target_variable)
    ENDIF
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
+   CALL self%register_diagnostic_variable(self%id_GPP, 'GPP','mmol/m**3',  'gross primary production',           &
                      time_treatment=time_treatment_step_integrated)
-   call self%register_diagnostic_variable(self%id_NCP,'NCP','mmol/m**3',  'net community production',           &
+   CALL self%register_diagnostic_variable(self%id_NCP, 'NCP','mmol/m**3',  'net community production',           &
                      time_treatment=time_treatment_step_integrated)
-   call self%register_diagnostic_variable(self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',      &
+   CALL self%register_diagnostic_variable(self%id_PPR, 'PPR','mmol/m**3/d','gross primary production rate',      &
                      time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_NPR,'NPR','mmol/m**3/d','net community production rate',      &
+   CALL self%register_diagnostic_variable(self%id_NPR, 'NPR','mmol/m**3/d','net community production rate',      &
                      time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
+
+   CALL self%register_diagnostic_variable(self%id_NUP, 'NUP','mmol/m**3/d','nitrogen uptake',    &
                      time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_TCHLA,'TCHLA','ug/L',    'Total Chlorophyll-a',&
+   CALL self%register_diagnostic_variable(self%id_PUP, 'PUP','mmol/m**3/d','phosphorous uptake', &
                      time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_TIN,'IN','ug/L',    'Total Chlorophyll-a',&
+   CALL self%register_diagnostic_variable(self%id_CUP, 'CUP','mmol/m**3/d','carbon uptake',      &
                      time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_TIP,'IP','ug/L',    'Total Chlorophyll-a',&
+
+   CALL self%register_diagnostic_variable(self%id_dPAR, 'PAR','W/m**2',  'photosynthetically active radiation',&
+                     time_treatment=time_treatment_averaged)
+   CALL self%register_diagnostic_variable(self%id_TCHLA, 'TCHLA','ug/L', 'Total Chlorophyll-a',&
+                     time_treatment=time_treatment_averaged)
+   CALL self%register_diagnostic_variable(self%id_TPHY, 'TPHYS','ug/L',  'Total Phytoplankton',&
+                     time_treatment=time_treatment_averaged)
+   CALL self%register_diagnostic_variable(self%id_TIN, 'IN','ug/L',      'Total Chlorophyll-a',&
+                     time_treatment=time_treatment_averaged)
+   CALL self%register_diagnostic_variable(self%id_TIP, 'IP','ug/L',      'Total Chlorophyll-a',&
                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
-   call self%register_conserved_quantity(self%id_totP,'TPHY','mmol/m**3','phytoplankton')
+   CALL self%register_conserved_quantity(self%id_totP, 'TPHY','mmol/m**3','phytoplankton')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_tem,varname_temp)
-   call self%register_dependency(self%id_sal,varname_salt)
-   call self%register_dependency(self%id_par,varname_par)
-   call self%register_dependency(self%id_I_0,varname_par_sf)
-   call self%register_dependency(self%id_dz,varname_layer_ht)
-   call self%register_dependency(self%id_extc,varname_extc)
+   CALL self%register_dependency(self%id_tem,  varname_temp)
+   CALL self%register_dependency(self%id_sal,  varname_salt)
+   CALL self%register_dependency(self%id_par,  varname_par)
+   CALL self%register_horizontal_dependency_sn(self%id_I_0, varname_par_sf)
+   CALL self%register_dependency(self%id_dz,   varname_layer_ht)
+   CALL self%register_dependency(self%id_extc, varname_extc)
 
    RETURN
 
@@ -458,20 +505,23 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
-   real(rk)           :: phy, tphy, tin, tip
+   real(rk)           :: phy, tphy, tin, tip, tchla
    real(rk)           :: INi, IPi
-   real(rk)           :: pup !,pex,pmt
-   real(rk)           :: no3up,nh4up!,donup
+   real(rk)           :: pup
+   real(rk)           :: no3up,nh4up
    real(rk)           :: cup, rsiup
    real(rk)           :: temp,par,Io,salinity, extc,dz
-   real(rk)           :: primprod, exudation, a_nfix, respiration
-   real(rk)           :: cuptake, cexcretion, cmortality
-   real(rk)           :: nuptake(1:4), nexcretion, nmortality
-   real(rk)           :: puptake(1:2), pexcretion, pmortality
-   real(rk)           :: siuptake, siexcretion, simortality
+   real(rk)           :: primprod(self%num_phytos), exudation(self%num_phytos), &
+                         a_nfix(self%num_phytos), respiration(self%num_phytos)
+   real(rk)           :: cuptake(self%num_phytos), cexcretion(self%num_phytos), cmortality(self%num_phytos)
+   real(rk)           :: nuptake(self%num_phytos,1:4), nexcretion(self%num_phytos), nmortality(self%num_phytos)
+   real(rk)           :: puptake(self%num_phytos,1:2), pexcretion(self%num_phytos), pmortality(self%num_phytos)
+   real(rk)           :: siuptake(self%num_phytos), siexcretion(self%num_phytos), simortality(self%num_phytos)
    real(rk)           :: fT, fNit, fPho, fSil, fI, fXl, fSal, PNf
+   real(rk)           :: upTot
 
    INTEGER            :: phy_i,c
+   real(rk)           :: flux, available
 
 ! MH to fix
 !  real(rk)           :: dt = 3600. ! just for now, hard code it
@@ -490,9 +540,8 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
 
    pup = 0.
    ! Retrieve current (local) state variable values.
-   IF (self%do_Puptake) THEN
-      _GET_(self%id_Pupttarget(1), pup)
-   ENDIF
+   IF (self%do_Puptake) _GET_(self%id_Pupttarget(1), pup)
+
    no3up = 0.
    nh4up = 0.
    IF (self%do_Nuptake) THEN
@@ -505,27 +554,42 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
    IF (self%do_Siuptake) _GET_(self%id_Siupttarget, rsiup)
 
    tphy = 0.0
+   tchla = 0.0
    tin  = 0.0
    tip  = 0.0
 
    INi = 0.
    IPi = 0.
+
    DO phy_i=1,self%num_phytos
+
+!     ! Available nutrients - this is set to the concentration of nutrients from
+!     ! other aed_modules unless they are limiting
+!     no3up = sum(nuptake(phy_i, 1) / dtlim
+!     nh4up = nuptake(phy_i, 2) / dtlim
+!     pup   = puptake(phy_i, 1) / dtlim
+!     cup   = cuptake(phy_i)    / dtlim
+!     rsiup = siuptake(phy_i)   / dtlim
+
+      primprod(phy_i)    = _ZERO_
+      exudation(phy_i)   = _ZERO_
+      a_nfix(phy_i)      = _ZERO_
+      respiration(phy_i) = _ZERO_
+
+      cuptake(phy_i)     = _ZERO_
+      cexcretion(phy_i)  = _ZERO_
+      cmortality(phy_i)  = _ZERO_
+      nuptake(phy_i,:)   = _ZERO_
+      nexcretion(phy_i)  = _ZERO_
+      nmortality(phy_i)  = _ZERO_
+      puptake(phy_i,:)   = _ZERO_
+      pexcretion(phy_i)  = _ZERO_
+      pmortality(phy_i)  = _ZERO_
 
       ! Retrieve this phytoplankton group
       _GET_(self%id_p(phy_i),phy)
 
-      primprod    = _ZERO_
-      exudation   = _ZERO_
-      a_nfix = _ZERO_
-      respiration = _ZERO_
-
-      cuptake     = _ZERO_
-      cexcretion  = _ZERO_
-      cmortality  = _ZERO_
-
       ! Get the temperature limitation function
-
       fT = fTemp_function(self%phytos(phy_i)%fT_Method,    &
                           self%phytos(phy_i)%T_max,        &
                           self%phytos(phy_i)%T_std,        &
@@ -538,48 +602,54 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
       ! NITROGEN.
       fNit = 0.0
       IF(self%phytos(phy_i)%simINDynamics /= 0) THEN
-        ! IN variable available
-        _GET_(self%id_in(phy_i),INi)
+         ! IN variable available
+         _GET_(self%id_in(phy_i),INi)
+      ELSE
+         ! Assumed constant IN:
+         INi = phy*self%phytos(phy_i)%X_ncon
       END IF
 
       ! Estimate fN limitation from IN or ext N value
       IF(self%phytos(phy_i)%simINDynamics > 1) THEN
-        IF (phy > self%phytos(phy_i)%p0) THEN
-          fNit = INi / phy
-          fNit = phyto_fN(self,phy_i,IN=fNit)
-        ENDIF
-        IF (phy > _ZERO_ .AND. phy <= self%phytos(phy_i)%p0) THEN
-          fNit = phyto_fN(self,phy_i,din=no3up+nh4up)
-        ENDIF
+         IF (phy > self%phytos(phy_i)%p0) THEN
+            fNit = INi / phy
+            fNit = phyto_fN(self,phy_i,IN=fNit)
+         ENDIF
+         IF (phy > _ZERO_ .AND. phy <= self%phytos(phy_i)%p0) THEN
+            fNit = phyto_fN(self,phy_i,din=no3up+nh4up)
+         ENDIF
       ELSE
-        fNit = phyto_fN(self,phy_i,din=no3up+nh4up)
+         fNit = phyto_fN(self,phy_i,din=no3up+nh4up)
       ENDIF
       IF (self%phytos(phy_i)%simNFixation /= 0) THEN
-        ! Nitrogen fixer: apply no N limitation. N Fixation ability
-        ! depends on DIN concentration
-        a_nfix = (_ONE_ - fNit)
-        fNit = _ONE_
+         ! Nitrogen fixer: apply no N limitation. N Fixation ability
+         ! depends on DIN concentration
+         a_nfix = (_ONE_ - fNit)
+         fNit = _ONE_
       ENDIF
 
 
       ! PHOSPHOROUS.
       fPho = _ZERO_
       IF (self%phytos(phy_i)%simIPDynamics /= 0) THEN
-        ! IP variable available
-        _GET_(self%id_ip(phy_i),IPi)
+         ! IP variable available
+         _GET_(self%id_ip(phy_i),IPi)
+      ELSE
+         ! Assumed constant IP:
+         IPi = phy*self%phytos(phy_i)%X_pcon
       END IF
 
       ! Estimate fP limitation from IP or ext P value
       IF (self%phytos(phy_i)%simIPDynamics > 1) THEN
-        IF (phy > self%phytos(phy_i)%p0) THEN
-          fPho = IPi / phy
-          fPho = phyto_fP(self,phy_i,IP=fPho)
-        ENDIF
-        IF(phy > _ZERO_ .AND. phy <= self%phytos(phy_i)%p0) THEN
-          fPho = phyto_fP(self,phy_i,frp=pup)
-        ENDIF
+         IF (phy > self%phytos(phy_i)%p0) THEN
+            fPho = IPi / phy
+            fPho = phyto_fP(self,phy_i,IP=fPho)
+         ENDIF
+         IF (phy > _ZERO_ .AND. phy <= self%phytos(phy_i)%p0) THEN
+            fPho = phyto_fP(self,phy_i,frp=pup)
+         ENDIF
       ELSE
-        fPho = phyto_fP(self,phy_i,frp=pup)
+         fPho = phyto_fP(self,phy_i,frp=pup)
       ENDIF
 
       ! SILICA.
@@ -598,147 +668,251 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
       fXl = 1.0
 
       ! Primary production rate
-      primprod = self%phytos(phy_i)%R_growth * fT * findMin(fI,fNit,fPho,fSil) * fxl
+      primprod(phy_i) = self%phytos(phy_i)%R_growth * fT * findMin(fI,fNit,fPho,fSil) * fxl
 
       ! Adjust primary production rate for nitrogen fixers
       IF (self%phytos(phy_i)%simNFixation /= 0) THEN
-        ! Nitrogen fixing species, and the growth rate to  must be reduced
-        ! to compensate for the increased metabolic cost of this process
-        primprod = primprod * (self%phytos(phy_i)%k_nfix + &
-                        (1.0-a_nfix)*(1.0-self%phytos(phy_i)%k_nfix))
+         ! Nitrogen fixing species, and the growth rate to  must be reduced
+         ! to compensate for the increased metabolic cost of this process
+         primprod(phy_i) = primprod(phy_i) * (self%phytos(phy_i)%k_nfix + &
+                           (1.0-a_nfix(phy_i))*(1.0-self%phytos(phy_i)%k_nfix))
       ENDIF
 
 
       ! Respiration and general metabolic loss
 
-      respiration = phyto_respiration(self,phy_i,temp)
+      respiration(phy_i) = phyto_respiration(self,phy_i,temp)
 
       ! Salinity stress effect on respiration
       fSal =  phyto_salinity(self,phy_i,salinity)
-      respiration = respiration * fSal
+      respiration(phy_i) = respiration(phy_i) * fSal
 
       ! photo-exudation
-      exudation = primprod*self%phytos(phy_i)%f_pr
+      exudation(phy_i) = primprod(phy_i)*self%phytos(phy_i)%f_pr
 
       ! Limit respiration if at the min biomass to prevent
       ! leak in the C mass balance
       IF (phy <= self%phytos(phy_i)%p0) THEN
-        respiration = 0.0
-        exudation = 0.0
+         respiration(phy_i) = _ZERO_
+         exudation(phy_i) = _ZERO_
       ENDIF
 
-   ! write(*,"(4X,'limitations (fT,fI,fN,fP,fSi,Io, par, mu): ',9F9.2)")fT,fI,fNit,fPho,fSil,Io,par,primprod*secs_pr_day
+      ! write(*,"(4X,'limitations (fT,fI,fN,fP,fSi,Io, par, mu): ',9F9.2)")fT,fI,fNit,fPho,fSil,Io,par,primprod*secs_pr_day
 
 
       ! Carbon uptake and excretion
 
-      cuptake    = -primprod * phy
-      cexcretion = (self%phytos(phy_i)%k_fdom*(1.0-self%phytos(phy_i)%k_fres)*respiration+exudation) * phy
-      cmortality = ((1.0-self%phytos(phy_i)%k_fdom)*(1.0-self%phytos(phy_i)%k_fres)*respiration) * phy
+      cuptake(phy_i)    = -primprod(phy_i) * phy
+      cexcretion(phy_i) = (self%phytos(phy_i)%k_fdom*(1.0-self%phytos(phy_i)%k_fres)*respiration(phy_i)+exudation(phy_i)) * phy
+      cmortality(phy_i) = ((1.0-self%phytos(phy_i)%k_fdom)*(1.0-self%phytos(phy_i)%k_fres)*respiration(phy_i)) * phy
 
       ! Nitrogen uptake and excretion
 
-      CALL phyto_internal_nitrogen(self,phy_i,phy,INi,primprod,&
-                            fT,no3up,nh4up,a_nfix,respiration,exudation,PNf,&
-                                  nuptake,nexcretion,nmortality)
+      CALL phyto_internal_nitrogen(self,phy_i,phy,INi,primprod(phy_i),&
+                             fT,no3up,nh4up,a_nfix(phy_i),respiration(phy_i),exudation(phy_i),PNf,&
+                                   nuptake(phy_i,:),nexcretion(phy_i),nmortality(phy_i))
 
       ! Phosphorus uptake and excretion
 
-      CALL phyto_internal_phosphorus(self,phy_i,phy,IPi,primprod,&
-                                 fT,pup,respiration,exudation,&
-                                         puptake,pexcretion,pmortality)
+      CALL phyto_internal_phosphorus(self,phy_i,phy,IPi,primprod(phy_i),&
+                                 fT,pup,respiration(phy_i),exudation(phy_i),&
+                                         puptake(phy_i,:),pexcretion(phy_i),pmortality(phy_i))
 
       ! Silica uptake and excretion
 
       IF (self%phytos(phy_i)%simSiUptake > 0) THEN
-        siuptake    =-self%phytos(phy_i)%X_sicon * primprod * phy
-        siexcretion = self%phytos(phy_i)%X_sicon * (self%phytos(phy_i)%k_fdom*respiration+exudation) * phy
-        simortality = self%phytos(phy_i)%X_sicon * ((1.0-self%phytos(phy_i)%k_fdom)*respiration) * phy
+         siuptake(phy_i)    =-self%phytos(phy_i)%X_sicon * primprod(phy_i) * phy
+         siexcretion(phy_i) = self%phytos(phy_i)%X_sicon * (self%phytos(phy_i)%k_fdom*respiration(phy_i)+exudation(phy_i)) * phy
+         simortality(phy_i) = self%phytos(phy_i)%X_sicon * ((1.0-self%phytos(phy_i)%k_fdom)*respiration(phy_i)) * phy
       ELSE
-        siuptake    = _ZERO_
-        siexcretion = _ZERO_
-        simortality = _ZERO_
+         siuptake(phy_i)    = _ZERO_
+         siexcretion(phy_i) = _ZERO_
+         simortality(phy_i) = _ZERO_
       ENDIF
 
+      ! Diagnostic info
 
+      _SET_DIAGNOSTIC_(self%id_NtoP(phy_i), INi/IPi)
+
+      IF (extra_debug) THEN
+         _SET_DIAGNOSTIC_(self%id_fT(phy_i), fT)
+         _SET_DIAGNOSTIC_(self%id_fI(phy_i), fI)
+         _SET_DIAGNOSTIC_(self%id_fNit(phy_i), fNit)
+         _SET_DIAGNOSTIC_(self%id_fPho(phy_i), fPho)
+         _SET_DIAGNOSTIC_(self%id_fSil(phy_i), fSil)
+         _SET_DIAGNOSTIC_(self%id_fSal(phy_i), fSal)
+      ENDIF
+   END DO
+
+
+   !-----------------------------------------------------------------
+   ! Check uptake values for availability to prevent -ve numbers
+
+   ! pup   - p available
+   ! no3up - no3 available
+   ! nh4up - nh4 available
+   ! cup   - c available
+   ! rsiup - Si available
+
+   IF (self%do_Puptake) THEN
+      upTot = sum(puptake(:,1))*dtlim
+      IF ( upTot >= pup ) THEN
+         DO phy_i=1,self%num_phytos
+            puptake(phy_i,1) = (pup*0.99/dtlim) * (puptake(phy_i,1)/upTot)
+         ENDDO
+      ENDIF
+   ENDIF
+
+   IF (self%do_Nuptake) THEN
+      upTot = sum(nuptake(:,1))*dtlim
+      IF ( upTot >= no3up ) THEN
+         DO phy_i=1,self%num_phytos
+            nuptake(phy_i,1) = (no3up*0.99/dtlim) * (nuptake(phy_i,1)/upTot)
+         ENDDO
+      ENDIF
+
+      upTot = sum(nuptake(:,2))*dtlim
+      IF ( upTot >= nh4up ) THEN
+         DO phy_i=1,self%num_phytos
+            nuptake(phy_i,2) = (nh4up*0.99/dtlim) * (nuptake(phy_i,2)/upTot)
+         ENDDO
+      ENDIF
+   ENDIF
+   IF (self%do_Cuptake) THEN
+      upTot = sum(cuptake)*dtlim
+      IF ( upTot >= cup ) THEN
+         DO phy_i=1,self%num_phytos
+            cuptake(phy_i) = (cup*0.99/dtlim) * (cuptake(phy_i)/upTot)
+         ENDDO
+      ENDIF
+   ENDIF
+!  IF (self%do_DOuptake) THEN
+!     !
+!  ENDIF
+   IF (self%do_Siuptake) THEN
+      upTot = sum(siuptake)*dtlim
+      IF ( upTot >= rsiup ) THEN
+         DO phy_i=1,self%num_phytos
+            siuptake(phy_i) = (rsiup*0.99/dtlim) * (siuptake(phy_i)/upTot)
+         ENDDO
+      ENDIF
+   ENDIF
+
+   DO phy_i=1,self%num_phytos
+
+      ! Retrieve this phytoplankton group
       !-----------------------------------------------------------------
       ! SET TEMPORAL DERIVATIVES FOR ODE SOLVER
 
-
       ! Phytoplankton production / losses
-      _SET_ODE_(self%id_p(phy_i), (primprod - respiration - exudation)*phy )
+      _GET_(self%id_p(phy_i),phy)
+      flux = (primprod(phy_i) - respiration(phy_i) - exudation(phy_i)) * phy
+      available = MAX(_ZERO_, phy - self%phytos(phy_i)%p0)
+      IF ( -flux*dtlim > available  ) flux = -0.99*available/dtlim
+      _SET_ODE_(self%id_p(phy_i), flux)
 
       IF (self%phytos(phy_i)%simINDynamics /= 0) THEN
-        !_SET_ODE_(self%id_in(phy_i), (-sum(nuptake) - nexcretion - nmortality )*INi )
-         _SET_ODE_(self%id_in(phy_i), (-sum(nuptake) - nexcretion - nmortality ) )
+         ! _SET_ODE_(self%id_in(phy_i), (-sum(nuptake) - nexcretion(phy_i) - nmortality(phy_i) )*INi )
+         _GET_(self%id_in(phy_i),INi)
+         flux = (-sum(nuptake(phy_i,:)) - nexcretion(phy_i) - nmortality(phy_i) )
+         available = MAX(_ZERO_, INi - self%phytos(phy_i)%X_nmin*phy)
+         IF ( -flux*dtlim > available  ) flux = -0.99*available/dtlim
+         _SET_ODE_(self%id_in(phy_i), flux)
       ENDIF
       IF (self%phytos(phy_i)%simIPDynamics /= 0) THEN
-         _SET_ODE_(self%id_ip(phy_i), (-sum(puptake) - pexcretion - pmortality ) )
+         ! _SET_ODE_(self%id_ip(phy_i), (-sum(puptake(phy_i,:)) - pexcretion(phy_i) - pmortality(phy_i) ) )
+         _GET_(self%id_ip(phy_i),IPi)
+         flux = (-sum(puptake(phy_i,:)) - pexcretion(phy_i) - pmortality(phy_i) )
+         available = MAX(_ZERO_, IPi - self%phytos(phy_i)%X_pmin*phy)
+         IF ( -flux*dtlim > available  ) flux = -0.99*available/dtlim
+         _SET_ODE_(self%id_ip(phy_i), flux)
       ENDIF
 
-      ! Now manage uptake of nutrients and CO2
+      ! Now manage uptake of nutrients, CO2 and DO - these cumulative fluxes already limited above loop
       IF (self%do_Puptake) THEN
-        DO c = 1,self%npup
-         _SET_ODE_(self%id_Pupttarget(c), puptake(c))
-        ENDDO
+         DO c = 1,self%npup
+            _SET_ODE_(self%id_Pupttarget(c), puptake(phy_i,c))
+         ENDDO
       ENDIF
       IF (self%do_Nuptake) THEN
-        DO c = 1,self%nnup
-          _SET_ODE_(self%id_Nupttarget(c), nuptake(c))
-        ENDDO
+         DO c = 1,self%nnup
+            _SET_ODE_(self%id_Nupttarget(c), nuptake(phy_i,c))
+         ENDDO
       ENDIF
       IF (self%do_Cuptake) THEN
-         _SET_ODE_(self%id_Cupttarget,  cuptake - respiration*self%phytos(phy_i)%k_fres*phy )
+         _SET_ODE_(self%id_Cupttarget,  cuptake(phy_i) - respiration(phy_i)*self%phytos(phy_i)%k_fres*phy )
       ENDIF
       IF (self%do_DOuptake) THEN
-         _SET_ODE_(self%id_DOupttarget, -cuptake + respiration*self%phytos(phy_i)%k_fres*phy )
+         _SET_ODE_(self%id_DOupttarget, -cuptake(phy_i) + respiration(phy_i)*self%phytos(phy_i)%k_fres*phy )
       ENDIF
       IF (self%do_Siuptake) THEN
-         _SET_ODE_(self%id_Siupttarget, siuptake)
+         _SET_ODE_(self%id_Siupttarget, siuptake(phy_i))
       ENDIF
       ! Now manage mortality contributions to POM
       IF (self%do_Pmort) THEN
-         _SET_ODE_(self%id_Pmorttarget,pmortality)
+         _SET_ODE_(self%id_Pmorttarget,pmortality(phy_i))
       ENDIF
       IF (self%do_Nmort) THEN
-         _SET_ODE_(self%id_Nmorttarget,nmortality)
+         _SET_ODE_(self%id_Nmorttarget,nmortality(phy_i))
       ENDIF
       IF (self%do_Cmort) THEN
-         _SET_ODE_(self%id_Cmorttarget,cmortality)
+         _SET_ODE_(self%id_Cmorttarget,cmortality(phy_i))
       ENDIF
       IF (self%do_Simort) THEN
-         _SET_ODE_(self%id_Simorttarget,simortality)
+         _SET_ODE_(self%id_Simorttarget,simortality(phy_i))
       ENDIF
       ! Now manage excretion/exudation contributions to DOM
       IF (self%do_Pexc) THEN
-         _SET_ODE_(self%id_Pexctarget,pexcretion)
+         _SET_ODE_(self%id_Pexctarget,pexcretion(phy_i))
       ENDIF
       IF (self%do_Nexc) THEN
-         _SET_ODE_(self%id_Nexctarget,nexcretion)
+         _SET_ODE_(self%id_Nexctarget,nexcretion(phy_i))
       ENDIF
       IF (self%do_Cexc) THEN
-         _SET_ODE_(self%id_Cexctarget,cexcretion)
+         _SET_ODE_(self%id_Cexctarget,cexcretion(phy_i))
       ENDIF
       IF (self%do_Siexc) THEN
-         _SET_ODE_(self%id_Siexctarget,siexcretion)
+         _SET_ODE_(self%id_Siexctarget,siexcretion(phy_i))
       ENDIF
 
       !-----------------------------------------------------------------
       ! export diagnostic variables
-      _SET_DIAGNOSTIC_(self%id_GPP ,primprod)
-      _SET_DIAGNOSTIC_(self%id_NCP ,primprod - respiration)
-      _SET_DIAGNOSTIC_(self%id_PPR ,primprod*secs_pr_day)
-      _SET_DIAGNOSTIC_(self%id_NPR ,(primprod - respiration)*secs_pr_day)
 
+      ! Total phytoplankton carbon
       tphy = tphy + phy
+
+      ! Total chlorophyll-a
+      IF (self%phytos(phy_i)%Xcc > 0.1) THEN
+        ! Assume Xcc (mol C/ mol chla) is a constant
+        tchla = tchla + ( phy / self%phytos(phy_i)%Xcc ) * 12.0
+      ELSE
+        ! Use dynamic equation (Eq 13: of Baklouti, Cloern et al. 1995)
+        ! theta = 1/Xcc [mg Chl (mg C)1] = 0.003 + 0.0154  e^0.050T  e^0.059E mu
+        tchla = tchla + ( phy * (0.003 + 0.0154 * exp(0.050*temp) * exp(0.059*par) &
+                        * primprod(phy_i)))
+      ENDIF
+
+      ! Total internal nutrients
       tin = tin + INi
       tip = tip + IPi
+
    ENDDO
 
-   _SET_DIAGNOSTIC_(self%id_dPAR,par)
-   _SET_DIAGNOSTIC_(self%id_TCHLA,tphy)
-   _SET_DIAGNOSTIC_(self%id_TIN,tin)
-   _SET_DIAGNOSTIC_(self%id_TIP,tip)
+   _SET_DIAGNOSTIC_(self%id_GPP, sum(primprod))
+   _SET_DIAGNOSTIC_(self%id_NCP, sum(primprod - respiration))
+   _SET_DIAGNOSTIC_(self%id_PPR, sum(primprod) * secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_NPR, sum(primprod - respiration) * secs_pr_day)
+
+   _SET_DIAGNOSTIC_(self%id_NUP, sum(nuptake))
+   _SET_DIAGNOSTIC_(self%id_PUP, sum(puptake))
+   _SET_DIAGNOSTIC_(self%id_CUP, sum(cuptake))
+
+
+   _SET_DIAGNOSTIC_(self%id_dPAR, par)
+   _SET_DIAGNOSTIC_(self%id_TCHLA, tchla)
+   _SET_DIAGNOSTIC_(self%id_TPHY, tphy)
+   _SET_DIAGNOSTIC_(self%id_TIN, tin)
+   _SET_DIAGNOSTIC_(self%id_TIP, tip)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
@@ -762,6 +936,8 @@ SUBROUTINE phyto_internal_phosphorus(self,group,phy,IP,primprod,&
    real(rk),INTENT(in)                         :: primprod
    real(rk),INTENT(in)                         :: fT,pup,respiration,exudation
    real(rk),INTENT(out)                        :: uptake(:),excretion,mortality
+!CONSTANTS
+   real(rk),PARAMETER :: one_e_neg5 = 1e-5
 !LOCALS
    real(rk) :: dumdum1,dumdum2,theX_pcon
    INTEGER  :: c
@@ -791,7 +967,7 @@ SUBROUTINE phyto_internal_phosphorus(self,group,phy,IP,primprod,&
 
       theX_pcon = IP
       dumdum1  = self%phytos(group)%R_puptake * fT * phy
-      dumdum2  = self%phytos(group)%X_pmax - (IP / phy)
+      dumdum2  = MAX(one_e_neg5, self%phytos(group)%X_pmax - (IP / phy))
       dumdum1  = dumdum1 * dumdum2 / (self%phytos(group)%X_pmax-self%phytos(group)%X_pmin)
       uptake(1)= -dumdum1 * phyto_fP(self,group,frp=pup)
       uptake(2)= 0.0
@@ -832,7 +1008,6 @@ SUBROUTINE phyto_internal_nitrogen(self,group,phy,IN,primprod,fT,no3up,nh4up,   
    real(rk),INTENT(in)                         :: fT,no3up,nh4up
    real(rk),INTENT(out)                        :: a_nfix
    real(rk),INTENT(in)                         :: respiration,exudation
- !  real(rk),INTENT(in)                         :: nh4,no3
    real(rk),INTENT(out)                        :: PNf
    real(rk),INTENT(out)                        :: uptake(:),excretion,mortality
 !
@@ -1211,10 +1386,9 @@ FUNCTION phyto_pN(self,group,NH4,NO3) RESULT(pN)
    pN = _ZERO_
 
    IF (NH4 > 0.0) THEN
-     pN = NH4*NO3 / ((NH4+self%phytos(group)%K_N)*(NO3+self%phytos(group)%K_N)) &
+      pN = NH4*NO3 / ((NH4+self%phytos(group)%K_N)*(NO3+self%phytos(group)%K_N)) &
          + NH4*self%phytos(group)%K_N / ((NH4+NO3)*(NO3+self%phytos(group)%K_N))
    ENDIF
-
 END FUNCTION phyto_pN
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1264,6 +1438,7 @@ END FUNCTION phyto_respiration
 FUNCTION phyto_salinity(self,group,salinity) RESULT(fSal)
 !-------------------------------------------------------------------------------
 ! Salinity tolerance of phytoplankton
+! Implmentation based on Griffin et al 2001; Robson and Hamilton, 2004
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
@@ -1271,28 +1446,54 @@ FUNCTION phyto_salinity(self,group,salinity) RESULT(fSal)
    real(rk),INTENT(in)                         :: salinity
 !
 !LOCALS
-   real(rk)   :: fSal ! Returns the salinity function
-   real(rk)   :: tmp1,tmp2,tmp3
+   real(rk) :: fSal ! Returns the salinity function
+   real(rk) :: tmp1,tmp2,tmp3
+   real(rk),PARAMETER :: wq_one = 1.0
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   IF(self%phytos(group)%salTol == 0) THEN
-     ! f(S) = 1 at S=S_opt, f(S) = S_bep at S=S_maxsp.
-     tmp1 = (self%phytos(group)%S_bep-1.0) / ((self%phytos(group)%S_maxsp - self%phytos(group)%S_opt)**2.0)
-     tmp2 = (self%phytos(group)%S_bep-1.0) * 2.0*self%phytos(group)%S_opt / &
+
+   IF (self%phytos(group)%salTol == 0) THEN
+      fSal = 1.0
+   ELSEIF (self%phytos(group)%salTol == 1) THEN
+      !# f(S) = 1 at S=S_opt, f(S) = S_bep at S=S_maxsp.
+      tmp1 = (self%phytos(group)%S_bep-1.0) / ((self%phytos(group)%S_maxsp - self%phytos(group)%S_opt)**2.0)
+      tmp2 = (self%phytos(group)%S_bep-1.0) * 2.0*self%phytos(group)%S_opt / &
             ((self%phytos(group)%S_maxsp-self%phytos(group)%S_opt)**2.0)
-     tmp3 = (self%phytos(group)%S_bep-1.0) * self%phytos(group)%S_opt*self%phytos(group)%S_opt / &
+      tmp3 = (self%phytos(group)%S_bep-1.0) * self%phytos(group)%S_opt*self%phytos(group)%S_opt / &
             ((self%phytos(group)%S_maxsp-self%phytos(group)%S_opt)**2.0) + 1.0
-     IF(salinity>self%phytos(group)%S_opt) THEN
-       fSal = tmp1*(salinity**2.0)-tmp2*salinity+tmp3
-     ELSE
-       fSal = 1.0
-     ENDIF
+      IF (salinity>self%phytos(group)%S_opt) THEN
+         fSal = tmp1*(salinity**2.0)-tmp2*salinity+tmp3
+      ELSE
+         fSal = 1.0
+      ENDIF
+   ELSEIF (self%phytos(group)%salTol == 2) THEN
+      !# f(S) = 1 at S=S_opt, f(S) = S_bep at S=0.
+      IF (salinity<self%phytos(group)%S_opt) THEN
+         fSal = (self%phytos(group)%S_bep-1.0) * (salinity**2.0)/(self%phytos(group)%S_opt**2.0) -  &
+                      2.0*(self%phytos(group)%S_bep-1.0)*salinity/self%phytos(group)%S_opt+self%phytos(group)%S_bep
+      ELSE
+        fSal = 1.0
+      ENDIF
+   ELSEIF (self%phytos(group)%salTol == 3) THEN
+      ! f(S) = 1 at S=S_opt, f(S) = S_bep at S=0 and 2*S_opt.
+      IF (salinity < self%phytos(group)%S_opt) THEN
+      fSal = (self%phytos(group)%S_bep-1.0)*(salinity**2.0)/(self%phytos(group)%S_opt**2.0)-  &
+                      2.0*(self%phytos(group)%S_bep-1.0)*salinity/self%phytos(group)%S_opt+self%phytos(group)%S_bep
+      ENDIF
+      IF ((salinity>self%phytos(group)%S_maxsp) .AND. (salinity<(self%phytos(group)%S_maxsp + self%phytos(group)%S_opt))) THEN
+         fSal = (self%phytos(group)%S_bep - wq_one)*(self%phytos(group)%S_maxsp + self%phytos(group)%S_opt - salinity)**2  &
+             / (self%phytos(group)%S_opt**2) -                                                                             &
+             2 * (self%phytos(group)%S_bep - wq_one) * (self%phytos(group)%S_maxsp + self%phytos(group)%S_opt - salinity)  &
+             / self%phytos(group)%S_opt + self%phytos(group)%S_bep
+      ENDIF
+      IF ( (salinity >= self%phytos(group)%S_opt) .AND. (salinity <= self%phytos(group)%S_maxsp) ) fSal = 1
+      IF ( salinity >= (self%phytos(group)%S_maxsp + self%phytos(group)%S_opt) ) fSal = self%phytos(group)%S_bep
    ELSE
-     fSal = 1.0
+      PRINT *,'STOP: Unsupported salTol flag for group: ',group,'=', self%phytos(group)%salTol
    ENDIF
 
-   IF( fSal<_ZERO_ ) fSal=_ZERO_
+   IF( fSal < _ZERO_ ) fSal = _ZERO_
 
 END FUNCTION phyto_salinity
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1301,8 +1502,15 @@ END FUNCTION phyto_salinity
 !###############################################################################
 FUNCTION phyto_light(self, group, par, extc, Io, dz) RESULT(fI)
 !-------------------------------------------------------------------------------
-! Light limitation of pytoplankton group via the Webb (1974) model,
-! integrated throughout the layer.
+! Light limitation of pytoplankton via various model approaches. Refer to
+! overview presented in Table 1 of:
+!
+! Baklouti, M., Diaz, F., Pinazo, C., Faure, V., Quéguiner, B., 2006.
+!  Investigation of mechanistic formulations depicting phytoplankton dynamics for
+!    models of marine pelagic ecosystems and description of a new model.
+!  Progress in Oceanography 71 (1), 1-33.
+!
+!
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
@@ -1316,9 +1524,11 @@ FUNCTION phyto_light(self, group, par, extc, Io, dz) RESULT(fI)
    real(rk),PARAMETER :: one_e_neg3 = 1e-3
 !
 !LOCALS
-   real(rk)  :: fI !-- Returns the light limitation
-   real(rk)  :: par_t,par_b,par_c
-   real(rk)  :: z1,z2
+   real(rk) :: fI !-- Returns the light limitation
+   real(rk) :: par_t,par_b,par_c
+   real(rk) :: z1,z2
+   real(rk) :: x
+   real(rk), PARAMETER :: A = 5.0, eps = 0.5
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -1329,46 +1539,77 @@ FUNCTION phyto_light(self, group, par, extc, Io, dz) RESULT(fI)
    par_b = par_t * EXP( -extc * dz )
    par_c = par_t * EXP( -extc * dz/2. )
 
-   IF(self%phytos(group)%lightModel == 0 ) THEN
-     ! Light limitation without photoinhibition.
-     IF(Io == _ZERO_) THEN
-       RETURN
-     ENDIF
-     z1 = -par_t / self%phytos(group)%I_K
-     z2 = -par_b / self%phytos(group)%I_K
+   SELECT CASE (self%phytos(group)%lightModel)
+      CASE ( 0 )
+         ! Light limitation without photoinhibition.
+         ! This is the Webb et al (1974) model solved using the numerical
+         ! integration approach as in CAEDYM (Hipsey and Hamilton, 2008)
 
-     z1 = exp_integral(z1)
-     z2 = exp_integral(z2)
+         IF (Io == _ZERO_) RETURN
 
-     fI = 1.0 + (z2 - z1) / MAX(extc * dz,one_e_neg3)
+         z1 = -par_t / self%phytos(group)%I_K
+         z2 = -par_b / self%phytos(group)%I_K
 
-     ! A simple check
-     IF(par_t < 5e-5 .OR. fI < 5e-5) THEN
-       fI = 0.0
-     ENDIF
+         z1 = exp_integral(z1)
+         z2 = exp_integral(z2)
 
-   ELSEIF ( self%phytos(group)%lightModel == 1 ) THEN
+         fI = 1.0 + (z2 - z1) / MAX(extc * dz,one_e_neg3)
 
-     ! Light limitation with photoinhibition.
+         ! A simple check
+         IF (par_t < 5e-5 .OR. fI < 5e-5) fI = 0.0
 
-     fI = ( EXP(1-par_b/self%phytos(group)%I_S) - &
-            EXP(1-par_t/self%phytos(group)%I_S)   ) / (extc * dz)
+      CASE ( 1 )
+         ! Light limitation without photoinhibition.
+         ! This is the Monod (1950) model.
 
-   ELSEIF ( self%phytos(group)%lightModel == 3 ) THEN
+         x = par_c/self%phytos(group)%I_K
+         fI = x / (_ONE_ + x)
 
-     ! Light limitation with photoinhibition.
+      CASE ( 2 )
+         ! Light limitation with photoinhibition.
+         ! This is the Steele (1962) model.
 
-     fI = par_c/self%phytos(group)%I_K * EXP(_ONE_ - par_c/self%phytos(group)%I_K)
-     IF(par_t < 5e-5 .OR. fI < 5e-5) THEN
-       fI = 0.0
-     ENDIF
+         x = par_c/self%phytos(group)%I_S
+         fI = x * EXP(_ONE_ - x)
+         IF (par_t < 5e-5 .OR. fI < 5e-5) fI = 0.0
 
+      CASE ( 3 )
+         ! Light limitation without photoinhibition.
+         ! This is the Webb et al. (1974) model.
 
-   ENDIF
+         x = par_c/self%phytos(group)%I_K
+         fI = _ONE_ - EXP(-x)
 
+      CASE ( 4 )
+         ! Light limitation without photoinhibition.
+         ! This is the Jassby and Platt (1976) model.
 
-   IF( fI<_ZERO_ ) fI=_ZERO_
+         x = par_c/self%phytos(group)%I_K
+         fI = TANH(x)
 
+      CASE ( 5 )
+         ! Light limitation without photoinhibition.
+         ! This is the Chalker (1980) model.
+
+         x = par_c/self%phytos(group)%I_K
+         fI = (EXP(x * (_ONE_ + eps)) - _ONE_) / &
+              (EXP(x * (_ONE_ + eps)) + eps)
+
+      CASE ( 6 )
+         ! Light limitation with photoinhibition.
+         ! This is the Klepper et al. (1988) / Ebenhoh et al. (1997) model.
+         x = par_c/self%phytos(group)%I_S
+         fI = ((2.0 + A) * x) / ( _ONE_ + (A * x) + (x * x) )
+
+      CASE ( 7 )
+         ! Light limitation with photoinhibition.
+         ! This is an integrated form of Steele model.
+
+         fI = ( EXP(1-par_b/self%phytos(group)%I_S) - &
+                EXP(1-par_t/self%phytos(group)%I_S)   ) / (extc * dz)
+   END SELECT
+
+   IF ( fI < _ZERO_ ) fI = _ZERO_
 END FUNCTION phyto_light
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
