@@ -1605,8 +1605,8 @@ end subroutine append_string
       type (type_bulk_variable_link),      pointer :: bulk_link,bulk_link2
       type (type_horizontal_variable_link),pointer :: horizontal_link,horizontal_link2
       type (type_scalar_variable_link),    pointer :: scalar_link,scalar_link2
-      character(len=attribute_length),allocatable  :: processed(:)
-      logical                                      :: exists
+      character(len=attribute_length),_ALLOCATABLE_ :: processed(:)
+      logical                                       :: exists
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1626,7 +1626,7 @@ end subroutine append_string
          bulk_link => bulk_link%next
       end do
 
-      if (allocated(processed)) deallocate(processed)
+      if (_ALLOCATED_(processed)) deallocate(processed)
 
       horizontal_link => model%first_horizontal_link
       do while (associated(horizontal_link))
@@ -1644,7 +1644,7 @@ end subroutine append_string
          horizontal_link => horizontal_link%next
       end do
 
-      if (allocated(processed)) deallocate(processed)
+      if (_ALLOCATED_(processed)) deallocate(processed)
 
       scalar_link => model%first_scalar_link
       do while (associated(scalar_link))
