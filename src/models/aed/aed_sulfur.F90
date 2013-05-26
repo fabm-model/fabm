@@ -87,7 +87,7 @@ FUNCTION aed_sulfur_create(namlst,name,parent) RESULT(self)
 !-------------------------------------------------------------------------------
 !BEGIN
    ALLOCATE(self)
-   CALL self%initialize(name,parent)
+   CALL initialize_model_info(self,name,parent)
 
    ! Read the namelist
    read(namlst,nml=aed_sulfur,err=99)

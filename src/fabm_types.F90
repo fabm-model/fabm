@@ -430,7 +430,7 @@
       generic :: register_state_dependency    => register_bulk_state_dependency,register_bottom_state_dependency
 
       ! Procedures that may be overridden by biogeochemical models to provide custom data or functionality.
-      procedure :: initialize               => initialize_model_info
+      procedure :: initialize               => base_initialize
       procedure :: set_domain               => base_set_domain
       procedure :: do                       => base_do
       procedure :: do_ppdd                  => base_do_ppdd
@@ -534,6 +534,10 @@
    contains
 
 #ifdef _FABM_F2003_
+   subroutine base_initialize(self,configunit)
+      class (type_model_info),intent(inout),target :: self
+      integer,                intent(in)           :: configunit
+   end subroutine base_initialize
    subroutine base_set_domain(self _ARG_LOCATION_)
       class (type_model_info),intent(inout) :: self
       _DECLARE_LOCATION_ARG_

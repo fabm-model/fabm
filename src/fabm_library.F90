@@ -63,13 +63,18 @@
       select case (modelname)
          case ('bb_passive')
             model => bb_passive_create(configunit,instancename,parent)
-         case ('examples_npzd_f2003')
-            model => examples_npzd_f2003_create(configunit,instancename,parent)
+         case ('examples_npzd_f2003'); allocate(type_examples_npzd_f2003::model)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
          case default
             if ( modelname(1:4) .eq. 'aed_' ) &
                model => aed_create_model(configunit,modelname,instancename,parent);
       end select
+      
+      if (model%name=='') then
+         ! The model object has been created, but not initialized.
+         call initialize_model_info(model,instancename,parent)
+         call model%initialize(configunit)
+      end if
 #endif
 
    end function fabm_library_create_model

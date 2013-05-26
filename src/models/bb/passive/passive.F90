@@ -76,7 +76,7 @@
 !-----------------------------------------------------------------------
 !BOC
    allocate(self)
-   call self%initialize(name,parent)
+   call initialize_model_info(self,name,parent)
 
    initial_concentration     = 1.0_rk
    vertical_velocity         = 0.0_rk

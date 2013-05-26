@@ -85,7 +85,7 @@ FUNCTION aed_viruses_create(namlst,name,parent) RESULT(self)
 !-------------------------------------------------------------------------------
 !BEGIN
    ALLOCATE(self)
-   CALL self%initialize(name,parent)
+   CALL initialize_model_info(self,name,parent)
 
    print *,"WARNING! aed_viruses model is currently under development"
 

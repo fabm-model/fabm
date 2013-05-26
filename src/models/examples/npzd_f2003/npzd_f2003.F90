@@ -37,18 +37,8 @@
 !  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public examples_npzd_f2003_create, type_examples_npzd_f2003
-!
-! !PRIVATE DATA MEMBERS:
-   real(rk), parameter :: secs_pr_day = 86400.0_rk
-!
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
-!
-!
 ! !PUBLIC DERIVED TYPES:
-   type,extends(type_base_model) :: type_examples_npzd_f2003
+   type,extends(type_base_model),public :: type_examples_npzd_f2003
 !     Variable identifiers
       type (type_state_variable_id)        :: id_n,id_p,id_z,id_d
       type (type_state_variable_id)        :: id_dic
@@ -65,12 +55,16 @@
       contains
 
 !     Model procedures
+      procedure :: initialize
       procedure :: do
       procedure :: do_ppdd
       procedure :: get_light_extinction
       procedure :: get_conserved_quantities
 
    end type type_examples_npzd_f2003
+!
+! !PRIVATE DATA MEMBERS:
+   real(rk), parameter :: secs_pr_day = 86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 
@@ -82,17 +76,15 @@
 ! !IROUTINE: Initialise the NPZD model
 !
 ! !INTERFACE:
-   function examples_npzd_f2003_create(configunit,name,parent) result(self)
+   subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !  Here, the npzd namelist is read and the variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   integer,                          intent(in)    :: configunit
-   character(len=*),                 intent(in)    :: name
-   class (type_base_model),target,   intent(inout) :: parent
-   class (type_examples_npzd_f2003), pointer       :: self
+   class (type_examples_npzd_f2003), intent(inout), target :: self
+   integer,                          intent(in)            :: configunit
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard & Karsten Bolding
@@ -127,9 +119,6 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   allocate(self)
-   call self%initialize(name,parent)
-
    n_initial = 4.5_rk
    p_initial = 0.0_rk
    z_initial = 0.0_rk
@@ -214,7 +203,7 @@
 
 100 call fatal_error('examples_npzd_f2003_init','Namelist examples_npzd_f2003 was not found.')
 
-   end function examples_npzd_f2003_create
+   end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------

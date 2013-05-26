@@ -221,7 +221,7 @@ FUNCTION aed_zooplankton_create(namlst,name,parent) RESULT(self)
 !-----------------------------------------------------------------------
 !BEGIN
    ALLOCATE(self)
-   CALL self%initialize(name,parent)
+   CALL initialize_model_info(self,name,parent)
 
 !print *,'**** Reading /aed_zooplankton/ namelist'
    ! Read the namelist
