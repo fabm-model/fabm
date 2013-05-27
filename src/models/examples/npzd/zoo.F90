@@ -1,3 +1,5 @@
+#ifdef _FABM_F2003_
+
 #include "fabm_driver.h"
 !-----------------------------------------------------------------------
 !BOP
@@ -15,18 +17,10 @@
    
    implicit none
 
-!  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public type_examples_npzd_zoo, &
-          examples_npzd_zoo_init, &
-          examples_npzd_zoo_do,   &
-          examples_npzd_zoo_do_ppdd, &
-          examples_npzd_zoo_get_conserved_quantities
-!
 ! !PUBLIC DERIVED TYPES:
-   type type_examples_npzd_zoo
+   type,extends(type_base_model),public :: type_examples_npzd_zoo
 !     Variable identifiers
       type (type_state_variable_id)      :: id_z
       type (type_state_variable_id)      :: id_exctarget,id_morttarget,id_grztarget
@@ -34,6 +28,13 @@
 !     Model parameters
       real(rk) :: z0,gmax,iv,rzn,rzd
       logical  :: do_exc,do_mort,do_grz
+
+      contains
+
+      procedure :: initialize
+      procedure :: do
+      procedure :: do_ppdd
+
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -46,16 +47,15 @@
 ! !IROUTINE: Initialise the NPZD model
 !
 ! !INTERFACE:
-   subroutine examples_npzd_zoo_init(self,modelinfo,namlst)
+   subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !  Here, the examples_npzd_zoo namelist is read and te variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_zoo), intent(out)   :: self
-   _CLASS_ (type_model_info),     intent(inout) :: modelinfo
-   integer,                       intent(in)    :: namlst
+   class (type_examples_npzd_zoo), intent(inout), target :: self
+   integer,                        intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
    real(rk)                  :: z_initial
@@ -86,7 +86,7 @@
    grazing_target_variable   = ''
 
    ! Read the namelist
-   read(namlst,nml=examples_npzd_zoo,err=99)
+   read(configunit,nml=examples_npzd_zoo,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -98,22 +98,22 @@
    self%rzd  = rzd /secs_pr_day
 
    ! Register state variables
-   call register_state_variable(modelinfo,self%id_z,'zoo','mmol/m**3','zooplankton', &
+   call self%register_state_variable(self%id_z,'zoo','mmol/m**3','zooplankton', &
                                 z_initial,minimum=0.0_rk)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%do_exc = excretion_target_variable/=''
-   if (self%do_exc) call register_state_dependency(modelinfo,self%id_exctarget,excretion_target_variable)
+   if (self%do_exc) call self%register_state_dependency(self%id_exctarget,excretion_target_variable)
    self%do_mort = mortality_target_variable/=''
-   if (self%do_mort) call register_state_dependency(modelinfo,self%id_morttarget,mortality_target_variable)
+   if (self%do_mort) call self%register_state_dependency(self%id_morttarget,mortality_target_variable)
    self%do_grz = grazing_target_variable/=''
-   if (self%do_grz) call register_state_dependency(modelinfo,self%id_grztarget,grazing_target_variable)
+   if (self%do_grz) call self%register_state_dependency(self%id_grztarget,grazing_target_variable)
 
    return
 
-99 call fatal_error('examples_npzd_zoo_init','Error reading namelist examples_npzd_zoo')
+99 call fatal_error('examples_npzd_zoo::initialize','Error reading namelist examples_npzd_zoo')
 
-   end subroutine examples_npzd_zoo_init
+   end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------
@@ -122,10 +122,10 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   pure subroutine examples_npzd_zoo_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_zoo), intent(in)     :: self
+   class (type_examples_npzd_zoo), intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !LOCAL VARIABLES:
@@ -158,7 +158,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_zoo_do
+   end subroutine do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -167,10 +167,10 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   pure subroutine examples_npzd_zoo_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   subroutine examples_npzd_zoo_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_zoo), intent(in)     :: self
+   class (type_examples_npzd_zoo), intent(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 ! !LOCAL VARIABLES:
@@ -200,10 +200,10 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   pure subroutine examples_npzd_zoo_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_zoo), intent(in)     :: self
+   class (type_examples_npzd_zoo), intent(in)     :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 ! !LOCAL VARIABLES:
@@ -249,7 +249,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_zoo_do_ppdd
+   end subroutine do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -285,3 +285,5 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
+
+#endif

@@ -1,3 +1,5 @@
+#ifdef _FABM_F2003_
+
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
@@ -19,22 +21,8 @@
 !  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public type_examples_npzd_phy, &
-          examples_npzd_phy_init, &
-          examples_npzd_phy_do,   &
-          examples_npzd_phy_do_ppdd, &
-          examples_npzd_phy_get_light_extinction, &
-          examples_npzd_phy_get_conserved_quantities
-!
-! !PRIVATE DATA MEMBERS:
-!
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
-!
-!
 ! !PUBLIC DERIVED TYPES:
-   type type_examples_npzd_phy
+   type,extends(type_base_model),public :: type_examples_npzd_phy
 !     Variable identifiers
       type (type_state_variable_id)        :: id_p
       type (type_state_variable_id)        :: id_exctarget,id_morttarget,id_upttarget
@@ -44,9 +32,16 @@
       type (type_conserved_quantity_id)    :: id_totN
 
 !     Model parameters
-      real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
+      real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rpdu,rpdl
       real(rk) :: dic_per_n
       logical  :: do_exc,do_mort,do_upt
+
+      contains
+
+      procedure :: initialize
+      procedure :: do
+      procedure :: do_ppdd
+      procedure :: get_light_extinction
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -59,16 +54,15 @@
 ! !IROUTINE: Initialise the NPZD model
 !
 ! !INTERFACE:
-   subroutine examples_npzd_phy_init(self,modelinfo,namlst)
+   subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !  Here, the examples_npzd_phy namelist is read and variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_phy), intent(out)   :: self
-   _CLASS_ (type_model_info),     intent(inout) :: modelinfo
-   integer,                       intent(in)    :: namlst
+   class (type_examples_npzd_phy), intent(inout), target :: self
+   integer,                        intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
    real(rk)                  :: p_initial
@@ -108,7 +102,7 @@
    uptake_target_variable    = ''
 
    ! Read the namelist
-   read(namlst,nml=examples_npzd_phy,err=99)
+   read(configunit,nml=examples_npzd_phy,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -123,41 +117,41 @@
    self%rpdl  = rpdl/secs_pr_day
 
    ! Register state variables
-   call register_state_variable(modelinfo,self%id_p,'phy','mmol/m**3','phytoplankton', &
+   call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton', &
                                 p_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%do_exc = excretion_target_variable/=''
-   if (self%do_exc) call register_state_dependency(modelinfo,self%id_exctarget,excretion_target_variable)
+   if (self%do_exc) call self%register_state_dependency(self%id_exctarget,excretion_target_variable)
    self%do_mort = mortality_target_variable/=''
-   if (self%do_mort) call register_state_dependency(modelinfo,self%id_morttarget,mortality_target_variable)
+   if (self%do_mort) call self%register_state_dependency(self%id_morttarget,mortality_target_variable)
    self%do_upt = uptake_target_variable/=''
-   if (self%do_upt) call register_state_dependency(modelinfo,self%id_upttarget,uptake_target_variable)
+   if (self%do_upt) call self%register_state_dependency(self%id_upttarget,uptake_target_variable)
 
    ! Register diagnostic variables
-   call register_diagnostic_variable(modelinfo,self%id_GPP, 'GPP','mmol/m**3',  'gross primary production',           &
+   call self%register_diagnostic_variable(self%id_GPP, 'GPP','mmol/m**3',  'gross primary production',           &
                                      time_treatment=time_treatment_step_integrated)
-   call register_diagnostic_variable(modelinfo,self%id_NCP, 'NCP','mmol/m**3',  'net community production',           &
+   call self%register_diagnostic_variable(self%id_NCP, 'NCP','mmol/m**3',  'net community production',           &
                                      time_treatment=time_treatment_step_integrated)
-   call register_diagnostic_variable(modelinfo,self%id_PPR, 'PPR','mmol/m**3/d','gross primary production rate',      &
+   call self%register_diagnostic_variable(self%id_PPR, 'PPR','mmol/m**3/d','gross primary production rate',      &
                                      time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_NPR, 'NPR','mmol/m**3/d','net community production rate',      &
+   call self%register_diagnostic_variable(self%id_NPR, 'NPR','mmol/m**3/d','net community production rate',      &
                                      time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
+   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
                                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
 !KB   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
 
    ! Register environmental dependencies
-   call register_dependency(modelinfo, self%id_par, varname_par)
-   call register_dependency(modelinfo, self%id_I_0, varname_par_sf)
+   call self%register_dependency(self%id_par, varname_par)
+   call self%register_dependency(self%id_I_0, varname_par_sf)
 
    return
 
 99 call fatal_error('fabm_examples_npzd_phy','Error reading namelist examples_npzd_phy')
 
-   end subroutine examples_npzd_phy_init
+   end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------
@@ -166,10 +160,10 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   pure subroutine examples_npzd_phy_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_phy), intent(in)     :: self
+   class (type_examples_npzd_phy), intent(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !LOCAL VARIABLES:
@@ -227,7 +221,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_phy_do
+   end subroutine do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -237,10 +231,10 @@
 ! variables
 !
 ! !INTERFACE:
-   pure subroutine examples_npzd_phy_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   subroutine get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_phy), intent(in)     :: self
+   class (type_examples_npzd_phy), intent(in)     :: self
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
 ! !LOCAL VARIABLES:
@@ -261,7 +255,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_phy_get_light_extinction
+   end subroutine get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -303,10 +297,10 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   pure subroutine examples_npzd_phy_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_phy), intent(in)     :: self
+   class (type_examples_npzd_phy), intent(in)     :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 ! !REVISION HISTORY:
@@ -328,6 +322,7 @@
 
    ! Retrieve current environmental conditions.
    _GET_(self%id_par,par)     ! local photosynthetically active radiation
+   _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
 
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -379,7 +374,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_phy_do_ppdd
+   end subroutine do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -416,3 +411,5 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
+
+#endif

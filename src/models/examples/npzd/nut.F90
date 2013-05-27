@@ -1,3 +1,5 @@
+#ifdef _FABM_F2003_
+
 #include "fabm_driver.h"
 !-----------------------------------------------------------------------
 !BOP
@@ -31,13 +33,15 @@
 !  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public type_examples_npzd_nut, examples_npzd_nut_init
-!
 ! !PUBLIC DERIVED TYPES:
-   type type_examples_npzd_nut
+   type,extends(type_base_model),public :: type_examples_npzd_nut
 !     Variable identifiers
-      type (type_state_variable_id)      :: id_n
+      type (type_state_variable_id) :: id_n
+      
+      contains
+      
+      procedure :: initialize
+      
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -50,16 +54,15 @@
 ! !IROUTINE: Initialise the nutrient componet
 !
 ! !INTERFACE:
-   subroutine examples_npzd_nut_init(self,modelinfo,namlst)
+   subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !  Here, the examples_npzd_nut namelist is read and te variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_nut), intent(out)   :: self
-   _CLASS_ (type_model_info),     intent(inout) :: modelinfo
-   integer,                       intent(in)    :: namlst
+   class (type_examples_npzd_nut), intent(inout), target :: self
+   integer,                        intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
    real(rk)                  :: n_initial
@@ -70,17 +73,17 @@
    n_initial = 4.5_rk
 
    ! Read the namelist
-   read(namlst,nml=examples_npzd_nut,err=99)
+   read(configunit,nml=examples_npzd_nut,err=99)
 
    ! Register state variables
-   call register_state_variable(modelinfo,self%id_n,'nut','mmol/m**3','nutrients',     &
+   call self%register_state_variable(self%id_n,'nut','mmol/m**3','nutrients',     &
                                 n_initial,minimum=0.0_rk,no_river_dilution=.true.)
 
    return
 
-99 call fatal_error('examples_npzd_nut_init','Error reading namelist examples_npzd_nut')
+99 call fatal_error('examples_npzd_nut::initialize','Error reading namelist examples_npzd_nut')
 
-   end subroutine examples_npzd_nut_init
+   end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------
@@ -90,3 +93,5 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
+
+#endif

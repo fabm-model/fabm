@@ -17,6 +17,10 @@
    ! Specific biogeochemical models
    use fabm_bb_passive
    use fabm_examples_npzd_f2003
+   use fabm_examples_npzd_nut
+   use fabm_examples_npzd_phy
+   use fabm_examples_npzd_zoo
+   use fabm_examples_npzd_det
    use aed_models
    ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
 #endif
@@ -64,12 +68,18 @@
          case ('bb_passive')
             model => bb_passive_create(configunit,instancename,parent)
          case ('examples_npzd_f2003'); allocate(type_examples_npzd_f2003::model)
+         case ('examples_npzd_nut');   allocate(type_examples_npzd_nut::model)
+         case ('examples_npzd_phy');   allocate(type_examples_npzd_phy::model)
+         case ('examples_npzd_zoo');   allocate(type_examples_npzd_zoo::model)
+         case ('examples_npzd_det');   allocate(type_examples_npzd_det::model)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
          case default
             if ( modelname(1:4) .eq. 'aed_' ) &
                model => aed_create_model(configunit,modelname,instancename,parent);
       end select
-      
+
+      if (.not.associated(model)) return
+
       if (model%name=='') then
          ! The model object has been created, but not initialized.
          call initialize_model_info(model,instancename,parent)

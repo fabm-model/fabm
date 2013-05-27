@@ -1,3 +1,5 @@
+#ifdef _FABM_F2003_
+
 #include "fabm_driver.h"
 !-----------------------------------------------------------------------
 !BOP
@@ -15,18 +17,10 @@
    
    implicit none
 
-!  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public type_examples_npzd_det, &
-          examples_npzd_det_init, &
-          examples_npzd_det_do,   &
-          examples_npzd_det_do_ppdd, &
-          examples_npzd_det_get_conserved_quantities
-!
 ! !PUBLIC DERIVED TYPES:
-   type type_examples_npzd_det
+   type,extends(type_base_model),public :: type_examples_npzd_det
 !     Variable identifiers
       type (type_state_variable_id) :: id_d
       type (type_state_variable_id) :: id_mintarget
@@ -37,6 +31,13 @@
       logical  :: use_zoo
       logical  :: use_phy
       logical  :: do_min
+
+      contains
+
+      procedure :: initialize
+      procedure :: do
+      procedure :: do_ppdd
+
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -49,23 +50,22 @@
 ! !IROUTINE: Initialise the Detritus model
 !
 ! !INTERFACE:
-   subroutine examples_npzd_det_init(self,modelinfo,namlst)
+   subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !  Here, the examples_npzd_det namelist is read and variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_det), intent(out)   :: self
-   _CLASS_ (type_model_info),     intent(inout) :: modelinfo
-   integer,                       intent(in)    :: namlst
+   class (type_examples_npzd_det), intent(inout), target :: self
+   integer,                        intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
-   real(rk)                  :: d_initial
-   real(rk)                  :: w_d
-   real(rk)                  :: rdn
-   real(rk)                  :: kc
-   character(len=64)         :: mineralisation_target_variable
+   real(rk)          :: d_initial
+   real(rk)          :: w_d
+   real(rk)          :: rdn
+   real(rk)          :: kc
+   character(len=64) :: mineralisation_target_variable
 
    real(rk), parameter :: secs_pr_day = 86400.0_rk
    namelist /examples_npzd_det/ d_initial, w_d, rdn, kc, mineralisation_target_variable
@@ -79,7 +79,7 @@
    mineralisation_target_variable = ''
 
    ! Read the namelist
-   read(namlst,nml=examples_npzd_det,err=99)
+   read(configunit,nml=examples_npzd_det,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -87,19 +87,19 @@
    self%rdn = rdn/secs_pr_day
 
    ! Register state variables
-   call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus',           &
+   call self%register_state_variable(self%id_d,'det','mmol/m**3','detritus',           &
                                 d_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day, &
                                 specific_light_extinction=kc)
 
    ! Register external state variable dependencies
    self%do_min = mineralisation_target_variable/=''
-   if (self%do_min) call register_state_dependency(modelinfo,self%id_mintarget,mineralisation_target_variable)
+   if (self%do_min) call self%register_state_dependency(self%id_mintarget,mineralisation_target_variable)
 
    return
 
 99 call fatal_error('examples_npzd_det_init','Error reading namelist examples_npzd_det')
 
-   end subroutine examples_npzd_det_init
+   end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------
@@ -108,10 +108,10 @@
 ! !IROUTINE: Right hand sides of Detritus model
 !
 ! !INTERFACE:
-   subroutine examples_npzd_det_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine do(self,_FABM_ARGS_DO_RHS_)
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_det), intent(in)     :: self
+   class (type_examples_npzd_det), intent(in)     :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 ! !LOCAL VARIABLES:
@@ -136,7 +136,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_det_do
+   end subroutine do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -145,10 +145,10 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   pure subroutine examples_npzd_det_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   subroutine get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_det), intent(in)     :: self
+   class (type_examples_npzd_det), intent(in)     :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 ! !LOCAL VARIABLES:
@@ -166,7 +166,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_det_get_conserved_quantities
+   end subroutine get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------
@@ -175,10 +175,10 @@
 ! !IROUTINE: Right hand sides of Detritus model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine examples_npzd_det_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_det), intent(in)     :: self
+   class (type_examples_npzd_det), intent(in)     :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 ! !LOCAL VARIABLES:
@@ -205,7 +205,7 @@
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
-   end subroutine examples_npzd_det_do_ppdd
+   end subroutine do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -215,3 +215,5 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
+
+#endif

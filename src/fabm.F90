@@ -32,10 +32,6 @@
    use fabm_pml_ersem
    use fabm_pml_carbonate
    use fabm_examples_benthic_predator
-   use fabm_examples_npzd_det
-   use fabm_examples_npzd_nut
-   use fabm_examples_npzd_phy
-   use fabm_examples_npzd_zoo
    use fabm_iow_ergom
    use fabm_iow_spm
    use fabm_klimacampus_phy_feedback
@@ -90,10 +86,6 @@
       type (type_pml_ersem)                 :: pml_ersem
       type (type_pml_carbonate)             :: pml_carbonate
       type (type_examples_benthic_predator) :: examples_benthic_predator
-      type (type_examples_npzd_det)         :: examples_npzd_det
-      type (type_examples_npzd_nut)         :: examples_npzd_nut
-      type (type_examples_npzd_phy)         :: examples_npzd_phy
-      type (type_examples_npzd_zoo)         :: examples_npzd_zoo
       type (type_iow_ergom)                 :: iow_ergom
       type (type_iow_spm)                   :: iow_spm
       type (type_klimacampus_phy_feedback)  :: klimacampus_phy_feedback
@@ -193,10 +185,6 @@
    integer, parameter :: pml_carbonate_id             =  101
    integer, parameter :: metu_mnemiopsis_id           =  102
    integer, parameter :: examples_benthic_predator_id =  103
-   integer, parameter :: examples_npzd_det_id         =  104
-   integer, parameter :: examples_npzd_nut_id         =  105
-   integer, parameter :: examples_npzd_phy_id         =  106
-   integer, parameter :: examples_npzd_zoo_id         =  107
    integer, parameter :: iow_ergom_id                 =  108
    integer, parameter :: iow_spm_id                   =  120
    integer, parameter :: klimacampus_phy_feedback_id  =  110
@@ -243,10 +231,6 @@
    call register_model(pml_ersem_id,                'pml_ersem')
    call register_model(pml_carbonate_id,            'pml_carbonate')
    call register_model(examples_benthic_predator_id,'examples_benthic_predator')
-   call register_model(examples_npzd_det_id,        'examples_npzd_det')
-   call register_model(examples_npzd_nut_id,        'examples_npzd_nut')
-   call register_model(examples_npzd_phy_id,        'examples_npzd_phy')
-   call register_model(examples_npzd_zoo_id,        'examples_npzd_zoo')
    call register_model(iow_ergom_id,                'iow_ergom')
    call register_model(iow_spm_id,                  'iow_spm')
    call register_model(klimacampus_phy_feedback_id, 'klimacampus_phy_feedback')
@@ -932,14 +916,6 @@
          call pml_carbonate_init(model%pml_carbonate,model%info,nmlunit)
       case (examples_benthic_predator_id)
          call examples_benthic_predator_init(model%examples_benthic_predator,model%info,nmlunit)
-      case (examples_npzd_det_id)
-         call examples_npzd_det_init(model%examples_npzd_det,model%info,nmlunit)
-      case (examples_npzd_nut_id)
-         call examples_npzd_nut_init(model%examples_npzd_nut,model%info,nmlunit)
-      case (examples_npzd_phy_id)
-         call examples_npzd_phy_init(model%examples_npzd_phy,model%info,nmlunit)
-      case (examples_npzd_zoo_id)
-         call examples_npzd_zoo_init(model%examples_npzd_zoo,model%info,nmlunit)
       case (iow_ergom_id)
          call iow_ergom_init(model%iow_ergom,model%info,nmlunit)
       case (iow_spm_id)
@@ -1797,13 +1773,6 @@
          case (pml_carbonate_id)
             call pml_carbonate_do(model%pml_carbonate,_INPUT_ARGS_DO_RHS_)
          case (examples_benthic_predator_id)
-         case (examples_npzd_det_id)
-            call examples_npzd_det_do(model%examples_npzd_det,_INPUT_ARGS_DO_RHS_)
-         case (examples_npzd_nut_id)
-         case (examples_npzd_phy_id)
-            call examples_npzd_phy_do(model%examples_npzd_phy,_INPUT_ARGS_DO_RHS_)
-         case (examples_npzd_zoo_id)
-            call examples_npzd_zoo_do(model%examples_npzd_zoo,_INPUT_ARGS_DO_RHS_)
          case(iow_ergom_id)
             call iow_ergom_do(model%iow_ergom,_INPUT_ARGS_DO_RHS_)
          case (klimacampus_phy_feedback_id)
@@ -2244,8 +2213,6 @@
 #endif
          case (gotm_npzd_id)
             call gotm_npzd_get_light_extinction(model%gotm_npzd,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
-         case (examples_npzd_phy_id)
-            call examples_npzd_phy_get_light_extinction(model%examples_npzd_phy,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          case (gotm_fasham_id)
             call gotm_fasham_get_light_extinction(model%gotm_fasham,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          case (iow_ergom_id)
