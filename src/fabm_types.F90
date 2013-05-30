@@ -369,6 +369,27 @@
       type (type_bulk_variable_id)      :: globalid
    end type type_conserved_quantity_info
 
+#ifdef _FABM_F2003_
+   type type_property
+      character(len=attribute_length)   :: name       = ''
+      character(len=attribute_length)   :: long_name  = ''
+      character(len=attribute_length)   :: units      = ''
+      class (type_property), pointer    :: next       => null()
+   end type
+   
+   type,extends(type_property) :: type_integer_property
+      integer :: value
+   end type
+
+   type,extends(type_property) :: type_real_property
+      real(rk) :: value
+   end type
+
+   type,extends(type_property) :: type_logical_property
+      logical :: value
+   end type
+#endif
+
    ! ====================================================================================================
    ! Base model type, used by biogeochemical models to inherit from, and by external host to
    ! get variable lists and metadata.
@@ -405,7 +426,14 @@
       type (type_named_coupling),          pointer :: first_coupling        => null()
 
 #ifdef _FABM_F2003_
+      class (type_property), pointer :: first_parameter => null()
+
       contains
+      
+      ! Procedures that can be used to add child models during initialization.
+      procedure :: add_child_model_object
+      procedure :: add_named_child_model
+      generic   :: add_child => add_child_model_object,add_named_child_model
 
       ! Procedures that may be used to register model variables and dependencies during initialization.
       procedure :: register_bulk_state_variable             => register_bulk_state_variable
@@ -428,6 +456,10 @@
                                                  register_horizontal_dependency, register_horizontal_dependency_sn, &
                                                  register_global_dependency, register_global_dependency_sn
       generic :: register_state_dependency    => register_bulk_state_dependency,register_bottom_state_dependency
+
+      ! Procedures that may be used to query parameter values during initialization.
+      procedure :: get_real_parameter => get_real_parameter
+      generic :: get_parameter        => get_real_parameter
 
       ! Procedures that may be overridden by biogeochemical models to provide custom data or functionality.
       procedure :: initialize               => base_initialize
@@ -459,6 +491,30 @@
       _FABM_MASK_TYPE_,pointer _ATTR_LOCATION_DIMENSIONS_ :: mask => null()
 #endif
    end type type_environment
+
+#ifdef _FABM_F2003_
+   ! ====================================================================================================
+   ! Abstract derived type for a model object factory (generates a model object from a model name)
+   ! The only actual implementation of this type is fabm_library.F90.
+   ! ====================================================================================================
+
+   abstract interface
+      function factory_create_model(modelname,instancename,parent,configunit) result(model)
+         import
+         character(*),intent(in)           :: modelname,instancename
+         integer,     intent(in)           :: configunit
+         _CLASS_ (type_model_info),target  :: parent
+         _CLASS_ (type_model_info),pointer :: model
+      end function
+   end interface
+
+   type,abstract,public :: type_abstract_model_factory
+      contains
+      procedure (factory_create_model),deferred,nopass :: create
+   end type
+
+   class (type_abstract_model_factory), pointer,save,public :: factory => null()
+#endif
 
    interface create_external_variable_id
       module procedure create_external_bulk_id
@@ -537,6 +593,7 @@
    subroutine base_initialize(self,configunit)
       class (type_model_info),intent(inout),target :: self
       integer,                intent(in)           :: configunit
+      call fatal_error('base_initialize','derived model must implement the "initialize" subroutine.')
    end subroutine base_initialize
    subroutine base_set_domain(self _ARG_LOCATION_)
       class (type_model_info),intent(inout) :: self
@@ -586,6 +643,80 @@
       class (type_model_info), intent(in) :: self
       _DECLARE_FABM_ARGS_CHECK_STATE_
    end subroutine base_check_state
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initializes model information.
+!
+! !INTERFACE:
+   subroutine add_named_child_model(parent,modelname,configunit,instancename)
+!
+! !DESCRIPTION:
+!  This function initializes the members of a model information derived type,
+!  by setting them to a reasonable default value.
+!
+! !INPUT/OUTPUT PARAMETER:
+      _CLASS_ (type_model_info),target,intent(inout) :: parent
+      character(len=*),                intent(in)    :: modelname
+      integer,                         intent(in)    :: configunit
+      character(len=*),optional,       intent(in)    :: instancename
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+      _CLASS_ (type_model_info),pointer :: child
+      character(len=256)                :: instancename_eff
+!
+!-----------------------------------------------------------------------
+!BOC
+      if (present(instancename)) then
+         instancename_eff = instancename
+      else
+         instancename_eff = modelname
+      end if
+      child => factory%create(modelname,instancename_eff,parent,configunit)
+
+   end subroutine add_named_child_model
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initializes model information.
+!
+! !INTERFACE:
+   subroutine add_child_model_object(parent,model,configunit,instancename)
+!
+! !DESCRIPTION:
+!  This function initializes the members of a model information derived type,
+!  by setting them to a reasonable default value.
+!
+! !INPUT/OUTPUT PARAMETER:
+      _CLASS_ (type_model_info),target,intent(inout) :: parent,model
+      integer,                         intent(in)    :: configunit
+      character(len=*),                intent(in)    :: instancename
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+      _CLASS_ (type_model_info),pointer :: last_child
+!
+!-----------------------------------------------------------------------
+!BOC
+      call set_model_name(model,instancename)
+      call add_child_model(parent,model)
+      call model%initialize(configunit)
+
+   end subroutine add_child_model_object
+!EOC
+
 #endif
 
 !-----------------------------------------------------------------------
@@ -615,24 +746,62 @@
 !
 !-----------------------------------------------------------------------
 !BOC
+      call set_model_name(model,name)
+      if (present(parent)) call add_child_model(parent,model)
+
+   end subroutine initialize_model_info
+!EOC
+
+   subroutine set_model_name(model,name)
+      _CLASS_ (type_model_info),target,intent(inout) :: model
+      character(len=*),                intent(in)    :: name
+
+      if (model%name/='') call fatal_error('set_model_name','model name has already been set')
+
       model%name             = name
       model%name_prefix      = trim(name)//'_'
       model%long_name_prefix = trim(name)//' '
+   end subroutine set_model_name
 
-      if (present(parent)) then
-         model%parent => parent
-         if (.not.associated(parent%first_child)) then
-            parent%first_child => model
-         else
-            last_child => parent%first_child
-            do while (associated(last_child%next_sibling))
-               last_child => last_child%next_sibling
-            end do
-            last_child%next_sibling => model
-         end if
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initializes model information.
+!
+! !INTERFACE:
+   subroutine add_child_model(parent,model)
+!
+! !DESCRIPTION:
+!  This function initializes the members of a model information derived type,
+!  by setting them to a reasonable default value.
+!
+! !INPUT/OUTPUT PARAMETER:
+      _CLASS_ (type_model_info),target,intent(inout) :: parent,model
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+      _CLASS_ (type_model_info),pointer :: last_child
+!
+!-----------------------------------------------------------------------
+!BOC
+      if (associated(model%parent)) call fatal_error('add_child_model','model has already been connected to a parent')
+
+      model%parent => parent
+      if (.not.associated(parent%first_child)) then
+         parent%first_child => model
+      else
+         last_child => parent%first_child
+         do while (associated(last_child%next_sibling))
+            last_child => last_child%next_sibling
+         end do
+         last_child%next_sibling => model
       end if
 
-   end subroutine initialize_model_info
+   end subroutine add_child_model
 !EOC
 
 subroutine new_bulk_link(model,target,name,merge)
@@ -1589,6 +1758,80 @@ end subroutine append_string
 
    end subroutine register_global_dependency
 !EOC
+
+#ifdef _FABM_F2003_
+
+recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_factor,default,path)
+! !INPUT PARAMETERS:
+   class (type_model_info), intent(inout), target :: self
+   real(rk),        intent(inout)       :: value
+   character(len=*),intent(in)          :: name
+   character(len=*),intent(in),optional :: units,long_name,path
+   real(rk),        intent(in),optional :: scale_factor,default
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+   type (type_real_property),pointer :: current_real_parameter
+   character(len=256) :: path_eff
+!
+!-----------------------------------------------------------------------
+!BOC
+   if (present(default)) value = default
+   
+   if (present(path)) then
+      path_eff = trim(self%name)//'/'//trim(path)
+   else
+      path_eff = trim(self%name)
+   end if
+
+   if (associated(self%parent)) &
+      call self%parent%get_real_parameter(value,name,units,long_name,1.0_rk,default,path=path_eff)
+
+   ! Store parameter settings
+   allocate(current_real_parameter)
+   current_real_parameter%value = value
+
+   call add_parameter(self,current_real_parameter,name,units,long_name)
+
+   if (present(scale_factor)) value = value*scale_factor
+
+end subroutine get_real_parameter
+!EOC
+
+subroutine add_parameter(model,parameter,name,units,long_name)
+! !INPUT PARAMETERS:
+   class (type_model_info), intent(inout), target :: model
+   class (type_property),   intent(inout), target :: parameter
+   character(len=*),        intent(in)            :: name
+   character(len=*),        intent(in),optional   :: units,long_name
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+   class (type_property),pointer :: current_parameter
+!
+!-----------------------------------------------------------------------
+!BOC
+   ! Store metadata
+   parameter%name = name
+   if (present(units))     parameter%units     = units
+   if (present(long_name)) parameter%long_name = long_name
+
+   ! Append new parameter to model list.
+   if (.not.associated(model%first_parameter)) then
+      model%first_parameter => parameter
+   else
+      current_parameter => model%first_parameter
+      do while (associated(current_parameter%next))
+         current_parameter => current_parameter%next
+      end do
+      current_parameter%next => parameter
+   end if
+
+end subroutine add_parameter
+!EOC
+#endif
 
 !-----------------------------------------------------------------------
 !BOP

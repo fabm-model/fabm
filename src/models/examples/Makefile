@@ -5,6 +5,7 @@
 SUBDIRS += benthic_predator
 SUBDIRS += npzd
 SUBDIRS += npzd_f2003
+SUBDIRS += duplicator
 
 #all: OBJS
 #	$(MOVE_MODULES_COMMAND)

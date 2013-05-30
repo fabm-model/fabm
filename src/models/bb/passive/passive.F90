@@ -1,6 +1,6 @@
-#include "fabm_driver.h"
-
 #ifdef _FABM_F2003_
+
+#include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
@@ -22,22 +22,21 @@
 
    implicit none
 
-!  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public bb_passive_create, type_bb_passive
-!
 ! !PUBLIC DERIVED TYPES:
-   type, extends(type_base_model) :: type_bb_passive
+   type, extends(type_base_model), public :: type_bb_passive
 !     Variable identifiers
       type (type_state_variable_id) :: id_tracer
+
+!     Model parameters
       real(rk)                      :: surface_flux
-      
+
       contains
-      
+
+      procedure initialize
       procedure get_surface_exchange
-   end type type_bb_passive
+   end type
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -50,17 +49,15 @@
 ! !IROUTINE: Initialise the passive tracer model
 !
 ! !INTERFACE:
-   function bb_passive_create(configunit,name,parent) result(self)
+   subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !  Here, the bb\_passive namelist is read and the variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   integer,                        intent(in)    :: configunit
-   character(len=*),               intent(in)    :: name
-   class (type_base_model),target, intent(inout) :: parent
-   type (type_bb_passive),         pointer       :: self
+   class (type_bb_passive), intent(inout), target :: self
+   integer,                 intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
    real(rk)                  :: initial_concentration
@@ -75,9 +72,6 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   allocate(self)
-   call initialize_model_info(self,name,parent)
-
    initial_concentration     = 1.0_rk
    vertical_velocity         = 0.0_rk
    specific_light_absorption = 0.0_rk
@@ -102,7 +96,7 @@
 
 100 call fatal_error('bb_passive_create','Namelist bb_passive was not found.')
 
-   end function bb_passive_create
+   end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------

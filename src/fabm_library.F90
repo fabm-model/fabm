@@ -7,7 +7,6 @@
 !
 ! !INTERFACE:
    module fabm_library
-
 !
 ! !USES:
    ! FABM modules
@@ -16,11 +15,12 @@
 #ifdef _FABM_F2003_
    ! Specific biogeochemical models
    use fabm_bb_passive
-   use fabm_examples_npzd_f2003
    use fabm_examples_npzd_nut
    use fabm_examples_npzd_phy
    use fabm_examples_npzd_zoo
    use fabm_examples_npzd_det
+   use fabm_examples_duplicator
+   use fabm_examples_npzd_f2003
    use aed_models
    ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
 #endif
@@ -29,9 +29,13 @@
 !
 !  default: all is private.
    private
-!
-! !PUBLIC MEMBER FUNCTIONS:
-   public fabm_library_create_model
+
+#ifdef _FABM_F2003_
+   type,extends(type_abstract_model_factory),public :: type_model_factory
+      contains
+      procedure,nopass :: create => fabm_library_create_model
+   end type
+#endif
 !
 ! !REVISION HISTORY:!
 !  Original author(s): Jorn Bruggeman
@@ -65,13 +69,13 @@
 
 #ifdef _FABM_F2003_
       select case (modelname)
-         case ('bb_passive')
-            model => bb_passive_create(configunit,instancename,parent)
-         case ('examples_npzd_f2003'); allocate(type_examples_npzd_f2003::model)
+         case ('bb_passive');          allocate(type_bb_passive::model)
          case ('examples_npzd_nut');   allocate(type_examples_npzd_nut::model)
          case ('examples_npzd_phy');   allocate(type_examples_npzd_phy::model)
          case ('examples_npzd_zoo');   allocate(type_examples_npzd_zoo::model)
          case ('examples_npzd_det');   allocate(type_examples_npzd_det::model)
+         case ('examples_duplicator'); allocate(type_examples_duplicator::model)
+         case ('examples_npzd_f2003'); allocate(type_examples_npzd_f2003::model)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
          case default
             if ( modelname(1:4) .eq. 'aed_' ) &
@@ -80,11 +84,9 @@
 
       if (.not.associated(model)) return
 
-      if (model%name=='') then
-         ! The model object has been created, but not initialized.
-         call initialize_model_info(model,instancename,parent)
-         call model%initialize(configunit)
-      end if
+      ! If the model has not been initialized, do so now.
+      ! This is the default - simulaneously creating and initializing the model is now deprecated.
+      if (.not.associated(model%parent)) call parent%add_child(model,configunit,instancename)
 #endif
 
    end function fabm_library_create_model

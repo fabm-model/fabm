@@ -4,25 +4,14 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_examples_npzd_nut --- nutrients biogeochemical model
+! !MODULE: fabm_examples_npzd_nut - Fennel & Neumann 1996 NPZD model - nutrient component
 !
 ! !INTERFACE:
    module fabm_examples_npzd_nut
 !
 ! !DESCRIPTION:
-! The NPZD (nutrient-phytoplankton-zooplankton-detritus) model described here
-! consists of $I=4$ state variables.
-! Nutrient uptake (phytoplankton growth) is limited by light and nutrient
-! availability, the latter of which is modelled by means
-! of Michaelis-Menten kinetics, see eq.\ (\ref{dnp}).
-! The half-saturation nutrient concentration $\alpha$ used in this
-! formulation has typically a value between 0.2 and 1.5 mmol N\, m$^{-3}$.
-! Zooplankton grazing which is limited by the phytoplankton standing stock
-! is modelled by means of an Ivlev formulation, see eq.\ (\ref{dpz}).
-! All other processes are based on linear first-order kinematics,
-! see eqs.\ (\ref{dpn}) - (\ref{dzd}).
-! For all details of the NPZD model implemented here,
-! see \cite{Burchardetal2005b}.
+! This is a general nutrient (passive non-sinking, non-floating tracer), characterized by
+! an initial concentration only.
 !
 ! !USES:
    use fabm_types

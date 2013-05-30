@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_examples_npzd_phy --- phytoplankton biogeochemical model
+! !MODULE: fabm_examples_npzd_phy - Fennel & Neumann 1996 NPZD model - phytoplankton component
 !
 ! !INTERFACE:
    module fabm_examples_npzd_phy
@@ -107,14 +107,14 @@
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   self%p0    = p0
-   self%kc    = kc
-   self%i_min = i_min
-   self%rmax  = rmax/secs_pr_day
-   self%alpha = alpha
-   self%rpn   = rpn /secs_pr_day
-   self%rpdu  = rpdu/secs_pr_day
-   self%rpdl  = rpdl/secs_pr_day
+   call self%get_parameter(self%p0,   'p0',   default=p0)
+   call self%get_parameter(self%kc,   'kc',   default=kc)
+   call self%get_parameter(self%i_min,'i_min',default=i_min)
+   call self%get_parameter(self%rmax, 'rmax', default=rmax, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%alpha,'alpha',default=alpha)
+   call self%get_parameter(self%rpn,  'rpn',  default=rpn,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%rpdu, 'rpdu', default=rpdu, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%rpdl, 'rpdl', default=rpdl, scale_factor=1.0_rk/secs_pr_day)
 
    ! Register state variables
    call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton', &
@@ -256,39 +256,6 @@
    _FABM_LOOP_END_
 
    end subroutine get_light_extinction
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
-!
-! !INTERFACE:
-   pure subroutine examples_npzd_phy_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
-!
-! !INPUT PARAMETERS:
-   type (type_examples_npzd_phy), intent(in)     :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-!
-! !LOCAL VARIABLES:
-   real(rk)                     :: p
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_p,p) ! phytoplankton
-
-   ! Total nutrient is simply the sum of all variables.
-   _SET_CONSERVED_QUANTITY_(self%id_totN,p)
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-   end subroutine examples_npzd_phy_get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------

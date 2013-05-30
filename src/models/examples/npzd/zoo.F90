@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_examples_npzd_zoo --- Zooplankton biogeochemical model
+! !MODULE: fabm_examples_npzd_zoo - Fennel & Neumann 1996 NPZD model - zooplankton component
 !
 ! !INTERFACE:
    module fabm_examples_npzd_zoo
@@ -22,8 +22,8 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_examples_npzd_zoo
 !     Variable identifiers
-      type (type_state_variable_id)      :: id_z
-      type (type_state_variable_id)      :: id_exctarget,id_morttarget,id_grztarget
+      type (type_state_variable_id) :: id_z
+      type (type_state_variable_id) :: id_exctarget,id_morttarget,id_grztarget
 
 !     Model parameters
       real(rk) :: z0,gmax,iv,rzn,rzd

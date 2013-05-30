@@ -4,12 +4,15 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_examples_npzd_det --- AED detritus biogeochemical model
+! !MODULE: fabm_examples_npzd_det - Fennel & Neumann 1996 NPZD model - detritus component
 !
 ! !INTERFACE:
    module fabm_examples_npzd_det
 !
 ! !DESCRIPTION:
+! This model features a single detritus variable, characterized by a rate of decay (rdn)
+! and a sinking rate. Mineralized detritus feeds into a dissolved mineral pool that must
+! be provided by an extenal model (e.g., fabm_examples_npzd_nut).
 !
 ! !USES:
    use fabm_types
@@ -26,10 +29,7 @@
       type (type_state_variable_id) :: id_mintarget
 
 !     Model parameters
-      real(rk) :: kc,rdn
-      real(rk) :: zoo_per_n
-      logical  :: use_zoo
-      logical  :: use_phy
+      real(rk) :: rdn
       logical  :: do_min
 
       contains
@@ -137,36 +137,6 @@
    _FABM_LOOP_END_
 
    end subroutine do
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
-!
-! !INTERFACE:
-   subroutine get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
-!
-! !INPUT PARAMETERS:
-   class (type_examples_npzd_det), intent(in)     :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-!
-! !LOCAL VARIABLES:
-   real(rk)                     :: d
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_d,d) ! detritus
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-   end subroutine get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------

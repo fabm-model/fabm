@@ -148,21 +148,21 @@
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   self%p0    = p0
-   self%z0    = z0
-   self%kc    = kc
-   self%i_min = i_min
-   self%rmax  = rmax/secs_pr_day
-   self%gmax  = gmax/secs_pr_day
-   self%iv    = iv
-   self%alpha = alpha
-   self%rpn  = rpn /secs_pr_day
-   self%rzn  = rzn /secs_pr_day
-   self%rdn  = rdn /secs_pr_day
-   self%rpdu = rpdu/secs_pr_day
-   self%rpdl = rpdl/secs_pr_day
-   self%rzd  = rzd /secs_pr_day
-   self%dic_per_n = dic_per_n
+   call self%get_parameter(self%p0,   'p0',   default=p0)
+   call self%get_parameter(self%z0,   'z0',   default=z0)
+   call self%get_parameter(self%kc,   'kc',   default=kc)
+   call self%get_parameter(self%i_min,'i_min',default=i_min)
+   call self%get_parameter(self%rmax, 'rmax', default=rmax,scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%gmax, 'gmax', default=gmax,scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%iv,   'iv',   default=iv)
+   call self%get_parameter(self%alpha,'alpha',default=alpha)
+   call self%get_parameter(self%rpn,  'rpn',  default=rpn, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%rzn,  'rzn',  default=rzn, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%rdn,  'rdn',  default=rdn, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%rpdu, 'rpdu', default=rpdu,scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%rpdl, 'rpdl', default=rpdl,scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%rzd,  'rzd',  default=rzd, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%dic_per_n,'dic_per_n',default=dic_per_n)
 
    ! Register state variables
    call self%register_state_variable(self%id_n,'nut','mmol/m**3','nutrients',     &

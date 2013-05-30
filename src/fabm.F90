@@ -388,7 +388,7 @@
 ! identifier is omitted.
 !
 ! !INTERFACE:
-   function fabm_create_model_by_id(modelid,parent,info) result(model)
+   recursive function fabm_create_model_by_id(modelid,parent,info) result(model)
 !
 ! !INPUT PARAMETERS:
    integer,                 optional,intent(in)    :: modelid
@@ -401,7 +401,7 @@
 !EOP
    type (type_model),pointer                       :: curmodel
    integer                                         :: modelid_eff
-   _CLASS_ (type_model_info),pointer               :: info_eff
+   _CLASS_ (type_model_info),pointer               :: info_eff,childinfo
 !-----------------------------------------------------------------------
 !BOC
    ! Determine effective model identifier.
@@ -445,8 +445,8 @@
    ! Connect to parent container if provided.
    if (present(parent)) then
       ! Make sure the provided parent model is a container.
-      if (parent%id/=model_container_id) &
-         call fatal_error('fabm_create_model','A child model can only be added to a container, not to an existing model.')
+      !if (parent%id/=model_container_id) &
+      !   call fatal_error('fabm_create_model_by_id','A child model can only be added to a container, not to an existing model.')
 
       ! Link parent container to child.
       if (associated(parent%first_child)) then
@@ -493,6 +493,15 @@
       curmodel%nextmodel => model
    end if
 
+   if (associated(info_eff)) then
+      ! This is a Fortran 2003 model which may have created child models
+      childinfo => info_eff%first_child
+      do while (associated(childinfo))
+         curmodel => fabm_create_model_by_id(modelid,model,childinfo)
+         childinfo => childinfo%next_sibling
+      end do
+   end if
+
    end function fabm_create_model_by_id
 !EOC
 
@@ -536,8 +545,9 @@
 
 #ifdef _FABM_F2003_
    ! Try to get model from Fortran 2003 model library
+   if (.not.associated(factory)) allocate(type_model_factory::factory)
    if (modelid==id_not_used) then
-      modelinfo => fabm_library_create_model(modelname,instancename_eff,parent%info,configunit)
+      modelinfo => factory%create(modelname,instancename_eff,parent%info,configunit)
       if (associated(modelinfo)) modelid = model_f2003_id
    end if
 #endif
@@ -698,7 +708,8 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Check whether we are operating on the root of a model tree.
-   if (associated(root%parent)) call fatal_error('fabm_initialize','fabm_initialize can only be called on the root of a model tree.')
+   if (associated(root%parent)) &
+      call fatal_error('fabm_initialize','fabm_initialize can only be called on the root of a model tree.')
 
    ! Allocate arrays for storage of (references to) data.
    allocate(root%environment)
@@ -1942,7 +1953,8 @@
          ! State variable value lies below prescribed minimum.
          valid = .false.
          if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables_ben(ivar)%name), &
+            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ', &
+                                                       & trim(root%info%state_variables_ben(ivar)%name), &
                                                        & ' below minimum value ',root%info%state_variables_ben(ivar)%minimum
             call log_message(err)
             return
@@ -1952,7 +1964,8 @@
          ! State variable value exceeds prescribed maximum.
          valid = .false.
          if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables_ben(ivar)%name), &
+            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ', &
+                                                       & trim(root%info%state_variables_ben(ivar)%name), &
                                                        & ' above maximum value ',root%info%state_variables_ben(ivar)%maximum
             call log_message(err)
             return
