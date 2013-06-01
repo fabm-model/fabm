@@ -1771,20 +1771,18 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_fa
 !
 ! !LOCAL VARIABLES:
    type (type_real_property),pointer :: current_real_parameter
-   character(len=256) :: path_eff
 !
 !-----------------------------------------------------------------------
 !BOC
    if (present(default)) value = default
    
-   if (present(path)) then
-      path_eff = trim(self%name)//'/'//trim(path)
-   else
-      path_eff = trim(self%name)
+   if (associated(self%parent)) then
+      if (present(path)) then
+         call self%parent%get_real_parameter(value,name,units,long_name,1.0_rk,default,path=trim(self%name)//'/'//trim(path))
+      else
+         call self%parent%get_real_parameter(value,name,units,long_name,1.0_rk,default,path=trim(self%name))
+      end if
    end if
-
-   if (associated(self%parent)) &
-      call self%parent%get_real_parameter(value,name,units,long_name,1.0_rk,default,path=path_eff)
 
    ! Store parameter settings
    allocate(current_real_parameter)
