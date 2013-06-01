@@ -669,16 +669,14 @@
 !
 ! !LOCAL VARIABLES:
       _CLASS_ (type_model_info),pointer :: child
-      character(len=256)                :: instancename_eff
 !
 !-----------------------------------------------------------------------
 !BOC
       if (present(instancename)) then
-         instancename_eff = instancename
+         child => factory%create(modelname,instancename,parent,configunit)
       else
-         instancename_eff = modelname
+         child => factory%create(modelname,modelname,parent,configunit)
       end if
-      child => factory%create(modelname,instancename_eff,parent,configunit)
 
    end subroutine add_named_child_model
 !EOC
