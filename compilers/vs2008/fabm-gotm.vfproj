@@ -89,6 +89,8 @@
 		<Filter Name="examples">
 		<Filter Name="benthic_predator">
 		<File RelativePath="..\..\src\models\examples\benthic_predator\benthic_predator.F90"/></Filter>
+		<Filter Name="duplicator">
+		<File RelativePath="..\..\src\models\examples\duplicator\duplicator.F90"/></Filter>
 		<Filter Name="npzd">
 		<File RelativePath="..\..\src\models\examples\npzd\det.F90"/>
 		<File RelativePath="..\..\src\models\examples\npzd\nut.F90"/>
