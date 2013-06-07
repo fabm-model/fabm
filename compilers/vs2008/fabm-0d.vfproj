@@ -109,6 +109,13 @@
 		<Filter Name="metu">
 		<Filter Name="mnemiopsis">
 		<File RelativePath="..\..\src\models\metu\mnemiopsis\mnemiopsis.F90"/></Filter></Filter>
+		<Filter Name="au">
+		<Filter Name="daneco">
+		<File RelativePath="..\..\src\models\au\daneco\daneco.F90"/></Filter>
+		<Filter Name="deb">
+		<File RelativePath="..\..\src\models\au\deb\deb.F90"/></Filter>
+		<Filter Name="sediment">
+		<File RelativePath="..\..\src\models\au\sediment\sediment.F90"/></Filter></Filter>
 		<Filter Name="pml">
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>

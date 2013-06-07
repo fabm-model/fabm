@@ -18,9 +18,6 @@
 !  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public au_deb_create
-!
 ! !PRIVATE DATA MEMBERS:
 !
 ! !REVISION HISTORY:!
@@ -28,7 +25,7 @@
 !   Original author of au_deb: Marie Maar
 !!
 ! !PUBLIC DERIVED TYPES:
-   type,extends(type_base_model) :: type_au_deb
+   type,extends(type_base_model),public :: type_au_deb
 !     Variable identifiers
       type (type_state_variable_id)      :: id_volmus  !structural volume (cm3)
       type (type_state_variable_id)      :: id_rdcmus  !reserve density C  (mol-C/cm3)
