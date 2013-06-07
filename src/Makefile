@@ -28,7 +28,7 @@ $(FABMMOD): models $(FABMMODELLIB)
 models: driver $(FABMBASE)
 	$(MAKE) -C models
 
-0d getm gotm:
+0d getm gotm mossco:
 	( export FABMHOST=$@ ; $(MAKE) )
 
 doc:    $(DOCSRC)
