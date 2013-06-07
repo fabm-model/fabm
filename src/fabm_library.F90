@@ -14,6 +14,9 @@
 
 #ifdef _FABM_F2003_
    ! Specific biogeochemical models
+   use fabm_au_daneco
+   use fabm_au_deb
+   use fabm_au_sediment
    use fabm_bb_passive
    use fabm_examples_npzd_nut
    use fabm_examples_npzd_phy
@@ -69,6 +72,9 @@
 
 #ifdef _FABM_F2003_
       select case (modelname)
+         case ('au_daneco');           allocate(type_au_daneco::model)
+         case ('au_deb');              allocate(type_au_deb::model)
+         case ('au_sediment');         allocate(type_au_sediment::model)
          case ('bb_passive');          allocate(type_bb_passive::model)
          case ('examples_npzd_nut');   allocate(type_examples_npzd_nut::model)
          case ('examples_npzd_phy');   allocate(type_examples_npzd_phy::model)
@@ -76,6 +82,7 @@
          case ('examples_npzd_det');   allocate(type_examples_npzd_det::model)
          case ('examples_duplicator'); allocate(type_examples_duplicator::model)
          case ('examples_npzd_f2003'); allocate(type_examples_npzd_f2003::model)
+         case ('hzg_omexdia_p');       allocate(type_hzg_omexdia_p::model)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
          case default
             if ( modelname(1:4) .eq. 'aed_' ) &
