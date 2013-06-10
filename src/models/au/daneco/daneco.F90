@@ -319,9 +319,10 @@
    real(rk) :: X    !Chlorophyll
    real(rk) :: QMC  !Detritus nitrogen to carbon ratio
    real(rk) :: QWC  !Detritus phosphorous to carbon ratio
-!_KB_
-!_KB_   real(rk) :: dt
-!_KB_
+!#define _USE_DT_
+#if _USE_DT_
+   real(rk) :: dt
+#endif
    real(rk) :: dO2 !change in O2
 !EOP
 !-----------------------------------------------------------------------
@@ -346,9 +347,10 @@
    _GET_(self%id_temp,temp)           ! local water temperature
    _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
 
-!_KB_
-!_KB_   dt=3600!3600   !60 i 0d og 3600 i GOTM
-!_KB_
+#if _USE_DT_
+   dt=80._rk ! valid for Skivefiord setup only
+#endif
+
    QWC=W/C
    QMC=M/C
    fT=exp(self%qT*(temp-self%Tref))
@@ -369,73 +371,94 @@
    end if
 !  To avoid neg. NH4 conc. Limitation on nitrification
    NHr=fT*self%NHrmax*(O2/(self%KNHO+O2))
-!_KB_   if (NH4.lt.NHr*NH4*dt) then
-!_KB_      NHr = NH4/(NH4*dt)
-!_KB_   end if
-   if (B .gt. 0) then
+
+#if _USE_DT_
+   if (NH4.lt.NHr*NH4*dt) then
+      NHr = NH4/(NH4*dt)
+   end if
+#endif
+
+   if (B .gt. 0._rk) then
       QNB=max(N/B,self%minQNB)
    else
       QNB=self%minQNB
    end if
-   if (B .gt. 0) then
+
+   if (B .gt. 0._rk) then
       QPB=max(P/B,self%minQPB)
    else
       QPB=self%minQPB
    end if
+
    if (QNB .ge. self%minQNB) then
-      my3=self%mymax*fT*(1-self%minQNB/QNB)
+      my3=self%mymax*fT*(1._rk-self%minQNB/QNB)
    else
       my3=0.0_rk
    end if
    if (QPB .ge. self%minQPB) then
-      my2=self%mymax*fT*(1-self%minQPB/QPB)
+      my2=self%mymax*fT*(1._rk-self%minQPB/QPB)
    else
       my2=0.0_rk
    end if
    X=self%qXN*N
-   my1=(self%alfa*par*X-self%r0)/(1+self%b0)
+   my1=(self%alfa*par*X-self%r0)/(1._rk+self%b0)
    my=min(my1,min(my2,my3))
-   if (my .lt. 0) then
+   if (my .lt. 0._rk) then
       my1=(self%alfa*par*X-self%r0)
       my=min(my1,min(my2,my3))
    end if
 
    if (QNB .le. self%maxQNB) then
-      NOup=self%NOupmax*fT*NO3/(self%KNO3+NO3)*NH4/(self%KNH4+NH4)*(1-(QNB-self%qh*self%eta)/(self%maxQNB-self%qh*self%eta))
+      NOup=self%NOupmax*fT*NO3/(self%KNO3+NO3)*NH4/(self%KNH4+NH4)*(1._rk-(QNB-self%qh*self%eta)/(self%maxQNB-self%qh*self%eta))
    else
       NOup=0.0_rk
    end if
+
+#if _USE_DT_
    !NOup=if(NO3.ge.NOup*B*dt,NOup,NO3/(B*dt))
-!_KB_   if (NO3.lt.NOup*B*dt) then
-!_KB_      NOup = NO3/(B*dt)
-!_KB_   end if
+   if (NO3.lt.NOup*B*dt) then
+      NOup = NO3/(B*dt)
+   end if
+#endif
+
    if (QNB .le. self%maxQNB) then
-      NHup=self%NHupmax*fT*NH4/(self%KNH4+NH4)*(1-(QNB-self%qh*self%eta)/(self%maxQNB-self%qh*self%eta))
+      NHup=self%NHupmax*fT*NH4/(self%KNH4+NH4)*(1._rk-(QNB-self%qh*self%eta)/(self%maxQNB-self%qh*self%eta))
    else
       NHup=0.0_rk
    end if
+
+#if _USE_DT_
    !NHup=if(NH4.ge.NHup*B*dt,NHup,NH4/(B*dt))
    !if (NH4.lt.NHup*B*dt) then
    !NHup = NH4/(B*dt)
-!_KB_   if (NH4.lt.(NHup*B+NHr*NH4)*dt) then
-!_KB_      NHup = (NH4-NHr*NH4*dt)/(B*dt)
-!_KB_   end if
+   if (NH4.lt.(NHup*B+NHr*NH4)*dt) then
+      NHup = (NH4-NHr*NH4*dt)/(B*dt)
+   end if
+#endif
+
    if (QPB .le. self%maxQPB) then
-      POup=self%POupmax*fT*PO4/(self%KPO4+PO4)*(1-QPB/self%maxQPB)
+      POup=self%POupmax*fT*PO4/(self%KPO4+PO4)*(1._rk-QPB/self%maxQPB)
    else
       POup=0.0_rk
    end if
+
+#if _USE_DT_
    !POup=if(PO4.ge.POup*B*dt,POup,PO4/(B*dt))
-!_KB_   if (PO4.lt.POup*B*dt) then
-!_KB_      POup = PO4/(B*dt)
-!_KB_   end if
+   if (PO4.lt.POup*B*dt) then
+      POup = PO4/(B*dt)
+   end if
+#endif
+
 !  Avoid negative oxygene
+#if _USE_DT_
    dO2= B*(self%qOB*my+self%qONO*NOup)-self%qONH*NHr*NH4-self%qOC*Cr*C
-!_KB_   if (O2.lt.-dO2*dt) then
+   if (O2.lt.-dO2*dt) then
 !     my=0.
-!_KB_      NHr=0.0_rk
-!_KB_      Cr=0.0_rk
-!_KB_   end if
+      NHr=0.0_rk
+      Cr=0.0_rk
+   end if
+#endif
+
 
 !  Set temporal derivatives
    _SET_ODE_(self%id_B,0*((my-self%G)*B))
@@ -519,6 +542,8 @@
 !BOC
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
+
+write(0,*) 'get_conserved_quantities'
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_N,N)
