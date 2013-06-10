@@ -3,7 +3,7 @@
 #
 
 SUBDIRS += daneco
-#SUBDIRS += deb
+SUBDIRS += deb
 SUBDIRS += sediment
 
 all: objs
