@@ -370,6 +370,10 @@
    end type type_conserved_quantity_info
 
 #ifdef _FABM_F2003_
+   ! ====================================================================================================
+   ! Types to hold values of parameters along with metadata.
+   ! ====================================================================================================
+
    type type_property
       character(len=attribute_length)   :: name       = ''
       character(len=attribute_length)   :: long_name  = ''
@@ -400,11 +404,15 @@
       logical :: frozen = .false.
 
       ! Arrays with metadata on model variables.
-      type (type_state_variable_info),                _ALLOCATABLE_,dimension(:) :: state_variables         _NULL_
-      type (type_horizontal_state_variable_info),     _ALLOCATABLE_,dimension(:) :: state_variables_ben     _NULL_
-      type (type_diagnostic_variable_info),           _ALLOCATABLE_,dimension(:) :: diagnostic_variables    _NULL_
-      type (type_horizontal_diagnostic_variable_info),_ALLOCATABLE_,dimension(:) :: diagnostic_variables_hz _NULL_
-      type (type_conserved_quantity_info),            _ALLOCATABLE_,dimension(:) :: conserved_quantities    _NULL_
+      type (type_state_variable_info),                _ALLOCATABLE_,dimension(:) :: state_variables                 _NULL_
+      type (type_horizontal_state_variable_info),     _ALLOCATABLE_,dimension(:) :: bottom_state_variables          _NULL_
+      type (type_diagnostic_variable_info),           _ALLOCATABLE_,dimension(:) :: diagnostic_variables            _NULL_
+      type (type_horizontal_diagnostic_variable_info),_ALLOCATABLE_,dimension(:) :: horizontal_diagnostic_variables _NULL_
+      type (type_conserved_quantity_info),            _ALLOCATABLE_,dimension(:) :: conserved_quantities            _NULL_
+
+      ! Pointers for backward compatibility (pre 2013-06-15)
+      type (type_horizontal_state_variable_info),     pointer,dimension(:) :: state_variables_ben     => null()
+      type (type_horizontal_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables_hz => null()
 
       character(len=attribute_length),_ALLOCATABLE_,dimension(:) :: dependencies        _NULL_
       character(len=attribute_length),_ALLOCATABLE_,dimension(:) :: dependencies_hz     _NULL_
@@ -2648,11 +2656,15 @@ recursive subroutine classify_variables(model)
    end do
 
    ! Allocate arrays with variable information that will be accessed by the host model.
-   allocate(model%state_variables        (nstate))
-   allocate(model%state_variables_ben    (nstate_hz))
-   allocate(model%diagnostic_variables   (ndiag))
-   allocate(model%diagnostic_variables_hz(ndiag_hz))
-   allocate(model%conserved_quantities   (ncons))
+   allocate(model%state_variables                (nstate))
+   allocate(model%bottom_state_variables         (nstate_hz))
+   allocate(model%diagnostic_variables           (ndiag))
+   allocate(model%horizontal_diagnostic_variables(ndiag_hz))
+   allocate(model%conserved_quantities           (ncons))
+
+   ! Set pointers for backward compatibility (pre 2013-06-15)
+   model%state_variables_ben => model%bottom_state_variables
+   model%diagnostic_variables_hz => model%horizontal_diagnostic_variables
 
    ! Classify bulk variables
    link => model%first_link
@@ -2706,7 +2718,7 @@ recursive subroutine classify_variables(model)
          ! The model owns this variable (no external master variable has been assigned)
          ! Transfer variable information to the array that will be accessed by the host model.
          if (_ALLOCATED_(horizontal_link%target%write_indices)) then
-            hz_diagvar => model%diagnostic_variables_hz(horizontal_link%target%write_indices(1)%p)
+            hz_diagvar => model%horizontal_diagnostic_variables(horizontal_link%target%write_indices(1)%p)
             hz_diagvar%globalid       = create_external_variable_id(model,horizontal_link%target)
             hz_diagvar%name           = horizontal_link%target%name
             hz_diagvar%units          = horizontal_link%target%units
@@ -2717,7 +2729,7 @@ recursive subroutine classify_variables(model)
             hz_diagvar%time_treatment = horizontal_link%target%time_treatment
          end if
          if (_ALLOCATED_(horizontal_link%target%state_indices)) then
-            hz_statevar => model%state_variables_ben(horizontal_link%target%state_indices(1)%p)
+            hz_statevar => model%bottom_state_variables(horizontal_link%target%state_indices(1)%p)
             hz_statevar%globalid      = create_external_variable_id(model,horizontal_link%target)
             hz_statevar%name          = horizontal_link%target%name
             hz_statevar%units         = horizontal_link%target%units
