@@ -645,7 +645,7 @@
       call self%get_surface_exchange(_FABM_ARGS_GET_SURFACE_EXCHANGE_)
    end subroutine base_do_surface
 
-   ! Providing process rates and diagnostics
+   ! Vertical movement, ligth attenuation, feedbacks to drag and albedo
    subroutine base_get_vertical_movement(self,_FABM_ARGS_GET_VERTICAL_MOVEMENT_)
       class (type_model_info), intent(in) :: self
       _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_
