@@ -469,20 +469,35 @@
       procedure :: get_real_parameter => get_real_parameter
       generic :: get_parameter        => get_real_parameter
 
-      ! Procedures that may be overridden by biogeochemical models to provide custom data or functionality.
+      ! ----------------------------------------------------------------------------------------------------
+      ! Procedures below may be overridden by biogeochemical models to provide custom data or functionality.
+      ! ----------------------------------------------------------------------------------------------------
+
+      ! Model initialization.
       procedure :: initialize               => base_initialize
-      procedure :: set_domain               => base_set_domain
+
+      ! Providing process rates and diagnostics in pelagic, at surface, and at bottom.
       procedure :: do                       => base_do
+      procedure :: do_bottom                => base_do_bottom
+      procedure :: do_surface               => base_do_surface
       procedure :: do_ppdd                  => base_do_ppdd
-      procedure :: do_benthos               => base_do_benthos
-      procedure :: do_benthos_ppdd          => base_do_benthos_ppdd
+      procedure :: do_bottom_ppdd           => base_do_bottom_ppdd
+
+      ! Advanced functionality: variable vertical movement and light attenuation, feedbacks to drag and albedo.
+      procedure :: get_vertical_movement    => base_get_vertical_movement
       procedure :: get_light_extinction     => base_get_light_extinction
       procedure :: get_drag                 => base_get_drag
       procedure :: get_albedo               => base_get_albedo
+
+      ! Bookkeeping: calculate total of conserved quantities, check and repair model state.
       procedure :: get_conserved_quantities => base_get_conserved_quantities
-      procedure :: get_surface_exchange     => base_get_surface_exchange
-      procedure :: get_vertical_movement    => base_get_vertical_movement
       procedure :: check_state              => base_check_state
+
+      ! For backward compatibility only - do not use these in new models!
+      procedure :: set_domain               => base_set_domain
+      procedure :: do_benthos               => base_do_benthos           ! superceded by do_bottom
+      procedure :: do_benthos_ppdd          => base_do_benthos_ppdd      ! superceded by do_bottom_ppdd
+      procedure :: get_surface_exchange     => base_get_surface_exchange ! superceded by do_surface
 #endif
    end type type_model_info
 
@@ -598,15 +613,14 @@
    contains
 
 #ifdef _FABM_F2003_
+   ! Model initialization
    subroutine base_initialize(self,configunit)
       class (type_model_info),intent(inout),target :: self
       integer,                intent(in)           :: configunit
       call fatal_error('base_initialize','derived model must implement the "initialize" subroutine.')
-   end subroutine base_initialize
-   subroutine base_set_domain(self _ARG_LOCATION_)
-      class (type_model_info),intent(inout) :: self
-      _DECLARE_LOCATION_ARG_
-   end subroutine base_set_domain
+   end subroutine base_initialize   
+
+   ! Providing process rates and diagnostics
    subroutine base_do(self,_FABM_ARGS_DO_RHS_)
       class (type_model_info),intent(in) ::  self
       _DECLARE_FABM_ARGS_DO_RHS_
@@ -615,6 +629,27 @@
       class (type_model_info),intent(in) :: self
       _DECLARE_FABM_ARGS_DO_PPDD_
    end subroutine base_do_ppdd
+   subroutine base_do_bottom(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+      class (type_model_info),intent(in) :: self
+      _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+      call self%do_benthos(_FABM_ARGS_DO_BENTHOS_RHS_)
+   end subroutine base_do_bottom
+   subroutine base_do_bottom_ppdd(self,_FABM_ARGS_DO_BENTHOS_PPDD_)
+      class (type_model_info),intent(in) :: self
+      _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_
+      call self%do_benthos_ppdd(_FABM_ARGS_DO_BENTHOS_PPDD_)
+   end subroutine base_do_bottom_ppdd
+   subroutine base_do_surface(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
+      call self%get_surface_exchange(_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+   end subroutine base_do_surface
+
+   ! Providing process rates and diagnostics
+   subroutine base_get_vertical_movement(self,_FABM_ARGS_GET_VERTICAL_MOVEMENT_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_
+   end subroutine base_get_vertical_movement
    subroutine base_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
       class (type_model_info), intent(in) :: self
       _DECLARE_FABM_ARGS_GET_EXTINCTION_
@@ -627,10 +662,22 @@
       class (type_model_info), intent(in) :: self
       _DECLARE_FABM_ARGS_GET_ALBEDO_
    end subroutine base_get_albedo
+
+   ! Bookkeeping
    subroutine base_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
       class (type_model_info), intent(in) :: self
       _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
    end subroutine base_get_conserved_quantities
+   subroutine base_check_state(self,_FABM_ARGS_CHECK_STATE_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_FABM_ARGS_CHECK_STATE_
+   end subroutine base_check_state
+
+   ! For backward compatibility only
+   subroutine base_set_domain(self _ARG_LOCATION_)
+      class (type_model_info),intent(inout) :: self
+      _DECLARE_LOCATION_ARG_
+   end subroutine base_set_domain
    subroutine base_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
       class (type_model_info),intent(in) :: self
       _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
@@ -643,14 +690,6 @@
       class (type_model_info), intent(in) :: self
       _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
    end subroutine base_get_surface_exchange
-   subroutine base_get_vertical_movement(self,_FABM_ARGS_GET_VERTICAL_MOVEMENT_)
-      class (type_model_info), intent(in) :: self
-      _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_
-   end subroutine base_get_vertical_movement
-   subroutine base_check_state(self,_FABM_ARGS_CHECK_STATE_)
-      class (type_model_info), intent(in) :: self
-      _DECLARE_FABM_ARGS_CHECK_STATE_
-   end subroutine base_check_state
 
 !-----------------------------------------------------------------------
 !BOP

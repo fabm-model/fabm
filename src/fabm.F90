@@ -44,10 +44,17 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_model, fabm_create_model_from_file, fabm_initialize, fabm_set_domain, fabm_check_ready
-   public fabm_do, fabm_get_surface_exchange, fabm_do_benthos
-   public fabm_check_state, fabm_get_vertical_movement, fabm_get_conserved_quantities
-   public fabm_get_light_extinction, fabm_get_albedo, fabm_get_drag
+
+   ! Process rates and diagnostics for pelagic, surface, bottom.
+   public fabm_do, fabm_do_surface, fabm_do_bottom
+
+   ! Vertical movement, light attenuation, feedbacks to drag and albedo
+   public fabm_get_vertical_movement, fabm_get_light_extinction, fabm_get_albedo, fabm_get_drag
+
+   ! Bookkeeping
+   public fabm_check_state, fabm_get_conserved_quantities
    
+   ! Management of model variables: retrieve identifiers, get and set data.
    public fabm_get_bulk_variable_id,fabm_get_horizontal_variable_id,fabm_get_scalar_variable_id
    public fabm_get_variable_name, fabm_is_variable_used
    public fabm_link_bulk_state_data, fabm_link_bottom_state_data
@@ -55,8 +62,12 @@
    public fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
 
 #ifdef _FABM_MASK_
+   ! Set spatial mask
    public fabm_set_mask
 #endif
+
+   ! For backward compatibility only (use fabm_do_surface and fabm_do_bottom instead)
+   public fabm_get_surface_exchange, fabm_do_benthos
 
 ! !PUBLIC TYPES:
 !
@@ -108,9 +119,9 @@
 
    ! Subroutine calculating local temporal derivatives of bottom layer (benthos & pelagic)
    ! either as a right-hand side vector, or production/destruction matrices.
-   interface fabm_do_benthos
-      module procedure fabm_do_benthos_rhs
-      module procedure fabm_do_benthos_ppdd
+   interface fabm_do_bottom
+      module procedure fabm_do_bottom_rhs
+      module procedure fabm_do_bottom_ppdd
    end interface
 
    interface fabm_link_data
@@ -171,6 +182,15 @@
       module procedure fabm_is_bulk_variable_used
       module procedure fabm_is_horizontal_variable_used
       module procedure fabm_is_scalar_variable_used
+   end interface
+
+   ! For backward compatibility only:
+   interface fabm_do_benthos
+      module procedure fabm_do_bottom_rhs
+      module procedure fabm_do_bottom_ppdd
+   end interface
+   interface fabm_get_surface_exchange
+      module procedure fabm_do_surface
    end interface
 !
 ! !PRIVATE DATA MEMBERS:
@@ -2006,7 +2026,7 @@
 ! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
-   subroutine fabm_get_surface_exchange(root _ARG_LOCATION_VARS_HZ_,flux)
+   subroutine fabm_do_surface(root _ARG_LOCATION_VARS_HZ_,flux)
 !
 ! !INPUT PARAMETERS:
    type (type_model), intent(inout) :: root
@@ -2029,7 +2049,7 @@
       select case (model%id)
 #ifdef _FABM_F2003_
          case (model_f2003_id)
-            call model%info%get_surface_exchange(_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
+            call model%info%do_surface(_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
 #endif
          case (pml_carbonate_id)
             call pml_carbonate_get_surface_exchange(model%pml_carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
@@ -2044,7 +2064,7 @@
       model => model%nextmodel
    end do
 
-   end subroutine fabm_get_surface_exchange
+   end subroutine fabm_do_surface
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2057,7 +2077,7 @@
 ! Positive values denote state variable increases, negative values state variable decreases.
 !
 ! !INTERFACE:
-   subroutine fabm_do_benthos_rhs(root _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
+   subroutine fabm_do_bottom_rhs(root _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
 !
 ! !INPUT PARAMETERS:
    type (type_model),         intent(inout)    :: root
@@ -2080,7 +2100,7 @@
       select case (model%id)
 #ifdef _FABM_F2003_
          case (model_f2003_id)
-            call model%info%do_benthos(_INPUT_ARGS_DO_BENTHOS_RHS_)
+            call model%info%do_bottom(_INPUT_ARGS_DO_BENTHOS_RHS_)
 #endif
          case (examples_benthic_predator_id)
             call examples_benthic_predator_do_benthos(model%examples_benthic_predator,_INPUT_ARGS_DO_BENTHOS_RHS_)
@@ -2099,7 +2119,7 @@
       model => model%nextmodel
    end do
 
-   end subroutine fabm_do_benthos_rhs
+   end subroutine fabm_do_bottom_rhs
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2111,7 +2131,7 @@
 ! for the pelagic, and variable units/s for the benthos.
 !
 ! !INTERFACE:
-   subroutine fabm_do_benthos_ppdd(root _ARG_LOCATION_VARS_HZ_,pp,dd,benthos_offset)
+   subroutine fabm_do_bottom_ppdd(root _ARG_LOCATION_VARS_HZ_,pp,dd,benthos_offset)
 !
 ! !INPUT PARAMETERS:
    type (type_model),         intent(inout) :: root
@@ -2135,7 +2155,7 @@
       select case (model%id)
 #ifdef _FABM_F2003_
          case (model_f2003_id)
-            call model%info%do_benthos_ppdd(_INPUT_ARGS_DO_BENTHOS_PPDD_)
+            call model%info%do_bottom_ppdd(_INPUT_ARGS_DO_BENTHOS_PPDD_)
 #endif
          ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
          ! or specifies bottom fluxes for its pelagic state variables.
@@ -2146,7 +2166,7 @@
       model => model%nextmodel
    end do
 
-   end subroutine fabm_do_benthos_ppdd
+   end subroutine fabm_do_bottom_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
