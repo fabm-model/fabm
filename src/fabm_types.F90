@@ -64,6 +64,9 @@
    public freeze_model_info
    public create_external_variable_id
 
+   public type_bulk_data_pointer
+   public type_horizontal_data_pointer
+
 ! !PUBLIC DATA MEMBERS:
 !
    integer, parameter, public :: attribute_length = 256

@@ -330,7 +330,7 @@
 #define _DECLARE_LOCATION_ARG_HZ_ _DECLARE_LOCATION_ARG_ND_
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
-#define _FABM_HORIZONTAL_LOOP_BEGIN_ _FABM_LOOP_BEGIN_
+#define _FABM_HORIZONTAL_LOOP_BEGIN_EX_(environment) _FABM_LOOP_BEGIN_EX_(environment)
 #define _FABM_HORIZONTAL_LOOP_END_ _FABM_LOOP_END_
 
 ! Vertical dimension is not among those vectorized:
@@ -352,7 +352,7 @@
 #define _DECLARE_LOCATION_ARG_HZ_ _DECLARE_LOCATION_ARG_
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
-#define _FABM_HORIZONTAL_LOOP_BEGIN_
+#define _FABM_HORIZONTAL_LOOP_BEGIN_EX_(environment)
 #define _FABM_HORIZONTAL_LOOP_END_
 
 #define _ATTR_DIMENSIONS_0_HZ_
@@ -363,6 +363,8 @@
 #define _INDEX_HZ_OUTPUT_1D_(index) (index)
 
 #endif
+
+#define _FABM_HORIZONTAL_LOOP_BEGIN_ _FABM_HORIZONTAL_LOOP_BEGIN_EX_(environment)
 
 ! Expressions for indexing space-dependent FABM variables defined on the full spatial domain.
 ! These may be overridden by the host-specific driver (if it needs another order of dimensions).

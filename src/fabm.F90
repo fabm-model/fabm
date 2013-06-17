@@ -789,22 +789,22 @@
 
    ! Allocate arrays for diagnostic variables defined on the full domain and on horizontonal slices.
    allocate(root%environment%diag   (_PREARG_LOCATION_ size(root%info%diagnostic_variables)))
-   allocate(root%environment%diag_hz(_PREARG_LOCATION_HZ_ size(root%info%diagnostic_variables_hz)))
+   allocate(root%environment%diag_hz(_PREARG_LOCATION_HZ_ size(root%info%horizontal_diagnostic_variables)))
 
    ! Initialize diagnostic variables to missing value.
    do ivar=1,size(root%info%diagnostic_variables)
       root%environment%diag(_PREARG_LOCATION_DIMENSIONS_ ivar) = root%info%diagnostic_variables(ivar)%missing_value
    end do
-   do ivar=1,size(root%info%diagnostic_variables_hz)
-      root%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar) = root%info%diagnostic_variables_hz(ivar)%missing_value
+   do ivar=1,size(root%info%horizontal_diagnostic_variables)
+      root%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar) = root%info%horizontal_diagnostic_variables(ivar)%missing_value
    end do
 
    ! If diagnostic variables also appear as dependency, send the corresponding array slice for generic read-only access.
    do ivar=1,size(root%info%diagnostic_variables)
       call fabm_link_bulk_data(root,root%info%diagnostic_variables(ivar)%globalid,root%environment%diag(_PREARG_LOCATION_DIMENSIONS_ ivar))
    end do
-   do ivar=1,size(root%info%diagnostic_variables_hz)
-      call fabm_link_horizontal_data(root,root%info%diagnostic_variables_hz(ivar)%globalid,root%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar))
+   do ivar=1,size(root%info%horizontal_diagnostic_variables)
+      call fabm_link_horizontal_data(root,root%info%horizontal_diagnostic_variables(ivar)%globalid,root%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar))
    end do
 
    end subroutine fabm_set_domain
@@ -1390,7 +1390,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifdef DEBUG&&_FABM_DIMENSION_COUNT_>0
+#if defined(DEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(shape(dat))
       if (size(dat,i)/=size(model%environment%diag,i)) then
          call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match.')
@@ -1715,7 +1715,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call fabm_link_horizontal_data(model,model%info%state_variables_ben(id)%globalid,dat)
+   call fabm_link_horizontal_data(model,model%info%bottom_state_variables(id)%globalid,dat)
 
    end subroutine fabm_link_bottom_state_data
 !EOC
@@ -1768,7 +1768,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve a pointer to the array holding the requested data.
-   dat => model%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ model%info%diagnostic_variables_hz(id)%globalid%write_index)
+   dat => model%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ model%info%horizontal_diagnostic_variables(id)%globalid%write_index)
 
    end function fabm_get_horizontal_diagnostic_data
 !EOC
@@ -1913,8 +1913,10 @@
 ! !LOCAL PARAMETERS:
    integer                               :: ivar
    type (type_model), pointer            :: model
-   real(rk)                              :: val
+   real(rk)                              :: value,minimum,maximum
    character(len=256)                    :: err
+   type (type_bulk_data_pointer) :: p
+   type (type_horizontal_data_pointer) :: p_hz
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1953,68 +1955,77 @@
    ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
    ! This is always done, independently of any model-specific checks that may have been called above.
 
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_EX_(root%environment)
-
    ! Check boundaries for pelagic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
    do ivar=1,size(root%info%state_variables)
-      _GET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid%p,val)
-      if (val<root%info%state_variables(ivar)%minimum) then
-         ! State variable value lies below prescribed minimum.
-         valid = .false.
-         if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables(ivar)%name), &
-                                                       & ' below minimum value ',root%info%state_variables(ivar)%minimum
-            call log_message(err)
-            return
+      ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
+      p = root%info%state_variables(ivar)%globalid%p
+      minimum = root%info%state_variables(ivar)%minimum
+      maximum = root%info%state_variables(ivar)%maximum
+
+      _FABM_LOOP_BEGIN_EX_(root%environment)
+         _GET_STATE_EX_(root%environment,p,value)
+         if (value<minimum) then
+            ! State variable value lies below prescribed minimum.
+            valid = .false.
+            if (.not.repair) then
+               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(root%info%state_variables(ivar)%name), &
+                                                          & ' below minimum value ',minimum
+               call log_message(err)
+               return
+            end if
+            _SET_STATE_EX_(root%environment,p,minimum)
+         elseif (value>maximum) then
+            ! State variable value exceeds prescribed maximum.
+            valid = .false.
+            if (.not.repair) then
+               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(root%info%state_variables(ivar)%name), &
+                                                          & ' above maximum value ',maximum
+               call log_message(err)
+               return
+            end if
+            _SET_STATE_EX_(root%environment,p,maximum)
          end if
-         _SET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid%p,root%info%state_variables(ivar)%minimum)
-      elseif (val>root%info%state_variables(ivar)%maximum) then
-         ! State variable value exceeds prescribed maximum.
-         valid = .false.
-         if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables(ivar)%name), &
-                                                       & ' above maximum value ',root%info%state_variables(ivar)%maximum
-            call log_message(err)
-            return
-         end if
-         _SET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid%p,root%info%state_variables(ivar)%maximum)
-      end if
+      _FABM_LOOP_END_
    end do
 
    ! Check boundaries for benthic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
-   do ivar=1,size(root%info%state_variables_ben)
-      _GET_STATE_BEN_EX_(root%environment,root%info%state_variables_ben(ivar)%globalid%p,val)
-      if (val<root%info%state_variables_ben(ivar)%minimum) then
-         ! State variable value lies below prescribed minimum.
-         valid = .false.
-         if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ', &
-                                                       & trim(root%info%state_variables_ben(ivar)%name), &
-                                                       & ' below minimum value ',root%info%state_variables_ben(ivar)%minimum
-            call log_message(err)
-            return
+   do ivar=1,size(root%info%bottom_state_variables)
+      ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
+      p_hz = root%info%bottom_state_variables(ivar)%globalid%p
+      minimum = root%info%bottom_state_variables(ivar)%minimum
+      maximum = root%info%bottom_state_variables(ivar)%maximum
+
+      _FABM_HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
+       _GET_STATE_BEN_EX_(root%environment,p_hz,value)
+         if (value<minimum) then
+            ! State variable value lies below prescribed minimum.
+            valid = .false.
+            if (.not.repair) then
+               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
+                                                          & trim(root%info%bottom_state_variables(ivar)%name), &
+                                                          & ' below minimum value ',minimum
+               call log_message(err)
+               return
+            end if
+            _SET_STATE_BEN_EX_(root%environment,p_hz,minimum)
+         elseif (value>maximum) then
+            ! State variable value exceeds prescribed maximum.
+            valid = .false.
+            if (.not.repair) then
+               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
+                                                          & trim(root%info%bottom_state_variables(ivar)%name), &
+                                                          & ' above maximum value ',maximum
+               call log_message(err)
+               return
+            end if
+            _SET_STATE_BEN_EX_(root%environment,p_hz,maximum)
          end if
-         _SET_STATE_BEN_EX_(root%environment,root%info%state_variables_ben(ivar)%globalid%p,root%info%state_variables_ben(ivar)%minimum)
-      elseif (val>root%info%state_variables_ben(ivar)%maximum) then
-         ! State variable value exceeds prescribed maximum.
-         valid = .false.
-         if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ', &
-                                                       & trim(root%info%state_variables_ben(ivar)%name), &
-                                                       & ' above maximum value ',root%info%state_variables_ben(ivar)%maximum
-            call log_message(err)
-            return
-         end if
-         _SET_STATE_BEN_EX_(root%environment,root%info%state_variables_ben(ivar)%globalid%p,root%info%state_variables_ben(ivar)%maximum)
-      end if
+      _FABM_HORIZONTAL_LOOP_END_
    end do
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
    end subroutine fabm_check_state
 !EOC
 
