@@ -202,7 +202,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_1D_
+   _LOOP_BEGIN_1D_
 
 #ifdef FABM_PMLERSEM
    ! Retrieve current (local) state variable values.
@@ -234,7 +234,7 @@
 #endif
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_1D_
+   _LOOP_END_1D_
 
    end subroutine pml_ersem_do
 !EOC
@@ -266,7 +266,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_1D_
+   _HORIZONTAL_LOOP_BEGIN_1D_
 
 #ifdef FABM_PMLERSEM
    ! Retrieve current (local) state variable values for the bottom pelagic layer.
@@ -302,7 +302,7 @@
 #endif
 
    ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_1D_
+   _HORIZONTAL_LOOP_END_1D_
 
    end subroutine pml_ersem_do_benthos
 !EOC
@@ -330,7 +330,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_1D_
+   _LOOP_BEGIN_1D_
 
 #ifdef FABM_PMLERSEM
    ! Retrieve current (local) state variable values.
@@ -343,7 +343,7 @@
 #endif
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_1D_
+   _LOOP_END_1D_
 
    end subroutine pml_ersem_get_light_extinction
 !EOC
@@ -373,7 +373,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_1D_
+   _LOOP_BEGIN_1D_
 
    ! Here a call would be needed to ensure sdCCC contains the correct velocities
    ! for the current point in horizontal space. This may be non-trivial, though,
@@ -397,7 +397,7 @@
 #endif
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_1D_
+   _LOOP_END_1D_
 
    end subroutine pml_ersem_get_vertical_movement
 !EOC

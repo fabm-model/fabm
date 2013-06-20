@@ -273,11 +273,11 @@
 
 ! Beginning and end of spatial loop
 #ifdef _FABM_MASK_
-#define _FABM_LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop;if (_FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)) then
-#define _FABM_LOOP_END_ end if;end do
+#define _LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop;if (_FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)) then
+#define _LOOP_END_ end if;end do
 #else
-#define _FABM_LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop
-#define _FABM_LOOP_END_ end do
+#define _LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop
+#define _LOOP_END_ end do
 #endif
 
 ! Dimensionality of generic space-dependent arguments.
@@ -303,8 +303,8 @@
 #define _DECLARE_LOCATION_ARG_ND_ _DECLARE_LOCATION_ARG_
 
 ! Beginning and end of spatial loop
-#define _FABM_LOOP_BEGIN_EX_(environment)
-#define _FABM_LOOP_END_
+#define _LOOP_BEGIN_EX_(environment)
+#define _LOOP_END_
 
 ! Dimensionality of generic space-dependent arguments.
 #define _ATTR_DIMENSIONS_0_
@@ -318,7 +318,7 @@
 
 #endif
 
-#define _FABM_LOOP_BEGIN_ _FABM_LOOP_BEGIN_EX_(environment)
+#define _LOOP_BEGIN_ _LOOP_BEGIN_EX_(environment)
 
 #ifdef _FABM_USE_1D_LOOP_IN_HORIZONTAL_
 
@@ -330,8 +330,8 @@
 #define _DECLARE_LOCATION_ARG_HZ_ _DECLARE_LOCATION_ARG_ND_
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
-#define _FABM_HORIZONTAL_LOOP_BEGIN_EX_(environment) _FABM_LOOP_BEGIN_EX_(environment)
-#define _FABM_HORIZONTAL_LOOP_END_ _FABM_LOOP_END_
+#define _HORIZONTAL_LOOP_BEGIN_EX_(environment) _LOOP_BEGIN_EX_(environment)
+#define _HORIZONTAL_LOOP_END_ _LOOP_END_
 
 ! Vertical dimension is not among those vectorized:
 ! dimensionality of horizontal arrays will be equal to that of full domain arrays.
@@ -352,8 +352,8 @@
 #define _DECLARE_LOCATION_ARG_HZ_ _DECLARE_LOCATION_ARG_
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
-#define _FABM_HORIZONTAL_LOOP_BEGIN_EX_(environment)
-#define _FABM_HORIZONTAL_LOOP_END_
+#define _HORIZONTAL_LOOP_BEGIN_EX_(environment)
+#define _HORIZONTAL_LOOP_END_
 
 #define _ATTR_DIMENSIONS_0_HZ_
 #define _ATTR_DIMENSIONS_1_HZ_ ,dimension(:)
@@ -364,7 +364,7 @@
 
 #endif
 
-#define _FABM_HORIZONTAL_LOOP_BEGIN_ _FABM_HORIZONTAL_LOOP_BEGIN_EX_(environment)
+#define _HORIZONTAL_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_EX_(environment)
 
 ! Expressions for indexing space-dependent FABM variables defined on the full spatial domain.
 ! These may be overridden by the host-specific driver (if it needs another order of dimensions).
@@ -422,7 +422,7 @@
 #define _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_ND_;real(rk) _ATTR_DIMENSIONS_1_,intent(inout) :: sums
 #define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_ND_;logical,intent(in) :: repair;logical,intent(inout) :: valid
 
-! For backward comaptibility (pre 20 June 2013)
+! For backward compatibility (pre 20 June 2013)
 #define _FABM_ARGS_DO_RHS_ _ARGUMENTS_DO_
 #define _FABM_ARGS_DO_PPDD_ _ARGUMENTS_DO_PPDD_
 #define _FABM_ARGS_DO_BENTHOS_RHS_ _ARGUMENTS_DO_BOTTOM_
@@ -435,7 +435,7 @@
 #define _FABM_ARGS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_GET_CONSERVED_QUANTITIES_
 #define _FABM_ARGS_CHECK_STATE_ _ARGUMENTS_CHECK_STATE_
 
-! For backward comaptibility (pre 20 June 2013)
+! For backward compatibility (pre 20 June 2013)
 #define _DECLARE_FABM_ARGS_DO_RHS_  _DECLARE_ARGUMENTS_DO_
 #define _DECLARE_FABM_ARGS_DO_PPDD_ _DECLARE_ARGUMENTS_DO_PPDD_
 #define _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_ARGUMENTS_DO_SURFACE_
@@ -509,8 +509,8 @@
 #define _SET_STATE_BEN_EX_(env,variable,value) _SET_HORIZONTAL_EX_(variable,value)
 #define _SET_DIAG_(variable,value) _SET_DIAGNOSTIC_(variable,value)
 #define _SET_DIAG_HZ_(variable,value) _SET_HORIZONTAL_DIAGNOSTIC_(variable,value)
-#define _FABM_HZ_LOOP_BEGIN_ _FABM_HORIZONTAL_LOOP_BEGIN_
-#define _FABM_HZ_LOOP_END_ _FABM_HORIZONTAL_LOOP_END_
+#define _FABM_HZ_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_
+#define _FABM_HZ_LOOP_END_ _HORIZONTAL_LOOP_END_
 
 ! Work-in-progress: extra definitions for coupling to pure-1D models [ERSEM]
 ! Currently these are GOTM-specific - more logic will be needed to set these to
@@ -518,10 +518,10 @@
 #define _DOMAIN_1D_ fabm_loop_start:fabm_loop_stop
 #define _GET_STATE_1D_(variable,target) target = environment%var(variable%dependencyid)%data(_DOMAIN_1D_)
 #define _GET_DEPENDENCY_1D_(variable,target) target = environment%var(variable)%data(_DOMAIN_1D_)
-#define _FABM_LOOP_BEGIN_1D_
-#define _FABM_LOOP_END_1D_
-#define _FABM_HORIZONTAL_LOOP_BEGIN_1D_
-#define _FABM_HORIZONTAL_LOOP_END_1D_
+#define _LOOP_BEGIN_1D_
+#define _LOOP_END_1D_
+#define _HORIZONTAL_LOOP_BEGIN_1D_
+#define _HORIZONTAL_LOOP_END_1D_
 #ifndef _INDEX_ODE_1D_
 #define _INDEX_ODE_1D_(variable) (1:fabm_loop_stop-fabm_loop_start+1,variable)
 #endif
@@ -539,3 +539,9 @@
 #define _SET_ODE_BEN_1D_(variable,value) flux_ben(variable%id) = flux_ben(variable%id) + (value)
 
 #define type_base_model type_model_info
+
+! For backward compatibility (pre 20 June 2013)
+#define _FABM_LOOP_BEGIN_ _LOOP_BEGIN_
+#define _FABM_LOOP_END_ _LOOP_END_
+#define _FABM_HORIZONTAL_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_
+#define _FABM_HORIZONTAL_LOOP_END_ _HORIZONTAL_LOOP_END_

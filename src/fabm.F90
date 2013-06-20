@@ -1963,7 +1963,7 @@
       minimum = root%info%state_variables(ivar)%minimum
       maximum = root%info%state_variables(ivar)%maximum
 
-      _FABM_LOOP_BEGIN_EX_(root%environment)
+      _LOOP_BEGIN_EX_(root%environment)
          _GET_STATE_EX_(root%environment,p,value)
          if (value<minimum) then
             ! State variable value lies below prescribed minimum.
@@ -1997,7 +1997,7 @@
       minimum = root%info%bottom_state_variables(ivar)%minimum
       maximum = root%info%bottom_state_variables(ivar)%maximum
 
-      _FABM_HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
+      _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
        _GET_STATE_BEN_EX_(root%environment,p_hz,value)
          if (value<minimum) then
             ! State variable value lies below prescribed minimum.
@@ -2210,7 +2210,7 @@
    ! First set constant sinking rates.
    do i=1,size(root%info%state_variables)
       ! Enter spatial loops (if any)
-      _FABM_LOOP_BEGIN_EX_(root%environment)
+      _LOOP_BEGIN_EX_(root%environment)
 
       ! Use variable-specific constant vertical velocities.
       velocity _INDEX_VERTICAL_MOVEMENT_(root%info%state_variables(i)%globalid%state_index) = root%info%state_variables(i)%vertical_movement
@@ -2291,7 +2291,7 @@
             ! Default: use constant specific light extinction values specified in the state variable properties
 
             ! Enter spatial loops (if any)
-            _FABM_LOOP_BEGIN_EX_(root%environment)
+            _LOOP_BEGIN_EX_(root%environment)
 
             ! Use variable-specific light extinction coefficients.
             do i=1,size(model%info%state_variables)
