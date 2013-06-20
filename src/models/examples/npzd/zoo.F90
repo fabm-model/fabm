@@ -134,7 +134,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_z,z)         ! zooplankton
@@ -156,7 +156,7 @@
    end if
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine do
 !EOC
@@ -180,7 +180,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_z,z) ! zooplankton
@@ -189,7 +189,7 @@
 !#   _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine examples_npzd_zoo_get_conserved_quantities
 !EOC
@@ -212,7 +212,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_z,z)         ! zooplankton
@@ -247,7 +247,7 @@
    end if
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine do_ppdd
 !EOC

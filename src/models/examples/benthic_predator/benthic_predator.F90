@@ -129,7 +129,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_prey,prey)     ! prey density - pelagic
@@ -146,7 +146,7 @@
    _SET_BOTTOM_EXCHANGE_(self%id_nut,self%h*pred)
 
    ! Leave spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine examples_benthic_predator_do_benthos
 !EOC

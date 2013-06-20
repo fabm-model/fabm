@@ -115,13 +115,13 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    ! Transfer surface exchange value to FABM.
    _SET_SURFACE_EXCHANGE_(self%id_tracer,self%surface_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine get_surface_exchange
 !EOC

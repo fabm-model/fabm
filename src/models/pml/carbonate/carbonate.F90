@@ -162,7 +162,7 @@ contains
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Get environmental variables.
    _GET_(self%id_temp,temp)
@@ -200,7 +200,7 @@ contains
    if (self%alk_param) _SET_DIAGNOSTIC_(self%id_alk_diag,TA*dens*1.0e-3_rk)    ! from uEg/kg to mmol/m**3
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine pml_carbonate_do
 !EOC
@@ -236,7 +236,7 @@ contains
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    _GET_(self%id_temp,temp)
    _GET_(self%id_salt,salt)
@@ -273,7 +273,7 @@ contains
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_co2_flux,fl/secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine pml_carbonate_get_surface_exchange
 !EOC

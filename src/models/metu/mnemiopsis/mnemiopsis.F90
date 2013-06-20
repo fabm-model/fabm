@@ -179,7 +179,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Obtain current values for environmental variables.
    _GET_(self%id_temp,temp)
@@ -391,7 +391,7 @@
    _SET_ODE_(self%id_morttarget, (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale/secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine metu_mnemiopsis_do
 !EOC

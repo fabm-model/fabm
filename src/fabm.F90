@@ -1986,7 +1986,7 @@
             end if
             _SET_STATE_EX_(root%environment,p,maximum)
          end if
-      _FABM_LOOP_END_
+      _LOOP_END_
    end do
 
    ! Check boundaries for benthic state variables specified by the models.
@@ -2022,7 +2022,7 @@
             end if
             _SET_STATE_BEN_EX_(root%environment,p_hz,maximum)
          end if
-      _FABM_HORIZONTAL_LOOP_END_
+      _HORIZONTAL_LOOP_END_
    end do
 
    ! Leave spatial loops (if any)
@@ -2216,7 +2216,7 @@
       velocity _INDEX_VERTICAL_MOVEMENT_(root%info%state_variables(i)%globalid%state_index) = root%info%state_variables(i)%vertical_movement
 
       ! Leave spatial loops (if any)
-      _FABM_LOOP_END_
+      _LOOP_END_
    end do
 
    model => root%nextmodel
@@ -2290,20 +2290,16 @@
          case default
             ! Default: use constant specific light extinction values specified in the state variable properties
 
-            ! Enter spatial loops (if any)
-            _LOOP_BEGIN_EX_(root%environment)
-
             ! Use variable-specific light extinction coefficients.
             do i=1,size(model%info%state_variables)
                curext = model%info%state_variables(i)%specific_light_extinction
                if (curext/=_ZERO_) then
-                  _GET_STATE_EX_(root%environment,model%info%state_variables(i)%globalid%p,val)
-                  _SET_EXTINCTION_(val*curext)
+                  _LOOP_BEGIN_EX_(root%environment)
+                     _GET_STATE_EX_(root%environment,model%info%state_variables(i)%globalid%p,val)
+                     _SET_EXTINCTION_(val*curext)
+                  _LOOP_END_
                end if
             end do
-
-            ! Enter spatial loops (if any)
-            _FABM_LOOP_END_
       end select
       model => model%nextmodel
    end do

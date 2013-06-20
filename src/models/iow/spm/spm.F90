@@ -151,7 +151,7 @@
 !BOC
    porosity=0.d0
 
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    _GET_(self%id_spm,spm)
    _GET_HORIZONTAL_(self%id_pmpool,pmpool)
@@ -176,7 +176,7 @@
    ! unit is g/m**2/s
    _SET_ODE_BEN_(self%id_pmpool,-Erosion_Flux-Sedimentation_Flux)
 
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine iow_spm_do_benthos
 !EOC
@@ -204,12 +204,12 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    _GET_(self%id_spm,spm)
    _SET_EXTINCTION_(self%shading*spm)
 
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine iow_spm_get_light_extinction
 !EOC

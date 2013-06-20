@@ -188,7 +188,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
    _GET_(self%id_nut,nut) ! nutrient
@@ -216,7 +216,7 @@
    _SET_DIAGNOSTIC_(self%id_NFIX,mue_phy*phy)
 
 !  Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine klimacampus_phy_feedback_do
 !EOC
@@ -247,7 +247,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
    _GET_(self%id_phy,phys)                 ! surface phytoplankton
@@ -257,7 +257,7 @@
    _SET_ALBEDO_(self%albedo_bio*phys)
 
 !  Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine klimacampus_phy_feedback_get_albedo
 !EOC
@@ -288,7 +288,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
    _GET_(self%id_phy,phys) ! surface phytoplankton
@@ -298,7 +298,7 @@
    _SCALE_DRAG_(max(_ONE_-self%drag_bio*phys,_ZERO_))
 
 !  Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine klimacampus_phy_feedback_get_drag
 !EOC
@@ -326,7 +326,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
    _GET_(self%id_nut,nub)
@@ -336,7 +336,7 @@
    _SET_BOTTOM_EXCHANGE_(self%id_nut,(self%nbot-nub)/secs_pr_hour) !nutrient restoring
 
 !  Leave spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine klimacampus_phy_feedback_do_benthos
 !EOC
@@ -363,7 +363,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
    _GET_(self%id_nut,nut) ! nutrient
@@ -374,7 +374,7 @@
    _SET_CONSERVED_QUANTITY_(self%id_totN,nut+phy+det)
 
 !  Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine klimacampus_phy_feedback_get_conserved_quantities
 !EOC

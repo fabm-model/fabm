@@ -362,7 +362,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -409,7 +409,7 @@
    _SET_DIAGNOSTIC_(self%id_pp,secs_pr_day*ff*(n/self%k1+a/self%k2)/(1.0_rk+n/self%k1+a/self%k2))
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine gotm_fasham_do_ppdd
 !EOC
@@ -509,7 +509,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -577,7 +577,7 @@
    _SET_DIAGNOSTIC_(self%id_pp,secs_pr_day*ff*(n/self%k1+a/self%k2)/(1.0_rk+n/self%k1+a/self%k2))
    
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine gotm_fasham_do
 !EOC
@@ -602,7 +602,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -611,7 +611,7 @@
    _SET_EXTINCTION_(self%kc*(self%p0+p))
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
    
    end subroutine gotm_fasham_get_light_extinction
 !EOC
@@ -635,7 +635,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -650,7 +650,7 @@
    _SET_CONSERVED_QUANTITY_(self%id_totN,p+z+b+d+n+a+l)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine gotm_fasham_get_conserved_quantities
 !EOC

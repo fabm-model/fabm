@@ -511,7 +511,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !   Enter spatial_loops (if any)
-    _FABM_LOOP_BEGIN_
+    _LOOP_BEGIN_
 
 !   Retrieve current (local) state variable values
     _GET_(self%id_p1,p1) !diatoms
@@ -572,7 +572,7 @@
    _SET_DIAGNOSTIC_(self%id_NPR ,(r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30) - self%lpa*(p1+p2+p3))*secs_pr_day)
 
 !   Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    END subroutine iow_ergom_do
 !EOC
@@ -601,7 +601,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p1,p1) ! diatoms
@@ -614,7 +614,7 @@
    _SET_EXTINCTION_(self%kc*(self%p10+self%p20+self%p30+p1+p2+p3+de))
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine iow_ergom_get_light_extinction
 !EOC
@@ -650,7 +650,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    if (self%fluff) then
@@ -696,7 +696,7 @@
    end if
 
    ! Leave spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine iow_ergom_do_benthos
 !EOC
@@ -836,7 +836,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    _GET_(self%id_temp,temp)
    _GET_(self%id_salt,salt)
@@ -874,7 +874,7 @@
    _SET_SURFACE_EXCHANGE_(self%id_am,self%sfl_am/secs_pr_day)
    _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po/secs_pr_day)
 
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
    end subroutine iow_ergom_get_surface_exchange
 !EOC
 
