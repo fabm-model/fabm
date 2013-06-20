@@ -752,10 +752,6 @@
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-!
-! !LOCAL VARIABLES:
-      _CLASS_ (type_model_info),pointer :: last_child
-!
 !-----------------------------------------------------------------------
 !BOC
       call set_model_name(model,instancename)
@@ -788,10 +784,6 @@
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-!
-! !LOCAL VARIABLES:
-      _CLASS_ (type_model_info),pointer :: last_child
-!
 !-----------------------------------------------------------------------
 !BOC
       call set_model_name(model,name)
