@@ -110,7 +110,7 @@
 ! !IROUTINE: Right hand sides of benthic_predator model
 !
 ! !INTERFACE:
-   subroutine examples_benthic_predator_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine examples_benthic_predator_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
 ! This routine calculates the benthic sink and source terms, as well as
@@ -118,7 +118,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_examples_benthic_predator),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman

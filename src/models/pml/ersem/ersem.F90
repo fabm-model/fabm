@@ -182,7 +182,7 @@
 ! !IROUTINE: Calculate sink and source terms (rates) of the pelagic component of ERSEM.
 !
 ! !INTERFACE:
-   subroutine pml_ersem_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine pml_ersem_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 !
@@ -190,7 +190,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_pml_ersem),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Momme Butenschön
@@ -246,7 +246,7 @@
 ! Everything in units per surface area (not volume!) per time.
 !
 ! !INTERFACE:
-   subroutine pml_ersem_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine pml_ersem_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
 !
@@ -254,7 +254,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_pml_ersem),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -314,11 +314,11 @@
 ! variables
 !
 ! !INTERFACE:
-   subroutine pml_ersem_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   subroutine pml_ersem_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    type (type_pml_ersem), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -356,11 +356,11 @@
 ! [not needed as long as ERSEM handles subsidence as part of its sink and source terms]
 !
 ! !INTERFACE:
-   subroutine pml_ersem_get_vertical_movement(self,_FABM_ARGS_GET_VERTICAL_MOVEMENT_)
+   subroutine pml_ersem_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
 !
 ! !INPUT PARAMETERS:
    type (type_pml_ersem), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_
+   _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman

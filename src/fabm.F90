@@ -1797,7 +1797,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_RHS_ _FABM_ARGS_ND_IN_,dy
+#define _INPUT_ARGS_DO_RHS_ _ARGUMENTS_ND_IN_,dy
 
    ! Ensure that this subroutine is called on the root of the model tree only.
    if (associated(root%parent)) &
@@ -1864,7 +1864,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_PPDD_ _FABM_ARGS_ND_IN_,pp,dd
+#define _INPUT_ARGS_DO_PPDD_ _ARGUMENTS_ND_IN_,pp,dd
 
    ! Enumerate all non-container models in the tree.
    model => root%nextmodel
@@ -1923,7 +1923,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_CHECK_STATE_ _FABM_ARGS_ND_IN_,repair,valid
+#define _INPUT_ARGS_CHECK_STATE_ _ARGUMENTS_ND_IN_,repair,valid
 
    valid = .true.
 
@@ -2053,7 +2053,7 @@
    type (type_model), pointer       :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_SURFACE_EXCHANGE_ _FABM_ARGS_IN_HZ_,flux
+#define _INPUT_ARGS_GET_SURFACE_EXCHANGE_ _ARGUMENTS_IN_HZ_,flux
    flux = _ZERO_
    model => root%nextmodel
    do while (associated(model))
@@ -2104,7 +2104,7 @@
    type (type_model), pointer               :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_RHS_ _FABM_ARGS_IN_HZ_,flux_pel,flux_ben
+#define _INPUT_ARGS_DO_BENTHOS_RHS_ _ARGUMENTS_IN_HZ_,flux_pel,flux_ben
 
    model => root%nextmodel
    do while (associated(model))
@@ -2159,7 +2159,7 @@
    type (type_model), pointer               :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_PPDD_ _FABM_ARGS_IN_HZ_,pp,dd,benthos_offset
+#define _INPUT_ARGS_DO_BENTHOS_PPDD_ _ARGUMENTS_IN_HZ_,pp,dd,benthos_offset
 
    model => root%nextmodel
    do while (associated(model))
@@ -2205,7 +2205,7 @@
    integer                                  :: i
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _FABM_ARGS_ND_IN_,velocity
+#define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _ARGUMENTS_ND_IN_,velocity
 
    ! First set constant sinking rates.
    do i=1,size(root%info%state_variables)
@@ -2263,7 +2263,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_LIGHT_EXTINCTION_ _FABM_ARGS_ND_IN_,extinction
+#define _INPUT_ARGS_GET_LIGHT_EXTINCTION_ _ARGUMENTS_ND_IN_,extinction
 
    extinction = _ZERO_
    model => root%nextmodel
@@ -2334,7 +2334,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_DRAG_ _FABM_ARGS_IN_HZ_,drag
+#define _INPUT_ARGS_GET_DRAG_ _ARGUMENTS_IN_HZ_,drag
 
    drag = _ONE_
    model => root%nextmodel
@@ -2383,7 +2383,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_ALBEDO_ _FABM_ARGS_IN_HZ_,albedo
+#define _INPUT_ARGS_GET_ALBEDO_ _ARGUMENTS_IN_HZ_,albedo
 
    albedo = _ZERO_
    model => root%nextmodel
@@ -2431,7 +2431,7 @@
 
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_CONSERVED_QUANTITIES_ _FABM_ARGS_ND_IN_,sums
+#define _INPUT_ARGS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_ND_IN_,sums
 
    sums = _ZERO_
    model => root%nextmodel

@@ -160,11 +160,11 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine do(self,_FABM_ARGS_DO_RHS_)
+   subroutine do(self,_ARGUMENTS_DO_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_phy), intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: n,p,par,I_0
@@ -231,11 +231,11 @@
 ! variables
 !
 ! !INTERFACE:
-   subroutine get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_phy), intent(in)     :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !LOCAL VARIABLES:
    real(rk)                     :: p
@@ -264,11 +264,11 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_phy), intent(in)     :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding

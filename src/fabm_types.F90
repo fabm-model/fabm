@@ -624,56 +624,56 @@
    end subroutine base_initialize   
 
    ! Providing process rates and diagnostics
-   subroutine base_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine base_do(self,_ARGUMENTS_DO_)
       class (type_model_info),intent(in) ::  self
-      _DECLARE_FABM_ARGS_DO_RHS_
+      _DECLARE_ARGUMENTS_DO_
    end subroutine base_do
-   subroutine base_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine base_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
       class (type_model_info),intent(in) :: self
-      _DECLARE_FABM_ARGS_DO_PPDD_
+      _DECLARE_ARGUMENTS_DO_PPDD_
    end subroutine base_do_ppdd
-   subroutine base_do_bottom(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine base_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
       class (type_model_info),intent(in) :: self
-      _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
-      call self%do_benthos(_FABM_ARGS_DO_BENTHOS_RHS_)
+      _DECLARE_ARGUMENTS_DO_BOTTOM_
+      call self%do_benthos(_ARGUMENTS_DO_BOTTOM_)
    end subroutine base_do_bottom
-   subroutine base_do_bottom_ppdd(self,_FABM_ARGS_DO_BENTHOS_PPDD_)
+   subroutine base_do_bottom_ppdd(self,_ARGUMENTS_DO_BOTTOM_PPDD_)
       class (type_model_info),intent(in) :: self
-      _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_
-      call self%do_benthos_ppdd(_FABM_ARGS_DO_BENTHOS_PPDD_)
+      _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_
+      call self%do_benthos_ppdd(_ARGUMENTS_DO_BOTTOM_PPDD_)
    end subroutine base_do_bottom_ppdd
-   subroutine base_do_surface(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+   subroutine base_do_surface(self,_ARGUMENTS_DO_SURFACE_)
       class (type_model_info), intent(in) :: self
-      _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
-      call self%get_surface_exchange(_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+      _DECLARE_ARGUMENTS_DO_SURFACE_
+      call self%get_surface_exchange(_ARGUMENTS_DO_SURFACE_)
    end subroutine base_do_surface
 
    ! Vertical movement, ligth attenuation, feedbacks to drag and albedo
-   subroutine base_get_vertical_movement(self,_FABM_ARGS_GET_VERTICAL_MOVEMENT_)
+   subroutine base_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
       class (type_model_info), intent(in) :: self
-      _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_
+      _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
    end subroutine base_get_vertical_movement
-   subroutine base_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   subroutine base_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
       class (type_model_info), intent(in) :: self
-      _DECLARE_FABM_ARGS_GET_EXTINCTION_
+      _DECLARE_ARGUMENTS_GET_EXTINCTION_
    end subroutine base_get_light_extinction
-   subroutine base_get_drag(self,_FABM_ARGS_GET_DRAG_)
+   subroutine base_get_drag(self,_ARGUMENTS_GET_DRAG_)
       class (type_model_info), intent(in) :: self
-      _DECLARE_FABM_ARGS_GET_DRAG_
+      _DECLARE_ARGUMENTS_GET_DRAG_
    end subroutine base_get_drag
-   subroutine base_get_albedo(self,_FABM_ARGS_GET_ALBEDO_)
+   subroutine base_get_albedo(self,_ARGUMENTS_GET_ALBEDO_)
       class (type_model_info), intent(in) :: self
-      _DECLARE_FABM_ARGS_GET_ALBEDO_
+      _DECLARE_ARGUMENTS_GET_ALBEDO_
    end subroutine base_get_albedo
 
    ! Bookkeeping
-   subroutine base_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   subroutine base_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
       class (type_model_info), intent(in) :: self
-      _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+      _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
    end subroutine base_get_conserved_quantities
-   subroutine base_check_state(self,_FABM_ARGS_CHECK_STATE_)
+   subroutine base_check_state(self,_ARGUMENTS_CHECK_STATE_)
       class (type_model_info), intent(in) :: self
-      _DECLARE_FABM_ARGS_CHECK_STATE_
+      _DECLARE_ARGUMENTS_CHECK_STATE_
    end subroutine base_check_state
 
    ! For backward compatibility only
@@ -681,17 +681,17 @@
       class (type_model_info),intent(inout) :: self
       _DECLARE_LOCATION_ARG_
    end subroutine base_set_domain
-   subroutine base_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine base_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
       class (type_model_info),intent(in) :: self
-      _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+      _DECLARE_ARGUMENTS_DO_BOTTOM_
    end subroutine base_do_benthos
-   subroutine base_do_benthos_ppdd(self,_FABM_ARGS_DO_BENTHOS_PPDD_)
+   subroutine base_do_benthos_ppdd(self,_ARGUMENTS_DO_BOTTOM_PPDD_)
       class (type_model_info),intent(in) :: self
-      _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_
+      _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_
    end subroutine base_do_benthos_ppdd
-   subroutine base_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+   subroutine base_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
       class (type_model_info), intent(in) :: self
-      _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
+      _DECLARE_ARGUMENTS_DO_SURFACE_
    end subroutine base_get_surface_exchange
 
 !-----------------------------------------------------------------------

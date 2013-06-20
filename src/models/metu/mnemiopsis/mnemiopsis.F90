@@ -130,13 +130,13 @@
 ! !IROUTINE: Right hand sides of Mnemiopsis model
 !
 ! !INTERFACE:
-   pure subroutine metu_mnemiopsis_do(self,_FABM_ARGS_DO_RHS_)
+   pure subroutine metu_mnemiopsis_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 !
 ! !INPUT PARAMETERS:
    type (type_metu_mnemiopsis), intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman, Baris Salihoglu

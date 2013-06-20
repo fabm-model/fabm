@@ -122,11 +122,11 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine do(self,_FABM_ARGS_DO_RHS_)
+   subroutine do(self,_ARGUMENTS_DO_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_zoo), intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: p,z
@@ -167,11 +167,11 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   subroutine examples_npzd_zoo_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   subroutine examples_npzd_zoo_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_zoo), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+   _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
 !
 ! !LOCAL VARIABLES:
    real(rk)                     :: n,p,z,d
@@ -200,11 +200,11 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_zoo), intent(in)     :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: p,z

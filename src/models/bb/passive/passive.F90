@@ -105,11 +105,11 @@
 ! !IROUTINE: Air-sea exchange for the passive tracer model
 !
 ! !INTERFACE:
-   subroutine get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+   subroutine get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
 !
 ! !INPUT PARAMETERS:
    class (type_bb_passive), intent(in)    :: self
-   _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
+   _DECLARE_ARGUMENTS_DO_SURFACE_
 !
 !EOP
 !-----------------------------------------------------------------------

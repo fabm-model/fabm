@@ -167,7 +167,7 @@
 ! !IROUTINE: Right hand sides of  model
 !
 ! !INTERFACE:
-   subroutine klimacampus_phy_feedback_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine klimacampus_phy_feedback_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 ! The sources and sinks of the PND model are calculated. Please note,
@@ -176,7 +176,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -231,11 +231,11 @@
 ! leading to changes in light reflection and thus temperature.
 !
 ! !INTERFACE:
-   subroutine klimacampus_phy_feedback_get_albedo(self,_FABM_ARGS_GET_ALBEDO_)
+   subroutine klimacampus_phy_feedback_get_albedo(self,_ARGUMENTS_GET_ALBEDO_)
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_ALBEDO_
+   _DECLARE_ARGUMENTS_GET_ALBEDO_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -272,11 +272,11 @@
 !  coefficient, leading to changes in the momentum flux.
 !
 ! !INTERFACE:
-   subroutine klimacampus_phy_feedback_get_drag(self,_FABM_ARGS_GET_DRAG_)
+   subroutine klimacampus_phy_feedback_get_drag(self,_ARGUMENTS_GET_DRAG_)
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_DRAG_
+   _DECLARE_ARGUMENTS_GET_DRAG_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -308,14 +308,14 @@
 ! !IROUTINE: Right hand sides of benthic_predator model
 !
 ! !INTERFACE:
-   subroutine klimacampus_phy_feedback_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine klimacampus_phy_feedback_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
 ! Detritus burial and nutrient restoring are considered to achieve a quasi-steady state.
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback), intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -347,11 +347,11 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   subroutine klimacampus_phy_feedback_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   subroutine klimacampus_phy_feedback_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+   _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense

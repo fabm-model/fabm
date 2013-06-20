@@ -214,7 +214,7 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine gotm_npzd_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine gotm_npzd_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -265,7 +265,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_npzd),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -336,11 +336,11 @@
 ! variables
 !
 ! !INTERFACE:
-   pure subroutine gotm_npzd_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   pure subroutine gotm_npzd_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_npzd), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -373,11 +373,11 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   pure subroutine gotm_npzd_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   pure subroutine gotm_npzd_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_npzd), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+   _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -412,7 +412,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine gotm_npzd_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine gotm_npzd_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -463,7 +463,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_npzd),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding

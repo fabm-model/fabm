@@ -301,7 +301,7 @@
 ! !IROUTINE: Right hand sides of ergom model
 !
 ! !INTERFACE:
-   subroutine iow_ergom_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine iow_ergom_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 ! The right hand sides of the \cite{Neumannetal2002} biogeochemical model are
@@ -498,7 +498,7 @@
 !
 ! !INPUT PARAMETERS:
    type(type_iow_ergom), INTENT(IN) :: self
-  _DECLARE_FABM_ARGS_DO_RHS_
+  _DECLARE_ARGUMENTS_DO_
 !
 !
 ! !LOCAL VARIABLES:
@@ -586,11 +586,11 @@
 ! !DESCRIPTION:
 
 ! !INTERFACE:
-   pure subroutine iow_ergom_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   pure subroutine iow_ergom_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    type (type_iow_ergom), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -625,7 +625,7 @@
 ! !IROUTINE: Right hand sides of benthic_predator model
 !
 ! !INTERFACE:
-   subroutine iow_ergom_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine iow_ergom_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
 ! This routine calculates the benthic sink and source terms, as well as
@@ -635,7 +635,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_iow_ergom),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
 !  Original author(s):
@@ -777,7 +777,7 @@
 ! !IROUTINE: Surface fluxes for the ergom model
 !
 ! !INTERFACE:
-  subroutine iow_ergom_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+  subroutine iow_ergom_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
 !
 ! !DESCRIPTION:
 ! Here, those surface fluxes which have been read from a file are transformed
@@ -822,7 +822,7 @@
 ! !INPUT PARAMETERS:
   type(type_iow_ergom),intent(in)       ::self
 
-  _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
+  _DECLARE_ARGUMENTS_DO_SURFACE_
 
   real(rk)             :: temp,wnd,salt,o2,ni,am,po
   real(rk),parameter           :: secs_pr_day=86400.

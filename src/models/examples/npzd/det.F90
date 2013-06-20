@@ -108,11 +108,11 @@
 ! !IROUTINE: Right hand sides of Detritus model
 !
 ! !INTERFACE:
-   subroutine do(self,_FABM_ARGS_DO_RHS_)
+   subroutine do(self,_ARGUMENTS_DO_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_det), intent(in)     :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: d
@@ -145,11 +145,11 @@
 ! !IROUTINE: Right hand sides of Detritus model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_det), intent(in)     :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: d

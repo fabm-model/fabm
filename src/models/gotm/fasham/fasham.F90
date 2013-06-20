@@ -274,7 +274,7 @@
 ! !IROUTINE: Right hand sides of Fasham model
 !
 ! !INTERFACE:
-   subroutine gotm_fasham_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine gotm_fasham_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !
 ! !DESCRIPTION:
 ! The \cite{Fashametal1990} model consisting of the $I=7$
@@ -352,7 +352,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_fasham),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 ! !LOCAL VARIABLES:
    real(rk)            :: p,z,b,d,n,a,l,par
@@ -420,7 +420,7 @@
 ! !IROUTINE: Right hand sides of Fasham model
 !
 ! !INTERFACE:
-   pure subroutine gotm_fasham_do(self,_FABM_ARGS_DO_RHS_)
+   pure subroutine gotm_fasham_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 ! The \cite{Fashametal1990} model consisting of the $I=7$
@@ -498,7 +498,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_fasham),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
    real(rk)            :: p,z,b,d,n,a,l,par
@@ -589,11 +589,11 @@
 ! variables
 !
 ! !INTERFACE:
-   pure subroutine gotm_fasham_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   pure subroutine gotm_fasham_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_fasham), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !LOCAL VARIABLES:
    real(rk) :: p
@@ -622,11 +622,11 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   pure subroutine gotm_fasham_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   pure subroutine gotm_fasham_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_fasham), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+   _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
 !
 ! !LOCAL VARIABLES:
    real(rk) :: p,z,b,d,n,a,l

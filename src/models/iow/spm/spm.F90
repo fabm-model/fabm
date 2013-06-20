@@ -126,7 +126,7 @@
 ! !ROUTINE: Sedimentation/Erosion
 !
 ! !INTERFACE:
-   subroutine iow_spm_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine iow_spm_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
 ! Calculating the benthic fluxes
@@ -135,7 +135,7 @@
 
 ! !INPUT PARAMETERS:
    type (type_iow_spm), intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 
 ! !LOCAL VARIABLES:
    real(rk)                     :: taub,spm,pmpool
@@ -187,13 +187,13 @@
 ! !ROUTINE: iow_spm_get_light_extinction
 !
 ! !INTERFACE:
-   subroutine iow_spm_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   subroutine iow_spm_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 
    implicit none
 
 ! !INPUT PARAMETERS:
    type (type_iow_spm), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
 ! !LOCAL VARIABLES
    real(rk)      :: spm
 !
