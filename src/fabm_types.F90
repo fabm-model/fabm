@@ -73,6 +73,8 @@
    
    integer, parameter, public :: rk = _FABM_REAL_KIND_
 
+   integer, parameter, public :: domain_bulk = 0, domain_bottom = 1, domain_surface = 2
+
    ! Alternative names for standard variables (for backward compatibility)
    type (type_bulk_standard_variable),parameter,public :: &
      varname_temp     = temperature,                                      & ! In-situ temperature (degree_Celsius)
@@ -141,6 +143,12 @@
    type type_bottom_state_variable_id
       character(len=attribute_length)     :: name               = ''
       integer                             :: bottom_state_index = -1
+      type (type_horizontal_data_pointer) :: horizontal_data
+   end type
+
+   type type_surface_state_variable_id
+      character(len=attribute_length)     :: name               = ''
+      integer                             :: surface_state_index = -1
       type (type_horizontal_data_pointer) :: horizontal_data
    end type
 
@@ -227,6 +235,7 @@
       real(rk)                        :: missing_value  = -2.e20_rk
       real(rk)                        :: initial_value  = 0.0_rk
       integer                         :: time_treatment = time_treatment_last
+      integer                         :: domain         = domain_bottom
       type (type_horizontal_standard_variable) :: standard_variable
       
       ! Arrays with all associated data and index pointers.
@@ -408,6 +417,7 @@
 
       ! Arrays with metadata on model variables.
       type (type_state_variable_info),                _ALLOCATABLE_,dimension(:) :: state_variables                 _NULL_
+      type (type_horizontal_state_variable_info),     _ALLOCATABLE_,dimension(:) :: surface_state_variables         _NULL_
       type (type_horizontal_state_variable_info),     _ALLOCATABLE_,dimension(:) :: bottom_state_variables          _NULL_
       type (type_diagnostic_variable_info),           _ALLOCATABLE_,dimension(:) :: diagnostic_variables            _NULL_
       type (type_horizontal_diagnostic_variable_info),_ALLOCATABLE_,dimension(:) :: horizontal_diagnostic_variables _NULL_
@@ -447,29 +457,31 @@
       generic   :: add_child => add_child_model_object,add_named_child_model
 
       ! Procedures that may be used to register model variables and dependencies during initialization.
-      procedure :: register_bulk_state_variable             => register_bulk_state_variable
-      procedure :: register_bottom_state_variable           => register_bottom_state_variable
-      procedure :: register_bulk_diagnostic_variable        => register_bulk_diagnostic_variable
-      procedure :: register_horizontal_diagnostic_variable  => register_horizontal_diagnostic_variable
-      procedure :: register_bulk_dependency                 => register_bulk_dependency
-      procedure :: register_bulk_dependency_sn              => register_bulk_dependency_sn
-      procedure :: register_horizontal_dependency           => register_horizontal_dependency
-      procedure :: register_horizontal_dependency_sn        => register_horizontal_dependency_sn
-      procedure :: register_global_dependency               => register_global_dependency
-      procedure :: register_global_dependency_sn            => register_global_dependency_sn
-      procedure :: register_conserved_quantity              => register_conserved_quantity
-      procedure :: register_bulk_state_dependency           => register_bulk_state_dependency
-      procedure :: register_bottom_state_dependency         => register_bottom_state_dependency
+      procedure :: register_bulk_state_variable
+      procedure :: register_bottom_state_variable
+      procedure :: register_surface_state_variable
+      procedure :: register_bulk_diagnostic_variable
+      procedure :: register_horizontal_diagnostic_variable
+      procedure :: register_bulk_dependency
+      procedure :: register_bulk_dependency_sn
+      procedure :: register_horizontal_dependency
+      procedure :: register_horizontal_dependency_sn
+      procedure :: register_global_dependency
+      procedure :: register_global_dependency_sn
+      procedure :: register_conserved_quantity
+      procedure :: register_bulk_state_dependency
+      procedure :: register_bottom_state_dependency
+      procedure :: register_surface_state_dependency
 
-      generic :: register_state_variable      => register_bulk_state_variable,register_bottom_state_variable
+      generic :: register_state_variable      => register_bulk_state_variable,register_bottom_state_variable,register_surface_state_variable
       generic :: register_diagnostic_variable => register_bulk_diagnostic_variable,register_horizontal_diagnostic_variable
       generic :: register_dependency          => register_bulk_dependency, register_bulk_dependency_sn, &
                                                  register_horizontal_dependency, register_horizontal_dependency_sn, &
                                                  register_global_dependency, register_global_dependency_sn
-      generic :: register_state_dependency    => register_bulk_state_dependency,register_bottom_state_dependency
+      generic :: register_state_dependency    => register_bulk_state_dependency,register_bottom_state_dependency,register_surface_state_dependency
 
       ! Procedures that may be used to query parameter values during initialization.
-      procedure :: get_real_parameter => get_real_parameter
+      procedure :: get_real_parameter
       generic :: get_parameter        => get_real_parameter
 
       ! ----------------------------------------------------------------------------------------------------
@@ -554,11 +566,13 @@
    interface register_state_variable
       module procedure register_bulk_state_variable
       module procedure register_bottom_state_variable
+      module procedure register_surface_state_variable
    end interface
 
    interface register_state_dependency
       module procedure register_bulk_state_dependency
       module procedure register_bottom_state_dependency
+      module procedure register_surface_state_dependency
    end interface
 
    interface register_dependency
@@ -1301,6 +1315,7 @@ end subroutine append_string
          curinfo%name      = name
          curinfo%units     = units
          curinfo%long_name = long_name
+         curinfo%domain = domain_bottom
          if (present(initial_value))     curinfo%initial_value     = initial_value
          if (present(minimum))           curinfo%minimum           = minimum
          if (present(maximum))           curinfo%maximum           = maximum
@@ -1323,6 +1338,94 @@ end subroutine append_string
       call new_link(model%first_horizontal_link,curinfo,name,.not.present(target))
 
    end subroutine register_bottom_state_variable
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Registers a new state variable
+!
+! !INTERFACE:
+   recursive subroutine register_surface_state_variable(model, id, name, units, long_name, &
+                                                       initial_value, minimum, maximum, missing_value, &
+                                                       standard_variable, target)
+!
+! !DESCRIPTION:
+!  This subroutine registers a new surface-bound biogeochemical state variable in the global model database.
+!  The identifier "id" may be used later to retrieve the value of the state variable.
+!
+! !INPUT/OUTPUT PARAMETERS:
+      _CLASS_ (type_model_info),           intent(inout)                 :: model
+      type (type_surface_state_variable_id),intent(inout),target         :: id
+      type (type_horizontal_variable),     intent(inout),target,optional :: target
+!
+! !INPUT PARAMETERS:
+      character(len=*),                         intent(in)          :: name, long_name, units
+      real(rk),                                 intent(in),optional :: initial_value
+      real(rk),                                 intent(in),optional :: minimum, maximum,missing_value
+      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+      type (type_horizontal_variable),pointer :: curinfo
+      character(len=256)                      :: text
+!
+!-----------------------------------------------------------------------
+!BOC
+      ! Check whether the model information may be written to (only during initialization)
+      if (model%frozen) call fatal_error('fabm_types::register_surface_state_variable', &
+         'State variables may only be registered during initialization.')
+
+      ! Either use the provided variable object, or create a new one.
+      if (present(target)) then
+         curinfo => target
+      else
+         allocate(curinfo)
+      end if
+
+      ! If this model runs as part of a larger collection,
+      ! the collection (the "master") determines the variable id.
+      if (associated(model%parent)) then
+         call register_surface_state_variable(model%parent,id,trim(model%name_prefix)//trim(name),      &
+                                             units,trim(model%long_name_prefix)//' '//trim(long_name), &
+                                             initial_value             = initial_value,                &
+                                             minimum                   = minimum,                      &
+                                             maximum                   = maximum,                      &
+                                             missing_value             = missing_value,                &
+                                             standard_variable         = standard_variable,            &
+                                             target                    = curinfo)
+      else
+         ! Store customized information on state variable.
+         curinfo%name      = name
+         curinfo%units     = units
+         curinfo%long_name = long_name
+         curinfo%domain = domain_surface
+         if (present(initial_value))     curinfo%initial_value     = initial_value
+         if (present(minimum))           curinfo%minimum           = minimum
+         if (present(maximum))           curinfo%maximum           = maximum
+         if (present(missing_value))     curinfo%missing_value     = missing_value
+         if (present(standard_variable)) curinfo%standard_variable = standard_variable
+         call append_index(curinfo%state_indices,id%surface_state_index)
+         call append_data_pointer(curinfo%alldata,id%horizontal_data)
+         if (id%name/='') call fatal_error('fabm_types::register_surface_state_variable', &
+            'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
+         id%name = name
+
+         ! Ensure that initial value falls within prescribed valid range.
+         if (curinfo%initial_value<curinfo%minimum .or. curinfo%initial_value>curinfo%maximum) then
+            write (text,*) 'Initial value',curinfo%initial_value,'for variable "'//trim(name)//'" lies&
+                  &outside allowed range',curinfo%minimum,'to',curinfo%maximum
+            call fatal_error('fabm_types::register_bottom_state_variable',text)
+         end if
+      end if
+
+      call new_link(model%first_horizontal_link,curinfo,name,.not.present(target))
+
+   end subroutine register_surface_state_variable
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1596,6 +1699,38 @@ end subroutine append_string
       call new_coupling(model,name,name)
 
    end subroutine register_bottom_state_dependency
+!EOC
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Registers a dependency on an external surface-bound state variable
+!
+! !INTERFACE:
+   recursive subroutine register_surface_state_dependency(model,id,name)
+!
+! !DESCRIPTION:
+!  This function searches for a biogeochemical state variable by the user-supplied name
+!  in the global model database. It returns the identifier of the variable (or -1 if
+!  the variable is not found), which may be used to retrieve the variable value at a later stage.
+!
+! !INPUT/OUTPUT PARAMETERS:
+      _CLASS_ (type_model_info),            intent(inout)        :: model
+      type (type_surface_state_variable_id),intent(inout),target :: id
+!
+! !INPUT PARAMETERS:
+      character(len=*),intent(in) :: name
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+!-----------------------------------------------------------------------
+!BOC
+      call register_surface_state_variable(model, id, name, '', name)
+      call new_coupling(model,name,name)
+
+   end subroutine register_surface_state_dependency
 !EOC
 
    subroutine register_bulk_dependency_sn(model,id,standard_variable)
@@ -2195,6 +2330,10 @@ subroutine merge_horizontal_variables(master,slave)
    integer :: i
    
    call log_message(trim(slave%name)//' --> '//trim(master%name))
+   if (slave%domain/=master%domain) then
+      call fatal_error('merge_horizontal_variables','Domains of coupled variabled ' &
+         //trim(slave%name)//' to '//trim(master%name)//' do not match.')
+   end if
    if (_ALLOCATED_(slave%write_indices)) then
       call fatal_error('merge_horizontal_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
@@ -2594,7 +2733,7 @@ recursive subroutine classify_variables(model)
    type (type_diagnostic_variable_info),           pointer :: diagvar
    type (type_horizontal_diagnostic_variable_info),pointer :: hz_diagvar
    type (type_conserved_quantity_info),            pointer :: consvar
-   integer                                                 :: nstate,nstate_hz,ndiag,ndiag_hz,ncons
+   integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
 
    integer :: i
 
@@ -2652,7 +2791,8 @@ recursive subroutine classify_variables(model)
    end do
 
    ! Count number of horizontal variables in various categories.
-   nstate_hz = 0
+   nstate_bot = 0
+   nstate_surf = 0
    ndiag_hz  = 0
    horizontal_link => model%first_horizontal_link
    do while (associated(horizontal_link))
@@ -2664,10 +2804,18 @@ recursive subroutine classify_variables(model)
             end do
          end if
          if (_ALLOCATED_(horizontal_link%target%state_indices)) then
-            nstate_hz = nstate_hz+1
-            do i=1,size(horizontal_link%target%state_indices)
-               horizontal_link%target%state_indices(i)%p = nstate_hz
-            end do
+            select case (horizontal_link%target%domain)
+               case (domain_bottom)
+                  nstate_bot = nstate_bot+1
+                  do i=1,size(horizontal_link%target%state_indices)
+                     horizontal_link%target%state_indices(i)%p = nstate_bot
+                  end do
+               case (domain_surface)
+                  nstate_surf = nstate_surf+1
+                  do i=1,size(horizontal_link%target%state_indices)
+                     horizontal_link%target%state_indices(i)%p = nstate_surf
+                  end do
+            end select
          end if
       end if
       if (_ALLOCATED_(horizontal_link%target%alldata)) then
@@ -2691,7 +2839,8 @@ recursive subroutine classify_variables(model)
 
    ! Allocate arrays with variable information that will be accessed by the host model.
    allocate(model%state_variables                (nstate))
-   allocate(model%bottom_state_variables         (nstate_hz))
+   allocate(model%bottom_state_variables         (nstate_bot))
+   allocate(model%surface_state_variables        (nstate_surf))
    allocate(model%diagnostic_variables           (ndiag))
    allocate(model%horizontal_diagnostic_variables(ndiag_hz))
    allocate(model%conserved_quantities           (ncons))
@@ -2763,7 +2912,12 @@ recursive subroutine classify_variables(model)
             hz_diagvar%time_treatment = horizontal_link%target%time_treatment
          end if
          if (_ALLOCATED_(horizontal_link%target%state_indices)) then
-            hz_statevar => model%bottom_state_variables(horizontal_link%target%state_indices(1)%p)
+            select case (horizontal_link%target%domain)
+               case (domain_bottom)
+                  hz_statevar => model%bottom_state_variables(horizontal_link%target%state_indices(1)%p)
+               case (domain_surface)
+                  hz_statevar => model%surface_state_variables(horizontal_link%target%state_indices(1)%p)
+            end select
             hz_statevar%globalid      = create_external_variable_id(model,horizontal_link%target)
             hz_statevar%name          = horizontal_link%target%name
             hz_statevar%units         = horizontal_link%target%units
