@@ -497,7 +497,9 @@
       ! ----------------------------------------------------------------------------------------------------
 
       ! Model initialization.
-      procedure :: initialize               => base_initialize
+      procedure :: initialize                  => base_initialize
+      procedure :: initialize_state            => base_initialize_state
+      procedure :: initialize_horizontal_state => base_initialize_horizontal_state
 
       ! Providing process rates and diagnostics in pelagic, at surface, and at bottom.
       procedure :: do                       => base_do
@@ -644,6 +646,14 @@
       integer,                intent(in)           :: configunit
       call fatal_error('base_initialize','derived model must implement the "initialize" subroutine.')
    end subroutine base_initialize   
+   subroutine base_initialize_state(self,_ARGUMENTS_INITIALIZE_STATE_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_ARGUMENTS_INITIALIZE_STATE_
+   end subroutine base_initialize_state
+   subroutine base_initialize_horizontal_state(self,_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_)
+      class (type_model_info), intent(in) :: self
+      _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_
+   end subroutine base_initialize_horizontal_state
 
    ! Providing process rates and diagnostics
    subroutine base_do(self,_ARGUMENTS_DO_)

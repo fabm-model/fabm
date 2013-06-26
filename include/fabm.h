@@ -406,6 +406,8 @@
 #define _ARGUMENTS_GET_ALBEDO_ _ARGUMENTS_HZ_,albedo
 #define _ARGUMENTS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_ND_,sums
 #define _ARGUMENTS_CHECK_STATE_ _ARGUMENTS_ND_,repair,valid
+#define _ARGUMENTS_INITIALIZE_STATE_ _ARGUMENTS_ND_
+#define _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_HZ_
 
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
 #define _DECLARE_ARGUMENTS_ND_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_ND_
@@ -421,6 +423,8 @@
 #define _DECLARE_ARGUMENTS_GET_ALBEDO_ _DECLARE_ARGUMENTS_HZ_;real(rk) _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: albedo
 #define _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_ND_;real(rk) _ATTR_DIMENSIONS_1_,intent(inout) :: sums
 #define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_ND_;logical,intent(in) :: repair;logical,intent(inout) :: valid
+#define _DECLARE_ARGUMENTS_INITIALIZE_STATE_ _DECLARE_ARGUMENTS_ND_
+#define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HZ_
 
 ! For backward compatibility (pre 20 June 2013)
 #define _FABM_ARGS_DO_RHS_ _ARGUMENTS_DO_

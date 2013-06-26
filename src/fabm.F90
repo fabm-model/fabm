@@ -44,6 +44,7 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_model, fabm_create_model_from_file, fabm_initialize, fabm_set_domain, fabm_check_ready
+   public fabm_initialize_state, fabm_initialize_horizontal_state
 
    ! Process rates and diagnostics for pelagic, surface, bottom.
    public fabm_do, fabm_do_surface, fabm_do_bottom
@@ -820,8 +821,8 @@
    subroutine fabm_set_mask(root, mask)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,               intent(inout) :: root
-   _FABM_MASK_TYPE_,target,intent(in) _ATTR_LOCATION_DIMENSIONS_ :: mask
+   type (type_model),target,intent(inout)                            :: root
+   _FABM_MASK_TYPE_, target,intent(in)    _ATTR_LOCATION_DIMENSIONS_ :: mask
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -855,7 +856,7 @@
 !
 ! !LOCAL VARIABLES:
   _CLASS_ (type_model_info),           pointer :: info
-  type (type_bulk_variable_link),           pointer :: link
+  type (type_bulk_variable_link),      pointer :: link
   type (type_horizontal_variable_link),pointer :: horizontal_link
   type (type_scalar_variable_link),    pointer :: scalar_link
   logical                                      :: ready
@@ -959,6 +960,113 @@
    end select
 
    end subroutine init_model
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initialize the model state (pelagic).
+!
+! !INTERFACE:
+   subroutine fabm_initialize_state(root _ARG_LOCATION_ND_)
+!
+! !INPUT PARAMETERS:
+   type (type_model),      intent(inout) :: root
+   _DECLARE_LOCATION_ARG_ND_
+!
+! !LOCAL PARAMETERS:
+   integer                               :: ivar
+   type (type_model), pointer            :: model
+   real(rk)                              :: initial_value
+   type (type_bulk_data_pointer)         :: p
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#define _INPUT_ARGS_INITIALIZE_STATE_ _ARGUMENTS_ND_IN_
+
+   do ivar=1,size(root%info%state_variables)
+      ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
+      p = root%info%state_variables(ivar)%globalid%p
+      initial_value = root%info%state_variables(ivar)%initial_value
+      _LOOP_BEGIN_EX_(root%environment)
+         _SET_EX_(p,initial_value)
+      _LOOP_END_
+   end do
+
+   ! Enumerate all non-container models in the model tree, and allow them to initialize their state.
+   model => root%nextmodel
+   do while (associated(model))
+      select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%initialize_state(_INPUT_ARGS_INITIALIZE_STATE_)
+#endif
+      end select
+      model => model%nextmodel
+   end do
+
+   end subroutine fabm_initialize_state
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initialize the horizontal model state (surface and bottom).
+!
+! !INTERFACE:
+   subroutine fabm_initialize_horizontal_state(root _ARG_LOCATION_ND_)
+!
+! !INPUT PARAMETERS:
+   type (type_model),      intent(inout) :: root
+   _DECLARE_LOCATION_ARG_ND_
+!
+! !LOCAL PARAMETERS:
+   integer                               :: ivar
+   type (type_model), pointer            :: model
+   real(rk)                              :: initial_value
+   type (type_horizontal_data_pointer)   :: p
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#define _INPUT_ARGS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_ND_IN_
+
+   ! Initialize bottom variables
+   do ivar=1,size(root%info%bottom_state_variables)
+      p = root%info%bottom_state_variables(ivar)%globalid%p
+      initial_value = root%info%bottom_state_variables(ivar)%initial_value
+      _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
+         _SET_HORIZONTAL_EX_(p,initial_value)
+      _HORIZONTAL_LOOP_END_
+   end do
+
+   ! Initialize surface variables
+   do ivar=1,size(root%info%surface_state_variables)
+      p = root%info%surface_state_variables(ivar)%globalid%p
+      initial_value = root%info%surface_state_variables(ivar)%initial_value
+      _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
+         _SET_HORIZONTAL_EX_(p,initial_value)
+      _HORIZONTAL_LOOP_END_
+   end do
+
+   ! Enumerate all non-container models in the model tree, and allow them to initialize their state.
+   model => root%nextmodel
+   do while (associated(model))
+      select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%initialize_horizontal_state(_INPUT_ARGS_INITIALIZE_HORIZONTAL_STATE_)
+#endif
+      end select
+      model => model%nextmodel
+   end do
+
+   end subroutine fabm_initialize_horizontal_state
 !EOC
 
 !-----------------------------------------------------------------------
