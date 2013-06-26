@@ -497,9 +497,10 @@
       ! ----------------------------------------------------------------------------------------------------
 
       ! Model initialization.
-      procedure :: initialize                  => base_initialize
-      procedure :: initialize_state            => base_initialize_state
-      procedure :: initialize_horizontal_state => base_initialize_horizontal_state
+      procedure :: initialize               => base_initialize
+      procedure :: initialize_state         => base_initialize_state
+      procedure :: initialize_surface_state => base_initialize_horizontal_state
+      procedure :: initialize_bottom_state  => base_initialize_horizontal_state
 
       ! Providing process rates and diagnostics in pelagic, at surface, and at bottom.
       procedure :: do                       => base_do
