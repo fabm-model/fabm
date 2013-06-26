@@ -1034,7 +1034,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_ND_IN_
+#define _INPUT_ARGS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_IN_HZ_
 
    ! Initialize bottom variables
    do ivar=1,size(root%info%bottom_state_variables)
