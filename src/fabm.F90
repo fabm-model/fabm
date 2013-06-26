@@ -1017,11 +1017,11 @@
 ! !IROUTINE: Initialize the horizontal model state (surface and bottom).
 !
 ! !INTERFACE:
-   subroutine fabm_initialize_horizontal_state(root _ARG_LOCATION_ND_)
+   subroutine fabm_initialize_horizontal_state(root _ARG_LOCATION_VARS_HZ_)
 !
 ! !INPUT PARAMETERS:
    type (type_model),      intent(inout) :: root
-   _DECLARE_LOCATION_ARG_ND_
+   _DECLARE_LOCATION_ARG_HZ_
 !
 ! !LOCAL PARAMETERS:
    integer                               :: ivar
