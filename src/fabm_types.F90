@@ -22,6 +22,7 @@
 ! !USES:
    use fabm_driver, only: fatal_error, log_message
    use fabm_standard_variables
+   use fabm_properties
 !
    implicit none
 !
@@ -134,30 +135,39 @@
    ! Variable identifiers used by biogeochemical models.
    ! ====================================================================================================
 
-   type type_state_variable_id
+#ifdef _FABM_F2003_
+   type type_id
+      type (type_property_dictionary), pointer :: properties => null()
+   end type
+#define _EXTENDS_ID_ ,extends(type_id) ::
+#else
+#define _EXTENDS_ID_
+#endif
+
+   type _EXTENDS_ID_ type_state_variable_id
       character(len=attribute_length) :: name        = ''
       integer                         :: state_index = -1
       type (type_bulk_data_pointer)   :: data
    end type
 
-   type type_bottom_state_variable_id
+   type _EXTENDS_ID_ type_bottom_state_variable_id
       character(len=attribute_length)     :: name               = ''
       integer                             :: bottom_state_index = -1
       type (type_horizontal_data_pointer) :: horizontal_data
    end type
 
-   type type_surface_state_variable_id
+   type _EXTENDS_ID_ type_surface_state_variable_id
       character(len=attribute_length)     :: name               = ''
       integer                             :: surface_state_index = -1
       type (type_horizontal_data_pointer) :: horizontal_data
    end type
 
-   type type_diagnostic_variable_id
+   type _EXTENDS_ID_ type_diagnostic_variable_id
       character(len=attribute_length) :: name       = ''
       integer                         :: diag_index = -1
    end type
 
-   type type_horizontal_diagnostic_variable_id
+   type _EXTENDS_ID_ type_horizontal_diagnostic_variable_id
       character(len=attribute_length) :: name                  = ''
       integer                         :: horizontal_diag_index = -1
    end type
@@ -177,7 +187,7 @@
       type (type_scalar_data_pointer) :: global_data
    end type
 
-   type type_conserved_quantity_id
+   type _EXTENDS_ID_ type_conserved_quantity_id
       character(len=attribute_length) :: name       = ''
       integer                         :: cons_index = -1
    end type
@@ -202,7 +212,16 @@
    ! Variable types used by FABM for both metadata and value pointers/indices.
    ! ====================================================================================================
 
-   type type_bulk_variable
+#ifdef _FABM_F2003_
+   type type_internal_variable
+      type (type_property_dictionary) :: properties
+   end type
+#define _EXTENDS_INTERNAL_VARIABLE_ ,extends(type_internal_variable) ::
+#else
+#define _EXTENDS_INTERNAL_VARIABLE_
+#endif
+
+   type _EXTENDS_INTERNAL_VARIABLE_ type_bulk_variable
       ! Metadata
       character(len=attribute_length)    :: name                      = ''
       character(len=attribute_length)    :: long_name                 = ''
@@ -225,7 +244,7 @@
       type (type_integer_pointer),          dimension(:),_ALLOCATABLE_ :: cons_indices  _NULL_
    end type type_bulk_variable
 
-   type type_horizontal_variable
+   type _EXTENDS_INTERNAL_VARIABLE_ type_horizontal_variable
       ! Metadata
       character(len=attribute_length) :: name           = ''
       character(len=attribute_length) :: long_name      = ''
@@ -245,7 +264,7 @@
       type (type_integer_pointer),                dimension(:),_ALLOCATABLE_ :: cons_indices  _NULL_
    end type type_horizontal_variable
 
-   type type_scalar_variable
+   type _EXTENDS_INTERNAL_VARIABLE_ type_scalar_variable
       ! Metadata
       character(len=attribute_length) :: name           = ''
       character(len=attribute_length) :: long_name      = ''
@@ -318,8 +337,17 @@
    ! Types to hold variable metadata, used by the external host.
    ! ====================================================================================================
 
+#ifdef _FABM_F2003_
+   type type_external_variable
+      type (type_property_dictionary) :: properties
+   end type
+#define _EXTENDS_EXTERNAL_VARIABLE_ ,extends(type_external_variable) ::
+#else
+#define _EXTENDS_EXTERNAL_VARIABLE_
+#endif
+
 !  Derived type describing a state variable
-   type type_state_variable_info
+   type _EXTENDS_EXTERNAL_VARIABLE_ type_state_variable_info
       character(len=attribute_length)   :: name                      = ''
       character(len=attribute_length)   :: long_name                 = ''
       character(len=attribute_length)   :: units                     = ''
@@ -335,7 +363,7 @@
       type (type_bulk_variable_id)      :: globalid
    end type type_state_variable_info
 
-   type type_horizontal_state_variable_info
+   type _EXTENDS_EXTERNAL_VARIABLE_ type_horizontal_state_variable_info
       character(len=attribute_length)         :: name          = ''
       character(len=attribute_length)         :: long_name     = ''
       character(len=attribute_length)         :: units         = ''
@@ -348,7 +376,7 @@
    end type type_horizontal_state_variable_info
 
 !  Derived type describing a diagnostic variable
-   type type_diagnostic_variable_info
+   type _EXTENDS_EXTERNAL_VARIABLE_ type_diagnostic_variable_info
       character(len=attribute_length)   :: name           = ''
       character(len=attribute_length)   :: long_name      = ''
       character(len=attribute_length)   :: units          = ''
@@ -360,7 +388,7 @@
       type (type_bulk_variable_id)      :: globalid
    end type type_diagnostic_variable_info
 
-   type type_horizontal_diagnostic_variable_info
+   type _EXTENDS_EXTERNAL_VARIABLE_ type_horizontal_diagnostic_variable_info
       character(len=attribute_length)         :: name           = ''
       character(len=attribute_length)         :: long_name      = ''
       character(len=attribute_length)         :: units          = ''
@@ -373,38 +401,13 @@
    end type type_horizontal_diagnostic_variable_info
 
 !  Derived type describing a conserved quantity
-   type type_conserved_quantity_info
+   type _EXTENDS_EXTERNAL_VARIABLE_ type_conserved_quantity_info
       character(len=attribute_length)   :: name       = ''
       character(len=attribute_length)   :: long_name  = ''
       character(len=attribute_length)   :: units      = ''
       integer                           :: externalid = 0       ! Identifier to be used by host (e.g., to hold NetCDF identifier)
       type (type_bulk_variable_id)      :: globalid
    end type type_conserved_quantity_info
-
-#ifdef _FABM_F2003_
-   ! ====================================================================================================
-   ! Types to hold values of parameters along with metadata.
-   ! ====================================================================================================
-
-   type type_property
-      character(len=attribute_length)   :: name       = ''
-      character(len=attribute_length)   :: long_name  = ''
-      character(len=attribute_length)   :: units      = ''
-      class (type_property), pointer    :: next       => null()
-   end type
-   
-   type,extends(type_property) :: type_integer_property
-      integer :: value
-   end type
-
-   type,extends(type_property) :: type_real_property
-      real(rk) :: value
-   end type
-
-   type,extends(type_property) :: type_logical_property
-      logical :: value
-   end type
-#endif
 
    ! ====================================================================================================
    ! Base model type, used by biogeochemical models to inherit from, and by external host to
@@ -1238,6 +1241,9 @@ end subroutine append_string
          if (id%name/='') call fatal_error('fabm_types::register_bulk_state_variable', &
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
+#ifdef _FABM_F2003_
+         id%properties => curinfo%properties
+#endif
 
          ! Ensure that initial value falls within prescribed valid range.
          if (curinfo%initial_value<curinfo%minimum .or. curinfo%initial_value>curinfo%maximum) then
@@ -1326,6 +1332,9 @@ end subroutine append_string
          if (id%name/='') call fatal_error('fabm_types::register_bottom_state_variable', &
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
+#ifdef _FABM_F2003_
+         id%properties => curinfo%properties
+#endif
 
          ! Ensure that initial value falls within prescribed valid range.
          if (curinfo%initial_value<curinfo%minimum .or. curinfo%initial_value>curinfo%maximum) then
@@ -1414,6 +1423,9 @@ end subroutine append_string
          if (id%name/='') call fatal_error('fabm_types::register_surface_state_variable', &
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
+#ifdef _FABM_F2003_
+         id%properties => curinfo%properties
+#endif
 
          ! Ensure that initial value falls within prescribed valid range.
          if (curinfo%initial_value<curinfo%minimum .or. curinfo%initial_value>curinfo%maximum) then
@@ -1493,6 +1505,9 @@ end subroutine append_string
          if (id%name/='') call fatal_error('fabm_types::register_bulk_diagnostic_variable', &
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
+#ifdef _FABM_F2003_
+         id%properties => curinfo%properties
+#endif
       end if
 
       call new_link(model,curinfo,name,.not.present(target))
@@ -1565,6 +1580,9 @@ end subroutine append_string
          if (id%name/='') call fatal_error('fabm_types::register_horizontal_diagnostic_variable', &
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
+#ifdef _FABM_F2003_
+         id%properties => curinfo%properties
+#endif
       end if
 
       call new_link(model%first_horizontal_link,curinfo,name,.not.present(target))
@@ -1628,6 +1646,9 @@ end subroutine append_string
          if (id%name/='') call fatal_error('fabm_types::register_conserved_quantity', &
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
+#ifdef _FABM_F2003_
+         id%properties => curinfo%properties
+#endif
       end if
 
       call new_link(model,curinfo,name,.not.present(target))
@@ -2322,6 +2343,9 @@ subroutine merge_bulk_variables(master,slave)
          call append_index(master%cons_indices,slave%cons_indices(i)%p)
       end do
    end if
+#ifdef _FABM_F2003_
+   call master%properties%update(slave%properties,overwrite=.false.)
+#endif
 end subroutine merge_bulk_variables
 
 subroutine merge_horizontal_variables(master,slave)
@@ -2365,6 +2389,9 @@ subroutine merge_horizontal_variables(master,slave)
          call append_index(master%cons_indices,slave%cons_indices(i)%p)
       end do
    end if
+#ifdef _FABM_F2003_
+   call master%properties%update(slave%properties,overwrite=.false.)
+#endif
 end subroutine merge_horizontal_variables
 
 subroutine merge_scalar_variables(master,slave)
@@ -2404,6 +2431,9 @@ subroutine merge_scalar_variables(master,slave)
          call append_index(master%cons_indices,slave%cons_indices(i)%p)
       end do
    end if
+#ifdef _FABM_F2003_
+   call master%properties%update(slave%properties,overwrite=.false.)
+#endif
 end subroutine merge_scalar_variables
 
 !-----------------------------------------------------------------------
@@ -2791,9 +2821,9 @@ recursive subroutine classify_variables(model)
    end do
 
    ! Count number of horizontal variables in various categories.
-   nstate_bot = 0
+   nstate_bot  = 0
    nstate_surf = 0
-   ndiag_hz  = 0
+   ndiag_hz    = 0
    horizontal_link => model%first_horizontal_link
    do while (associated(horizontal_link))
       if (.not.horizontal_link%coupled) then
@@ -2865,6 +2895,9 @@ recursive subroutine classify_variables(model)
             diagvar%maximum        = link%target%maximum
             diagvar%missing_value  = link%target%missing_value
             diagvar%time_treatment = link%target%time_treatment
+#ifdef _FABM_F2003_
+            call diagvar%properties%update(link%target%properties)
+#endif
          end if
          
          if (_ALLOCATED_(link%target%state_indices)) then
@@ -2881,6 +2914,9 @@ recursive subroutine classify_variables(model)
             statevar%specific_light_extinction = link%target%specific_light_extinction
             statevar%no_precipitation_dilution = link%target%no_precipitation_dilution
             statevar%no_river_dilution         = link%target%no_river_dilution
+#ifdef _FABM_F2003_
+            call statevar%properties%update(link%target%properties)
+#endif
          end if
          
          if (_ALLOCATED_(link%target%cons_indices)) then
@@ -2889,6 +2925,9 @@ recursive subroutine classify_variables(model)
             consvar%name        = link%target%name
             consvar%units       = link%target%units
             consvar%long_name   = link%target%long_name
+#ifdef _FABM_F2003_
+            call consvar%properties%update(link%target%properties)
+#endif
          end if
       end if
       link => link%next
@@ -2910,6 +2949,9 @@ recursive subroutine classify_variables(model)
             hz_diagvar%maximum        = horizontal_link%target%maximum
             hz_diagvar%missing_value  = horizontal_link%target%missing_value
             hz_diagvar%time_treatment = horizontal_link%target%time_treatment
+#ifdef _FABM_F2003_
+            call hz_diagvar%properties%update(horizontal_link%target%properties)
+#endif
          end if
          if (_ALLOCATED_(horizontal_link%target%state_indices)) then
             select case (horizontal_link%target%domain)
@@ -2926,6 +2968,9 @@ recursive subroutine classify_variables(model)
             hz_statevar%maximum       = horizontal_link%target%maximum
             hz_statevar%missing_value = horizontal_link%target%missing_value
             hz_statevar%initial_value = horizontal_link%target%initial_value
+#ifdef _FABM_F2003_
+            call hz_statevar%properties%update(horizontal_link%target%properties)
+#endif
          end if
       end if
       horizontal_link => horizontal_link%next
