@@ -476,6 +476,11 @@
       procedure :: register_bottom_state_dependency
       procedure :: register_surface_state_dependency
 
+      procedure :: set_variable_property_real
+      procedure :: set_variable_property_integer
+      procedure :: set_variable_property_logical
+      generic   :: set_variable_property => set_variable_property_real,set_variable_property_integer,set_variable_property_logical
+
       generic :: register_state_variable      => register_bulk_state_variable,register_bottom_state_variable,register_surface_state_variable
       generic :: register_diagnostic_variable => register_bulk_diagnostic_variable,register_horizontal_diagnostic_variable
       generic :: register_dependency          => register_bulk_dependency, register_bulk_dependency_sn, &
@@ -777,6 +782,30 @@
 
    end subroutine add_child_model_object
 !EOC
+
+   subroutine set_variable_property_real(self,variable,name,value)
+      class (type_model_info),intent(inout) :: self
+      class (type_id),        intent(inout) :: variable
+      character(len=*),       intent(in)    :: name
+      real(rk),               intent(in)    :: value
+      call variable%properties%set_real(name,value)
+   end subroutine
+
+   subroutine set_variable_property_integer(self,variable,name,value)
+      class (type_model_info),intent(inout) :: self
+      class (type_id),        intent(inout) :: variable
+      character(len=*),       intent(in)    :: name
+      integer,                intent(in)    :: value
+      call variable%properties%set_integer(name,value)
+   end subroutine
+
+   subroutine set_variable_property_logical(self,variable,name,value)
+      class (type_model_info),intent(inout) :: self
+      class (type_id),        intent(inout) :: variable
+      character(len=*),       intent(in)    :: name
+      logical,                intent(in)    :: value
+      call variable%properties%set_logical(name,value)
+   end subroutine
 
 #endif
 
