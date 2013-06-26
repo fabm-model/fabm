@@ -42,16 +42,16 @@ module fabm_properties
       contains
 
       procedure :: set_property
-      procedure :: set_real => set_real_property
-      procedure :: set_integer => set_integer_property
-      procedure :: set_logical => set_logical_property
+      procedure :: set_real
+      procedure :: set_integer
+      procedure :: set_logical
 
       procedure :: get_property
-      procedure :: get_real => get_real_property
-      procedure :: get_integer => get_integer_property
-      procedure :: get_logical => get_logical_property
+      procedure :: get_real
+      procedure :: get_integer
+      procedure :: get_logical
 
-      procedure :: update => update_property_dictionary
+      procedure :: update
    end type
 
 contains
@@ -101,7 +101,7 @@ contains
       current%next => next
    end subroutine
 
-   subroutine update_property_dictionary(target,source,overwrite)
+   subroutine update(target,source,overwrite)
       class (type_property_dictionary),intent(inout) :: target
       class (type_property_dictionary),intent(in)    :: source
       logical,optional,                intent(in)    :: overwrite
@@ -114,21 +114,21 @@ contains
       end do
    end subroutine
 
-   subroutine set_real_property(dictionary,name,value)
+   subroutine set_real(dictionary,name,value)
       class (type_property_dictionary),intent(inout) :: dictionary
       character(len=*),                intent(in)    :: name
       real(rk),                        intent(in)    :: value
       call dictionary%set_property(type_real_property(name=name,value=value))
    end subroutine
 
-   subroutine set_integer_property(dictionary,name,value)
+   subroutine set_integer(dictionary,name,value)
       class (type_property_dictionary),intent(inout) :: dictionary
       character(len=*),                intent(in)    :: name
       integer,                         intent(in)    :: value
       call dictionary%set_property(type_integer_property(name=name,value=value))
    end subroutine
 
-   subroutine set_logical_property(dictionary,name,value)
+   subroutine set_logical(dictionary,name,value)
       class (type_property_dictionary),intent(inout) :: dictionary
       character(len=*),                intent(in)    :: name
       logical,                         intent(in)    :: value
@@ -147,7 +147,7 @@ contains
       end do
    end function
 
-   function get_real_property(dictionary,name,default) result(value)
+   function get_real(dictionary,name,default) result(value)
       class (type_property_dictionary),intent(inout) :: dictionary
       character(len=*),                intent(in)    :: name
       real(rk),                        intent(in)    :: default
@@ -164,7 +164,7 @@ contains
       end if
    end function
 
-   function get_integer_property(dictionary,name,default) result(value)
+   function get_integer(dictionary,name,default) result(value)
       class (type_property_dictionary),intent(inout) :: dictionary
       character(len=*),                intent(in)    :: name
       integer,                         intent(in)    :: default
@@ -181,7 +181,7 @@ contains
       end if
    end function
 
-   function get_logical_property(dictionary,name,default) result(value)
+   function get_logical(dictionary,name,default) result(value)
       class (type_property_dictionary),intent(inout) :: dictionary
       character(len=*),                intent(in)    :: name
       logical,                         intent(in)    :: default
