@@ -157,9 +157,9 @@ contains
       value = default
       property => dictionary%get_property(name)
       if (associated(property)) then
-         select type (tp => property)
+         select type (property)
             class is (type_real_property)
-               value = tp%value
+               value = property%value
          end select
       end if
    end function
@@ -174,9 +174,9 @@ contains
       value = default
       property => dictionary%get_property(name)
       if (associated(property)) then
-         select type (tp => property)
+         select type (property)
             class is (type_integer_property)
-               value = tp%value
+               value = property%value
          end select
       end if
    end function
@@ -191,9 +191,9 @@ contains
       value = default
       property => dictionary%get_property(name)
       if (associated(property)) then
-         select type (tp => property)
+         select type (property)
             class is (type_logical_property)
-               value = tp%value
+               value = property%value
          end select
       end if
    end function
