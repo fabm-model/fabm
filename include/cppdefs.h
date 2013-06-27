@@ -46,6 +46,9 @@
 ! What precision will we use in this compilation
 #define SINGLE
 #undef  SINGLE
+#undef REALTYPE
+#undef _ZERO_
+#undef _ONE_
 
 #ifdef SINGLE
 #define REALTYPE real
