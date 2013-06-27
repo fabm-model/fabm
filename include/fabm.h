@@ -181,6 +181,9 @@
 #endif 
 
 ! Constants related to floating point precision; used throughout FABM.
+#undef REALTYPE
+#undef _ZERO_
+#undef _ONE_
 #define REALTYPE real(rk)
 #define _ZERO_ 0._rk
 #define _ONE_  1._rk
