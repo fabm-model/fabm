@@ -68,6 +68,8 @@
    public type_bulk_data_pointer
    public type_horizontal_data_pointer
 
+   public type_conserved_quantity_component
+
 ! !PUBLIC DATA MEMBERS:
 !
    integer, parameter, public :: attribute_length = 256
@@ -132,67 +134,6 @@
    end type
 
    ! ====================================================================================================
-   ! Variable identifiers used by biogeochemical models.
-   ! ====================================================================================================
-
-#ifdef _FABM_F2003_
-   type type_id
-      type (type_property_dictionary), pointer :: properties => null()
-   end type
-#define _EXTENDS_ID_ ,extends(type_id) ::
-#else
-#define _EXTENDS_ID_
-#endif
-
-   type _EXTENDS_ID_ type_state_variable_id
-      character(len=attribute_length) :: name        = ''
-      integer                         :: state_index = -1
-      type (type_bulk_data_pointer)   :: data
-   end type
-
-   type _EXTENDS_ID_ type_bottom_state_variable_id
-      character(len=attribute_length)     :: name               = ''
-      integer                             :: bottom_state_index = -1
-      type (type_horizontal_data_pointer) :: horizontal_data
-   end type
-
-   type _EXTENDS_ID_ type_surface_state_variable_id
-      character(len=attribute_length)     :: name               = ''
-      integer                             :: surface_state_index = -1
-      type (type_horizontal_data_pointer) :: horizontal_data
-   end type
-
-   type _EXTENDS_ID_ type_diagnostic_variable_id
-      character(len=attribute_length) :: name       = ''
-      integer                         :: diag_index = -1
-   end type
-
-   type _EXTENDS_ID_ type_horizontal_diagnostic_variable_id
-      character(len=attribute_length) :: name                  = ''
-      integer                         :: horizontal_diag_index = -1
-   end type
-
-   type type_dependency_id
-      character(len=attribute_length) :: name = ''
-      type (type_bulk_data_pointer)   :: data
-   end type
-
-   type type_horizontal_dependency_id
-      character(len=attribute_length)     :: name = ''
-      type (type_horizontal_data_pointer) :: horizontal_data
-   end type
-
-   type type_global_dependency_id
-      character(len=attribute_length) :: name = ''
-      type (type_scalar_data_pointer) :: global_data
-   end type
-
-   type _EXTENDS_ID_ type_conserved_quantity_id
-      character(len=attribute_length) :: name       = ''
-      integer                         :: cons_index = -1
-   end type
-
-   ! ====================================================================================================
    ! Data types to hold pointers to (components of) variable identifiers used by biogeochemical models.
    ! ====================================================================================================
 
@@ -212,9 +153,20 @@
    ! Variable types used by FABM for both metadata and value pointers/indices.
    ! ====================================================================================================
 
+   type type_conserved_quantity_component
+      type (type_bulk_data_pointer)         :: state
+      real(rk)                              :: scale_factor = 1.0_rk
+      type (type_conserved_quantity_component),pointer :: next => null()
+   end type
+
+   type type_conserved_quantity_component_list
+      type (type_conserved_quantity_component),pointer :: first => null()
+   end type
+
 #ifdef _FABM_F2003_
    type type_internal_variable
-      type (type_property_dictionary) :: properties
+      type (type_property_dictionary)               :: properties
+      type (type_conserved_quantity_component_list) :: components
    end type
 #define _EXTENDS_INTERNAL_VARIABLE_ ,extends(type_internal_variable) ::
 #else
@@ -334,6 +286,67 @@
    end type
 
    ! ====================================================================================================
+   ! Variable identifiers used by biogeochemical models.
+   ! ====================================================================================================
+
+#ifdef _FABM_F2003_
+   type type_id
+      class (type_internal_variable), pointer :: metadata => null()
+   end type
+#define _EXTENDS_ID_ ,extends(type_id) ::
+#else
+#define _EXTENDS_ID_
+#endif
+
+   type _EXTENDS_ID_ type_state_variable_id
+      character(len=attribute_length) :: name        = ''
+      integer                         :: state_index = -1
+      type (type_bulk_data_pointer)   :: data
+   end type
+
+   type _EXTENDS_ID_ type_bottom_state_variable_id
+      character(len=attribute_length)     :: name               = ''
+      integer                             :: bottom_state_index = -1
+      type (type_horizontal_data_pointer) :: horizontal_data
+   end type
+
+   type _EXTENDS_ID_ type_surface_state_variable_id
+      character(len=attribute_length)     :: name               = ''
+      integer                             :: surface_state_index = -1
+      type (type_horizontal_data_pointer) :: horizontal_data
+   end type
+
+   type _EXTENDS_ID_ type_diagnostic_variable_id
+      character(len=attribute_length) :: name       = ''
+      integer                         :: diag_index = -1
+   end type
+
+   type _EXTENDS_ID_ type_horizontal_diagnostic_variable_id
+      character(len=attribute_length) :: name                  = ''
+      integer                         :: horizontal_diag_index = -1
+   end type
+
+   type type_dependency_id
+      character(len=attribute_length) :: name = ''
+      type (type_bulk_data_pointer)   :: data
+   end type
+
+   type type_horizontal_dependency_id
+      character(len=attribute_length)     :: name = ''
+      type (type_horizontal_data_pointer) :: horizontal_data
+   end type
+
+   type type_global_dependency_id
+      character(len=attribute_length) :: name = ''
+      type (type_scalar_data_pointer) :: global_data
+   end type
+
+   type _EXTENDS_ID_ type_conserved_quantity_id
+      character(len=attribute_length) :: name       = ''
+      integer                         :: cons_index = -1
+   end type
+
+   ! ====================================================================================================
    ! Types to hold variable metadata, used by the external host.
    ! ====================================================================================================
 
@@ -407,6 +420,7 @@
       character(len=attribute_length)   :: units      = ''
       integer                           :: externalid = 0       ! Identifier to be used by host (e.g., to hold NetCDF identifier)
       type (type_bulk_variable_id)      :: globalid
+      type (type_conserved_quantity_component_list) :: components
    end type type_conserved_quantity_info
 
    ! ====================================================================================================
@@ -471,7 +485,8 @@
       procedure :: register_horizontal_dependency_sn
       procedure :: register_global_dependency
       procedure :: register_global_dependency_sn
-      procedure :: register_conserved_quantity
+      procedure :: register_standard_conserved_quantity
+      procedure :: register_custom_conserved_quantity
       procedure :: register_bulk_state_dependency
       procedure :: register_bottom_state_dependency
       procedure :: register_surface_state_dependency
@@ -481,12 +496,15 @@
       procedure :: set_variable_property_logical
       generic   :: set_variable_property => set_variable_property_real,set_variable_property_integer,set_variable_property_logical
 
+      procedure :: add_conserved_quantity_component
+
       generic :: register_state_variable      => register_bulk_state_variable,register_bottom_state_variable,register_surface_state_variable
       generic :: register_diagnostic_variable => register_bulk_diagnostic_variable,register_horizontal_diagnostic_variable
       generic :: register_dependency          => register_bulk_dependency, register_bulk_dependency_sn, &
                                                  register_horizontal_dependency, register_horizontal_dependency_sn, &
                                                  register_global_dependency, register_global_dependency_sn
       generic :: register_state_dependency    => register_bulk_state_dependency,register_bottom_state_dependency,register_surface_state_dependency
+      generic :: register_conserved_quantity  => register_standard_conserved_quantity, register_custom_conserved_quantity
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
@@ -598,6 +616,11 @@
    interface register_diagnostic_variable
       module procedure register_bulk_diagnostic_variable
       module procedure register_horizontal_diagnostic_variable
+   end interface
+
+   interface register_conserved_quantity
+      module procedure register_standard_conserved_quantity
+      module procedure register_custom_conserved_quantity
    end interface
 
    interface append_data_pointer
@@ -799,7 +822,7 @@
       class (type_id),        intent(inout) :: variable
       character(len=*),       intent(in)    :: name
       real(rk),               intent(in)    :: value
-      call variable%properties%set_real(name,value)
+      call variable%metadata%properties%set_real(name,value)
    end subroutine
 
    subroutine set_variable_property_integer(self,variable,name,value)
@@ -807,7 +830,7 @@
       class (type_id),        intent(inout) :: variable
       character(len=*),       intent(in)    :: name
       integer,                intent(in)    :: value
-      call variable%properties%set_integer(name,value)
+      call variable%metadata%properties%set_integer(name,value)
    end subroutine
 
    subroutine set_variable_property_logical(self,variable,name,value)
@@ -815,9 +838,35 @@
       class (type_id),        intent(inout) :: variable
       character(len=*),       intent(in)    :: name
       logical,                intent(in)    :: value
-      call variable%properties%set_logical(name,value)
+      call variable%metadata%properties%set_logical(name,value)
    end subroutine
 
+   subroutine add_conserved_quantity_component(self,conserved_quantity,state_variable,scale_factor)
+      class (type_model_info),           intent(inout) :: self
+      class (type_conserved_quantity_id),intent(inout) :: conserved_quantity
+      class (type_state_variable_id),    intent(in)    :: state_variable
+      real(rk),optional,                 intent(in)    :: scale_factor
+      
+      type (type_conserved_quantity_component),pointer :: component
+
+      if (.not.associated(conserved_quantity%metadata%components%first)) then
+         allocate(conserved_quantity%metadata%components%first)
+         component => conserved_quantity%metadata%components%first
+      else
+         component => conserved_quantity%metadata%components%first
+         do while (associated(component%next))
+            component => component%next
+         end do
+         allocate(component%next)
+         component => component%next
+      end if
+
+      if (present(scale_factor)) component%scale_factor = scale_factor
+      select type (internal_variable => state_variable%metadata)
+         type is (type_bulk_variable)
+            call append_data_pointer(internal_variable%alldata,component%state)
+      end select
+   end subroutine
 #endif
 
 !-----------------------------------------------------------------------
@@ -1282,7 +1331,7 @@ end subroutine append_string
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
 #ifdef _FABM_F2003_
-         id%properties => curinfo%properties
+         id%metadata => curinfo
 #endif
 
          ! Ensure that initial value falls within prescribed valid range.
@@ -1373,7 +1422,7 @@ end subroutine append_string
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
 #ifdef _FABM_F2003_
-         id%properties => curinfo%properties
+         id%metadata => curinfo
 #endif
 
          ! Ensure that initial value falls within prescribed valid range.
@@ -1464,7 +1513,7 @@ end subroutine append_string
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
 #ifdef _FABM_F2003_
-         id%properties => curinfo%properties
+         id%metadata => curinfo
 #endif
 
          ! Ensure that initial value falls within prescribed valid range.
@@ -1546,7 +1595,7 @@ end subroutine append_string
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
 #ifdef _FABM_F2003_
-         id%properties => curinfo%properties
+         id%metadata => curinfo
 #endif
       end if
 
@@ -1621,7 +1670,7 @@ end subroutine append_string
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
 #ifdef _FABM_F2003_
-         id%properties => curinfo%properties
+         id%metadata => curinfo
 #endif
       end if
 
@@ -1633,10 +1682,83 @@ end subroutine append_string
 !-----------------------------------------------------------------------
 !BOP
 !
+! !IROUTINE: Registers a conserved quantity taken from a standard set
+!
+! !INTERFACE:
+   recursive subroutine register_standard_conserved_quantity(model, id, standard_variable, name, target)
+!
+! !DESCRIPTION:
+!  This function registers a new biogeochemically conserved quantity in the global
+!  model database.
+!
+! !INPUT/OUTPUT PARAMETERS:
+      _CLASS_ (type_model_info),        intent(inout)                 :: model
+      type (type_conserved_quantity_id),intent(inout),target          :: id
+      type (type_bulk_variable),        intent(inout),target,optional :: target
+      character(len=*),                 intent(in), optional          :: name
+!
+! !INPUT PARAMETERS:
+      type (type_bulk_standard_variable), intent(in) :: standard_variable
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+      type (type_bulk_variable),pointer :: curinfo
+      character(len=attribute_length) :: name_eff
+!
+!-----------------------------------------------------------------------
+!BOC
+      ! Check whether the model information may be written to (only during initialization)
+      if (model%frozen) call fatal_error('fabm_types::register_conserved_quantity',&
+         'Conserved quantities may only be registered during initialization.')
+
+      if (present(name)) then
+         name_eff = name
+      else
+         name_eff = standard_variable%name
+      end if
+
+      ! Either use the provided variable object, or create a new one.
+      if (present(target)) then
+         curinfo => target
+      else
+         allocate(curinfo)
+      end if
+
+      ! If this model runs as part of a larger collection,
+      ! the collection (the "master") determines the conserved quantity id.
+      if (associated(model%parent)) then
+         call register_standard_conserved_quantity(model%parent,id,standard_variable, &
+                                                   name=trim(model%name_prefix)//name_eff,target=curinfo)
+      else
+         curinfo%standard_variable = standard_variable
+         curinfo%name      = standard_variable%name
+         curinfo%units     = standard_variable%units
+         curinfo%long_name = standard_variable%name
+         call append_index(curinfo%cons_indices,id%cons_index)
+         if (id%name/='') call fatal_error('fabm_types::register_conserved_quantity', &
+            'Identifier supplied for '//trim(name_eff)//' is already used by '//trim(id%name)//'.')
+         id%name = name_eff
+#ifdef _FABM_F2003_
+         id%metadata => curinfo
+#endif
+      end if
+
+      call new_link(model,curinfo,name_eff,.not.present(target))
+
+   end subroutine register_standard_conserved_quantity
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
 ! !IROUTINE: Registers a new conserved quantity
 !
 ! !INTERFACE:
-   recursive subroutine register_conserved_quantity(model, id, name, units, long_name, target)
+   recursive subroutine register_custom_conserved_quantity(model, id, name, units, long_name, target)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemically conserved quantity in the global
@@ -1648,9 +1770,9 @@ end subroutine append_string
       type (type_bulk_variable),        intent(inout),target,optional :: target
 !
 ! !INPUT PARAMETERS:
-      character(len=*),intent(in) :: name
-      character(len=*),intent(in) :: long_name
-      character(len=*),intent(in) :: units
+      character(len=*), intent(in) :: name
+      character(len=*), intent(in) :: long_name
+      character(len=*), intent(in) :: units
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1676,7 +1798,7 @@ end subroutine append_string
       ! If this model runs as part of a larger collection,
       ! the collection (the "master") determines the conserved quantity id.
       if (associated(model%parent)) then
-         call register_conserved_quantity(model%parent,id,trim(model%name_prefix)//name, &
+         call register_conserved_quantity(model%parent,id,trim(model%name_prefix)//name,      &
                                           units,trim(model%long_name_prefix)//' '//long_name,target=curinfo)
       else
          curinfo%name      = name
@@ -1687,13 +1809,13 @@ end subroutine append_string
             'Identifier supplied for '//trim(name)//' is already used by '//trim(id%name)//'.')
          id%name = name
 #ifdef _FABM_F2003_
-         id%properties => curinfo%properties
+         id%metadata => curinfo
 #endif
       end if
 
-      call new_link(model,curinfo,name,.not.present(target))
+      call new_link(model,curinfo,curinfo%name,.not.present(target))
 
-   end subroutine register_conserved_quantity
+   end subroutine register_custom_conserved_quantity
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2350,7 +2472,8 @@ subroutine merge_bulk_variables(master,slave)
    type (type_bulk_variable),intent(inout) :: master
    type (type_bulk_variable),intent(in)    :: slave
    integer :: i
-   
+   type (type_conserved_quantity_component), pointer :: component
+
    call log_message(trim(slave%name)//' --> '//trim(master%name))
    if (_ALLOCATED_(slave%write_indices)) then
       call fatal_error('merge_bulk_variables','Attempt to couple write-only variable ' &
@@ -2385,6 +2508,15 @@ subroutine merge_bulk_variables(master,slave)
    end if
 #ifdef _FABM_F2003_
    call master%properties%update(slave%properties,overwrite=.false.)
+   if (associated(master%components%first)) then
+      component => master%components%first
+      do while (associated(component%next))
+         component => component%next
+      end do
+      component%next => slave%components%first
+   else
+      master%components%first => slave%components%first
+   end if
 #endif
 end subroutine merge_bulk_variables
 
@@ -2966,6 +3098,7 @@ recursive subroutine classify_variables(model)
             consvar%units       = link%target%units
             consvar%long_name   = link%target%long_name
 #ifdef _FABM_F2003_
+            consvar%components  = link%target%components
             call consvar%properties%update(link%target%properties)
 #endif
          end if

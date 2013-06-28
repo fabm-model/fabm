@@ -31,6 +31,7 @@
 ! !USES:
    use fabm_types
    use fabm_driver
+   use fabm_standard_variables,only:total_nitrogen
 
    implicit none
 
@@ -59,7 +60,6 @@
       procedure :: do
       procedure :: do_ppdd
       procedure :: get_light_extinction
-      procedure :: get_conserved_quantities
 
    end type type_examples_npzd_f2003
 !
@@ -191,7 +191,11 @@
                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
-   call self%register_conserved_quantity(self%id_totN,'N','mmol/m**3','nitrogen')
+   call self%register_conserved_quantity(self%id_totN,total_nitrogen)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_n)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_p)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_z)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_d)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par,varname_par)
@@ -360,45 +364,6 @@
    _LOOP_END_
 
    end subroutine get_light_extinction
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
-!
-! !INTERFACE:
-   subroutine get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
-!
-! !INPUT PARAMETERS:
-   class (type_examples_npzd_f2003), intent(in) :: self
-   _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   real(rk) :: n,p,z,d
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_n,n) ! nutrient
-   _GET_(self%id_p,p) ! phytoplankton
-   _GET_(self%id_z,z) ! zooplankton
-   _GET_(self%id_d,d) ! detritus
-
-   ! Total nutrient is simply the sum of all variables.
-   _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
-
-   ! Leave spatial loops (if any)
-   _LOOP_END_
-
-   end subroutine get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------

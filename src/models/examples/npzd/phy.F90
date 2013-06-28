@@ -15,7 +15,8 @@
 ! !USES:
    use fabm_types
    use fabm_driver
-   
+   use fabm_standard_variables, only:total_nitrogen
+
    implicit none
 
 !  default: all is private.
@@ -141,7 +142,8 @@
                                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
-!KB   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
+   call self%register_conserved_quantity(self%id_totN,total_nitrogen)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_p)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par, varname_par)
@@ -168,7 +170,7 @@
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: n,p,par,I_0
-   real(rk)                   :: iopt,rpd,primprod,dn
+   real(rk)                   :: iopt,rpd,primprod
    real(rk), parameter        :: secs_pr_day = 86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
@@ -275,7 +277,7 @@
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: n,p,par,I_0
-   real(rk)                   :: iopt,rpd,dn,primprod
+   real(rk)                   :: iopt,rpd,primprod
    real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------

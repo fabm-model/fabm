@@ -14,7 +14,8 @@
 ! !USES:
    use fabm_types
    use fabm_driver
-   
+   use fabm_standard_variables, only:total_nitrogen
+
    implicit none
 
    private
@@ -22,8 +23,9 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_examples_npzd_zoo
 !     Variable identifiers
-      type (type_state_variable_id) :: id_z
-      type (type_state_variable_id) :: id_exctarget,id_morttarget,id_grztarget
+      type (type_state_variable_id)     :: id_z
+      type (type_state_variable_id)     :: id_exctarget,id_morttarget,id_grztarget
+      type (type_conserved_quantity_id) :: id_totN
 
 !     Model parameters
       real(rk) :: z0,gmax,iv,rzn,rzd
@@ -109,6 +111,9 @@
    self%do_grz = grazing_target_variable/=''
    if (self%do_grz) call self%register_state_dependency(self%id_grztarget,grazing_target_variable)
 
+   call self%register_conserved_quantity(self%id_totN,total_nitrogen)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_z)
+
    return
 
 99 call fatal_error('examples_npzd_zoo::initialize','Error reading namelist examples_npzd_zoo')
@@ -159,39 +164,6 @@
    _LOOP_END_
 
    end subroutine do
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
-!
-! !INTERFACE:
-   subroutine examples_npzd_zoo_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
-!
-! !INPUT PARAMETERS:
-   class (type_examples_npzd_zoo), intent(in) :: self
-   _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
-!
-! !LOCAL VARIABLES:
-   real(rk)                     :: n,p,z,d
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_z,z) ! zooplankton
-
-   ! Total nutrient is simply the sum of all variables.
-!#   _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
-
-   ! Leave spatial loops (if any)
-   _LOOP_END_
-
-   end subroutine examples_npzd_zoo_get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------

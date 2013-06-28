@@ -12,11 +12,12 @@
 ! !DESCRIPTION:
 ! This model features a single detritus variable, characterized by a rate of decay (rdn)
 ! and a sinking rate. Mineralized detritus feeds into a dissolved mineral pool that must
-! be provided by an extenal model (e.g., fabm_examples_npzd_nut).
+! be provided by an external model (e.g., fabm_examples_npzd_nut).
 !
 ! !USES:
    use fabm_types
    use fabm_driver
+   use fabm_standard_variables, only:total_nitrogen
    
    implicit none
 
@@ -25,8 +26,9 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_examples_npzd_det
 !     Variable identifiers
-      type (type_state_variable_id) :: id_d
-      type (type_state_variable_id) :: id_mintarget
+      type (type_state_variable_id)     :: id_d
+      type (type_state_variable_id)     :: id_mintarget
+      type (type_conserved_quantity_id) :: id_totN
 
 !     Model parameters
       real(rk) :: rdn
@@ -94,6 +96,9 @@
    ! Register external state variable dependencies
    self%do_min = mineralisation_target_variable/=''
    if (self%do_min) call self%register_state_dependency(self%id_mintarget,mineralisation_target_variable)
+
+   call self%register_conserved_quantity(self%id_totN,total_nitrogen)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_d)
 
    return
 

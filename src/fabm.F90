@@ -2063,8 +2063,8 @@
    type (type_model), pointer            :: model
    real(rk)                              :: value,minimum,maximum
    character(len=256)                    :: err
-   type (type_bulk_data_pointer) :: p
-   type (type_horizontal_data_pointer) :: p_hz
+   type (type_bulk_data_pointer)         :: p
+   type (type_horizontal_data_pointer)   :: p_hz
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2571,13 +2571,32 @@
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer               :: model
+   type (type_model), pointer                       :: model
+   integer                                          :: i
+   type (type_conserved_quantity_component),pointer :: component
+   real(rk),pointer _ATTR_LOCATION_DIMENSIONS_      :: p => null()
+   real(rk)                                         :: scale_factor
 
 !-----------------------------------------------------------------------
 !BOC
 #define _INPUT_ARGS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_ND_IN_,sums
 
    sums = _ZERO_
+
+#ifdef _FABM_F2003_
+   do i=1,size(root%info%conserved_quantities)
+      component => root%info%conserved_quantities(i)%components%first
+      do while (associated(component))
+         p => component%state%p
+         scale_factor = component%scale_factor
+         _LOOP_BEGIN_EX_(root%environment)
+            sums _INDEX_OUTPUT_1D_(i) = sums _INDEX_OUTPUT_1D_(i) + scale_factor*p _INDEX_LOCATION_
+         _LOOP_END_
+         component => component%next
+      end do
+   end do
+#endif
+
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
