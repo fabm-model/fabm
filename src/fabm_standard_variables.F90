@@ -142,8 +142,17 @@ module fabm_standard_variables
 
    type (type_bulk_standard_variable),parameter :: &
 
+      total_carbon = type_bulk_standard_variable( &
+         'total_carbon', &
+         'mmol m^-3'), &
       total_nitrogen = type_bulk_standard_variable( &
          'total_nitrogen', &
-         'mmol m^-3')
+         'mmol m^-3'), &
+      total_phosphorus = type_bulk_standard_variable( &
+         'total_phosphorus', &
+         'mmol m^-3'), &
+      total_iron = type_bulk_standard_variable( &
+         'total_iron', &
+         'umol m^-3')
 
 end module fabm_standard_variables
