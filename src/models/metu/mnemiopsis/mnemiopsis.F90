@@ -130,13 +130,13 @@
 ! !IROUTINE: Right hand sides of Mnemiopsis model
 !
 ! !INTERFACE:
-   pure subroutine metu_mnemiopsis_do(self,_FABM_ARGS_DO_RHS_)
+   pure subroutine metu_mnemiopsis_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 !
 ! !INPUT PARAMETERS:
    type (type_metu_mnemiopsis), intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman, Baris Salihoglu
@@ -179,7 +179,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Obtain current values for environmental variables.
    _GET_(self%id_temp,temp)
@@ -391,7 +391,7 @@
    _SET_ODE_(self%id_morttarget, (mea_mn*egb_mn + mj_mn*jb_mn + mt_mn*tb_mn + ma_mn*adb_mn)/self%food_scale/secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine metu_mnemiopsis_do
 !EOC

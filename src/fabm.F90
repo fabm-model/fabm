@@ -44,10 +44,18 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
    public type_model, fabm_create_model_from_file, fabm_initialize, fabm_set_domain, fabm_check_ready
-   public fabm_do, fabm_get_surface_exchange, fabm_do_benthos
-   public fabm_check_state, fabm_get_vertical_movement, fabm_get_conserved_quantities
-   public fabm_get_light_extinction, fabm_get_albedo, fabm_get_drag
+   public fabm_initialize_state, fabm_initialize_surface_state, fabm_initialize_bottom_state
+
+   ! Process rates and diagnostics for pelagic, surface, bottom.
+   public fabm_do, fabm_do_surface, fabm_do_bottom
+
+   ! Vertical movement, light attenuation, feedbacks to drag and albedo
+   public fabm_get_vertical_movement, fabm_get_light_extinction, fabm_get_albedo, fabm_get_drag
+
+   ! Bookkeeping
+   public fabm_check_state, fabm_get_conserved_quantities
    
+   ! Management of model variables: retrieve identifiers, get and set data.
    public fabm_get_bulk_variable_id,fabm_get_horizontal_variable_id,fabm_get_scalar_variable_id
    public fabm_get_variable_name, fabm_is_variable_used
    public fabm_link_bulk_state_data, fabm_link_bottom_state_data
@@ -55,8 +63,12 @@
    public fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
 
 #ifdef _FABM_MASK_
+   ! Set spatial mask
    public fabm_set_mask
 #endif
+
+   ! For backward compatibility only (use fabm_do_surface and fabm_do_bottom instead)
+   public fabm_get_surface_exchange, fabm_do_benthos
 
 ! !PUBLIC TYPES:
 !
@@ -108,9 +120,9 @@
 
    ! Subroutine calculating local temporal derivatives of bottom layer (benthos & pelagic)
    ! either as a right-hand side vector, or production/destruction matrices.
-   interface fabm_do_benthos
-      module procedure fabm_do_benthos_rhs
-      module procedure fabm_do_benthos_ppdd
+   interface fabm_do_bottom
+      module procedure fabm_do_bottom_rhs
+      module procedure fabm_do_bottom_ppdd
    end interface
 
    interface fabm_link_data
@@ -171,6 +183,15 @@
       module procedure fabm_is_bulk_variable_used
       module procedure fabm_is_horizontal_variable_used
       module procedure fabm_is_scalar_variable_used
+   end interface
+
+   ! For backward compatibility only:
+   interface fabm_do_benthos
+      module procedure fabm_do_bottom_rhs
+      module procedure fabm_do_bottom_ppdd
+   end interface
+   interface fabm_get_surface_exchange
+      module procedure fabm_do_surface
    end interface
 !
 ! !PRIVATE DATA MEMBERS:
@@ -769,22 +790,22 @@
 
    ! Allocate arrays for diagnostic variables defined on the full domain and on horizontonal slices.
    allocate(root%environment%diag   (_PREARG_LOCATION_ size(root%info%diagnostic_variables)))
-   allocate(root%environment%diag_hz(_PREARG_LOCATION_HZ_ size(root%info%diagnostic_variables_hz)))
+   allocate(root%environment%diag_hz(_PREARG_LOCATION_HZ_ size(root%info%horizontal_diagnostic_variables)))
 
    ! Initialize diagnostic variables to missing value.
    do ivar=1,size(root%info%diagnostic_variables)
       root%environment%diag(_PREARG_LOCATION_DIMENSIONS_ ivar) = root%info%diagnostic_variables(ivar)%missing_value
    end do
-   do ivar=1,size(root%info%diagnostic_variables_hz)
-      root%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar) = root%info%diagnostic_variables_hz(ivar)%missing_value
+   do ivar=1,size(root%info%horizontal_diagnostic_variables)
+      root%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar) = root%info%horizontal_diagnostic_variables(ivar)%missing_value
    end do
 
    ! If diagnostic variables also appear as dependency, send the corresponding array slice for generic read-only access.
    do ivar=1,size(root%info%diagnostic_variables)
       call fabm_link_bulk_data(root,root%info%diagnostic_variables(ivar)%globalid,root%environment%diag(_PREARG_LOCATION_DIMENSIONS_ ivar))
    end do
-   do ivar=1,size(root%info%diagnostic_variables_hz)
-      call fabm_link_horizontal_data(root,root%info%diagnostic_variables_hz(ivar)%globalid,root%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar))
+   do ivar=1,size(root%info%horizontal_diagnostic_variables)
+      call fabm_link_horizontal_data(root,root%info%horizontal_diagnostic_variables(ivar)%globalid,root%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar))
    end do
 
    end subroutine fabm_set_domain
@@ -800,8 +821,8 @@
    subroutine fabm_set_mask(root, mask)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,               intent(inout) :: root
-   _FABM_MASK_TYPE_,target,intent(in) _ATTR_LOCATION_DIMENSIONS_ :: mask
+   type (type_model),target,intent(inout)                            :: root
+   _FABM_MASK_TYPE_, target,intent(in)    _ATTR_LOCATION_DIMENSIONS_ :: mask
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -835,7 +856,7 @@
 !
 ! !LOCAL VARIABLES:
   _CLASS_ (type_model_info),           pointer :: info
-  type (type_bulk_variable_link),           pointer :: link
+  type (type_bulk_variable_link),      pointer :: link
   type (type_horizontal_variable_link),pointer :: horizontal_link
   type (type_scalar_variable_link),    pointer :: scalar_link
   logical                                      :: ready
@@ -939,6 +960,153 @@
    end select
 
    end subroutine init_model
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initialize the model state (pelagic).
+!
+! !INTERFACE:
+   subroutine fabm_initialize_state(root _ARG_LOCATION_ND_)
+!
+! !INPUT PARAMETERS:
+   type (type_model),      intent(inout) :: root
+   _DECLARE_LOCATION_ARG_ND_
+!
+! !LOCAL PARAMETERS:
+   integer                               :: ivar
+   type (type_model), pointer            :: model
+   real(rk)                              :: initial_value
+   type (type_bulk_data_pointer)         :: p
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#define _INPUT_ARGS_INITIALIZE_STATE_ _ARGUMENTS_ND_IN_
+
+   do ivar=1,size(root%info%state_variables)
+      ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
+      p = root%info%state_variables(ivar)%globalid%p
+      initial_value = root%info%state_variables(ivar)%initial_value
+      _LOOP_BEGIN_EX_(root%environment)
+         _SET_EX_(p,initial_value)
+      _LOOP_END_
+   end do
+
+   ! Enumerate all non-container models in the model tree, and allow them to initialize their state.
+   model => root%nextmodel
+   do while (associated(model))
+      select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%initialize_state(_INPUT_ARGS_INITIALIZE_STATE_)
+#endif
+      end select
+      model => model%nextmodel
+   end do
+
+   end subroutine fabm_initialize_state
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initialize the bottom model state.
+!
+! !INTERFACE:
+   subroutine fabm_initialize_bottom_state(root _ARG_LOCATION_VARS_HZ_)
+!
+! !INPUT PARAMETERS:
+   type (type_model), intent(inout) :: root
+   _DECLARE_LOCATION_ARG_HZ_
+!
+! !LOCAL PARAMETERS:
+   integer                               :: ivar
+   type (type_model), pointer            :: model
+   real(rk)                              :: initial_value
+   type (type_horizontal_data_pointer)   :: p
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#define _INPUT_ARGS_INITIALIZE_BOTTOM_STATE_ _ARGUMENTS_IN_HZ_
+
+   ! Initialize bottom variables
+   do ivar=1,size(root%info%bottom_state_variables)
+      p = root%info%bottom_state_variables(ivar)%globalid%p
+      initial_value = root%info%bottom_state_variables(ivar)%initial_value
+      _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
+         _SET_HORIZONTAL_EX_(p,initial_value)
+      _HORIZONTAL_LOOP_END_
+   end do
+
+   ! Enumerate all non-container models in the model tree, and allow them to initialize their state.
+   model => root%nextmodel
+   do while (associated(model))
+      select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%initialize_bottom_state(_INPUT_ARGS_INITIALIZE_BOTTOM_STATE_)
+#endif
+      end select
+      model => model%nextmodel
+   end do
+
+   end subroutine fabm_initialize_bottom_state
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initialize the surface model state.
+!
+! !INTERFACE:
+   subroutine fabm_initialize_surface_state(root _ARG_LOCATION_VARS_HZ_)
+!
+! !INPUT PARAMETERS:
+   type (type_model),      intent(inout) :: root
+   _DECLARE_LOCATION_ARG_HZ_
+!
+! !LOCAL PARAMETERS:
+   integer                               :: ivar
+   type (type_model), pointer            :: model
+   real(rk)                              :: initial_value
+   type (type_horizontal_data_pointer)   :: p
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#define _INPUT_ARGS_INITIALIZE_SURFACE_STATE_ _ARGUMENTS_IN_HZ_
+
+   ! Initialize surface variables
+   do ivar=1,size(root%info%surface_state_variables)
+      p = root%info%surface_state_variables(ivar)%globalid%p
+      initial_value = root%info%surface_state_variables(ivar)%initial_value
+      _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
+         _SET_HORIZONTAL_EX_(p,initial_value)
+      _HORIZONTAL_LOOP_END_
+   end do
+
+   ! Enumerate all non-container models in the model tree, and allow them to initialize their state.
+   model => root%nextmodel
+   do while (associated(model))
+      select case (model%id)
+#ifdef _FABM_F2003_
+         case (model_f2003_id)
+            call model%info%initialize_surface_state(_INPUT_ARGS_INITIALIZE_SURFACE_STATE_)
+#endif
+      end select
+      model => model%nextmodel
+   end do
+
+   end subroutine fabm_initialize_surface_state
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1370,6 +1538,14 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#if defined(DEBUG)&&_FABM_DIMENSION_COUNT_>0
+   do i=1,size(shape(dat))
+      if (size(dat,i)/=size(model%environment%diag,i)) then
+         call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match.')
+      end if
+   end do
+#endif
+
    do i=1,size(id%alldata)
       id%alldata(i)%p%p => dat
    end do
@@ -1466,6 +1642,16 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifdef DEBUG
+#ifndef _FABM_HORIZONTAL_IS_SCALAR_
+   do i=1,size(shape(dat))
+      if (size(dat,i)/=size(model%environment%diag,i)) then
+         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
+      end if
+   end do
+#endif
+#endif
+
    do i=1,size(id%alldata)
       id%alldata(i)%p%p => dat
    end do
@@ -1677,7 +1863,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call fabm_link_horizontal_data(model,model%info%state_variables_ben(id)%globalid,dat)
+   call fabm_link_horizontal_data(model,model%info%bottom_state_variables(id)%globalid,dat)
 
    end subroutine fabm_link_bottom_state_data
 !EOC
@@ -1730,7 +1916,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve a pointer to the array holding the requested data.
-   dat => model%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ model%info%diagnostic_variables_hz(id)%globalid%write_index)
+   dat => model%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ model%info%horizontal_diagnostic_variables(id)%globalid%write_index)
 
    end function fabm_get_horizontal_diagnostic_data
 !EOC
@@ -1759,7 +1945,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_RHS_ _FABM_ARGS_ND_IN_,dy
+#define _INPUT_ARGS_DO_RHS_ _ARGUMENTS_ND_IN_,dy
 
    ! Ensure that this subroutine is called on the root of the model tree only.
    if (associated(root%parent)) &
@@ -1826,7 +2012,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_PPDD_ _FABM_ARGS_ND_IN_,pp,dd
+#define _INPUT_ARGS_DO_PPDD_ _ARGUMENTS_ND_IN_,pp,dd
 
    ! Enumerate all non-container models in the tree.
    model => root%nextmodel
@@ -1875,15 +2061,17 @@
 ! !LOCAL PARAMETERS:
    integer                               :: ivar
    type (type_model), pointer            :: model
-   real(rk)                              :: val
+   real(rk)                              :: value,minimum,maximum
    character(len=256)                    :: err
+   type (type_bulk_data_pointer)         :: p
+   type (type_horizontal_data_pointer)   :: p_hz
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_CHECK_STATE_ _FABM_ARGS_ND_IN_,repair,valid
+#define _INPUT_ARGS_CHECK_STATE_ _ARGUMENTS_ND_IN_,repair,valid
 
    valid = .true.
 
@@ -1915,68 +2103,77 @@
    ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
    ! This is always done, independently of any model-specific checks that may have been called above.
 
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_EX_(root%environment)
-
    ! Check boundaries for pelagic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
    do ivar=1,size(root%info%state_variables)
-      _GET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid%p,val)
-      if (val<root%info%state_variables(ivar)%minimum) then
-         ! State variable value lies below prescribed minimum.
-         valid = .false.
-         if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables(ivar)%name), &
-                                                       & ' below minimum value ',root%info%state_variables(ivar)%minimum
-            call log_message(err)
-            return
+      ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
+      p = root%info%state_variables(ivar)%globalid%p
+      minimum = root%info%state_variables(ivar)%minimum
+      maximum = root%info%state_variables(ivar)%maximum
+
+      _LOOP_BEGIN_EX_(root%environment)
+         _GET_STATE_EX_(root%environment,p,value)
+         if (value<minimum) then
+            ! State variable value lies below prescribed minimum.
+            valid = .false.
+            if (.not.repair) then
+               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(root%info%state_variables(ivar)%name), &
+                                                          & ' below minimum value ',minimum
+               call log_message(err)
+               return
+            end if
+            _SET_STATE_EX_(root%environment,p,minimum)
+         elseif (value>maximum) then
+            ! State variable value exceeds prescribed maximum.
+            valid = .false.
+            if (.not.repair) then
+               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(root%info%state_variables(ivar)%name), &
+                                                          & ' above maximum value ',maximum
+               call log_message(err)
+               return
+            end if
+            _SET_STATE_EX_(root%environment,p,maximum)
          end if
-         _SET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid%p,root%info%state_variables(ivar)%minimum)
-      elseif (val>root%info%state_variables(ivar)%maximum) then
-         ! State variable value exceeds prescribed maximum.
-         valid = .false.
-         if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ',trim(root%info%state_variables(ivar)%name), &
-                                                       & ' above maximum value ',root%info%state_variables(ivar)%maximum
-            call log_message(err)
-            return
-         end if
-         _SET_STATE_EX_(root%environment,root%info%state_variables(ivar)%globalid%p,root%info%state_variables(ivar)%maximum)
-      end if
+      _LOOP_END_
    end do
 
    ! Check boundaries for benthic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
-   do ivar=1,size(root%info%state_variables_ben)
-      _GET_STATE_BEN_EX_(root%environment,root%info%state_variables_ben(ivar)%globalid%p,val)
-      if (val<root%info%state_variables_ben(ivar)%minimum) then
-         ! State variable value lies below prescribed minimum.
-         valid = .false.
-         if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ', &
-                                                       & trim(root%info%state_variables_ben(ivar)%name), &
-                                                       & ' below minimum value ',root%info%state_variables_ben(ivar)%minimum
-            call log_message(err)
-            return
+   do ivar=1,size(root%info%bottom_state_variables)
+      ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
+      p_hz = root%info%bottom_state_variables(ivar)%globalid%p
+      minimum = root%info%bottom_state_variables(ivar)%minimum
+      maximum = root%info%bottom_state_variables(ivar)%maximum
+
+      _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
+       _GET_STATE_BEN_EX_(root%environment,p_hz,value)
+         if (value<minimum) then
+            ! State variable value lies below prescribed minimum.
+            valid = .false.
+            if (.not.repair) then
+               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
+                                                          & trim(root%info%bottom_state_variables(ivar)%name), &
+                                                          & ' below minimum value ',minimum
+               call log_message(err)
+               return
+            end if
+            _SET_STATE_BEN_EX_(root%environment,p_hz,minimum)
+         elseif (value>maximum) then
+            ! State variable value exceeds prescribed maximum.
+            valid = .false.
+            if (.not.repair) then
+               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
+                                                          & trim(root%info%bottom_state_variables(ivar)%name), &
+                                                          & ' above maximum value ',maximum
+               call log_message(err)
+               return
+            end if
+            _SET_STATE_BEN_EX_(root%environment,p_hz,maximum)
          end if
-         _SET_STATE_BEN_EX_(root%environment,root%info%state_variables_ben(ivar)%globalid%p,root%info%state_variables_ben(ivar)%minimum)
-      elseif (val>root%info%state_variables_ben(ivar)%maximum) then
-         ! State variable value exceeds prescribed maximum.
-         valid = .false.
-         if (.not.repair) then
-            write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',val,' of variable ', &
-                                                       & trim(root%info%state_variables_ben(ivar)%name), &
-                                                       & ' above maximum value ',root%info%state_variables_ben(ivar)%maximum
-            call log_message(err)
-            return
-         end if
-         _SET_STATE_BEN_EX_(root%environment,root%info%state_variables_ben(ivar)%globalid%p,root%info%state_variables_ben(ivar)%maximum)
-      end if
+      _HORIZONTAL_LOOP_END_
    end do
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
    end subroutine fabm_check_state
 !EOC
 
@@ -1988,7 +2185,7 @@
 ! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
-   subroutine fabm_get_surface_exchange(root _ARG_LOCATION_VARS_HZ_,flux)
+   subroutine fabm_do_surface(root _ARG_LOCATION_VARS_HZ_,flux)
 !
 ! !INPUT PARAMETERS:
    type (type_model), intent(inout) :: root
@@ -2004,14 +2201,14 @@
    type (type_model), pointer       :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_SURFACE_EXCHANGE_ _FABM_ARGS_IN_HZ_,flux
+#define _INPUT_ARGS_GET_SURFACE_EXCHANGE_ _ARGUMENTS_IN_HZ_,flux
    flux = _ZERO_
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
 #ifdef _FABM_F2003_
          case (model_f2003_id)
-            call model%info%get_surface_exchange(_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
+            call model%info%do_surface(_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
 #endif
          case (pml_carbonate_id)
             call pml_carbonate_get_surface_exchange(model%pml_carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
@@ -2026,7 +2223,7 @@
       model => model%nextmodel
    end do
 
-   end subroutine fabm_get_surface_exchange
+   end subroutine fabm_do_surface
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2039,7 +2236,7 @@
 ! Positive values denote state variable increases, negative values state variable decreases.
 !
 ! !INTERFACE:
-   subroutine fabm_do_benthos_rhs(root _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
+   subroutine fabm_do_bottom_rhs(root _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
 !
 ! !INPUT PARAMETERS:
    type (type_model),         intent(inout)    :: root
@@ -2055,14 +2252,14 @@
    type (type_model), pointer               :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_RHS_ _FABM_ARGS_IN_HZ_,flux_pel,flux_ben
+#define _INPUT_ARGS_DO_BENTHOS_RHS_ _ARGUMENTS_IN_HZ_,flux_pel,flux_ben
 
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
 #ifdef _FABM_F2003_
          case (model_f2003_id)
-            call model%info%do_benthos(_INPUT_ARGS_DO_BENTHOS_RHS_)
+            call model%info%do_bottom(_INPUT_ARGS_DO_BENTHOS_RHS_)
 #endif
          case (examples_benthic_predator_id)
             call examples_benthic_predator_do_benthos(model%examples_benthic_predator,_INPUT_ARGS_DO_BENTHOS_RHS_)
@@ -2081,7 +2278,7 @@
       model => model%nextmodel
    end do
 
-   end subroutine fabm_do_benthos_rhs
+   end subroutine fabm_do_bottom_rhs
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2093,7 +2290,7 @@
 ! for the pelagic, and variable units/s for the benthos.
 !
 ! !INTERFACE:
-   subroutine fabm_do_benthos_ppdd(root _ARG_LOCATION_VARS_HZ_,pp,dd,benthos_offset)
+   subroutine fabm_do_bottom_ppdd(root _ARG_LOCATION_VARS_HZ_,pp,dd,benthos_offset)
 !
 ! !INPUT PARAMETERS:
    type (type_model),         intent(inout) :: root
@@ -2110,14 +2307,14 @@
    type (type_model), pointer               :: model
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_PPDD_ _FABM_ARGS_IN_HZ_,pp,dd,benthos_offset
+#define _INPUT_ARGS_DO_BENTHOS_PPDD_ _ARGUMENTS_IN_HZ_,pp,dd,benthos_offset
 
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)
 #ifdef _FABM_F2003_
          case (model_f2003_id)
-            call model%info%do_benthos_ppdd(_INPUT_ARGS_DO_BENTHOS_PPDD_)
+            call model%info%do_bottom_ppdd(_INPUT_ARGS_DO_BENTHOS_PPDD_)
 #endif
          ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
          ! or specifies bottom fluxes for its pelagic state variables.
@@ -2128,7 +2325,7 @@
       model => model%nextmodel
    end do
 
-   end subroutine fabm_do_benthos_ppdd
+   end subroutine fabm_do_bottom_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2156,18 +2353,18 @@
    integer                                  :: i
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _FABM_ARGS_ND_IN_,velocity
+#define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _ARGUMENTS_ND_IN_,velocity
 
    ! First set constant sinking rates.
    do i=1,size(root%info%state_variables)
       ! Enter spatial loops (if any)
-      _FABM_LOOP_BEGIN_EX_(root%environment)
+      _LOOP_BEGIN_EX_(root%environment)
 
       ! Use variable-specific constant vertical velocities.
       velocity _INDEX_VERTICAL_MOVEMENT_(root%info%state_variables(i)%globalid%state_index) = root%info%state_variables(i)%vertical_movement
 
       ! Leave spatial loops (if any)
-      _FABM_LOOP_END_
+      _LOOP_END_
    end do
 
    model => root%nextmodel
@@ -2214,7 +2411,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_LIGHT_EXTINCTION_ _FABM_ARGS_ND_IN_,extinction
+#define _INPUT_ARGS_GET_LIGHT_EXTINCTION_ _ARGUMENTS_ND_IN_,extinction
 
    extinction = _ZERO_
    model => root%nextmodel
@@ -2241,20 +2438,16 @@
          case default
             ! Default: use constant specific light extinction values specified in the state variable properties
 
-            ! Enter spatial loops (if any)
-            _FABM_LOOP_BEGIN_EX_(root%environment)
-
             ! Use variable-specific light extinction coefficients.
             do i=1,size(model%info%state_variables)
                curext = model%info%state_variables(i)%specific_light_extinction
                if (curext/=_ZERO_) then
-                  _GET_STATE_EX_(root%environment,model%info%state_variables(i)%globalid%p,val)
-                  _SET_EXTINCTION_(val*curext)
+                  _LOOP_BEGIN_EX_(root%environment)
+                     _GET_STATE_EX_(root%environment,model%info%state_variables(i)%globalid%p,val)
+                     _SET_EXTINCTION_(val*curext)
+                  _LOOP_END_
                end if
             end do
-
-            ! Enter spatial loops (if any)
-            _FABM_LOOP_END_
       end select
       model => model%nextmodel
    end do
@@ -2285,7 +2478,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_DRAG_ _FABM_ARGS_IN_HZ_,drag
+#define _INPUT_ARGS_GET_DRAG_ _ARGUMENTS_IN_HZ_,drag
 
    drag = _ONE_
    model => root%nextmodel
@@ -2334,7 +2527,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_ALBEDO_ _FABM_ARGS_IN_HZ_,albedo
+#define _INPUT_ARGS_GET_ALBEDO_ _ARGUMENTS_IN_HZ_,albedo
 
    albedo = _ZERO_
    model => root%nextmodel
@@ -2378,13 +2571,32 @@
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer               :: model
+   type (type_model), pointer                       :: model
+   integer                                          :: i
+   type (type_conserved_quantity_component),pointer :: component
+   real(rk),pointer _ATTR_LOCATION_DIMENSIONS_      :: p => null()
+   real(rk)                                         :: scale_factor
 
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_CONSERVED_QUANTITIES_ _FABM_ARGS_ND_IN_,sums
+#define _INPUT_ARGS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_ND_IN_,sums
 
    sums = _ZERO_
+
+#ifdef _FABM_F2003_
+   do i=1,size(root%info%conserved_quantities)
+      component => root%info%conserved_quantities(i)%components%first
+      do while (associated(component))
+         p => component%state%p
+         scale_factor = component%scale_factor
+         _LOOP_BEGIN_EX_(root%environment)
+            sums _INDEX_OUTPUT_1D_(i) = sums _INDEX_OUTPUT_1D_(i) + scale_factor*p _INDEX_LOCATION_
+         _LOOP_END_
+         component => component%next
+      end do
+   end do
+#endif
+
    model => root%nextmodel
    do while (associated(model))
       select case (model%id)

@@ -167,7 +167,7 @@
 ! !IROUTINE: Right hand sides of  model
 !
 ! !INTERFACE:
-   subroutine klimacampus_phy_feedback_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine klimacampus_phy_feedback_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 ! The sources and sinks of the PND model are calculated. Please note,
@@ -176,7 +176,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -188,7 +188,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
    _GET_(self%id_nut,nut) ! nutrient
@@ -216,7 +216,7 @@
    _SET_DIAGNOSTIC_(self%id_NFIX,mue_phy*phy)
 
 !  Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine klimacampus_phy_feedback_do
 !EOC
@@ -231,11 +231,11 @@
 ! leading to changes in light reflection and thus temperature.
 !
 ! !INTERFACE:
-   subroutine klimacampus_phy_feedback_get_albedo(self,_FABM_ARGS_GET_ALBEDO_)
+   subroutine klimacampus_phy_feedback_get_albedo(self,_ARGUMENTS_GET_ALBEDO_)
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_ALBEDO_
+   _DECLARE_ARGUMENTS_GET_ALBEDO_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -247,7 +247,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
    _GET_(self%id_phy,phys)                 ! surface phytoplankton
@@ -257,7 +257,7 @@
    _SET_ALBEDO_(self%albedo_bio*phys)
 
 !  Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine klimacampus_phy_feedback_get_albedo
 !EOC
@@ -272,11 +272,11 @@
 !  coefficient, leading to changes in the momentum flux.
 !
 ! !INTERFACE:
-   subroutine klimacampus_phy_feedback_get_drag(self,_FABM_ARGS_GET_DRAG_)
+   subroutine klimacampus_phy_feedback_get_drag(self,_ARGUMENTS_GET_DRAG_)
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_DRAG_
+   _DECLARE_ARGUMENTS_GET_DRAG_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -288,7 +288,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
    _GET_(self%id_phy,phys) ! surface phytoplankton
@@ -298,7 +298,7 @@
    _SCALE_DRAG_(max(_ONE_-self%drag_bio*phys,_ZERO_))
 
 !  Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine klimacampus_phy_feedback_get_drag
 !EOC
@@ -308,14 +308,14 @@
 ! !IROUTINE: Right hand sides of benthic_predator model
 !
 ! !INTERFACE:
-   subroutine klimacampus_phy_feedback_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine klimacampus_phy_feedback_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
 ! Detritus burial and nutrient restoring are considered to achieve a quasi-steady state.
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback), intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -326,7 +326,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
    _GET_(self%id_nut,nub)
@@ -336,7 +336,7 @@
    _SET_BOTTOM_EXCHANGE_(self%id_nut,(self%nbot-nub)/secs_pr_hour) !nutrient restoring
 
 !  Leave spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine klimacampus_phy_feedback_do_benthos
 !EOC
@@ -347,11 +347,11 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   subroutine klimacampus_phy_feedback_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   subroutine klimacampus_phy_feedback_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    type (type_klimacampus_phy_feedback), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+   _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -363,7 +363,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
 !  Retrieve current (local) state variable values.
    _GET_(self%id_nut,nut) ! nutrient
@@ -374,7 +374,7 @@
    _SET_CONSERVED_QUANTITY_(self%id_totN,nut+phy+det)
 
 !  Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine klimacampus_phy_feedback_get_conserved_quantities
 !EOC

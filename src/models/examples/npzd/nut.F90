@@ -16,7 +16,8 @@
 ! !USES:
    use fabm_types
    use fabm_driver
-   
+   use fabm_standard_variables, only:total_nitrogen
+
    implicit none
 
 !  default: all is private.
@@ -25,12 +26,13 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_examples_npzd_nut
 !     Variable identifiers
-      type (type_state_variable_id) :: id_n
-      
+      type (type_state_variable_id)     :: id_n
+      type (type_conserved_quantity_id) :: id_totN
+
       contains
-      
+
       procedure :: initialize
-      
+
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -67,6 +69,9 @@
    ! Register state variables
    call self%register_state_variable(self%id_n,'nut','mmol/m**3','nutrients',     &
                                 n_initial,minimum=0.0_rk,no_river_dilution=.true.)
+
+   call self%register_conserved_quantity(self%id_totN,total_nitrogen)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_n)
 
    return
 

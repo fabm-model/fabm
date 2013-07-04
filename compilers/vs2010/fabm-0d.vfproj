@@ -85,6 +85,8 @@
 		<Filter Name="examples">
 		<Filter Name="benthic_predator">
 		<File RelativePath="..\..\src\models\examples\benthic_predator\benthic_predator.F90"/></Filter>
+		<Filter Name="duplicator">
+		<File RelativePath="..\..\src\models\examples\duplicator\duplicator.F90"/></Filter>
 		<Filter Name="npzd">
 		<File RelativePath="..\..\src\models\examples\npzd\det.F90"/>
 		<File RelativePath="..\..\src\models\examples\npzd\nut.F90"/>
@@ -116,6 +118,7 @@
 		<File RelativePath="..\..\src\models\pml\ersem\ersem.F90"/></Filter></Filter></Filter>
 		<File RelativePath="..\..\src\fabm.F90"/>
 		<File RelativePath="..\..\src\fabm_library.F90"/>
+		<File RelativePath="..\..\src\fabm_properties.F90"/>
 		<File RelativePath="..\..\src\fabm_standard_variables.F90"/>
 		<File RelativePath="..\..\src\fabm_types.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

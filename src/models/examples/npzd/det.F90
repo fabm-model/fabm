@@ -12,11 +12,12 @@
 ! !DESCRIPTION:
 ! This model features a single detritus variable, characterized by a rate of decay (rdn)
 ! and a sinking rate. Mineralized detritus feeds into a dissolved mineral pool that must
-! be provided by an extenal model (e.g., fabm_examples_npzd_nut).
+! be provided by an external model (e.g., fabm_examples_npzd_nut).
 !
 ! !USES:
    use fabm_types
    use fabm_driver
+   use fabm_standard_variables, only:total_nitrogen
    
    implicit none
 
@@ -25,8 +26,9 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_examples_npzd_det
 !     Variable identifiers
-      type (type_state_variable_id) :: id_d
-      type (type_state_variable_id) :: id_mintarget
+      type (type_state_variable_id)     :: id_d
+      type (type_state_variable_id)     :: id_mintarget
+      type (type_conserved_quantity_id) :: id_totN
 
 !     Model parameters
       real(rk) :: rdn
@@ -95,6 +97,9 @@
    self%do_min = mineralisation_target_variable/=''
    if (self%do_min) call self%register_state_dependency(self%id_mintarget,mineralisation_target_variable)
 
+   call self%register_conserved_quantity(self%id_totN,total_nitrogen)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_d)
+
    return
 
 99 call fatal_error('examples_npzd_det_init','Error reading namelist examples_npzd_det')
@@ -108,11 +113,11 @@
 ! !IROUTINE: Right hand sides of Detritus model
 !
 ! !INTERFACE:
-   subroutine do(self,_FABM_ARGS_DO_RHS_)
+   subroutine do(self,_ARGUMENTS_DO_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_det), intent(in)     :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: d
@@ -120,7 +125,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_d,d) ! detritus
@@ -134,7 +139,7 @@
    end if
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine do
 !EOC
@@ -145,11 +150,11 @@
 ! !IROUTINE: Right hand sides of Detritus model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_det), intent(in)     :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: d
@@ -157,7 +162,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_d,d) ! detritus
@@ -173,7 +178,7 @@
    if (self%do_min) _SET_PP_(self%id_mintarget,self%id_mintarget,self%rdn*d)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine do_ppdd
 !EOC

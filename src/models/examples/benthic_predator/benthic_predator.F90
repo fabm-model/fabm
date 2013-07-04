@@ -110,7 +110,7 @@
 ! !IROUTINE: Right hand sides of benthic_predator model
 !
 ! !INTERFACE:
-   subroutine examples_benthic_predator_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine examples_benthic_predator_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
 ! This routine calculates the benthic sink and source terms, as well as
@@ -118,7 +118,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_examples_benthic_predator),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -129,7 +129,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_prey,prey)     ! prey density - pelagic
@@ -146,7 +146,7 @@
    _SET_BOTTOM_EXCHANGE_(self%id_nut,self%h*pred)
 
    ! Leave spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine examples_benthic_predator_do_benthos
 !EOC

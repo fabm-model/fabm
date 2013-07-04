@@ -136,4 +136,23 @@ module fabm_standard_variables
          'number_of_days_since_start_of_the_year', &
          'day')
 
+   ! ------------------------------------------------------------------------------------------
+   ! Conserved quantities
+   ! ------------------------------------------------------------------------------------------
+
+   type (type_bulk_standard_variable),parameter :: &
+
+      total_carbon = type_bulk_standard_variable( &
+         'total_carbon', &
+         'mmol m^-3'), &
+      total_nitrogen = type_bulk_standard_variable( &
+         'total_nitrogen', &
+         'mmol m^-3'), &
+      total_phosphorus = type_bulk_standard_variable( &
+         'total_phosphorus', &
+         'mmol m^-3'), &
+      total_iron = type_bulk_standard_variable( &
+         'total_iron', &
+         'umol m^-3')
+
 end module fabm_standard_variables

@@ -141,7 +141,7 @@ contains
 ! !IROUTINE: Right hand sides of carbonate system model
 !
 ! !INTERFACE:
-   subroutine pml_carbonate_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine pml_carbonate_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 !  Calculate carbonate system equilibrium from DIC and alkalinity, and
@@ -151,7 +151,7 @@ contains
 !
 ! !INPUT PARAMETERS:
    type (type_pml_carbonate),    intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
    ! Environment
@@ -162,7 +162,7 @@ contains
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Get environmental variables.
    _GET_(self%id_temp,temp)
@@ -200,7 +200,7 @@ contains
    if (self%alk_param) _SET_DIAGNOSTIC_(self%id_alk_diag,TA*dens*1.0e-3_rk)    ! from uEg/kg to mmol/m**3
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine pml_carbonate_do
 !EOC
@@ -211,14 +211,14 @@ contains
 ! !IROUTINE: Air-sea exchange for the carbonate system model
 !
 ! !INTERFACE:
-   subroutine pml_carbonate_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+   subroutine pml_carbonate_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
 !
 ! !DESCRIPTION:
 ! Calculate air -> sea CO2 flux.
 !
 ! !INPUT PARAMETERS:
    type (type_pml_carbonate), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
+   _DECLARE_ARGUMENTS_DO_SURFACE_
 !
 ! !LOCAL VARIABLES:
    ! Environment
@@ -236,7 +236,7 @@ contains
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    _GET_(self%id_temp,temp)
    _GET_(self%id_salt,salt)
@@ -273,7 +273,7 @@ contains
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_co2_flux,fl/secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine pml_carbonate_get_surface_exchange
 !EOC

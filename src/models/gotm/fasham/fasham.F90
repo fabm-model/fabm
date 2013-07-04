@@ -274,7 +274,7 @@
 ! !IROUTINE: Right hand sides of Fasham model
 !
 ! !INTERFACE:
-   subroutine gotm_fasham_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine gotm_fasham_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !
 ! !DESCRIPTION:
 ! The \cite{Fashametal1990} model consisting of the $I=7$
@@ -352,7 +352,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_fasham),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 ! !LOCAL VARIABLES:
    real(rk)            :: p,z,b,d,n,a,l,par
@@ -362,7 +362,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -409,7 +409,7 @@
    _SET_DIAGNOSTIC_(self%id_pp,secs_pr_day*ff*(n/self%k1+a/self%k2)/(1.0_rk+n/self%k1+a/self%k2))
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine gotm_fasham_do_ppdd
 !EOC
@@ -420,7 +420,7 @@
 ! !IROUTINE: Right hand sides of Fasham model
 !
 ! !INTERFACE:
-   pure subroutine gotm_fasham_do(self,_FABM_ARGS_DO_RHS_)
+   pure subroutine gotm_fasham_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 ! The \cite{Fashametal1990} model consisting of the $I=7$
@@ -498,7 +498,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_fasham),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
    real(rk)            :: p,z,b,d,n,a,l,par
@@ -509,7 +509,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -577,7 +577,7 @@
    _SET_DIAGNOSTIC_(self%id_pp,secs_pr_day*ff*(n/self%k1+a/self%k2)/(1.0_rk+n/self%k1+a/self%k2))
    
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine gotm_fasham_do
 !EOC
@@ -589,11 +589,11 @@
 ! variables
 !
 ! !INTERFACE:
-   pure subroutine gotm_fasham_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   pure subroutine gotm_fasham_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_fasham), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !LOCAL VARIABLES:
    real(rk) :: p
@@ -602,7 +602,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -611,7 +611,7 @@
    _SET_EXTINCTION_(self%kc*(self%p0+p))
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
    
    end subroutine gotm_fasham_get_light_extinction
 !EOC
@@ -622,11 +622,11 @@
 ! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
 !
 ! !INTERFACE:
-   pure subroutine gotm_fasham_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+   pure subroutine gotm_fasham_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
 !
 ! !INPUT PARAMETERS:
    type (type_gotm_fasham), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+   _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
 !
 ! !LOCAL VARIABLES:
    real(rk) :: p,z,b,d,n,a,l
@@ -635,7 +635,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -650,7 +650,7 @@
    _SET_CONSERVED_QUANTITY_(self%id_totN,p+z+b+d+n+a+l)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine gotm_fasham_get_conserved_quantities
 !EOC

@@ -61,7 +61,6 @@
    namelist /examples_duplicator/ model,number,configfile,parameter,minimum,maximum
    
    integer :: i
-   class (type_base_model),pointer :: current
    character(len=64) :: instancename
    integer, parameter :: childunit = 10000
 !EOP

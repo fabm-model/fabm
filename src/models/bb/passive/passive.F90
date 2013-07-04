@@ -105,23 +105,23 @@
 ! !IROUTINE: Air-sea exchange for the passive tracer model
 !
 ! !INTERFACE:
-   subroutine get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+   subroutine get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
 !
 ! !INPUT PARAMETERS:
    class (type_bb_passive), intent(in)    :: self
-   _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
+   _DECLARE_ARGUMENTS_DO_SURFACE_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    ! Transfer surface exchange value to FABM.
    _SET_SURFACE_EXCHANGE_(self%id_tracer,self%surface_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine get_surface_exchange
 !EOC

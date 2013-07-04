@@ -15,7 +15,8 @@
 ! !USES:
    use fabm_types
    use fabm_driver
-   
+   use fabm_standard_variables, only:total_nitrogen
+
    implicit none
 
 !  default: all is private.
@@ -141,7 +142,8 @@
                                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
-!KB   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen')
+   call self%register_conserved_quantity(self%id_totN,total_nitrogen)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_p)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par, varname_par)
@@ -160,21 +162,21 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine do(self,_FABM_ARGS_DO_RHS_)
+   subroutine do(self,_ARGUMENTS_DO_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_phy), intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: n,p,par,I_0
-   real(rk)                   :: iopt,rpd,primprod,dn
+   real(rk)                   :: iopt,rpd,primprod
    real(rk), parameter        :: secs_pr_day = 86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p)         ! phytoplankton
@@ -219,7 +221,7 @@
    _SET_DIAGNOSTIC_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine do
 !EOC
@@ -231,11 +233,11 @@
 ! variables
 !
 ! !INTERFACE:
-   subroutine get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_phy), intent(in)     :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !LOCAL VARIABLES:
    real(rk)                     :: p
@@ -244,7 +246,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -253,7 +255,7 @@
    _SET_EXTINCTION_(self%kc*(self%p0+p))
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine get_light_extinction
 !EOC
@@ -264,24 +266,24 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+   subroutine do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_phy), intent(in)     :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: n,p,par,I_0
-   real(rk)                   :: iopt,rpd,dn,primprod
+   real(rk)                   :: iopt,rpd,primprod
    real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p)         ! phytoplankton
@@ -339,7 +341,7 @@
    _SET_DIAGNOSTIC_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine do_ppdd
 !EOC

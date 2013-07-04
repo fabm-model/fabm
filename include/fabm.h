@@ -181,6 +181,9 @@
 #endif 
 
 ! Constants related to floating point precision; used throughout FABM.
+#undef REALTYPE
+#undef _ZERO_
+#undef _ONE_
 #define REALTYPE real(rk)
 #define _ZERO_ 0._rk
 #define _ONE_  1._rk
@@ -273,11 +276,11 @@
 
 ! Beginning and end of spatial loop
 #ifdef _FABM_MASK_
-#define _FABM_LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop;if (_FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)) then
-#define _FABM_LOOP_END_ end if;end do
+#define _LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop;if (_FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)) then
+#define _LOOP_END_ end if;end do
 #else
-#define _FABM_LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop
-#define _FABM_LOOP_END_ end do
+#define _LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop
+#define _LOOP_END_ end do
 #endif
 
 ! Dimensionality of generic space-dependent arguments.
@@ -303,8 +306,8 @@
 #define _DECLARE_LOCATION_ARG_ND_ _DECLARE_LOCATION_ARG_
 
 ! Beginning and end of spatial loop
-#define _FABM_LOOP_BEGIN_EX_(environment)
-#define _FABM_LOOP_END_
+#define _LOOP_BEGIN_EX_(environment)
+#define _LOOP_END_
 
 ! Dimensionality of generic space-dependent arguments.
 #define _ATTR_DIMENSIONS_0_
@@ -318,7 +321,7 @@
 
 #endif
 
-#define _FABM_LOOP_BEGIN_ _FABM_LOOP_BEGIN_EX_(environment)
+#define _LOOP_BEGIN_ _LOOP_BEGIN_EX_(environment)
 
 #ifdef _FABM_USE_1D_LOOP_IN_HORIZONTAL_
 
@@ -330,8 +333,8 @@
 #define _DECLARE_LOCATION_ARG_HZ_ _DECLARE_LOCATION_ARG_ND_
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
-#define _FABM_HORIZONTAL_LOOP_BEGIN_ _FABM_LOOP_BEGIN_
-#define _FABM_HORIZONTAL_LOOP_END_ _FABM_LOOP_END_
+#define _HORIZONTAL_LOOP_BEGIN_EX_(environment) _LOOP_BEGIN_EX_(environment)
+#define _HORIZONTAL_LOOP_END_ _LOOP_END_
 
 ! Vertical dimension is not among those vectorized:
 ! dimensionality of horizontal arrays will be equal to that of full domain arrays.
@@ -352,8 +355,8 @@
 #define _DECLARE_LOCATION_ARG_HZ_ _DECLARE_LOCATION_ARG_
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
-#define _FABM_HORIZONTAL_LOOP_BEGIN_
-#define _FABM_HORIZONTAL_LOOP_END_
+#define _HORIZONTAL_LOOP_BEGIN_EX_(environment)
+#define _HORIZONTAL_LOOP_END_
 
 #define _ATTR_DIMENSIONS_0_HZ_
 #define _ATTR_DIMENSIONS_1_HZ_ ,dimension(:)
@@ -363,6 +366,8 @@
 #define _INDEX_HZ_OUTPUT_1D_(index) (index)
 
 #endif
+
+#define _HORIZONTAL_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_EX_(environment)
 
 ! Expressions for indexing space-dependent FABM variables defined on the full spatial domain.
 ! These may be overridden by the host-specific driver (if it needs another order of dimensions).
@@ -387,38 +392,68 @@
 #endif
 
 ! For FABM: standard arguments used in calling biogeochemical routines.
-#define _FABM_ARGS_ND_IN_ root%environment _ARG_LOCATION_ND_
-#define _FABM_ARGS_IN_HZ_ root%environment _ARG_LOCATION_VARS_HZ_
+#define _ARGUMENTS_ND_IN_ root%environment _ARG_LOCATION_ND_
+#define _ARGUMENTS_IN_HZ_ root%environment _ARG_LOCATION_VARS_HZ_
 
 ! For BGC models: FABM arguments to routines implemented by biogeochemical models.
-#define _FABM_ARGS_ND_ environment _ARG_LOCATION_ND_
-#define _FABM_ARGS_HZ_ environment _ARG_LOCATION_VARS_HZ_
-#define _FABM_ARGS_DO_RHS_ _FABM_ARGS_ND_,rhs
-#define _FABM_ARGS_DO_PPDD_ _FABM_ARGS_ND_,pp,dd
-#define _FABM_ARGS_DO_BENTHOS_RHS_ _FABM_ARGS_HZ_,flux_pel,flux_ben
-#define _FABM_ARGS_DO_BENTHOS_PPDD_ _FABM_ARGS_HZ_,pp,dd,benthos_offset
-#define _FABM_ARGS_GET_EXTINCTION_ _FABM_ARGS_ND_,extinction
-#define _FABM_ARGS_GET_DRAG_ _FABM_ARGS_HZ_,drag
-#define _FABM_ARGS_GET_ALBEDO_ _FABM_ARGS_HZ_,albedo
-#define _FABM_ARGS_GET_VERTICAL_MOVEMENT_ _FABM_ARGS_ND_,velocity
-#define _FABM_ARGS_GET_CONSERVED_QUANTITIES_ _FABM_ARGS_ND_,sums
-#define _FABM_ARGS_GET_SURFACE_EXCHANGE_ _FABM_ARGS_HZ_,flux
-#define _FABM_ARGS_CHECK_STATE_ _FABM_ARGS_ND_,repair,valid
+#define _ARGUMENTS_ND_ environment _ARG_LOCATION_ND_
+#define _ARGUMENTS_HZ_ environment _ARG_LOCATION_VARS_HZ_
+#define _ARGUMENTS_DO_ _ARGUMENTS_ND_,rhs
+#define _ARGUMENTS_DO_PPDD_ _ARGUMENTS_ND_,pp,dd
+#define _ARGUMENTS_DO_SURFACE_ _ARGUMENTS_HZ_,flux
+#define _ARGUMENTS_DO_BOTTOM_ _ARGUMENTS_HZ_,flux_pel,flux_ben
+#define _ARGUMENTS_DO_BOTTOM_PPDD_ _ARGUMENTS_HZ_,pp,dd,benthos_offset
+#define _ARGUMENTS_GET_VERTICAL_MOVEMENT_ _ARGUMENTS_ND_,velocity
+#define _ARGUMENTS_GET_EXTINCTION_ _ARGUMENTS_ND_,extinction
+#define _ARGUMENTS_GET_DRAG_ _ARGUMENTS_HZ_,drag
+#define _ARGUMENTS_GET_ALBEDO_ _ARGUMENTS_HZ_,albedo
+#define _ARGUMENTS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_ND_,sums
+#define _ARGUMENTS_CHECK_STATE_ _ARGUMENTS_ND_,repair,valid
+#define _ARGUMENTS_INITIALIZE_STATE_ _ARGUMENTS_ND_
+#define _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_HZ_
 
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
-#define _DECLARE_FABM_ARGS_ND_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_ND_
-#define _DECLARE_FABM_ARGS_HZ_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_HZ_
-#define _DECLARE_FABM_ARGS_DO_RHS_  _DECLARE_FABM_ARGS_ND_;real(rk) _ATTR_DIMENSIONS_1_,intent(inout) :: rhs
-#define _DECLARE_FABM_ARGS_DO_PPDD_ _DECLARE_FABM_ARGS_ND_;real(rk) _ATTR_DIMENSIONS_2_,intent(inout) :: pp,dd
-#define _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_ _DECLARE_FABM_ARGS_HZ_;real(rk) _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux_pel,flux_ben
-#define _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_ _DECLARE_FABM_ARGS_HZ_;real(rk) _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
-#define _DECLARE_FABM_ARGS_GET_EXTINCTION_ _DECLARE_FABM_ARGS_ND_;real(rk) _ATTR_DIMENSIONS_0_,intent(inout) :: extinction
-#define _DECLARE_FABM_ARGS_GET_DRAG_ _DECLARE_FABM_ARGS_HZ_;real(rk) _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: drag
-#define _DECLARE_FABM_ARGS_GET_ALBEDO_ _DECLARE_FABM_ARGS_HZ_;real(rk) _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: albedo
-#define _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_ _DECLARE_FABM_ARGS_ND_;real(rk) _ATTR_DIMENSIONS_1_,intent(inout) :: velocity
-#define _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_ _DECLARE_FABM_ARGS_ND_;real(rk) _ATTR_DIMENSIONS_1_,intent(inout) :: sums
-#define _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_FABM_ARGS_HZ_;real(rk) _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux
-#define _DECLARE_FABM_ARGS_CHECK_STATE_ _DECLARE_FABM_ARGS_ND_;logical,intent(in) :: repair;logical,intent(inout) :: valid
+#define _DECLARE_ARGUMENTS_ND_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_ND_
+#define _DECLARE_ARGUMENTS_HZ_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_HZ_
+#define _DECLARE_ARGUMENTS_DO_  _DECLARE_ARGUMENTS_ND_;real(rk) _ATTR_DIMENSIONS_1_,intent(inout) :: rhs
+#define _DECLARE_ARGUMENTS_DO_PPDD_ _DECLARE_ARGUMENTS_ND_;real(rk) _ATTR_DIMENSIONS_2_,intent(inout) :: pp,dd
+#define _DECLARE_ARGUMENTS_DO_BOTTOM_ _DECLARE_ARGUMENTS_HZ_;real(rk) _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux_pel,flux_ben
+#define _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_ _DECLARE_ARGUMENTS_HZ_;real(rk) _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
+#define _DECLARE_ARGUMENTS_DO_SURFACE_ _DECLARE_ARGUMENTS_HZ_;real(rk) _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux
+#define _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ _DECLARE_ARGUMENTS_ND_;real(rk) _ATTR_DIMENSIONS_1_,intent(inout) :: velocity
+#define _DECLARE_ARGUMENTS_GET_EXTINCTION_ _DECLARE_ARGUMENTS_ND_;real(rk) _ATTR_DIMENSIONS_0_,intent(inout) :: extinction
+#define _DECLARE_ARGUMENTS_GET_DRAG_ _DECLARE_ARGUMENTS_HZ_;real(rk) _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: drag
+#define _DECLARE_ARGUMENTS_GET_ALBEDO_ _DECLARE_ARGUMENTS_HZ_;real(rk) _ATTR_DIMENSIONS_0_HZ_,intent(inout) :: albedo
+#define _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_ND_;real(rk) _ATTR_DIMENSIONS_1_,intent(inout) :: sums
+#define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_ND_;logical,intent(in) :: repair;logical,intent(inout) :: valid
+#define _DECLARE_ARGUMENTS_INITIALIZE_STATE_ _DECLARE_ARGUMENTS_ND_
+#define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HZ_
+
+! For backward compatibility (pre 20 June 2013)
+#define _FABM_ARGS_DO_RHS_ _ARGUMENTS_DO_
+#define _FABM_ARGS_DO_PPDD_ _ARGUMENTS_DO_PPDD_
+#define _FABM_ARGS_DO_BENTHOS_RHS_ _ARGUMENTS_DO_BOTTOM_
+#define _FABM_ARGS_DO_BENTHOS_PPDD_ _ARGUMENTS_DO_BOTTOM_PPDD_
+#define _FABM_ARGS_GET_SURFACE_EXCHANGE_ _ARGUMENTS_DO_SURFACE_
+#define _FABM_ARGS_GET_EXTINCTION_ _ARGUMENTS_GET_EXTINCTION_
+#define _FABM_ARGS_GET_DRAG_ _ARGUMENTS_GET_DRAG_
+#define _FABM_ARGS_GET_ALBEDO_ _ARGUMENTS_GET_ALBEDO_
+#define _FABM_ARGS_GET_VERTICAL_MOVEMENT_ _ARGUMENTS_GET_VERTICAL_MOVEMENT_
+#define _FABM_ARGS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_GET_CONSERVED_QUANTITIES_
+#define _FABM_ARGS_CHECK_STATE_ _ARGUMENTS_CHECK_STATE_
+
+! For backward compatibility (pre 20 June 2013)
+#define _DECLARE_FABM_ARGS_DO_RHS_  _DECLARE_ARGUMENTS_DO_
+#define _DECLARE_FABM_ARGS_DO_PPDD_ _DECLARE_ARGUMENTS_DO_PPDD_
+#define _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_ _DECLARE_ARGUMENTS_DO_SURFACE_
+#define _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_ _DECLARE_ARGUMENTS_DO_BOTTOM_
+#define _DECLARE_FABM_ARGS_DO_BENTHOS_PPDD_ _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_
+#define _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_ _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
+#define _DECLARE_FABM_ARGS_GET_EXTINCTION_ _DECLARE_ARGUMENTS_GET_EXTINCTION_
+#define _DECLARE_FABM_ARGS_GET_DRAG_ _DECLARE_ARGUMENTS_GET_DRAG_
+#define _DECLARE_FABM_ARGS_GET_ALBEDO_ _DECLARE_ARGUMENTS_GET_ALBEDO_
+#define _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
+#define _DECLARE_FABM_ARGS_CHECK_STATE_ _DECLARE_ARGUMENTS_CHECK_STATE_
 
 ! Macros for declaring/accessing variable identifiers of arbitrary type.
 #define _TYPE_STATE_VARIABLE_ID_ type (type_state_variable_id)
@@ -481,8 +516,8 @@
 #define _SET_STATE_BEN_EX_(env,variable,value) _SET_HORIZONTAL_EX_(variable,value)
 #define _SET_DIAG_(variable,value) _SET_DIAGNOSTIC_(variable,value)
 #define _SET_DIAG_HZ_(variable,value) _SET_HORIZONTAL_DIAGNOSTIC_(variable,value)
-#define _FABM_HZ_LOOP_BEGIN_ _FABM_HORIZONTAL_LOOP_BEGIN_
-#define _FABM_HZ_LOOP_END_ _FABM_HORIZONTAL_LOOP_END_
+#define _FABM_HZ_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_
+#define _FABM_HZ_LOOP_END_ _HORIZONTAL_LOOP_END_
 
 ! Work-in-progress: extra definitions for coupling to pure-1D models [ERSEM]
 ! Currently these are GOTM-specific - more logic will be needed to set these to
@@ -490,10 +525,10 @@
 #define _DOMAIN_1D_ fabm_loop_start:fabm_loop_stop
 #define _GET_STATE_1D_(variable,target) target = environment%var(variable%dependencyid)%data(_DOMAIN_1D_)
 #define _GET_DEPENDENCY_1D_(variable,target) target = environment%var(variable)%data(_DOMAIN_1D_)
-#define _FABM_LOOP_BEGIN_1D_
-#define _FABM_LOOP_END_1D_
-#define _FABM_HORIZONTAL_LOOP_BEGIN_1D_
-#define _FABM_HORIZONTAL_LOOP_END_1D_
+#define _LOOP_BEGIN_1D_
+#define _LOOP_END_1D_
+#define _HORIZONTAL_LOOP_BEGIN_1D_
+#define _HORIZONTAL_LOOP_END_1D_
 #ifndef _INDEX_ODE_1D_
 #define _INDEX_ODE_1D_(variable) (1:fabm_loop_stop-fabm_loop_start+1,variable)
 #endif
@@ -511,3 +546,9 @@
 #define _SET_ODE_BEN_1D_(variable,value) flux_ben(variable%id) = flux_ben(variable%id) + (value)
 
 #define type_base_model type_model_info
+
+! For backward compatibility (pre 20 June 2013)
+#define _FABM_LOOP_BEGIN_ _LOOP_BEGIN_
+#define _FABM_LOOP_END_ _LOOP_END_
+#define _FABM_HORIZONTAL_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_
+#define _FABM_HORIZONTAL_LOOP_END_ _HORIZONTAL_LOOP_END_

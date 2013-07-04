@@ -301,7 +301,7 @@
 ! !IROUTINE: Right hand sides of ergom model
 !
 ! !INTERFACE:
-   subroutine iow_ergom_do(self,_FABM_ARGS_DO_RHS_)
+   subroutine iow_ergom_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 ! The right hand sides of the \cite{Neumannetal2002} biogeochemical model are
@@ -498,7 +498,7 @@
 !
 ! !INPUT PARAMETERS:
    type(type_iow_ergom), INTENT(IN) :: self
-  _DECLARE_FABM_ARGS_DO_RHS_
+  _DECLARE_ARGUMENTS_DO_
 !
 !
 ! !LOCAL VARIABLES:
@@ -511,7 +511,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !   Enter spatial_loops (if any)
-    _FABM_LOOP_BEGIN_
+    _LOOP_BEGIN_
 
 !   Retrieve current (local) state variable values
     _GET_(self%id_p1,p1) !diatoms
@@ -572,7 +572,7 @@
    _SET_DIAGNOSTIC_(self%id_NPR ,(r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30) - self%lpa*(p1+p2+p3))*secs_pr_day)
 
 !   Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    END subroutine iow_ergom_do
 !EOC
@@ -586,11 +586,11 @@
 ! !DESCRIPTION:
 
 ! !INTERFACE:
-   pure subroutine iow_ergom_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+   pure subroutine iow_ergom_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
    type (type_iow_ergom), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -601,7 +601,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p1,p1) ! diatoms
@@ -614,7 +614,7 @@
    _SET_EXTINCTION_(self%kc*(self%p10+self%p20+self%p30+p1+p2+p3+de))
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine iow_ergom_get_light_extinction
 !EOC
@@ -625,7 +625,7 @@
 ! !IROUTINE: Right hand sides of benthic_predator model
 !
 ! !INTERFACE:
-   subroutine iow_ergom_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+   subroutine iow_ergom_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
 ! This routine calculates the benthic sink and source terms, as well as
@@ -635,7 +635,7 @@
 !
 ! !INPUT PARAMETERS:
    type (type_iow_ergom),       intent(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
 !  Original author(s):
@@ -650,7 +650,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    if (self%fluff) then
@@ -696,7 +696,7 @@
    end if
 
    ! Leave spatial loops over the horizontal domain (if any).
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
    end subroutine iow_ergom_do_benthos
 !EOC
@@ -777,7 +777,7 @@
 ! !IROUTINE: Surface fluxes for the ergom model
 !
 ! !INTERFACE:
-  subroutine iow_ergom_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
+  subroutine iow_ergom_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
 !
 ! !DESCRIPTION:
 ! Here, those surface fluxes which have been read from a file are transformed
@@ -822,7 +822,7 @@
 ! !INPUT PARAMETERS:
   type(type_iow_ergom),intent(in)       ::self
 
-  _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
+  _DECLARE_ARGUMENTS_DO_SURFACE_
 
   real(rk)             :: temp,wnd,salt,o2,ni,am,po
   real(rk),parameter           :: secs_pr_day=86400.
@@ -836,7 +836,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    _GET_(self%id_temp,temp)
    _GET_(self%id_salt,salt)
@@ -874,7 +874,7 @@
    _SET_SURFACE_EXCHANGE_(self%id_am,self%sfl_am/secs_pr_day)
    _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po/secs_pr_day)
 
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
    end subroutine iow_ergom_get_surface_exchange
 !EOC
 

@@ -27,6 +27,9 @@ LDFLAGS		=
 ifndef FABMDIR
 FABMDIR := $(HOME)/FABM/fabm-git
 endif
+ifeq ($(wildcard $(FABMDIR)/src/fabm.F90),)
+$(error the directory FABMDIR=$(FABMDIR) is not a valid FABM directory)
+endif
 
 ifndef FABMHOST
 FABMHOST = gotm
