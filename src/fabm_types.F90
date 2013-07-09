@@ -668,7 +668,7 @@
    subroutine base_initialize(self,configunit)
       class (type_model_info),intent(inout),target :: self
       integer,                intent(in)           :: configunit
-      call fatal_error('base_initialize','derived model must implement the "initialize" subroutine.')
+      call fatal_error('base_initialize','derived model '//trim(self%name)//' must implement the "initialize" subroutine.')
    end subroutine base_initialize   
    subroutine base_initialize_state(self,_ARGUMENTS_INITIALIZE_STATE_)
       class (type_model_info), intent(in) :: self
