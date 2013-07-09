@@ -22,7 +22,7 @@
 !  default: all is private.
    private
 !
-! !REVISION HISTORY:!
+! !REVISION HISTORY:
 !  Original author(s): Janus Larsen
 !
 ! !PUBLIC DERIVED TYPES:
@@ -252,9 +252,9 @@
    self%eX=eX
 
 !  Register state variables
-   call self%register_state_variable(self%id_B,'B','mmol/m**3','Plankton Carbon',B_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_N,'N','mmol/m**3','Plankton Nitrogen',N_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_P,'P','mmol/m**3','Plankton Phophorous',P_initial,minimum=_ZERO_)
+   call self%register_state_variable(self%id_B,'B','mmol/m**3','Plankton Carbon',B_initial,minimum=_ZERO_,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_N,'N','mmol/m**3','Plankton Nitrogen',N_initial,minimum=_ZERO_,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_P,'P','mmol/m**3','Plankton Phophorous',P_initial,minimum=_ZERO_,no_river_dilution=.true.)
 
    call self%register_state_variable(self%id_C,'C','mmol/m**3','Detritus Carbon',C_initial,minimum=_ZERO_,vertical_movement=w_d)
    call self%register_state_variable(self%id_M,'M','mmol/m**3','Detritus Nitrogen',M_initial,minimum=_ZERO_,vertical_movement=w_d)
@@ -263,7 +263,7 @@
    call self%register_state_variable(self%id_NO3,'NO3','mmol/m**3','Nitrate',NO3_initial,minimum=_ZERO_)
    call self%register_state_variable(self%id_NH4,'NH4','mmol/m**3','Ammonium',NH4_initial,minimum=_ZERO_)
    call self%register_state_variable(self%id_PO4,'PO4','mmol/m**3','Phosphate',PO4_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_O2,'O2','mmol/m**3','Oxygen',O2_initial,minimum=_ZERO_)
+   call self%register_state_variable(self%id_O2,'O2','mmol/m**3','Oxygen',O2_initial,minimum=_ZERO_,no_river_dilution=.true.)
 
 !  Register diagnostic variables
    call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2', 'photosynthetically active radiation',time_treatment=time_treatment_averaged)
@@ -571,7 +571,6 @@ write(0,*) 'get_conserved_quantities'
 ! !INTERFACE:
    subroutine do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !
-!
 ! !INPUT PARAMETERS:
    class (type_au_daneco),       intent(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
@@ -599,15 +598,15 @@ write(0,*) 'get_conserved_quantities'
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Enter spatial loops (if any)
+!  Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
 
 
 !  ! Assign destruction rates to different elements of the destruction matrix.
 !  ! By assigning with _SET_DD_SYM_(i,j,val) as opposed to _SET_DD_(i,j,val),
 !  ! assignments to dd(i,j) are automatically assigned to pp(j,i) as well.
-!  _SET_DD_(self%id_B,self%id_B,self%G)
-!  _SET_PP_(self%id_B,self%id_B,my)
+!   _SET_DD_(self%id_B,self%id_B,self%G)
+!   _SET_PP_(self%id_B,self%id_B,my)
 !
 !   _SET_DD_(self%id_N,self%id_N,self%G)
 !   _SET_PP_(self%id_N,self%id_B,NOup+NHup)
@@ -640,7 +639,7 @@ write(0,*) 'get_conserved_quantities'
 !   _SET_DD_(self%id_O2,self%id_NH4,self%qONH*NHr)
 !   _SET_PP_(self%id_O2,self%id_B,self%qOB*my+self%qONO*NOup)
 !
-   ! Leave spatial loops (if any)
+!   Leave spatial loops (if any)
    _FABM_LOOP_END_
 
    end subroutine do_ppdd
