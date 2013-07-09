@@ -42,8 +42,7 @@
       type (type_state_variable_id)      :: id_hacmus  !biomass of harvested mussels C (mol-C/m3)
       type (type_state_variable_id)      :: id_hanmus  !biomass of harvested mussels N (mol-N/m3)
       type (type_state_variable_id)      :: id_hapmus  !biomass of harvested mussels P (mol-P/m3)
-!      type (type_state_variable_id)      :: id_prey    !phytoplankton biomass from NPZD (mmol-N/m3)
-      type (type_state_variable_id)      :: id_timemus    !test of time
+!      type (type_state_variable_id)      :: id_prey   !phytoplankton biomass from NPZD (mmol-N/m3)
       type (type_state_variable_id)      :: id_B       !microplankton C biomass from daneco
       type (type_state_variable_id)      :: id_C       !detritus C biomass from daneco
       type (type_state_variable_id)      :: id_N       !microplankton N biomass from daneco
@@ -53,7 +52,7 @@
       type (type_state_variable_id)      :: id_O2      !oxygen from daneco
       type (type_state_variable_id)      :: id_NH4     !NH4 in daneco
       type (type_state_variable_id)      :: id_PO4     !PO4 in daneco
-      
+
       type (type_diagnostic_variable_id) :: id_cowmus  !core dry weight (g/ind)
       type (type_diagnostic_variable_id) :: id_rdwmus  !reserve dry weight (g/ind)
       type (type_diagnostic_variable_id) :: id_rpwmus  !reproductive dry weight (g/ind)
@@ -66,15 +65,16 @@
       type (type_global_dependency_id)   :: id_yearday
 
       type (type_conserved_quantity_id)  :: id_totNmus
-      type (type_conserved_quantity_id)  :: id_totPmus   
+      type (type_conserved_quantity_id)  :: id_totPmus
 
 !     Model parameters
       real(rk) :: O2MIN,PIMUS,AEMUS,FH,PMAIN,VMUS,KAPPA,EG,EMAX,DVM
-      real(rk) :: WMV,WME,WMR,WMF,AQDV,AQDE,AQDR,AQDF,VOLP,TL,TH,TAL,TAH,SPAWT,SPAWR
+      real(rk) :: WMV,WME,WMR,WMF,VOLP,T1,TA,TL,TH,TAL,TAH,SPAWT,SPAWR
       real(rk) :: SPAWMIN,SHAPEMUS,RQC,MINC,RETZOO,OXYK
-      
+
       contains
-      
+
+      procedure :: initialize
       procedure :: do
       procedure :: do_ppdd
       procedure :: get_conserved_quantities
@@ -90,7 +90,7 @@
 ! !IROUTINE: Initialise the deb model
 !
 ! !INTERFACE:
-   function au_deb_create(configunit,name,parent) result(self)
+   subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !  Here, the au namelist is read and the variables exported
@@ -100,20 +100,18 @@
    implicit none
 !
 ! !INPUT PARAMETERS:
-   integer,                          intent(in)    :: configunit
-   character(len=*),                 intent(in)    :: name
-   class (type_model_info),target,   intent(inout) :: parent
-   class (type_au_deb), pointer                    :: self
+   class (type_au_deb), intent(inout), target :: self
+   integer,             intent(in)            :: configunit
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
    real(rk)                  :: nmus_initial= 1.0
-   real(rk)                  :: volmus_initial= 0.81
-   real(rk)                  :: rdcmus_initial= 0.016
-   real(rk)                  :: nbmus_initial=0.002692
-   real(rk)                  :: pbmus_initial=0.000168
+   real(rk)                  :: volmus_initial= 0.63
+   real(rk)                  :: rdcmus_initial= 0.0031
+   real(rk)                  :: nbmus_initial=0.00047
+   real(rk)                  :: pbmus_initial=0.00003
    real(rk)                  :: rpcmus_initial=0.00
    real(rk)                  :: spcmus_initial=0.0
    real(rk)                  :: spnmus_initial=0.0
@@ -124,34 +122,31 @@
    real(rk)                  :: hacmus_initial=0.0
    real(rk)                  :: hanmus_initial=0.0
    real(rk)                  :: hapmus_initial=0.0
-   real(rk)                  :: timemus_initial=1.0
  
-   real(rk)                  :: O2MIN = 90.          !Oxygen threshold (mmol/m3)
-   real(rk)                  :: PIMUS = 0.0038       !max. ingestion (mol-C/cm2/)
+   real(rk)                  ::	O2MIN = 90.          !Oxygen threshold (mmol/m3)
+   real(rk)                  :: PIMUS = 0.00052       !max. ingestion (mol-C/cm2/d)
    real(rk)                  :: AEMUS = 0.75         !assimilation efficiency
-   real(rk)                  :: FH = 0.016           !half saturation constant (mol-C/m3)
-   real(rk)                  :: PMAIN = 4.630E-04    !Maintenance (mol-C/cm3/d)
+   real(rk)                  :: FH = 0.005           !0.016 0.0054half saturation constant (mol-C/m3)
+   real(rk)                  :: PMAIN = 1.660E-05    !Maintenance (mol-C/cm3/d)
    real(rk)                  :: VMUS = 80.5          !max.volume (cm3) 4.31 cm
    real(rk)                  :: KAPPA = 0.7          !fraction spent on growth+maintenance
-   real(rk)                  :: EG = 0.02885         !cost of growth (mol-C/cm3)
-   real(rk)                  :: EMAX = 0.03326       !maximum reserve density (mol-C/cm3)
-   real(rk)                  :: DVM = 2.05E-02       !density of structural tissue (mol-C/cm3)
-   real(rk)                  :: WMV = 23.9           !molar weight structural tissue (g/mol)
-   real(rk)                  :: WME = 28.8           !molar weight reserves (g/mol)
-   real(rk)                  :: WMR = 28.8           !molar weight reproductive tissue (g/mol)
-   real(rk)                  :: WMF = 24.6           !molar weight food (g/mol)
-   real(rk)                  :: AQDV = 0.70          !aqueous fraction
-   real(rk)                  :: AQDE = 0.80          !aqueous fraction
-   real(rk)                  :: AQDR = 0.80          !aqueous fraction
-   real(rk)                  :: AQDF = 0.75          !aqueous fraction
+   real(rk)                  :: EG = 0.00860         !cost of growth (mol-C/cm3)
+   real(rk)                  :: EMAX = 0.00314       !maximum reserve density (mol-C/cm3)
+   real(rk)                  :: DVM = 0.00793        !density of structural tissue (mol-C/cm3)
+   real(rk)                  :: WMV = 25.22 !23.9           !molar weight structural tissue (g/mol)
+   real(rk)                  :: WME = 25.22 !28.8           !molar weight reserves (g/mol)
+   real(rk)                  :: WMR = 25.22  !28.8           !molar weight reproductive tissue (g/mol)
+   real(rk)                  :: WMF = 25.22 !24.6           !molar weight food (g/mol)
    real(rk)                  :: VOLP = 0.06          !volume at puperty(cm3)
-   real(rk)                  :: TL = 275.            !lower temp. boundary (K)
+   real(rk)                  :: TA = 1500.           !Arehnius temp (K)
+   real(rk)                  :: T1 = 284.            !reference temp.  (K)
+   real(rk)                  :: TL = 277.            !lower temp. boundary (K)
    real(rk)                  :: TH = 296.            !upper temp. boundary (K)
    real(rk)                  :: TAL = 45430.         !Arrhenius temp. lower (K)
    real(rk)                  :: TAH = 31376.         !Arrhenius temp. upper (K)
-   real(rk)                  :: SPAWT = 15.          !min. spawning temp. (Celcius)
-   real(rk)                  :: SPAWR = 0.523        !spawning rate (/d)
-   real(rk)                  :: SPAWMIN = 0.30       !minimum gonadosomaticratio
+   real(rk)                  :: SPAWT = 9.6          !min. spawning temp. (Celcius)
+   real(rk)                  :: SPAWR = 0.95          !0.523 spawning rate (/d)
+   real(rk)                  :: SPAWMIN = 0.20       !minimum gonadosomaticratio
    real(rk)                  :: SHAPEMUS = 0.314     !0.287 shape factor
    real(rk)                  :: RQC = 0.84           !respiratory qoutient
    real(rk)                  :: MINC = 3.            !filtration threshold (mmol/m3)
@@ -167,21 +162,21 @@
    character(len=64)         :: W_source_variable =''  !input var. from Daneco
    character(len=64)         :: NH4_target_variable =''  !output var. to Daneco
    character(len=64)         :: PO4_target_variable =''  !output var. to Daneco
-   
+
    real(rk), parameter :: secs_pr_day = 86400.
    namelist /au_deb/ volmus_initial,rdcmus_initial, nbmus_initial, rpcmus_initial, &
                   spcmus_initial, spnmus_initial, sppmus_initial, nmus_initial,    &
                   decmus_initial, denmus_initial, depmus_initial, hacmus_initial,  &
-                  hanmus_initial,pbmus_initial, hapmus_initial, timemus_initial,   &
+                  hanmus_initial,pbmus_initial, hapmus_initial,                    &
                   O2MIN,PIMUS,AEMUS,FH,PMAIN,VMUS,                                 &
-                  KAPPA,EG,EMAX,DVM,WMV,WME,WMR,WMF,AQDV,AQDE,AQDR,                &
-                  AQDF,VOLP,TL,TH,TAL,TAH,SPAWT,SPAWR,SPAWMIN,SHAPEMUS,RQC,        &
+                  KAPPA,EG,EMAX,DVM,WMV,WME,WMR,WMF,VOLP,T1,TA,                    &
+                  TL,TH,TAL,TAH,SPAWT,SPAWR,SPAWMIN,SHAPEMUS,RQC,                  &
                   MINC,RETZOO,OXYK,                                                &
                   B_source_variable, C_source_variable, O2_source_variable,        &
                   N_source_variable, M_source_variable,                            &
                   NH4_target_variable,PO4_target_variable,                         &
                   P_source_variable, W_source_variable
-!EOP 
+!EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
@@ -204,11 +199,9 @@
    self%WME        = WME
    self%WMR        = WMR
    self%WMF        = WMF
-   self%AQDV       = AQDV
-   self%AQDE       = AQDE
-   self%AQDR       = AQDR
-   self%AQDF       = AQDF
    self%VOLP       = VOLP
+   self%TA         = TA
+   self%T1         = T1
    self%TL         = TL
    self%TH         = TH
    self%TAL        = TAL
@@ -222,7 +215,7 @@
    self%RETZOO     = RETZOO
    self%OXYK       = OXYK
 
-   
+
 !  Register state variables
 !  Pelagic
    call self%register_state_variable(self%id_volmus,'volmus','cm**3','structural volume',         &
@@ -255,8 +248,23 @@
                                      hanmus_initial,minimum=_ZERO_,no_river_dilution=.true.)
    call self%register_state_variable(self%id_hapmus,'hapmus','mol-P/m2','harvest biomass P',      &
                                      hapmus_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   call self%register_state_variable(self%id_timemus,'timemus','day','time',      &
-                                     timemus_initial,minimum=_ZERO_,no_river_dilution=.true.)
+ 
+!  disable transports
+   call self%set_variable_property(self%id_volmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_rdcmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_nbmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_pbmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_rpcmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_spcmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_spnmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_sppmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_nmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_decmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_denmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_depmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_hacmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_hanmus,'disable_transport',.true.)
+   call self%set_variable_property(self%id_hapmus,'disable_transport',.true.)
 
    ! Register link to external pelagic prey and mineral pools.
    ! Prey will be used to feed upon, mineral pool to place waste products in.
@@ -300,12 +308,12 @@
    ! Register conserved quantities
    call self%register_conserved_quantity(self%id_totNmus,'N','mmol/m**3','totNmus')
    call self%register_conserved_quantity(self%id_totPmus,'P','mmol/m**3','totPmus')
-   
+
    return
 
 99 call fatal_error('au_deb_create','Error reading namelist au_deb')
-   
-   end function au_deb_create
+
+   end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------
@@ -329,11 +337,11 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 
 ! !LOCAL VARIABLES:
-   real(rk)                   :: nmus, volmus,rdcmus, nbmus, pbmus
+   real(rk)                   :: nmus, volmus, rdcmus, nbmus, pbmus
    real(rk)                   :: rpcmus, spcmus, spnmus, sppmus
    real(rk)                   :: decmus, denmus, depmus, hacmus, hanmus, hapmus
-   real(rk)                   :: lenmus,cowmus,rdwmus,bwmus,pwmus
-   real(rk)                   :: rpwmus,cocmus,recmus,cbmus, dwmus
+   real(rk)                   :: lenmus, cowmus, rdwmus, bwmus, pwmus
+   real(rk)                   :: rpwmus, cocmus, recmus, cbmus, dwmus
    real(rk)                   :: temp, salt, yearday
 !   real(rk)                   :: prey
    real(rk), parameter        :: secs_pr_day = 86400.
@@ -351,13 +359,13 @@
    real(rk)                   :: REPRO, OXYM, HARV
    real(rk)                   :: QPRES, resmus, excmus, dt
    real(rk)                   :: B, C, N, M, O2, NH4, P, W, PO4
-   real(rk)                   :: MPC, ZPC, DET, DAY, timemus, temp1
+   real(rk)                   :: MPC, ZPC, DET, DAY, temp1
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
-!KB
+
 !  Retrieve current (local) state variable values.
    _GET_(self%id_nmus,nmus)
    _GET_(self%id_volmus,volmus)
@@ -375,14 +383,13 @@
    _GET_(self%id_hanmus,hanmus)
    _GET_(self%id_hapmus,hapmus)
 !   _GET_(self%id_prey,prey)     ! prey density - pelagic NPZD
-   _GET_(self%id_timemus,timemus)     
-   _GET_(self%id_B,B)   
-   _GET_(self%id_C,C)   
-   _GET_(self%id_N,N)   
-   _GET_(self%id_O2,O2)  
-   _GET_(self%id_M,M)   
+   _GET_(self%id_B,B)
+   _GET_(self%id_C,C)
+   _GET_(self%id_N,N)
+   _GET_(self%id_O2,O2)
+   _GET_(self%id_M,M)
    _GET_(self%id_P,P)
-   _GET_(self%id_W,W)     
+   _GET_(self%id_W,W)
 
  ! Retrieve current environmental conditions.
    _GET_(self%id_temp,temp)  ! local water temperature
@@ -400,23 +407,23 @@
 !   O2 = 300. !oxygen
 
  !input variables from Daneco
-   dt = 60.0
+   dt = 80.0
    MPC = (B + C)
    ZPC = 0.d0
-! 
+!
 !---core, reserv and total carbon biomass [mol-C/ind]
    cocmus = volmus*self%DVM
    recmus = rdcmus*volmus
    cbmus = cocmus + recmus + rpcmus
-!---mussel dry weight biomass [g-DW/ind] (Ren & Ross 2005)
-   dwmus = cocmus*self%WMV*(1.0-self%AQDV) + &
-           recmus*self%WME*(1.0-self%AQDE) + rpcmus*self%WMR*(1.0-self%AQDR)
+!---mussel dry weight biomass [g-DW/ind]
+   dwmus = cocmus*self%WMV + &
+           recmus*self%WME + rpcmus*self%WMR
 !---shell length
    LMUS = volmus**0.333/self%SHAPEMUS
-!---temperature function mussel [0:1] 
+!---temperature function mussel [0:1]
    TMP = TEMMUS(self,temp1)
 !---mussel food saturation function
-   FOOD = FOODMUS(self,MPC,ZPC) 
+   FOOD = FOODMUS(self,MPC,ZPC)
 !---mussel total ingestion [mol-C/ind/s]
    XING = INGMUS(self,TMP,FOOD,volmus,MPC,O2)
 !---ingestion microplankton from Daneco
@@ -454,7 +461,7 @@
      REPRO = REPRO + VOLG*self%DVM
      VOLG  = 0.0
    end if
-   
+
   if (rpcmus.lt.0.0) then
      denmus = nmus*nbmus
      decmus = nmus*cbmus
@@ -466,7 +473,7 @@
      rdcmus= 0.0
      nbmus = 0.0
      pbmus = 0.0
-     cbmus = 0.0 
+     cbmus = 0.0
   endif
 
 !  Coupling (output) to Daneco model /remember conversion to mmol
@@ -477,7 +484,7 @@
 !---mussel defecation N [mol-P/m3/s]
    FAPMUS = (PHYI*P/B + DETI*W/C)*(1.0 - self%AEMUS)
 !---respiration [mol-02/ind/s]
-   RESP = RESPMUS(self,CATAB,VOLG,REPRO)
+   RESP = RESPMUS(self,TMP,volmus, MRESP, VOLG)
 !---ingestion ZPC
 !   ZOOI = XING*ZPC*self%RETZOO/TOTFOOD
 !---starvartion mortality
@@ -498,7 +505,7 @@
    RDENN = (PHYI*N/B + DETI*M/C)*self%AEMUS - EXMUS
 !---phosphorous growth [mol-P/ind/s]
    RDENP = (PHYI*P/B + DETI*W/C)*self%AEMUS - EXMUS*QPRES
-   
+
    ! Set temporal derivatives
    _SET_ODE_(self%id_volmus, VOLG)
    _SET_ODE_(self%id_nmus,(-STARV - OXYM -HARV)*nmus)
@@ -515,7 +522,6 @@
    _SET_ODE_(self%id_hacmus,HARV*nmus*cbmus)
    _SET_ODE_(self%id_hanmus,HARV*nmus*nbmus)
    _SET_ODE_(self%id_hapmus,HARV*nmus*pbmus)
-   _SET_ODE_(self%id_timemus,1./86400.)
 
    ! link to daneco variables
    _SET_ODE_(self%id_B, -PHYI*nmus*1000.d0)
@@ -529,15 +535,15 @@
    _SET_ODE_(self%id_PO4, EXMUS*QPRES*nmus*1000.d0)
 
    ! Export diagnostic variables
-   _SET_DIAGNOSTIC_(self%id_cowmus,volmus*self%WMV*self%DVM*(1.0-self%AQDV))
-   _SET_DIAGNOSTIC_(self%id_rdwmus,rdcmus*volmus*self%WME*(1.0-self%AQDE))
-   _SET_DIAGNOSTIC_(self%id_rpwmus,rpcmus*self%WMR*(1.0-self%AQDR))
+   _SET_DIAGNOSTIC_(self%id_cowmus,volmus*self%WMV*self%DVM)
+   _SET_DIAGNOSTIC_(self%id_rdwmus,rdcmus*volmus*self%WME)
+   _SET_DIAGNOSTIC_(self%id_rpwmus,rpcmus*self%WMR)
    _SET_DIAGNOSTIC_(self%id_pwmus,dwmus*nmus)
-   _SET_DIAGNOSTIC_(self%id_bwmus,dwmus) 
+   _SET_DIAGNOSTIC_(self%id_bwmus,dwmus)
    _SET_DIAGNOSTIC_(self%id_lenmus,LMUS)
    _SET_DIAGNOSTIC_(self%id_resmus,RESP)
    _SET_DIAGNOSTIC_(self%id_excmus,EXMUS)
-   
+
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
 
@@ -570,32 +576,34 @@
 !BOP
 !
 ! !IROUTINE: ARRHENIUS TEMPERATURE FUNCTION FOR MUSSELS  [-]
-!      
+!
 !  !INTERFACE:
     pure real(rk) function TEMMUS(self,temp1)
-!   
+!
 ! !DESCRIPTION:
-! 
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
 !
    type (type_au_deb), intent(in)   :: self
    real(rk), intent(in)             :: temp1
    real(rk)                         :: TMP1
-! 
+!
 ! !REVISION HISTORY:
-!  Original author(s): MAM   
-!  after van der Meer (2006), J Sea Res 56:107-224 
-!  Kooijman 2000 Dynamic energy and mass budgets 
+!  Original author(s): MAM
+!  after van der Meer (2006), J Sea Res 56:107-224
+!  Kooijman 2000 Dynamic energy and mass budgets
 !
 !EOP
 !----------------------------------------------------------------
 !BOP
    TMP1 = temp1 + 273.15
 
-   TEMMUS=(1.+EXP(self%TAL/TMP1-self%TAL/self%TL)+EXP(self%TAH/self%TH-self%TAH/TMP1))**-1.0
+   TEMMUS= exp(self%TA/self%T1-self%TA/TMP1)/    &
+    (1.+EXP(self%TAL/TMP1-self%TAL/self%TL)+EXP(self%TAH/self%TH-self%TAH/TMP1))
+
 
    RETURN
 
@@ -604,27 +612,27 @@
 !---------------------------------------------------------------------------
 !BOP
 ! !IROUTINE: FOOD SATURATION FUNCTION FOR MUSSEL INGESTION [-]
-!      
+!
 !  !INTERFACE:
-   pure real(rk) function FOODMUS(self,MPC,ZPC) 
-! 
+   pure real(rk) function FOODMUS(self,MPC,ZPC)
+!
 ! !DESCRIPTION:
-!  
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in)   :: self
   real(rk) , intent(in)            :: MPC,ZPC
   real(rk)                         :: PHY
 
 ! !REVISION HISTORY:
-!  Original author(s): MAM   
+!  Original author(s): MAM
 !  After van der Meer 2006, p.86 and table 3
 !EOP
 !-------------------------------------------------------------------
 !BOP
-           
+
      PHY = (MPC + ZPC*self%RETZOO)*0.001
 
      FOODMUS = PHY/(PHY+self%FH)
@@ -636,24 +644,24 @@
 !------------------------------------------------------------------------
 !BOP
 ! !IROUTINE: Ingestion rate of mussels [mol-C/ind/s]
-!      
+!
 !  !INTERFACE:
    pure real(rk) function INGMUS(self,TMP,FOOD,volmus, MPC, O2)
-! 
+!
 ! !DESCRIPTION:
-!  
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in) :: self
   real(rk), intent(in)           :: TMP, volmus, FOOD, MPC, O2
   real(rk)                       :: OXY
 
 ! !REVISION HISTORY:
-!  Original author(s): MAM   
-!  After van der Meer 2006, p.86 
-!EOP    
+!  Original author(s): MAM
+!  After van der Meer 2006, p.86
+!EOP
 !-------------------------------------------------------------------
 !BOP
 
@@ -671,32 +679,32 @@
       end if
      ELSE
         INGMUS = 0.0
-     end if    
+     end if
 
      RETURN
 
-     end function INGMUS    
+     end function INGMUS
 !EOP
 !------------------------------------------------------------------------
 !BOP
 ! !IROUTINE: MAINTENANCE BY MUSSELS* [molC/s]
-!      
+!
 !  !INTERFACE:
    pure real(rk) function MAINMUS(self,TMP,volmus)
-! 
+!
 ! !DESCRIPTION:
-!  
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in) :: self
   real(rk), intent(in)           :: TMP, volmus
 !
 ! !REVISION HISTORY:
-!  Original author(s): MAM   
+!  Original author(s): MAM
 !  eq.4, 2.term van der Meer 2006
-!EOP    
+!EOP
 !-------------------------------------------------------------------
 !BOP
      MAINMUS = self%PMAIN*volmus*TMP
@@ -707,172 +715,175 @@
 
 !------------------------------------------------------------------------
 !BOP
-! !IROUTINE: 
-!      
+! !IROUTINE:
+!
 !  !INTERFACE:
    pure real(rk) function CATABMUS(self,MRESP,rdcmus,volmus,PAMUS,TMP)
-! 
+!
 ! !DESCRIPTION: CATABOLIC RATE [mol-C/s]
-!  
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in) :: self
   real(rk), intent(in)           :: rdcmus, volmus, MRESP,PAMUS,TMP
   real(rk)                       :: RHS1, RHS2
 !
 ! !REVISION HISTORY:
-!  Original author(s): MAM   
-!  eq.7 van der Meer 2006 
-!EOP    
+!  Original author(s): MAM
+!  eq.7 van der Meer 2006
+!EOP
 !-------------------------------------------------------------------
 !BOP
      RHS1 = rdcmus/(self%KAPPA*rdcmus+self%EG)
      RHS2 = PAMUS*TMP*self%EG/self%EMAX*volmus**0.666 + MRESP
-       
+
      CATABMUS = RHS1*RHS2
-           
+
      RETURN
 
      END function CATABMUS
 !------------------------------------------------------------------------
 !BOP
 ! !IROUTINE: VOLUME GROWTH [cm3/s]
-!      
+!
 !  !INTERFACE:
    pure real(rk) function VOLMMUS(self,MRESP,CATAB)
-! 
+!
 ! !DESCRIPTION:
-!  
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in) :: self
   real(rk), intent(in)           :: MRESP, CATAB
 !
 ! !REVISION HISTORY:
-!  Original author(s): MAM   
+!  Original author(s): MAM
 !  eq.4, van der Meer 2006
-!  DW:p.352. Ren and Ross 2005/table 2 van der Veer 
-!EOP    
+!  DW:p.352. Ren and Ross 2005/table 2 van der Veer
+!EOP
 !-------------------------------------------------------------------
 !BOP
      VOLMMUS = (CATAB*self%KAPPA-MRESP)/self%EG
-        
+
      RETURN
 
      END function VOLMMUS
-     
+
 !------------------------------------------------------------------------
 !BOP
-! !IROUTINE: ENERGY DENSITY [molC/cm3/s] 
-!      
+! !IROUTINE: ENERGY DENSITY [molC/cm3/s]
+!
 !  !INTERFACE:
    pure real(rk) function DENSMUS(self,FOOD,rdcmus,volmus,MPC,PAMUS,TMP)
-! 
+!
 ! !DESCRIPTION:
-!  
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in) :: self
   real(rk), intent(in)           :: FOOD,rdcmus,volmus,MPC,PAMUS,TMP
   real(rk)                       :: RHS1
 !
 ! !REVISION HISTORY:
-!  Original author(s): MAM   
+!  Original author(s): MAM
 !  eq.2 van der Meer 2006
-!EOP    
+!EOP
 !-------------------------------------------------------------------
 !BOP
 
      RHS1 = (PAMUS/volmus**0.333)*TMP
-    
+
      IF (MPC.GE.self%MINC) THEN
         DENSMUS = RHS1*(FOOD-rdcmus/self%EMAX)
      ELSE
-        DENSMUS = RHS1*(-rdcmus/self%EMAX)         
+        DENSMUS = RHS1*(-rdcmus/self%EMAX)
      END IF
-     
+
      RETURN
 
      END function DENSMUS
-     
+
 !------------------------------------------------------------------------
 !BOP
-! !IROUTINE: 
-!      
+! !IROUTINE: Respiration
+!
 !  !INTERFACE:
-   pure real(rk) function RESPMUS(self,CATAB, VOLG, REPRO)
-! 
+    pure REALTYPE function RESPMUS(self,TMP,volmus, MRESP, VOLG)
+!
 ! !DESCRIPTION:
-!  
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in) :: self
-  real(rk), intent(in)           :: CATAB, REPRO, VOLG
+   REALTYPE, intent(in)          :: TMP, volmus, MRESP, VOLG
+   REALTYPE                      :: RHS1, PJMUS
 !
 ! !REVISION HISTORY:
-!  Original author(s): MAM      
-!EOP    
+!  Original author(s): MAM
+!EOP
 !-------------------------------------------------------------------
 !BOP
 
-     RESPMUS = self%RQC*(CATAB - REPRO - VOLG*self%DVM)
+     RHS1 = MIN(volmus,self%VOLP)*self%PMAIN*TMP
+     PJMUS = RHS1*(1.-self%KAPPA)/self%KAPPA
+     RESPMUS = self%RQC*(PJMUS + MRESP + VOLG*self%EG/self%EMAX)
 
 
      RETURN
 
      END function RESPMUS
-!EOP    
+!EOP
 !-------------------------------------------------------------------
 !BOP
 ! !IROUTINE: REPRODUCTIVE TISSUE [mol-C/ind/s]
-!      
+!
 !  !INTERFACE:
    pure real(rk) function REPRMUS(self,TMP,CATAB,volmus)
-! 
+!
 ! !DESCRIPTION:
-!  
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in) :: self
   real(rk), intent(in)           :: TMP, CATAB, volmus
   real(rk)                       :: RHS1, PJMUS
 !
 ! !REVISION HISTORY:
-!  Original author(s): MAM   
-!  eq.9 van der Meer 2006   
-!EOP    
+!  Original author(s): MAM
+!  eq.9 van der Meer 2006
+!EOP
 !-------------------------------------------------------------------
 !BOP
      RHS1 = MIN(volmus,self%VOLP)*self%PMAIN*TMP
      PJMUS = RHS1*(1.-self%KAPPA)/self%KAPPA
-     REPRMUS = (1.-self%KAPPA)*CATAB-PJMUS      
-         
+     REPRMUS = (1.-self%KAPPA)*CATAB-PJMUS
+
      RETURN
 
      END function REPRMUS
-     
+
 !------------------------------------------------------------------------
 !BOP
 ! !IROUTINE: SPAWNING (mol-C/ind/s)
-!      
+!
 !  !INTERFACE:
    pure real(rk) function SPAWNING(self,rpcmus,cocmus,temp1)
 ! !DESCRIPTION:
-!  
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in) :: self
   real(rk), intent(in)           :: temp1,rpcmus,cocmus
   real(rk)                       :: GONADO
@@ -883,7 +894,7 @@
           SPAWNING =self%SPAWR*rpcmus
      else
           SPAWNING = 0.0
-                   
+
      END IF
 
      RETURN
@@ -894,23 +905,23 @@
 
 !BOP
 ! !IROUTINE: Starvation mortality  [/s]
-!      
+!
 !  !INTERFACE:
    pure real(rk) function MORTALITY(self,rdcmus,volmus,nmus)
-! 
+!
 ! !DESCRIPTION:
-!  
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in) :: self
   real(rk),  intent(in)          :: rdcmus,volmus,nmus
   real(rk)                       :: ERATIO
 !
 ! !REVISION HISTORY:
-!  Original author(s): MAM      
-!EOP    
+!  Original author(s): MAM
+!EOP
 !-------------------------------------------------------------------
 !BOP
 
@@ -924,33 +935,33 @@
      else
        MORTALITY = 0.0
      end if
- 
+
      RETURN
 
      END function MORTALITY
-     
-    
+
+
 !------------------------------------------------------------------------
 !BOP
 ! !IROUTINE: HARVESTING OF MUSSELS
-!      
+!
 !  !INTERFACE:
-   pure real(rk) function HARVESTING(self,lenmus,nmus) 
-! 
-! !DESCRIPTION: 
-!  
+   pure real(rk) function HARVESTING(self,lenmus,nmus)
+!
+! !DESCRIPTION:
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in) :: self
   real(rk), intent(in)           :: lenmus,nmus
 !
 ! !REVISION HISTORY:
-!  Original author(s): MAM      
-!EOP    
+!  Original author(s): MAM
+!EOP
 !-------------------------------------------------------------------
-!BOP    
+!BOP
    !  if (yearday.eq.90) then
       if ((lenmus.gt.5.0).and.(nmus.gt.1.0)) then
 
@@ -959,36 +970,36 @@
        HARVESTING = 0.0
       end if
    !  end if
-    
+
      RETURN
-       
+
      END function HARVESTING
-     
+
 !------------------------------------------------------------------------
 !BOP
 ! !IROUTINE: OXYGEN mortality  [/s]
-!      
+!
 !  !INTERFACE:
    pure real(rk) function OXYMORT(self,O2,nmus)
-! 
-! !DESCRIPTION: 
-!  
+!
+! !DESCRIPTION:
+!
 ! !USES:
    implicit none
 !
-! INPUT PARAMETERS:   
+! INPUT PARAMETERS:
   type (type_au_deb), intent(in) :: self
   real(rk), intent(in)           :: O2,nmus
   real(rk)                       :: OXY
 !
 ! !REVISION HISTORY:
-!  Original author(s): MAM      
-!EOP    
+!  Original author(s): MAM
+!EOP
 !-------------------------------------------------------------------
-!BOP  
+!BOP
      real(rk), parameter        :: MMAX= 0.012 !per day
 
-     IF ((O2.LT.self%O2MIN).and.(nmus.gt.1.0)) THEN       
+     IF ((O2.LT.self%O2MIN).and.(nmus.gt.1.0)) THEN
          OXY= O2**3*(O2**3+self%OXYK**3)**-1.
          OXYMORT = MMAX*(1.0-OXY)*(86400.)**-1.
       ELSE
@@ -998,11 +1009,11 @@
       RETURN
 
       END function OXYMORT
-    
+
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Get the total of conserved quantities 
+! !IROUTINE: Get the total of conserved quantities
 !
 ! !INTERFACE:
    subroutine get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
@@ -1015,7 +1026,7 @@
 !  Original author(s): Jorn Bruggeman, Marie Maar
 !
 ! !LOCAL VARIABLES:
-   real(rk)                     :: spnmus,denmus,hanmus,nbmus,sppmus,depmus,hapmus,pbmus
+   real(rk)                     :: spnmus,denmus,hanmus,nbmus,sppmus,depmus,hapmus,pbmus,nmus
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1033,9 +1044,10 @@
    _GET_(self%id_depmus,depmus)
    _GET_(self%id_hapmus,hapmus)
    _GET_(self%id_pbmus, pbmus)
+   _GET_(self%id_nmus, nmus)
 
-   _SET_CONSERVED_QUANTITY_(self%id_totNmus,(spnmus+denmus+hanmus+nbmus)*1000.)
-   _SET_CONSERVED_QUANTITY_(self%id_totPmus,(sppmus+depmus+hapmus+pbmus)*1000.)
+   _SET_CONSERVED_QUANTITY_(self%id_totNmus,(spnmus+denmus+hanmus+nbmus)*1000.*nmus)
+   _SET_CONSERVED_QUANTITY_(self%id_totPmus,(sppmus+depmus+hapmus+pbmus)*1000.*nmus)
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_
