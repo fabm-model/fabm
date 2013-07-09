@@ -48,6 +48,7 @@
 
       contains
 
+      procedure :: initialize
       procedure :: do_benthos
       procedure :: get_conserved_quantities
    end type type_au_sediment
