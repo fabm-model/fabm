@@ -114,6 +114,8 @@
 		<Filter Name="metu">
 		<Filter Name="mnemiopsis">
 		<File RelativePath="..\..\src\models\metu\mnemiopsis\mnemiopsis.F90"/></Filter></Filter>
+		<Filter Name="au">
+		<File RelativePath="..\..\src\models\au\prey_predator\prey_predator.F90"/></Filter>
 		<Filter Name="pml">
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>

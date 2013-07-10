@@ -5,7 +5,7 @@
 		<Platform Name="x64"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32" OutputDirectory="mom4p1\$(PlatformName)-$(ConfigurationName)" IntermediateDirectory="mom4p1\$(PlatformName)-$(ConfigurationName)" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\mom4p1;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" ExternalNameInterpretation="extNameLowerCase" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\mom4p1;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_;DEBUG" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" ExternalNameInterpretation="extNameLowerCase" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -27,7 +27,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug|x64" OutputDirectory="mom4p1\$(PlatformName)-$(ConfigurationName)" IntermediateDirectory="mom4p1\$(PlatformName)-$(ConfigurationName)" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\mom4p1;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" ExternalNameInterpretation="extNameLowerCase" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\mom4p1;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_;DEBUG" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" ExternalNameInterpretation="extNameLowerCase" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -87,6 +87,8 @@
 		<Filter Name="examples">
 		<Filter Name="benthic_predator">
 		<File RelativePath="..\..\src\models\examples\benthic_predator\benthic_predator.F90"/></Filter>
+		<Filter Name="duplicator">
+		<File RelativePath="..\..\src\models\examples\duplicator\duplicator.F90"/></Filter>
 		<Filter Name="npzd">
 		<File RelativePath="..\..\src\models\examples\npzd\det.F90"/>
 		<File RelativePath="..\..\src\models\examples\npzd\nut.F90"/>
@@ -110,6 +112,9 @@
 		<Filter Name="metu">
 		<Filter Name="mnemiopsis">
 		<File RelativePath="..\..\src\models\metu\mnemiopsis\mnemiopsis.F90"/></Filter></Filter>
+		<Filter Name="au">
+		<Filter Name="prey_predator">
+		<File RelativePath="..\..\src\models\au\prey_predator\prey_predator.F90"/></Filter></Filter>
 		<Filter Name="pml">
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>
