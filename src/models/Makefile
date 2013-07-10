@@ -2,6 +2,7 @@
 # Makefile to build the FABM model library - libfabm.a
 #
 
+SUBDIRS += au/           # University of Aarhus
 SUBDIRS += bb/           # Bolding & Burchard
 SUBDIRS += examples/     # Test examples
 SUBDIRS += gotm/         # Converted from old GOTM/BIO models
