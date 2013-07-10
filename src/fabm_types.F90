@@ -822,6 +822,7 @@
       class (type_id),        intent(inout) :: variable
       character(len=*),       intent(in)    :: name
       real(rk),               intent(in)    :: value
+      if (.not.associated(variable%metadata)) call fatal_error('set_variable_property_real','variable has not been registered')
       call variable%metadata%properties%set_real(name,value)
    end subroutine
 
@@ -830,6 +831,7 @@
       class (type_id),        intent(inout) :: variable
       character(len=*),       intent(in)    :: name
       integer,                intent(in)    :: value
+      if (.not.associated(variable%metadata)) call fatal_error('set_variable_property_integer','variable has not been registered')
       call variable%metadata%properties%set_integer(name,value)
    end subroutine
 
@@ -838,6 +840,7 @@
       class (type_id),        intent(inout) :: variable
       character(len=*),       intent(in)    :: name
       logical,                intent(in)    :: value
+      if (.not.associated(variable%metadata)) call fatal_error('set_variable_property_logical','variable has not been registered')
       call variable%metadata%properties%set_logical(name,value)
    end subroutine
 
@@ -849,6 +852,7 @@
       
       type (type_conserved_quantity_component),pointer :: component
 
+      if (.not.associated(state_variable%metadata)) call fatal_error('add_conserved_quantity_component','variable has not been registered')
       if (.not.associated(conserved_quantity%metadata%components%first)) then
          allocate(conserved_quantity%metadata%components%first)
          component => conserved_quantity%metadata%components%first
