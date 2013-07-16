@@ -12,7 +12,7 @@
    module au_prey_predator
 !
 ! !DESCRIPTION: au_prey_predator --- a simple example of biological process, one is uptaken by another
-!  theau_prey_predator model described the interactions between two biological communities, especially
+!  the au_prey_predator model described the interactions between two biological communities, especially
 !  in the case that one is uptaken by another. Here we implemented two model approches for the prey-
 !  predator interaction:
 !  Lotka_Volterra model(L_V): explains the smiple and ideal interaction between the prey and predator. In this
@@ -39,14 +39,15 @@
    type (type_conserved_quantity_id)    :: id_totC
 !
 !  Model paremeters
-!  V,K,Y is the paremeters in Jacob-Monod model:V-the uptake velocity, d-1, for different nutrient have different range; K-saturation constant;Y-the yield of x per y taken up
-!  a,b,c,d is the paremeters in Lotka-Volterra model: a is the natural growth rate of prey in the absence of predation;e is the natural death rate of pred in the absence of food ;
-!  b is the death rate per encounter of prey due to predation; d is the efficiency of turning predated prey into pred.
+!  V,K,Y is the paremeters in Jacob-Monod model:V-the uptake velocity, d-1, for different nutrient have different range; K-saturation constant;Y-the yield of predator per prey taken up
+!  b,p,d,r are the paremeters in Lotka-Volterra model: b is the natural growth rate of prey in the absence of predation;p measures the impact of predation on prey;
+!  d is the death (or emigration) rate of predator in the absence of interaction with prey; r is the efficiency of turning predated prey into pred.
    integer         :: model_type
-   real(rk)        :: V,K,Y,a,b,e,d
-
+   real(rk)        :: V,K,Y   ! Jacob-Monod
+   real(rk)        :: b,p,r,d ! Lotka-Volterra
+!
    contains
-
+!
 ! Model procedures
    procedure :: initialize
    procedure :: do
@@ -78,18 +79,19 @@
    integer,                          intent(in)         :: configunit
 !
 ! !LOCAL VARIABLES:
+   integer  :: model_type=1
    real(rk) :: prey_initial=1.0_rk
    real(rk) :: pred_initial=1.0_rk
    real(rk) :: V=1.0_rk
    real(rk) :: K=1.0_rk
    real(rk) :: Y=0.5_rk
-   real(rk) :: a=1.0_rk
    real(rk) :: b=1.0_rk
-   real(rk) :: e=1.0_rk
-   real(rk) :: d=1.0_rk
-   integer  :: model_type=1
+   real(rk) :: p=0.05_rk
+   real(rk) :: r=0.02_rk
+   real(rk) :: d=0.5_rk
 !
-   namelist /au_prey_predator/ model_type,prey_initial,pred_initial,V,K,Y,a,b,e,d
+   namelist /au_prey_predator/ model_type,prey_initial,pred_initial, &
+                               V,K,Y,b,p,r,d
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -97,14 +99,14 @@
    read(configunit,nml=au_prey_predator,err=99,end=100)
 !
 !  Store parameter values in our own derived type
+   self%model_type=model_type
    self%V=V/secs_pr_day
    self%K=K
    self%Y=Y
-   self%a=a/secs_pr_day
    self%b=b/secs_pr_day
-   self%e=e/secs_pr_day
+   self%p=p/secs_pr_day
+   self%r=r/secs_pr_day
    self%d=d/secs_pr_day
-   self%model_type=model_type
 
 !  Register state variables
    call self%register_state_variable(self%id_prey,'prey','mmol/m**3','nutrient',     &
@@ -139,9 +141,9 @@
 ! !LOCAL VARIABLES:
 !  state variables
    real(rk)   :: prey,predator
-!  g is grazing velocity
-!  u is the nutrient uptake rate
-   real(rk)   :: g, u
+!  g is changing of predator
+!  f is changing of prey
+   real(rk)   :: g, f
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -156,21 +158,21 @@
 
    if (self%model_type .eq. 1) then
 !     Use Jacob-Monod model
-!     Calculate change of pred
+!     Calculate change of predator
       g = self%V*predator*prey/(prey+self%K)
 !     Calculate change of prey
-      u = -g/self%Y
+      f = -g/self%Y
    else if (self%model_type .eq. 2) then
 !     Use Lotka-Volterra model
-!     Calculate change of pred
-      g =(self%d*prey-self%e)*predator
+!     Calculate change of predator
+      g = (self%r*prey-self%d)*predator
 !     Calculate change of prey
-      u =prey*(self%a-self%b*predator)
+      f = (self%b-self%p*predator)*prey
    end if
 !
 !  Set temporal derivatives,  subtracted by the secs_pr_day
    _SET_ODE_(self%id_predator,g)
-   _SET_ODE_(self%id_prey,u)
+   _SET_ODE_(self%id_prey,f)
 !  Export diagnostic variables
 !  Leave spatial loops (if any)
    _LOOP_END_
