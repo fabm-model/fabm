@@ -2314,10 +2314,7 @@ end subroutine add_parameter
          do while (associated(bulk_link))
             if (bulk_link%name==coupling%slave) then
                bulk_master => find_bulk_variable(model,coupling%master,bulk_link)
-               if (.not.associated(bulk_master)) &
-                  call fatal_error('process_coupling_tasks','Unable to find target variable ' &
-                     //trim(coupling%master)//' for coupled variable '//trim(bulk_link%target%name)//'.')
-               call couple_variables(root,bulk_master,bulk_link%target)
+               if (associated(bulk_master)) call couple_variables(root,bulk_master,bulk_link%target)
             end if
             bulk_link => bulk_link%next
          end do
@@ -2327,10 +2324,7 @@ end subroutine add_parameter
          do while (associated(horizontal_link))
             if (horizontal_link%name==coupling%slave) then
                horizontal_master => find_horizontal_variable(model,coupling%master,horizontal_link)
-               if (.not.associated(horizontal_master)) &
-                  call fatal_error('process_coupling_tasks','Unable to find target variable ' &
-                     //trim(coupling%master)//' for coupled variable '//trim(horizontal_link%target%name)//'.')
-               call couple_variables(root,horizontal_master,horizontal_link%target)
+               if (associated(horizontal_master)) call couple_variables(root,horizontal_master,horizontal_link%target)
             end if
             horizontal_link => horizontal_link%next
          end do
@@ -2340,10 +2334,7 @@ end subroutine add_parameter
          do while (associated(scalar_link))
             if (scalar_link%name==coupling%slave) then
                scalar_master => find_scalar_variable(model,coupling%master,scalar_link)
-               if (.not.associated(scalar_master)) &
-                  call fatal_error('process_coupling_tasks','Unable to find target variable ' &
-                     //trim(coupling%master)//' for coupled variable '//trim(scalar_link%target%name)//'.')
-               call couple_variables(root,scalar_master,scalar_link%target)
+               if (associated(scalar_master)) call couple_variables(root,scalar_master,scalar_link%target)
             end if
             scalar_link => scalar_link%next
          end do
