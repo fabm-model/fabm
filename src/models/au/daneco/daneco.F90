@@ -472,6 +472,11 @@
    _SET_ODE_(self%id_PO4,0*(-POup*B+Wr*C+self%e*self%gam*self%G*P))
    _SET_ODE_(self%id_O2,0*(B*(self%qOB*my+self%qONO*NOup)-self%qONH*NHr*NH4-self%qOC*Cr*C))
 
+! Export diagnostic variables
+   _SET_DIAGNOSTIC_(self%id_dPAR,par)
+   _SET_DIAGNOSTIC_(self%id_dX,self%qXN*N)
+  
+
 !  Leave spatial loops (if any)
    _FABM_LOOP_END_
 
