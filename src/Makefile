@@ -9,8 +9,11 @@ FABMMOD	 = ${LIBFABM}(fabm.o)
 FABMBASE = ${LIBFABM}(fabm_standard_variables.o) ${LIBFABM}(fabm_properties.o) ${LIBFABM}(fabm_types.o)
 FABMMODELLIB = ${LIBFABM}(fabm_library.o)
 
-all: makedirs $(FABMBASE) $(FABMMOD)
+all: ../VERSION makedirs $(FABMBASE) $(FABMMOD)
         $(MOVE_MODULES_COMMAND)
+
+../VERSION: ../Makefile
+	$(MAKE) VERSION -C ..
 
 makedirs:
 	mkdir -p $(MODDIR) $(LIBDIR)
