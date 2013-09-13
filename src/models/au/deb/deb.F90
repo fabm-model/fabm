@@ -368,6 +368,44 @@
 
 !  Retrieve current (local) state variable values.
    _GET_(self%id_nmus,nmus)
+
+   if (nmus .eq. _ZERO_) then
+#if 0
+      _SET_(self%id_volmus,_ZERO_)
+      _SET_(self%id_rdcmus,_ZERO_)
+      _SET_(self%id_nbmus,_ZERO_)
+      _SET_(self%id_pbmus,_ZERO_)
+      _SET_(self%id_rpcmus,_ZERO_)
+      _SET_(self%id_spcmus,_ZERO_)
+      _SET_(self%id_spnmus,_ZERO_)
+      _SET_(self%id_spnmus,_ZERO_)
+      _SET_(self%id_decmus,_ZERO_)
+      _SET_(self%id_denmus,_ZERO_)
+      _SET_(self%id_depmus,_ZERO_)
+      _SET_(self%id_hacmus,_ZERO_)
+      _SET_(self%id_hanmus,_ZERO_)
+      _SET_(self%id_hapmus,_ZERO_)
+#endif
+
+      _SET_ODE_(self%id_volmus,_ZERO_)
+      _SET_ODE_(self%id_nmus,  _ZERO_)
+      _SET_ODE_(self%id_rdcmus,_ZERO_)
+      _SET_ODE_(self%id_nbmus, _ZERO_)
+      _SET_ODE_(self%id_pbmus, _ZERO_)
+      _SET_ODE_(self%id_rpcmus,_ZERO_)
+      _SET_ODE_(self%id_spcmus,_ZERO_)
+      _SET_ODE_(self%id_spnmus,_ZERO_)
+      _SET_ODE_(self%id_sppmus,_ZERO_)
+      _SET_ODE_(self%id_decmus,_ZERO_)
+      _SET_ODE_(self%id_denmus,_ZERO_)
+      _SET_ODE_(self%id_depmus,_ZERO_)
+      _SET_ODE_(self%id_hacmus,_ZERO_)
+      _SET_ODE_(self%id_hanmus,_ZERO_)
+      _SET_ODE_(self%id_hapmus,_ZERO_)
+
+      return
+   end if
+
    _GET_(self%id_volmus,volmus)
    _GET_(self%id_rdcmus,rdcmus)
    _GET_(self%id_nbmus,nbmus)
@@ -382,6 +420,8 @@
    _GET_(self%id_hacmus,hacmus)
    _GET_(self%id_hanmus,hanmus)
    _GET_(self%id_hapmus,hapmus)
+
+
 !   _GET_(self%id_prey,prey)     ! prey density - pelagic NPZD
    _GET_(self%id_B,B)
    _GET_(self%id_C,C)
