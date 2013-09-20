@@ -15,6 +15,8 @@
    use input
    use fabm
    use fabm_types
+   use fabm_standard_variables,only:vn_latitude=>latitude,vn_longitude=>longitude, &
+                                    vn_cell_thickness=>cell_thickness,vn_cloud_area_fraction=>cloud_area_fraction
 
    implicit none
    private
@@ -98,6 +100,7 @@
    character(len=PATH_MAX)   :: env_file,output_file
    integer                   :: i
    real(rk)                  :: depth
+   real(rk),parameter        :: invalid_latitude = -100._rk,invalid_longitude = -400.0_rk
 
    namelist /model_setup/ title,start,stop,dt,ode_method
    namelist /environment/ env_file,swr_method, &
@@ -138,8 +141,8 @@
    ! Read environment namelist
    env_file = ''
    swr_method = 0
-   latitude = -100.0_rk
-   longitude = -400.0_rk
+   latitude = invalid_latitude
+   longitude = invalid_longitude
    cloud = 0.0_rk
    par_fraction = 1.0_rk
    depth = -1.0_rk
@@ -178,6 +181,15 @@
       stop 'init_run'
    end if
 
+   if (latitude/=invalid_latitude.and.(latitude<-90._rk.or.latitude>90._rk)) then
+      FATAL 'run.nml: latitude must lie between -90 and 90.'
+      stop 'init_run'
+   end if
+   if (longitude/=invalid_longitude.and.(longitude<-360._rk.or.longitude>360._rk)) then
+      FATAL 'run.nml: longitude must lie between -360 and 360.'
+      stop 'init_run'
+   end if
+
    ! Make sure depth has been provided.
    if (depth<=0.0_rk) then
       FATAL 'run.nml: a positive value for "depth" must be provided in "environment" namelist.'
@@ -188,11 +200,11 @@
    
    ! If longitude and latitude are used, make sure they have been provided and are valid.
    if (swr_method==0) then
-      if (latitude<-90._rk.or.latitude>90._rk) then
+      if (latitude==invalid_latitude) then
          FATAL 'run.nml: a valid value for "latitude" must be provided in "environment" if "swr_method" is 0.'
          stop 'init_run'
       end if
-      if (longitude<-360._rk.or.longitude>360._rk) then
+      if (longitude==invalid_longitude) then
          FATAL 'run.nml: a valid value for "longitude" must be provided in "environment" if "swr_method" is 0.'
          stop 'init_run'
       end if
@@ -271,9 +283,13 @@
    call fabm_link_bulk_data(model,varname_par,    par)
    call fabm_link_bulk_data(model,varname_pres,   current_depth)
    call fabm_link_bulk_data(model,varname_dens,   dens)
+   call fabm_link_bulk_data(model,vn_cell_thickness, column_depth)
    call fabm_link_horizontal_data(model,varname_wind_sf,wind_sf)
    call fabm_link_horizontal_data(model,varname_par_sf, par_sf)
    call fabm_link_horizontal_data(model,varname_taub, taub)
+   call fabm_link_horizontal_data(model,vn_cloud_area_fraction, cloud)
+   if (latitude /=invalid_latitude ) call fabm_link_horizontal_data(model,vn_latitude,latitude)
+   if (longitude/=invalid_longitude) call fabm_link_horizontal_data(model,vn_longitude,longitude)
    call fabm_link_scalar_data(model,varname_yearday, decimal_yearday)
 
    ! Open the output file.
