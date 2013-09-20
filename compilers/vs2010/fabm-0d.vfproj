@@ -57,7 +57,7 @@
 		<File RelativePath="..\..\src\Rules.make"/></Filter>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<Filter Name="driver">
-		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.F90"/></Filter>
+		<File RelativePath="..\..\src\drivers\0d\fabm_driver.F90"/></Filter>
 		<Filter Name="models">
 		<Filter Name="aed">
 		<File RelativePath="..\..\src\models\aed\aed_bacteria.F90"/>

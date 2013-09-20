@@ -28,6 +28,5 @@
 		<File RelativePath="..\..\src\drivers\0d\fabm_driver.h"/></Filter>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<File RelativePath="..\..\src\drivers\0d\fabm0d.F90"/>
-		<File RelativePath="..\..\src\drivers\0d\fabm_driver.F90"/>
 		<File RelativePath="..\..\src\drivers\0d\main.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
