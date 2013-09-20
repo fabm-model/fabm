@@ -364,6 +364,7 @@
       character(len=attribute_length)   :: name                      = ''
       character(len=attribute_length)   :: long_name                 = ''
       character(len=attribute_length)   :: units                     = ''
+      type (type_bulk_standard_variable) :: standard_variable
       real(rk)                          :: initial_value             = 0.0_rk
       real(rk)                          :: minimum                   = -1.e20_rk
       real(rk)                          :: maximum                   =  1.e20_rk
@@ -380,6 +381,7 @@
       character(len=attribute_length)         :: name          = ''
       character(len=attribute_length)         :: long_name     = ''
       character(len=attribute_length)         :: units         = ''
+      type (type_horizontal_standard_variable) :: standard_variable
       real(rk)                                :: initial_value = 0.0_rk
       real(rk)                                :: minimum       = -1.e20_rk
       real(rk)                                :: maximum       =  1.e20_rk
@@ -393,6 +395,7 @@
       character(len=attribute_length)   :: name           = ''
       character(len=attribute_length)   :: long_name      = ''
       character(len=attribute_length)   :: units          = ''
+      type (type_bulk_standard_variable) :: standard_variable
       real(rk)                          :: minimum        = -1.e20_rk
       real(rk)                          :: maximum        =  1.e20_rk
       real(rk)                          :: missing_value  = -2.e20_rk
@@ -405,6 +408,7 @@
       character(len=attribute_length)         :: name           = ''
       character(len=attribute_length)         :: long_name      = ''
       character(len=attribute_length)         :: units          = ''
+      type (type_horizontal_standard_variable) :: standard_variable
       real(rk)                                :: minimum        = -1.e20_rk
       real(rk)                                :: maximum        =  1.e20_rk
       real(rk)                                :: missing_value  = -2.e20_rk
@@ -418,6 +422,7 @@
       character(len=attribute_length)   :: name       = ''
       character(len=attribute_length)   :: long_name  = ''
       character(len=attribute_length)   :: units      = ''
+      type (type_bulk_standard_variable) :: standard_variable
       integer                           :: externalid = 0       ! Identifier to be used by host (e.g., to hold NetCDF identifier)
       type (type_bulk_variable_id)      :: globalid
       type (type_conserved_quantity_component_list) :: components
@@ -3124,14 +3129,15 @@ recursive subroutine classify_variables(model)
          ! Transfer variable information to the array that will be accessed by the host model.
          if (_ALLOCATED_(link%target%write_indices)) then
             diagvar => model%diagnostic_variables(link%target%write_indices(1)%p)
-            diagvar%globalid       = create_external_variable_id(model,link%target)
-            diagvar%name           = link%target%name
-            diagvar%units          = link%target%units
-            diagvar%long_name      = link%target%long_name
-            diagvar%minimum        = link%target%minimum
-            diagvar%maximum        = link%target%maximum
-            diagvar%missing_value  = link%target%missing_value
-            diagvar%time_treatment = link%target%time_treatment
+            diagvar%globalid          = create_external_variable_id(model,link%target)
+            diagvar%name              = link%target%name
+            diagvar%units             = link%target%units
+            diagvar%long_name         = link%target%long_name
+            diagvar%standard_variable = link%target%standard_variable
+            diagvar%minimum           = link%target%minimum
+            diagvar%maximum           = link%target%maximum
+            diagvar%missing_value     = link%target%missing_value
+            diagvar%time_treatment    = link%target%time_treatment
 #ifdef _FABM_F2003_
             call diagvar%properties%update(link%target%properties)
 #endif
@@ -3143,6 +3149,7 @@ recursive subroutine classify_variables(model)
             statevar%name                      = link%target%name
             statevar%units                     = link%target%units
             statevar%long_name                 = link%target%long_name
+            statevar%standard_variable         = link%target%standard_variable
             statevar%minimum                   = link%target%minimum
             statevar%maximum                   = link%target%maximum
             statevar%missing_value             = link%target%missing_value
@@ -3158,10 +3165,11 @@ recursive subroutine classify_variables(model)
          
          if (_ALLOCATED_(link%target%cons_indices)) then
             consvar => model%conserved_quantities(link%target%cons_indices(1)%p)
-            consvar%globalid    = create_external_variable_id(model,link%target)
-            consvar%name        = link%target%name
-            consvar%units       = link%target%units
-            consvar%long_name   = link%target%long_name
+            consvar%globalid          = create_external_variable_id(model,link%target)
+            consvar%name              = link%target%name
+            consvar%units             = link%target%units
+            consvar%long_name         = link%target%long_name
+            consvar%standard_variable = link%target%standard_variable
 #ifdef _FABM_F2003_
             consvar%components  = link%target%components
             call consvar%properties%update(link%target%properties)
@@ -3179,14 +3187,15 @@ recursive subroutine classify_variables(model)
          ! Transfer variable information to the array that will be accessed by the host model.
          if (_ALLOCATED_(horizontal_link%target%write_indices)) then
             hz_diagvar => model%horizontal_diagnostic_variables(horizontal_link%target%write_indices(1)%p)
-            hz_diagvar%globalid       = create_external_variable_id(model,horizontal_link%target)
-            hz_diagvar%name           = horizontal_link%target%name
-            hz_diagvar%units          = horizontal_link%target%units
-            hz_diagvar%long_name      = horizontal_link%target%long_name
-            hz_diagvar%minimum        = horizontal_link%target%minimum
-            hz_diagvar%maximum        = horizontal_link%target%maximum
-            hz_diagvar%missing_value  = horizontal_link%target%missing_value
-            hz_diagvar%time_treatment = horizontal_link%target%time_treatment
+            hz_diagvar%globalid          = create_external_variable_id(model,horizontal_link%target)
+            hz_diagvar%name              = horizontal_link%target%name
+            hz_diagvar%units             = horizontal_link%target%units
+            hz_diagvar%long_name         = horizontal_link%target%long_name
+            hz_diagvar%standard_variable = horizontal_link%target%standard_variable
+            hz_diagvar%minimum           = horizontal_link%target%minimum
+            hz_diagvar%maximum           = horizontal_link%target%maximum
+            hz_diagvar%missing_value     = horizontal_link%target%missing_value
+            hz_diagvar%time_treatment    = horizontal_link%target%time_treatment
 #ifdef _FABM_F2003_
             call hz_diagvar%properties%update(horizontal_link%target%properties)
 #endif
@@ -3198,14 +3207,15 @@ recursive subroutine classify_variables(model)
                case (domain_surface)
                   hz_statevar => model%surface_state_variables(horizontal_link%target%state_indices(1)%p)
             end select
-            hz_statevar%globalid      = create_external_variable_id(model,horizontal_link%target)
-            hz_statevar%name          = horizontal_link%target%name
-            hz_statevar%units         = horizontal_link%target%units
-            hz_statevar%long_name     = horizontal_link%target%long_name
-            hz_statevar%minimum       = horizontal_link%target%minimum
-            hz_statevar%maximum       = horizontal_link%target%maximum
-            hz_statevar%missing_value = horizontal_link%target%missing_value
-            hz_statevar%initial_value = horizontal_link%target%initial_value
+            hz_statevar%globalid          = create_external_variable_id(model,horizontal_link%target)
+            hz_statevar%name              = horizontal_link%target%name
+            hz_statevar%units             = horizontal_link%target%units
+            hz_statevar%long_name         = horizontal_link%target%long_name
+            hz_statevar%standard_variable = horizontal_link%target%standard_variable
+            hz_statevar%minimum           = horizontal_link%target%minimum
+            hz_statevar%maximum           = horizontal_link%target%maximum
+            hz_statevar%missing_value     = horizontal_link%target%missing_value
+            hz_statevar%initial_value     = horizontal_link%target%initial_value
 #ifdef _FABM_F2003_
             call hz_statevar%properties%update(horizontal_link%target%properties)
 #endif
