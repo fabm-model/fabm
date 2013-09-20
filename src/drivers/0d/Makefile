@@ -4,7 +4,7 @@ export FABMHOST=0d
 
 OBJ = ${LIBFABM}(fabm_driver.o)
 
-all: obj
+all: obj fabm0d
 
 obj: makedirs $(OBJ)
 
