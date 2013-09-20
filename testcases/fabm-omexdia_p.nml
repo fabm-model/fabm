@@ -1,0 +1,59 @@
+!-------------------------------------------------------------------------------
+! fabm_nml
+!-------------------------------------------------------------------------------
+! models             [string array]
+!                     a comma-separated list of one or model model names
+!-------------------------------------------------------------------------------
+&fabm_nml
+   models = 'hzg_omexdia_p'
+/
+
+!-------------------------------------------------------------------------------
+! rFast    = 0.01             #/day        - decay rate fast decay det.
+! rSlow    = 0.00001          #/day        - decay rate slow decay det.
+! pFast    = 0.9              #-           - fraction fast det. in flux
+! NCrFdet  = 0.16             # molN/molC  - NC ratio fast decay det.
+! NCrSdet  = 0.13             # molN/molC  - NC ratio slow decay det.
+! PCrFdet  = 0.16             # molP/molC  - NC ratio fast decay det.
+! PCrSdet  = 0.13             # molP/molC  - NC ratio slow decay det.
+! 
+! # Nutrient parameters
+! NH3Ads          = 1.3    #-           Adsorption coeff ammonium
+! rnit            = 20.    #/d          Max nitrification rate
+! ksO2nitri       = 1.     #umolO2/m3   half-sat O2 in nitrification
+! rODUox          = 20.    #/d          Max rate oxidation of ODU
+! ksO2oduox       = 1.     #mmolO2/m3   half-sat O2 in oxidation of ODU
+! ksO2oxic        = 3.     #mmolO2/m3   half-sat O2 in oxic mineralis
+! ksNO3denit      = 30.    #mmolNO3/m3  half-sat NO3 in denitrif
+! kinO2denit      = 1.     #mmolO2/m3   half-sat O2 inhib denitrif
+! kinNO3anox      = 1.     #mmolNO3/m3  half-sat NO3 inhib anoxic min
+! kinO2anox       = 1.     #mmolO2/m3   half-sat O2 inhib anoxic min
+!-------------------------------------------------------------------------------
+&hzg_omexdia_p
+rFast           = 0.01
+rSlow           = 0.00001
+NCrFdet         = 0.2 
+NCrSdet         = 0.04
+PCrFdet         = 0.01 
+PCrSdet         = 0.004
+PAds            = 10.
+PAdsODU         = 12.
+NH3Ads          = 0.0
+rnit            = 20.
+ksO2nitri       = 20.
+rODUox          = 20.
+ksO2oduox       = 1.
+ksO2oxic        = 3. 
+ksNO3denit      = 30.
+kinO2denit      = 1.
+kinNO3anox      = 1.
+kinO2anox       = 1.
+fdet_init       = 1.e6
+sdet_init       = 1.e6
+oxy_init        = 10.
+odu_init        = 100.
+no3_init        = 30
+nh3_init        = 100.
+pdet_init       = 1.e3
+po4_init        = 20.
+/

@@ -11,6 +11,7 @@ SUBDIRS += klimacampus/  # Hamburg ??
 SUBDIRS += metu/         # Middle East Technical University
 SUBDIRS += pml/          # Plymouth Marine Laboratory
 SUBDIRS += aed/          # AED models
+SUBDIRS += hzg/          # Helmholtz-Zentrum Geesthacht
 
 objs doc clean:
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@; done
