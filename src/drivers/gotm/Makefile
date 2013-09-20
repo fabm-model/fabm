@@ -1,5 +1,10 @@
 include ../../Rules.make
 
+ifndef GOTMDIR
+GOTMDIR = $(HOME)/GOTM/gotm-git
+endif
+FFLAGS += -I$(GOTMDIR)/include
+
 DOCSRC	= fabm_driver.F90
 
 OBJ = ${LIBFABM}(fabm_driver.o)
