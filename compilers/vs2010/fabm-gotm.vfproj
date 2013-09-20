@@ -4,7 +4,7 @@
 		<Platform Name="Win32"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32" OutputDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_;DEBUG" F2003Semantics="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm;$(ProjectDir)\..\..\src\models\aed;$(GOTMDIR)\include;$(GOTMDIR)\compilers\vs2010" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_;DEBUG" F2003Semantics="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -15,7 +15,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32" OutputDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_" VectorizerDiagLevel="vectorizerDiagLevel3" WarnUnusedVariables="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\gotm;$(ProjectDir)\..\..\src\models\aed;$(GOTMDIR)\include;$(GOTMDIR)\compilers\vs2010" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_" VectorizerDiagLevel="vectorizerDiagLevel3" WarnUnusedVariables="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -112,6 +112,9 @@
 		<Filter Name="metu">
 		<Filter Name="mnemiopsis">
 		<File RelativePath="..\..\src\models\metu\mnemiopsis\mnemiopsis.F90"/></Filter></Filter>
+		<Filter Name="hzg">
+		<Filter Name="omexdia_p">
+		<File RelativePath="..\..\src\models\hzg\omexdia_p\omexdia_p.F90"/></Filter></Filter>
 		<Filter Name="pml">
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>
