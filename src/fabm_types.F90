@@ -508,7 +508,9 @@
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
-      generic :: get_parameter        => get_real_parameter
+      procedure :: get_integer_parameter
+      procedure :: get_logical_parameter
+      generic :: get_parameter => get_real_parameter,get_integer_parameter,get_logical_parameter
 
       ! ----------------------------------------------------------------------------------------------------
       ! Procedures below may be overridden by biogeochemical models to provide custom data or functionality.
@@ -2134,7 +2136,7 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_fa
 !EOP
 !
 ! !LOCAL VARIABLES:
-   type (type_real_property),pointer :: current_real_parameter
+   type (type_real_property),pointer :: current_parameter
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -2142,21 +2144,89 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_fa
    
    if (associated(self%parent)) then
       if (present(path)) then
-         call self%parent%get_real_parameter(value,name,units,long_name,1.0_rk,default,path=trim(self%name)//'/'//trim(path))
+         call self%parent%get_parameter(value,name,units,long_name,1.0_rk,default,path=trim(self%name)//'/'//trim(path))
       else
-         call self%parent%get_real_parameter(value,name,units,long_name,1.0_rk,default,path=trim(self%name))
+         call self%parent%get_parameter(value,name,units,long_name,1.0_rk,default,path=trim(self%name))
       end if
    end if
 
    ! Store parameter settings
-   allocate(current_real_parameter)
-   current_real_parameter%value = value
+   allocate(current_parameter)
+   current_parameter%value = value
 
-   call add_parameter(self,current_real_parameter,name,units,long_name)
+   call add_parameter(self,current_parameter,name,units,long_name)
 
    if (present(scale_factor)) value = value*scale_factor
 
 end subroutine get_real_parameter
+!EOC
+
+recursive subroutine get_integer_parameter(self,value,name,units,long_name,default,path)
+! !INPUT PARAMETERS:
+   class (type_model_info), intent(inout), target :: self
+   integer,         intent(inout)       :: value
+   character(len=*),intent(in)          :: name
+   character(len=*),intent(in),optional :: units,long_name,path
+   real(rk),        intent(in),optional :: default
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+   type (type_integer_property),pointer :: current_parameter
+!
+!-----------------------------------------------------------------------
+!BOC
+   if (present(default)) value = default
+   
+   if (associated(self%parent)) then
+      if (present(path)) then
+         call self%parent%get_parameter(value,name,units,long_name,default,path=trim(self%name)//'/'//trim(path))
+      else
+         call self%parent%get_parameter(value,name,units,long_name,default,path=trim(self%name))
+      end if
+   end if
+
+   ! Store parameter settings
+   allocate(current_parameter)
+   current_parameter%value = value
+
+   call add_parameter(self,current_parameter,name,units,long_name)
+
+end subroutine get_integer_parameter
+!EOC
+
+recursive subroutine get_logical_parameter(self,value,name,units,long_name,default,path)
+! !INPUT PARAMETERS:
+   class (type_model_info), intent(inout), target :: self
+   logical,         intent(inout)       :: value
+   character(len=*),intent(in)          :: name
+   character(len=*),intent(in),optional :: units,long_name,path
+   real(rk),        intent(in),optional :: default
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+   type (type_logical_property),pointer :: current_parameter
+!
+!-----------------------------------------------------------------------
+!BOC
+   if (present(default)) value = default
+   
+   if (associated(self%parent)) then
+      if (present(path)) then
+         call self%parent%get_parameter(value,name,units,long_name,default,path=trim(self%name)//'/'//trim(path))
+      else
+         call self%parent%get_parameter(value,name,units,long_name,default,path=trim(self%name))
+      end if
+   end if
+
+   ! Store parameter settings
+   allocate(current_parameter)
+   current_parameter%value = value
+
+   call add_parameter(self,current_parameter,name,units,long_name)
+
+end subroutine get_logical_parameter
 !EOC
 
 subroutine add_parameter(model,parameter,name,units,long_name)
