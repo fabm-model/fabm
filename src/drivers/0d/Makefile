@@ -14,9 +14,9 @@ obj: makedirs $(OBJ)
 ifndef GOTMDIR
 GOTMDIR = $(HOME)/GOTM/gotm-git
 endif
-FFLAGS	+= -I$(GOTMDIR)/modules/$(FORTRAN_COMPILER)
-LDFLAGS += -L$(FABMDIR)/lib/$(FORTRAN_COMPILER) -L$(GOTMDIR)/lib/$(FORTRAN_COMPILER)
-LIBS	+= -lairsea$(buildtype) -linput$(buildtype) -lutil$(buildtype) -lfabm$(buildtype)
+FFLAGS		+= -I$(GOTMDIR)/include -I$(GOTMDIR)/modules/$(FORTRAN_COMPILER)
+LDFLAGS 	+= -L$(FABMDIR)/lib/$(FORTRAN_COMPILER) -L$(GOTMDIR)/lib/$(FORTRAN_COMPILER)
+LIBS		+= -lairsea$(buildtype) -linput$(buildtype) -lutil$(buildtype) -lfabm$(buildtype)
 
 fabm0d: 0d fabm0d.o main.o
 	$(FC) -o $@ main.o fabm0d.o $(LDFLAGS) $(LIBS)
