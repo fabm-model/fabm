@@ -2172,7 +2172,7 @@ recursive subroutine get_integer_parameter(self,value,name,units,long_name,defau
    integer,         intent(inout)       :: value
    character(len=*),intent(in)          :: name
    character(len=*),intent(in),optional :: units,long_name,path
-   real(rk),        intent(in),optional :: default
+   integer,         intent(in),optional :: default
 !
 !EOP
 !
@@ -2206,7 +2206,7 @@ recursive subroutine get_logical_parameter(self,value,name,units,long_name,defau
    logical,         intent(inout)       :: value
    character(len=*),intent(in)          :: name
    character(len=*),intent(in),optional :: units,long_name,path
-   real(rk),        intent(in),optional :: default
+   logical,         intent(in),optional :: default
 !
 !EOP
 !

@@ -13,6 +13,11 @@ all: obj
 
 obj: $(OBJ) makedirs
 
+$(OBJ): gotmversion
+
+gotmversion:
+	$(MAKE) -C $(GOTMDIR) VERSION
+
 makedirs:
 	$(MAKE) -C $(FABMDIR)/src $@
 
