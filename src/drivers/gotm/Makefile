@@ -11,9 +11,12 @@ OBJ = ${LIBFABM}(fabm_driver.o)
 
 all: obj
 
-obj: $(OBJ) makedirs
+obj: makedirs $(OBJ)
 
-makedirs:
+gotmversion:
+	$(MAKE) -C $(GOTMDIR) VERSION
+
+makedirs: gotmversion
 	$(MAKE) -C $(FABMDIR)/src $@
 
 all: obj
