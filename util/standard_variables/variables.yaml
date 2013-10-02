@@ -1,0 +1,67 @@
+bulk:
+  - name: alkalinity_expressed_as_mole_equivalent
+    units: mmol m-3
+  - name: attenuation_coefficient_of_photosynthetic_radiative_flux
+    units: m-1
+  - name: cell_thickness
+    units: m
+  - name: density
+    units: kg m-3
+  - name: downwelling_photosynthetic_radiative_flux
+    units: W m-2
+  - name: downwelling_shortwave_flux
+    units: W m-2
+  - name: mass_concentration_of_suspended_matter
+    units: g m-3
+  - name: mole_concentration_of_ammonium
+    units: mmol m-3
+  - name: mole_concentration_of_dissolved_inorganic_carbon
+    units: mmol m-3
+  - name: mole_concentration_of_dissolved_iron
+    units: umol m-3
+  - name: mole_concentration_of_nitrate
+    units: mmol m-3
+  - name: mole_concentration_of_phosphate
+    units: mmol m-3
+  - name: mole_concentration_of_silicate
+    units: mmol m-3
+  - name: ph_reported_on_total_scale
+    units: 1
+  - name: practical_salinity
+    units: 1e-3
+  - name: pressure
+    units: dbar
+  - name: temperature
+    units: degree_Celsius
+horizontal:
+  - name: bottom_depth_below_geoid
+    units: m
+    synonyms: [bottom_depth]
+  - name: bottom_stress
+    units: Pa
+  - name: cloud_area_fraction
+    units: 1
+  - name: downwelling_photosynthetic_radiative_flux_in_air
+    units: W m-2
+  - name: downwelling_shortwave_flux_in_air
+    units: W m-2
+  - name: latitude
+    units: degree_north
+  - name: longitude
+    units: degree_east
+  - name: mole_fraction_of_carbon_dioxide_in_air
+    units: 1e-6
+  - name: wind_speed
+    units: m s-1
+global:
+  - name: number_of_days_since_start_of_the_year
+    units: day
+conserved:
+  - name: total_carbon
+    units: mmol m-3
+  - name: total_nitrogen
+    units: mmol m-3
+  - name: total_phosphorus
+    units: mmol m-3
+  - name: total_iron
+    units: mmol m-3
