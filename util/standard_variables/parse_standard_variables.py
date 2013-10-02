@@ -1,4 +1,4 @@
-#/usr/bin/env python
+#!/usr/bin/env python
 
 import sys,os.path
 import urllib
@@ -6,6 +6,7 @@ import xml.etree.ElementTree
 
 import yaml # http://pyyaml.org
 
+variablespath = 'variables.yaml'
 localpath = 'cf-standard-name-table.xml'
 url = 'http://cf-pcmdi.llnl.gov/documents/cf-standard-names/standard-name-table/25/cf-standard-name-table.xml'
 
@@ -14,7 +15,8 @@ domain2type = {'bulk':'type_bulk_standard_variable',
                'global':'type_global_standard_variable',
                'conserved':'type_bulk_standard_variable'}
 
-stream = file('variables.yaml', 'rU')
+print 'Parsing %s...' % variablespath
+stream = file(variablespath, 'rU')
 selection = yaml.load(stream)
 stream.close()
 name2data = {}
