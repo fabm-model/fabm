@@ -52,6 +52,7 @@ module fabm_standard_variables
       character(len=64)  :: units = ''    ! Units
       character(len=512) :: cf_names = '' ! Comma-separated list of standard names defined in the NetCDF CF convention (http://cf-pcmdi.llnl.gov/documents/cf-standard-names/)
    end type
+
    ! Single type with all standard variables supported explicitly by FABM.
    ! A single instance of this type is declared in module fabm_types with the name standard_variables.
 
@@ -138,13 +139,21 @@ module fabm_standard_variables
             name='cloud_area_fraction', &
             units='1', &
             cf_names='cloud_area_fraction'), &
-         downwelling_photosynthetic_radiative_flux_in_air = type_horizontal_standard_variable( &
-            name='downwelling_photosynthetic_radiative_flux_in_air', &
-            units='W m-2'), &
-         downwelling_shortwave_flux_in_air = type_horizontal_standard_variable( &
-            name='downwelling_shortwave_flux_in_air', &
+         surface_downwelling_photosynthetic_radiative_flux = type_horizontal_standard_variable( &
+            name='surface_downwelling_photosynthetic_radiative_flux', &
             units='W m-2', &
-            cf_names='downwelling_shortwave_flux_in_air'), &
+            cf_names='surface_downwelling_photosynthetic_radiative_flux_in_sea_water'), &
+         surface_downwelling_photosynthetic_radiative_flux_in_air = type_horizontal_standard_variable( &
+            name='surface_downwelling_photosynthetic_radiative_flux_in_air', &
+            units='W m-2', &
+            cf_names='surface_downwelling_photosynthetic_radiative_flux_in_air'), &
+         surface_downwelling_shortwave_flux = type_horizontal_standard_variable( &
+            name='surface_downwelling_shortwave_flux', &
+            units='W m-2'), &
+         surface_downwelling_shortwave_flux_in_air = type_horizontal_standard_variable( &
+            name='surface_downwelling_shortwave_flux_in_air', &
+            units='W m-2', &
+            cf_names='surface_downwelling_shortwave_flux_in_air,surface_downwelling_shortwave_flux'), &
          latitude = type_horizontal_standard_variable( &
             name='latitude', &
             units='degree_north', &
@@ -215,8 +224,12 @@ module fabm_standard_variables
       bottom_depth_below_geoid = collection%bottom_depth_below_geoid, &
       bottom_stress = collection%bottom_stress, &
       cloud_area_fraction = collection%cloud_area_fraction, &
-      downwelling_photosynthetic_radiative_flux_in_air = collection%downwelling_photosynthetic_radiative_flux_in_air, &
-      downwelling_shortwave_flux_in_air = collection%downwelling_shortwave_flux_in_air, &
+      surface_downwelling_photosynthetic_radiative_flux = collection%surface_downwelling_photosynthetic_radiative_flux, &
+      downwelling_photosynthetic_radiative_flux_in_air = collection%surface_downwelling_photosynthetic_radiative_flux_in_air, &
+      surface_downwelling_photosynthetic_radiative_flux_in_air = collection%surface_downwelling_photosynthetic_radiative_flux_in_air, &
+      surface_downwelling_shortwave_flux = collection%surface_downwelling_shortwave_flux, &
+      downwelling_shortwave_flux_in_air = collection%surface_downwelling_shortwave_flux_in_air, &
+      surface_downwelling_shortwave_flux_in_air = collection%surface_downwelling_shortwave_flux_in_air, &
       latitude = collection%latitude, &
       longitude = collection%longitude, &
       mole_fraction_of_carbon_dioxide_in_air = collection%mole_fraction_of_carbon_dioxide_in_air, &

@@ -97,14 +97,14 @@
 
    ! Variables defined on a horizontal surface (e.g., water surface or bottom).
    type (type_horizontal_standard_variable),parameter,public :: &
-     varname_lon     = standard_variables%longitude,                                        & ! Longitude (degree_East)
-     varname_lat     = standard_variables%latitude,                                         & ! Latitude (degree_North)
-     varname_wind_sf = standard_variables%wind_speed,                                       & ! Wind speed, defined at 10 m above water surface (m s-1)
-     varname_cloud   = standard_variables%cloud_area_fraction,                              & ! Cloud cover (1), i.e., a fraction between 0 and 1
-     varname_swr_sf  = standard_variables%downwelling_shortwave_flux_in_air,                & ! Shortwave [200-4000 nm] radiation, defined at water surface (W m-2)
-     varname_par_sf  = standard_variables%downwelling_photosynthetic_radiative_flux_in_air, & ! Photosynthetically Active [400-700 nm] Radiation, defined at water surface (W m-2)
-     varname_zbot    = standard_variables%bottom_depth_below_geoid,                         & ! Basin floor depth below geoid (approx. mean sea level) (m)
-     varname_taub    = standard_variables%bottom_stress                                       ! Bottom stress (Pa)
+     varname_lon     = standard_variables%longitude,                                         & ! Longitude (degree_East)
+     varname_lat     = standard_variables%latitude,                                          & ! Latitude (degree_North)
+     varname_wind_sf = standard_variables%wind_speed,                                        & ! Wind speed, defined at 10 m above water surface (m s-1)
+     varname_cloud   = standard_variables%cloud_area_fraction,                               & ! Cloud cover (1), i.e., a fraction between 0 and 1
+     varname_swr_sf  = standard_variables%surface_downwelling_shortwave_flux,                & ! Shortwave [200-4000 nm] radiation, defined at water surface (W m-2)
+     varname_par_sf  = standard_variables%surface_downwelling_photosynthetic_radiative_flux, & ! Photosynthetically Active [400-700 nm] Radiation, defined at water surface (W m-2)
+     varname_zbot    = standard_variables%bottom_depth_below_geoid,                          & ! Basin floor depth below geoid (approx. mean sea level) (m)
+     varname_taub    = standard_variables%bottom_stress                                        ! Bottom stress (Pa)
 
    ! Added for aed modules
    character(len=attribute_length),parameter,public :: varname_sed_zone= 'env_sed_zone' ! sedimentation zone

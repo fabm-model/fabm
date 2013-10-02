@@ -41,10 +41,16 @@ horizontal:
     units: Pa
   - name: cloud_area_fraction
     units: 1
-  - name: downwelling_photosynthetic_radiative_flux_in_air
+  - name: surface_downwelling_photosynthetic_radiative_flux
     units: W m-2
-  - name: downwelling_shortwave_flux_in_air
+  - name: surface_downwelling_photosynthetic_radiative_flux_in_air
     units: W m-2
+    synonyms: [downwelling_photosynthetic_radiative_flux_in_air]
+  - name: surface_downwelling_shortwave_flux
+    units: W m-2
+  - name: surface_downwelling_shortwave_flux_in_air
+    units: W m-2
+    synonyms: [downwelling_shortwave_flux_in_air]
   - name: latitude
     units: degree_north
   - name: longitude

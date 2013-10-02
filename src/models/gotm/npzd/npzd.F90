@@ -194,7 +194,7 @@
 
    ! Register environmental dependencies
    call register_dependency(modelinfo, self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
-   call register_dependency(modelinfo, self%id_I_0, standard_variables%downwelling_photosynthetic_radiative_flux_in_air)
+   call register_dependency(modelinfo, self%id_I_0, standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
    return
 
