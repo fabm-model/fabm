@@ -15,8 +15,6 @@
    use input
    use fabm
    use fabm_types
-   use fabm_standard_variables,only:vn_latitude=>latitude,vn_longitude=>longitude, &
-                                    vn_cell_thickness=>cell_thickness,vn_cloud_area_fraction=>cloud_area_fraction
 
    implicit none
    private
@@ -278,19 +276,19 @@
    end do
 
    ! Link environmental data to FABM
-   call fabm_link_bulk_data(model,varname_temp,   temp)
-   call fabm_link_bulk_data(model,varname_salt,   salt)
-   call fabm_link_bulk_data(model,varname_par,    par)
-   call fabm_link_bulk_data(model,varname_pres,   current_depth)
-   call fabm_link_bulk_data(model,varname_dens,   dens)
-   call fabm_link_bulk_data(model,vn_cell_thickness, column_depth)
-   call fabm_link_horizontal_data(model,varname_wind_sf,wind_sf)
-   call fabm_link_horizontal_data(model,varname_par_sf, par_sf)
-   call fabm_link_horizontal_data(model,varname_taub, taub)
-   call fabm_link_horizontal_data(model,vn_cloud_area_fraction, cloud)
-   if (latitude /=invalid_latitude ) call fabm_link_horizontal_data(model,vn_latitude,latitude)
-   if (longitude/=invalid_longitude) call fabm_link_horizontal_data(model,vn_longitude,longitude)
-   call fabm_link_scalar_data(model,varname_yearday, decimal_yearday)
+   call fabm_link_bulk_data(model,standard_variables%temperature,temp)
+   call fabm_link_bulk_data(model,standard_variables%practical_salinity,salt)
+   call fabm_link_bulk_data(model,standard_variables%downwelling_photosynthetic_radiative_flux,par)
+   call fabm_link_bulk_data(model,standard_variables%pressure,current_depth)
+   call fabm_link_bulk_data(model,standard_variables%density,dens)
+   call fabm_link_bulk_data(model,standard_variables%cell_thickness,column_depth)
+   call fabm_link_horizontal_data(model,standard_variables%wind_speed,wind_sf)
+   call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_photosynthetic_radiative_flux,par_sf)
+   call fabm_link_horizontal_data(model,standard_variables%bottom_stress,taub)
+   call fabm_link_horizontal_data(model,standard_variables%cloud_area_fraction,cloud)
+   if (latitude /=invalid_latitude ) call fabm_link_horizontal_data(model,standard_variables%latitude,latitude)
+   if (longitude/=invalid_longitude) call fabm_link_horizontal_data(model,standard_variables%longitude,longitude)
+   call fabm_link_scalar_data(model,standard_variables%number_of_days_since_start_of_the_year,decimal_yearday)
 
    ! Open the output file.
    open(out_unit,file=output_file,action='write', &
