@@ -23,7 +23,6 @@
 !  USES:
    use fabm_types
    use fabm_driver
-   use fabm_standard_variables,only:total_carbon
 
    implicit none
 
@@ -115,7 +114,7 @@
                                     pred_initial,minimum=_ZERO_,no_river_dilution=.FALSE.)
 !  Register diagnostic variables
 !  Register conserved quantities
-   call self%register_conserved_quantity(self%id_totC,total_carbon)
+   call self%register_conserved_quantity(self%id_totC,standard_variables%total_carbon)
    call self%add_conserved_quantity_component(self%id_totC,self%id_prey)
    call self%add_conserved_quantity_component(self%id_totC,self%id_predator)
    return

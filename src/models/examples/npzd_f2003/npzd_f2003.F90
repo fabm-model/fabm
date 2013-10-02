@@ -31,7 +31,6 @@
 ! !USES:
    use fabm_types
    use fabm_driver
-   use fabm_standard_variables,only:total_nitrogen
 
    implicit none
 
@@ -191,7 +190,7 @@
                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
-   call self%register_conserved_quantity(self%id_totN,total_nitrogen)
+   call self%register_conserved_quantity(self%id_totN,standard_variables%total_nitrogen)
    call self%add_conserved_quantity_component(self%id_totN,self%id_n)
    call self%add_conserved_quantity_component(self%id_totN,self%id_p)
    call self%add_conserved_quantity_component(self%id_totN,self%id_z)

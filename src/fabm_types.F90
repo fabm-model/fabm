@@ -34,6 +34,9 @@
    ! Base data type for biogeochemical models.
    public type_model_info
 
+   ! Collection with standard variables (e.g., temeprature, practical_salinity)
+   public standard_variables
+
    ! Variable identifier types used by biogeochemical models
    public type_diagnostic_variable_id
    public type_horizontal_diagnostic_variable_id
@@ -78,35 +81,37 @@
 
    integer, parameter, public :: domain_bulk = 0, domain_bottom = 1, domain_surface = 2
 
+   type (type_standard_variable_collection),parameter :: standard_variables = type_standard_variable_collection()
+
    ! Alternative names for standard variables (for backward compatibility)
    type (type_bulk_standard_variable),parameter,public :: &
-     varname_temp     = temperature,                                      & ! In-situ temperature (degree_Celsius)
-     varname_salt     = practical_salinity,                               & ! Salinity on Practical Salinity Scale (1e-3)
-     varname_swr      = downwelling_shortwave_flux,                       & ! Shortwave [200-4000 nm] radiation (W m-2)
-     varname_par      = downwelling_photosynthetic_radiative_flux,        & ! Photosynthetically Active [400-700 nm] Radiation (W m-2)
-     varname_pres     = pressure,                                         & ! Pressure (dbar = 10 kPa)
-     varname_dens     = density,                                          & ! In-situ density (kg m-3)
-     varname_layer_ht = cell_thickness,                                   & ! Layer thickness (m)
-     varname_extc     = attenuation_coefficient_of_photosynthetic_radiative_flux, & ! Attenuation coefficient for Photosynthetically Active [400-700 nm] Radiation (m-1)
-     varname_tss      = mass_concentration_of_suspended_matter              ! Total suspended matter or suspended solids (g m-3)
+     varname_temp     = standard_variables%temperature,                   & ! In-situ temperature (degree_Celsius)
+     varname_salt     = standard_variables%practical_salinity,                               & ! Salinity on Practical Salinity Scale (1e-3)
+     varname_swr      = standard_variables%downwelling_shortwave_flux,                       & ! Shortwave [200-4000 nm] radiation (W m-2)
+     varname_par      = standard_variables%downwelling_photosynthetic_radiative_flux,        & ! Photosynthetically Active [400-700 nm] Radiation (W m-2)
+     varname_pres     = standard_variables%pressure,                                         & ! Pressure (dbar = 10 kPa)
+     varname_dens     = standard_variables%density,                                          & ! In-situ density (kg m-3)
+     varname_layer_ht = standard_variables%cell_thickness,                                   & ! Layer thickness (m)
+     varname_extc     = standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, & ! Attenuation coefficient for Photosynthetically Active [400-700 nm] Radiation (m-1)
+     varname_tss      = standard_variables%mass_concentration_of_suspended_matter              ! Total suspended matter or suspended solids (g m-3)
 
    ! Variables defined on a horizontal surface (e.g., water surface or bottom).
    type (type_horizontal_standard_variable),parameter,public :: &
-     varname_lon     = longitude,                                        & ! Longitude (degree_East)
-     varname_lat     = latitude,                                         & ! Latitude (degree_North)
-     varname_wind_sf = wind_speed,                                       & ! Wind speed, defined at 10 m above water surface (m s-1)
-     varname_cloud   = cloud_area_fraction,                              & ! Cloud cover (1), i.e., a fraction between 0 and 1
-     varname_swr_sf  = downwelling_shortwave_flux_in_air,                & ! Shortwave [200-4000 nm] radiation, defined at water surface (W m-2)
-     varname_par_sf  = downwelling_photosynthetic_radiative_flux_in_air, & ! Photosynthetically Active [400-700 nm] Radiation, defined at water surface (W m-2)
-     varname_zbot    = bottom_depth,                                     & ! Basin floor depth below geoid (approx. mean sea level) (m)
-     varname_taub    = bottom_stress                                       ! Bottom stress (Pa)
+     varname_lon     = standard_variables%longitude,                                        & ! Longitude (degree_East)
+     varname_lat     = standard_variables%latitude,                                         & ! Latitude (degree_North)
+     varname_wind_sf = standard_variables%wind_speed,                                       & ! Wind speed, defined at 10 m above water surface (m s-1)
+     varname_cloud   = standard_variables%cloud_area_fraction,                              & ! Cloud cover (1), i.e., a fraction between 0 and 1
+     varname_swr_sf  = standard_variables%downwelling_shortwave_flux_in_air,                & ! Shortwave [200-4000 nm] radiation, defined at water surface (W m-2)
+     varname_par_sf  = standard_variables%downwelling_photosynthetic_radiative_flux_in_air, & ! Photosynthetically Active [400-700 nm] Radiation, defined at water surface (W m-2)
+     varname_zbot    = standard_variables%bottom_depth_below_geoid,                         & ! Basin floor depth below geoid (approx. mean sea level) (m)
+     varname_taub    = standard_variables%bottom_stress                                       ! Bottom stress (Pa)
 
    ! Added for aed modules
    character(len=attribute_length),parameter,public :: varname_sed_zone= 'env_sed_zone' ! sedimentation zone
 
    ! Non-spatial (scalar) variables.
    type (type_global_standard_variable),parameter,public :: &
-     varname_yearday = number_of_days_since_start_of_the_year              ! Decimal day of the year (day), equal to 0.0 at 00:00 1 Jan UTC
+     varname_yearday = standard_variables%number_of_days_since_start_of_the_year              ! Decimal day of the year (day), equal to 0.0 at 00:00 1 Jan UTC
 !
 ! !PUBLIC TYPES:
 !
