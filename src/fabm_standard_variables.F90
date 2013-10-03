@@ -174,7 +174,7 @@ module fabm_standard_variables
       type (type_global_standard_variable) :: &
          number_of_days_since_start_of_the_year = type_global_standard_variable( &
             name='number_of_days_since_start_of_the_year', &
-            units='day')
+            units='d')
 
       type (type_bulk_standard_variable) :: &
          total_carbon = type_bulk_standard_variable( &
@@ -188,7 +188,7 @@ module fabm_standard_variables
             units='mmol m-3'), &
          total_iron = type_bulk_standard_variable( &
             name='total_iron', &
-            units='mmol m-3')
+            units='umol m-3')
 
    end type type_standard_variable_collection
 
