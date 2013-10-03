@@ -14,7 +14,7 @@
    use time
    use input
    use fabm
-   use fabm_types
+   use fabm_types, only:rk
 
    implicit none
    private

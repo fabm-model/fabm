@@ -70,6 +70,10 @@
    ! For backward compatibility only (use fabm_do_surface and fabm_do_bottom instead)
    public fabm_get_surface_exchange, fabm_do_benthos
 
+   ! Object with all supported standard variables as its members.
+   ! Imported from fabm_types, and made available so hosts only need to "use fabm"
+   public standard_variables
+
 ! !PUBLIC TYPES:
 !
    ! Derived type for a single generic biogeochemical model
