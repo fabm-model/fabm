@@ -61,7 +61,7 @@ horizontal:
     units: m s-1
 global:
   - name: number_of_days_since_start_of_the_year
-    units: day
+    units: d
 conserved:
   - name: total_carbon
     units: mmol m-3
