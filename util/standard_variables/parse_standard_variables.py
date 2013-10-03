@@ -76,12 +76,15 @@ for name in sorted(name2data.keys()):
 print yaml.dump(selection,default_flow_style=False)
 
 fout = open('standard_variables.F90','w')
+fwiki = open('standard_variables.wiki','w')
 fout.write('   ! Single type with all standard variables supported explicitly by FABM.\n')
 fout.write('   ! A single instance of this type is declared in module fabm_types with the name standard_variables.\n\n')
 fout.write('   type type_standard_variable_collection\n')
 for domain,items in selection.iteritems():
     fout.write('\n      type (%s) :: &\n' % domain2type[domain])
+    fwiki.write('== %s variables ==\n\n{|\n|-\n! Variable\n! Units\n' % (domain[0].upper()+domain[1:]))
     for i,item in enumerate(items):
+        fwiki.write('|-\n| %s\n| %s\n' % (item['name'],item['units']))
         data = (('name',"'%s'" % item['name']),('units',"'%s'" % item['units']))
         if 'cf_names' in item: data = data + (('cf_names',"'%s'" % ','.join(item['cf_names'])),)
         value = '%s( &\n' % domain2type[domain]
@@ -90,6 +93,7 @@ for domain,items in selection.iteritems():
         fout.write('         %s = %s' % (item['name'],value))
         if i!=len(items)-1: fout.write(', &')
         fout.write('\n')
+    fwiki.write('|}\n\n')
 fout.write('\n   end type type_standard_variable_collection\n')
 
 fout.write('\n   ! Collection that contains all standard variables:\n')
@@ -108,3 +112,4 @@ for domain,items in selection.iteritems():
         if i!=len(items)-1: fout.write(', &')
         fout.write('\n')
 fout.close()
+fwiki.close()
