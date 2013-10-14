@@ -40,7 +40,10 @@
       type (type_state_variable_id) :: id_consumed_prey
       type (type_state_variable_id) :: id_prey
       type (type_dependency_id)     :: id_clearance_rate
-      
+
+      real(rk) :: default_clearance_rate
+      logical  :: use_external_clearance_rate
+
    contains
    
       procedure :: initialize
@@ -76,10 +79,16 @@
 !
 ! !LOCAL VARIABLES:
    character(len=64) :: prey_source_variable=''
-   namelist /bb_filter_feeder/ prey_source_variable
+   real(rk)          :: default_clearance_rate
+   logical           :: use_external_clearance_rate
+   namelist /bb_filter_feeder/ default_clearance_rate,use_external_clearance_rate,prey_source_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   use_external_clearance_rate = .true.
+   default_clearance_rate = 0.0_rk      ! per second!
+   prey_source_variable = ''
+
    ! Read the namelist
    read(configunit,nml=bb_filter_feeder,err=99,end=100)
 
@@ -90,8 +99,9 @@
    ! Register link to external pelagic prey.
    call self%register_state_dependency(self%id_prey,prey_source_variable)
 
-   ! Register link to extrnally procided clearance rate.
-   call self%register_dependency(self%id_clearance_rate,'clearance_rate')  ! Unit: per second!
+   self%use_external_clearance_rate = use_external_clearance_rate
+   self%default_clearance_rate = default_clearance_rate  ! Units: per second!
+   if (self%use_external_clearance_rate) call self%register_dependency(self%id_clearance_rate,'clearance_rate')  ! Unit: per second!
 
    return
 
@@ -129,7 +139,11 @@
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_prey,prey)                     ! prey density
-   _GET_(self%id_clearance_rate,clearance_rate) ! prescribed clearance rate
+   if (self%use_external_clearance_rate) then
+      _GET_(self%id_clearance_rate,clearance_rate) ! prescribed clearance rate
+   else
+      clearance_rate = self%default_clearance_rate
+   end if
 
    ! Set bottom fluxes of pelagic variables (these mirror local benthic derivatives)
    _SET_ODE_(self%id_prey,-prey*clearance_rate)
