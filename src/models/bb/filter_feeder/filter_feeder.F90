@@ -145,7 +145,7 @@
       clearance_rate = self%default_clearance_rate
    end if
 
-   ! Set bottom fluxes of pelagic variables (these mirror local benthic derivatives)
+   ! Set fluxes of pelagic variables.
    _SET_ODE_(self%id_prey,-prey*clearance_rate)
    _SET_ODE_(self%id_consumed_prey,prey*clearance_rate)
 
