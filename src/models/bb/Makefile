@@ -3,6 +3,7 @@
 #
 
 SUBDIRS += passive
+SUBDIRS += filter_feeder
 
 #all: objs
 

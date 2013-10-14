@@ -15,6 +15,7 @@
 #ifdef _FABM_F2003_
    ! Specific biogeochemical models
    use fabm_bb_passive
+   use fabm_bb_filter_feeder
    use fabm_examples_npzd_nut
    use fabm_examples_npzd_phy
    use fabm_examples_npzd_zoo
@@ -73,6 +74,7 @@
       select case (modelname)
          case ('au_prey_predator');    allocate(type_au_prey_predator::model)
          case ('bb_passive');          allocate(type_bb_passive::model)
+         case ('bb_filter_feeder');    allocate(type_bb_filter_feeder::model)
          case ('examples_npzd_nut');   allocate(type_examples_npzd_nut::model)
          case ('examples_npzd_phy');   allocate(type_examples_npzd_phy::model)
          case ('examples_npzd_zoo');   allocate(type_examples_npzd_zoo::model)
