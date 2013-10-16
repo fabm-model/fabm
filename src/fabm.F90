@@ -32,7 +32,6 @@
    use fabm_pml_ersem
    use fabm_pml_carbonate
    use fabm_examples_benthic_predator
-   use fabm_iow_spm
    use fabm_klimacampus_phy_feedback
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
 
@@ -101,7 +100,6 @@
       type (type_pml_ersem)                 :: pml_ersem
       type (type_pml_carbonate)             :: pml_carbonate
       type (type_examples_benthic_predator) :: examples_benthic_predator
-      type (type_iow_spm)                   :: iow_spm
       type (type_klimacampus_phy_feedback)  :: klimacampus_phy_feedback
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
 
@@ -208,7 +206,6 @@
    integer, parameter :: pml_carbonate_id             =  101
    integer, parameter :: metu_mnemiopsis_id           =  102
    integer, parameter :: examples_benthic_predator_id =  103
-   integer, parameter :: iow_spm_id                   =  120
    integer, parameter :: klimacampus_phy_feedback_id  =  110
    ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
    ! Note: values <=100 are reserved for models ported from the General Ocean Turbulence Model.
@@ -253,7 +250,6 @@
    call register_model(pml_ersem_id,                'pml_ersem')
    call register_model(pml_carbonate_id,            'pml_carbonate')
    call register_model(examples_benthic_predator_id,'examples_benthic_predator')
-   call register_model(iow_spm_id,                  'iow_spm')
    call register_model(klimacampus_phy_feedback_id, 'klimacampus_phy_feedback')
    ! ADD_NEW_MODEL_HERE - required
 
@@ -948,8 +944,6 @@
          call pml_carbonate_init(model%pml_carbonate,model%info,nmlunit)
       case (examples_benthic_predator_id)
          call examples_benthic_predator_init(model%examples_benthic_predator,model%info,nmlunit)
-      case (iow_spm_id)
-         call iow_spm_init(model%iow_spm,model%info,nmlunit)
       case (klimacampus_phy_feedback_id)
          call klimacampus_phy_feedback_init(model%klimacampus_phy_feedback,model%info,nmlunit)
      ! ADD_NEW_MODEL_HERE - required
@@ -2257,8 +2251,6 @@
 #endif
          case (examples_benthic_predator_id)
             call examples_benthic_predator_do_benthos(model%examples_benthic_predator,_INPUT_ARGS_DO_BENTHOS_RHS_)
-         case (iow_spm_id)
-            call iow_spm_do_benthos(model%iow_spm,_INPUT_ARGS_DO_BENTHOS_RHS_)
          case (klimacampus_phy_feedback_id)
             call klimacampus_phy_feedback_do_benthos(model%klimacampus_phy_feedback,_INPUT_ARGS_DO_BENTHOS_RHS_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
@@ -2417,8 +2409,6 @@
             call gotm_npzd_get_light_extinction(model%gotm_npzd,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          case (gotm_fasham_id)
             call gotm_fasham_get_light_extinction(model%gotm_fasham,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
-         case (iow_spm_id)
-            call iow_spm_get_light_extinction(model%iow_spm,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
          ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
          ! state variable specific extinction coefficients.
          !
