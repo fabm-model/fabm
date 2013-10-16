@@ -22,10 +22,10 @@
    use fabm_examples_npzd_det
    use fabm_examples_duplicator
    use fabm_examples_npzd_f2003
+   use fabm_gotm_ergom
    use aed_models
    use au_prey_predator
    use fabm_hzg_omexdia_p
-   use fabm_iow_ergom
    use fabm_iow_spm
    ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
 #endif
@@ -83,8 +83,8 @@
          case ('examples_npzd_det');   allocate(type_examples_npzd_det::model)
          case ('examples_duplicator'); allocate(type_examples_duplicator::model)
          case ('examples_npzd_f2003'); allocate(type_examples_npzd_f2003::model)
+         case ('gotm_ergom');          allocate(type_gotm_ergom::model)
          case ('hzg_omexdia_p');       allocate(type_hzg_omexdia_p::model)
-         case ('iow_ergom');           allocate(type_iow_ergom::model)
          case ('iow_spm');             allocate(type_iow_spm::model)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
          case default

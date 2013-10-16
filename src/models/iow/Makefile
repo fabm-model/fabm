@@ -2,8 +2,7 @@
 # Makefile to build the FABM models from IOW
 #
 
-SUBDIRS += ergom
-SUBDIRS += spm
+SUBDIRS  = spm
 
 #all: objs
 #	$(MOVE_MODULES_COMMAND)

@@ -15,10 +15,10 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm\_ergom --- IOW biogeochemical model ERGOM
+! !MODULE: fabm\_gotm\_ergom --- GOTM biogeochemical model ERGOM
 !
 ! !INTERFACE:
-   module fabm_iow_ergom
+   module fabm_gotm_ergom
 !
 ! !DESCRIPTION:
 ! The biogeochemical model by
@@ -48,7 +48,7 @@
 ! denitrification and nitrification.
 ! The basic structure of the model is explained in figure \ref{fig_neumann},
 ! and a detailed description of the
-! model is given in section \ref{sec:bio-iow-details}.
+! model is given in section \ref{sec:bio-gotm-details}.
 ! \begin{figure}
 ! \begin{center}
 ! \scalebox{0.5}{\includegraphics{figures/iow_structure.eps}}
@@ -75,13 +75,13 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_iow_ergom
+   public type_gotm_ergom
 !
 ! !REVISION HISTORY:
 !  Author(s):
 !
 ! !PUBLIC_DERIVED_TYPES:
-   type,extends(type_base_model) :: type_iow_ergom
+   type,extends(type_base_model) :: type_gotm_ergom
 ! Variable identifiers
       type (type_state_variable_id)        :: id_p1,id_p2,id_p3,id_zo,id_de,id_am,id_ni,id_po,id_o2
       type (type_bottom_state_variable_id) :: id_fl
@@ -125,7 +125,7 @@ subroutine initialize(self,configunit)
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   class (type_iow_ergom), intent(inout), target :: self
+   class (type_gotm_ergom), intent(inout), target :: self
    integer,                intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
@@ -195,7 +195,7 @@ subroutine initialize(self,configunit)
    real(rk)           :: ph2=0.1_rk
    real(rk),parameter :: secs_pr_day=86400.0_rk
    
-   namelist /iow_ergom/ p1_initial,p2_initial,p3_initial,zo_initial,  &
+   namelist /gotm_ergom/ p1_initial,p2_initial,p3_initial,zo_initial,  &
                         de_initial,am_initial,ni_initial,po_initial,  &
                         o2_initial,sfl_po,sfl_am,sfl_ni,fluff,        &
                         fl_initial,p10,p20,p30,zo0,w_p1,w_p2,w_p3,    &
@@ -208,7 +208,7 @@ subroutine initialize(self,configunit)
 !-----------------------------------------------------------------------
 !BOC
 !  Read the namelist
-   read(configunit,nml=iow_ergom,err=99,end=100)
+   read(configunit,nml=gotm_ergom,err=99,end=100)
 
 !  Store parameter values in our own derived type
 !  NB! All rates must be provided in values per day,
@@ -309,9 +309,9 @@ subroutine initialize(self,configunit)
 
    return
 
- 99 call fatal_error('iow_ergom_init','Error reading namelist iow_ergom.')
+ 99 call fatal_error('gotm_ergom_init','Error reading namelist gotm_ergom.')
 
-100 call fatal_error('iow_ergom_init','Namelist iow_ergom was not found.')
+100 call fatal_error('gotm_ergom_init','Namelist gotm_ergom was not found.')
 
    END subroutine initialize
 !EOC
@@ -329,7 +329,7 @@ subroutine initialize(self,configunit)
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   class(type_iow_ergom), INTENT(IN) :: self
+   class(type_gotm_ergom), INTENT(IN) :: self
   _DECLARE_ARGUMENTS_DO_
 !
 !
@@ -421,7 +421,7 @@ subroutine initialize(self,configunit)
    subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
-   class (type_iow_ergom), intent(in) :: self
+   class (type_gotm_ergom), intent(in) :: self
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
@@ -465,7 +465,7 @@ subroutine initialize(self,configunit)
    implicit none
 
 ! !INPUT PARAMETERS:
-   class (type_iow_ergom), intent(in) :: self
+   class (type_gotm_ergom), intent(in) :: self
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
@@ -572,7 +572,7 @@ subroutine initialize(self,configunit)
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-!  type (type_iow_ergom), intent(in) :: self
+!  type (type_gotm_ergom), intent(in) :: self
   real(rk), intent(in)                 :: t,s
 !
 ! !REVISION HISTORY:
@@ -607,7 +607,7 @@ subroutine initialize(self,configunit)
 ! !INTERFACE:
 
    subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
-   class (type_iow_ergom),intent(in) :: self
+   class (type_gotm_ergom),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
 
   real(rk)             :: temp,wnd,salt,o2,ni,am,po
@@ -686,7 +686,7 @@ subroutine initialize(self,configunit)
   IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   ! type(type_iow_ergom), INTENT(IN) :: self
+   ! type(type_gotm_ergom), INTENT(IN) :: self
     real(rk), intent(in)            :: x,w,min,max
 !
 ! !LOCAL VARIABLES:
@@ -760,7 +760,7 @@ subroutine initialize(self,configunit)
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   class (type_iow_ergom), intent(in) :: self
+   class (type_gotm_ergom), intent(in) :: self
    real(rk), intent(in)                :: g,t,topt,psum
 !
 ! !REVISION HISTORY:
@@ -777,7 +777,7 @@ subroutine initialize(self,configunit)
 
 !-----------------------------------------------------------------------
 
-  END MODULE fabm_iow_ergom
+  END MODULE fabm_gotm_ergom
   
 #endif
 

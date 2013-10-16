@@ -2,7 +2,7 @@
 !fabm.nml
 !-------------------------------------------------------------------------------
 &fabm_nml
-  models = 'iow_ergom'
+  models = 'gotm_ergom'
 /
 !-------------------------------------------------------------------------------
 ! IOW biological model according to Neumann et al. 2002 and Burchard et al. 2005!-------------------------------------------------------------------------------! 
@@ -71,7 +71,7 @@
 !  ph1=       -> release of phosphate                              [ - ]
 !  ph2=       -> release of phosphate                              [ - ]
 !-------------------------------------------------------------------------------
- &iow_ergom
+ &gotm_ergom
   p1_initial=           0.1
   p2_initial=           0.1
   p3_initial=           0.1

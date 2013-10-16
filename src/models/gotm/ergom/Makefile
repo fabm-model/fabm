@@ -1,5 +1,6 @@
 #
-# Makefile to build the FABM version of the iow module
+# Makefile to build the FABM version of the GOTM implementation of 
+# the ERGOM model
 #
 
 include ../../../Rules.make
@@ -14,7 +15,7 @@ objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../../doc/iow_ergom.tex
+	$(PROTEX) $(DOCSRC) > ../../../../doc/gotm_ergom.tex
 
 clean:
 	$(RM) *.o *~
