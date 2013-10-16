@@ -358,8 +358,8 @@
 ! is formulated.
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_phy), intent(in)     :: self
-   real(rk), intent(in)         :: n,p,par,iopt
+   class (type_examples_npzd_phy), intent(in) :: self
+   real(rk), intent(in)                       :: n,p,par,iopt
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
