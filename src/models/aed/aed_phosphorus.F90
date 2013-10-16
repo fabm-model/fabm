@@ -482,8 +482,8 @@ SUBROUTINE aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
      RETURN
    END IF
 
-   _SET_STATE_(self%id_frp,PO4dis)       ! Dissolved PO4
-   _SET_STATE_(self%id_frpads,PO4par)    ! Adsorped PO4
+!   _SET_STATE_(self%id_frp,PO4dis)       ! Dissolved PO4
+!   _SET_STATE_(self%id_frpads,PO4par)    ! Adsorped PO4
 
    ! Leave spatial loops (if any)
    _FABM_LOOP_END_

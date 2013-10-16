@@ -1,5 +1,7 @@
 #include "fabm_driver.h"
 
+#ifdef _FABM_F2003_
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                        !
 !                                                                        !
@@ -73,16 +75,13 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_iow_ergom, iow_ergom_init, iow_ergom_do, iow_ergom_get_light_extinction, &
-   iow_ergom_get_surface_exchange,iow_ergom_do_benthos
-!
-! !PUBLIC DATA MEMBERS:
+   public type_iow_ergom
 !
 ! !REVISION HISTORY:
 !  Author(s):
 !
 ! !PUBLIC_DERIVED_TYPES:
-  type type_iow_ergom
+   type,extends(type_base_model) :: type_iow_ergom
 ! Variable identifiers
       type (type_state_variable_id)        :: id_p1,id_p2,id_p3,id_zo,id_de,id_am,id_ni,id_po,id_o2
       type (type_bottom_state_variable_id) :: id_fl
@@ -94,6 +93,16 @@
       real(rk) :: tf,tbg,beta_bg,g1max,g2max,g3max,lza,lzd,iv,topt,lan,oan,beta_an,lda,tda,beta_da
       real(rk) :: pvel,sr,s1,s2,s3,s4,a0,a1,a2,lds,lsd,tau_crit,lsa,bsa,ph1,ph2
       logical  :: fluff
+
+      contains
+
+!     Model procedures
+      procedure :: initialize
+      procedure :: do
+      procedure :: do_bottom
+      procedure :: get_light_extinction
+      procedure :: do_surface
+      
   end type
 !EOP
 !-----------------------------------------------------------------------
@@ -106,7 +115,7 @@
 ! !IROUTINE: Initialise the ergom model
 !
 ! !INTERFACE:
-   subroutine iow_ergom_init(self,modelinfo,namlst)
+subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !   Here, the ergom namelist is read and the variables exported by the model are registered with FABM
@@ -116,77 +125,76 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type(type_iow_ergom),    intent(out)   ::self
-   _CLASS_(type_model_info),intent(inout) :: modelinfo
-   integer,                 intent(in)    ::namlst
+   class (type_iow_ergom), intent(inout), target :: self
+   integer,                intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
-   real(rk)           :: p1_initial=4.5
-   real(rk)           :: p2_initial=4.5
-   real(rk)           :: p3_initial=4.5
-   real(rk)           :: zo_initial=4.5
-   real(rk)           :: de_initial=4.5
-   real(rk)           :: am_initial=4.5
-   real(rk)           :: ni_initial=4.5
-   real(rk)           :: po_initial=4.5
-   real(rk)           :: o2_initial=4.5
-   real(rk)           :: sfl_po=0.0015
-   real(rk)           :: sfl_am=0.07
-   real(rk)           :: sfl_ni=0.09
+   real(rk)           :: p1_initial=4.5_rk
+   real(rk)           :: p2_initial=4.5_rk
+   real(rk)           :: p3_initial=4.5_rk
+   real(rk)           :: zo_initial=4.5_rk
+   real(rk)           :: de_initial=4.5_rk
+   real(rk)           :: am_initial=4.5_rk
+   real(rk)           :: ni_initial=4.5_rk
+   real(rk)           :: po_initial=4.5_rk
+   real(rk)           :: o2_initial=4.5_rk
+   real(rk)           :: sfl_po=0.0015_rk
+   real(rk)           :: sfl_am=0.07_rk
+   real(rk)           :: sfl_ni=0.09_rk
    logical            :: fluff=.false.
-   real(rk)           :: fl_initial=0.0
-   real(rk)           :: p10=0.0225
-   real(rk)           :: p20=0.0225
-   real(rk)           :: p30=0.0225
-   real(rk)           :: zo0=0.0225
-   real(rk)           :: w_p1=-1.157407e-05
-   real(rk)           :: w_p2=-5.787037e-05
-   real(rk)           :: w_p3=-5.787037e-05
-   real(rk)           :: w_de=-3.
-   real(rk)           :: kc=0.03
-   real(rk)           :: i_min=25.
-   real(rk)           :: r1max=2.0
-   real(rk)           :: r2max=0.7
-   real(rk)           :: r3max=0.5
-   real(rk)           :: alpha1=1.35
-   real(rk)           :: alpha2=0.675
-   real(rk)           :: alpha3=0.5
-   real(rk)           :: lpa=0.01
-   real(rk)           :: lpd=0.02
-   real(rk)           :: tf=10.
-   real(rk)           :: tbg=14.
-   real(rk)           :: beta_bg=1.
-   real(rk)           :: g1max=0.5
-   real(rk)           :: g2max=0.5
-   real(rk)           :: g3max=0.25
-   real(rk)           :: lza=0.0666666666
-   real(rk)           :: lzd=0.1333333333
-   real(rk)           :: iv=0.24444444
-   real(rk)           :: topt=20.
-   real(rk)           :: lan=0.1
-   real(rk)           :: oan=0.01
-   real(rk)           :: beta_an=0.11
-   real(rk)           :: lda=0.003
-   real(rk)           :: tda=13.
-   real(rk)           :: beta_da=20.
-   real(rk)           :: pvel=5.
-   real(rk)           :: sr=0.0625
-   real(rk)           :: s1=5.3
-   real(rk)           :: s2=6.625
-   real(rk)           :: s3=8.625
-   real(rk)           :: s4=2.0
-   real(rk)           :: a0=31.25
-   real(rk)           :: a1=14.603
-   real(rk)           :: a2=0.4025
-   real(rk)           :: lds=3.5
-   real(rk)           :: lsd=25.0
-   real(rk)           :: tau_crit=0.07
-   real(rk)           :: lsa=0.001
-   real(rk)           :: bsa=0.15
-   real(rk)           :: ph1=0.15
-   real(rk)           :: ph2=0.1
-
-   real(rk),parameter           :: secs_pr_day=86400.
+   real(rk)           :: fl_initial=0.0_rk
+   real(rk)           :: p10=0.0225_rk
+   real(rk)           :: p20=0.0225_rk
+   real(rk)           :: p30=0.0225_rk
+   real(rk)           :: zo0=0.0225_rk
+   real(rk)           :: w_p1=-1.157407e-05_rk
+   real(rk)           :: w_p2=-5.787037e-05_rk
+   real(rk)           :: w_p3=-5.787037e-05_rk
+   real(rk)           :: w_de=-3.0_rk
+   real(rk)           :: kc=0.03_rk
+   real(rk)           :: i_min=25.0_rk
+   real(rk)           :: r1max=2.0_rk
+   real(rk)           :: r2max=0.7_rk
+   real(rk)           :: r3max=0.5_rk
+   real(rk)           :: alpha1=1.35_rk
+   real(rk)           :: alpha2=0.675_rk
+   real(rk)           :: alpha3=0.5_rk
+   real(rk)           :: lpa=0.01_rk
+   real(rk)           :: lpd=0.02_rk
+   real(rk)           :: tf=10.0_rk
+   real(rk)           :: tbg=14.0_rk
+   real(rk)           :: beta_bg=1._rk
+   real(rk)           :: g1max=0.5_rk
+   real(rk)           :: g2max=0.5_rk
+   real(rk)           :: g3max=0.25_rk
+   real(rk)           :: lza=0.0666666666_rk
+   real(rk)           :: lzd=0.1333333333_rk
+   real(rk)           :: iv=0.24444444_rk
+   real(rk)           :: topt=20.0_rk
+   real(rk)           :: lan=0.1_rk
+   real(rk)           :: oan=0.01_rk
+   real(rk)           :: beta_an=0.11_rk
+   real(rk)           :: lda=0.003_rk
+   real(rk)           :: tda=13.0_rk
+   real(rk)           :: beta_da=20.0_rk
+   real(rk)           :: pvel=5.0_rk
+   real(rk)           :: sr=0.0625_rk
+   real(rk)           :: s1=5.3_rk
+   real(rk)           :: s2=6.625_rk
+   real(rk)           :: s3=8.625_rk
+   real(rk)           :: s4=2.0_rk
+   real(rk)           :: a0=31.25_rk
+   real(rk)           :: a1=14.603_rk
+   real(rk)           :: a2=0.4025_rk
+   real(rk)           :: lds=3.5_rk
+   real(rk)           :: lsd=25.0_rk
+   real(rk)           :: tau_crit=0.07_rk
+   real(rk)           :: lsa=0.001_rk
+   real(rk)           :: bsa=0.15_rk
+   real(rk)           :: ph1=0.15_rk
+   real(rk)           :: ph2=0.1_rk
+   real(rk),parameter :: secs_pr_day=86400.0_rk
+   
    namelist /iow_ergom/ p1_initial,p2_initial,p3_initial,zo_initial,  &
                         de_initial,am_initial,ni_initial,po_initial,  &
                         o2_initial,sfl_po,sfl_am,sfl_ni,fluff,        &
@@ -200,7 +208,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Read the namelist
-   read(namlst,nml=iow_ergom,err=99,end=100)
+   read(configunit,nml=iow_ergom,err=99,end=100)
 
 !  Store parameter values in our own derived type
 !  NB! All rates must be provided in values per day,
@@ -259,39 +267,53 @@
    end if
 
 !  Register state variables
-   call register_state_variable(modelinfo,self%id_p1,'dia','mmol n/m**3','diatoms',p1_initial,minimum=_ZERO_,vertical_movement=w_p1/secs_pr_day)
-   call register_state_variable(modelinfo,self%id_p2,'fla','mmol n/m**3','flagellates',p2_initial,minimum=_ZERO_,vertical_movement=w_p2/secs_pr_day)
-   call register_state_variable(modelinfo,self%id_p3,'cya','mmol n/m**3','cyanobacteria',p3_initial,minimum=_ZERO_,vertical_movement=w_p3/secs_pr_day)
-   call register_state_variable(modelinfo,self%id_zo,'zoo','mmol n/m**3','zooplankton',zo_initial,minimum=_ZERO_)
-   call register_state_variable(modelinfo,self%id_de,'det','mmol n/m**3','detritus',de_initial,minimum=_ZERO_,vertical_movement=w_de/secs_pr_day)
-   call register_state_variable(modelinfo,self%id_am,'amm','mmol n/m**3','ammonium',am_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   call register_state_variable(modelinfo,self%id_ni,'nit','mmol n/m**3','nitrate',ni_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   call register_state_variable(modelinfo,self%id_po,'pho','mmol p/m**3','phosphate',po_initial,minimum=_ZERO_,no_river_dilution=.true.)
-   call register_state_variable(modelinfo,self%id_o2,'oxy','mmol o2/m**3','oxygen',o2_initial)
-   if (self%fluff) call register_state_variable(modelinfo,self%id_fl,'flf','mmol n/m**2','fluff',fl_initial,minimum=_ZERO_)
+   call self%register_state_variable(self%id_p1,'dia','mmol n/m**3','diatoms',      &
+         p1_initial,minimum=_ZERO_,vertical_movement=w_p1/secs_pr_day)
+   call self%register_state_variable(self%id_p2,'fla','mmol n/m**3','flagellates',  &
+         p2_initial,minimum=_ZERO_,vertical_movement=w_p2/secs_pr_day)
+   call self%register_state_variable(self%id_p3,'cya','mmol n/m**3','cyanobacteria',&
+         p3_initial,minimum=_ZERO_,vertical_movement=w_p3/secs_pr_day)
+   call self%register_state_variable(self%id_zo,'zoo','mmol n/m**3','zooplankton',  &
+         zo_initial,minimum=_ZERO_)
+   call self%register_state_variable(self%id_de,'det','mmol n/m**3','detritus',     &
+         de_initial,minimum=_ZERO_,vertical_movement=w_de/secs_pr_day)
+   call self%register_state_variable(self%id_am,'amm','mmol n/m**3','ammonium',     &
+         am_initial,minimum=_ZERO_,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_ni,'nit','mmol n/m**3','nitrate',      &
+         ni_initial,minimum=_ZERO_,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_po,'pho','mmol p/m**3','phosphate',    &
+         po_initial,minimum=_ZERO_,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_o2,'oxy','mmol o2/m**3','oxygen',o2_initial)
+   if (self%fluff) call self%register_state_variable(self%id_fl,'flf','mmol n/m**2','fluff', &
+         fl_initial,minimum=_ZERO_)         
 
 ! Register diagnostic variables
-   call register_diagnostic_variable(modelinfo,self%id_dPAR,'PAR','W/m**2','photosynthetically active radiation',time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_GPP,'GPP','mmol/m**3','gross primary production',time_treatment=time_treatment_step_integrated)
-   call register_diagnostic_variable(modelinfo,self%id_NCP,'NCP','mmol/m**3','net community production',time_treatment=time_treatment_step_integrated)
-   call register_diagnostic_variable(modelinfo,self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_NPR,'NPR','mmol/m**3/d','net community production rate',time_treatment=time_treatment_averaged)
+   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2','photosynthetically active radiation',   &
+         time_treatment=time_treatment_averaged)
+   call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol/m**3','gross primary production',            &
+         time_treatment=time_treatment_step_integrated)
+   call self%register_diagnostic_variable(self%id_NCP,'NCP','mmol/m**3','net community production',            &
+         time_treatment=time_treatment_step_integrated)
+   call self%register_diagnostic_variable(self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',     &
+         time_treatment=time_treatment_averaged)
+   call self%register_diagnostic_variable(self%id_NPR,'NPR','mmol/m**3/d','net community production rate',     &
+         time_treatment=time_treatment_averaged)
 
 ! Register environmental dependencies
-   call register_dependency(modelinfo,self%id_par,varname_par)
-   call register_dependency(modelinfo,self%id_temp,varname_temp)
-   call register_dependency(modelinfo,self%id_salt,varname_salt)
-   call register_dependency(modelinfo,self%id_I_0,varname_par_sf)
-   call register_dependency(modelinfo,self%id_wind,varname_wind_sf)
-   if (self%fluff) call register_dependency(modelinfo,self%id_taub,varname_taub)
+   call self%register_dependency(self%id_par,varname_par)
+   call self%register_dependency(self%id_temp,varname_temp)
+   call self%register_dependency(self%id_salt,varname_salt)
+   call self%register_dependency(self%id_I_0,varname_par_sf)
+   call self%register_dependency(self%id_wind,varname_wind_sf)
+   if (self%fluff) call self%register_dependency(self%id_taub,varname_taub)
 
-   RETURN
+   return
 
  99 call fatal_error('iow_ergom_init','Error reading namelist iow_ergom.')
 
 100 call fatal_error('iow_ergom_init','Namelist iow_ergom was not found.')
 
-   END subroutine iow_ergom_init
+   END subroutine initialize
 !EOC
 
 
@@ -301,212 +323,22 @@
 ! !IROUTINE: Right hand sides of ergom model
 !
 ! !INTERFACE:
-   subroutine iow_ergom_do(self,_ARGUMENTS_DO_)
-!
-! !DESCRIPTION:
-! The right hand sides of the \cite{Neumannetal2002} biogeochemical model are
-! coded in this soubroutine.
-! First of all, based on (\ref{theta}) and (\ref{Y}),
-! we construct limiters for chemical
-! reactions which depend on the availability of oxygen ($c_9$) and nitrate
-! ($c_7$) and have to add up to unity:
-! \begin{equation}\label{limits}
-! \begin{array}{rcl}
-! l^+_+ &=& \theta(c_9,c_9^t,0,1)Y(c_7^t,c_7), \\ \\
-! l^-_+ &=& \theta(-c_9,c_9^t,0,1)Y(c_7^t,c_7), \\ \\
-! l^-_- &=& \theta(-c_9,c_9^t,0,1)(1-Y(c_7^t,c_7)), \\ \\
-! L^+_+ &=& \frac{l^+_+}{l^+_+ + l^-_+ + l^-_-}, \\ \\
-! L^-_+ &=& \frac{l^-_+}{l^+_+ + l^-_+ + l^-_-}, \\ \\
-! L^-_- &=& \frac{l^-_-}{l^+_+ + l^-_+ + l^-_-}. \\ \\
-! \end{array}
-! \end{equation}
-!
-! Mortality of the three phytoplankton classes $c_i$, $i=1,\dots,3$:
-! \begin{equation}\label{neu_di5}
-! d_{i,5}=l_{PD} c_i
-! \end{equation}
-!
-! Respiration of the three phytoplankton classes $c_i$, $i=1,\dots,3$
-! into ammonium:
-! \begin{equation}\label{neu_di6}
-! d_{i,6}=l_{PA} c_i
-! \end{equation}
-!
-! Zooplankton mortality:
-! \begin{equation}\label{neu_d45}
-! d_{4,5}=l_{ZD}(c_4+c_4^{\min})c_4
-! \end{equation}
-!
-! Zooplankton exudation into ammonium:
-! \begin{equation}\label{neu_d46}
-! d_{4,6}=l_{ZA}(c_4+c_4^{\min})c_4
-! \end{equation}
-!
-! Detritus mineralisation:
-! \begin{equation}\label{neu_d56}
-! d_{5,6}=L_{DA}c_5
-! \end{equation}
-! with
-! \begin{equation}\label{LDA}
-! L_{DA} = l_{DA} \left(1+\beta_{DA}Y(T_{DA},T)\right).
-! \end{equation}
-!
-! Ammonium uptake by phytoplankta $c_i$, $i=1,2$:
-! \begin{equation}\label{neu_d6i}
-! d_{6,i}=R_i\frac{c_6}{c_6+c_7}\left(c_i+c_i^{\min} \right)
-! \end{equation}
-! with the growth rate for diatoms,
-! \begin{equation}\label{r1}
-! R_1=r_1^{\max} \min\left\{
-! Y(\alpha_1,c_6+c_7), Y(s_R\alpha_1,c_8), PPI
-! \right\}
-! \end{equation}
-! and the growth rate for flagellates,
-! \begin{equation}\label{r2}
-! R_2=r_2^{\max}\left(1+Y\left(T_f,T \right)\right)\min\left\{
-! Y(\alpha_2,c_6+c_7),Y(s_R\alpha_2,c_8),PPI
-! \right\}.
-! \end{equation}
-! Here,
-! \begin{equation}\label{ppi}
-! PPI=\frac{I_{PAR}}{I_{opt}}\exp\left(1-\frac{I_{PAR}}{I_{opt}}  \right)
-! \end{equation}
-! with
-! \begin{equation}\label{iopt}
-! I_{opt}=\max\left\{\frac{I_0}{4},I_{\min}   \right\}
-! \end{equation}
-! and $I_{PAR}$ from (\ref{light}).
-!
-! Nitrification of ammonium to nitrate:
-! \begin{equation}\label{neu_d67}
-! d_{6,7}=L_{AN}c_6
-! \end{equation}
-! with
-! \begin{equation}\label{LAN}
-! L_{AN}=l_{AN}\theta(c_9,0,0,1)\frac{c_9}{O_{AN}+c_9}\exp\left(\beta_{AN}T\right).
-! \end{equation}
-!
-! Nitrate uptake by phytoplankta $c_i$, $i=1,2$:
-! \begin{equation}\label{neu_d7i}
-! d_{7,i}=R_i\frac{c_7}{c_6+c_7}\left(c_i+c_i^{\min} \right).
-! \end{equation}
-!
-! Settling of detritus into sediment:
-! \begin{equation}\label{neu_d510}
-! d_{5,10}=l_{DS} \frac{c_5}{h_1}\delta_{k,1}
-! \end{equation}
-!
-! Mineralisation of sediment into ammonium:
-! \begin{equation}\label{neu_d106}
-! d_{10,6}=L_{SA} c_{10}
-! \end{equation}
-! with
-! \begin{equation}\label{LSA}
-! L_{SA}=l_{SA} \exp\left(\beta_{SA}T \right) \theta(c_9,c_9^t,0.2,1)
-! \end{equation}
-!
-! From the above sink terms, respective source terms are calculated by means of (\ref{eq:am:symmetry}),
-! except for settling of detritus into sediment and mineralisation of sediment into
-! ammonium, for which we have:
-! \begin{equation}\label{neu_p105}
-! p_{10,5}=h_1 d_{5,10}, \quad p_{6,10}=\frac{d_{10,6}}{h_1}.
-! \end{equation}
-!
-! Denitrification in water column:
-! \begin{equation}\label{neu_d77}
-! d_{7,7}=s_1 \left(L_{DA} c_5 +L_{SA} \frac{c_{10}}{h_1}\delta_{k,1} \right)L^-_+.
-! \end{equation}
-!
-! Denitrification in sediment:
-! \begin{equation}\label{neu_d1010}
-! d_{10,10}=\theta(c_9,c_9^t,0,1) L_{SA} c_{10}
-! \end{equation}
-!
-! Phosphorus uptake by the three phytoplankton classes $c_i$, $i=1,\dots,3$:
-! \begin{equation}\label{neu_d88}
-! d_{8,8}=s_R \left(\sum_{j=1}^3 R_j \left(c_j+c_j^{\min}   \right)     \right).
-! \end{equation}
-!
-! Nitrogen fixation:
-! \begin{equation}\label{neu_p33}
-! p_{3,3}=R_3\left(c_3+c_3^{\min}\right)
-! \end{equation}
-! with
-! \begin{equation}\label{r3}
-! R_3=r_3^{\max}\frac{1}{1+\exp\left(\beta_{bg}\left(T_{bg}-T  \right)   \right)}\min\left\{Y\left(s_R\alpha_3,c_8\right),PPI   \right\}
-! \end{equation}
-!
-! Respiration of the three phytoplankton classes $c_i$, $i=1,\dots,3$
-! into phosphorus:
-! \begin{equation}\label{neu_p8i}
-! p_{8,i}=s_R d_{i,6}.
-! \end{equation}
-!
-! Zooplankton exudation into phosphorus:
-! \begin{equation}\label{neu_p84}
-! p_{8,4}=s_R d_{4,6}.
-! \end{equation}
-!
-! Phosphate release due to detritus mineralisation:
-! \begin{equation}\label{neu_p85}
-! p_{8,5}=s_R d_{5,6}.
-! \end{equation}
-!
-! Oxygen production due to ammonium uptake by phytoplankton classes $c_i$, $i=1,2$and nitrification of ammonium into nitrate:
-! \begin{equation}\label{neu_p96}
-! p_{9,6}= s_2 \left(d_{6,1}+d_{6,2} \right)-s_4 d_{6,7}.
-! \end{equation}
-!
-! Oxygen production due to nitrate uptake by phytoplankton classes $c_i$, $i=1,2$:
-! \begin{equation}\label{neu_p97}
-! p_{9,7}= s_3 \left(d_{7,1}+d_{7,2} \right).
-! \end{equation}
-!
-! Oxygen production due to nitrogen fixation by blue-greens:
-! \begin{equation}\label{neu_p99}
-! p_{9,9}=s_2 p{3,3}
-! \end{equation}
-!
-! Oxygen demand due to
-! respiration of the three phytoplankton classes $c_i$, $i=1,\dots,3$:
-! \begin{equation}\label{neu_p9i}
-! p_{9,i}=-s_2 d_{i,6}.
-! \end{equation}
-!
-! Oxygen demand of zooplankton exudation:
-! \begin{equation}\label{neu_p94}
-! p_{9,4}=-s_2 d_{4,6}.
-! \end{equation}
-!
-! Oxygen demand of mineralisation of detritus into ammonium:
-! \begin{equation}\label{neu_p95}
-! p_{9,5}=-s_2\left(L_+^++L_-^- \right) d_{5,6}.
-! \end{equation}
-!
-! Oxygen demand of mineralisation of sediment into ammonium:
-! \begin{equation}\label{neu_p910}
-! p_{9,10}=-\left(s_4+s_2\left(L_+^++L_-^- \right)\right) \frac{d_{10,6}}{h_1}\delta_{k,1}.
-! \end{equation}
-!
-! Phosphate release due to mineralisation of sediment into ammonium:
-! \begin{equation}\label{neu_p88}
-! p_{8,8}=s_R(1-p_1\theta\left(c_9,c_9^t,0,1\right)Y(p_2,c_9))\frac{d_{10,6}}{h_1}\delta_{k,1}.
-! \end{equation}
-!
+   subroutine do(self,_ARGUMENTS_DO_)
+!!
 ! !USES:
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type(type_iow_ergom), INTENT(IN) :: self
+   class(type_iow_ergom), INTENT(IN) :: self
   _DECLARE_ARGUMENTS_DO_
 !
 !
 ! !LOCAL VARIABLES:
     real(rk)        :: p1,p2,p3,zo,am,ni,po,de,o2,par,I_0
     real(rk)        :: iopt,ppi,temp,psum,llda,llan,lp,r1,r2,r3
-    real(rk)        :: wo=30.,wn=0.1
+    real(rk)        :: wo=30.0_rk,wn=0.1_rk
     real(rk)        :: thopnp,thomnp,thomnm,thsum
-    real(rk)        :: secs_pr_day=86400.
+    real(rk)        :: secs_pr_day=86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -574,7 +406,7 @@
 !   Leave spatial loops (if any)
    _LOOP_END_
 
-   END subroutine iow_ergom_do
+   END subroutine do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -586,10 +418,10 @@
 ! !DESCRIPTION:
 
 ! !INTERFACE:
-   pure subroutine iow_ergom_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
+   subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
-   type (type_iow_ergom), intent(in) :: self
+   class (type_iow_ergom), intent(in) :: self
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
@@ -616,25 +448,24 @@
    ! Leave spatial loops (if any)
    _LOOP_END_
 
-   end subroutine iow_ergom_get_light_extinction
+   end subroutine get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Right hand sides of benthic_predator model
+! !IROUTINE: 
 !
 ! !INTERFACE:
-   subroutine iow_ergom_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
+   subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
-! This routine calculates the benthic sink and source terms, as well as
-! (matching) bottom fluxes for pelagic variables. Both have units mmol/m**2/s.
-! Benthic processes are explained in the description of iow\_ergom\_do
-! subroutine.
+! Calculating the benthic fluxes
 !
+   implicit none
+
 ! !INPUT PARAMETERS:
-   type (type_iow_ergom),       intent(in) :: self
+   class (type_iow_ergom), intent(in) :: self
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
@@ -642,8 +473,7 @@
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: fl,amb,nib,pob,deb,oxb,taub,temp
-   !logical                   :: fluff,ltaub
-   real(rk)                   :: llds,llsd,llsa,wo=30.,wn=0.1,dot2=0.2
+   real(rk)                   :: llds,llsd,llsa,wo=30.0_rk,wn=0.1_rk,dot2=0.2_rk
    real(rk)                   :: thopnp,thomnp,thomnm,thsum
 
 !EOP
@@ -654,27 +484,25 @@
 
    ! Retrieve current (local) state variable values.
    if (self%fluff) then
-   _GET_(self%id_am,amb)
-   _GET_(self%id_de,deb)
-   _GET_(self%id_ni,nib)
-   _GET_(self%id_po,pob)
-   _GET_(self%id_o2,oxb)
-   _GET_HORIZONTAL_(self%id_fl,fl)
+      _GET_(self%id_am,amb)
+      _GET_(self%id_de,deb)
+      _GET_(self%id_ni,nib)
+      _GET_(self%id_po,pob)
+      _GET_(self%id_o2,oxb)
+      _GET_HORIZONTAL_(self%id_fl,fl)
 
-   _GET_HORIZONTAL_(self%id_taub,taub)
-   _GET_(self%id_temp,temp)
+      _GET_HORIZONTAL_(self%id_taub,taub)
+      _GET_(self%id_temp,temp)
 
-    thopnp=th( oxb,wo,_ZERO_,_ONE_)*yy(wn,nib)
-    thomnp=th(-oxb,wo,_ZERO_,_ONE_)*yy(wn,nib)
-    thomnm=th(-oxb,wo,_ZERO_,_ONE_)*(_ONE_-yy(wn,nib))
-    thsum=thopnp+thomnp+thomnm
-    thopnp=thopnp/thsum
-    thomnp=thomnp/thsum
-    thomnm=thomnm/thsum
+       thopnp=th( oxb,wo,_ZERO_,_ONE_)*yy(wn,nib)
+       thomnp=th(-oxb,wo,_ZERO_,_ONE_)*yy(wn,nib)
+       thomnm=th(-oxb,wo,_ZERO_,_ONE_)*(_ONE_-yy(wn,nib))
+       thsum=thopnp+thomnp+thomnm
+       thopnp=thopnp/thsum
+       thomnp=thomnp/thsum
+       thomnm=thomnm/thsum
 
-  llsa=self%lsa*exp(self%bsa*temp)*(th(oxb,wo,dot2,_ONE_))
-
-  !ltaub=taub**2*1000.
+        llsa=self%lsa*exp(self%bsa*temp)*(th(oxb,wo,dot2,_ONE_))
 
         if (self%tau_crit .gt. taub) then
             llds=self%lds*(self%tau_crit-taub)/self%tau_crit
@@ -687,18 +515,18 @@
             llsd=_ZERO_
          end if
 
-   _SET_ODE_BEN_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,_ZERO_,_ONE_)*llsa*fl)
-   _SET_BOTTOM_EXCHANGE_(self%id_de,-llds*deb+llsd*fl)
-   _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
-   _SET_BOTTOM_EXCHANGE_(self%id_ni,self%s1*thomnp*llsa*fl)
-   _SET_BOTTOM_EXCHANGE_(self%id_po,self%sr*(_ONE_-self%ph1*th(oxb,wo,_ZERO_,_ONE_)*yy(self%ph2,oxb))*llsa*fl)
-   _SET_BOTTOM_EXCHANGE_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
+      _SET_ODE_BEN_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,_ZERO_,_ONE_)*llsa*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_de,-llds*deb+llsd*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_ni,self%s1*thomnp*llsa*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_po,self%sr*(_ONE_-self%ph1*th(oxb,wo,_ZERO_,_ONE_)*yy(self%ph2,oxb))*llsa*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
    end if
 
    ! Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_
 
-   end subroutine iow_ergom_do_benthos
+   end subroutine do_bottom
 !EOC
 
 !------------------------------------------------------------------------
@@ -752,19 +580,19 @@
 !
 ! !LOCAL VARIABLES:
   real(rk)                 :: tk
-  real(rk)                 :: aa1=-173.4292
-  real(rk)                 :: aa2=249.6339
-  real(rk)                 :: a3=143.3483
-  real(rk)                 :: a4=-21.8492
-  real(rk)                 :: b1=-0.033096
-  real(rk)                 :: b2=0.014259
-  real(rk)                 :: b3=-0.001700
-  real(rk)                 :: kelvin=273.16
-  real(rk)                 :: mol_per_liter=44.661
+  real(rk)                 :: aa1=-173.4292_rk
+  real(rk)                 :: aa2=249.6339_rk
+  real(rk)                 :: a3=143.3483_rk
+  real(rk)                 :: a4=-21.8492_rk
+  real(rk)                 :: b1=-0.033096_rk
+  real(rk)                 :: b2=0.014259_rk
+  real(rk)                 :: b3=-0.001700_rk
+  real(rk)                 :: kelvin=273.16_rk
+  real(rk)                 :: mol_per_liter=44.661_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   tk=(t+kelvin)*0.01
+   tk=(t+kelvin)*0.01_rk
    osat_weiss=exp(aa1+aa2/tk+a3*log(tk)+a4*tk    &
               +s*(b1+(b2+b3*tk)*tk))*mol_per_liter
    return
@@ -777,55 +605,13 @@
 ! !IROUTINE: Surface fluxes for the ergom model
 !
 ! !INTERFACE:
-  subroutine iow_ergom_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
-!
-! !DESCRIPTION:
-! Here, those surface fluxes which have been read from a file are transformed
-! to SI units. The surface oxygen flux is calculated by means of the
-! following formula:
-! \begin{equation}\label{o2flux}
-! F^s_9 = p_{vel} \left(O_{sat}-c_9 \right)
-! \end{equation}
-! The piston velocity, $p_{vel}$, is calculated by using the model of
-! \cite{LissMerlivat86}, which includes three regimes (smooth surface,
-! rough surface and breaking waves) depending on the magnitude of wind speed,
-! $W$:
-! \begin{equation}
-! \label{p_vel}
-! \begin{array}{l}
-! p_{vel}=
-! \left\{
-! \begin{array}{ll}
-! 1.003 W / Sc^{0.66} & \mbox{ for } W < 3.6 \mbox{m/s}, \\
-! 5.9(2.85 W - 9.65)/Sc^{0.5} & \mbox{ for } 3.6\mbox{m/s} \leq W \leq 13\mbox{m/s}, \\
-! 5.9(5.9 W - 49.3) / Sc^{0.5} & \mbox{ for } W > 13 \mbox{m/s}.
-! \end{array}
-! \right.
-! \end{array}
-! \end{equation}
-! The Schmidt number $Sc$ is defined as ratio between the kinematic viscosity
-! and the molecular diffusivity of oxygen. The following expression for $Sc$
-! (\cite{Stigebrandt1991}) is applied:
-! \begin{equation}
-! \label{Sc}
-! Sc{=}1450-71T+1.1T^2.
-! \end{equation}
-! The Weiss formula for the saturation oxygen is used for calculating
-! the air-sea surface flux:
-! \begin{equation}\label{osat}
-! O_{sat}= a_0\left(a_1-a_2T  \right).
-! \end{equation}
-!
-! !USES:
-   IMPLICIT NONE
-!
-! !INPUT PARAMETERS:
-  type(type_iow_ergom),intent(in)       ::self
 
-  _DECLARE_ARGUMENTS_DO_SURFACE_
+   subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
+   class (type_iow_ergom),intent(in) :: self
+   _DECLARE_ARGUMENTS_DO_SURFACE_
 
   real(rk)             :: temp,wnd,salt,o2,ni,am,po
-  real(rk),parameter           :: secs_pr_day=86400.
+  real(rk),parameter           :: secs_pr_day=86400.0_rk
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
@@ -849,18 +635,18 @@
 
 !  Calculation of the surface oxygen flux
    if (newflux .eq. 1) then
-      sc=1450.+(1.1*temp-71.)*temp
-      if (wnd .gt. 13.) then
-         p_vel = 5.9*(5.9*wnd-49.3)/sqrt(sc)
+      sc=1450.+(1.1*temp-71.0_rk)*temp
+      if (wnd .gt. 13.0_rk) then
+         p_vel = 5.9_rk*(5.9_rk*wnd-49.3_rk)/sqrt(sc)
       else
-         if (wnd .lt. 3.6) then
-            p_vel = 1.003*wnd/(sc)**(0.66)
+         if (wnd .lt. 3.6_rk) then
+            p_vel = 1.003_rk*wnd/(sc)**(0.66_rk)
          else
-            p_vel = 5.9*(2.85*wnd-9.65)/sqrt(sc)
+            p_vel = 5.9_rk*(2.85_rk*wnd-9.65_rk)/sqrt(sc)
          end if
       end if
-      if (p_vel .lt. 0.05) then
-          p_vel = 0.05
+      if (p_vel .lt. 0.05_rk) then
+          p_vel = 0.05_rk
       end if
       p_vel = p_vel/secs_pr_day
       flo2 =p_vel*(osat_weiss(temp,salt)-o2)
@@ -875,7 +661,7 @@
    _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po/secs_pr_day)
 
    _HORIZONTAL_LOOP_END_
-   end subroutine iow_ergom_get_surface_exchange
+   end subroutine do_surface
 !EOC
 
 !-----------------------------------------------------------------------
@@ -908,8 +694,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-    if (w .gt. 1.e-10) then
-       th=min+(max-min)*0.5*(1.+tanh(x/w))
+    if (w .gt. 1.e-10_rk) then
+       th=min+(max-min)*0.5_rk*(1.0_rk+tanh(x/w))
     else
        if(x .gt. _ZERO_) then
           th=_ONE_
@@ -974,7 +760,7 @@
    IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
-   type (type_iow_ergom), intent(in) :: self
+   class (type_iow_ergom), intent(in) :: self
    real(rk), intent(in)                :: g,t,topt,psum
 !
 ! !REVISION HISTORY:
@@ -983,7 +769,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   fpz=g*(_ONE_+t**2/topt**2*exp(_ONE_-2.*t/topt))*               &
+   fpz=g*(_ONE_+t**2/topt**2*exp(_ONE_-2.0_rk*t/topt))*               &
         (_ONE_-exp(-self%iv**2*psum**2))
    return
    end function fpz
@@ -992,6 +778,8 @@
 !-----------------------------------------------------------------------
 
   END MODULE fabm_iow_ergom
+  
+#endif
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

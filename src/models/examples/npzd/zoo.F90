@@ -236,7 +236,7 @@
 ! phytoplankton is formulated.
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_zoo), intent(in) :: self
+   class (type_examples_npzd_zoo), intent(in) :: self
    real(rk),                      intent(in) :: p,z
 !
 ! !REVISION HISTORY:

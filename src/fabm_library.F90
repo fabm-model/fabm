@@ -25,6 +25,7 @@
    use aed_models
    use au_prey_predator
    use fabm_hzg_omexdia_p
+   use fabm_iow_ergom
    ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
 #endif
 
@@ -82,6 +83,7 @@
          case ('examples_duplicator'); allocate(type_examples_duplicator::model)
          case ('examples_npzd_f2003'); allocate(type_examples_npzd_f2003::model)
          case ('hzg_omexdia_p');       allocate(type_hzg_omexdia_p::model)
+         case ('iow_ergom');           allocate(type_iow_ergom::model)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
          case default
             if ( modelname(1:4) .eq. 'aed_' ) &

@@ -358,7 +358,7 @@
 ! is formulated.
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_npzd_phy), intent(in)     :: self
+   class (type_examples_npzd_phy), intent(in)     :: self
    real(rk), intent(in)         :: n,p,par,iopt
 !
 ! !REVISION HISTORY:
