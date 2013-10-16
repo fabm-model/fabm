@@ -42,6 +42,7 @@
 
    ! Bio model info
    integer  :: ode_method
+   logical  :: repair_state
    integer(timestepkind)::nsave
    integer  :: swr_method
    real(rk) :: cloud
@@ -100,7 +101,7 @@
    real(rk)                  :: depth
    real(rk),parameter        :: invalid_latitude = -100._rk,invalid_longitude = -400.0_rk
 
-   namelist /model_setup/ title,start,stop,dt,ode_method
+   namelist /model_setup/ title,start,stop,dt,ode_method,repair_state
    namelist /environment/ env_file,swr_method, &
                           latitude,longitude,cloud,par_fraction, &
                           depth,par_background_extinction,apply_self_shading
@@ -134,6 +135,7 @@
    stop = ''
    dt = 0.0_rk
    ode_method = 1
+   repair_state = .false.
    read(namlst,nml=model_setup,err=91)
    
    ! Read environment namelist
@@ -487,6 +489,46 @@
 !-----------------------------------------------------------------------
 !BOP
 !
+! !IROUTINE: Check the current values of all state variables
+!
+! !INTERFACE:
+   subroutine do_repair_state(location)
+!
+! !DESCRIPTION:
+!  Checks the current values of all state variables and repairs these
+!  if allowed and possible. If the state is invalid and repair is not
+!  allowed, the model is brought down.
+!
+! !INPUT PARAMETERS:
+   character(len=*),intent(in) :: location
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+   logical :: valid
+!
+!-----------------------------------------------------------------------
+!BOC
+
+   call fabm_check_state(model,repair_state,valid)
+   if (.not. (valid .or. repair_state)) then
+      FATAL 'State variable values are invalid and repair is not allowed.'
+      FATAL location
+      FATAL 'note that repair_state() should be used with caution.'
+      FATAL 'try and decrease dt first - and see if that helps.'
+      stop 'od_fabm::do_repair_state'
+   end if
+
+   end subroutine do_repair_state
+!EOC
+
+
+!-----------------------------------------------------------------------
+!BOP
+!
 ! !IROUTINE: Manage global time--stepping \label{timeLoop}
 !
 ! !INTERFACE:
@@ -544,6 +586,9 @@
       end if
       call update_depth(CENTER)
 
+     ! Repair state before calling FABM
+     call do_repair_state('0d::time_loop(), before ode_solver()')
+
       ! Integrate one time step
       call ode_solver(ode_method,size(model%info%state_variables)+size(model%info%state_variables_ben),1,dt,cc,get_rhs,get_ppdd)
 
@@ -555,6 +600,8 @@
       do i=1,size(model%info%state_variables_ben)
          call fabm_link_bottom_state_data(model,i,cc(size(model%info%state_variables)+i,1))
       end do
+
+     call do_repair_state('0d::time_loop(), after ode_solver()')
 
       ! Do output
       if (mod(n,nsave)==0) then
