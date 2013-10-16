@@ -237,7 +237,7 @@
 !
 ! !INPUT PARAMETERS:
    class (type_examples_npzd_zoo), intent(in) :: self
-   real(rk),                      intent(in) :: p,z
+   real(rk),                       intent(in) :: p,z
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
