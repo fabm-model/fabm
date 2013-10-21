@@ -58,137 +58,178 @@ module fabm_standard_variables
 
    type type_standard_variable_collection
 
+      ! Bulk variables
       type (type_bulk_standard_variable) :: &
          alkalinity_expressed_as_mole_equivalent = type_bulk_standard_variable( &
-            name='alkalinity_expressed_as_mole_equivalent', &
-            units='mmol m-3', &
-            cf_names='sea_water_alkalinity_expressed_as_mole_equivalent'), &
+            'alkalinity_expressed_as_mole_equivalent', &
+            'mmol m-3', &
+            'sea_water_alkalinity_expressed_as_mole_equivalent')
+      type (type_bulk_standard_variable) :: &
          attenuation_coefficient_of_photosynthetic_radiative_flux = type_bulk_standard_variable( &
-            name='attenuation_coefficient_of_photosynthetic_radiative_flux', &
-            units='m-1'), &
+            'attenuation_coefficient_of_photosynthetic_radiative_flux', &
+            'm-1', &
+            '')
+      type (type_bulk_standard_variable) :: &
          cell_thickness = type_bulk_standard_variable( &
-            name='cell_thickness', &
-            units='m', &
-            cf_names='cell_thickness'), &
+            'cell_thickness', &
+            'm', &
+            'cell_thickness')
+      type (type_bulk_standard_variable) :: &
          density = type_bulk_standard_variable( &
-            name='density', &
-            units='kg m-3', &
-            cf_names='sea_water_density'), &
+            'density', &
+            'kg m-3', &
+            'sea_water_density')
+      type (type_bulk_standard_variable) :: &
          downwelling_photosynthetic_radiative_flux = type_bulk_standard_variable( &
-            name='downwelling_photosynthetic_radiative_flux', &
-            units='W m-2', &
-            cf_names='downwelling_photosynthetic_radiative_flux_in_sea_water'), &
+            'downwelling_photosynthetic_radiative_flux', &
+            'W m-2', &
+            'downwelling_photosynthetic_radiative_flux_in_sea_water')
+      type (type_bulk_standard_variable) :: &
          downwelling_shortwave_flux = type_bulk_standard_variable( &
-            name='downwelling_shortwave_flux', &
-            units='W m-2', &
-            cf_names='downwelling_shortwave_flux_in_sea_water'), &
+            'downwelling_shortwave_flux', &
+            'W m-2', &
+            'downwelling_shortwave_flux_in_sea_water')
+      type (type_bulk_standard_variable) :: &
          mass_concentration_of_suspended_matter = type_bulk_standard_variable( &
-            name='mass_concentration_of_suspended_matter', &
-            units='g m-3', &
-            cf_names='mass_concentration_of_suspended_matter_in_sea_water,concentration_of_suspended_matter_in_sea_water'), &
+            'mass_concentration_of_suspended_matter', &
+            'g m-3', &
+            'mass_concentration_of_suspended_matter_in_sea_water,concentration_of_suspended_matter_in_sea_water')
+      type (type_bulk_standard_variable) :: &
          mole_concentration_of_ammonium = type_bulk_standard_variable( &
-            name='mole_concentration_of_ammonium', &
-            units='mmol m-3', &
-            cf_names='mole_concentration_of_ammonium_in_sea_water'), &
+            'mole_concentration_of_ammonium', &
+            'mmol m-3', &
+            'mole_concentration_of_ammonium_in_sea_water')
+      type (type_bulk_standard_variable) :: &
          mole_concentration_of_dissolved_inorganic_carbon = type_bulk_standard_variable( &
-            name='mole_concentration_of_dissolved_inorganic_carbon', &
-            units='mmol m-3', &
-            cf_names='mole_concentration_of_dissolved_inorganic_carbon_in_sea_water'), &
+            'mole_concentration_of_dissolved_inorganic_carbon', &
+            'mmol m-3', &
+            'mole_concentration_of_dissolved_inorganic_carbon_in_sea_water')
+      type (type_bulk_standard_variable) :: &
          mole_concentration_of_dissolved_iron = type_bulk_standard_variable( &
-            name='mole_concentration_of_dissolved_iron', &
-            units='umol m-3', &
-            cf_names='mole_concentration_of_dissolved_iron_in_sea_water'), &
+            'mole_concentration_of_dissolved_iron', &
+            'umol m-3', &
+            'mole_concentration_of_dissolved_iron_in_sea_water')
+      type (type_bulk_standard_variable) :: &
          mole_concentration_of_nitrate = type_bulk_standard_variable( &
-            name='mole_concentration_of_nitrate', &
-            units='mmol m-3', &
-            cf_names='mole_concentration_of_nitrate_in_sea_water'), &
+            'mole_concentration_of_nitrate', &
+            'mmol m-3', &
+            'mole_concentration_of_nitrate_in_sea_water')
+      type (type_bulk_standard_variable) :: &
          mole_concentration_of_phosphate = type_bulk_standard_variable( &
-            name='mole_concentration_of_phosphate', &
-            units='mmol m-3', &
-            cf_names='mole_concentration_of_phosphate_in_sea_water'), &
+            'mole_concentration_of_phosphate', &
+            'mmol m-3', &
+            'mole_concentration_of_phosphate_in_sea_water')
+      type (type_bulk_standard_variable) :: &
          mole_concentration_of_silicate = type_bulk_standard_variable( &
-            name='mole_concentration_of_silicate', &
-            units='mmol m-3', &
-            cf_names='mole_concentration_of_silicate_in_sea_water'), &
+            'mole_concentration_of_silicate', &
+            'mmol m-3', &
+            'mole_concentration_of_silicate_in_sea_water')
+      type (type_bulk_standard_variable) :: &
          ph_reported_on_total_scale = type_bulk_standard_variable( &
-            name='ph_reported_on_total_scale', &
-            units='1', &
-            cf_names='sea_water_ph_reported_on_total_scale'), &
+            'ph_reported_on_total_scale', &
+            '1', &
+            'sea_water_ph_reported_on_total_scale')
+      type (type_bulk_standard_variable) :: &
          practical_salinity = type_bulk_standard_variable( &
-            name='practical_salinity', &
-            units='1e-3', &
-            cf_names='sea_water_practical_salinity'), &
+            'practical_salinity', &
+            '1e-3', &
+            'sea_water_practical_salinity')
+      type (type_bulk_standard_variable) :: &
          pressure = type_bulk_standard_variable( &
-            name='pressure', &
-            units='dbar', &
-            cf_names='sea_water_pressure'), &
+            'pressure', &
+            'dbar', &
+            'sea_water_pressure')
+      type (type_bulk_standard_variable) :: &
          temperature = type_bulk_standard_variable( &
-            name='temperature', &
-            units='degree_Celsius', &
-            cf_names='sea_water_temperature')
+            'temperature', &
+            'degree_Celsius', &
+            'sea_water_temperature')
 
+      ! Horizontal variables
       type (type_horizontal_standard_variable) :: &
          bottom_depth_below_geoid = type_horizontal_standard_variable( &
-            name='bottom_depth_below_geoid', &
-            units='m', &
-            cf_names='sea_floor_depth_below_geoid,sea_floor_depth'), &
+            'bottom_depth_below_geoid', &
+            'm', &
+            'sea_floor_depth_below_geoid,sea_floor_depth')
+      type (type_horizontal_standard_variable) :: &
          bottom_stress = type_horizontal_standard_variable( &
-            name='bottom_stress', &
-            units='Pa'), &
+            'bottom_stress', &
+            'Pa', &
+            '')
+      type (type_horizontal_standard_variable) :: &
          cloud_area_fraction = type_horizontal_standard_variable( &
-            name='cloud_area_fraction', &
-            units='1', &
-            cf_names='cloud_area_fraction'), &
+            'cloud_area_fraction', &
+            '1', &
+            'cloud_area_fraction')
+      type (type_horizontal_standard_variable) :: &
          surface_downwelling_photosynthetic_radiative_flux = type_horizontal_standard_variable( &
-            name='surface_downwelling_photosynthetic_radiative_flux', &
-            units='W m-2', &
-            cf_names='surface_downwelling_photosynthetic_radiative_flux_in_sea_water'), &
+            'surface_downwelling_photosynthetic_radiative_flux', &
+            'W m-2', &
+            'surface_downwelling_photosynthetic_radiative_flux_in_sea_water')
+      type (type_horizontal_standard_variable) :: &
          surface_downwelling_photosynthetic_radiative_flux_in_air = type_horizontal_standard_variable( &
-            name='surface_downwelling_photosynthetic_radiative_flux_in_air', &
-            units='W m-2', &
-            cf_names='surface_downwelling_photosynthetic_radiative_flux_in_air'), &
+            'surface_downwelling_photosynthetic_radiative_flux_in_air', &
+            'W m-2', &
+            'surface_downwelling_photosynthetic_radiative_flux_in_air')
+      type (type_horizontal_standard_variable) :: &
          surface_downwelling_shortwave_flux = type_horizontal_standard_variable( &
-            name='surface_downwelling_shortwave_flux', &
-            units='W m-2'), &
+            'surface_downwelling_shortwave_flux', &
+            'W m-2', &
+            '')
+      type (type_horizontal_standard_variable) :: &
          surface_downwelling_shortwave_flux_in_air = type_horizontal_standard_variable( &
-            name='surface_downwelling_shortwave_flux_in_air', &
-            units='W m-2', &
-            cf_names='surface_downwelling_shortwave_flux_in_air,surface_downwelling_shortwave_flux'), &
+            'surface_downwelling_shortwave_flux_in_air', &
+            'W m-2', &
+            'surface_downwelling_shortwave_flux_in_air,surface_downwelling_shortwave_flux')
+      type (type_horizontal_standard_variable) :: &
          latitude = type_horizontal_standard_variable( &
-            name='latitude', &
-            units='degree_north', &
-            cf_names='latitude'), &
+            'latitude', &
+            'degree_north', &
+            'latitude')
+      type (type_horizontal_standard_variable) :: &
          longitude = type_horizontal_standard_variable( &
-            name='longitude', &
-            units='degree_east', &
-            cf_names='longitude'), &
+            'longitude', &
+            'degree_east', &
+            'longitude')
+      type (type_horizontal_standard_variable) :: &
          mole_fraction_of_carbon_dioxide_in_air = type_horizontal_standard_variable( &
-            name='mole_fraction_of_carbon_dioxide_in_air', &
-            units='1e-6', &
-            cf_names='mole_fraction_of_carbon_dioxide_in_air'), &
+            'mole_fraction_of_carbon_dioxide_in_air', &
+            '1e-6', &
+            'mole_fraction_of_carbon_dioxide_in_air')
+      type (type_horizontal_standard_variable) :: &
          wind_speed = type_horizontal_standard_variable( &
-            name='wind_speed', &
-            units='m s-1', &
-            cf_names='wind_speed')
+            'wind_speed', &
+            'm s-1', &
+            'wind_speed')
 
+      ! Global variables
       type (type_global_standard_variable) :: &
          number_of_days_since_start_of_the_year = type_global_standard_variable( &
-            name='number_of_days_since_start_of_the_year', &
-            units='d')
+            'number_of_days_since_start_of_the_year', &
+            'd', &
+            '')
 
+      ! Conserved variables
       type (type_bulk_standard_variable) :: &
          total_carbon = type_bulk_standard_variable( &
-            name='total_carbon', &
-            units='mmol m-3'), &
+            'total_carbon', &
+            'mmol m-3', &
+            '')
+      type (type_bulk_standard_variable) :: &
          total_nitrogen = type_bulk_standard_variable( &
-            name='total_nitrogen', &
-            units='mmol m-3'), &
+            'total_nitrogen', &
+            'mmol m-3', &
+            '')
+      type (type_bulk_standard_variable) :: &
          total_phosphorus = type_bulk_standard_variable( &
-            name='total_phosphorus', &
-            units='mmol m-3'), &
+            'total_phosphorus', &
+            'mmol m-3', &
+            '')
+      type (type_bulk_standard_variable) :: &
          total_iron = type_bulk_standard_variable( &
-            name='total_iron', &
-            units='umol m-3')
+            'total_iron', &
+            'umol m-3', &
+            '')
 
    end type type_standard_variable_collection
 

@@ -81,21 +81,22 @@ fout.write('   ! Single type with all standard variables supported explicitly by
 fout.write('   ! A single instance of this type is declared in module fabm_types with the name standard_variables.\n\n')
 fout.write('   type type_standard_variable_collection\n')
 for domain,items in selection.iteritems():
-    fout.write('\n      type (%s) :: &\n' % domain2type[domain])
     fwiki.write('== %s variables ==\n\n{|\n|-\n! Variable\n! Units\n! Corresponding name in [http://cf-pcmdi.llnl.gov/documents/cf-standard-names/ CF convention]\n' % (domain[0].upper()+domain[1:]))
+    fout.write('\n      ! %s variables\n' % (domain[0].upper()+domain[1:]))
     for i,item in enumerate(items):
+        fout.write('      type (%s) :: &\n' % domain2type[domain])
         fwiki.write('|-\n| %s\n| %s\n' % (item['name'],item['units']))
         data = (('name',"'%s'" % item['name']),('units',"'%s'" % item['units']))
         if 'cf_names' in item:
             data = data + (('cf_names',"'%s'" % ','.join(item['cf_names'])),)
             fwiki.write('| %s\n' % item['cf_names'][0])
         else:
+            data = data + (('cf_names',"''"),)
             fwiki.write('| \n')
         value = '%s( &\n' % domain2type[domain]
-        value += ', &\n'.join(['            %s=%s' % (k,v) for k,v in data])
+        value += ', &\n'.join(['            %s' % v for k,v in data])
         value += ')'
         fout.write('         %s = %s' % (item['name'],value))
-        if i!=len(items)-1: fout.write(', &')
         fout.write('\n')
     fwiki.write('|}\n\n')
 fout.write('\n   end type type_standard_variable_collection\n')
