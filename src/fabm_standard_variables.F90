@@ -54,7 +54,8 @@ module fabm_standard_variables
    end type
 
    ! Single type with all standard variables supported explicitly by FABM.
-   ! A single instance of this type is declared in module fabm_types with the name standard_variables.
+   ! A single instance of this type is declared below with the name standard_variables.
+   ! This same instance is made publicly available in module fabm_types.
 
    type type_standard_variable_collection
 
