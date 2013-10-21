@@ -29,7 +29,7 @@ module fabm_standard_variables
    private
    
    public type_bulk_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
-   public type_standard_variable_collection
+   public type_standard_variable_collection, standard_variables
    
    ! ====================================================================================================
    ! Data types that contain all metadata needed to describe standard variables.
@@ -233,8 +233,8 @@ module fabm_standard_variables
 
    end type type_standard_variable_collection
 
-   ! Collection that contains all standard variables:
-   type (type_standard_variable_collection),parameter :: collection = type_standard_variable_collection()
+   ! standard_variables that contains all standard variables:
+   type (type_standard_variable_collection),parameter :: standard_variables = type_standard_variable_collection()
 
    ! For backward compatibility: individual variables accessible as module-level objects.
    ! Support for these will ultimately disappear; please use the standard_variables
@@ -242,47 +242,47 @@ module fabm_standard_variables
    ! For instance: use "standard_variables%temperature" instead of "temperature".
 
    type (type_bulk_standard_variable), parameter, public :: &
-      alkalinity_expressed_as_mole_equivalent = collection%alkalinity_expressed_as_mole_equivalent, &
-      attenuation_coefficient_of_photosynthetic_radiative_flux = collection%attenuation_coefficient_of_photosynthetic_radiative_flux, &
-      cell_thickness = collection%cell_thickness, &
-      density = collection%density, &
-      downwelling_photosynthetic_radiative_flux = collection%downwelling_photosynthetic_radiative_flux, &
-      downwelling_shortwave_flux = collection%downwelling_shortwave_flux, &
-      mass_concentration_of_suspended_matter = collection%mass_concentration_of_suspended_matter, &
-      mole_concentration_of_ammonium = collection%mole_concentration_of_ammonium, &
-      mole_concentration_of_dissolved_inorganic_carbon = collection%mole_concentration_of_dissolved_inorganic_carbon, &
-      mole_concentration_of_dissolved_iron = collection%mole_concentration_of_dissolved_iron, &
-      mole_concentration_of_nitrate = collection%mole_concentration_of_nitrate, &
-      mole_concentration_of_phosphate = collection%mole_concentration_of_phosphate, &
-      mole_concentration_of_silicate = collection%mole_concentration_of_silicate, &
-      ph_reported_on_total_scale = collection%ph_reported_on_total_scale, &
-      practical_salinity = collection%practical_salinity, &
-      pressure = collection%pressure, &
-      temperature = collection%temperature
+      alkalinity_expressed_as_mole_equivalent = standard_variables%alkalinity_expressed_as_mole_equivalent, &
+      attenuation_coefficient_of_photosynthetic_radiative_flux = standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, &
+      cell_thickness = standard_variables%cell_thickness, &
+      density = standard_variables%density, &
+      downwelling_photosynthetic_radiative_flux = standard_variables%downwelling_photosynthetic_radiative_flux, &
+      downwelling_shortwave_flux = standard_variables%downwelling_shortwave_flux, &
+      mass_concentration_of_suspended_matter = standard_variables%mass_concentration_of_suspended_matter, &
+      mole_concentration_of_ammonium = standard_variables%mole_concentration_of_ammonium, &
+      mole_concentration_of_dissolved_inorganic_carbon = standard_variables%mole_concentration_of_dissolved_inorganic_carbon, &
+      mole_concentration_of_dissolved_iron = standard_variables%mole_concentration_of_dissolved_iron, &
+      mole_concentration_of_nitrate = standard_variables%mole_concentration_of_nitrate, &
+      mole_concentration_of_phosphate = standard_variables%mole_concentration_of_phosphate, &
+      mole_concentration_of_silicate = standard_variables%mole_concentration_of_silicate, &
+      ph_reported_on_total_scale = standard_variables%ph_reported_on_total_scale, &
+      practical_salinity = standard_variables%practical_salinity, &
+      pressure = standard_variables%pressure, &
+      temperature = standard_variables%temperature
 
    type (type_horizontal_standard_variable), parameter, public :: &
-      bottom_depth = collection%bottom_depth_below_geoid, &
-      bottom_depth_below_geoid = collection%bottom_depth_below_geoid, &
-      bottom_stress = collection%bottom_stress, &
-      cloud_area_fraction = collection%cloud_area_fraction, &
-      surface_downwelling_photosynthetic_radiative_flux = collection%surface_downwelling_photosynthetic_radiative_flux, &
-      downwelling_photosynthetic_radiative_flux_in_air = collection%surface_downwelling_photosynthetic_radiative_flux_in_air, &
-      surface_downwelling_photosynthetic_radiative_flux_in_air = collection%surface_downwelling_photosynthetic_radiative_flux_in_air, &
-      surface_downwelling_shortwave_flux = collection%surface_downwelling_shortwave_flux, &
-      downwelling_shortwave_flux_in_air = collection%surface_downwelling_shortwave_flux_in_air, &
-      surface_downwelling_shortwave_flux_in_air = collection%surface_downwelling_shortwave_flux_in_air, &
-      latitude = collection%latitude, &
-      longitude = collection%longitude, &
-      mole_fraction_of_carbon_dioxide_in_air = collection%mole_fraction_of_carbon_dioxide_in_air, &
-      wind_speed = collection%wind_speed
+      bottom_depth = standard_variables%bottom_depth_below_geoid, &
+      bottom_depth_below_geoid = standard_variables%bottom_depth_below_geoid, &
+      bottom_stress = standard_variables%bottom_stress, &
+      cloud_area_fraction = standard_variables%cloud_area_fraction, &
+      surface_downwelling_photosynthetic_radiative_flux = standard_variables%surface_downwelling_photosynthetic_radiative_flux, &
+      downwelling_photosynthetic_radiative_flux_in_air = standard_variables%surface_downwelling_photosynthetic_radiative_flux_in_air, &
+      surface_downwelling_photosynthetic_radiative_flux_in_air = standard_variables%surface_downwelling_photosynthetic_radiative_flux_in_air, &
+      surface_downwelling_shortwave_flux = standard_variables%surface_downwelling_shortwave_flux, &
+      downwelling_shortwave_flux_in_air = standard_variables%surface_downwelling_shortwave_flux_in_air, &
+      surface_downwelling_shortwave_flux_in_air = standard_variables%surface_downwelling_shortwave_flux_in_air, &
+      latitude = standard_variables%latitude, &
+      longitude = standard_variables%longitude, &
+      mole_fraction_of_carbon_dioxide_in_air = standard_variables%mole_fraction_of_carbon_dioxide_in_air, &
+      wind_speed = standard_variables%wind_speed
 
    type (type_global_standard_variable), parameter, public :: &
-      number_of_days_since_start_of_the_year = collection%number_of_days_since_start_of_the_year
+      number_of_days_since_start_of_the_year = standard_variables%number_of_days_since_start_of_the_year
 
    type (type_bulk_standard_variable), parameter, public :: &
-      total_carbon = collection%total_carbon, &
-      total_nitrogen = collection%total_nitrogen, &
-      total_phosphorus = collection%total_phosphorus, &
-      total_iron = collection%total_iron
+      total_carbon = standard_variables%total_carbon, &
+      total_nitrogen = standard_variables%total_nitrogen, &
+      total_phosphorus = standard_variables%total_phosphorus, &
+      total_iron = standard_variables%total_iron
 
    end module fabm_standard_variables

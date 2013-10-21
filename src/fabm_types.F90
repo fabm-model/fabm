@@ -76,12 +76,10 @@
 ! !PUBLIC DATA MEMBERS:
 !
    integer, parameter, public :: attribute_length = 256
-   
+
    integer, parameter, public :: rk = _FABM_REAL_KIND_
 
    integer, parameter, public :: domain_bulk = 0, domain_bottom = 1, domain_surface = 2
-
-   type (type_standard_variable_collection),parameter :: standard_variables = type_standard_variable_collection()
 
    ! Alternative names for standard variables (for backward compatibility)
    type (type_bulk_standard_variable),parameter,public :: &
