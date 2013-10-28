@@ -86,7 +86,7 @@ fout.write('   type type_standard_variable_collection\n')
 for domain,items in selection.iteritems():
     fwiki.write('== %s variables ==\n\n{|\n|-\n! Variable\n! Units\n! Corresponding name in [http://cf-pcmdi.llnl.gov/documents/cf-standard-names/ CF convention]\n' % (domain[0].upper()+domain[1:]))
     fout.write('\n      ! %s variables\n' % (domain[0].upper()+domain[1:]))
-    for i,item in enumerate(items):
+    for i,item in enumerate(sorted(items,cmp=lambda x,y:cmp(x['name'],y['name']))):
         fout.write('      type (%s) :: &\n' % domain2type[domain])
         fwiki.write('|-\n| %s\n| %s\n' % (item['name'],item['units']))
         data = (('name',"'%s'" % item['name']),('units',"'%s'" % item['units']))

@@ -108,6 +108,21 @@
             '1', &
             'cloud_area_fraction')
       type (type_horizontal_standard_variable) :: &
+         latitude = type_horizontal_standard_variable( &
+            'latitude', &
+            'degree_north', &
+            'latitude')
+      type (type_horizontal_standard_variable) :: &
+         longitude = type_horizontal_standard_variable( &
+            'longitude', &
+            'degree_east', &
+            'longitude')
+      type (type_horizontal_standard_variable) :: &
+         mole_fraction_of_carbon_dioxide_in_air = type_horizontal_standard_variable( &
+            'mole_fraction_of_carbon_dioxide_in_air', &
+            '1e-6', &
+            'mole_fraction_of_carbon_dioxide_in_air')
+      type (type_horizontal_standard_variable) :: &
          surface_downwelling_photosynthetic_radiative_flux = type_horizontal_standard_variable( &
             'surface_downwelling_photosynthetic_radiative_flux', &
             'W m-2', &
@@ -128,21 +143,6 @@
             'W m-2', &
             'surface_downwelling_shortwave_flux_in_air,surface_downwelling_shortwave_flux')
       type (type_horizontal_standard_variable) :: &
-         latitude = type_horizontal_standard_variable( &
-            'latitude', &
-            'degree_north', &
-            'latitude')
-      type (type_horizontal_standard_variable) :: &
-         longitude = type_horizontal_standard_variable( &
-            'longitude', &
-            'degree_east', &
-            'longitude')
-      type (type_horizontal_standard_variable) :: &
-         mole_fraction_of_carbon_dioxide_in_air = type_horizontal_standard_variable( &
-            'mole_fraction_of_carbon_dioxide_in_air', &
-            '1e-6', &
-            'mole_fraction_of_carbon_dioxide_in_air')
-      type (type_horizontal_standard_variable) :: &
          wind_speed = type_horizontal_standard_variable( &
             'wind_speed', &
             'm s-1', &
@@ -162,6 +162,11 @@
             'mmol m-3', &
             '')
       type (type_bulk_standard_variable) :: &
+         total_iron = type_bulk_standard_variable( &
+            'total_iron', &
+            'umol m-3', &
+            '')
+      type (type_bulk_standard_variable) :: &
          total_nitrogen = type_bulk_standard_variable( &
             'total_nitrogen', &
             'mmol m-3', &
@@ -170,11 +175,6 @@
          total_phosphorus = type_bulk_standard_variable( &
             'total_phosphorus', &
             'mmol m-3', &
-            '')
-      type (type_bulk_standard_variable) :: &
-         total_iron = type_bulk_standard_variable( &
-            'total_iron', &
-            'umol m-3', &
             '')
 
    end type type_standard_variable_collection
