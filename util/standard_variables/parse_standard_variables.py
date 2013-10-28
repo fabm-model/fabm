@@ -9,6 +9,8 @@ import yaml # http://pyyaml.org
 variablespath = 'variables.yaml'
 localpath = 'cf-standard-name-table.xml'
 url = 'http://cf-pcmdi.llnl.gov/documents/cf-standard-names/standard-name-table/25/cf-standard-name-table.xml'
+output_F90 = '../../include/standard_variables.h'
+output_wiki = 'standard_variables.wiki'
 
 domain2type = {'bulk':'type_bulk_standard_variable',
                'horizontal':'type_horizontal_standard_variable',
@@ -75,8 +77,8 @@ for name in sorted(name2data.keys()):
 
 print yaml.dump(selection,default_flow_style=False)
 
-fout = open('standard_variables.F90','w')
-fwiki = open('standard_variables.wiki','w')
+fout = open(output_F90,'w')
+fwiki = open(output_wiki,'w')
 fout.write('   ! Single type with all standard variables supported explicitly by FABM.\n')
 fout.write('   ! A single instance of this type is declared below with the name standard_variables.\n')
 fout.write('   ! This same instance is made publicly available in module fabm_types.\n\n')
@@ -103,7 +105,7 @@ for domain,items in selection.iteritems():
 fout.write('\n   end type type_standard_variable_collection\n')
 
 fout.write('\n   ! Collection that contains all standard variables:\n')
-fout.write('   type (type_standard_variable_collection),parameter :: collection = type_standard_variable_collection()\n')
+fout.write('   type (type_standard_variable_collection),parameter :: standard_variables = type_standard_variable_collection()\n')
 fout.write('\n')
 
 fout.write('   ! For backward compatibility: individual variables accessible as module-level objects.\n')
@@ -113,8 +115,8 @@ fout.write('   ! For instance: use "standard_variables%temperature" instead of "
 for domain,items in selection.iteritems():
     fout.write('\n   type (%s), parameter, public :: &\n' % domain2type[domain])
     for i,item in enumerate(items):
-        for synonym in item.get('synonyms',[]): fout.write('      %s = collection%%%s, &\n' % (synonym,item['name']))
-        fout.write('      %s = collection%%%s' % (item['name'],item['name']))
+        for synonym in item.get('synonyms',[]): fout.write('      %s = standard_variables%%%s, &\n' % (synonym,item['name']))
+        fout.write('      %s = standard_variables%%%s' % (item['name'],item['name']))
         if i!=len(items)-1: fout.write(', &')
         fout.write('\n')
 fout.close()
