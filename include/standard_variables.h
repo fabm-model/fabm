@@ -211,15 +211,15 @@
       bottom_depth_below_geoid = standard_variables%bottom_depth_below_geoid, &
       bottom_stress = standard_variables%bottom_stress, &
       cloud_area_fraction = standard_variables%cloud_area_fraction, &
-      surface_downwelling_photosynthetic_radiative_flux = standard_variables%surface_downwelling_photosynthetic_radiative_flux, &
       downwelling_photosynthetic_radiative_flux_in_air = standard_variables%surface_downwelling_photosynthetic_radiative_flux_in_air, &
-      surface_downwelling_photosynthetic_radiative_flux_in_air = standard_variables%surface_downwelling_photosynthetic_radiative_flux_in_air, &
-      surface_downwelling_shortwave_flux = standard_variables%surface_downwelling_shortwave_flux, &
       downwelling_shortwave_flux_in_air = standard_variables%surface_downwelling_shortwave_flux_in_air, &
-      surface_downwelling_shortwave_flux_in_air = standard_variables%surface_downwelling_shortwave_flux_in_air, &
       latitude = standard_variables%latitude, &
       longitude = standard_variables%longitude, &
       mole_fraction_of_carbon_dioxide_in_air = standard_variables%mole_fraction_of_carbon_dioxide_in_air, &
+      surface_downwelling_photosynthetic_radiative_flux = standard_variables%surface_downwelling_photosynthetic_radiative_flux, &
+      surface_downwelling_photosynthetic_radiative_flux_in_air = standard_variables%surface_downwelling_photosynthetic_radiative_flux_in_air, &
+      surface_downwelling_shortwave_flux = standard_variables%surface_downwelling_shortwave_flux, &
+      surface_downwelling_shortwave_flux_in_air = standard_variables%surface_downwelling_shortwave_flux_in_air, &
       wind_speed = standard_variables%wind_speed
 
    type (type_global_standard_variable), parameter, public :: &
@@ -227,6 +227,6 @@
 
    type (type_bulk_standard_variable), parameter, public :: &
       total_carbon = standard_variables%total_carbon, &
+      total_iron = standard_variables%total_iron, &
       total_nitrogen = standard_variables%total_nitrogen, &
-      total_phosphorus = standard_variables%total_phosphorus, &
-      total_iron = standard_variables%total_iron
+      total_phosphorus = standard_variables%total_phosphorus

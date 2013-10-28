@@ -114,9 +114,13 @@ fout.write('   ! object from fabm_types instead. Then there is no need to access
 fout.write('   ! For instance: use "standard_variables%temperature" instead of "temperature".\n')
 for domain,items in selection.iteritems():
     fout.write('\n   type (%s), parameter, public :: &\n' % domain2type[domain])
-    for i,item in enumerate(items):
-        for synonym in item.get('synonyms',[]): fout.write('      %s = standard_variables%%%s, &\n' % (synonym,item['name']))
-        fout.write('      %s = standard_variables%%%s' % (item['name'],item['name']))
-        if i!=len(items)-1: fout.write(', &')
+    itemsplussynonyms = {}
+    for item in items:
+        itemsplussynonyms[item['name']] = item
+        for synonym in item.get('synonyms',[]): itemsplussynonyms[synonym] = item
+    for i,name in enumerate(sorted(itemsplussynonyms.keys())):
+        item = itemsplussynonyms[name]
+        fout.write('      %s = standard_variables%%%s' % (name,item['name']))
+        if i!=len(itemsplussynonyms)-1: fout.write(', &')
         fout.write('\n')
 fout.close()
