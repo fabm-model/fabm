@@ -119,11 +119,11 @@ contains
                          time_treatment=time_treatment_averaged)
 
    ! Register external dependencies.
-   call register_dependency(modelinfo,self%id_temp,varname_temp)
-   call register_dependency(modelinfo,self%id_salt,varname_salt)
-   call register_dependency(modelinfo,self%id_pres,varname_pres)
-   call register_dependency(modelinfo,self%id_dens,varname_dens)
-   call register_dependency(modelinfo,self%id_wind,varname_wind_sf)
+   call register_dependency(modelinfo,self%id_temp,standard_variables%temperature)
+   call register_dependency(modelinfo,self%id_salt,standard_variables%practical_salinity)
+   call register_dependency(modelinfo,self%id_pres,standard_variables%pressure)
+   call register_dependency(modelinfo,self%id_dens,standard_variables%density)
+   call register_dependency(modelinfo,self%id_wind,standard_variables%wind_speed)
    if (self%pCO2a==0.0_rk) call register_dependency(modelinfo,self%id_pco2_surf,'pco2_surf')
 
    return

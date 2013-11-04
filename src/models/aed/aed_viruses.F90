@@ -99,7 +99,7 @@ FUNCTION aed_viruses_create(namlst,name,parent) RESULT(self)
 
    ! Register state variables
    call self%register_state_variable(self%id_vir,'vir','mmol/m**3','viruses',     &
-                                    vir_initial,minimum=_ZERO_,no_river_dilution=.false.)
+                                    vir_initial,minimum=0.0_rk,no_river_dilution=.false.)
 
    ! Register external state variable dependencies
 
@@ -110,7 +110,7 @@ FUNCTION aed_viruses_create(namlst,name,parent) RESULT(self)
    call self%register_conserved_quantity(self%id_totV,'TV','mmol/m**3','Total viruses')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,varname_temp)
+   call self%register_dependency(self%id_temp,standard_variables%temperature)
 
    RETURN
 

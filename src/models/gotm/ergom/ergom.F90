@@ -300,12 +300,12 @@ subroutine initialize(self,configunit)
          time_treatment=time_treatment_averaged)
 
 ! Register environmental dependencies
-   call self%register_dependency(self%id_par,varname_par)
-   call self%register_dependency(self%id_temp,varname_temp)
-   call self%register_dependency(self%id_salt,varname_salt)
-   call self%register_dependency(self%id_I_0,varname_par_sf)
-   call self%register_dependency(self%id_wind,varname_wind_sf)
-   if (self%fluff) call self%register_dependency(self%id_taub,varname_taub)
+   call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
+   call self%register_dependency(self%id_temp,standard_variables%temperature)
+   call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
+   call self%register_dependency(self%id_I_0, standard_variables%surface_downwelling_photosynthetic_radiative_flux)
+   call self%register_dependency(self%id_wind,standard_variables%wind_speed)
+   if (self%fluff) call self%register_dependency(self%id_taub,standard_variables%bottom_stress)
 
    return
 

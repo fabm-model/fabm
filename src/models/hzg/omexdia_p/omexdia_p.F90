@@ -160,7 +160,7 @@
          'denitrification rate', time_treatment=time_treatment_last)
 
    ! Register dependencies
-   call self%register_dependency(self%id_temp,varname_temp)
+   call self%register_dependency(self%id_temp,standard_variables%temperature)
 
    return
 

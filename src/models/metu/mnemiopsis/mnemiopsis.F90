@@ -72,9 +72,9 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   real(rk)            :: egb_initial=_ZERO_,jb_initial=_ZERO_,ja_initial=_ZERO_, &
-                          tb_initial=_ZERO_,ta_initial=_ZERO_,adb_initial=_ZERO_,ada_initial=_ZERO_, &
-                          food_scale=_ONE_
+   real(rk)            :: egb_initial=0.0_rk,jb_initial=0.0_rk,ja_initial=0.0_rk, &
+                          tb_initial=0.0_rk,ta_initial=0.0_rk,adb_initial=0.0_rk,ada_initial=0.0_rk, &
+                          food_scale=1.0_rk
    character(len=64)   :: food_source_variable,foodmic_source_variable, &
                           respiration_target_variable, mortality_target_variable
    real(rk), parameter :: secs_pr_day = 86400.
@@ -91,19 +91,19 @@
 
    ! Register state variables
    call register_state_variable(modelinfo,self%id_egb,'egb','mg C/m**3','egg biomass',        &
-                                    egb_initial,minimum=_ZERO_)
+                                    egb_initial,minimum=0.0_rk)
    call register_state_variable(modelinfo,self%id_jb,'jb','mg C/m**3','nauplii biomass',     &
-                                    jb_initial,minimum=_ZERO_)
+                                    jb_initial,minimum=0.0_rk)
    call register_state_variable(modelinfo,self%id_ja,'ja','#/m**3','nauplii abundance',      &
-                                    ja_initial,minimum=_ZERO_)
+                                    ja_initial,minimum=0.0_rk)
    call register_state_variable(modelinfo,self%id_tb,'tb','mg C/m**3','transitional biomass',&
-                                    tb_initial,minimum=_ZERO_)
+                                    tb_initial,minimum=0.0_rk)
    call register_state_variable(modelinfo,self%id_ta,'ta','#/m**3','transitional abundance', &
-                                    ta_initial,minimum=_ZERO_)
+                                    ta_initial,minimum=0.0_rk)
    call register_state_variable(modelinfo,self%id_adb,'adb','mg C/m**3','adult biomass',      &
-                                    adb_initial,minimum=_ZERO_)
+                                    adb_initial,minimum=0.0_rk)
    call register_state_variable(modelinfo,self%id_ada,'ada','#/m**3','adult abundance',       &
-                                    ada_initial,minimum=_ZERO_)
+                                    ada_initial,minimum=0.0_rk)
 
    ! Register external state variable dependencies
    call register_state_dependency(modelinfo,self%id_food,food_source_variable)
@@ -112,7 +112,7 @@
    call register_state_dependency(modelinfo,self%id_morttarget,mortality_target_variable)
 
    ! Register environmental dependencies
-   call register_dependency(modelinfo, self%id_temp, varname_temp)
+   call register_dependency(modelinfo, self%id_temp, standard_variables%temperature)
 
    self%food_scale = food_scale
 
@@ -202,7 +202,7 @@
    ! Scale external prey densities to internal unit (mg C/m**3)
    food    = food   *self%food_scale
    foodmic = foodmic*self%food_scale
-   foodno  = max(_ONE_,food/0.0024) !0.0024 is mg C per copepod
+   foodno  = max(1.0_rk,food/0.0024) !0.0024 is mg C per copepod
 
    !write (*,*) _LOCATION_,numc,food,foodmic
    !write (*,*) egb_mn,jb_mn,ja_mn,tb_mn,ta_mn,adb_mn,ada_mn

@@ -145,8 +145,8 @@
    call self%add_conserved_quantity_component(self%id_totN,self%id_p)
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_par, varname_par)
-   call self%register_dependency(self%id_I_0, varname_par_sf)
+   call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
+   call self%register_dependency(self%id_I_0, standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
    return
 

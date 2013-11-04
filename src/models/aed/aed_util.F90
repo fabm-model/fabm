@@ -91,7 +91,7 @@ PURE real(rk) FUNCTION aed_gas_piston_velocity(wshgt,wind,tem,sal)
    IF (salt < 0.0)       salt = 0.0
    IF (salt > 75.0)      salt = 75.0
 
-   k_flow = _ZERO_ ! Needs to be set based on flow velocity
+   k_flow = 0.0_rk ! Needs to be set based on flow velocity
 
    ! Schmidt, Sc
    ! control value : Sc = 590 at 20°C and 35 psu
@@ -148,7 +148,7 @@ PURE real(rk) FUNCTION aed_oxygen_sat(salt,temp)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   buf1 = _ZERO_ ; buf2 = _ZERO_ ; buf3 = _ZERO_ ; sol_coeff = _ZERO_
+   buf1 = 0.0_rk ; buf2 = 0.0_rk ; buf3 = 0.0_rk ; sol_coeff = 0.0_rk
 
    Tabs = temp + 273.15
    buf1 = -173.4292 + 249.6339 * 100.0 / Tabs + 143.3483 * LOG(Tabs/100.0)
@@ -371,12 +371,12 @@ FUNCTION fTemp_function(method,T_max,T_std,theta,aTn,bTn,kTn,temp) RESULT(fT)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   fT = _ONE_
+   fT = 1.0_rk
 
    IF ( method /= 1 ) RETURN
 
    IF (temp > T_max) THEN
-       fT = _ZERO_
+       fT = 0.0_rk
    ELSEIF ( temp < T_std ) THEN
        IF (ABS(temp-tp) > 1+MINEXPONENT(temp)/2) THEN
          fT = theta**(temp-tp)

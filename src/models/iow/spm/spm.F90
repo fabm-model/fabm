@@ -246,9 +246,9 @@
    call self%set_variable_property(self%id_spm,'spm',.true.)
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_taub, varname_taub)
-   call self%register_dependency(self%id_temp, varname_temp)
-   call self%register_dependency(self%id_rhow, varname_dens)
+   call self%register_dependency(self%id_taub, standard_variables%bottom_stress)
+   call self%register_dependency(self%id_temp, standard_variables%temperature)
+   call self%register_dependency(self%id_rhow, standard_variables%density)
 
    return
 

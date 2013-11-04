@@ -117,7 +117,7 @@
 !  and are converted here to values per second.
    self%alpha       = alpha/secs_pr_day
    self%muemax_phy  = muemax_phy/secs_pr_day
-   self%mortphy     = _ONE_/mortphy/secs_pr_day
+   self%mortphy     = 1.0_rk/mortphy/secs_pr_day
    self%rem         = rem/secs_pr_day
    self%topt        = topt
    self%tl1         = tl1
@@ -129,12 +129,12 @@
 
 !  Register state variables
    call register_state_variable(modelinfo,self%id_nut,'nut','mmol/m**3','nutrients',     &
-                                    nut_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    nut_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call register_state_variable(modelinfo,self%id_phy,'phy','mmol/m**3','phytoplankton', &
-                                    phy_initial,minimum=_ZERO_,vertical_movement=    &
+                                    phy_initial,minimum=0.0_rk,vertical_movement=    &
                                     w_phy/secs_pr_day,specific_light_extinction=rkc)
    call register_state_variable(modelinfo,self%id_det,'det','mmol/m**3','detritus',      &
-                                    det_initial,minimum=_ZERO_,vertical_movement=    &
+                                    det_initial,minimum=0.0_rk,vertical_movement=    &
                                     w_det/secs_pr_day,specific_light_extinction=rkc)
 
 !  Register diagnostic variables
@@ -149,8 +149,8 @@
    call register_conserved_quantity(modelinfo,self%id_totN,'N','mmol/m**3','nitrogen')
 
 !  Register environmental dependencies
-   call register_dependency(modelinfo,self%id_par,varname_par)
-   call register_dependency(modelinfo,self%id_temp,varname_temp)
+   call register_dependency(modelinfo,self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
+   call register_dependency(modelinfo,self%id_temp,standard_variables%temperature)
 
    return
 
@@ -295,7 +295,7 @@
 
 !  Changes in drag coefficient due to surface scums.
 !  Phy must be the surface concentration!
-   _SCALE_DRAG_(max(_ONE_-self%drag_bio*phys,_ZERO_))
+   _SCALE_DRAG_(max(1.0_rk-self%drag_bio*phys,0.0_rk))
 
 !  Leave spatial loops (if any)
    _HORIZONTAL_LOOP_END_

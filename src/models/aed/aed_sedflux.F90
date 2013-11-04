@@ -244,7 +244,7 @@ FUNCTION aed_sedflux_create(namlst,name,parent) RESULT(self)
       self%Fsed_feii = Fsed_feii/secs_pr_day
       self%sed_modl = 1
    ELSEIF ( sedflux_model .EQ. "Spatially Variable" ) THEN
-      call self%register_dependency(self%id_zones,varname_sed_zone)
+      call self%register_dependency(self%id_zones,'env_sed_zone')
       self%sed_modl = 2
       CALL load_sed_zone_data(self,namlst)
       IF (ALLOCATED(self%Fsed_oxy_P)) Fsed_oxy = self%Fsed_oxy_P(1)

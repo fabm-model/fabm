@@ -110,7 +110,7 @@ FUNCTION aed_bacteria_create(namlst,name,parent) RESULT(self)
    call self%register_conserved_quantity(self%id_totB,'TB','mmol/m**3','Total bacteria')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,varname_temp)
+   call self%register_dependency(self%id_temp,standard_variables%temperature)
 
    RETURN
 

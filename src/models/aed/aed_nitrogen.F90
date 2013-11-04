@@ -132,9 +132,9 @@ FUNCTION aed_nitrogen_create(namlst,name,parent) RESULT(self)
 
    ! Register state variables
    call self%register_state_variable(self%id_amm,'amm','mmol/m**3','ammonium',            &
-                                    amm_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    amm_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_nit,'nit','mmol/m**3','nitrate',             &
-                                    nit_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    nit_initial,minimum=0.0_rk,no_river_dilution=.true.)
    ! Register external state variable dependencies
    self%use_oxy = nitrif_reactant_variable .NE. '' !This means oxygen module switched on
    IF (self%use_oxy) THEN
@@ -167,7 +167,7 @@ FUNCTION aed_nitrogen_create(namlst,name,parent) RESULT(self)
    call self%register_conserved_quantity(self%id_totN,'TN','mmol/m**3','Total nitrogen')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,varname_temp)
+   call self%register_dependency(self%id_temp,standard_variables%temperature)
 
    RETURN
 

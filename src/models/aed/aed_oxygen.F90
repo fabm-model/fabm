@@ -137,11 +137,11 @@ FUNCTION aed_oxygen_create(namlst,name,parent) RESULT(self)
    ! Register conserved quantities
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,varname_temp) ! Temperature (degrees Celsius)
-   call self%register_dependency(self%id_salt,varname_salt) ! Salinity (psu)
-!  call self%register_dependency(self%id_pres,varname_pres, shape=shape_hz) ! Pressure (dbar = 10 kPa)
-!  call self%register_dependency(self%id_pres,varname_pres) ! Pressure (dbar = 10 kPa)
-   call self%register_dependency(self%id_wind,varname_wind_sf) ! Wind speed at 10 m above surface (m/s)
+   call self%register_dependency(self%id_temp,standard_variables%temperature) ! Temperature (degrees Celsius)
+   call self%register_dependency(self%id_salt,standard_variables%practical_salinity) ! Salinity (psu)
+!  call self%register_dependency(self%id_pres,standard_variables%pressure, shape=shape_hz) ! Pressure (dbar = 10 kPa)
+!  call self%register_dependency(self%id_pres,standard_variables%pressure) ! Pressure (dbar = 10 kPa)
+   call self%register_dependency(self%id_wind,standard_variables%wind_speed) ! Wind speed at 10 m above surface (m/s)
 
    RETURN
 

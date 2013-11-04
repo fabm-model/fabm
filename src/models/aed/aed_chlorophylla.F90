@@ -114,7 +114,7 @@ FUNCTION aed_chla_create(namlst,name,parent) RESULT(self)
 
    ! Register state variables
    call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton', &
-                                    p_initial,minimum=_ZERO_,vertical_movement=w_p/secs_pr_day)
+                                    p_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%do_exc = excretion_target_variable .NE. ''
@@ -141,8 +141,8 @@ FUNCTION aed_chla_create(namlst,name,parent) RESULT(self)
    call self%register_conserved_quantity(self%id_totN,'N','mmol/m**3','nitrogen')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_par,varname_par)
-   call self%register_dependency(self%id_I_0,varname_par_sf)
+   call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
+   call self%register_dependency(self%id_I_0,standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
 
    PRINT *,'AED_CHLA : Note this module has not been completed. Stopping.'
@@ -364,7 +364,7 @@ PURE real(rk) FUNCTION fnp(self,n,p,par,iopt)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   fnp = self%rmax*par/iopt*exp(_ONE_-par/iopt)*n/(self%alpha+n)*(p+self%p0)
+   fnp = self%rmax*par/iopt*exp(1.0_rk-par/iopt)*n/(self%alpha+n)*(p+self%p0)
 
 END FUNCTION fnp
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

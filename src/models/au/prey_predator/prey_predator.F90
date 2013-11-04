@@ -109,9 +109,9 @@
 
 !  Register state variables
    call self%register_state_variable(self%id_prey,'prey','mmol/m**3','nutrient',     &
-                                    prey_initial,minimum=_ZERO_,no_river_dilution=.FALSE.)
+                                    prey_initial,minimum=0.0_rk,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_predator,'predator','mmol/m**3','phytoplankton',     &
-                                    pred_initial,minimum=_ZERO_,no_river_dilution=.FALSE.)
+                                    pred_initial,minimum=0.0_rk,no_river_dilution=.FALSE.)
 !  Register diagnostic variables
 !  Register conserved quantities
    call self%register_conserved_quantity(self%id_totC,standard_variables%total_carbon)

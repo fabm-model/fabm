@@ -100,7 +100,7 @@ FUNCTION aed_sulfur_create(namlst,name,parent) RESULT(self)
 
 
 !  ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,varname_temp)
+   call self%register_dependency(self%id_temp,standard_variables%temperature)
 
    RETURN
 
