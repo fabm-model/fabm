@@ -49,10 +49,12 @@ ${LIB}(aed_totals.o) \
 ${LIB}(aed_models.o)
 
 
-objs: ${OBJS}
-
 all: objs
 	$(MOVE_MODULES_COMMAND)
+
+${OBJS}: $(FABMBASE)
+
+objs: ${OBJS}
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../../../doc/fabm.tex

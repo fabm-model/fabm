@@ -18,6 +18,8 @@ EXTRA_LIBS	=
 INCDIRS		=
 LDFLAGS		=
 
+FABMBASE = ${LIBFABM}(fabm_standard_variables.o) ${LIBFABM}(fabm_properties.o) ${LIBFABM}(fabm_types.o)
+
 #
 # phony targets
 #

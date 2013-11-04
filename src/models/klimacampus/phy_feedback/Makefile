@@ -10,6 +10,8 @@ OBJS    = ${LIBFABM}(phy_feedback.o)
 
 all: objs
 
+${OBJS}: $(FABMBASE)
+
 objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 

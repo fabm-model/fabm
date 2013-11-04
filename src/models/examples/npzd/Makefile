@@ -10,6 +10,8 @@ OBJS    = ${LIBFABM}(det.o) ${LIBFABM}(nut.o) ${LIBFABM}(phy.o) ${LIBFABM}(zoo.o
 
 all: objs
 
+${OBJS}: $(FABMBASE)
+
 objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 

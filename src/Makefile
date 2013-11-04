@@ -6,16 +6,17 @@ SUBDIRS = models drivers
 DOCSRC	= fabm.F90 fabm_types.F90
 
 FABMMOD	 = ${LIBFABM}(fabm.o)
-FABMBASE = ${LIBFABM}(fabm_standard_variables.o) ${LIBFABM}(fabm_properties.o) ${LIBFABM}(fabm_types.o)
+#FABMBASE = ${LIBFABM}(fabm_standard_variables.o) ${LIBFABM}(fabm_properties.o) ${LIBFABM}(fabm_types.o)
 FABMMODELLIB = ${LIBFABM}(fabm_library.o)
 
-all: makedirs $(FABMBASE) $(FABMMOD)
+all: driver $(FABMBASE) $(FABMMOD)
         $(MOVE_MODULES_COMMAND)
 
 makedirs:
 	mkdir -p $(MODDIR) $(LIBDIR)
 
-$(FABMBASE): driver
+$(FABMBASE):
+#$(FABMBASE): driver
 
 driver:
 	$(MAKE) -C drivers/$(FABMHOST)

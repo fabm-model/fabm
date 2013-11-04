@@ -10,6 +10,8 @@ OBJS    = ${LIBFABM}(co2_dyn.o) ${LIBFABM}(carbonate.o)
 
 all: objs
 
+${OBJS}: $(FABMBASE)
+
 objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 

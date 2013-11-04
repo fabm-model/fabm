@@ -15,6 +15,8 @@ OBJS    = ${LIBFABM}(ersem.o)
 
 all: objs
 
+${OBJS}: $(FABMBASE)
+
 ifdef FABM_PMLERSEM
 objs: $(ERSEMLIB) ${OBJS}
 else

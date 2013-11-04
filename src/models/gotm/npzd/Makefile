@@ -10,6 +10,8 @@ OBJS    = ${LIBFABM}(npzd.o)
 
 all: objs
 
+${OBJS}: $(FABMBASE)
+
 objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 

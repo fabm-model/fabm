@@ -9,22 +9,17 @@ DOCSRC	= fabm_driver.F90
 
 OBJ = ${LIBFABM}(fabm_driver.o)
 
-all: obj
+all: gotmversion makedirs obj
 
-obj: $(OBJ) makedirs
+obj: $(OBJ)
 
-$(OBJ): gotmversion
+$(OBJ):
 
 gotmversion:
 	$(MAKE) -C $(GOTMDIR) VERSION
 
 makedirs:
 	$(MAKE) -C $(FABMDIR)/src $@
-
-all: obj
-
-obj: $(OBJ)
-        $(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../../../doc/driver_code_gotm.tex
