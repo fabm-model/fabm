@@ -94,7 +94,7 @@ FUNCTION aed_silica_create(namlst,name,parent) RESULT(self)
 
    ! Register state variables
    call self%register_state_variable(self%id_rsi,'rsi','mmol/m**3', 'silica',     &
-                                    rsi_initial,minimum=_ZERO_,no_river_dilution=.false.)
+                                    rsi_initial,minimum=0.0_rk,no_river_dilution=.false.)
 
    ! Register external state variable dependencies
    self%use_oxy = silica_reactant_variable .NE. '' !This means oxygen module switched on

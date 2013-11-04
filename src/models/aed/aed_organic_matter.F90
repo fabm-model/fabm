@@ -231,20 +231,20 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
 
    ! Register state variables
    call self%register_state_variable(self%id_don,'don','mmol/m**3','dissolved organic nitrogen',     &
-                                    don_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    don_initial,minimum=0.0_rk,no_river_dilution=.true.)
 
    call self%register_state_variable(self%id_pon,'pon','mmol/m**3','particulate organic nitrogen',   &
-                                    pon_initial,minimum=_ZERO_,no_river_dilution=.true.,vertical_movement=self%w_pon)
+                                    pon_initial,minimum=0.0_rk,no_river_dilution=.true.,vertical_movement=self%w_pon)
 
    call self%register_state_variable(self%id_dop,'dop','mmol/m**3','dissolved organic phosphorus',   &
-                                    dop_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    dop_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_pop,'pop','mmol/m**3','particulate organic phosphorus', &
-                                    pop_initial,minimum=_ZERO_,no_river_dilution=.true.,vertical_movement=self%w_pop)
+                                    pop_initial,minimum=0.0_rk,no_river_dilution=.true.,vertical_movement=self%w_pop)
 
    call self%register_state_variable(self%id_doc,'doc','mmol/m**3','dissolved organic carbon',       &
-                                    doc_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    doc_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_poc,'poc','mmol/m**3','particulate organic carbon',     &
-                                    poc_initial,minimum=_ZERO_,no_river_dilution=.true.,vertical_movement=self%w_poc)
+                                    poc_initial,minimum=0.0_rk,no_river_dilution=.true.,vertical_movement=self%w_poc)
 
    ! Register external state variable dependencies (carbon)
    self%use_oxy = doc_miner_reactant_variable .NE. '' !This means oxygen module switched on
@@ -623,13 +623,13 @@ SUBROUTINE aed_organic_matter_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 
    ! Calculate sedimentation flux (mmmol/m2/s) loss from benthos.
    IF (self%use_sedmtn_model) THEN
-       Psed_poc = self%w_poc * max(_ZERO_,poc)
-       Psed_pon = self%w_pon * max(_ZERO_,pon)
-       Psed_pop = self%w_pop * max(_ZERO_,pop)
+       Psed_poc = self%w_poc * max(0.0_rk,poc)
+       Psed_pon = self%w_pon * max(0.0_rk,pon)
+       Psed_pop = self%w_pop * max(0.0_rk,pop)
    ELSE
-       Psed_poc = _ZERO_
-       Psed_pon = _ZERO_
-       Psed_pop = _ZERO_
+       Psed_poc = 0.0_rk
+       Psed_pon = 0.0_rk
+       Psed_pop = 0.0_rk
    ENDIF
 
    pon_flux = Fsed_pon + Psed_pon

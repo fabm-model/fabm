@@ -252,8 +252,8 @@ SUBROUTINE aed_pathogens_do(self,_FABM_ARGS_DO_RHS_)
       ! Retrieve this pathogen group
       _GET_(self%id_p(pth_i),pth)
 
-      growth    = _ZERO_
-      predation = _ZERO_
+      growth    = 0.0_rk
+      predation = 0.0_rk
 
       ! Natural mortality (as impacted by T, S, pH)
       f_AOC = 1.0 ! aoc / (K_AOC + aoc)
@@ -265,8 +265,8 @@ SUBROUTINE aed_pathogens_do(self,_FABM_ARGS_DO_RHS_)
 
 
       ! Sunlight inactivation (as impacted by S, DO and pH)
-      light     = _ZERO_
-      lightBW   = _ZERO_
+      light     = 0.0_rk
+      lightBW   = 0.0_rk
       phi  = 1e-6  ! Convert J to MJ as kb is in m2/MJ)
       ! Visible
       f_DO = 1.0 !oxy / (coef_light_kDOb_vis + oxy)
@@ -333,7 +333,7 @@ SUBROUTINE aed_pathogens_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
       ! Retrieve current (local) state variable values.
       _GET_(self%id_p(pth_i),pth) ! pathogen
 
-      pth_flux = _ZERO_  !self%pathogens(pth_i)%w_p*MAX(pth,_ZERO_)
+      pth_flux = 0.0_rk  !self%pathogens(pth_i)%w_p*MAX(pth,0.0_rk)
 
      ! Set bottom fluxes for the pelagic (change per surface area per second)
      ! Transfer sediment flux value to FABM.

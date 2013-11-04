@@ -77,7 +77,7 @@ FUNCTION aed_tracer_create(namlst,name,parent) RESULT(self)
    real(rk) :: decay(100)
    real(rk) :: settling(100)
    real(rk) :: Fsed(100)
-   real(rk) :: trace_initial = _ZERO_
+   real(rk) :: trace_initial = 0.0_rk
    INTEGER  :: i
    CHARACTER(4) :: trac_name
 
@@ -104,7 +104,7 @@ FUNCTION aed_tracer_create(namlst,name,parent) RESULT(self)
    DO i=1,num_tracers
       trac_name(3:3) = CHAR(ICHAR('0') + i)
       call self%register_state_variable(self%id_ss(i),TRIM(trac_name),'mmol/m**3','tracer', &
-                                   trace_initial,minimum=_ZERO_,no_river_dilution=.false.)
+                                   trace_initial,minimum=0.0_rk,no_river_dilution=.false.)
    ENDDO
 
    ! Register environmental dependencies

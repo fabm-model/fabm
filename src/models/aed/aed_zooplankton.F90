@@ -366,15 +366,15 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
       ! Retrieve this zooplankton group
       _GET_(self%id_zoo(zoop_i),zoo)
       !Retrieve prey groups
-      Ctotal_prey   = _ZERO_
+      Ctotal_prey   = 0.0_rk
       DO prey_i=1,self%zoops(zoop_i)%num_prey
          _GET_(self%zoops(zoop_i)%id_prey(prey_i),prey(prey_i))
          Ctotal_prey = Ctotal_prey + prey(prey_i)
       ENDDO
 
-      grazing       = _ZERO_
-      respiration   = _ZERO_
-      mortality     = _ZERO_
+      grazing       = 0.0_rk
+      respiration   = 0.0_rk
+      mortality     = 0.0_rk
 
       ! Get the grazing limitation function
        fGrazing_Limitation = fPrey_Limitation(self,zoop_i,Ctotal_prey)
@@ -399,7 +399,7 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
       ! food is total amount of food in units of mass/unit volume/unit time
       food = grazing * zoo
       IF (Ctotal_prey < self%zoops(zoop_i)%num_prey * self%zoops(zoop_i)%Cmin_grz_zoo ) THEN
-          food = _ZERO_
+          food = 0.0_rk
           grazing = food / zoo
       ELSEIF (food > Ctotal_prey - self%zoops(zoop_i)%num_prey * self%zoops(zoop_i)%Cmin_grz_zoo ) THEN
           food = Ctotal_prey - self%zoops(zoop_i)%num_prey * self%zoops(zoop_i)%Cmin_grz_zoo
@@ -417,7 +417,7 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
 
       DO prey_i = 1,self%zoops(zoop_i)%num_prey
           !Add up preferences for remaining prey
-          pref_factor = _ZERO_
+          pref_factor = 0.0_rk
           DO prey_j = prey_i,self%zoops(zoop_i)%num_prey
              pref_factor = pref_factor + self%zoops(zoop_i)%prey(prey_j)%Pzoo_prey
           ENDDO
@@ -428,7 +428,7 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
           ELSEIF (prey(prey_i) > self%zoops(zoop_i)%Cmin_grz_zoo) THEN
              grazing_prey(prey_i) = prey(prey_i) - self%zoops(zoop_i)%Cmin_grz_zoo
           ELSE
-             grazing_prey(prey_i) = _ZERO_
+             grazing_prey(prey_i) = 0.0_rk
           ENDIF
           !Food remaining after grazing from current prey
           food = food - grazing_prey(prey_i)
@@ -442,17 +442,17 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
       ! grazing_n is in units of mass N consumed/unit volume/unit time
       ! grazing_p is in units of mass P consumed/unit volume/unit time
 
-      grazing_n = _ZERO_
-      grazing_p = _ZERO_
+      grazing_n = 0.0_rk
+      grazing_p = 0.0_rk
       phy_i = 0
       DO prey_i = 1,self%zoops(zoop_i)%num_prey
          IF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey .EQ. 'aed_organic_matter_poc') THEN
-            IF (poc > _ZERO_) THEN
+            IF (poc > 0.0_rk) THEN
                 grazing_n = grazing_n + grazing_prey(prey_i) * pon/poc
                 grazing_p = grazing_p + grazing_prey(prey_i) * pop/poc
             ELSE
-                grazing_n = _ZERO_
-                grazing_p = _ZERO_
+                grazing_n = 0.0_rk
+                grazing_p = 0.0_rk
             ENDIF
          ELSEIF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey(1:17).EQ.'aed_phytoplankton') THEN
             phy_i = phy_i + 1
@@ -476,8 +476,8 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
       ! Don't excrete or die if we are at the min biomass otherwise we have a
       ! mass conservation leak in the C mass balance
       IF (zoo <= self%zoops(zoop_i)%min_zoo) THEN
-        respiration = _ZERO_
-        mortality = _ZERO_
+        respiration = 0.0_rk
+        mortality = 0.0_rk
       ENDIF
 
       ! Now we know the rates of carbon consumption and excretion,
@@ -502,32 +502,32 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
       don_excr = grazing_n - pon_excr - delta_C * self%zoops(zoop_i)%INC_zoo
       dop_excr = grazing_p - pop_excr - delta_C * self%zoops(zoop_i)%IPC_zoo
       !If nutrients are limiting then must excrete doc to maintain balance
-      IF ((don_excr < _ZERO_) .AND. (dop_excr < _ZERO_)) THEN
+      IF ((don_excr < 0.0_rk) .AND. (dop_excr < 0.0_rk)) THEN
          !Determine which nutrient is more limiting
          IF ((self%zoops(zoop_i)%INC_zoo * (grazing_n - pon_excr) - delta_C) .GT. &
             (self%zoops(zoop_i)%IPC_zoo * (grazing_p - pop_excr) - delta_C)) THEN
-             don_excr = _ZERO_
+             don_excr = 0.0_rk
              doc_excr =  (grazing_n - pon_excr) / self%zoops(zoop_i)%INC_zoo - delta_C
              delta_C = delta_C - doc_excr
              dop_excr = grazing_p - pop_excr - delta_C*self%zoops(zoop_i)%IPC_zoo
          ELSE
-             dop_excr = _ZERO_
+             dop_excr = 0.0_rk
              doc_excr = (grazing_p - pop_excr) / self%zoops(zoop_i)%IPC_zoo - delta_C
              delta_C = delta_C - doc_excr
              don_excr = grazing_n - pon_excr - delta_C*self%zoops(zoop_i)%INC_zoo
          ENDIF
-      ELSEIF (don_excr < _ZERO_) THEN !nitrogen limited
-         don_excr = _ZERO_
+      ELSEIF (don_excr < 0.0_rk) THEN !nitrogen limited
+         don_excr = 0.0_rk
          doc_excr = (grazing_n - pon_excr) / self%zoops(zoop_i)%INC_zoo - delta_C
          delta_C = delta_C - doc_excr
          dop_excr = grazing_p - pop_excr - delta_C*self%zoops(zoop_i)%IPC_zoo
-      ELSEIF (dop_excr < _ZERO_) THEN !phosphorus limited
-         dop_excr = _ZERO_
+      ELSEIF (dop_excr < 0.0_rk) THEN !phosphorus limited
+         dop_excr = 0.0_rk
          doc_excr = (grazing_p - pop_excr) / self%zoops(zoop_i)%IPC_zoo - delta_C
          delta_C = delta_C - doc_excr
          don_excr = grazing_n - pon_excr - delta_C*self%zoops(zoop_i)%INC_zoo
       ELSE !just excrete nutrients no need to balance c
-          doc_excr = _ZERO_
+          doc_excr = 0.0_rk
       ENDIF
 
 
@@ -547,7 +547,7 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
       DO prey_i = 1,self%zoops(zoop_i)%num_prey
          _SET_ODE_(self%zoops(zoop_i)%id_prey(prey_i), -1.0 * grazing_prey(prey_i))
           IF (self%zoops(zoop_i)%prey(prey_i)%zoop_prey .EQ. 'aed_organic_matter_poc') THEN
-              IF (poc > _ZERO_) THEN
+              IF (poc > 0.0_rk) THEN
                  _SET_ODE_(self%id_Nmorttarget, -1.0 * grazing_prey(prey_i) * pon/poc)
                  _SET_ODE_(self%id_Pmorttarget, -1.0 * grazing_prey(prey_i) * pop/poc)
               ENDIF
@@ -641,15 +641,15 @@ SUBROUTINE aed_zooplankton_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
       _GET_(self%id_zoo(zoop_i),zoo)
 
       !Retrieve prey groups
-      Ctotal_prey   = _ZERO_
+      Ctotal_prey   = 0.0_rk
       DO prey_i=1,self%zoops(zoop_i)%num_prey
          _GET_(self%zoops(zoop_i)%id_prey(prey_i),prey(prey_i))
          Ctotal_prey = Ctotal_prey + prey(prey_i)
       ENDDO
 
-      grazing       = _ZERO_
-      respiration   = _ZERO_
-      mortality     = _ZERO_
+      grazing       = 0.0_rk
+      respiration   = 0.0_rk
+      mortality     = 0.0_rk
 
       ! Get the grazing limitation function
        fGrazing_Limitation = fPrey_Limitation(self,zoop_i,Ctotal_prey)
@@ -741,9 +741,9 @@ SUBROUTINE aed_zooplankton_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVE
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
 
-   Total_zoo = _ZERO_
-   TN_zoo = _ZERO_
-   TP_zoo = _ZERO_
+   Total_zoo = 0.0_rk
+   TN_zoo = 0.0_rk
+   TP_zoo = 0.0_rk
    DO zoo_i=1,self%num_zoops
       ! Retrieve current (local) state variable values.
       _GET_(self%id_zoo(zoo_i),zoo) ! zooplankton
@@ -790,7 +790,7 @@ FUNCTION fPrey_Limitation(self,group,C) RESULT(fPlim)
 
    fPlim = C/(self%zoops(group)%Kgrz_zoo+C)
 
-   IF( fPlim<_ZERO_ ) fPlim=_ZERO_
+   IF( fPlim<0.0_rk ) fPlim=0.0_rk
 
  END FUNCTION fPrey_Limitation
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -826,7 +826,7 @@ FUNCTION fSalinity_Limitation(self,group,S) RESULT(fSal)
       fSal = 1.0
    ENDIF
 
-   IF( fSal<_ZERO_ ) fSal=_ZERO_
+   IF( fSal<0.0_rk ) fSal=0.0_rk
 END FUNCTION fSalinity_Limitation
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

@@ -140,15 +140,15 @@ FUNCTION aed_carbon_create(namlst,name,parent) RESULT(self)
    ! Register state variables
    IF(dic_initial>MISVAL) THEN
      call self%register_state_variable(self%id_dic,'dic','mmol/m**3','dissolved inorganic carbon',     &
-                                      dic_initial,minimum=_ZERO_,no_river_dilution=.false.)
+                                      dic_initial,minimum=0.0_rk,no_river_dilution=.false.)
      self%simDIC = .true.
      call self%register_state_variable(self%id_pH,'pH','-','pH',     &
-                                      pH_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                      pH_initial,minimum=0.0_rk,no_river_dilution=.true.)
    END IF
 
    IF(ch4_initial>MISVAL) THEN
      call self%register_state_variable(self%id_ch4,'ch4','mmol/m**3','methane',    &
-                                    ch4_initial,minimum=_ZERO_,no_river_dilution=.false.)
+                                    ch4_initial,minimum=0.0_rk,no_river_dilution=.false.)
      self%simCH4 = .true.
    END IF
 
@@ -379,8 +379,8 @@ SUBROUTINE aed_carbon_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
 
-   dic = _ZERO_
-   ch4 = _ZERO_
+   dic = 0.0_rk
+   ch4 = 0.0_rk
 
    ! Retrieve current (local) state variable values.
    IF(self%simDIC) THEN
