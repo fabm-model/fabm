@@ -63,6 +63,12 @@ DEFINES += -DFABM_PMLERSEM
 endif
 
 ifdef FABM_F2003
+$(warning Fortran 2003 support is now on by default; there is no need to set FABM_F2003)
+endif
+
+ifdef FABM_NO_F2003
+$(warning Fortran 2003 support disabled; this option will disappear in the future)
+else
 DEFINES += -D_FABM_F2003_
 endif
 
