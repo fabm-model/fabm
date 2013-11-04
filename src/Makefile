@@ -9,19 +9,16 @@ FABMMOD	 = ${LIBFABM}(fabm.o)
 #FABMBASE = ${LIBFABM}(fabm_standard_variables.o) ${LIBFABM}(fabm_properties.o) ${LIBFABM}(fabm_types.o)
 FABMMODELLIB = ${LIBFABM}(fabm_library.o)
 
-all: driver $(FABMBASE) $(FABMMOD)
+all: driver models $(FABMMOD)
         $(MOVE_MODULES_COMMAND)
 
 makedirs:
 	mkdir -p $(MODDIR) $(LIBDIR)
 
-$(FABMBASE):
-#$(FABMBASE): driver
-
 driver:
 	$(MAKE) -C drivers/$(FABMHOST)
 
-$(FABMMOD): models $(FABMMODELLIB)
+$(FABMMOD): $(FABMMODELLIB)
 
 models: driver $(FABMBASE)
 	$(MAKE) -C models
