@@ -104,9 +104,6 @@
      varname_zbot    = standard_variables%bottom_depth_below_geoid,                          & ! Basin floor depth below geoid (approx. mean sea level) (m)
      varname_taub    = standard_variables%bottom_stress                                        ! Bottom stress (Pa)
 
-   ! Added for aed modules
-   character(len=attribute_length),parameter,public :: varname_sed_zone= 'env_sed_zone' ! sedimentation zone
-
    ! Non-spatial (scalar) variables.
    type (type_global_standard_variable),parameter,public :: &
      varname_yearday = standard_variables%number_of_days_since_start_of_the_year              ! Decimal day of the year (day), equal to 0.0 at 00:00 1 Jan UTC

@@ -112,7 +112,7 @@
    call register_state_dependency(modelinfo,self%id_morttarget,mortality_target_variable)
 
    ! Register environmental dependencies
-   call register_dependency(modelinfo, self%id_temp, varname_temp)
+   call register_dependency(modelinfo, self%id_temp, standard_variables%temperature)
 
    self%food_scale = food_scale
 

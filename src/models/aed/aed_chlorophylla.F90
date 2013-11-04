@@ -141,8 +141,8 @@ FUNCTION aed_chla_create(namlst,name,parent) RESULT(self)
    call self%register_conserved_quantity(self%id_totN,'N','mmol/m**3','nitrogen')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_par,varname_par)
-   call self%register_dependency(self%id_I_0,varname_par_sf)
+   call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
+   call self%register_dependency(self%id_I_0,standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
 
    PRINT *,'AED_CHLA : Note this module has not been completed. Stopping.'

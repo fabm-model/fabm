@@ -151,7 +151,7 @@ FUNCTION aed_phosphorus_create(namlst,name,parent) RESULT(self)
      IF (self%ads_use_external_tss) THEN
 
          PRINT *,'PO4 adsorption is configured to use external TSS'
-         call self%register_dependency(self%id_tssext,varname_tss)
+         call self%register_dependency(self%id_tssext,standard_variables%mass_concentration_of_suspended_matter)
 
      ELSE
 
@@ -181,7 +181,7 @@ FUNCTION aed_phosphorus_create(namlst,name,parent) RESULT(self)
    call self%register_conserved_quantity(self%id_totP,'TP','mmol/m**3','Total phosphorus')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,varname_temp)
+   call self%register_dependency(self%id_temp,standard_variables%temperature)
 
    RETURN
 

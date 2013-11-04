@@ -323,7 +323,7 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
    call self%register_conserved_quantity(self%id_totC,'TC','mmol/m**3','Total carbon')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,varname_temp)
+   call self%register_dependency(self%id_temp,standard_variables%temperature)
 
    RETURN
 

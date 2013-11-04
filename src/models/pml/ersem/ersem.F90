@@ -130,10 +130,10 @@
 !   self%id_totN = register_conserved_quantity(modelinfo,'N','mmol/m**3','nitrogen') LATER
 
    ! Register environmental dependencies
-   call register_dependency(modelinfo, self%id_ETW, varname_temp)
-   call register_dependency(modelinfo, self%id_EIR, varname_swr)
-   call register_dependency(modelinfo, self%id_EPW, varname_pres)
-   call register_dependency(modelinfo, self%id_x1X, varname_salt)
+   call register_dependency(modelinfo, self%id_ETW, standard_variables%temperature)
+   call register_dependency(modelinfo, self%id_EIR, standard_variables%downwelling_shortwave_flux)
+   call register_dependency(modelinfo, self%id_EPW, standard_variables%pressure)
+   call register_dependency(modelinfo, self%id_x1X, standard_variables%practical_salinity)
 
    return
 

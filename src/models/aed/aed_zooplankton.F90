@@ -307,9 +307,9 @@ FUNCTION aed_zooplankton_create(namlst,name,parent) RESULT(self)
    CALL self%register_conserved_quantity(self%id_totC,'TC','mmol/m**3','Total carbon')
 
    ! Register environmental dependencies
-   CALL self%register_dependency(self%id_tem,varname_temp)
-   CALL self%register_dependency(self%id_sal,varname_salt)
-   CALL self%register_dependency(self%id_extc,varname_extc)
+   CALL self%register_dependency(self%id_tem,standard_variables%temperature)
+   CALL self%register_dependency(self%id_sal,standard_variables%practical_salinity)
+   CALL self%register_dependency(self%id_extc,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
 
    RETURN
 

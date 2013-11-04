@@ -178,9 +178,9 @@ FUNCTION aed_carbon_create(namlst,name,parent) RESULT(self)
    call self%register_conserved_quantity(self%id_totC,'TP','mmol/m**3','Total carbon')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,varname_temp)
-   call self%register_dependency(self%id_salt,varname_salt)
-   call self%register_dependency(self%id_wind,varname_wind_sf)
+   call self%register_dependency(self%id_temp,standard_variables%temperature)
+   call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
+   call self%register_dependency(self%id_wind,standard_variables%wind_speed)
 
    RETURN
 

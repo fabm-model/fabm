@@ -140,10 +140,10 @@ FUNCTION aed_pathogens_create(namlst,name,parent) RESULT(self)
 
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_tem,varname_temp)
-   call self%register_dependency(self%id_sal,varname_salt)
-   call self%register_dependency(self%id_par,varname_par)
-   call self%register_dependency(self%id_I_0,varname_par_sf)
+   call self%register_dependency(self%id_tem,standard_variables%temperature)
+   call self%register_dependency(self%id_sal,standard_variables%practical_salinity)
+   call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
+   call self%register_dependency(self%id_I_0,standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
    RETURN
 

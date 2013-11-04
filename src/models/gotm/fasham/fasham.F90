@@ -255,7 +255,7 @@
    call register_diagnostic_variable(modelinfo,self%id_pp,'pp','/d','specific primary production')
 
    ! Register environmental dependencies
-   call register_dependency(modelinfo,self%id_par,varname_par)
+   call register_dependency(modelinfo,self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 
    ! Register conserved quantities
    call register_conserved_quantity(modelinfo,self%id_totN,'N','mmol/m**3','nitrogen')

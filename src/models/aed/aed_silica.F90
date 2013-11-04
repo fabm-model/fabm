@@ -111,7 +111,7 @@ FUNCTION aed_silica_create(namlst,name,parent) RESULT(self)
                      time_treatment=time_treatment_step_integrated)
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,varname_temp)
+   call self%register_dependency(self%id_temp,standard_variables%temperature)
 
    RETURN
 

@@ -167,7 +167,7 @@ FUNCTION aed_nitrogen_create(namlst,name,parent) RESULT(self)
    call self%register_conserved_quantity(self%id_totN,'TN','mmol/m**3','Total nitrogen')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,varname_temp)
+   call self%register_dependency(self%id_temp,standard_variables%temperature)
 
    RETURN
 
