@@ -6,7 +6,6 @@ SUBDIRS = models drivers
 DOCSRC	= fabm.F90 fabm_types.F90
 
 FABMMOD	 = ${LIBFABM}(fabm.o)
-#FABMBASE = ${LIBFABM}(fabm_standard_variables.o) ${LIBFABM}(fabm_properties.o) ${LIBFABM}(fabm_types.o)
 FABMMODELLIB = ${LIBFABM}(fabm_library.o)
 
 all: driver models $(FABMMOD)
@@ -19,6 +18,8 @@ driver:
 	$(MAKE) -C drivers/$(FABMHOST)
 
 $(FABMMOD): $(FABMMODELLIB)
+
+$(FABMMODELLIB): $(FABMBASE)
 
 models: driver $(FABMBASE)
 	$(MAKE) -C models
