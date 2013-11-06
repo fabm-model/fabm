@@ -355,7 +355,7 @@
 
       if ( self%consolidate_bed ) then
          ! mimic a consolidation of the bed : Dickhudt et. al. 2009
-         erodedmass = (max(self%mass_sed_init-pmpool,_ZERO_))
+         erodedmass = (max(self%mass_sed_init-pmpool,0.0_rk))
          ! convert to kg/m2
          erodedmass = erodedmass/scale_factor
          select case ( self%consolidate_bed_method )
@@ -369,7 +369,7 @@
                ! high erodebility
                offset = 0.243_rk*erodedmass**0.754_rk
             case default
-               offset = _ZERO_
+               offset = 0.0_rk
          end select
          tauc_erosion = tauc_erosion + offset
       endif
@@ -557,11 +557,11 @@
             ! compute volumetric concentration
             phi     = min(0.9999999_rk,spm/g/rhop)
             ! do a limiter
-            phistar = min(_ONE_,phi)
-            svs     = svs*(_ONE_-phistar)*(_ONE_-phi)/(_ONE_+2.5_rk*phi)
+            phistar = min(1.0_rk,phi)
+            svs     = svs*(1.0_rk-phistar)*(1.0_rk-phi)/(1.0_rk+2.5_rk*phi)
          case ( 3 )
             ! Mehta 1986
-            svs  = svs*(max(_ONE_-0.008*spm/1000.0_rk,_ZERO_))**5
+            svs  = svs*(max(1.0_rk-0.008*spm/1000.0_rk,0.0_rk))**5
 
       end select
       svs = max(svs,0.01_rk)/1000.0_rk

@@ -163,19 +163,19 @@
 
    ! Register state variables
    call register_state_variable(modelinfo,self%id_n,'nut','mmol/m**3','nutrients',     &
-                                    n_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    n_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call register_state_variable(modelinfo,self%id_p,'phy','mmol/m**3','phytoplankton', &
-                                    p_initial,minimum=_ZERO_,vertical_movement=w_p/secs_pr_day)
+                                    p_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
    call register_state_variable(modelinfo,self%id_z,'zoo','mmol/m**3','zooplankton', &
-                                    z_initial,minimum=_ZERO_)
+                                    z_initial,minimum=0.0_rk)
    call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus', &
-                                    d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day)
+                                    d_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    !self%use_dic = dic_variable/=''
    !if (self%use_dic) call register_state_dependency(modelinfo,self%id_dic,dic_variable)
    call register_state_variable(modelinfo,self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon', &
-                                2100._rk,minimum=_ZERO_,standard_variable=standard_variables%mole_concentration_of_dissolved_inorganic_carbon)
+                                2100._rk,minimum=0.0_rk,standard_variable=standard_variables%mole_concentration_of_dissolved_inorganic_carbon)
 
    ! Register diagnostic variables
    call register_diagnostic_variable(modelinfo,self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &

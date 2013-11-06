@@ -132,7 +132,7 @@ FUNCTION aed_phosphorus_create(namlst,name,parent) RESULT(self)
 
    ! Register main state variable
    call self%register_state_variable(self%id_frp,'frp','mmol/m**3','phosphorus',     &
-                                    frp_initial,minimum=_ZERO_,no_river_dilution=.false.)
+                                    frp_initial,minimum=0.0_rk,no_river_dilution=.false.)
 
    ! Register external state variable dependencies (for benthic flux)
    self%ben_use_oxy = phosphorus_reactant_variable .NE. '' !This means oxygen module switched on
@@ -164,7 +164,7 @@ FUNCTION aed_phosphorus_create(namlst,name,parent) RESULT(self)
      ENDIF
 
      call self%register_state_variable(self%id_frpads,'frp_ads','mmol/m**3','adsorbed phosphorus',     &
-                      _ZERO_,minimum=_ZERO_,no_river_dilution=.false.,vertical_movement=self%w_po4ads )
+                      0.0_rk,minimum=0.0_rk,no_river_dilution=.false.,vertical_movement=self%w_po4ads )
 
      IF (self%ads_use_pH) THEN
        call self%register_state_dependency(self%id_pH,'aed_carbon_pH')
@@ -223,7 +223,7 @@ SUBROUTINE aed_phosphorus_do(self,_FABM_ARGS_DO_RHS_)
  !
  !  _SET_ODE_(self%id_frp,diff_frp)
  !  IF(self%simPO4Adsorption) THEN
- !    _SET_ODE_(self%id_frpads,_ZERO_)
+ !    _SET_ODE_(self%id_frpads,0.0_rk)
  !  END IF
  !
    ! Leave spatial loops (if any)
@@ -415,10 +415,10 @@ SUBROUTINE aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
    END IF
 
 
-   PO4dis   = _ZERO_
-   PO4par   = _ZERO_
-   buffer   = _ZERO_
-   f_pH     = _ONE_
+   PO4dis   = 0.0_rk
+   PO4par   = 0.0_rk
+   buffer   = 0.0_rk
+   f_pH     = 1.0_rk
    SSconc   = tss
 
      ! calculate the total possible PO4 for sorption, and solids
@@ -432,8 +432,8 @@ SUBROUTINE aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
      !
      ! Ji, Z-G. 2008. Hydrodynamics and Water Quality. Wiley Press.
 
-     PO4par = (self%Kpo4p*SSconc) / (_ONE_+self%Kpo4p*SSconc) * PO4tot
-     PO4dis = _ONE_ / (_ONE_+self%Kpo4p*SSconc) * PO4tot
+     PO4par = (self%Kpo4p*SSconc) / (1.0_rk+self%Kpo4p*SSconc) * PO4tot
+     PO4dis = 1.0_rk / (1.0_rk+self%Kpo4p*SSconc) * PO4tot
 
 
    ELSEIF(self%PO4AdsorptionModel == 2) THEN
@@ -457,7 +457,7 @@ SUBROUTINE aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
 
      ELSE
 
-       f_pH = _ONE_
+       f_pH = 1.0_rk
 
      END IF
 
@@ -471,7 +471,7 @@ SUBROUTINE aed_phosphorus_update_state(self,_FABM_ARGS_DO_RHS_)
 
      ! Check for stupid solutions
      IF(PO4par > PO4tot) PO4par = PO4tot
-     IF(PO4par < _ZERO_) PO4par = _ZERO_
+     IF(PO4par < 0.0_rk) PO4par = 0.0_rk
 
      ! Now set dissolved portion
      PO4dis = PO4tot - PO4par

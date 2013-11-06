@@ -122,35 +122,35 @@
 
    ! Register state variables
    call self%register_state_variable(self%id_fdet,'fdet','mmolC/m**3','fast detritus C',     &
-                                    fdet_init,minimum=_ZERO_)
+                                    fdet_init,minimum=0.0_rk)
    call self%set_variable_property(self%id_fdet,'particulate',.true.)
 
    call self%register_state_variable(self%id_sdet,'sdet','mmolC/m**3','slow detritus C', &
-                                    sdet_init,minimum=_ZERO_)
+                                    sdet_init,minimum=0.0_rk)
    call self%set_variable_property(self%id_sdet,'particulate',.true.)
 
    call self%register_state_variable(self%id_pdet,'pdet','mmolP/m**3','detritus-P',     &
-                                    pdet_init,minimum=_ZERO_)
+                                    pdet_init,minimum=0.0_rk)
    call self%set_variable_property(self%id_pdet,'particulate',.true.)
 
    call self%register_state_variable(self%id_po4,'po4','mmolP/m**3','dissolved phosphate', &
-                                    po4_init,minimum=_ZERO_)
+                                    po4_init,minimum=0.0_rk)
    call self%set_variable_property(self%id_po4,'particulate',.false.)
 
    call self%register_state_variable(self%id_no3,'no3','mmolN/m**3','dissolved nitrate',     &
-                                    no3_init,minimum=_ZERO_)
+                                    no3_init,minimum=0.0_rk)
    call self%set_variable_property(self%id_no3,'particulate',.false.)
 
    call self%register_state_variable(self%id_nh3,'nh3','mmolN/m**3','dissolved ammonium', &
-                                    nh3_init,minimum=_ZERO_)
+                                    nh3_init,minimum=0.0_rk)
    call self%set_variable_property(self%id_nh3,'particulate',.false.)
 
    call self%register_state_variable(self%id_oxy,'oxy','mmolO2/m**3','dissolved oxygen',     &
-                                    oxy_init,minimum=_ZERO_)
+                                    oxy_init,minimum=0.0_rk)
    call self%set_variable_property(self%id_oxy,'particulate',.false.)
 
    call self%register_state_variable(self%id_odu,'odu','mmol/m**3','dissolved reduced substances', &
-                                    odu_init,minimum=_ZERO_)
+                                    odu_init,minimum=0.0_rk)
    call self%set_variable_property(self%id_odu,'particulate',.false.)
 
    ! Register diagnostic variables
@@ -216,7 +216,7 @@
 
    temp_kelvin = 273.15_rk + temp_celsius
    E_a=0.1_rk*log(Q10b)*T0*(T0+10.0_rk);
-   f_T = _ONE_*exp(-E_a*(1.0_rk/temp_kelvin - 1.0_rk/T0))
+   f_T = 1.0_rk*exp(-E_a*(1.0_rk/temp_kelvin - 1.0_rk/T0))
 
    Oxicminlim = oxy/(oxy+self%ksO2oxic+relaxO2*(nh3+odu))                ! limitation terms
    Denitrilim = (1.0_rk-oxy/(oxy+self%kinO2denit)) * NO3/(no3+self%ksNO3denit)

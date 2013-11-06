@@ -571,20 +571,20 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
 !     cup   = cuptake(phy_i)    / dtlim
 !     rsiup = siuptake(phy_i)   / dtlim
 
-      primprod(phy_i)    = _ZERO_
-      exudation(phy_i)   = _ZERO_
-      a_nfix(phy_i)      = _ZERO_
-      respiration(phy_i) = _ZERO_
+      primprod(phy_i)    = 0.0_rk
+      exudation(phy_i)   = 0.0_rk
+      a_nfix(phy_i)      = 0.0_rk
+      respiration(phy_i) = 0.0_rk
 
-      cuptake(phy_i)     = _ZERO_
-      cexcretion(phy_i)  = _ZERO_
-      cmortality(phy_i)  = _ZERO_
-      nuptake(phy_i,:)   = _ZERO_
-      nexcretion(phy_i)  = _ZERO_
-      nmortality(phy_i)  = _ZERO_
-      puptake(phy_i,:)   = _ZERO_
-      pexcretion(phy_i)  = _ZERO_
-      pmortality(phy_i)  = _ZERO_
+      cuptake(phy_i)     = 0.0_rk
+      cexcretion(phy_i)  = 0.0_rk
+      cmortality(phy_i)  = 0.0_rk
+      nuptake(phy_i,:)   = 0.0_rk
+      nexcretion(phy_i)  = 0.0_rk
+      nmortality(phy_i)  = 0.0_rk
+      puptake(phy_i,:)   = 0.0_rk
+      pexcretion(phy_i)  = 0.0_rk
+      pmortality(phy_i)  = 0.0_rk
 
       ! Retrieve this phytoplankton group
       _GET_(self%id_p(phy_i),phy)
@@ -615,7 +615,7 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
             fNit = INi / phy
             fNit = phyto_fN(self,phy_i,IN=fNit)
          ENDIF
-         IF (phy > _ZERO_ .AND. phy <= self%phytos(phy_i)%p0) THEN
+         IF (phy > 0.0_rk .AND. phy <= self%phytos(phy_i)%p0) THEN
             fNit = phyto_fN(self,phy_i,din=no3up+nh4up)
          ENDIF
       ELSE
@@ -624,13 +624,13 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
       IF (self%phytos(phy_i)%simNFixation /= 0) THEN
          ! Nitrogen fixer: apply no N limitation. N Fixation ability
          ! depends on DIN concentration
-         a_nfix = (_ONE_ - fNit)
-         fNit = _ONE_
+         a_nfix = (1.0_rk - fNit)
+         fNit = 1.0_rk
       ENDIF
 
 
       ! PHOSPHOROUS.
-      fPho = _ZERO_
+      fPho = 0.0_rk
       IF (self%phytos(phy_i)%simIPDynamics /= 0) THEN
          ! IP variable available
          _GET_(self%id_ip(phy_i),IPi)
@@ -645,7 +645,7 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
             fPho = IPi / phy
             fPho = phyto_fP(self,phy_i,IP=fPho)
          ENDIF
-         IF (phy > _ZERO_ .AND. phy <= self%phytos(phy_i)%p0) THEN
+         IF (phy > 0.0_rk .AND. phy <= self%phytos(phy_i)%p0) THEN
             fPho = phyto_fP(self,phy_i,frp=pup)
          ENDIF
       ELSE
@@ -693,8 +693,8 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
       ! Limit respiration if at the min biomass to prevent
       ! leak in the C mass balance
       IF (phy <= self%phytos(phy_i)%p0) THEN
-         respiration(phy_i) = _ZERO_
-         exudation(phy_i) = _ZERO_
+         respiration(phy_i) = 0.0_rk
+         exudation(phy_i) = 0.0_rk
       ENDIF
 
       ! write(*,"(4X,'limitations (fT,fI,fN,fP,fSi,Io, par, mu): ',9F9.2)")fT,fI,fNit,fPho,fSil,Io,par,primprod*secs_pr_day
@@ -725,9 +725,9 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
          siexcretion(phy_i) = self%phytos(phy_i)%X_sicon * (self%phytos(phy_i)%k_fdom*respiration(phy_i)+exudation(phy_i)) * phy
          simortality(phy_i) = self%phytos(phy_i)%X_sicon * ((1.0-self%phytos(phy_i)%k_fdom)*respiration(phy_i)) * phy
       ELSE
-         siuptake(phy_i)    = _ZERO_
-         siexcretion(phy_i) = _ZERO_
-         simortality(phy_i) = _ZERO_
+         siuptake(phy_i)    = 0.0_rk
+         siexcretion(phy_i) = 0.0_rk
+         simortality(phy_i) = 0.0_rk
       ENDIF
 
       ! Diagnostic info
@@ -807,7 +807,7 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
       ! Phytoplankton production / losses
       _GET_(self%id_p(phy_i),phy)
       flux = (primprod(phy_i) - respiration(phy_i) - exudation(phy_i)) * phy
-      available = MAX(_ZERO_, phy - self%phytos(phy_i)%p0)
+      available = MAX(0.0_rk, phy - self%phytos(phy_i)%p0)
       IF ( -flux*dtlim > available  ) flux = -0.99*available/dtlim
       _SET_ODE_(self%id_p(phy_i), flux)
 
@@ -815,7 +815,7 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
          ! _SET_ODE_(self%id_in(phy_i), (-sum(nuptake) - nexcretion(phy_i) - nmortality(phy_i) )*INi )
          _GET_(self%id_in(phy_i),INi)
          flux = (-sum(nuptake(phy_i,:)) - nexcretion(phy_i) - nmortality(phy_i) )
-         available = MAX(_ZERO_, INi - self%phytos(phy_i)%X_nmin*phy)
+         available = MAX(0.0_rk, INi - self%phytos(phy_i)%X_nmin*phy)
          IF ( -flux*dtlim > available  ) flux = -0.99*available/dtlim
          _SET_ODE_(self%id_in(phy_i), flux)
       ENDIF
@@ -823,7 +823,7 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
          ! _SET_ODE_(self%id_ip(phy_i), (-sum(puptake(phy_i,:)) - pexcretion(phy_i) - pmortality(phy_i) ) )
          _GET_(self%id_ip(phy_i),IPi)
          flux = (-sum(puptake(phy_i,:)) - pexcretion(phy_i) - pmortality(phy_i) )
-         available = MAX(_ZERO_, IPi - self%phytos(phy_i)%X_pmin*phy)
+         available = MAX(0.0_rk, IPi - self%phytos(phy_i)%X_pmin*phy)
          IF ( -flux*dtlim > available  ) flux = -0.99*available/dtlim
          _SET_ODE_(self%id_ip(phy_i), flux)
       ENDIF
@@ -944,9 +944,9 @@ SUBROUTINE phyto_internal_phosphorus(self,group,phy,IP,primprod,&
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   uptake     = _ZERO_
-   excretion  = _ZERO_
-   mortality  = _ZERO_
+   uptake     = 0.0_rk
+   excretion  = 0.0_rk
+   mortality  = 0.0_rk
 
    ! Uptake of phosphorus
    IF (self%phytos(group)%simIPDynamics == 0 .OR. self%phytos(group)%simIPDynamics == 1) THEN
@@ -1019,9 +1019,9 @@ SUBROUTINE phyto_internal_nitrogen(self,group,phy,IN,primprod,fT,no3up,nh4up,   
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   uptake     = _ZERO_
-   excretion  = _ZERO_
-   mortality  = _ZERO_
+   uptake     = 0.0_rk
+   excretion  = 0.0_rk
+   mortality  = 0.0_rk
 
 
    ! Uptake of nitrogen
@@ -1056,7 +1056,7 @@ SUBROUTINE phyto_internal_nitrogen(self,group,phy,IN,primprod,fT,no3up,nh4up,   
       IF (a_nfix > uptake(1)) THEN
          ! Extreme case:
          a_nfix = uptake(1)
-         uptake(1) = _ZERO_
+         uptake(1) = 0.0_rk
       ELSE
          ! Reduce nuptake by the amount fixed:
          uptake(1) = uptake(1) * (uptake(1)-a_nfix) / uptake(1)
@@ -1120,7 +1120,7 @@ SUBROUTINE aed_phytoplankton_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
       ! Retrieve current (local) state variable values.
       _GET_(self%id_p(phy_i),phy) ! phytoplankton
 
-      phy_flux = _ZERO_  !self%phytos(phy_i)%w_p*MAX(phy,_ZERO_)
+      phy_flux = 0.0_rk  !self%phytos(phy_i)%w_p*MAX(phy,0.0_rk)
 
      ! Set bottom fluxes for the pelagic (change per surface area per second)
      ! Transfer sediment flux value to FABM.
@@ -1188,7 +1188,7 @@ SUBROUTINE aed_phytoplankton_get_conserved_quantities(self,_FABM_ARGS_GET_CONSER
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
 
-   phy = _ZERO_
+   phy = 0.0_rk
    DO phy_i=1,self%num_phytos
       ! Retrieve current (local) state variable values.
       _GET_(self%id_p(phy_i),p) ! phytoplankton
@@ -1280,7 +1280,7 @@ FUNCTION phyto_fN(self, group, IN, din, don) RESULT(fN)
 
 !-------------------------------------------------------------------------------
 !BEGIN
-   fN=_ONE_
+   fN=1.0_rk
 
    IF (PRESENT(din) .OR. PRESENT(don)) THEN
      ! Calculate external nutrient limitation factor
@@ -1299,7 +1299,7 @@ FUNCTION phyto_fN(self, group, IN, din, don) RESULT(fN)
             (self%phytos(group)%X_nmax-self%phytos(group)%X_nmin)
    ENDIF
 
-   IF ( fN < _ZERO_ ) fN = _ZERO_
+   IF ( fN < 0.0_rk ) fN = 0.0_rk
 END FUNCTION phyto_fN
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1320,17 +1320,17 @@ FUNCTION phyto_fP(self, group, IP, frp) RESULT(fP)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   fP=_ONE_
+   fP=1.0_rk
 
    IF(PRESENT(frp)) THEN
      fP = (frp-self%phytos(group)%P_0) / &
-             (self%phytos(group)%K_P + (MAX(_ZERO_, (frp-self%phytos(group)%P_0))))
+             (self%phytos(group)%K_P + (MAX(0.0_rk, (frp-self%phytos(group)%P_0))))
    ELSE
      fP = self%phytos(group)%X_pmax * (1.0 - self%phytos(group)%X_pmin/IP) / &
                           (self%phytos(group)%X_pmax-self%phytos(group)%X_pmin)
    ENDIF
 
-   IF( fP<_ZERO_ ) fP=_ZERO_
+   IF( fP<0.0_rk ) fP=0.0_rk
 
 END FUNCTION phyto_fP
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1352,12 +1352,12 @@ FUNCTION phyto_fSi(self, group, Si) RESULT(fSi)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   fSi = _ONE_
+   fSi = 1.0_rk
 
    IF (self%phytos(group)%simSiUptake == 1) THEN
      fSi = (Si-self%phytos(group)%Si_0) / &
            (Si-self%phytos(group)%Si_0+self%phytos(group)%K_Si)
-     IF ( fSi < _ZERO_ ) fSi=_ZERO_
+     IF ( fSi < 0.0_rk ) fSi=0.0_rk
    ENDIF
 
 END FUNCTION phyto_fSi
@@ -1383,7 +1383,7 @@ FUNCTION phyto_pN(self,group,NH4,NO3) RESULT(pN)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   pN = _ZERO_
+   pN = 0.0_rk
 
    IF (NH4 > 0.0) THEN
       pN = NH4*NO3 / ((NH4+self%phytos(group)%K_N)*(NO3+self%phytos(group)%K_N)) &
@@ -1409,7 +1409,7 @@ FUNCTION findMin(a1,a2,a3,a4) RESULT(theMin)
    IF(a3 < theMin)      theMin = a3
    IF(a4 < theMin)      theMin = a4
 
-   IF( theMin<_ZERO_ )  theMin=_ZERO_
+   IF( theMin<0.0_rk )  theMin=0.0_rk
 
 END FUNCTION findMin
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1493,7 +1493,7 @@ FUNCTION phyto_salinity(self,group,salinity) RESULT(fSal)
       PRINT *,'STOP: Unsupported salTol flag for group: ',group,'=', self%phytos(group)%salTol
    ENDIF
 
-   IF( fSal < _ZERO_ ) fSal = _ZERO_
+   IF( fSal < 0.0_rk ) fSal = 0.0_rk
 
 END FUNCTION phyto_salinity
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1545,7 +1545,7 @@ FUNCTION phyto_light(self, group, par, extc, Io, dz) RESULT(fI)
          ! This is the Webb et al (1974) model solved using the numerical
          ! integration approach as in CAEDYM (Hipsey and Hamilton, 2008)
 
-         IF (Io == _ZERO_) RETURN
+         IF (Io == 0.0_rk) RETURN
 
          z1 = -par_t / self%phytos(group)%I_K
          z2 = -par_b / self%phytos(group)%I_K
@@ -1563,14 +1563,14 @@ FUNCTION phyto_light(self, group, par, extc, Io, dz) RESULT(fI)
          ! This is the Monod (1950) model.
 
          x = par_c/self%phytos(group)%I_K
-         fI = x / (_ONE_ + x)
+         fI = x / (1.0_rk + x)
 
       CASE ( 2 )
          ! Light limitation with photoinhibition.
          ! This is the Steele (1962) model.
 
          x = par_c/self%phytos(group)%I_S
-         fI = x * EXP(_ONE_ - x)
+         fI = x * EXP(1.0_rk - x)
          IF (par_t < 5e-5 .OR. fI < 5e-5) fI = 0.0
 
       CASE ( 3 )
@@ -1578,7 +1578,7 @@ FUNCTION phyto_light(self, group, par, extc, Io, dz) RESULT(fI)
          ! This is the Webb et al. (1974) model.
 
          x = par_c/self%phytos(group)%I_K
-         fI = _ONE_ - EXP(-x)
+         fI = 1.0_rk - EXP(-x)
 
       CASE ( 4 )
          ! Light limitation without photoinhibition.
@@ -1592,14 +1592,14 @@ FUNCTION phyto_light(self, group, par, extc, Io, dz) RESULT(fI)
          ! This is the Chalker (1980) model.
 
          x = par_c/self%phytos(group)%I_K
-         fI = (EXP(x * (_ONE_ + eps)) - _ONE_) / &
-              (EXP(x * (_ONE_ + eps)) + eps)
+         fI = (EXP(x * (1.0_rk + eps)) - 1.0_rk) / &
+              (EXP(x * (1.0_rk + eps)) + eps)
 
       CASE ( 6 )
          ! Light limitation with photoinhibition.
          ! This is the Klepper et al. (1988) / Ebenhoh et al. (1997) model.
          x = par_c/self%phytos(group)%I_S
-         fI = ((2.0 + A) * x) / ( _ONE_ + (A * x) + (x * x) )
+         fI = ((2.0 + A) * x) / ( 1.0_rk + (A * x) + (x * x) )
 
       CASE ( 7 )
          ! Light limitation with photoinhibition.
@@ -1609,7 +1609,7 @@ FUNCTION phyto_light(self, group, par, extc, Io, dz) RESULT(fI)
                 EXP(1-par_t/self%phytos(group)%I_S)   ) / (extc * dz)
    END SELECT
 
-   IF ( fI < _ZERO_ ) fI = _ZERO_
+   IF ( fI < 0.0_rk ) fI = 0.0_rk
 END FUNCTION phyto_light
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

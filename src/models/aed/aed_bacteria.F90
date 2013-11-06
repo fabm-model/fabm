@@ -99,7 +99,7 @@ FUNCTION aed_bacteria_create(namlst,name,parent) RESULT(self)
 
    ! Register state variables
    call self%register_state_variable(self%id_bact,'bact','mmol/m**3','bacteria',     &
-                                    bact_initial,minimum=_ZERO_,no_river_dilution=.false.)
+                                    bact_initial,minimum=0.0_rk,no_river_dilution=.false.)
 
    ! Register diagnostic variables
 !  self%id_sed_bact = self%register_diagnostic_variable('sed_bact','mmol/m**2/d',   &

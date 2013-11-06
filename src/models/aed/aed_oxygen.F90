@@ -108,7 +108,7 @@ FUNCTION aed_oxygen_create(namlst,name,parent) RESULT(self)
 
    ! Register state variables
    call self%register_state_variable(self%id_oxy,'oxy','mmol/m**3','oxygen',   &
-                                    oxy_initial,minimum=_ZERO_,no_river_dilution=.TRUE.)
+                                    oxy_initial,minimum=0.0_rk,no_river_dilution=.TRUE.)
 
    ! Register link to external pools
 
@@ -247,9 +247,9 @@ SUBROUTINE aed_oxygen_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_
    real(rk) :: oxy
 
    ! Temporary variables
-   real(rk) :: oxy_atm_flux = _ZERO_
-   real(rk) :: Coxy_air = _ZERO_ !Dissolved oxygen in the air phase
-   real(rk) :: koxy_trans = _ZERO_
+   real(rk) :: oxy_atm_flux = 0.0_rk
+   real(rk) :: Coxy_air = 0.0_rk !Dissolved oxygen in the air phase
+   real(rk) :: koxy_trans = 0.0_rk
    real(rk) :: windHt !, Tabs
    real(rk) :: f_pres  = 1.0      ! Pressure correction function only applicable at high altitudes
 !

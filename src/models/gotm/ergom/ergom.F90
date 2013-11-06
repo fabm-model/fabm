@@ -268,24 +268,24 @@ subroutine initialize(self,configunit)
 
 !  Register state variables
    call self%register_state_variable(self%id_p1,'dia','mmol n/m**3','diatoms',      &
-         p1_initial,minimum=_ZERO_,vertical_movement=w_p1/secs_pr_day)
+         p1_initial,minimum=0.0_rk,vertical_movement=w_p1/secs_pr_day)
    call self%register_state_variable(self%id_p2,'fla','mmol n/m**3','flagellates',  &
-         p2_initial,minimum=_ZERO_,vertical_movement=w_p2/secs_pr_day)
+         p2_initial,minimum=0.0_rk,vertical_movement=w_p2/secs_pr_day)
    call self%register_state_variable(self%id_p3,'cya','mmol n/m**3','cyanobacteria',&
-         p3_initial,minimum=_ZERO_,vertical_movement=w_p3/secs_pr_day)
+         p3_initial,minimum=0.0_rk,vertical_movement=w_p3/secs_pr_day)
    call self%register_state_variable(self%id_zo,'zoo','mmol n/m**3','zooplankton',  &
-         zo_initial,minimum=_ZERO_)
+         zo_initial,minimum=0.0_rk)
    call self%register_state_variable(self%id_de,'det','mmol n/m**3','detritus',     &
-         de_initial,minimum=_ZERO_,vertical_movement=w_de/secs_pr_day)
+         de_initial,minimum=0.0_rk,vertical_movement=w_de/secs_pr_day)
    call self%register_state_variable(self%id_am,'amm','mmol n/m**3','ammonium',     &
-         am_initial,minimum=_ZERO_,no_river_dilution=.true.)
+         am_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_ni,'nit','mmol n/m**3','nitrate',      &
-         ni_initial,minimum=_ZERO_,no_river_dilution=.true.)
+         ni_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_po,'pho','mmol p/m**3','phosphate',    &
-         po_initial,minimum=_ZERO_,no_river_dilution=.true.)
+         po_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_o2,'oxy','mmol o2/m**3','oxygen',o2_initial)
    if (self%fluff) call self%register_state_variable(self%id_fl,'flf','mmol n/m**2','fluff', &
-         fl_initial,minimum=_ZERO_)         
+         fl_initial,minimum=0.0_rk)         
 
 ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2','photosynthetically active radiation',   &
@@ -363,11 +363,11 @@ subroutine initialize(self,configunit)
 
 !   Light acclimation formulation based on surface light intensity
     iopt = max(0.25*I_0,self%i_min)
-    ppi = par/iopt*exp(_ONE_-par/iopt)
+    ppi = par/iopt*exp(1.0_rk-par/iopt)
 
-    thopnp=th( o2,wo,_ZERO_,_ONE_)*yy(wn,ni)
-    thomnp=th(-o2,wo,_ZERO_,_ONE_)*yy(wn,ni)
-    thomnm=th(-o2,wo,_ZERO_,_ONE_)*(_ONE_-yy(wn,ni))
+    thopnp=th( o2,wo,0.0_rk,1.0_rk)*yy(wn,ni)
+    thomnp=th(-o2,wo,0.0_rk,1.0_rk)*yy(wn,ni)
+    thomnm=th(-o2,wo,0.0_rk,1.0_rk)*(1.0_rk-yy(wn,ni))
     thsum=thopnp+thomnp+thomnm
     thopnp=thopnp/thsum
     thomnp=thomnp/thsum
@@ -375,15 +375,15 @@ subroutine initialize(self,configunit)
 
     psum=p1+p2+p3+self%p10+self%p20+self%p30
 
-    llda=self%lda*(_ONE_+self%beta_da*yy(self%tda,temp))
-    llan=th(o2,_ZERO_,_ZERO_,_ONE_)*o2/(self%oan+o2)*self%lan*exp(self%beta_an*temp)
+    llda=self%lda*(1.0_rk+self%beta_da*yy(self%tda,temp))
+    llan=th(o2,0.0_rk,0.0_rk,1.0_rk)*o2/(self%oan+o2)*self%lan*exp(self%beta_an*temp)
 
     lp=self%lpa+self%lpd
 
     r1=self%r1max*min(yy(self%alpha1,am+ni),yy(self%sr*self%alpha1,po),ppi)*(p1+self%p10)
-    r2=self%r2max*(_ONE_+yy(self%tf,temp))*min(yy(self%alpha2,am+ni),   &
+    r2=self%r2max*(1.0_rk+yy(self%tf,temp))*min(yy(self%alpha2,am+ni),   &
        yy(self%sr*self%alpha2,po),ppi)*(p2+self%p20)
-    r3=self%r3max*_ONE_/(_ONE_+exp(self%beta_bg*(self%tbg-temp)))       &
+    r3=self%r3max*1.0_rk/(1.0_rk+exp(self%beta_bg*(self%tbg-temp)))       &
        *min(yy(self%sr*self%alpha3,po),ppi)*(p3+self%p30)
 
   _SET_ODE_(self%id_p1,r1-fpz(self,self%g1max,temp,self%topt,psum)*p1/psum*(zo+self%zo0)-lp*p1)
@@ -494,15 +494,15 @@ subroutine initialize(self,configunit)
       _GET_HORIZONTAL_(self%id_taub,taub)
       _GET_(self%id_temp,temp)
 
-       thopnp=th( oxb,wo,_ZERO_,_ONE_)*yy(wn,nib)
-       thomnp=th(-oxb,wo,_ZERO_,_ONE_)*yy(wn,nib)
-       thomnm=th(-oxb,wo,_ZERO_,_ONE_)*(_ONE_-yy(wn,nib))
+       thopnp=th( oxb,wo,0.0_rk,1.0_rk)*yy(wn,nib)
+       thomnp=th(-oxb,wo,0.0_rk,1.0_rk)*yy(wn,nib)
+       thomnm=th(-oxb,wo,0.0_rk,1.0_rk)*(1.0_rk-yy(wn,nib))
        thsum=thopnp+thomnp+thomnm
        thopnp=thopnp/thsum
        thomnp=thomnp/thsum
        thomnm=thomnm/thsum
 
-        llsa=self%lsa*exp(self%bsa*temp)*(th(oxb,wo,dot2,_ONE_))
+        llsa=self%lsa*exp(self%bsa*temp)*(th(oxb,wo,dot2,1.0_rk))
 
         if (self%tau_crit .gt. taub) then
             llds=self%lds*(self%tau_crit-taub)/self%tau_crit
@@ -512,14 +512,14 @@ subroutine initialize(self,configunit)
          if (self%tau_crit .lt. taub) then
             llsd=self%lsd*(taub-self%tau_crit)/self%tau_crit
          else
-            llsd=_ZERO_
+            llsd=0.0_rk
          end if
 
-      _SET_ODE_BEN_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,_ZERO_,_ONE_)*llsa*fl)
+      _SET_ODE_BEN_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_de,-llds*deb+llsd*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_ni,self%s1*thomnp*llsa*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_po,self%sr*(_ONE_-self%ph1*th(oxb,wo,_ZERO_,_ONE_)*yy(self%ph2,oxb))*llsa*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_po,self%sr*(1.0_rk-self%ph1*th(oxb,wo,0.0_rk,1.0_rk)*yy(self%ph2,oxb))*llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
    end if
 
@@ -697,10 +697,10 @@ subroutine initialize(self,configunit)
     if (w .gt. 1.e-10_rk) then
        th=min+(max-min)*0.5_rk*(1.0_rk+tanh(x/w))
     else
-       if(x .gt. _ZERO_) then
-          th=_ONE_
+       if(x .gt. 0.0_rk) then
+          th=1.0_rk
        else
-          th=_ZERO_
+          th=0.0_rk
        end if
     end if
    RETURN
@@ -769,8 +769,8 @@ subroutine initialize(self,configunit)
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   fpz=g*(_ONE_+t**2/topt**2*exp(_ONE_-2.0_rk*t/topt))*               &
-        (_ONE_-exp(-self%iv**2*psum**2))
+   fpz=g*(1.0_rk+t**2/topt**2*exp(1.0_rk-2.0_rk*t/topt))*               &
+        (1.0_rk-exp(-self%iv**2*psum**2))
    return
    end function fpz
 !EOC

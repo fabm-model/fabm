@@ -245,7 +245,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   fpz = self%gmax*(_ONE_-exp(-self%iv*self%iv*p*p))*(z+self%z0)
+   fpz = self%gmax*(1.0_rk-exp(-self%iv*self%iv*p*p))*(z+self%z0)
 
    end function fpz
 !EOC

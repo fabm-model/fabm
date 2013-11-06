@@ -165,13 +165,13 @@
 
    ! Register state variables
    call self%register_state_variable(self%id_n,'nut','mmol/m**3','nutrients',     &
-                                    n_initial,minimum=_ZERO_,no_river_dilution=.true.)
+                                    n_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton', &
-                                    p_initial,minimum=_ZERO_,vertical_movement=w_p/secs_pr_day)
+                                    p_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
    call self%register_state_variable(self%id_z,'zoo','mmol/m**3','zooplankton', &
-                                    z_initial,minimum=_ZERO_)
+                                    z_initial,minimum=0.0_rk)
    call self%register_state_variable(self%id_d,'det','mmol/m**3','detritus', &
-                                    d_initial,minimum=_ZERO_,vertical_movement=w_d/secs_pr_day)
+                                    d_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%use_dic = dic_variable/=''
