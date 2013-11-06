@@ -4,17 +4,12 @@ DOCSRC	= fabm_driver.F90
 
 OBJ = ${LIBFABM}(fabm_driver.o)
 
-all: obj
+all: makedirs obj
 
-obj: $(OBJ) makedirs
+obj: $(OBJ)
 
 makedirs:
 	$(MAKE) -C $(FABMDIR)/src $@
-
-all: obj
-
-obj: $(OBJ)
-        $(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
 #	$(PROTEX) $(DOCSRC) > ../../../doc/driver_code_mossco.tex
