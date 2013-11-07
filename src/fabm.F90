@@ -24,6 +24,7 @@
    use fabm_types
    use fabm_driver
    use fabm_library
+   use fabm_expressions
 !
 !  Reference modules of specific biogeochemical models
    use fabm_gotm_npzd
@@ -41,7 +42,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_model, fabm_create_model_from_file, fabm_initialize, fabm_set_domain, fabm_check_ready
+   public type_model, fabm_create_model_from_file, fabm_initialize, fabm_set_domain, fabm_check_ready, fabm_update_time
    public fabm_initialize_state, fabm_initialize_surface_state, fabm_initialize_bottom_state
 
    ! Process rates and diagnostics for pelagic, surface, bottom.
@@ -746,11 +747,12 @@
 ! !IROUTINE: Provide FABM with the extents of the spatial domain.
 !
 ! !INTERFACE:
-   subroutine fabm_set_domain(root _ARG_LOCATION_)
+   subroutine fabm_set_domain(root _ARG_LOCATION_,seconds_per_time_unit)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,               intent(inout) :: root
+   type (type_model),target, intent(inout) :: root
    _DECLARE_LOCATION_ARG_
+   real(rk),optional,        intent(in)    :: seconds_per_time_unit
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -758,6 +760,9 @@
 ! !LOCAL VARIABLES:
   type (type_model), pointer :: model
   integer                    :: ivar
+#ifdef _FABM_F2003_
+  class (type_expression),pointer :: expression
+#endif
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -803,6 +808,27 @@
    do ivar=1,size(root%info%horizontal_diagnostic_variables)
       call fabm_link_horizontal_data(root,root%info%horizontal_diagnostic_variables(ivar)%globalid,root%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar))
    end do
+
+#ifdef _FABM_F2003_
+   if (present(seconds_per_time_unit)) then
+      expression => root%info%first_expression
+      do while (associated(expression))
+         select type (expression)
+            class is (type_bulk_temporal_mean_expression)
+               expression%period = expression%period/seconds_per_time_unit
+               allocate(expression%history(_PREARG_LOCATION_ expression%n+3))
+               expression%history = 0.0_rk
+               call fabm_link_bulk_data(root,expression%output_name,expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
+            class is (type_horizontal_temporal_mean_expression)
+               expression%period = expression%period/seconds_per_time_unit
+               allocate(expression%history(_PREARG_LOCATION_HZ_ expression%n+3))
+               expression%history = 0.0_rk
+               call fabm_link_horizontal_data(root,expression%output_name,expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+3))
+         end select
+         expression => expression%next
+      end do
+   end if
+#endif
 
    end subroutine fabm_set_domain
 !EOC
@@ -2608,6 +2634,117 @@
 
    end subroutine fabm_get_conserved_quantities
 !EOC
+
+subroutine fabm_update_time(root,t)
+   type (type_model), intent(inout) :: root
+   real(rk),          intent(in)    :: t
+#ifdef _FABM_F2003_
+   class (type_expression),pointer :: expression
+
+   expression => root%info%first_expression
+   do while (associated(expression))
+      select type (expression)
+         class is (type_bulk_temporal_mean_expression)
+            call update_bulk_temporal_mean(expression)
+         class is (type_horizontal_temporal_mean_expression)
+            call update_horizontal_temporal_mean(expression)
+      end select
+      expression => expression%next
+   end do
+
+contains
+
+   subroutine update_bulk_temporal_mean(expression)
+      class (type_bulk_temporal_mean_expression), intent(inout) :: expression
+      integer  :: i
+      real(rk) :: weight_right,frac_outside
+
+      if (expression%ioldest==-1) then
+         ! Start of simulation; set entire history equal to current value.
+         do i=1,expression%n+3
+            expression%history(_PREARG_LOCATION_DIMENSIONS_ i) = expression%in%p
+         end do
+         expression%next_save_time = t + expression%period/expression%n
+         expression%ioldest = 1
+      end if
+      do while (t>=expression%next_save_time)
+         ! Weight for linear interpolation between last stored point and current point, to get at values for desired time.
+         weight_right = (expression%next_save_time-expression%last_time)/(t-expression%last_time)
+
+         ! For temporal means:
+         ! - remove oldest point from historical mean
+         ! - linearly interpolate to desired time
+         ! - add new point to historical mean
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) + weight_right*expression%in%p
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
+   
+         ! Compute next time for which we want to store output
+         expression%next_save_time = expression%next_save_time + expression%period/expression%n
+
+         ! Increment index for oldest time point
+         expression%ioldest = expression%ioldest + 1
+         if (expression%ioldest>expression%n) expression%ioldest = 1
+      end do
+
+      ! Compute extent of time period outside history
+      frac_outside = (t-(expression%next_save_time-expression%period/expression%n))/expression%period
+
+      ! For temporal means:
+      ! - store values at current time step
+      ! - for current mean, use historical mean but account for change since most recent point in history.
+      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) = expression%in%p
+      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1))
+
+      expression%last_time = t
+   end subroutine
+
+   subroutine update_horizontal_temporal_mean(expression)
+      class (type_horizontal_temporal_mean_expression), intent(inout) :: expression
+      integer  :: i
+      real(rk) :: weight_right,frac_outside
+
+      if (expression%ioldest==-1) then
+         ! Start of simulation; set entire history equal to current value.
+         do i=1,expression%n+3
+            expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ i) = expression%in%p
+         end do
+         expression%next_save_time = t + expression%period/expression%n
+         expression%ioldest = 1
+      end if
+      do while (t>=expression%next_save_time)
+         ! Weight for linear interpolation between last stored point and current point, to get at values for desired time.
+         weight_right = (expression%next_save_time-expression%last_time)/(t-expression%last_time)
+
+         ! For temporal means:
+         ! - remove oldest point from historical mean
+         ! - linearly interpolate to desired time
+         ! - add new point to historical mean
+         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) - expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
+         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1) + weight_right*expression%in%p
+         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) + expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
+   
+         ! Compute next time for which we want to store output
+         expression%next_save_time = expression%next_save_time + expression%period/expression%n
+
+         ! Increment index for oldest time point
+         expression%ioldest = expression%ioldest + 1
+         if (expression%ioldest>expression%n) expression%ioldest = 1
+      end do
+
+      ! Compute extent of time period outside history
+      frac_outside = (t-(expression%next_save_time-expression%period/expression%n))/expression%period
+
+      ! For temporal means:
+      ! - store values at current time step
+      ! - for current mean, use historical mean but account for change since most recent point in history.
+      expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1) = expression%in%p
+      expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1))
+
+      expression%last_time = t
+   end subroutine
+#endif
+end subroutine
 
 end module fabm
 

@@ -1,0 +1,122 @@
+#include "fabm_driver.h"
+
+! This module define standard expressions that can be used by biogeochemical models.
+
+module fabm_expressions
+
+   use fabm_types
+   use fabm_driver
+
+   implicit none
+
+   private
+
+#ifdef _FABM_F2003_
+
+   public temporal_mean,vertical_mean
+   public type_bulk_temporal_mean_expression,type_horizontal_temporal_mean_expression,type_vertical_mean_expression
+
+   type,extends(type_bulk_expression) :: type_bulk_temporal_mean_expression
+      real(rk)                            :: period   ! Time period to average over (s)
+      integer                             :: n
+      real(rk)                            :: last_time, next_save_time
+      integer                             :: ioldest = -1
+
+      type (type_bulk_data_pointer),pointer :: in
+      real(rk),_ALLOCATABLE_ _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_ :: history _NULL_
+   end type
+
+   type,extends(type_horizontal_expression) :: type_horizontal_temporal_mean_expression
+      real(rk)                            :: period   ! Time period to average over (s)
+      integer                             :: n
+      real(rk)                            :: last_time, next_save_time
+      integer                             :: ioldest = -1
+
+      type (type_horizontal_data_pointer),pointer :: in
+      real(rk),_ALLOCATABLE_ _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ :: history _NULL_
+   end type
+
+   type,extends(type_horizontal_expression) :: type_vertical_mean_expression
+      type (type_bulk_data_pointer),      pointer :: in  => null()
+      real(rk)                            :: minimum_depth = 0.0_rk   ! Depth below surface in m (positive)
+      real(rk)                            :: maximum_depth = huge(1.0_rk)  ! Depth below surface in m (positive)
+   end type
+   
+   interface temporal_mean
+      module procedure :: bulk_temporal_mean
+      module procedure :: horizontal_temporal_mean
+   end interface
+
+contains
+
+function vertical_mean(input,minimum_depth,maximum_depth) result(expression)
+   type (type_dependency_id), intent(inout),target   :: input
+   real(rk),                  intent(in),   optional :: minimum_depth,maximum_depth
+
+   type (type_vertical_mean_expression) :: expression
+   character(len=2048) :: postfix
+
+   if (input%name=='') call fatal_error('fabm_expressions::vertical_mean', &
+      'Input variable has not been registered yet.')
+
+   ! Create a name for the expression
+   postfix = ''
+   if (present(minimum_depth).and.present(maximum_depth)) then
+      if (minimum_depth>maximum_depth) call fatal_error('fabm_expressions::vertical_mean', &
+         'Minimum depth exceeds maximum depth.')
+      write (postfix,'(a,i0,a,i0,a)') '_between_',int(minimum_depth),'_m_and_',int(maximum_depth),'_m'
+   elseif (present(minimum_depth)) then
+      write (postfix,'(a,i0,a)') '_below_',int(minimum_depth),'_m'
+   elseif (present(maximum_depth)) then
+      write (postfix,'(a,i0,a)') '_above_',int(maximum_depth),'_m'
+   end if
+   expression%output_name = 'vertical_mean_'//trim(input%name)//trim(postfix)
+
+   expression%in => input%data
+   if (present(minimum_depth)) expression%minimum_depth = minimum_depth
+   if (present(maximum_depth)) expression%maximum_depth = maximum_depth
+end function
+
+function bulk_temporal_mean(input,period,resolution) result(expression)
+   type (type_dependency_id), intent(inout),target   :: input
+   real(rk),                  intent(in)             :: period,resolution
+
+   type (type_bulk_temporal_mean_expression) :: expression
+   character(len=2048) :: prefix,postfix
+
+   if (input%name=='') call fatal_error('fabm_expressions::bulk_temporal_mean', &
+      'Input variable has not been registered yet.')
+
+   ! Create a name for the expression
+   write (prefix,'(i0,a)') int(period),'_s_mean_'
+   write (postfix,'(a,i0,a)') '_at_',int(resolution),'_s_resolution'
+   expression%output_name = trim(prefix)//trim(input%name)//trim(postfix)
+
+   expression%in => input%data
+   expression%n = nint(period/resolution)
+   expression%period = period
+end function
+
+function horizontal_temporal_mean(input,period,resolution) result(expression)
+   type (type_horizontal_dependency_id),intent(inout),target   :: input
+   real(rk),                            intent(in)             :: period,resolution
+
+   type (type_horizontal_temporal_mean_expression) :: expression
+   character(len=2048) :: prefix,postfix
+
+   if (input%name=='') call fatal_error('fabm_expressions::horizontal_temporal_mean', &
+      'Input variable has not been registered yet.')
+
+   ! Create a name for the expression
+   write (prefix,'(i0,a)') int(period),'_s_mean_'
+   write (postfix,'(a,i0,a)') '_at_',int(resolution),'_s_resolution'
+   expression%output_name = trim(prefix)//trim(input%name)//trim(postfix)
+
+   expression%in => input%horizontal_data
+   expression%n = nint(period/resolution)
+   expression%period = period
+end function
+   
+#endif
+
+end module fabm_expressions

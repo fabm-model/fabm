@@ -257,7 +257,7 @@
    model => fabm_create_model_from_file(namlst)
 
    ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
-   call fabm_set_domain(model)
+   call fabm_set_domain(model,dt)
 
    ! Allocate space for totals of conserved quantities.
    allocate(totals(1:size(model%info%conserved_quantities)))
@@ -291,6 +291,8 @@
    if (latitude /=invalid_latitude ) call fabm_link_horizontal_data(model,standard_variables%latitude,latitude)
    if (longitude/=invalid_longitude) call fabm_link_horizontal_data(model,standard_variables%longitude,longitude)
    call fabm_link_scalar_data(model,standard_variables%number_of_days_since_start_of_the_year,decimal_yearday)
+
+   call fabm_check_ready(model)
 
    ! Open the output file.
    open(out_unit,file=output_file,action='write', &
@@ -588,6 +590,8 @@
 
      ! Repair state before calling FABM
      call do_repair_state('0d::time_loop(), before ode_solver()')
+
+     call fabm_update_time(model,real(n,rk))
 
       ! Integrate one time step
       call ode_solver(ode_method,size(model%info%state_variables)+size(model%info%state_variables_ben),1,dt,cc,get_rhs,get_ppdd)

@@ -73,6 +73,10 @@
 
    public type_conserved_quantity_component
 
+#ifdef _FABM_F2003_
+   public type_expression, type_bulk_expression, type_horizontal_expression
+#endif
+
 ! !PUBLIC DATA MEMBERS:
 !
    integer, parameter, public :: attribute_length = 256
@@ -428,6 +432,21 @@
       type (type_conserved_quantity_component_list) :: components
    end type type_conserved_quantity_info
 
+#ifdef _FABM_F2003_
+   type type_expression
+      class (type_expression), pointer :: next        => null()
+      character(len=attribute_length)  :: output_name = ''
+   end type
+
+   type,extends(type_expression) :: type_bulk_expression
+      type (type_bulk_data_pointer),pointer :: out
+   end type
+
+   type,extends(type_expression) :: type_horizontal_expression
+      type (type_horizontal_data_pointer),pointer :: out
+   end type
+#endif
+
    ! ====================================================================================================
    ! Base model type, used by biogeochemical models to inherit from, and by external host to
    ! get variable lists and metadata.
@@ -471,8 +490,10 @@
 #ifdef _FABM_F2003_
       class (type_property), pointer :: first_parameter => null()
 
-      contains
-      
+      class (type_expression), pointer :: first_expression => null()
+
+   contains
+
       ! Procedures that can be used to add child models during initialization.
       procedure :: add_child_model_object
       procedure :: add_named_child_model
@@ -503,11 +524,15 @@
 
       procedure :: add_conserved_quantity_component
 
+      procedure :: register_bulk_expression_dependency
+      procedure :: register_horizontal_expression_dependency
+
       generic :: register_state_variable      => register_bulk_state_variable,register_bottom_state_variable,register_surface_state_variable
       generic :: register_diagnostic_variable => register_bulk_diagnostic_variable,register_horizontal_diagnostic_variable
       generic :: register_dependency          => register_bulk_dependency, register_bulk_dependency_sn, &
                                                  register_horizontal_dependency, register_horizontal_dependency_sn, &
-                                                 register_global_dependency, register_global_dependency_sn
+                                                 register_global_dependency, register_global_dependency_sn, &
+                                                 register_bulk_expression_dependency, register_horizontal_expression_dependency
       generic :: register_state_dependency    => register_bulk_state_dependency,register_bottom_state_dependency,register_surface_state_dependency
       generic :: register_conserved_quantity  => register_standard_conserved_quantity, register_custom_conserved_quantity
 
@@ -2129,6 +2154,59 @@ end subroutine append_string
 !EOC
 
 #ifdef _FABM_F2003_
+
+subroutine register_bulk_expression_dependency(self,id,expression)
+   class (type_model_info),       intent(inout)        :: self
+   type (type_dependency_id),     intent(inout),target :: id
+   class (type_bulk_expression),  intent(in)           :: expression
+
+   class (type_bulk_expression),allocatable :: copy
+
+   allocate(copy,source=expression)
+   copy%out => id%data
+   call self%register_dependency(id,trim(copy%output_name))
+   copy%output_name = id%name
+
+   call register_expression(self,copy)
+   deallocate(copy)
+end subroutine
+
+subroutine register_horizontal_expression_dependency(self,id,expression)
+   class (type_model_info),             intent(inout)        :: self
+   type (type_horizontal_dependency_id),intent(inout),target :: id
+   class (type_horizontal_expression),  intent(in)           :: expression
+
+   class (type_horizontal_expression),allocatable :: copy
+
+   allocate(copy,source=expression)
+   copy%out => id%horizontal_data
+   call self%register_dependency(id,trim(copy%output_name))
+   copy%output_name = id%name
+
+   call register_expression(self,copy)
+   deallocate(copy)
+end subroutine
+
+recursive subroutine register_expression(self,expression)
+   class (type_model_info), intent(inout)           :: self
+   class (type_expression), intent(in)              :: expression
+
+   class (type_expression), pointer :: current
+
+   if (.not.associated(self%first_expression)) then
+      allocate(self%first_expression,source=expression)
+      current => self%first_expression
+   else
+      current => self%first_expression
+      do while (associated(current%next))
+         current => current%next
+      end do
+      allocate(current%next,source=expression)
+      current => current%next
+   end if
+
+   if (associated(self%parent)) call register_expression(self%parent,expression)
+end subroutine
 
 recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_factor,default,path)
 ! !INPUT PARAMETERS:
