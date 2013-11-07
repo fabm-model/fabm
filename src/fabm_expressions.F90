@@ -43,8 +43,8 @@ module fabm_expressions
    end type
    
    interface temporal_mean
-      module procedure :: bulk_temporal_mean
-      module procedure :: horizontal_temporal_mean
+      module procedure bulk_temporal_mean
+      module procedure horizontal_temporal_mean
    end interface
 
 contains
