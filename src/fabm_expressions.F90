@@ -55,7 +55,7 @@ function vertical_mean(input,minimum_depth,maximum_depth) result(expression)
    real(rk),                  intent(in),   optional :: minimum_depth,maximum_depth
 
    type (type_vertical_mean) :: expression
-   character(len=2048) :: postfix
+   character(len=attribute_length) :: postfix
 
    if (input%name=='') call fatal_error('fabm_expressions::vertical_mean', &
       'Input variable has not been registered yet.')
@@ -83,7 +83,7 @@ function bulk_temporal_mean(input,period,resolution) result(expression)
    real(rk),                  intent(in)             :: period,resolution
 
    type (type_bulk_temporal_mean) :: expression
-   character(len=2048) :: prefix,postfix
+   character(len=attribute_length) :: prefix,postfix
 
    if (input%name=='') call fatal_error('fabm_expressions::bulk_temporal_mean', &
       'Input variable has not been registered yet.')
@@ -103,7 +103,7 @@ function horizontal_temporal_mean(input,period,resolution) result(expression)
    real(rk),                            intent(in)             :: period,resolution
 
    type (type_horizontal_temporal_mean) :: expression
-   character(len=2048) :: prefix,postfix
+   character(len=attribute_length) :: prefix,postfix
 
    if (input%name=='') call fatal_error('fabm_expressions::horizontal_temporal_mean', &
       'Input variable has not been registered yet.')
