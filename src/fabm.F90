@@ -814,12 +814,12 @@
       expression => root%info%first_expression
       do while (associated(expression))
          select type (expression)
-            class is (type_bulk_temporal_mean_expression)
+            class is (type_bulk_temporal_mean)
                expression%period = expression%period/seconds_per_time_unit
                allocate(expression%history(_PREARG_LOCATION_ expression%n+3))
                expression%history = 0.0_rk
                call fabm_link_bulk_data(root,expression%output_name,expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
-            class is (type_horizontal_temporal_mean_expression)
+            class is (type_horizontal_temporal_mean)
                expression%period = expression%period/seconds_per_time_unit
                allocate(expression%history(_PREARG_LOCATION_HZ_ expression%n+3))
                expression%history = 0.0_rk
@@ -2644,9 +2644,9 @@ subroutine fabm_update_time(root,t)
    expression => root%info%first_expression
    do while (associated(expression))
       select type (expression)
-         class is (type_bulk_temporal_mean_expression)
+         class is (type_bulk_temporal_mean)
             call update_bulk_temporal_mean(expression)
-         class is (type_horizontal_temporal_mean_expression)
+         class is (type_horizontal_temporal_mean)
             call update_horizontal_temporal_mean(expression)
       end select
       expression => expression%next
@@ -2655,7 +2655,7 @@ subroutine fabm_update_time(root,t)
 contains
 
    subroutine update_bulk_temporal_mean(expression)
-      class (type_bulk_temporal_mean_expression), intent(inout) :: expression
+      class (type_bulk_temporal_mean), intent(inout) :: expression
       integer  :: i
       real(rk) :: weight_right,frac_outside
 
@@ -2700,7 +2700,7 @@ contains
    end subroutine
 
    subroutine update_horizontal_temporal_mean(expression)
-      class (type_horizontal_temporal_mean_expression), intent(inout) :: expression
+      class (type_horizontal_temporal_mean), intent(inout) :: expression
       integer  :: i
       real(rk) :: weight_right,frac_outside
 

@@ -14,34 +14,35 @@ module fabm_expressions
 #ifdef _FABM_F2003_
 
    public temporal_mean,vertical_mean
-   public type_bulk_temporal_mean_expression,type_horizontal_temporal_mean_expression,type_vertical_mean_expression
+   public type_bulk_temporal_mean,type_horizontal_temporal_mean,type_vertical_mean
 
-   type,extends(type_bulk_expression) :: type_bulk_temporal_mean_expression
-      real(rk)                            :: period   ! Time period to average over (s)
-      integer                             :: n
-      real(rk)                            :: last_time, next_save_time
-      integer                             :: ioldest = -1
+   type,extends(type_bulk_expression) :: type_bulk_temporal_mean
+      real(rk) :: period   ! Time period to average over (s)
+      integer  :: n
+      real(rk) :: last_time, next_save_time
+      integer  :: ioldest = -1
 
       type (type_bulk_data_pointer),pointer :: in
       real(rk),_ALLOCATABLE_ _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_ :: history _NULL_
    end type
 
-   type,extends(type_horizontal_expression) :: type_horizontal_temporal_mean_expression
-      real(rk)                            :: period   ! Time period to average over (s)
-      integer                             :: n
-      real(rk)                            :: last_time, next_save_time
-      integer                             :: ioldest = -1
+   type,extends(type_horizontal_expression) :: type_horizontal_temporal_mean
+      real(rk) :: period   ! Time period to average over (s)
+      integer  :: n
+      real(rk) :: last_time, next_save_time
+      integer  :: ioldest = -1
 
       type (type_horizontal_data_pointer),pointer :: in
       real(rk),_ALLOCATABLE_ _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ :: history _NULL_
    end type
 
-   type,extends(type_horizontal_expression) :: type_vertical_mean_expression
-      type (type_bulk_data_pointer),      pointer :: in  => null()
-      real(rk)                            :: minimum_depth = 0.0_rk   ! Depth below surface in m (positive)
-      real(rk)                            :: maximum_depth = huge(1.0_rk)  ! Depth below surface in m (positive)
+   type,extends(type_horizontal_expression) :: type_vertical_mean
+      real(rk) :: minimum_depth = 0.0_rk        ! Depth below surface in m (positive)
+      real(rk) :: maximum_depth = huge(1.0_rk)  ! Depth below surface in m (positive)
+
+      type (type_bulk_data_pointer),pointer :: in  => null()
    end type
-   
+
    interface temporal_mean
       module procedure bulk_temporal_mean
       module procedure horizontal_temporal_mean
@@ -53,7 +54,7 @@ function vertical_mean(input,minimum_depth,maximum_depth) result(expression)
    type (type_dependency_id), intent(inout),target   :: input
    real(rk),                  intent(in),   optional :: minimum_depth,maximum_depth
 
-   type (type_vertical_mean_expression) :: expression
+   type (type_vertical_mean) :: expression
    character(len=2048) :: postfix
 
    if (input%name=='') call fatal_error('fabm_expressions::vertical_mean', &
@@ -81,7 +82,7 @@ function bulk_temporal_mean(input,period,resolution) result(expression)
    type (type_dependency_id), intent(inout),target   :: input
    real(rk),                  intent(in)             :: period,resolution
 
-   type (type_bulk_temporal_mean_expression) :: expression
+   type (type_bulk_temporal_mean) :: expression
    character(len=2048) :: prefix,postfix
 
    if (input%name=='') call fatal_error('fabm_expressions::bulk_temporal_mean', &
@@ -101,7 +102,7 @@ function horizontal_temporal_mean(input,period,resolution) result(expression)
    type (type_horizontal_dependency_id),intent(inout),target   :: input
    real(rk),                            intent(in)             :: period,resolution
 
-   type (type_horizontal_temporal_mean_expression) :: expression
+   type (type_horizontal_temporal_mean) :: expression
    character(len=2048) :: prefix,postfix
 
    if (input%name=='') call fatal_error('fabm_expressions::horizontal_temporal_mean', &
@@ -116,7 +117,7 @@ function horizontal_temporal_mean(input,period,resolution) result(expression)
    expression%n = nint(period/resolution)
    expression%period = period
 end function
-   
+
 #endif
 
 end module fabm_expressions
