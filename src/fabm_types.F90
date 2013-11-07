@@ -1220,7 +1220,7 @@ subroutine append_scalar_data_pointer(array,data)
 end subroutine append_scalar_data_pointer
 
 subroutine append_string(array,string,exists)
-   character(len=attribute_length),dimension(:),_ALLOCATABLE_ :: array _NULL_
+   character(len=attribute_length),dimension(:),_ALLOCATABLE_ :: array
    character(len=*),intent(in) :: string
    logical,intent(out),optional :: exists
    integer :: i
