@@ -899,7 +899,7 @@
 
       if (present(scale_factor)) component%scale_factor = scale_factor
       select type (internal_variable => state_variable%metadata)
-         type is (type_bulk_variable)
+         class is (type_bulk_variable)
             call append_data_pointer(internal_variable%alldata,component%state)
       end select
    end subroutine

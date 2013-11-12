@@ -127,29 +127,32 @@
    end interface
 
    interface fabm_link_data
-      module procedure fabm_link_bulk_data
-      module procedure fabm_link_horizontal_data
-      module procedure fabm_link_scalar_data
+      module procedure fabm_link_bulk_data_by_id
+      module procedure fabm_link_horizontal_data_by_id
+      module procedure fabm_link_scalar_by_id
+      module procedure fabm_link_bulk_data_by_sn
+      module procedure fabm_link_horizontal_data_by_sn
+      module procedure fabm_link_scalar_by_sn
    end interface
 
    ! Subroutine for providing FABM with variable data on the full spatial domain.
    interface fabm_link_bulk_data
-      module procedure fabm_link_bulk_data
-      module procedure fabm_link_bulk_data_sn
+      module procedure fabm_link_bulk_data_by_id
+      module procedure fabm_link_bulk_data_by_sn
       module procedure fabm_link_bulk_data_by_name
    end interface
 
    ! Subroutine for providing FABM with variable data on horizontal slices of the domain.
    interface fabm_link_horizontal_data
-      module procedure fabm_link_horizontal_data
-      module procedure fabm_link_horizontal_data_sn
+      module procedure fabm_link_horizontal_data_by_id
+      module procedure fabm_link_horizontal_data_by_sn
       module procedure fabm_link_horizontal_data_by_name
    end interface
 
    ! Subroutine for providing FABM with scalar variable data.
    interface fabm_link_scalar_data
-      module procedure fabm_link_scalar_data
-      module procedure fabm_link_scalar_data_sn
+      module procedure fabm_link_scalar_by_id
+      module procedure fabm_link_scalar_by_sn
       module procedure fabm_link_scalar_by_name
    end interface
 
@@ -1540,7 +1543,7 @@
 ! is identified by its integer id.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bulk_data(model,id,dat)
+   subroutine fabm_link_bulk_data_by_id(model,id,dat)
 !
 ! !INPUT PARAMETERS:
    type (type_model),                       intent(inout) :: model
@@ -1568,7 +1571,7 @@
       id%alldata(i)%p%p => dat
    end do
 
-   end subroutine fabm_link_bulk_data
+   end subroutine fabm_link_bulk_data_by_id
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1579,7 +1582,7 @@
 ! is identified by its standard name.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bulk_data_sn(model,standard_variable,dat)
+   subroutine fabm_link_bulk_data_by_sn(model,standard_variable,dat)
 !
 ! !INPUT PARAMETERS:
    type (type_model),                         intent(inout) :: model
@@ -1601,7 +1604,7 @@
    ! Only link the data if needed (if the variable identifier is valid).
    if (fabm_is_variable_used(id)) call fabm_link_bulk_data(model,id,dat)
 
-   end subroutine fabm_link_bulk_data_sn
+   end subroutine fabm_link_bulk_data_by_sn
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1644,7 +1647,7 @@
 ! The variable is identified by its integer id.
 !
 ! !INTERFACE:
-   subroutine fabm_link_horizontal_data(model,id,dat)
+   subroutine fabm_link_horizontal_data_by_id(model,id,dat)
 !
 ! !INPUT PARAMETERS:
    type (type_model),                            intent(inout) :: model
@@ -1674,7 +1677,7 @@
       id%alldata(i)%p%p => dat
    end do
 
-   end subroutine fabm_link_horizontal_data
+   end subroutine fabm_link_horizontal_data_by_id
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1685,7 +1688,7 @@
 ! is identified by its standard name.
 !
 ! !INTERFACE:
-   subroutine fabm_link_horizontal_data_sn(model,standard_variable,dat)
+   subroutine fabm_link_horizontal_data_by_sn(model,standard_variable,dat)
 !
 ! !INPUT PARAMETERS:
    type (type_model),                            intent(inout) :: model
@@ -1707,7 +1710,7 @@
    ! Only link the data if needed (if the variable identifier is valid).
    if (fabm_is_variable_used(id)) call fabm_link_horizontal_data(model,id,dat)
 
-   end subroutine fabm_link_horizontal_data_sn
+   end subroutine fabm_link_horizontal_data_by_sn
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1749,7 +1752,7 @@
 ! data for the specified variable. The variable is identified by its integer id.
 !
 ! !INTERFACE:
-   subroutine fabm_link_scalar_data(model,id,dat)
+   subroutine fabm_link_scalar_by_id(model,id,dat)
 !
 ! !INPUT PARAMETERS:
    type (type_model),                            intent(inout) :: model
@@ -1769,7 +1772,7 @@
       id%alldata(i)%p%p => dat
    end do
 
-   end subroutine fabm_link_scalar_data
+   end subroutine fabm_link_scalar_by_id
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1780,7 +1783,7 @@
 ! is identified by its standard name.
 !
 ! !INTERFACE:
-   subroutine fabm_link_scalar_data_sn(model,standard_variable,dat)
+   subroutine fabm_link_scalar_by_sn(model,standard_variable,dat)
 !
 ! !INPUT PARAMETERS:
    type (type_model),                         intent(inout) :: model
@@ -1802,7 +1805,7 @@
    ! Only link the data if needed (if the variable identifier is valid).
    if (fabm_is_variable_used(id)) call fabm_link_scalar_data(model,id,dat)
 
-   end subroutine fabm_link_scalar_data_sn
+   end subroutine fabm_link_scalar_by_sn
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2672,9 +2675,9 @@ contains
          weight_right = (expression%next_save_time-expression%last_time)/(t-expression%last_time)
 
          ! For temporal means:
-         ! - remove oldest point from historical mean
+         ! - remove contribution of oldest point from historical mean
          ! - linearly interpolate to desired time
-         ! - add new point to historical mean
+         ! - add contribution of new point to historical mean
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) + weight_right*expression%in%p
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
@@ -2717,9 +2720,9 @@ contains
          weight_right = (expression%next_save_time-expression%last_time)/(t-expression%last_time)
 
          ! For temporal means:
-         ! - remove oldest point from historical mean
+         ! - remove contribution of oldest point from historical mean
          ! - linearly interpolate to desired time
-         ! - add new point to historical mean
+         ! - add contribution of new point to historical mean
          expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) - expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
          expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1) + weight_right*expression%in%p
          expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) + expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
