@@ -76,9 +76,13 @@ endif
 
 # Normally this should not be changed - unless you want something very specific.
 
-# The Fortran compiler is determined from the EV FORTRAN_COMPILER - options 
-# sofar NAG(linux), FUJITSU(Linux), DECF90 (OSF1 and likely Linux on alpha),
-# SunOS, PGF90 - Portland Group Fortran Compiler (on Intel Linux).
+# The Fortran compiler is determined from the environment variable FORTRAN_COMPILER.
+# The value of this variable must match the extension of one of the compilers/compiler.* files.
+# Currently tested:
+#   IFORT:     Intel Fortran compiler 12.1 and up
+#   GFORTRAN:  GNU Fortran compiler 4.7 and up
+#   FTN:       Cray Fortran compiler 8.2
+#   PGFORTRAN: Portland Group (PGI) Fortran compiler 13.2
 
 # Sets options for debug compilation
 ifeq ($(compilation),debug)
