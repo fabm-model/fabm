@@ -1,7 +1,8 @@
-# Set options for the Portland Group Fortran 90 compiler.
-ifeq ($(FORTRAN_COMPILER),PGF90)
-FC=pgf90
+# Set options for the Portland Group (PGI) Fortran compiler.
+ifeq ($(FORTRAN_COMPILER),PGFORTRAN)
+FC=pgfortran
 DEFINES += -DFORTRAN90
+DEFINES += -D_ISO_TR_15581_
 can_do_F90=false
 can_do_F90=true
 F90_to_f90=$(FC) -E $(F90FLAGS) $(EXTRA_FFLAGS) $< > $@
