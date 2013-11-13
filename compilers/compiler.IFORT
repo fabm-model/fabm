@@ -2,9 +2,6 @@
 ifeq ($(FORTRAN_COMPILER),IFORT)
 FC=ifort
 DEFINES += -D_ISO_TR_15581_
-can_do_F90=true
-F90_to_f90=
-MODULES=
 MODULES=-module $(MODDIR)
 EXTRAS  = -fPIC -stand f03 -warn nounused -nowarn #5268
 DEBUG_FLAGS = -g -C -traceback

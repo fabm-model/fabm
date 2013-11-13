@@ -1,7 +1,6 @@
 # Set options for the Fujitsu compiler - on Linux/Intel and SunOS.
 ifeq ($(FORTRAN_COMPILER),FUJITSU)
 FC=frt
-can_do_F90=true
 MODULES=-Am -M$(MODDIR)
 EXTRAS  = -ml=cdecl -fw
 EXTRAS  = -fw

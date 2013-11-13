@@ -1,8 +1,6 @@
 # Set options for "xlf90" compiler on AIX systems
 ifeq ($(FORTRAN_COMPILER),XLF)
 FC=xlf90_r
-can_do_F90=true
-F90_to_f90=
 MODULES=-qmoddir=$(MODDIR)
 EXTRAS  = -q32 -qsuffix=f=f90:cpp=F90 
 DEBUG_FLAGS =  -d -g -qcheck

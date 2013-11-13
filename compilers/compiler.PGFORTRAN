@@ -2,9 +2,6 @@
 ifeq ($(FORTRAN_COMPILER),PGFORTRAN)
 FC=pgfortran
 DEFINES += -D_ISO_TR_15581_
-can_do_F90=false
-can_do_F90=true
-F90_to_f90=$(FC) -E $(F90FLAGS) $(EXTRA_FFLAGS) $< > $@
 MODULES=-module $(MODDIR)
 EXTRAS  =
 DEBUG_FLAGS = -g -Ktrap=fp -Mbounds

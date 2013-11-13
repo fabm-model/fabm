@@ -123,14 +123,6 @@ LDFLAGS		+= $(FFLAGS) $(LINKDIRS)
 #
 # Common rules
 #
-ifeq  ($(can_do_F90),true)
 %.o: %.F90
 #	@ echo "Compiling $<"
 	$(FC) $(F90FLAGS) $(EXTRA_FFLAGS) -c $< -o $@
-else
-%.f90: %.F90
-#	$(CPP) $(CPPFLAGS) $< -o $@
-	$(F90_to_f90)
-%.o: %.f90
-	$(FC) $(F90FLAGS) $(EXTRA_FFLAGS) -c $< -o $@
-endif

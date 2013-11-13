@@ -2,8 +2,6 @@
 ifeq ($(FORTRAN_COMPILER),FTN)
 FC=ftn
 DEFINES += -D_ISO_TR_15581_
-can_do_F90=true
-F90_to_f90=
 MODULES= -em -J$(MODDIR)
 EXTRAS  =
 DEBUG_FLAGS = -eD -efp0 -xomp
