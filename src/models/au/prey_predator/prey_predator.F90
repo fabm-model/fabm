@@ -1,5 +1,5 @@
 #include "fabm_driver.h"
-#ifdef _FABM_F2003_
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -22,7 +22,6 @@
 !  where there is continuous removal of nutrient and feeders and a continuous supply of fresh nutirent.
 !  USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
@@ -30,16 +29,13 @@
 !  PUBLIC DERIVED TYPE
    type,extends(type_base_model),public :: type_au_prey_predator
 !  Variable identifiers
-!  Variable identifiers
 !  id_prey:     the component which is uptaken by predator;
 !  id_predator: the predator uptaking the prey
-!  id_totC:     the quantity C in the system
    type (type_state_variable_id)   :: id_prey,id_predator
-   type (type_conserved_quantity_id)    :: id_totC
 !
-!  Model paremeters
-!  V,K,Y is the paremeters in Jacob-Monod model:V-the uptake velocity, d-1, for different nutrient have different range; K-saturation constant;Y-the yield of predator per prey taken up
-!  b,p,d,r are the paremeters in Lotka-Volterra model: b is the natural growth rate of prey in the absence of predation;p measures the impact of predation on prey;
+!  Model parameters
+!  V,K,Y are the parameters in Jacob-Monod model:V-the uptake velocity, d-1, for different nutrient have different range; K-saturation constant;Y-the yield of predator per prey taken up
+!  b,p,d,r are the parameters in Lotka-Volterra model: b is the natural growth rate of prey in the absence of predation;p measures the impact of predation on prey;
 !  d is the death (or emigration) rate of predator in the absence of interaction with prey; r is the efficiency of turning predated prey into pred.
    integer         :: model_type
    real(rk)        :: V,K,Y   ! Jacob-Monod
@@ -53,7 +49,7 @@
 
    end type type_au_prey_predator
 
-!  private data memebers
+!  private data members
    real(rk),parameter :: secs_pr_day=86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
@@ -95,7 +91,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !
-   read(configunit,nml=au_prey_predator,err=99,end=100)
+   if (configunit>0) read(configunit,nml=au_prey_predator,err=99,end=100)
 !
 !  Store parameter values in our own derived type
    self%model_type=model_type
@@ -112,16 +108,16 @@
                                     prey_initial,minimum=0.0_rk,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_predator,'predator','mmol/m**3','phytoplankton',     &
                                     pred_initial,minimum=0.0_rk,no_river_dilution=.FALSE.)
-!  Register diagnostic variables
+
 !  Register conserved quantities
-   call self%register_conserved_quantity(self%id_totC,standard_variables%total_carbon)
-   call self%add_conserved_quantity_component(self%id_totC,self%id_prey)
-   call self%add_conserved_quantity_component(self%id_totC,self%id_predator)
+   call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_prey)
+   call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_predator)
+
    return
 
-99 call fatal_error('au_prey_predator','Error reading namelist au_prey_predator')
+99 call self%fatal_error('au_prey_predator','Error reading namelist au_prey_predator')
 
-100 call fatal_error('au_prey_predator','Namelist au_prey_predator was not found')
+100 call self%fatal_error('au_prey_predator','Namelist au_prey_predator was not found')
 
    end subroutine initialize
 
@@ -185,5 +181,3 @@ end module au_prey_predator
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
-
-#endif

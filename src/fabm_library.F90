@@ -3,17 +3,15 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: FABM model library [Fortran 2003 models only]
+! !MODULE: FABM model library
 !
 ! !INTERFACE:
    module fabm_library
 !
 ! !USES:
-   ! FABM modules
-   use fabm_types
+   use fabm_types, only: type_base_model_factory, type_base_model, factory
 
-#ifdef _FABM_F2003_
-   ! Specific biogeochemical models
+   use aed_models
    use fabm_bb_passive
    use fabm_bb_filter_feeder
    use fabm_examples_npzd_nut
@@ -22,86 +20,88 @@
    use fabm_examples_npzd_det
    use fabm_examples_duplicator
    use fabm_examples_npzd_f2003
+   use fabm_examples_benthic_predator
    use fabm_examples_mean
+   use fabm_gotm_npzd
+   use fabm_gotm_fasham
    use fabm_gotm_ergom
-   use aed_models
+   use fabm_metu_mnemiopsis
+   use fabm_pml_carbonate
    use au_prey_predator
+   use fabm_klimacampus_phy_feedback
    use fabm_hzg_omexdia_p
    use fabm_iow_spm
-   ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
-#endif
+   ! Add additional external modules containing models or model factories here
 
    implicit none
-!
-!  default: all is private.
+
    private
 
-#ifdef _FABM_F2003_
-   type,extends(type_abstract_model_factory),public :: type_model_factory
+   public :: fabm_create_model_factory
+
+   type,extends(type_base_model_factory) :: type_model_factory
       contains
-      procedure,nopass :: create => fabm_library_create_model
+      procedure :: create
    end type
-#endif
-!
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
-!
+
 !EOP
 !-----------------------------------------------------------------------
 
    contains
 
+   subroutine fabm_create_model_factory()
+      if (.not.associated(factory)) then
+         allocate(type_model_factory::factory)
+
+         call factory%add(aed_model_factory)
+         ! Add new additional model factories here
+
+      end if
+   end subroutine
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Function returning specific biogeochemical model given a model name.
+! !IROUTINE: Subroutine returning a specific biogeochemical model given a model name.
 !
 ! !INTERFACE:
-   function fabm_library_create_model(modelname,instancename,parent,configunit) result(model)
+   subroutine create(self,name,model)
 !
 ! !INPUT PARAMETERS:
-      character(*),intent(in)           :: modelname,instancename
-      integer,     intent(in)           :: configunit
-      _CLASS_ (type_model_info),target  :: parent
-      _CLASS_ (type_model_info),pointer :: model
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
+      class (type_model_factory),intent(in) :: self
+      character(*),              intent(in) :: name
+      class (type_base_model),pointer       :: model
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
       nullify(model)
 
-#ifdef _FABM_F2003_
-      select case (modelname)
-         case ('au_prey_predator');    allocate(type_au_prey_predator::model)
-         case ('bb_passive');          allocate(type_bb_passive::model)
-         case ('bb_filter_feeder');    allocate(type_bb_filter_feeder::model)
-         case ('examples_npzd_nut');   allocate(type_examples_npzd_nut::model)
-         case ('examples_npzd_phy');   allocate(type_examples_npzd_phy::model)
-         case ('examples_npzd_zoo');   allocate(type_examples_npzd_zoo::model)
-         case ('examples_npzd_det');   allocate(type_examples_npzd_det::model)
-         case ('examples_duplicator'); allocate(type_examples_duplicator::model)
-         case ('examples_npzd_f2003'); allocate(type_examples_npzd_f2003::model)
-         case ('examples_mean');       allocate(type_examples_mean::model)
-         case ('gotm_ergom');          allocate(type_gotm_ergom::model)
-         case ('hzg_omexdia_p');       allocate(type_hzg_omexdia_p::model)
-         case ('iow_spm');             allocate(type_iow_spm::model)
-         ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
+      select case (name)
+         case ('au_prey_predator');          allocate(type_au_prey_predator::model)
+         case ('bb_passive');                allocate(type_bb_passive::model)
+         case ('bb_filter_feeder');          allocate(type_bb_filter_feeder::model)
+         case ('examples_npzd_nut');         allocate(type_examples_npzd_nut::model)
+         case ('examples_npzd_phy');         allocate(type_examples_npzd_phy::model)
+         case ('examples_npzd_zoo');         allocate(type_examples_npzd_zoo::model)
+         case ('examples_npzd_det');         allocate(type_examples_npzd_det::model)
+         case ('examples_duplicator');       allocate(type_examples_duplicator::model)
+         case ('examples_npzd_f2003');       allocate(type_examples_npzd_f2003::model)
+         case ('examples_benthic_predator'); allocate(type_examples_benthic_predator::model)
+         case ('examples_mean');             allocate(type_examples_mean::model)
+         case ('gotm_npzd');                 allocate(type_gotm_npzd::model)
+         case ('gotm_fasham');               allocate(type_gotm_fasham::model)
+         case ('gotm_ergom');                allocate(type_gotm_ergom::model)
+         case ('metu_mnemiopsis');           allocate(type_metu_mnemiopsis::model)
+         case ('pml_carbonate');             allocate(type_pml_carbonate::model)
+         case ('klimacampus_phy_feedback');  allocate(type_klimacampus_phy_feedback::model)
+         case ('hzg_omexdia_p');             allocate(type_hzg_omexdia_p::model)
+         case ('iow_spm');                   allocate(type_iow_spm::model)
+         ! Add additional individual models here
          case default
-            if ( modelname(1:4) .eq. 'aed_' ) &
-               model => aed_create_model(configunit,modelname,instancename,parent);
+            call self%type_base_model_factory%create(name,model)
       end select
 
-      if (.not.associated(model)) return
-
-      ! If the model has not been initialized, do so now.
-      ! This is the default - simulaneously creating and initializing the model is now deprecated.
-      if (.not.associated(model%parent)) call parent%add_child(model,configunit,instancename)
-#endif
-
-   end function fabm_library_create_model
+   end subroutine
 !EOC
 
 !-----------------------------------------------------------------------

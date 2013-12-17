@@ -104,6 +104,8 @@
 		<Filter Name="gotm">
 		<Filter Name="ergom">
 		<File RelativePath="..\..\src\models\gotm\ergom\ergom.F90"/></Filter>
+		<Filter Name="ergom">
+		<File RelativePath="..\..\src\models\gotm\ergom\ergom.F90"/></Filter>
 		<Filter Name="fasham">
 		<File RelativePath="..\..\src\models\gotm\fasham\fasham.F90"/></Filter>
 		<Filter Name="npzd">
@@ -123,9 +125,7 @@
 		<Filter Name="pml">
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>
-		<File RelativePath="..\..\src\models\pml\carbonate\co2_dyn.F90"/></Filter>
-		<Filter Name="ersem">
-		<File RelativePath="..\..\src\models\pml\ersem\ersem.F90"/></Filter></Filter></Filter>
+		<File RelativePath="..\..\src\models\pml\carbonate\co2_dyn.F90"/></Filter></Filter></Filter>
 		<File RelativePath="..\..\src\fabm.F90"/>
 		<File RelativePath="..\..\src\fabm_expressions.F90"/>
 		<File RelativePath="..\..\src\fabm_library.F90"/>

@@ -15,6 +15,8 @@ bulk:
     units: g m-3
   - name: mole_concentration_of_ammonium
     units: mmol m-3
+  - name: mole_concentration_of_carbonate_expressed_as_carbon
+    units: mmol m-3
   - name: mole_concentration_of_dissolved_inorganic_carbon
     units: mmol m-3
   - name: mole_concentration_of_dissolved_iron
@@ -33,6 +35,8 @@ bulk:
     units: dbar
   - name: temperature
     units: degree_Celsius
+  - name: fractional_saturation_of_oxygen
+    units: 1
 horizontal:
   - name: bottom_depth_below_geoid
     units: m
@@ -68,6 +72,8 @@ conserved:
   - name: total_nitrogen
     units: mmol m-3
   - name: total_phosphorus
+    units: mmol m-3
+  - name: total_silicate
     units: mmol m-3
   - name: total_iron
     units: umol m-3

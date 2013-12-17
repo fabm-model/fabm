@@ -28,37 +28,32 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
 !  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public type_gotm_npzd, gotm_npzd_init, gotm_npzd_do, gotm_npzd_do_ppdd, &
-          gotm_npzd_get_light_extinction, gotm_npzd_get_conserved_quantities
-!
-! !PRIVATE DATA MEMBERS:
-!
 ! !REVISION HISTORY:!
 !  Original author(s): Jorn Bruggeman
 !
-!
 ! !PUBLIC DERIVED TYPES:
-   type type_gotm_npzd
+   type,extends(type_base_model),public :: type_gotm_npzd
 !     Variable identifiers
       type (type_state_variable_id)        :: id_n,id_p,id_z,id_d
       type (type_state_variable_id)        :: id_dic
       type (type_dependency_id)            :: id_par
       type (type_horizontal_dependency_id) :: id_I_0
       type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
-      type (type_conserved_quantity_id)    :: id_totN
 
 !     Model parameters
       real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
       real(rk) :: dic_per_n
-      logical  :: use_dic
+   contains
+      procedure :: initialize
+      procedure :: do
+      procedure :: do_ppdd
+      procedure :: get_light_extinction
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -71,16 +66,15 @@
 ! !IROUTINE: Initialise the NPZD model
 !
 ! !INTERFACE:
-   subroutine gotm_npzd_init(self,modelinfo,namlst)
+   subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !  Here, the npzd namelist is read and te variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   type (type_gotm_npzd),    intent(out)   :: self
-   _CLASS_ (type_model_info),intent(inout) :: modelinfo
-   integer,                  intent(in)    :: namlst
+   class (type_gotm_npzd), intent(inout), target :: self
+   integer,                intent(in)            :: configunit
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard & Karsten Bolding
@@ -140,7 +134,7 @@
    dic_variable = ''
 
    ! Read the namelist
-   read(namlst,nml=gotm_npzd,err=99,end=100)
+   if (configunit>0) read(configunit,nml=gotm_npzd,err=99,end=100)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -162,47 +156,48 @@
    self%dic_per_n = dic_per_n
 
    ! Register state variables
-   call register_state_variable(modelinfo,self%id_n,'nut','mmol/m**3','nutrients',     &
+   call self%register_state_variable(self%id_n,'nut','mmol/m**3','nutrients',     &
                                     n_initial,minimum=0.0_rk,no_river_dilution=.true.)
-   call register_state_variable(modelinfo,self%id_p,'phy','mmol/m**3','phytoplankton', &
+   call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton', &
                                     p_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
-   call register_state_variable(modelinfo,self%id_z,'zoo','mmol/m**3','zooplankton', &
+   call self%register_state_variable(self%id_z,'zoo','mmol/m**3','zooplankton', &
                                     z_initial,minimum=0.0_rk)
-   call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus', &
+   call self%register_state_variable(self%id_d,'det','mmol/m**3','detritus', &
                                     d_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day)
 
+   ! Register the contribution of all state variables to total nitrogen
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_n)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_p)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_z)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_d)
+
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   !self%use_dic = dic_variable/=''
-   !if (self%use_dic) call register_state_dependency(modelinfo,self%id_dic,dic_variable)
-   call register_state_variable(modelinfo,self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon', &
-                                2100._rk,minimum=0.0_rk,standard_variable=standard_variables%mole_concentration_of_dissolved_inorganic_carbon)
+   call self%register_state_dependency(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon',required=.false.)
+   if (dic_variable/='') call self%request_coupling(self%id_dic,dic_variable)
 
    ! Register diagnostic variables
-   call register_diagnostic_variable(modelinfo,self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
+   call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
                      time_treatment=time_treatment_step_integrated)
-   call register_diagnostic_variable(modelinfo,self%id_NCP,'NCP','mmol/m**3',  'net community production',           &
+   call self%register_diagnostic_variable(self%id_NCP,'NCP','mmol/m**3',  'net community production',           &
                      time_treatment=time_treatment_step_integrated)
-   call register_diagnostic_variable(modelinfo,self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',      &
+   call self%register_diagnostic_variable(self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',      &
                      time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_NPR,'NPR','mmol/m**3/d','net community production rate',      &
+   call self%register_diagnostic_variable(self%id_NPR,'NPR','mmol/m**3/d','net community production rate',      &
                      time_treatment=time_treatment_averaged)
-   call register_diagnostic_variable(modelinfo,self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
+   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',    'photosynthetically active radiation',&
                      time_treatment=time_treatment_averaged)
-
-   ! Register conserved quantities
-   call register_conserved_quantity(modelinfo,self%id_totN,'N','mmol/m**3','nitrogen')
 
    ! Register environmental dependencies
-   call register_dependency(modelinfo, self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
-   call register_dependency(modelinfo, self%id_I_0, standard_variables%surface_downwelling_photosynthetic_radiative_flux)
+   call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
+   call self%register_dependency(self%id_I_0, standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
    return
 
-99 call fatal_error('gotm_npzd_init','Error reading namelist gotm_npzd.')
+99 call self%fatal_error('gotm_npzd_init','Error reading namelist gotm_npzd.')
 
-100 call fatal_error('gotm_npzd_init','Namelist gotm_npzd was not found.')
+100 call self%fatal_error('gotm_npzd_init','Namelist gotm_npzd was not found.')
 
-   end subroutine gotm_npzd_init
+   end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------
@@ -211,7 +206,7 @@
 ! !IROUTINE: Right hand sides of NPZD model
 !
 ! !INTERFACE:
-   subroutine gotm_npzd_do(self,_ARGUMENTS_DO_)
+   subroutine do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -261,7 +256,7 @@
 ! \end{equation}
 !
 ! !INPUT PARAMETERS:
-   type (type_gotm_npzd),       intent(in) :: self
+   class (type_gotm_npzd),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
@@ -309,9 +304,7 @@
 
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
-   if (self%use_dic) then
-      _SET_ODE_(self%id_dic,self%dic_per_n*dn)
-   end if
+   if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_dPAR,par)
@@ -323,7 +316,7 @@
    ! Leave spatial loops (if any)
    _LOOP_END_
 
-   end subroutine gotm_npzd_do
+   end subroutine do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -333,10 +326,10 @@
 ! variables
 !
 ! !INTERFACE:
-   pure subroutine gotm_npzd_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
+   subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
-   type (type_gotm_npzd), intent(in) :: self
+   class (type_gotm_npzd), intent(in) :: self
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
@@ -361,46 +354,7 @@
    ! Leave spatial loops (if any)
    _LOOP_END_
 
-   end subroutine gotm_npzd_get_light_extinction
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
-!
-! !INTERFACE:
-   pure subroutine gotm_npzd_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
-!
-! !INPUT PARAMETERS:
-   type (type_gotm_npzd), intent(in) :: self
-   _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   real(rk)                     :: n,p,z,d
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_n,n) ! nutrient
-   _GET_(self%id_p,p) ! phytoplankton
-   _GET_(self%id_z,z) ! zooplankton
-   _GET_(self%id_d,d) ! detritus
-
-   ! Total nutrient is simply the sum of all variables.
-   _SET_CONSERVED_QUANTITY_(self%id_totN,n+p+z+d)
-
-   ! Leave spatial loops (if any)
-   _LOOP_END_
-
-   end subroutine gotm_npzd_get_conserved_quantities
+   end subroutine get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -409,7 +363,7 @@
 ! !IROUTINE: Right hand sides of NPZD model exporting production/destruction matrices
 !
 ! !INTERFACE:
-   subroutine gotm_npzd_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
+   subroutine do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !
 ! !DESCRIPTION:
 ! Seven processes expressed as sink terms are included in this
@@ -459,7 +413,7 @@
 ! \end{equation}
 !
 ! !INPUT PARAMETERS:
-   type (type_gotm_npzd),       intent(in) :: self
+   class (type_gotm_npzd),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_PPDD_
 !
 ! !REVISION HISTORY:
@@ -512,7 +466,7 @@
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
    dn = - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
-   if (self%use_dic) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
+   if (_AVAILABLE_(self%id_dic)) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_dPAR,par)
@@ -524,7 +478,7 @@
    ! Leave spatial loops (if any)
    _LOOP_END_
 
-   end subroutine gotm_npzd_do_ppdd
+   end subroutine do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------

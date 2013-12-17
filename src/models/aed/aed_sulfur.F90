@@ -28,13 +28,12 @@ MODULE aed_sulfur
 ! soluable reactive sulfur across the air/water interface and sediment flux.
 !-------------------------------------------------------------------------------
    USE fabm_types
-   USE fabm_driver
 
    IMPLICIT NONE
 
    PRIVATE
 !
-   PUBLIC type_aed_sulfur, aed_sulfur_create
+   PUBLIC type_aed_sulfur
 !
    TYPE,extends(type_base_model) :: type_aed_sulfur
 !     Variable identifiers
@@ -48,7 +47,7 @@ MODULE aed_sulfur
       LOGICAL  :: use_oxy,use_dic
 
       CONTAINS     ! Model Methods
-!       procedure :: initialize               => aed_sulfur_init
+        procedure :: initialize               => aed_sulfur_init
         procedure :: do                       => aed_sulfur_do
         procedure :: do_ppdd                  => aed_sulfur_do_ppdd
         procedure :: do_benthos               => aed_sulfur_do_benthos
@@ -61,7 +60,7 @@ CONTAINS
 
 
 !###############################################################################
-FUNCTION aed_sulfur_create(namlst,name,parent) RESULT(self)
+SUBROUTINE aed_sulfur_init(self,configunit)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -69,12 +68,10 @@ FUNCTION aed_sulfur_create(namlst,name,parent) RESULT(self)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   INTEGER,INTENT(in)                      :: namlst
-   CHARACTER(len=*),INTENT(in)              :: name
-   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
+   CLASS (type_aed_sulfur),TARGET,INTENT(INOUT) :: self
+   INTEGER,INTENT(in)                           :: configunit
 !
 !LOCALS
-   _CLASS_ (type_aed_sulfur),POINTER :: self
 
    INTEGER           :: num_sulfurs
    real(rk)          :: decay(100)
@@ -86,11 +83,8 @@ FUNCTION aed_sulfur_create(namlst,name,parent) RESULT(self)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   ALLOCATE(self)
-   CALL initialize_model_info(self,name,parent)
-
    ! Read the namelist
-   read(namlst,nml=aed_sulfur,err=99)
+   read(configunit,nml=aed_sulfur,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -104,9 +98,9 @@ FUNCTION aed_sulfur_create(namlst,name,parent) RESULT(self)
 
    RETURN
 
-99 CALL fatal_error('aed_sulfur_init','Error reading namelist aed_sulfur')
+99 CALL self%fatal_error('aed_sulfur_init','Error reading namelist aed_sulfur')
 
-END FUNCTION aed_sulfur_create
+END SUBROUTINE aed_sulfur_init
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -116,7 +110,7 @@ SUBROUTINE aed_sulfur_do(self,_FABM_ARGS_DO_RHS_)
 ! Right hand sides of aed_sulfur model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_sulfur),INTENT(in) :: self
+   class (type_aed_sulfur),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
@@ -150,7 +144,7 @@ SUBROUTINE aed_sulfur_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_sulfur),INTENT(in) :: self
+   class (type_aed_sulfur),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
@@ -185,7 +179,7 @@ SUBROUTINE aed_sulfur_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_sulfur),INTENT(in) :: self
+   class (type_aed_sulfur),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS
@@ -251,7 +245,7 @@ SUBROUTINE aed_sulfur_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
 ! Get the total of conserved quantities (currently only sulfur)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_sulfur),INTENT(in) :: self
+   class (type_aed_sulfur),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS

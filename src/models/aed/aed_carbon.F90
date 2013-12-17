@@ -28,7 +28,6 @@ MODULE aed_carbon
 ! soluable reactive carbon across the air/water interface and sediment flux.
 !-------------------------------------------------------------------------------
    USE fabm_types
-   USE fabm_driver
 
    USE aed_util,  ONLY: aed_gas_piston_velocity
 
@@ -36,7 +35,7 @@ MODULE aed_carbon
 
    PRIVATE
 !
-   PUBLIC type_aed_carbon, aed_carbon_create
+   PUBLIC type_aed_carbon
 !
    TYPE,extends(type_base_model) :: type_aed_carbon
 !     Variable identifiers
@@ -57,7 +56,7 @@ MODULE aed_carbon
       LOGICAL  :: simDIC, simCH4
 
       CONTAINS  ! Model Parameters
-!       procedure :: initialize               => aed_carbon_init
+        procedure :: initialize               => aed_carbon_init
         procedure :: do                       => aed_carbon_do
         procedure :: do_ppdd                  => aed_carbon_do_ppdd
         procedure :: do_benthos               => aed_carbon_do_benthos
@@ -72,7 +71,7 @@ CONTAINS
 
 
 !###############################################################################
-FUNCTION aed_carbon_create(namlst,name,parent) RESULT(self)
+SUBROUTINE aed_carbon_init(self,configunit)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -80,12 +79,8 @@ FUNCTION aed_carbon_create(namlst,name,parent) RESULT(self)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   INTEGER,INTENT(in)                      :: namlst
-   CHARACTER(len=*),INTENT(in)              :: name
-   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
-!
-!LOCALS
-   _CLASS_ (type_aed_carbon),POINTER :: self
+   CLASS (type_aed_carbon),TARGET,INTENT(INOUT) :: self
+   INTEGER,INTENT(in)                           :: configunit
 
    real(rk)          :: pH_initial=7.5
    real(rk)          :: ionic = 0.0
@@ -113,11 +108,8 @@ FUNCTION aed_carbon_create(namlst,name,parent) RESULT(self)
 
 !-------------------------------------------------------------------------------
 !BEGIN
-   ALLOCATE(self)
-   CALL initialize_model_info(self,name,parent)
-
    ! Read the namelist
-   read(namlst,nml=aed_carbon,err=99)
+   read(configunit,nml=aed_carbon,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -184,9 +176,9 @@ FUNCTION aed_carbon_create(namlst,name,parent) RESULT(self)
 
    RETURN
 
-99 CALL fatal_error('aed_carbon_init','Error reading namelist aed_carbon')
+99 CALL self%fatal_error('aed_carbon_init','Error reading namelist aed_carbon')
 
-END FUNCTION aed_carbon_create
+END SUBROUTINE aed_carbon_init
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -196,7 +188,7 @@ SUBROUTINE aed_carbon_do(self,_FABM_ARGS_DO_RHS_)
 ! Right hand sides of aed_carbon model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_carbon),INTENT(in) :: self
+   class (type_aed_carbon),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
@@ -254,7 +246,7 @@ SUBROUTINE aed_carbon_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_carbon),INTENT(in) :: self
+   class (type_aed_carbon),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
@@ -292,7 +284,7 @@ SUBROUTINE aed_carbon_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_carbon),INTENT(in) :: self
+   class (type_aed_carbon),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS
@@ -368,7 +360,7 @@ SUBROUTINE aed_carbon_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
 ! Get the total of conserved quantities (currently only carbon)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_carbon),INTENT(in) :: self
+   class (type_aed_carbon),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
@@ -410,7 +402,7 @@ PURE real(rk) FUNCTION aed_carbon_fch4ox(self,oxy,temp)
 ! is formulated.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_carbon),INTENT(in) :: self
+   class (type_aed_carbon),INTENT(in) :: self
    real(rk),INTENT(in)                  :: oxy,temp
 !
 !-------------------------------------------------------------------------------
@@ -433,7 +425,7 @@ SUBROUTINE aed_carbon_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_
 ! Air-sea exchange for the aed carbon model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_carbon),INTENT(in) :: self
+   class (type_aed_carbon),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
 !
 !LOCALS
@@ -505,7 +497,7 @@ PURE real(rk) FUNCTION aed_carbon_co2(self,temp,dic,pH)
 ! CO2 concentration of DIC at fixed T
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_carbon),INTENT(in) :: self
+   class (type_aed_carbon),INTENT(in) :: self
    real(rk), INTENT(IN)                 :: dic, temp, pH
 !
 !LOCALS

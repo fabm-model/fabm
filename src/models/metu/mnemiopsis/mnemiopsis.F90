@@ -16,24 +16,17 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
 !  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public type_metu_mnemiopsis, metu_mnemiopsis_init, metu_mnemiopsis_do
-!
-! !PRIVATE DATA MEMBERS:
-!
 ! !REVISION HISTORY:!
 !  Original author(s): Jorn Bruggeman, Baris Salihoglu
 !
-!
 ! !PUBLIC DERIVED TYPES:
-   type type_metu_mnemiopsis
+   type,extends(type_base_model),public :: type_metu_mnemiopsis
 !     Variable identifiers
       type (type_state_variable_id) :: id_egb, id_jb, id_ja, id_tb, id_ta, id_adb, id_ada
       type (type_state_variable_id) :: id_food, id_foodmic, id_resptarget, id_morttarget
@@ -41,6 +34,9 @@
 
 !     Model parameters
       real(rk) :: food_scale
+   contains
+      procedure :: initialize
+      procedure :: do
    end type
 !
 ! !PRIVATE PARAMETERS:
@@ -56,7 +52,7 @@
 ! !IROUTINE: Initialise the bio module
 !
 ! !INTERFACE:
-   subroutine metu_mnemiopsis_init(self,modelinfo,namlst)
+   subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !  Here, the bio namelist {\tt bio\_jellyfish.nml} is read and
@@ -64,9 +60,8 @@
 !  are transformed into SI units.
 !
 ! !INPUT PARAMETERS:
-   type (type_metu_mnemiopsis),intent(out)   :: self
-   _CLASS_ (type_model_info),  intent(inout) :: modelinfo
-   integer,                    intent(in )   :: namlst
+   class (type_metu_mnemiopsis),intent(inout),target :: self
+   integer,                     intent(in)           :: configunit
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -87,41 +82,41 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(namlst,nml=metu_mnemiopsis,err=99,end=100)
+   if (configunit>0) read(configunit,nml=metu_mnemiopsis,err=99,end=100)
 
    ! Register state variables
-   call register_state_variable(modelinfo,self%id_egb,'egb','mg C/m**3','egg biomass',        &
+   call self%register_state_variable(self%id_egb,'egb','mg C/m**3','egg biomass',        &
                                     egb_initial,minimum=0.0_rk)
-   call register_state_variable(modelinfo,self%id_jb,'jb','mg C/m**3','nauplii biomass',     &
+   call self%register_state_variable(self%id_jb,'jb','mg C/m**3','nauplii biomass',     &
                                     jb_initial,minimum=0.0_rk)
-   call register_state_variable(modelinfo,self%id_ja,'ja','#/m**3','nauplii abundance',      &
+   call self%register_state_variable(self%id_ja,'ja','#/m**3','nauplii abundance',      &
                                     ja_initial,minimum=0.0_rk)
-   call register_state_variable(modelinfo,self%id_tb,'tb','mg C/m**3','transitional biomass',&
+   call self%register_state_variable(self%id_tb,'tb','mg C/m**3','transitional biomass',&
                                     tb_initial,minimum=0.0_rk)
-   call register_state_variable(modelinfo,self%id_ta,'ta','#/m**3','transitional abundance', &
+   call self%register_state_variable(self%id_ta,'ta','#/m**3','transitional abundance', &
                                     ta_initial,minimum=0.0_rk)
-   call register_state_variable(modelinfo,self%id_adb,'adb','mg C/m**3','adult biomass',      &
+   call self%register_state_variable(self%id_adb,'adb','mg C/m**3','adult biomass',      &
                                     adb_initial,minimum=0.0_rk)
-   call register_state_variable(modelinfo,self%id_ada,'ada','#/m**3','adult abundance',       &
+   call self%register_state_variable(self%id_ada,'ada','#/m**3','adult abundance',       &
                                     ada_initial,minimum=0.0_rk)
 
    ! Register external state variable dependencies
-   call register_state_dependency(modelinfo,self%id_food,food_source_variable)
-   call register_state_dependency(modelinfo,self%id_foodmic,foodmic_source_variable)
-   call register_state_dependency(modelinfo,self%id_resptarget,respiration_target_variable)
-   call register_state_dependency(modelinfo,self%id_morttarget,mortality_target_variable)
+   call self%register_state_dependency(self%id_food,food_source_variable)
+   call self%register_state_dependency(self%id_foodmic,foodmic_source_variable)
+   call self%register_state_dependency(self%id_resptarget,respiration_target_variable)
+   call self%register_state_dependency(self%id_morttarget,mortality_target_variable)
 
    ! Register environmental dependencies
-   call register_dependency(modelinfo, self%id_temp, standard_variables%temperature)
+   call self%register_dependency(self%id_temp, standard_variables%temperature)
 
    self%food_scale = food_scale
 
    return
 
-99 call fatal_error('metu_mnemiopsis_init','Error reading namelist metu_mnemiopsis')
-100 call fatal_error('metu_mnemiopsis_init','Namelist metu_mnemiopsis was not found')
+99 call self%fatal_error('metu_mnemiopsis_init','Error reading namelist metu_mnemiopsis')
+100 call self%fatal_error('metu_mnemiopsis_init','Namelist metu_mnemiopsis was not found')
 
-   end subroutine metu_mnemiopsis_init
+   end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------
@@ -130,12 +125,12 @@
 ! !IROUTINE: Right hand sides of Mnemiopsis model
 !
 ! !INTERFACE:
-   pure subroutine metu_mnemiopsis_do(self,_ARGUMENTS_DO_)
+   subroutine do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 !
 ! !INPUT PARAMETERS:
-   type (type_metu_mnemiopsis), intent(in) :: self
+   class (type_metu_mnemiopsis), intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
@@ -393,7 +388,7 @@
    ! Leave spatial loops (if any)
    _LOOP_END_
 
-   end subroutine metu_mnemiopsis_do
+   end subroutine do
 !EOC
 
    pure subroutine trans(mm,mr,ma,t,p7)

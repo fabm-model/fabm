@@ -41,24 +41,18 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
    
    implicit none
 
 !  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public type_gotm_fasham, gotm_fasham_init, gotm_fasham_do, gotm_fasham_do_ppdd, &
-          gotm_fasham_get_light_extinction, gotm_fasham_get_conserved_quantities
-!
 ! !PUBLIC DERIVED TYPES:
-   type type_gotm_fasham
+   type,extends(type_base_model),public :: type_gotm_fasham
 !     Variable identifiers
       type (type_state_variable_id)      :: id_p,id_z,id_b,id_d,id_n,id_a,id_l
       type (type_diagnostic_variable_id) :: id_pp
       type (type_dependency_id)          :: id_par
-      type (type_conserved_quantity_id)  :: id_totN
       
 !     Model parameters
       real(rk) :: p0
@@ -87,6 +81,11 @@
       real(rk) :: eta
       real(rk) :: mu4
       real(rk) :: kc
+   contains
+      procedure :: initialize
+      procedure :: do
+      procedure :: do_ppdd
+      procedure :: get_light_extinction
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -99,16 +98,15 @@
 ! !IROUTINE: Initialise the Fasham model
 !
 ! !INTERFACE:
-   subroutine gotm_fasham_init(self,modelinfo,namlst)
+   subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !  Here, the gotm_fasham namelist is read and the variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   type (type_gotm_fasham),   intent(out)   :: self
-   _CLASS_ (type_model_info), intent(inout) :: modelinfo
-   integer,                   intent(in)    :: namlst
+   class (type_gotm_fasham), intent(inout),target :: self
+   integer,                  intent(in)           :: configunit
 !
 ! !LOCAL VARIABLES:
    real(rk) ::  p_initial
@@ -192,7 +190,7 @@
    w_d       = -2.0_rk
 
    ! Read the namelist
-   read(namlst,nml=gotm_fasham,err=99,end=100)
+   if (configunit>0) read(configunit,nml=gotm_fasham,err=99,end=100)
 
    ! All rates must be provided in values per day,
    ! and are converted here to values per second.
@@ -236,36 +234,42 @@
    self%kc    = kc
    
    ! Register state variables
-   call register_state_variable(modelinfo,self%id_p,'phy','mmol/m**3','phytoplankton',     &
+   call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton',     &
                                     p_initial,minimum=0.0_rk,vertical_movement=w_p)
-   call register_state_variable(modelinfo,self%id_z,'zoo','mmol/m**3','zooplankton',     &
+   call self%register_state_variable(self%id_z,'zoo','mmol/m**3','zooplankton',     &
                                     z_initial,minimum=0.0_rk)
-   call register_state_variable(modelinfo,self%id_b,'bac','mmol/m**3','bacteria',     &
+   call self%register_state_variable(self%id_b,'bac','mmol/m**3','bacteria',     &
                                     b_initial,minimum=0.0_rk)
-   call register_state_variable(modelinfo,self%id_d,'det','mmol/m**3','detritus',     &
+   call self%register_state_variable(self%id_d,'det','mmol/m**3','detritus',     &
                                     d_initial,minimum=0.0_rk,vertical_movement=w_d)
-   call register_state_variable(modelinfo,self%id_n,'nit','mmol/m**3','nitrate',     &
+   call self%register_state_variable(self%id_n,'nit','mmol/m**3','nitrate',     &
                                     n_initial,minimum=0.0_rk,no_river_dilution=.true.)
-   call register_state_variable(modelinfo,self%id_a,'amm','mmol/m**3','ammonium',     &
+   call self%register_state_variable(self%id_a,'amm','mmol/m**3','ammonium',     &
                                     a_initial,minimum=0.0_rk,no_river_dilution=.true.)
-   call register_state_variable(modelinfo,self%id_l,'ldn','mmol/m**3','labile dissolved organic nitrogen',     &
+   call self%register_state_variable(self%id_l,'ldn','mmol/m**3','labile dissolved organic nitrogen',     &
                                     l_initial,minimum=0.0_rk,no_river_dilution=.true.)
 
+   ! Register the contribution of all state variables to total nitrogen
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_p)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_z)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_b)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_d)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_n)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_a)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_l)
+
    ! Register diagnostic variables
-   call register_diagnostic_variable(modelinfo,self%id_pp,'pp','/d','specific primary production')
+   call self%register_diagnostic_variable(self%id_pp,'pp','/d','specific primary production',time_treatment=time_treatment_averaged)
 
    ! Register environmental dependencies
-   call register_dependency(modelinfo,self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
-
-   ! Register conserved quantities
-   call register_conserved_quantity(modelinfo,self%id_totN,'N','mmol/m**3','nitrogen')
+   call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 
    return
 
-99 call fatal_error('gotm_fasham_init','Error reading namelist gotm_fasham')
-100 call fatal_error('gotm_fasham_init','Namelist gotm_fasham was not found')
+99 call self%fatal_error('gotm_fasham_init','Error reading namelist gotm_fasham')
+100 call self%fatal_error('gotm_fasham_init','Namelist gotm_fasham was not found')
    
-   end subroutine gotm_fasham_init
+   end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------
@@ -274,7 +278,7 @@
 ! !IROUTINE: Right hand sides of Fasham model
 !
 ! !INTERFACE:
-   subroutine gotm_fasham_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
+   subroutine do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !
 ! !DESCRIPTION:
 ! The \cite{Fashametal1990} model consisting of the $I=7$
@@ -351,7 +355,7 @@
 ! \end{equation}
 !
 ! !INPUT PARAMETERS:
-   type (type_gotm_fasham),       intent(in) :: self
+   class (type_gotm_fasham),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_PPDD_
 !
 ! !LOCAL VARIABLES:
@@ -411,7 +415,7 @@
    ! Leave spatial loops (if any)
    _LOOP_END_
 
-   end subroutine gotm_fasham_do_ppdd
+   end subroutine do_ppdd
 !EOC
 
 !-----------------------------------------------------------------------
@@ -420,7 +424,7 @@
 ! !IROUTINE: Right hand sides of Fasham model
 !
 ! !INTERFACE:
-   pure subroutine gotm_fasham_do(self,_ARGUMENTS_DO_)
+   subroutine do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 ! The \cite{Fashametal1990} model consisting of the $I=7$
@@ -497,7 +501,7 @@
 ! \end{equation}
 !
 ! !INPUT PARAMETERS:
-   type (type_gotm_fasham),       intent(in) :: self
+   class (type_gotm_fasham),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
@@ -579,7 +583,7 @@
    ! Leave spatial loops (if any)
    _LOOP_END_
 
-   end subroutine gotm_fasham_do
+   end subroutine do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -589,10 +593,10 @@
 ! variables
 !
 ! !INTERFACE:
-   pure subroutine gotm_fasham_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
+   subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
-   type (type_gotm_fasham), intent(in) :: self
+   class (type_gotm_fasham), intent(in) :: self
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !LOCAL VARIABLES:
@@ -613,46 +617,7 @@
    ! Leave spatial loops (if any)
    _LOOP_END_
    
-   end subroutine gotm_fasham_get_light_extinction
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
-!
-! !INTERFACE:
-   pure subroutine gotm_fasham_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
-!
-! !INPUT PARAMETERS:
-   type (type_gotm_fasham), intent(in) :: self
-   _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
-!
-! !LOCAL VARIABLES:
-   real(rk) :: p,z,b,d,n,a,l
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_p,p) ! phytoplankton
-   _GET_(self%id_z,z) ! zooplankton
-   _GET_(self%id_b,b) ! bacteria
-   _GET_(self%id_d,d) ! detritus
-   _GET_(self%id_n,n) ! nitrate
-   _GET_(self%id_a,a) ! ammonia
-   _GET_(self%id_l,l) ! labile dissolved organic nitrogen
-   
-   ! Total nutrient is simply the sum of all variables.
-   _SET_CONSERVED_QUANTITY_(self%id_totN,p+z+b+d+n+a+l)
-
-   ! Leave spatial loops (if any)
-   _LOOP_END_
-
-   end subroutine gotm_fasham_get_conserved_quantities
+   end subroutine get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------

@@ -1,5 +1,3 @@
-#ifdef _FABM_F2003_
-
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
@@ -14,7 +12,6 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
@@ -29,7 +26,6 @@
       type (type_dependency_id)            :: id_par
       type (type_horizontal_dependency_id) :: id_I_0
       type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
-      type (type_conserved_quantity_id)    :: id_totN
 
 !     Model parameters
       real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rpdu,rpdl
@@ -102,7 +98,7 @@
    uptake_target_variable    = ''
 
    ! Read the namelist
-   read(configunit,nml=examples_npzd_phy,err=99)
+   if (configunit>=0) read(configunit,nml=examples_npzd_phy,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -141,8 +137,7 @@
                                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
-   call self%register_conserved_quantity(self%id_totN,standard_variables%total_nitrogen)
-   call self%add_conserved_quantity_component(self%id_totN,self%id_p)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_p)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
@@ -150,7 +145,7 @@
 
    return
 
-99 call fatal_error('fabm_examples_npzd_phy','Error reading namelist examples_npzd_phy')
+99 call self%fatal_error('fabm_examples_npzd_phy','Error reading namelist examples_npzd_phy')
 
    end subroutine initialize
 !EOC
@@ -379,5 +374,3 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
-
-#endif

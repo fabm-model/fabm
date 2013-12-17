@@ -18,24 +18,23 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
 !  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public type_examples_benthic_predator, examples_benthic_predator_init, examples_benthic_predator_do_benthos
-!
 ! !PUBLIC TYPES:
-   type type_examples_benthic_predator
+   type,extends(type_base_model),public :: type_examples_benthic_predator
 !     Variable identifiers
       type (type_bottom_state_variable_id) :: id_pred
       type (type_state_variable_id)        :: id_prey,id_nut
 
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
       real(rk) :: g_max,K,h
+   contains
+      procedure :: initialize
+      procedure :: do_bottom
    end type
 !
 ! !REVISION HISTORY:!
@@ -52,16 +51,15 @@
 ! !IROUTINE: Initialise the benthic predator model
 !
 ! !INTERFACE:
-   subroutine examples_benthic_predator_init(self,modelinfo,namlst)
+   subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
 !  Here, the examples\_benthic\_predator namelist is read and te variables
 !  exported by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_benthic_predator),intent(out)   :: self
-   _CLASS_ (type_model_info),            intent(inout) :: modelinfo
-   integer,                              intent(in)    :: namlst
+   class (type_examples_benthic_predator),intent(inout),target :: self
+   integer,                               intent(in)           :: configunit
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -77,7 +75,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(namlst,nml=examples_benthic_predator,err=99,end=100)
+   if (configunit>0) read(configunit,nml=examples_benthic_predator,err=99,end=100)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -88,20 +86,20 @@
 
    ! Register state variables
    ! NOTE the benthic=.true. argument, which specifies the variable is benthic.
-   call register_state_variable(modelinfo,self%id_pred,'pred','mmol/m**2','predator density', &
+   call self%register_state_variable(self%id_pred,'pred','mmol/m**2','predator density', &
                                           pred_initial,minimum=0.0_rk)
 
    ! Register link to external pelagic prey and mineral pools.
    ! Prey will be used to feed upon, mineral pool to place waste products in.
-   call register_state_dependency(modelinfo,self%id_prey,prey_source_variable)
-   call register_state_dependency(modelinfo,self%id_nut,waste_target_variable)
+   call self%register_state_dependency(self%id_prey,prey_source_variable)
+   call self%register_state_dependency(self%id_nut,waste_target_variable)
 
    return
 
-99 call fatal_error('examples_benthic_predator_init','Error reading namelist examples_benthic_predator')
-100 call fatal_error('examples_benthic_predator_init','Namelist examples_benthic_predator was not found')
+99 call self%fatal_error('examples_benthic_predator_init','Error reading namelist examples_benthic_predator')
+100 call self%fatal_error('examples_benthic_predator_init','Namelist examples_benthic_predator was not found')
 
-   end subroutine examples_benthic_predator_init
+   end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------
@@ -110,14 +108,14 @@
 ! !IROUTINE: Right hand sides of benthic_predator model
 !
 ! !INTERFACE:
-   subroutine examples_benthic_predator_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
+   subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
 ! This routine calculates the benthic sink and source terms, as well as
 ! (matching) bottom fluxes for pelagic variables. Both have units mmol/m**2/s.
 !
 ! !INPUT PARAMETERS:
-   type (type_examples_benthic_predator),       intent(in) :: self
+   class (type_examples_benthic_predator),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
@@ -148,7 +146,7 @@
    ! Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_
 
-   end subroutine examples_benthic_predator_do_benthos
+   end subroutine do_bottom
 !EOC
 
 !-----------------------------------------------------------------------

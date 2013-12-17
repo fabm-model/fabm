@@ -8,23 +8,26 @@ DOCSRC	= fabm.F90 fabm_types.F90
 FABMMOD	 = ${LIBFABM}(fabm.o)
 FABMMODELLIB = ${LIBFABM}(fabm_library.o)
 
-all: driver models $(FABMMOD)
+all: makedirs $(FABMBASE) $(FABMMOD) config
         $(MOVE_MODULES_COMMAND)
 
 makedirs:
 	mkdir -p $(MODDIR) $(LIBDIR)
 
+config: $(FABMMOD)
+	$(MAKE) -C config
+
+$(FABMBASE): driver
+
 driver:
 	$(MAKE) -C drivers/$(FABMHOST)
 
-$(FABMMOD): $(FABMMODELLIB)
-
-$(FABMMODELLIB): $(FABMBASE)
+$(FABMMOD): models $(FABMMODELLIB)
 
 models: driver $(FABMBASE)
 	$(MAKE) -C models
 
-0d getm gotm mossco:
+0d getm gotm mossco python:
 	( export FABMHOST=$@ ; $(MAKE) )
 
 doc:    $(DOCSRC)
@@ -43,4 +46,4 @@ distclean: realclean
 	$(RM) -r doc
 	$(RM) -r $(FABMDIR)/modules/ $(FABMDIR)/lib/
 
-.PHONY: makedirs models driver
+.PHONY: makedirs models driver config

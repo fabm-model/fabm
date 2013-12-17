@@ -24,7 +24,6 @@ MODULE aed_phytoplankton
 !  aed_phytoplankton --- phytoplankton biogeochemical model
 !-------------------------------------------------------------------------------
    USE fabm_types
-   USE fabm_driver
    USE aed_util,ONLY : find_free_lun, &
                        exp_integral,  &
                        aed_bio_temp_function, &
@@ -34,7 +33,7 @@ MODULE aed_phytoplankton
 
    PRIVATE   ! By default make everything private
 !
-   PUBLIC type_aed_phytoplankton, aed_phytoplankton_create
+   PUBLIC type_aed_phytoplankton
 !
    TYPE phyto_data
       ! General Attributes
@@ -125,7 +124,7 @@ MODULE aed_phytoplankton
       real(rk) :: dic_per_n
 
       CONTAINS     ! Model Methods
-!       procedure :: initialize               => aed_phytoplankton_init
+        procedure :: initialize               => aed_phytoplankton_init
         procedure :: do                       => aed_phytoplankton_do
         procedure :: do_ppdd                  => aed_phytoplankton_do_ppdd
         procedure :: do_benthos               => aed_phytoplankton_do_benthos
@@ -144,7 +143,7 @@ CONTAINS
 !###############################################################################
 SUBROUTINE aed_phytoplankton_load_params(self, count, list)
 !-------------------------------------------------------------------------------
-   _CLASS_ (type_aed_phytoplankton),INTENT(inout) :: self
+   class (type_aed_phytoplankton),INTENT(inout) :: self
    INTEGER,INTENT(in)                             :: count
    INTEGER,INTENT(in)                             :: list(*)
 
@@ -297,14 +296,14 @@ SUBROUTINE aed_phytoplankton_load_params(self, count, list)
 
     RETURN
 
-99 call fatal_error('aed_phytoplankton_load_params','Error reading namelist phyto_data')
+99 call self%fatal_error('aed_phytoplankton_load_params','Error reading namelist phyto_data')
 !
 END SUBROUTINE aed_phytoplankton_load_params
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
+SUBROUTINE aed_phytoplankton_init(self,configunit)
 !-------------------------------------------------------------------------------
 ! Initialise the phytoplankton biogeochemical model
 !
@@ -312,12 +311,10 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   INTEGER,INTENT(in)                             :: namlst
-   CHARACTER(len=*),INTENT(in)              :: name
-   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
+   CLASS (type_aed_phytoplankton),TARGET,INTENT(INOUT) :: self
+   INTEGER,INTENT(in)                                  :: configunit
 !
 !LOCALS
-   _CLASS_ (type_aed_phytoplankton),POINTER :: self
 
    INTEGER            :: num_phytos
    INTEGER            :: the_phytos(MAX_PHYTO_TYPES)
@@ -355,11 +352,8 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
                     zerolimitfudgefactor, extra_debug
 !-----------------------------------------------------------------------
 !BEGIN
-   ALLOCATE(self)
-   CALL initialize_model_info(self,name,parent)
-
    ! Read the namelist
-   read(namlst,nml=aed_phytoplankton,err=99)
+   read(configunit,nml=aed_phytoplankton,err=99)
    dtlim = zerolimitfudgefactor
 
    ! Store parameter values in our own derived type
@@ -489,9 +483,9 @@ FUNCTION aed_phytoplankton_create(namlst,name,parent) RESULT(self)
 
    RETURN
 
-99 call fatal_error('aed_phytoplankton_init','Error reading namelist aed_phytoplankton')
+99 call self%fatal_error('aed_phytoplankton_init','Error reading namelist aed_phytoplankton')
 
-END FUNCTION aed_phytoplankton_create
+END SUBROUTINE aed_phytoplankton_init
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -501,7 +495,7 @@ SUBROUTINE aed_phytoplankton_do(self,_FABM_ARGS_DO_RHS_)
 ! Right hand sides of phytoplankton biogeochemical model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
@@ -929,7 +923,7 @@ SUBROUTINE phyto_internal_phosphorus(self,group,phy,IP,primprod,&
 ! Calculates the internal phosphorus stores and fluxes
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
    real(rk),INTENT(in)                         :: phy
    real(rk),INTENT(in)                         :: IP
@@ -1000,7 +994,7 @@ SUBROUTINE phyto_internal_nitrogen(self,group,phy,IN,primprod,fT,no3up,nh4up,   
 !-------------------------------------------------------------------------------
 
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
    real(rk),INTENT(in)                         :: phy
    real(rk),INTENT(in)                         :: IN
@@ -1100,7 +1094,7 @@ SUBROUTINE aed_phytoplankton_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS
@@ -1142,7 +1136,7 @@ SUBROUTINE aed_phytoplankton_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION
 ! Get the light extinction coefficient due to biogeochemical variables
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
 !LOCALS
@@ -1176,7 +1170,7 @@ SUBROUTINE aed_phytoplankton_get_conserved_quantities(self,_FABM_ARGS_GET_CONSER
 ! Get the total of conserved quantities
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
@@ -1212,7 +1206,7 @@ SUBROUTINE aed_phytoplankton_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
@@ -1268,7 +1262,7 @@ FUNCTION phyto_fN(self, group, IN, din, don) RESULT(fN)
 ! Michaelis-Menton type formulation or droop model for species with IN
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
    real(rk),INTENT(in),OPTIONAL                :: IN
    real(rk),INTENT(in),OPTIONAL                :: din
@@ -1310,7 +1304,7 @@ FUNCTION phyto_fP(self, group, IP, frp) RESULT(fP)
 ! Phosphorus limitation of phytoplankton
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
    real(rk),INTENT(in), OPTIONAL               :: IP
    real(rk),INTENT(in), OPTIONAL               :: frp
@@ -1343,7 +1337,7 @@ FUNCTION phyto_fSi(self, group, Si) RESULT(fSi)
 ! Silica limitation (eg. for diatoms)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
    real(rk),INTENT(in)                         :: Si
 !
@@ -1373,7 +1367,7 @@ FUNCTION phyto_pN(self,group,NH4,NO3) RESULT(pN)
 ! ammonia uptake over nitrate.
 !-------------------------------------------------------------------------------
    !-- Incoming
-   _CLASS_ (type_aed_phytoplankton), INTENT(in) :: self
+   class (type_aed_phytoplankton), INTENT(in) :: self
    INTEGER,INTENT(in)                           :: group
    real(rk),INTENT(IN)                          :: NH4
    real(rk),INTENT(IN)                          :: NO3
@@ -1419,7 +1413,7 @@ END FUNCTION findMin
 FUNCTION phyto_respiration(self,group,temp) RESULT(respiration)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
    real(rk),INTENT(in)                         :: temp
 !
@@ -1441,7 +1435,7 @@ FUNCTION phyto_salinity(self,group,salinity) RESULT(fSal)
 ! Implmentation based on Griffin et al 2001; Robson and Hamilton, 2004
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
    real(rk),INTENT(in)                         :: salinity
 !
@@ -1513,7 +1507,7 @@ FUNCTION phyto_light(self, group, par, extc, Io, dz) RESULT(fI)
 !
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_phytoplankton),INTENT(in) :: self
+   class (type_aed_phytoplankton),INTENT(in) :: self
    INTEGER,INTENT(in)                          :: group
    real(rk),INTENT(in)                         :: par
    real(rk),INTENT(in)                         :: extc

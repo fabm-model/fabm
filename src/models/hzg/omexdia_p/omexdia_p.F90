@@ -1,7 +1,5 @@
 #include "fabm_driver.h"
 
-#ifdef _FABM_F2003_
-
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -18,7 +16,6 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
@@ -98,7 +95,7 @@
 !BOC
 
    ! Read the namelist
-   read(configunit,nml=hzg_omexdia_p,err=99,end=100)
+   if (configunit>0) read(configunit,nml=hzg_omexdia_p,err=99,end=100)
 
    ! Store parameter values in our own derived type
    self%rFast=rFast
@@ -164,9 +161,9 @@
 
    return
 
-99 call fatal_error('hzg_omexdia_p_initialize','Error reading namelist hzg_omexdia_p.')
+99 call self%fatal_error('hzg_omexdia_p_initialize','Error reading namelist hzg_omexdia_p.')
 
-100 call fatal_error('hzg_omexdia_p_initialize','Namelist hzg_omexdia_p was not found.')
+100 call self%fatal_error('hzg_omexdia_p_initialize','Namelist hzg_omexdia_p was not found.')
 
    end subroutine initialize
 !EOC
@@ -272,4 +269,3 @@
 
    end module fabm_hzg_omexdia_p
 
-#endif

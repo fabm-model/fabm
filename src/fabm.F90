@@ -22,7 +22,6 @@
    use fabm_standard_variables,only: type_bulk_standard_variable, type_horizontal_standard_variable, &
                                      type_global_standard_variable
    use fabm_types
-   use fabm_driver
    use fabm_library
    use fabm_expressions
 !
@@ -30,8 +29,6 @@
    use fabm_gotm_npzd
    use fabm_gotm_fasham
    use fabm_metu_mnemiopsis
-   use fabm_pml_ersem
-   use fabm_pml_carbonate
    use fabm_examples_benthic_predator
    use fabm_klimacampus_phy_feedback
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
@@ -42,7 +39,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_model, fabm_create_model_from_file, fabm_initialize, fabm_set_domain, fabm_check_ready, fabm_update_time
+   public type_model, fabm_create_model_from_file, fabm_initialize, fabm_finalize, fabm_set_domain, fabm_check_ready, fabm_update_time
    public fabm_initialize_state, fabm_initialize_surface_state, fabm_initialize_bottom_state
 
    ! Process rates and diagnostics for pelagic, surface, bottom.
@@ -52,7 +49,7 @@
    public fabm_get_vertical_movement, fabm_get_light_extinction, fabm_get_albedo, fabm_get_drag
 
    ! Bookkeeping
-   public fabm_check_state, fabm_get_conserved_quantities
+   public fabm_check_state, fabm_get_conserved_quantities, fabm_get_horizontal_conserved_quantities, fabm_state_to_conserved_quantities
    
    ! Management of model variables: retrieve identifiers, get and set data.
    public fabm_get_bulk_variable_id,fabm_get_horizontal_variable_id,fabm_get_scalar_variable_id
@@ -72,42 +69,37 @@
    ! Object with all supported standard variables as its members.
    ! Imported from fabm_types, and made available so hosts only need to "use fabm"
    public standard_variables
-
+!
 ! !PUBLIC TYPES:
 !
    ! Derived type for a single generic biogeochemical model
    type type_model
-      ! Model identifier and metadata.
-      integer                           :: id
-      _CLASS_ (type_model_info),pointer :: info
+      type (type_base_model)  :: root
+      type (type_model_list)  :: models
+      type (type_environment) :: environment
 
-      ! Pointers for linking to parent and child models
-      ! (models can be linked to form a tree structure)
-      type (type_model),pointer :: parent
-      type (type_model),pointer :: first_child
-      type (type_model),pointer :: next_sibling
+      logical :: initialized = .false.
 
-      ! Pointer to next non-container model.
-      ! To speed up iterations over all models in the tree, non-container models are
-      ! connected in a singly linked list.
-      ! For the root model, nextmodel points to the first non-container model in the list.
-      ! For nested (non-root) container models, the pointer remains disassociated(!)
-      type (type_model),pointer :: nextmodel
+      class (type_base_model),pointer :: info   ! For backward compatibility (hosts pre 11/2013); always points to root.
 
       ! Derived types that belong to specific biogeochemical models.
-      type (type_gotm_npzd)                 :: gotm_npzd
-      type (type_gotm_fasham)               :: gotm_fasham
-      type (type_metu_mnemiopsis)           :: metu_mnemiopsis
-      type (type_pml_ersem)                 :: pml_ersem
-      type (type_pml_carbonate)             :: pml_carbonate
-      type (type_examples_benthic_predator) :: examples_benthic_predator
-      type (type_klimacampus_phy_feedback)  :: klimacampus_phy_feedback
+      !type (type_metu_mnemiopsis)           :: metu_mnemiopsis
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
+   contains
+      procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
+      procedure :: link_bulk_data_by_sn   => fabm_link_bulk_data_by_sn
+      procedure :: link_bulk_data_by_name => fabm_link_bulk_data_by_name
+      generic :: link_bulk_data => link_bulk_data_by_id,link_bulk_data_by_sn,link_bulk_data_by_name
+   
+      procedure :: link_horizontal_data_by_id   => fabm_link_horizontal_data_by_id
+      procedure :: link_horizontal_data_by_sn   => fabm_link_horizontal_data_by_sn
+      procedure :: link_horizontal_data_by_name => fabm_link_horizontal_data_by_name
+      generic :: link_horizontal_data => link_horizontal_data_by_id,link_horizontal_data_by_sn,link_horizontal_data_by_name
 
-      ! Pointer to the current spatially explicit environment.
-      ! It is assigned to during initialization by FABM.
-      type (type_environment),pointer :: environment
-
+      procedure :: link_scalar_by_id   => fabm_link_scalar_by_id
+      procedure :: link_scalar_by_sn   => fabm_link_scalar_by_sn
+      procedure :: link_scalar_by_name => fabm_link_scalar_by_name
+      generic :: link_scalar => link_scalar_by_id,link_scalar_by_sn,link_scalar_by_name
    end type type_model
 !
 ! !PUBLIC INTERFACES:
@@ -198,27 +190,6 @@
       module procedure fabm_do_surface
    end interface
 !
-! !PRIVATE DATA MEMBERS:
-
-!  Identifiers for specific biogeochemical models.
-   integer, parameter :: id_not_used                  = -1
-   integer, parameter :: model_container_id           = -1
-   integer, parameter :: model_f2003_id               =  0
-   integer, parameter :: gotm_npzd_id                 =  1
-   integer, parameter :: gotm_fasham_id               =  4
-   integer, parameter :: pml_ersem_id                 =  99
-   integer, parameter :: pml_carbonate_id             =  101
-   integer, parameter :: metu_mnemiopsis_id           =  102
-   integer, parameter :: examples_benthic_predator_id =  103
-   integer, parameter :: klimacampus_phy_feedback_id  =  110
-   ! ADD_NEW_MODEL_HERE - required. Identifier values are arbitrary, but they must be unique.
-   ! Note: values <=100 are reserved for models ported from the General Ocean Turbulence Model.
-
-   ! Arrays for integer identifiers and names of all available biogeochemical models.
-   ! Allocated and set on demand when model names are first used.
-   integer,          allocatable,dimension(:) :: modelids
-   character(len=64),allocatable,dimension(:) :: modelnames
-!
 ! !REVISION HISTORY:!
 !  Original author(s): Jorn Bruggeman
 !
@@ -226,390 +197,6 @@
 !-----------------------------------------------------------------------
 
    contains
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE:Register the integer identifiers and short names (letters,
-! numbers and underscores only) of all biogeochemical models.
-!
-! !INTERFACE:
-   subroutine register_models()
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!
-!-----------------------------------------------------------------------
-!BOC
-   ! Start with empty arrays with model identifiers and names.
-   allocate(modelids  (0))
-   allocate(modelnames(0))
-
-   ! Register specific biogeochemical models.
-   call register_model(model_container_id,          '')
-   call register_model(gotm_npzd_id,                'gotm_npzd')
-   call register_model(gotm_fasham_id,              'gotm_fasham')
-   call register_model(metu_mnemiopsis_id,          'metu_mnemiopsis')
-   call register_model(pml_ersem_id,                'pml_ersem')
-   call register_model(pml_carbonate_id,            'pml_carbonate')
-   call register_model(examples_benthic_predator_id,'examples_benthic_predator')
-   call register_model(klimacampus_phy_feedback_id, 'klimacampus_phy_feedback')
-   ! ADD_NEW_MODEL_HERE - required
-
-   end subroutine register_models
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Register integer identifier and short name (letters,
-! numbers and underscores only) of a new biogeochemical model.
-!
-! !INTERFACE:
-   subroutine register_model(id,name)
-!
-! !INPUT PARAMETERS:
-   integer, intent(in)         :: id
-   character(len=*),intent(in) :: name
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-   integer :: oldcount,i
-   integer,          allocatable,dimension(:) :: modelids_old
-   character(len=64),allocatable,dimension(:) :: modelnames_old
-   character(len=256) :: text
-!
-!-----------------------------------------------------------------------
-!BOC
-   ! Determine original model count.
-   oldcount = size(modelids)
-
-   ! First check whether the provided model identifier or name are not in use yet.
-   do i=1,size(modelids)
-      if (modelids(i)==id) then
-         write (text,fmt='(a,i4,a)') 'model identifier ',id,' has already been registered.'
-         call fatal_error('fabm::register_model_name',text)
-      end if
-      if (modelnames(i)==name) &
-         call fatal_error('fabm::register_model_name','model name "'//trim(name)//'" has already been registered.')
-   end do
-
-   ! Copy current identifiers and names to temporary storage.
-   allocate(modelids_old  (oldcount))
-   allocate(modelnames_old(oldcount))
-   modelids_old  (:) = modelids
-   modelnames_old(:) = modelnames
-
-   ! Create extended arrays
-   deallocate(modelids)
-   deallocate(modelnames)
-   allocate(modelids  (oldcount+1))
-   allocate(modelnames(oldcount+1))
-
-   ! Copy the old identifiers and names to the new extended array.
-   modelids  (1:oldcount) = modelids_old  (:)
-   modelnames(1:oldcount) = modelnames_old(:)
-
-   ! Deallocate the temporary arrays with old values.
-   deallocate(modelids_old)
-   deallocate(modelnames_old)
-
-   ! Add the new identifier and name.
-   modelids  (oldcount+1) = id
-   modelnames(oldcount+1) = name
-
-   end subroutine register_model
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the short model name (letters, numbers and underscores
-! only) for the biogeochemcial model with the specified integer identifier.
-!
-! !INTERFACE:
-   function get_model_name(id) result(name)
-!
-! !INPUT PARAMETERS:
-   integer, intent(in) :: id
-   character(len=64)   :: name
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!
-   character(len=256) :: text
-   integer :: i
-!-----------------------------------------------------------------------
-!BOC
-   ! If models have not been registered yet, do this first.
-   if (.not.allocated(modelids)) call register_models()
-
-   ! Enumerate all models and compare their integer id with the supplied one.
-   ! Return the name if a match is found.
-   do i=1,size(modelids)
-      if (modelids(i)==id) then
-         name = modelnames(i)
-         return
-      end if
-   end do
-
-   ! Model identifier was not found - throw an error.
-   write (text,fmt='(i4,a)') id,' is not a valid model identifier registered in fabm::register_models.'
-   call fatal_error('fabm::get_model_name',text)
-
-   end function get_model_name
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the integer model identifier from the specified short
-! model name (letters, numbers and underscores only)
-!
-! !INTERFACE:
-   function get_model_id(name) result(id)
-!
-! !INPUT PARAMETERS:
-   character(len=*),intent(in) :: name
-   integer                     :: id
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!
-   integer :: i
-!-----------------------------------------------------------------------
-!BOC
-   ! Default id: model not found.
-   id = id_not_used
-
-   ! If models have not been registered yet, do this first.
-   if (.not.allocated(modelnames)) call register_models()
-
-   ! Enumerate all models and compare their name with the supplied one.
-   ! Return the integer id if a match is found.
-   do i=1,size(modelnames)
-      if (modelnames(i)==name) then
-         id = modelids(i)
-         return
-      end if
-   end do
-
-   end function get_model_id
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Create a new model. This will be a specific model if the
-! model identifier is provided, or a container of child models if the
-! identifier is omitted.
-!
-! !INTERFACE:
-   recursive function fabm_create_model_by_id(modelid,parent,info) result(model)
-!
-! !INPUT PARAMETERS:
-   integer,                 optional,intent(in)    :: modelid
-   type (type_model),target,optional,intent(inout) :: parent
-   _CLASS_ (type_model_info),pointer,optional      :: info
-   type (type_model),pointer                       :: model
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-   type (type_model),pointer                       :: curmodel
-   integer                                         :: modelid_eff
-   _CLASS_ (type_model_info),pointer               :: info_eff,childinfo
-!-----------------------------------------------------------------------
-!BOC
-   ! Determine effective model identifier.
-   if (present(modelid)) then
-      modelid_eff = modelid
-   else
-      modelid_eff = model_container_id
-   end if
-
-   ! Determine effective model info (null if not present).
-   if (present(info)) then
-      info_eff => info
-   else
-      nullify(info_eff)
-   end if
-
-   ! Allocate storage space for the model.
-   allocate(model)
-
-   if (associated(info_eff)) then
-      ! Use user-supplied model info.
-      model%info => info_eff
-   else
-      ! Allocate and initialize model info.
-      allocate(model%info)
-      call initialize_model_info(model%info,get_model_name(modelid_eff))
-   end if
-
-   ! Make sure the pointers to parent and sibling models are dissociated.
-   nullify(model%parent)
-   nullify(model%first_child)
-   nullify(model%next_sibling)
-   nullify(model%nextmodel)
-
-   ! Make sure the pointer to the current environment is dissociated.
-   nullify(model%environment)
-
-   ! Set the model identifier.
-   model%id = modelid_eff
-
-   ! Connect to parent container if provided.
-   if (present(parent)) then
-      ! Make sure the provided parent model is a container.
-      !if (parent%id/=model_container_id) &
-      !   call fatal_error('fabm_create_model_by_id','A child model can only be added to a container, not to an existing model.')
-
-      ! Link parent container to child.
-      if (associated(parent%first_child)) then
-         ! The target container already contains one or more children.
-         ! Find the last, then append the new model to the list.
-         curmodel => parent%first_child
-         do while (associated(curmodel%next_sibling))
-            curmodel => curmodel%next_sibling
-         end do
-         curmodel%next_sibling => model
-      else
-         ! The target container does not contain any children yet.
-         ! Add the current model as first child.
-         parent%first_child => model
-      end if
-
-      ! Link the child model to its parent container.
-      model%parent => parent
-   else
-      ! No parent provided - ensure that the created model is a container.
-      if (model%id/=model_container_id) &
-         call fatal_error('fabm_create_model_by_id','Non-container models must be created as children of an existing container.')
-   end if
-
-   if (model%id/=model_container_id) then
-      ! This model is not a container.
-      ! Add the model to the flattened list of non-container models,
-      ! which is used at runtime to iterate over all models without needing recursion.
-
-      ! First non-container model will be pointed to by the root of the tree - find it.
-      ! Note that the code above ensures that the model has a parent.
-      curmodel => model%parent
-      do while (associated(curmodel%parent))
-         curmodel => curmodel%parent
-      end do
-
-      ! Find the last model in the flattened list of non-container models.
-      ! (first model is pointed to by the root of the tree)
-      do while (associated(curmodel%nextmodel))
-         curmodel => curmodel%nextmodel
-      end do
-
-      ! Add current model to the flattened list of non-container models.
-      curmodel%nextmodel => model
-   end if
-
-   if (associated(info_eff)) then
-      ! This is a Fortran 2003 model which may have created child models
-      childinfo => info_eff%first_child
-      do while (associated(childinfo))
-         curmodel => fabm_create_model_by_id(modelid,model,childinfo)
-         childinfo => childinfo%next_sibling
-      end do
-   end if
-
-   end function fabm_create_model_by_id
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Create a new model by name. This will be a specific model if the
-! model name is provided, or a container of child models if the
-! identifier is omitted.
-!
-! !INTERFACE:
-   function fabm_create_model(modelname,configunit,parent,instancename) result(model)
-!
-! !INPUT PARAMETERS:
-   character(len=*),                 intent(in)    :: modelname
-   integer,                          intent(in)    :: configunit
-   type (type_model),target,optional,intent(inout) :: parent
-   character(len=*),        optional,intent(in)    :: instancename
-   type (type_model),pointer                       :: model
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-   integer                           :: modelid
-   _CLASS_ (type_model_info),pointer :: modelinfo
-   character(len=64)                 :: instancename_eff
-   logical                           :: isopen
-!-----------------------------------------------------------------------
-!BOC
-   if (present(instancename)) then
-      instancename_eff = instancename
-   else
-      instancename_eff = modelname
-   end if
-
-   ! Log start of initialization of this model, unless it is a container only.
-   call log_message('Initializing biogeochemical model "'//trim(instancename_eff)//'"...')
-
-   modelid = id_not_used
-   nullify(modelinfo)
-
-#ifdef _FABM_F2003_
-   ! Try to get model from Fortran 2003 model library
-   if (.not.associated(factory)) allocate(type_model_factory::factory)
-   if (modelid==id_not_used) then
-      modelinfo => factory%create(modelname,instancename_eff,parent%info,configunit)
-      if (associated(modelinfo)) modelid = model_f2003_id
-   end if
-#endif
-
-   ! Resolve model name.
-   if (modelid==id_not_used) then
-      modelid = get_model_id(modelname)
-      if (modelid/=id_not_used) then
-         allocate(modelinfo)
-         if (present(parent)) then
-            call initialize_model_info(modelinfo,instancename_eff,parent%info)
-         else
-            call initialize_model_info(modelinfo,instancename_eff)
-         end if
-      end if
-   end if
-
-   ! If we have not found the model now, throw an error.
-   if (modelid==id_not_used) &
-      call fatal_error('fabm_create_model','"'//trim(modelname)//'" is not a valid model name registered in fabm::register_models.')
-
-   ! Obtain the integer model identifier, and redirect to the function operating on that.
-   if (present(parent)) then
-      model => fabm_create_model_by_id(modelid,parent=parent,info=modelinfo)
-   else
-      model => fabm_create_model_by_id(modelid,info=modelinfo)
-   end if
-
-   ! Initialize the model if that has not been done before
-   if (modelid/=model_f2003_id) call init_model(model,configunit)
-
-   ! Log successful initialization of this model, unless it is a container only.
-   call log_message('model "'//trim(instancename_eff)//'" initialized successfully.')
-
-   ! Debug check: make sure the unit provided by the host has not been closed by the biogeochemical model.
-   inquire(configunit,opened=isopen)
-   if (.not.isopen) call fatal_error('init_model','input configuration file was closed by model "'//trim(instancename_eff)//'".')
-
-   end function fabm_create_model
-!EOC
-
 
 !-----------------------------------------------------------------------
 !BOP
@@ -632,12 +219,14 @@
    character(len=256)        :: file_eff
    integer                   :: i,j,modelcount,ownindex
    character(len=64)         :: models(256),instancename
-   type (type_model),pointer :: childmodel
+   class (type_base_model),pointer :: childmodel
    logical,parameter         :: alwayspostfixindex=.false.
    namelist /fabm_nml/ models
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if (.not.associated(driver)) allocate(type_base_driver::driver)
+
    nullify(model)
 
    ! Determine whether the provided unit has been opened already.
@@ -662,7 +251,7 @@
    read(file_unit,nml=fabm_nml,err=99,end=100)
 
    ! Create model tree
-   model => fabm_create_model_by_id()
+   allocate(model)
    do i=1,size(models)
       if (models(i)/='') then
          ! Determine if this model name is used multiple times.
@@ -681,35 +270,41 @@
             instancename = models(i)
          end if
 
-         ! Create the model. This will initialize the model automatically.
-         childmodel => fabm_create_model(trim(models(i)),file_unit,parent=model,instancename=trim(instancename))
+         ! If this is the first time we try to create a model, create the factory first.
+         call fabm_create_model_factory()
+
+         ! Ask the factory to create the model.
+         call factory%create(trim(models(i)),childmodel)
+
+         if (.not.associated(childmodel)) call driver%fatal_error('fabm_create_model_from_file','"'//trim(models(i))//'" is not a valid model name.')
+
+         call driver%log_message('Initializing biogeochemical model "'//trim(instancename)//'"...')
+         call model%root%add_child(childmodel,instancename,configunit=file_unit)
+         call driver%log_message('model "'//trim(instancename)//'" initialized successfully.')
       end if
    end do
 
-   ! Initialize model tree
+   ! Initialize model tree [this freezes the model configuration - no new child models or variables can be added]
    initialize = .not.present(do_not_initialize)
    if (.not.initialize) initialize = .not.do_not_initialize
    if (initialize) call fabm_initialize(model)
 
-   if (.not.isopen) then
-      ! We have opened the configuration file ourselves - close it.
-      close(file_unit)
-   end if
+   ! If we have opened the configuration file ourselves, close it.
+   if (.not.isopen) close(file_unit)
 
    return
 
-98 call fatal_error('fabm_create_model_from_file','Unable to open FABM configuration file '//trim(file_eff)//'.')
+98 call driver%fatal_error('fabm_create_model_from_file','Unable to open FABM configuration file '//trim(file_eff)//'.')
    return
 
-99 call fatal_error('fabm_create_model_from_file','Unable to read namelist "fabm_nml".')
+99 call driver%fatal_error('fabm_create_model_from_file','Unable to read namelist "fabm_nml".')
    return
 
-100 call fatal_error('fabm_create_model_from_file','Unable to find namelist "fabm_nml".')
+100 call driver%fatal_error('fabm_create_model_from_file','Unable to find namelist "fabm_nml".')
    return
 
    end function fabm_create_model_from_file
 !EOC
-
 
 !-----------------------------------------------------------------------
 !BOP
@@ -717,31 +312,79 @@
 ! !IROUTINE: Initialise the biogeochemical model tree.
 !
 ! !INTERFACE:
-   subroutine fabm_initialize(root)
+   subroutine fabm_initialize(self)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,               intent(inout) :: root
+      class (type_model),target,intent(inout) :: self
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
+      type (type_model_list_node),pointer :: node
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Check whether we are operating on the root of a model tree.
-   if (associated(root%parent)) &
-      call fatal_error('fabm_initialize','fabm_initialize can only be called on the root of a model tree.')
-
-   ! Allocate arrays for storage of (references to) data.
-   allocate(root%environment)
+      ! For backward compatibility (pre 11/2013 hosts only)
+      self%info => self%root
    
-   ! This will resolve all FABM dependencies and generate final authorative lists of variables of different types.
-   call freeze_model_info(root%info)
+      ! This will resolve all FABM dependencies and generate final authorative lists of variables of different types.
+      call freeze_model_info(self%root)
 
-   ! Transfer pointer to environment to all child models.
-   call set_model_data_members(root,root%environment)
+      ! Determine the order in which individual biogeochemical models should be called.
+      node => self%root%children%first
+      do while (associated(node))
+         call find_dependencies(node%model,self%models)
+         node => node%next
+      end do
+
+      ! Consistency check (of find_dependencies): does every model (except the root) appear exactly once in the call list?
+      call test_presence(self%root)
+
+      self%initialized = .true.
+
+   contains
+
+      recursive subroutine test_presence(model)
+         class (type_base_model), target :: model
+
+         type (type_model_list_node),pointer :: child
+
+         child => model%children%first
+         do while (associated(child))
+            if (self%models%count(child%model)/=1) call driver%fatal_error('fabm_initialize::test_presence','BUG: Model "'//trim(model%name)//'" is not called exactly one time.')
+            call test_presence(child%model)
+            child => child%next
+         end do
+      end subroutine
 
    end subroutine fabm_initialize
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Deallocate all data associated with the model object.
+!
+! !INTERFACE:
+   subroutine fabm_finalize(self)
+!
+! !INPUT PARAMETERS:
+   class (type_model),target,intent(inout) :: self
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   nullify(self%info)
+   self%initialized = .false.
+
+   ! Deallocate the list of models (this does not deallocate the models themselves!)
+   call self%models%finalize()
+
+   ! TODO: this should deallocate the memory of all biogeochemical models
+
+   end subroutine fabm_finalize
 !EOC
 
 !-----------------------------------------------------------------------
@@ -750,10 +393,10 @@
 ! !IROUTINE: Provide FABM with the extents of the spatial domain.
 !
 ! !INTERFACE:
-   subroutine fabm_set_domain(root _ARG_LOCATION_,seconds_per_time_unit)
+   subroutine fabm_set_domain(self _ARG_LOCATION_,seconds_per_time_unit)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target, intent(inout) :: root
+   class (type_model),target,intent(inout) :: self
    _DECLARE_LOCATION_ARG_
    real(rk),optional,        intent(in)    :: seconds_per_time_unit
 !
@@ -761,77 +404,59 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-  type (type_model), pointer :: model
-  integer                    :: ivar
-#ifdef _FABM_F2003_
-  class (type_expression),pointer :: expression
-#endif
+  type (type_model_list_node), pointer :: node
+  integer                              :: ivar
+  class (type_expression),pointer      :: expression
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Check whether we are operating on the root of a model tree.
-   if (associated(root%parent)) &
-      call fatal_error('fabm_set_domain','fabm_set_domain can only be called on the root of a model tree.')
-
-   ! Enumerate all non-container models in the tree.
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%set_domain(_LOCATION_)
-#endif
-         case (pml_ersem_id)
-            call pml_ersem_set_domain(model%pml_ersem,_DOMAIN_SIZE_1D_)
-         ! ADD_NEW_MODEL_HERE - optional, only needed if the model needs to be informed about the spatial domain.
-         !
-         ! Typical model call:
-         ! call MODELNAME_set_domain(model%MODELNAME,_DOMAIN_SIZE_1D_)
-      end select
-      model => model%nextmodel
+   ! Forward domain to individual biogeochemical models.
+   ! Also determine whether one of the models needs conservation checks for its sink and source terms.
+   node => self%models%first
+   do while (associated(node))
+      call node%model%set_domain(_LOCATION_)
+      node => node%next
    end do
 
    ! Allocate arrays for diagnostic variables defined on the full domain and on horizontonal slices.
-   allocate(root%environment%diag   (_PREARG_LOCATION_ size(root%info%diagnostic_variables)))
-   allocate(root%environment%diag_hz(_PREARG_LOCATION_HZ_ size(root%info%horizontal_diagnostic_variables)))
+   allocate(self%environment%diag   (_PREARG_LOCATION_ size(self%root%diagnostic_variables)))
+   allocate(self%environment%diag_hz(_PREARG_LOCATION_HZ_ size(self%root%horizontal_diagnostic_variables)))
 
    ! Initialize diagnostic variables to missing value.
-   do ivar=1,size(root%info%diagnostic_variables)
-      root%environment%diag(_PREARG_LOCATION_DIMENSIONS_ ivar) = root%info%diagnostic_variables(ivar)%missing_value
+   do ivar=1,size(self%root%diagnostic_variables)
+      self%environment%diag(_PREARG_LOCATION_DIMENSIONS_ ivar) = self%root%diagnostic_variables(ivar)%missing_value
    end do
-   do ivar=1,size(root%info%horizontal_diagnostic_variables)
-      root%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar) = root%info%horizontal_diagnostic_variables(ivar)%missing_value
+   do ivar=1,size(self%root%horizontal_diagnostic_variables)
+      self%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar) = self%root%horizontal_diagnostic_variables(ivar)%missing_value
    end do
 
    ! If diagnostic variables also appear as dependency, send the corresponding array slice for generic read-only access.
-   do ivar=1,size(root%info%diagnostic_variables)
-      call fabm_link_bulk_data(root,root%info%diagnostic_variables(ivar)%globalid,root%environment%diag(_PREARG_LOCATION_DIMENSIONS_ ivar))
+   do ivar=1,size(self%root%diagnostic_variables)
+      call fabm_link_bulk_data(self,self%root%diagnostic_variables(ivar)%globalid,self%environment%diag(_PREARG_LOCATION_DIMENSIONS_ ivar))
    end do
-   do ivar=1,size(root%info%horizontal_diagnostic_variables)
-      call fabm_link_horizontal_data(root,root%info%horizontal_diagnostic_variables(ivar)%globalid,root%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar))
+   do ivar=1,size(self%root%horizontal_diagnostic_variables)
+      call fabm_link_horizontal_data(self,self%root%horizontal_diagnostic_variables(ivar)%globalid,self%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar))
    end do
 
-#ifdef _FABM_F2003_
    if (present(seconds_per_time_unit)) then
-      expression => root%info%first_expression
+      expression => self%root%first_expression
       do while (associated(expression))
          select type (expression)
             class is (type_bulk_temporal_mean)
                expression%period = expression%period/seconds_per_time_unit
                allocate(expression%history(_PREARG_LOCATION_ expression%n+3))
                expression%history = 0.0_rk
-               call fabm_link_bulk_data(root,expression%output_name,expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
+               call fabm_link_bulk_data(self,expression%output_name,expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
             class is (type_horizontal_temporal_mean)
                expression%period = expression%period/seconds_per_time_unit
                allocate(expression%history(_PREARG_LOCATION_HZ_ expression%n+3))
                expression%history = 0.0_rk
-               call fabm_link_horizontal_data(root,expression%output_name,expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+3))
+               call fabm_link_horizontal_data(self,expression%output_name,expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+3))
          end select
          expression => expression%next
       end do
    end if
-#endif
 
    end subroutine fabm_set_domain
 !EOC
@@ -843,11 +468,11 @@
 ! !IROUTINE: Provide FABM with the spatial mask.
 !
 ! !INTERFACE:
-   subroutine fabm_set_mask(root, mask)
+   subroutine fabm_set_mask(self, mask)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,intent(inout)                            :: root
-   _FABM_MASK_TYPE_, target,intent(in)    _ATTR_LOCATION_DIMENSIONS_ :: mask
+   class (type_model),target,intent(inout)                            :: self
+   _FABM_MASK_TYPE_, target, intent(in)    _DIMENSION_GLOBAL_ :: mask
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -855,11 +480,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Check whether we are operating on the root of a model tree.
-   if (associated(root%parent)) &
-      call fatal_error('fabm_set_mask','fabm_set_mask can only be called on the root of a model tree.')
-
-   root%environment%mask => mask
+   self%environment%mask => mask
 
    end subroutine fabm_set_mask
 !EOC
@@ -871,116 +492,63 @@
 ! !IROUTINE: Check whether FABM has been provided with all required data.
 !
 ! !INTERFACE:
-   subroutine fabm_check_ready(root)
+   subroutine fabm_check_ready(self)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),intent(in),target :: root
+   class (type_model),intent(in),target :: self
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-  _CLASS_ (type_model_info),           pointer :: info
-  type (type_bulk_variable_link),      pointer :: link
-  type (type_horizontal_variable_link),pointer :: horizontal_link
-  type (type_scalar_variable_link),    pointer :: scalar_link
-  logical                                      :: ready
+  type (type_link),        pointer :: link
+  logical                          :: ready
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   ! Check whether we are operating on the root of a model tree.
-   if (associated(root%parent)) &
-      call fatal_error('fabm_check_ready','fabm_check_ready can only be called on the root of a model tree.')
-
    ready = .true.
-   info => root%info
 
 #ifdef _FABM_MASK_
-   if (.not.associated(root%environment%mask)) call log_message('spatial mask has not been set.')
+   if (.not.associated(root%environment%mask)) call driver%log_message('spatial mask has not been set.')
 #endif
 
-   link => info%first_link
+   link => self%root%first_link
    do while (associated(link))
-      if (_ALLOCATED_(link%target%alldata).and..not.link%coupled) then
-         if (.not.associated(link%target%alldata(1)%p%p)) then
-            call log_message('data for dependency "'//trim(link%name)// &
-               & '", defined on the full model domain, have not been provided.')
-            ready = .false.
-         end if
+      if (link%owner) then
+         select type (object=>link%target)
+            class is (type_bulk_variable)
+               if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
+                  if (.not.associated(object%alldata(1)%p%p)) then
+                     call driver%log_message('data for dependency "'//trim(link%name)// &
+                        & '", defined on the full model domain, have not been provided.')
+                     ready = .false.
+                  end if
+               end if
+            class is (type_horizontal_variable)
+               if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
+                  if (.not.associated(object%alldata(1)%p%p)) then
+                     call driver%log_message('data for dependency "'//trim(link%name)// &
+                        &  '", defined on a horizontal slice of the model domain, have not been provided.')
+                     ready = .false.
+                  end if
+               end if
+            class is (type_scalar_variable)
+               if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
+                  if (.not.associated(object%alldata(1)%p%p)) then
+                     call driver%log_message('data for dependency "'//trim(link%name)// &
+                        &  '", defined as global scalar quantity, have not been provided.')
+                     ready = .false.
+                  end if
+               end if
+         end select
       end if
       link => link%next
    end do
 
-   horizontal_link => info%first_horizontal_link
-   do while (associated(horizontal_link))
-      if (_ALLOCATED_(horizontal_link%target%alldata).and..not.horizontal_link%coupled) then
-         if (.not.associated(horizontal_link%target%alldata(1)%p%p)) then
-            call log_message('data for dependency "'//trim(horizontal_link%name)// &
-               &  '", defined on a horizontal slice of the model domain, have not been provided.')
-            ready = .false.
-         end if
-      end if
-      horizontal_link => horizontal_link%next
-   end do
-
-   scalar_link => info%first_scalar_link
-   do while (associated(scalar_link))
-      if (_ALLOCATED_(scalar_link%target%alldata).and..not.scalar_link%coupled) then
-         if (.not.associated(scalar_link%target%alldata(1)%p%p)) then
-            call log_message('data for dependency "'//trim(scalar_link%name)// &
-               &  '", defined as global scalar quantity, have not been provided.')
-            ready = .false.
-         end if
-      end if
-      scalar_link => scalar_link%next
-   end do
-
-   if (.not.ready) call fatal_error('fabm_check_ready','FABM is lacking required data.')
+   if (.not.ready) call driver%fatal_error('fabm_check_ready','FABM is lacking required data.')
 
    end subroutine fabm_check_ready
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Initialise the provided biogeochemical model
-!
-! !INTERFACE:
-   recursive subroutine init_model(model,nmlunit)
-!
-! !INPUT PARAMETERS:
-   type (type_model),target,               intent(inout) :: model
-   integer,                                intent(in)    :: nmlunit
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Allow the selected model to initialize
-   select case (model%id)
-      case (gotm_npzd_id)
-         call gotm_npzd_init(model%gotm_npzd,model%info,nmlunit)
-      case (gotm_fasham_id)
-         call gotm_fasham_init(model%gotm_fasham,model%info,nmlunit)
-      case (pml_ersem_id)
-         call pml_ersem_init(model%pml_ersem,model%info,nmlunit)
-      case (metu_mnemiopsis_id)
-         call metu_mnemiopsis_init(model%metu_mnemiopsis,model%info,nmlunit)
-      case (pml_carbonate_id)
-         call pml_carbonate_init(model%pml_carbonate,model%info,nmlunit)
-      case (examples_benthic_predator_id)
-         call examples_benthic_predator_init(model%examples_benthic_predator,model%info,nmlunit)
-      case (klimacampus_phy_feedback_id)
-         call klimacampus_phy_feedback_init(model%klimacampus_phy_feedback,model%info,nmlunit)
-     ! ADD_NEW_MODEL_HERE - required
-      case default
-         call fatal_error('init_model','model "'//trim(model%info%name)//'" has not been registered in init_model.')
-   end select
-
-   end subroutine init_model
 !EOC
 
 !-----------------------------------------------------------------------
@@ -989,15 +557,15 @@
 ! !IROUTINE: Initialize the model state (pelagic).
 !
 ! !INTERFACE:
-   subroutine fabm_initialize_state(root _ARG_LOCATION_ND_)
+   subroutine fabm_initialize_state(self _ARG_LOCATION_ND_)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(inout) :: root
+   class (type_model),     intent(inout) :: self
    _DECLARE_LOCATION_ARG_ND_
 !
 ! !LOCAL PARAMETERS:
    integer                               :: ivar
-   type (type_model), pointer            :: model
+   type (type_model_list_node), pointer  :: node
    real(rk)                              :: initial_value
    type (type_bulk_data_pointer)         :: p
 !
@@ -1006,27 +574,20 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_INITIALIZE_STATE_ _ARGUMENTS_ND_IN_
-
-   do ivar=1,size(root%info%state_variables)
-      ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
-      p = root%info%state_variables(ivar)%globalid%p
-      initial_value = root%info%state_variables(ivar)%initial_value
+   do ivar=1,size(self%root%state_variables)
+      ! Shortcuts to variable information - this demonstrably helps the compiler with vectorization (ifort).
+      p = self%root%state_variables(ivar)%globalid%p
+      initial_value = self%root%state_variables(ivar)%initial_value
       _LOOP_BEGIN_EX_(root%environment)
          _SET_EX_(p,initial_value)
       _LOOP_END_
    end do
 
-   ! Enumerate all non-container models in the model tree, and allow them to initialize their state.
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%initialize_state(_INPUT_ARGS_INITIALIZE_STATE_)
-#endif
-      end select
-      model => model%nextmodel
+   ! Allow biogeochemical models to initialize their bulk state.
+   node => self%models%first
+   do while (associated(node))
+      call node%model%initialize_state(_ARGUMENTS_ND_IN_)
+      node => node%next
    end do
 
    end subroutine fabm_initialize_state
@@ -1038,15 +599,15 @@
 ! !IROUTINE: Initialize the bottom model state.
 !
 ! !INTERFACE:
-   subroutine fabm_initialize_bottom_state(root _ARG_LOCATION_VARS_HZ_)
+   subroutine fabm_initialize_bottom_state(self _ARG_LOCATION_VARS_HZ_)
 !
 ! !INPUT PARAMETERS:
-   type (type_model), intent(inout) :: root
+   class (type_model), intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
 !
 ! !LOCAL PARAMETERS:
    integer                               :: ivar
-   type (type_model), pointer            :: model
+   type (type_model_list_node), pointer  :: node
    real(rk)                              :: initial_value
    type (type_horizontal_data_pointer)   :: p
 !
@@ -1055,27 +616,20 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_INITIALIZE_BOTTOM_STATE_ _ARGUMENTS_IN_HZ_
-
    ! Initialize bottom variables
-   do ivar=1,size(root%info%bottom_state_variables)
-      p = root%info%bottom_state_variables(ivar)%globalid%p
-      initial_value = root%info%bottom_state_variables(ivar)%initial_value
+   do ivar=1,size(self%root%bottom_state_variables)
+      p = self%root%bottom_state_variables(ivar)%globalid%p
+      initial_value = self%root%bottom_state_variables(ivar)%initial_value
       _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
          _SET_HORIZONTAL_EX_(p,initial_value)
       _HORIZONTAL_LOOP_END_
    end do
 
-   ! Enumerate all non-container models in the model tree, and allow them to initialize their state.
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%initialize_bottom_state(_INPUT_ARGS_INITIALIZE_BOTTOM_STATE_)
-#endif
-      end select
-      model => model%nextmodel
+   ! Allow biogeochemical models to initialize their bottom state.
+   node => self%models%first
+   do while (associated(node))
+      call node%model%initialize_bottom_state(_ARGUMENTS_IN_HZ_)
+      node => node%next
    end do
 
    end subroutine fabm_initialize_bottom_state
@@ -1087,15 +641,15 @@
 ! !IROUTINE: Initialize the surface model state.
 !
 ! !INTERFACE:
-   subroutine fabm_initialize_surface_state(root _ARG_LOCATION_VARS_HZ_)
+   subroutine fabm_initialize_surface_state(self _ARG_LOCATION_VARS_HZ_)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(inout) :: root
+   class (type_model),     intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
 !
 ! !LOCAL PARAMETERS:
    integer                               :: ivar
-   type (type_model), pointer            :: model
+   type (type_model_list_node), pointer  :: node
    real(rk)                              :: initial_value
    type (type_horizontal_data_pointer)   :: p
 !
@@ -1104,60 +658,23 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_INITIALIZE_SURFACE_STATE_ _ARGUMENTS_IN_HZ_
-
    ! Initialize surface variables
-   do ivar=1,size(root%info%surface_state_variables)
-      p = root%info%surface_state_variables(ivar)%globalid%p
-      initial_value = root%info%surface_state_variables(ivar)%initial_value
+   do ivar=1,size(self%root%surface_state_variables)
+      p = self%root%surface_state_variables(ivar)%globalid%p
+      initial_value = self%root%surface_state_variables(ivar)%initial_value
       _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
          _SET_HORIZONTAL_EX_(p,initial_value)
       _HORIZONTAL_LOOP_END_
    end do
 
-   ! Enumerate all non-container models in the model tree, and allow them to initialize their state.
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%initialize_surface_state(_INPUT_ARGS_INITIALIZE_SURFACE_STATE_)
-#endif
-      end select
-      model => model%nextmodel
+   ! Allow biogeochemical models to initialize their surface state.
+   node => self%models%first
+   do while (associated(node))
+      call node%model%initialize_surface_state(_ARGUMENTS_IN_HZ_)
+      node => node%next
    end do
 
    end subroutine fabm_initialize_surface_state
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Provide all descendant models with a pointer to the environment.
-!
-! !INTERFACE:
-   recursive subroutine set_model_data_members(model,environment)
-!
-! !INPUT PARAMETERS:
-   type (type_model),             intent(inout) :: model
-   type (type_environment),target,intent(in)    :: environment
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   type (type_model), pointer :: curchild
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   model%environment => environment
-   curchild => model%first_child
-   do while (associated(curchild))
-      call set_model_data_members(curchild,environment)
-      curchild => curchild%next_sibling
-   end do
-
-   end subroutine set_model_data_members
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1169,40 +686,44 @@
 ! fabm\_link\_data/fabm\_link\_data\_hz.
 !
 ! !INTERFACE:
-   function fabm_get_bulk_variable_id(model,name) result(id)
+   function fabm_get_bulk_variable_id(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,      intent(in)  :: model
-   character(len=*),              intent(in)  :: name
+   class (type_model),target,intent(in) :: self
+   character(len=*),         intent(in) :: name
 !
 ! !RETURN VALUE:
    type (type_bulk_variable_id) :: id
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
-   _CLASS_(type_model_info), pointer :: info
-   type (type_bulk_variable_link),pointer :: link
+   type (type_link),       pointer :: link
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   info => model%info
-   link => info%first_link
+   link => self%root%first_link
    do while (associated(link))
-      if (link%target%name==name) then
-         id = create_external_variable_id(model%info,link%target)
-         return
-      end if
+      select type (object=>link%target)
+         class is (type_bulk_variable)
+            if (object%name==name) then
+               id = create_external_variable_id(self%root,object)
+               return
+            end if
+      end select
       link => link%next
    end do
 
    ! Name not found among variable names. Now try standard names that are in use.
-   link => info%first_link
+   link => self%root%first_link
    do while (associated(link))
-      if (link%target%standard_variable%name==name) then
-         id = create_external_variable_id(model%info,link%target%standard_variable)
-         return
-      end if
+      select type (object=>link%target)
+         class is (type_bulk_variable)
+            if (object%standard_variable%name==name) then
+               id = create_external_variable_id(self%root,object%standard_variable)
+               return
+            end if
+      end select
       link => link%next
    end do
 
@@ -1216,11 +737,11 @@
 ! variable, defined on the full model domain.
 !
 ! !INTERFACE:
-   function fabm_get_bulk_variable_id_sn(model,standard_variable) result(id)
+   function fabm_get_bulk_variable_id_sn(self,standard_variable) result(id)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,          intent(in)  :: model
-   type (type_bulk_standard_variable),intent(in)  :: standard_variable
+   class (type_model),target,         intent(in) :: self
+   type (type_bulk_standard_variable),intent(in) :: standard_variable
 !
 ! !RETURN VALUE:
    type (type_bulk_variable_id) :: id
@@ -1228,7 +749,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   id = create_external_variable_id(model%info,standard_variable)
+   id = create_external_variable_id(self%root,standard_variable)
    
    end function fabm_get_bulk_variable_id_sn
 !EOC
@@ -1240,40 +761,44 @@
 ! name.
 !
 ! !INTERFACE:
-   function fabm_get_horizontal_variable_id(model,name) result(id)
+   function fabm_get_horizontal_variable_id(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,      intent(in)  :: model
-   character(len=*),              intent(in)  :: name
+   class (type_model),target,intent(in) :: self
+   character(len=*),         intent(in) :: name
 !
 ! !RETURN VALUE:
    type (type_horizontal_variable_id) :: id
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
-   _CLASS_ (type_model_info),           pointer :: info
-   type (type_horizontal_variable_link),pointer :: link
+   type (type_link),       pointer :: link
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   info => model%info
-   link => info%first_horizontal_link
+   link => self%root%first_link
    do while (associated(link))
-      if (link%target%name==name) then
-         id = create_external_variable_id(model%info,link%target)
-         return
-      end if
+      select type (object=>link%target)
+         class is (type_horizontal_variable)
+            if (object%name==name) then
+               id = create_external_variable_id(self%root,object)
+               return
+            end if
+      end select
       link => link%next
    end do
 
    ! Name not found among variable names. Now try standard names that are in use.
-   link => info%first_horizontal_link
+   link => self%root%first_link
    do while (associated(link))
-      if (link%target%standard_variable%name==name) then
-         id = create_external_variable_id(model%info,link%target%standard_variable)
-         return
-      end if
+      select type (object=>link%target)
+         class is (type_horizontal_variable)
+            if (object%standard_variable%name==name) then
+               id = create_external_variable_id(self%root,object%standard_variable)
+               return
+            end if
+      end select
       link => link%next
    end do
 
@@ -1287,10 +812,10 @@
 ! variable, defined on a horizontal slice of the model domain.
 !
 ! !INTERFACE:
-   function fabm_get_horizontal_variable_id_sn(model,standard_variable) result(id)
+   function fabm_get_horizontal_variable_id_sn(self,standard_variable) result(id)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,                intent(in) :: model
+   class (type_model),target,               intent(in) :: self
    type (type_horizontal_standard_variable),intent(in) :: standard_variable
 !
 ! !RETURN VALUE:
@@ -1299,7 +824,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   id = create_external_variable_id(model%info,standard_variable)
+   id = create_external_variable_id(self%root,standard_variable)
    
    end function fabm_get_horizontal_variable_id_sn
 !EOC
@@ -1313,10 +838,10 @@
 ! fabm\_link\_data/fabm\_link\_data\_hz.
 !
 ! !INTERFACE:
-   function fabm_get_scalar_variable_id(model,name) result(id)
+   function fabm_get_scalar_variable_id(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,      intent(in)  :: model
+   class (type_model),target,     intent(in)  :: self
    character(len=*),              intent(in)  :: name
 !
 ! !RETURN VALUE:
@@ -1324,29 +849,33 @@
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
-   _CLASS_ (type_model_info),       pointer :: info
-   type (type_scalar_variable_link),pointer :: link
+   type (type_link),       pointer :: link
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   info => model%info
-   link => info%first_scalar_link
+   link => self%root%first_link
    do while (associated(link))
-      if (link%target%name==name) then
-         id = create_external_variable_id(model%info,link%target)
-         return
-      end if
+      select type (object=>link%target)
+         class is (type_scalar_variable)
+            if (object%name==name) then
+               id = create_external_variable_id(self%root,object)
+               return
+            end if
+      end select
       link => link%next
    end do
 
    ! Name not found among variable names. Now try standard names that are in use.
-   link => info%first_scalar_link
+   link => self%root%first_link
    do while (associated(link))
-      if (link%target%standard_variable%name==name) then
-         id = create_external_variable_id(model%info,link%target%standard_variable)
-         return
-      end if
+      select type (object=>link%target)
+         class is (type_scalar_variable)
+            if (object%standard_variable%name==name) then
+               id = create_external_variable_id(self%root,object%standard_variable)
+               return
+            end if
+      end select
       link => link%next
    end do
 
@@ -1360,10 +889,10 @@
 ! independent standard variable.
 !
 ! !INTERFACE:
-   function fabm_get_scalar_variable_id_sn(model,standard_variable) result(id)
+   function fabm_get_scalar_variable_id_sn(self,standard_variable) result(id)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,                intent(in) :: model
+   class (type_model),target,           intent(in) :: self
    type (type_global_standard_variable),intent(in) :: standard_variable
 !
 ! !RETURN VALUE:
@@ -1372,7 +901,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   id = create_external_variable_id(model%info,standard_variable)
+   id = create_external_variable_id(self%root,standard_variable)
    
    end function fabm_get_scalar_variable_id_sn
 !EOC
@@ -1387,7 +916,7 @@
    function fabm_get_bulk_variable_name(model,id) result(name)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),             intent(in)  :: model
+   class (type_model),            intent(in)  :: model
    type(type_bulk_variable_id),   intent(in)  :: id
 !
 ! !RETURN VALUE:
@@ -1399,7 +928,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   name = id%variable%name
+   name = ''
+   if (associated(id%variable)) name = id%variable%name
 
    end function fabm_get_bulk_variable_name
 !EOC
@@ -1414,7 +944,7 @@
    function fabm_get_horizontal_variable_name(model,id) result(name)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                intent(in) :: model
+   class (type_model),               intent(in) :: model
    type(type_horizontal_variable_id),intent(in) :: id
 !
 ! !RETURN VALUE:
@@ -1426,7 +956,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   name = id%variable%name
+   name = ''
+   if (associated(id%variable)) name = id%variable%name
 
    end function fabm_get_horizontal_variable_name
 !EOC
@@ -1441,7 +972,7 @@
    function fabm_get_scalar_variable_name(model,id) result(name)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),             intent(in) :: model
+   class (type_model),            intent(in) :: model
    type(type_scalar_variable_id), intent(in) :: id
 !
 ! !RETURN VALUE:
@@ -1453,7 +984,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   name = id%variable%name
+   name = ''
+   if (associated(id%variable)) name = id%variable%name
 
    end function fabm_get_scalar_variable_name
 !EO
@@ -1546,9 +1078,9 @@
    subroutine fabm_link_bulk_data_by_id(model,id,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                       intent(inout) :: model
-   type(type_bulk_variable_id),             intent(inout) :: id
-   real(rk) _ATTR_LOCATION_DIMENSIONS_,target,intent(in)  :: dat
+   class (type_model),                intent(inout) :: model
+   type(type_bulk_variable_id),       intent(inout) :: id
+   real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1562,7 +1094,7 @@
 #if defined(DEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(shape(dat))
       if (size(dat,i)/=size(model%environment%diag,i)) then
-         call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match.')
+         call driver%fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match.')
       end if
    end do
 #endif
@@ -1585,9 +1117,9 @@
    subroutine fabm_link_bulk_data_by_sn(model,standard_variable,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                         intent(inout) :: model
-   type(type_bulk_standard_variable),         intent(in)    :: standard_variable
-   real(rk) _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
+   class (type_model),                intent(inout) :: model
+   type(type_bulk_standard_variable), intent(in)    :: standard_variable
+   real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1618,9 +1150,9 @@
    subroutine fabm_link_bulk_data_by_name(model,name,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),target,                  intent(inout) :: model
-   character(len=*),                          intent(in)    :: name
-   real(rk) _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
+   class (type_model),target,         intent(inout) :: model
+   character(len=*),                  intent(in)    :: name
+   real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1650,9 +1182,9 @@
    subroutine fabm_link_horizontal_data_by_id(model,id,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                            intent(inout) :: model
+   class (type_model),                           intent(inout) :: model
    type (type_horizontal_variable_id),           intent(inout) :: id
-   real(rk) _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1667,7 +1199,7 @@
 #ifndef _FABM_HORIZONTAL_IS_SCALAR_
    do i=1,size(shape(dat))
       if (size(dat,i)/=size(model%environment%diag,i)) then
-         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
+         call driver%fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
       end if
    end do
 #endif
@@ -1691,9 +1223,9 @@
    subroutine fabm_link_horizontal_data_by_sn(model,standard_variable,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                            intent(inout) :: model
+   class (type_model),                           intent(inout) :: model
    type(type_horizontal_standard_variable),      intent(in)    :: standard_variable
-   real(rk) _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1724,15 +1256,15 @@
    subroutine fabm_link_horizontal_data_by_name(model,name,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                            intent(inout) :: model
+   class (type_model),                           intent(inout) :: model
    character(len=*),                             intent(in)    :: name
-   real(rk) _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   type(type_horizontal_variable_id)                           :: id
+   type(type_horizontal_variable_id) :: id
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1755,15 +1287,15 @@
    subroutine fabm_link_scalar_by_id(model,id,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                            intent(inout) :: model
-   type (type_scalar_variable_id),               intent(inout) :: id
-   real(rk),target,                              intent(in)    :: dat
+   class (type_model),            intent(inout) :: model
+   type (type_scalar_variable_id),intent(inout) :: id
+   real(rk),target,               intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   integer                                                :: i
+   integer :: i
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1786,15 +1318,15 @@
    subroutine fabm_link_scalar_by_sn(model,standard_variable,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                         intent(inout) :: model
-   type(type_global_standard_variable),       intent(in)    :: standard_variable
-   real(rk),target,                           intent(in)    :: dat
+   class (type_model),                 intent(inout) :: model
+   type(type_global_standard_variable),intent(in)    :: standard_variable
+   real(rk),target,                    intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   type (type_scalar_variable_id)                             :: id
+   type (type_scalar_variable_id) :: id
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1818,15 +1350,15 @@
    subroutine fabm_link_scalar_by_name(model,name,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                          intent(inout) :: model
-   character(len=*),                           intent(in)    :: name
-   real(rk),target,                            intent(in)    :: dat
+   class (type_model),intent(inout) :: model
+   character(len=*),  intent(in)    :: name
+   real(rk),target,   intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   type(type_scalar_variable_id)                             :: id
+   type(type_scalar_variable_id) :: id
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1846,12 +1378,12 @@
 ! a single pelagic state variable.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bulk_state_data(model,id,dat)
+   subroutine fabm_link_bulk_state_data(self,id,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                         intent(inout) :: model
-   integer,                                   intent(in)    :: id
-   real(rk) _ATTR_LOCATION_DIMENSIONS_,target,intent(in)    :: dat
+   class (type_model),                intent(inout) :: self
+   integer,                           intent(in)    :: id
+   real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1859,7 +1391,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call fabm_link_bulk_data(model,model%info%state_variables(id)%globalid,dat)
+   call fabm_link_bulk_data(self,self%root%state_variables(id)%globalid,dat)
 
    end subroutine fabm_link_bulk_state_data
 !EOC
@@ -1871,12 +1403,12 @@
 ! a single benthic state variable.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bottom_state_data(model,id,dat)
+   subroutine fabm_link_bottom_state_data(self,id,dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                            intent(inout) :: model
+   class (type_model),                           intent(inout) :: self
    integer,                                      intent(in)    :: id
-   real(rk) _ATTR_LOCATION_DIMENSIONS_HZ_,target,intent(in)    :: dat
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1884,7 +1416,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call fabm_link_horizontal_data(model,model%info%bottom_state_variables(id)%globalid,dat)
+   call fabm_link_horizontal_data(self,self%root%bottom_state_variables(id)%globalid,dat)
 
    end subroutine fabm_link_bottom_state_data
 !EOC
@@ -1896,12 +1428,12 @@
 ! a single diagnostic variable, defined on the full spatial domain.
 !
 ! !INTERFACE:
-   function fabm_get_bulk_diagnostic_data(model,id) result(dat)
+   function fabm_get_bulk_diagnostic_data(self,id) result(dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                       intent(in) :: model
-   integer,                                 intent(in) :: id
-   real(rk) _ATTR_LOCATION_DIMENSIONS_,pointer         :: dat
+   class (type_model),target,         intent(in) :: self
+   integer,                           intent(in) :: id
+   real(rk) _DIMENSION_GLOBAL_,pointer           :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1910,7 +1442,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve a pointer to the array holding the requested data.
-   dat => model%environment%diag(_PREARG_LOCATION_DIMENSIONS_ model%info%diagnostic_variables(id)%globalid%write_index)
+   dat => self%environment%diag(_PREARG_LOCATION_DIMENSIONS_ self%root%diagnostic_variables(id)%globalid%write_index)
 
    end function fabm_get_bulk_diagnostic_data
 !EOC
@@ -1923,12 +1455,12 @@
 ! spatial domain.
 !
 ! !INTERFACE:
-   function fabm_get_horizontal_diagnostic_data(model,id) result(dat)
+   function fabm_get_horizontal_diagnostic_data(self,id) result(dat)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),                          intent(in) :: model
+   class (type_model),target,                  intent(in) :: self
    integer,                                    intent(in) :: id
-   real(rk) _ATTR_LOCATION_DIMENSIONS_HZ_,pointer         :: dat
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,pointer         :: dat
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1937,7 +1469,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Retrieve a pointer to the array holding the requested data.
-   dat => model%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ model%info%horizontal_diagnostic_variables(id)%globalid%write_index)
+   dat => self%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ self%root%horizontal_diagnostic_variables(id)%globalid%write_index)
 
    end function fabm_get_horizontal_diagnostic_data
 !EOC
@@ -1949,58 +1481,50 @@
 ! model tree.
 !
 ! !INTERFACE:
-   subroutine fabm_do_rhs(root _ARG_LOCATION_ND_,dy)
+   subroutine fabm_do_rhs(self _ARG_LOCATION_ND_,dy)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(inout) :: root
+   class (type_model),           intent(inout) :: self
    _DECLARE_LOCATION_ARG_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _ATTR_DIMENSIONS_1_, intent(inout) :: dy
+   real(rk) _DIMENSION_SLICE_PLUS_1_, intent(inout) :: dy
 !
 ! !LOCAL PARAMETERS:
-   type (type_model), pointer            :: model
+   type (type_model_list_node), pointer :: node
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
+   integer i
+   real(rk),allocatable _DIMENSION_SLICE_PLUS_1_ :: dy_model,sums
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_RHS_ _ARGUMENTS_ND_IN_,dy
-
-   ! Ensure that this subroutine is called on the root of the model tree only.
-   if (associated(root%parent)) &
-      call fatal_error('fabm_do_rhs','fabm_do_rhs may only be called on the root of the model tree, or on non-container models.')
-
-   ! Enumerate all non-container models in the tree.
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%do(_INPUT_ARGS_DO_RHS_)
-#endif
-         case (gotm_npzd_id)
-            call gotm_npzd_do(model%gotm_npzd,_INPUT_ARGS_DO_RHS_)
-         case (gotm_fasham_id)
-            call gotm_fasham_do(model%gotm_fasham,_INPUT_ARGS_DO_RHS_)
-         case (pml_ersem_id)
-            call pml_ersem_do(model%pml_ersem,_INPUT_ARGS_DO_RHS_)
-         case (metu_mnemiopsis_id)
-            call metu_mnemiopsis_do(model%metu_mnemiopsis,_INPUT_ARGS_DO_RHS_)
-         case (pml_carbonate_id)
-            call pml_carbonate_do(model%pml_carbonate,_INPUT_ARGS_DO_RHS_)
-         case (examples_benthic_predator_id)
-         case (klimacampus_phy_feedback_id)
-            call klimacampus_phy_feedback_do(model%klimacampus_phy_feedback,_INPUT_ARGS_DO_RHS_)
-         ! ADD_NEW_MODEL_HERE - required if the model features one or more active pelagic state variables,
-         ! unless the model provides production/destruction matrices instead of a temporal derivative vector.
-         ! In that case, add the model to fabm_do_ppdd.
-         !
-         ! Typical model call:
-         ! call MODELNAME_do(model%MODELNAME,_INPUT_ARGS_DO_RHS_)
-      end select
-      model => model%nextmodel
+   node => self%models%first
+   do while (associated(node))
+      if (node%model%check_conservation) then
+         ! Place source - sink rates in a temporary array in order to compute
+         ! their impact of the various conserved quantities.
+         allocate(dy_model(_SIZE_SLICE_ size(self%root%state_variables)))
+         allocate(sums(_SIZE_SLICE_ size(node%model%conserved_quantities)))
+         dy_model = 0.0_rk
+         call node%model%do(_ARGUMENTS_ND_IN_,dy_model)
+         call node%model%state_to_conserved_quantities(_ARGUMENTS_ND_IN_,dy_model,sums)
+         do i=1,size(node%model%conserved_quantities)
+            if (node%model%conserved_quantities(i)%rate_diag_index/=-1) then
+               _LOOP_BEGIN_EX_(self%environment)
+                  self%environment%diag(_PREARG_LOCATION_ node%model%conserved_quantities(i)%rate_diag_index) = sums _INDEX_OUTPUT_1D_(i)
+               _LOOP_END_
+            end if
+         end do
+         dy = dy + dy_model
+         deallocate(dy_model)
+         deallocate(sums)
+      else
+         ! Directly add source - sink rates to caller-provided array.
+         call node%model%do(_ARGUMENTS_ND_IN_,dy)
+      end if
+      node => node%next
    end do
 
    end subroutine fabm_do_rhs
@@ -2014,49 +1538,27 @@
 ! model tree in the form of production and destruction matrices.
 !
 ! !INTERFACE:
-   recursive subroutine fabm_do_ppdd(root _ARG_LOCATION_ND_,pp,dd)
+   subroutine fabm_do_ppdd(self _ARG_LOCATION_ND_,pp,dd)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),           intent(inout) :: root
+   class (type_model),          intent(inout) :: self
   _DECLARE_LOCATION_ARG_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _ATTR_DIMENSIONS_2_,intent(inout) :: pp,dd
+   real(rk) _DIMENSION_SLICE_PLUS_2_,intent(inout) :: pp,dd
 !
 ! !LOCAL PARAMETERS:
-   type (type_model), pointer                 :: model
+   type (type_model_list_node), pointer :: node
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_PPDD_ _ARGUMENTS_ND_IN_,pp,dd
-
-   ! Enumerate all non-container models in the tree.
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%do_ppdd(_INPUT_ARGS_DO_PPDD_)
-#endif
-         case (gotm_npzd_id)
-            call gotm_npzd_do_ppdd(model%gotm_npzd,_INPUT_ARGS_DO_PPDD_)
-         case (gotm_fasham_id)
-            call gotm_fasham_do_ppdd(model%gotm_fasham,_INPUT_ARGS_DO_PPDD_)
-         ! ADD_NEW_MODEL_HERE - optional, only if the model provides a subroutine for calculating local
-         ! production/destruction matrices. This is required for certain temporal integration schemes,
-         ! e.g., Patankar, Modified Patankar.
-         !
-         ! Typical model call:
-         ! call MODELNAME_do_ppdd(model%MODELNAME,_INPUT_ARGS_DO_PPDD_)
-
-         case default
-           call fatal_error('fabm_do_ppdd','model "'//trim(model%info%name)//'" does not provide a subroutine &
-              &that calculates local production/destruction matrices.')
-      end select
-      model => model%nextmodel
+   node => self%models%first
+   do while (associated(node))
+      call node%model%do_ppdd(_ARGUMENTS_ND_IN_,pp,dd)
+      node => node%next
    end do
 
    end subroutine fabm_do_ppdd
@@ -2069,17 +1571,17 @@
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   subroutine fabm_check_state(root _ARG_LOCATION_ND_,repair,valid)
+   subroutine fabm_check_state(self _ARG_LOCATION_ND_,repair,valid)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),      intent(inout) :: root
+   class (type_model),     intent(inout) :: self
    _DECLARE_LOCATION_ARG_ND_
    logical,                intent(in)    :: repair
    logical,                intent(out)   :: valid
 !
 ! !LOCAL PARAMETERS:
    integer                               :: ivar
-   type (type_model), pointer            :: model
+   type (type_model_list_node), pointer :: node
    real(rk)                              :: value,minimum,maximum
    character(len=256)                    :: err
    type (type_bulk_data_pointer)         :: p
@@ -2090,33 +1592,14 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_CHECK_STATE_ _ARGUMENTS_ND_IN_,repair,valid
-
    valid = .true.
 
-   ! Enumerate all non-container models in the model tree, and allow them to perform custom repairs.
-   model => root%nextmodel
-   do while (associated(model) .and. valid)
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%check_state(_INPUT_ARGS_CHECK_STATE_)
-#endif
-         ! ADD_NEW_MODEL_HERE - optional, only if the validity of state variable values cannot
-         ! be checked simply by ascertaining whether its values lie within prescribed [constant] bounds.
-         !
-         ! Typical model call:
-         ! call MODELNAME_check_state(model%MODELNAME,_INPUT_ARGS_CHECK_STATE_)
-         !
-         ! If the biogeochemical model provides a subroutine for checking the model state:
-         ! Set "valid" to .false. if the state variable values are invalid,
-         ! repair them if they are invalid and "repair" is .true. (but still keep "valid" set to .false.)
-      end select
-
-      ! If the present values are invalid and repair is not permitted, we are done.
+   ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
+   node => self%models%first
+   do while (associated(node) .and. valid)
+      call node%model%check_state(_ARGUMENTS_ND_IN_,repair,valid)
       if (.not. (valid .or. repair)) return
-
-      model => model%nextmodel
+      node => node%next
    end do
 
    ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
@@ -2124,21 +1607,21 @@
 
    ! Check boundaries for pelagic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
-   do ivar=1,size(root%info%state_variables)
+   do ivar=1,size(self%root%state_variables)
       ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
-      p = root%info%state_variables(ivar)%globalid%p
-      minimum = root%info%state_variables(ivar)%minimum
-      maximum = root%info%state_variables(ivar)%maximum
-
+      p = self%root%state_variables(ivar)%globalid%p
+      minimum = self%root%state_variables(ivar)%minimum
+      maximum = self%root%state_variables(ivar)%maximum
+      
       _LOOP_BEGIN_EX_(root%environment)
          _GET_STATE_EX_(root%environment,p,value)
          if (value<minimum) then
             ! State variable value lies below prescribed minimum.
             valid = .false.
             if (.not.repair) then
-               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(root%info%state_variables(ivar)%name), &
+               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%root%state_variables(ivar)%name), &
                                                           & ' below minimum value ',minimum
-               call log_message(err)
+               call driver%log_message(err)
                return
             end if
             _SET_STATE_EX_(root%environment,p,minimum)
@@ -2146,9 +1629,9 @@
             ! State variable value exceeds prescribed maximum.
             valid = .false.
             if (.not.repair) then
-               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(root%info%state_variables(ivar)%name), &
+               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%root%state_variables(ivar)%name), &
                                                           & ' above maximum value ',maximum
-               call log_message(err)
+               call driver%log_message(err)
                return
             end if
             _SET_STATE_EX_(root%environment,p,maximum)
@@ -2158,11 +1641,11 @@
 
    ! Check boundaries for benthic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
-   do ivar=1,size(root%info%bottom_state_variables)
+   do ivar=1,size(self%root%bottom_state_variables)
       ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
-      p_hz = root%info%bottom_state_variables(ivar)%globalid%p
-      minimum = root%info%bottom_state_variables(ivar)%minimum
-      maximum = root%info%bottom_state_variables(ivar)%maximum
+      p_hz = self%root%bottom_state_variables(ivar)%globalid%p
+      minimum = self%root%bottom_state_variables(ivar)%minimum
+      maximum = self%root%bottom_state_variables(ivar)%maximum
 
       _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
        _GET_STATE_BEN_EX_(root%environment,p_hz,value)
@@ -2171,9 +1654,9 @@
             valid = .false.
             if (.not.repair) then
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
-                                                          & trim(root%info%bottom_state_variables(ivar)%name), &
+                                                          & trim(self%root%bottom_state_variables(ivar)%name), &
                                                           & ' below minimum value ',minimum
-               call log_message(err)
+               call driver%log_message(err)
                return
             end if
             _SET_STATE_BEN_EX_(root%environment,p_hz,minimum)
@@ -2182,9 +1665,9 @@
             valid = .false.
             if (.not.repair) then
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
-                                                          & trim(root%info%bottom_state_variables(ivar)%name), &
+                                                          & trim(self%root%bottom_state_variables(ivar)%name), &
                                                           & ' above maximum value ',maximum
-               call log_message(err)
+               call driver%log_message(err)
                return
             end if
             _SET_STATE_BEN_EX_(root%environment,p_hz,maximum)
@@ -2204,41 +1687,28 @@
 ! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
-   subroutine fabm_do_surface(root _ARG_LOCATION_VARS_HZ_,flux)
+   subroutine fabm_do_surface(self _ARG_LOCATION_VARS_HZ_,flux)
 !
 ! !INPUT PARAMETERS:
-   type (type_model), intent(inout) :: root
-   _DECLARE_LOCATION_ARG_HZ_
+      class (type_model),             intent(inout) :: self
+      _DECLARE_LOCATION_ARG_HZ_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _ATTR_DIMENSIONS_1_HZ_,intent(out)   :: flux
+      real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_1_,intent(out)   :: flux
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer       :: model
+      type (type_model_list_node), pointer :: node
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_SURFACE_EXCHANGE_ _ARGUMENTS_IN_HZ_,flux
-   flux = _ZERO_
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%do_surface(_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
-#endif
-         case (pml_carbonate_id)
-            call pml_carbonate_get_surface_exchange(model%pml_carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
-         ! ADD_NEW_MODEL_HERE - optional, only if the model specifies fluxes of one or
-         ! more of its state variables across the air-water interface.
-         !
-         ! Typical model call:
-         ! call MODELNAME_get_surface_exchange(model%MODELNAME,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
-      end select
-      model => model%nextmodel
-   end do
+      flux = 0.0_rk
+      node => self%models%first
+      do while (associated(node))
+         call node%model%do_surface(_ARGUMENTS_IN_HZ_,flux)
+         node => node%next
+      end do
 
    end subroutine fabm_do_surface
 !EOC
@@ -2248,47 +1718,31 @@
 !
 ! !IROUTINE: Process interaction between benthos and bottom layer of the
 ! pelagic. This calculates the fluxes into all bottom pelagic and benthic variables,
-! in variable quantity per surface area per time. This typically imples variable units * m/s
+! in variable quantity per surface area per time. This typically implies variable units * m/s
 ! [bottom fluxes] for the pelagic, and variable units/s [temporal derivatives] for the benthos.
 ! Positive values denote state variable increases, negative values state variable decreases.
 !
 ! !INTERFACE:
-   subroutine fabm_do_bottom_rhs(root _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
+   subroutine fabm_do_bottom_rhs(self _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),         intent(inout)    :: root
+   class (type_model),             intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _ATTR_DIMENSIONS_1_HZ_,intent(inout) :: flux_pel,flux_ben
+   real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_1_,intent(inout) :: flux_pel,flux_ben
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer               :: model
+   type (type_model_list_node), pointer :: node
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_RHS_ _ARGUMENTS_IN_HZ_,flux_pel,flux_ben
-
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%do_bottom(_INPUT_ARGS_DO_BENTHOS_RHS_)
-#endif
-         case (examples_benthic_predator_id)
-            call examples_benthic_predator_do_benthos(model%examples_benthic_predator,_INPUT_ARGS_DO_BENTHOS_RHS_)
-         case (klimacampus_phy_feedback_id)
-            call klimacampus_phy_feedback_do_benthos(model%klimacampus_phy_feedback,_INPUT_ARGS_DO_BENTHOS_RHS_)
-         ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
-         ! or specifies bottom fluxes for its pelagic state variables.
-         !
-         ! Typical model call:
-         ! call MODELNAME_do_benthos(model%MODELNAME,_INPUT_ARGS_DO_BENTHOS_RHS_)
-      end select
-      model => model%nextmodel
+   node => self%models%first
+   do while (associated(node))
+      call node%model%do_bottom(_ARGUMENTS_IN_HZ_,flux_pel,flux_ben)
+      node => node%next
    end do
 
    end subroutine fabm_do_bottom_rhs
@@ -2303,39 +1757,27 @@
 ! for the pelagic, and variable units/s for the benthos.
 !
 ! !INTERFACE:
-   subroutine fabm_do_bottom_ppdd(root _ARG_LOCATION_VARS_HZ_,pp,dd,benthos_offset)
+   subroutine fabm_do_bottom_ppdd(self _ARG_LOCATION_VARS_HZ_,pp,dd,benthos_offset)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),         intent(inout) :: root
+   class (type_model),        intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
    integer,                   intent(in)    :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _ATTR_DIMENSIONS_2_HZ_,intent(inout) :: pp,dd
+   real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_2_,intent(inout) :: pp,dd
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer               :: model
+   type (type_model_list_node), pointer :: node
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_DO_BENTHOS_PPDD_ _ARGUMENTS_IN_HZ_,pp,dd,benthos_offset
-
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%do_bottom_ppdd(_INPUT_ARGS_DO_BENTHOS_PPDD_)
-#endif
-         ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
-         ! or specifies bottom fluxes for its pelagic state variables.
-         !
-         ! Typical model call:
-         ! call MODELNAME_do_benthos(model%MODELNAME,_INPUT_ARGS_DO_BENTHOS_PPDD_)
-      end select
-      model => model%nextmodel
+   node => self%models%first
+   do while (associated(node))
+      call node%model%do_bottom_ppdd(_ARGUMENTS_IN_HZ_,pp,dd,benthos_offset)
+      node => node%next
    end do
 
    end subroutine fabm_do_bottom_ppdd
@@ -2349,52 +1791,37 @@
 ! and positive values indicate movemment towards the surface, e.g., floating.
 !
 ! !INTERFACE:
-   subroutine fabm_get_vertical_movement(root _ARG_LOCATION_ND_,velocity)
+   subroutine fabm_get_vertical_movement(self _ARG_LOCATION_ND_,velocity)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),           intent(inout) :: root
+   class (type_model),          intent(inout) :: self
    _DECLARE_LOCATION_ARG_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _ATTR_DIMENSIONS_1_,intent(out)  :: velocity
+   real(rk) _DIMENSION_SLICE_PLUS_1_,intent(out)  :: velocity
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer               :: model
-   integer                                  :: i
+   type (type_model_list_node), pointer :: node
+   integer                              :: i
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_VERTICAL_MOVEMENT_ _ARGUMENTS_ND_IN_,velocity
-
    ! First set constant sinking rates.
-   do i=1,size(root%info%state_variables)
-      ! Enter spatial loops (if any)
-      _LOOP_BEGIN_EX_(root%environment)
-
+   do i=1,size(self%root%state_variables)
       ! Use variable-specific constant vertical velocities.
-      velocity _INDEX_VERTICAL_MOVEMENT_(root%info%state_variables(i)%globalid%state_index) = root%info%state_variables(i)%vertical_movement
-
-      ! Leave spatial loops (if any)
+      ! Automatic vectorization by compiler is possible without further modification (ifort 14.0, 2013-12-06)
+      _LOOP_BEGIN_EX_(self%environment)
+         velocity _INDEX_VERTICAL_MOVEMENT_(self%root%state_variables(i)%globalid%state_index) = self%root%state_variables(i)%vertical_movement
       _LOOP_END_
    end do
 
-   model => root%nextmodel
-   do while (associated(model))
-      ! Now allow models to overwrite with spatially-varying sinking rates - if any.
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%get_vertical_movement(_INPUT_ARGS_GET_VERTICAL_MOVEMENT_)
-#endif
-         ! ADD_NEW_MODEL_HERE - optional, only if the model specifies time- and/or space
-         ! varying vertical velocities for one or more state variables.
-         !
-         ! Typical model call:
-         ! call MODELNAME_get_vertical_movement(model%MODELNAME,_INPUT_ARGS_GET_VERTICAL_MOVEMENT_)
-      end select
-      model => model%nextmodel
+   ! Now allow models to overwrite with spatially-varying sinking rates - if any.
+   node => self%models%first
+   do while (associated(node))
+      call node%model%get_vertical_movement(_ARGUMENTS_ND_IN_,velocity)
+      node => node%next
    end do
 
    end subroutine fabm_get_vertical_movement
@@ -2407,58 +1834,26 @@
 ! variables
 !
 ! !INTERFACE:
-   subroutine fabm_get_light_extinction(root _ARG_LOCATION_ND_,extinction)
+   subroutine fabm_get_light_extinction(self _ARG_LOCATION_ND_,extinction)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),           intent(inout) :: root
+   class (type_model),          intent(inout) :: self
    _DECLARE_LOCATION_ARG_ND_
-   real(rk) _ATTR_DIMENSIONS_0_,intent(out)   :: extinction
+   real(rk) _DIMENSION_SLICE_,intent(out)   :: extinction
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL PARAMETERS:
-   real(rk)                                   :: curext,val
-   integer                                    :: i
-   type (type_model), pointer                 :: model
+   type (type_model_list_node), pointer :: node
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_LIGHT_EXTINCTION_ _ARGUMENTS_ND_IN_,extinction
-
-   extinction = _ZERO_
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%get_light_extinction(_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
-#endif
-         case (gotm_npzd_id)
-            call gotm_npzd_get_light_extinction(model%gotm_npzd,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
-         case (gotm_fasham_id)
-            call gotm_fasham_get_light_extinction(model%gotm_fasham,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
-         ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
-         ! state variable specific extinction coefficients.
-         !
-         ! Typical model call:
-         ! call MODELNAME_get_light_extinction(model%MODELNAME,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
-
-         case default
-            ! Default: use constant specific light extinction values specified in the state variable properties
-
-            ! Use variable-specific light extinction coefficients.
-            do i=1,size(model%info%state_variables)
-               curext = model%info%state_variables(i)%specific_light_extinction
-               if (curext/=_ZERO_) then
-                  _LOOP_BEGIN_EX_(root%environment)
-                     _GET_STATE_EX_(root%environment,model%info%state_variables(i)%globalid%p,val)
-                     _SET_EXTINCTION_(val*curext)
-                  _LOOP_END_
-               end if
-            end do
-      end select
-      model => model%nextmodel
+   extinction = 0.0_rk
+   node => self%models%first
+   do while (associated(node))
+      call node%model%get_light_extinction(_ARGUMENTS_ND_IN_,extinction)
+      node => node%next
    end do
 
    end subroutine fabm_get_light_extinction
@@ -2472,43 +1867,26 @@
 ! 1 leaving drag unchanged, and 0 suppressing it completely.
 !
 ! !INTERFACE:
-   subroutine fabm_get_drag(root _ARG_LOCATION_VARS_HZ_,drag)
+   subroutine fabm_get_drag(self _ARG_LOCATION_VARS_HZ_,drag)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),           intent(inout) :: root
+   class (type_model),             intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
-   real(rk) _ATTR_DIMENSIONS_0_HZ_,intent(out)   :: drag
+   real(rk) _DIMENSION_SLICE_HORIZONTAL_,intent(out)   :: drag
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL PARAMETERS:
-   type (type_model), pointer                 :: model
+   type (type_model_list_node), pointer :: node
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_DRAG_ _ARGUMENTS_IN_HZ_,drag
-
-   drag = _ONE_
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%get_drag(_INPUT_ARGS_GET_DRAG_)
-#endif
-         case (klimacampus_phy_feedback_id)
-            call klimacampus_phy_feedback_get_drag(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_DRAG_)
-         ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
-         ! state variable specific extinction coefficients.
-         !
-         ! Typical model call:
-         ! call MODELNAME_get_light_extinction(model%MODELNAME,_INPUT_ARGS_GET_LIGHT_EXTINCTION_)
-
-         case default
-            ! Default: no change in drag
-      end select
-      model => model%nextmodel
+   drag = 1.0_rk
+   node => self%models%first
+   do while (associated(node))
+      call node%model%get_drag(_ARGUMENTS_IN_HZ_,drag)
+      node => node%next
    end do
 
    end subroutine fabm_get_drag
@@ -2521,43 +1899,26 @@
 ! This feedback is represented by an albedo value (0-1) relating to biogeochemistry.
 !
 ! !INTERFACE:
-   subroutine fabm_get_albedo(root _ARG_LOCATION_VARS_HZ_,albedo)
+   subroutine fabm_get_albedo(self _ARG_LOCATION_VARS_HZ_,albedo)
 !
 ! !INPUT PARAMETERS:
-   type (type_model),           intent(inout) :: root
+   class (type_model),             intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
-   real(rk) _ATTR_DIMENSIONS_0_HZ_,intent(out)   :: albedo
+   real(rk) _DIMENSION_SLICE_HORIZONTAL_,intent(out)   :: albedo
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL PARAMETERS:
-   type (type_model), pointer                 :: model
+   type (type_model_list_node), pointer :: node
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_ALBEDO_ _ARGUMENTS_IN_HZ_,albedo
-
-   albedo = _ZERO_
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%get_albedo(_INPUT_ARGS_GET_ALBEDO_)
-#endif
-         case (klimacampus_phy_feedback_id)
-            call klimacampus_phy_feedback_get_albedo(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_ALBEDO_)
-         ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
-         ! state variable specific extinction coefficients.
-         !
-         ! Typical model call:
-         ! call MODELNAME_get_light_extinction(model%MODELNAME,_INPUT_ARGS_GET_ALBEDO_)
-
-         case default
-            ! Default: no change in albedo
-      end select
-      model => model%nextmodel
+   albedo = 0.0_rk
+   node => self%models%first
+   do while (associated(node))
+      call node%model%get_albedo(_ARGUMENTS_IN_HZ_,albedo)
+      node => node%next
    end do
 
    end subroutine fabm_get_albedo
@@ -2566,85 +1927,87 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Get the total of all conserved quantities
+! !IROUTINE: Get the total of all conserved quantities in pelagic domain
 !
 ! !INTERFACE:
-   subroutine fabm_get_conserved_quantities(root _ARG_LOCATION_ND_,sums)
+   subroutine fabm_get_conserved_quantities(self _ARG_LOCATION_ND_,sums)
 !
 ! !INPUT PARAMETERS:
-   type (type_model), intent(inout)         :: root
+   class (type_model), intent(inout)         :: self
    _DECLARE_LOCATION_ARG_ND_
-   real(rk) _ATTR_DIMENSIONS_1_,intent(out) :: sums
+   real(rk) _DIMENSION_SLICE_PLUS_1_,intent(out) :: sums
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   type (type_model), pointer                       :: model
-   integer                                          :: i
-   type (type_conserved_quantity_component),pointer :: component
-   real(rk),pointer _ATTR_LOCATION_DIMENSIONS_      :: p => null()
-   real(rk)                                         :: scale_factor
-
+   integer :: i
 !-----------------------------------------------------------------------
 !BOC
-#define _INPUT_ARGS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_ND_IN_,sums
+   sums = 0.0_rk
 
-   sums = _ZERO_
-
-#ifdef _FABM_F2003_
-   do i=1,size(root%info%conserved_quantities)
-      component => root%info%conserved_quantities(i)%components%first
-      do while (associated(component))
-         p => component%state%p
-         scale_factor = component%scale_factor
+   do i=1,size(self%root%conserved_quantities)
+      if (associated(self%root%conserved_quantities(i)%model)) then
+         call self%root%conserved_quantities(i)%model%evaluate(_ARGUMENTS_ND_IN_)
          _LOOP_BEGIN_EX_(root%environment)
-            sums _INDEX_OUTPUT_1D_(i) = sums _INDEX_OUTPUT_1D_(i) + scale_factor*p _INDEX_LOCATION_
+            sums _INDEX_OUTPUT_1D_(i) = self%environment%diag(_PREARG_LOCATION_ self%root%conserved_quantities(i)%model%id_output%diag_index)
          _LOOP_END_
-         component => component%next
-      end do
-   end do
-#endif
-
-   model => root%nextmodel
-   do while (associated(model))
-      select case (model%id)
-#ifdef _FABM_F2003_
-         case (model_f2003_id)
-            call model%info%get_conserved_quantities(_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
-#endif
-         case (gotm_npzd_id)
-            call gotm_npzd_get_conserved_quantities(model%gotm_npzd,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
-         case (gotm_fasham_id)
-            call gotm_fasham_get_conserved_quantities(model%gotm_fasham,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
-         case (klimacampus_phy_feedback_id)
-            call klimacampus_phy_feedback_get_conserved_quantities(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
-         ! ADD_NEW_MODEL_HERE - optional, required only if the model exports one or more
-         ! conserved quantities.
-         !
-         ! Typical model call:
-         ! call MODELNAME_get_conserved_quantities(model%MODELNAME,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
-
-         case default
-            ! Default: the model does not describe any conserved quantities.
-            if (size(model%info%conserved_quantities)>0) &
-               call fatal_error('fabm_get_conserved_quantities','model '//trim(model%info%name)//' registered &
-                    &one or more conserved quantities, but a function that provides sums of these &
-                    &quantities has not been provided.')
-      end select
-      model => model%nextmodel
+      end if
    end do
 
    end subroutine fabm_get_conserved_quantities
 !EOC
 
-subroutine fabm_update_time(root,t)
-   type (type_model), intent(inout) :: root
-   real(rk),          intent(in)    :: t
-#ifdef _FABM_F2003_
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the total of all conserved quantities at top and bottom boundaries
+!
+! !INTERFACE:
+   subroutine fabm_get_horizontal_conserved_quantities(self _ARG_LOCATION_VARS_HZ_,sums)
+!
+! !INPUT PARAMETERS:
+   class (type_model), intent(inout)            :: self
+   _DECLARE_LOCATION_ARG_HZ_
+   real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_1_,intent(out) :: sums
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!
+   integer :: i
+
+!-----------------------------------------------------------------------
+!BOC
+   sums = 0.0_rk
+
+   do i=1,size(self%root%conserved_quantities)
+      if (associated(self%root%conserved_quantities(i)%horizontal_model)) then
+         call self%root%conserved_quantities(i)%horizontal_model%evaluate_horizontal(_ARGUMENTS_IN_HZ_)
+         _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
+            sums _INDEX_HZ_OUTPUT_1D_(i) = self%environment%diag_hz(_PREARG_LOCATION_HZ_ self%root%conserved_quantities(i)%horizontal_model%id_output%horizontal_diag_index)
+         _HORIZONTAL_LOOP_END_
+      end if
+   end do
+
+   end subroutine fabm_get_horizontal_conserved_quantities
+!EOC
+
+subroutine fabm_state_to_conserved_quantities(self _ARG_LOCATION_ND_,y,sums)
+   class (type_model),               intent(inout)  :: self
+   _DECLARE_LOCATION_ARG_ND_
+   real(rk) _DIMENSION_SLICE_PLUS_1_,intent(in)     :: y
+   real(rk) _DIMENSION_SLICE_PLUS_1_,intent(out)    :: sums
+   call self%root%state_to_conserved_quantities(_ARGUMENTS_ND_IN_,y,sums)
+end subroutine
+
+subroutine fabm_update_time(self,t)
+   class (type_model), intent(inout) :: self
+   real(rk),           intent(in)    :: t
+
    class (type_expression),pointer :: expression
 
-   expression => root%info%first_expression
+   expression => self%root%first_expression
    do while (associated(expression))
       select type (expression)
          class is (type_bulk_temporal_mean)
@@ -2746,7 +2109,7 @@ contains
 
       expression%last_time = t
    end subroutine
-#endif
+
 end subroutine
 
 end module fabm

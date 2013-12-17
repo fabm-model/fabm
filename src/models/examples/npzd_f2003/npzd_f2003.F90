@@ -1,7 +1,5 @@
 #include "fabm_driver.h"
 
-#ifdef _FABM_F2003_
-
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -30,7 +28,6 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
@@ -142,7 +139,7 @@
    dic_variable = ''
    
    ! Read the namelist
-   read(configunit,nml=examples_npzd_f2003,err=99,end=100)
+   if (configunit>0) read(configunit,nml=examples_npzd_f2003,err=99,end=100)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -190,11 +187,10 @@
                      time_treatment=time_treatment_averaged)
 
    ! Register conserved quantities
-   call self%register_conserved_quantity(self%id_totN,standard_variables%total_nitrogen)
-   call self%add_conserved_quantity_component(self%id_totN,self%id_n)
-   call self%add_conserved_quantity_component(self%id_totN,self%id_p)
-   call self%add_conserved_quantity_component(self%id_totN,self%id_z)
-   call self%add_conserved_quantity_component(self%id_totN,self%id_d)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_n)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_p)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_z)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_d)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
@@ -202,9 +198,9 @@
 
    return
 
-99 call fatal_error('examples_npzd_f2003_init','Error reading namelist examples_npzd_f2003.')
+99 call self%fatal_error('examples_npzd_f2003_init','Error reading namelist examples_npzd_f2003.')
 
-100 call fatal_error('examples_npzd_f2003_init','Namelist examples_npzd_f2003 was not found.')
+100 call self%fatal_error('examples_npzd_f2003_init','Namelist examples_npzd_f2003 was not found.')
 
    end subroutine initialize
 !EOC
@@ -549,5 +545,3 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
-
-#endif

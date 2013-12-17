@@ -49,54 +49,50 @@ MODULE aed_models
 
    PRIVATE   ! By default make everything private
 
-   PUBLIC aed_create_model
+   type,extends(type_base_model_factory) :: type_factory
+      contains
+      procedure :: create
+   end type
+
+   type (type_factory),save,target,public :: aed_model_factory
 
 CONTAINS
 !===============================================================================
 
 
 !###############################################################################
-FUNCTION aed_create_model(namlst,modelname,instancename,parent) RESULT(model)
+SUBROUTINE create(self,name,model)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   INTEGER,INTENT(in) :: namlst
-   CHARACTER(*),INTENT(in) :: modelname,instancename
-   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
-!
-!LOCALS
-   _CLASS_ (type_model_info),POINTER :: model
+   CLASS (type_factory),INTENT(in) :: self
+   CHARACTER(*),        INTENT(in) :: name
+   CLASS (type_base_model),POINTER :: model
 !-------------------------------------------------------------------------------
 !BEGIN
-    NULLIFY(model)
 
-    ! print *,'**** Initialising model ',name
-    SELECT case (modelname)
-       case ('aed_sedflux');        model => aed_sedflux_create(namlst,instancename,parent);
-       case ('aed_chlorophylla');   model => aed_chla_create(namlst,instancename,parent);
-       case ('aed_oxygen');         model => aed_oxygen_create(namlst,instancename,parent);
-       case ('aed_silica');         model => aed_silica_create(namlst,instancename,parent);
-       case ('aed_carbon');         model => aed_carbon_create(namlst,instancename,parent);
-       case ('aed_nitrogen');       model => aed_nitrogen_create(namlst,instancename,parent);
-       case ('aed_phosphorus');     model => aed_phosphorus_create(namlst,instancename,parent);
-       case ('aed_organic_matter'); model => aed_organic_matter_create(namlst,instancename,parent);
-       case ('aed_phytoplankton');  model => aed_phytoplankton_create(namlst,instancename,parent);
-       case ('aed_zooplankton');    model => aed_zooplankton_create(namlst,instancename,parent);
-       case ('aed_pathogens');      model => aed_pathogens_create(namlst,instancename,parent);
-       case ('aed_iron');           model => aed_iron_create(namlst,instancename,parent);
-       case ('aed_sulfur');         model => aed_sulfur_create(namlst,instancename,parent);
-       case ('aed_tracer');         model => aed_tracer_create(namlst,instancename,parent);
-!      case ('aed_geochemistry');   model => aed_geochemistry_create(namlst,instancename,parent);
-!      case ('aed_seddiagenesis');  model => aed_seddiagenesis_create(namlst,instancename,parent);
-       case ('aed_bacteria');       model => aed_bacteria_create(namlst,instancename,parent);
-       case ('aed_viruses');        model => aed_viruses_create(namlst,instancename,parent);
-       case ('aed_totals');         model => aed_totals_create(namlst,instancename,parent);
-       case default
-           print *,'*** Unknown module ',modelname
+    SELECT case (name)
+       case ('aed_sedflux');        allocate(type_aed_sedflux::model)
+       case ('aed_chlorophylla');   allocate(type_aed_chla::model)
+       case ('aed_oxygen');         allocate(type_aed_oxygen::model)
+       case ('aed_silica');         allocate(type_aed_silica::model)
+       case ('aed_carbon');         allocate(type_aed_carbon::model)
+       case ('aed_nitrogen');       allocate(type_aed_nitrogen::model)
+       case ('aed_phosphorus');     allocate(type_aed_phosphorus::model)
+       case ('aed_organic_matter'); allocate(type_aed_organic_matter::model)
+       case ('aed_phytoplankton');  allocate(type_aed_phytoplankton::model)
+       case ('aed_zooplankton');    allocate(type_aed_zooplankton::model)
+       case ('aed_pathogens');      allocate(type_aed_pathogens::model)
+       case ('aed_iron');           allocate(type_aed_iron::model)
+       case ('aed_sulfur');         allocate(type_aed_sulfur::model)
+       case ('aed_tracer');         allocate(type_aed_tracer::model)
+!      case ('aed_geochemistry');   allocate(type_aed_geochemistry::model)
+!      case ('aed_seddiagenesis');  allocate(type_aed_seddiagenesis::model)
+       case ('aed_bacteria');       allocate(type_aed_bacteria::model)
+       case ('aed_viruses');        allocate(type_aed_viruses::model)
+       case ('aed_totals');         allocate(type_aed_totals::model)
     END SELECT
 
-!   IF (ASSOCIATED(model)) CALL initialize_model_info(model)
-
-END FUNCTION aed_create_model
+END SUBROUTINE create
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 

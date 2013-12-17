@@ -9,7 +9,6 @@
 #define LEVEL4 STDERR '               ',
 #define FATAL  STDERR 'FATAL ERROR: ',
 
-#ifdef _FABM_F2003_
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -20,7 +19,6 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
 !  default: all is private.
    private
@@ -130,7 +128,7 @@
 !BOC
 
    ! Read the namelist
-   read(configunit,nml=iow_spm,err=99,end=100)
+   if (configunit>0) read(configunit,nml=iow_spm,err=99,end=100)
 
    ! Store parameter values in our own derived type
    self%diameter               = diameter/1e6_rk ! convert to m
@@ -252,9 +250,9 @@
 
    return
 
-99 call fatal_error('iow_spm_create','Error reading namelist iow_spm')
+99 call self%fatal_error('iow_spm_create','Error reading namelist iow_spm')
 
-100 call fatal_error('iow_spm_create','Namelist iow_spm was not found')
+100 call self%fatal_error('iow_spm_create','Namelist iow_spm was not found')
 
    end subroutine initialize
 !EOC
@@ -607,5 +605,3 @@
 
 
    end module fabm_iow_spm
-
-#endif _FABM_F2003_

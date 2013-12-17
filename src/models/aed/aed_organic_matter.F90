@@ -28,13 +28,12 @@ MODULE aed_organic_matter
 ! In future to include adsorption/desorption to suspended solids.
 !-------------------------------------------------------------------------------
    USE fabm_types
-   USE fabm_driver
 
    IMPLICIT NONE
 
    PRIVATE  ! By default make everything private
 !
-   PUBLIC type_aed_organic_matter, aed_organic_matter_create
+   PUBLIC type_aed_organic_matter
 !
    TYPE,extends(type_base_model) :: type_aed_organic_matter
 !     Variable identifiers
@@ -70,7 +69,7 @@ MODULE aed_organic_matter
       LOGICAL  :: use_oxy, use_amm, use_frp, use_dic, use_sed_model, use_sedmtn_model
 
       CONTAINS    ! Model Procedures
-!       procedure :: initialize               => aed_organic_matter_init
+        procedure :: initialize               => aed_organic_matter_init
         procedure :: do                       => aed_organic_matter_do
         procedure :: do_ppdd                  => aed_organic_matter_do_ppdd
         procedure :: do_benthos               => aed_organic_matter_do_benthos
@@ -83,7 +82,7 @@ MODULE aed_organic_matter
 CONTAINS
 
 !###############################################################################
-FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
+SUBROUTINE aed_organic_matter_init(self,configunit)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -91,12 +90,8 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   INTEGER,INTENT(in)                              :: namlst
-   CHARACTER(len=*),INTENT(in)              :: name
-   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
-!
-!LOCALS
-   _CLASS_ (type_aed_organic_matter),POINTER :: self
+   CLASS (type_aed_organic_matter),TARGET,INTENT(INOUT) :: self
+   INTEGER,INTENT(in)                                   :: configunit
 
    real(rk)                  :: pon_initial = 4.5
    real(rk)                  :: don_initial = 4.5
@@ -179,11 +174,8 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
 
 !-------------------------------------------------------------------------------
 !BEGIN
-   ALLOCATE(self)
-   CALL initialize_model_info(self,name,parent)
-
    ! Read the namelist
-   read(namlst,nml=aed_organic_matter,err=99)
+   read(configunit,nml=aed_organic_matter,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -327,9 +319,9 @@ FUNCTION aed_organic_matter_create(namlst,name,parent) RESULT(self)
 
    RETURN
 
-99 CALL fatal_error('aed_organic_matter_init','Error reading namelist aed_organic_matter')
+99 CALL self%fatal_error('aed_organic_matter_init','Error reading namelist aed_organic_matter')
 
-END FUNCTION aed_organic_matter_create
+END SUBROUTINE aed_organic_matter_init
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -339,7 +331,7 @@ SUBROUTINE aed_organic_matter_do(self,_FABM_ARGS_DO_RHS_)
 ! Right hand sides of aed_organic_matter model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   class (type_aed_organic_matter),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
@@ -358,7 +350,7 @@ SUBROUTINE aed_organic_matter_do(self,_FABM_ARGS_DO_RHS_)
 !BEGIN
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
-    !call log_message('model aed_organic_matter enter do loop successfully.')
+    !call self%log_message('model aed_organic_matter enter do loop successfully.')
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_pon,pon) ! particulate organic nitrogen
@@ -447,7 +439,7 @@ SUBROUTINE aed_organic_matter_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   class (type_aed_organic_matter),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
@@ -466,7 +458,7 @@ SUBROUTINE aed_organic_matter_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !BEGIN
    ! Enter spatial loops (if any)
    _FABM_LOOP_BEGIN_
-    !call log_message('model aed_organic_matter enter do loop successfully.')
+    !call self%log_message('model aed_organic_matter enter do loop successfully.')
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_pon,pon) ! particulate organic nitrogen
@@ -564,7 +556,7 @@ SUBROUTINE aed_organic_matter_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   class (type_aed_organic_matter),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS
@@ -682,7 +674,7 @@ SUBROUTINE aed_organic_matter_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTIO
 ! Get the light extinction coefficient due to biogeochemical variables
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   class (type_aed_organic_matter),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
 !LOCALS
@@ -713,7 +705,7 @@ SUBROUTINE aed_organic_matter_get_conserved_quantities(self,_FABM_ARGS_GET_CONSE
 ! Get the total of conserved quantities (currently only nitrogen)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   class (type_aed_organic_matter),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
    real(rk) :: pon, don, pop, dop, poc, doc
@@ -753,7 +745,7 @@ PURE real(rk) FUNCTION fpon_miner(self,oxy,temp)
 ! is formulated.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   class (type_aed_organic_matter),INTENT(in) :: self
    real(rk),INTENT(in) :: oxy,temp
 !
 !-------------------------------------------------------------------------------
@@ -777,7 +769,7 @@ PURE real(rk) FUNCTION fdon_miner(self,oxy,temp)
 ! is formulated.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   class (type_aed_organic_matter),INTENT(in) :: self
    real(rk),INTENT(in)                          :: oxy,temp
 !
 !-------------------------------------------------------------------------------
@@ -804,7 +796,7 @@ PURE real(rk) FUNCTION fpop_miner(self,oxy,temp)
 ! is formulated.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   class (type_aed_organic_matter),INTENT(in) :: self
    real(rk),INTENT(in)                          :: oxy,temp
 !
 !-------------------------------------------------------------------------------
@@ -828,7 +820,7 @@ PURE real(rk) FUNCTION fdop_miner(self,oxy,temp)
 ! is formulated.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   class (type_aed_organic_matter),INTENT(in) :: self
    real(rk),INTENT(in)                          :: oxy,temp
 !
 !-------------------------------------------------------------------------------
@@ -855,7 +847,7 @@ PURE real(rk) FUNCTION fpoc_miner(self,oxy,temp)
 ! is formulated.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   class (type_aed_organic_matter),INTENT(in) :: self
    real(rk),INTENT(in)                          :: oxy,temp
 !
 !-------------------------------------------------------------------------------
@@ -879,7 +871,7 @@ PURE real(rk) FUNCTION fdoc_miner(self,oxy,temp)
 ! is formulated.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_organic_matter),INTENT(in) :: self
+   class (type_aed_organic_matter),INTENT(in) :: self
    real(rk),INTENT(in)                          :: oxy,temp
 !
 !-----------------------------------------------------------------------

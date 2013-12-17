@@ -117,7 +117,11 @@
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>
 		<File RelativePath="..\..\src\models\pml\carbonate\co2_dyn.F90"/></Filter>
 		<Filter Name="ersem">
-		<File RelativePath="..\..\src\models\pml\ersem\ersem.F90"/></Filter></Filter></Filter>
+		<File RelativePath="..\..\src\models\pml\ersem\dom.F90"/>
+		<File RelativePath="..\..\src\models\pml\ersem\gas_dynamics.F90"/>
+		<File RelativePath="..\..\src\models\pml\ersem\nutrients.F90"/>
+		<File RelativePath="..\..\src\models\pml\ersem\pom.F90"/>
+		<File RelativePath="..\..\src\models\pml\ersem\vphyt1.F90"/></Filter></Filter></Filter>
 		<File RelativePath="..\..\src\fabm.F90"/>
 		<File RelativePath="..\..\src\fabm_library.F90"/>
 		<File RelativePath="..\..\src\fabm_properties.F90"/>

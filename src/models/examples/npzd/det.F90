@@ -1,5 +1,3 @@
-#ifdef _FABM_F2003_
-
 #include "fabm_driver.h"
 !-----------------------------------------------------------------------
 !BOP
@@ -16,7 +14,6 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
    
    implicit none
 
@@ -27,7 +24,6 @@
 !     Variable identifiers
       type (type_state_variable_id)     :: id_d
       type (type_state_variable_id)     :: id_mintarget
-      type (type_conserved_quantity_id) :: id_totN
 
 !     Model parameters
       real(rk) :: rdn
@@ -80,7 +76,7 @@
    mineralisation_target_variable = ''
 
    ! Read the namelist
-   read(configunit,nml=examples_npzd_det,err=99)
+   if (configunit>=0) read(configunit,nml=examples_npzd_det,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -96,12 +92,11 @@
    self%do_min = mineralisation_target_variable/=''
    if (self%do_min) call self%register_state_dependency(self%id_mintarget,mineralisation_target_variable)
 
-   call self%register_conserved_quantity(self%id_totN,standard_variables%total_nitrogen)
-   call self%add_conserved_quantity_component(self%id_totN,self%id_d)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_d)
 
    return
 
-99 call fatal_error('examples_npzd_det_init','Error reading namelist examples_npzd_det')
+99 call self%fatal_error('examples_npzd_det_init','Error reading namelist examples_npzd_det')
 
    end subroutine initialize
 !EOC
@@ -189,5 +184,3 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
-
-#endif

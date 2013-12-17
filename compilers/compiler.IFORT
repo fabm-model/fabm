@@ -1,7 +1,6 @@
 # Set options for the Intel Fortran compiler
 ifeq ($(FORTRAN_COMPILER),IFORT)
 FC=ifort
-DEFINES += -D_ISO_TR_15581_
 MODULES=-module $(MODDIR)
 EXTRAS  = -fPIC -stand f03 -warn nounused -nowarn #5268
 DEBUG_FLAGS = -g -C -traceback

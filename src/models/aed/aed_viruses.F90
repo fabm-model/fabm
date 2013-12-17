@@ -28,13 +28,12 @@ MODULE aed_viruses
 ! soluable reactive viruses across the air/water interface and sediment flux.
 !-------------------------------------------------------------------------------
    USE fabm_types
-   USE fabm_driver
 
    IMPLICIT NONE
 
    PRIVATE
 !
-   PUBLIC type_aed_viruses, aed_viruses_create
+   PUBLIC type_aed_viruses
 !
    TYPE,extends(type_base_model) :: type_aed_viruses
 !     Variable identifiers
@@ -48,7 +47,7 @@ MODULE aed_viruses
 !     LOGICAL  :: use_oxy,use_vir
 
       CONTAINS      ! Model Methods
-!       procedure :: initialize               => aed_viruses_init
+        procedure :: initialize               => aed_viruses_init
         procedure :: do                       => aed_viruses_do
         procedure :: do_ppdd                  => aed_viruses_do_ppdd
         procedure :: do_benthos               => aed_viruses_do_benthos
@@ -61,7 +60,7 @@ CONTAINS
 
 
 !###############################################################################
-FUNCTION aed_viruses_create(namlst,name,parent) RESULT(self)
+SUBROUTINE aed_viruses_init(self,configunit)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -69,12 +68,10 @@ FUNCTION aed_viruses_create(namlst,name,parent) RESULT(self)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   INTEGER,INTENT(in)                       :: namlst
-   CHARACTER(len=*),INTENT(in)              :: name
-   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
+   CLASS (type_aed_viruses),TARGET,INTENT(INOUT) :: self
+   INTEGER,INTENT(in)                            :: configunit
 !
 !LOCALS
-   _CLASS_ (type_aed_viruses),POINTER :: self
 
    real(rk)          :: num_viruses
 
@@ -84,13 +81,10 @@ FUNCTION aed_viruses_create(namlst,name,parent) RESULT(self)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   ALLOCATE(self)
-   CALL initialize_model_info(self,name,parent)
-
    print *,"WARNING! aed_viruses model is currently under development"
 
    ! Read the namelist
-   read(namlst,nml=aed_viruses,err=99)
+   read(configunit,nml=aed_viruses,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -114,9 +108,9 @@ FUNCTION aed_viruses_create(namlst,name,parent) RESULT(self)
 
    RETURN
 
-99 CALL fatal_error('aed_viruses_init','Error reading namelist aed_viruses')
+99 CALL self%fatal_error('aed_viruses_init','Error reading namelist aed_viruses')
 
-END FUNCTION aed_viruses_create
+END SUBROUTINE aed_viruses_init
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -126,7 +120,7 @@ SUBROUTINE aed_viruses_do(self,_FABM_ARGS_DO_RHS_)
 ! Right hand sides of aed_viruses model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_viruses),INTENT(in) :: self
+   class (type_aed_viruses),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
@@ -161,7 +155,7 @@ SUBROUTINE aed_viruses_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_viruses),INTENT(in) :: self
+   class (type_aed_viruses),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
@@ -197,7 +191,7 @@ SUBROUTINE aed_viruses_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_viruses),INTENT(in) :: self
+   class (type_aed_viruses),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS
@@ -239,7 +233,7 @@ SUBROUTINE aed_viruses_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QU
 ! Get the total of conserved quantities (currently only viruses)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   _CLASS_ (type_aed_viruses),INTENT(in) :: self
+   class (type_aed_viruses),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS

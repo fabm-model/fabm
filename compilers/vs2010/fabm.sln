@@ -24,6 +24,16 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "turbulence", "%GOTMDIR%\com
 		{12FF14CF-D057-46BD-8BD3-8C957A1016DC} = {12FF14CF-D057-46BD-8BD3-8C957A1016DC}
 	EndProjectSection
 EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "fabm_python-f90", "fabm_python-f90.vfproj", "{30B75A58-40FE-4D39-BCBE-0B50BC95665E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7D63F885-F1D8-469C-A076-488A23EB592B} = {7D63F885-F1D8-469C-A076-488A23EB592B}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fabm_python-c++", "fabm_python-c++.vcxproj", "{AABA89F4-40E4-4269-817F-0E37191728F2}"
+	ProjectSection(ProjectDependencies) = postProject
+		{30B75A58-40FE-4D39-BCBE-0B50BC95665E} = {30B75A58-40FE-4D39-BCBE-0B50BC95665E}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -62,6 +72,21 @@ Global
 		{195325CC-732D-4F1C-ABAD-A9B118351236}.Release|Win32.ActiveCfg = Release|Win32
 		{195325CC-732D-4F1C-ABAD-A9B118351236}.Release|Win32.Build.0 = Release|Win32
 		{195325CC-732D-4F1C-ABAD-A9B118351236}.Release|x64.ActiveCfg = Release|Win32
+		{30B75A58-40FE-4D39-BCBE-0B50BC95665E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{30B75A58-40FE-4D39-BCBE-0B50BC95665E}.Debug|Win32.Build.0 = Debug|Win32
+		{30B75A58-40FE-4D39-BCBE-0B50BC95665E}.Debug|x64.ActiveCfg = Debug|x64
+		{30B75A58-40FE-4D39-BCBE-0B50BC95665E}.Debug|x64.Build.0 = Debug|x64
+		{30B75A58-40FE-4D39-BCBE-0B50BC95665E}.Release|Win32.ActiveCfg = Release|Win32
+		{30B75A58-40FE-4D39-BCBE-0B50BC95665E}.Release|Win32.Build.0 = Release|Win32
+		{30B75A58-40FE-4D39-BCBE-0B50BC95665E}.Release|x64.ActiveCfg = Release|Win32
+		{AABA89F4-40E4-4269-817F-0E37191728F2}.Debug|Win32.ActiveCfg = Debug|Win32
+		{AABA89F4-40E4-4269-817F-0E37191728F2}.Debug|Win32.Build.0 = Debug|Win32
+		{AABA89F4-40E4-4269-817F-0E37191728F2}.Debug|x64.ActiveCfg = Debug|x64
+		{AABA89F4-40E4-4269-817F-0E37191728F2}.Debug|x64.Build.0 = Debug|x64
+		{AABA89F4-40E4-4269-817F-0E37191728F2}.Release|Win32.ActiveCfg = Release|Win32
+		{AABA89F4-40E4-4269-817F-0E37191728F2}.Release|Win32.Build.0 = Release|Win32
+		{AABA89F4-40E4-4269-817F-0E37191728F2}.Release|x64.ActiveCfg = Release|x64
+		{AABA89F4-40E4-4269-817F-0E37191728F2}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

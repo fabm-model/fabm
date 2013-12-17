@@ -1,7 +1,6 @@
 # Set options for the GNU Fortran compiler
 ifeq ($(FORTRAN_COMPILER),GFORTRAN)
 FC=gfortran
-DEFINES += -D_ISO_TR_15581_
 MODULES=-J$(MODDIR)
 EXTRAS = -ffree-form -Wall -std=f2003 -pedantic -ffree-line-length-none -Wno-unused-dummy-argument
 DEBUG_FLAGS = -g -fcheck=all -fbacktrace

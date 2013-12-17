@@ -227,7 +227,6 @@
 !        BORATE IS NOT INCLUDED IN THE CALCULATION. FOR ICONST=4,5,6 CO
 !        REPRESENTS TOTAL ALKALINITY (CARBONATE + BORATE), THE COMPONEN
 !        WHICH ARE GIVEN IN CONCS(8) AND CONCS(9)
-      use fabm_driver,only:fatal_error
       use fabm_types
 
       IMPLICIT NONE
@@ -249,23 +248,23 @@
       T = TD
 
 !     IF(T.LT.TMIN.OR.T.GT.TMAX)WRITE (*,*) P, S, T, TMIN, TMAX
-      IF(P.LT.PMIN.OR.P.GT.PMAX) call fatal_error('POLYCO','PRESSURE OUT OF RANGE')
-      IF(S.LT.SMIN.OR.S.GT.SMAX) call fatal_error('POLYCO','SALINITY OUT OF RANGE')
-      IF(T.LT.TMIN.OR.T.GT.TMAX) call fatal_error('POLYCO','TEMP. OUT OF RANGE')
+      IF(P.LT.PMIN.OR.P.GT.PMAX) call driver%fatal_error('POLYCO','PRESSURE OUT OF RANGE')
+      IF(S.LT.SMIN.OR.S.GT.SMAX) call driver%fatal_error('POLYCO','SALINITY OUT OF RANGE')
+      IF(T.LT.TMIN.OR.T.GT.TMAX) call driver%fatal_error('POLYCO','TEMP. OUT OF RANGE')
       IF(ICALC.LT.MINCAL.OR.ICALC.GT.MAXCAL)  &
-     &  call fatal_error('POLYCO','ICALC OUT OR RANGE')
+     &  call driver%fatal_error('POLYCO','ICALC OUT OR RANGE')
       IF(ICONST.LT.MINCON.OR.ICONST.GT.MAXCON)  &
-     &  call fatal_error('POLYCO','ICONST OUT OF RANGE')
+     &  call driver%fatal_error('POLYCO','ICONST OUT OF RANGE')
       BORON=(ICONST.GT.3)
       IF(BORON) THEN
         IC=ICONST-3
         BTOT=0.0004128D0*S/35.0D0
-        IF(NCONC.NE.MAXJC) call fatal_error('POLYCO','WRONG NCONC VALUE')
-        IF(NKVAL.NE.MAXJK) call fatal_error('POLYCO','WRONG NKVAL VALUE')
+        IF(NCONC.NE.MAXJC) call driver%fatal_error('POLYCO','WRONG NCONC VALUE')
+        IF(NKVAL.NE.MAXJK) call driver%fatal_error('POLYCO','WRONG NKVAL VALUE')
       ELSE
         IC=ICONST
-        IF(NCONC.NE.MINJC) call fatal_error('POLYCO','WRONG NCONC VALUE')
-        IF(NKVAL.NE.MINJK) call fatal_error('POLYCO','WRONG NKVAL VALUE')
+        IF(NCONC.NE.MINJC) call driver%fatal_error('POLYCO','WRONG NCONC VALUE')
+        IF(NKVAL.NE.MINJK) call driver%fatal_error('POLYCO','WRONG NKVAL VALUE')
       ENDIF
 
       CALL CO2SET(P,T,S,AKVAL,NKVAL,IC)
@@ -275,7 +274,7 @@
       if (concs(4).eq.100.) then
          write (*,*) 'S,T,P',S,T,P
          write (*,*) 'CONCS',CONCS
-         call fatal_error('co2_dyn:POLYCO','Haltafall iteration did not converge.')
+         call driver%fatal_error('co2_dyn:POLYCO','Haltafall iteration did not converge.')
       end if
 
       RETURN

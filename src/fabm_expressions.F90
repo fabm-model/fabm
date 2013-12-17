@@ -5,16 +5,13 @@
 module fabm_expressions
 
    use fabm_types
-   use fabm_driver
 
    implicit none
 
    private
 
-#ifdef _FABM_F2003_
-
-   public temporal_mean,vertical_mean
-   public type_bulk_temporal_mean,type_horizontal_temporal_mean,type_vertical_mean
+   public temporal_mean,vertical_mean,vertical_integral
+   public type_bulk_temporal_mean,type_horizontal_temporal_mean,type_vertical_integral
 
    type,extends(type_bulk_expression) :: type_bulk_temporal_mean
       real(rk) :: period   ! Time period to average over (s)
@@ -23,7 +20,7 @@ module fabm_expressions
       integer  :: ioldest = -1
 
       type (type_bulk_data_pointer),pointer :: in
-      real(rk),_ALLOCATABLE_ _ATTR_LOCATION_DIMENSIONS_PLUS_ONE_ :: history _NULL_
+      real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_ :: history 
    end type
 
    type,extends(type_horizontal_expression) :: type_horizontal_temporal_mean
@@ -33,12 +30,13 @@ module fabm_expressions
       integer  :: ioldest = -1
 
       type (type_horizontal_data_pointer),pointer :: in
-      real(rk),_ALLOCATABLE_ _ATTR_LOCATION_DIMENSIONS_HZ_PLUS_ONE_ :: history _NULL_
+      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: history 
    end type
 
-   type,extends(type_horizontal_expression) :: type_vertical_mean
+   type,extends(type_horizontal_expression) :: type_vertical_integral
       real(rk) :: minimum_depth = 0.0_rk        ! Depth below surface in m (positive)
       real(rk) :: maximum_depth = huge(1.0_rk)  ! Depth below surface in m (positive)
+      logical  :: average       = .false.       ! Whether to divide the depth integral by water depth, thus computing the vertical average
 
       type (type_bulk_data_pointer),pointer :: in  => null()
    end type
@@ -49,75 +47,86 @@ module fabm_expressions
    end interface
 
 contains
+   function vertical_mean(input,minimum_depth,maximum_depth) result(expression)
+      type (type_dependency_id), intent(inout),target   :: input
+      real(rk),                  intent(in),   optional :: minimum_depth,maximum_depth
+      type (type_vertical_integral)                     :: expression
+      expression = vertical_integral(input,minimum_depth,maximum_depth,average=.true.)
+   end function
 
-function vertical_mean(input,minimum_depth,maximum_depth) result(expression)
-   type (type_dependency_id), intent(inout),target   :: input
-   real(rk),                  intent(in),   optional :: minimum_depth,maximum_depth
+   function vertical_integral(input,minimum_depth,maximum_depth,average) result(expression)
+      type (type_dependency_id), intent(inout),target   :: input
+      real(rk),                  intent(in),   optional :: minimum_depth,maximum_depth
+      logical,                   intent(in),   optional :: average
+      type (type_vertical_integral)                     :: expression
 
-   type (type_vertical_mean) :: expression
-   character(len=attribute_length) :: postfix
+      character(len=attribute_length) :: postfix
 
-   if (input%name=='') call fatal_error('fabm_expressions::vertical_mean', &
-      'Input variable has not been registered yet.')
+      if (.not.associated(input%link)) call driver%fatal_error('fabm_expressions::vertical_mean', &
+         'Input variable has not been registered yet.')
 
-   ! Create a name for the expression
-   postfix = ''
-   if (present(minimum_depth).and.present(maximum_depth)) then
-      if (minimum_depth>maximum_depth) call fatal_error('fabm_expressions::vertical_mean', &
-         'Minimum depth exceeds maximum depth.')
-      write (postfix,'(a,i0,a,i0,a)') '_between_',int(minimum_depth),'_m_and_',int(maximum_depth),'_m'
-   elseif (present(minimum_depth)) then
-      write (postfix,'(a,i0,a)') '_below_',int(minimum_depth),'_m'
-   elseif (present(maximum_depth)) then
-      write (postfix,'(a,i0,a)') '_above_',int(maximum_depth),'_m'
-   end if
-   expression%output_name = 'vertical_mean_'//trim(input%name)//trim(postfix)
+      ! Create a name for the expression
+      postfix = ''
+      if (present(minimum_depth).and.present(maximum_depth)) then
+         if (minimum_depth>maximum_depth) call driver%fatal_error('fabm_expressions::vertical_mean', &
+            'Minimum depth exceeds maximum depth.')
+         write (postfix,'(a,i0,a,i0,a)') '_between_',int(minimum_depth),'_m_and_',int(maximum_depth),'_m'
+      elseif (present(minimum_depth)) then
+         write (postfix,'(a,i0,a)') '_below_',int(minimum_depth),'_m'
+      elseif (present(maximum_depth)) then
+         write (postfix,'(a,i0,a)') '_above_',int(maximum_depth),'_m'
+      end if
+      if (present(average)) expression%average = average
 
-   expression%in => input%data
-   if (present(minimum_depth)) expression%minimum_depth = minimum_depth
-   if (present(maximum_depth)) expression%maximum_depth = maximum_depth
-end function
+      if (expression%average) then
+         expression%output_name = 'vertical_mean_'//trim(input%link%name)//trim(postfix)
+      else
+         expression%output_name = 'integral_of_'//trim(input%link%name)//'_wrt_depth'//trim(postfix)
+      end if
 
-function bulk_temporal_mean(input,period,resolution) result(expression)
-   type (type_dependency_id), intent(inout),target   :: input
-   real(rk),                  intent(in)             :: period,resolution
+      expression%in => input%data
+      if (present(minimum_depth)) expression%minimum_depth = minimum_depth
+      if (present(maximum_depth)) expression%maximum_depth = maximum_depth
+   end function
 
-   type (type_bulk_temporal_mean) :: expression
-   character(len=attribute_length) :: prefix,postfix
+   function bulk_temporal_mean(input,period,resolution) result(expression)
+      type (type_dependency_id), intent(inout),target   :: input
+      real(rk),                  intent(in)             :: period,resolution
 
-   if (input%name=='') call fatal_error('fabm_expressions::bulk_temporal_mean', &
-      'Input variable has not been registered yet.')
+      type (type_bulk_temporal_mean) :: expression
+      character(len=attribute_length) :: prefix,postfix
 
-   ! Create a name for the expression
-   write (prefix,'(i0,a)') int(period),'_s_mean_'
-   write (postfix,'(a,i0,a)') '_at_',int(resolution),'_s_resolution'
-   expression%output_name = trim(prefix)//trim(input%name)//trim(postfix)
+      if (.not.associated(input%link)) call driver%fatal_error('fabm_expressions::bulk_temporal_mean', &
+         'Input variable has not been registered yet.')
 
-   expression%in => input%data
-   expression%n = nint(period/resolution)
-   expression%period = period
-end function
+      ! Create a name for the expression
+      write (prefix,'(i0,a)') int(period),'_s_mean_'
+      write (postfix,'(a,i0,a)') '_at_',int(resolution),'_s_resolution'
+      expression%output_name = trim(prefix)//trim(input%link%name)//trim(postfix)
 
-function horizontal_temporal_mean(input,period,resolution) result(expression)
-   type (type_horizontal_dependency_id),intent(inout),target   :: input
-   real(rk),                            intent(in)             :: period,resolution
+      expression%in => input%data
+      expression%n = nint(period/resolution)
+      expression%period = period
+   end function
 
-   type (type_horizontal_temporal_mean) :: expression
-   character(len=attribute_length) :: prefix,postfix
+   function horizontal_temporal_mean(input,period,resolution) result(expression)
+      type (type_horizontal_dependency_id),intent(inout),target   :: input
+      real(rk),                            intent(in)             :: period,resolution
 
-   if (input%name=='') call fatal_error('fabm_expressions::horizontal_temporal_mean', &
-      'Input variable has not been registered yet.')
+      type (type_horizontal_temporal_mean) :: expression
+      character(len=attribute_length) :: prefix,postfix
 
-   ! Create a name for the expression
-   write (prefix,'(i0,a)') int(period),'_s_mean_'
-   write (postfix,'(a,i0,a)') '_at_',int(resolution),'_s_resolution'
-   expression%output_name = trim(prefix)//trim(input%name)//trim(postfix)
+      if (.not.associated(input%link)) call driver%fatal_error('fabm_expressions::horizontal_temporal_mean', &
+         'Input variable has not been registered yet.')
 
-   expression%in => input%horizontal_data
-   expression%n = nint(period/resolution)
-   expression%period = period
-end function
+      ! Create a name for the expression
+      write (prefix,'(i0,a)') int(period),'_s_mean_'
+      write (postfix,'(a,i0,a)') '_at_',int(resolution),'_s_resolution'
+      expression%output_name = trim(prefix)//trim(input%link%name)//trim(postfix)
 
-#endif
+      expression%in => input%horizontal_data
+      expression%n = nint(period/resolution)
+      expression%period = period
+   end function
 
 end module fabm_expressions

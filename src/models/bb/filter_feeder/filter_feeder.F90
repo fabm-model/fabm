@@ -1,7 +1,5 @@
 #include "fabm_driver.h"
 
-#ifdef _FABM_F2003_
-   
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -25,7 +23,6 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
@@ -90,7 +87,7 @@
    prey_source_variable = ''
 
    ! Read the namelist
-   read(configunit,nml=bb_filter_feeder,err=99,end=100)
+   if (configunit>0) read(configunit,nml=bb_filter_feeder,err=99,end=100)
 
    ! Register state variables
    call self%register_state_variable(self%id_consumed_prey,'consumed_prey','','consumed prey',0.0_rk,minimum=0.0_rk)
@@ -105,8 +102,8 @@
 
    return
 
-99 call fatal_error('bb_filter_feeder_init','Error reading namelist bb_filter_feeder')
-100 call fatal_error('bb_filter_feeder_init','Namelist bb_filter_feeder was not found')
+99 call self%fatal_error('bb_filter_feeder_init','Error reading namelist bb_filter_feeder')
+100 call self%fatal_error('bb_filter_feeder_init','Namelist bb_filter_feeder was not found')
 
    end subroutine initialize
 !EOC
@@ -162,5 +159,3 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
-
-#endif
