@@ -1301,6 +1301,7 @@ subroutine append_model_pointer(array,data)
 
    ! Add pointer to provided data to the list.
    array(size(array))%p => data
+   array(size(array))%p%p => array(1)%p%p
 end subroutine append_model_pointer
 
 subroutine append_string(array,string,exists)
@@ -2979,7 +2980,6 @@ subroutine merge_model_references(master,slave)
    integer :: i
 
    do i=1,size(slave%pointers)
-      slave%pointers(1)%p%p => master%pointers(1)%p%p
       call append_model_pointer(master%pointers,slave%pointers(i)%p)
    end do
 end subroutine merge_model_references

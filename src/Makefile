@@ -1,7 +1,7 @@
 include Rules.make
 
 SUBDIRS = models
-SUBDIRS = models drivers
+SUBDIRS = models drivers config
 
 DOCSRC	= fabm.F90 fabm_types.F90
 
