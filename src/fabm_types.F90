@@ -481,7 +481,7 @@
       type (type_aggregate_variable),pointer :: first_aggregate_variable => null()
 
       type (type_property_dictionary) :: parameters
-      type (type_set)                 :: retrieved_parameters
+      type (type_set)                 :: retrieved_parameters, missing_parameters
 
       class (type_expression), pointer :: first_expression => null()
 
@@ -2382,9 +2382,8 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_fa
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%fatal_error('get_real_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" is not provided.')
-   
+   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
+
    ! Store parameter settings
    allocate(current_parameter)
    current_parameter%value = value
@@ -2445,8 +2444,7 @@ recursive subroutine get_integer_parameter(self,value,name,units,long_name,defau
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%fatal_error('get_integer_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" is not provided.')
+   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
 
    ! Store parameter settings
    allocate(current_parameter)
@@ -2506,8 +2504,7 @@ recursive subroutine get_logical_parameter(self,value,name,units,long_name,defau
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%fatal_error('get_logical_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" is not provided.')
+   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
 
    ! Store parameter settings
    allocate(current_parameter)
@@ -2565,8 +2562,7 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%fatal_error('get_string_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" is not provided.')
+   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
 
    ! Store parameter settings
    allocate(current_parameter)

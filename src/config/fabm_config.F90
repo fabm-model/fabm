@@ -171,6 +171,10 @@ contains
       call parent%add_child(model,instancename,long_name,configunit=-1)
       call driver%log_message('model "'//trim(instancename)//'" initialized successfully.')
 
+      ! Check for parameters requested by the model, but not present in the configuration file.
+      if (associated(model%missing_parameters%first)) call driver%fatal_error('create_model_from_dictionary', &
+         'Value for parameter "'//trim(model%missing_parameters%first%string)//'" of model "'//trim(instancename)//'" is not provided.')
+
       ! Check for parameters present in configuration file, but not interpreted by the models.
       property => model%parameters%first
       do while (associated(property))
