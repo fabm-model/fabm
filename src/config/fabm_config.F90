@@ -6,11 +6,12 @@ module fabm_config
 
    use fabm_types
    use fabm_properties,only:type_property_dictionary,type_property,type_set
-   use fabm_library
    use fabm,only:type_model,fabm_initialize
 
    use fabm_config_types
    use fabm_yaml,yaml_parse=>parse,yaml_error_length=>error_length
+
+   use fabm_library
 
    implicit none
 
