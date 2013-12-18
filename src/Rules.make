@@ -86,21 +86,21 @@ endif
 ifeq ($(compilation),debug)
 buildtype = _debug
 DEFINES += -DDEBUG $(STATIC)
-FLAGS   = $(DEBUG_FLAGS) 
+FLAGS   = $(DEBUG_FLAGS)
 endif
 
 # Sets options for profiling compilation
 ifeq ($(compilation),profiling)
 buildtype = _prof
 DEFINES += -DPROFILING $(STATIC)
-FLAGS   = $(PROF_FLAGS) 
+FLAGS   = $(PROF_FLAGS)
 endif
 
 # Sets options for production compilation
 ifeq ($(compilation),production)
 buildtype = _prod
 DEFINES += -DPRODUCTION $(STATIC)
-FLAGS   = $(PROD_FLAGS) 
+FLAGS   = $(PROD_FLAGS)
 endif
 
 include $(FABMDIR)/compilers/compiler.$(FORTRAN_COMPILER)
