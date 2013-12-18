@@ -3880,7 +3880,7 @@ end subroutine
 
    subroutine base_driver_fatal_error(self,location,message)
       class (type_base_driver), intent(inout) :: self
-      character(len=*),       intent(in)    :: location,message
+      character(len=*),         intent(in)    :: location,message
 
       write (*,*) trim(location)//': '//trim(message)
       stop 1
@@ -3888,7 +3888,7 @@ end subroutine
 
    subroutine base_driver_log_message(self,message)
       class (type_base_driver), intent(inout) :: self
-      character(len=*),       intent(in)    :: message
+      character(len=*),         intent(in)    :: message
 
       write (*,*) trim(message)
    end subroutine

@@ -22,7 +22,7 @@
     <ProjectGuid>{AABA89F4-40E4-4269-817F-0E37191728F2}</ProjectGuid>
     <RootNamespace>c++</RootNamespace>
     <Keyword>Win32Proj</Keyword>
-    <ProjectName>fabm_python-c++</ProjectName>
+    <ProjectName>fabm-python-c++</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -91,7 +91,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>python26.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)model.pyd</OutputFile>
+      <OutputFile>$(OutDir)fabm_fortran.pyd</OutputFile>
       <AdditionalLibraryDirectories>$(PythonDir)\libs;$(IFORT_COMPILER13)\compiler\lib\ia32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>python26_d.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -147,7 +147,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>python26.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)model.pyd</OutputFile>
+      <OutputFile>$(OutDir)fabm_fortran.pyd</OutputFile>
       <AdditionalLibraryDirectories>$(PythonDir)\libs;$(IFORT_COMPILER13)\compiler\lib\ia32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
@@ -163,6 +163,7 @@
       </DataExecutionPrevention>
       <ImportLibrary>$(OutDir)c++.lib</ImportLibrary>
       <TargetMachine>MachineX86</TargetMachine>
+      <IgnoreSpecificDefaultLibraries>python26_d.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -180,7 +181,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>fabm_python-f90.lib;python27.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)model.pyd</OutputFile>
+      <OutputFile>$(OutDir)fabm_fortran.pyd</OutputFile>
       <AdditionalLibraryDirectories>$(OutDir)\..\fabm_python-f90;$(Python64Dir)\libs;$(IFORT_COMPILER14)\compiler\lib\intel64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>

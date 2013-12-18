@@ -23,13 +23,13 @@
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
 				<Tool Name="VFPreLinkEventTool"/>
-				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPreBuildEventTool" CommandLine="&quot;$(Python64Dir)\Scripts\f2py.exe&quot; &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.F90&quot; -m fabm --no-lower --overwrite-signature"/>
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug|x64" OutputDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" ConfigurationType="typeStaticLibrary">
 				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\python;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_" StandardWarnings="standardWarningsF03" StandardWarningsAsErrors="true" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" Traceback="true" RuntimeChecks="rtChecksAll" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
-				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFLibrarianTool" LinkLibraryDependencies="true"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -40,7 +40,7 @@
 		<Configuration Name="Release|x64" OutputDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" ConfigurationType="typeStaticLibrary">
 				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\python;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_" VectorizerDiagLevel="vectorizerDiagLevel3" WarnUnusedVariables="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
-				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFLibrarianTool" LinkLibraryDependencies="true"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -85,7 +85,6 @@
 		<File RelativePath="..\..\src\config\fabm_yaml.F90"/></Filter>
 		<Filter Name="driver">
 		<File RelativePath=".\fabm-f2pywrappers2.f90"/>
-		<File RelativePath="..\..\src\drivers\python\fabm_driver.F90"/>
 		<File RelativePath="..\..\src\drivers\python\fabm_python.F90"/>
 		<File RelativePath="..\..\src\drivers\python\helper.F90"/></Filter></Filter></Files>
 	<Globals/></VisualStudioProject>

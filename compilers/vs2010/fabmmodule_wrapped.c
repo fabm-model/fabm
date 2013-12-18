@@ -14,4 +14,4 @@
 	#undef _SAVE_DEBUG
 #endif
 
-#include "fabm_fortranmodule.c"
+#include "fabmmodule.c"

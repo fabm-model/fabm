@@ -1,7 +1,6 @@
 include Rules.make
 
-SUBDIRS = models
-SUBDIRS = models drivers config
+SUBDIRS = models config
 
 DOCSRC	= fabm.F90 fabm_types.F90
 
@@ -17,14 +16,9 @@ makedirs:
 config: $(FABMMOD)
 	$(MAKE) -C config
 
-$(FABMBASE): driver
-
-driver:
-	$(MAKE) -C drivers/$(FABMHOST)
-
 $(FABMMOD): models $(FABMMODELLIB)
 
-models: driver $(FABMBASE)
+models: $(FABMBASE)
 	$(MAKE) -C models
 
 0d getm gotm mossco python:
@@ -46,4 +40,4 @@ distclean: realclean
 	$(RM) -r doc
 	$(RM) -r $(FABMDIR)/modules/ $(FABMDIR)/lib/
 
-.PHONY: makedirs models driver config
+.PHONY: all makedirs models config doc clean realclean distclean
