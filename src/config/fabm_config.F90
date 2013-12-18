@@ -233,7 +233,7 @@ contains
          link => link%next
       end do
 
-      model%check_conservation = mapping_get_logical(mapping,'check_conservation',model%check_conservation)
+      model%check_conservation = mapping_get_logical(node,'check_conservation',model%check_conservation)
 
       ! Check whether any keys at the model level remain unused.
       pair => node%first
