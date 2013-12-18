@@ -9,8 +9,10 @@ module fabm_config_types
    integer,parameter :: string_length = 1024
 
    type,abstract :: type_node
+      character(len=string_length) :: path = ''
    contains
       procedure (node_dump),deferred :: dump
+      procedure                      :: set_path => node_set_path
    end type
 
    abstract interface
@@ -38,18 +40,19 @@ module fabm_config_types
    type,extends(type_node) :: type_dictionary
       type (type_key_value_pair),pointer :: first => null()
    contains
-      procedure :: get        => mapping_get
-      procedure :: get_string => mapping_get_string
-      procedure :: set        => mapping_set
-      procedure :: set_string => mapping_set_string
-      procedure :: dump       => mapping_dump
-      procedure :: flatten    => mapping_flatten
-      procedure :: reset_accessed => mapping_reset_accessed
+      procedure :: get            => dictionary_get
+      procedure :: get_string     => dictionary_get_string
+      procedure :: set            => dictionary_set
+      procedure :: set_string     => dictionary_set_string
+      procedure :: dump           => dictionary_dump
+      procedure :: flatten        => dictionary_flatten
+      procedure :: reset_accessed => dictionary_reset_accessed
+      procedure :: set_path       => dictionary_set_path
    end type
    
 contains
 
-   function mapping_get_string(self,key,default) result(value)
+   function dictionary_get_string(self,key,default) result(value)
       class (type_dictionary),intent(in) :: self
       character(len=*),       intent(in) :: key
       character(len=*),       intent(in) :: default
@@ -65,7 +68,7 @@ contains
       end if
    end function
 
-   subroutine mapping_reset_accessed(self)
+   subroutine dictionary_reset_accessed(self)
       class (type_dictionary),intent(in) :: self
       type (type_key_value_pair),pointer :: pair
       pair => self%first
@@ -75,7 +78,7 @@ contains
       end do
    end subroutine
 
-   function mapping_get(self,key) result(value)
+   function dictionary_get(self,key) result(value)
       class (type_dictionary),intent(in) :: self
       character(len=*),       intent(in) :: key
       class(type_node),pointer           :: value
@@ -94,7 +97,7 @@ contains
       end if
    end function
 
-   subroutine mapping_set(self,key,value)
+   subroutine dictionary_set(self,key,value)
       class (type_dictionary),intent(inout) :: self
       character(len=*),       intent(in)    :: key
       class(type_node),target               :: value
@@ -125,7 +128,7 @@ contains
       pair%value => value
    end subroutine
 
-   subroutine mapping_set_string(self,key,value)
+   subroutine dictionary_set_string(self,key,value)
       class (type_dictionary),intent(inout) :: self
       character(len=*),       intent(in)    :: key,value
       type (type_scalar),pointer :: node
@@ -140,7 +143,7 @@ contains
       write (unit,*) repeat(' ',indent)//trim(self%string)
    end subroutine
 
-   recursive subroutine mapping_dump(self,unit,indent)
+   recursive subroutine dictionary_dump(self,unit,indent)
       class (type_dictionary),intent(in) :: self
       integer,                intent(in) :: unit,indent
       type (type_key_value_pair),pointer :: pair
@@ -157,7 +160,7 @@ contains
       end do
    end subroutine
 
-   recursive subroutine mapping_flatten(self,target,prefix)
+   recursive subroutine dictionary_flatten(self,target,prefix)
       class (type_dictionary),intent(in)    :: self
       type (type_dictionary), intent(inout) :: target
       character(len=*),       intent(in)    :: prefix
@@ -189,5 +192,25 @@ contains
       return
 99    if (present(success)) success = .false.
    end function
+
+   recursive subroutine node_set_path(self,path)
+      class (type_node),intent(inout) :: self
+      character(len=*), intent(in)    :: path
+      self%path = path
+   end subroutine
+
+   recursive subroutine dictionary_set_path(self,path)
+      class (type_dictionary),intent(inout) :: self
+      character(len=*),       intent(in)    :: path
+      
+      type (type_key_value_pair),pointer :: pair
+
+      self%path = path
+      pair => self%first
+      do while (associated(pair))
+         call pair%value%set_path(trim(self%path)//'/'//trim(pair%key))
+         pair => pair%next
+      end do
+   end subroutine
 
 end module fabm_config_types

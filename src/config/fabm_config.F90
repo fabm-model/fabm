@@ -76,14 +76,14 @@ contains
          end select
       end if
 
-      node => mapping%get('models')
-      if (.not.associated(node)) call driver%fatal_error('create_model_tree_from_dictionary','No "models" dictionary found at root level.')
+      node => mapping%get('instances')
+      if (.not.associated(node)) call driver%fatal_error('create_model_tree_from_dictionary','No "instances" dictionary found at root level.')
       select type (node)
          class is (type_dictionary)
             pair => node%first
          class default
             nullify(pair)
-            call driver%fatal_error('create_model_tree_from_dictionary','"/models" must be a dictionary with (model name : information) pairs, not a single value.')
+            call driver%fatal_error('create_model_tree_from_dictionary',trim(node%path)//' must be a dictionary with (model name : information) pairs, not a single value.')
       end select
 
       ! Iterate over all models (key:value pairs at root level) and
@@ -156,12 +156,12 @@ contains
                      class is (type_scalar)
                         call model%parameters%set_string(trim(pair%key),trim(value%string))
                      class default
-                        call driver%fatal_error('create_model_from_dictionary','BUG: "flatten" should have ensured that the value of /models/'//trim(instancename)//'/parameters/'//trim(pair%key)//' is scalar, not a nested dictionary.')
+                        call driver%fatal_error('create_model_from_dictionary','BUG: "flatten" should have ensured that the value of '//trim(value%path)//' is scalar, not a nested dictionary.')
                   end select
                   pair => pair%next   
                end do
             class default
-               call driver%fatal_error('create_model_from_dictionary','/models/'//trim(instancename)//'/parameters must be a dictionary, not a string.')
+               call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
          end select
       end if
 
@@ -178,7 +178,7 @@ contains
       ! Check for parameters present in configuration file, but not interpreted by the models.
       property => model%parameters%first
       do while (associated(property))
-         if (.not.property%accessed) call driver%fatal_error('create_model_from_dictionary','Unrecognized parameter '//trim(property%name)//' found below /models/'//trim(instancename)//'.')
+         if (.not.property%accessed) call driver%fatal_error('create_model_from_dictionary','Unrecognized parameter "'//trim(property%name)//'" found below '//trim(childnode%path)//'.')
          property => property%next
       end do
 
@@ -195,12 +195,12 @@ contains
                      class is (type_scalar)
                         call model%request_coupling(trim(get_safe_name(pair%key)),trim(get_safe_name(value%string)),required=.true.)
                      class default
-                        call driver%fatal_error('create_model_from_dictionary','The value of '//trim(instancename)//'/coupling/'//trim(pair%key)//' must be a string, not a nested dictionary.')
+                        call driver%fatal_error('create_model_from_dictionary','The value of '//trim(value%path)//' must be a string, not a nested dictionary.')
                   end select
                   pair => pair%next   
                end do
             class default
-               call driver%fatal_error('create_model_from_dictionary','/models/'//trim(instancename)//'/coupling must be a dictionary, not a single value.')
+               call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a single value.')
          end select
       end if
 
@@ -211,7 +211,7 @@ contains
             class is (type_dictionary)
                call parse_initialization(model,childnode,initialized_set)
             class default
-               call driver%fatal_error('create_model_from_dictionary','/models/'//trim(instancename)//'/parameters must be a dictionary, not a string.')
+               call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
          end select
       end if
 
@@ -226,14 +226,14 @@ contains
                      if (object%presence/=presence_external_optional .and. .not.initialized_set%contains(trim(link%name))) then
                         ! State variable is required, but initial value is not explicitly provided.
                         if (require_initialization) then
-                           call driver%fatal_error('parse_initialization','/models/'//trim(model%name) &
+                           call driver%fatal_error('parse_initialization','model '//trim(model%name) &
                               //': no initial value provided for variable "'//trim(link%name)//'".')
                         else
-                           call driver%log_message('WARNING: no explicit initial value provided for "'//trim(model%name)//'/'//trim(link%name)//'" - using default.')
+                           call driver%log_message('WARNING: no initial value provided for state variable "'//trim(link%name)//'" of model "'//trim(model%name)//'" - using default.')
                         end if
                      elseif (object%presence==presence_external_optional .and. initialized_set%contains(trim(link%name))) then
                         ! Optional state variable is not used, but an initial value is explicitly provided.
-                        call driver%fatal_error('parse_initialization','/models/'//trim(model%name) &
+                        call driver%fatal_error('parse_initialization','model '//trim(model%name) &
                            //': initial value provided for variable "'//trim(link%name)//'", but this variable is not used.')
                      end if
                   end if
@@ -247,16 +247,16 @@ contains
          select type (childnode)
             class is (type_scalar)
                model%check_conservation = childnode%to_logical(.false.,success)
-               if (.not.success) call driver%fatal_error('create_model_from_dictionary','/models/'//trim(instancename)//'/check_conservation is set to "'//trim(childnode%string)//'", which cannot be interpreted as a Boolean value.')
+               if (.not.success) call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' is set to "'//trim(childnode%string)//'", which cannot be interpreted as a Boolean value.')
             class default
-               call driver%fatal_error('create_model_from_dictionary','/models/'//trim(instancename)//'/check_conservation must be a key, not a dictionary.')
+               call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a key, not a dictionary.')
          end select
       end if
 
       ! Check whether any keys at the model level remain unused.
       pair => node%first
       do while (associated(pair))
-         if (.not.pair%accessed) call driver%fatal_error('create_model_from_dictionary','Unrecognized option "'//trim(pair%key)//'" found at /models/'//trim(instancename)//'.')
+         if (.not.pair%accessed) call driver%fatal_error('create_model_from_dictionary','Unrecognized option "'//trim(pair%key)//'" found below '//trim(node%path)//'.')
          pair => pair%next
       end do
 
@@ -277,7 +277,7 @@ contains
          select type (value=>pair%value)
             class is (type_scalar)
                object => model%find_object(trim(pair%key))
-               if (.not.associated(object)) call driver%fatal_error('parse_initialization','/models/'//trim(model%name)//'/initialization/'//trim(pair%key)//': "'//trim(pair%key)//'" is not a member of model "'//trim(model%name)//'".')
+               if (.not.associated(object)) call driver%fatal_error('parse_initialization',trim(value%path)//': "'//trim(pair%key)//'" is not a member of model "'//trim(model%name)//'".')
                is_state_variable = .false.
                select type (object)
                   class is (type_internal_variable)
@@ -287,9 +287,9 @@ contains
                         is_state_variable = .true.
                      end if
                end select
-               if (.not.is_state_variable) call driver%fatal_error('parse_initialization','/models/'//trim(model%name)//'/initialization/'//trim(pair%key)//': "'//trim(pair%key)//'" is not a state variable of model "'//trim(model%name)//'".')
+               if (.not.is_state_variable) call driver%fatal_error('parse_initialization',trim(value%path)//': "'//trim(pair%key)//'" is not a state variable of model "'//trim(model%name)//'".')
             class default
-               call driver%fatal_error('parse_initialization','/models/'//trim(model%name)//'/initialization/'//trim(pair%key)//' must be set to a scalar value, not to a nested dictionary.')
+               call driver%fatal_error('parse_initialization',trim(value%path)//' must be set to a scalar value, not to a nested dictionary.')
          end select
          pair => pair%next   
       end do
@@ -298,7 +298,7 @@ contains
 
 99    select type (value=>pair%value)
          class is (type_scalar)
-            call driver%fatal_error('parse_initialization','/models/'//trim(model%name)//'/initialization/'//trim(pair%key)//': "'//trim(value%string)//'" is not a real number.')
+            call driver%fatal_error('parse_initialization',trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
       end select
    end subroutine
 

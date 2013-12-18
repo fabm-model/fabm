@@ -74,6 +74,8 @@ contains
       close(file%unit)
       if (file%has_error) write (error,'(a,a,i0,a,a)') trim(path),', line ',file%iline,': ',trim(file%error_message)
 
+      if (associated(root)) call root%set_path('')
+
       return
 
 90    error = 'Unable to open '//trim(path)//' for reading.'
