@@ -27,7 +27,6 @@
 
 !     Model parameters
       real(rk) :: rdn
-      logical  :: do_min
 
       contains
 
@@ -81,18 +80,23 @@
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   self%rdn = rdn/secs_pr_day
+   call self%get_parameter(w_d,     'w_d',default=w_d)
+   call self%get_parameter(kc,      'kc', default=kc)
+   call self%get_parameter(self%rdn,'rdn',default=rdn, scale_factor=1.0_rk/secs_pr_day)
 
    ! Register state variables
    call self%register_state_variable(self%id_d,'det','mmol/m**3','detritus',           &
                                 d_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day, &
                                 specific_light_extinction=kc)
 
-   ! Register external state variable dependencies
-   self%do_min = mineralisation_target_variable/=''
-   if (self%do_min) call self%register_state_dependency(self%id_mintarget,mineralisation_target_variable)
-
+   ! Register contribution of state to global aggregate variables.
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_d)
+
+   ! Register dependencies on external state variables
+   call self%register_state_dependency(self%id_mintarget,'mineralisation_target','mmol/m**3','sink for remineralized detritus')
+
+   ! Automatically couple dependencies if target variables have been specified.
+   if (mineralisation_target_variable/='') call self%request_coupling(self%id_mintarget,mineralisation_target_variable)
 
    return
 
@@ -128,9 +132,7 @@
    _SET_ODE_(self%id_d,-self%rdn*d)
 
    ! If an externally maintained NUT pool is present, add mineralisation to it
-   if (self%do_min) then
-     _SET_ODE_(self%id_mintarget, self%rdn*d)
-   end if
+   _SET_ODE_(self%id_mintarget, self%rdn*d)
 
    ! Leave spatial loops (if any)
    _LOOP_END_
@@ -164,12 +166,7 @@
    ! Assign destruction rates to different elements of the destruction matrix.
    ! By assigning with _SET_DD_SYM_ [as opposed to _SET_DD_], assignments to dd(i,j)
    ! are automatically assigned to pp(j,i) as well.
-  ! _SET_DD_SYM_(self%id_d,self%id_d,self%rdn*d)             ! sdn  ?????????????????????
-   _SET_DD_(self%id_d,self%id_d,self%rdn*d)             ! sdn  ?????????????????????
-
-   ! If an externally maintained DIC pool is present, change the DIC pool according to the
-   ! the change in nutrients (assuming constant C:N ratio)
-   if (self%do_min) _SET_PP_(self%id_mintarget,self%id_mintarget,self%rdn*d)
+   _SET_DD_SYM_(self%id_d,self%id_mintarget,self%rdn*d)
 
    ! Leave spatial loops (if any)
    _LOOP_END_

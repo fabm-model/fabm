@@ -65,6 +65,7 @@
    call self%register_state_variable(self%id_n,'nut','mmol/m**3','nutrients',     &
                                 n_initial,minimum=0.0_rk,no_river_dilution=.true.)
 
+   ! Register contribution of state to global aggregate variables.
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_n)
 
    return
