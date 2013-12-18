@@ -13,7 +13,7 @@
 ! !USES:
    use fabm
    use fabm_config
-   use fabm_types, only:rk,attribute_length,type_base_driver
+   use fabm_types, only:rk,attribute_length,type_base_driver,driver
    use fabm_properties, only: type_property, type_property_dictionary
    use fabm_python_helper
 
@@ -64,6 +64,8 @@
 !-----------------------------------------------------------------------
 !BOC
       if (model%initialized) call finalize()
+
+      if (.not.associated(driver)) allocate(type_python_driver::driver)
 
       ! Build FABM model tree (configuration will be read from fabm.yaml).
       call fabm_create_model_from_yaml_file(model,parameters=forced_parameters)
