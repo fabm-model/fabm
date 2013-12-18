@@ -59,22 +59,13 @@ contains
       character(len=64)                  :: instancename
       type (type_key_value_pair),pointer :: pair
       class (type_base_model),   pointer :: childmodel
-      logical                            :: initialize,check_conservation,success
+      logical                            :: initialize,check_conservation,require_initialization,success
 
       ! If custom parameter values were provided, transfer these to the root model.
       if (present(parameters)) call model%root%parameters%update(parameters)
 
-      check_conservation = .false.
-      node => mapping%get('check_conservation')
-      if (associated(node)) then
-         select type (node)
-            class is (type_scalar)
-               check_conservation = node%to_logical(.false.,success)
-               if (.not.success) call driver%fatal_error('create_model_tree_from_dictionary','/check_conservation is set to "'//trim(node%string)//'", which cannot be interpreted as a Boolean value.')
-            class default
-               call driver%fatal_error('create_model_tree_from_dictionary','/check_conservation must be a key, not a dictionary.')
-         end select
-      end if
+      check_conservation = mapping_get_logical(mapping,'check_conservation',.false.)
+      require_initialization = mapping_get_logical(mapping,'require_initialization',.false.)
 
       node => mapping%get('instances')
       if (.not.associated(node)) call driver%fatal_error('create_model_tree_from_dictionary','No "instances" dictionary found at root level.')
@@ -92,7 +83,7 @@ contains
          instancename = trim(pair%key)
          select type (dict=>pair%value)
             class is (type_dictionary)
-               childmodel => create_model_from_dictionary(instancename,dict,model%root,require_initialization=.false.)
+               childmodel => create_model_from_dictionary(instancename,dict,model%root,require_initialization=require_initialization)
                childmodel%check_conservation = check_conservation
             class default
                call driver%fatal_error('create_model_tree_from_dictionary','Configuration information for model "'//trim(instancename)//'" must be a dictionary, not a single value.')
@@ -242,16 +233,7 @@ contains
          link => link%next
       end do
 
-      childnode => node%get('check_conservation')
-      if (associated(childnode)) then
-         select type (childnode)
-            class is (type_scalar)
-               model%check_conservation = childnode%to_logical(.false.,success)
-               if (.not.success) call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' is set to "'//trim(childnode%string)//'", which cannot be interpreted as a Boolean value.')
-            class default
-               call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a key, not a dictionary.')
-         end select
-      end if
+      model%check_conservation = mapping_get_logical(mapping,'check_conservation',model%check_conservation)
 
       ! Check whether any keys at the model level remain unused.
       pair => node%first
@@ -301,6 +283,28 @@ contains
             call driver%fatal_error('parse_initialization',trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
       end select
    end subroutine
+
+   function mapping_get_logical(mapping,key,default) result(value)
+      class (type_dictionary),intent(in) :: mapping
+      character(len=*),       intent(in) :: key
+      logical,                intent(in) :: default
+      logical                            :: value
+
+      class (type_node),pointer          :: node
+      logical                            :: success
+
+      value = default
+      node => mapping%get(key)
+      if (associated(node)) then
+         select type (node)
+            class is (type_scalar)
+               value = node%to_logical(.false.,success)
+               if (.not.success) call driver%fatal_error('mapping_get_logical',trim(node%path)//' is set to "'//trim(node%string)//'", which cannot be interpreted as a Boolean value.')
+            class default
+               call driver%fatal_error('mapping_get_logical',trim(node%path)//' must be a key, not a dictionary.')
+         end select
+      end if
+   end function
 
 end module fabm_config
 
