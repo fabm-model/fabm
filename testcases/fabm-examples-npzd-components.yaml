@@ -1,0 +1,47 @@
+models:
+  nut:
+    model: examples_npzd_nut
+    initialization:
+      nut: 4.5
+  det:
+    model: examples_npzd_det
+    parameters:
+      w_d: -5.0
+      rdn: 0.003
+      kc: 0.03
+    initialization:
+      det: 4.5
+    coupling:
+      mineralisation_target: nut/nut
+  phy:
+    model: examples_npzd_phy
+    parameters:
+      p0: 0.0225,
+      w_p: -1.0,
+      kc: 0.03,
+      I_min: 25.0,
+      rmax: 1.0,
+      alpha: 1.35,
+      rpn: 0.01,
+      rpdu: 0.02,
+      rpdl: 0.1,
+    initialization:
+      phy: 1e-15
+    coupling:
+      excretion_target: nut/nut
+      mortality_target: det/det
+      uptake_target: nut/nut
+  zoo:
+    model: examples_npzd_zoo
+    parameters:
+      z0: 0.0225,
+      gmax: 0.2,
+      Iv: 1.1,
+      rzn: 0.01,
+      rzd: 0.02,
+    initialization:
+      zoo: 1e-15
+    coupling:
+      excretion_target: nut/nut
+      mortality_target: det/det
+      grazing_target: phy/phy
