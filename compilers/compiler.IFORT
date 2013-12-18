@@ -2,7 +2,7 @@
 ifeq ($(FORTRAN_COMPILER),IFORT)
 FC=ifort
 MODULES=-module $(MODDIR)
-EXTRAS  = -fPIC -stand f03 -warn nounused -nowarn #5268
+EXTRAS  = -fPIC -stand f03 -diag-disable 5268
 DEBUG_FLAGS = -g -C -traceback
 PROF_FLAGS  = -qp -p
 PROD_FLAGS  = -xHost -O3
