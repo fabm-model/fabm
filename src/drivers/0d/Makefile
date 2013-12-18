@@ -2,25 +2,27 @@ include ../../Rules.make
 
 export FABMHOST=0d
 
-OBJ = ${LIBFABM}(fabm_driver.o)
+all: fabm0d
 
-all: obj
-
-obj: makedirs $(OBJ)
-
-0d makedirs:
-	$(MAKE) -C $(FABMDIR)/src $@
+fabm:
+	$(MAKE) -C $(FABMDIR)/src
 
 ifndef GOTMDIR
 GOTMDIR = $(HOME)/GOTM/gotm-git
 endif
+
 FFLAGS	+= -I$(GOTMDIR)/include -I$(GOTMDIR)/modules/$(FORTRAN_COMPILER)
 LDFLAGS += -L$(FABMDIR)/lib/$(FORTRAN_COMPILER) -L$(GOTMDIR)/lib/$(FORTRAN_COMPILER)
 LIBS	+= -lairsea$(buildtype) -linput$(buildtype) -lutil$(buildtype) -lfabm$(buildtype)
 
-fabm0d: 0d fabm0d.o main.o
+fabm0d.o: fabm
+
+main.o: fabm0d.o
+
+fabm0d: main.o
 	$(FC) -o $@ main.o fabm0d.o $(LDFLAGS) $(LIBS)
 	$(RM) fabm0d.o main.o
+	mkdir -p $(HOME)/bin
 	cp -p $@ $(HOME)/bin
 
 clean:
@@ -32,4 +34,4 @@ realclean: clean
 distclean: realclean
 	$(MAKE) -C $(FABMDIR)/src $@
 
-.PHONY: makedirs
+.PHONY: all fabm fabm0d clean realclean distclean
