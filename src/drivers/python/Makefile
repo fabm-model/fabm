@@ -3,7 +3,7 @@ include ../../Rules.make
 export FABMHOST=python
 
 ifeq ($(FORTRAN_COMPILER),IFORT)
-SETUPARGS+=--fcompiler=intelem
+SETUPARGS+=--fcompiler=intel
 endif
 
 ifeq ($(FORTRAN_COMPILER),GFORTRAN)
