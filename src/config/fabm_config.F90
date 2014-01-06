@@ -59,7 +59,7 @@ contains
       character(len=64)                  :: instancename
       type (type_key_value_pair),pointer :: pair
       class (type_base_model),   pointer :: childmodel
-      logical                            :: initialize,check_conservation,require_initialization,success
+      logical                            :: initialize,check_conservation,require_initialization
 
       ! If custom parameter values were provided, transfer these to the root model.
       if (present(parameters)) call model%root%parameters%update(parameters)
@@ -120,7 +120,6 @@ contains
       type (type_key_value_pair),pointer :: pair
       type (type_set)                    :: initialized_set
       type (type_link),pointer           :: link
-      logical                            :: success
 
       ! Retrieve model name (default to instance name if not provided).
       modelname = trim(node%get_string('model',default=instancename))
