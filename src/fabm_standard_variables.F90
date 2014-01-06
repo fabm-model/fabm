@@ -28,29 +28,27 @@ module fabm_standard_variables
 
    private
    
-   public type_bulk_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
+   public type_standard_variable, type_bulk_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
    public type_standard_variable_collection, standard_variables
    
    ! ====================================================================================================
    ! Data types that contain all metadata needed to describe standard variables.
    ! ====================================================================================================
 
-   type type_bulk_standard_variable
+   type type_standard_variable
       character(len=256) :: name  = ''    ! Name
       character(len=64)  :: units = ''    ! Units
-      character(len=512) :: cf_names = '' ! Comma-separated list of standard names defined in the NetCDF CF convention (http://cf-pcmdi.llnl.gov/documents/cf-standard-names/)
+      character(len=512) :: cf_names = '' ! Comma-separated list of standard names defined in the NetCDF CF convention
+                                          ! (http://cf-pcmdi.llnl.gov/documents/cf-standard-names/)
    end type
    
-   type type_horizontal_standard_variable
-      character(len=256) :: name  = ''    ! Name
-      character(len=64)  :: units = ''    ! Units
-      character(len=512) :: cf_names = '' ! Comma-separated list of standard names defined in the NetCDF CF convention (http://cf-pcmdi.llnl.gov/documents/cf-standard-names/)
+   type,extends(type_standard_variable) :: type_bulk_standard_variable
    end type
    
-   type type_global_standard_variable
-      character(len=256) :: name  = ''    ! Name
-      character(len=64)  :: units = ''    ! Units
-      character(len=512) :: cf_names = '' ! Comma-separated list of standard names defined in the NetCDF CF convention (http://cf-pcmdi.llnl.gov/documents/cf-standard-names/)
+   type,extends(type_standard_variable) :: type_horizontal_standard_variable
+   end type
+   
+   type,extends(type_standard_variable) :: type_global_standard_variable
    end type
 
 #include "standard_variables.h"
