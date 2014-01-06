@@ -2044,27 +2044,30 @@ end subroutine append_string
       class (type_base_model),           intent(inout)        :: model
       type (type_dependency_id),         intent(inout),target :: id
       type (type_bulk_standard_variable),intent(in)           :: standard_variable
-      logical,                           intent(in),optional  :: required
+      logical,optional,                  intent(in)           :: required
 
-      call register_bulk_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable=standard_variable)
+      call register_bulk_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                    standard_variable=standard_variable,required=required)
    end subroutine register_bulk_dependency_sn
 
    subroutine register_horizontal_dependency_sn(model,id,standard_variable,required)
       class (type_base_model),                 intent(inout)        :: model
       type (type_horizontal_dependency_id),    intent(inout),target :: id
       type (type_horizontal_standard_variable),intent(in)           :: standard_variable
-      logical,                                 intent(in),optional :: required
+      logical,optional,                        intent(in)           :: required
 
-      call register_horizontal_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable=standard_variable)
+      call register_horizontal_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                          standard_variable=standard_variable,required=required)
    end subroutine register_horizontal_dependency_sn
 
    subroutine register_global_dependency_sn(model,id,standard_variable,required)
       class (type_base_model),             intent(inout)        :: model
       type (type_global_dependency_id),    intent(inout),target :: id
       type (type_global_standard_variable),intent(in)           :: standard_variable
-      logical,                             intent(in),optional :: required
+      logical,optional,                    intent(in)           :: required
 
-      call register_global_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable=standard_variable)
+      call register_global_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                      standard_variable=standard_variable,required=required)
    end subroutine register_global_dependency_sn
 
 !-----------------------------------------------------------------------
