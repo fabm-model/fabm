@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
 import sys,os
-sys.path.append(os.path.join(os.path.dirname(__file__),'../../../compilers/vs2010/x64-Debug/fabm_python-c++'))
-sys.path.append(os.path.join(os.path.dirname(__file__),'fabm_fortran'))
+sys.path.append(os.path.join(os.path.dirname(__file__),'../../../compilers/vs2010/x64-Debug/fabm-python-c++'))
+sys.path.append(os.path.join(os.path.dirname(__file__),'fabm'))
 import numpy
-import fabm_fortran
+import fabm
 
 # Shortcut to FABM module living on the Fortran side
-fabm = fabm_fortran.fabm_python
+fabm = fabm.fabm_python
 
 def getStringArray(d):
     """Maps a F2Py-exposed Fortran string array to a Python list of strings."""
