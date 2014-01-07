@@ -7,6 +7,8 @@ bulk:
     units: m
   - name: density
     units: kg m-3
+  - name: depth
+    units: m
   - name: downwelling_photosynthetic_radiative_flux
     units: W m-2
   - name: downwelling_shortwave_flux

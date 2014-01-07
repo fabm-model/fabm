@@ -26,6 +26,11 @@
             'kg m-3', &
             'sea_water_density')
       type (type_bulk_standard_variable) :: &
+         depth = type_bulk_standard_variable( &
+            'depth', &
+            'm', &
+            'depth')
+      type (type_bulk_standard_variable) :: &
          downwelling_photosynthetic_radiative_flux = type_bulk_standard_variable( &
             'downwelling_photosynthetic_radiative_flux', &
             'W m-2', &
@@ -227,6 +232,7 @@
       attenuation_coefficient_of_photosynthetic_radiative_flux = standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, &
       cell_thickness = standard_variables%cell_thickness, &
       density = standard_variables%density, &
+      depth = standard_variables%depth, &
       downwelling_photosynthetic_radiative_flux = standard_variables%downwelling_photosynthetic_radiative_flux, &
       downwelling_shortwave_flux = standard_variables%downwelling_shortwave_flux, &
       fractional_saturation_of_oxygen = standard_variables%fractional_saturation_of_oxygen, &
