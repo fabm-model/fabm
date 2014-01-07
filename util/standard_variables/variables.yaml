@@ -63,6 +63,12 @@ horizontal:
     units: 1e-6
   - name: wind_speed
     units: m s-1
+  - name: surface_specific_humidity
+    units: 1
+  - name: surface_air_pressure
+    units: Pa
+  - name: surface_temperature
+    units: degree_Celsius
 global:
   - name: number_of_days_since_start_of_the_year
     units: d
