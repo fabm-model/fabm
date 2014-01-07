@@ -103,6 +103,11 @@
 
       ! Horizontal variables
       type (type_horizontal_standard_variable) :: &
+         bottom_depth = type_horizontal_standard_variable( &
+            'bottom_depth', &
+            'm', &
+            '')
+      type (type_horizontal_standard_variable) :: &
          bottom_depth_below_geoid = type_horizontal_standard_variable( &
             'bottom_depth_below_geoid', &
             'm', &
@@ -239,7 +244,7 @@
       temperature = standard_variables%temperature
 
    type (type_horizontal_standard_variable), parameter, public :: &
-      bottom_depth = standard_variables%bottom_depth_below_geoid, &
+      bottom_depth = standard_variables%bottom_depth, &
       bottom_depth_below_geoid = standard_variables%bottom_depth_below_geoid, &
       bottom_stress = standard_variables%bottom_stress, &
       cloud_area_fraction = standard_variables%cloud_area_fraction, &

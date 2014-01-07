@@ -40,7 +40,8 @@ bulk:
 horizontal:
   - name: bottom_depth_below_geoid
     units: m
-    synonyms: [bottom_depth]
+  - name: bottom_depth
+    units: m
   - name: bottom_stress
     units: Pa
   - name: cloud_area_fraction
