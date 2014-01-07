@@ -5,8 +5,8 @@ compiler = os.environ['FORTRAN_COMPILER']
 
 def configuration(parent_package='',top_path=None):
     from numpy.distutils.misc_util import Configuration
-    config = Configuration('fabm_fortran',parent_package,top_path)
-    config.add_extension('fabm_fortran', ['fabm_python.F90'],
+    config = Configuration('fabm',parent_package,top_path)
+    config.add_extension('fabm', ['fabm_python.F90'],
                          library_dirs=['../../../lib/python/%s' % compiler],
                          libraries=['fabm_prod'],
                          include_dirs=['../../../include','../../../modules/python/%s' % compiler])

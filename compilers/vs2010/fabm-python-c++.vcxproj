@@ -91,7 +91,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>fabm-python-f90.lib;python27.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)fabm_fortran.pyd</OutputFile>
+      <OutputFile>$(OutDir)fabm.pyd</OutputFile>
       <AdditionalLibraryDirectories>$(OutDir)\..\fabm-python-f90;$(PythonDir)\libs;$(IFORT_COMPILER14)\compiler\lib\ia32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
@@ -122,7 +122,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <OutputFile>$(OutDir)fabm_fortran.pyd</OutputFile>
+      <OutputFile>$(OutDir)fabm.pyd</OutputFile>
       <AdditionalLibraryDirectories>$(OutDir)\..\fabm-python-f90;$(Python64Dir)\libs;$(IFORT_COMPILER14)\compiler\lib\intel64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -148,7 +148,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>fabm-python-f90.lib;python27.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)fabm_fortran.pyd</OutputFile>
+      <OutputFile>$(OutDir)fabm.pyd</OutputFile>
       <AdditionalLibraryDirectories>$(OutDir)\..\fabm-python-f90;$(PythonDir)\libs;$(IFORT_COMPILER14)\compiler\lib\ia32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
@@ -183,7 +183,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>fabm-python-f90.lib;python27.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)fabm_fortran.pyd</OutputFile>
+      <OutputFile>$(OutDir)fabm.pyd</OutputFile>
       <AdditionalLibraryDirectories>$(OutDir)\..\fabm-python-f90;$(Python64Dir)\libs;$(IFORT_COMPILER14)\compiler\lib\intel64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
