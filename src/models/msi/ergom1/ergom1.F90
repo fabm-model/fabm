@@ -345,18 +345,18 @@
     _GET_(self%id_salt,salt)
 !   Light acclimation formulation based on surface light intensity
 
-    iopt = max(0.5*par,self%imin)
+    iopt = max(0.5_rk*par,self%imin)
     ppi = par/iopt*exp(1.0_rk-par/iopt)
     
-    iopt_di = max(0.5*par,self%imin_di)
+    iopt_di = max(0.5_rk*par,self%imin_di)
     ppi_di= par/iopt_di*exp(1.0_rk-par/iopt_di)
     
-   ! if (temp .le. 0.1) then
-   ! ppi=0.01*ppi
-   ! ppi_di=0.01*ppi_di
+   ! if (temp .le. 0.1_rk) then
+   ! ppi=0.01_rk*ppi
+   ! ppi_di=0.01_rk*ppi_di
    ! end if
 
-    tempq = max(temp,0.0)
+    tempq = max(temp,0.0_rk)
     tempq = tempq*tempq 
     
     zz0 = self%zcl1*zz*zz
@@ -406,53 +406,53 @@
     uptake_p = rp * ppg / ntemp_eps            
     uptake_f = rf * ffg / ntemp_eps                
   !!!! NITRIFICATION RATE !!!!
-    otemp = max(0.0, o2) !for oxygen dependent process if o2<0 then o2=0
+    otemp = max(0.0_rk, o2) !for oxygen dependent process if o2<0 then o2=0
    ! Nitrification rate depends on oxygen availability and temperature
-    nf = otemp / (0.01 + otemp) * 0.1 * exp (0.11 * temp)/secs_pr_day
+    nf = otemp / (0.01_rk + otemp) * 0.1_rk * exp (0.11_rk * temp)/secs_pr_day
   !!!! ZOOPLANKTON RATES !!!! 
    !Food available for zooplankton. Notice lower preference for cyanos
-    food = max(pp,0.0) + max(ff,0.0) + 0.5 * max(bb,0.0) + self%p0 + self%b0 + self%f0
+    food = max(pp,0.0_rk) + max(ff,0.0_rk) + 0.5_rk * max(bb,0.0_rk) + self%p0 + self%b0 + self%f0
     food_eps = max(food, epsilon) ! Be sure food is positive
-    gg = self%graz * (1.0_rk - exp(self%iv * food * food * (-1.0))) !Grazing rate
+    gg = self%graz * (1.0_rk - exp(self%iv * food * food * (-1.0_rk))) !Grazing rate
 
     lzd = self%sigma_b ! Zooplankton mortality rate
     lzn = self%nue     ! Zooplankton respiration rate 
  
-    if (o2 .le. 0.0) then
+    if (o2 .le. 0.0_rk) then
     !In anoxic conditions:
-      gg = 0.0                ! No grazing
-      lzd = 10. *self%sigma_b !Higher zooplankton mortality
-      lzn = 0.0               ! No respiration
+      gg = 0.0_rk                ! No grazing
+      lzd = 10._rk *self%sigma_b !Higher zooplankton mortality
+      lzn = 0.0_rk               ! No respiration
     endif
 
     lz = lzn + lzd ! Zooplankton loss rate (mortality + respiration)
     ! Zooplankton grazing depends on food availability and temperature
-    graz_z = gg * (zz + self%z0)/food_eps * (1.0_rk + 2.7183/self%toptz/self%toptz * tempq * exp(1.0_rk - temp * 2.0 / self%toptz))
+    graz_z = gg * (zz + self%z0)/food_eps * (1.0_rk + 2.7183_rk/self%toptz/self%toptz * tempq * exp(1.0_rk - temp * 2.0_rk / self%toptz))
  
 
     ldn = self%dn * exp (self%q10_rec*temp) !Mineralization rate depends on temperature
 
-    if (o2 .le. 0.0 .and. nn > 0.0) then
+    if (o2 .le. 0.0_rk .and. nn > 0.0_rk) then
 
-      ldn_N = 5.3 * nn * nn / (0.001 + nn * nn) !Denitrification rate depends on nitrate availability
-      ldn_O = 6.625 * (1.0_rk - nn * nn / (0.001 + nn * nn)) !Oxygen loss due to denitrification      
+      ldn_N = 5.3_rk * nn * nn / (0.001_rk + nn * nn) !Denitrification rate depends on nitrate availability
+      ldn_O = 6.625_rk * (1.0_rk - nn * nn / (0.001_rk + nn * nn)) !Oxygen loss due to denitrification      
       ade = self%ade_r0 * nn * nn / (self%alphaade +  nn * nn) * nn !ade rate nitrate dependent
 
    else
 
-      ldn_N = 0.0
-      ldn_O = 6.625  !Negative oxygen = H2S production
-      ade = 0.0
+      ldn_N = 0.0_rk
+      ldn_O = 6.625_rk  !Negative oxygen = H2S production
+      ade = 0.0_rk
 
    endif
 
   _SET_ODE_(self%id_o2, &
-              part_uptake * (nn * 8.625 + aa * 6.625) &
-              + rb * bbg * 6.625 &
+              part_uptake * (nn * 8.625_rk + aa * 6.625_rk) &
+              + rb * bbg * 6.625_rk &
               - ldn_O * ldn * dd &
-              - 6.625 * (lpn * phyto + lzn * zz0) &
-              - 2.0 * nf * aa &
-              + ade * 0.375)
+              - 6.625_rk * (lpn * phyto + lzn * zz0) &
+              - 2.0_rk * nf * aa &
+              + ade * 0.375_rk)
   _SET_ODE_(self%id_aa, &
               ldn * dd &  
             - (part_uptake + nf) * aa &
@@ -476,9 +476,9 @@
             - (graz_z + lp) * ff)
   _SET_ODE_(self%id_bb, &
               rb * bbg &
-            - (0.5 * graz_z + lp) * bb)
+            - (0.5_rk * graz_z + lp) * bb)
   _SET_ODE_(self%id_zz, &
-              graz_z * (pp + ff + 0.5 * bb) &
+              graz_z * (pp + ff + 0.5_rk * bb) &
             - lz * zz0)
   _SET_ODE_(self%id_dd, &
               lpd * phyto &
@@ -581,10 +581,10 @@
    _GET_HORIZONTAL_(self%id_taub,taub)
    _GET_(self%id_temp,temp)
    
-   pbr = max(pb, pb * (pb -self%ipo4th + 1.0)) !increased phosphorus burial
+   pbr = max(pb, pb * (pb -self%ipo4th + 1.0_rk)) !increased phosphorus burial
 
-   biores = self%br0 * max(0.0, oxb) * max(0.0, oxb) &
-            / (max(0.0, oxb) * max(0.0, oxb) + 0.03)  !bio-resuspension rate
+   biores = self%br0 * max(0.0_rk, oxb) * max(0.0_rk, oxb) &
+            / (max(0.0_rk, oxb) * max(0.0_rk, oxb) + 0.03_rk)  !bio-resuspension rate
   
  !Resuspension-sedimentation rate are computed as in GOTM-BIO
         if (self%tau_crit .gt. taub) then
@@ -604,30 +604,30 @@
 
    recs = self%dn_sed * exp(self%q10_recs * temp) 
 !temp-dependent detritus mineralization rate
-       if (oxb < 0.0) then
+       if (oxb < 0.0_rk) then
 ! 10 times lower in anoxic
-         recs = recs * 0.1
+         recs = recs * 0.1_rk
        endif
 ! Mineralization rates (see description of pelagic part)
-   if (oxb .le. 0.0 .and. nnb > 0.0) then   
-    ldn_N = 5.3 * nnb * nnb / (0.001 + nnb * nnb)
-    ldn_O = 6.625 * (1.0_rk - nnb * nnb / (0.001 + nnb * nnb)) 
+   if (oxb .le. 0.0_rk .and. nnb > 0.0_rk) then   
+    ldn_N = 5.3_rk * nnb * nnb / (0.001_rk + nnb * nnb)
+    ldn_O = 6.625_rk * (1.0_rk - nnb * nnb / (0.001_rk + nnb * nnb)) 
    else
-    ldn_N = 0.0
-    ldn_O = 6.625
+    ldn_N = 0.0_rk
+    ldn_O = 6.625_rk
    endif
 
-   if (oxb > 0.0) then                      
+   if (oxb > 0.0_rk) then                      
     fracdenitsed = self%fds !denitrification is sediments
-    plib = 0.0              !no phosphate release
+    plib = 0.0_rk           !no phosphate release
     pret = self%po4ret      !phosphate is stored
    else                
-    fracdenitsed = 0.0          !no denitrification in sediments
+    fracdenitsed = 0.0_rk          !no denitrification in sediments
     plib = self%pliberationrate !phosphorus is liberated
-    pret = 0.0                  !no phosphate retention 
+    pret = 0.0_rk                  !no phosphate retention 
    endif
  
-   oxlim = max (0.0,oxb) * max (0.0,oxb) / (0.01 + max(0.0,oxb) * max(0.0,oxb))
+   oxlim = max (0.0_rk,oxb) * max (0.0_rk,oxb) / (0.01_rk + max(0.0_rk,oxb) * max(0.0_rk,oxb))
     
     ! Sedimets resuspension, detritus settling, bio-resuspension and mineralization
     _SET_ODE_BEN_(self%id_fl,-llsd * fl + llds * ddb - biores * fl - recs * fl)
@@ -637,11 +637,11 @@
     !Denitrification in sediments
     _SET_BOTTOM_EXCHANGE_(self%id_nn,-ldn_N * recs * fl)
     !Oxygen consumption due to mineralization and denitrification
-    _SET_BOTTOM_EXCHANGE_(self%id_o2,-ldn_O * recs * fl - 2.0 * fracdenitsed * recs * fl)
+    _SET_BOTTOM_EXCHANGE_(self%id_o2,-ldn_O * recs * fl - 2.0_rk * fracdenitsed * recs * fl)
     !Ammonium production due to mineralization (oxic & anoxic)
     _SET_BOTTOM_EXCHANGE_(self%id_aa,(1.0_rk - fracdenitsed) * recs * fl)
     !Phosphate production due to mineralization (retention if oxic) and release in anoxic
-    _SET_BOTTOM_EXCHANGE_(self%id_po, (1. - pret * oxlim) * self%rfr * recs * fl + plib * pb)
+    _SET_BOTTOM_EXCHANGE_(self%id_po, (1.0_rk - pret * oxlim) * self%rfr * recs * fl + plib * pb)
     !Sediment resuspension, detritus settling, bio-resuspension
     _SET_BOTTOM_EXCHANGE_(self%id_dd, llsd * fl -llds *ddb + biores * fl)
     !P-Fe resuspension, settling and bio-resuspension
@@ -675,20 +675,20 @@
 !
 ! !LOCAL VARIABLES:
   real(rk)                 :: tk
-  real(rk)                 :: aa1=-173.4292
-  real(rk)                 :: aa2=249.6339
-  real(rk)                 :: a3=143.3483
-  real(rk)                 :: a4=-21.8492
-  real(rk)                 :: b1=-0.033096
-  real(rk)                 :: b2=0.014259
-  real(rk)                 :: b3=-0.001700
-  real(rk)                 :: kelvin=273.16
-  real(rk)                 :: mol_per_liter=44.661
+  real(rk),parameter       :: aa1=-173.4292_rk
+  real(rk),parameter       :: aa2=249.6339_rk
+  real(rk),parameter       :: a3=143.3483_rk
+  real(rk),parameter       :: a4=-21.8492_rk
+  real(rk),parameter       :: b1=-0.033096_rk
+  real(rk),parameter       :: b2=0.014259_rk
+  real(rk),parameter       :: b3=-0.001700_rk
+  real(rk),parameter       :: kelvin=273.16_rk
+  real(rk),parameter       :: mol_per_liter=44.661_rk
 
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   tk=(t+kelvin)*0.01
+   tk=(t+kelvin)*0.01_rk
    osat_weiss=exp(aa1+aa2/tk+a3*log(tk)+a4*tk    &
               +s*(b1+(b2+b3*tk)*tk))*mol_per_liter
 
@@ -735,18 +735,18 @@
 ! Newflux=1 piston velocity depends on winds and saturation is
 ! calculated according to Weiss formula
    if (self%newflux .eq. 1) then
-      sc=1450.+(1.1*temp-71.)*temp
-      if (wnd .gt. 13.) then
-         p_vel = 5.9*(5.9*wnd-49.3)/sqrt(sc)
+      sc=1450._rk+(1.1_rk*temp-71._rk)*temp
+      if (wnd .gt. 13._rk) then
+         p_vel = 5.9_rk*(5.9_rk*wnd-49.3_rk)/sqrt(sc)
       else
-         if (wnd .lt. 3.6) then
-            p_vel = 1.003*wnd/(sc)**(0.66)
+         if (wnd .lt. 3.6_rk) then
+            p_vel = 1.003_rk*wnd/(sc)**(0.66_rk)
          else
-            p_vel = 5.9*(2.85*wnd-9.65)/sqrt(sc)
+            p_vel = 5.9_rk*(2.85_rk*wnd-9.65_rk)/sqrt(sc)
          end if
       end if
-      if (p_vel .lt. 0.05) then
-          p_vel = 0.05
+      if (p_vel .lt. 0.05_rk) then
+          p_vel = 0.05_rk
       end if
       p_vel = p_vel/secs_pr_day
       flo2 =p_vel*(osat_weiss(temp,salt)-o2)
@@ -755,13 +755,13 @@
 ! to order S & T ** 3 for oxygen saturation derived from
 ! www.helcom.fi/Monas/CombineManual2/PartB/AnnexB-8Appendix3.pdf
    elseif (self%newflux .eq. 2) then
-     osat = (10.18e0 + ((5.306e-3 - 4.8725e-5 * temp) *temp - 0.2785e0) * temp &
-          + salt * ((2.2258e-3 + (4.39e-7 * temp - 4.645e-5) * temp) * temp - 6.33e-2)) &
-          * 44.66e0
+     osat = (10.18e0_rk + ((5.306e-3_rk - 4.8725e-5_rk * temp) *temp - 0.2785e0_rk) * temp &
+          + salt * ((2.2258e-3_rk + (4.39e-7_rk * temp - 4.645e-5_rk) * temp) * temp - 6.33e-2_rk)) &
+          * 44.66e0_rk
       flo2 = self%pvel * (osat - o2)
    _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
    else
-      flo2 = self%pvel * (31.25 * (14.603 - 0.40215 * temp) - o2)
+      flo2 = self%pvel * (31.25_rk * (14.603_rk - 0.40215_rk * temp) - o2)
    _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
    end if
 
