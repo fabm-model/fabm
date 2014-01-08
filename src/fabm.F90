@@ -522,7 +522,7 @@
    ready = .true.
 
 #ifdef _FABM_MASK_
-   if (.not.associated(root%environment%mask)) call driver%log_message('spatial mask has not been set.')
+   if (.not.associated(self%environment%mask)) call driver%log_message('spatial mask has not been set.')
 #endif
 
    link => self%root%first_link
@@ -590,7 +590,7 @@
       ! Shortcuts to variable information - this demonstrably helps the compiler with vectorization (ifort).
       p = self%root%state_variables(ivar)%globalid%p
       initial_value = self%root%state_variables(ivar)%initial_value
-      _LOOP_BEGIN_EX_(root%environment)
+      _LOOP_BEGIN_EX_(self%environment)
          _SET_EX_(p,initial_value)
       _LOOP_END_
    end do
@@ -632,7 +632,7 @@
    do ivar=1,size(self%root%bottom_state_variables)
       p = self%root%bottom_state_variables(ivar)%globalid%p
       initial_value = self%root%bottom_state_variables(ivar)%initial_value
-      _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
+      _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
          _SET_HORIZONTAL_EX_(p,initial_value)
       _HORIZONTAL_LOOP_END_
    end do
@@ -674,7 +674,7 @@
    do ivar=1,size(self%root%surface_state_variables)
       p = self%root%surface_state_variables(ivar)%globalid%p
       initial_value = self%root%surface_state_variables(ivar)%initial_value
-      _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
+      _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
          _SET_HORIZONTAL_EX_(p,initial_value)
       _HORIZONTAL_LOOP_END_
    end do
@@ -1625,8 +1625,8 @@
       minimum = self%root%state_variables(ivar)%minimum
       maximum = self%root%state_variables(ivar)%maximum
       
-      _LOOP_BEGIN_EX_(root%environment)
-         _GET_STATE_EX_(root%environment,p,value)
+      _LOOP_BEGIN_EX_(self%environment)
+         _GET_STATE_EX_(self%environment,p,value)
          if (value<minimum) then
             ! State variable value lies below prescribed minimum.
             valid = .false.
@@ -1636,7 +1636,7 @@
                call driver%log_message(err)
                return
             end if
-            _SET_STATE_EX_(root%environment,p,minimum)
+            _SET_STATE_EX_(self%environment,p,minimum)
          elseif (value>maximum) then
             ! State variable value exceeds prescribed maximum.
             valid = .false.
@@ -1646,7 +1646,7 @@
                call driver%log_message(err)
                return
             end if
-            _SET_STATE_EX_(root%environment,p,maximum)
+            _SET_STATE_EX_(self%environment,p,maximum)
          end if
       _LOOP_END_
    end do
@@ -1659,8 +1659,8 @@
       minimum = self%root%bottom_state_variables(ivar)%minimum
       maximum = self%root%bottom_state_variables(ivar)%maximum
 
-      _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
-       _GET_STATE_BEN_EX_(root%environment,p_hz,value)
+      _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+       _GET_STATE_BEN_EX_(self%environment,p_hz,value)
          if (value<minimum) then
             ! State variable value lies below prescribed minimum.
             valid = .false.
@@ -1961,7 +1961,7 @@
    do i=1,size(self%root%conserved_quantities)
       if (associated(self%root%conserved_quantities(i)%model)) then
          call self%root%conserved_quantities(i)%model%evaluate(_ARGUMENTS_ND_IN_)
-         _LOOP_BEGIN_EX_(root%environment)
+         _LOOP_BEGIN_EX_(self%environment)
             sums _INDEX_OUTPUT_1D_(i) = self%environment%diag(_PREARG_LOCATION_ self%root%conserved_quantities(i)%model%id_output%diag_index)
          _LOOP_END_
       end if
@@ -1996,7 +1996,7 @@
    do i=1,size(self%root%conserved_quantities)
       if (associated(self%root%conserved_quantities(i)%horizontal_model)) then
          call self%root%conserved_quantities(i)%horizontal_model%evaluate_horizontal(_ARGUMENTS_IN_HZ_)
-         _HORIZONTAL_LOOP_BEGIN_EX_(root%environment)
+         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             sums _INDEX_HZ_OUTPUT_1D_(i) = self%environment%diag_hz(_PREARG_LOCATION_HZ_ self%root%conserved_quantities(i)%horizontal_model%id_output%horizontal_diag_index)
          _HORIZONTAL_LOOP_END_
       end if
