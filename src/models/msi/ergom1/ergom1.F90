@@ -315,12 +315,12 @@
   _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
-    real(rk)           :: pp,ff,bb,zz,aa,nn,po,dd,o2,dic,pw,par,I_0,zz0,ntemp,ntemp_eps,ptemp,phyto
+    real(rk)           :: pp,ff,bb,zz,aa,nn,po,dd,o2,pw,par,I_0,zz0,ntemp,ntemp_eps,ptemp,phyto
     real(rk)           :: ppg,ffg,bbg,nlim,plim,rp,rf,rb
-    real(rk)           :: iopt,iopt_di,ppi,ppi_di,temp,tempq,salt,ht,psum,ldn,nf,lpn,lpd,lp
-    real(rk)           :: part_uptake,uptake_p,uptake_f,otemp,food,food_eps,lz,graz_z,ldn_N,ldn_O,ade,lzn,lzd,gg,h
-    real(rk)           :: secs_pr_day=86400.
-    real(rk),parameter :: epsilon = 0.00000000001
+    real(rk)           :: iopt,iopt_di,ppi,ppi_di,temp,tempq,salt,ldn,nf,lpn,lpd,lp
+    real(rk)           :: part_uptake,uptake_p,uptake_f,otemp,food,food_eps,lz,graz_z,ldn_N,ldn_O,ade,lzn,lzd,gg
+    real(rk),parameter :: secs_pr_day=86400._rk
+    real(rk),parameter :: epsilon = 0.00000000001_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -390,14 +390,14 @@
     lpn = self%nb !Phytoplankton excretion rate
     lpd = self%deltao !Phytoplankton mortality rate
     
-    if (o2 .le. 0.0) then
+    if (o2 .le. 0.0_rk) then
       !No growth under anoxic conditions
-      rp = 0.0
-      rf = 0.0
-      rb = 0.0
+      rp = 0.0_rk
+      rf = 0.0_rk
+      rb = 0.0_rk
       !Higher mortality and no respiration if no oxygen present
-      lpd = 10. * lpd
-      lpn = 0.0
+      lpd = 10._rk * lpd
+      lpn = 0.0_rk
     end if
 
     lp = lpn + lpd !Phytoplankton loss rate (mortality + respiration)
@@ -491,7 +491,7 @@
                            + lzn * zz0 &
                            + ldn * dd &
                            - rp * ppg - rf * ffg - rb * bbg))
-  
+
    _SET_DIAGNOSTIC_(self%id_dPAR,par)
    _SET_DIAGNOSTIC_(self%id_GPP ,rp + rf)
    _SET_DIAGNOSTIC_(self%id_NCP ,rp + rf + rb - lpn * phyto)
@@ -577,81 +577,82 @@
    _GET_(self%id_pw,pwb)
    _GET_HORIZONTAL_(self%id_fl,fl)
    _GET_HORIZONTAL_(self%id_pb,pb)
-        
+
    _GET_HORIZONTAL_(self%id_taub,taub)
    _GET_(self%id_temp,temp)
-   
+
    pbr = max(pb, pb * (pb -self%ipo4th + 1.0_rk)) !increased phosphorus burial
 
    biores = self%br0 * max(0.0_rk, oxb) * max(0.0_rk, oxb) &
             / (max(0.0_rk, oxb) * max(0.0_rk, oxb) + 0.03_rk)  !bio-resuspension rate
-  
+
  !Resuspension-sedimentation rate are computed as in GOTM-BIO
-        if (self%tau_crit .gt. taub) then
-            llds=self%sedrate*(self%tau_crit-taub)/self%tau_crit
-            bpds=self%sedratepo4*(self%tau_crit-taub)/self%tau_crit
-         else
-            llds= 0.0_rk
-            bpds= 0.0_rk
-         end if
-         if (self%tau_crit .lt. taub) then
-            llsd=self%erorate*(taub-self%tau_crit)/self%tau_crit
-            bpsd=self%eroratepo4*(taub-self%tau_crit)/self%tau_crit
-         else
-            llsd=0.0_rk
-            bpsd=0.0_rk
-         end if
+   if (self%tau_crit .gt. taub) then
+      llds=self%sedrate*(self%tau_crit-taub)/self%tau_crit
+      bpds=self%sedratepo4*(self%tau_crit-taub)/self%tau_crit
+   else
+      llds= 0.0_rk
+      bpds= 0.0_rk
+   end if
+   if (self%tau_crit .lt. taub) then
+      llsd=self%erorate*(taub-self%tau_crit)/self%tau_crit
+      bpsd=self%eroratepo4*(taub-self%tau_crit)/self%tau_crit
+   else
+      llsd=0.0_rk
+      bpsd=0.0_rk
+   end if
 
    recs = self%dn_sed * exp(self%q10_recs * temp) 
 !temp-dependent detritus mineralization rate
-       if (oxb < 0.0_rk) then
+   if (oxb < 0.0_rk) then
 ! 10 times lower in anoxic
-         recs = recs * 0.1_rk
-       endif
+      recs = recs * 0.1_rk
+   endif
 ! Mineralization rates (see description of pelagic part)
    if (oxb .le. 0.0_rk .and. nnb > 0.0_rk) then   
-    ldn_N = 5.3_rk * nnb * nnb / (0.001_rk + nnb * nnb)
-    ldn_O = 6.625_rk * (1.0_rk - nnb * nnb / (0.001_rk + nnb * nnb)) 
+      ldn_N = 5.3_rk * nnb * nnb / (0.001_rk + nnb * nnb)
+      ldn_O = 6.625_rk * (1.0_rk - nnb * nnb / (0.001_rk + nnb * nnb)) 
    else
-    ldn_N = 0.0_rk
-    ldn_O = 6.625_rk
+      ldn_N = 0.0_rk
+      ldn_O = 6.625_rk
    endif
 
    if (oxb > 0.0_rk) then                      
-    fracdenitsed = self%fds !denitrification is sediments
-    plib = 0.0_rk           !no phosphate release
-    pret = self%po4ret      !phosphate is stored
+      fracdenitsed = self%fds !denitrification is sediments
+      plib = 0.0_rk           !no phosphate release
+      pret = self%po4ret      !phosphate is stored
    else                
-    fracdenitsed = 0.0_rk          !no denitrification in sediments
-    plib = self%pliberationrate !phosphorus is liberated
-    pret = 0.0_rk                  !no phosphate retention 
+      fracdenitsed = 0.0_rk          !no denitrification in sediments
+      plib = self%pliberationrate !phosphorus is liberated
+      pret = 0.0_rk                  !no phosphate retention 
    endif
  
    oxlim = max (0.0_rk,oxb) * max (0.0_rk,oxb) / (0.01_rk + max(0.0_rk,oxb) * max(0.0_rk,oxb))
-    
-    ! Sedimets resuspension, detritus settling, bio-resuspension and mineralization
-    _SET_ODE_BEN_(self%id_fl,-llsd * fl + llds * ddb - biores * fl - recs * fl)
-    ! P-Fe resuspension, sedimentation, bio-resuspension, liberation, retention and burial
-    _SET_ODE_BEN_(self%id_pb,-bpsd * pb + bpds * pwb -biores * pb -plib * pb + self%rfr * recs * fl * pret * oxlim - pbr * self%pburialrate * fl/self%maxsed)
 
-    !Denitrification in sediments
-    _SET_BOTTOM_EXCHANGE_(self%id_nn,-ldn_N * recs * fl)
-    !Oxygen consumption due to mineralization and denitrification
-    _SET_BOTTOM_EXCHANGE_(self%id_o2,-ldn_O * recs * fl - 2.0_rk * fracdenitsed * recs * fl)
-    !Ammonium production due to mineralization (oxic & anoxic)
-    _SET_BOTTOM_EXCHANGE_(self%id_aa,(1.0_rk - fracdenitsed) * recs * fl)
-    !Phosphate production due to mineralization (retention if oxic) and release in anoxic
-    _SET_BOTTOM_EXCHANGE_(self%id_po, (1.0_rk - pret * oxlim) * self%rfr * recs * fl + plib * pb)
-    !Sediment resuspension, detritus settling, bio-resuspension
-    _SET_BOTTOM_EXCHANGE_(self%id_dd, llsd * fl -llds *ddb + biores * fl)
-    !P-Fe resuspension, settling and bio-resuspension
-    _SET_BOTTOM_EXCHANGE_(self%id_pw, bpsd * pb -bpds * pwb +biores * pb)
-   
-    if (_AVAILABLE_(self%id_dic)) _SET_BOTTOM_EXCHANGE_(self%id_dic, self%rfc*recs * fl)    
+   ! Sediment resuspension, detritus settling, bio-resuspension and mineralization
+   _SET_ODE_BEN_(self%id_fl,-llsd * fl + llds * ddb - biores * fl - recs * fl)
+   ! P-Fe resuspension, sedimentation, bio-resuspension, liberation, retention and burial
+   _SET_ODE_BEN_(self%id_pb,-bpsd * pb + bpds * pwb -biores * pb -plib * pb + self%rfr * recs * fl * pret * oxlim - pbr * self%pburialrate * fl/self%maxsed)
 
-    !BENTHIC DIAGNOSTIC VARIABLES
-    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_pr_day)
-    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_PBR,(pbr * self%pburialrate * fl/self%maxsed) * secs_pr_day)
+   !Denitrification in sediments
+   _SET_BOTTOM_EXCHANGE_(self%id_nn,-ldn_N * recs * fl)
+   !Oxygen consumption due to mineralization and denitrification
+   _SET_BOTTOM_EXCHANGE_(self%id_o2,-ldn_O * recs * fl - 2.0_rk * fracdenitsed * recs * fl)
+   !Ammonium production due to mineralization (oxic & anoxic)
+   _SET_BOTTOM_EXCHANGE_(self%id_aa,(1.0_rk - fracdenitsed) * recs * fl)
+   !Phosphate production due to mineralization (retention if oxic) and release in anoxic
+   _SET_BOTTOM_EXCHANGE_(self%id_po, (1.0_rk - pret * oxlim) * self%rfr * recs * fl + plib * pb)
+   !Sediment resuspension, detritus settling, bio-resuspension
+   _SET_BOTTOM_EXCHANGE_(self%id_dd, llsd * fl -llds *ddb + biores * fl)
+   !P-Fe resuspension, settling and bio-resuspension
+   _SET_BOTTOM_EXCHANGE_(self%id_pw, bpsd * pb -bpds * pwb +biores * pb)
+
+   if (_AVAILABLE_(self%id_dic)) _SET_BOTTOM_EXCHANGE_(self%id_dic, self%rfc*recs * fl)    
+
+   !BENTHIC DIAGNOSTIC VARIABLES
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_pr_day)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_PBR,(pbr * self%pburialrate * fl/self%maxsed) * secs_pr_day)
+
    ! Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_
 
@@ -710,7 +711,7 @@
   _DECLARE_ARGUMENTS_DO_SURFACE_
 
   real(rk)           :: temp,wnd,salt,o2,nn,aa,po
-  real(rk),parameter :: secs_pr_day=86400.
+  real(rk),parameter :: secs_pr_day=86400._rk
 !
 ! !LOCAL VARIABLES:
   real(rk)                 :: p_vel,sc,flo2,osat
@@ -750,19 +751,19 @@
       end if
       p_vel = p_vel/secs_pr_day
       flo2 =p_vel*(osat_weiss(temp,salt)-o2)
-   _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
+      _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
 ! Newflux=2 use polynom approximation
 ! to order S & T ** 3 for oxygen saturation derived from
 ! www.helcom.fi/Monas/CombineManual2/PartB/AnnexB-8Appendix3.pdf
    elseif (self%newflux .eq. 2) then
-     osat = (10.18e0_rk + ((5.306e-3_rk - 4.8725e-5_rk * temp) *temp - 0.2785e0_rk) * temp &
+      osat = (10.18e0_rk + ((5.306e-3_rk - 4.8725e-5_rk * temp) *temp - 0.2785e0_rk) * temp &
           + salt * ((2.2258e-3_rk + (4.39e-7_rk * temp - 4.645e-5_rk) * temp) * temp - 6.33e-2_rk)) &
           * 44.66e0_rk
       flo2 = self%pvel * (osat - o2)
-   _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
+      _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
    else
       flo2 = self%pvel * (31.25_rk * (14.603_rk - 0.40215_rk * temp) - o2)
-   _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
+      _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
    end if
 
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_OFL,flo2 * secs_pr_day)
