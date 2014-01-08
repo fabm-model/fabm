@@ -184,7 +184,8 @@ character(len=fm_string_len), parameter         :: default_ocean_restart_file = 
 type biotic_type  !{
 
   type (type_model),pointer :: model
-  integer                                          :: id_temp,id_salt,id_pres,id_par,id_par_sf,id_dens
+  type (type_bulk_variable_id)                     :: id_temp,id_salt,id_pres,id_par,id_dens
+  type (type_horizontal_variable_id)               :: id_par_sf
 
   character(len=fm_field_name_len)                 :: name
   logical                                          :: do_virtual_flux = .false.
@@ -478,7 +479,7 @@ do n = 1, instances  !{
      biotic(n)%inds(i) = otpm_set_prog_tracer(                                               &
           trim(biotic(n)%model%info%state_variables(i)%name) // suffix,                      &
           package_name,                                                                      &
-          longname = trim(biotic(n)%model%info%state_variables(i)%longname) // trim(long_suffix),  &
+          longname = trim(biotic(n)%model%info%state_variables(i)%long_name) // trim(long_suffix),  &
           units = trim(biotic(n)%model%info%state_variables(i)%units),                       &
           flux_units = trim(biotic(n)%model%info%state_variables(i)%units)//'/s',            &
           caller = trim(mod_name)//'('//trim(sub_name)//')',                                 &
@@ -494,12 +495,12 @@ do n = 1, instances  !{
   call fm_util_end_namelist(package_name, biotic(n)%name, check = .true., caller = caller_str)
 
   ! Obtain ids of required external variables
-  biotic(n)%id_temp   = fabm_get_variable_id(biotic(n)%model,varname_temp,   shape_full)
-  biotic(n)%id_salt   = fabm_get_variable_id(biotic(n)%model,varname_salt,   shape_full)
-  biotic(n)%id_pres   = fabm_get_variable_id(biotic(n)%model,varname_pres,   shape_full)
-  biotic(n)%id_dens   = fabm_get_variable_id(biotic(n)%model,varname_dens,   shape_full)
-  biotic(n)%id_par    = fabm_get_variable_id(biotic(n)%model,varname_par,    shape_full)
-  biotic(n)%id_par_sf = fabm_get_variable_id(biotic(n)%model,varname_par_sf, shape_hz)
+  biotic(n)%id_temp   = fabm_get_bulk_variable_id(biotic(n)%model,varname_temp)
+  biotic(n)%id_salt   = fabm_get_bulk_variable_id(biotic(n)%model,varname_salt)
+  biotic(n)%id_pres   = fabm_get_bulk_variable_id(biotic(n)%model,varname_pres)
+  biotic(n)%id_dens   = fabm_get_bulk_variable_id(biotic(n)%model,varname_dens)
+  biotic(n)%id_par    = fabm_get_bulk_variable_id(biotic(n)%model,varname_par)
+  biotic(n)%id_par_sf = fabm_get_horizontal_variable_id(biotic(n)%model,varname_par_sf)
 
 enddo  !} n
 
@@ -695,7 +696,7 @@ do n = 1, instances  !{
   do i=1,ubound(biotic(n)%model%info%diagnostic_variables,1)
      biotic(n)%inds_diag(i) = register_diag_field('ocean_model',      &
           trim(biotic(n)%model%info%diagnostic_variables(i)%name)//str, grid_tracer_axes(1:3),                       &
-          model_time, trim(biotic(n)%model%info%diagnostic_variables(i)%longname), &
+          model_time, trim(biotic(n)%model%info%diagnostic_variables(i)%long_name), &
           trim(biotic(n)%model%info%diagnostic_variables(i)%units),            &
           missing_value = biotic(n)%model%info%diagnostic_variables(i)%missing_value)
   end do
@@ -705,7 +706,7 @@ do n = 1, instances  !{
   do i=1,ubound(biotic(n)%model%info%diagnostic_variables_hz,1)
      biotic(n)%inds_diag_hz(i) = register_diag_field('ocean_model',      &
           trim(biotic(n)%model%info%diagnostic_variables_hz(i)%name)//str, grid_tracer_axes(1:2),                       &
-          model_time, trim(biotic(n)%model%info%diagnostic_variables_hz(i)%longname), &
+          model_time, trim(biotic(n)%model%info%diagnostic_variables_hz(i)%long_name), &
           trim(biotic(n)%model%info%diagnostic_variables_hz(i)%units),            &
           missing_value = biotic(n)%model%info%diagnostic_variables_hz(i)%missing_value)
   end do
@@ -715,7 +716,7 @@ do n = 1, instances  !{
   do i=1,ubound(biotic(n)%model%info%state_variables,1)
      biotic(n)%inds_clip(i) = register_diag_field('ocean_model',      &
           trim(biotic(n)%model%info%state_variables(i)%name)//'_clip'//str, grid_tracer_axes(1:3),                       &
-          model_time, trim(biotic(n)%model%info%state_variables(i)%longname)//' clipping increase', &
+          model_time, trim(biotic(n)%model%info%state_variables(i)%long_name)//' clipping increase', &
           trim(biotic(n)%model%info%state_variables(i)%units),            &
           missing_value = -1.0e+10)
   end do
@@ -727,17 +728,17 @@ do n = 1, instances  !{
   do i=1,ubound(biotic(n)%model%info%conserved_quantities,1)
      biotic(n)%inds_cons(i) = register_diag_field('ocean_model',                            &
           trim(biotic(n)%model%info%conserved_quantities(i)%name)//str, grid_tracer_axes(1:3),                 &
-          model_time, trim(biotic(n)%model%info%conserved_quantities(i)%longname), &
+          model_time, trim(biotic(n)%model%info%conserved_quantities(i)%long_name), &
           trim(biotic(n)%model%info%conserved_quantities(i)%units),                     &
           missing_value = -1.0e+10)
      biotic(n)%inds_cons_tot(i) = register_diag_field('ocean_model',                            &
           trim(biotic(n)%model%info%conserved_quantities(i)%name)//'_total'//str,                 &
-          model_time, 'mass integrated '//trim(biotic(n)%model%info%conserved_quantities(i)%longname), &
+          model_time, 'mass integrated '//trim(biotic(n)%model%info%conserved_quantities(i)%long_name), &
           trim(biotic(n)%model%info%conserved_quantities(i)%units)//'*m3/1e21',                     &
           missing_value = -1.0e+10)
      biotic(n)%inds_cons_ave(i) = register_diag_field('ocean_model',                            &
           trim(biotic(n)%model%info%conserved_quantities(i)%name)//'_global_ave'//str,                 &
-          model_time, 'global mass weighted mean '//trim(biotic(n)%model%info%conserved_quantities(i)%longname)//' in liquid seawater', &
+          model_time, 'global mass weighted mean '//trim(biotic(n)%model%info%conserved_quantities(i)%long_name)//' in liquid seawater', &
           trim(biotic(n)%model%info%conserved_quantities(i)%units),                     &
           missing_value = -1.0e+10)
   end do
@@ -783,9 +784,9 @@ do n=1,instances
       call fabm_link_diagnostic_data_hz(biotic(n)%model,i,biotic(n)%work_diag_hz(isc:iec,jsc:jec,i))
    end do
 
-   !if (biotic(n)%id_pres  .ne.-1) call fabm_link_data   (biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth (isc:iec,jsc:jec,:))
-   if (biotic(n)%id_par   .ne.-1) call fabm_link_data   (biotic(n)%model,biotic(n)%id_par ,  t_diag(index_irr)%field(isc:iec,jsc:jec,:))
-   if (biotic(n)%id_par_sf.ne.-1) call fabm_link_data_hz(biotic(n)%model,biotic(n)%id_par_sf,t_diag(index_irr)%field(isc:iec,jsc:jec,1))
+   !if (fabm_is_variable_used(biotic(n)%id_pres))   call fabm_link_data   (biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth (isc:iec,jsc:jec,:))
+   if (fabm_is_variable_used(biotic(n)%id_par))    call fabm_link_data   (biotic(n)%model,biotic(n)%id_par ,  t_diag(index_irr)%field(isc:iec,jsc:jec,:))
+   if (fabm_is_variable_used(biotic(n)%id_par_sf)) call fabm_link_data_hz(biotic(n)%model,biotic(n)%id_par_sf,t_diag(index_irr)%field(isc:iec,jsc:jec,1))
 end do
 
 return
@@ -966,10 +967,10 @@ call get_external_fields(isc, iec, jsc, jec, nk, model_time)
 do n = 1, instances  !{
 
   ! Set pointers to environmental variables.
-  if (biotic(n)%id_temp.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
-  if (biotic(n)%id_salt.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
-  if (biotic(n)%id_dens.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_dens,Dens%rho             (isc:iec,jsc:jec,:,taum1))
-  if (biotic(n)%id_pres.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_pres,Dens%pressure_at_depth(isc:iec,jsc:jec,:))
+  if (fabm_is_variable_used(biotic(n)%id_temp)) call fabm_link_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_salt)) call fabm_link_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_dens)) call fabm_link_data(biotic(n)%model,biotic(n)%id_dens,Dens%rho             (isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_pres)) call fabm_link_data(biotic(n)%model,biotic(n)%id_pres,Dens%pressure_at_depth(isc:iec,jsc:jec,:))
 
   ! Link to current biogeochemical state variable values, as maintained by MOM4.
   do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
@@ -1769,9 +1770,9 @@ call get_external_fields(isc, iec, jsc, jec, nk, model_time)
 do n = 1, instances  !{
 
   ! Set pointers to environmental variables.
-  if (biotic(n)%id_temp.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
-  if (biotic(n)%id_salt.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
-  if (biotic(n)%id_dens.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_dens,rho                  (isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_temp)) call fabm_link_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_salt)) call fabm_link_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_dens)) call fabm_link_data(biotic(n)%model,biotic(n)%id_dens,rho                  (isc:iec,jsc:jec,:,taum1))
 
   ! Set pointers to biotic variables.
   do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
