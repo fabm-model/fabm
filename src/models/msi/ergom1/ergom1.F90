@@ -52,7 +52,6 @@
 !
 ! !DESCRIPTION:
 !
-!
 ! !USE:
    use fabm_types
 
@@ -62,14 +61,15 @@
 !
 ! !PUBLIC_DERIVED_TYPES:
   type,extends(type_base_model),public :: type_msi_ergom1
-! Variable identifiers
+      ! Variable identifiers
       type (type_state_variable_id)        :: id_pp,id_ff,id_bb,id_zz,id_dd,id_aa,id_nn,id_po,id_o2,id_pw,id_dic
       type (type_bottom_state_variable_id) :: id_fl,id_pb
-      type (type_dependency_id)            :: id_par,id_temp,id_salt !id_ht
+      type (type_dependency_id)            :: id_par,id_temp,id_salt
       type (type_horizontal_dependency_id) :: id_I_0,id_taub,id_wind
       type (type_diagnostic_variable_id)   :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR,id_NFX,id_DNP
       type (type_horizontal_diagnostic_variable_id) :: id_DNB,id_SBR,id_PBR,id_OFL
-! Model parameters
+
+      ! Model parameters
       real(rk) :: nb,deltao,nue,sigma_b,dn,dn_sed,sfl_po,sfl_aa,sfl_nn
       real(rk) :: rp0,rf0,rb0,cyanotll,cyanosll,cyanosul,flagtll
       real(rk) :: alphap,alphaf,alphab,iv,graz,toptz,zcl1,p0,f0,b0,z0
@@ -100,10 +100,6 @@
 ! !DESCRIPTION:
 !   Here, the ergom1 namelist is read and the variables exported by the model are registered with FABM
 !
-! !USES
-!   List any modules used by this routine.
-   IMPLICIT NONE
-!
 ! !INPUT PARAMETERS:
    class(type_msi_ergom1),intent(inout),target :: self
    integer,               intent(in)           :: configunit
@@ -121,7 +117,7 @@
    real(rk)           :: fl_initial=300._rk     ! Initial concentration of sediment fluff
    real(rk)           :: pw_initial=0.001_rk    ! Initial concentration of P-Fe in water
    real(rk)           :: pb_initial=0.001_rk    ! Initial concentration of P-Fe in sediment
-   real(rk)           :: sfl_po=0.0015_rk       ! Surface flux constant, phospahtes
+   real(rk)           :: sfl_po=0.0015_rk       ! Surface flux constant, phosphates
    real(rk)           :: sfl_aa=0.06_rk         ! Surface flux constant, ammonium
    real(rk)           :: sfl_nn=0.083_rk        ! Surface flux constant, nitrate
    real(rk)           :: nb=0.01_rk             ! Phytoplankton excretion rate (pl -> aa)
@@ -281,7 +277,7 @@
    call self%register_diagnostic_variable(self%id_DNP, 'DNP','mmol/m**3/d','denitrification pelagic',            time_treatment=time_treatment_averaged)
    call self%register_diagnostic_variable(self%id_DNB, 'DNB','mmol/m**2/d','denitrification benthic',            time_treatment=time_treatment_averaged)
    call self%register_diagnostic_variable(self%id_SBR, 'SBR','mmol/m**2',  'sediment burial',                    time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_PBR, 'PBR','mmol/m**2/d','phosphoris burial',                  time_treatment=time_treatment_averaged)
+   call self%register_diagnostic_variable(self%id_PBR, 'PBR','mmol/m**2/d','phosphorus burial',                  time_treatment=time_treatment_averaged)
    call self%register_diagnostic_variable(self%id_OFL, 'OFL','mmol/m**2/d','oxygen surface flux',                time_treatment=time_treatment_averaged)
 
    ! Register environmental dependencies
@@ -324,41 +320,41 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-!   Enter spatial_loops (if any)
+    ! Enter spatial_loops (if any)
     _LOOP_BEGIN_
 
-!   Retrieve current (local) state variable values
-    _GET_(self%id_pp,pp) !diatoms
-    _GET_(self%id_ff,ff) !flagellates
-    _GET_(self%id_bb,bb) !cyanobacteria
-    _GET_(self%id_zz,zz) !zooplankton
-    _GET_(self%id_dd,dd) !detritus
-    _GET_(self%id_aa,aa) !ammonium
-    _GET_(self%id_nn,nn) !nitrate
-    _GET_(self%id_po,po) !phosphate
-    _GET_(self%id_o2,o2) !oxygen
-    _GET_(self%id_pw,pw) !P-Fe water
+    ! Retrieve current (local) state variable values
+    _GET_(self%id_pp,pp) ! diatoms
+    _GET_(self%id_ff,ff) ! flagellates
+    _GET_(self%id_bb,bb) ! cyanobacteria
+    _GET_(self%id_zz,zz) ! zooplankton
+    _GET_(self%id_dd,dd) ! detritus
+    _GET_(self%id_aa,aa) ! ammonium
+    _GET_(self%id_nn,nn) ! nitrate
+    _GET_(self%id_po,po) ! phosphate
+    _GET_(self%id_o2,o2) ! oxygen
+    _GET_(self%id_pw,pw) ! P-Fe water
 
     _GET_(self%id_par,par)
     _GET_HORIZONTAL_(self%id_I_0,I_0)
     _GET_(self%id_temp,temp)
     _GET_(self%id_salt,salt)
-!   Light acclimation formulation based on surface light intensity
 
+    ! Light acclimation formulation based on surface light intensity
     iopt = max(0.5_rk*par,self%imin)
     ppi = par/iopt*exp(1.0_rk-par/iopt)
-    
+
     iopt_di = max(0.5_rk*par,self%imin_di)
     ppi_di= par/iopt_di*exp(1.0_rk-par/iopt_di)
-    
-   ! if (temp .le. 0.1_rk) then
-   ! ppi=0.01_rk*ppi
-   ! ppi_di=0.01_rk*ppi_di
-   ! end if
+
+    ! if (temp .le. 0.1_rk) then
+    !    ppi=0.01_rk*ppi
+    !    ppi_di=0.01_rk*ppi_di
+    ! end if
 
     tempq = max(temp,0.0_rk)
     tempq = tempq*tempq 
-    
+
     zz0 = self%zcl1*zz*zz
 
     ntemp = nn + aa     
@@ -370,47 +366,49 @@
     ffg = ff + self%f0
     bbg = bb + self%b0
  
-   !Diatom uptake     
-    nlim = ntemp / (self%alphap * self%alphap + ntemp) !MiMe eq. for IN
-    plim = ptemp / (self%alphap * self%alphap * self%rfr * self%rfr + ptemp) !MiMe eq. for IP
-    rp = min (nlim, plim, ppi_di) !Applying Liebig's minimum law: IN,IP,light
-    rp = rp * self%rp0            !Actual uptake rate
+    ! Diatom uptake
+    nlim = ntemp / (self%alphap * self%alphap + ntemp) ! MiMe eq. for IN
+    plim = ptemp / (self%alphap * self%alphap * self%rfr * self%rfr + ptemp) ! MiMe eq. for IP
+    rp = min (nlim, plim, ppi_di) ! Applying Liebig's minimum law: IN,IP,light
+    rp = rp * self%rp0            ! Actual uptake rate
 
-    nlim = ntemp / (self%alphaf * self%alphaf + ntemp) !MiMe eq. for IN
-    plim = ptemp / (self%alphaf * self%alphaf * self%rfr * self%rfr + ptemp) !MiMe eq. for IP
-    rf = min(nlim, plim, ppi) !Liebig's minimum law
-    rf = rf * self%rf0 * (1.0_rk + tempq / (self%flagtll + tempq)) !Uptake rate is temp dependent
+    ! Flagellate uptake
+    nlim = ntemp / (self%alphaf * self%alphaf + ntemp) ! MiMe eq. for IN
+    plim = ptemp / (self%alphaf * self%alphaf * self%rfr * self%rfr + ptemp) ! MiMe eq. for IP
+    rf = min(nlim, plim, ppi) ! Liebig's minimum law
+    rf = rf * self%rf0 * (1.0_rk + tempq / (self%flagtll + tempq)) ! Uptake rate is temp dependent
 
-    plim = ptemp / (self%alphab * self%alphab * self%rfr * self%rfr + ptemp) !MiMe for IP
+    ! Cyanobacteria uptake
+    plim = ptemp / (self%alphab * self%alphab * self%rfr * self%rfr + ptemp) ! MiMe for IP
     rb = min(plim, ppi) !Liebig's law: IP,light. No dependence on IN for cyanos.
     rb = rb * self%rb0 / (1.0_rk + exp(self%cyanotll - temp)) !Uptake rate temp dependent
     !rb = rb / (1.0_rk + exp (salt - self%cyanosul)) / (1.0_rk + exp (self%cyanosll - salt))
     !Uptake rate is also salinity dependent for cyanos
-    
-    lpn = self%nb !Phytoplankton excretion rate
-    lpd = self%deltao !Phytoplankton mortality rate
-    
+
+    lpn = self%nb     ! Phytoplankton excretion rate
+    lpd = self%deltao ! Phytoplankton mortality rate
+
     if (o2 .le. 0.0_rk) then
-      !No growth under anoxic conditions
+      ! No growth under anoxic conditions
       rp = 0.0_rk
       rf = 0.0_rk
       rb = 0.0_rk
-      !Higher mortality and no respiration if no oxygen present
+      ! Higher mortality and no respiration if no oxygen present
       lpd = 10._rk * lpd
       lpn = 0.0_rk
     end if
 
-    lp = lpn + lpd !Phytoplankton loss rate (mortality + respiration)
-    !Uptake rates * concentrations / (sum of nitrate and ammonium)
+    lp = lpn + lpd ! Phytoplankton loss rate (mortality + respiration)
+    ! Uptake rates * concentrations / (sum of nitrate and ammonium)
     part_uptake = (rp * ppg + rf *ffg) / ntemp_eps 
     uptake_p = rp * ppg / ntemp_eps            
     uptake_f = rf * ffg / ntemp_eps                
   !!!! NITRIFICATION RATE !!!!
     otemp = max(0.0_rk, o2) !for oxygen dependent process if o2<0 then o2=0
-   ! Nitrification rate depends on oxygen availability and temperature
+    ! Nitrification rate depends on oxygen availability and temperature
     nf = otemp / (0.01_rk + otemp) * 0.1_rk * exp (0.11_rk * temp)/secs_pr_day
   !!!! ZOOPLANKTON RATES !!!! 
-   !Food available for zooplankton. Notice lower preference for cyanos
+    ! Food available for zooplankton. Notice lower preference for cyanos
     food = max(pp,0.0_rk) + max(ff,0.0_rk) + 0.5_rk * max(bb,0.0_rk) + self%p0 + self%b0 + self%f0
     food_eps = max(food, epsilon) ! Be sure food is positive
     gg = self%graz * (1.0_rk - exp(self%iv * food * food * (-1.0_rk))) !Grazing rate
@@ -419,31 +417,26 @@
     lzn = self%nue     ! Zooplankton respiration rate 
  
     if (o2 .le. 0.0_rk) then
-    !In anoxic conditions:
+      ! In anoxic conditions:
       gg = 0.0_rk                ! No grazing
-      lzd = 10._rk *self%sigma_b !Higher zooplankton mortality
+      lzd = 10._rk *self%sigma_b ! Higher zooplankton mortality
       lzn = 0.0_rk               ! No respiration
     endif
 
     lz = lzn + lzd ! Zooplankton loss rate (mortality + respiration)
     ! Zooplankton grazing depends on food availability and temperature
     graz_z = gg * (zz + self%z0)/food_eps * (1.0_rk + 2.7183_rk/self%toptz/self%toptz * tempq * exp(1.0_rk - temp * 2.0_rk / self%toptz))
- 
 
-    ldn = self%dn * exp (self%q10_rec*temp) !Mineralization rate depends on temperature
+    ldn = self%dn * exp (self%q10_rec*temp) ! Mineralization rate depends on temperature
 
     if (o2 .le. 0.0_rk .and. nn > 0.0_rk) then
-
-      ldn_N = 5.3_rk * nn * nn / (0.001_rk + nn * nn) !Denitrification rate depends on nitrate availability
-      ldn_O = 6.625_rk * (1.0_rk - nn * nn / (0.001_rk + nn * nn)) !Oxygen loss due to denitrification      
-      ade = self%ade_r0 * nn * nn / (self%alphaade +  nn * nn) * nn !ade rate nitrate dependent
-
+      ldn_N = 5.3_rk * nn * nn / (0.001_rk + nn * nn)               ! Denitrification rate depends on nitrate availability
+      ldn_O = 6.625_rk * (1.0_rk - nn * nn / (0.001_rk + nn * nn))  ! Oxygen loss due to denitrification      
+      ade = self%ade_r0 * nn * nn / (self%alphaade +  nn * nn) * nn ! ade rate nitrate dependent
    else
-
       ldn_N = 0.0_rk
-      ldn_O = 6.625_rk  !Negative oxygen = H2S production
+      ldn_O = 6.625_rk  ! Negative oxygen = H2S production
       ade = 0.0_rk
-
    endif
 
   _SET_ODE_(self%id_o2, &
@@ -500,7 +493,7 @@
    _SET_DIAGNOSTIC_(self%id_NFX, rb * bbg * secs_pr_day)
    _SET_DIAGNOSTIC_(self%id_DNP, (ldn_N * ldn *dd + ade) * secs_pr_day)
 
-!   Leave spatial loops (if any)
+   ! Leave spatial loops (if any)
    _LOOP_END_
 
    END subroutine do
@@ -586,7 +579,7 @@
    biores = self%br0 * max(0.0_rk, oxb) * max(0.0_rk, oxb) &
             / (max(0.0_rk, oxb) * max(0.0_rk, oxb) + 0.03_rk)  !bio-resuspension rate
 
- !Resuspension-sedimentation rate are computed as in GOTM-BIO
+   ! Resuspension-sedimentation rate are computed as in GOTM-BIO
    if (self%tau_crit .gt. taub) then
       llds=self%sedrate*(self%tau_crit-taub)/self%tau_crit
       bpds=self%sedratepo4*(self%tau_crit-taub)/self%tau_crit
@@ -602,13 +595,15 @@
       bpsd=0.0_rk
    end if
 
-   recs = self%dn_sed * exp(self%q10_recs * temp) 
-!temp-dependent detritus mineralization rate
+   recs = self%dn_sed * exp(self%q10_recs * temp)
+
+   ! temp-dependent detritus mineralization rate
    if (oxb < 0.0_rk) then
-! 10 times lower in anoxic
+      ! 10 times lower in anoxic
       recs = recs * 0.1_rk
    endif
-! Mineralization rates (see description of pelagic part)
+
+   ! Mineralization rates (see description of pelagic part)
    if (oxb .le. 0.0_rk .and. nnb > 0.0_rk) then   
       ldn_N = 5.3_rk * nnb * nnb / (0.001_rk + nnb * nnb)
       ldn_O = 6.625_rk * (1.0_rk - nnb * nnb / (0.001_rk + nnb * nnb)) 
@@ -618,13 +613,13 @@
    endif
 
    if (oxb > 0.0_rk) then                      
-      fracdenitsed = self%fds !denitrification is sediments
-      plib = 0.0_rk           !no phosphate release
-      pret = self%po4ret      !phosphate is stored
+      fracdenitsed = self%fds     ! denitrification is sediments
+      plib = 0.0_rk               ! no phosphate release
+      pret = self%po4ret          ! phosphate is stored
    else                
-      fracdenitsed = 0.0_rk          !no denitrification in sediments
-      plib = self%pliberationrate !phosphorus is liberated
-      pret = 0.0_rk                  !no phosphate retention 
+      fracdenitsed = 0.0_rk       ! no denitrification in sediments
+      plib = self%pliberationrate ! phosphorus is liberated
+      pret = 0.0_rk               ! no phosphate retention 
    endif
  
    oxlim = max (0.0_rk,oxb) * max (0.0_rk,oxb) / (0.01_rk + max(0.0_rk,oxb) * max(0.0_rk,oxb))
@@ -634,22 +629,22 @@
    ! P-Fe resuspension, sedimentation, bio-resuspension, liberation, retention and burial
    _SET_ODE_BEN_(self%id_pb,-bpsd * pb + bpds * pwb -biores * pb -plib * pb + self%rfr * recs * fl * pret * oxlim - pbr * self%pburialrate * fl/self%maxsed)
 
-   !Denitrification in sediments
+   ! Denitrification in sediments
    _SET_BOTTOM_EXCHANGE_(self%id_nn,-ldn_N * recs * fl)
-   !Oxygen consumption due to mineralization and denitrification
+   ! Oxygen consumption due to mineralization and denitrification
    _SET_BOTTOM_EXCHANGE_(self%id_o2,-ldn_O * recs * fl - 2.0_rk * fracdenitsed * recs * fl)
-   !Ammonium production due to mineralization (oxic & anoxic)
+   ! Ammonium production due to mineralization (oxic & anoxic)
    _SET_BOTTOM_EXCHANGE_(self%id_aa,(1.0_rk - fracdenitsed) * recs * fl)
-   !Phosphate production due to mineralization (retention if oxic) and release in anoxic
+   ! Phosphate production due to mineralization (retention if oxic) and release in anoxic
    _SET_BOTTOM_EXCHANGE_(self%id_po, (1.0_rk - pret * oxlim) * self%rfr * recs * fl + plib * pb)
-   !Sediment resuspension, detritus settling, bio-resuspension
+   ! Sediment resuspension, detritus settling, bio-resuspension
    _SET_BOTTOM_EXCHANGE_(self%id_dd, llsd * fl -llds *ddb + biores * fl)
-   !P-Fe resuspension, settling and bio-resuspension
+   ! P-Fe resuspension, settling and bio-resuspension
    _SET_BOTTOM_EXCHANGE_(self%id_pw, bpsd * pb -bpds * pwb +biores * pb)
 
    if (_AVAILABLE_(self%id_dic)) _SET_BOTTOM_EXCHANGE_(self%id_dic, self%rfc*recs * fl)    
 
-   !BENTHIC DIAGNOSTIC VARIABLES
+   ! BENTHIC DIAGNOSTIC VARIABLES
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_pr_day)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_PBR,(pbr * self%pburialrate * fl/self%maxsed) * secs_pr_day)
 
