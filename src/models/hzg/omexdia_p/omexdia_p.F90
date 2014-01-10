@@ -252,7 +252,7 @@
    _SET_ODE_(self%id_sdet, -f_T * CprodS _CONV_UNIT_)
    _SET_ODE_(self%id_oxy , (-OxicMin - 2.0_rk* Nitri - OduOx) _CONV_UNIT_) !RH 1.0->150/106*OxicMin (if [oxy]=mmolO2/m**3)
    _SET_ODE_(self%id_no3 , (-0.8_rk*Denitrific + Nitri) _CONV_UNIT_)     !RH 0.8-> ~104/106?
-   _SET_ODE_(self%id_nh3 , (Nprod - Nitri) / (1.0_rk + self%NH3Ads) _CONV_UNIT_)
+   _SET_ODE_(self%id_nh3 , (f_T * Nprod - Nitri) / (1.0_rk + self%NH3Ads) _CONV_UNIT_)
    _SET_ODE_(self%id_odu , (AnoxicMin - OduOx - OduDepo) _CONV_UNIT_)
    _SET_ODE_(self%id_po4 , (f_T * Pprod - radsP) _CONV_UNIT_)
    _SET_ODE_(self%id_pdet, (radsP - f_T * Pprod) _CONV_UNIT_)
