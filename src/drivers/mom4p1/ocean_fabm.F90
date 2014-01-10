@@ -190,8 +190,8 @@ type biotic_type  !{
   character(len=fm_field_name_len)                 :: name
   logical                                          :: do_virtual_flux = .false.
   integer,_ALLOCATABLE,dimension(:)                :: inds,inds_clip,inds_diag,inds_diag_hz,inds_cons,inds_cons_tot,inds_cons_ave
-  double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_diag _NULL,work_cons _NULL
-  double precision,_ALLOCATABLE,dimension(:,:,:)   :: work_diag_hz _NULL,w _NULL,sf_fluxes _NULL
+  double precision,_ALLOCATABLE,dimension(:,:,:,:) :: work_cons _NULL
+  double precision,_ALLOCATABLE,dimension(:,:,:)   :: w _NULL,sf_fluxes _NULL
   double precision,_ALLOCATABLE,dimension(:,:)     :: adv _NULL,work_dy _NULL
 
   ! Arrays to hold information on externally provided fields
@@ -338,7 +338,7 @@ package_index = otpm_set_tracer_package(package_name,            &
 
 path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
 instances = fm_get_length(path_to_names)
-if (instances .lt. 0) then  !{
+if (instances < 0) then  !{
   call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
 endif  !}
 
@@ -347,11 +347,11 @@ endif  !}
 !
 
 write (stdout(),*)
-if (instances .eq. 0) then  !{
+if (instances == 0) then  !{
   write (stdout(),*) trim(note_header), ' No instances'
   do_ocean_fabm = .false.
 else  !}{
-  if (instances .eq. 1) then  !{
+  if (instances == 1) then  !{
     write (stdout(),*) trim(note_header), ' ', instances, ' instance'
   else  !}{
     write (stdout(),*) trim(note_header), ' ', instances, ' instances'
@@ -403,7 +403,7 @@ enddo  !}
 !       later for a consistency check
 !
 
-if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then  !{
+if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) <= 0) then  !{
   call mpp_error(FATAL, trim(error_header) //                           &
        ' Could not add ' // trim(package_name) // ' to "good_namelists" list')
 endif  !}
@@ -460,7 +460,7 @@ do n = 1, instances  !{
   namelist_file = fm_util_get_string ('namelist_file', caller = caller_str, scalar = .true.)
 
   name = biotic(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) == '_') then  !{
     suffix = ' '
     long_suffix = ' '
   else  !}{
@@ -474,8 +474,8 @@ do n = 1, instances  !{
   call close_file (nmlunit)
 
   ! Register state variables
-  allocate(biotic(n)%inds(ubound(biotic(n)%model%info%state_variables,1)))
-  do i=1,ubound(biotic(n)%model%info%state_variables,1)
+  allocate(biotic(n)%inds(size(biotic(n)%model%info%state_variables)))
+  do i=1,size(biotic(n)%model%info%state_variables)
      biotic(n)%inds(i) = otpm_set_prog_tracer(                                               &
           trim(biotic(n)%model%info%state_variables(i)%name) // suffix,                      &
           package_name,                                                                      &
@@ -532,7 +532,7 @@ index_irr = otpm_set_diag_tracer('irr',                                         
  min_range=-10.0, max_range=100.0, const_init_tracer=.true.,const_init_value=0.0,      &
  restart_file='ocean_irr.res.nc')
 
-if (index_irr.eq.-1 .or. index_chl.eq.-1) then
+if (index_irr==-1 .or. index_chl==-1) then
     call mpp_error(FATAL,trim(error_header) // 'index of chlorophyll and/or irradiance equals -1.')
 end if
 
@@ -645,12 +645,12 @@ write(stdout(),*) trim(note_header),                     &
 
 
 indtemp = fm_get_index('/ocean_mod/prog_tracers/temp')
-if (indtemp .le. 0) then  !{
+if (indtemp <= 0) then  !{
   call mpp_error(FATAL,trim(error_header) // ' Could not get the temperature index')
 endif  !}
 
 indsal = fm_get_index('/ocean_mod/prog_tracers/salt')
-if (indsal .le. 0) then  !{
+if (indsal <= 0) then  !{
   call mpp_error(FATAL,trim(error_header) // ' Could not get the salinity index')
 endif  !}
 !
@@ -663,10 +663,10 @@ caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str)
 
-inplace_repair           = fm_util_get_logical('inplace_repair',           scalar = .true.)
-zero_river_concentration = fm_util_get_logical('zero_river_concentration', scalar = .true.)
-disable_sources          = fm_util_get_logical('disable_sources',          scalar = .true.)
-disable_vertical_movement          = fm_util_get_logical('disable_vertical_movement',          scalar = .true.)
+inplace_repair            = fm_util_get_logical('inplace_repair',           scalar = .true.)
+zero_river_concentration  = fm_util_get_logical('zero_river_concentration', scalar = .true.)
+disable_sources           = fm_util_get_logical('disable_sources',          scalar = .true.)
+disable_vertical_movement = fm_util_get_logical('disable_vertical_movement',scalar = .true.)
 
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str)
 
@@ -676,8 +676,10 @@ call fm_util_end_namelist(package_name, '*global*', caller = caller_str)
 !-----------------------------------------------------------------------
 !
 
-
-  call fabm_set_domain(biotic(n)%model,iec-isc+1,jec-jsc+1,nk)
+call fabm_set_domain(biotic(n)%model,iec-isc+1,jec-jsc+1,nk)
+#ifdef _FABM_MASK_
+call fabm_set_mask(biotic(n)%model,grid_tmask(isc:iec,jsc:jec,:))
+#endif
 
 !-----------------------------------------------------------------------
 !       Set up diagnostic fields
@@ -685,15 +687,15 @@ call fm_util_end_namelist(package_name, '*global*', caller = caller_str)
 
 do n = 1, instances  !{
 
-  if (instances .eq. 1) then  !{
+  if (instances == 1) then  !{
     str = ' '
   else  !}{
     str = '_' // biotic(n)%name
   endif  !}
 
   ! Register diagnostic variables defined on full model domain.
-  allocate(biotic(n)%inds_diag(ubound(biotic(n)%model%info%diagnostic_variables,1)))
-  do i=1,ubound(biotic(n)%model%info%diagnostic_variables,1)
+  allocate(biotic(n)%inds_diag(size(biotic(n)%model%info%diagnostic_variables)))
+  do i=1,size(biotic(n)%model%info%diagnostic_variables)
      biotic(n)%inds_diag(i) = register_diag_field('ocean_model',      &
           trim(biotic(n)%model%info%diagnostic_variables(i)%name)//str, grid_tracer_axes(1:3),                       &
           model_time, trim(biotic(n)%model%info%diagnostic_variables(i)%long_name), &
@@ -702,8 +704,8 @@ do n = 1, instances  !{
   end do
 
   ! Register diagnostic variables defined on horizontal slice of domain.
-  allocate(biotic(n)%inds_diag_hz(ubound(biotic(n)%model%info%diagnostic_variables_hz,1)))
-  do i=1,ubound(biotic(n)%model%info%diagnostic_variables_hz,1)
+  allocate(biotic(n)%inds_diag_hz(size(biotic(n)%model%info%diagnostic_variables_hz)))
+  do i=1,size(biotic(n)%model%info%diagnostic_variables_hz)
      biotic(n)%inds_diag_hz(i) = register_diag_field('ocean_model',      &
           trim(biotic(n)%model%info%diagnostic_variables_hz(i)%name)//str, grid_tracer_axes(1:2),                       &
           model_time, trim(biotic(n)%model%info%diagnostic_variables_hz(i)%long_name), &
@@ -712,8 +714,8 @@ do n = 1, instances  !{
   end do
 
   ! Register clipping diagnostic (increase/time) for pelagic state variables.
-  allocate(biotic(n)%inds_clip(ubound(biotic(n)%model%info%state_variables,1)))
-  do i=1,ubound(biotic(n)%model%info%state_variables,1)
+  allocate(biotic(n)%inds_clip(size(biotic(n)%model%info%state_variables)))
+  do i=1,size(biotic(n)%model%info%state_variables)
      biotic(n)%inds_clip(i) = register_diag_field('ocean_model',      &
           trim(biotic(n)%model%info%state_variables(i)%name)//'_clip'//str, grid_tracer_axes(1:3),                       &
           model_time, trim(biotic(n)%model%info%state_variables(i)%long_name)//' clipping increase', &
@@ -725,7 +727,7 @@ do n = 1, instances  !{
   allocate(biotic(n)%inds_cons    (size(biotic(n)%model%info%conserved_quantities)))
   allocate(biotic(n)%inds_cons_tot(size(biotic(n)%model%info%conserved_quantities)))
   allocate(biotic(n)%inds_cons_ave(size(biotic(n)%model%info%conserved_quantities)))
-  do i=1,ubound(biotic(n)%model%info%conserved_quantities,1)
+  do i=1,size(biotic(n)%model%info%conserved_quantities)
      biotic(n)%inds_cons(i) = register_diag_field('ocean_model',                            &
           trim(biotic(n)%model%info%conserved_quantities(i)%name)//str, grid_tracer_axes(1:3),                 &
           model_time, trim(biotic(n)%model%info%conserved_quantities(i)%long_name), &
@@ -763,30 +765,17 @@ allocate(clipped(isc:iec,jsc:jec,nk))
 
 do n=1,instances
 
-   allocate(biotic(n)%work_dy     (isc:iec,             size(biotic(n)%model%info%state_variables)))
-   allocate(biotic(n)%work_diag   (isc:iec,jsc:jec,nk,  size(biotic(n)%model%info%diagnostic_variables)))
-   allocate(biotic(n)%work_diag_hz(isc:iec,jsc:jec,     size(biotic(n)%model%info%diagnostic_variables_hz)))
-   allocate(biotic(n)%w           (isc:iec,        nk+1,size(biotic(n)%model%info%state_variables)))
-   allocate(biotic(n)%adv         (                nk+1,size(biotic(n)%model%info%state_variables)))
-   if (any(biotic(n)%inds_cons.gt.0).or.any(biotic(n)%inds_cons_tot.gt.0).or.any(biotic(n)%inds_cons_ave.gt.0)) then
-      allocate(biotic(n)%work_cons(isd:ied,jsd:jed,nk,  size(biotic(n)%model%info%conserved_quantities)))
+   allocate(biotic(n)%work_dy(isc:iec,     size(biotic(n)%model%info%state_variables)))
+   allocate(biotic(n)%w      (isc:iec,nk+1,size(biotic(n)%model%info%state_variables)))
+   allocate(biotic(n)%adv    (        nk+1,size(biotic(n)%model%info%state_variables)))
+   if (any(biotic(n)%inds_cons>0).or.any(biotic(n)%inds_cons_tot>0).or.any(biotic(n)%inds_cons_ave>0)) then
+      allocate(biotic(n)%work_cons(isd:ied,jsd:jed,nk,size(biotic(n)%model%info%conserved_quantities)))
       biotic(n)%work_cons = _ZERO_
    end if
 
-   ! Set diagnostic variables to zero, because values for land points will not be set.
-   biotic(n)%work_diag    = 0.d0
-   biotic(n)%work_diag_hz = 0.d0
-
-   do i=1,ubound(biotic(n)%model%info%diagnostic_variables,1)
-      call fabm_link_diagnostic_data(biotic(n)%model,i,biotic(n)%work_diag(isc:iec,jsc:jec,1:nk,i))
-   end do
-   do i=1,ubound(biotic(n)%model%info%diagnostic_variables_hz,1)
-      call fabm_link_diagnostic_data_hz(biotic(n)%model,i,biotic(n)%work_diag_hz(isc:iec,jsc:jec,i))
-   end do
-
-   !if (fabm_is_variable_used(biotic(n)%id_pres))   call fabm_link_data   (biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth (isc:iec,jsc:jec,:))
-   if (fabm_is_variable_used(biotic(n)%id_par))    call fabm_link_data   (biotic(n)%model,biotic(n)%id_par ,  t_diag(index_irr)%field(isc:iec,jsc:jec,:))
-   if (fabm_is_variable_used(biotic(n)%id_par_sf)) call fabm_link_data_hz(biotic(n)%model,biotic(n)%id_par_sf,t_diag(index_irr)%field(isc:iec,jsc:jec,1))
+   !if (biotic(n)%id_pres  /=-1) call fabm_link_bulk_data   (biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth (isc:iec,jsc:jec,:))
+   if (fabm_is_variable_used(biotic(n)%id_par))    call fabm_link_bulk_data      (biotic(n)%model,biotic(n)%id_par ,  t_diag(index_irr)%field(isc:iec,jsc:jec,:))
+   if (fabm_is_variable_used(biotic(n)%id_par_sf)) call fabm_link_horizontal_data(biotic(n)%model,biotic(n)%id_par_sf,t_diag(index_irr)%field(isc:iec,jsc:jec,1))
 end do
 
 return
@@ -816,7 +805,7 @@ do n = 1, instances  !{
 
       ! Process 3D variables.
       extcount = 0
-      allocate(biotic(n)%ext_3d_variables(1:ubound(biotic(n)%model%info%dependencies,1)))
+      allocate(biotic(n)%ext_3d_variables(1:size(biotic(n)%model%info%dependencies)))
       biotic(n)%ext_3d_variables = ''
       allocate(dummy(isc:iec,jsc:jec,1:nk))  ! 3D dummy array used to receive external values, needed as long as the real target array is not allocated yet
       do i=1,size(biotic(n)%model%info%dependencies)
@@ -829,13 +818,13 @@ do n = 1, instances  !{
       deallocate(dummy)
       allocate(biotic(n)%ext_3d_data(isc:iec,jsc:jec,1:nk,1:extcount))
       do i=1,size(biotic(n)%ext_3d_variables)
-         if (biotic(n)%ext_3d_variables(i).eq.'') exit
-         call fabm_link_data(biotic(n)%model,biotic(n)%ext_3d_variables(i),biotic(n)%ext_3d_data(isc:iec,jsc:jec,1:nk,i))
+         if (biotic(n)%ext_3d_variables(i)=='') exit
+         call fabm_link_bulk_data(biotic(n)%model,biotic(n)%ext_3d_variables(i),biotic(n)%ext_3d_data(isc:iec,jsc:jec,1:nk,i))
       end do
 
       ! Process 2D variables.
       extcount = 0
-      allocate(biotic(n)%ext_2d_variables(1:ubound(biotic(n)%model%info%dependencies_hz,1)))
+      allocate(biotic(n)%ext_2d_variables(1:size(biotic(n)%model%info%dependencies_hz)))
       biotic(n)%ext_2d_variables = ''
       allocate(dummy_hz(isc:iec,jsc:jec))  ! 2D dummy array used to receive external values, needed as long as the real target array is not allocated yet
       do i=1,size(biotic(n)%model%info%dependencies_hz)
@@ -848,8 +837,8 @@ do n = 1, instances  !{
       deallocate(dummy_hz)
       allocate(biotic(n)%ext_2d_data(isc:iec,jsc:jec,1:extcount))
       do i=1,size(biotic(n)%ext_2d_variables)
-         if (biotic(n)%ext_2d_variables(i).eq.'') exit
-         call fabm_link_data_hz(biotic(n)%model,biotic(n)%ext_2d_variables(i),biotic(n)%ext_2d_data(isc:iec,jsc:jec,i))
+         if (biotic(n)%ext_2d_variables(i)=='') exit
+         call fabm_link_horizontal_data(biotic(n)%model,biotic(n)%ext_2d_variables(i),biotic(n)%ext_2d_data(isc:iec,jsc:jec,i))
       end do
    end if
 
@@ -967,15 +956,15 @@ call get_external_fields(isc, iec, jsc, jec, nk, model_time)
 do n = 1, instances  !{
 
   ! Set pointers to environmental variables.
-  if (fabm_is_variable_used(biotic(n)%id_temp)) call fabm_link_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
-  if (fabm_is_variable_used(biotic(n)%id_salt)) call fabm_link_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
-  if (fabm_is_variable_used(biotic(n)%id_dens)) call fabm_link_data(biotic(n)%model,biotic(n)%id_dens,Dens%rho             (isc:iec,jsc:jec,:,taum1))
-  if (fabm_is_variable_used(biotic(n)%id_pres)) call fabm_link_data(biotic(n)%model,biotic(n)%id_pres,Dens%pressure_at_depth(isc:iec,jsc:jec,:))
+  if (fabm_is_variable_used(biotic(n)%id_temp)) call fabm_link_bulk_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_salt)) call fabm_link_bulk_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_dens)) call fabm_link_bulk_data(biotic(n)%model,biotic(n)%id_dens,Dens%rho             (isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_pres)) call fabm_link_bulk_data(biotic(n)%model,biotic(n)%id_pres,Dens%pressure_at_depth(isc:iec,jsc:jec,:))
 
   ! Link to current biogeochemical state variable values, as maintained by MOM4.
-  do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+  do ivar=1,size(biotic(n)%model%info%state_variables)
      t_prog(biotic(n)%inds(ivar))%wrk1(isc:iec,jsc:jec,:) = t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1)
-     call fabm_link_state_data(biotic(n)%model,ivar,t_prog(biotic(n)%inds(ivar))%wrk1(isc:iec,jsc:jec,:))
+     call fabm_link_bulk_state_data(biotic(n)%model,ivar,t_prog(biotic(n)%inds(ivar))%wrk1(isc:iec,jsc:jec,:))
   end do
 
   call fabm_check_ready(biotic(n)%model)
@@ -988,7 +977,7 @@ do n = 1, instances  !{
       call fabm_check_state(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,.true.,valid)
 #else
       do i = isc, iec  !{
-        if (grid_tmask(i,j,k).eq.1.) then
+        if (grid_tmask(i,j,k)==1.) then
           call fabm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.,valid)
           if (.not.valid) clipped(i,j,k) = _ONE_
         end if
@@ -998,18 +987,18 @@ do n = 1, instances  !{
   end do
 
   ! Send per-grid-point clipping status (0 = no clipping, 1 = clipped) to diagnostic manager
-  if (biotic(n)%ind_diag_clip.gt.0) &
+  if (biotic(n)%ind_diag_clip>0) &
      used = send_data(biotic(n)%ind_diag_clip,clipped(isc:iec,jsc:jec,:),model_time,rmask=grid_tmask(isc:iec,jsc:jec,:))
 
   ! Send per-grid-point, per-variable clipping0induced change to diagnostic manager
-  do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
-     if (biotic(n)%inds_clip(ivar).gt.0) then
+  do ivar=1,size(biotic(n)%model%info%state_variables)
+     if (biotic(n)%inds_clip(ivar)>0) then
         clipped(isc:iec,jsc:jec,:) = t_prog(biotic(n)%inds(ivar))%wrk1(isc:iec,jsc:jec,:) - t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1)
         used = send_data(biotic(n)%inds_clip(ivar),clipped(isc:iec,jsc:jec,:),model_time,rmask=grid_tmask(isc:iec,jsc:jec,:))
      end if
   end do
 
-  if (any(biotic(n)%inds_cons.gt.0).or.any(biotic(n)%inds_cons_tot.gt.0).or.any(biotic(n)%inds_cons_ave.gt.0)) then
+  if (any(biotic(n)%inds_cons>0).or.any(biotic(n)%inds_cons_tot>0).or.any(biotic(n)%inds_cons_ave>0)) then
      ! Get 3D fields of conserved quantities from FABM
      do k = 1, nk  !{
        do j = jsc, jec  !{
@@ -1017,7 +1006,7 @@ do n = 1, instances  !{
          call fabm_get_conserved_quantities(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,biotic(n)%work_cons(isc:iec,j,k,:))
 #else
          do i = isc, iec  !{
-           if (grid_tmask(i,j,k).eq.1.) then
+           if (grid_tmask(i,j,k)==1.) then
              call fabm_get_conserved_quantities(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_cons(i,j,k,:))
            end if
          end do
@@ -1026,7 +1015,7 @@ do n = 1, instances  !{
      end do
 
      ! If we need the global average for any variable, calculate the global integral of mass here.
-     if (any(biotic(n)%inds_cons_ave.gt.0)) then
+     if (any(biotic(n)%inds_cons_ave>0)) then
         total_volume = 0.0
         do k=1,nk
            tracer_k(:,:) =  grid_tmask(:,:,k)*grid_dat(:,:)*rho_dzt(:,:,k,taum1) !*dzt(:,:,k)
@@ -1037,11 +1026,11 @@ do n = 1, instances  !{
 
      do ivar=1,size(biotic(n)%model%info%conserved_quantities)
         ! Send full 3D conserved quantity field to diagnostic manager.
-        if (biotic(n)%inds_cons(ivar).gt.0) then
+        if (biotic(n)%inds_cons(ivar)>0) then
            used = send_data(biotic(n)%inds_cons(ivar),biotic(n)%work_cons(isc:iec,jsc:jec,:,ivar),model_time,rmask=grid_tmask(isc:iec,jsc:jec,:))
         end if
 
-        if (biotic(n)%inds_cons_tot(ivar).gt.0.or.biotic(n)%inds_cons_ave(ivar).gt.0) then
+        if (biotic(n)%inds_cons_tot(ivar)>0.or.biotic(n)%inds_cons_ave(ivar)>0) then
            ! Integrate tracer across full domain.
            total_tracer = 0.0
            do k=1,nk
@@ -1051,8 +1040,8 @@ do n = 1, instances  !{
            end do
 
            ! Send global integral and mean to diagnostic manager.
-           if (biotic(n)%inds_cons_tot(ivar).gt.0) used = send_data(biotic(n)%inds_cons_tot(ivar),total_tracer*1e-21,model_time)
-           if (biotic(n)%inds_cons_ave(ivar).gt.0) used = send_data(biotic(n)%inds_cons_ave(ivar),total_tracer/total_volume,model_time)
+           if (biotic(n)%inds_cons_tot(ivar)>0) used = send_data(biotic(n)%inds_cons_tot(ivar),total_tracer*1e-21,model_time)
+           if (biotic(n)%inds_cons_ave(ivar)>0) used = send_data(biotic(n)%inds_cons_ave(ivar),total_tracer/total_volume,model_time)
         end if
      end do
   end if
@@ -1078,7 +1067,7 @@ do n = 1, instances  !{
 #else
       do i = isc, iec  !{
         ! Call bio model for current grid point, provided that it is wet
-        if (grid_tmask(i,j,k).eq.1.) then
+        if (grid_tmask(i,j,k)==1.) then
            call fabm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:))
            if (any(isnan(biotic(n)%work_dy(i,:)))) then
               call mpp_error(FATAL,trim(error_header) // ' NaN in FABM sink/source terms.')
@@ -1089,7 +1078,7 @@ do n = 1, instances  !{
 
       if (.not.disable_sources) then
          ! Update tendencies with current sink and source terms.
-         do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+         do ivar=1,size(biotic(n)%model%info%state_variables)
             if (inplace_repair) then
                ! Add clipping difference divided by time step as tracer source term
                biotic(n)%work_dy(isc:iec,ivar) = biotic(n)%work_dy(isc:iec,ivar) + &
@@ -1105,26 +1094,22 @@ do n = 1, instances  !{
   end do  !} k
 
   ! Save diagnostic variables defined on full domain.
-  do ivar=1,ubound(biotic(n)%model%info%diagnostic_variables,1)
-      if (biotic(n)%inds_diag(ivar) .gt. 0) then
-        used = send_data(biotic(n)%inds_diag(ivar),                        &
-             biotic(n)%work_diag(isc:iec,jsc:jec,:,ivar),                  &
+  do ivar=1,size(biotic(n)%model%info%diagnostic_variables)
+      if (biotic(n)%inds_diag(ivar) > 0) then
+        used = send_data(biotic(n)%inds_diag(ivar),               &
+             fabm_get_bulk_diagnostic_data(biotic(n)%model,ivar), &
              model_time, rmask = grid_tmask(isc:iec,jsc:jec,:))
       endif
   end do
 
   ! Save diagnostic variables defined on horizontal domain only.
-  do ivar=1,ubound(biotic(n)%model%info%diagnostic_variables_hz,1)
-      if (biotic(n)%inds_diag_hz(ivar) .gt. 0) then
-        used = send_data(biotic(n)%inds_diag_hz(ivar),                        &
-             biotic(n)%work_diag_hz(isc:iec,jsc:jec,ivar),                  &
+  do ivar=1,size(biotic(n)%model%info%diagnostic_variables_hz)
+      if (biotic(n)%inds_diag_hz(ivar) > 0) then
+        used = send_data(biotic(n)%inds_diag_hz(ivar),                  &
+             fabm_get_horizontal_diagnostic_data(biotic(n)%model,ivar), &
              model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
       endif
   end do
-
-  ! Reset diagnostic variables to zero, because values for land points will not be set.
-  biotic(n)%work_diag = 0.d0
-  biotic(n)%work_diag_hz = 0.d0
 end do
 
 call mpp_clock_end(id_clock_fabm_source)
@@ -1151,10 +1136,10 @@ do n = 1, instances  !{
 #endif
 
     do i = isc, iec
-     if (grid_tmask(i,j,1).ne.1.) cycle
+     if (grid_tmask(i,j,1)/=1.) cycle
 
      ! Interpolate to sinking speed at interfaces
-     do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+     do ivar=1,size(biotic(n)%model%info%state_variables)
        biotic(n)%w(i,2:grid_kmt(i,j),ivar) = (biotic(n)%w(i,2:grid_kmt(i,j),ivar) + biotic(n)%w(i,1:grid_kmt(i,j)-1,ivar))*0.5d0
      end do
      biotic(n)%w(i,1,              :) = 0.0d0   ! Surface boundary condition
@@ -1162,7 +1147,7 @@ do n = 1, instances  !{
 
      biotic(n)%adv = 0.d0
 
-     do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+     do ivar=1,size(biotic(n)%model%info%state_variables)
 
         ! Get tracer flux at all interfaces.
         do k=2,grid_kmt(i,j)
@@ -1321,7 +1306,7 @@ if (.not. module_initialized) then  !{
 
   path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
   instances = fm_get_length(path_to_names)
-  if (instances .lt. 0) then  !{
+  if (instances < 0) then  !{
     call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
   endif  !}
 
@@ -1330,11 +1315,11 @@ if (.not. module_initialized) then  !{
 !
 
   write (stdoutunit,*)
-  if (instances .eq. 0) then  !{
+  if (instances == 0) then  !{
     write (stdoutunit,*) trim(note_header), ' No instances'
     do_ocean_fabm = .false.
   else  !}{
-    if (instances .eq. 1) then  !{
+    if (instances == 1) then  !{
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
     else  !}{
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
@@ -1388,7 +1373,7 @@ caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
 do n = 1, instances  !{
 !  name = biotic(n)%name
-!  if (name(1:1) .eq. '_') then  !{
+!  if (name(1:1) == '_') then  !{
 !    suffix = ' '
 !  else  !}{
 !    suffix = '_' // name
@@ -1496,7 +1481,7 @@ integer         :: ind
 real            :: epsln=1.0e-30
 
 do n = 1, instances  !{
-  allocate(biotic(n)%sf_fluxes(isc:iec,jsc:jec,1:ubound(biotic(n)%model%info%state_variables,1)))
+  allocate(biotic(n)%sf_fluxes(isc:iec,jsc:jec,1:size(biotic(n)%model%info%state_variables)))
   biotic(n)%sf_fluxes = 0.0
 !
 !!
@@ -1770,13 +1755,13 @@ call get_external_fields(isc, iec, jsc, jec, nk, model_time)
 do n = 1, instances  !{
 
   ! Set pointers to environmental variables.
-  if (fabm_is_variable_used(biotic(n)%id_temp)) call fabm_link_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
-  if (fabm_is_variable_used(biotic(n)%id_salt)) call fabm_link_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
-  if (fabm_is_variable_used(biotic(n)%id_dens)) call fabm_link_data(biotic(n)%model,biotic(n)%id_dens,rho                  (isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_temp)) call fabm_link_bulk_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_salt)) call fabm_link_bulk_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
+  if (fabm_is_variable_used(biotic(n)%id_dens)) call fabm_link_bulk_data(biotic(n)%model,biotic(n)%id_dens,rho                  (isc:iec,jsc:jec,:,taum1))
 
   ! Set pointers to biotic variables.
-  do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
-    call fabm_link_state_data(biotic(n)%model,ivar,t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1))
+  do ivar=1,size(biotic(n)%model%info%state_variables)
+    call fabm_link_bulk_state_data(biotic(n)%model,ivar,t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1))
   end do
 
   call fabm_check_ready(biotic(n)%model)
@@ -1788,11 +1773,11 @@ do n = 1, instances  !{
     call fabm_get_surface_exchange(biotic(n)%model,1,iec-isc+1,j-jsc+1,1,biotic(n)%work_dy(:,:))
 #else
     do i = isc, iec  !{
-      if (grid_tmask(i,j,1).eq.1.) &
+      if (grid_tmask(i,j,1)==1.) &
          call fabm_get_surface_exchange(biotic(n)%model,i-isc+1,j-jsc+1,1,biotic(n)%work_dy(i,:))
     enddo  !} i
 #endif
-    do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+    do ivar=1,size(biotic(n)%model%info%state_variables)
       biotic(n)%sf_fluxes(isc:iec,j,ivar) = biotic(n)%sf_fluxes(isc:iec,j,ivar) + biotic(n)%work_dy(isc:iec,ivar)*rho(isc:iec,j,1,taum1)
     end do
    enddo  !} j
@@ -2096,16 +2081,16 @@ integer :: ivar
 do n = 1, instances  !{
 
 !  ! Set pointers to environmental variables.
-!  if (biotic(n)%id_temp.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
-!  if (biotic(n)%id_salt.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
-!  !if (biotic(n)%id_dens.ne.-1) call fabm_link_data(biotic(n)%model,biotic(n)%id_dens,Dens%rho             (isc:iec,jsc:jec,:,taum1))
+!  if (biotic(n)%id_temp/=-1) call fabm_link_bulk_data(biotic(n)%model,biotic(n)%id_temp,t_prog(indtemp)%field(isc:iec,jsc:jec,:,taum1))
+!  if (biotic(n)%id_salt/=-1) call fabm_link_bulk_data(biotic(n)%model,biotic(n)%id_salt,t_prog(indsal )%field(isc:iec,jsc:jec,:,taum1))
+!  !if (biotic(n)%id_dens/=-1) call fabm_link_bulk_data(biotic(n)%model,biotic(n)%id_dens,Dens%rho             (isc:iec,jsc:jec,:,taum1))
 !
 !  ! Set pointers to biotic variables.
-!  do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
-!    call fabm_link_state_data(biotic(n)%model,ivar,t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1))
+!  do ivar=1,size(biotic(n)%model%info%state_variables)
+!    call fabm_link_bulk_state_data(biotic(n)%model,ivar,t_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,:,taum1))
 !  end do
 
-  do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+  do ivar=1,size(biotic(n)%model%info%state_variables)
     if (biotic(n)%model%info%state_variables(ivar)%no_precipitation_dilution) &
       T_prog(biotic(n)%inds(ivar))%tpme  (isc:iec,jsc:jec) = T_prog(biotic(n)%inds(ivar))%field(isc:iec,jsc:jec,1,taum1)
     if ((.not.zero_river_concentration).and.biotic(n)%model%info%state_variables(ivar)%no_river_dilution) &
@@ -2119,11 +2104,11 @@ do n = 1, instances  !{
 !    call fabm_get_surface_exchange(biotic(n)%model,1,iec-isc+1,j-jsc+1,1,biotic(n)%work_dy(:,:))
 !#else
 !    do i = isc, iec  !{
-!      if (grid_tmask(i,j,1).eq.1.) &
+!      if (grid_tmask(i,j,1)==1.) &
 !         call fabm_get_surface_exchange(biotic(n)%model,i-isc+1,j-jsc+1,1,biotic(n)%work_dy(i,:))
 !    enddo  !} i
 !#endif
-    do ivar=1,ubound(biotic(n)%model%info%state_variables,1)
+    do ivar=1,size(biotic(n)%model%info%state_variables)
       t_prog(biotic(n)%inds(ivar))%stf(isc:iec,jsc:jec) = biotic(n)%sf_fluxes(isc:iec,jsc:jec,ivar)
     end do
 !   enddo  !} j
