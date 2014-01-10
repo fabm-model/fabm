@@ -210,7 +210,7 @@
    end type
 
    type type_contributing_variable
-      type (type_link),                 pointer :: link
+      type (type_link),                 pointer :: link => null()
       real(rk)                                  :: scale_factor = 1.0_rk
       integer                                   :: state_index = -1
       integer                                   :: horizontal_state_index = -1
@@ -1303,8 +1303,8 @@ end subroutine append_string
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-   class (type_link),pointer :: link
-   class (type_aggregate_variable),pointer :: aggregate_variable
+   type (type_link),pointer :: link
+   type (type_aggregate_variable),pointer :: aggregate_variable
 !-----------------------------------------------------------------------
 !BOC
       if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
