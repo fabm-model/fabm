@@ -218,11 +218,11 @@
    end type
 
    type type_aggregate_variable
-      type (type_bulk_standard_variable)          :: standard_variable
-      type (type_contributing_variable),  pointer :: first_contributing_variable => null()
-      type (type_weighted_sum),           pointer :: sum => null()
-      type (type_horizontal_weighted_sum),pointer :: horizontal_sum => null()
-      type (type_aggregate_variable),     pointer :: next => null()
+      type (type_bulk_standard_variable)            :: standard_variable
+      type (type_contributing_variable),   pointer  :: first_contributing_variable => null()
+      class (type_weighted_sum),           pointer  :: sum => null()
+      class (type_horizontal_weighted_sum),pointer  :: horizontal_sum => null()
+      type (type_aggregate_variable),      pointer  :: next => null()
       type (type_diagnostic_variable_id)            :: id_rate
       type (type_horizontal_diagnostic_variable_id) :: id_horizontal_rate
       logical                                       :: has_bulk_state_component = .false.
