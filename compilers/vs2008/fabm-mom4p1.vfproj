@@ -5,7 +5,7 @@
 		<Platform Name="x64"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32" OutputDirectory="mom4p1\$(PlatformName)-$(ConfigurationName)" IntermediateDirectory="mom4p1\$(PlatformName)-$(ConfigurationName)" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\mom4p1;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_;DEBUG" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" ExternalNameInterpretation="extNameLowerCase" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\mom4p1;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_;DEBUG" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" ExternalNameInterpretation="extNameLowerCase" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -27,7 +27,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug|x64" OutputDirectory="mom4p1\$(PlatformName)-$(ConfigurationName)" IntermediateDirectory="mom4p1\$(PlatformName)-$(ConfigurationName)" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\mom4p1;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_;DEBUG" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" ExternalNameInterpretation="extNameLowerCase" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qsave-temps" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\src\drivers\mom4p1;$(ProjectDir)\..\..\src\models\aed" PreprocessorDefinitions="_ISO_TR_15581_;_FABM_F2003_;DEBUG" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" InitLocalVarToNAN="true" FloatingPointSpeculation="fpSpeculationOff" ExternalNameInterpretation="extNameLowerCase" Traceback="true" NullPointerCheck="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug" ImproveFloatingPointConsistency="true" Interfaces="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="$(GOTMDIR)\extras\netcdf\win32\3.6.3\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="netcdfs.lib"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
@@ -79,6 +79,26 @@
 		<File RelativePath="..\..\src\Rules.make"/></Filter>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<Filter Name="models">
+		<Filter Name="aed">
+		<File RelativePath="..\..\src\models\aed\aed_bacteria.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_carbon.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_chlorophylla.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_iron.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_models.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_nitrogen.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_organic_matter.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_oxygen.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_pathogens.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_phosphorus.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_phytoplankton.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_sedflux.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_silica.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_sulfur.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_totals.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_tracer.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_util.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_viruses.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_zooplankton.F90"/></Filter>
 		<Filter Name="au">
 		<Filter Name="prey_predator">
 		<File RelativePath="..\..\src\models\au\prey_predator\prey_predator.F90"/></Filter></Filter>
@@ -102,12 +122,15 @@
 		<Filter Name="npzd_f2003">
 		<File RelativePath="..\..\src\models\examples\npzd_f2003\npzd_f2003.F90"/></Filter></Filter>
 		<Filter Name="gotm">
-		<Filter Name="fasham">
-		<File RelativePath="..\..\src\models\gotm\fasham\fasham.F90"/></Filter>
 		<Filter Name="ergom">
 		<File RelativePath="..\..\src\models\gotm\ergom\ergom.F90"/></Filter>
+		<Filter Name="fasham">
+		<File RelativePath="..\..\src\models\gotm\fasham\fasham.F90"/></Filter>
 		<Filter Name="npzd">
 		<File RelativePath="..\..\src\models\gotm\npzd\npzd.F90"/></Filter></Filter>
+		<Filter Name="hzg">
+		<Filter Name="omexdia_p">
+		<File RelativePath="..\..\src\models\hzg\omexdia_p\omexdia_p.F90"/></Filter></Filter>
 		<Filter Name="iow">
 		<Filter Name="spm">
 		<File RelativePath="..\..\src\models\iow\spm\spm.F90"/></Filter></Filter>
@@ -117,29 +140,9 @@
 		<Filter Name="metu">
 		<Filter Name="mnemiopsis">
 		<File RelativePath="..\..\src\models\metu\mnemiopsis\mnemiopsis.F90"/></Filter></Filter>
-		<Filter Name="aed">
-		<File RelativePath="..\..\src\models\aed\aed_bacteria.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_carbon.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_chlorophylla.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_iron.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_models.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_nitrogen.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_organic_matter.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_oxygen.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_pathogens.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_phosphorus.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_phytoplankton.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_sedflux.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_silica.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_sulfur.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_totals.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_tracer.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_util.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_viruses.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_zooplankton.F90"/></Filter>
-		<Filter Name="hzg">
-		<Filter Name="omexdia_p">
-		<File RelativePath="..\..\src\models\hzg\omexdia_p\omexdia_p.F90"/></Filter></Filter>
+		<Filter Name="msi">
+		<Filter Name="ergom1">
+		<File RelativePath="..\..\src\models\msi\ergom1\ergom1.F90"/></Filter></Filter>
 		<Filter Name="pml">
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>
