@@ -415,11 +415,11 @@
    end type
 
    type,abstract,extends(type_expression) :: type_bulk_expression
-      type (type_bulk_data_pointer),pointer :: out
+      type (type_bulk_data_pointer),pointer :: out => null()
    end type
 
    type,abstract,extends(type_expression) :: type_horizontal_expression
-      type (type_horizontal_data_pointer),pointer :: out
+      type (type_horizontal_data_pointer),pointer :: out => null()
    end type
 
    ! ====================================================================================================
@@ -940,7 +940,7 @@
       type (type_bulk_standard_variable),intent(in)    :: target
       real(rk),optional,                 intent(in)    :: scale_factor
 
-      class (type_contribution),pointer :: contribution
+      type (type_contribution),pointer :: contribution
 
       if (.not.associated(self%first)) then
          allocate(self%first)
