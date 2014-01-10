@@ -2623,7 +2623,7 @@ end subroutine add_parameter
 
       if (allocated(processed_bulk))       deallocate(processed_bulk)
       if (allocated(processed_horizontal)) deallocate(processed_horizontal)
-      if (allocated(processed_scalar))     deallocate(processed_bulk)
+      if (allocated(processed_scalar))     deallocate(processed_scalar)
 
    end subroutine couple_standard_variables
 !EOC
