@@ -397,8 +397,8 @@
    type,extends(type_external_variable) :: type_conserved_quantity_info
       type (type_bulk_standard_variable)            :: standard_variable
       integer                                       :: externalid = 0       ! Identifier to be used freely by host
-      type (type_weighted_sum),pointer              :: model => null()
-      type (type_horizontal_weighted_sum),pointer   :: horizontal_model => null()
+      class (type_weighted_sum),pointer             :: model => null()
+      class (type_horizontal_weighted_sum),pointer  :: horizontal_model => null()
       integer,allocatable                           :: state_indices(:)
       real(rk),allocatable                          :: state_scale_factors(:)
       integer                                       :: rate_diag_index = -1
