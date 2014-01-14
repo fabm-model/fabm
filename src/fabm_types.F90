@@ -1198,7 +1198,7 @@ end subroutine integer_pointer_set_extend
 
 subroutine integer_pointer_set_set_value(self,value)
    class (type_integer_pointer_set),intent(inout) :: self
-   integer(rk),intent(in) :: value
+   integer,                         intent(in)    :: value
 
    integer :: i
 
@@ -1248,7 +1248,7 @@ end subroutine real_pointer_set_extend
 
 subroutine real_pointer_set_set_value(self,value)
    class (type_real_pointer_set),intent(inout) :: self
-   real(rk),intent(in) :: value
+   real(rk),                     intent(in)    :: value
 
    integer :: i
 
