@@ -46,14 +46,14 @@
    public fabm_do, fabm_do_surface, fabm_do_bottom
 
    ! Vertical movement, light attenuation, feedbacks to drag and albedo
-   public fabm_get_vertical_movement, fabm_get_light_extinction, fabm_get_albedo, fabm_get_drag
+   public fabm_get_vertical_movement, fabm_get_light_extinction, fabm_get_albedo, fabm_get_drag, fabm_get_light
 
    ! Bookkeeping
    public fabm_check_state, fabm_get_conserved_quantities, fabm_get_horizontal_conserved_quantities, fabm_state_to_conserved_quantities
    
    ! Management of model variables: retrieve identifiers, get and set data.
    public fabm_get_bulk_variable_id,fabm_get_horizontal_variable_id,fabm_get_scalar_variable_id
-   public fabm_get_variable_name, fabm_is_variable_used
+   public fabm_get_variable_name, fabm_is_variable_used, fabm_variable_needs_values
    public fabm_link_bulk_state_data, fabm_link_bottom_state_data
    public fabm_link_bulk_data, fabm_link_horizontal_data, fabm_link_scalar_data
    public fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
@@ -191,6 +191,10 @@
       module procedure fabm_is_bulk_variable_used
       module procedure fabm_is_horizontal_variable_used
       module procedure fabm_is_scalar_variable_used
+   end interface
+
+   interface fabm_variable_needs_values
+      module procedure fabm_bulk_variable_needs_values
    end interface
 
    ! For backward compatibility only:
@@ -1000,12 +1004,12 @@
    if (associated(id%variable)) name = id%variable%name
 
    end function fabm_get_scalar_variable_name
-!EO
+!EOC
+
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Obtain the integer variable name for the given variable
-! identifier.
+! !IROUTINE: Determine whether a bulk variable is used [required] by biogeochemical models running in FABM.
 !
 ! !INTERFACE:
    function fabm_is_bulk_variable_used(id) result(used)
@@ -1025,6 +1029,32 @@
    used = associated(id%p)
 
    end function fabm_is_bulk_variable_used
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Determine whether a bulk variable is available to biogeochemical models running in FABM.
+!
+! !INTERFACE:
+   function fabm_bulk_variable_needs_values(id) result(required)
+!
+! !INPUT PARAMETERS:
+   type(type_bulk_variable_id),intent(in) :: id
+!
+! !RETURN VALUE:
+   logical                                :: required
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   required = associated(id%p)
+   if (required) required = .not.associated(id%p%p)
+
+   end function fabm_bulk_variable_needs_values
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1869,6 +1899,35 @@
    end do
 
    end subroutine fabm_get_light_extinction
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Calculate the light field
+!
+! !INTERFACE:
+   subroutine fabm_get_light(self _ARG_LOCATION_VERT_)
+!
+! !INPUT PARAMETERS:
+   class (type_model), intent(inout) :: self
+   _DECLARE_LOCATION_ARG_VERT_
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL PARAMETERS:
+   type (type_model_list_node), pointer :: node
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   node => self%models%first
+   do while (associated(node))
+      call node%model%get_light(self%environment _ARG_LOCATION_VERT_)
+      node => node%next
+   end do
+
+   end subroutine fabm_get_light
 !EOC
 
 !-----------------------------------------------------------------------

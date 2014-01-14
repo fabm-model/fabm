@@ -546,4 +546,57 @@
 #define _FABM_HORIZONTAL_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_
 #define _FABM_HORIZONTAL_LOOP_END_ _HORIZONTAL_LOOP_END_
 
-#define _GET_SAFE_ _GET_
+#define _GET_WITHOUT_BACKGROUND_(variable,target) target = max(0.0_rk,variable%data%p _INDEX_LOCATION_-variable%background)
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+
+! ---------------------------------------------------------------------------------
+! The model has a vertical dimension.
+! Functions operating over all values in the vertical will be vectorized.
+! ---------------------------------------------------------------------------------
+
+! Identify variable that contains index of vertical dimension
+#if _FABM_DEPTH_DIMENSION_INDEX_==1
+#define _VARIABLE_VERT_LOOP_ i__
+#elif _FABM_DEPTH_DIMENSION_INDEX_==2
+#define _VARIABLE_VERT_LOOP_ j__
+#else
+#define _VARIABLE_VERT_LOOP_ k__
+#endif
+
+! Define arguments that describe the horizontal location (fixed during vertical loops)
+#if _FABM_DIMENSION_COUNT_==1
+#define _ARG_LOCATION_VERTICAL_LOOP_
+#else
+#define _ARG_LOCATION_VERTICAL_LOOP_ ,_LOCATION_HZ_
+#endif
+
+! Define arguments for routines operating on the vertical dimension.
+#define _ARG_LOCATION_VERT_ ,fabm_loop_start,fabm_loop_stop _ARG_LOCATION_VERTICAL_LOOP_
+#define _DECLARE_LOCATION_ARG_VERT_ integer,intent(in) :: fabm_loop_start,fabm_loop_stop _ARG_LOCATION_VERTICAL_LOOP_;integer :: _VARIABLE_VERT_LOOP_
+
+! Define statements to start and finish vertical loops
+#ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+#define _VERTICAL_LOOP_BEGIN_ do _VARIABLE_VERT_LOOP_=fabm_loop_stop,fabm_loop_start,-1
+#else
+#define _VERTICAL_LOOP_BEGIN_ do _VARIABLE_VERT_LOOP_=fabm_loop_start,fabm_loop_stop
+#endif
+#define _VERTICAL_LOOP_END_ end do
+
+#else
+
+! ---------------------------------------------------------------------------------
+! The model lacks a vertical dimension.
+! Functions operating over all values in the vertical will not be vectorized.
+! ---------------------------------------------------------------------------------
+
+#define _ARG_LOCATION_VERT_ _ARG_LOCATION_
+#define _DECLARE_LOCATION_ARG_VERT_ _DECLARE_LOCATION_ARG_
+
+#define _VERTICAL_LOOP_BEGIN_
+#define _VERTICAL_LOOP_END_
+
+#endif
+
+#define _ARGUMENTS_VERT_ environment _ARG_LOCATION_VERT_
+#define _DECLARE_ARGUMENTS_VERT_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_VERT_

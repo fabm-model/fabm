@@ -29,6 +29,7 @@
 
    ! Collection with standard variables (e.g., temperature, practical_salinity)
    public standard_variables
+   public type_bulk_standard_variable
 
    ! Variable identifier types used by biogeochemical models
    public type_diagnostic_variable_id
@@ -130,6 +131,27 @@
       integer,pointer :: p => null()
    end type
 
+   type type_real_pointer
+      real(rk),pointer :: p => null()
+   end type
+
+   type type_real_pointer_set
+      type (type_real_pointer),allocatable :: pointers(:)
+   contains
+      procedure :: append    => real_pointer_set_append
+      procedure :: extend    => real_pointer_set_extend
+      procedure :: set_value => real_pointer_set_set_value
+   end type
+
+   type type_integer_pointer_set
+      type (type_integer_pointer),allocatable :: pointers(:)
+   contains
+      procedure :: append    => integer_pointer_set_append
+      procedure :: extend    => integer_pointer_set_extend
+      procedure :: set_value => integer_pointer_set_set_value
+      procedure :: is_empty  => integer_pointer_set_is_empty
+   end type
+
    ! ====================================================================================================
    ! Data types to hold pointers to (components of) variable identifiers used by biogeochemical models.
    ! ====================================================================================================
@@ -157,16 +179,19 @@
    type,extends(type_id) :: type_state_variable_id
       integer                       :: state_index = -1
       type (type_bulk_data_pointer) :: data
+      real(rk)                      :: background = 0.0_rk
    end type
 
    type,extends(type_id) :: type_bottom_state_variable_id
       integer                             :: bottom_state_index = -1
       type (type_horizontal_data_pointer) :: horizontal_data
+      real(rk)                            :: background = 0.0_rk
    end type
 
    type,extends(type_id) :: type_surface_state_variable_id
       integer                             :: surface_state_index = -1
       type (type_horizontal_data_pointer) :: horizontal_data
+      real(rk)                            :: background = 0.0_rk
    end type
 
    type,extends(type_id) :: type_diagnostic_variable_id
@@ -179,14 +204,17 @@
 
    type,extends(type_id) :: type_dependency_id
       type (type_bulk_data_pointer) :: data
+      real(rk)                      :: background = 0.0_rk
    end type
 
    type,extends(type_id) :: type_horizontal_dependency_id
       type (type_horizontal_data_pointer) :: horizontal_data
+      real(rk)                            :: background = 0.0_rk
    end type
 
    type,extends(type_id) :: type_global_dependency_id
       type (type_scalar_data_pointer) :: global_data
+      real(rk)                        :: background = 0.0_rk
    end type
 
    type,extends(type_id) :: type_conserved_quantity_id
@@ -249,9 +277,8 @@
       class (type_base_model),pointer :: source_model  => null()
       type (type_contribution_list)   :: contributions
 
-      type (type_integer_pointer),allocatable :: state_indices(:)
-      type (type_integer_pointer),allocatable :: write_indices(:)
-      type (type_integer_pointer),allocatable :: cons_indices(:)
+      type (type_integer_pointer_set) :: state_indices,write_indices
+      type (type_real_pointer_set)    :: background_values
    end type
 
    type,extends(type_internal_variable) :: type_bulk_variable
@@ -583,6 +610,7 @@
       procedure :: get_light_extinction     => base_get_light_extinction
       procedure :: get_drag                 => base_get_drag
       procedure :: get_albedo               => base_get_albedo
+      procedure :: get_light                => base_get_light
 
       ! Bookkeeping: calculate total of conserved quantities, check and repair model state.
       procedure :: get_conserved_quantities => base_get_conserved_quantities
@@ -802,6 +830,11 @@
    subroutine base_get_albedo(self,_ARGUMENTS_GET_ALBEDO_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_ALBEDO_
+   end subroutine
+
+   subroutine base_get_light(self,_ARGUMENTS_VERT_)
+      class (type_base_model),intent(in) :: self
+      _DECLARE_ARGUMENTS_VERT_
    end subroutine
 
    ! Bookkeeping
@@ -1041,7 +1074,7 @@
       end do
    end subroutine
 
-subroutine create_link(self,target,name,merge,owner)
+function create_link(self,target,name,merge,owner) result(link)
    class (type_base_model),            intent(inout) :: self
    class (type_internal_object),pointer              :: target
    character(len=*),                   intent(in)    :: name
@@ -1049,16 +1082,15 @@ subroutine create_link(self,target,name,merge,owner)
 
    logical                  :: merge_eff
    type (type_link),pointer :: link
-   class (type_internal_object),pointer :: existing_target
 
    merge_eff = .false.
    if (present(merge)) merge_eff = merge
 
    ! First check if a link with this name exists. If so, merge new target with old target.
-   existing_target => self%find_object(name)
-   if (associated(existing_target)) then
+   link => self%find_link(name)
+   if (associated(link)) then
       if (.not.merge_eff) call self%fatal_error('create_link_for_object','Link with name "'//trim(name)//'" already exists.')
-      call merge_variables(existing_target,target)
+      call merge_variables(link%target,target)
       deallocate(target)
       return
    end if
@@ -1080,14 +1112,16 @@ subroutine create_link(self,target,name,merge,owner)
    link%name = name
    link%target => target
    if (present(owner)) link%owner = owner
-end subroutine create_link
+end function create_link
 
 recursive subroutine add_alias(self,target,name)
    class (type_base_model),            intent(inout) :: self
    class (type_id),                    intent(in)    :: target
    character(len=*),                   intent(in)    :: name
 
-   call create_link(self,target%link%target,name,owner=.false.)
+   type (type_link),pointer :: link
+
+   link => create_link(self,target%link%target,name,owner=.false.)
    if (associated(self%parent)) call self%parent%add_alias(target,trim(self%name_prefix)//trim(name))
 end subroutine
 
@@ -1128,25 +1162,100 @@ subroutine request_coupling_for_id(self,id,master,required,source)
    call self%request_coupling(id%link,master,required,source)
 end subroutine request_coupling_for_id
 
-subroutine append_index(array,index)
-   type (type_integer_pointer),allocatable :: array(:)
-   integer,target :: index
+subroutine integer_pointer_set_append(self,value)
+   class (type_integer_pointer_set),intent(inout) :: self
+   integer,target :: value
    type (type_integer_pointer),allocatable :: oldarray(:)
 
    ! Create a new list of integer pointers, or extend it if already allocated.
-   if (.not.allocated(array)) then
-      allocate(array(1))
+   if (.not.allocated(self%pointers)) then
+      allocate(self%pointers(1))
    else
-      allocate(oldarray(size(array)))
-      oldarray = array
-      deallocate(array)
-      allocate(array(size(oldarray)+1))
-      array(1:size(oldarray)) = oldarray
+      allocate(oldarray(size(self%pointers)))
+      oldarray = self%pointers
+      deallocate(self%pointers)
+      allocate(self%pointers(size(oldarray)+1))
+      self%pointers(1:size(oldarray)) = oldarray
    end if
 
    ! Add pointer to provided integer to the list.
-   array(size(array))%p => index
-end subroutine append_index
+   self%pointers(size(self%pointers))%p => value
+   self%pointers(size(self%pointers))%p = self%pointers(1)%p
+end subroutine integer_pointer_set_append
+
+subroutine integer_pointer_set_extend(self,other)
+   class (type_integer_pointer_set),intent(inout) :: self
+   class (type_integer_pointer_set),intent(in)    :: other
+
+   integer :: i
+
+   if (allocated(other%pointers)) then
+      do i=1,size(other%pointers)
+         call self%append(other%pointers(i)%p)
+      end do
+   end if
+end subroutine integer_pointer_set_extend
+
+subroutine integer_pointer_set_set_value(self,value)
+   class (type_integer_pointer_set),intent(inout) :: self
+   integer(rk),intent(in) :: value
+
+   integer :: i
+
+   do i=1,size(self%pointers)
+      self%pointers(i)%p = value
+   end do
+end subroutine integer_pointer_set_set_value
+
+logical function integer_pointer_set_is_empty(self)
+   class (type_integer_pointer_set),intent(in) :: self
+   integer_pointer_set_is_empty = .not.allocated(self%pointers)
+end function integer_pointer_set_is_empty
+
+subroutine real_pointer_set_append(self,value)
+   class (type_real_pointer_set),intent(inout) :: self
+   real(rk),target :: value
+   type (type_real_pointer),allocatable :: oldarray(:)
+
+   ! Create a new list of real pointers, or extend it if already allocated.
+   if (.not.allocated(self%pointers)) then
+      allocate(self%pointers(1))
+   else
+      allocate(oldarray(size(self%pointers)))
+      oldarray = self%pointers
+      deallocate(self%pointers)
+      allocate(self%pointers(size(oldarray)+1))
+      self%pointers(1:size(oldarray)) = oldarray
+   end if
+
+   ! Add pointer to provided real to the list.
+   self%pointers(size(self%pointers))%p => value
+   self%pointers(size(self%pointers))%p = self%pointers(1)%p
+end subroutine real_pointer_set_append
+
+subroutine real_pointer_set_extend(self,other)
+   class (type_real_pointer_set),intent(inout) :: self
+   class (type_real_pointer_set),intent(in)    :: other
+
+   integer :: i
+
+   if (allocated(other%pointers)) then
+      do i=1,size(other%pointers)
+         call self%append(other%pointers(i)%p)
+      end do
+   end if
+end subroutine real_pointer_set_extend
+
+subroutine real_pointer_set_set_value(self,value)
+   class (type_real_pointer_set),intent(inout) :: self
+   real(rk),intent(in) :: value
+
+   integer :: i
+
+   do i=1,size(self%pointers)
+      self%pointers(i)%p = value
+   end do
+end subroutine real_pointer_set_set_value
 
 subroutine append_bulk_data_pointer(array,data)
    type (type_bulk_data_pointer_pointer),allocatable :: array(:)
@@ -1172,6 +1281,7 @@ subroutine append_bulk_data_pointer(array,data)
 
    ! Add pointer to provided data to the list.
    array(size(array))%p => data
+   array(size(array))%p = array(1)%p
 end subroutine append_bulk_data_pointer
 
 subroutine append_horizontal_data_pointer(array,data)
@@ -1198,6 +1308,7 @@ subroutine append_horizontal_data_pointer(array,data)
 
    ! Add pointer to provided data to the list.
    array(size(array))%p => data
+   array(size(array))%p = array(1)%p
 end subroutine append_horizontal_data_pointer
 
 subroutine append_scalar_data_pointer(array,data)
@@ -1224,6 +1335,7 @@ subroutine append_scalar_data_pointer(array,data)
 
    ! Add pointer to provided data to the list.
    array(size(array))%p => data
+   array(size(array))%p = array(1)%p
 end subroutine append_scalar_data_pointer
 
 subroutine append_model_pointer(array,data)
@@ -1365,7 +1477,7 @@ end subroutine append_string
                                            initial_value, vertical_movement, specific_light_extinction, &
                                            minimum, maximum, missing_value, &
                                            no_precipitation_dilution, no_river_dilution, &
-                                           standard_variable,presence)
+                                           standard_variable,presence, background_value)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical state variable in the global model database.
@@ -1378,7 +1490,7 @@ end subroutine append_string
 ! !INPUT PARAMETERS:
       character(len=*),                   intent(in)          :: name, long_name, units
       real(rk),                           intent(in),optional :: initial_value,vertical_movement,specific_light_extinction
-      real(rk),                           intent(in),optional :: minimum, maximum,missing_value
+      real(rk),                           intent(in),optional :: minimum, maximum,missing_value,background_value
       logical,                            intent(in),optional :: no_precipitation_dilution,no_river_dilution
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       integer,                            intent(in),optional :: presence
@@ -1421,6 +1533,7 @@ end subroutine append_string
       end if
 
       call connect_bulk_state_variable_id(self,variable,id)
+      if (present(background_value)) call variable%background_values%set_value(background_value)
 
       id%link => self%add_object_copy(variable)
 
@@ -1435,7 +1548,7 @@ end subroutine append_string
 ! !INTERFACE:
    subroutine register_bottom_state_variable(self, id, name, units, long_name, &
                                              initial_value, minimum, maximum, missing_value, &
-                                             standard_variable,presence)
+                                             standard_variable,presence,background_value)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical state variable in the global model database.
@@ -1448,7 +1561,7 @@ end subroutine append_string
 ! !INPUT PARAMETERS:
       character(len=*),                         intent(in)          :: name, long_name, units
       real(rk),                                 intent(in),optional :: initial_value
-      real(rk),                                 intent(in),optional :: minimum, maximum,missing_value
+      real(rk),                                 intent(in),optional :: minimum, maximum,missing_value,background_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
       integer,                                  intent(in),optional :: presence
 !
@@ -1486,6 +1599,7 @@ end subroutine append_string
       end if
 
       call connect_bottom_state_variable_id(self,variable,id)
+      if (present(background_value)) call variable%background_values%set_value(background_value)
 
       id%link => self%add_object_copy(variable)
 
@@ -1500,7 +1614,7 @@ end subroutine append_string
 ! !INTERFACE:
    subroutine register_surface_state_variable(self, id, name, units, long_name, &
                                               initial_value, minimum, maximum, missing_value, &
-                                              standard_variable,presence)
+                                              standard_variable,presence,background_value)
 !
 ! !DESCRIPTION:
 !  This subroutine registers a new surface-bound biogeochemical state variable in the global model database.
@@ -1513,7 +1627,7 @@ end subroutine append_string
 ! !INPUT PARAMETERS:
       character(len=*),                         intent(in)          :: name, long_name, units
       real(rk),                                 intent(in),optional :: initial_value
-      real(rk),                                 intent(in),optional :: minimum, maximum,missing_value
+      real(rk),                                 intent(in),optional :: minimum, maximum,missing_value,background_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
       integer,                                  intent(in),optional :: presence
 !
@@ -1551,6 +1665,7 @@ end subroutine append_string
       end if
 
       call connect_surface_state_variable_id(self,variable,id)
+      if (present(background_value)) call variable%background_values%set_value(background_value)
 
       id%link => self%add_object_copy(variable)
 
@@ -1566,21 +1681,15 @@ end subroutine append_string
       type (type_link),pointer                     :: link
 
       class (type_internal_object),pointer :: copy
-      character(len=attribute_length)      :: local_name
-
-      ! Store the local object name (overwritten by self%add_object)
-      local_name = object%name
 
       ! Create a persistent copy of the object.
       allocate(copy,source=object)
 
       ! Add the persistent copy of the object to the model.
-      call self%add_object(copy)
-
-      link => self%find_link(local_name)
+      link => self%add_object(copy)
    end function
 
-   recursive subroutine add_object(self,object)
+   recursive function add_object(self,object) result(link)
       ! This subroutine creates a link to the supplied object, then allows
       ! parent models to do the same.
       ! NB this subroutine MUST be recursive, to allow parent models to override
@@ -1588,18 +1697,20 @@ end subroutine append_string
       class (type_base_model),target,      intent(inout) :: self
       class (type_internal_object),pointer               :: object
 
+      type (type_link), pointer :: link,parent_link
+
       if (object%long_name=='') object%long_name = object%name
 
-      call create_link(self,object,object%name,merge=.true.)
+      link => create_link(self,object,object%name,merge=.true.)
       if (.not.associated(object)) return ! if create_link has merged the new object into an existing object
 
       ! Forward to parent
       if (associated(self%parent)) then
          object%name = trim(self%name_prefix)//trim(object%name)
          object%long_name = trim(self%long_name_prefix)//' '//trim(object%long_name)
-         call self%parent%add_object(object)
+         parent_link => self%parent%add_object(object)
       end if
-   end subroutine
+   end function
    
    subroutine connect_bulk_state_variable_id(self,variable,id)
       class (type_base_model),       intent(in)           :: self
@@ -1609,8 +1720,9 @@ end subroutine append_string
       if (associated(id%link)) call self%fatal_error('connect_bulk_state_variable_id', &
          'Identifier supplied for '//trim(variable%name)//' is already associated with '//trim(id%link%name)//'.')
 
-      call append_index(variable%state_indices,id%state_index)
+      call variable%state_indices%append(id%state_index)
       call append_data_pointer(variable%alldata,id%data)
+      call variable%background_values%append(id%background)
    end subroutine
 
    subroutine connect_bottom_state_variable_id(self,variable,id)
@@ -1621,8 +1733,9 @@ end subroutine append_string
       if (associated(id%link)) call self%fatal_error('connect_bottom_state_variable_id', &
          'Identifier supplied for '//trim(variable%name)//' is already associated with '//trim(id%link%name)//'.')
 
-      call append_index(variable%state_indices,id%bottom_state_index)
+      call variable%state_indices%append(id%bottom_state_index)
       call append_data_pointer(variable%alldata,id%horizontal_data)
+      call variable%background_values%append(id%background)
    end subroutine
 
    subroutine connect_surface_state_variable_id(self,variable,id)
@@ -1633,8 +1746,9 @@ end subroutine append_string
       if (associated(id%link)) call self%fatal_error('connect_surface_state_variable_id', &
          'Identifier supplied for '//trim(variable%name)//' is already associated with '//trim(id%link%name)//'.')
 
-      call append_index(variable%state_indices,id%surface_state_index)
+      call variable%state_indices%append(id%surface_state_index)
       call append_data_pointer(variable%alldata,id%horizontal_data)
+      call variable%background_values%append(id%background)
    end subroutine
 
 !-----------------------------------------------------------------------
@@ -1681,7 +1795,7 @@ end subroutine append_string
       if (present(time_treatment))    variable%time_treatment    = time_treatment
       if (present(missing_value))     variable%missing_value     = missing_value
       if (present(standard_variable)) variable%standard_variable = standard_variable
-      call append_index(variable%write_indices,id%diag_index)
+      call variable%write_indices%append(id%diag_index)
       if (associated(id%link)) call self%fatal_error('register_bulk_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
@@ -1737,7 +1851,7 @@ end subroutine append_string
 
       if (associated(id%link)) call self%fatal_error('register_horizontal_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
-      call append_index(variable%write_indices,id%horizontal_diag_index)
+      call variable%write_indices%append(id%horizontal_diag_index)
 
       id%link => self%add_object_copy(variable)
 
@@ -1764,36 +1878,9 @@ end subroutine append_string
 ! !INPUT PARAMETERS:
       type (type_bulk_standard_variable), intent(in) :: standard_variable
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-!EOP
-!
-! !LOCAL VARIABLES:
-      type (type_bulk_variable)       :: variable
-      character(len=attribute_length) :: name_eff
-!
 !-----------------------------------------------------------------------
 !BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error('register_standard_conserved_quantity',&
-                                             'Conserved quantities may only be registered during initialization.')
-
-      if (present(name)) then
-         name_eff = name
-      else
-         name_eff = standard_variable%name
-      end if
-
-      ! Either use the provided variable object, or create a new one.
-      variable%standard_variable = standard_variable
-      variable%name      = standard_variable%name
-      variable%units     = standard_variable%units
-      variable%long_name = standard_variable%name
-
-      if (associated(id%link)) call self%fatal_error('register_conserved_quantity', &
-         'Identifier supplied for '//trim(name_eff)//' is already associated with '//trim(id%link%name)//'.')
-      call append_index(variable%cons_indices,id%cons_index)
+      call self%fatal_error('register_standard_conserved_quantity','register_conserved_quantity is no longer supported; please use add_to_aggregate_variable.')
 
    end subroutine register_standard_conserved_quantity
 !EOC
@@ -1819,29 +1906,9 @@ end subroutine append_string
       character(len=*), intent(in) :: long_name
       character(len=*), intent(in) :: units
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-!EOP
-!
-! !LOCAL VARIABLES:
-      type (type_bulk_variable) :: variable
-!
 !-----------------------------------------------------------------------
 !BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error('register_custom_conserved_quantity',&
-         'Conserved quantities may only be registered during initialization.')
-
-      variable%name      = name
-      variable%units     = units
-      variable%long_name = long_name
-
-      if (associated(id%link)) call self%fatal_error('register_conserved_quantity', &
-         'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
-      call append_index(variable%cons_indices,id%cons_index)
-
-      id%link => self%add_object_copy(variable)
+      call self%fatal_error('register_standard_conserved_quantity','register_conserved_quantity is no longer supported; please use add_to_aggregate_variable.')
 
    end subroutine register_custom_conserved_quantity
 !EOC
@@ -2066,6 +2133,7 @@ end subroutine append_string
       if (.not.required_eff) variable%presence = presence_external_optional
 
       call append_data_pointer(variable%alldata,id%data)
+      call variable%background_values%append(id%background)
       if (associated(id%link)) call self%fatal_error('register_bulk_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
@@ -2123,6 +2191,7 @@ end subroutine append_string
       if (.not.required_eff) variable%presence = presence_external_optional
 
       call append_data_pointer(variable%alldata,id%horizontal_data)
+      call variable%background_values%append(id%background)
       if (associated(id%link)) call self%fatal_error(':register_horizontal_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
@@ -2180,6 +2249,7 @@ end subroutine append_string
       if (.not.required_eff) variable%presence = presence_external_optional
 
       call append_data_pointer(variable%alldata,id%global_data)
+      call variable%background_values%append(id%background)
       if (associated(id%link)) call self%fatal_error(':register_global_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
@@ -2560,9 +2630,12 @@ end subroutine add_parameter
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_link),pointer                      :: link,link2
+      type (type_link),pointer                    :: link,link2
+      type (type_bulk_standard_variable)          :: bulk_standard_variable
+      type (type_horizontal_standard_variable)    :: horizontal_standard_variable
+      type (type_global_standard_variable)        :: global_standard_variable
       character(len=attribute_length),allocatable :: processed_bulk(:),processed_horizontal(:),processed_scalar(:)
-      logical                                       :: exists
+      logical                                     :: exists
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -2573,13 +2646,19 @@ end subroutine add_parameter
                if (.not.is_null_standard_variable(object%standard_variable)) then
                   call append_string(processed_bulk,object%standard_variable%name,exists=exists)
                   if (.not.exists) then
+                     bulk_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
                         select type (object2=>link2%target)
                            class is (type_bulk_variable)
-                              if (compare_standard_variables(object%standard_variable,object2%standard_variable) .and. .not. &
-                                  is_null_standard_variable(object2%standard_variable)) &
-                                 call couple_variables(model,link%target,link2%target)
+                              if (compare_standard_variables(bulk_standard_variable,object2%standard_variable) .and. .not. &
+                                  is_null_standard_variable(object2%standard_variable)) then
+                                 if (object2%write_indices%is_empty()) then
+                                    call couple_variables(model,link%target,link2%target)
+                                 else
+                                    call couple_variables(model,link2%target,link%target)
+                                 end if
+                              end if
                         end select
                         link2 => link2%next
                      end do
@@ -2589,13 +2668,19 @@ end subroutine add_parameter
                if (.not.is_null_standard_variable(object%standard_variable)) then
                   call append_string(processed_horizontal,object%standard_variable%name,exists=exists)
                   if (.not.exists) then
+                     horizontal_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
                         select type (object2=>link2%target)
                            class is (type_horizontal_variable)
-                              if (compare_standard_variables(object%standard_variable,object2%standard_variable) .and. .not. &
-                                  is_null_standard_variable(object2%standard_variable)) &
-                               call couple_variables(model,link%target,link2%target)
+                              if (compare_standard_variables(horizontal_standard_variable,object2%standard_variable) .and. .not. &
+                                  is_null_standard_variable(object2%standard_variable)) then
+                                 if (object2%write_indices%is_empty()) then
+                                    call couple_variables(model,link%target,link2%target)
+                                 else
+                                    call couple_variables(model,link2%target,link%target)
+                                 end if
+                              end if
                         end select
                         link2 => link2%next
                      end do
@@ -2605,13 +2690,19 @@ end subroutine add_parameter
                if (.not.is_null_standard_variable(object%standard_variable)) then
                   call append_string(processed_scalar,object%standard_variable%name,exists=exists)
                   if (.not.exists) then
+                     global_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
                         select type (object2=>link2%target)
                            class is (type_scalar_variable)
-                              if (compare_standard_variables(object%standard_variable,object2%standard_variable) .and. .not. &
-                                  is_null_standard_variable(object2%standard_variable)) &
-                                 call couple_variables(model,link%target,link2%target)
+                              if (compare_standard_variables(global_standard_variable,object2%standard_variable) .and. .not. &
+                                  is_null_standard_variable(object2%standard_variable)) then
+                                 if (object2%write_indices%is_empty()) then
+                                    call couple_variables(model,link%target,link2%target)
+                                 else
+                                    call couple_variables(model,link2%target,link%target)
+                                 end if
+                              end if
                         end select
                         link2 => link2%next
                      end do
@@ -2846,31 +2937,17 @@ subroutine merge_internal_variables(master,slave)
    integer :: i
    type (type_contribution), pointer :: contribution
 
-   if (allocated(slave%write_indices)) &
+   if (.not.slave%write_indices%is_empty()) &
       call driver%fatal_error('merge_internal_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
-   if (allocated(slave%state_indices).and..not.allocated(master%state_indices)) &
+   if (master%state_indices%is_empty().and..not.slave%state_indices%is_empty()) &
       call driver%fatal_error('merge_internal_variables','Attempt to couple state variable ' &
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
-   if (allocated(slave%cons_indices).and..not.allocated(master%cons_indices)) &
-      call driver%fatal_error('merge_internal_variables','Attempt to couple conserved quantity ' &
-         //trim(slave%name)//' with non-conserved quantity '//trim(master%name)//'.')
-   if (allocated(master%cons_indices).and..not.allocated(slave%cons_indices)) &
-      call driver%fatal_error('merge_internal_variables','Attempt to couple non-conserved quantity ' &
-         //trim(slave%name)//' with conserved quantity '//trim(master%name)//'.')
    if (master%presence==presence_external_optional) &
       call driver%fatal_error('merge_internal_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
 
-   if (allocated(slave%state_indices)) then
-      do i=1,size(slave%state_indices)
-         call append_index(master%state_indices,slave%state_indices(i)%p)
-      end do
-   end if
-   if (allocated(slave%cons_indices)) then
-      do i=1,size(slave%cons_indices)
-         call append_index(master%cons_indices,slave%cons_indices(i)%p)
-      end do
-   end if
+   call master%state_indices%extend(slave%state_indices)
+   call master%background_values%extend(slave%background_values)
    call master%properties%update(slave%properties,overwrite=.false.)
    contribution => slave%contributions%first
    do while (associated(contribution))
@@ -3024,8 +3101,8 @@ function create_external_bulk_id(model,variable) result(id)
    else
       allocate(id%alldata(0))
    end if
-   if (allocated(variable%state_indices)) id%state_index = variable%state_indices(1)%p
-   if (allocated(variable%write_indices)) id%write_index = variable%write_indices(1)%p
+   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
+   if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
 end function create_external_bulk_id
 
 function create_external_horizontal_id(model,variable) result(id)
@@ -3040,8 +3117,8 @@ function create_external_horizontal_id(model,variable) result(id)
    else
       allocate(id%alldata(0))
    end if
-   if (allocated(variable%state_indices)) id%state_index = variable%state_indices(1)%p
-   if (allocated(variable%write_indices)) id%write_index = variable%write_indices(1)%p
+   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
+   if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
 end function create_external_horizontal_id
 
 function create_external_scalar_id(model,variable) result(id)
@@ -3056,8 +3133,8 @@ function create_external_scalar_id(model,variable) result(id)
    else
       allocate(id%alldata(0))
    end if
-   if (allocated(variable%state_indices)) id%state_index = variable%state_indices(1)%p
-   if (allocated(variable%write_indices)) id%write_index = variable%write_indices(1)%p
+   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
+   if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
 end function create_external_scalar_id
 
 function compare_bulk_standard_variables(variable1,variable2) result(equal)
@@ -3244,7 +3321,7 @@ contains
 
    subroutine add_contribution(aggregate_variable,link,scale_factor)
       type (type_aggregate_variable),intent(inout) :: aggregate_variable
-      type (type_link),target,       intent(in)    :: link
+      type (type_link),target,       intent(inout) :: link
       real(rk),                      intent(in)    :: scale_factor
 
       type (type_contributing_variable),pointer :: contributing_variable
@@ -3270,13 +3347,13 @@ contains
       ! If the contributing variable is a state variable, keep a reference to its state variable index.
       select type (variable=>link%target)
          class is (type_bulk_variable)
-            if (allocated(variable%state_indices)) then
-               call append_index(variable%state_indices,contributing_variable%state_index)
+            if (.not.variable%state_indices%is_empty()) then
+               call variable%state_indices%append(contributing_variable%state_index)
                aggregate_variable%has_bulk_state_component = .true.
             end if
          class is (type_horizontal_variable)
-            if (allocated(variable%state_indices)) then
-               call append_index(variable%state_indices,contributing_variable%horizontal_state_index)
+            if (.not.variable%state_indices%is_empty()) then
+               call variable%state_indices%append(contributing_variable%horizontal_state_index)
                aggregate_variable%has_horizontal_state_component = .true.
             end if
       end select
@@ -3398,21 +3475,17 @@ recursive subroutine classify_variables(self)
          select type (object => link%target)
             class is (type_bulk_variable)
                ! This is a variable owned by the model.
-               if (allocated(object%write_indices)) then
+               if (.not.object%write_indices%is_empty()) then
                   ! This is a diagnostic variable.
                   ndiag = ndiag+1
-                  do i=1,size(object%write_indices)
-                     if (set_indices) object%write_indices(i)%p = ndiag
-                  end do
+                  if (set_indices) call object%write_indices%set_value(ndiag)
                end if
-               if (allocated(object%state_indices)) then
+               if (.not.object%state_indices%is_empty()) then
                   ! This is a state variable.
                   select case (object%presence)
                      case (presence_internal)
                         nstate = nstate+1
-                        do i=1,size(object%state_indices)
-                           if (set_indices) object%state_indices(i)%p = nstate
-                        end do
+                        if (set_indices) call object%state_indices%set_value(nstate)
                      case (presence_external_required)
                         call self%fatal_error('classify_variables','Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
                      case default
@@ -3420,14 +3493,12 @@ recursive subroutine classify_variables(self)
                   end select
                end if
             class is (type_horizontal_variable)
-               if (allocated(object%write_indices)) then
+               if (.not.object%write_indices%is_empty()) then
                   ! This is a diagnostic variable.
                   ndiag_hz = ndiag_hz+1
-                  do i=1,size(object%write_indices)
-                     if (set_indices) object%write_indices(i)%p = ndiag_hz
-                  end do
+                  if (set_indices) call object%write_indices%set_value(ndiag_hz)
                end if
-               if (allocated(object%state_indices)) then
+               if (.not.object%state_indices%is_empty()) then
                   ! This is a state variable.
                   select case (object%presence)
                      case (presence_internal)
@@ -3435,15 +3506,11 @@ recursive subroutine classify_variables(self)
                            case (domain_bottom)
                               ! Bottom state variable
                               nstate_bot = nstate_bot+1
-                              do i=1,size(object%state_indices)
-                                 if (set_indices) object%state_indices(i)%p = nstate_bot
-                              end do
+                              if (set_indices) call object%state_indices%set_value(nstate_bot)
                            case (domain_surface)
                               ! Surface state variable
                               nstate_surf = nstate_surf+1
-                              do i=1,size(object%state_indices)
-                                 if (set_indices) object%state_indices(i)%p = nstate_surf
-                              end do
+                              if (set_indices) call object%state_indices%set_value(nstate_surf)
                         end select
                      case (presence_external_required)
                         call self%fatal_error('classify_variables','Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
@@ -3493,7 +3560,7 @@ recursive subroutine classify_variables(self)
             if (link%owner) then
                ! The model owns this variable (no external master variable has been assigned)
                ! Transfer variable information to the array that will be accessed by the host model.
-               if (allocated(object%write_indices)) then
+               if (.not.object%write_indices%is_empty()) then
                   ndiag = ndiag + 1
                   diagvar => self%diagnostic_variables(ndiag)
                   call copy_variable_metadata(object,diagvar)
@@ -3502,8 +3569,8 @@ recursive subroutine classify_variables(self)
                   diagvar%time_treatment    = object%time_treatment
                   call diagvar%properties%update(object%properties)
                end if
-         
-               if (allocated(object%state_indices).and.object%presence==presence_internal) then
+
+               if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
                   nstate = nstate + 1
                   statevar => self%state_variables(nstate)
                   call copy_variable_metadata(object,statevar)
@@ -3516,7 +3583,7 @@ recursive subroutine classify_variables(self)
                   statevar%no_river_dilution         = object%no_river_dilution
                end if
             end if
-            if (allocated(object%alldata).and..not.(allocated(object%state_indices).and.object%presence==presence_external_optional)) then
+            if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                call append_string(self%dependencies,link%name)
                if (object%standard_variable%name/='') call append_string(self%dependencies,object%standard_variable%name)
             end if
@@ -3524,7 +3591,7 @@ recursive subroutine classify_variables(self)
             if (link%owner) then
                ! The model owns this variable (no external master variable has been assigned)
                ! Transfer variable information to the array that will be accessed by the host model.
-               if (allocated(object%write_indices)) then
+               if (.not.object%write_indices%is_empty()) then
                   ndiag_hz = ndiag_hz + 1
                   hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
                   call copy_variable_metadata(object,hz_diagvar)
@@ -3532,7 +3599,7 @@ recursive subroutine classify_variables(self)
                   hz_diagvar%standard_variable = object%standard_variable
                   hz_diagvar%time_treatment    = object%time_treatment
                end if
-               if (allocated(object%state_indices).and.object%presence==presence_internal) then
+               if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
                   select case (object%domain)
                      case (domain_bottom)
                         nstate_bot = nstate_bot + 1
@@ -3549,7 +3616,7 @@ recursive subroutine classify_variables(self)
                   hz_statevar%initial_value     = object%initial_value
                end if
             end if
-            if (allocated(object%alldata).and..not.(allocated(object%state_indices).and.object%presence==presence_external_optional)) then
+            if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                call append_string(self%dependencies_hz,link%name)
                if (object%standard_variable%name/='') call append_string(self%dependencies_hz,object%standard_variable%name)
             end if
@@ -3578,6 +3645,7 @@ recursive subroutine classify_variables(self)
       ! store their state variable index and scale factor, so we can include them later
       ! when computing the (change in) conserved quantities from the (change in) state alone.
 
+      ! Count the number of state variables [currently bulk only!] that contribute to the conserved quantity.
       nstate = 0
       contributing_variable => aggregate_variable%first_contributing_variable
       do while (associated(contributing_variable))
@@ -3585,6 +3653,7 @@ recursive subroutine classify_variables(self)
          contributing_variable => contributing_variable%next
       end do
 
+      ! Store the indices and scale factors of bulk state variables that contribute to the aggregate quantity.
       allocate(consvar%state_indices(nstate))
       allocate(consvar%state_scale_factors(nstate))
       nstate = 0
@@ -3597,13 +3666,18 @@ recursive subroutine classify_variables(self)
          end if
          contributing_variable => contributing_variable%next
       end do
+
+      ! Coupled state variables may have been counted multiple times.
+      ! Remove the resulting duplicate indices, and the associated scale factors.
       call remove_duplicates(consvar%state_indices,consvar%state_scale_factors)
 
+      ! If monitoring conservation for this model, store the indices of diagnostic variables that will
+      ! take the models-specific rate of change in conserved quantities.
       if (self%check_conservation) then
          consvar%rate_diag_index = aggregate_variable%id_rate%diag_index
          consvar%horizontal_rate_diag_index = aggregate_variable%id_horizontal_rate%horizontal_diag_index
       end if
-      
+
       aggregate_variable => aggregate_variable%next
    end do
 
@@ -3678,7 +3752,7 @@ contains
       do while (associated(link))
          select type (object=>link%target)
             class is (type_bulk_variable)
-               if (allocated(object%state_indices).and.object%presence==presence_internal.and.link%owner) n = n + 1
+               if (object%presence==presence_internal.and.link%owner.and..not.object%state_indices%is_empty()) n = n + 1
          end select
          link => link%next
       end do
@@ -3692,7 +3766,7 @@ contains
       do while (associated(link))
          select type (object=>link%target)
             class is (type_bulk_variable)
-               if (allocated(object%state_indices).and.object%presence==presence_internal.and.link%owner) then
+               if (object%presence==presence_internal.and.link%owner.and..not.object%state_indices%is_empty()) then
                   n = n + 1
                   call connect_bulk_state_variable_id(model,object,p%state(n))
                end if

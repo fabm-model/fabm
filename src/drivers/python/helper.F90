@@ -41,15 +41,15 @@
          if (link%owner) then
             select type (object=>link%target)
                class is (type_bulk_variable)
-                  if (allocated(object%alldata).and..not.(allocated(object%state_indices).and.object%presence==presence_external_optional)) then
+                  if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                      if (.not.associated(object%alldata(1)%p%p)) n = n+1
                   end if
                class is (type_horizontal_variable)
-                  if (allocated(object%alldata).and..not.(allocated(object%state_indices).and.object%presence==presence_external_optional)) then
+                  if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                      if (.not.associated(object%alldata(1)%p%p)) n = n+1
                   end if
                class is (type_scalar_variable)
-                  if (allocated(object%alldata).and..not.(allocated(object%state_indices).and.object%presence==presence_external_optional)) then
+                  if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                      if (.not.associated(object%alldata(1)%p%p)) n = n+1
                   end if
             end select
@@ -70,7 +70,7 @@
          if (link%owner) then
             select type (object=>link%target)
                class is (type_bulk_variable)
-                  if (allocated(object%alldata).and..not.(allocated(object%state_indices).and.object%presence==presence_external_optional)) then
+                  if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                      if (.not.associated(object%alldata(1)%p%p)) then
                         n = n + 1
                         if (is_null_standard_variable(object%standard_variable)) then
@@ -84,7 +84,7 @@
                      end if
                   end if
                class is (type_horizontal_variable)
-                  if (allocated(object%alldata).and..not.(allocated(object%state_indices).and.object%presence==presence_external_optional)) then
+                  if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                      if (.not.associated(object%alldata(1)%p%p)) then
                         n = n + 1
                         if (is_null_standard_variable(object%standard_variable)) then
@@ -98,7 +98,7 @@
                      end if
                   end if
                class is (type_scalar_variable)
-                  if (allocated(object%alldata).and..not.(allocated(object%state_indices).and.object%presence==presence_external_optional)) then
+                  if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                      if (.not.associated(object%alldata(1)%p%p)) then
                         n = n + 1
                         if (is_null_standard_variable(object%standard_variable)) then

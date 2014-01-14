@@ -118,7 +118,7 @@ contains
       class (type_node),pointer          :: childnode
       class (type_property),pointer      :: property
       type (type_key_value_pair),pointer :: pair
-      type (type_set)                    :: initialized_set
+      type (type_set)                    :: initialized_set,background_set
       type (type_link),pointer           :: link
 
       ! Retrieve model name (default to instance name if not provided).
@@ -199,7 +199,18 @@ contains
       if (associated(childnode)) then
          select type (childnode)
             class is (type_dictionary)
-               call parse_initialization(model,childnode,initialized_set)
+               call parse_initialization(model,childnode,initialized_set,get_background=.false.)
+            class default
+               call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
+         end select
+      end if
+
+      ! Transfer user-specified background value to the model.
+      childnode => node%get('background')
+      if (associated(childnode)) then
+         select type (childnode)
+            class is (type_dictionary)
+               call parse_initialization(model,childnode,background_set,get_background=.true.)
             class default
                call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
          end select
@@ -212,7 +223,7 @@ contains
             ! This link is our own: not coupled to another variable, not an alias, and no intention to couple was registered.
             select type (object=>link%target)
                class is (type_internal_variable)
-                  if (allocated(object%state_indices)) then
+                  if (.not.object%state_indices%is_empty()) then
                      if (object%presence/=presence_external_optional .and. .not.initialized_set%contains(trim(link%name))) then
                         ! State variable is required, but initial value is not explicitly provided.
                         if (require_initialization) then
@@ -243,14 +254,16 @@ contains
 
    end function create_model_from_dictionary
 
-   subroutine parse_initialization(model,node,initialized_set)
+   subroutine parse_initialization(model,node,initialized_set,get_background)
       class (type_base_model),intent(inout) :: model
       class (type_dictionary),intent(in)    :: node
       type (type_set),        intent(out)   :: initialized_set
+      logical,                intent(in)    :: get_background
 
       type (type_key_value_pair),  pointer :: pair
       class (type_internal_object),pointer :: object
       logical                              :: is_state_variable
+      real(rk)                             :: realvalue
 
       ! Transfer user-specified initial state to the model.
       pair => node%first
@@ -262,8 +275,13 @@ contains
                is_state_variable = .false.
                select type (object)
                   class is (type_internal_variable)
-                     if (allocated(object%state_indices)) then
-                        read (value%string,*,err=99,end=99) object%initial_value
+                     if (.not.object%state_indices%is_empty()) then
+                        read (value%string,*,err=99,end=99) realvalue
+                        if (get_background) then
+                           call object%background_values%set_value(realvalue)
+                        else
+                           object%initial_value = realvalue
+                        end if
                         call initialized_set%add(trim(pair%key))
                         is_state_variable = .true.
                      end if
@@ -272,7 +290,7 @@ contains
             class default
                call driver%fatal_error('parse_initialization',trim(value%path)//' must be set to a scalar value, not to a nested dictionary.')
          end select
-         pair => pair%next   
+         pair => pair%next
       end do
 
       return
