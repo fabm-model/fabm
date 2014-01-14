@@ -2934,7 +2934,6 @@ subroutine merge_internal_variables(master,slave)
    class (type_internal_variable),intent(inout) :: master
    class (type_internal_variable),intent(in)    :: slave
 
-   integer :: i
    type (type_contribution), pointer :: contribution
 
    if (.not.slave%write_indices%is_empty()) &
@@ -3449,7 +3448,6 @@ recursive subroutine classify_variables(self)
    type (type_conserved_quantity_info),            pointer :: consvar
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
 
-   integer :: i
    logical :: set_indices
 
    type (type_model_list_node),       pointer :: child
