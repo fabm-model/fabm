@@ -439,51 +439,17 @@
       ade = 0.0_rk
    endif
 
-  _SET_ODE_(self%id_o2, &
-              part_uptake * (nn * 8.625_rk + aa * 6.625_rk) &
-              + rb * bbg * 6.625_rk &
-              - ldn_O * ldn * dd &
-              - 6.625_rk * (lpn * phyto + lzn * zz0) &
-              - 2.0_rk * nf * aa &
-              + ade * 0.375_rk)
-  _SET_ODE_(self%id_aa, &
-              ldn * dd &  
-            - (part_uptake + nf) * aa &
-            + lpn * phyto &
-            + lzn * zz0)
-  _SET_ODE_(self%id_nn, &
-              nf * aa &
-            - part_uptake * nn &
-            - ldn_N * ldn * dd &
-            - ade)
-  _SET_ODE_(self%id_po, self%rfr * ( &
-              ldn * dd & 
-            - (part_uptake * (aa + nn) + rb * bbg) &
-            + lpn * phyto &
-            + lzn * zz0))
-  _SET_ODE_(self%id_pp, &
-              uptake_p * (aa + nn) &
-            - (graz_z + lp) * pp)
-  _SET_ODE_(self%id_ff, &
-              uptake_f * (aa + nn) &
-            - (graz_z + lp) * ff)
-  _SET_ODE_(self%id_bb, &
-              rb * bbg &
-            - (0.5_rk * graz_z + lp) * bb)
-  _SET_ODE_(self%id_zz, &
-              graz_z * (pp + ff + 0.5_rk * bb) &
-            - lz * zz0)
-  _SET_ODE_(self%id_dd, &
-              lpd * phyto &
-            + lzd * zz0 &
-            - ldn * dd)
+  _SET_ODE_(self%id_o2, part_uptake * (nn * 8.625_rk + aa * 6.625_rk) + rb * bbg * 6.625_rk - ldn_O * ldn * dd - 6.625_rk * (lpn * phyto + lzn * zz0) - 2.0_rk * nf * aa + ade * 0.375_rk)
+  _SET_ODE_(self%id_aa, ldn * dd - (part_uptake + nf) * aa + lpn * phyto + lzn * zz0)
+  _SET_ODE_(self%id_nn, nf * aa - part_uptake * nn - ldn_N * ldn * dd - ade)
+  _SET_ODE_(self%id_po, self%rfr * ( ldn * dd - (part_uptake * (aa + nn) + rb * bbg) + lpn * phyto + lzn * zz0))
+  _SET_ODE_(self%id_pp, uptake_p * (aa + nn) - (graz_z + lp) * pp)
+  _SET_ODE_(self%id_ff, uptake_f * (aa + nn) - (graz_z + lp) * ff)
+  _SET_ODE_(self%id_bb, rb * bbg - (0.5_rk * graz_z + lp) * bb)
+  _SET_ODE_(self%id_zz, graz_z * (pp + ff + 0.5_rk * bb) - lz * zz0)
+  _SET_ODE_(self%id_dd, lpd * phyto + lzd * zz0 - ldn * dd)
 
-  if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic, &
-                             self%rfc*( &
-                             lpn * phyto &
-                           + lzn * zz0 &
-                           + ldn * dd &
-                           - rp * ppg - rf * ffg - rb * bbg))
+  if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic, self%rfc*( lpn * phyto + lzn * zz0 + ldn * dd - rp * ppg - rf * ffg - rb * bbg))
 
    _SET_DIAGNOSTIC_(self%id_dPAR,par)
    _SET_DIAGNOSTIC_(self%id_GPP ,rp + rf)
