@@ -546,7 +546,9 @@
       procedure :: register_surface_state_dependency_old
       procedure :: register_model_dependency
 
-      procedure :: add_object_copy
+      procedure :: add_bulk_variable
+      procedure :: add_horizontal_variable
+      procedure :: add_scalar_variable
       procedure :: add_object
       procedure :: add_alias
 
@@ -1503,7 +1505,7 @@ end subroutine append_string
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_bulk_variable) :: variable
+      type (type_bulk_variable),pointer :: variable
       character(len=256)        :: text
 !
 !-----------------------------------------------------------------------
@@ -1513,6 +1515,7 @@ end subroutine append_string
          'State variables may only be registered during initialization.')
 
       ! Either use the provided variable object, or create a new one.
+      allocate(variable)
       variable%name      = name
       variable%units     = units
       variable%long_name = long_name
@@ -1537,7 +1540,7 @@ end subroutine append_string
       call connect_bulk_state_variable_id(self,variable,id)
       if (present(background_value)) call variable%background_values%set_value(background_value)
 
-      id%link => self%add_object_copy(variable)
+      id%link => self%add_bulk_variable(variable)
 
    end subroutine register_bulk_state_variable
 !EOC
@@ -1573,8 +1576,8 @@ end subroutine append_string
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_horizontal_variable) :: variable
-      character(len=256)              :: text
+      type (type_horizontal_variable),pointer :: variable
+      character(len=256)                      :: text
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1582,6 +1585,7 @@ end subroutine append_string
       if (self%frozen) call self%fatal_error('register_bottom_state_variable', &
          'State variables may only be registered during initialization.')
 
+      allocate(variable)
       variable%name      = name
       variable%units     = units
       variable%long_name = long_name
@@ -1603,7 +1607,7 @@ end subroutine append_string
       call connect_bottom_state_variable_id(self,variable,id)
       if (present(background_value)) call variable%background_values%set_value(background_value)
 
-      id%link => self%add_object_copy(variable)
+      id%link => self%add_horizontal_variable(variable)
 
    end subroutine register_bottom_state_variable
 !EOC
@@ -1639,8 +1643,8 @@ end subroutine append_string
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_horizontal_variable) :: variable
-      character(len=256)              :: text
+      type (type_horizontal_variable),pointer :: variable
+      character(len=256)                      :: text
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1648,6 +1652,7 @@ end subroutine append_string
       if (self%frozen) call self%fatal_error('register_surface_state_variable', &
          'State variables may only be registered during initialization.')
 
+      allocate(variable)
       variable%name      = name
       variable%units     = units
       variable%long_name = long_name
@@ -1669,26 +1674,42 @@ end subroutine append_string
       call connect_surface_state_variable_id(self,variable,id)
       if (present(background_value)) call variable%background_values%set_value(background_value)
 
-      id%link => self%add_object_copy(variable)
+      id%link => self%add_horizontal_variable(variable)
 
    end subroutine register_surface_state_variable
 !EOC
 
-   function add_object_copy(self,object) result(link)
-      ! This subroutine allocates and initializes a copy of the provided object,
-      ! (to ensure it is persistent in memory), then creates a link to it in the list
-      ! of model entities.
-      class (type_base_model),target,intent(inout) :: self
-      class (type_internal_object),  intent(in)    :: object
-      type (type_link),pointer                     :: link
+   function add_bulk_variable(self,variable) result(link)
+      ! This subroutine converts the pointer to a bulk variable to a pointer
+      ! to a generic object, which can then be added to the model.
+      class (type_base_model),target,      intent(inout) :: self
+      type (type_bulk_variable),pointer                  :: variable
+      type (type_link), pointer :: link
+      class (type_internal_object),pointer :: object
+      object => variable
+      link => add_object(self,object)
+   end function
 
-      class (type_internal_object),pointer :: copy
+   function add_horizontal_variable(self,variable) result(link)
+      ! This subroutine converts the pointer to a horizontal variable to a pointer
+      ! to a generic object, which can then be added to the model.
+      class (type_base_model),target,      intent(inout) :: self
+      type (type_horizontal_variable),pointer            :: variable
+      type (type_link), pointer :: link
+      class (type_internal_object),pointer :: object
+      object => variable
+      link => add_object(self,object)
+   end function
 
-      ! Create a persistent copy of the object.
-      allocate(copy,source=object)
-
-      ! Add the persistent copy of the object to the model.
-      link => self%add_object(copy)
+   function add_scalar_variable(self,variable) result(link)
+      ! This subroutine converts the pointer to a scalar variable to a pointer
+      ! to a generic object, which can then be added to the model.
+      class (type_base_model),target,      intent(inout) :: self
+      type (type_scalar_variable),pointer                :: variable
+      type (type_link), pointer :: link
+      class (type_internal_object),pointer :: object
+      object => variable
+      link => add_object(self,object)
    end function
 
    recursive function add_object(self,object) result(link)
@@ -1781,7 +1802,7 @@ end subroutine append_string
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_bulk_variable) :: variable
+      type (type_bulk_variable),pointer :: variable
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1790,6 +1811,7 @@ end subroutine append_string
                                              'Diagnostic variables may only be registered during initialization.')
 
       ! Either use the provided variable object, or create a new one.
+      allocate(variable)
       variable%name      = name
       variable%units     = units
       variable%long_name = long_name
@@ -1801,7 +1823,7 @@ end subroutine append_string
       if (associated(id%link)) call self%fatal_error('register_bulk_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      id%link => self%add_object_copy(variable)
+      id%link => self%add_bulk_variable(variable)
 
    end subroutine register_bulk_diagnostic_variable
 !EOC
@@ -1834,7 +1856,7 @@ end subroutine append_string
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_horizontal_variable) :: variable
+      type (type_horizontal_variable),pointer :: variable
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1843,6 +1865,7 @@ end subroutine append_string
                                              'Diagnostic variables may only be registered during initialization.')
 
       ! Either use the provided variable object, or create a new one.
+      allocate(variable)
       variable%name      = name
       variable%units     = units
       variable%long_name = long_name
@@ -1855,7 +1878,7 @@ end subroutine append_string
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
       call variable%write_indices%append(id%horizontal_diag_index)
 
-      id%link => self%add_object_copy(variable)
+      id%link => self%add_horizontal_variable(variable)
 
    end subroutine register_horizontal_diagnostic_variable
 !EOC
@@ -2115,8 +2138,8 @@ end subroutine append_string
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_bulk_variable) :: variable
-      logical                   :: required_eff
+      type (type_bulk_variable),pointer :: variable
+      logical                           :: required_eff
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -2127,6 +2150,7 @@ end subroutine append_string
       required_eff = .true.
       if (present(required)) required_eff = required
 
+      allocate(variable)
       variable%name = name
       if (present(units))     variable%units     = units
       if (present(long_name)) variable%long_name = long_name
@@ -2139,7 +2163,7 @@ end subroutine append_string
       if (associated(id%link)) call self%fatal_error('register_bulk_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      id%link => self%add_object_copy(variable)
+      id%link => self%add_bulk_variable(variable)
 
       if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
@@ -2173,8 +2197,8 @@ end subroutine append_string
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_horizontal_variable) :: variable
-      logical                         :: required_eff
+      type (type_horizontal_variable),pointer :: variable
+      logical                                 :: required_eff
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -2185,6 +2209,7 @@ end subroutine append_string
       required_eff = .true.
       if (present(required)) required_eff = required
 
+      allocate(variable)
       variable%name = name
       if (present(units))     variable%units     = units
       if (present(long_name)) variable%long_name = long_name
@@ -2197,7 +2222,7 @@ end subroutine append_string
       if (associated(id%link)) call self%fatal_error(':register_horizontal_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      id%link => self%add_object_copy(variable)
+      id%link => self%add_horizontal_variable(variable)
 
       if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
@@ -2231,8 +2256,8 @@ end subroutine append_string
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_scalar_variable) :: variable
-      logical                     :: required_eff
+      type (type_scalar_variable),pointer :: variable
+      logical                             :: required_eff
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -2243,6 +2268,7 @@ end subroutine append_string
       required_eff = .true.
       if (present(required)) required_eff = required
 
+      allocate(variable)
       variable%name = name
       if (present(units))     variable%units     = units
       if (present(long_name)) variable%long_name = long_name
@@ -2255,7 +2281,7 @@ end subroutine append_string
       if (associated(id%link)) call self%fatal_error(':register_global_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      id%link => self%add_object_copy(variable)
+      id%link => self%add_scalar_variable(variable)
 
       if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
@@ -2285,21 +2311,24 @@ end subroutine append_string
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_model_reference) :: reference
+      type (type_model_reference), pointer :: reference
+      class (type_internal_object),pointer :: object
 !
 !-----------------------------------------------------------------------
 !BOC
       ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error(':register_model_dependency',&
+      if (self%frozen) call self%fatal_error('register_model_dependency',&
          'Dependencies may only be registered during initialization.')
 
+      allocate(reference)
       reference%name = name
 
       if (associated(id%link)) call self%fatal_error(':register_model_dependency', &
          'Model identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
       call append_model_pointer(reference%pointers,id%model)
 
-      id%link => self%add_object_copy(reference)
+      object => reference
+      id%link => self%add_object(object)
 
    end subroutine register_model_dependency
 !EOC
