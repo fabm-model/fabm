@@ -1176,6 +1176,7 @@ subroutine integer_pointer_set_append(self,value)
       deallocate(self%pointers)
       allocate(self%pointers(size(oldarray)+1))
       self%pointers(1:size(oldarray)) = oldarray
+      deallocate(oldarray)
    end if
 
    ! Add pointer to provided integer to the list.
@@ -1226,6 +1227,7 @@ subroutine real_pointer_set_append(self,value)
       deallocate(self%pointers)
       allocate(self%pointers(size(oldarray)+1))
       self%pointers(1:size(oldarray)) = oldarray
+      deallocate(oldarray)
    end if
 
    ! Add pointer to provided real to the list.
