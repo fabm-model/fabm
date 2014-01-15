@@ -1409,7 +1409,7 @@ end subroutine append_string
 !  variables ("dependencies").
 !
 ! !INPUT/OUTPUT PARAMETER:
-      class (type_base_model),intent(inout) :: self
+      class (type_base_model),intent(inout),target :: self
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -3089,7 +3089,7 @@ end subroutine merge_model_references
 !EOC
 
 function create_external_bulk_id(model,variable) result(id)
-   class (type_base_model),intent(in),   target :: model
+   class (type_base_model),  intent(in)           :: model
    type (type_bulk_variable),intent(inout),target :: variable
    type (type_bulk_variable_id) :: id
    id%variable => variable
@@ -3105,7 +3105,7 @@ function create_external_bulk_id(model,variable) result(id)
 end function create_external_bulk_id
 
 function create_external_horizontal_id(model,variable) result(id)
-   class (type_base_model),      intent(in),   target :: model
+   class (type_base_model),        intent(in)           :: model
    type (type_horizontal_variable),intent(inout),target :: variable
    type (type_horizontal_variable_id) :: id
    id%variable => variable
@@ -3121,7 +3121,7 @@ function create_external_horizontal_id(model,variable) result(id)
 end function create_external_horizontal_id
 
 function create_external_scalar_id(model,variable) result(id)
-   class (type_base_model),  intent(in),   target :: model
+   class (type_base_model),    intent(in)           :: model
    type (type_scalar_variable),intent(inout),target :: variable
    type (type_scalar_variable_id) :: id
    id%variable => variable

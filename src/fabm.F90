@@ -705,8 +705,8 @@
    function fabm_get_bulk_variable_id_by_name(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,intent(in) :: self
-   character(len=*),         intent(in) :: name
+   class (type_model),intent(in) :: self
+   character(len=*),  intent(in) :: name
 !
 ! !RETURN VALUE:
    type (type_bulk_variable_id) :: id
@@ -756,7 +756,7 @@
    function fabm_get_bulk_variable_id_sn(self,standard_variable) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,         intent(in) :: self
+   class (type_model),                intent(in) :: self
    type (type_bulk_standard_variable),intent(in) :: standard_variable
 !
 ! !RETURN VALUE:
@@ -780,8 +780,8 @@
    function fabm_get_horizontal_variable_id_by_name(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,intent(in) :: self
-   character(len=*),         intent(in) :: name
+   class (type_model),intent(in) :: self
+   character(len=*),  intent(in) :: name
 !
 ! !RETURN VALUE:
    type (type_horizontal_variable_id) :: id
@@ -831,7 +831,7 @@
    function fabm_get_horizontal_variable_id_sn(self,standard_variable) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,               intent(in) :: self
+   class (type_model),                      intent(in) :: self
    type (type_horizontal_standard_variable),intent(in) :: standard_variable
 !
 ! !RETURN VALUE:
@@ -857,8 +857,8 @@
    function fabm_get_scalar_variable_id_by_name(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,     intent(in)  :: self
-   character(len=*),              intent(in)  :: name
+   class (type_model),intent(in)  :: self
+   character(len=*),  intent(in)  :: name
 !
 ! !RETURN VALUE:
    type (type_scalar_variable_id) :: id
@@ -908,7 +908,7 @@
    function fabm_get_scalar_variable_id_sn(self,standard_variable) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,           intent(in) :: self
+   class (type_model),                  intent(in) :: self
    type (type_global_standard_variable),intent(in) :: standard_variable
 !
 ! !RETURN VALUE:
