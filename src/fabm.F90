@@ -49,7 +49,8 @@
    public fabm_get_vertical_movement, fabm_get_light_extinction, fabm_get_albedo, fabm_get_drag, fabm_get_light
 
    ! Bookkeeping
-   public fabm_check_state, fabm_get_conserved_quantities, fabm_get_horizontal_conserved_quantities, fabm_state_to_conserved_quantities
+   public fabm_check_state, fabm_check_surface_state, fabm_check_bottom_state
+   public fabm_get_conserved_quantities, fabm_get_horizontal_conserved_quantities, fabm_state_to_conserved_quantities
    
    ! Management of model variables: retrieve identifiers, get and set data.
    public fabm_get_bulk_variable_id,fabm_get_horizontal_variable_id,fabm_get_scalar_variable_id
@@ -1627,7 +1628,6 @@
    real(rk)                              :: value,minimum,maximum
    character(len=256)                    :: err
    type (type_bulk_data_pointer)         :: p
-   type (type_horizontal_data_pointer)   :: p_hz
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1681,13 +1681,108 @@
       _LOOP_END_
    end do
 
-   ! Check boundaries for benthic state variables specified by the models.
+   end subroutine fabm_check_state
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Checks whether the current bottom state is valid, and repairs [clips]
+! invalid state variables if requested and possible.
+!
+! !INTERFACE:
+   subroutine fabm_check_bottom_state(self _ARG_LOCATION_VARS_HZ_,repair,valid)
+!
+! !INPUT PARAMETERS:
+   class (type_model),     intent(inout) :: self
+   _DECLARE_LOCATION_ARG_HZ_
+   logical,                intent(in)    :: repair
+   logical,                intent(out)   :: valid
+!
+! !LOCAL PARAMETERS:
+   type (type_model_list_node), pointer :: node
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   valid = .true.
+
+   ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
+   node => self%models%first
+   do while (associated(node) .and. valid)
+      call node%model%check_bottom_state(_ARGUMENTS_IN_HZ_,repair,valid)
+      if (.not. (valid .or. repair)) return
+      node => node%next
+   end do
+
+   ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
+   ! This is always done, independently of any model-specific checks that may have been called above.
+   call internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,self%info%bottom_state_variables,repair,valid)
+
+   end subroutine fabm_check_bottom_state
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Checks whether the current bottom state is valid, and repairs [clips]
+! invalid state variables if requested and possible.
+!
+! !INTERFACE:
+   subroutine fabm_check_surface_state(self _ARG_LOCATION_VARS_HZ_,repair,valid)
+!
+! !INPUT PARAMETERS:
+   class (type_model),     intent(inout) :: self
+   _DECLARE_LOCATION_ARG_HZ_
+   logical,                intent(in)    :: repair
+   logical,                intent(out)   :: valid
+!
+! !LOCAL PARAMETERS:
+   type (type_model_list_node), pointer :: node
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   valid = .true.
+
+   ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
+   node => self%models%first
+   do while (associated(node) .and. valid)
+      call node%model%check_surface_state(_ARGUMENTS_IN_HZ_,repair,valid)
+      if (.not. (valid .or. repair)) return
+      node => node%next
+   end do
+
+   ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
+   ! This is always done, independently of any model-specific checks that may have been called above.
+   call internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,self%info%surface_state_variables,repair,valid)
+
+   end subroutine fabm_check_surface_state
+!EOC
+
+subroutine internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,state_variables,repair,valid)
+   class (type_model),                        intent(inout) :: self
+   _DECLARE_LOCATION_ARG_HZ_
+   type (type_horizontal_state_variable_info),intent(inout) :: state_variables(:)
+   logical,                                   intent(in)    :: repair
+   logical,                                   intent(out)   :: valid
+
+   integer                               :: ivar
+   real(rk)                              :: value,minimum,maximum
+   character(len=256)                    :: err
+   type (type_horizontal_data_pointer)   :: p_hz
+
+   ! Check boundaries for horizontal state variables, as prescribed by the owning models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
-   do ivar=1,size(self%root%bottom_state_variables)
+   do ivar=1,size(state_variables)
       ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
-      p_hz = self%root%bottom_state_variables(ivar)%globalid%p
-      minimum = self%root%bottom_state_variables(ivar)%minimum
-      maximum = self%root%bottom_state_variables(ivar)%maximum
+      p_hz = state_variables(ivar)%globalid%p
+      minimum = state_variables(ivar)%minimum
+      maximum = state_variables(ivar)%maximum
 
       _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
        _GET_STATE_BEN_EX_(self%environment,p_hz,value)
@@ -1696,7 +1791,7 @@
             valid = .false.
             if (.not.repair) then
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
-                                                          & trim(self%root%bottom_state_variables(ivar)%name), &
+                                                          & trim(state_variables(ivar)%name), &
                                                           & ' below minimum value ',minimum
                call driver%log_message(err)
                return
@@ -1707,7 +1802,7 @@
             valid = .false.
             if (.not.repair) then
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
-                                                          & trim(self%root%bottom_state_variables(ivar)%name), &
+                                                          & trim(state_variables(ivar)%name), &
                                                           & ' above maximum value ',maximum
                call driver%log_message(err)
                return
@@ -1716,10 +1811,7 @@
          end if
       _HORIZONTAL_LOOP_END_
    end do
-
-   ! Leave spatial loops (if any)
-   end subroutine fabm_check_state
-!EOC
+end subroutine
 
 !-----------------------------------------------------------------------
 !BOP

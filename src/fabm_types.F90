@@ -53,6 +53,7 @@
    public type_link
    public type_internal_object,type_internal_variable,type_bulk_variable,type_horizontal_variable,type_scalar_variable
    public type_environment
+   public type_horizontal_state_variable_info
    public freeze_model_info
    public find_dependencies
    public create_external_variable_id
@@ -474,12 +475,12 @@
       logical :: frozen = .false.
 
       ! Arrays with variable metadata [used by hosts only]
-      type (type_state_variable_info),                allocatable,dimension(:) :: state_variables                 
-      type (type_horizontal_state_variable_info),     allocatable,dimension(:) :: surface_state_variables         
-      type (type_horizontal_state_variable_info),     allocatable,dimension(:) :: bottom_state_variables          
-      type (type_diagnostic_variable_info),           allocatable,dimension(:) :: diagnostic_variables            
-      type (type_horizontal_diagnostic_variable_info),allocatable,dimension(:) :: horizontal_diagnostic_variables 
-      type (type_conserved_quantity_info),            allocatable,dimension(:) :: conserved_quantities            
+      type (type_state_variable_info),                allocatable,dimension(:) :: state_variables
+      type (type_horizontal_state_variable_info),     allocatable,dimension(:) :: surface_state_variables
+      type (type_horizontal_state_variable_info),     allocatable,dimension(:) :: bottom_state_variables
+      type (type_diagnostic_variable_info),           allocatable,dimension(:) :: diagnostic_variables
+      type (type_horizontal_diagnostic_variable_info),allocatable,dimension(:) :: horizontal_diagnostic_variables
+      type (type_conserved_quantity_info),            allocatable,dimension(:) :: conserved_quantities
 
       ! Pointers for backward compatibility (pre 2013-06-15) [used by hosts only]
       type (type_horizontal_state_variable_info),     pointer,dimension(:) :: state_variables_ben     => null()
@@ -619,6 +620,8 @@
       procedure :: state_to_conserved_quantities => base_state_to_conserved_quantities
       procedure :: get_horizontal_conserved_quantities => base_get_horizontal_conserved_quantities
       procedure :: check_state              => base_check_state
+      procedure :: check_surface_state      => base_check_surface_state
+      procedure :: check_bottom_state       => base_check_bottom_state
       procedure :: fatal_error              => base_fatal_error
 
       ! For backward compatibility only - do not use these in new models!
@@ -853,7 +856,17 @@
    subroutine base_check_state(self,_ARGUMENTS_CHECK_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_STATE_
-   end subroutine base_check_state
+   end subroutine
+
+   subroutine base_check_surface_state(self,_ARGUMENTS_CHECK_SURFACE_STATE_)
+      class (type_base_model), intent(in) :: self
+      _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_
+   end subroutine
+
+   subroutine base_check_bottom_state(self,_ARGUMENTS_CHECK_BOTTOM_STATE_)
+      class (type_base_model), intent(in) :: self
+      _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_
+   end subroutine
 
    subroutine base_fatal_error(self,location,message)
       class (type_base_model), intent(in) :: self
@@ -869,22 +882,22 @@
    subroutine base_set_domain(self _ARG_LOCATION_)
       class (type_base_model),intent(inout) :: self
       _DECLARE_LOCATION_ARG_
-   end subroutine base_set_domain
+   end subroutine
 
    subroutine base_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
       class (type_base_model),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
-   end subroutine base_do_benthos
+   end subroutine
 
    subroutine base_do_benthos_ppdd(self,_ARGUMENTS_DO_BOTTOM_PPDD_)
       class (type_base_model),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_
-   end subroutine base_do_benthos_ppdd
+   end subroutine
 
    subroutine base_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
-   end subroutine base_get_surface_exchange
+   end subroutine
 
 !-----------------------------------------------------------------------
 !BOP
