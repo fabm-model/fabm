@@ -1688,6 +1688,7 @@ end subroutine append_string
       class (type_internal_object),pointer :: object
       object => variable
       link => add_object(self,object)
+      if (.not.associated(object)) nullify(variable)
    end function
 
    function add_horizontal_variable(self,variable) result(link)
@@ -1699,6 +1700,7 @@ end subroutine append_string
       class (type_internal_object),pointer :: object
       object => variable
       link => add_object(self,object)
+      if (.not.associated(object)) nullify(variable)
    end function
 
    function add_scalar_variable(self,variable) result(link)
@@ -1710,6 +1712,7 @@ end subroutine append_string
       class (type_internal_object),pointer :: object
       object => variable
       link => add_object(self,object)
+      if (.not.associated(object)) nullify(variable)
    end function
 
    recursive function add_object(self,object) result(link)
