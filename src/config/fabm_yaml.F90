@@ -1,5 +1,3 @@
-#ifdef _FABM_F2003_
-
 module fabm_yaml
 
 ! This module parses a subset of YAML: http://yaml.org/
@@ -296,5 +294,3 @@ contains
    end subroutine
    
 end module fabm_yaml
-
-#endif
