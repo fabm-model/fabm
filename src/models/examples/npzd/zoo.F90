@@ -182,9 +182,9 @@
    ! Assign destruction rates to different elements of the destruction matrix.
    ! By assigning with _SET_DD_SYM_ [as opposed to _SET_DD_], assignments to dd(i,j)
    ! are automatically assigned to pp(j,i) as well.
-    _SET_DD_SYM_(self%id_grztarget,self%id_z, fpz(self,p,z) )
-    _SET_DD_SYM_(self%id_z,self%id_exctarget,-self%rzn*z    )
-    _SET_DD_SYM_(self%id_z,self%id_morttarget, self%rzd*z    )
+    _SET_DD_SYM_(self%id_grztarget,self%id_z,fpz(self,p,z))
+    _SET_DD_SYM_(self%id_z,self%id_exctarget,self%rzn*z)
+    _SET_DD_SYM_(self%id_z,self%id_morttarget,self%rzd*z)
 
    ! Leave spatial loops (if any)
    _LOOP_END_
