@@ -1,8 +1,6 @@
-#ifdef _FABM_F2003_
-
 #include "fabm_driver.h"
 
-   module fabm_examples_mean
+module fabm_examples_mean
 
    use fabm_types
    use fabm_expressions
@@ -79,6 +77,4 @@
 
    end subroutine do_surface
    
-   end module
-
-#endif
+end module

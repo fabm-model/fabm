@@ -1,5 +1,3 @@
-#ifdef _FABM_F2003_
-
 #include "fabm_driver.h"
 
 module fabm_config
@@ -324,5 +322,3 @@ contains
    end function
 
 end module fabm_config
-
-#endif
