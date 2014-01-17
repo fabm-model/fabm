@@ -4161,7 +4161,7 @@ end subroutine
    function output2time_treatment(output) result(time_treatment)
       integer, intent(in) :: output
       integer             :: time_treatment
-      select case (time_treatment)
+      select case (output)
          case (output_none);                 time_treatment = time_treatment_last
          case (output_instantaneous);        time_treatment = time_treatment_last
          case (output_time_integrated);      time_treatment = time_treatment_integrated
