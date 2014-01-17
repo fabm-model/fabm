@@ -9,16 +9,17 @@
    module fabm_iow_age
 !
 ! !DESCRIPTION:
-! This model describe a age tracer. Mostly, you track the age of a river
+! This model describes an age tracer. Mostly, you track the age of a river  discharge
 !  or something specified by lateral boundary conditions. However, you can also 
-!  track the age water masses which had last contact with the surface / bottom.
+!  track the age of water masses which had last contact with the surface / bottom.
 !  You only have to set track_[surface|bottom]_age.
-!
-!  ulf.graewe@io-warnemuende.de
 !
 ! !USES:
    use fabm_types
-
+   
+! !REVISION HISTORY:!
+!  Original author(s): Ulf Gräwe (ulf.graewe@io-warnemuende.de)
+!
    implicit none
 
    private
@@ -55,8 +56,8 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  Here, the bb\_passive namelist is read and the variables exported
-!  by the model are registered with FABM.
+!  Here, the iow\_age namelist is read and the variables exported
+!  by the model are registered within FABM.
 !
 ! !INPUT PARAMETERS:
    class (type_iow_age), intent(inout), target :: self
@@ -137,7 +138,7 @@
       _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_
 
    if ( self%track_surface_age ) then
-
+      ! set the age in the surface cell to zero
      _HORIZONTAL_LOOP_BEGIN_
         _SET_(self%id_age,0.0_rk)
      _HORIZONTAL_LOOP_END_
@@ -154,12 +155,12 @@
 !
 ! !INTERFACE:
 
-   subroutine check_bottom_state(self,_ARGUMENTS_CHECK_SURFACE_STATE_)
+   subroutine check_bottom_state(self,_ARGUMENTS_CHECK_BOTTOM_STATE_)
       class (type_iow_age), intent(in) :: self
-      _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_
+      _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_
 
    if ( self%track_bottom_age ) then
-
+      ! set the age in the bottom cell to zero
      _HORIZONTAL_LOOP_BEGIN_
         _SET_(self%id_age,0.0_rk)
      _HORIZONTAL_LOOP_END_

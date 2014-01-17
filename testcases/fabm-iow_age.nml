@@ -11,6 +11,7 @@
 !-------------------------------------------------------------------------------
 ! iow_age - age tracer model
 !-------------------------------------------------------------------------------
+! inital_age [days]
 ! track_surface_age [logical]
 !             set age at the surface to zero
 ! track_bottom_age [logical]
@@ -18,6 +19,7 @@
 !-------------------------------------------------------------------------------
 
 &iow_age
+   initial_age = 0.0,
    track_surface_age = .false.,
    track_bottom_age  = .false.,
 /
