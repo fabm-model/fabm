@@ -109,8 +109,17 @@
 !
 ! !PUBLIC TYPES:
 !
-   integer, parameter, public :: time_treatment_last=0,time_treatment_integrated=1, &
-                                 time_treatment_averaged=2,time_treatment_step_integrated=3
+   integer, parameter, public :: output_none                 = 0, &
+                                 output_instantaneous        = 1, &
+                                 output_time_integrated      = 2, &
+                                 output_time_step_averaged   = 4, &
+                                 output_time_step_integrated = 8
+
+   ! For pre 2014-01 backward compatibility only (please use output_* instead)
+   integer, parameter, public :: time_treatment_last            = 0, &
+                                 time_treatment_integrated      = 1, &
+                                 time_treatment_averaged        = 2, &
+                                 time_treatment_step_integrated = 3
 
    ! ====================================================================================================
    ! Data types for pointers to variable values.
@@ -269,13 +278,14 @@
    end type
    
    type,extends(type_internal_object),abstract :: type_internal_variable
-      character(len=attribute_length) :: units         = ''
-      real(rk)                        :: minimum       = -1.e20_rk
-      real(rk)                        :: maximum       =  1.e20_rk
-      real(rk)                        :: missing_value = -2.e20_rk
-      real(rk)                        :: initial_value = 0.0_rk
-      integer                         :: presence      = presence_internal
-      class (type_base_model),pointer :: source_model  => null()
+      character(len=attribute_length) :: units          = ''
+      real(rk)                        :: minimum        = -1.e20_rk
+      real(rk)                        :: maximum        =  1.e20_rk
+      real(rk)                        :: missing_value  = -2.e20_rk
+      real(rk)                        :: initial_value  = 0.0_rk
+      integer                         :: output         = output_instantaneous
+      integer                         :: presence       = presence_internal
+      class (type_base_model),pointer :: source_model   => null()
       type (type_contribution_list)   :: contributions
 
       type (type_integer_pointer_set) :: state_indices,write_indices
@@ -288,7 +298,6 @@
       real(rk)                                      :: specific_light_extinction = 0.0_rk
       logical                                       :: no_precipitation_dilution = .false.
       logical                                       :: no_river_dilution         = .false.
-      integer                                       :: time_treatment            = time_treatment_last
       type (type_bulk_standard_variable)            :: standard_variable
 
       ! Arrays with all associated data and index pointers.
@@ -297,7 +306,6 @@
 
    type,extends(type_internal_variable) :: type_horizontal_variable
       ! Metadata
-      integer                                  :: time_treatment = time_treatment_last
       integer                                  :: domain         = domain_bottom
       type (type_horizontal_standard_variable) :: standard_variable
       
@@ -307,7 +315,6 @@
 
    type,extends(type_internal_variable) :: type_scalar_variable
       ! Metadata
-      integer                              :: time_treatment = time_treatment_last
       type (type_global_standard_variable) :: standard_variable
 
       ! Arrays with all associated data and index pointers.
@@ -384,6 +391,7 @@
       real(rk)                        :: minimum       = -1.e20_rk
       real(rk)                        :: maximum       =  1.e20_rk
       real(rk)                        :: missing_value = -2.e20_rk
+      integer                         :: output        = output_instantaneous ! See output_* parameters above
       type (type_property_dictionary) :: properties
    end type
 
@@ -623,6 +631,7 @@
       procedure :: check_surface_state      => base_check_surface_state
       procedure :: check_bottom_state       => base_check_bottom_state
       procedure :: fatal_error              => base_fatal_error
+      procedure :: log_message              => base_log_message
 
       ! For backward compatibility only - do not use these in new models!
       procedure :: set_domain               => base_set_domain
@@ -875,6 +884,16 @@
          call driver%fatal_error('model "'//trim(self%name)//'", '//trim(location),message)
       else
          call driver%fatal_error(location,message)
+      end if
+   end subroutine
+
+   subroutine base_log_message(self,message)
+      class (type_base_model), intent(in) :: self
+      character(len=*),        intent(in) :: message
+      if (self%name/='') then
+         call driver%log_message('model "'//trim(self%name)//'": '//message)
+      else
+         call driver%log_message(message)
       end if
    end subroutine
 
@@ -1797,7 +1816,7 @@ end subroutine append_string
 !
 ! !INTERFACE:
    subroutine register_bulk_diagnostic_variable(self, id, name, units, long_name, &
-                                                time_treatment, missing_value, standard_variable)
+                                                time_treatment, missing_value, standard_variable, output)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1808,7 +1827,7 @@ end subroutine append_string
 !
 ! !INPUT PARAMETERS:
       character(len=*),                   intent(in)          :: name, long_name, units
-      integer,                            intent(in),optional :: time_treatment
+      integer,                            intent(in),optional :: time_treatment, output
       real(rk),                           intent(in),optional :: missing_value
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
 !
@@ -1832,9 +1851,14 @@ end subroutine append_string
       variable%units     = units
       variable%long_name = long_name
       variable%source_model => self
-      if (present(time_treatment))    variable%time_treatment    = time_treatment
+      if (present(time_treatment)) then
+         variable%output = time_treatment2output(time_treatment)
+         call self%log_message('variable "'//trim(name)//'": "time_treatment" argument to register_diagnostic_variable is deprecated; &
+                               &please use "output" instead (see output_* parameters near top of fabm_types.F90.')
+      end if
       if (present(missing_value))     variable%missing_value     = missing_value
       if (present(standard_variable)) variable%standard_variable = standard_variable
+      if (present(output))            variable%output            = output
       call variable%write_indices%append(id%diag_index)
       if (associated(id%link)) call self%fatal_error('register_bulk_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
@@ -1851,7 +1875,7 @@ end subroutine append_string
 !
 ! !INTERFACE:
    subroutine register_horizontal_diagnostic_variable(self, id, name, units, long_name, &
-                                                      time_treatment, missing_value, standard_variable)
+                                                      time_treatment, missing_value, standard_variable, output)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1862,7 +1886,7 @@ end subroutine append_string
 !
 ! !INPUT PARAMETERS:
       character(len=*),                         intent(in)          :: name, long_name, units
-      integer,                                  intent(in),optional :: time_treatment
+      integer,                                  intent(in),optional :: time_treatment, output
       real(rk),                                 intent(in),optional :: missing_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
 !
@@ -1886,9 +1910,14 @@ end subroutine append_string
       variable%units     = units
       variable%long_name = long_name
       variable%source_model => self
-      if (present(time_treatment))    variable%time_treatment    = time_treatment
+      if (present(time_treatment)) then
+         variable%output = time_treatment2output(time_treatment)
+         call self%log_message('variable "'//trim(name)//'": "time_treatment" argument to register_diagnostic_variable is deprecated; &
+                               &please use "output" instead (see output_* parameters near top of fabm_types.F90.')
+      end if
       if (present(missing_value))     variable%missing_value     = missing_value
       if (present(standard_variable)) variable%standard_variable = standard_variable
+      if (present(output))            variable%output            = output
 
       if (associated(id%link)) call self%fatal_error('register_horizontal_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
@@ -3611,7 +3640,7 @@ recursive subroutine classify_variables(self)
                   call copy_variable_metadata(object,diagvar)
                   diagvar%globalid          = create_external_variable_id(self,object)
                   diagvar%standard_variable = object%standard_variable
-                  diagvar%time_treatment    = object%time_treatment
+                  diagvar%time_treatment    = output2time_treatment(diagvar%output)
                   call diagvar%properties%update(object%properties)
                end if
 
@@ -3642,7 +3671,7 @@ recursive subroutine classify_variables(self)
                   call copy_variable_metadata(object,hz_diagvar)
                   hz_diagvar%globalid          = create_external_variable_id(self,object)
                   hz_diagvar%standard_variable = object%standard_variable
-                  hz_diagvar%time_treatment    = object%time_treatment
+                  hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
                end if
                if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
                   select case (object%domain)
@@ -3861,6 +3890,7 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    external_variable%minimum       = internal_variable%minimum
    external_variable%maximum       = internal_variable%maximum
    external_variable%missing_value = internal_variable%missing_value
+   external_variable%output        = internal_variable%output
    call external_variable%properties%update(internal_variable%properties)
 end subroutine
 
@@ -4116,6 +4146,29 @@ end subroutine
          end do
       end do
    end subroutine
+
+   function time_treatment2output(time_treatment) result(output)
+      integer, intent(in) :: time_treatment
+      integer             :: output
+      select case (time_treatment)
+         case (time_treatment_last);            output = output_instantaneous
+         case (time_treatment_integrated);      output = output_time_integrated
+         case (time_treatment_averaged);        output = output_time_step_averaged
+         case (time_treatment_step_integrated); output = output_time_step_integrated
+      end select
+   end function
+
+   function output2time_treatment(output) result(time_treatment)
+      integer, intent(in) :: output
+      integer             :: time_treatment
+      select case (time_treatment)
+         case (output_none);                 time_treatment = time_treatment_last
+         case (output_instantaneous);        time_treatment = time_treatment_last
+         case (output_time_integrated);      time_treatment = time_treatment_integrated
+         case (output_time_step_averaged);   time_treatment = time_treatment_averaged
+         case (output_time_step_integrated); time_treatment = time_treatment_step_integrated
+      end select
+   end function
 
    end module fabm_types
 
