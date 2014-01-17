@@ -66,14 +66,14 @@
    real(rk)                  :: initial_age
    logical                   :: track_surface_age
    logical                   :: track_bottom_age
-   character(len=64)         :: unit
+   character(len=64)         :: units
 
    namelist /iow_age/     initial_age,track_surface_age,track_bottom_age
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    initial_age       = 0.0_rk
-   unit              = 'days'
+   units             = 'days'
    track_surface_age = .false.
    track_bottom_age  = .false.
 
@@ -85,8 +85,8 @@
 
    ! Register state variables
    call self%register_state_variable(self%id_age, &
-                    'age',unit,'age of water mass', &
-                    initial_concentration,minimum=0.0_rk)
+                    'age',units,'age of water mass', &
+                    initial_age,minimum=0.0_rk)
 
    return
 
