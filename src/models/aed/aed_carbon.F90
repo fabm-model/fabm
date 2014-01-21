@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 !
@@ -572,4 +570,3 @@ END FUNCTION aed_carbon_co2
 
 
 END MODULE aed_carbon
-#endif

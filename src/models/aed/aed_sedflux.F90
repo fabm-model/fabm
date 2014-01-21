@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 #ifdef SINGLE
@@ -428,4 +426,3 @@ END SUBROUTINE aed_sedflux_do_benthos
 
 
 END MODULE aed_sedflux
-#endif

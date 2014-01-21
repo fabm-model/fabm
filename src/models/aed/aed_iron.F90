@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 !
@@ -280,4 +278,3 @@ END SUBROUTINE aed_iron_get_conserved_quantities
 
 
 END MODULE aed_iron
-#endif

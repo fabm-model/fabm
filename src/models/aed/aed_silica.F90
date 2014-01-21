@@ -11,8 +11,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 MODULE aed_silica
@@ -270,4 +268,3 @@ END SUBROUTINE aed_silica_get_conserved_quantities
 
 
 END MODULE aed_silica
-#endif

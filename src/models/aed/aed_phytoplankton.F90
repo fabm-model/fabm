@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 MODULE aed_phytoplankton
@@ -1611,5 +1609,3 @@ END FUNCTION phyto_light
 
 
 END MODULE aed_phytoplankton
-
-#endif

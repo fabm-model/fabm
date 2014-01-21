@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 MODULE aed_chlorophylla
@@ -364,4 +362,3 @@ END FUNCTION fnp
 
 
 END MODULE aed_chlorophylla
-#endif

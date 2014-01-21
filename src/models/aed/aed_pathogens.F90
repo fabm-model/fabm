@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 
@@ -379,5 +377,3 @@ END SUBROUTINE aed_pathogens_do_ppdd
 
 
 END MODULE aed_pathogens
-
-#endif

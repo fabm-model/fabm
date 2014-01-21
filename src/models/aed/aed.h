@@ -15,9 +15,7 @@
 
 #define AED_VERSION  '0.32'
 
-#ifdef _FABM_F2003_
-# include "fabm_driver.h"
-#endif
+#include "fabm_driver.h"
 
 ! aed_phytoplankton constants
 #define MAX_PHYTO_TYPES 256

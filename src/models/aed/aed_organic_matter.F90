@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 MODULE aed_organic_matter
@@ -887,4 +885,3 @@ END FUNCTION fdoc_miner
 
 
 END MODULE aed_organic_matter
-#endif
