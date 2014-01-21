@@ -34,3 +34,7 @@ git merge --squash age
 git commit -m "added iow_age model - Graewe"
 git push
 
+# now remove the remote track branch - locally
+# the owner of the remote repository is responsible for cleaning up
+git branch -d age
+
