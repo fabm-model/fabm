@@ -232,7 +232,7 @@
    end type
 
    ! ====================================================================================================
-   ! Derived types used internally to registwer contributions of variables to aggregate variables.
+   ! Derived types used internally to register contributions of variables to aggregate variables.
    ! ====================================================================================================
 
    type type_contribution
@@ -268,7 +268,7 @@
    end type
 
    ! ====================================================================================================
-   ! Derived types used internally to store infromation on model variables and modle references.
+   ! Derived types used internally to store information on model variables and model references.
    ! ====================================================================================================
 
    type,abstract :: type_internal_object
