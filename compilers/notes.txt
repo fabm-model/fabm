@@ -1,0 +1,23 @@
+Known bugs in Fortran 2003 implementations
+
+Intel Fortran 12.1
+
+- when type pointers (non-polymorphic) are assigned to class pointers (polymorphic), the
+  result can be incorrect. This may be limited to the case where the source pointer is null,
+  in which case the target pointer after assignment is seen as "associated" (but its data
+  is invalid). This causes runtime errors when the invalid data is accessed. Solution: for
+  pointer to a given derived type, either always use "type", or always use "class".
+
+- allocate(x,source=y) does not make a proper deep copy of y. Specifically, if y contains a
+  type which in turn contains an allocatable component, the component of the cloned object is
+  not a proper newly allocated copy, but a reference to the original allocated data. This causes
+  runtime errors if the original data is first deallocated, and then the copy accessed.
+  Solution: do not use allocate(...,source=...) for complex objects.
+  NB sourced allocated seems ok if y directly contains an allocatable component.
+
+Cray 8.1
+
+- within "class default" guard, the type of the associate name is unknown (while it should be equal
+  to the type of the original selector). This causes compile time errors if the code within the
+  class default guard accesses components ofthe selector. Solution: use "class is (TYPE_OF_SELECTOR)"
+  instead of "class default".
