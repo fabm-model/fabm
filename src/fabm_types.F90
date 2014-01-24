@@ -2975,7 +2975,7 @@ subroutine merge_variables(master,slave)
          select type (slave)
             class is (type_bulk_variable)
                call merge_bulk_variables(master,slave)
-            class default
+            class is (type_internal_object)
                call driver%fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined on the whole domain, '//trim(slave%name)//' is not.')
          end select      
@@ -2983,7 +2983,7 @@ subroutine merge_variables(master,slave)
          select type (slave)
             class is (type_horizontal_variable)
                call merge_horizontal_variables(master,slave)
-            class default
+            class is (type_internal_object)
                call driver%fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined on the horizontal domain, '//trim(slave%name)//' is not.')
          end select      
@@ -2991,7 +2991,7 @@ subroutine merge_variables(master,slave)
          select type (slave)
             class is (type_scalar_variable)
                call merge_scalar_variables(master,slave)
-            class default
+            class is (type_internal_object)
                call driver%fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined as a scalar, '//trim(slave%name)//' is not.')
          end select      
@@ -2999,7 +2999,7 @@ subroutine merge_variables(master,slave)
          select type (slave)
             class is (type_model_reference)
                call merge_model_references(master,slave)
-            class default
+            class is (type_internal_object)
                call driver%fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is as model reference, '//trim(slave%name)//' is not.')
          end select      
