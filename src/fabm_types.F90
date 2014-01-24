@@ -3379,8 +3379,16 @@ recursive subroutine build_aggregate_variables(self)
    if (self%check_conservation) then
       aggregate_variable => self%first_aggregate_variable
       do while (associated(aggregate_variable))
-         if (aggregate_variable%has_bulk_state_component)       call self%register_diagnostic_variable(aggregate_variable%id_rate,'change_in_'//trim(aggregate_variable%standard_variable%name),trim(aggregate_variable%standard_variable%units),'change in '//trim(aggregate_variable%standard_variable%name))
-         if (aggregate_variable%has_horizontal_state_component) call self%register_diagnostic_variable(aggregate_variable%id_horizontal_rate,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces',trim(aggregate_variable%standard_variable%units),'change in '//trim(aggregate_variable%standard_variable%name)//' at interfaces')
+         if (aggregate_variable%has_bulk_state_component) &
+            call self%register_diagnostic_variable(aggregate_variable%id_rate, &
+                'change_in_'//trim(aggregate_variable%standard_variable%name), &
+                trim(aggregate_variable%standard_variable%units), &
+                'change in '//trim(aggregate_variable%standard_variable%name))
+         if (aggregate_variable%has_horizontal_state_component) &
+            call self%register_diagnostic_variable(aggregate_variable%id_horizontal_rate, &
+                'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces', &
+                trim(aggregate_variable%standard_variable%units), &
+                'change in '//trim(aggregate_variable%standard_variable%name)//' at interfaces')
          aggregate_variable => aggregate_variable%next
       end do
    end if
