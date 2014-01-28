@@ -53,7 +53,7 @@
    public type_link
    public type_internal_object,type_internal_variable,type_bulk_variable,type_horizontal_variable,type_scalar_variable
    public type_environment
-   public type_horizontal_state_variable_info
+   public type_external_variable,type_horizontal_state_variable_info
    public freeze_model_info
    public find_dependencies
    public create_external_variable_id
@@ -393,6 +393,7 @@
       real(rk)                        :: missing_value = -2.e20_rk
       integer                         :: output        = output_instantaneous ! See output_* parameters above
       type (type_property_dictionary) :: properties
+      integer                         :: externalid    = 0                    ! Identifier to be used freely by host
    end type
 
 !  Derived type describing a state variable
@@ -403,28 +404,24 @@
       real(rk)                           :: specific_light_extinction = 0.0_rk  ! Specific light extinction (/m/state variable unit)
       logical                            :: no_precipitation_dilution = .false.
       logical                            :: no_river_dilution         = .false.
-      integer                            :: externalid                = 0       ! Identifier to be used freely by host
       type (type_bulk_variable_id)       :: globalid
    end type type_state_variable_info
 
    type,extends(type_external_variable) :: type_horizontal_state_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
       real(rk)                                 :: initial_value = 0.0_rk
-      integer                                  :: externalid    = 0             ! Identifier to be used freely by host
       type (type_horizontal_variable_id)       :: globalid
    end type type_horizontal_state_variable_info
 
 !  Derived type describing a diagnostic variable
    type,extends(type_external_variable) :: type_diagnostic_variable_info
       type (type_bulk_standard_variable) :: standard_variable
-      integer                            :: externalid     = 0                   ! Identifier to be used freely by host
       integer                            :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
       type (type_bulk_variable_id)       :: globalid
    end type type_diagnostic_variable_info
 
    type,extends(type_external_variable) :: type_horizontal_diagnostic_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
-      integer                                  :: externalid     = 0                   ! Identifier to be used freely by host
       integer                                  :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
       type (type_horizontal_variable_id)       :: globalid
    end type type_horizontal_diagnostic_variable_info
@@ -432,7 +429,6 @@
 !  Derived type describing a conserved quantity
    type,extends(type_external_variable) :: type_conserved_quantity_info
       type (type_bulk_standard_variable)            :: standard_variable
-      integer                                       :: externalid = 0       ! Identifier to be used freely by host
       class (type_weighted_sum),pointer             :: model => null()
       class (type_horizontal_weighted_sum),pointer  :: horizontal_model => null()
       integer,allocatable                           :: state_indices(:)
