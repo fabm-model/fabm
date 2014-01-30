@@ -107,6 +107,7 @@ use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_diag_tracer_type, oc
 
 use fabm
 use fabm_types
+use fabm_config
 
 !
 !----------------------------------------------------------------------
@@ -279,7 +280,8 @@ contains
 
 subroutine ocean_fabm_init  !{
 
-use fms_mod, only : open_namelist_file,close_file
+use fms_mod, only : open_namelist_file,close_file,file_exist
+use mpp_io_mod, only: mpp_open,MPP_RDONLY
 use diag_manager_mod, only: register_diag_field
 
 !
@@ -469,8 +471,14 @@ do n = 1, instances  !{
   endif  !}
 
   ! Create the FABM model tree
-  nmlunit = open_namelist_file(namelist_file)
-  biotic(n)%model => fabm_create_model_from_file(nmlunit)
+  if (file_exist('fabm.yaml')) then
+      call mpp_open(nmlunit, 'fabm.yaml', action=MPP_RDONLY )
+      allocate(biotic(n)%model)
+      call fabm_create_model_from_yaml_file(biotic(n)%model,unit=nmlunit)
+  else
+      nmlunit = open_namelist_file(namelist_file)
+      biotic(n)%model => fabm_create_model_from_file(nmlunit)
+  end if
   call close_file (nmlunit)
 
   ! Register state variables
