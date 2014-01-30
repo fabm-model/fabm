@@ -60,16 +60,18 @@ contains
       class (type_node),pointer           :: root
 
       type (type_file) :: file
+      logical          :: already_open
 
       nullify(root)
       error = ''
 
-      open(unit=unit,file=path,status='old',action='read',err=90)
+      inquire(unit=unit, opened=already_open)
+      if (.not.already_open) open(unit=unit,file=path,status='old',action='read',err=90)
       file%unit = unit
       file%eof = .false.
       call file%next_line()
       if (.not.file%has_error) root => read_value(file)
-      close(file%unit)
+      if (.not.already_open) close(file%unit)
       if (file%has_error) write (error,'(a,a,i0,a,a)') trim(path),', line ',file%iline,': ',trim(file%error_message)
 
       if (associated(root)) call root%set_path('')

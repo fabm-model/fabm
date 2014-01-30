@@ -19,19 +19,29 @@ module fabm_config
 
 contains
 
-   subroutine fabm_create_model_from_yaml_file(model,do_not_initialize,parameters)
+   subroutine fabm_create_model_from_yaml_file(model,do_not_initialize,parameters,unit)
       type (type_model),                       intent(out) :: model
       logical,                        optional,intent(in)  :: do_not_initialize
       type (type_property_dictionary),optional,intent(in)  :: parameters
+      integer,                        optional,intent(in)  :: unit
 
       class (type_node),pointer        :: node
       character(len=yaml_error_length) :: yaml_error
+      integer                          :: unit_eff
       character(len=*),parameter       :: path = 'fabm.yaml'
 
+      ! If the host has not provided an object for communication of log messages and fatal errors, create a default object now.
       if (.not.associated(driver)) allocate(type_base_driver::driver)
 
+      ! Determine the unit to use for YAML file.
+      if (present(unit)) then
+          unit_eff = unit
+      else
+          unit_eff = get_free_unit()
+      end if
+
       ! Parse YAML file.
-      node => yaml_parse(path,get_free_unit(),yaml_error)
+      node => yaml_parse(path,unit_eff,yaml_error)
       if (yaml_error/='') call driver%fatal_error('fabm_create_model_from_yaml_file',trim(yaml_error))
       if (.not.associated(node)) call driver%fatal_error('fabm_create_model_from_yaml_file','No configuration information found in '//trim(path)//'.')
       !call node%dump(output_unit,0)
