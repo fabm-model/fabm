@@ -2447,7 +2447,7 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_fa
 !-----------------------------------------------------------------------
 !BOC
    if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_real_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" has already been retrieved once.')
+      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
    call self%retrieved_parameters%add(name)
 
    if (present(default)) then
@@ -2467,7 +2467,7 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_fa
       found_eff = .true.
       default_eff = property%to_real(success=success)
       if (.not.success) call self%fatal_error('get_real_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" is not a real number.')
+         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a real number.')
    end if
 
    if (associated(self%parent)) then
@@ -2476,7 +2476,12 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_fa
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
+   if (.not.(present(found).or.found_eff)) then
+      ! We are back at the model that started the parameter search, but have not found a value.
+      ! Raise an error if the model did not provide a default value.
+      if (.not.present(default)) call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
+      call self%missing_parameters%add(name)
+   end if
 
    ! Store parameter settings
    allocate(current_parameter)
@@ -2509,7 +2514,7 @@ recursive subroutine get_integer_parameter(self,value,name,units,long_name,defau
 !-----------------------------------------------------------------------
 !BOC
    if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_integer_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" has already been retrieved once.')
+      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
    call self%retrieved_parameters%add(name)
 
    if (present(default)) then
@@ -2529,7 +2534,7 @@ recursive subroutine get_integer_parameter(self,value,name,units,long_name,defau
       found_eff = .true.
       default_eff = property%to_integer(success=success)
       if (.not.success) call self%fatal_error('get_integer_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" is not an integer.')
+         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an integer.')
    end if
 
    if (associated(self%parent)) then
@@ -2538,7 +2543,12 @@ recursive subroutine get_integer_parameter(self,value,name,units,long_name,defau
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
+   if (.not.(present(found).or.found_eff)) then
+      ! We are back at the model that started the parameter search, but have not found a value.
+      ! Raise an error if the model did not provide a default value.
+      if (.not.present(default)) call self%fatal_error('get_integer_parameter','No value provided for parameter "'//trim(name)//'".')
+      call self%missing_parameters%add(name)
+   end if
 
    ! Store parameter settings
    allocate(current_parameter)
@@ -2569,7 +2579,7 @@ recursive subroutine get_logical_parameter(self,value,name,units,long_name,defau
 !-----------------------------------------------------------------------
 !BOC
    if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_logical_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" has already been retrieved once.')
+      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
    call self%retrieved_parameters%add(name)
 
    if (present(default)) then
@@ -2589,7 +2599,7 @@ recursive subroutine get_logical_parameter(self,value,name,units,long_name,defau
       found_eff = .true.
       default_eff = property%to_logical(success=success)
       if (.not.success) call self%fatal_error('get_logical_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" is not an Boolean.')
+         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an Boolean.')
    end if
    
    if (associated(self%parent)) then
@@ -2598,7 +2608,12 @@ recursive subroutine get_logical_parameter(self,value,name,units,long_name,defau
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
+   if (.not.(present(found).or.found_eff)) then
+      ! We are back at the model that started the parameter search, but have not found a value.
+      ! Raise an error if the model did not provide a default value.
+      if (.not.present(default)) call self%fatal_error('get_logical_parameter','No value provided for parameter "'//trim(name)//'".')
+      call self%missing_parameters%add(name)
+   end if
 
    ! Store parameter settings
    allocate(current_parameter)
@@ -2629,7 +2644,7 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
 !-----------------------------------------------------------------------
 !BOC
    if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_string_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" has already been retrieved once.')
+      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
    call self%retrieved_parameters%add(name)
 
    if (present(default)) then
@@ -2656,7 +2671,12 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
+   if (.not.(present(found).or.found_eff)) then
+      ! We are back at the model that started the parameter search, but have not found a value.
+      ! Raise an error if the model did not provide a default value.
+      if (.not.present(default)) call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
+      call self%missing_parameters%add(name)
+   end if
 
    ! Store parameter settings
    allocate(current_parameter)
