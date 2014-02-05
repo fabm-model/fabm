@@ -269,6 +269,7 @@
 
    ! Create model tree
    allocate(model)
+   model%root%check_missing_parameters = .false.
    do i=1,size(models)
       if (models(i)/='') then
          ! Determine if this model name is used multiple times.

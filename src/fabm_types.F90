@@ -518,6 +518,7 @@
       real(rk) :: dt = 1.0_rk
 
       logical :: check_conservation = .false.
+      logical :: check_missing_parameters = .true.
 
    contains
 
@@ -948,6 +949,7 @@
          model%long_name_prefix = trim(name)//' '
       end if
       model%parent => self
+      model%check_missing_parameters = self%check_missing_parameters
       call self%children%append(model)
       call model%initialize(configunit)
    end subroutine add_child
@@ -2476,7 +2478,7 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_fa
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) then
+   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
       ! We are back at the model that started the parameter search, but have not found a value.
       ! Raise an error if the model did not provide a default value.
       if (.not.present(default)) call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
@@ -2543,7 +2545,7 @@ recursive subroutine get_integer_parameter(self,value,name,units,long_name,defau
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) then
+   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
       ! We are back at the model that started the parameter search, but have not found a value.
       ! Raise an error if the model did not provide a default value.
       if (.not.present(default)) call self%fatal_error('get_integer_parameter','No value provided for parameter "'//trim(name)//'".')
@@ -2608,7 +2610,7 @@ recursive subroutine get_logical_parameter(self,value,name,units,long_name,defau
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) then
+   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
       ! We are back at the model that started the parameter search, but have not found a value.
       ! Raise an error if the model did not provide a default value.
       if (.not.present(default)) call self%fatal_error('get_logical_parameter','No value provided for parameter "'//trim(name)//'".')
@@ -2671,7 +2673,7 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) then
+   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
       ! We are back at the model that started the parameter search, but have not found a value.
       ! Raise an error if the model did not provide a default value.
       if (.not.present(default)) call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
