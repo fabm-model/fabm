@@ -356,27 +356,26 @@
       end do
 
       ! Consistency check (of find_dependencies): does every model (except the root) appear exactly once in the call list?
-      call test_presence(self%root)
+      call test_presence(self,self%root)
 
       self%initialized = .true.
 
-   contains
-
-      recursive subroutine test_presence(model)
-         class (type_base_model), target :: model
-
-         type (type_model_list_node),pointer :: child
-
-         child => model%children%first
-         do while (associated(child))
-            if (self%models%count(child%model)/=1) call driver%fatal_error('fabm_initialize::test_presence','BUG: Model "'//trim(model%name)//'" is not called exactly one time.')
-            call test_presence(child%model)
-            child => child%next
-         end do
-      end subroutine
-
    end subroutine fabm_initialize
 !EOC
+
+   recursive subroutine test_presence(self,model)
+      class (type_model),     intent(in) :: self
+      class (type_base_model),intent(in) :: model
+
+      type (type_model_list_node),pointer :: child
+
+      child => model%children%first
+      do while (associated(child))
+         if (self%models%count(child%model)/=1) call driver%fatal_error('fabm_initialize::test_presence','BUG: Model "'//trim(model%name)//'" is not called exactly one time.')
+         call test_presence(self,child%model)
+         child => child%next
+      end do
+   end subroutine test_presence
 
 !-----------------------------------------------------------------------
 !BOP
