@@ -51,7 +51,7 @@
    ! Bookkeeping
    public fabm_check_state, fabm_check_surface_state, fabm_check_bottom_state
    public fabm_get_conserved_quantities, fabm_get_horizontal_conserved_quantities, fabm_state_to_conserved_quantities
-   
+
    ! Management of model variables: retrieve identifiers, get and set data.
    public fabm_get_bulk_variable_id,fabm_get_horizontal_variable_id,fabm_get_scalar_variable_id
    public fabm_get_variable_name, fabm_is_variable_used, fabm_variable_needs_values
@@ -91,7 +91,7 @@
       procedure :: link_bulk_data_by_sn   => fabm_link_bulk_data_by_sn
       procedure :: link_bulk_data_by_name => fabm_link_bulk_data_by_name
       generic :: link_bulk_data => link_bulk_data_by_id,link_bulk_data_by_sn,link_bulk_data_by_name
-   
+
       procedure :: link_horizontal_data_by_id   => fabm_link_horizontal_data_by_id
       procedure :: link_horizontal_data_by_sn   => fabm_link_horizontal_data_by_sn
       procedure :: link_horizontal_data_by_name => fabm_link_horizontal_data_by_name
@@ -181,7 +181,7 @@
       module procedure fabm_get_scalar_variable_id_by_name
       module procedure fabm_get_scalar_variable_id_sn
    end interface
-   
+
    interface fabm_get_variable_name
       module procedure fabm_get_bulk_variable_name
       module procedure fabm_get_horizontal_variable_name
@@ -344,7 +344,7 @@
 !BOC
       ! For backward compatibility (pre 11/2013 hosts only)
       self%info => self%root
-   
+
       ! This will resolve all FABM dependencies and generate final authorative lists of variables of different types.
       call freeze_model_info(self%root)
 
@@ -363,12 +363,26 @@
    end subroutine fabm_initialize
 !EOC
 
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:
+!
+! !INTERFACE:
    recursive subroutine test_presence(self,model)
+!
+! !INPUT PARAMETERS:
       class (type_model),     intent(in) :: self
       class (type_base_model),intent(in) :: model
-
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
       type (type_model_list_node),pointer :: child
-
+!EOP
+!-----------------------------------------------------------------------
+!BOC
       child => model%children%first
       do while (associated(child))
          if (self%models%count(child%model)/=1) call driver%fatal_error('fabm_initialize::test_presence','BUG: Model "'//trim(model%name)//'" is not called exactly one time.')
@@ -376,6 +390,7 @@
          child => child%next
       end do
    end subroutine test_presence
+!EOC
 
 !-----------------------------------------------------------------------
 !BOP
@@ -767,7 +782,7 @@
 !-----------------------------------------------------------------------
 !BOC
    id = create_external_variable_id(self%root,standard_variable)
-   
+
    end function fabm_get_bulk_variable_id_sn
 !EOC
 
@@ -842,7 +857,7 @@
 !-----------------------------------------------------------------------
 !BOC
    id = create_external_variable_id(self%root,standard_variable)
-   
+
    end function fabm_get_horizontal_variable_id_sn
 !EOC
 
@@ -919,7 +934,7 @@
 !-----------------------------------------------------------------------
 !BOC
    id = create_external_variable_id(self%root,standard_variable)
-   
+
    end function fabm_get_scalar_variable_id_sn
 !EOC
 
@@ -1654,7 +1669,7 @@
       p = self%root%state_variables(ivar)%globalid%p
       minimum = self%root%state_variables(ivar)%minimum
       maximum = self%root%state_variables(ivar)%maximum
-      
+
       _LOOP_BEGIN_EX_(self%environment)
          _GET_STATE_EX_(self%environment,p,value)
          if (value<minimum) then
@@ -2207,7 +2222,7 @@ contains
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) + weight_right*expression%in%p
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
-   
+
          ! Compute next time for which we want to store output
          expression%next_save_time = expression%next_save_time + expression%period/expression%n
 
@@ -2252,7 +2267,7 @@ contains
          expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) - expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
          expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1) + weight_right*expression%in%p
          expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) + expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
-   
+
          ! Compute next time for which we want to store output
          expression%next_save_time = expression%next_save_time + expression%period/expression%n
 
