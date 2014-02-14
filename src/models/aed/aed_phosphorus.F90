@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 !
@@ -486,4 +484,3 @@ END SUBROUTINE aed_phosphorus_update_state
 
 
 END MODULE aed_phosphorus
-#endif

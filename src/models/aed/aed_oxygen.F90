@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 MODULE aed_oxygen
@@ -350,4 +348,3 @@ END SUBROUTINE aed_oxygen_do_benthos
 
 
 END MODULE aed_oxygen
-#endif

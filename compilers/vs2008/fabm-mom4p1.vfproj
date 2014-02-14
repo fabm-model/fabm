@@ -132,6 +132,8 @@
 		<Filter Name="omexdia_p">
 		<File RelativePath="..\..\src\models\hzg\omexdia_p\omexdia_p.F90"/></Filter></Filter>
 		<Filter Name="iow">
+		<Filter Name="age">
+		<File RelativePath="..\..\src\models\iow\age\iow_age.F90"/></Filter>
 		<Filter Name="spm">
 		<File RelativePath="..\..\src\models\iow\spm\spm.F90"/></Filter></Filter>
 		<Filter Name="klimacampus">

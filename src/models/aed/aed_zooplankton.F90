@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 MODULE aed_zooplankton
@@ -826,4 +824,3 @@ END FUNCTION fSalinity_Limitation
 
 
 END MODULE aed_zooplankton
-#endif

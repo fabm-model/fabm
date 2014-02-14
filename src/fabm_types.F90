@@ -53,7 +53,7 @@
    public type_link
    public type_internal_object,type_internal_variable,type_bulk_variable,type_horizontal_variable,type_scalar_variable
    public type_environment
-   public type_horizontal_state_variable_info
+   public type_external_variable,type_horizontal_state_variable_info
    public freeze_model_info
    public find_dependencies
    public create_external_variable_id
@@ -109,8 +109,17 @@
 !
 ! !PUBLIC TYPES:
 !
-   integer, parameter, public :: time_treatment_last=0,time_treatment_integrated=1, &
-                                 time_treatment_averaged=2,time_treatment_step_integrated=3
+   integer, parameter, public :: output_none                 = 0, &
+                                 output_instantaneous        = 1, &
+                                 output_time_integrated      = 2, &
+                                 output_time_step_averaged   = 4, &
+                                 output_time_step_integrated = 8
+
+   ! For pre 2014-01 backward compatibility only (please use output_* instead)
+   integer, parameter, public :: time_treatment_last            = 0, &
+                                 time_treatment_integrated      = 1, &
+                                 time_treatment_averaged        = 2, &
+                                 time_treatment_step_integrated = 3
 
    ! ====================================================================================================
    ! Data types for pointers to variable values.
@@ -223,7 +232,7 @@
    end type
 
    ! ====================================================================================================
-   ! Derived types used internally to registwer contributions of variables to aggregate variables.
+   ! Derived types used internally to register contributions of variables to aggregate variables.
    ! ====================================================================================================
 
    type type_contribution
@@ -259,7 +268,7 @@
    end type
 
    ! ====================================================================================================
-   ! Derived types used internally to store infromation on model variables and modle references.
+   ! Derived types used internally to store information on model variables and model references.
    ! ====================================================================================================
 
    type,abstract :: type_internal_object
@@ -269,13 +278,14 @@
    end type
    
    type,extends(type_internal_object),abstract :: type_internal_variable
-      character(len=attribute_length) :: units         = ''
-      real(rk)                        :: minimum       = -1.e20_rk
-      real(rk)                        :: maximum       =  1.e20_rk
-      real(rk)                        :: missing_value = -2.e20_rk
-      real(rk)                        :: initial_value = 0.0_rk
-      integer                         :: presence      = presence_internal
-      class (type_base_model),pointer :: source_model  => null()
+      character(len=attribute_length) :: units          = ''
+      real(rk)                        :: minimum        = -1.e20_rk
+      real(rk)                        :: maximum        =  1.e20_rk
+      real(rk)                        :: missing_value  = -2.e20_rk
+      real(rk)                        :: initial_value  = 0.0_rk
+      integer                         :: output         = output_instantaneous
+      integer                         :: presence       = presence_internal
+      class (type_base_model),pointer :: source_model   => null()
       type (type_contribution_list)   :: contributions
 
       type (type_integer_pointer_set) :: state_indices,write_indices
@@ -288,7 +298,6 @@
       real(rk)                                      :: specific_light_extinction = 0.0_rk
       logical                                       :: no_precipitation_dilution = .false.
       logical                                       :: no_river_dilution         = .false.
-      integer                                       :: time_treatment            = time_treatment_last
       type (type_bulk_standard_variable)            :: standard_variable
 
       ! Arrays with all associated data and index pointers.
@@ -297,7 +306,6 @@
 
    type,extends(type_internal_variable) :: type_horizontal_variable
       ! Metadata
-      integer                                  :: time_treatment = time_treatment_last
       integer                                  :: domain         = domain_bottom
       type (type_horizontal_standard_variable) :: standard_variable
       
@@ -307,7 +315,6 @@
 
    type,extends(type_internal_variable) :: type_scalar_variable
       ! Metadata
-      integer                              :: time_treatment = time_treatment_last
       type (type_global_standard_variable) :: standard_variable
 
       ! Arrays with all associated data and index pointers.
@@ -384,7 +391,9 @@
       real(rk)                        :: minimum       = -1.e20_rk
       real(rk)                        :: maximum       =  1.e20_rk
       real(rk)                        :: missing_value = -2.e20_rk
+      integer                         :: output        = output_instantaneous ! See output_* parameters above
       type (type_property_dictionary) :: properties
+      integer                         :: externalid    = 0                    ! Identifier to be used freely by host
    end type
 
 !  Derived type describing a state variable
@@ -395,28 +404,24 @@
       real(rk)                           :: specific_light_extinction = 0.0_rk  ! Specific light extinction (/m/state variable unit)
       logical                            :: no_precipitation_dilution = .false.
       logical                            :: no_river_dilution         = .false.
-      integer                            :: externalid                = 0       ! Identifier to be used freely by host
       type (type_bulk_variable_id)       :: globalid
    end type type_state_variable_info
 
    type,extends(type_external_variable) :: type_horizontal_state_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
       real(rk)                                 :: initial_value = 0.0_rk
-      integer                                  :: externalid    = 0             ! Identifier to be used freely by host
       type (type_horizontal_variable_id)       :: globalid
    end type type_horizontal_state_variable_info
 
 !  Derived type describing a diagnostic variable
    type,extends(type_external_variable) :: type_diagnostic_variable_info
       type (type_bulk_standard_variable) :: standard_variable
-      integer                            :: externalid     = 0                   ! Identifier to be used freely by host
       integer                            :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
       type (type_bulk_variable_id)       :: globalid
    end type type_diagnostic_variable_info
 
    type,extends(type_external_variable) :: type_horizontal_diagnostic_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
-      integer                                  :: externalid     = 0                   ! Identifier to be used freely by host
       integer                                  :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
       type (type_horizontal_variable_id)       :: globalid
    end type type_horizontal_diagnostic_variable_info
@@ -424,7 +429,6 @@
 !  Derived type describing a conserved quantity
    type,extends(type_external_variable) :: type_conserved_quantity_info
       type (type_bulk_standard_variable)            :: standard_variable
-      integer                                       :: externalid = 0       ! Identifier to be used freely by host
       class (type_weighted_sum),pointer             :: model => null()
       class (type_horizontal_weighted_sum),pointer  :: horizontal_model => null()
       integer,allocatable                           :: state_indices(:)
@@ -514,6 +518,7 @@
       real(rk) :: dt = 1.0_rk
 
       logical :: check_conservation = .false.
+      logical :: check_missing_parameters = .true.
 
    contains
 
@@ -623,6 +628,7 @@
       procedure :: check_surface_state      => base_check_surface_state
       procedure :: check_bottom_state       => base_check_bottom_state
       procedure :: fatal_error              => base_fatal_error
+      procedure :: log_message              => base_log_message
 
       ! For backward compatibility only - do not use these in new models!
       procedure :: set_domain               => base_set_domain
@@ -878,6 +884,16 @@
       end if
    end subroutine
 
+   subroutine base_log_message(self,message)
+      class (type_base_model), intent(in) :: self
+      character(len=*),        intent(in) :: message
+      if (self%name/='') then
+         call driver%log_message('model "'//trim(self%name)//'": '//message)
+      else
+         call driver%log_message(message)
+      end if
+   end subroutine
+
    ! For backward compatibility only
    subroutine base_set_domain(self _ARG_LOCATION_)
       class (type_base_model),intent(inout) :: self
@@ -933,6 +949,7 @@
          model%long_name_prefix = trim(name)//' '
       end if
       model%parent => self
+      model%check_missing_parameters = self%check_missing_parameters
       call self%children%append(model)
       call model%initialize(configunit)
    end subroutine add_child
@@ -1797,7 +1814,7 @@ end subroutine append_string
 !
 ! !INTERFACE:
    subroutine register_bulk_diagnostic_variable(self, id, name, units, long_name, &
-                                                time_treatment, missing_value, standard_variable)
+                                                time_treatment, missing_value, standard_variable, output)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1808,7 +1825,7 @@ end subroutine append_string
 !
 ! !INPUT PARAMETERS:
       character(len=*),                   intent(in)          :: name, long_name, units
-      integer,                            intent(in),optional :: time_treatment
+      integer,                            intent(in),optional :: time_treatment, output
       real(rk),                           intent(in),optional :: missing_value
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
 !
@@ -1832,9 +1849,14 @@ end subroutine append_string
       variable%units     = units
       variable%long_name = long_name
       variable%source_model => self
-      if (present(time_treatment))    variable%time_treatment    = time_treatment
+      if (present(time_treatment)) then
+         variable%output = time_treatment2output(time_treatment)
+         call self%log_message('variable "'//trim(name)//'": "time_treatment" argument to register_diagnostic_variable is deprecated; &
+                               &please use "output" instead (see output_* parameters near top of fabm_types.F90.')
+      end if
       if (present(missing_value))     variable%missing_value     = missing_value
       if (present(standard_variable)) variable%standard_variable = standard_variable
+      if (present(output))            variable%output            = output
       call variable%write_indices%append(id%diag_index)
       if (associated(id%link)) call self%fatal_error('register_bulk_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
@@ -1851,7 +1873,7 @@ end subroutine append_string
 !
 ! !INTERFACE:
    subroutine register_horizontal_diagnostic_variable(self, id, name, units, long_name, &
-                                                      time_treatment, missing_value, standard_variable)
+                                                      time_treatment, missing_value, standard_variable, output)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1862,7 +1884,7 @@ end subroutine append_string
 !
 ! !INPUT PARAMETERS:
       character(len=*),                         intent(in)          :: name, long_name, units
-      integer,                                  intent(in),optional :: time_treatment
+      integer,                                  intent(in),optional :: time_treatment, output
       real(rk),                                 intent(in),optional :: missing_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
 !
@@ -1886,9 +1908,14 @@ end subroutine append_string
       variable%units     = units
       variable%long_name = long_name
       variable%source_model => self
-      if (present(time_treatment))    variable%time_treatment    = time_treatment
+      if (present(time_treatment)) then
+         variable%output = time_treatment2output(time_treatment)
+         call self%log_message('variable "'//trim(name)//'": "time_treatment" argument to register_diagnostic_variable is deprecated; &
+                               &please use "output" instead (see output_* parameters near top of fabm_types.F90.')
+      end if
       if (present(missing_value))     variable%missing_value     = missing_value
       if (present(standard_variable)) variable%standard_variable = standard_variable
+      if (present(output))            variable%output            = output
 
       if (associated(id%link)) call self%fatal_error('register_horizontal_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
@@ -2422,7 +2449,7 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_fa
 !-----------------------------------------------------------------------
 !BOC
    if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_real_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" has already been retrieved once.')
+      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
    call self%retrieved_parameters%add(name)
 
    if (present(default)) then
@@ -2442,7 +2469,7 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_fa
       found_eff = .true.
       default_eff = property%to_real(success=success)
       if (.not.success) call self%fatal_error('get_real_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" is not a real number.')
+         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a real number.')
    end if
 
    if (associated(self%parent)) then
@@ -2451,7 +2478,12 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_fa
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
+   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
+      ! We are back at the model that started the parameter search, but have not found a value.
+      ! Raise an error if the model did not provide a default value.
+      if (.not.present(default)) call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
+      call self%missing_parameters%add(name)
+   end if
 
    ! Store parameter settings
    allocate(current_parameter)
@@ -2484,7 +2516,7 @@ recursive subroutine get_integer_parameter(self,value,name,units,long_name,defau
 !-----------------------------------------------------------------------
 !BOC
    if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_integer_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" has already been retrieved once.')
+      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
    call self%retrieved_parameters%add(name)
 
    if (present(default)) then
@@ -2504,7 +2536,7 @@ recursive subroutine get_integer_parameter(self,value,name,units,long_name,defau
       found_eff = .true.
       default_eff = property%to_integer(success=success)
       if (.not.success) call self%fatal_error('get_integer_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" is not an integer.')
+         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an integer.')
    end if
 
    if (associated(self%parent)) then
@@ -2513,7 +2545,12 @@ recursive subroutine get_integer_parameter(self,value,name,units,long_name,defau
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
+   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
+      ! We are back at the model that started the parameter search, but have not found a value.
+      ! Raise an error if the model did not provide a default value.
+      if (.not.present(default)) call self%fatal_error('get_integer_parameter','No value provided for parameter "'//trim(name)//'".')
+      call self%missing_parameters%add(name)
+   end if
 
    ! Store parameter settings
    allocate(current_parameter)
@@ -2544,7 +2581,7 @@ recursive subroutine get_logical_parameter(self,value,name,units,long_name,defau
 !-----------------------------------------------------------------------
 !BOC
    if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_logical_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" has already been retrieved once.')
+      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
    call self%retrieved_parameters%add(name)
 
    if (present(default)) then
@@ -2564,7 +2601,7 @@ recursive subroutine get_logical_parameter(self,value,name,units,long_name,defau
       found_eff = .true.
       default_eff = property%to_logical(success=success)
       if (.not.success) call self%fatal_error('get_logical_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" is not an Boolean.')
+         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an Boolean.')
    end if
    
    if (associated(self%parent)) then
@@ -2573,7 +2610,12 @@ recursive subroutine get_logical_parameter(self,value,name,units,long_name,defau
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
+   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
+      ! We are back at the model that started the parameter search, but have not found a value.
+      ! Raise an error if the model did not provide a default value.
+      if (.not.present(default)) call self%fatal_error('get_logical_parameter','No value provided for parameter "'//trim(name)//'".')
+      call self%missing_parameters%add(name)
+   end if
 
    ! Store parameter settings
    allocate(current_parameter)
@@ -2604,7 +2646,7 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
 !-----------------------------------------------------------------------
 !BOC
    if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_string_parameter', &
-      'Value for parameter "'//trim(name)//'" of model "'//trim(self%name)//'" has already been retrieved once.')
+      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
    call self%retrieved_parameters%add(name)
 
    if (present(default)) then
@@ -2631,7 +2673,12 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
       value = default_eff
    end if
 
-   if (.not.(present(found).or.found_eff)) call self%missing_parameters%add(name)
+   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
+      ! We are back at the model that started the parameter search, but have not found a value.
+      ! Raise an error if the model did not provide a default value.
+      if (.not.present(default)) call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
+      call self%missing_parameters%add(name)
+   end if
 
    ! Store parameter settings
    allocate(current_parameter)
@@ -2946,7 +2993,7 @@ subroutine merge_variables(master,slave)
          select type (slave)
             class is (type_bulk_variable)
                call merge_bulk_variables(master,slave)
-            class default
+            class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
                call driver%fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined on the whole domain, '//trim(slave%name)//' is not.')
          end select      
@@ -2954,7 +3001,7 @@ subroutine merge_variables(master,slave)
          select type (slave)
             class is (type_horizontal_variable)
                call merge_horizontal_variables(master,slave)
-            class default
+            class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
                call driver%fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined on the horizontal domain, '//trim(slave%name)//' is not.')
          end select      
@@ -2962,7 +3009,7 @@ subroutine merge_variables(master,slave)
          select type (slave)
             class is (type_scalar_variable)
                call merge_scalar_variables(master,slave)
-            class default
+            class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
                call driver%fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined as a scalar, '//trim(slave%name)//' is not.')
          end select      
@@ -2970,7 +3017,7 @@ subroutine merge_variables(master,slave)
          select type (slave)
             class is (type_model_reference)
                call merge_model_references(master,slave)
-            class default
+            class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
                call driver%fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is as model reference, '//trim(slave%name)//' is not.')
          end select      
@@ -3350,8 +3397,16 @@ recursive subroutine build_aggregate_variables(self)
    if (self%check_conservation) then
       aggregate_variable => self%first_aggregate_variable
       do while (associated(aggregate_variable))
-         if (aggregate_variable%has_bulk_state_component)       call self%register_diagnostic_variable(aggregate_variable%id_rate,'change_in_'//trim(aggregate_variable%standard_variable%name),trim(aggregate_variable%standard_variable%units),'change in '//trim(aggregate_variable%standard_variable%name))
-         if (aggregate_variable%has_horizontal_state_component) call self%register_diagnostic_variable(aggregate_variable%id_horizontal_rate,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces',trim(aggregate_variable%standard_variable%units),'change in '//trim(aggregate_variable%standard_variable%name)//' at interfaces')
+         if (aggregate_variable%has_bulk_state_component) &
+            call self%register_diagnostic_variable(aggregate_variable%id_rate, &
+                'change_in_'//trim(aggregate_variable%standard_variable%name), &
+                trim(aggregate_variable%standard_variable%units), &
+                'change in '//trim(aggregate_variable%standard_variable%name))
+         if (aggregate_variable%has_horizontal_state_component) &
+            call self%register_diagnostic_variable(aggregate_variable%id_horizontal_rate, &
+                'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces', &
+                trim(aggregate_variable%standard_variable%units), &
+                'change in '//trim(aggregate_variable%standard_variable%name)//' at interfaces')
          aggregate_variable => aggregate_variable%next
       end do
    end if
@@ -3611,7 +3666,7 @@ recursive subroutine classify_variables(self)
                   call copy_variable_metadata(object,diagvar)
                   diagvar%globalid          = create_external_variable_id(self,object)
                   diagvar%standard_variable = object%standard_variable
-                  diagvar%time_treatment    = object%time_treatment
+                  diagvar%time_treatment    = output2time_treatment(diagvar%output)
                   call diagvar%properties%update(object%properties)
                end if
 
@@ -3642,7 +3697,7 @@ recursive subroutine classify_variables(self)
                   call copy_variable_metadata(object,hz_diagvar)
                   hz_diagvar%globalid          = create_external_variable_id(self,object)
                   hz_diagvar%standard_variable = object%standard_variable
-                  hz_diagvar%time_treatment    = object%time_treatment
+                  hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
                end if
                if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
                   select case (object%domain)
@@ -3861,6 +3916,7 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    external_variable%minimum       = internal_variable%minimum
    external_variable%maximum       = internal_variable%maximum
    external_variable%missing_value = internal_variable%missing_value
+   external_variable%output        = internal_variable%output
    call external_variable%properties%update(internal_variable%properties)
 end subroutine
 
@@ -4116,6 +4172,29 @@ end subroutine
          end do
       end do
    end subroutine
+
+   function time_treatment2output(time_treatment) result(output)
+      integer, intent(in) :: time_treatment
+      integer             :: output
+      select case (time_treatment)
+         case (time_treatment_last);            output = output_instantaneous
+         case (time_treatment_integrated);      output = output_time_integrated
+         case (time_treatment_averaged);        output = output_time_step_averaged
+         case (time_treatment_step_integrated); output = output_time_step_integrated
+      end select
+   end function
+
+   function output2time_treatment(output) result(time_treatment)
+      integer, intent(in) :: output
+      integer             :: time_treatment
+      select case (output)
+         case (output_none);                 time_treatment = time_treatment_last
+         case (output_instantaneous);        time_treatment = time_treatment_last
+         case (output_time_integrated);      time_treatment = time_treatment_integrated
+         case (output_time_step_averaged);   time_treatment = time_treatment_averaged
+         case (output_time_step_integrated); time_treatment = time_treatment_step_integrated
+      end select
+   end function
 
    end module fabm_types
 

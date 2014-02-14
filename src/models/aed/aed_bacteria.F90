@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 !
@@ -272,4 +270,3 @@ END SUBROUTINE aed_bacteria_get_conserved_quantities
 
 
 END MODULE aed_bacteria
-#endif

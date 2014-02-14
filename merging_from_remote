@@ -1,0 +1,40 @@
+#
+# A small recipe for merging in remotes - use Ulfs repository as example
+#
+
+cd FABM/fabm-git/
+
+# if not already set-up start adding Ulf's repository
+git remote add ulf git://git.code.sf.net/p/fabm-ug/code
+
+# Test the remotes we have
+git remote -v
+
+# Update the remote repository
+git fetch ulf
+
+# show some info
+git remote show origin
+git remote show ulf
+
+# Track a specific feature branc in Ulf's repository
+git checkout --track -b age ulf/age
+
+# Getting ready to merge - from ulf/age to master
+git checkout master
+
+# a final look at the differences
+git difftool -y master..age
+
+# --squash should be condsidered - for initial import of new models I'm in 
+# favor
+git merge --squash age
+
+# update the history and push to master repository
+git commit -m "added iow_age model - Graewe"
+git push
+
+# now remove the remote track branch - locally
+# the owner of the remote repository is responsible for cleaning up
+git branch -d age
+

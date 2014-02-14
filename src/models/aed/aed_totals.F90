@@ -15,8 +15,6 @@
 !#                                                                             #
 !###############################################################################
 
-#ifdef _FABM_F2003_
-
 #include "aed.h"
 
 !
@@ -187,4 +185,3 @@ END SUBROUTINE aed_totals_get_conserved_quantities
 
 
 END MODULE aed_totals
-#endif
