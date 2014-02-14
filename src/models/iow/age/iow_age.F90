@@ -68,8 +68,10 @@
    logical                   :: track_surface_age
    logical                   :: track_bottom_age
    character(len=64)         :: units
+   character(len=64)         :: track_tracer_variable=''
 
-   namelist /iow_age/     initial_age,track_surface_age,track_bottom_age
+   namelist /iow_age/     initial_age,track_surface_age,track_bottom_age, &
+                          track_tracer_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -88,6 +90,10 @@
    call self%register_state_variable(self%id_age, &
                     'age',units,'age of water mass', &
                     initial_age,minimum=0.0_rk)
+                    
+   if ( track_tracer_variable/='' ) then
+      call self%request_coupling(self%id_mintarget,mineralisation_target_variable)
+   endif
 
    return
 
