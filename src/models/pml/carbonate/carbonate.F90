@@ -89,10 +89,10 @@ contains
                                 dic_initial,minimum=0.0_rk,no_precipitation_dilution=.false.,no_river_dilution=.true., &
                                 standard_variable=standard_variables%mole_concentration_of_dissolved_inorganic_carbon)
 
-   if (alk_param) then
+   if (self%alk_param) then
      ! Alkalinity is diagnosed from temperature and salinity. Register it as output variable.
      call self%register_diagnostic_variable(self%id_alk_diag,'alk', 'mEq/m**3','alkalinity', &
-                                       time_treatment=time_treatment_averaged)
+                                       output=output_time_step_averaged)
    else
      ! Alkalinity is a state variable.
      call self%register_state_variable(self%id_alk,'alk','mEq/m**3','alkalinity', &
@@ -123,7 +123,7 @@ contains
    call self%register_dependency(self%id_pres,standard_variables%pressure)
    call self%register_dependency(self%id_dens,standard_variables%density)
    call self%register_dependency(self%id_wind,standard_variables%wind_speed)
-   if (self%pCO2a==0.0_rk) call self%register_dependency(self%id_pco2_surf,'pco2_surf')
+   if (self%pCO2a==0.0_rk) call self%register_dependency(self%id_pco2_surf,standard_variables%mole_fraction_of_carbon_dioxide_in_air)
 
    return
 
