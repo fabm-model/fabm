@@ -177,6 +177,9 @@
       class (type_iow_age), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_
 
+!EOP
+!-----------------------------------------------------------------------
+!BOC
    if ( .not. self%external_tracer ) then
       if ( self%track_surface_age ) then
          ! set the age in the surface cell to zero
@@ -200,6 +203,9 @@
    subroutine check_bottom_state(self,_ARGUMENTS_CHECK_BOTTOM_STATE_)
       class (type_iow_age), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_
+!EOP
+!-----------------------------------------------------------------------
+!BOC
 
    if ( .not. self%external_tracer ) then
       if ( self%track_bottom_age ) then
