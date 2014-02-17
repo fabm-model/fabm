@@ -79,8 +79,8 @@ contains
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day, and are converted here to values per second.
-   call self%get_parameter(self%TA_offset,'TA_offset',default=alk_offset)
-   call self%get_parameter(self%TA_slope,'TA_slope',default=alk_slope)
+   call self%get_parameter(self%TA_offset,'alk_offset',default=alk_offset)
+   call self%get_parameter(self%TA_slope,'alk_slope',default=alk_slope)
    call self%get_parameter(self%alk_param,'alk_param',default=alk_param)
    call self%get_parameter(self%pCO2a,'pCO2a',default=pCO2a)
 
@@ -101,21 +101,21 @@ contains
 
    ! Register diagnostic variables.
    call self%register_diagnostic_variable(self%id_ph,      'pH',      '-',          'pH',                           &
-                         time_treatment=time_treatment_averaged)
+                         output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_pco2,    'pCO2',    'ppm',        'CO2 partial pressure',         &
-                         time_treatment=time_treatment_averaged)
+                         output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_CarbA,   'CarbA',   'mmol/m**3',  'carbonic acid concentration',  &
-                         time_treatment=time_treatment_averaged)
+                         output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_Bicarb,  'Bicarb',  'mmol/m**3',  'bicarbonate ion concentration',&
-                         time_treatment=time_treatment_averaged)
+                         output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_Carb,    'Carb',    'mmol/m**3',  'carbonate ion concentration',  &
-                         time_treatment=time_treatment_averaged)
+                         output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_Om_cal,  'Om_cal',  '-',          'calcite saturation state',     &
-                         time_treatment=time_treatment_averaged)
+                         output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_Om_arg,  'Om_arg',  '-',          'aragonite saturation state',   &
-                         time_treatment=time_treatment_averaged)
+                         output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_co2_flux,'CO2_flux','mmol/m**2/s','surface CO2 flux',             &
-                         time_treatment=time_treatment_averaged)
+                         output=output_time_step_averaged)
 
    ! Register external dependencies.
    call self%register_dependency(self%id_temp,standard_variables%temperature)

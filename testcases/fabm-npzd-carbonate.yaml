@@ -1,0 +1,35 @@
+instances:
+  pml_carbonate:
+    initialization:
+      dic: 2200.
+    parameters:
+      pCO2a: 367.
+      alk_param: true
+      alk_offset: 520.1
+      alk_slope: 51.24
+  gotm_npzd:
+    initialization:
+      nut: 4.5
+      phy: 1e-15
+      zoo: 1e-15
+      det: 4.5
+    parameters:
+      p0: 0.0225
+      z0: 0.0225
+      w_p: -1.0
+      w_d: -5.0
+      kc: 0.03
+      I_min: 25.0
+      rmax: 1.0
+      gmax: 0.2
+      Iv: 1.1
+      alpha: 1.35
+      rpn: 0.01
+      rzn: 0.01
+      rdn: 0.003
+      rpdu: 0.02
+      rpdl: 0.1
+      rzd: 0.02
+    coupling:
+      dic: pml_carbonate_dic
+
