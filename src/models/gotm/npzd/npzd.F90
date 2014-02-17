@@ -103,7 +103,7 @@
    real(rk)          :: dic_per_n
    character(len=64) :: dic_variable
 
-   real(rk), parameter :: secs_pr_day = 86400.0_rk
+   real(rk), parameter :: d_per_s = 1.0_rk/86400.0_rk
    namelist /gotm_npzd/ n_initial,p_initial,z_initial,d_initial,   &
                         p0,z0,w_p,w_d,kc,i_min,rmax,gmax,iv,alpha,rpn,  &
                         rzn,rdn,rpdu,rpdl,rzd,dic_variable,dic_per_n
@@ -139,31 +139,29 @@
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   self%p0        = p0
-   self%z0        = z0
-   self%kc        = kc
-   self%i_min     = i_min
-   self%rmax      = rmax/secs_pr_day
-   self%gmax      = gmax/secs_pr_day
-   self%iv        = iv
-   self%alpha     = alpha
-   self%rpn       = rpn /secs_pr_day
-   self%rzn       = rzn /secs_pr_day
-   self%rdn       = rdn /secs_pr_day
-   self%rpdu      = rpdu/secs_pr_day
-   self%rpdl      = rpdl/secs_pr_day
-   self%rzd       = rzd /secs_pr_day
-   self%dic_per_n = dic_per_n
+   call self%get_parameter(self%p0,'p0','mmol m-3','background phytoplankton concentration ',default=p0)
+   call self%get_parameter(self%z0,'z0','mmol m-3','background zooplankton concentration',default=z0)
+   call self%get_parameter(self%kc,'kc','m-1','specific light extinction of phytoplankton and detritus',default=kc)
+   call self%get_parameter(self%i_min,'i_min','W m-2','light intensity threshold for phytoplankton mortality',default=i_min)
+   call self%get_parameter(self%rmax,'rmax','d-1','maximum specific growth rate of phytoplankton',default=rmax,scale_factor=d_per_s)
+   call self%get_parameter(self%gmax,'gmax','d-1','maximum specific grazing rate of zooplankton',default=gmax,scale_factor=d_per_s)
+   call self%get_parameter(self%iv,'iv','m3 mmol-1','Ivlev grazing constant',default=iv)
+   call self%get_parameter(self%alpha,'alpha','half-saturation nutraint concentration for phytoplankton',default=alpha)
+   call self%get_parameter(self%rpn,'rpn','d-1','loss rate of phytoplankton to nutrients',default=rpn,scale_factor=d_per_s)
+   call self%get_parameter(self%rzn,'rzn','d-1','loss rate of zooplankton to nutrients',default=rzn,scale_factor=d_per_s)
+   call self%get_parameter(self%rdn,'rdn','d-1','detritus remineralization rate',default=rdn,scale_factor=d_per_s)
+   call self%get_parameter(self%rpdu,'rpdu','d-1','high-light phytoplankton mortality',default=rpdu,scale_factor=d_per_s)
+   call self%get_parameter(self%rpdl,'rpdl','d-1','low-light phytoplankton mortality',default=rpdl,scale_factor=d_per_s)
+   call self%get_parameter(self%rzd,'rzd','d-1','zooplankton mortality',default=rzd,scale_factor=d_per_s)
+   call self%get_parameter(self%dic_per_n,'dic_per_n','-','C:N ratio of biomass',default=dic_per_n)
+   call self%get_parameter(w_p,'w_p','m d-1','vertical velocity of phytoplankton (<0 = sinking)',default=w_p, scale_factor=d_per_s)
+   call self%get_parameter(w_d,'w_d','m d-1','vertical velocity of detritus  (<0 = sinking)',default=w_d,scale_factor=d_per_s)
 
    ! Register state variables
-   call self%register_state_variable(self%id_n,'nut','mmol/m**3','nutrients',     &
-                                    n_initial,minimum=0.0_rk,no_river_dilution=.true.)
-   call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton', &
-                                    p_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
-   call self%register_state_variable(self%id_z,'zoo','mmol/m**3','zooplankton', &
-                                    z_initial,minimum=0.0_rk)
-   call self%register_state_variable(self%id_d,'det','mmol/m**3','detritus', &
-                                    d_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day)
+   call self%register_state_variable(self%id_n,'nut','mmol/m**3','nutrients',    n_initial,minimum=0.0_rk,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton',p_initial,minimum=0.0_rk,vertical_movement=w_p)
+   call self%register_state_variable(self%id_z,'zoo','mmol/m**3','zooplankton',  z_initial,minimum=0.0_rk)
+   call self%register_state_variable(self%id_d,'det','mmol/m**3','detritus',     d_initial,minimum=0.0_rk,vertical_movement=w_d)
 
    ! Register the contribution of all state variables to total nitrogen
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_n)

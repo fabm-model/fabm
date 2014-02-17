@@ -79,10 +79,10 @@ contains
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day, and are converted here to values per second.
-   self%TA_offset = alk_offset
-   self%TA_slope  = alk_slope
-   self%alk_param = alk_param
-   self%pCO2a     = pCO2a
+   call self%get_parameter(self%TA_offset,'TA_offset',default=alk_offset)
+   call self%get_parameter(self%TA_slope,'TA_slope',default=alk_slope)
+   call self%get_parameter(self%alk_param,'alk_param',default=alk_param)
+   call self%get_parameter(self%pCO2a,'pCO2a',default=pCO2a)
 
    ! First state variable: total dissolved inorganic carbon
    call self%register_state_variable(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon', &
