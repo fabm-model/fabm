@@ -12,7 +12,7 @@
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
 				<Tool Name="VFPreLinkEventTool"/>
-				<Tool Name="VFPreBuildEventTool" CommandLine="&quot;$(PythonDir)\Scripts\f2py.exe&quot; &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.F90&quot; -m fabm_fortran -h &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.pyf&quot; --no-lower --overwrite-signature&#xA;&quot;$(PythonDir)\Scripts\f2py.exe&quot; &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.pyf&quot;"/>
+				<Tool Name="VFPreBuildEventTool" CommandLine="&quot;$(PythonDir)\Scripts\f2py.exe&quot; &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.F90&quot; -m fabm -h &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.pyf&quot; --no-lower --overwrite-signature&#xA;&quot;$(PythonDir)\Scripts\f2py.exe&quot; &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.pyf&quot;"/>
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32" OutputDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" ConfigurationType="typeStaticLibrary">
@@ -23,7 +23,7 @@
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
 				<Tool Name="VFPreLinkEventTool"/>
-				<Tool Name="VFPreBuildEventTool" CommandLine="&quot;$(PythonDir)\Scripts\f2py.exe&quot; &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.F90&quot; -m fabm_fortran -h &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.pyf&quot; --no-lower --overwrite-signature"/>
+				<Tool Name="VFPreBuildEventTool" CommandLine="&quot;$(PythonDir)\Scripts\f2py.exe&quot; &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.F90&quot; -m fabm -h &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.pyf&quot; --no-lower --overwrite-signature&#xA;&quot;$(PythonDir)\Scripts\f2py.exe&quot; &quot;$(ProjectDir)..\..\src\drivers\python\fabm_python.pyf&quot;"/>
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug|x64" OutputDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" IntermediateDirectory="$(PlatformName)-$(ConfigurationName)\$(ProjectName)" ConfigurationType="typeStaticLibrary">
