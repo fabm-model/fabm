@@ -152,9 +152,9 @@
 
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_adsp,'adsP','mmolP/m**3', &
-         'phosphate adsorption', time_treatment=time_treatment_step_integrated)
+         'phosphate adsorption', output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_denit,'denit','mmol/m**3/d', &
-         'denitrification rate', time_treatment=time_treatment_last)
+         'denitrification rate', output=output_instantaneous)
 
    ! Register dependencies
    call self%register_dependency(self%id_temp,standard_variables%temperature)
