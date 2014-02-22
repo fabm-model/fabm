@@ -24,6 +24,7 @@
    use fabm_types
    use fabm_library
    use fabm_expressions
+   use fabm_driver
 !
 !  Reference modules of specific biogeochemical models
    use fabm_gotm_npzd

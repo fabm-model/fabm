@@ -155,6 +155,7 @@
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>
 		<File RelativePath="..\..\src\models\pml\carbonate\co2_dyn.F90"/></Filter></Filter></Filter>
 		<File RelativePath="..\..\src\fabm.F90"/>
+		<File RelativePath="..\..\src\fabm_driver.F90"/>
 		<File RelativePath="..\..\src\fabm_expressions.F90"/>
 		<File RelativePath="..\..\src\fabm_library.F90"/>
 		<File RelativePath="..\..\src\fabm_properties.F90"/>
