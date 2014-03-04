@@ -16,6 +16,7 @@
 ! !USES:
    use fabm_standard_variables
    use fabm_properties
+   use fabm_driver
 !
    implicit none
 !
@@ -670,21 +671,6 @@
    end type
 
    class (type_base_model_factory),pointer,save,public :: factory => null()
-
-   ! ====================================================================================================
-   ! Base type for a FABM host (provides routines for logging and error reporting)
-   ! A host model that wants to process log message and fatal errors themselves (rather then the default
-   ! behavior: log messages to stdout, fatal error to stdout followed by STOP) must create a derived
-   ! type that extends type_base_driver. To use the custom type, allocate "host" in fabm_types with
-   ! the custom type, e.g., with "allocate(type_custom_host::host)". This must be done before any FABM
-   ! routine is called!
-   ! ====================================================================================================
-
-   type,public :: type_base_driver
-   contains
-      procedure :: fatal_error => base_driver_fatal_error
-      procedure :: log_message => base_driver_log_message
-   end type
 
    class (type_base_driver),pointer,save,public :: driver => null()
 
@@ -4005,29 +3991,21 @@ recursive subroutine abstract_model_factory_create(self,name,model)
    end do
 end subroutine
 
-   subroutine base_driver_fatal_error(self,location,message)
-      class (type_base_driver), intent(inout) :: self
-      character(len=*),         intent(in)    :: location,message
-
-      write (*,*) trim(location)//': '//trim(message)
-      stop 1
-   end subroutine
-
-   subroutine base_driver_log_message(self,message)
-      class (type_base_driver), intent(inout) :: self
-      character(len=*),         intent(in)    :: message
-
-      write (*,*) trim(message)
-   end subroutine
-
    subroutine weighted_sum_initialize(self,configunit)
       class (type_weighted_sum),intent(inout),target :: self
       integer,                  intent(in)           :: configunit
 
       type (type_component),pointer :: component
+      integer           :: i
+      character(len=10) :: temp
+
+      i = 0
       component => self%first
       do while (associated(component))
-         call self%register_dependency(component%id,trim(component%name))
+         i = i + 1
+         write (temp,'(i0)') i
+         call self%register_dependency(component%id,'term'//trim(temp))
+         call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
       if (self%output_long_name=='') self%output_long_name = self%output_name
@@ -4095,9 +4073,16 @@ end subroutine
       integer,                             intent(in)           :: configunit
 
       type (type_horizontal_component),pointer :: component
+      integer           :: i
+      character(len=10) :: temp
+
+      i = 0
       component => self%first
       do while (associated(component))
-         call self%register_dependency(component%id,trim(component%name))
+         i = i + 1
+         write (temp,'(i0)') i
+         call self%register_dependency(component%id,'term'//trim(temp))
+         call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
       if (self%output_long_name=='') self%output_long_name = self%output_name

@@ -16,6 +16,7 @@
 !
 ! !USES:
    use fabm_types
+   use fabm_standard_variables
 
    implicit none
 
@@ -131,15 +132,18 @@
    call self%set_variable_property(self%id_pdet,'particulate',.true.)
 
    call self%register_state_variable(self%id_po4,'po4','mmolP/m**3','dissolved phosphate', &
-                                    po4_init,minimum=0.0_rk)
+                                    po4_init,minimum=0.0_rk, &
+                                    standard_variable=mole_concentration_of_phosphate)
    call self%set_variable_property(self%id_po4,'particulate',.false.)
 
    call self%register_state_variable(self%id_no3,'no3','mmolN/m**3','dissolved nitrate',     &
-                                    no3_init,minimum=0.0_rk)
+                                    no3_init,minimum=0.0_rk, &
+                                    standard_variable=mole_concentration_of_nitrate)
    call self%set_variable_property(self%id_no3,'particulate',.false.)
 
    call self%register_state_variable(self%id_nh3,'nh3','mmolN/m**3','dissolved ammonium', &
-                                    nh3_init,minimum=0.0_rk)
+                                    nh3_init,minimum=0.0_rk, &
+                                    standard_variable=mole_concentration_of_ammonium)
    call self%set_variable_property(self%id_nh3,'particulate',.false.)
 
    call self%register_state_variable(self%id_oxy,'oxy','mmolO2/m**3','dissolved oxygen',     &
@@ -152,9 +156,9 @@
 
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_adsp,'adsP','mmolP/m**3', &
-         'phosphate adsorption', time_treatment=time_treatment_step_integrated)
+         'phosphate adsorption', output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_denit,'denit','mmol/m**3/d', &
-         'denitrification rate', time_treatment=time_treatment_last)
+         'denitrification rate', output=output_instantaneous)
 
    ! Register dependencies
    call self%register_dependency(self%id_temp,standard_variables%temperature)

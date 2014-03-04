@@ -146,7 +146,7 @@
    call self%get_parameter(self%rmax,'rmax','d-1','maximum specific growth rate of phytoplankton',default=rmax,scale_factor=d_per_s)
    call self%get_parameter(self%gmax,'gmax','d-1','maximum specific grazing rate of zooplankton',default=gmax,scale_factor=d_per_s)
    call self%get_parameter(self%iv,'iv','m3 mmol-1','Ivlev grazing constant',default=iv)
-   call self%get_parameter(self%alpha,'alpha','half-saturation nutraint concentration for phytoplankton',default=alpha)
+   call self%get_parameter(self%alpha,'alpha','half-saturation nutrient concentration for phytoplankton',default=alpha)
    call self%get_parameter(self%rpn,'rpn','d-1','loss rate of phytoplankton to nutrients',default=rpn,scale_factor=d_per_s)
    call self%get_parameter(self%rzn,'rzn','d-1','loss rate of zooplankton to nutrients',default=rzn,scale_factor=d_per_s)
    call self%get_parameter(self%rdn,'rdn','d-1','detritus remineralization rate',default=rdn,scale_factor=d_per_s)
