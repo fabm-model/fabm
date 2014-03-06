@@ -13,7 +13,8 @@
 ! !USES:
    use fabm
    use fabm_config
-   use fabm_types, only:rk,attribute_length,type_base_driver,driver
+   use fabm_types, only:rk,attribute_length
+   use fabm_driver, only: type_base_driver, driver
    use fabm_properties, only: type_property, type_property_dictionary
    use fabm_python_helper
 
