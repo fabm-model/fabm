@@ -33,6 +33,7 @@
    public type_bulk_standard_variable
 
    ! Variable identifier types used by biogeochemical models
+   public type_variable_id
    public type_diagnostic_variable_id
    public type_horizontal_diagnostic_variable_id
    public type_state_variable_id
@@ -42,7 +43,6 @@
    public type_horizontal_dependency_id
    public type_global_dependency_id
    public type_conserved_quantity_id
-   public type_model_id
 
    ! Variable identifier types by external physical drivers.
    public type_bulk_variable_id
@@ -70,6 +70,8 @@
    public type_expression, type_bulk_expression, type_horizontal_expression
 
    public type_weighted_sum
+   public type_coupling
+   public connect_bulk_state_variable_id
 
 ! !PUBLIC DATA MEMBERS:
 !
@@ -183,52 +185,52 @@
    ! Variable identifiers used by biogeochemical models.
    ! ====================================================================================================
 
-   type,abstract :: type_id
+   type,abstract :: type_variable_id
       type (type_link), pointer :: link => null()
    end type
 
-   type,extends(type_id) :: type_state_variable_id
+   type,extends(type_variable_id) :: type_state_variable_id
       integer                       :: state_index = -1
       type (type_bulk_data_pointer) :: data
       real(rk)                      :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_bottom_state_variable_id
+   type,extends(type_variable_id) :: type_bottom_state_variable_id
       integer                             :: bottom_state_index = -1
       type (type_horizontal_data_pointer) :: horizontal_data
       real(rk)                            :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_surface_state_variable_id
+   type,extends(type_variable_id) :: type_surface_state_variable_id
       integer                             :: surface_state_index = -1
       type (type_horizontal_data_pointer) :: horizontal_data
       real(rk)                            :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_diagnostic_variable_id
+   type,extends(type_variable_id) :: type_diagnostic_variable_id
       integer :: diag_index = -1
    end type
 
-   type,extends(type_id) :: type_horizontal_diagnostic_variable_id
+   type,extends(type_variable_id) :: type_horizontal_diagnostic_variable_id
       integer :: horizontal_diag_index = -1
    end type
 
-   type,extends(type_id) :: type_dependency_id
+   type,extends(type_variable_id) :: type_dependency_id
       type (type_bulk_data_pointer) :: data
       real(rk)                      :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_horizontal_dependency_id
+   type,extends(type_variable_id) :: type_horizontal_dependency_id
       type (type_horizontal_data_pointer) :: horizontal_data
       real(rk)                            :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_global_dependency_id
+   type,extends(type_variable_id) :: type_global_dependency_id
       type (type_scalar_data_pointer) :: global_data
       real(rk)                        :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_conserved_quantity_id
+   type,extends(type_variable_id) :: type_conserved_quantity_id
       integer :: cons_index = -1
    end type
 
@@ -323,34 +325,24 @@
    end type type_scalar_variable
 
    type type_coupling
-      character(len=attribute_length)   :: master   = ''
-      type (type_model_pointer),pointer :: source   => null()
-      logical                           :: required = .false.
+      character(len=attribute_length) :: slave    = ''
+      character(len=attribute_length) :: master   = ''
+      logical                         :: required = .false.
+      class (type_coupling),pointer   :: next     => null()
+   end type
+
+   type type_coupling_list
+      class (type_coupling),pointer :: first => null()
+   contains
+      procedure :: add => coupling_list_add
+      procedure :: find => coupling_list_find
    end type
 
    type type_link
       character(len=attribute_length)       :: name    = ''
       class (type_internal_object), pointer :: target  => null()
-      type (type_coupling)                  :: coupling
       logical                               :: owner   = .true.
       type (type_link), pointer             :: next    => null()
-   end type
-
-   type type_model_pointer
-      class (type_base_model),pointer :: p => null()
-      type (type_state_variable_id),allocatable :: state(:)
-   end type
-
-   type type_model_pointer_pointer
-      type (type_model_pointer),pointer :: p => null()
-   end type
-
-   type,extends(type_id) :: type_model_id
-      type (type_model_pointer) :: model
-   end type
-
-   type,extends(type_internal_object) :: type_model_reference
-      type (type_model_pointer_pointer),allocatable :: pointers(:)
    end type
 
    ! ====================================================================================================
@@ -508,9 +500,10 @@
       character(len=64) :: long_name_prefix = ''
 
       ! Models constituents: links to variables, coupling requests, parameters, expressions
-      type (type_link),              pointer :: first_link => null()
+      type (type_link),              pointer :: first_link               => null()
       type (type_aggregate_variable),pointer :: first_aggregate_variable => null()
 
+      type (type_coupling_list)       :: couplings
       type (type_property_dictionary) :: parameters
       type (type_set)                 :: retrieved_parameters, missing_parameters
 
@@ -551,7 +544,6 @@
       procedure :: register_bulk_state_dependency_old
       procedure :: register_bottom_state_dependency_old
       procedure :: register_surface_state_dependency_old
-      procedure :: register_model_dependency
 
       procedure :: add_bulk_variable
       procedure :: add_horizontal_variable
@@ -637,6 +629,9 @@
       procedure :: do_benthos_ppdd          => base_do_benthos_ppdd      ! superceded by do_bottom_ppdd
       procedure :: get_surface_exchange     => base_get_surface_exchange ! superceded by do_surface
 
+      ! Hooks called by FABM - usable by inheriting models
+      procedure :: before_coupling => base_before_coupling
+      procedure :: after_coupling  => base_after_coupling
    end type type_base_model
 
    ! ====================================================================================================
@@ -671,8 +666,6 @@
    end type
 
    class (type_base_model_factory),pointer,save,public :: factory => null()
-
-   class (type_base_driver),pointer,save,public :: driver => null()
 
    type type_component
       character(len=attribute_length) :: name   = ''
@@ -864,9 +857,9 @@
       class (type_base_model), intent(in) :: self
       character(len=*),        intent(in) :: location,message
       if (self%name/='') then
-         call driver%fatal_error('model "'//trim(self%name)//'", '//trim(location),message)
+         call fatal_error('model "'//trim(self%name)//'", '//trim(location),message)
       else
-         call driver%fatal_error(location,message)
+         call fatal_error(location,message)
       end if
    end subroutine
 
@@ -874,9 +867,9 @@
       class (type_base_model), intent(in) :: self
       character(len=*),        intent(in) :: message
       if (self%name/='') then
-         call driver%log_message('model "'//trim(self%name)//'": '//message)
+         call log_message('model "'//trim(self%name)//'": '//message)
       else
-         call driver%log_message(message)
+         call log_message(message)
       end if
    end subroutine
 
@@ -899,6 +892,14 @@
    subroutine base_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
+   end subroutine
+
+   subroutine base_before_coupling(self)
+      class (type_base_model), intent(inout) :: self
+   end subroutine
+
+   subroutine base_after_coupling(self)
+      class (type_base_model), intent(inout) :: self
    end subroutine
 
 !-----------------------------------------------------------------------
@@ -942,28 +943,28 @@
 !EOC
 
    subroutine set_variable_property_real(self,variable,name,value)
-      class (type_base_model),intent(inout) :: self
-      class (type_id),        intent(inout) :: variable
-      character(len=*),       intent(in)    :: name
-      real(rk),               intent(in)    :: value
+      class (type_base_model), intent(inout) :: self
+      class (type_variable_id),intent(inout) :: variable
+      character(len=*),        intent(in)    :: name
+      real(rk),                intent(in)    :: value
       if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_real','variable has not been registered')
       call variable%link%target%properties%set_real(name,value)
    end subroutine
 
    subroutine set_variable_property_integer(self,variable,name,value)
-      class (type_base_model),intent(inout) :: self
-      class (type_id),        intent(inout) :: variable
-      character(len=*),       intent(in)    :: name
-      integer,                intent(in)    :: value
+      class (type_base_model), intent(inout) :: self
+      class (type_variable_id),intent(inout) :: variable
+      character(len=*),        intent(in)    :: name
+      integer,                 intent(in)    :: value
       if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_integer','variable has not been registered')
       call variable%link%target%properties%set_integer(name,value)
    end subroutine
 
    subroutine set_variable_property_logical(self,variable,name,value)
-      class (type_base_model),intent(inout) :: self
-      class (type_id),        intent(inout) :: variable
-      character(len=*),       intent(in)    :: name
-      logical,                intent(in)    :: value
+      class (type_base_model), intent(inout) :: self
+      class (type_variable_id),intent(inout) :: variable
+      character(len=*),        intent(in)    :: name
+      logical,                 intent(in)    :: value
       if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_logical','variable has not been registered')
       call variable%link%target%properties%set_logical(name,value)
    end subroutine
@@ -971,7 +972,7 @@
    subroutine add_to_aggregate_variable(self,target,variable_id,scale_factor)
       class (type_base_model),           intent(inout) :: self
       type (type_bulk_standard_variable),intent(in)    :: target
-      class (type_id),                   intent(inout) :: variable_id
+      class (type_variable_id),          intent(inout) :: variable_id
       real(rk),optional,                 intent(in)    :: scale_factor
 
       if (.not.associated(variable_id%link)) &
@@ -1133,9 +1134,9 @@ function create_link(self,target,name,merge,owner) result(link)
 end function create_link
 
 recursive subroutine add_alias(self,target,name)
-   class (type_base_model),            intent(inout) :: self
-   class (type_id),                    intent(in)    :: target
-   character(len=*),                   intent(in)    :: name
+   class (type_base_model), intent(inout) :: self
+   class (type_variable_id),intent(in)    :: target
+   character(len=*),        intent(in)    :: name
 
    type (type_link),pointer :: link
 
@@ -1143,41 +1144,106 @@ recursive subroutine add_alias(self,target,name)
    if (associated(self%parent)) call self%parent%add_alias(target,trim(self%name_prefix)//trim(name))
 end subroutine
 
-subroutine request_coupling_for_link(self,link,master,required,source)
+subroutine coupling_list_add(self,coupling)
+   class (type_coupling_list),intent(inout) :: self
+   class (type_coupling),pointer            :: coupling
+
+   class (type_coupling),pointer :: current_coupling,previous_coupling
+
+   if (.not.associated(self%first)) then
+      ! No couplings yet - add the first.
+      self%first => coupling
+   else
+      ! Try to find existing coupling for this slave.
+      nullify(previous_coupling)
+      current_coupling => self%first
+      do while (associated(current_coupling))
+         if (current_coupling%slave==coupling%slave) exit
+         previous_coupling => current_coupling
+         current_coupling => current_coupling%next
+      end do
+
+      if (associated(current_coupling)) then
+         ! Coupling for this slave exists - replace it.
+         coupling%next => current_coupling%next
+         if (associated(previous_coupling)) then
+            previous_coupling%next => coupling
+         else
+            self%first => coupling
+         end if
+         deallocate(current_coupling)
+      else
+         ! Coupling for this slave does not exist yet - add it.
+         current_coupling => self%first
+         do while (associated(current_coupling%next))
+            current_coupling => current_coupling%next
+         end do
+         current_coupling%next => coupling
+      end if
+   end if
+
+end subroutine
+
+function coupling_list_find(self,slave,remove) result(coupling)
+   class (type_coupling_list),intent(inout) :: self
+   character(len=*),          intent(in)    :: slave
+   logical,optional,          intent(in)    :: remove
+   class (type_coupling),pointer            :: coupling
+
+   class (type_coupling),pointer            :: previous_coupling
+   logical                                  :: remove_eff
+
+   remove_eff = .false.
+   if (present(remove)) remove_eff = remove
+
+   nullify(previous_coupling)
+   coupling => self%first
+   do while (associated(coupling))
+      if (coupling%slave==slave) exit
+      previous_coupling => coupling
+      coupling => coupling%next
+   end do
+
+   if (associated(coupling).and.remove_eff) then
+      ! Remove the coupling command for the referenced model.
+      if (.not.associated(previous_coupling)) then
+         self%first => coupling%next
+      else
+         previous_coupling%next => coupling%next
+      end if
+   end if
+end function
+
+subroutine request_coupling_for_link(self,link,master,required)
    class (type_base_model),intent(inout)              :: self
    type (type_link),       intent(inout)              :: link
    character(len=*),       intent(in)                 :: master
    logical,optional,       intent(in)                 :: required
-   type (type_model_id),   intent(in),target,optional :: source
 
-   link%coupling%master = master
-   link%coupling%required = .true.
-   nullify(link%coupling%source)
-   if (present(required)) link%coupling%required = required
-   if (present(source)) link%coupling%source => source%model
+   call self%request_coupling(link%name,master,required)
 end subroutine request_coupling_for_link
 
-subroutine request_coupling_for_name(self,slave,master,required,source)
+subroutine request_coupling_for_name(self,slave,master,required)
    class (type_base_model),intent(inout)              :: self
    character(len=*),       intent(in)                 :: slave,master
    logical,optional,       intent(in)                 :: required
-   type (type_model_id),   intent(in),target,optional :: source
 
-   type (type_link),pointer :: link
+   class (type_coupling),pointer :: coupling
 
-   link => self%find_link(slave)
-   if (.not.associated(link)) call self%fatal_error('request_coupling_for_name','Variable "'//trim(slave)//'" was not found.')
-   call self%request_coupling(link,master,required,source)
+   allocate(coupling)
+   coupling%slave = slave
+   coupling%master = master
+   if (present(required)) coupling%required = required
+   call self%couplings%add(coupling)
 end subroutine request_coupling_for_name
 
-subroutine request_coupling_for_id(self,id,master,required,source)
-   class (type_base_model),intent(inout)              :: self
-   class (type_id),        intent(inout)              :: id
-   character(len=*),       intent(in)                 :: master
-   logical,optional,       intent(in)                 :: required
-   type (type_model_id),   intent(in),target,optional :: source
+subroutine request_coupling_for_id(self,id,master,required)
+   class (type_base_model), intent(inout) :: self
+   class (type_variable_id),intent(inout) :: id
+   character(len=*),        intent(in)    :: master
+   logical,optional,        intent(in)    :: required
 
-   call self%request_coupling(id%link,master,required,source)
+   call self%request_coupling(id%link,master,required)
 end subroutine request_coupling_for_id
 
 subroutine integer_pointer_set_append(self,value)
@@ -1358,33 +1424,6 @@ subroutine append_scalar_data_pointer(array,data)
    array(size(array))%p = array(1)%p
 end subroutine append_scalar_data_pointer
 
-subroutine append_model_pointer(array,data)
-   type (type_model_pointer_pointer),allocatable :: array(:)
-   type (type_model_pointer),target :: data
-   type (type_model_pointer_pointer),allocatable :: oldarray(:)
-   integer :: i
-
-   ! Create a new list of data pointers, or extend it if already allocated.
-   if (.not.allocated(array)) then
-      allocate(array(1))
-   else
-      do i=1,size(array)
-         if (associated(array(i)%p,data)) return
-      end do
-
-      allocate(oldarray(size(array)))
-      oldarray = array
-      deallocate(array)
-      allocate(array(size(oldarray)+1))
-      array(1:size(oldarray)) = oldarray
-      deallocate(oldarray)
-   end if
-
-   ! Add pointer to provided data to the list.
-   array(size(array))%p => data
-   array(size(array))%p%p => array(1)%p%p
-end subroutine append_model_pointer
-
 subroutine append_string(array,string,exists)
    character(len=attribute_length),dimension(:),allocatable :: array
    character(len=*),intent(in) :: string
@@ -1414,6 +1453,32 @@ subroutine append_string(array,string,exists)
    if (present(exists)) exists = .false.
 end subroutine append_string
 
+recursive subroutine before_coupling(self)
+   class (type_base_model),intent(inout),target :: self
+
+   type (type_model_list_node), pointer :: node
+
+   call self%before_coupling()
+   node => self%children%first
+   do while (associated(node))
+      call before_coupling(node%model)
+      node => node%next
+   end do
+end subroutine
+
+recursive subroutine after_coupling(self)
+   class (type_base_model),intent(inout),target :: self
+
+   type (type_model_list_node), pointer :: node
+
+   call self%after_coupling()
+   node => self%children%first
+   do while (associated(node))
+      call after_coupling(node%model)
+      node => node%next
+   end do
+end subroutine
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -1442,32 +1507,13 @@ end subroutine append_string
       if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
          'BUG: freeze_model_info can only operate on the root model.')
 
-      ! First resolve model references, needed during variable coupling.
-      ! Stage 1: resolve indirect references (references to other references)
-      ! Stage 2: resolve direct references to models
-      call process_coupling_tasks(self,process_model_references=.true.)
-      call resolve_model_references(self)
+      call before_coupling(self)
 
-      ! Determine whether all model references have been resolved.
-      ! (resolve_model_references only processes references with explicit coupling requests,
-      ! potentially leaving those without coupling request anywhere in the model tree uncoupled.)
-      link => self%first_link
-      do while (associated(link))
-         if (link%owner) then
-            select type (slave=>link%target)
-               class is (type_model_reference)
-                  if (.not.associated(slave%pointers(1)%p%p)) &
-                     call self%fatal_error('freeze_model_info','Model reference "'//trim(link%name)//'" was not coupled to an actual model.')
-            end select
-         end if
-         link => link%next
-      end do
-      
       ! Now couple model variables
       ! Stage 1: implicit - couple variables based on overlapping standard identities.
       ! Stage 2: explicit - resolve user- or model-specified links between variables.
       call couple_standard_variables(self)
-      call process_coupling_tasks(self,process_model_references=.false.)
+      call process_coupling_tasks(self)
 
       ! Create models for aggregate variables at root level, to be used to compute conserved quantities
       call build_aggregate_variables(self)
@@ -1476,10 +1522,12 @@ end subroutine append_string
          call create_aggregate_model(self,aggregate_variable)
          aggregate_variable => aggregate_variable%next
       end do
-      call process_coupling_tasks(self,process_model_references=.false.)
+
+      ! Try coupling again, because we now have additional aggregate variables available.
+      call process_coupling_tasks(self)
 
       ! Add arrays with state variable identifiers to model references (this requires variable coupling to be complete!)
-      call complete_model_references(self)
+      call after_coupling(self)
 
       ! Build final authorative arrays with variable metadata .
       call classify_variables(self)
@@ -2317,51 +2365,6 @@ end subroutine append_string
    end subroutine register_global_dependency
 !EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a dependency on another model.
-!
-! !INTERFACE:
-   subroutine register_model_dependency(self,id,name)
-!
-! !DESCRIPTION:
-!  This function searches for a biogeochemical state variable by the user-supplied name
-!  in the global model database. It returns the identifier of the variable (or -1 if
-!  the variable is not found), which may be used to retrieve the variable value at a later stage.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model), intent(inout)        :: self
-      type (type_model_id),    intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
-      character(len=*),        intent(in)           :: name
-!
-!EOP
-!
-! !LOCAL VARIABLES:
-      type (type_model_reference), pointer :: reference
-      class (type_internal_object),pointer :: object
-!
-!-----------------------------------------------------------------------
-!BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error('register_model_dependency',&
-         'Dependencies may only be registered during initialization.')
-
-      allocate(reference)
-      reference%name = name
-
-      if (associated(id%link)) call self%fatal_error(':register_model_dependency', &
-         'Model identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
-      call append_model_pointer(reference%pointers,id%model)
-
-      object => reference
-      id%link => self%add_object(object)
-
-   end subroutine register_model_dependency
-!EOC
-
 subroutine register_bulk_expression_dependency(self,id,expression)
    class (type_base_model),       intent(inout)        :: self
    type (type_dependency_id),     intent(inout),target :: id
@@ -2805,13 +2808,12 @@ end subroutine add_parameter
 ! !IROUTINE: Process all model-specific coupling tasks.
 !
 ! !INTERFACE:
-   recursive subroutine process_coupling_tasks(self,process_model_references)
+   recursive subroutine process_coupling_tasks(self)
 !
 ! !DESCRIPTION:
 !
 ! !INPUT PARAMETERS:
       class (type_base_model),intent(inout),target :: self
-      logical,                intent(in)           :: process_model_references
 !
 !EOP
 !
@@ -2819,7 +2821,7 @@ end subroutine add_parameter
       class (type_base_model),     pointer :: root
       type (type_model_list_node), pointer :: child
       type (type_link),            pointer :: link
-      logical                              :: attempt_coupling
+      class (type_coupling),       pointer :: coupling
       class (type_internal_object),pointer :: master
 !
 !-----------------------------------------------------------------------
@@ -2831,87 +2833,39 @@ end subroutine add_parameter
       end do
 
       ! Enumerate named couplings, locate slave and target variables, and couple them.
-      link => self%first_link
-      do while (associated(link))
-         if (link%coupling%master/='') then
-            select type (slave=>link%target)
-               class is (type_model_reference)
-                  attempt_coupling = process_model_references
-               class default
-                  attempt_coupling = .not.process_model_references
-            end select
-            if (attempt_coupling) then
-               ! Try to find master variable.
-               if (associated(link%coupling%source)) then
-                  ! Try to find the master variable among the links of the specified model.
-                  master => link%coupling%source%p%find_object(link%coupling%master)
-               else
-                  ! Try to find the master variable among the variables of the requesting model or its parents.
-                  if (link%name/=link%coupling%master) then
-                     ! Master and slave name differ: start master search in current model, then move up tree.
-                     master => self%find_object(link%coupling%master,recursive=.true.)
-                  elseif (associated(self%parent)) then
-                     ! Master and slave name are identical: start master search in parent model, then move up tree.
-                     master => self%parent%find_object(link%coupling%master,recursive=.true.)
-                  end if
-               end if
-               if (associated(master)) then
-                  ! Target variable found: perform the coupling.
-                  call couple_variables(root,master,link%target)
-               elseif (link%coupling%required.and..not.process_model_references) then
-                  call self%fatal_error('process_coupling_tasks','Coupling target "'//trim(link%coupling%master)//'" for "'//trim(link%name)//'" was not found.')
-               end if
-            end if
-         end if   ! if coupling
-         link => link%next
+      coupling => self%couplings%first
+      do while (associated(coupling))
+         ! First locate the slave variable
+         link => self%find_link(coupling%slave)
+         if (.not.associated(link)) &
+            call self%fatal_error('process_coupling_tasks','Slave variable "'//trim(coupling%slave)//'" was not found.')
+
+         ! Try to find the master variable among the variables of the requesting model or its parents.
+         if (coupling%slave/=coupling%master) then
+            ! Master and slave name differ: start master search in current model, then move up tree.
+            master => self%find_object(coupling%master,recursive=.true.)
+         elseif (associated(self%parent)) then
+            ! Master and slave name are identical: start master search in parent model, then move up tree.
+            master => self%parent%find_object(coupling%master,recursive=.true.)
+         end if
+         if (associated(master)) then
+            ! Target variable found: perform the coupling.
+            call couple_variables(root,master,link%target)
+         elseif (coupling%required) then
+            call self%fatal_error('process_coupling_tasks','Coupling target "'//trim(coupling%master)//'" for "'//trim(coupling%slave)//'" was not found.')
+         end if
+         coupling => coupling%next
       end do
 
       ! Process coupling tasks registered with child models.
       child => self%children%first
       do while (associated(child))
-         call process_coupling_tasks(child%model,process_model_references)
+         call process_coupling_tasks(child%model)
          child => child%next
       end do
 
    end subroutine process_coupling_tasks
 !EOC
-
-recursive subroutine resolve_model_references(self)
-   class (type_base_model),intent(inout),target :: self
-
-   type (type_link),            pointer :: link
-   class (type_base_model),     pointer :: model
-   type (type_model_list_node), pointer :: child
-   integer                              :: i
-
-   ! Note: this routine MUST be called recursively on each model,
-   ! because links can only be resolved locally (based on their local name).
-   ! The root-level link name is not the same as the name of the model that must be coupled to.
-
-   ! Check our own coupling commands.
-   link => self%first_link
-   do while (associated(link))
-      if (link%coupling%master/=''.and.link%owner) then
-         select type (slave=>link%target)
-            class is (type_model_reference)
-               model => self%find_model(link%coupling%master,recursive=.true.)
-               if (link%coupling%required.and..not.associated(model)) &
-                  call self%fatal_error('resolve_model_references','Target model "'//trim(link%coupling%master)//'" for "'//trim(link%name)//'" was not found.')
-               do i=1,size(slave%pointers)
-                  slave%pointers(i)%p%p => model
-               end do
-         end select
-      end if
-      link => link%next
-   end do
-
-   ! Now process child models
-   child => self%children%first
-   do while (associated(child))
-      call resolve_model_references(child%model)
-      child => child%next
-   end do
-end subroutine resolve_model_references
 
 recursive subroutine redirect_links(model,oldtarget,newtarget)
    class (type_base_model),     intent(inout),target :: model
@@ -2973,14 +2927,14 @@ subroutine merge_variables(master,slave)
    class (type_internal_object),intent(inout) :: master
    class (type_internal_object),intent(in)    :: slave
 
-   call driver%log_message(trim(slave%name)//' --> '//trim(master%name))
+   call log_message(trim(slave%name)//' --> '//trim(master%name))
    select type (master)
       class is (type_bulk_variable)
          select type (slave)
             class is (type_bulk_variable)
                call merge_bulk_variables(master,slave)
             class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
-               call driver%fatal_error('merge_variables', &
+               call fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined on the whole domain, '//trim(slave%name)//' is not.')
          end select      
       class is (type_horizontal_variable)
@@ -2988,7 +2942,7 @@ subroutine merge_variables(master,slave)
             class is (type_horizontal_variable)
                call merge_horizontal_variables(master,slave)
             class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
-               call driver%fatal_error('merge_variables', &
+               call fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined on the horizontal domain, '//trim(slave%name)//' is not.')
          end select      
       class is (type_scalar_variable)
@@ -2996,16 +2950,8 @@ subroutine merge_variables(master,slave)
             class is (type_scalar_variable)
                call merge_scalar_variables(master,slave)
             class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
-               call driver%fatal_error('merge_variables', &
+               call fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined as a scalar, '//trim(slave%name)//' is not.')
-         end select      
-      class is (type_model_reference)
-         select type (slave)
-            class is (type_model_reference)
-               call merge_model_references(master,slave)
-            class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
-               call driver%fatal_error('merge_variables', &
-                  'type mismatch: '//trim(master%name)//' is as model reference, '//trim(slave%name)//' is not.')
          end select      
    end select
 end subroutine
@@ -3017,13 +2963,13 @@ subroutine merge_internal_variables(master,slave)
    type (type_contribution), pointer :: contribution
 
    if (.not.slave%write_indices%is_empty()) &
-      call driver%fatal_error('merge_internal_variables','Attempt to couple write-only variable ' &
+      call fatal_error('merge_internal_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
    if (master%state_indices%is_empty().and..not.slave%state_indices%is_empty()) &
-      call driver%fatal_error('merge_internal_variables','Attempt to couple state variable ' &
+      call fatal_error('merge_internal_variables','Attempt to couple state variable ' &
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
    if (master%presence==presence_external_optional) &
-      call driver%fatal_error('merge_internal_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
+      call fatal_error('merge_internal_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
 
    call master%state_indices%extend(slave%state_indices)
    call master%background_values%extend(slave%background_values)
@@ -3054,7 +3000,7 @@ subroutine merge_horizontal_variables(master,slave)
    integer :: i
    
    if (slave%domain/=master%domain) then
-      call driver%fatal_error('merge_horizontal_variables','Domains of coupled variabled ' &
+      call fatal_error('merge_horizontal_variables','Domains of coupled variabled ' &
          //trim(slave%name)//' to '//trim(master%name)//' do not match.')
    end if
    call merge_internal_variables(master,slave)
@@ -3077,16 +3023,6 @@ subroutine merge_scalar_variables(master,slave)
       end do
    end if
 end subroutine merge_scalar_variables
-
-subroutine merge_model_references(master,slave)
-   type (type_model_reference),intent(inout) :: master
-   type (type_model_reference),intent(in)    :: slave
-   integer :: i
-
-   do i=1,size(slave%pointers)
-      call append_model_pointer(master%pointers,slave%pointers(i)%p)
-   end do
-end subroutine merge_model_references
 
    function find_object(self,name,recursive) result(object)
 
@@ -3805,64 +3741,6 @@ subroutine remove_duplicates(array1,array2)
    array2 = array2_tmp(:inext)
 end subroutine
 
-subroutine complete_model_references(model)
-   class (type_base_model),intent(inout),target :: model
-
-   type (type_link),pointer :: link
-   integer                  :: i
-
-   link => model%first_link
-   do while (associated(link))
-      if (link%owner) then
-         select type (object => link%target)
-            class is (type_model_reference)
-               do i=1,size(object%pointers)
-                  call process_model_pointer(object%pointers(i)%p)
-               end do
-         end select
-      end if
-      link => link%next
-   end do
-
-contains
-
-   subroutine process_model_pointer(p)
-      type (type_model_pointer),intent(inout) :: p
-
-      integer                  :: n
-      type (type_link),pointer :: link
-
-      ! Count number of state variables in target model.
-      n = 0
-      link => p%p%first_link
-      do while (associated(link))
-         select type (object=>link%target)
-            class is (type_bulk_variable)
-               if (object%presence==presence_internal.and.link%owner.and..not.object%state_indices%is_empty()) n = n + 1
-         end select
-         link => link%next
-      end do
-
-      ! Allocate array to hold state variable identifiers.
-      allocate(p%state(n))
-
-      ! Connect target state variables to identifiers in model reference.
-      n = 0
-      link => p%p%first_link
-      do while (associated(link))
-         select type (object=>link%target)
-            class is (type_bulk_variable)
-               if (object%presence==presence_internal.and.link%owner.and..not.object%state_indices%is_empty()) then
-                  n = n + 1
-                  call connect_bulk_state_variable_id(model,object,p%state(n))
-               end if
-         end select
-         link => link%next
-      end do
-   end subroutine process_model_pointer
-
-end subroutine complete_model_references
-
 function get_free_unit() result(unit)
    integer :: unit
    integer, parameter :: LUN_MIN=10, LUN_MAX=1000
@@ -3929,7 +3807,7 @@ recursive subroutine find_dependencies(self,list,forbidden)
             chain = trim(chain)//trim(node%model%name)//' -> '
             node => node%next
          end do
-         call driver%fatal_error('find_dependencies','circular dependency found: '//trim(chain)//trim(self%name))
+         call fatal_error('find_dependencies','circular dependency found: '//trim(chain)//trim(self%name))
       end if
       call forbidden_with_self%extend(forbidden)
    end if

@@ -5,6 +5,7 @@
 module fabm_expressions
 
    use fabm_types
+   use fabm_driver
 
    implicit none
 
@@ -62,13 +63,13 @@ contains
 
       character(len=attribute_length) :: postfix
 
-      if (.not.associated(input%link)) call driver%fatal_error('fabm_expressions::vertical_mean', &
+      if (.not.associated(input%link)) call fatal_error('fabm_expressions::vertical_mean', &
          'Input variable has not been registered yet.')
 
       ! Create a name for the expression
       postfix = ''
       if (present(minimum_depth).and.present(maximum_depth)) then
-         if (minimum_depth>maximum_depth) call driver%fatal_error('fabm_expressions::vertical_mean', &
+         if (minimum_depth>maximum_depth) call fatal_error('fabm_expressions::vertical_mean', &
             'Minimum depth exceeds maximum depth.')
          write (postfix,'(a,i0,a,i0,a)') '_between_',int(minimum_depth),'_m_and_',int(maximum_depth),'_m'
       elseif (present(minimum_depth)) then
@@ -96,7 +97,7 @@ contains
       type (type_bulk_temporal_mean) :: expression
       character(len=attribute_length) :: prefix,postfix
 
-      if (.not.associated(input%link)) call driver%fatal_error('fabm_expressions::bulk_temporal_mean', &
+      if (.not.associated(input%link)) call fatal_error('fabm_expressions::bulk_temporal_mean', &
          'Input variable has not been registered yet.')
 
       ! Create a name for the expression
@@ -116,7 +117,7 @@ contains
       type (type_horizontal_temporal_mean) :: expression
       character(len=attribute_length) :: prefix,postfix
 
-      if (.not.associated(input%link)) call driver%fatal_error('fabm_expressions::horizontal_temporal_mean', &
+      if (.not.associated(input%link)) call fatal_error('fabm_expressions::horizontal_temporal_mean', &
          'Input variable has not been registered yet.')
 
       ! Create a name for the expression

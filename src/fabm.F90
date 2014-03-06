@@ -295,11 +295,11 @@
          ! Ask the factory to create the model.
          call factory%create(trim(models(i)),childmodel)
 
-         if (.not.associated(childmodel)) call driver%fatal_error('fabm_create_model_from_file','"'//trim(models(i))//'" is not a valid model name.')
+         if (.not.associated(childmodel)) call fatal_error('fabm_create_model_from_file','"'//trim(models(i))//'" is not a valid model name.')
 
-         call driver%log_message('Initializing biogeochemical model "'//trim(instancename)//'"...')
+         call log_message('Initializing biogeochemical model "'//trim(instancename)//'"...')
          call model%root%add_child(childmodel,instancename,configunit=file_unit)
-         call driver%log_message('model "'//trim(instancename)//'" initialized successfully.')
+         call log_message('model "'//trim(instancename)//'" initialized successfully.')
       end if
    end do
 
@@ -313,13 +313,13 @@
 
    return
 
-98 call driver%fatal_error('fabm_create_model_from_file','Unable to open FABM configuration file '//trim(file_eff)//'.')
+98 call fatal_error('fabm_create_model_from_file','Unable to open FABM configuration file '//trim(file_eff)//'.')
    return
 
-99 call driver%fatal_error('fabm_create_model_from_file','Unable to read namelist "fabm_nml".')
+99 call fatal_error('fabm_create_model_from_file','Unable to read namelist "fabm_nml".')
    return
 
-100 call driver%fatal_error('fabm_create_model_from_file','Unable to find namelist "fabm_nml".')
+100 call fatal_error('fabm_create_model_from_file','Unable to find namelist "fabm_nml".')
    return
 
    end function fabm_create_model_from_file
@@ -386,7 +386,7 @@
 !BOC
       child => model%children%first
       do while (associated(child))
-         if (self%models%count(child%model)/=1) call driver%fatal_error('fabm_initialize::test_presence','BUG: Model "'//trim(model%name)//'" is not called exactly one time.')
+         if (self%models%count(child%model)/=1) call fatal_error('fabm_initialize::test_presence','BUG: Model "'//trim(model%name)//'" is not called exactly one time.')
          call test_presence(self,child%model)
          child => child%next
       end do
@@ -543,7 +543,7 @@
    ready = .true.
 
 #ifdef _FABM_MASK_
-   if (.not.associated(self%environment%mask)) call driver%log_message('spatial mask has not been set.')
+   if (.not.associated(self%environment%mask)) call log_message('spatial mask has not been set.')
 #endif
 
    link => self%root%first_link
@@ -553,7 +553,7 @@
             class is (type_bulk_variable)
                if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
                   if (.not.associated(object%alldata(1)%p%p)) then
-                     call driver%log_message('data for dependency "'//trim(link%name)// &
+                     call log_message('data for dependency "'//trim(link%name)// &
                         & '", defined on the full model domain, have not been provided.')
                      ready = .false.
                   end if
@@ -561,7 +561,7 @@
             class is (type_horizontal_variable)
                if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
                   if (.not.associated(object%alldata(1)%p%p)) then
-                     call driver%log_message('data for dependency "'//trim(link%name)// &
+                     call log_message('data for dependency "'//trim(link%name)// &
                         &  '", defined on a horizontal slice of the model domain, have not been provided.')
                      ready = .false.
                   end if
@@ -569,7 +569,7 @@
             class is (type_scalar_variable)
                if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
                   if (.not.associated(object%alldata(1)%p%p)) then
-                     call driver%log_message('data for dependency "'//trim(link%name)// &
+                     call log_message('data for dependency "'//trim(link%name)// &
                         &  '", defined as global scalar quantity, have not been provided.')
                      ready = .false.
                   end if
@@ -579,7 +579,7 @@
       link => link%next
    end do
 
-   if (.not.ready) call driver%fatal_error('fabm_check_ready','FABM is lacking required data.')
+   if (.not.ready) call fatal_error('fabm_check_ready','FABM is lacking required data.')
 
    end subroutine fabm_check_ready
 !EOC
@@ -1153,7 +1153,7 @@
 #if defined(DEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(shape(dat))
       if (size(dat,i)/=size(model%environment%diag,i)) then
-         call driver%fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match.')
+         call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match.')
       end if
    end do
 #endif
@@ -1258,7 +1258,7 @@
 #ifndef _FABM_HORIZONTAL_IS_SCALAR_
    do i=1,size(shape(dat))
       if (size(dat,i)/=size(model%environment%diag,i)) then
-         call driver%fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
+         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
       end if
    end do
 #endif
@@ -1679,7 +1679,7 @@
             if (.not.repair) then
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%root%state_variables(ivar)%name), &
                                                           & ' below minimum value ',minimum
-               call driver%log_message(err)
+               call log_message(err)
                return
             end if
             _SET_STATE_EX_(self%environment,p,minimum)
@@ -1689,7 +1689,7 @@
             if (.not.repair) then
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%root%state_variables(ivar)%name), &
                                                           & ' above maximum value ',maximum
-               call driver%log_message(err)
+               call log_message(err)
                return
             end if
             _SET_STATE_EX_(self%environment,p,maximum)
@@ -1809,7 +1809,7 @@ subroutine internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,state_var
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
                                                           & trim(state_variables(ivar)%name), &
                                                           & ' below minimum value ',minimum
-               call driver%log_message(err)
+               call log_message(err)
                return
             end if
             _SET_STATE_BEN_EX_(root%environment,p_hz,minimum)
@@ -1820,7 +1820,7 @@ subroutine internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,state_var
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
                                                           & trim(state_variables(ivar)%name), &
                                                           & ' above maximum value ',maximum
-               call driver%log_message(err)
+               call log_message(err)
                return
             end if
             _SET_STATE_BEN_EX_(root%environment,p_hz,maximum)
