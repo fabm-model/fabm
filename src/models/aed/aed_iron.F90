@@ -25,31 +25,29 @@ MODULE aed_iron
 ! The AED module iron contains equations that describe exchange of
 ! soluable reactive iron across the air/water interface and sediment flux.
 !-------------------------------------------------------------------------------
-   USE fabm_types
+   USE aed_core
 
    IMPLICIT NONE
 
    PRIVATE
 !
-   PUBLIC type_aed_iron
+   PUBLIC aed_type_iron
 !
-   TYPE,extends(type_base_model) :: type_aed_iron
+   TYPE,extends(type_base_model) :: aed_type_iron
 !     Variable identifiers
-      type (type_state_variable_id)      :: id_fe3
-      type (type_dependency_id)          :: id_temp
-      type (type_diagnostic_variable_id) :: id_sed_fe3
-      type (type_conserved_quantity_id)  :: id_totFe
+      TYPE (type_state_variable_id)      :: id_fe3
+      TYPE (type_dependency_id)          :: id_temp
+      TYPE (type_diagnostic_variable_id) :: id_sed_fe3
 
 !     Model parameters
-      real(rk) :: Fsed_dic,Ksed_dic,theta_sed_dic
+      AED_REAL :: Fsed_dic,Ksed_dic,theta_sed_dic
       LOGICAL  :: use_oxy,use_dic
 
       CONTAINS    ! Model Procedures
-        procedure :: initialize               => aed_iron_init
-        procedure :: do                       => aed_iron_do
-        procedure :: do_ppdd                  => aed_iron_do_ppdd
-        procedure :: do_benthos               => aed_iron_do_benthos
-        procedure :: get_conserved_quantities => aed_iron_get_conserved_quantities
+        PROCEDURE :: initialize               => aed_init_iron
+        PROCEDURE :: do                       => aed_iron_do
+        PROCEDURE :: do_ppdd                  => aed_iron_do_ppdd
+        PROCEDURE :: do_benthos               => aed_iron_do_benthos
    END TYPE
 
 
@@ -59,7 +57,7 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_iron_init(self,configunit)
+SUBROUTINE aed_init_iron(self,namlst)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -67,64 +65,62 @@ SUBROUTINE aed_iron_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_iron),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                         :: configunit
+   CLASS (aed_type_iron),TARGET,INTENT(inout) :: self
+   INTEGER,INTENT(in) :: namlst
+!
+!LOCALS
+   INTEGER  :: status
 
-   real(rk)          :: dic_initial=4.5
-   real(rk)          :: Fsed_dic = 3.5
-   real(rk)          :: Ksed_dic = 30.0
-   real(rk)          :: theta_sed_dic = 1.0
+   AED_REAL          :: dic_initial=4.5
+   AED_REAL          :: Fsed_dic = 3.5
+   AED_REAL          :: Ksed_dic = 30.0
+   AED_REAL          :: theta_sed_dic = 1.0
    CHARACTER(len=64) :: iron_reactant_variable=''
 
    INTEGER           :: num_irons
-   real(rk)          :: decay(100)
-   real(rk)          :: settling(100)
-   real(rk)          :: Fsed(100)
+   AED_REAL          :: decay(100)
+   AED_REAL          :: settling(100)
+   AED_REAL          :: Fsed(100)
 
-   real(rk),PARAMETER :: secs_pr_day = 86400.
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_iron/ num_irons,decay,settling,Fsed
-
-
+!
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Read the namelist
-   read(configunit,nml=aed_iron,err=99)
+   read(namlst,nml=aed_iron,iostat=status)
+   IF (status /= 0) STOP 'Error reading namelist aed_iron'
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
 
    PRINT *,'AED_IRON : Note this module has not been completed. Stopping.'
-
+   STOP
 
 !  ! Register environmental dependencies
    call self%register_dependency(self%id_temp,standard_variables%temperature)
-
-   RETURN
-
-99 CALL self%fatal_error('aed_iron_init','Error reading namelist aed_iron')
-
-END SUBROUTINE aed_iron_init
+END SUBROUTINE aed_init_iron
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_iron_do(self,_FABM_ARGS_DO_RHS_)
+SUBROUTINE aed_iron_do(self,_ARGUMENTS_DO_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of aed_iron model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_iron),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   CLASS (aed_type_iron),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_
 !
 !LOCALS
-   real(rk)           :: dic,diff_dic
-   real(rk),PARAMETER :: secs_pr_day = 86400.
+   AED_REAL           :: dic,diff_dic
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
 !  ! Retrieve current (local) state variable values.
 !  _GET_(self%id_dic,dic) ! iron
@@ -135,32 +131,31 @@ SUBROUTINE aed_iron_do(self,_FABM_ARGS_DO_RHS_)
 !  _SET_ODE_(self%id_dic,diff_dic)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
 END SUBROUTINE aed_iron_do
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
 !###############################################################################
-SUBROUTINE aed_iron_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+SUBROUTINE aed_iron_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of iron biogeochemical model exporting
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_iron),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   CLASS (aed_type_iron),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 !LOCALS
-   real(rk)                   :: dic
-   real(rk)                   :: diff_dic
-   real(rk), parameter        :: secs_pr_day = 86400.
+   AED_REAL                   :: dic
+   AED_REAL                   :: diff_dic
+   AED_REAL, parameter        :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
 !  _GET_(self%id_dic,dic) ! iron
@@ -171,7 +166,7 @@ SUBROUTINE aed_iron_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 !  _SET_PP_(self%id_dic,self%id_dic,diff_dic)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
 END SUBROUTINE aed_iron_do_ppdd
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -179,32 +174,32 @@ END SUBROUTINE aed_iron_do_ppdd
 
 
 !###############################################################################
-SUBROUTINE aed_iron_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+SUBROUTINE aed_iron_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !-------------------------------------------------------------------------------
 ! Calculate pelagic bottom fluxes and benthic sink and source terms of AED iron.
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_iron),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   CLASS (aed_type_iron),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 !LOCALS
    ! Environment
-!  real(rk) :: temp
+!  AED_REAL :: temp
 
    ! State
-!  real(rk) :: dic,oxy
+!  AED_REAL :: dic,oxy
 
    ! Temporary variables
-!  real(rk) :: dic_flux
+!  AED_REAL :: dic_flux
 
    ! Parameters
-!  real(rk),PARAMETER :: secs_pr_day = 86400.
+!  AED_REAL,PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
 !  _GET_(self%id_temp,temp)  ! local temperature
@@ -239,42 +234,10 @@ SUBROUTINE aed_iron_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 !  _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_dic,dic_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_iron_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-
-!###############################################################################
-SUBROUTINE aed_iron_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
-!-------------------------------------------------------------------------------
-! Get the total of conserved quantities (currently only iron)
-!-------------------------------------------------------------------------------
-!ARGUMENTS
-   class (type_aed_iron),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-!
-!LOCALS
-!  real(rk) :: dic
-!
-!-------------------------------------------------------------------------------
-!BEGIN
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-!  _GET_(self%id_dic,dic) ! iron
-
-   ! Total nutrient is simply the sum of all variables.
-!  _SET_CONSERVED_QUANTITY_(self%id_totC,dic)
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-END SUBROUTINE aed_iron_get_conserved_quantities
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 
 END MODULE aed_iron

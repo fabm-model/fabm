@@ -25,28 +25,27 @@ MODULE aed_tracer
 ! The AED module tracer contains equations that describe exchange of
 ! soluable reactive tracer across the air/water interface and sediment flux.
 !-------------------------------------------------------------------------------
-   USE fabm_types
+   USE aed_core
 
    IMPLICIT NONE
 
    PRIVATE
 !
-   PUBLIC type_aed_tracer
+   PUBLIC aed_type_tracer
 !
-   TYPE,extends(type_base_model) :: type_aed_tracer
+   TYPE,extends(type_base_model) :: aed_type_tracer
 !     Variable identifiers
-      type (type_state_variable_id),ALLOCATABLE :: id_ss(:)
-      type (type_dependency_id)                 :: id_temp
+      TYPE (type_state_variable_id),ALLOCATABLE :: id_ss(:)
+      TYPE (type_dependency_id)                 :: id_temp
 
 !     Model parameters
-      real(rk),ALLOCATABLE :: decay(:),settling(:), Fsed(:)
+      AED_REAL,ALLOCATABLE :: decay(:),settling(:), Fsed(:)
 
       CONTAINS      ! Model Methods
-        procedure :: initialize               => aed_tracer_init
-        procedure :: do                       => aed_tracer_do
-        procedure :: do_ppdd                  => aed_tracer_do_ppdd
-        procedure :: do_benthos               => aed_tracer_do_benthos
-        procedure :: get_conserved_quantities => aed_tracer_get_conserved_quantities
+        PROCEDURE :: initialize               => aed_init_tracer
+        PROCEDURE :: do                       => aed_tracer_do
+        PROCEDURE :: do_ppdd                  => aed_tracer_do_ppdd
+        PROCEDURE :: do_benthos               => aed_tracer_do_benthos
    END TYPE
 
 
@@ -54,8 +53,9 @@ MODULE aed_tracer
 CONTAINS
 
 
+
 !###############################################################################
-SUBROUTINE aed_tracer_init(self,configunit)
+SUBROUTINE aed_init_tracer(self,namlst)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -63,26 +63,27 @@ SUBROUTINE aed_tracer_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_tracer),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                           :: configunit
+   INTEGER,INTENT(in) :: namlst
+   CLASS (aed_type_tracer),TARGET,INTENT(inout) :: self
 !
 !LOCALS
-
+   INTEGER  :: status
    INTEGER  :: num_tracers
-   real(rk) :: decay(100)
-   real(rk) :: settling(100)
-   real(rk) :: Fsed(100)
-   real(rk) :: trace_initial = 0.0_rk
+   AED_REAL :: decay(100)
+   AED_REAL :: settling(100)
+   AED_REAL :: Fsed(100)
+   AED_REAL :: trace_initial = zero_
    INTEGER  :: i
    CHARACTER(4) :: trac_name
 
-   real(rk),PARAMETER :: secs_pr_day = 86400.
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_tracer/ num_tracers,decay,settling,Fsed
 !
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Read the namelist
-   read(configunit,nml=aed_tracer,err=99)
+   read(namlst,nml=aed_tracer,iostat=status)
+   IF (status /= 0) STOP 'Error reading namelist aed_tracer'
 
    ! Store parameter values in our own derived type
 
@@ -95,93 +96,86 @@ SUBROUTINE aed_tracer_init(self,configunit)
    ! Register state variables
    DO i=1,num_tracers
       trac_name(3:3) = CHAR(ICHAR('0') + i)
-      call self%register_state_variable(self%id_ss(i),TRIM(trac_name),'mmol/m**3','tracer', &
-                                   trace_initial,minimum=0.0_rk,no_river_dilution=.false.)
+      CALL self%register_state_variable(self%id_ss(i),TRIM(trac_name),'mmol/m**3','tracer', &
+                                   trace_initial,minimum=zero_,no_river_dilution=.false.)
    ENDDO
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,standard_variables%temperature)
-
-   RETURN
-
-99 CALL self%fatal_error('aed_tracer_init','Error reading namelist aed_tracer')
-
-END SUBROUTINE aed_tracer_init
+   CALL self%register_dependency(self%id_temp,standard_variables%temperature)
+END SUBROUTINE aed_init_tracer
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_tracer_do(self,_FABM_ARGS_DO_RHS_)
+SUBROUTINE aed_tracer_do(self,_ARGUMENTS_DO_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of aed_tracer model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_tracer),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   CLASS (aed_type_tracer),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_
 !
 !LOCALS
 
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 END SUBROUTINE aed_tracer_do
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
 !###############################################################################
-SUBROUTINE aed_tracer_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+SUBROUTINE aed_tracer_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of tracer biogeochemical model exporting
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_tracer),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   CLASS (aed_type_tracer),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 !LOCALS
 
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 END SUBROUTINE aed_tracer_do_ppdd
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
 !###############################################################################
-SUBROUTINE aed_tracer_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+SUBROUTINE aed_tracer_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !-------------------------------------------------------------------------------
 ! Calculate pelagic bottom fluxes and benthic sink and source terms of AED tracer.
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_tracer),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   CLASS (aed_type_tracer),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 !LOCALS
    ! Environment
-   real(rk) :: temp
+   AED_REAL :: temp
 
    ! State
-   real(rk) :: ss
+   AED_REAL :: ss
 
    ! Temporary variables
-   real(rk) :: ss_flux, theta_sed_ss = 1.0
+   AED_REAL :: ss_flux, theta_sed_ss = 1.0
    INTEGER  :: i
 
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
    _GET_(self%id_temp,temp)  ! local temperature
@@ -199,42 +193,9 @@ SUBROUTINE aed_tracer_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    ENDDO
 
    ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_tracer_do_benthos
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-!###############################################################################
-SUBROUTINE aed_tracer_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
-!-------------------------------------------------------------------------------
-! Get the total of conserved quantities (currently only tracer)
-!-------------------------------------------------------------------------------
-!ARGUMENTS
-   class (type_aed_tracer),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-!
-!LOCALS
-!  real(rk) :: ss
-!  INTEGER  :: i
-!
-!-------------------------------------------------------------------------------
-!BEGIN
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-!  DO i,ubound(self%id_ss,1)
-      ! Retrieve current (local) state variable values.
-!     _GET_(self%id_ss(i),ss) ! tracer
-
-      ! Total nutrient is simply the sum of all variables.
-!     _SET_CONSERVED_QUANTITY_(self%id_ss(i),ss)
-!  ENDDO
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-END SUBROUTINE aed_tracer_get_conserved_quantities
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 

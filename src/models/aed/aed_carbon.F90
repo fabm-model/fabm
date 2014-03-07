@@ -25,7 +25,7 @@ MODULE aed_carbon
 ! The AED module carbon contains equations that describe exchange of
 ! soluable reactive carbon across the air/water interface and sediment flux.
 !-------------------------------------------------------------------------------
-   USE fabm_types
+   USE aed_core
 
    USE aed_util,  ONLY: aed_gas_piston_velocity
 
@@ -33,33 +33,31 @@ MODULE aed_carbon
 
    PRIVATE
 !
-   PUBLIC type_aed_carbon
+   PUBLIC aed_type_carbon
 !
-   TYPE,extends(type_base_model) :: type_aed_carbon
+   TYPE,extends(type_base_model) :: aed_type_carbon
 !     Variable identifiers
-      type (type_state_variable_id)      :: id_dic, id_pH, id_ch4, id_oxy
-      type (type_bottom_state_variable_id) :: id_Fsed_dic
-      type (type_dependency_id)          :: id_temp, id_salt
-      type (type_horizontal_dependency_id)  :: id_wind
-      type (type_diagnostic_variable_id) :: id_ch4ox
-      type (type_horizontal_diagnostic_variable_id) :: id_sed_dic
-      type (type_horizontal_diagnostic_variable_id) :: id_atm_co2_exch
-      type (type_conserved_quantity_id)  :: id_totC
+      TYPE (type_state_variable_id)      :: id_dic, id_pH, id_ch4, id_oxy
+      TYPE (type_horizontal_dependency_id) :: id_Fsed_dic
+      TYPE (type_dependency_id)          :: id_temp, id_salt
+      TYPE (type_horizontal_dependency_id)  :: id_wind
+      TYPE (type_diagnostic_variable_id) :: id_ch4ox
+      TYPE (type_horizontal_diagnostic_variable_id) :: id_sed_dic
+      TYPE (type_horizontal_diagnostic_variable_id) :: id_atm_co2_exch
 
 !     Model parameters
-      real(rk) :: Fsed_dic,Ksed_dic,theta_sed_dic
-      real(rk) :: Fsed_ch4,Ksed_ch4,theta_sed_ch4
-      real(rk) :: Rch4ox,Kch4ox,vTch4ox,atmco2,ionic
+      AED_REAL :: Fsed_dic,Ksed_dic,theta_sed_dic
+      AED_REAL :: Fsed_ch4,Ksed_ch4,theta_sed_ch4
+      AED_REAL :: Rch4ox,Kch4ox,vTch4ox,atmco2,ionic
       LOGICAL  :: use_oxy,use_dic,use_sed_model
       LOGICAL  :: simDIC, simCH4
 
       CONTAINS  ! Model Parameters
-        procedure :: initialize               => aed_carbon_init
-        procedure :: do                       => aed_carbon_do
-        procedure :: do_ppdd                  => aed_carbon_do_ppdd
-        procedure :: do_benthos               => aed_carbon_do_benthos
-        procedure :: get_conserved_quantities => aed_carbon_get_conserved_quantities
-        procedure :: get_surface_exchange     => aed_carbon_get_surface_exchange
+        PROCEDURE :: initialize               => aed_init_carbon
+        PROCEDURE :: do                       => aed_carbon_do
+        PROCEDURE :: do_ppdd                  => aed_carbon_do_ppdd
+        PROCEDURE :: do_benthos               => aed_carbon_do_benthos
+        PROCEDURE :: get_surface_exchange     => aed_carbon_get_surface_exchange
    END TYPE
 
 
@@ -69,7 +67,7 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_carbon_init(self,configunit)
+SUBROUTINE aed_init_carbon(self,namlst)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -77,29 +75,33 @@ SUBROUTINE aed_carbon_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_carbon),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                           :: configunit
+   CLASS (aed_type_carbon),TARGET,INTENT(inout) :: self
+   INTEGER,INTENT(in) :: namlst
+!
+!LOCALS
 
-   real(rk)          :: pH_initial=7.5
-   real(rk)          :: ionic = 0.0
-   real(rk)          :: dic_initial=4.5
-   real(rk)          :: Fsed_dic = 3.5
-   real(rk)          :: Ksed_dic = 30.0
-   real(rk)          :: theta_sed_dic = 1.0
+   INTEGER  :: status
+
+   AED_REAL          :: pH_initial=7.5
+   AED_REAL          :: ionic = 0.0
+   AED_REAL          :: dic_initial=4.5
+   AED_REAL          :: Fsed_dic = 3.5
+   AED_REAL          :: Ksed_dic = 30.0
+   AED_REAL          :: theta_sed_dic = 1.0
    CHARACTER(len=64) :: Fsed_dic_variable=''
-   real(rk)          :: ch4_initial=4.5
-   real(rk)          :: Fsed_ch4 = 3.5
-   real(rk)          :: Ksed_ch4 = 30.0
-   real(rk)          :: theta_sed_ch4 = 1.0
+   AED_REAL          :: ch4_initial=4.5
+   AED_REAL          :: Fsed_ch4 = 3.5
+   AED_REAL          :: Ksed_ch4 = 30.0
+   AED_REAL          :: theta_sed_ch4 = 1.0
    CHARACTER(len=64) :: Fsed_ch4_variable=''
-   real(rk)          :: Rch4ox = 0.01
-   real(rk)          :: Kch4ox = 0.01
-   real(rk)          :: vTch4ox= 1.05
-   real(rk)          :: atmco2 = 367e-6
+   AED_REAL          :: Rch4ox = 0.01
+   AED_REAL          :: Kch4ox = 0.01
+   AED_REAL          :: vTch4ox= 1.05
+   AED_REAL          :: atmco2 = 367e-6
    CHARACTER(len=64) :: methane_reactant_variable=''
 
 
-   real(rk),PARAMETER :: secs_pr_day = 86400.
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_carbon/ dic_initial,pH_initial,ionic,Fsed_dic,Ksed_dic,theta_sed_dic,Fsed_dic_variable, &
                          ch4_initial,Fsed_ch4,Ksed_ch4,theta_sed_ch4,Fsed_ch4_variable, &
                          atmco2,Rch4ox,Kch4ox,vTch4ox,methane_reactant_variable
@@ -107,7 +109,11 @@ SUBROUTINE aed_carbon_init(self,configunit)
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Read the namelist
-   read(configunit,nml=aed_carbon,err=99)
+   read(namlst,nml=aed_carbon,iostat=status)
+   IF (status /= 0) THEN
+      print *,'Error reading namelist aed_carbon'
+      STOP
+   ENDIF
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -127,76 +133,65 @@ SUBROUTINE aed_carbon_init(self,configunit)
    self%simCH4        = .false.
 
 
+
    ! Register state variables
-   IF(dic_initial>MISVAL) THEN
-     call self%register_state_variable(self%id_dic,'dic','mmol/m**3','dissolved inorganic carbon',     &
-                                      dic_initial,minimum=0.0_rk,no_river_dilution=.false.)
+   IF (dic_initial>MISVAL) THEN
+     CALL self%register_state_variable(self%id_dic,'dic','mmol/m**3','dissolved inorganic carbon',     &
+                                      dic_initial,minimum=zero_,no_river_dilution=.false.)
      self%simDIC = .true.
-     call self%register_state_variable(self%id_pH,'pH','-','pH',     &
-                                      pH_initial,minimum=0.0_rk,no_river_dilution=.true.)
-   END IF
+     CALL self%register_state_variable(self%id_pH,'pH','-','pH',     &
+                                      pH_initial,minimum=zero_,no_river_dilution=.true.)
+   ENDIF
 
-   IF(ch4_initial>MISVAL) THEN
-     call self%register_state_variable(self%id_ch4,'ch4','mmol/m**3','methane',    &
-                                    ch4_initial,minimum=0.0_rk,no_river_dilution=.false.)
+   IF (ch4_initial>MISVAL) THEN
+     CALL self%register_state_variable(self%id_ch4,'ch4','mmol/m**3','methane',    &
+                                    ch4_initial,minimum=zero_,no_river_dilution=.false.)
      self%simCH4 = .true.
-   END IF
+   ENDIF
 
-   ! Register external state variable dependencies
+   !# Register external state variable dependencies
    self%use_oxy = methane_reactant_variable .NE. '' !This means oxygen module switched on
    IF (self%use_oxy) THEN
-     call self%register_state_dependency(self%id_oxy,methane_reactant_variable)
+     CALL self%register_state_dependency(self%id_oxy,methane_reactant_variable)
    ENDIF
 
    self%use_sed_model = Fsed_dic_variable .NE. ''
    IF (self%use_sed_model) &
-       call self%register_bottom_state_dependency(self%id_Fsed_dic,Fsed_dic_variable)
+       CALL self%register_horizontal_dependency(self%id_Fsed_dic,Fsed_dic_variable)
 
-   ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_ch4ox,'ch4ox','/d',                    &
-                                                           'methane oxidation rate',   &
-                                        time_treatment=time_treatment_step_integrated)
-   call self%register_horizontal_diagnostic_variable(self%id_sed_dic,'sed_dic','mmol/m**2/d',        &
-                                                      'Filterable reactive carbon',    &
-                          time_treatment=time_treatment_step_integrated)
+   !# Register diagnostic variables
+   CALL self%register_diagnostic_variable(self%id_ch4ox,'ch4ox','/d', 'methane oxidation rate')
+   CALL self%register_horizontal_diagnostic_variable(self%id_sed_dic,'sed_dic','mmol/m**2/d',        &
+                                                      'Filterable reactive carbon')
 
-   call self%register_horizontal_diagnostic_variable(self%id_atm_co2_exch,'atm_co2_exch',            &
-                             'mmol/m**2/d', 'CO2 exchange across atm/water interface', &
-                          time_treatment=time_treatment_step_integrated)
+   CALL self%register_horizontal_diagnostic_variable(self%id_atm_co2_exch,'atm_co2_exch',            &
+                             'mmol/m**2/d', 'CO2 exchange across atm/water interface')
 
-   ! Register conserved quantities
-   call self%register_conserved_quantity(self%id_totC,'TP','mmol/m**3','Total carbon')
-
-   ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,standard_variables%temperature)
-   call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
-   call self%register_dependency(self%id_wind,standard_variables%wind_speed)
-
-   RETURN
-
-99 CALL self%fatal_error('aed_carbon_init','Error reading namelist aed_carbon')
-
-END SUBROUTINE aed_carbon_init
+   !# Register environmental dependencies
+   CALL self%register_dependency(self%id_temp,standard_variables%temperature)
+   CALL self%register_dependency(self%id_salt,standard_variables%practical_salinity)
+   CALL self%register_dependency(self%id_wind,standard_variables%wind_speed)
+END SUBROUTINE aed_init_carbon
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_carbon_do(self,_FABM_ARGS_DO_RHS_)
+SUBROUTINE aed_carbon_do(self,_ARGUMENTS_DO_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of aed_carbon model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_carbon),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   CLASS (aed_type_carbon),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_
 !
 !LOCALS
-   real(rk)           :: dic,ch4,oxy,temp
-   real(rk)           :: ch4oxidation
-
+   AED_REAL :: dic,ch4,oxy,temp
+   AED_REAL :: ch4oxidation
+!
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    IF(self%simDIC .AND. self%simCH4) THEN
       ! Retrieve current (local) state variable values.
@@ -214,7 +209,7 @@ SUBROUTINE aed_carbon_do(self,_FABM_ARGS_DO_RHS_)
       _GET_(self%id_temp,temp)  ! temperature
 
       ! Define some intermediate quantities units mmol C/m3/day
-      ch4oxidation = aed_carbon_fch4ox(self,oxy,temp)
+      ch4oxidation = aed_carbon_fch4ox(self%use_oxy,self%Rch4ox,self%Kch4ox,self%vTch4ox,oxy,temp)
 
       ! Set temporal derivatives
       _SET_ODE_(self%id_dic,ch4*ch4oxidation)
@@ -230,32 +225,30 @@ SUBROUTINE aed_carbon_do(self,_FABM_ARGS_DO_RHS_)
    ENDIF
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
+   _LOOP_END_
 END SUBROUTINE aed_carbon_do
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
 !###############################################################################
-SUBROUTINE aed_carbon_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+SUBROUTINE aed_carbon_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of carbon biogeochemical model exporting
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_carbon),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   CLASS (aed_type_carbon),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 !LOCALS
-   real(rk)                   :: dic
-   real(rk)                   :: diff_dic
-   real(rk), parameter        :: secs_pr_day = 86400.
+   AED_REAL                   :: dic
+   AED_REAL                   :: diff_dic
+   AED_REAL, parameter        :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    IF(self%simDIC .AND. self%simCH4) THEN
       ! Retrieve current (local) state variable values.
@@ -268,35 +261,31 @@ SUBROUTINE aed_carbon_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    END IF
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
+   _LOOP_END_
 END SUBROUTINE aed_carbon_do_ppdd
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
 !###############################################################################
-SUBROUTINE aed_carbon_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+SUBROUTINE aed_carbon_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
 !-------------------------------------------------------------------------------
-! Calculate pelagic bottom fluxes and benthic sink and source terms of AED carbon.
-! Everything in units per surface area (not volume!) per time.
+! Air-sea exchange for the aed carbon model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_carbon),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   CLASS (aed_type_carbon),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_SURFACE_
 !
 !LOCALS
    ! Environment
-   real(rk) :: temp
+   AED_REAL :: temp, salt, wind
 
    ! State
-   real(rk) :: dic,oxy
+   AED_REAL :: dic,ph
 
    ! Temporary variables
-   real(rk) :: dic_flux, Fsed_dic
-
-   ! Parameters
-   real(rk),PARAMETER :: secs_pr_day = 86400.
+   AED_REAL :: pCO2,FCO2
+   AED_REAL :: Ko, KCO2
+   AED_REAL :: Tabs,windHt
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -304,7 +293,78 @@ SUBROUTINE aed_carbon_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    IF(.NOT.self%simDIC) RETURN
 
    ! Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
+
+   !Get dependent state variables from physical driver
+   _GET_(self%id_temp,temp)     ! Temperature (degrees Celsius)
+   _GET_(self%id_salt,salt)     ! Salinity (psu)
+   _GET_HORIZONTAL_(self%id_wind,wind)  ! Wind speed at 10 m above surface (m/s)
+   windHt = 10.
+
+    ! Retrieve current (local) state variable values.
+   _GET_(self%id_dic,dic) ! Concentration of carbon in surface layer
+   _GET_(self%id_pH,ph) ! Concentration of carbon in surface layer
+
+   kCO2 = aed_gas_piston_velocity(windHt,wind,temp,salt)
+
+   ! Solubility, Ko (mol/L/atm)
+   Tabs = temp + 273.15
+   Ko = -58.0931+90.5069*(100.0/Tabs) + 22.294*log(Tabs/100.0) &
+          + 0.027766*salt - 0.025888*salt*(Tabs/100.0)
+   Ko = Ko + 0.0050578*salt*(Tabs/100.0)*(Tabs/100.0)
+   Ko = exp(Ko)
+
+   ! pCO2 in surface water layer
+   pCO2 = aed_carbon_co2(self%ionic,temp,dic,ph) / Ko
+
+   ! FCO2 = kCO2 * Ko * (pCO2 - PCO2a)
+   ! pCO2a = 367e-6 (Keeling & Wharf, 1999)
+
+   ! mmol/m2/s = m/s * mmol/L/atm * atm
+   FCO2 = kCO2 * Ko*1e6 * (pCO2 - self%atmco2)
+
+   ! Transfer surface exchange value to FABM (mmmol/m2) converted by driver.
+   _SET_SURFACE_EXCHANGE_(self%id_dic,FCO2)
+
+   ! Also store oxygen flux across the atm/water interface as diagnostic variable (mmmol/m2).
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_atm_co2_exch,FCO2)
+
+   ! Leave spatial loops (if any)
+   _HORIZONTAL_LOOP_END_
+END SUBROUTINE aed_carbon_get_surface_exchange
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+SUBROUTINE aed_carbon_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
+!-------------------------------------------------------------------------------
+! Calculate pelagic bottom fluxes and benthic sink and source terms of AED carbon.
+! Everything in units per surface area (not volume!) per time.
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   CLASS (aed_type_carbon),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
+!
+!LOCALS
+   ! Environment
+   AED_REAL :: temp
+
+   ! State
+   AED_REAL :: dic,oxy
+
+   ! Temporary variables
+   AED_REAL :: dic_flux, Fsed_dic
+
+   ! Parameters
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
+
+!-------------------------------------------------------------------------------
+!BEGIN
+
+   IF(.NOT.self%simDIC) RETURN
+
+   ! Enter spatial loops (if any)
+   _HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
    _GET_(self%id_temp,temp)  ! local temperature
@@ -345,54 +405,13 @@ SUBROUTINE aed_carbon_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_dic,dic_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
-
+   _HORIZONTAL_LOOP_END_
 END SUBROUTINE aed_carbon_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
 !###############################################################################
-SUBROUTINE aed_carbon_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
-!-------------------------------------------------------------------------------
-! Get the total of conserved quantities (currently only carbon)
-!-------------------------------------------------------------------------------
-!ARGUMENTS
-   class (type_aed_carbon),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-!
-!LOCALS
-   real(rk) :: dic,ch4
-!
-!-------------------------------------------------------------------------------
-!BEGIN
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   dic = 0.0_rk
-   ch4 = 0.0_rk
-
-   ! Retrieve current (local) state variable values.
-   IF(self%simDIC) THEN
-     _GET_(self%id_dic,dic) ! DIC
-   END IF
-   IF(self%simCH4) THEN
-     _GET_(self%id_ch4,ch4) ! CH4
-   END IF
-
-   ! Total is simply the sum of all variables.
-   _SET_CONSERVED_QUANTITY_(self%id_totC,dic+ch4)
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-END SUBROUTINE aed_carbon_get_conserved_quantities
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-
-!###############################################################################
-PURE real(rk) FUNCTION aed_carbon_fch4ox(self,oxy,temp)
+PURE AED_REAL FUNCTION aed_carbon_fch4ox(use_oxy,Rch4ox,Kch4ox,vTch4ox,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for methane oxidation
 !
@@ -400,108 +419,33 @@ PURE real(rk) FUNCTION aed_carbon_fch4ox(self,oxy,temp)
 ! is formulated.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_carbon),INTENT(in) :: self
-   real(rk),INTENT(in)                  :: oxy,temp
+   LOGICAL,INTENT(in)  :: use_oxy
+   AED_REAL,INTENT(in) :: Rch4ox,Kch4ox,vTch4ox,oxy,temp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   IF (self%use_oxy) THEN
-      aed_carbon_fch4ox = self%Rch4ox * oxy/(self%Kch4ox+oxy) * (self%vTch4ox**(temp-20.0))
+   IF (use_oxy) THEN
+      aed_carbon_fch4ox = Rch4ox * oxy/(Kch4ox+oxy) * (vTch4ox**(temp-20.0))
    ELSE
-      aed_carbon_fch4ox = self%Rch4ox * (self%vTch4ox**(temp-20.0))
+      aed_carbon_fch4ox = Rch4ox * (vTch4ox**(temp-20.0))
    ENDIF
 
 END FUNCTION aed_carbon_fch4ox
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
-
 !###############################################################################
-SUBROUTINE aed_carbon_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_)
-!-------------------------------------------------------------------------------
-! Air-sea exchange for the aed carbon model
-!-------------------------------------------------------------------------------
-!ARGUMENTS
-   class (type_aed_carbon),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
-!
-!LOCALS
-   ! Environment
-   real(rk) :: temp, salt, wind
-
-   ! State
-   real(rk) :: dic,ph
-
-   ! Temporary variables
-   real(rk) :: pCO2,FCO2
-   real(rk) :: Ko, KCO2
-   real(rk) :: Tabs,windHt
-
-!-------------------------------------------------------------------------------
-!BEGIN
-
-   IF(.NOT.self%simDIC) RETURN
-
-   ! Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
-
-   !Get dependent state variables from physical driver
-   _GET_(self%id_temp,temp)     ! Temperature (degrees Celsius)
-   _GET_(self%id_salt,salt)     ! Salinity (psu)
-   _GET_HORIZONTAL_(self%id_wind,wind)  ! Wind speed at 10 m above surface (m/s)
-   windHt = 10.
-
-    ! Retrieve current (local) state variable values.
-   _GET_(self%id_dic,dic) ! Concentration of carbon in surface layer
-   _GET_(self%id_pH,ph) ! Concentration of carbon in surface layer
-
-   kCO2 = aed_gas_piston_velocity(windHt,wind,temp,salt)
-
-   ! Solubility, Ko (mol/L/atm)
-   Tabs = temp + 273.15
-   Ko = -58.0931+90.5069*(100.0/Tabs) + 22.294*log(Tabs/100.0) &
-          + 0.027766*salt - 0.025888*salt*(Tabs/100.0)
-   Ko = Ko + 0.0050578*salt*(Tabs/100.0)*(Tabs/100.0)
-   Ko = exp(Ko)
-
-   ! pCO2 in surface water layer
-   pCO2 = aed_carbon_co2(self,temp,dic,ph) / Ko
-
-   ! FCO2 = kCO2 * Ko * (pCO2 - PCO2a)
-   ! pCO2a = 367e-6 (Keeling & Wharf, 1999)
-
-   ! mmol/m2/s = m/s * mmol/L/atm * atm
-   FCO2 = kCO2 * Ko*1e6 * (pCO2 - self%atmco2)
-
-   ! Transfer surface exchange value to FABM (mmmol/m2) converted by driver.
-   _SET_SURFACE_EXCHANGE_(self%id_dic,FCO2)
-
-   ! Also store oxygen flux across the atm/water interface as diagnostic variable (mmmol/m2).
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_atm_co2_exch,FCO2)
-
-   ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
-
-END SUBROUTINE aed_carbon_get_surface_exchange
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-
-
-!###############################################################################
-PURE real(rk) FUNCTION aed_carbon_co2(self,temp,dic,pH)
+PURE AED_REAL FUNCTION aed_carbon_co2(ionic,temp,dic,pH)
 !-------------------------------------------------------------------------------
 ! CO2 concentration of DIC at fixed T
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_carbon),INTENT(in) :: self
-   real(rk), INTENT(IN)                 :: dic, temp, pH
+   AED_REAL, INTENT(IN)                 :: ionic, dic, temp, pH
 !
 !LOCALS
    ! Temporary variables
-   real(rk) :: K_h, Kw, Ka1, Ka2, i_f
-   real(rk) :: H, CO2, HCO3, CO3, TA
+   AED_REAL :: K_h, Kw, Ka1, Ka2, i_f
+   AED_REAL :: H, CO2, HCO3, CO3, TA
 !-------------------------------------------------------------------------------
 !BEGIN
 
@@ -521,18 +465,18 @@ PURE real(rk) FUNCTION aed_carbon_co2(self,temp,dic,pH)
    ! Ionic strength dependence
 
    ! 1st calculate function f
-   i_f = (((SQRT(self%ionic)) / (1+SQRT(self%ionic))) -0.20*self%ionic) * &
+   i_f = (((SQRT(ionic)) / (1+SQRT(ionic))) -0.20*ionic) * &
                        (298.0/(temp+273.))**0.666667
 
    ! pKh = pKh(0) + bI
    ! b = 0.105 (Butler, 1982)
-   K_h = K_h + 0.105*self%ionic
+   K_h = K_h + 0.105*ionic
 
    ! pKw = pKw(0) - f
    Kw = Kw - i_f
 
    ! pKa1 = pKa1(0) - f - bI
-   Ka1 = Ka1 - i_f - 0.105*self%ionic
+   Ka1 = Ka1 - i_f - 0.105*ionic
 
    !pKa2 = pKa2(0) - 2f
    Ka2 = Ka2 + 2.0*i_f

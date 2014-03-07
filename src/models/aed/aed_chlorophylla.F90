@@ -21,34 +21,32 @@ MODULE aed_chlorophylla
 !-------------------------------------------------------------------------------
 ! aed_chlorphylla --- simple lumped chl-a model
 !-------------------------------------------------------------------------------
-   USE fabm_types
+   USE aed_core
 
    IMPLICIT NONE
 
    PRIVATE
 !
-   PUBLIC type_aed_chla
+   PUBLIC aed_type_chla
 !
-   TYPE,extends(type_base_model) :: type_aed_chla
+   TYPE,extends(type_base_model) :: aed_type_chla
 !     Variable identifiers
-      type (type_state_variable_id)      :: id_p
-      type (type_state_variable_id)      :: id_exctarget,id_morttarget,id_upttarget
-      type (type_dependency_id)          :: id_par
-      type (type_horizontal_dependency_id)  :: id_I_0
-      type (type_diagnostic_variable_id) :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
-      type (type_conserved_quantity_id)  :: id_totN
+      TYPE (type_state_variable_id)      :: id_p
+      TYPE (type_state_variable_id)      :: id_exctarget,id_morttarget,id_upttarget
+      TYPE (type_dependency_id)          :: id_par
+      TYPE (type_horizontal_dependency_id)  :: id_I_0
+      TYPE (type_diagnostic_variable_id) :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
 
 !     Model parameters
-      real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
-      real(rk) :: dic_per_n
-      logical  :: do_exc,do_mort,do_upt
+      AED_REAL :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
+      AED_REAL :: dic_per_n
+      LOGICAL  :: do_exc,do_mort,do_upt
 
       CONTAINS  ! Model Procedures
-        procedure :: initialize               => aed_chla_init
-        procedure :: do                       => aed_chla_do
-        procedure :: do_ppdd                  => aed_chla_do_ppdd
-        procedure :: get_light_extinction     => aed_chla_get_light_extinction
-        procedure :: get_conserved_quantities => aed_chla_get_conserved_quantities
+        PROCEDURE :: initialize               => aed_init_chla
+        PROCEDURE :: do                       => aed_chla_do
+        PROCEDURE :: do_ppdd                  => aed_chla_do_ppdd
+        PROCEDURE :: get_light_extinction     => aed_chla_get_light_extinction
    END TYPE
 
 
@@ -58,38 +56,43 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_chla_init(self,configunit)
+SUBROUTINE aed_init_chla(self, namlst)
 !-------------------------------------------------------------------------------
-! Initialise the NPZD model
+! Initialise the chlorophyl model
 !
-!  Here, the npzd namelist is read and te variables exported
+!  Here, the chla namelist is read and te variables exported
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_chla),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                         :: configunit
+   CLASS (aed_type_chla),TARGET,INTENT(inout) :: self
+   INTEGER,INTENT(in) :: namlst
 
-   real(rk)           :: p_initial=0.
-   real(rk)           :: p0=0.0225
-   real(rk)           :: w_p=-1.157407e-05
-   real(rk)           :: i_min=25.
-   real(rk)           :: rmax=1.157407e-05
-   real(rk)           :: alpha=0.3
-   real(rk)           :: rpn=1.157407e-07
-   real(rk)           :: rpdu=2.314814e-07
-   real(rk)           :: rpdl=1.157407e-06
+!
+!LOCALS
+   INTEGER  :: status
+
+   AED_REAL           :: p_initial=0.
+   AED_REAL           :: p0=0.0225
+   AED_REAL           :: w_p=-1.157407e-05
+   AED_REAL           :: i_min=25.
+   AED_REAL           :: rmax=1.157407e-05
+   AED_REAL           :: alpha=0.3
+   AED_REAL           :: rpn=1.157407e-07
+   AED_REAL           :: rpdu=2.314814e-07
+   AED_REAL           :: rpdl=1.157407e-06
    CHARACTER(len=64)  :: excretion_target_variable=''
    CHARACTER(len=64)  :: mortality_target_variable=''
    CHARACTER(len=64)  :: uptake_target_variable=''
 
-   real(rk),PARAMETER :: secs_pr_day = 86400.
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_chla/ p_initial,p0,w_p,i_min,rmax,alpha,rpn,rpdu,rpdl, &
                     excretion_target_variable,mortality_target_variable,uptake_target_variable
 
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Read the namelist
-   read(configunit,nml=aed_chla,err=99)
+   read(namlst,nml=aed_chla,iostat=status)
+   IF (status /= 0) STOP 'Error reading namelist aed_chla'
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -103,8 +106,8 @@ SUBROUTINE aed_chla_init(self,configunit)
    self%rpdl = rpdl/secs_pr_day
 
    ! Register state variables
-   call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton', &
-                                    p_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
+   CALL self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton', &
+                                    p_initial,minimum=zero_,vertical_movement=w_p/secs_pr_day)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    self%do_exc = excretion_target_variable .NE. ''
@@ -116,54 +119,40 @@ SUBROUTINE aed_chla_init(self,configunit)
 
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
-                     time_treatment=time_treatment_step_integrated)
-   call self%register_diagnostic_variable(self%id_NCP,'NCP','mmol/m**3',  'net community production',           &
-                     time_treatment=time_treatment_step_integrated)
-   call self%register_diagnostic_variable(self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',      &
-                     time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_NPR,'NPR','mmol/m**3/d','net community production rate',      &
-                     time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
-                     time_treatment=time_treatment_averaged)
-
-   ! Register conserved quantities
-   call self%register_conserved_quantity(self%id_totN,'N','mmol/m**3','nitrogen')
+   CALL self%register_diagnostic_variable(self%id_GPP,'GPP','mmol/m**3',  'gross primary production')
+   CALL self%register_diagnostic_variable(self%id_NCP,'NCP','mmol/m**3',  'net community production')
+   CALL self%register_diagnostic_variable(self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate')
+   CALL self%register_diagnostic_variable(self%id_NPR,'NPR','mmol/m**3/d','net community production rate')
+   CALL self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',    'photosynthetically active radiation')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
-   call self%register_dependency(self%id_I_0,standard_variables%surface_downwelling_photosynthetic_radiative_flux)
+   CALL self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
+   CALL self%register_dependency(self%id_I_0,standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
 
-   PRINT *,'AED_CHLA : Note this module has not been completed. Stopping.'
-   STOP
-
-   RETURN
-
-99 call self%fatal_error('aed_chla_init','Error reading namelist aed_chla')
-
-END SUBROUTINE aed_chla_init
+   PRINT *,'AED_CHLA : Note this module has not been completed.'
+END SUBROUTINE aed_init_chla
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_chla_do(self,_FABM_ARGS_DO_RHS_)
+SUBROUTINE aed_chla_do(self,_ARGUMENTS_DO_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of chlorophylla model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_chla),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   CLASS (aed_type_chla),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_
 !
 !LOCALS
-   real(rk)           :: n,p,par,I_0
-   real(rk)           :: iopt,rpd,primprod
-   real(rk),PARAMETER :: secs_pr_day = 86400.
+   AED_REAL           :: n,p,par,I_0
+   AED_REAL           :: iopt,rpd,primprod
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
 
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -208,29 +197,28 @@ SUBROUTINE aed_chla_do(self,_FABM_ARGS_DO_RHS_)
    _SET_DIAGNOSTIC_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
 END SUBROUTINE aed_chla_do
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_chla_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
+SUBROUTINE aed_chla_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !-------------------------------------------------------------------------------
-! !IROUTINE: Get the light extinction coefficient due to biogeochemical
-! variables
+! Get the light extinction coefficient due to biogeochemical variables
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_chla),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_GET_EXTINCTION_
+   CLASS (aed_type_chla),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 !LOCALS
-   real(rk)                     :: p
+   AED_REAL :: p
 !
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -239,59 +227,29 @@ SUBROUTINE aed_chla_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
    _SET_EXTINCTION_(0.0*p)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
 END SUBROUTINE aed_chla_get_light_extinction
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_chla_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
-!-------------------------------------------------------------------------------
-! Get the total of conserved quantities (currently only nitrogen)
-!-------------------------------------------------------------------------------
-!ARGUMENTS
-   class (type_aed_chla),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-
-!LOCALS
-   real(rk) :: p
-!
-!-------------------------------------------------------------------------------
-!BEGIN
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_p,p) ! phytoplankton
-
-   ! Total nutrient is simply the sum of all variables.
-   _SET_CONSERVED_QUANTITY_(self%id_totN,p)
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-END SUBROUTINE aed_chla_get_conserved_quantities
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-!###############################################################################
-SUBROUTINE aed_chla_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+SUBROUTINE aed_chla_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of NPZD model exporting production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_chla),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   CLASS (aed_type_chla),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 !LOCALS
-   real(rk)           :: n,p,par,I_0=0.
-   real(rk)           :: iopt,rpd,primprod
-   real(rk),PARAMETER :: secs_pr_day = 86400.
+   AED_REAL           :: n,p,par,I_0=0.
+   AED_REAL           :: iopt,rpd,primprod
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_p,p) ! phytoplankton
@@ -337,24 +295,24 @@ SUBROUTINE aed_chla_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _SET_DIAGNOSTIC_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
 END SUBROUTINE aed_chla_do_ppdd
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-PURE real(rk) FUNCTION fnp(self,n,p,par,iopt)
+PURE AED_REAL FUNCTION fnp(self,n,p,par,iopt)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for nutrient uptake
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_chla),INTENT(in) :: self
-   real(rk),INTENT(in)                :: n,p,par,iopt
+   CLASS (aed_type_chla),INTENT(in) :: self
+   AED_REAL,INTENT(in)                :: n,p,par,iopt
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   fnp = self%rmax*par/iopt*exp(1.0_rk-par/iopt)*n/(self%alpha+n)*(p+self%p0)
+   fnp = self%rmax*par/iopt*exp(one_-par/iopt)*n/(self%alpha+n)*(p+self%p0)
 
 END FUNCTION fnp
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

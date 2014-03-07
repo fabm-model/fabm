@@ -22,39 +22,39 @@ MODULE aed_pathogens
 !-------------------------------------------------------------------------------
 !  aed_pathogens --- pathogen biogeochemical model
 !-------------------------------------------------------------------------------
-   USE fabm_types
+   USE aed_core
    USE aed_util,ONLY : find_free_lun
 
    IMPLICIT NONE
 
    PRIVATE   ! By default make everything private
 !
-   PUBLIC type_aed_pathogens
+   PUBLIC aed_type_pathogens
 !
 
 
 
    TYPE pathogen_nml_data
       CHARACTER(64) :: p_name
-      real(rk)      :: coef_grwth_uMAX                     !-- Max growth rate at 20C
-      real(rk)      :: coef_grwth_Tmin, coef_grwth_Tmax    !-- Tmin and Tmax, f(T)
-      real(rk)      :: coef_grwth_T1, coef_grwth_T2        !-- coef_grwth_T1  and  coef_grwth_T2
-      real(rk)      :: coef_grwth_Kdoc                     !-- Half-saturation for growth, coef_grwth_Kdoc
-      real(rk)      :: coef_grwth_ic                       !-- coef_grwth_ic
-      real(rk)      :: coef_mort_kd20                      !-- Mortality rate (Dark death rate) @ 20C and 0 psu
-      real(rk)      :: coef_mort_theta                     !-- Temperature multiplier for mortality: coef_mort_theta
-      real(rk)      :: coef_mort_c_SM, coef_mort_alpha, coef_mort_beta  !-- Salinity effect on mortality
-      real(rk)      :: coef_mort_c_PHM, coef_mort_K_PHM, coef_mort_delta_M  !-- pH effect on mortality
-      real(rk)      :: coef_mort_fdoc                      !-- Fraction of mortality back to doc
-      real(rk)      :: coef_light_kb_vis, coef_light_kb_uva, coef_light_kb_uvb !-- Light inactivation
-      real(rk)      :: coef_light_cSb_vis, coef_light_cSb_uva, coef_light_cSb_uvb !-- Salinity effect on light inactivation
-      real(rk)      :: coef_light_kDOb_vis, coef_light_kDOb_uva, coef_light_kDOb_uvb !-- DO effect on light
-      real(rk)      :: coef_light_cpHb_vis, coef_light_cpHb_uva, coef_light_cpHb_uvb !-- pH effect on light inactivation
-      real(rk)      :: coef_light_KpHb_vis, coef_light_KpHb_uva, coef_light_KpHb_uvb !-- pH effect on light inactivation
-      real(rk)      :: coef_light_delb_vis, coef_light_delb_uva, coef_light_delb_uvb !-- exponent for pH effect on light inactivation
-      real(rk)      :: coef_pred_kp20, coef_pred_theta_P   !-- Loss rate due to predation and temp multiplier
-      real(rk)      :: coef_sett_fa                        !-- Attached fraction in water column
-      real(rk)      :: coef_sett_w_path      !-- Sedimentation velocity (m/d) at 20C (-ve means down) for NON-ATTACHED orgs
+      AED_REAL      :: coef_grwth_uMAX                     !-- Max growth rate at 20C
+      AED_REAL      :: coef_grwth_Tmin, coef_grwth_Tmax    !-- Tmin and Tmax, f(T)
+      AED_REAL      :: coef_grwth_T1, coef_grwth_T2        !-- coef_grwth_T1  and  coef_grwth_T2
+      AED_REAL      :: coef_grwth_Kdoc                     !-- Half-saturation for growth, coef_grwth_Kdoc
+      AED_REAL      :: coef_grwth_ic                       !-- coef_grwth_ic
+      AED_REAL      :: coef_mort_kd20                      !-- Mortality rate (Dark death rate) @ 20C and 0 psu
+      AED_REAL      :: coef_mort_theta                     !-- Temperature multiplier for mortality: coef_mort_theta
+      AED_REAL      :: coef_mort_c_SM, coef_mort_alpha, coef_mort_beta  !-- Salinity effect on mortality
+      AED_REAL      :: coef_mort_c_PHM, coef_mort_K_PHM, coef_mort_delta_M  !-- pH effect on mortality
+      AED_REAL      :: coef_mort_fdoc                      !-- Fraction of mortality back to doc
+      AED_REAL      :: coef_light_kb_vis, coef_light_kb_uva, coef_light_kb_uvb !-- Light inactivation
+      AED_REAL      :: coef_light_cSb_vis, coef_light_cSb_uva, coef_light_cSb_uvb !-- Salinity effect on light inactivation
+      AED_REAL      :: coef_light_kDOb_vis, coef_light_kDOb_uva, coef_light_kDOb_uvb !-- DO effect on light
+      AED_REAL      :: coef_light_cpHb_vis, coef_light_cpHb_uva, coef_light_cpHb_uvb !-- pH effect on light inactivation
+      AED_REAL      :: coef_light_KpHb_vis, coef_light_KpHb_uva, coef_light_KpHb_uvb !-- pH effect on light inactivation
+      AED_REAL      :: coef_light_delb_vis, coef_light_delb_uva, coef_light_delb_uvb !-- exponent for pH effect on light inactivation
+      AED_REAL      :: coef_pred_kp20, coef_pred_theta_P   !-- Loss rate due to predation and temp multiplier
+      AED_REAL      :: coef_sett_fa                        !-- Attached fraction in water column
+      AED_REAL      :: coef_sett_w_path      !-- Sedimentation velocity (m/d) at 20C (-ve means down) for NON-ATTACHED orgs
    END TYPE
 
    TYPE pathogen_data
@@ -62,33 +62,30 @@ MODULE aed_pathogens
       TYPE(pathogen_nml_data) :: par
    END TYPE
 
-   TYPE,extends(type_base_model) :: type_aed_pathogens
+   TYPE,extends(type_base_model) :: aed_type_pathogens
 !     Variable identifiers
-      type (type_state_variable_id),ALLOCATABLE :: id_p(:)
-      type (type_state_variable_id)      :: id_growth, id_mortality, id_sunlight, id_grazing
-      type (type_dependency_id)          :: id_par, id_tem, id_sal
-      type (type_dependency_id)          :: id_oxy, id_pH,  id_doc, id_tss
-      type (type_horizontal_dependency_id)  :: id_I_0
-!     type (type_diagnostic_variable_id) :: ??
-!     type (type_conserved_quantity_id)  :: ??
+      TYPE (type_state_variable_id),ALLOCATABLE :: id_p(:)
+      TYPE (type_state_variable_id)      :: id_growth, id_mortality, id_sunlight, id_grazing
+      TYPE (type_dependency_id)          :: id_par, id_tem, id_sal
+      TYPE (type_dependency_id)          :: id_oxy, id_pH,  id_doc, id_tss
+      TYPE (type_horizontal_dependency_id)  :: id_I_0
 
 !     Model parameters
       INTEGER                                   :: num_pathogens
       TYPE(pathogen_nml_data),DIMENSION(:),ALLOCATABLE :: pathogens
       LOGICAL                                   :: do_Pexc, do_Nexc, do_Cexc, do_Siexc
       INTEGER :: nnup, npup
-      real(rk) :: dic_per_n
+      AED_REAL :: dic_per_n
 
       CONTAINS     ! Model Methods
-        procedure :: initialize               => aed_pathogens_init
-        procedure :: do                       => aed_pathogens_do
-        procedure :: do_ppdd                  => aed_pathogens_do_ppdd
-        procedure :: do_benthos               => aed_pathogens_do_benthos
-!       procedure :: get_light_extinction     => aed_pathogens_get_light_extinction
-!       procedure :: get_conserved_quantities => aed_pathogens_get_conserved_quantities
+        PROCEDURE :: initialize               => aed_init_pathogens
+        PROCEDURE :: do                       => aed_pathogens_do
+        PROCEDURE :: do_ppdd                  => aed_pathogens_do_ppdd
+        PROCEDURE :: do_benthos               => aed_pathogens_do_benthos
+!       PROCEDURE :: get_light_extinction     => aed_pathogens_get_light_extinction
    END TYPE
 
-   real(rk), parameter :: secs_pr_day = 86400.
+   AED_REAL, parameter :: secs_pr_day = 86400.
 
 !===============================================================================
 CONTAINS
@@ -96,7 +93,7 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_pathogens_init(self,configunit)
+SUBROUTINE aed_init_pathogens(self,namlst)
 !-------------------------------------------------------------------------------
 ! Initialise the pathogen biogeochemical model
 !
@@ -104,20 +101,23 @@ SUBROUTINE aed_pathogens_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_pathogens),TARGET,INTENT(INOUT) :: self
-   INTEGER,                          INTENT(in)    :: configunit
+   INTEGER,INTENT(in) :: namlst
+   CLASS (aed_type_pathogens),TARGET,INTENT(inout) :: self
+
 !
 !LOCALS
+   INTEGER :: status
 
-   INTEGER            :: num_pathogens
-   INTEGER            :: the_pathogens(MAX_PATHO_TYPES)
+   INTEGER :: num_pathogens
+   INTEGER :: the_pathogens(MAX_PATHO_TYPES)
 
 
    NAMELIST /aed_pathogens/ num_pathogens, the_pathogens
 !-----------------------------------------------------------------------
 !BEGIN
    ! Read the namelist
-   read(configunit,nml=aed_pathogens,err=99)
+   read(namlst,nml=aed_pathogens,iostat=status)
+   IF (status /= 0) STOP 'Error reading namelist aed_pathogens'
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -132,27 +132,27 @@ SUBROUTINE aed_pathogens_init(self,configunit)
 
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_tem,standard_variables%temperature)
-   call self%register_dependency(self%id_sal,standard_variables%practical_salinity)
-   call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
-   call self%register_dependency(self%id_I_0,standard_variables%surface_downwelling_photosynthetic_radiative_flux)
+   CALL self%register_dependency(self%id_tem,standard_variables%temperature)
+   CALL self%register_dependency(self%id_sal,standard_variables%practical_salinity)
+   CALL self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
+   CALL self%register_dependency(self%id_I_0,standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
-   RETURN
-
-99 call self%fatal_error('aed_pathogens_init','Error reading namelist aed_pathogens')
-
-END SUBROUTINE aed_pathogens_init
+END SUBROUTINE aed_init_pathogens
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 !###############################################################################
 SUBROUTINE aed_pathogens_load_params(self, count, list)
 !-------------------------------------------------------------------------------
-   class (type_aed_pathogens),INTENT(inout) :: self
+!ARGUMENTS
+   CLASS (aed_type_pathogens),INTENT(inout) :: self
    INTEGER,INTENT(in) :: count
    INTEGER,INTENT(in) :: list(*)
+!
+!LOCALS
+   INTEGER  :: status
 
-   INTEGER     :: i,tfil
-   real(rk)    :: minPath
+   INTEGER  :: i,tfil
+   AED_REAL :: minPath
 
    TYPE(pathogen_nml_data) :: pd(MAX_PATHO_TYPES)
    NAMELIST /pathogen_data/ pd
@@ -161,7 +161,8 @@ SUBROUTINE aed_pathogens_load_params(self, count, list)
     minPath = 1e-10
     tfil = find_free_lun()
     open(tfil,file="aed_pathogen_pars.nml", status='OLD')
-    read(tfil,nml=pathogen_data,err=99)
+    read(tfil,nml=pathogen_data,iostat=status)
+    IF (status /= 0) STOP 'Error reading namelist pathogen_data'
     close(tfil)
 
     self%num_pathogens = count
@@ -173,60 +174,52 @@ SUBROUTINE aed_pathogens_load_params(self, count, list)
        self%pathogens(i)          = pd(list(i))
 
        ! Register group as a state variable
-       call self%register_state_variable(self%id_p(i),                           &
+       CALL self%register_state_variable(self%id_p(i),                        &
                              TRIM(self%pathogens(i)%p_name),                  &
                              'mmol/m**3', 'pathogen',                         &
-                             minPath,                                             &
+                             minPath,                                         &
                             ! pd(list(i))%p_initial,                          &
-                             minimum=minPath,                                           &
+                             minimum=minPath,                                 &
                              !minimum=pd(list(i))%p0,                         &
                              vertical_movement = self%pathogens(i)%coef_sett_w_path)
 
 
 !      IF (self%pathogens(i)%p_name == 'crypto') THEN
 !         ! Register IN group as a state variable
-!         self%id_in(i) = self%register_state_variable(                        &
-!                             TRIM(self%pathogens(i)%p_name)//'_dd',           &
-!                             'mmol/m**3', 'pathogen dd',                      &
-!                             0.0,   &
-!                             0.0,                                  &
+!         self%id_in(i) = self%register_state_variable(                       &
+!                             TRIM(self%pathogens(i)%p_name)//'_dd',          &
+!                             'mmol/m**3', 'pathogen dd',                     &
+!                             0.0,                                            &
+!                             0.0,                                            &
 !                             vertical_movement = self%pathogens(i)%coef_sett_w_path)
 
 !      ENDIF
-
-
     ENDDO
-
-    RETURN
-
-99 call self%fatal_error('aed_pathogens_load_params','Error reading namelist pathogen_data')
-!
 END SUBROUTINE aed_pathogens_load_params
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
 !###############################################################################
-SUBROUTINE aed_pathogens_do(self,_FABM_ARGS_DO_RHS_)
+SUBROUTINE aed_pathogens_do(self,_ARGUMENTS_DO_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of pathogen biogeochemical model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_pathogens),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   CLASS (aed_type_pathogens),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_
 !
 !LOCALS
-   real(rk)           :: pth
-   real(rk)           :: temp,par,Io,salinity
-   real(rk)           :: growth,light,mortality, predation
-   real(rk)           :: f_AOC,f_pH,f_DO,phi,lightBW,phstar
+   AED_REAL           :: pth
+   AED_REAL           :: temp,par,Io,salinity
+   AED_REAL           :: growth,light,mortality, predation
+   AED_REAL           :: f_AOC,f_pH,f_DO,phi,lightBW,phstar
 
    INTEGER            :: pth_i,c
 
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current environmental conditions.
    _GET_   (self%id_tem,temp)     ! local temperature
@@ -244,8 +237,8 @@ SUBROUTINE aed_pathogens_do(self,_FABM_ARGS_DO_RHS_)
       ! Retrieve this pathogen group
       _GET_(self%id_p(pth_i),pth)
 
-      growth    = 0.0_rk
-      predation = 0.0_rk
+      growth    = zero_
+      predation = zero_
 
       ! Natural mortality (as impacted by T, S, pH)
       f_AOC = 1.0 ! aoc / (K_AOC + aoc)
@@ -257,8 +250,8 @@ SUBROUTINE aed_pathogens_do(self,_FABM_ARGS_DO_RHS_)
 
 
       ! Sunlight inactivation (as impacted by S, DO and pH)
-      light     = 0.0_rk
-      lightBW   = 0.0_rk
+      light     = zero_
+      lightBW   = zero_
       phi  = 1e-6  ! Convert J to MJ as kb is in m2/MJ)
       ! Visible
       f_DO = 1.0 !oxy / (coef_light_kDOb_vis + oxy)
@@ -287,45 +280,40 @@ SUBROUTINE aed_pathogens_do(self,_FABM_ARGS_DO_RHS_)
 
    ENDDO
 
-   !-----------------------------------------------------------------
-   ! export diagnostic variables
-   ! _SET_DIAGNOSTIC_(self%id_?? ,??)
-
-
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
 END SUBROUTINE aed_pathogens_do
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_pathogens_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+SUBROUTINE aed_pathogens_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !-------------------------------------------------------------------------------
-! !IROUTINE: Calculate pelagic sedimentation of pathogen.
+! Calculate pelagic sedimentation of pathogen.
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_pathogens),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   CLASS (aed_type_pathogens),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 !LOCALS
-   real(rk) :: pth        ! State
+   AED_REAL :: pth        ! State
    INTEGER  :: pth_i
-   real(rk) :: pth_flux
+   AED_REAL :: pth_flux
 
    ! Parameters
 !
 !-------------------------------------------------------------------------------
 !BEGIN
 
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    DO pth_i=1,self%num_pathogens
       ! Retrieve current (local) state variable values.
       _GET_(self%id_p(pth_i),pth) ! pathogen
 
-      pth_flux = 0.0_rk  !self%pathogens(pth_i)%w_p*MAX(pth,0.0_rk)
+      pth_flux = zero_  !self%pathogens(pth_i)%w_p*MAX(pth,zero_)
 
      ! Set bottom fluxes for the pelagic (change per surface area per second)
      ! Transfer sediment flux value to FABM.
@@ -334,30 +322,30 @@ SUBROUTINE aed_pathogens_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    ENDDO
 
    ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 END SUBROUTINE aed_pathogens_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_pathogens_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+SUBROUTINE aed_pathogens_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of pathogen biogeochemical model exporting
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_pathogens),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   CLASS (aed_type_pathogens),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 !LOCALS
-   real(rk)            :: n,p,par,I_0
+   AED_REAL            :: n,p,par,I_0
    INTEGER             :: pth_i
-   real(rk)            :: iopt,rpd,primprod
+   AED_REAL            :: iopt,rpd,primprod
 !
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    DO pth_i=1,self%num_pathogens
       ! Retrieve current (local) state variable values.
@@ -370,7 +358,7 @@ SUBROUTINE aed_pathogens_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    ENDDO
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
 END SUBROUTINE aed_pathogens_do_ppdd
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

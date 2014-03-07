@@ -23,7 +23,7 @@ MODULE aed_util
 ! aed_util --- shared utility functions for aed modules
 !
 !-------------------------------------------------------------------------------
-   USE fabm_types
+   USE aed_core
 
    IMPLICIT NONE
 
@@ -65,87 +65,102 @@ END FUNCTION find_free_lun
 
 
 !###############################################################################
-PURE real(rk) FUNCTION aed_gas_piston_velocity(wshgt,wind,tem,sal)
+PURE AED_REAL FUNCTION aed_gas_piston_velocity(wshgt,wind,tem,sal,LA)
 !-------------------------------------------------------------------------------
 ! Atmospheric-surface water exchange piston velocity for O2, CO2 etc
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   real(rk),INTENT(IN)    :: wshgt,wind,tem,sal
+   AED_REAL,INTENT(IN)    :: wshgt,wind
+   AED_REAL,INTENT(in),OPTIONAL :: tem,sal
+   AED_REAL,INTENT(in),OPTIONAL :: LA
 !
 !LOCALS
    ! Temporary variables
-   real(rk) :: schmidt,k_wind,k_flow,temp,salt,hgtCorrx
+   AED_REAL :: schmidt,k_wind,k_flow,temp,salt,hgtCorrx
    ! Parameters
-   real(rk),PARAMETER :: roughlength = 0.000114  ! momn roughness length(m)
-   real(rk),PARAMETER :: SCHMIDT_MODEL = 2.0
+   AED_REAL,PARAMETER :: roughlength = 0.000114  ! momn roughness length(m)
+   AED_REAL,PARAMETER :: SCHMIDT_MODEL = 2.0
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   temp=tem
-   salt=sal
-   IF (temp < 0.0)       temp = 0.0
-   IF (temp > 38.0)      temp = 38.0
-   IF (salt < 0.0)       salt = 0.0
-   IF (salt > 75.0)      salt = 75.0
-
-   k_flow = 0.0_rk ! Needs to be set based on flow velocity
-
-   ! Schmidt, Sc
-   ! control value : Sc = 590 at 20°C and 35 psu
-
-    schmidt = 590.
-
-    IF(SCHMIDT_MODEL==1) THEN
-      schmidt = (0.9 + 0.1*salt/35.0)*(1953.4+temp*(-128.0+temp*(3.9918-temp*0.050091)))
-    ELSEIF(SCHMIDT_MODEL==2) THEN
-      schmidt = (0.9 + salt/350.0)
-      schmidt = schmidt * (2073.1 -125.62*temp +3.6276*temp*temp - 0.043219*temp*temp*temp)
-    ELSEIF(SCHMIDT_MODEL==3) THEN
-      ! http://www.geo.uu.nl/Research/Geochemistry/kb/Knowledgebook/O2_transfer.pdf
-      schmidt = (1.0 + 3.4e-3*salt)
-      schmidt = schmidt * (1800.6 -120.1*temp +3.7818*temp*temp - 0.047608*temp*temp*temp)
-    ENDIF
-
+   k_flow = zero_ ! Needs to be set based on flow velocity
 
    ! Adjust the windspeed if the sensor height is not 10m
+   hgtCorrx =  LOG(10.00 / roughLength) / LOG(wshgt / roughLength)
 
-    hgtCorrx =  LOG(10.00 / roughLength) / LOG(wshgt / roughLength)
+   IF (PRESENT(LA)) THEN
 
-   ! Gas transfer velocity, kCO2 (cm/hr)
-   ! k = 0.31 u^2 (Sc/660)^-0.5
-   ! This parameterization of course assumes 10m windspeed, and so
-   ! must be scaled by hgtCorrx
+      ! 2)  - in aed_util, I want to add a new option for the calculation of k_wind.
+      !    This piston velocity routine is called by oxygen and carbon, and so we would
+      !    need a new switch ("k600_model")  in both of those to choose which k_wind
+      !    formulation to use.
+      ! but note that this has a "lake area" (LA) variable included in it.  Is it possible
+      ! in FABM/AED to know what the area of the lake surface is from this function?
 
-    k_wind = 0.31 * wind*wind*hgtCorrx*hgtCorrx / SQRT(schmidt/660.0) !in cm/hr
+      ! Valchon & Prairie 2013: The ecosystem size and shape dependence of gas transfer
+      !                              velocity versus wind speed relationships in lakes
+      ! k600 = 2.51 (±0.99) + 1.48 (±0.34) · U10 + 0.39 (±0.08) · U10 · log10 LA
+
+      k_wind = 2.51 + 1.48*wind*hgtCorrx  +  0.39 * wind*hgtCorrx * log10(LA)
+
+   ELSE
+      temp=tem
+      salt=sal
+      IF (temp < 0.0)       temp = 0.0
+      IF (temp > 38.0)      temp = 38.0
+      IF (salt < 0.0)       salt = 0.0
+      IF (salt > 75.0)      salt = 75.0
+
+      ! Schmidt, Sc
+      ! control value : Sc = 590 at 20°C and 35 psu
+
+      schmidt = 590.
+
+      IF(SCHMIDT_MODEL==1) THEN
+         schmidt = (0.9 + 0.1*salt/35.0)*(1953.4+temp*(-128.0+temp*(3.9918-temp*0.050091)))
+      ELSEIF(SCHMIDT_MODEL==2) THEN
+         schmidt = (0.9 + salt/350.0)
+         schmidt = schmidt * (2073.1 -125.62*temp +3.6276*temp*temp - 0.043219*temp*temp*temp)
+      ELSEIF(SCHMIDT_MODEL==3) THEN
+         ! http://www.geo.uu.nl/Research/Geochemistry/kb/Knowledgebook/O2_transfer.pdf
+         schmidt = (1.0 + 3.4e-3*salt)
+         schmidt = schmidt * (1800.6 -120.1*temp +3.7818*temp*temp - 0.047608*temp*temp*temp)
+      ENDIF
+
+      ! Gas transfer velocity, kCO2 (cm/hr)
+      ! k = 0.31 u^2 (Sc/660)^-0.5
+      ! This parameterization of course assumes 10m windspeed, and so
+      ! must be scaled by hgtCorrx
+
+      k_wind = 0.31 * wind*wind*hgtCorrx*hgtCorrx / SQRT(schmidt/660.0) !in cm/hr
+   ENDIF
 
    ! convert to m/s
-
-    k_wind = k_wind / 3.6e5
+   k_wind = k_wind / 3.6e5
 
    ! piston velocity is the sum due to flow and wind
-
-    aed_gas_piston_velocity = k_flow + k_wind
+   aed_gas_piston_velocity = k_flow + k_wind
 END FUNCTION aed_gas_piston_velocity
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-PURE real(rk) FUNCTION aed_oxygen_sat(salt,temp)
+PURE AED_REAL FUNCTION aed_oxygen_sat(salt,temp)
 !-------------------------------------------------------------------------------
 !  Calculated saturated oxygen concentration at salinity and temperature
 ! Taken from Riley and Skirrow (1974)
 !
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   real(rk),INTENT(in) :: salt,temp
+   AED_REAL,INTENT(in) :: salt,temp
 !
 !LOCALS
-   real(rk) :: Tabs
-   real(rk) :: buf1, buf2, buf3, sol_coeff
+   AED_REAL :: Tabs
+   AED_REAL :: buf1, buf2, buf3, sol_coeff
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   buf1 = 0.0_rk ; buf2 = 0.0_rk ; buf3 = 0.0_rk ; sol_coeff = 0.0_rk
+   buf1 = zero_ ; buf2 = zero_ ; buf3 = zero_ ; sol_coeff = zero_
 
    Tabs = temp + 273.15
    buf1 = -173.4292 + 249.6339 * 100.0 / Tabs + 143.3483 * LOG(Tabs/100.0)
@@ -164,12 +179,12 @@ END FUNCTION aed_oxygen_sat
 !###############################################################################
 FUNCTION exp_integral(inp) RESULT(E_ib)
 !ARGUMENTS
-   real(rk)  :: inp
+   AED_REAL  :: inp
 !
 !LOCALS
-   real(rk)  :: E_ib !-- Outgoing
+   AED_REAL  :: E_ib !-- Outgoing
    INTEGER   :: j
-   real(rk)  :: ff
+   AED_REAL  :: ff
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -209,29 +224,29 @@ SUBROUTINE aed_bio_temp_function(numg, theta, T_std, T_opt, T_max, aTn, bTn, kTn
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    INTEGER,INTENT(in)       :: numg        ! Number of groups
-   real(rk),INTENT(in)      :: theta(:)
-   real(rk),INTENT(inout)   :: T_std(:), T_opt(:), T_max(:)
-   real(rk),INTENT(out)     :: aTn(:), bTn(:), kTn(:)
+   AED_REAL,INTENT(in)      :: theta(:)
+   AED_REAL,INTENT(inout)   :: T_std(:), T_opt(:), T_max(:)
+   AED_REAL,INTENT(out)     :: aTn(:), bTn(:), kTn(:)
    CHARACTER(64),INTENT(in) :: name(:)
 !
 !LOCALS
-   real(rk) :: Ts     ! Min. temperature where fT(Ts)=I (usually 1)
-   real(rk) :: To     ! Optimum temperature where d(fT(To))/dT=0
-   real(rk) :: Tm     ! Maximum temperature where fT(Tm)=0
-   real(rk) :: in     ! Constant for fT(Ts)=in
-   real(rk) :: v      ! Constant v
-   real(rk) :: k,a,b  ! Model constants
-   real(rk) :: G      ! Function fT()
-   real(rk) :: devG       ! Derivative of fT()
-   real(rk) :: a0,a1,a2   ! Dummies
-   real(rk) :: tol        ! Tolerance
+   AED_REAL :: Ts     ! Min. temperature where fT(Ts)=I (usually 1)
+   AED_REAL :: To     ! Optimum temperature where d(fT(To))/dT=0
+   AED_REAL :: Tm     ! Maximum temperature where fT(Tm)=0
+   AED_REAL :: in     ! Constant for fT(Ts)=in
+   AED_REAL :: v      ! Constant v
+   AED_REAL :: k,a,b  ! Model constants
+   AED_REAL :: G      ! Function fT()
+   AED_REAL :: devG       ! Derivative of fT()
+   AED_REAL :: a0,a1,a2   ! Dummies
+   AED_REAL :: tol        ! Tolerance
    INTEGER :: group       ! Group counter
    INTEGER :: i           ! Counters
-   real(rk),PARAMETER :: t20=20.0
+   AED_REAL,PARAMETER :: t20=20.0
    LOGICAL,PARAMETER :: curvef=.true. ! T : f(T)=v**(T-20) at T=Tsta
                                       ! F : f(T) = 1 at T=Tsta
 
-   real(rk),ALLOCATABLE,DIMENSION(:,:) :: value
+   AED_REAL,ALLOCATABLE,DIMENSION(:,:) :: value
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -359,21 +374,21 @@ FUNCTION fTemp_function(method,T_max,T_std,theta,aTn,bTn,kTn,temp) RESULT(fT)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    INTEGER,INTENT(in)  :: method
-   real(rk),INTENT(in) :: T_max, T_std,theta,aTn,bTn,kTn
-   real(rk),INTENT(in) :: temp  ! Temperature
+   AED_REAL,INTENT(in) :: T_max, T_std,theta,aTn,bTn,kTn
+   AED_REAL,INTENT(in) :: temp  ! Temperature
 !
 !LOCALS
-   real(rk)  :: fT        !-- Value of the temperature function
-   real(rk),PARAMETER  :: tp = 20.0
+   AED_REAL  :: fT        !-- Value of the temperature function
+   AED_REAL,PARAMETER  :: tp = 20.0
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   fT = 1.0_rk
+   fT = one_
 
    IF ( method /= 1 ) RETURN
 
    IF (temp > T_max) THEN
-       fT = 0.0_rk
+       fT = zero_
    ELSEIF ( temp < T_std ) THEN
        IF (ABS(temp-tp) > 1+MINEXPONENT(temp)/2) THEN
          fT = theta**(temp-tp)
@@ -382,9 +397,8 @@ FUNCTION fTemp_function(method,T_max,T_std,theta,aTn,bTn,kTn,temp) RESULT(fT)
       IF (ABS(temp-tp) > 1 + MINEXPONENT(temp)/2 .AND. &
           ABS((kTn*(temp-aTn)) + bTn) > 1 + MINEXPONENT(temp)/2) THEN
         fT = theta**(temp-tp) - theta**(kTn*(temp - aTn)) + bTn
-       ENDIF
+      ENDIF
    ENDIF
-
 END FUNCTION fTemp_function
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -397,7 +411,7 @@ END FUNCTION fTemp_function
 RECURSIVE SUBROUTINE qsort(RA,IA,start,end)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   real(rk),INTENT(in) :: RA(:)
+   AED_REAL,INTENT(in) :: RA(:)
    INTEGER,INTENT(inout) :: IA(:)
    INTEGER,INTENT(in) :: start,end
 !

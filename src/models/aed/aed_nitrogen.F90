@@ -24,35 +24,33 @@ MODULE aed_nitrogen
 !
 ! Nitrogen module contains equations for nitrification and deitrification
 !-------------------------------------------------------------------------------
-   USE fabm_types
+   USE aed_core
 
    IMPLICIT NONE
 
    PRIVATE    ! By default make everything private
 !
-   PUBLIC type_aed_nitrogen
+   PUBLIC aed_type_nitrogen
 !
-   TYPE,extends(type_base_model) :: type_aed_nitrogen
+   TYPE,extends(type_base_model) :: aed_type_nitrogen
 !     Variable identifiers
-      type (type_state_variable_id)      :: id_nit, id_amm !nitrate & ammonium
-      type (type_state_variable_id)      :: id_oxy,id_denit_product
-      type (type_dependency_id)          :: id_temp
-      type (type_bottom_state_variable_id)      :: id_Fsed_amm,id_Fsed_nit
-      type (type_diagnostic_variable_id) :: id_nitrif,id_denit
-      type (type_horizontal_diagnostic_variable_id) :: id_sed_amm,id_sed_nit
-      type (type_conserved_quantity_id)  :: id_totN
+      TYPE (type_state_variable_id)      :: id_nit, id_amm !nitrate & ammonium
+      TYPE (type_state_variable_id)      :: id_oxy,id_denit_product
+      TYPE (type_dependency_id)          :: id_temp
+      TYPE (type_horizontal_dependency_id)      :: id_Fsed_amm,id_Fsed_nit
+      TYPE (type_diagnostic_variable_id) :: id_nitrif,id_denit
+      TYPE (type_horizontal_diagnostic_variable_id) :: id_sed_amm,id_sed_nit
 
 !     Model parameters
-      real(rk) :: Rnitrif,Rdenit,Fsed_amm,Fsed_nit,Knitrif,Kdenit,Ksed_amm,Ksed_nit, &
+      AED_REAL :: Rnitrif,Rdenit,Fsed_amm,Fsed_nit,Knitrif,Kdenit,Ksed_amm,Ksed_nit, &
                           theta_nitrif,theta_denit,theta_sed_amm,theta_sed_nit
       LOGICAL  :: use_oxy,use_no2,use_sed_model
 
       CONTAINS   ! Model Procedures
-        procedure :: initialize               => aed_nitrogen_init
-        procedure :: do                       => aed_nitrogen_do
-        procedure :: do_ppdd                  => aed_nitrogen_do_ppdd
-        procedure :: do_benthos               => aed_nitrogen_do_benthos
-        procedure :: get_conserved_quantities => aed_nitrogen_get_conserved_quantities
+        PROCEDURE :: initialize               => aed_init_nitrogen
+        PROCEDURE :: do                       => aed_nitrogen_do
+        PROCEDURE :: do_ppdd                  => aed_nitrogen_do_ppdd
+        PROCEDURE :: do_benthos               => aed_nitrogen_do_benthos
    END TYPE
 
 
@@ -60,8 +58,9 @@ MODULE aed_nitrogen
 CONTAINS
 
 
+
 !###############################################################################
-SUBROUTINE aed_nitrogen_init(self,configunit)
+SUBROUTINE aed_init_nitrogen(self,namlst)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -69,30 +68,33 @@ SUBROUTINE aed_nitrogen_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_nitrogen),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                             :: configunit
+   INTEGER,INTENT(in) :: namlst
+   CLASS (aed_type_nitrogen),TARGET,INTENT(inout) :: self
+!
+!LOCALS
+   INTEGER  :: status
 
-   real(rk)          :: nit_initial=4.5
-   real(rk)          :: amm_initial=4.5
-   real(rk)          :: Rnitrif = 0.01
-   real(rk)          :: Rdenit = 0.01
-   real(rk)          :: Fsed_amm = 3.5
-   real(rk)          :: Fsed_nit = 3.5
-   real(rk)          :: Knitrif = 150.0
-   real(rk)          :: Kdenit = 150.0
-   real(rk)          :: Ksed_amm = 30.0
-   real(rk)          :: Ksed_nit = 30.0
-   real(rk)          :: theta_nitrif = 1.0
-   real(rk)          :: theta_denit = 1.0
-   real(rk)          :: theta_sed_amm = 1.0
-   real(rk)          :: theta_sed_nit = 1.0
+   AED_REAL          :: nit_initial=4.5
+   AED_REAL          :: amm_initial=4.5
+   AED_REAL          :: Rnitrif = 0.01
+   AED_REAL          :: Rdenit = 0.01
+   AED_REAL          :: Fsed_amm = 3.5
+   AED_REAL          :: Fsed_nit = 3.5
+   AED_REAL          :: Knitrif = 150.0
+   AED_REAL          :: Kdenit = 150.0
+   AED_REAL          :: Ksed_amm = 30.0
+   AED_REAL          :: Ksed_nit = 30.0
+   AED_REAL          :: theta_nitrif = 1.0
+   AED_REAL          :: theta_denit = 1.0
+   AED_REAL          :: theta_sed_amm = 1.0
+   AED_REAL          :: theta_sed_nit = 1.0
    CHARACTER(len=64) :: nitrif_reactant_variable=''
    CHARACTER(len=64) :: denit_product_variable=''
    CHARACTER(len=64) :: Fsed_amm_variable=''
    CHARACTER(len=64) :: Fsed_nit_variable=''
 
 
-   real(rk), parameter :: secs_pr_day = 86400.
+   AED_REAL, parameter :: secs_pr_day = 86400.
    NAMELIST /aed_nitrogen/ nit_initial,amm_initial,Rnitrif,Rdenit,Fsed_amm,Fsed_nit, &
                     Knitrif,Kdenit,Ksed_amm,Ksed_nit,                     &
                     theta_nitrif,theta_denit,theta_sed_amm,theta_sed_nit, &
@@ -102,7 +104,8 @@ SUBROUTINE aed_nitrogen_init(self,configunit)
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Read the namelist
-   read(configunit,nml=aed_nitrogen,err=99)
+   read(namlst,nml=aed_nitrogen,iostat=status)
+   IF (status /= 0) STOP 'Error reading namelist aed_nitrogen'
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -121,71 +124,59 @@ SUBROUTINE aed_nitrogen_init(self,configunit)
    self%theta_sed_nit = theta_sed_nit
 
    ! Register state variables
-   call self%register_state_variable(self%id_amm,'amm','mmol/m**3','ammonium',            &
-                                    amm_initial,minimum=0.0_rk,no_river_dilution=.true.)
-   call self%register_state_variable(self%id_nit,'nit','mmol/m**3','nitrate',             &
-                                    nit_initial,minimum=0.0_rk,no_river_dilution=.true.)
+   CALL self%register_state_variable(self%id_amm,'amm','mmol/m**3','ammonium',            &
+                                    amm_initial,minimum=zero_,no_river_dilution=.true.)
+   CALL self%register_state_variable(self%id_nit,'nit','mmol/m**3','nitrate',             &
+                                    nit_initial,minimum=zero_,no_river_dilution=.true.)
    ! Register external state variable dependencies
    self%use_oxy = nitrif_reactant_variable .NE. '' !This means oxygen module switched on
    IF (self%use_oxy) THEN
-     call self%register_state_dependency(self%id_oxy,nitrif_reactant_variable)
+     CALL self%register_state_dependency(self%id_oxy,nitrif_reactant_variable)
    ENDIF
    self%use_no2 = denit_product_variable .NE. '' !This means n2 module switched on
    IF (self%use_no2) call self%register_state_dependency(self%id_denit_product,denit_product_variable)
 
    self%use_sed_model = Fsed_amm_variable .NE. ''
    IF (self%use_sed_model) THEN
-     call self%register_bottom_state_dependency(self%id_Fsed_amm,Fsed_amm_variable)
-     call self%register_bottom_state_dependency(self%id_Fsed_nit,Fsed_nit_variable)
+     CALL self%register_horizontal_dependency(self%id_Fsed_amm,Fsed_amm_variable)
+     CALL self%register_horizontal_dependency(self%id_Fsed_nit,Fsed_nit_variable)
    ENDIF
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_nitrif,'nitrif','mmol/m**3/d',       &
-                                                         'Nitrification rate',       &
-                                        time_treatment=time_treatment_step_integrated)
-   call self%register_diagnostic_variable(self%id_denit,'denit','mmol/m**3/d',         &
-                                                         'De-nitrification rate',    &
-                                        time_treatment=time_treatment_step_integrated)
-   call self%register_horizontal_diagnostic_variable(self%id_sed_amm,'sed_amm','mmol/m**2/d',      &
-                                                         'Ammonium sediment flux',   &
-                        time_treatment=time_treatment_step_integrated)
-   call self%register_horizontal_diagnostic_variable(self%id_sed_nit,'sed_nit','mmol/m**2/d',      &
-                                                         'Nitrate sediment flux',    &
-                        time_treatment=time_treatment_step_integrated)
-
-   ! Register conserved quantities
-   call self%register_conserved_quantity(self%id_totN,'TN','mmol/m**3','Total nitrogen')
+   CALL self%register_diagnostic_variable(self%id_nitrif,'nitrif','mmol/m**3/d',       &
+                                                         'Nitrification rate')
+   CALL self%register_diagnostic_variable(self%id_denit,'denit','mmol/m**3/d',         &
+                                                         'De-nitrification rate')
+   CALL self%register_horizontal_diagnostic_variable(self%id_sed_amm,'sed_amm','mmol/m**2/d',      &
+                                                         'Ammonium sediment flux')
+   CALL self%register_horizontal_diagnostic_variable(self%id_sed_nit,'sed_nit','mmol/m**2/d',      &
+                                                         'Nitrate sediment flux')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,standard_variables%temperature)
-
-   RETURN
-
-99 CALL self%fatal_error('aed_nitrogen_init','Error reading namelist aed_nitrogen')
-
-END SUBROUTINE aed_nitrogen_init
+   CALL self%register_dependency(self%id_temp,standard_variables%temperature)
+END SUBROUTINE aed_init_nitrogen
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_nitrogen_do(self,_FABM_ARGS_DO_RHS_)
+SUBROUTINE aed_nitrogen_do(self,_ARGUMENTS_DO_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of aed_nitrogen model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_nitrogen),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   CLASS (aed_type_nitrogen),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_
 !
 !LOCALS
-   real(rk)           :: amm,nit,oxy,temp !State variables
-   real(rk)           :: nitrification,denitrification
-   real(rk),PARAMETER :: secs_pr_day = 86400.
-   real(rk),PARAMETER :: Yoxy_nitrif = 3. !ratio of oxygen to nitrogen utilised during nitrification
+   AED_REAL           :: amm,nit,oxy,temp !State variables
+   AED_REAL           :: nitrification,denitrification
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
+   AED_REAL,PARAMETER :: Yoxy_nitrif = 3. !ratio of oxygen to nitrogen utilised during nitrification
 !
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_amm,amm) ! ammonium
@@ -200,8 +191,8 @@ SUBROUTINE aed_nitrogen_do(self,_FABM_ARGS_DO_RHS_)
    _GET_(self%id_temp,temp)  ! temperature
 
    ! Define some intermediate quantities units mmol N/m3/day
-   nitrification = fnitrif(self,oxy,temp)
-   denitrification = fdenit(self,oxy,temp)
+   nitrification = fnitrif(self%use_oxy,self%Rnitrif,self%Knitrif,self%theta_nitrif,oxy,temp)
+   denitrification = fdenit(self%use_oxy,self%Rdenit,self%Kdenit,self%theta_denit,oxy,temp)
 
    ! Set temporal derivatives
    _SET_ODE_(self%id_amm,-amm*nitrification)
@@ -220,32 +211,32 @@ SUBROUTINE aed_nitrogen_do(self,_FABM_ARGS_DO_RHS_)
    _SET_DIAGNOSTIC_(self%id_denit, denitrification)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
 END SUBROUTINE aed_nitrogen_do
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_nitrogen_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+SUBROUTINE aed_nitrogen_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of nitrogen biogeochemical model exporting
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_nitrogen),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   CLASS (aed_type_nitrogen),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 !LOCALS
-   real(rk)           :: amm,nit,oxy,temp !State variables
-   real(rk)           :: nitrification,denitrification
-   real(rk),PARAMETER :: secs_pr_day = 86400.
-   real(rk),PARAMETER :: Yoxy_nitrif = 3. !ratio of oxygen to nitrogen utilised during nitrification
+   AED_REAL           :: amm,nit,oxy,temp !State variables
+   AED_REAL           :: nitrification,denitrification
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
+   AED_REAL,PARAMETER :: Yoxy_nitrif = 3. !ratio of oxygen to nitrogen utilised during nitrification
 !
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
 
    ! Retrieve current (local) state variable values.
@@ -261,8 +252,8 @@ SUBROUTINE aed_nitrogen_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _GET_(self%id_temp,temp)  ! temperature
 
    ! Define some intermediate quantities units mmol N/m3/day
-   nitrification = fnitrif(self,oxy,temp)
-   denitrification = fdenit(self,oxy,temp)
+   nitrification = fnitrif(self%use_oxy,self%Rnitrif,self%Knitrif,self%theta_nitrif,oxy,temp)
+   denitrification = fdenit(self%use_oxy,self%Rdenit,self%Kdenit,self%theta_denit,oxy,temp)
 
    ! Assign destruction rates to different elements of the destruction matrix.
    ! By assigning with _SET_DD_SYM_(i,j,val) as opposed to _SET_DD_(i,j,val),
@@ -284,40 +275,40 @@ SUBROUTINE aed_nitrogen_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
    _SET_DIAGNOSTIC_(self%id_denit ,denitrification)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
 END SUBROUTINE aed_nitrogen_do_ppdd
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_nitrogen_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+SUBROUTINE aed_nitrogen_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !-------------------------------------------------------------------------------
 ! Calculate pelagic bottom fluxes and benthic sink and source terms of AED nitrogen.
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_nitrogen),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   CLASS (aed_type_nitrogen),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 !LOCALS
    ! Environment
-   real(rk) :: temp !, layer_ht
+   AED_REAL :: temp !, layer_ht
 
    ! State
-   real(rk) :: amm,nit,oxy
+   AED_REAL :: amm,nit,oxy
 
    ! Temporary variables
-   real(rk) :: amm_flux,nit_flux
-   real(rk) :: Fsed_amm, Fsed_nit
+   AED_REAL :: amm_flux,nit_flux
+   AED_REAL :: Fsed_amm, Fsed_nit
 
    ! Parameters
-   real(rk),PARAMETER :: secs_pr_day = 86400.
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
    _GET_(self%id_temp,temp)  ! local temperature
@@ -365,45 +356,14 @@ SUBROUTINE aed_nitrogen_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_nit,nit_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_nitrogen_do_benthos
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_nitrogen_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
-!-------------------------------------------------------------------------------
-! Get the total of conserved quantities (currently only nitrogen)
-!-------------------------------------------------------------------------------
-!ARGUMENTS
-   class (type_aed_nitrogen),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-!
-!LOCALS
-   real(rk)                     :: amm,nit
-!
-!-------------------------------------------------------------------------------
-!BEGIN
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_amm,amm) ! ammonium
-   _GET_(self%id_nit,nit) ! nitrate
-
-   ! Total nutrient is simply the sum of all variables.
-   _SET_CONSERVED_QUANTITY_(self%id_totN,amm+nit)
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-END SUBROUTINE aed_nitrogen_get_conserved_quantities
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-!###############################################################################
-PURE real(rk) FUNCTION fnitrif(self,oxy,temp)
+PURE AED_REAL FUNCTION fnitrif(use_oxy,Rnitrif,Knitrif,theta_nitrif,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for nitrification
 !
@@ -411,15 +371,15 @@ PURE real(rk) FUNCTION fnitrif(self,oxy,temp)
 ! is formulated.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_nitrogen),INTENT(in) :: self
-   real(rk),INTENT(in)                 :: oxy,temp
+   LOGICAL,INTENT(in)  :: use_oxy
+   AED_REAL,INTENT(in) :: Rnitrif,Knitrif,theta_nitrif,oxy,temp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   IF (self%use_oxy) THEN
-      fnitrif = self%Rnitrif * oxy/(self%Knitrif+oxy) * (self%theta_nitrif**(temp-20.0))
+   IF (use_oxy) THEN
+      fnitrif = Rnitrif * oxy/(Knitrif+oxy) * (theta_nitrif**(temp-20.0))
    ELSE
-      fnitrif = self%Rnitrif * (self%theta_nitrif**(temp-20.0))
+      fnitrif = Rnitrif * (theta_nitrif**(temp-20.0))
    ENDIF
 
 END FUNCTION fnitrif
@@ -427,7 +387,7 @@ END FUNCTION fnitrif
 
 
 !###############################################################################
-PURE real(rk) FUNCTION fdenit(self,oxy,temp)
+PURE AED_REAL FUNCTION fdenit(use_oxy,Rdenit,Kdenit,theta_denit,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for denitrification
 !
@@ -435,15 +395,15 @@ PURE real(rk) FUNCTION fdenit(self,oxy,temp)
 ! is formulated.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_nitrogen),INTENT(in) :: self
-   real(rk),INTENT(in)                    :: oxy,temp
+   LOGICAL,INTENT(in)  :: use_oxy
+   AED_REAL,INTENT(in) :: Rdenit,Kdenit,theta_denit,oxy,temp
 !
 !-------------------------------------------------------------------------------
 !BEGIN
-   IF (self%use_oxy) THEN
-      fdenit = self%Rdenit * self%Kdenit/(self%Kdenit+oxy) * (self%theta_denit**(temp-20.0))
+   IF (use_oxy) THEN
+      fdenit = Rdenit * Kdenit/(Kdenit+oxy) * (theta_denit**(temp-20.0))
    ELSE
-      fdenit = self%Rdenit * (self%theta_denit**(temp-20.0))
+      fdenit = Rdenit * (theta_denit**(temp-20.0))
    ENDIF
 
 END FUNCTION fdenit

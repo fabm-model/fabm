@@ -59,7 +59,6 @@
 		<File RelativePath="..\..\src\drivers\gotm\fabm_driver.F90"/></Filter>
 		<Filter Name="models">
 		<Filter Name="aed">
-		<File RelativePath="..\..\src\models\aed\aed_bacteria.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_carbon.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_chlorophylla.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_iron.F90"/>
@@ -69,14 +68,14 @@
 		<File RelativePath="..\..\src\models\aed\aed_oxygen.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_pathogens.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_phosphorus.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_phyto_utils.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_phytoplankton.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_sedflux.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_silica.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_sulfur.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_totals.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_tracer.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_util.F90"/>
-		<File RelativePath="..\..\src\models\aed\aed_viruses.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_zoop_utils.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_zooplankton.F90"/></Filter>
 		<Filter Name="bb">
 		<Filter Name="passive">

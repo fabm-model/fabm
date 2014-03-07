@@ -25,30 +25,30 @@ MODULE aed_totals
 ! The AED module totals contains only diagnostic variables to provide
 ! totals of other variables (eg tss)
 !-------------------------------------------------------------------------------
-   USE fabm_types
+   USE aed_core
 
    IMPLICIT NONE
 
    PRIVATE
 !
-   PUBLIC type_aed_totals
+   PUBLIC aed_type_totals
 !
-   TYPE,extends(type_base_model) :: type_aed_totals
+   TYPE,extends(type_base_model) :: aed_type_totals
 !     Variable identifiers
-      type (type_diagnostic_variable_id)        :: id_totals_tn, id_totals_tp, id_totals_toc,  &
-                                              id_totals_tss, id_totals_turbidity
-      type (type_state_variable_id),ALLOCATABLE :: id_dep_tn(:), id_dep_tp(:), id_dep_toc(:),  &
+      TYPE (type_diagnostic_variable_id) :: id_totals_tn, id_totals_tp, id_totals_toc,  &
+                                            id_totals_tss, id_totals_turbidity
+      TYPE (type_state_variable_id),ALLOCATABLE :: id_dep_tn(:), id_dep_tp(:), id_dep_toc(:),  &
                                               id_dep_tss(:)
-      real(rk),ALLOCATABLE                 :: turbidity(:)
+      AED_REAL,ALLOCATABLE               :: turbidity(:)
 
 
 !     Model parameters
-      real(rk) :: Fsed_dic,Ksed_dic,theta_sed_dic
+      AED_REAL :: Fsed_dic,Ksed_dic,theta_sed_dic
       LOGICAL  :: use_oxy,use_dic
 
       CONTAINS      ! Model Methods
-        procedure :: initialize               => aed_totals_init
-        procedure :: get_conserved_quantities => aed_totals_get_conserved_quantities
+        PROCEDURE :: initialize => aed_init_totals
+        PROCEDURE :: do         => aed_totals_do
    END TYPE
 
 
@@ -56,8 +56,9 @@ MODULE aed_totals
 CONTAINS
 
 
+
 !###############################################################################
-SUBROUTINE aed_totals_init(self,configunit)
+SUBROUTINE aed_init_totals(self,namlst)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -65,14 +66,16 @@ SUBROUTINE aed_totals_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_totals),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                           :: configunit
+   INTEGER,INTENT(in) :: namlst
+   CLASS (aed_type_totals),TARGET,INTENT(inout) :: self
+
 !
 !LOCALS
+   INTEGER :: status
 
    INTEGER           :: i, num_tn,num_tp,num_toc,num_tss
    CHARACTER(len=40) :: tn(100), tp(100), toc(100), tss(100)
-   real(rk)          :: turbidity(100)
+   AED_REAL          :: turbidity(100)
 
    NAMELIST /aed_totals/ tn,tp,toc,tss,turbidity
 !
@@ -81,7 +84,8 @@ SUBROUTINE aed_totals_init(self,configunit)
    tn = '' ; tp = '' ; toc = '' ; tss = '' ; turbidity = MISVAL
 
    ! Read the namelist
-   read(configunit,nml=aed_totals,err=99)
+   read(namlst,nml=aed_totals,iostat=status)
+   IF (status /= 0) STOP 'Error reading namelist aed_totals'
 
    DO i=1,100 ; IF (tn(i)  .EQ. '' ) THEN ; num_tn  = i-1 ; EXIT ; ENDIF ; ENDDO
    DO i=1,100 ; IF (tp(i)  .EQ. '' ) THEN ; num_tp  = i-1 ; EXIT ; ENDIF ; ENDDO
@@ -103,52 +107,41 @@ SUBROUTINE aed_totals_init(self,configunit)
    self%turbidity = turbidity(1:num_tss)
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_totals_tn,'aed_totals_tn',               &
-                     'mmol/m**2/d', 'Filterable reactive totals',                       &
-                     time_treatment=time_treatment_step_integrated)
+   CALL self%register_diagnostic_variable(self%id_totals_tn,'tn',               &
+                     'mmol/m**2/d', 'Filterable reactive totals')
 
-   call self%register_diagnostic_variable(self%id_totals_tp,'aed_totals_tp',               &
-                     'mmol/m**2/d', 'Filterable reactive totals',                       &
-                     time_treatment=time_treatment_step_integrated)
+   CALL self%register_diagnostic_variable(self%id_totals_tp,'tp',               &
+                     'mmol/m**2/d', 'Filterable reactive totals')
 
-   call self%register_diagnostic_variable(self%id_totals_toc,'aed_totals_toc',             &
-                     'mmol/m**2/d', 'Filterable reactive totals',                       &
-                     time_treatment=time_treatment_step_integrated)
+   CALL self%register_diagnostic_variable(self%id_totals_toc,'toc',             &
+                     'mmol/m**2/d', 'Filterable reactive totals')
 
-   call self%register_diagnostic_variable(self%id_totals_tss,'aed_totals_tss',             &
-                     'mmol/m**2/d', 'Filterable reactive totals',                       &
-                     time_treatment=time_treatment_step_integrated)
+   CALL self%register_diagnostic_variable(self%id_totals_tss,'tss',             &
+                     'mmol/m**2/d', 'Filterable reactive totals')
 
-   call self%register_diagnostic_variable(self%id_totals_turbidity,'aed_totals_turbidity', &
-                     'mmol/m**2/d', 'Filterable reactive totals',                       &
-                     time_treatment=time_treatment_step_integrated)
-
-
-   RETURN
-
-99 CALL self%fatal_error('aed_totals_init','Error reading namelist aed_totals')
-
-END SUBROUTINE aed_totals_init
+   CALL self%register_diagnostic_variable(self%id_totals_turbidity,'turbidity', &
+                     'mmol/m**2/d', 'Filterable reactive totals')
+END SUBROUTINE aed_init_totals
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_totals_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
+SUBROUTINE aed_totals_do(self,_ARGUMENTS_DO_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of aed_totals model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_totals),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
+   CLASS (aed_type_totals),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_
 !
 !LOCALS
    INTEGER :: i,count
-   real(rk) :: val, tot, tot2
+   AED_REAL :: val, tot, tot2
 
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
    tot = 0.
@@ -179,8 +172,8 @@ SUBROUTINE aed_totals_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
    _SET_DIAGNOSTIC_(self%id_totals_turbidity, tot2)
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-END SUBROUTINE aed_totals_get_conserved_quantities
+   _LOOP_END_
+END SUBROUTINE aed_totals_do
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 

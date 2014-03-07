@@ -17,65 +17,68 @@ MODULE aed_silica
 !-------------------------------------------------------------------------------
 ! Nitrogen module contains equations for nitrification and deitrification
 !-------------------------------------------------------------------------------
-   USE fabm_types
+   USE aed_core
 
    IMPLICIT NONE
 
    PRIVATE   ! By default make everything private.
 !
-   PUBLIC type_aed_silica
+   PUBLIC aed_type_silica
 !
-   TYPE,extends(type_base_model) :: type_aed_silica
+   TYPE,extends(type_base_model) :: aed_type_silica
 !     Variable identifiers
-      type (type_state_variable_id)      :: id_rsi,id_oxy
-      type (type_bottom_state_variable_id)  :: id_Fsed_rsi
-      type (type_dependency_id)          :: id_temp
-      type (type_horizontal_diagnostic_variable_id) :: id_sed_rsi
+      TYPE (type_state_variable_id)      :: id_rsi,id_oxy
+      TYPE (type_horizontal_dependency_id)  :: id_Fsed_rsi
+      TYPE (type_dependency_id)          :: id_temp
+      TYPE (type_horizontal_diagnostic_variable_id) :: id_sed_rsi
 
 !     Model parameters
-      real(rk) :: Fsed_rsi,Ksed_rsi,theta_sed_rsi
+      AED_REAL :: Fsed_rsi,Ksed_rsi,theta_sed_rsi
       LOGICAL  :: use_oxy,use_rsi,use_sed_model
 
       CONTAINS      ! Model Methods
-        procedure :: initialize               => aed_silica_init
-        procedure :: do                       => aed_silica_do
-        procedure :: do_ppdd                  => aed_silica_do_ppdd
-        procedure :: do_benthos               => aed_silica_do_benthos
-        procedure :: get_conserved_quantities => aed_silica_get_conserved_quantities
+        PROCEDURE :: initialize               => aed_init_silica
+        PROCEDURE :: do                       => aed_silica_do
+        PROCEDURE :: do_ppdd                  => aed_silica_do_ppdd
+        PROCEDURE :: do_benthos               => aed_silica_do_benthos
    END TYPE
 
 !===============================================================================
 CONTAINS
 
 
+
 !###############################################################################
-SUBROUTINE aed_silica_init(self,configunit)
+SUBROUTINE aed_init_silica(self,namlst)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !  Here, the aed namelist is read and the variables exported
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_silica),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                           :: configunit
+   INTEGER,INTENT(in)                      :: namlst
+   CLASS (aed_type_silica),TARGET,INTENT(inout) :: self
+
 !
 !LOCALS
+   INTEGER  :: status
 
-   real(rk)          :: rsi_initial=4.5
-   real(rk)          :: Fsed_rsi = 3.5
-   real(rk)          :: Ksed_rsi = 30.0
-   real(rk)          :: theta_sed_rsi = 1.0
+   AED_REAL          :: rsi_initial=4.5
+   AED_REAL          :: Fsed_rsi = 3.5
+   AED_REAL          :: Ksed_rsi = 30.0
+   AED_REAL          :: theta_sed_rsi = 1.0
    CHARACTER(len=64) :: silica_reactant_variable=''
    CHARACTER(len=64) :: Fsed_rsi_variable=''
 
-   real(rk),PARAMETER :: secs_pr_day = 86400.
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
    NAMELIST /aed_silica/ rsi_initial,Fsed_rsi,Ksed_rsi,theta_sed_rsi,silica_reactant_variable, &
                          Fsed_rsi_variable
 !
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Read the namelist
-   read(configunit,nml=aed_silica,err=99)
+   read(namlst,nml=aed_silica,iostat=status)
+   IF (status /= 0) STOP 'Error reading namelist aed_silica'
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -83,116 +86,110 @@ SUBROUTINE aed_silica_init(self,configunit)
    self%Fsed_rsi  = Fsed_rsi/secs_pr_day
    self%Ksed_rsi  = Ksed_rsi
    self%theta_sed_rsi = theta_sed_rsi
+   self%use_oxy = silica_reactant_variable .NE. '' !This means oxygen module switched on
 
    ! Register state variables
-   call self%register_state_variable(self%id_rsi,'rsi','mmol/m**3', 'silica',     &
-                                    rsi_initial,minimum=0.0_rk,no_river_dilution=.false.)
+   CALL self%register_state_variable(self%id_rsi,'rsi','mmol/m**3', 'silica',     &
+                                    rsi_initial,minimum=zero_,no_river_dilution=.false.)
 
    ! Register external state variable dependencies
-   self%use_oxy = silica_reactant_variable .NE. '' !This means oxygen module switched on
    IF (self%use_oxy) &
-      call self%register_state_dependency(self%id_oxy,silica_reactant_variable)
+      CALL self%register_state_dependency(self%id_oxy,silica_reactant_variable)
 
    self%use_sed_model = Fsed_rsi_variable .NE. ''
    IF (self%use_sed_model) &
-      call self%register_bottom_state_dependency(self%id_Fsed_rsi,Fsed_rsi_variable)
+      CALL self%register_horizontal_dependency(self%id_Fsed_rsi,Fsed_rsi_variable)
 
    ! Register diagnostic variables
-   call self%register_horizontal_diagnostic_variable(self%id_sed_rsi,'sed_rsi','mmol/m**2/d', &
-                     'reactive silica',                                              &
-                     time_treatment=time_treatment_step_integrated)
+   CALL self%register_horizontal_diagnostic_variable(self%id_sed_rsi,'sed_rsi','mmol/m**2/d', &
+                     'reactive silica')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_temp,standard_variables%temperature)
-
-   RETURN
-
-99 CALL self%fatal_error('aed_silica_init','Error reading namelist aed_silica')
-
-END SUBROUTINE aed_silica_init
+   CALL self%register_dependency(self%id_temp,standard_variables%temperature)
+END SUBROUTINE aed_init_silica
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 
 !###############################################################################
-SUBROUTINE aed_silica_do(self,_FABM_ARGS_DO_RHS_)
+SUBROUTINE aed_silica_do(self,_ARGUMENTS_DO_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of aed_silica model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_silica),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_RHS_
+   CLASS (aed_type_silica),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_
 !
 !ARGUMENT
-   !real(rk)                   :: rsi,oxy,temp,tss !State variables
-   real(rk), parameter        :: secs_pr_day = 86400.
+   !AED_REAL                   :: rsi,oxy,temp,tss !State variables
+   AED_REAL, parameter        :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
 END SUBROUTINE aed_silica_do
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_silica_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
+SUBROUTINE aed_silica_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
 !-------------------------------------------------------------------------------
 ! Right hand sides of silica biogeochemical model exporting
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_silica),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_PPDD_
+   CLASS (aed_type_silica),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_PPDD_
 !
 !ARGUMENT
-   real(rk), parameter        :: secs_pr_day = 86400.
+   AED_REAL, parameter        :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
 
    ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
+   _LOOP_END_
 
 END SUBROUTINE aed_silica_do_ppdd
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_silica_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
+SUBROUTINE aed_silica_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !-------------------------------------------------------------------------------
 ! Calculate pelagic bottom fluxes and benthic sink and source terms of AED silica.
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_silica),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
+   CLASS (aed_type_silica),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 !LOCALS
    ! Environment
-   real(rk) :: temp
+   AED_REAL :: temp
 
    ! State
-   real(rk) :: rsi,oxy
+   AED_REAL :: rsi,oxy
 
    ! Temporary variables
-   real(rk) :: rsi_flux, Fsed_rsi
+   AED_REAL :: rsi_flux, Fsed_rsi
 
    ! Parameters
-   real(rk),PARAMETER :: secs_pr_day = 86400.
+   AED_REAL,PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
    ! Enter spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_BEGIN_
+   _HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
    _GET_(self%id_temp,temp)  ! local temperature
@@ -231,39 +228,9 @@ SUBROUTINE aed_silica_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sed_rsi,rsi_flux)
 
    ! Leave spatial loops (if any)
-   _FABM_HORIZONTAL_LOOP_END_
+   _HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_silica_do_benthos
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-!###############################################################################
-SUBROUTINE aed_silica_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANTITIES_)
-!-------------------------------------------------------------------------------
-! Get the total of conserved quantities (currently only silica)
-!-------------------------------------------------------------------------------
-!ARGUMENTS
-   class (type_aed_silica),INTENT(in) :: self
-   _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
-!
-!LOCALS
-   real(rk) :: rsi
-!
-!-------------------------------------------------------------------------------
-!BEGIN
-   ! Enter spatial loops (if any)
-   _FABM_LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_rsi,rsi) ! silica
-
-   ! Total nutrient is simply the sum of all variables.
-!   _SET_CONSERVED_QUANTITY_(self%id_totP,rsi)
-
-   ! Leave spatial loops (if any)
-   _FABM_LOOP_END_
-
-END SUBROUTINE aed_silica_get_conserved_quantities
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
