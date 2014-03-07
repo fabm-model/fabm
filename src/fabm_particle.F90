@@ -1,7 +1,7 @@
 ! This module defined a new model type, type_particle_model, which may be used as base
 ! model type for other biogeochemical models. This model type is seen as a base type for models
 ! that can be considered "integral physical particles" in the context of Lagrangian models.
-! For instance: a phytoplankton species or type, a zooplankotn species or type, a specific
+! For instance: a phytoplankton species or type, a zooplankton species or type, a specific
 ! (size) class of organic matter, etc.
 !
 ! The new model type inherits from type_base_model, and adds functionality for accessing
@@ -9,7 +9,7 @@
 ! at run-time just as variables are.
 ! By registering a model dependency (self%register_model_dependency) and using the returned model
 ! identifier, model variables can be coupled to named variables of the other model
-! (model_id%request_coupling) and a list of the identifiers of all state variables in the other model
+! (self%request_coupling_to_model) and a list of the identifiers of all state variables in the other model
 ! can be obtained (model_id%state). In turn, those identifiers can be used to e.g. prescribe a
 ! specific rate of change to all state variables of the other model.
 !

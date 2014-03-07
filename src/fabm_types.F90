@@ -1205,7 +1205,7 @@ function coupling_list_find(self,slave,remove) result(coupling)
    end do
 
    if (associated(coupling).and.remove_eff) then
-      ! Remove the coupling command for the referenced model.
+      ! Remove the coupling command from the list, as requested.
       if (.not.associated(previous_coupling)) then
          self%first => coupling%next
       else
