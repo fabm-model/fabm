@@ -83,6 +83,7 @@
 		<Filter Name="aed">
 		<File RelativePath="..\..\src\models\aed\aed_carbon.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_chlorophylla.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_core.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_iron.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_models.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_nitrogen.F90"/>
