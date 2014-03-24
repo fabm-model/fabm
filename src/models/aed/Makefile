@@ -8,6 +8,7 @@ LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
 DOCSRC	= \
 aed_util.F90 \
+aed_sedflux.F90 \
 aed_chlorophylla.F90 \
 aed_oxygen.F90 \
 aed_silica.F90 \
@@ -29,6 +30,7 @@ aed_models.F90
 OBJS   = \
 ${LIB}(aed_core.o) \
 ${LIB}(aed_util.o) \
+${LIB}(aed_sedflux.o) \
 ${LIB}(aed_chlorophylla.o) \
 ${LIB}(aed_oxygen.o) \
 ${LIB}(aed_silica.o) \

@@ -67,12 +67,13 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_zooplankton_load_params(self, count, list)
+SUBROUTINE aed_zooplankton_load_params(self, dbase, count, list)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    CLASS (aed_type_zooplankton),INTENT(inout) :: self
-   INTEGER,INTENT(in)                           :: count !Number of zooplankton groups
-   INTEGER,INTENT(in)                           :: list(*) !List of zooplankton groups to simulate
+   CHARACTER(len=*),INTENT(in) :: dbase
+   INTEGER,INTENT(in)          :: count !Number of zooplankton groups
+   INTEGER,INTENT(in)          :: list(*) !List of zooplankton groups to simulate
 !
 !LOCALS
    INTEGER  :: status
@@ -86,7 +87,8 @@ SUBROUTINE aed_zooplankton_load_params(self, count, list)
 !-------------------------------------------------------------------------------
 !BEGIN
     tfil = find_free_lun()
-    open(tfil,file="aed_zoop_pars.nml", status='OLD')
+    open(tfil,file=dbase, status='OLD',iostat=status)
+    IF (status /= 0) STOP 'Error opening zoop_paramsn amelist file'
     read(tfil,nml=zoop_params,iostat=status)
     close(tfil)
     IF (status /= 0) STOP 'Error reading namelist zoop_params'
@@ -170,13 +172,15 @@ SUBROUTINE aed_init_zooplankton(self,namlst)
    CHARACTER(len=64)  :: pp_target_variable='' !particulate phosphorus target variable
    CHARACTER(len=64)  :: dc_target_variable='' !dissolved carbon target variable
    CHARACTER(len=64)  :: pc_target_variable='' !particulate carbon target variable
+   CHARACTER(len=128) :: dbase='aed_zoop_pars.nml'
 
    AED_REAL,PARAMETER :: secs_pr_day = 86400.
    INTEGER            :: zoop_i, prey_i, phy_i
 
    NAMELIST /aed_zooplankton/ num_zoops, the_zoops, &
                     dn_target_variable, pn_target_variable, dp_target_variable, &
-                    pp_target_variable, dc_target_variable, pc_target_variable
+                    pp_target_variable, dc_target_variable, pc_target_variable, &
+                    dbase
 !-----------------------------------------------------------------------
 !BEGIN
 !print *,'**** Reading /aed_zooplankton/ namelist'
@@ -188,7 +192,7 @@ SUBROUTINE aed_init_zooplankton(self,namlst)
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted in aed_zooplankton_load_params to values per second.
-   CALL aed_zooplankton_load_params(self, num_zoops, the_zoops)
+   CALL aed_zooplankton_load_params(self, dbase, num_zoops, the_zoops)
 
 
    CALL aed_bio_temp_function(self%num_zoops,            &

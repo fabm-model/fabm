@@ -2,7 +2,8 @@
 ! fabm_nml
 !-------------------------------------------------------------------------------
 &fabm_nml
-   models = 'aed_oxygen',
+   models = 'aed_sedflux',
+            'aed_oxygen',
             'aed_carbon',
             'aed_silica',
             'aed_nitrogen',
@@ -13,6 +14,59 @@
             'aed_pathogens',
             'aed_tracer',
             'aed_totals'
+/
+
+
+!###############################################################################
+! aed_sedflux
+!  sediment flux model types :
+!       "Constant" = sedimentation fluxes are constant values.
+!       "Constant2d" = Sedimentation fluxes may be different for
+!                                different benthic cells - provided by driver
+!       "Dynamic" = Sedimentation fluxes may be different for
+!                                different benthic cells at different times
+!                                        - computed by model
+!       "Dynamic2d" = Sedimentation fluxes may be different for
+!                                different benthic cells at different times
+!                                        - computed by model
+!-------------------------------------------------------------------------------
+&aed_sedflux
+   sedflux_model = 'Constant'
+/
+
+
+!###############################################################################
+! aed_sed_constant
+!  Fsed_oxy  = Sedimentation flux for oxygen
+!  Fsed_rsi  = Sedimentation flux for silica
+!  Fsed_amm  = Sedimentation flux for ammonia
+!  Fsed_nit  = Sedimentation flux for nitrogen
+!  Fsed_frp  = Sedimentation flux for phosphorus
+!  Fsed_pon  = Sedimentation flux for particulate organic nitrogen
+!  Fsed_don  = Sedimentation flux for dissolved organic nitrogen
+!  Fsed_pop  = Sedimentation flux for particulate organic phosphorus
+!  Fsed_dop  = Sedimentation flux for dissolved organic phosphorus
+!  Fsed_poc  = Sedimentation flux for particulate organic carbon
+!  Fsed_doc  = Sedimentation flux for dissolved organic carbon
+!  Fsed_dic  = Sedimentation flux for dissolved inorganic carbon
+!  Fsed_ch4  = Sedimentation flux for methane
+!  Fsed_feii = Sedimentation flux for iron
+!-------------------------------------------------------------------------------
+&aed_sed_constant
+   Fsed_oxy = -3.0
+   Fsed_rsi = 1.8
+   Fsed_amm = 3.0
+   Fsed_nit = -0.5
+   Fsed_frp = 0.008
+   Fsed_pon = -0.01
+   Fsed_don = 5.0
+   Fsed_pop = -0.01
+   Fsed_dop = -900.0
+   Fsed_poc = -0.01
+   Fsed_doc = 30.0
+   Fsed_dic = 3.0
+   Fsed_ch4 = 0.0
+   Fsed_feii = 0.0
 /
 
 
@@ -97,7 +151,7 @@
    Fsed_dic = 3.0
    Ksed_dic = 20.0
    theta_sed_dic = 1.08
-!  Fsed_dic_variable = 'aed_sedflux_Fsed_dic'
+   Fsed_dic_variable = 'aed_sedflux_Fsed_dic'
    pH_initial = 7.5
    atmco2 = 370e-6
    ionic = 0.1
@@ -129,7 +183,7 @@
    Ksed_rsi = 50.0
    theta_sed_rsi = 1.08
    silica_reactant_variable='aed_oxygen_oxy'
-!  Fsed_rsi_variable = 'aed_sedflux_Fsed_rsi'
+   Fsed_rsi_variable = 'aed_sedflux_Fsed_rsi'
 /
 
 
@@ -195,8 +249,8 @@
    theta_sed_nit = 1.08
    nitrif_reactant_variable = 'aed_oxygen_oxy'
    denit_product_variable   = ''  !#'aed_nitrogen_N20'
-!  Fsed_amm_variable='aed_sedflux_Fsed_amm'
-!  Fsed_nit_variable='aed_sedflux_Fsed_nit'
+   Fsed_amm_variable='aed_sedflux_Fsed_amm'
+   Fsed_nit_variable='aed_sedflux_Fsed_nit'
 /
 
 
@@ -247,7 +301,7 @@
    Ksed_frp = 50.0
    theta_sed_frp = 1.08
    phosphorus_reactant_variable = '' !#'aed_oxygen_oxy'
-!  Fsed_frp_variable ='aed_sedflux_Fsed_frp'
+   Fsed_frp_variable ='aed_sedflux_Fsed_frp'
    simPO4Adsorption = .false.
    ads_use_external_tss = .false.
    po4sorption_target_variable =''
@@ -419,6 +473,7 @@
    si_uptake_target_variable    =''  !#'aed_silica_rsi'
    do_uptake_target_variable    ='aed_oxygen_oxy'
    c_uptake_target_variable     ='aed_carbon_dic'
+!  dbase = 'aed_phyto_pars.nml'
 /
 
 
@@ -454,6 +509,7 @@
    pp_target_variable='aed_organic_matter_pop'    ! particulate phosphorus target
    dc_target_variable='aed_organic_matter_doc'    ! dissolved carbon target
    pc_target_variable='aed_organic_matter_poc'    ! particulate carbon target
+!  dbase = 'aed_zoop_pars.nml'
 /
 
 
@@ -465,26 +521,7 @@
 &aed_pathogens
    num_pathogens = 1
    the_pathogens = 1 !,3,5
-/
-
-
-!###############################################################################
-! aed_bacteria
-!  growth    = 
-!  mortality = 
-!-------------------------------------------------------------------------------
-&aed_bacteria
-   growth = 1.0
-   mortality = 1.0
-/
-
-
-!###############################################################################
-! aed_viruses
-!   num_viruses = number of viruses to model
-!-------------------------------------------------------------------------------
-&aed_viruses
-   num_viruses = 1
+!  dbase = 'aed_pathogen_pars.nml'
 /
 
 

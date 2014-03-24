@@ -87,13 +87,14 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_phytoplankton_load_params(self, count, list, w_model)
+SUBROUTINE aed_phytoplankton_load_params(self, dbase, count, list, w_model)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    CLASS (aed_type_phytoplankton),INTENT(inout) :: self
-   INTEGER,INTENT(in)                             :: count
-   INTEGER,INTENT(in)                             :: list(*)
-   INTEGER,INTENT(in)                             :: w_model(*)
+   CHARACTER(len=*),INTENT(in) :: dbase
+   INTEGER,INTENT(in)          :: count
+   INTEGER,INTENT(in)          :: list(*)
+   INTEGER,INTENT(in)          :: w_model(*)
 !
 !LOCALS
    INTEGER  :: status
@@ -116,11 +117,11 @@ SUBROUTINE aed_phytoplankton_load_params(self, count, list, w_model)
 !-------------------------------------------------------------------------------
 !BEGIN
     tfil = find_free_lun()
-    open(tfil,file="aed_phyto_pars.nml", status='OLD', iostat=status)
-    IF (status /= 0) STOP 'Cannot open phyto_data file "aed_phyto_pars.nml"'
+    open(tfil,file=dbase, status='OLD', iostat=status)
+    IF (status /= 0) STOP 'Cannot open phyto_data namelist file'
     read(tfil,nml=phyto_data,iostat=status)
     close(tfil)
-    IF (status /= 0) STOP 'Error reading namelist phyto_data, from file "aed_phyto_pars.nml"'
+    IF (status /= 0) STOP 'Error reading namelist phyto_data'
 
     self%num_phytos = count
     ALLOCATE(self%phytos(count))
@@ -292,6 +293,7 @@ SUBROUTINE aed_init_phytoplankton(self,namlst)
    CHARACTER(len=64)  :: si_excretion_target_variable=''
    CHARACTER(len=64)  :: si_mortality_target_variable=''
    CHARACTER(len=64)  :: si_uptake_target_variable=''
+   CHARACTER(len=128) :: dbase='aed_phyto_pars.nml'
 
 
    AED_REAL,PARAMETER :: secs_pr_day = 86400.
@@ -306,7 +308,7 @@ SUBROUTINE aed_init_phytoplankton(self,namlst)
                       c_uptake_target_variable, do_uptake_target_variable,     &
                     si_excretion_target_variable,si_mortality_target_variable, &
                       si_uptake_target_variable,                               &
-                    zerolimitfudgefactor, extra_debug
+                    dbase, zerolimitfudgefactor, extra_debug
 !-----------------------------------------------------------------------
 !BEGIN
    w_model = _MOB_CONST_
@@ -318,7 +320,7 @@ SUBROUTINE aed_init_phytoplankton(self,namlst)
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   CALL aed_phytoplankton_load_params(self, num_phytos, the_phytos, w_model)
+   CALL aed_phytoplankton_load_params(self, dbase, num_phytos, the_phytos, w_model)
 
    CALL aed_bio_temp_function(self%num_phytos,              &
                               self%phytos%theta_growth,     &

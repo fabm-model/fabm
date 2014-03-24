@@ -23,6 +23,7 @@ MODULE aed_models
 !-------------------------------------------------------------------------------
    USE aed_core
 
+   USE aed_sedflux
    USE aed_chlorophylla
    USE aed_oxygen
    USE aed_silica
@@ -66,6 +67,7 @@ SUBROUTINE create(self,name,model)
 
     ! print *,'**** Initialising model ', modelname
     SELECT case (name)
+       CASE ('aed_sedflux');        ALLOCATE(aed_type_sedflux::model)
        CASE ('aed_chlorophylla');   ALLOCATE(aed_type_chla::model)
        CASE ('aed_oxygen');         ALLOCATE(aed_type_oxygen::model)
        CASE ('aed_silica');         ALLOCATE(aed_type_silica::model)

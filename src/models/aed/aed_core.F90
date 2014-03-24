@@ -18,7 +18,6 @@
 #include "aed.h"
 
 MODULE aed_core
-   USE fabm_standard_variables
    USE fabm_types
 
    IMPLICIT NONE
