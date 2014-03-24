@@ -78,10 +78,15 @@
 		<File RelativePath="..\..\src\Makefile"/>
 		<File RelativePath="..\..\src\Rules.make"/></Filter>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<Filter Name="config">
+		<File RelativePath="..\..\src\config\fabm_config.F90"/>
+		<File RelativePath="..\..\src\config\fabm_config_types.F90"/>
+		<File RelativePath="..\..\src\config\fabm_yaml.F90"/></Filter>
 		<Filter Name="models">
 		<Filter Name="aed">
 		<File RelativePath="..\..\src\models\aed\aed_carbon.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_chlorophylla.F90"/>
+		<File RelativePath="..\..\src\models\aed\aed_core.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_iron.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_models.F90"/>
 		<File RelativePath="..\..\src\models\aed\aed_nitrogen.F90"/>
@@ -148,11 +153,8 @@
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>
 		<File RelativePath="..\..\src\models\pml\carbonate\co2_dyn.F90"/></Filter></Filter></Filter>
-		<Filter Name="config">
-		<File RelativePath="..\..\src\config\fabm_config.F90"/>
-		<File RelativePath="..\..\src\config\fabm_config_types.F90"/>
-		<File RelativePath="..\..\src\config\fabm_yaml.F90"/></Filter>
 		<File RelativePath="..\..\src\fabm.F90"/>
+		<File RelativePath="..\..\src\fabm_driver.F90"/>
 		<File RelativePath="..\..\src\fabm_expressions.F90"/>
 		<File RelativePath="..\..\src\fabm_library.F90"/>
 		<File RelativePath="..\..\src\fabm_properties.F90"/>
