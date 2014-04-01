@@ -46,6 +46,7 @@
    integer                   :: output_format
 #ifdef NETCDF4
    integer                   :: ncid=-1,setn
+   integer                   :: time_id
    integer                   :: par_id,temp_id,salt_id
    integer, allocatable, dimension(:)  :: statevar_ids,diagnostic_ids,conserved_ids
 #endif
@@ -315,7 +316,7 @@
 
    call fabm_check_ready(model)
 
-   call init_output(output_format,output_file)
+   call init_output(output_format,output_file,start)
 
    LEVEL2 'done.'
    STDERR LINE
@@ -418,6 +419,7 @@
       call do_repair_state('0d::time_loop(), after ode_solver()')
 
       ! Do output
+      setn = setn + 1
       if (mod(n,nsave)==0) then
          call do_output(output_format)
       end if
@@ -660,14 +662,14 @@
 ! !IROUTINE: prepare for output
 !
 ! !INTERFACE:
-   subroutine init_output(output_format,output_file)
+   subroutine init_output(output_format,output_file,start)
 !
 ! !DESCRIPTION:
 ! TODO
 !
 ! !INPUT PARAMETERS:
    integer, intent(in)                 :: output_format
-   character(len=*), intent(in)        :: output_file
+   character(len=*), intent(in)        :: output_file,start
 !
 ! !REVISION HISTORY:
 !  Original author(s): Karsten Bolding
@@ -676,8 +678,9 @@
    integer         :: i,n,iret
 #ifdef NETCDF4
    integer         :: lon_dim,lat_dim,time_dim
-   integer         :: lon_id,lat_id,time_id
+   integer         :: lon_id,lat_id
    integer         :: dims(3)
+   character(len=128) :: ncdf_time_str
 #endif
 !EOP
 !-----------------------------------------------------------------------
@@ -739,6 +742,11 @@
          call check_err(iret)
          iret = nf90_def_var(ncid,'time',NF90_REAL,time_dim,time_id)
          call check_err(iret)
+
+         write(ncdf_time_str,110) 'seconds',trim(start)
+         iret = nf90_put_att(ncid,time_id,"units",trim(ncdf_time_str))
+         call check_err(iret)
+110 format(A,' since ',A)
 
 !        define variables
          iret = nf90_def_var(ncid,'par',NF90_REAL,dims,par_id)
@@ -861,7 +869,11 @@
 
       case (NETCDF_FMT)
 #ifdef NETCDF4
-         setn = setn + 1
+         start(1) = setn; edges(1) = 1
+
+         x(1) = setn * timestep
+         iret = nf90_put_var(ncid,time_id,x,start,edges)
+
          start(1) = 1; start(2) = 1; start(3) = setn
          edges(1) = 1; edges(2) = 1; edges(3) = 1
 
