@@ -317,6 +317,7 @@
    call fabm_check_ready(model)
 
    call init_output(output_format,output_file,start)
+   call do_output(output_format,0)
 
    LEVEL2 'done.'
    STDERR LINE
@@ -419,9 +420,8 @@
       call do_repair_state('0d::time_loop(), after ode_solver()')
 
       ! Do output
-      setn = setn + 1
       if (mod(n,nsave)==0) then
-         call do_output(output_format)
+         call do_output(output_format,n)
       end if
 
    end do
@@ -763,16 +763,28 @@
          do i=1,size(model%info%state_variables)
             iret = nf90_def_var(ncid,trim(model%info%state_variables(i)%name),NF90_REAL,dims,statevar_ids(i))
             call check_err(iret)
+            iret = nf90_put_att(ncid,statevar_ids(i),"long_name",trim(model%info%state_variables(i)%long_name))
+            call check_err(iret)
+            iret = nf90_put_att(ncid,statevar_ids(i),"units",trim(model%info%state_variables(i)%units))
+            call check_err(iret)
          end do
 
          n = size(model%info%state_variables)
          do i=1,size(model%info%state_variables_ben)
             iret = nf90_def_var(ncid,trim(model%info%state_variables_ben(i)%name),NF90_REAL,dims,statevar_ids(i+n))
             call check_err(iret)
+            iret = nf90_put_att(ncid,statevar_ids(i+n),"long_name",trim(model%info%state_variables_ben(i)%long_name))
+            call check_err(iret)
+            iret = nf90_put_att(ncid,statevar_ids(i+n),"units",trim(model%info%state_variables_ben(i)%units))
+            call check_err(iret)
          end do
 
          do i=1,size(model%info%diagnostic_variables)
             iret = nf90_def_var(ncid,trim(model%info%diagnostic_variables(i)%name),NF90_REAL,dims,diagnostic_ids(i))
+            call check_err(iret)
+            iret = nf90_put_att(ncid,diagnostic_ids(i),"long_name",trim(model%info%diagnostic_variables(i)%long_name))
+            call check_err(iret)
+            iret = nf90_put_att(ncid,diagnostic_ids(i),"units",trim(model%info%diagnostic_variables(i)%units))
             call check_err(iret)
          end do
 
@@ -780,10 +792,18 @@
          do i=1,size(model%info%diagnostic_variables_hz)
             iret = nf90_def_var(ncid,trim(model%info%state_variables(i)%name),NF90_REAL,dims,diagnostic_ids(i+n))
             call check_err(iret)
+            iret = nf90_put_att(ncid,diagnostic_ids(i+n),"long_name",trim(model%info%diagnostic_variables_hz(i)%long_name))
+            call check_err(iret)
+            iret = nf90_put_att(ncid,diagnostic_ids(i+n),"units",trim(model%info%diagnostic_variables_hz(i)%units))
+            call check_err(iret)
          end do
 
          do i=1,size(model%info%conserved_quantities)
             iret = nf90_def_var(ncid,trim(model%info%conserved_quantities(i)%name),NF90_REAL,dims,conserved_ids(i))
+            call check_err(iret)
+            iret = nf90_put_att(ncid,conserved_ids(i),"long_name",trim(model%info%conserved_quantities(i)%long_name))
+            call check_err(iret)
+            iret = nf90_put_att(ncid,conserved_ids(i),"units",trim(model%info%conserved_quantities(i)%units))
             call check_err(iret)
          end do
 
@@ -820,7 +840,7 @@
 ! !IROUTINE: do the output
 !
 ! !INTERFACE:
-   subroutine do_output(output_format)
+   subroutine do_output(output_format,n)
 !
 ! !DESCRIPTION:
 ! TODO
@@ -828,12 +848,13 @@
 !
 ! !INPUT PARAMETERS:
    integer, intent(in)                 :: output_format
+   integer(timestepkind), intent(in)   :: n
 !
 ! !REVISION HISTORY:
 !  Original author(s): Karsten Bolding
 !
 ! !LOCAL PARAMETERS:
-   integer         :: i,n,iret
+   integer         :: i,j,iret
    integer         :: start(3),edges(3)
    REALTYPE        :: x(1)
 !EOP
@@ -869,9 +890,10 @@
 
       case (NETCDF_FMT)
 #ifdef NETCDF4
+         setn = setn + 1
          start(1) = setn; edges(1) = 1
 
-         x(1) = setn * timestep
+         x(1) = n * timestep
          iret = nf90_put_var(ncid,time_id,x,start,edges)
 
          start(1) = 1; start(2) = 1; start(3) = setn
@@ -893,10 +915,10 @@
             call check_err(iret)
          end do
 
-         n=size(model%info%state_variables)
+         j=size(model%info%state_variables)
          do i=1,size(model%info%state_variables_ben)
-            x(1) = cc(i+n,1)
-            iret = nf90_put_var(ncid,statevar_ids(i+n),x,start,edges)
+            x(1) = cc(i+j,1)
+            iret = nf90_put_var(ncid,statevar_ids(i+j),x,start,edges)
             call check_err(iret)
          end do
 
@@ -906,10 +928,10 @@
             call check_err(iret)
          end do
 
-         n = size(model%info%diagnostic_variables)
+         j = size(model%info%diagnostic_variables)
          do i=1,size(model%info%diagnostic_variables_hz)
             x(1) = fabm_get_horizontal_diagnostic_data(model,i)
-            iret = nf90_put_var(ncid,diagnostic_ids(i+n),x,start,edges)
+            iret = nf90_put_var(ncid,diagnostic_ids(i+j),x,start,edges)
             call check_err(iret)
          end do
 
