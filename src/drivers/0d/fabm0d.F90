@@ -44,6 +44,11 @@
 !  station description
    real(rk)                  :: latitude,longitude
    integer                   :: output_format
+#ifdef NETCDF4
+   integer                   :: ncid=-1,setn
+   integer                   :: par_id,temp_id,salt_id
+   integer, allocatable, dimension(:)  :: statevar_ids,diagnostic_ids,conserved_ids
+#endif
 
    ! Bio model info
    integer  :: ode_method
@@ -219,11 +224,13 @@
       FATAL 'run.nml: "output_file" must be set to a valid file path in "output" namelist.'
       stop 'init_run'
    end if
+#if 0
    if (output_format/=ASCII_FMT) then
       STDERR 'run.nml: "output_format" NetCDF is not fully implemented yet'
       STDERR 'shifting to ASCII output.'
       output_format=ASCII_FMT
    end if
+#endif
 
 
    LEVEL2 'done.'
@@ -308,7 +315,7 @@
 
    call fabm_check_ready(model)
 
-   call init_output(ASCII_FMT,output_file)
+   call init_output(output_format,output_file)
 
    LEVEL2 'done.'
    STDERR LINE
@@ -412,7 +419,7 @@
 
       ! Do output
       if (mod(n,nsave)==0) then
-         call do_output(ASCII_FMT)
+         call do_output(output_format)
       end if
 
    end do
@@ -436,13 +443,20 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
+! !LOCAL PARAMETERS:
+   integer                              :: iret
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    LEVEL1 'clean_up'
 
    call close_input()
-   close(out_unit)
+   if (ncid .ne. -1) then
+      iret = nf90_close(ncid)
+      call check_err(iret)
+   else
+      close(out_unit)
+   end if
 
    end subroutine clean_up
 !EOC
@@ -659,7 +673,12 @@
 !  Original author(s): Karsten Bolding
 !
 ! !LOCAL PARAMETERS:
-   integer         :: i
+   integer         :: i,n,iret
+#ifdef NETCDF4
+   integer         :: lon_dim,lat_dim,time_dim
+   integer         :: lon_id,lat_id,time_id
+   integer         :: dims(3)
+#endif
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -670,7 +689,7 @@
          LEVEL2 'Writing results to:'
          LEVEL3 trim(output_file)
 
-   ! Write header to the output file.
+         ! Write header to the output file.
          write(out_unit,FMT='(''# '',A)') title
          write(out_unit,FMT='(''# '',A)',ADVANCE='NO') 'time'
          if (add_environment) then
@@ -699,6 +718,85 @@
          end if
          write(out_unit,*)
       case (NETCDF_FMT)
+#ifdef NETCDF4
+         setn=0
+         LEVEL2 'NetCDF version: ',trim(NF90_INQ_LIBVERS())
+         iret = nf90_create(output_file,NF90_CLOBBER,ncid)
+         call check_err(iret)
+!        define dimensions
+         iret = nf90_def_dim(ncid, 'lon', 1, lon_dim)
+         call check_err(iret)
+         iret = nf90_def_dim(ncid, 'lat', 1, lat_dim)
+         call check_err(iret)
+         iret = nf90_def_dim(ncid, 'time', NF90_UNLIMITED, time_dim)
+         call check_err(iret)
+         dims(1) = lon_dim; dims(2) = lat_dim; dims(3) = time_dim
+
+!        define coordinates
+         iret = nf90_def_var(ncid,'lon',NF90_REAL,lon_dim,lon_id)
+         call check_err(iret)
+         iret = nf90_def_var(ncid,'lat',NF90_REAL,lat_dim,lat_id)
+         call check_err(iret)
+         iret = nf90_def_var(ncid,'time',NF90_REAL,time_dim,time_id)
+         call check_err(iret)
+
+!        define variables
+         iret = nf90_def_var(ncid,'par',NF90_REAL,dims,par_id)
+         call check_err(iret)
+         iret = nf90_def_var(ncid,'temp',NF90_REAL,dims,temp_id)
+         call check_err(iret)
+         iret = nf90_def_var(ncid,'salt',NF90_REAL,dims,salt_id)
+         call check_err(iret)
+
+         allocate(statevar_ids(size(model%info%state_variables)+size(model%info%state_variables_ben)))
+         allocate(diagnostic_ids(size(model%info%diagnostic_variables)+size(model%info%diagnostic_variables_hz)))
+         allocate(conserved_ids(size(model%info%conserved_quantities)))
+
+         do i=1,size(model%info%state_variables)
+            iret = nf90_def_var(ncid,trim(model%info%state_variables(i)%name),NF90_REAL,dims,statevar_ids(i))
+            call check_err(iret)
+         end do
+
+         n = size(model%info%state_variables)
+         do i=1,size(model%info%state_variables_ben)
+            iret = nf90_def_var(ncid,trim(model%info%state_variables_ben(i)%name),NF90_REAL,dims,statevar_ids(i+n))
+            call check_err(iret)
+         end do
+
+         do i=1,size(model%info%diagnostic_variables)
+            iret = nf90_def_var(ncid,trim(model%info%diagnostic_variables(i)%name),NF90_REAL,dims,diagnostic_ids(i))
+            call check_err(iret)
+         end do
+
+         n = size(model%info%diagnostic_variables)
+         do i=1,size(model%info%diagnostic_variables_hz)
+            iret = nf90_def_var(ncid,trim(model%info%state_variables(i)%name),NF90_REAL,dims,diagnostic_ids(i+n))
+            call check_err(iret)
+         end do
+
+         do i=1,size(model%info%conserved_quantities)
+            iret = nf90_def_var(ncid,trim(model%info%conserved_quantities(i)%name),NF90_REAL,dims,conserved_ids(i))
+            call check_err(iret)
+         end do
+
+!        global attributes
+         iret = nf90_put_att(ncid,NF90_GLOBAL,'title',trim(title))
+!         history = 'Created by GOTM v. '//RELEASE
+!         iret = nf90_put_att(ncid,NF90_GLOBAL,'history',trim(history))
+         iret = nf90_put_att(ncid,NF90_GLOBAL,'Conventions','COARDS')
+         call check_err(iret)
+
+!        leave define mode
+         iret = nf90_enddef(ncid)
+         call check_err(iret)
+
+!        save latitude and logitude
+         iret = nf90_put_var(ncid,lon_id,longitude)
+         iret = nf90_put_var(ncid,lat_id,latitude)
+
+         iret = nf90_sync(ncid)
+         call check_err(iret)
+#endif
       case default
    end select
 
@@ -718,6 +816,7 @@
 !
 ! !DESCRIPTION:
 ! TODO
+   implicit none
 !
 ! !INPUT PARAMETERS:
    integer, intent(in)                 :: output_format
@@ -726,7 +825,9 @@
 !  Original author(s): Karsten Bolding
 !
 ! !LOCAL PARAMETERS:
-   integer         :: i
+   integer         :: i,n,iret
+   integer         :: start(3),edges(3)
+   REALTYPE        :: x(1)
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -757,12 +858,70 @@
             end do
          end if
          write (out_unit,*)
+
       case (NETCDF_FMT)
+#ifdef NETCDF4
+         setn = setn + 1
+         start(1) = 1; start(2) = 1; start(3) = setn
+         edges(1) = 1; edges(2) = 1; edges(3) = 1
+
+         x(1) = par_sf
+         iret = nf90_put_var(ncid,par_id,x,start,edges)
+         call check_err(iret)
+         x(1) = temp
+         iret = nf90_put_var(ncid,temp_id,x,start,edges)
+         call check_err(iret)
+         x(1) = salt
+         iret = nf90_put_var(ncid,salt_id,x,start,edges)
+         call check_err(iret)
+
+         do i=1,size(model%info%state_variables)
+            x(1) = cc(i,1)
+            iret = nf90_put_var(ncid,statevar_ids(i),x,start,edges)
+            call check_err(iret)
+         end do
+
+         n=size(model%info%state_variables)
+         do i=1,size(model%info%state_variables_ben)
+            x(1) = cc(i+n,1)
+            iret = nf90_put_var(ncid,statevar_ids(i+n),x,start,edges)
+            call check_err(iret)
+         end do
+
+         do i=1,size(model%info%diagnostic_variables)
+            x(1) = fabm_get_bulk_diagnostic_data(model,i)
+            iret = nf90_put_var(ncid,diagnostic_ids(i),x,start,edges)
+            call check_err(iret)
+         end do
+
+         n = size(model%info%diagnostic_variables)
+         do i=1,size(model%info%diagnostic_variables_hz)
+            x(1) = fabm_get_horizontal_diagnostic_data(model,i)
+            iret = nf90_put_var(ncid,diagnostic_ids(i+n),x,start,edges)
+            call check_err(iret)
+         end do
+
+         do i=1,size(model%info%conserved_quantities)
+            x(1) = totals(i)
+            iret = nf90_put_var(ncid,conserved_ids(i),x,start,edges)
+            call check_err(iret)
+         end do
+#endif
       case default
    end select
    return
    end subroutine do_output
 !EOC
+
+subroutine check_err(iret)
+use netcdf
+integer iret
+if (iret .ne. NF90_NOERR) then
+print *, nf90_strerror(iret)
+stop
+endif
+end subroutine
+
 
 !-----------------------------------------------------------------------
 
