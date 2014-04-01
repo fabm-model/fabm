@@ -11,9 +11,15 @@ ifndef GOTMDIR
 GOTMDIR = $(HOME)/GOTM/gotm-git
 endif
 
+
 FFLAGS	+= -I$(GOTMDIR)/include -I$(GOTMDIR)/modules/$(FORTRAN_COMPILER)
 LDFLAGS += -L$(FABMDIR)/lib/$(FORTRAN_COMPILER) -L$(GOTMDIR)/lib/$(FORTRAN_COMPILER)
 LIBS	+= -lairsea$(buildtype) -linput$(buildtype) -lutil$(buildtype) -lfabm$(buildtype)
+
+ifeq ($(NETCDF_VERSION),NETCDF4)
+INCDIRS += -DNETCDF4 -I$(shell nf-config --includedir)
+LDFLAGS += $(shell nf-config --flibs)
+endif
 
 fabm0d.o: fabm
 

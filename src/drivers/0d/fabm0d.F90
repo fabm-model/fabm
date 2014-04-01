@@ -15,6 +15,9 @@
    use input
    use fabm
    use fabm_types, only:rk
+#ifdef NETCDF4
+   use netcdf
+#endif
 
    implicit none
    private
@@ -29,8 +32,8 @@
    integer, parameter        :: READ_ERROR=-2
    integer, parameter        :: CENTER=0,SURFACE=1,BOTTOM=2
    character, parameter      :: separator = char(9)
-   integer, parameter        :: ASCII=1
-   integer, parameter        :: NETCDF=2
+   integer, parameter        :: ASCII_FMT=1
+   integer, parameter        :: NETCDF_FMT=2
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -40,6 +43,7 @@
    real(rk)                  :: dt
 !  station description
    real(rk)                  :: latitude,longitude
+   integer                   :: output_format
 
    ! Bio model info
    integer  :: ode_method
@@ -105,7 +109,7 @@
    namelist /environment/ env_file,swr_method, &
                           latitude,longitude,cloud,par_fraction, &
                           depth,par_background_extinction,apply_self_shading
-   namelist /output/      output_file,nsave,add_environment, &
+   namelist /output/      output_file,output_format,nsave,add_environment, &
                           add_diagnostic_variables, add_conserved_quantities
 !EOP
 !-----------------------------------------------------------------------
@@ -152,6 +156,7 @@
 
    ! Read output namelist
    output_file = ''
+   output_format=ASCII_FMT
    nsave = 1
    add_environment = .false.
    add_conserved_quantities = .false.
@@ -214,6 +219,12 @@
       FATAL 'run.nml: "output_file" must be set to a valid file path in "output" namelist.'
       stop 'init_run'
    end if
+   if (output_format/=ASCII_FMT) then
+      STDERR 'run.nml: "output_format" NetCDF is not fully implemented yet'
+      STDERR 'shifting to ASCII output.'
+      output_format=ASCII_FMT
+   end if
+
 
    LEVEL2 'done.'
 
@@ -297,7 +308,7 @@
 
    call fabm_check_ready(model)
 
-   call init_output(ASCII,output_file)
+   call init_output(ASCII_FMT,output_file)
 
    LEVEL2 'done.'
    STDERR LINE
@@ -401,7 +412,7 @@
 
       ! Do output
       if (mod(n,nsave)==0) then
-         call do_output(ASCII)
+         call do_output(ASCII_FMT)
       end if
 
    end do
@@ -653,7 +664,7 @@
 !-----------------------------------------------------------------------
 !BOC
    select case (output_format)
-      case(ASCII)
+      case(ASCII_FMT)
          open(out_unit,file=trim(output_file),action='write', &
               status='replace',err=96)
          LEVEL2 'Writing results to:'
@@ -687,7 +698,7 @@
             end do
          end if
          write(out_unit,*)
-      case (NETCDF)
+      case (NETCDF_FMT)
       case default
    end select
 
@@ -720,7 +731,7 @@
 !-----------------------------------------------------------------------
 !BOC
    select case (output_format)
-      case(ASCII)
+      case(ASCII_FMT)
          call write_time_string(julianday,secondsofday,timestr)
          write (out_unit,FMT='(A)',ADVANCE='NO') timestr
          if (add_environment) then
@@ -746,7 +757,7 @@
             end do
          end if
          write (out_unit,*)
-      case (NETCDF)
+      case (NETCDF_FMT)
       case default
    end select
    return
