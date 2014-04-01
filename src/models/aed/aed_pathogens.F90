@@ -161,7 +161,7 @@ SUBROUTINE aed_pathogens_load_params(self, count, list)
     minPath = 1e-10
     tfil = find_free_lun()
     open(tfil,file="aed_pathogen_pars.nml", status='OLD',iostat=status)
-    IF (status /= 0) STOP 'Error opening pathogen data namelist file'
+    IF (status /= 0) STOP 'Error opening namelist pathogen_data'
     read(tfil,nml=pathogen_data,iostat=status)
     IF (status /= 0) STOP 'Error reading namelist pathogen_data'
     close(tfil)

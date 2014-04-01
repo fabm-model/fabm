@@ -19,7 +19,7 @@
 
 MODULE aed_phyto_utils
 !-------------------------------------------------------------------------------
-!  aed_phytoplankton --- phytoplankton biogeochemical model
+!  aed_phyto_utils --- utility functions for phytoplankton biogeochemical model
 !-------------------------------------------------------------------------------
    USE aed_core
 
@@ -248,8 +248,10 @@ SUBROUTINE phyto_internal_nitrogen(phytos,group,do_N2uptake,phy,IN,primprod,   &
    PNf = phyto_pN(phytos,group,nh4up,no3up)
 
    IF (phytos(group)%simDINUptake /= 0) THEN
-      uptake(inh4) = uptake(1) * (1.0-PNf) !inh4 == 2
-      uptake(ino3) = uptake(1) * PNf       !ino3 == 1
+!     uptake(inh4) = uptake(1) * (1.0-PNf) !inh4 == 2
+!     uptake(ino3) = uptake(1) * PNf       !ino3 == 1
+      uptake(inh4) = uptake(1) * (PNf)     !inh4 == 2
+      uptake(ino3) = uptake(1) * (1.-PNf)  !ino3 == 1
    ENDIF
    IF (phytos(group)%simDONUptake /= 0) THEN
       uptake(idon) = 0.0  !MH to fix  (idon == 3)

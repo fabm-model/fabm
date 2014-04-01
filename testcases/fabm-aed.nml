@@ -302,8 +302,8 @@
    theta_sed_frp = 1.08
    phosphorus_reactant_variable = '' !#'aed_oxygen_oxy'
    Fsed_frp_variable ='aed_sedflux_Fsed_frp'
-   simPO4Adsorption = .false.
-   ads_use_external_tss = .false.
+   simPO4Adsorption = .true.
+   ads_use_external_tss = .true.
    po4sorption_target_variable =''
    PO4AdsorptionModel = 1
    Kpo4p = 0.1

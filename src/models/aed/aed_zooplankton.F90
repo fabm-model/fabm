@@ -88,7 +88,7 @@ SUBROUTINE aed_zooplankton_load_params(self, dbase, count, list)
 !BEGIN
     tfil = find_free_lun()
     open(tfil,file=dbase, status='OLD',iostat=status)
-    IF (status /= 0) STOP 'Error opening zoop_paramsn amelist file'
+    IF (status /= 0) STOP 'Error opening zoop_params namelist file'
     read(tfil,nml=zoop_params,iostat=status)
     close(tfil)
     IF (status /= 0) STOP 'Error reading namelist zoop_params'
