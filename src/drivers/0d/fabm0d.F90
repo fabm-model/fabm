@@ -21,7 +21,6 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
    public init_run, time_loop, clean_up
-
 !
 ! !DEFINED PARAMETERS:
    integer, parameter        :: namlst=10, out_unit = 12, bio_unit=22
@@ -30,6 +29,8 @@
    integer, parameter        :: READ_ERROR=-2
    integer, parameter        :: CENTER=0,SURFACE=1,BOTTOM=2
    character, parameter      :: separator = char(9)
+   integer, parameter        :: ASCII=1
+   integer, parameter        :: NETCDF=2
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -93,7 +94,6 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-!EOP
 !
 ! !LOCAL VARIABLES:
    character(len=PATH_MAX)   :: env_file,output_file
@@ -107,7 +107,7 @@
                           depth,par_background_extinction,apply_self_shading
    namelist /output/      output_file,nsave,add_environment, &
                           add_diagnostic_variables, add_conserved_quantities
-!
+!EOP
 !-----------------------------------------------------------------------
 !BOC
    LEVEL1 'init_run'
@@ -297,40 +297,7 @@
 
    call fabm_check_ready(model)
 
-   ! Open the output file.
-   open(out_unit,file=output_file,action='write', &
-        status='replace',err=96)
-   LEVEL2 'Writing results to:'
-   LEVEL3 trim(output_file)
-
-   ! Write header to the output file.
-   write(out_unit,FMT='(''# '',A)') title
-   write(out_unit,FMT='(''# '',A)',ADVANCE='NO') 'time'
-   if (add_environment) then
-      write(out_unit,FMT=100,ADVANCE='NO') separator,'photosynthetically active radiation','W/m2'
-      write(out_unit,FMT=100,ADVANCE='NO') separator,'temperature',                        'degrees C'
-      write(out_unit,FMT=100,ADVANCE='NO') separator,'salinity',                           'kg/m3'
-   end if
-   do i=1,size(model%info%state_variables)
-      write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables(i)%long_name),trim(model%info%state_variables(i)%units)
-   end do
-   do i=1,size(model%info%state_variables_ben)
-      write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables_ben(i)%long_name),trim(model%info%state_variables_ben(i)%units)
-   end do
-   if (add_diagnostic_variables) then
-      do i=1,size(model%info%diagnostic_variables)
-         write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables(i)%long_name),trim(model%info%diagnostic_variables(i)%units)
-      end do
-      do i=1,size(model%info%diagnostic_variables_hz)
-         write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables_hz(i)%long_name),trim(model%info%diagnostic_variables_hz(i)%units)
-      end do
-   end if
-   if (add_conserved_quantities) then
-      do i=1,size(model%info%conserved_quantities)
-         write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%conserved_quantities(i)%long_name),trim(model%info%conserved_quantities(i)%units)
-      end do
-   end if
-   write(out_unit,*)
+   call init_output(ASCII,output_file)
 
    LEVEL2 'done.'
    STDERR LINE
@@ -347,30 +314,203 @@
    stop 'init_run'
 95 FATAL 'I could not open ',trim(env_file)
    stop 'init_run'
-96 FATAL 'I could not open ',trim(output_file)
-   stop 'init_run'
 97 FATAL 'I could not open fabm.nml for reading'
    stop 'init_run'
-100 format (A, A, ' (', A, ')')
    end subroutine init_run
 !EOC
 
-   subroutine update_depth(location)
-      integer, intent(in) :: location
-      
-      select case (location)
-         case (SURFACE)
-            current_depth = 0.0_rk
-            par = par_sf
-         case (BOTTOM)
-            current_depth = column_depth            
-            par = par_bt
-         case (CENTER)
-            current_depth = 0.5_rk*column_depth
-            par = par_ct
-      end select
-   end subroutine update_depth
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Manage global time--stepping \label{timeLoop}
+!
+! !INTERFACE:
+   subroutine time_loop()
+!
+! !DESCRIPTION:
+! This internal routine is the heart of the code. It contains
+! the main time-loop inside of which all routines required
+! during the time step are called.
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   integer                   :: i
+   integer(timestepkind)     :: n
+   real(rk)                  :: extinction,bio_albedo
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   LEVEL1 'time_loop'
 
+   do n=MinN,MaxN
+
+      ! Update time
+      call update_time(n)
+
+      decimal_yearday = yearday-1 + dble(secondsofday)/86400.
+
+      ! Update environment
+      call do_input(julianday,secondsofday)
+
+      ! Calculate photosynthetically active radiation if it is not provided in the input file.
+      if (swr_method==0) then
+         ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
+         call fabm_get_albedo(model,bio_albedo)
+         par_sf = short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,bio_albedo)
+      end if
+
+      ! Multiply by fraction of short-wave radiation that is photosynthetically active.
+      par_sf = par_fraction*par_sf
+
+      ! Apply light attentuation with depth, unless local light is provided in the input file.
+      if (swr_method/=2) then
+         ! Either we calculate surface PAR, or surface PAR is provided.
+         ! Calculate the local PAR at the given depth from par fraction, extinction coefficient, and depth.
+         extinction = 0.0_rk
+         if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
+         extinction = extinction + par_background_extinction
+         par_ct = par_sf*exp(-0.5_rk*column_depth*extinction)
+         par_bt = par_sf*exp(-column_depth*extinction)
+
+      else
+         par_ct = par_sf
+         par_bt = par_sf
+      end if
+      call update_depth(CENTER)
+
+      ! Repair state before calling FABM
+      call do_repair_state('0d::time_loop(), before ode_solver()')
+
+      call fabm_update_time(model,real(n,rk))
+
+      ! Integrate one time step
+      call ode_solver(ode_method,size(model%info%state_variables)+size(model%info%state_variables_ben),1,dt,cc,get_rhs,get_ppdd)
+
+      ! ODE solver may have redirected the current state with to an array with intermediate values.
+      ! Reset to global array.
+      do i=1,size(model%info%state_variables)
+         call fabm_link_bulk_state_data(model,i,cc(i,1))
+      end do
+      do i=1,size(model%info%state_variables_ben)
+         call fabm_link_bottom_state_data(model,i,cc(size(model%info%state_variables)+i,1))
+      end do
+
+      call do_repair_state('0d::time_loop(), after ode_solver()')
+
+      ! Do output
+      if (mod(n,nsave)==0) then
+         call do_output(ASCII)
+      end if
+
+   end do
+   STDERR LINE
+
+   return
+   end subroutine time_loop
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: The run is over --- now clean up.
+!
+! !INTERFACE:
+   subroutine clean_up()
+!
+! !DESCRIPTION:
+! Close all open files.
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   LEVEL1 'clean_up'
+
+   call close_input()
+   close(out_unit)
+
+   end subroutine clean_up
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the right-hand side of the ODE system.
+!
+! !INTERFACE:
+   subroutine update_depth(location)
+!
+! !DESCRIPTION:
+! TODO
+!
+! !INPUT PARAMETERS:
+   integer, intent(in)                  :: location
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL PARAMETERS:
+   integer                              :: n
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   select case (location)
+      case (SURFACE)
+         current_depth = 0.0_rk
+         par = par_sf
+      case (BOTTOM)
+         current_depth = column_depth            
+         par = par_bt
+      case (CENTER)
+         current_depth = 0.5_rk*column_depth
+         par = par_ct
+   end select
+   end subroutine update_depth
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Check the current values of all state variables
+!
+! !INTERFACE:
+   subroutine do_repair_state(location)
+!
+! !DESCRIPTION:
+!  Checks the current values of all state variables and repairs these
+!  if allowed and possible. If the state is invalid and repair is not
+!  allowed, the model is brought down.
+!
+! !INPUT PARAMETERS:
+   character(len=*),intent(in) :: location
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+   logical :: valid
+!
+!-----------------------------------------------------------------------
+!BOC
+   call fabm_check_state(model,repair_state,valid)
+   if (.not. (valid .or. repair_state)) then
+      FATAL 'State variable values are invalid and repair is not allowed.'
+      FATAL location
+      FATAL 'note that repair_state() should be used with caution.'
+      FATAL 'try and decrease dt first - and see if that helps.'
+      stop 'od_fabm::do_repair_state'
+   end if
+
+   end subroutine do_repair_state
+!EOC
+
+!-----------------------------------------------------------------------
 !BOP
 !
 ! !IROUTINE: Get the right-hand side of the ODE system.
@@ -396,7 +536,6 @@
 ! !LOCAL PARAMETERS:
    integer                              :: n
 !EOP
-
 !-----------------------------------------------------------------------
 !BOC
    ! Initialize production/destruction matrices to zero (entries will be incremented by FABM)
@@ -493,182 +632,125 @@
 
 !-----------------------------------------------------------------------
 !BOP
-!
-! !IROUTINE: Check the current values of all state variables
+! !IROUTINE: prepare for output
 !
 ! !INTERFACE:
-   subroutine do_repair_state(location)
+   subroutine init_output(output_format,output_file)
 !
 ! !DESCRIPTION:
-!  Checks the current values of all state variables and repairs these
-!  if allowed and possible. If the state is invalid and repair is not
-!  allowed, the model is brought down.
+! TODO
 !
 ! !INPUT PARAMETERS:
-   character(len=*),intent(in) :: location
+   integer, intent(in)                 :: output_format
+   character(len=*), intent(in)        :: output_file
 !
 ! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
+!  Original author(s): Karsten Bolding
 !
-!EOP
-!
-! !LOCAL VARIABLES:
-   logical :: valid
-!
-!-----------------------------------------------------------------------
-!BOC
-
-   call fabm_check_state(model,repair_state,valid)
-   if (.not. (valid .or. repair_state)) then
-      FATAL 'State variable values are invalid and repair is not allowed.'
-      FATAL location
-      FATAL 'note that repair_state() should be used with caution.'
-      FATAL 'try and decrease dt first - and see if that helps.'
-      stop 'od_fabm::do_repair_state'
-   end if
-
-   end subroutine do_repair_state
-!EOC
-
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Manage global time--stepping \label{timeLoop}
-!
-! !INTERFACE:
-   subroutine time_loop()
-!
-! !DESCRIPTION:
-! This internal routine is the heart of the code. It contains
-! the main time-loop inside of which all routines required
-! during the time step are called.
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   integer                   :: i
-   integer(timestepkind)     :: n
-   real(rk)                  :: extinction,bio_albedo
+! !LOCAL PARAMETERS:
+   integer         :: i
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   LEVEL1 'time_loop'
+   select case (output_format)
+      case(ASCII)
+         open(out_unit,file=trim(output_file),action='write', &
+              status='replace',err=96)
+         LEVEL2 'Writing results to:'
+         LEVEL3 trim(output_file)
 
-   do n=MinN,MaxN
-
-      ! Update time
-      call update_time(n)
-
-      decimal_yearday = yearday-1 + dble(secondsofday)/86400.
-
-      ! Update environment
-      call do_input(julianday,secondsofday)
-
-      ! Calculate photosynthetically active radiation if it is not provided in the input file.
-      if (swr_method==0) then
-         ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
-         call fabm_get_albedo(model,bio_albedo)
-         par_sf = short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,bio_albedo)
-      end if
-
-      ! Multiply by fraction of short-wave radiation that is photosynthetically active.
-      par_sf = par_fraction*par_sf
-
-      ! Apply light attentuation with depth, unless local light is provided in the input file.
-      if (swr_method/=2) then
-         ! Either we calculate surface PAR, or surface PAR is provided.
-         ! Calculate the local PAR at the given depth from par fraction, extinction coefficient, and depth.
-         extinction = 0.0_rk
-         if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
-         extinction = extinction + par_background_extinction
-         par_ct = par_sf*exp(-0.5_rk*column_depth*extinction)
-         par_bt = par_sf*exp(-column_depth*extinction)
-      else
-         par_ct = par_sf
-         par_bt = par_sf
-      end if
-      call update_depth(CENTER)
-
-     ! Repair state before calling FABM
-     call do_repair_state('0d::time_loop(), before ode_solver()')
-
-     call fabm_update_time(model,real(n,rk))
-
-      ! Integrate one time step
-      call ode_solver(ode_method,size(model%info%state_variables)+size(model%info%state_variables_ben),1,dt,cc,get_rhs,get_ppdd)
-
-      ! ODE solver may have redirected the current state with to an array with intermediate values.
-      ! Reset to global array.
-      do i=1,size(model%info%state_variables)
-         call fabm_link_bulk_state_data(model,i,cc(i,1))
-      end do
-      do i=1,size(model%info%state_variables_ben)
-         call fabm_link_bottom_state_data(model,i,cc(size(model%info%state_variables)+i,1))
-      end do
-
-     call do_repair_state('0d::time_loop(), after ode_solver()')
-
-      ! Do output
-      if (mod(n,nsave)==0) then
-         call write_time_string(julianday,secondsofday,timestr)
-         write (out_unit,FMT='(A)',ADVANCE='NO') timestr
+   ! Write header to the output file.
+         write(out_unit,FMT='(''# '',A)') title
+         write(out_unit,FMT='(''# '',A)',ADVANCE='NO') 'time'
          if (add_environment) then
-            write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,par
-            write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,temp
-            write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,salt
+            write(out_unit,FMT=100,ADVANCE='NO') separator,'photosynthetically active radiation','W/m2'
+            write(out_unit,FMT=100,ADVANCE='NO') separator,'temperature',                        'degrees C'
+            write(out_unit,FMT=100,ADVANCE='NO') separator,'salinity',                           'kg/m3'
          end if
-         do i=1,(size(model%info%state_variables)+size(model%info%state_variables_ben))
-            write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,cc(i,1)
+         do i=1,size(model%info%state_variables)
+            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables(i)%long_name),trim(model%info%state_variables(i)%units)
+         end do
+         do i=1,size(model%info%state_variables_ben)
+            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables_ben(i)%long_name),trim(model%info%state_variables_ben(i)%units)
          end do
          if (add_diagnostic_variables) then
             do i=1,size(model%info%diagnostic_variables)
-               write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables(i)%long_name),trim(model%info%diagnostic_variables(i)%units)
             end do
             do i=1,size(model%info%diagnostic_variables_hz)
-               write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,fabm_get_horizontal_diagnostic_data(model,i)
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables_hz(i)%long_name),trim(model%info%diagnostic_variables_hz(i)%units)
+            end do
+         end if
+         if (add_conserved_quantities) then
+            do i=1,size(model%info%conserved_quantities)
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%conserved_quantities(i)%long_name),trim(model%info%conserved_quantities(i)%units)
+            end do
+         end if
+         write(out_unit,*)
+      case (NETCDF)
+      case default
+   end select
+
+   return
+96 FATAL 'I could not open ',trim(output_file)
+   stop 'init_output'
+100 format (A, A, ' (', A, ')')
+   end subroutine init_output
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+! !IROUTINE: do the output
+!
+! !INTERFACE:
+   subroutine do_output(output_format)
+!
+! !DESCRIPTION:
+! TODO
+!
+! !INPUT PARAMETERS:
+   integer, intent(in)                 :: output_format
+!
+! !REVISION HISTORY:
+!  Original author(s): Karsten Bolding
+!
+! !LOCAL PARAMETERS:
+   integer         :: i
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   select case (output_format)
+      case(ASCII)
+         call write_time_string(julianday,secondsofday,timestr)
+         write (out_unit,FMT='(A)',ADVANCE='NO') timestr
+         if (add_environment) then
+            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,par
+            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,temp
+            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,salt
+         end if
+         do i=1,(size(model%info%state_variables)+size(model%info%state_variables_ben))
+            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(i,1)
+         end do
+         if (add_diagnostic_variables) then
+            do i=1,size(model%info%diagnostic_variables)
+               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
+            end do
+            do i=1,size(model%info%diagnostic_variables_hz)
+               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_horizontal_diagnostic_data(model,i)
             end do
          end if
          if (add_conserved_quantities) then
             call fabm_get_conserved_quantities(model,totals)
             do i=1,size(model%info%conserved_quantities)
-               write (out_unit,FMT='(A,E15.8E3)',ADVANCE='NO') separator,totals(i)
+               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,totals(i)
             end do
          end if
          write (out_unit,*)
-      end if
-
-   end do
-   STDERR LINE
-
+      case (NETCDF)
+      case default
+   end select
    return
-   end subroutine time_loop
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: The run is over --- now clean up.
-!
-! !INTERFACE:
-   subroutine clean_up()
-!
-! !DESCRIPTION:
-! Close all open files.
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   LEVEL1 'clean_up'
-
-   call close_input()
-   close(out_unit)
-
-   end subroutine clean_up
+   end subroutine do_output
 !EOC
 
 !-----------------------------------------------------------------------
