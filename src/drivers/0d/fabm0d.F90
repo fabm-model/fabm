@@ -27,9 +27,6 @@
 !
 ! !DEFINED PARAMETERS:
    integer, parameter        :: namlst=10, out_unit = 12, bio_unit=22
-   integer, parameter        :: READ_SUCCESS=1
-   integer, parameter        :: END_OF_FILE=-1
-   integer, parameter        :: READ_ERROR=-2
    integer, parameter        :: CENTER=0,SURFACE=1,BOTTOM=2
    character, parameter      :: separator = char(9)
    integer, parameter        :: ASCII_FMT=1
@@ -44,8 +41,9 @@
 !  station description
    real(rk)                  :: latitude,longitude
    integer                   :: output_format
+   integer                   :: ncid=-1
 #ifdef NETCDF4
-   integer                   :: ncid=-1,setn
+   integer                   :: setn
    integer                   :: time_id
    integer                   :: par_id,temp_id,salt_id
    integer, allocatable, dimension(:)  :: statevar_ids,diagnostic_ids,conserved_ids
@@ -454,8 +452,10 @@
 
    call close_input()
    if (ncid .ne. -1) then
+#ifdef NETCDF4
       iret = nf90_close(ncid)
       call check_err(iret)
+#endif
    else
       close(out_unit)
    end if
@@ -947,6 +947,7 @@
    end subroutine do_output
 !EOC
 
+#ifdef NETCDF4
 subroutine check_err(iret)
 use netcdf
 integer iret
@@ -955,7 +956,7 @@ print *, nf90_strerror(iret)
 stop
 endif
 end subroutine
-
+#endif
 
 !-----------------------------------------------------------------------
 
