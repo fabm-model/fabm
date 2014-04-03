@@ -10,6 +10,7 @@ variablespath = 'variables.yaml'
 localpath = 'cf-standard-name-table.xml'
 url = 'http://cf-pcmdi.llnl.gov/documents/cf-standard-names/standard-name-table/25/cf-standard-name-table.xml'
 output_F90 = '../../include/standard_variables.h'
+output_F90_assignments = '../../include/standard_variable_assignments.h'
 output_wiki = 'standard_variables.wiki'
 
 domain2type = {'bulk':'type_bulk_standard_variable',
@@ -78,49 +79,31 @@ for name in sorted(name2data.keys()):
 print yaml.dump(selection,default_flow_style=False)
 
 fout = open(output_F90,'w')
+fout_assignments = open(output_F90_assignments,'w')
 fwiki = open(output_wiki,'w')
-fout.write('   ! Single type with all standard variables supported explicitly by FABM.\n')
-fout.write('   ! A single instance of this type is declared below with the name standard_variables.\n')
-fout.write('   ! This same instance is made publicly available in module fabm_types.\n\n')
-fout.write('   type type_standard_variable_collection\n')
 for domain,items in selection.iteritems():
     fwiki.write('== %s variables ==\n\n{|\n|-\n! Variable\n! Units\n! Corresponding name in [http://cf-pcmdi.llnl.gov/documents/cf-standard-names/ CF convention]\n' % (domain[0].upper()+domain[1:]))
-    fout.write('\n      ! %s variables\n' % (domain[0].upper()+domain[1:]))
+    fout.write('! %s variables\n' % (domain[0].upper()+domain[1:]))
     for i,item in enumerate(sorted(items,cmp=lambda x,y:cmp(x['name'],y['name']))):
-        fout.write('      type (%s) :: &\n' % domain2type[domain])
+        # Collect variable attribute]
+        data = [('name',"'%s'" % item['name']),('units',"'%s'" % item['units'])]
+        if 'cf_names' in item: data.append(('cf_names',"'%s'" % ','.join(item['cf_names'])))
+        if item.get('aggregate_variable',domain=='conserved'): data.append(('aggregate_variable','.true.'))
+
+        # Declare standard variable in Fortran.
+        fout.write('type (%s) :: %s\n' % (domain2type[domain],item['name']))
+
+        # Assign variable attributes in Fortran.
+        for k,v in data: fout_assignments.write('standard_variables%%%s%%%s = %s\n' % (item['name'],k,v))
+        fout_assignments.write('\n')
+
+        # Create wiki entry for this variable.
         fwiki.write('|-\n| %s\n| %s\n' % (item['name'],item['units']))
-        data = (('name',"'%s'" % item['name']),('units',"'%s'" % item['units']))
         if 'cf_names' in item:
-            data = data + (('cf_names',"'%s'" % ','.join(item['cf_names'])),)
             fwiki.write('| %s\n' % item['cf_names'][0])
         else:
-            data = data + (('cf_names',"''"),)
             fwiki.write('| \n')
-        value = '%s( &\n' % domain2type[domain]
-        value += ', &\n'.join(['            %s' % v for k,v in data])
-        value += ')'
-        fout.write('         %s = %s' % (item['name'],value))
-        fout.write('\n')
+
+    # Close entries for this variable category
     fwiki.write('|}\n\n')
-fout.write('\n   end type type_standard_variable_collection\n')
-
-fout.write('\n   ! Collection that contains all standard variables:\n')
-fout.write('   type (type_standard_variable_collection),parameter :: standard_variables = type_standard_variable_collection()\n')
-fout.write('\n')
-
-fout.write('   ! For backward compatibility: individual variables accessible as module-level objects.\n')
-fout.write('   ! Support for these will ultimately disappear; please use the standard_variables\n')
-fout.write('   ! object from fabm_types instead. Then there is no need to access fabm_standard_variables.\n')
-fout.write('   ! For instance: use "standard_variables%temperature" instead of "temperature".\n')
-for domain,items in selection.iteritems():
-    fout.write('\n   type (%s), parameter, public :: &\n' % domain2type[domain])
-    itemsplussynonyms = {}
-    for item in items:
-        itemsplussynonyms[item['name']] = item
-        for synonym in item.get('synonyms',[]): itemsplussynonyms[synonym] = item
-    for i,name in enumerate(sorted(itemsplussynonyms.keys())):
-        item = itemsplussynonyms[name]
-        fout.write('      %s = standard_variables%%%s' % (name,item['name']))
-        if i!=len(itemsplussynonyms)-1: fout.write(', &')
-        fout.write('\n')
-fout.close()
+    fout.write('\n')

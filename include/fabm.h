@@ -382,13 +382,15 @@
 #endif
 
 ! For FABM: standard arguments used in calling biogeochemical routines.
-#define _ARGUMENTS_ND_IN_ self%environment _ARG_LOCATION_ND_
-#define _ARGUMENTS_IN_HZ_ self%environment _ARG_LOCATION_VARS_HZ_
+#define _ARGUMENTS_SHARED_IN_ self%environment
+#define _ARGUMENTS_ND_IN_ _ARGUMENTS_SHARED_IN_ _ARG_LOCATION_ND_
+#define _ARGUMENTS_IN_HZ_ _ARGUMENTS_SHARED_IN_ _ARG_LOCATION_VARS_HZ_
 
 ! For BGC models: FABM arguments to routines implemented by biogeochemical models.
-#define _ARGUMENTS_LOCAL_ environment _ARG_LOCATION_
-#define _ARGUMENTS_ND_ environment _ARG_LOCATION_ND_
-#define _ARGUMENTS_HZ_ environment _ARG_LOCATION_VARS_HZ_
+#define _ARGUMENTS_SHARED_ environment
+#define _ARGUMENTS_LOCAL_ _ARGUMENTS_SHARED_ _ARG_LOCATION_
+#define _ARGUMENTS_ND_ _ARGUMENTS_SHARED_ _ARG_LOCATION_ND_
+#define _ARGUMENTS_HZ_ _ARGUMENTS_SHARED_ _ARG_LOCATION_VARS_HZ_
 #define _ARGUMENTS_DO_ _ARGUMENTS_ND_,rhs
 #define _ARGUMENTS_DO_PPDD_ _ARGUMENTS_ND_,pp,dd
 #define _ARGUMENTS_DO_SURFACE_ _ARGUMENTS_HZ_,flux
@@ -407,9 +409,10 @@
 #define _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_HZ_
 
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
-#define _DECLARE_ARGUMENTS_LOCAL_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_
-#define _DECLARE_ARGUMENTS_ND_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_ND_
-#define _DECLARE_ARGUMENTS_HZ_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_HZ_
+#define _DECLARE_ARGUMENTS_SHARED_ type (type_environment),intent(inout) :: environment
+#define _DECLARE_ARGUMENTS_LOCAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_LOCATION_ARG_
+#define _DECLARE_ARGUMENTS_ND_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_LOCATION_ARG_ND_
+#define _DECLARE_ARGUMENTS_HZ_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_LOCATION_ARG_HZ_
 #define _DECLARE_ARGUMENTS_DO_  _DECLARE_ARGUMENTS_ND_;real(rk) _DIMENSION_SLICE_PLUS_1_,intent(inout) :: rhs
 #define _DECLARE_ARGUMENTS_DO_PPDD_ _DECLARE_ARGUMENTS_ND_;real(rk) _DIMENSION_SLICE_PLUS_2_,intent(inout) :: pp,dd
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_ _DECLARE_ARGUMENTS_HZ_;real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_1_,intent(inout) :: flux_pel,flux_ben
@@ -602,5 +605,6 @@
 
 #endif
 
-#define _ARGUMENTS_VERT_ environment _ARG_LOCATION_VERT_
-#define _DECLARE_ARGUMENTS_VERT_ type (type_environment),intent(inout) :: environment;_DECLARE_LOCATION_ARG_VERT_
+#define _ARGUMENTS_VERT_IN_ _ARGUMENTS_SHARED_IN_ _ARG_LOCATION_VERT_
+#define _ARGUMENTS_VERT_ _ARGUMENTS_SHARED_ _ARG_LOCATION_VERT_
+#define _DECLARE_ARGUMENTS_VERT_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_LOCATION_ARG_VERT_

@@ -3,6 +3,10 @@ bulk:
     units: mmol m-3
   - name: attenuation_coefficient_of_photosynthetic_radiative_flux
     units: m-1
+    aggregate_variable: true
+  - name: attenuation_coefficient_of_shortwave_flux
+    units: m-1
+    aggregate_variable: true
   - name: cell_thickness
     units: m
   - name: density

@@ -16,7 +16,6 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_standard_variables
 
    implicit none
 
@@ -133,17 +132,17 @@
 
    call self%register_state_variable(self%id_po4,'po4','mmolP/m**3','dissolved phosphate', &
                                     po4_init,minimum=0.0_rk, &
-                                    standard_variable=mole_concentration_of_phosphate)
+                                    standard_variable=standard_variables%mole_concentration_of_phosphate)
    call self%set_variable_property(self%id_po4,'particulate',.false.)
 
    call self%register_state_variable(self%id_no3,'no3','mmolN/m**3','dissolved nitrate',     &
                                     no3_init,minimum=0.0_rk, &
-                                    standard_variable=mole_concentration_of_nitrate)
+                                    standard_variable=standard_variables%mole_concentration_of_nitrate)
    call self%set_variable_property(self%id_no3,'particulate',.false.)
 
    call self%register_state_variable(self%id_nh3,'nh3','mmolN/m**3','dissolved ammonium', &
                                     nh3_init,minimum=0.0_rk, &
-                                    standard_variable=mole_concentration_of_ammonium)
+                                    standard_variable=standard_variables%mole_concentration_of_ammonium)
    call self%set_variable_property(self%id_nh3,'particulate',.false.)
 
    call self%register_state_variable(self%id_oxy,'oxy','mmolO2/m**3','dissolved oxygen',     &

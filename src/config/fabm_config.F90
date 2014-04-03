@@ -5,7 +5,7 @@ module fabm_config
    use fabm_types
    use fabm_properties,only:type_property_dictionary,type_property,type_set
    use fabm_driver
-   use fabm,only:type_model,fabm_initialize
+   use fabm,only:type_model,fabm_initialize_library,fabm_initialize
 
    use fabm_config_types
    use fabm_yaml,yaml_parse=>parse,yaml_error_length=>error_length
@@ -31,8 +31,8 @@ contains
       integer                          :: unit_eff
       character(len=*),parameter       :: path = 'fabm.yaml'
 
-      ! If the host has not provided an object for communication of log messages and fatal errors, create a default object now.
-      if (.not.associated(driver)) allocate(type_base_driver::driver)
+      ! Make sure the library is initialized.
+      call fabm_initialize_library()
 
       ! Determine the unit to use for YAML file.
       if (present(unit)) then
@@ -143,9 +143,6 @@ contains
 
       ! Retrieve descriptive name for the model instance (default to instance name if not provided).
       long_name = trim(node%get_string('long_name',default=instancename))
-
-      ! If FABM does not have its model factory yet, create it.
-      call fabm_create_model_factory()
 
       ! Try to create the model based on name.
       call factory%create(trim(modelname),model)
