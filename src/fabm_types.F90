@@ -1412,7 +1412,6 @@ end subroutine
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-   type (type_link),pointer :: link
    type (type_aggregate_variable),pointer :: aggregate_variable
 !-----------------------------------------------------------------------
 !BOC
