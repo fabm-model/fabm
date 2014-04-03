@@ -320,7 +320,8 @@ contains
 
       return
 
-99    select type (value=>pair%value)
+99    continue
+      select type (value=>pair%value)
          class is (type_scalar)
             call fatal_error('parse_initialization',trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
       end select
