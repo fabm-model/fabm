@@ -134,6 +134,7 @@
 		<File RelativePath="..\..\src\fabm_driver.F90"/>
 		<File RelativePath="..\..\src\fabm_expressions.F90"/>
 		<File RelativePath="..\..\src\fabm_library.F90"/>
+		<File RelativePath="..\..\src\fabm_particle.F90"/>
 		<File RelativePath="..\..\src\fabm_properties.F90"/>
 		<File RelativePath="..\..\src\fabm_standard_variables.F90"/>
 		<File RelativePath="..\..\src\fabm_types.F90"/></Filter></Files>
