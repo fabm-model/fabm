@@ -427,7 +427,8 @@
          ! Ask the factory to create the model.
          call factory%create(trim(models(i)),childmodel)
 
-         if (.not.associated(childmodel)) call fatal_error('fabm_create_model_from_file','"'//trim(models(i))//'" is not a valid model name.')
+         if (.not.associated(childmodel)) call fatal_error('fabm_create_model_from_file', &
+            '"'//trim(models(i))//'" is not a valid model name.')
 
          call log_message('Initializing biogeochemical model "'//trim(instancename)//'"...')
          call model%root%add_child(childmodel,instancename,configunit=file_unit)
@@ -522,7 +523,8 @@
 !BOC
       child => model%children%first
       do while (associated(child))
-         if (self%models%count(child%model)/=1) call fatal_error('fabm_initialize::test_presence','BUG: Model "'//trim(model%name)//'" is not called exactly one time.')
+         if (self%models%count(child%model)/=1) call fatal_error('fabm_initialize::test_presence', &
+            'BUG: Model "'//trim(model%name)//'" is not called exactly one time.')
          call test_presence(self,child%model)
          child => child%next
       end do
@@ -603,10 +605,12 @@
 
    ! If diagnostic variables also appear as dependency, send the corresponding array slice for generic read-only access.
    do ivar=1,size(self%diagnostic_variables)
-      call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%globalid,self%environment%diag(_PREARG_LOCATION_DIMENSIONS_ ivar))
+      call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%globalid, &
+                               self%environment%diag(_PREARG_LOCATION_DIMENSIONS_ ivar))
    end do
    do ivar=1,size(self%horizontal_diagnostic_variables)
-      call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%globalid,self%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar))
+      call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%globalid, &
+                                     self%environment%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar))
    end do
 
    if (present(seconds_per_time_unit)) then
@@ -617,12 +621,14 @@
                expression%period = expression%period/seconds_per_time_unit
                allocate(expression%history(_PREARG_LOCATION_ expression%n+3))
                expression%history = 0.0_rk
-               call fabm_link_bulk_data(self,expression%output_name,expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
+               call fabm_link_bulk_data(self,expression%output_name, &
+                                        expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
             class is (type_horizontal_temporal_mean)
                expression%period = expression%period/seconds_per_time_unit
                allocate(expression%history(_PREARG_LOCATION_HZ_ expression%n+3))
                expression%history = 0.0_rk
-               call fabm_link_horizontal_data(self,expression%output_name,expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+3))
+               call fabm_link_horizontal_data(self,expression%output_name, &
+                                              expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+3))
          end select
          expression => expression%next
       end do
@@ -2344,9 +2350,12 @@ contains
          ! - remove contribution of oldest point from historical mean
          ! - linearly interpolate to desired time
          ! - add contribution of new point to historical mean
-         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
-         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) + weight_right*expression%in%p
-         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
+            - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) &
+            + weight_right*expression%in%p
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
+            + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
 
          ! Compute next time for which we want to store output
          expression%next_save_time = expression%next_save_time + expression%period/expression%n
@@ -2363,7 +2372,8 @@ contains
       ! - store values at current time step
       ! - for current mean, use historical mean but account for change since most recent point in history.
       expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) = expression%in%p
-      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1))
+      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
+         + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1))
 
       expression%last_time = t
    end subroutine
@@ -2389,9 +2399,12 @@ contains
          ! - remove contribution of oldest point from historical mean
          ! - linearly interpolate to desired time
          ! - add contribution of new point to historical mean
-         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) - expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
-         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1) + weight_right*expression%in%p
-         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) + expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
+         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) &
+            - expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
+         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1) &
+            + weight_right*expression%in%p
+         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) &
+            + expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
 
          ! Compute next time for which we want to store output
          expression%next_save_time = expression%next_save_time + expression%period/expression%n
@@ -2408,7 +2421,8 @@ contains
       ! - store values at current time step
       ! - for current mean, use historical mean but account for change since most recent point in history.
       expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1) = expression%in%p
-      expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1))
+      expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) &
+         + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1))
 
       expression%last_time = t
    end subroutine
@@ -2579,7 +2593,8 @@ subroutine classify_variables(self)
                         nstate = nstate+1
                         call object%state_indices%set_value(nstate)
                      case (presence_external_required)
-                        call fatal_error('classify_variables','Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
+                        call fatal_error('classify_variables', &
+                           'Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
                      case default
                         continue
                   end select
@@ -2605,7 +2620,8 @@ subroutine classify_variables(self)
                               call object%state_indices%set_value(nstate_surf)
                         end select
                      case (presence_external_required)
-                        call fatal_error('classify_variables','Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
+                        call fatal_error('classify_variables', &
+                           'Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
                   end select
                end if
          end select
@@ -2675,7 +2691,8 @@ subroutine classify_variables(self)
                   statevar%no_river_dilution         = object%no_river_dilution
                end if
             end if
-            if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
+            if (allocated(object%alldata).and. &
+                .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                call append_string(self%dependencies,link%name)
                if (object%standard_variable%name/='') call append_string(self%dependencies,object%standard_variable%name)
             end if
@@ -2708,7 +2725,8 @@ subroutine classify_variables(self)
                   hz_statevar%initial_value     = object%initial_value
                end if
             end if
-            if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
+            if (allocated(object%alldata).and. &
+                .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                call append_string(self%dependencies_hz,link%name)
                if (object%standard_variable%name/='') call append_string(self%dependencies_hz,object%standard_variable%name)
             end if
