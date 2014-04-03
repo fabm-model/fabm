@@ -144,8 +144,8 @@ module fabm_particle
    subroutine before_coupling(self)
       class (type_particle_model),intent(inout) :: self
 
-      type (type_model_reference),    pointer :: reference
-      class (type_coupling),pointer :: coupling,previous_coupling
+      type (type_model_reference),pointer :: reference
+      class (type_coupling),      pointer :: coupling
 
       reference => self%first_model_reference
       do while (associated(reference))
