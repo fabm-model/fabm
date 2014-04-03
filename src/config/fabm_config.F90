@@ -53,7 +53,7 @@ contains
          class is (type_dictionary)
             ! Create F2003 model tree.
             call create_model_tree_from_dictionary(model,node,do_not_initialize,parameters)
-         class default
+         class is (type_node)
             call fatal_error('fabm_create_model_from_yaml_file', trim(path)//' must contain a dictionary &
                &at the root (non-indented) level, not a single value. Are you missing a trailing colon?')
       end select
@@ -85,7 +85,7 @@ contains
       select type (node)
          class is (type_dictionary)
             pair => node%first
-         class default
+         class is (type_node)
             nullify(pair)
             call fatal_error('create_model_tree_from_dictionary',trim(node%path)// &
                ' must be a dictionary with (model name : information) pairs, not a single value.')
@@ -100,7 +100,7 @@ contains
                childmodel => create_model_from_dictionary(instancename,dict,model%root, &
                                                           require_initialization,require_all_parameters)
                childmodel%check_conservation = check_conservation
-            class default
+            class is (type_node)
                call fatal_error('create_model_tree_from_dictionary','Configuration information for model "'// &
                   trim(instancename)//'" must be a dictionary, not a single value.')
          end select
@@ -160,13 +160,13 @@ contains
                   select type (value=>pair%value)
                      class is (type_scalar)
                         call model%parameters%set_string(trim(pair%key),trim(value%string))
-                     class default
+                     class is (type_node)
                         call fatal_error('create_model_from_dictionary','BUG: "flatten" should &
                            &have ensured that the value of '//trim(value%path)//' is scalar, not a nested dictionary.')
                   end select
                   pair => pair%next   
                end do
-            class default
+            class is (type_node)
                call fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
          end select
       end if
@@ -202,13 +202,13 @@ contains
                   select type (value=>pair%value)
                      class is (type_scalar)
                         call model%request_coupling(trim(get_safe_name(pair%key)),trim(get_safe_name(value%string)),required=.true.)
-                     class default
+                     class is (type_node)
                         call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
                            ' must be a string, not a nested dictionary.')
                   end select
                   pair => pair%next   
                end do
-            class default
+            class is (type_node)
                call fatal_error('create_model_from_dictionary',trim(childnode%path)// &
                   ' must be a dictionary, not a single value.')
          end select
@@ -220,7 +220,7 @@ contains
          select type (childnode)
             class is (type_dictionary)
                call parse_initialization(model,childnode,initialized_set,get_background=.false.)
-            class default
+            class is (type_node)
                call fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
          end select
       end if
@@ -231,7 +231,7 @@ contains
          select type (childnode)
             class is (type_dictionary)
                call parse_initialization(model,childnode,background_set,get_background=.true.)
-            class default
+            class is (type_node)
                call fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
          end select
       end if
@@ -311,7 +311,7 @@ contains
                end select
                if (.not.is_state_variable) call fatal_error('parse_initialization', &
                   trim(value%path)//': "'//trim(pair%key)//'" is not a state variable of model "'//trim(model%name)//'".')
-            class default
+            class is (type_node)
                call fatal_error('parse_initialization',trim(value%path)// &
                   ' must be set to a scalar value, not to a nested dictionary.')
          end select
@@ -343,7 +343,7 @@ contains
                value = node%to_logical(.false.,success)
                if (.not.success) call fatal_error('mapping_get_logical',trim(node%path)//' is set to "'// &
                   trim(node%string)//'", which cannot be interpreted as a Boolean value.')
-            class default
+            class is (type_node)
                call fatal_error('mapping_get_logical',trim(node%path)//' must be a key, not a dictionary.')
          end select
       end if
