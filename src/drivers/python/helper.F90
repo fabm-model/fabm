@@ -30,13 +30,11 @@
      real(rk),           dimension(:),allocatable,intent(out)   :: environment
 
      integer                         :: n
-     class (type_base_model),pointer :: info
      type (type_link),       pointer :: link
    
       ! Get number of environmental dependencies (light, temperature, etc.)
       n = 0
-      info => model%info
-      link => info%first_link
+      link => model%root%first_link
       do while (associated(link))
          if (link%owner) then
             select type (object=>link%target)
@@ -65,7 +63,7 @@
       
       ! Get metadata on environmental dependencies (light, temperature, etc.)
       n = 0
-      link => info%first_link
+      link => model%root%first_link
       do while (associated(link))
          if (link%owner) then
             select type (object=>link%target)
@@ -73,7 +71,7 @@
                   if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                      if (.not.associated(object%alldata(1)%p%p)) then
                         n = n + 1
-                        if (is_null_standard_variable(object%standard_variable)) then
+                        if (object%standard_variable%is_null()) then
                            environment_names(n) = trim(link%name)
                            environment_units(n) = trim(object%units)
                         else
@@ -87,7 +85,7 @@
                   if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                      if (.not.associated(object%alldata(1)%p%p)) then
                         n = n + 1
-                        if (is_null_standard_variable(object%standard_variable)) then
+                        if (object%standard_variable%is_null()) then
                            environment_names(n) = trim(link%name)
                            environment_units(n) = trim(object%units)
                         else
@@ -101,7 +99,7 @@
                   if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
                      if (.not.associated(object%alldata(1)%p%p)) then
                         n = n + 1
-                        if (is_null_standard_variable(object%standard_variable)) then
+                        if (object%standard_variable%is_null()) then
                            environment_names(n) = trim(link%name)
                            environment_units(n) = trim(object%units)
                         else
