@@ -63,7 +63,6 @@ SUBROUTINE create(self,name,model)
    CLASS (type_base_model),POINTER :: model
 !-------------------------------------------------------------------------------
 !BEGIN
-    NULLIFY(model)
 
     ! print *,'**** Initialising model ', modelname
     SELECT case (name)
@@ -82,7 +81,7 @@ SUBROUTINE create(self,name,model)
        CASE ('aed_sulfur');         ALLOCATE(aed_type_sulfur::model)
        CASE ('aed_tracer');         ALLOCATE(aed_type_tracer::model)
        CASE ('aed_totals');         ALLOCATE(aed_type_totals::model)
-       CASE DEFAULT ;               print *,'*** Unknown module ',name
+       CASE DEFAULT ;               NULLIFY(model)
     END SELECT
 
 END SUBROUTINE create
