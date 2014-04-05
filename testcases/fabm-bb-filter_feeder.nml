@@ -80,5 +80,5 @@
 &bb_filter_feeder
    prey_source_variable = 'gotm_npzd_phy',
    use_external_clearance_rate = .false.,
-   default_clearance_rate = 1.16e-6,        ! 10 % of the water volume per day
+   clearance_rate = 1.16e-6,        ! 10 % of the water volume per day
 /

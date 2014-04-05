@@ -38,11 +38,11 @@
       type (type_state_variable_id) :: id_prey
       type (type_dependency_id)     :: id_clearance_rate
 
-      real(rk) :: default_clearance_rate
       logical  :: use_external_clearance_rate
+      real(rk) :: clearance_rate
 
    contains
-   
+
       procedure :: initialize
       procedure :: do
    end type
@@ -76,29 +76,36 @@
 !
 ! !LOCAL VARIABLES:
    character(len=64) :: prey_source_variable=''
-   real(rk)          :: default_clearance_rate
+   real(rk)          :: clearance_rate
    logical           :: use_external_clearance_rate
-   namelist /bb_filter_feeder/ default_clearance_rate,use_external_clearance_rate,prey_source_variable
+   namelist /bb_filter_feeder/ clearance_rate,use_external_clearance_rate,prey_source_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    use_external_clearance_rate = .true.
-   default_clearance_rate = 0.0_rk      ! per second!
+   clearance_rate = 0.0_rk      ! per second!
    prey_source_variable = ''
 
    ! Read the namelist
    if (configunit>0) read(configunit,nml=bb_filter_feeder,err=99,end=100)
+
+   ! Determine whether to use externally-prescribed clearance rate.
+   call self%get_parameter(self%use_external_clearance_rate,'use_external_clearance_rate',default=use_external_clearance_rate)
+
+   ! Get clearance rate as constant or extenral dependency.
+   if (self%use_external_clearance_rate) then
+      call self%register_dependency(self%id_clearance_rate,'clearance_rate','s-1','clearance rate')
+   else
+      call self%get_parameter(self%clearance_rate,'clearance_rate','s-1',default=clearance_rate)
+   end if
 
    ! Register state variables
    call self%register_state_variable(self%id_consumed_prey,'consumed_prey','','consumed prey',0.0_rk,minimum=0.0_rk)
    call self%set_variable_property(self%id_consumed_prey,'disable_transport',.true.)
 
    ! Register link to external pelagic prey.
-   call self%register_state_dependency(self%id_prey,prey_source_variable)
-
-   self%use_external_clearance_rate = use_external_clearance_rate
-   self%default_clearance_rate = default_clearance_rate  ! Units: per second!
-   if (self%use_external_clearance_rate) call self%register_dependency(self%id_clearance_rate,'clearance_rate')  ! Unit: per second!
+   call self%register_state_dependency(self%id_prey,'prey')
+   if (prey_source_variable/='') call self%request_coupling(self%id_prey,prey_source_variable)
 
    return
 
@@ -139,7 +146,7 @@
    if (self%use_external_clearance_rate) then
       _GET_(self%id_clearance_rate,clearance_rate) ! prescribed clearance rate
    else
-      clearance_rate = self%default_clearance_rate
+      clearance_rate = self%clearance_rate
    end if
 
    ! Set fluxes of pelagic variables.

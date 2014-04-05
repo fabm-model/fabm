@@ -62,7 +62,7 @@
    real(rk)                  :: specific_light_absorption
    real(rk)                  :: surface_flux
    character(len=64)         :: unit
-   real(rk), parameter       :: secs_pr_day = 86400.0_rk
+   real(rk), parameter       :: days_per_second = 1.0_rk/86400.0_rk
 
    namelist /bb_passive/     initial_concentration,vertical_velocity, &
                              specific_light_absorption,surface_flux
@@ -78,13 +78,16 @@
    ! Read the namelist
    if (configunit>0) read(configunit,nml=bb_passive,err=99,end=100)
 
-   self%surface_flux = surface_flux/secs_pr_day
+   call self%get_parameter(unit,'unit',default=unit)
+   call self%get_parameter(vertical_velocity,'vertical_velocity','m d-1',default=vertical_velocity,scale_factor=days_per_second)
+   call self%get_parameter(specific_light_absorption,'specific_light_absorption','m-1 '//trim(unit),default=specific_light_absorption)
+   call self%get_parameter(self%surface_flux,'surface_flux',trim(unit)//' m s-1',default=surface_flux,scale_factor=days_per_second)
 
    ! Register state variables
    call self%register_state_variable(self%id_tracer, &
                     'tracer',unit,'tracer', &
                     initial_concentration,minimum=0.0_rk, &
-                    vertical_movement=vertical_velocity/secs_pr_day, &
+                    vertical_movement=vertical_velocity, &
                     specific_light_extinction=specific_light_absorption)
 
    return
