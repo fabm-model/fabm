@@ -1,8 +1,8 @@
 &model_setup
 title='test'
-start="2002-01-01 00:00:00"
-stop="2002-02-01 00:00:00"
-dt=60
+start="1998-01-01 00:00:00"
+stop="1999-01-01 00:00:00"
+dt=1800
 ode_method=3
 repair_state=.false.
 /
@@ -14,7 +14,7 @@ repair_state=.false.
 ! ------------------------------------------------------------------
 
 &environment
-env_file='env.dat'
+env_file='env_nns_annual.dat'
 swr_method=1
 latitude=54.0
 longitude=9.0
@@ -26,8 +26,9 @@ apply_self_shading=.false.
 /
 
 &output
+output_format=1
 output_file='output.dat'
-nsave=1
+nsave=6
 add_environment=.true.
 add_conserved_quantities=.false.
 add_diagnostic_variables=.true.
