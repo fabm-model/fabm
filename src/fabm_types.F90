@@ -802,7 +802,7 @@
 ! !IROUTINE: Initializes model information.
 !
 ! !INTERFACE:
-   subroutine add_child(self,model,name,long_name,configunit)
+   recursive subroutine add_child(self,model,name,long_name,configunit)
 !
 ! !DESCRIPTION:
 !  This function initializes the members of a model information derived type,
