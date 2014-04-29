@@ -2568,6 +2568,7 @@ subroutine classify_variables(self)
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
 
    type (type_aggregate_variable),    pointer :: aggregate_variable
+   type (type_set) :: dependencies,dependencies_hz,dependencies_scalar
 
    ! Count number of bulk variables in various categories.
    nstate = 0
@@ -2644,20 +2645,14 @@ subroutine classify_variables(self)
    allocate(self%horizontal_diagnostic_variables(ndiag_hz))
    allocate(self%conserved_quantities           (ncons))
 
-   ! Create empty lists that will hold the names of all readable variables.
-   allocate(self%dependencies(0))
-   allocate(self%dependencies_hz(0))
-   allocate(self%dependencies_scalar(0))
-
    ! Set pointers for backward compatibility (pre 2013-06-15)
    ! Note: this must be done AFTER allocation of the target arrays, above!
    self%state_variables_ben => self%bottom_state_variables
    self%diagnostic_variables_hz => self%horizontal_diagnostic_variables
 
-   ! Copy metadata of bulk variables
+   ! Build lists of state variable and diagnostic variables.
    nstate = 0
    ndiag  = 0
-   ncons  = 0
    nstate_bot  = 0
    nstate_surf = 0
    ndiag_hz    = 0
@@ -2691,11 +2686,6 @@ subroutine classify_variables(self)
                   statevar%no_river_dilution         = object%no_river_dilution
                end if
             end if
-            if (allocated(object%alldata).and. &
-                .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
-               call append_string(self%dependencies,link%name)
-               if (object%standard_variable%name/='') call append_string(self%dependencies,object%standard_variable%name)
-            end if
          class is (type_horizontal_variable)
             if (link%owner) then
                ! The model owns this variable (no external master variable has been assigned)
@@ -2725,20 +2715,11 @@ subroutine classify_variables(self)
                   hz_statevar%initial_value     = object%initial_value
                end if
             end if
-            if (allocated(object%alldata).and. &
-                .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
-               call append_string(self%dependencies_hz,link%name)
-               if (object%standard_variable%name/='') call append_string(self%dependencies_hz,object%standard_variable%name)
-            end if
-         class is (type_scalar_variable)
-            if (allocated(object%alldata)) then
-               call append_string(self%dependencies_scalar,link%name)
-               if (object%standard_variable%name/='') call append_string(self%dependencies_scalar,object%standard_variable%name)
-            end if
       end select
       link => link%next
    end do
 
+   ! Build list of conserved quantities.
    ncons = 0
    aggregate_variable => self%root%first_aggregate_variable
    do while (associated(aggregate_variable))
@@ -2752,6 +2733,35 @@ subroutine classify_variables(self)
       aggregate_variable => aggregate_variable%next
    end do
 
+   ! Create lists of variables that may be provided by the host model.
+   ! These lists include external dependencies, as well as the model's own state variables,
+   ! which may be overridden by the host.
+   link => self%root%first_link
+   do while (associated(link))
+      select type (object=>link%target)
+         class is (type_bulk_variable)
+            if (allocated(object%alldata).and. &
+                .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
+               call dependencies%add(link%name)
+               if (object%standard_variable%name/='') call dependencies%add(object%standard_variable%name)
+            end if
+         class is (type_horizontal_variable)
+            if (allocated(object%alldata).and. &
+                .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
+               call dependencies_hz%add(link%name)
+               if (object%standard_variable%name/='') call dependencies_hz%add(object%standard_variable%name)
+            end if
+         class is (type_scalar_variable)
+            if (allocated(object%alldata)) then
+               call dependencies_scalar%add(link%name)
+               if (object%standard_variable%name/='') call dependencies_scalar%add(object%standard_variable%name)
+            end if
+      end select
+      link => link%next
+   end do
+   call dependencies%to_array(self%dependencies)
+   call dependencies_hz%to_array(self%dependencies_hz)
+   call dependencies_scalar%to_array(self%dependencies_scalar)
 end subroutine classify_variables
 
 subroutine copy_variable_metadata(internal_variable,external_variable)

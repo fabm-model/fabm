@@ -88,6 +88,9 @@ module fabm_properties
    contains
       procedure :: contains => set_contains
       procedure :: add      => set_add
+      procedure :: size     => set_size
+      procedure :: to_array => set_to_array
+      procedure :: finalize => set_finalize
    end type
 
 contains
@@ -446,7 +449,9 @@ contains
    logical function set_contains(self,string)
       class (type_set),intent(in) :: self
       character(len=*),intent(in) :: string
+
       type (type_set_element),pointer :: element
+
       element => self%first
       do while (associated(element))
          if (element%string==string) then
@@ -461,7 +466,9 @@ contains
    subroutine set_add(self,string)
       class (type_set),intent(inout) :: self
       character(len=*),intent(in)    :: string
+
       type (type_set_element),pointer :: element,previous
+
       if (.not.associated(self%first)) then
          allocate(self%first)
          element => self%first
@@ -476,6 +483,50 @@ contains
          element => previous%next
       end if
       element%string = string
+   end subroutine
+
+   function set_size(self) result(n)
+      class (type_set),intent(in) :: self
+
+      integer                         :: n
+      type (type_set_element),pointer :: element
+
+      n = 0
+      element => self%first
+      do while (associated(element))
+         n = n + 1
+         element => element%next
+      end do
+   end function
+
+   subroutine set_to_array(self,array)
+      class (type_set),            intent(in)  :: self
+      character(len=*),allocatable,intent(out) :: array(:)
+
+      integer                         :: n
+      type (type_set_element),pointer :: element
+
+      allocate(array(self%size()))
+      n = 0
+      element => self%first
+      do while (associated(element))
+         n = n + 1
+         array(n) = element%string
+         element => element%next
+      end do
+   end subroutine
+
+   subroutine set_finalize(self)
+      class (type_set),intent(inout) :: self
+
+      type (type_set_element),pointer :: element,next
+
+      element => self%first
+      do while (associated(element))
+         next => element%next
+         deallocate(element)
+         element => next
+      end do
    end subroutine
 
 end module fabm_properties

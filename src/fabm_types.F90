@@ -66,7 +66,7 @@
    public type_bulk_data_pointer_pointer,type_horizontal_data_pointer_pointer,type_scalar_data_pointer_pointer
    public type_aggregate_variable, type_contributing_variable
    public time_treatment2output,output2time_treatment
-   public append_string,append_data_pointer
+   public append_data_pointer
 
 ! !PUBLIC DATA MEMBERS:
 !
@@ -1322,35 +1322,6 @@ subroutine append_scalar_data_pointer(array,data)
    array(size(array))%p => data
    array(size(array))%p = array(1)%p
 end subroutine append_scalar_data_pointer
-
-subroutine append_string(array,string,exists)
-   character(len=attribute_length),dimension(:),allocatable :: array
-   character(len=*),intent(in) :: string
-   logical,intent(out),optional :: exists
-   integer :: i
-   character(len=attribute_length),allocatable :: oldarray(:)
-
-   if (.not.allocated(array)) then
-      allocate(array(1))
-   else
-      do i=1,size(array)
-         if (array(i)==string) then
-            if (present(exists)) exists = .true.
-            return
-         end if
-      end do
-
-      allocate(oldarray(size(array)))
-      oldarray = array
-      deallocate(array)
-      allocate(array(size(oldarray)+1))
-      array(1:size(oldarray)) = oldarray
-      deallocate(oldarray)
-   end if
-
-   array(size(array)) = string
-   if (present(exists)) exists = .false.
-end subroutine append_string
 
 recursive subroutine before_coupling(self)
    class (type_base_model),intent(inout),target :: self
@@ -2624,12 +2595,11 @@ end subroutine add_parameter
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_link),pointer                    :: link,link2
-      type (type_bulk_standard_variable)          :: bulk_standard_variable
-      type (type_horizontal_standard_variable)    :: horizontal_standard_variable
-      type (type_global_standard_variable)        :: global_standard_variable
-      character(len=attribute_length),allocatable :: processed_bulk(:),processed_horizontal(:),processed_scalar(:)
-      logical                                     :: exists
+      type (type_link),pointer                 :: link,link2
+      type (type_bulk_standard_variable)       :: bulk_standard_variable
+      type (type_horizontal_standard_variable) :: horizontal_standard_variable
+      type (type_global_standard_variable)     :: global_standard_variable
+      type (type_set)                          :: processed_bulk,processed_horizontal,processed_scalar
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -2638,8 +2608,8 @@ end subroutine add_parameter
          select type (object=>link%target)
             class is (type_bulk_variable)
                if (.not.object%standard_variable%is_null()) then
-                  call append_string(processed_bulk,object%standard_variable%name,exists=exists)
-                  if (.not.exists) then
+                  if (.not.processed_bulk%contains(object%standard_variable%name)) then
+                     call processed_bulk%add(object%standard_variable%name)
                      bulk_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
@@ -2659,8 +2629,8 @@ end subroutine add_parameter
                end if
             class is (type_horizontal_variable)
                if (.not.object%standard_variable%is_null()) then
-                  call append_string(processed_horizontal,object%standard_variable%name,exists=exists)
-                  if (.not.exists) then
+                  if (.not.processed_horizontal%contains(object%standard_variable%name)) then
+                     call processed_horizontal%add(object%standard_variable%name)
                      horizontal_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
@@ -2680,8 +2650,8 @@ end subroutine add_parameter
                end if
             class is (type_scalar_variable)
                if (.not.object%standard_variable%is_null()) then
-                  call append_string(processed_scalar,object%standard_variable%name,exists=exists)
-                  if (.not.exists) then
+                  if (.not.processed_scalar%contains(object%standard_variable%name)) then
+                     call processed_scalar%add(object%standard_variable%name)
                      global_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
@@ -2703,9 +2673,9 @@ end subroutine add_parameter
          link => link%next
       end do
 
-      if (allocated(processed_bulk))       deallocate(processed_bulk)
-      if (allocated(processed_horizontal)) deallocate(processed_horizontal)
-      if (allocated(processed_scalar))     deallocate(processed_scalar)
+      call processed_bulk%finalize()
+      call processed_horizontal%finalize()
+      call processed_scalar%finalize()
 
    end subroutine couple_standard_variables
 !EOC
