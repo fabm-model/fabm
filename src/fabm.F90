@@ -484,8 +484,6 @@
       ! Build final authorative arrays with variable metadata .
       call classify_variables(self)
 
-      call after_assign_indices(self%root)
-
       ! Determine the order in which individual biogeochemical models should be called.
       node => self%root%children%first
       do while (associated(node))

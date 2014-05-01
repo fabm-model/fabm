@@ -48,7 +48,7 @@
    public type_link
    public type_internal_object,type_internal_variable,type_bulk_variable,type_horizontal_variable,type_scalar_variable
    public type_environment
-   public freeze_model_info,after_assign_indices
+   public freeze_model_info
    public find_dependencies
 
    public type_model_list,type_model_list_node
@@ -221,8 +221,6 @@
    type type_contributing_variable
       type (type_link),                 pointer :: link => null()
       real(rk)                                  :: scale_factor = 1.0_rk
-      integer                                   :: state_index = -1
-      integer                                   :: horizontal_state_index = -1
       type (type_contributing_variable),pointer :: next => null()
    end type
 
@@ -235,8 +233,6 @@
 
       type (type_diagnostic_variable_id)            :: id_rate
       type (type_horizontal_diagnostic_variable_id) :: id_horizontal_rate
-      logical                                       :: has_bulk_state_component = .false.
-      logical                                       :: has_horizontal_state_component = .false.
       integer,allocatable                           :: state_indices(:)
       real(rk),allocatable                          :: state_scale_factors(:)
    end type
@@ -1397,7 +1393,9 @@ end subroutine
       call couple_standard_variables(self)
       call process_coupling_tasks(self)
 
-      ! Create models for aggregate variables at root level, to be used to compute conserved quantities
+      ! Create models for aggregate variables at root level, to be used to compute conserved quantities.
+      ! After this step, the set of variables that contribute to aggregate quatities may not be modified.
+      ! That is, no new such variables may be added, and no such variables may be coupled.
       call build_aggregate_variables(self)
       aggregate_variable => self%first_aggregate_variable
       do while (associated(aggregate_variable))
@@ -1408,7 +1406,7 @@ end subroutine
       ! Try coupling again, because we now have additional aggregate variables available.
       call process_coupling_tasks(self)
 
-      ! Add arrays with state variable identifiers to model references (this requires variable coupling to be complete!)
+      ! Allow inheriting models to perform additional tasks after coupling.
       call after_coupling(self)
 
       call freeze(self)
@@ -2982,6 +2980,28 @@ end subroutine merge_scalar_variables
    end function find_model
 !EOC
 
+subroutine print_aggregate_variable_contributions(self)
+   class (type_base_model),intent(inout),target :: self
+
+   type (type_aggregate_variable),   pointer :: aggregate_variable
+   type (type_contributing_variable),pointer :: contributing_variable
+
+   aggregate_variable => self%first_aggregate_variable
+   do while (associated(aggregate_variable))
+      call log_message('Model '//trim(self%name)//' contributions to '//trim(aggregate_variable%standard_variable%name))
+      contributing_variable => aggregate_variable%first_contributing_variable
+      do while (associated(contributing_variable))
+         if (contributing_variable%link%owner) then
+            call log_message('   '//trim(contributing_variable%link%name)//' (internal)')
+         else
+            call log_message('   '//trim(contributing_variable%link%name)//' (external)')
+         end if
+         contributing_variable => contributing_variable%next
+      end do
+      aggregate_variable => aggregate_variable%next
+   end do
+end subroutine
+
 recursive subroutine build_aggregate_variables(self)
    class (type_base_model),intent(inout),target :: self
 
@@ -2989,6 +3009,9 @@ recursive subroutine build_aggregate_variables(self)
    type (type_model_list_node),   pointer :: child
    type (type_link),              pointer :: link
    type (type_contribution),      pointer :: contribution
+   type (type_contributing_variable),pointer :: contributing_variable
+
+   integer :: nbulk,nhz
 
    ! This routine takes the variable->aggregate variable mappings, and creates corresponding
    ! aggregate variable->variable mappings.
@@ -3014,16 +3037,53 @@ recursive subroutine build_aggregate_variables(self)
    if (self%check_conservation) then
       aggregate_variable => self%first_aggregate_variable
       do while (associated(aggregate_variable))
-         if (aggregate_variable%has_bulk_state_component) &
-            call self%register_diagnostic_variable(aggregate_variable%id_rate, &
-                'change_in_'//trim(aggregate_variable%standard_variable%name), &
-                trim(aggregate_variable%standard_variable%units), &
-                'change in '//trim(aggregate_variable%standard_variable%name))
-         if (aggregate_variable%has_horizontal_state_component) &
-            call self%register_diagnostic_variable(aggregate_variable%id_horizontal_rate, &
-                'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces', &
-                trim(aggregate_variable%standard_variable%units), &
-                'change in '//trim(aggregate_variable%standard_variable%name)//' at interfaces')
+         ! First count number of contributing state variables (separate different physical domains).
+         nbulk = 0
+         nhz = 0
+         contributing_variable => aggregate_variable%first_contributing_variable
+         do while (associated(contributing_variable))
+            select type (variable=>contributing_variable%link%target)
+               class is (type_bulk_variable)
+                  if (.not.variable%state_indices%is_empty()) nbulk = nbulk + 1
+               class is (type_horizontal_variable)
+                  if (.not.variable%state_indices%is_empty()) nhz = nhz + 1
+            end select
+            contributing_variable => contributing_variable%next
+         end do
+
+         ! Create diagnostic variables that hold the change in aggregate variables (specific to each physical domain).
+         if (nbulk>0) call self%register_diagnostic_variable(aggregate_variable%id_rate, &
+                        'change_in_'//trim(aggregate_variable%standard_variable%name), &
+                        trim(aggregate_variable%standard_variable%units), &
+                        'change in '//trim(aggregate_variable%standard_variable%name))
+         if (nhz>0) call self%register_diagnostic_variable(aggregate_variable%id_horizontal_rate, &
+                      'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces', &
+                      trim(aggregate_variable%standard_variable%units), &
+                      'change in '//trim(aggregate_variable%standard_variable%name)//' at interfaces')
+
+         ! Create arrays of indices and scale factors for all contributing state variables (specific to each physical domain).
+         allocate(aggregate_variable%state_indices(nbulk))
+         allocate(aggregate_variable%state_scale_factors(nbulk))
+
+         nbulk = 0
+         nhz = 0
+         contributing_variable => aggregate_variable%first_contributing_variable
+         do while (associated(contributing_variable))
+            select type (variable=>contributing_variable%link%target)
+               class is (type_bulk_variable)
+                  if (.not.variable%state_indices%is_empty()) then
+                     nbulk = nbulk + 1
+                     call variable%state_indices%append(aggregate_variable%state_indices(nbulk))
+                     aggregate_variable%state_scale_factors(nbulk) = contributing_variable%scale_factor
+                  end if
+               class is (type_horizontal_variable)
+                  if (.not.variable%state_indices%is_empty()) then
+                     nhz = nhz + 1
+                  end if
+            end select
+            contributing_variable => contributing_variable%next
+         end do
+
          aggregate_variable => aggregate_variable%next
       end do
    end if
@@ -3034,6 +3094,8 @@ recursive subroutine build_aggregate_variables(self)
       call build_aggregate_variables(child%model)
       child => child%next
    end do
+
+   ! call print_aggregate_variable_contributions(self)
 
 contains
 
@@ -3049,6 +3111,20 @@ contains
          allocate(aggregate_variable%first_contributing_variable)
          contributing_variable => aggregate_variable%first_contributing_variable
       else
+         ! First determine whether the contribution of this variable has already been registered.
+         ! This can be the case if multiple links point to the same actual variable (i.e., if they are coupled)
+         contributing_variable => aggregate_variable%first_contributing_variable
+         do while (associated(contributing_variable))
+            if (associated(contributing_variable%link%target,link%target)) then
+               ! We already have registered a contribution from this variable.
+               ! The newly provided link replaces the previous if it owns the variable (i.e., it is not coupled),
+               ! so we can later check the link to determine ownership. Then we are done - return.
+               if (link%owner) contributing_variable%link => link
+               return
+            end if
+            contributing_variable => contributing_variable%next
+         end do
+
          ! This aggregate variable has one or more contributions already. Find the last, so we can append another.
          contributing_variable => aggregate_variable%first_contributing_variable
          do while (associated(contributing_variable%next))
@@ -3061,78 +3137,9 @@ contains
       ! Store contribution properties.
       contributing_variable%link => link
       contributing_variable%scale_factor = scale_factor
-
-      ! If the contributing variable is a state variable, keep a reference to its state variable index.
-      select type (variable=>link%target)
-         class is (type_bulk_variable)
-            if (.not.variable%state_indices%is_empty()) then
-               call variable%state_indices%append(contributing_variable%state_index)
-               aggregate_variable%has_bulk_state_component = .true.
-            end if
-         class is (type_horizontal_variable)
-            if (.not.variable%state_indices%is_empty()) then
-               call variable%state_indices%append(contributing_variable%horizontal_state_index)
-               aggregate_variable%has_horizontal_state_component = .true.
-            end if
-      end select
    end subroutine
 
 end subroutine build_aggregate_variables
-
-recursive subroutine after_assign_indices(self)
-   class (type_base_model),intent(inout),target :: self
-
-   type (type_aggregate_variable),   pointer :: aggregate_variable
-   type (type_contributing_variable),pointer :: contributing_variable
-   type (type_model_list_node),      pointer :: child
-   integer                                   :: nstate
-
-   aggregate_variable => self%first_aggregate_variable
-   do while (associated(aggregate_variable))
-      ! Loop over all contributing quantities, and if they are bulk state variables,
-      ! store their state variable index and scale factor, so we can include them later
-      ! when computing the (change in) conserved quantities from the (change in) state alone.
-
-      ! Count the number of state variables [currently bulk only!] that contribute to the conserved quantity.
-      nstate = 0
-      contributing_variable => aggregate_variable%first_contributing_variable
-      do while (associated(contributing_variable))
-         if (contributing_variable%state_index/=-1) nstate = nstate+1
-         contributing_variable => contributing_variable%next
-      end do
-
-      ! Store the indices and scale factors of bulk state variables that contribute to the aggregate quantity.
-      ! These arrays serve two purposes: (1) they allow for quick lookup of all relevant indices and scale factors,
-      ! without necessitating iterating through a linked list, and (2) the arrays are filtered for duplicates, so that
-      ! each contributing variable appears only once. This is *not* the case for the linked list, as it based on
-      ! links that could point to the same variable (e.g., after coupling).
-      allocate(aggregate_variable%state_indices(nstate))
-      allocate(aggregate_variable%state_scale_factors(nstate))
-      nstate = 0
-      contributing_variable => aggregate_variable%first_contributing_variable
-      do while (associated(contributing_variable))
-         if (contributing_variable%state_index/=-1) then
-            nstate = nstate+1
-            aggregate_variable%state_indices(nstate) = contributing_variable%state_index
-            aggregate_variable%state_scale_factors(nstate) = contributing_variable%scale_factor
-         end if
-         contributing_variable => contributing_variable%next
-      end do
-
-      ! Coupled state variables may have been counted multiple times.
-      ! Remove the resulting duplicate indices, and the associated scale factors.
-      call remove_duplicates(aggregate_variable%state_indices,aggregate_variable%state_scale_factors)
-
-      aggregate_variable => aggregate_variable%next
-   end do
-
-   ! Process child models
-   child => self%children%first
-   do while (associated(child))
-      call after_assign_indices(child%model)
-      child => child%next
-   end do
-end subroutine after_assign_indices
 
 function get_aggregate_variable(self,standard_variable,create) result(aggregate_variable)
    class (type_base_model),           intent(inout) :: self
@@ -3209,35 +3216,6 @@ subroutine create_aggregate_model(self,aggregate_variable)
    if (associated(aggregate_variable%sum))            call self%add_child(aggregate_variable%sum,trim(aggregate_variable%sum%output_name)//'_calculator',configunit=-1)
    if (associated(aggregate_variable%horizontal_sum)) call self%add_child(aggregate_variable%horizontal_sum,trim(aggregate_variable%horizontal_sum%output_name)//'_calculator',configunit=-1)
 end subroutine create_aggregate_model
-
-subroutine remove_duplicates(array1,array2)
-   integer, allocatable,intent(inout) :: array1(:)
-   real(rk),allocatable,intent(inout) :: array2(:)
-
-   integer  :: i,j,inext
-   logical  :: add
-   integer  :: array1_tmp(size(array1))
-   real(rk) :: array2_tmp(size(array2))
-
-   inext = 0
-   do i=1,size(array1)
-      add = array1(i)/=-1
-      do j=1,i-1
-         if (array1(j)==array1(i)) add = .false.
-      end do
-      if (add) then
-         inext = inext + 1
-         array1_tmp(inext) = array1(i)
-         array2_tmp(inext) = array2(i)
-      end if
-   end do
-   deallocate(array1)
-   deallocate(array2)
-   allocate(array1(inext))
-   allocate(array2(inext))
-   array1 = array1_tmp(:inext)
-   array2 = array2_tmp(:inext)
-end subroutine
 
 function get_free_unit() result(unit)
    integer :: unit
