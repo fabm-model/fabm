@@ -47,19 +47,52 @@ module fabm_expressions
       module procedure horizontal_temporal_mean
    end interface
 
+   interface vertical_mean
+      module procedure vertical_dependency_mean
+      module procedure vertical_state_mean
+   end interface
+
+   interface vertical_integral
+      module procedure vertical_dependency_integral
+      module procedure vertical_state_integral
+   end interface
+
 contains
-   function vertical_mean(input,minimum_depth,maximum_depth) result(expression)
+   function vertical_dependency_mean(input,minimum_depth,maximum_depth) result(expression)
       type (type_dependency_id), intent(inout),target   :: input
       real(rk),                  intent(in),   optional :: minimum_depth,maximum_depth
       type (type_vertical_integral)                     :: expression
       expression = vertical_integral(input,minimum_depth,maximum_depth,average=.true.)
    end function
 
-   function vertical_integral(input,minimum_depth,maximum_depth,average) result(expression)
+   function vertical_state_mean(input,minimum_depth,maximum_depth) result(expression)
+      type (type_state_variable_id), intent(inout),target   :: input
+      real(rk),                      intent(in),   optional :: minimum_depth,maximum_depth
+      type (type_vertical_integral)                         :: expression
+      expression = vertical_integral_generic(input,minimum_depth,maximum_depth,average=.true.)
+   end function
+
+   function vertical_dependency_integral(input,minimum_depth,maximum_depth,average) result(expression)
       type (type_dependency_id), intent(inout),target   :: input
       real(rk),                  intent(in),   optional :: minimum_depth,maximum_depth
       logical,                   intent(in),   optional :: average
       type (type_vertical_integral)                     :: expression
+      expression = vertical_integral_generic(input,minimum_depth,maximum_depth,average)
+   end function
+
+   function vertical_state_integral(input,minimum_depth,maximum_depth,average) result(expression)
+      type (type_state_variable_id), intent(inout),target   :: input
+      real(rk),                      intent(in),   optional :: minimum_depth,maximum_depth
+      logical,                       intent(in),   optional :: average
+      type (type_vertical_integral)                     :: expression
+      expression = vertical_integral_generic(input,minimum_depth,maximum_depth,average)
+   end function
+
+   function vertical_integral_generic(input,minimum_depth,maximum_depth,average) result(expression)
+      class (type_variable_id), intent(inout),target   :: input
+      real(rk),                 intent(in),   optional :: minimum_depth,maximum_depth
+      logical,                  intent(in),   optional :: average
+      type (type_vertical_integral)                    :: expression
 
       character(len=attribute_length) :: postfix
 
@@ -85,7 +118,12 @@ contains
          expression%output_name = 'integral_of_'//trim(input%link%name)//'_wrt_depth'//trim(postfix)
       end if
 
-      expression%in => input%data
+      select type (input)
+         class is (type_dependency_id)
+            expression%in => input%data
+         class is (type_state_variable_id)
+            expression%in => input%data
+      end select
       if (present(minimum_depth)) expression%minimum_depth = minimum_depth
       if (present(maximum_depth)) expression%maximum_depth = maximum_depth
    end function
