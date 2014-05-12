@@ -161,6 +161,8 @@
    type,extends(type_external_variable) :: type_conserved_quantity_info
       type (type_bulk_standard_variable)            :: standard_variable
       type (type_aggregate_variable),pointer        :: aggregate_variable
+      type (type_bulk_data_pointer)                 :: data
+      type (type_horizontal_data_pointer)           :: horizontal_data
    end type type_conserved_quantity_info
 
    ! Derived type for a single generic biogeochemical model
@@ -592,6 +594,17 @@
    allocate(self%environment%diag   (_PREARG_LOCATION_ size(self%diagnostic_variables)))
    allocate(self%environment%diag_hz(_PREARG_LOCATION_HZ_ size(self%horizontal_diagnostic_variables)))
    self%environment%nstate = size(self%state_variables)
+
+   if (_VARIABLE_REGISTERED_(self%root%id_zero)) then
+      allocate(self%environment%zero _INDEX_LOCATION_)
+      self%environment%zero = 0.0_rk
+      call fabm_link_bulk_data(self,self%root%id_zero%link%name,self%environment%zero)
+   end if
+   if (_VARIABLE_REGISTERED_(self%root%id_zero_hz)) then
+      allocate(self%environment%zero_hz _INDEX_LOCATION_HZ_)
+      self%environment%zero_hz = 0.0_rk
+      call fabm_link_horizontal_data(self,self%root%id_zero_hz%link%name,self%environment%zero_hz)
+   end if
 
    ! Initialize diagnostic variables to missing value.
    do ivar=1,size(self%diagnostic_variables)
@@ -2242,21 +2255,15 @@ end subroutine
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   integer :: i,index
+   integer :: i
 !-----------------------------------------------------------------------
 !BOC
    do i=1,size(self%conserved_quantities)
-      if (associated(self%conserved_quantities(i)%aggregate_variable%sum)) then
+      if (associated(self%conserved_quantities(i)%aggregate_variable%sum)) &
          call self%conserved_quantities(i)%aggregate_variable%sum%evaluate(_ARGUMENTS_ND_IN_)
-         index = self%conserved_quantities(i)%aggregate_variable%sum%id_output%diag_index
-         _LOOP_BEGIN_EX_(self%environment)
-            sums _INDEX_OUTPUT_1D_(i) = self%environment%diag(_PREARG_LOCATION_ index)
-         _LOOP_END_
-      else
-         _LOOP_BEGIN_EX_(self%environment)
-            sums _INDEX_OUTPUT_1D_(i) = 0.0_rk
-         _LOOP_END_
-      end if
+      _LOOP_BEGIN_EX_(self%environment)
+         _GET_EX_(self%conserved_quantities(i)%data,sums _INDEX_OUTPUT_1D_(i))
+      _LOOP_END_
    end do
 
    end subroutine fabm_get_conserved_quantities
@@ -2279,22 +2286,16 @@ end subroutine
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   integer :: i,index
+   integer :: i
 
 !-----------------------------------------------------------------------
 !BOC
    do i=1,size(self%conserved_quantities)
-      if (associated(self%conserved_quantities(i)%aggregate_variable%horizontal_sum)) then
+      if (associated(self%conserved_quantities(i)%aggregate_variable%horizontal_sum)) &
          call self%conserved_quantities(i)%aggregate_variable%horizontal_sum%evaluate_horizontal(_ARGUMENTS_IN_HZ_)
-         index = self%conserved_quantities(i)%aggregate_variable%horizontal_sum%id_output%horizontal_diag_index
-         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            sums _INDEX_HZ_OUTPUT_1D_(i) = self%environment%diag_hz(_PREARG_LOCATION_HZ_ index)
-         _HORIZONTAL_LOOP_END_
-      else
-         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            sums _INDEX_HZ_OUTPUT_1D_(i) = 0.0_rk
-         _HORIZONTAL_LOOP_END_
-      end if
+      _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         _GET_HORIZONTAL_EX_(self%conserved_quantities(i)%horizontal_data,sums _INDEX_HZ_OUTPUT_1D_(i))
+      _HORIZONTAL_LOOP_END_
    end do
 
    end subroutine fabm_get_horizontal_conserved_quantities
@@ -2563,10 +2564,49 @@ subroutine classify_variables(self)
    type (type_diagnostic_variable_info),           pointer :: diagvar
    type (type_horizontal_diagnostic_variable_info),pointer :: hz_diagvar
    type (type_conserved_quantity_info),            pointer :: consvar
+   class (type_internal_object),                   pointer :: object
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
 
    type (type_aggregate_variable),    pointer :: aggregate_variable
    type (type_set) :: dependencies,dependencies_hz,dependencies_scalar
+
+   ! Count number of conserved quantities and allocate associated array.
+   ncons = 0
+   aggregate_variable => self%root%first_aggregate_variable
+   do while (associated(aggregate_variable))
+      ncons = ncons + 1
+      aggregate_variable => aggregate_variable%next
+   end do
+   allocate(self%conserved_quantities(ncons))
+
+   ! Fill list of conserved quantities.
+   ! This must be done before building the final authoratitive list of diagnostic variables,
+   ! as the calls to append_data_pointer affect the global identifier of diagnostic variables
+   ! by adding another pointer that must be set.
+   ncons = 0
+   aggregate_variable => self%root%first_aggregate_variable
+   do while (associated(aggregate_variable))
+      ncons = ncons + 1
+      consvar => self%conserved_quantities(ncons)
+      consvar%standard_variable = aggregate_variable%standard_variable
+      consvar%name = trim(consvar%standard_variable%name)
+      consvar%units = trim(consvar%standard_variable%units)
+      consvar%long_name = trim(consvar%standard_variable%name)
+      consvar%aggregate_variable => aggregate_variable
+      object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
+      select type (object)
+         class is (type_bulk_variable)
+            call append_data_pointer(object%alldata,consvar%data)
+            write (*,*) trim(aggregate_variable%standard_variable%name),trim(object%name),size(object%alldata),object%write_indices%is_empty()
+      end select
+      object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
+      select type (object)
+         class is (type_horizontal_variable)
+            call append_data_pointer(object%alldata,consvar%horizontal_data)
+            write (*,*) trim(aggregate_variable%standard_variable%name),trim(object%name),size(object%alldata),object%write_indices%is_empty()
+      end select
+      aggregate_variable => aggregate_variable%next
+   end do
 
    ! Count number of bulk variables in various categories.
    nstate = 0
@@ -2628,20 +2668,12 @@ subroutine classify_variables(self)
       link => link%next
    end do
 
-   ncons = 0
-   aggregate_variable => self%root%first_aggregate_variable
-   do while (associated(aggregate_variable))
-      ncons = ncons + 1
-      aggregate_variable => aggregate_variable%next
-   end do
-
    ! Allocate arrays with variable information that will be accessed by the host model.
    allocate(self%state_variables                (nstate))
    allocate(self%bottom_state_variables         (nstate_bot))
    allocate(self%surface_state_variables        (nstate_surf))
    allocate(self%diagnostic_variables           (ndiag))
    allocate(self%horizontal_diagnostic_variables(ndiag_hz))
-   allocate(self%conserved_quantities           (ncons))
 
    ! Set pointers for backward compatibility (pre 2013-06-15)
    ! Note: this must be done AFTER allocation of the target arrays, above!
@@ -2715,20 +2747,6 @@ subroutine classify_variables(self)
             end if
       end select
       link => link%next
-   end do
-
-   ! Build list of conserved quantities.
-   ncons = 0
-   aggregate_variable => self%root%first_aggregate_variable
-   do while (associated(aggregate_variable))
-      ncons = ncons + 1
-      consvar => self%conserved_quantities(ncons)
-      consvar%standard_variable = aggregate_variable%standard_variable
-      consvar%name = trim(consvar%standard_variable%name)
-      consvar%units = trim(consvar%standard_variable%units)
-      consvar%long_name = trim(consvar%standard_variable%name)
-      consvar%aggregate_variable => aggregate_variable
-      aggregate_variable => aggregate_variable%next
    end do
 
    ! Create lists of variables that may be provided by the host model.

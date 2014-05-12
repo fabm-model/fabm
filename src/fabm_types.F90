@@ -64,7 +64,7 @@
 
    public type_bulk_data_pointer,type_horizontal_data_pointer,type_scalar_data_pointer
    public type_bulk_data_pointer_pointer,type_horizontal_data_pointer_pointer,type_scalar_data_pointer_pointer
-   public type_aggregate_variable, type_contributing_variable
+   public type_aggregate_variable, type_contributing_variable, get_aggregate_variable
    public time_treatment2output,output2time_treatment
    public append_data_pointer
 
@@ -230,6 +230,8 @@
       class (type_weighted_sum),           pointer  :: sum => null()
       class (type_horizontal_weighted_sum),pointer  :: horizontal_sum => null()
       type (type_aggregate_variable),      pointer  :: next => null()
+      logical                                       :: bulk_required = .false.
+      logical                                       :: horizontal_required = .false.
 
       type (type_diagnostic_variable_id)            :: id_rate
       type (type_horizontal_diagnostic_variable_id) :: id_horizontal_rate
@@ -377,6 +379,9 @@
       logical :: check_conservation = .false.
       logical :: check_missing_parameters = .true.
 
+      ! Identifiers for variables that contain zero at all time.
+      type (type_dependency_id)            :: id_zero
+      type (type_horizontal_dependency_id) :: id_zero_hz
    contains
 
       ! Procedures that can be used to add child models during initialization.
@@ -507,6 +512,11 @@
       real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: diag
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
       integer                                                   :: nstate
+
+      real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: rhs
+
+      real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
+      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
 
 #ifdef _FABM_MASK_
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
@@ -1030,12 +1040,12 @@ end function create_link
 
 recursive subroutine add_alias(self,target,name)
    class (type_base_model), intent(inout) :: self
-   class (type_variable_id),intent(in)    :: target
+   class (type_internal_object),pointer   :: target
    character(len=*),        intent(in)    :: name
 
    type (type_link),pointer :: link
 
-   link => create_link(self,target%link%target,name,owner=.false.)
+   link => create_link(self,target,name,owner=.false.)
    if (associated(self%parent)) call self%parent%add_alias(target,trim(self%name_prefix)//trim(name))
 end subroutine
 
@@ -1379,7 +1389,6 @@ end subroutine
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-   type (type_aggregate_variable),pointer :: aggregate_variable
 !-----------------------------------------------------------------------
 !BOC
       if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
@@ -1397,13 +1406,9 @@ end subroutine
       ! After this step, the set of variables that contribute to aggregate quatities may not be modified.
       ! That is, no new such variables may be added, and no such variables may be coupled.
       call build_aggregate_variables(self)
-      aggregate_variable => self%first_aggregate_variable
-      do while (associated(aggregate_variable))
-         call create_aggregate_model(self,aggregate_variable)
-         aggregate_variable => aggregate_variable%next
-      end do
+      call create_aggregate_models(self)
 
-      ! Try coupling again, because we now have additional aggregate variables available.
+      ! Repeat coupling because new aggregate variables are now available.
       call process_coupling_tasks(self)
 
       ! Allow inheriting models to perform additional tasks after coupling.
@@ -3058,7 +3063,7 @@ recursive subroutine build_aggregate_variables(self)
                         'change in '//trim(aggregate_variable%standard_variable%name))
          if (nhz>0) call self%register_diagnostic_variable(aggregate_variable%id_horizontal_rate, &
                       'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces', &
-                      trim(aggregate_variable%standard_variable%units), &
+                      trim(aggregate_variable%standard_variable%units)//'*m', &
                       'change in '//trim(aggregate_variable%standard_variable%name)//' at interfaces')
 
          ! Create arrays of indices and scale factors for all contributing state variables (specific to each physical domain).
@@ -3087,7 +3092,7 @@ recursive subroutine build_aggregate_variables(self)
          aggregate_variable => aggregate_variable%next
       end do
    end if
-   
+
    ! Process child models
    child => self%children%first
    do while (associated(child))
@@ -3178,43 +3183,136 @@ function get_aggregate_variable(self,standard_variable,create) result(aggregate_
 
    ! Associate the newly created aggregate variable with the requested standard variable.
    aggregate_variable%standard_variable = standard_variable
+
+   ! Make sure that aggregate variables at the root level are computed.
+   ! These are typically used by the host to check conservation.
+   if (.not.associated(self%parent)) then
+      aggregate_variable%bulk_required = .true.
+      aggregate_variable%horizontal_required = .true.
+   end if
+
 end function
 
-subroutine create_aggregate_model(self,aggregate_variable)
+recursive subroutine create_aggregate_models(self)
+   class (type_base_model),       intent(inout),target :: self
+
+   type (type_aggregate_variable),pointer :: aggregate_variable
+   type (type_model_list_node),   pointer :: child
+
+   aggregate_variable => self%first_aggregate_variable
+   do while (associated(aggregate_variable))
+      if (aggregate_variable%bulk_required)       call create_aggregate_model(self,aggregate_variable,domain_bulk)
+      if (aggregate_variable%horizontal_required) call create_aggregate_model(self,aggregate_variable,domain_surface)
+      aggregate_variable => aggregate_variable%next
+   end do
+
+   ! Process child models
+   child => self%children%first
+   do while (associated(child))
+      call create_aggregate_models(child%model)
+      child => child%next
+   end do
+end subroutine
+
+subroutine create_aggregate_model(self,aggregate_variable,domain)
    class (type_base_model),       intent(inout),target :: self
    type (type_aggregate_variable),intent(inout)        :: aggregate_variable
+   integer,                       intent(in)           :: domain
 
    type (type_contributing_variable),pointer :: contributing_variable
+   integer                                   :: n
+   logical                                   :: noscale
+   character(len=attribute_length )          :: name
+   class (type_internal_object),pointer      :: target_variable
+   class (type_base_model),pointer           :: root
 
    ! This procedure takes an aggregate variable, and creates models that compute diagnostics
    ! for the total of these aggregate quantities on bulk and horizontal domains.
-   
+
+   select case (domain)
+      case (domain_bulk)
+         name = trim(aggregate_variable%standard_variable%name)
+      case default
+         name = trim(aggregate_variable%standard_variable%name)//'_at_interfaces'
+   end select
+
+   n = 0
+   noscale = .true.
    contributing_variable => aggregate_variable%first_contributing_variable
    do while (associated(contributing_variable))
       if (contributing_variable%link%owner) then
          select type (variable=>contributing_variable%link%target)
             class is (type_bulk_variable)
-               ! This contribution comes from a bulk variable.
-               if (.not.associated(aggregate_variable%sum)) then
-                  allocate(aggregate_variable%sum)
-                  aggregate_variable%sum%output_name = trim(aggregate_variable%standard_variable%name)
-                  aggregate_variable%sum%output_units = trim(aggregate_variable%standard_variable%units)
+               if (domain==domain_bulk) then
+                  n = n + 1
+                  noscale = noscale.and.contributing_variable%scale_factor==1.0_rk
+                  target_variable => contributing_variable%link%target
                end if
-               call aggregate_variable%sum%add_component(trim(contributing_variable%link%name),weight=contributing_variable%scale_factor)
             class is (type_horizontal_variable)
-               ! This contribution comes from a variable defined on a horizontal interface (top or bottom).
-               if (.not.associated(aggregate_variable%horizontal_sum)) then
-                  allocate(aggregate_variable%horizontal_sum)
-                  aggregate_variable%horizontal_sum%output_name = trim(aggregate_variable%standard_variable%name)//'_at_interfaces'
-                  aggregate_variable%horizontal_sum%output_units = trim(aggregate_variable%standard_variable%units)
+               if (domain/=domain_bulk) then
+                  n = n + 1
+                  noscale = noscale.and.contributing_variable%scale_factor==1.0_rk
+                  target_variable => contributing_variable%link%target
                end if
-               call aggregate_variable%horizontal_sum%add_component(trim(contributing_variable%link%name),weight=contributing_variable%scale_factor)
          end select
       end if
       contributing_variable => contributing_variable%next
    end do
-   if (associated(aggregate_variable%sum))            call self%add_child(aggregate_variable%sum,trim(aggregate_variable%sum%output_name)//'_calculator',configunit=-1)
-   if (associated(aggregate_variable%horizontal_sum)) call self%add_child(aggregate_variable%horizontal_sum,trim(aggregate_variable%horizontal_sum%output_name)//'_calculator',configunit=-1)
+
+   if (n==0) then
+      ! Always zero - create alias to zero field at root level
+      root => self
+      do while (associated(root%parent))
+         root => root%parent
+      end do
+      select case (domain)
+         case (domain_bulk)
+            if (.not._VARIABLE_REGISTERED_(root%id_zero)) &
+               call root%register_dependency(root%id_zero,'zero','-','zero')
+            call self%add_alias(root%id_zero%link%target,name)
+         case default
+            if (.not._VARIABLE_REGISTERED_(root%id_zero_hz)) &
+               call root%register_horizontal_dependency(root%id_zero_hz,'zero_hz','-','zero')
+            call self%add_alias(root%id_zero_hz%link%target,name)
+      end select            
+   elseif (n==1.and.noscale) then
+      ! Always equal to another - create alias to this other
+      call self%add_alias(target_variable,name)
+   else
+      ! Weighted sum of variables
+      select case (domain)
+         case (domain_bulk)
+            allocate(aggregate_variable%sum)
+            aggregate_variable%sum%output_name = name
+            aggregate_variable%sum%output_units = trim(aggregate_variable%standard_variable%units)
+         case default
+            allocate(aggregate_variable%horizontal_sum)
+            aggregate_variable%horizontal_sum%output_name = name
+            aggregate_variable%horizontal_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m'
+      end select
+
+      contributing_variable => aggregate_variable%first_contributing_variable
+      do while (associated(contributing_variable))
+         if (contributing_variable%link%owner) then
+            select type (variable=>contributing_variable%link%target)
+               class is (type_bulk_variable)
+                  ! This contribution comes from a bulk variable.
+                  if (domain==domain_bulk) call aggregate_variable%sum%add_component(trim(contributing_variable%link%name),weight=contributing_variable%scale_factor)
+               class is (type_horizontal_variable)
+                  ! This contribution comes from a variable defined on a horizontal interface (top or bottom).
+                  if (domain/=domain_bulk) call aggregate_variable%horizontal_sum%add_component(trim(contributing_variable%link%name),weight=contributing_variable%scale_factor)
+            end select
+         end if
+         contributing_variable => contributing_variable%next
+      end do
+
+      select case (domain)
+         case (domain_bulk)
+            call self%add_child(aggregate_variable%sum,trim(aggregate_variable%sum%output_name)//'_calculator',configunit=-1)
+         case default
+            call self%add_child(aggregate_variable%horizontal_sum,trim(aggregate_variable%horizontal_sum%output_name)//'_calculator',configunit=-1)
+      end select
+   end if
 end subroutine create_aggregate_model
 
 function get_free_unit() result(unit)
@@ -3349,8 +3447,8 @@ end subroutine
          component => component%next
       end do
       if (self%output_long_name=='') self%output_long_name = self%output_name
-      call self%register_diagnostic_variable(self%id_output,self%output_name,self%output_units,self%output_long_name)
-      call self%parent%add_alias(self%id_output,trim(self%output_name))
+      call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
+      call self%parent%add_alias(self%id_output%link%target,trim(self%output_name))
    end subroutine
 
    subroutine weighted_sum_add_component(self,name,weight)
@@ -3426,8 +3524,8 @@ end subroutine
          component => component%next
       end do
       if (self%output_long_name=='') self%output_long_name = self%output_name
-      call self%register_diagnostic_variable(self%id_output,self%output_name,self%output_units,self%output_long_name)
-      call self%parent%add_alias(self%id_output,trim(self%output_name))
+      call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
+      call self%parent%add_alias(self%id_output%link%target,trim(self%output_name))
    end subroutine
 
    subroutine horizontal_weighted_sum_add_component(self,name,weight)

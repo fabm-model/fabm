@@ -28,6 +28,7 @@
 module fabm_particle
 
    use fabm_types
+   use fabm_standard_variables
 
    implicit none
 
@@ -36,11 +37,10 @@ module fabm_particle
    public type_particle_model, type_model_id
 
    type type_model_reference
-      character(len=attribute_length)         :: name           = ''
-      class (type_base_model),        pointer :: model          => null()
-      type (type_coupling_from_model),pointer :: first_coupling => null()
-      type (type_model_id),           pointer :: id             => null()
-      type (type_model_reference),    pointer :: next           => null()
+      character(len=attribute_length)         :: name  = ''
+      class (type_base_model),        pointer :: model => null()
+      type (type_model_id),           pointer :: id    => null()
+      type (type_model_reference),    pointer :: next  => null()
    end type
 
    type type_model_id
@@ -50,20 +50,22 @@ module fabm_particle
 
    type,extends(type_coupling) :: type_coupling_from_model
       type (type_model_reference),pointer :: model_reference => null()
+      type (type_bulk_standard_variable) :: standard_variable
    end type
-   
+
    type,extends(type_base_model) :: type_particle_model
       type (type_model_reference),pointer :: first_model_reference => null()
    contains
       ! Used by inheriting biogeochemical models:
       procedure :: register_model_dependency
-      procedure :: request_coupling_to_model
+      procedure :: request_coupling_to_model_name
+      procedure :: request_coupling_to_model_sn
+      generic :: request_coupling_to_model => request_coupling_to_model_name,request_coupling_to_model_sn
 
       ! Hooks called by FABM:
       procedure :: before_coupling
-      procedure :: after_coupling
    end type
-   
+
    contains
 
 !-----------------------------------------------------------------------
@@ -122,7 +124,7 @@ module fabm_particle
    end subroutine register_model_dependency
 !EOC
 
-   subroutine request_coupling_to_model(self,slave_variable,master_model,master_variable)
+   subroutine request_coupling_to_model_name(self,slave_variable,master_model,master_variable)
       class (type_particle_model),intent(inout) :: self
       class (type_variable_id),   intent(in)    :: slave_variable
       class (type_model_id),      intent(inout) :: master_model
@@ -141,11 +143,31 @@ module fabm_particle
       call self%couplings%add(plain_coupling)
    end subroutine
 
+   subroutine request_coupling_to_model_sn(self,slave_variable,master_model,master_variable)
+      class (type_particle_model),  intent(inout) :: self
+      class (type_variable_id),     intent(in)    :: slave_variable
+      class (type_model_id),        intent(inout) :: master_model
+      type (type_bulk_standard_variable),intent(in)    :: master_variable
+
+      class (type_coupling_from_model), pointer :: coupling
+      class (type_coupling), pointer :: plain_coupling
+
+      ! Create object describing the coupling, and send it to FABM.
+      ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
+      allocate(coupling)
+      coupling%slave = slave_variable%link%name
+      coupling%standard_variable = master_variable
+      coupling%model_reference => master_model%reference
+      plain_coupling => coupling
+      call self%couplings%add(plain_coupling)
+   end subroutine
+
    subroutine before_coupling(self)
       class (type_particle_model),intent(inout) :: self
 
       type (type_model_reference),pointer :: reference
       class (type_coupling),      pointer :: coupling
+      type (type_aggregate_variable),pointer :: aggregate_variable
 
       reference => self%first_model_reference
       do while (associated(reference))
@@ -163,23 +185,32 @@ module fabm_particle
          reference => reference%next
       end do
 
+      call build_state_id_list(self)
+
       ! Resolve all couplings to variables in specific other models.
       coupling => self%couplings%first
       do while (associated(coupling))
          select type (coupling)
             class is (type_coupling_from_model)
-               coupling%master = trim(coupling%model_reference%model%name)//'_'//trim(coupling%master)
+               if (coupling%master/='') then
+                  coupling%master = trim(coupling%model_reference%model%name)//'_'//trim(coupling%master)
+               else
+                  aggregate_variable => get_aggregate_variable(coupling%model_reference%model,coupling%standard_variable)
+                  aggregate_variable%bulk_required = .true.
+                  coupling%master = trim(coupling%model_reference%model%name)//'_'//trim(aggregate_variable%standard_variable%name)
+               end if
          end select
          coupling => coupling%next
       end do
    end subroutine
    
-   subroutine after_coupling(self)
+   subroutine build_state_id_list(self)
       class (type_particle_model),intent(inout) :: self
 
       type (type_model_reference),pointer :: reference
       type (type_link),           pointer :: link
       integer                             :: n
+      character(len=10)                   :: strindex
 
       reference => self%first_model_reference
       do while (associated(reference))
@@ -205,7 +236,9 @@ module fabm_particle
                class is (type_bulk_variable)
                   if (object%presence==presence_internal.and.link%owner.and..not.object%state_indices%is_empty()) then
                      n = n + 1
-                     call connect_bulk_state_variable_id(self,object,reference%id%state(n))
+                     write (strindex,'(i0)') n
+                     call self%register_state_dependency(reference%id%state(n),trim(reference%name)//'_state'//trim(strindex),object%units,trim(reference%name)//' state variable '//trim(strindex))
+                     call self%request_coupling_to_model(reference%id%state(n),reference%id,link%name)
                   end if
             end select
             link => link%next
@@ -214,6 +247,6 @@ module fabm_particle
          reference => reference%next
       end do
 
-   end subroutine after_coupling
+   end subroutine build_state_id_list
 
 end module
