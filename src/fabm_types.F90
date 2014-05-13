@@ -396,14 +396,21 @@
       procedure :: register_bulk_state_variable
       procedure :: register_bottom_state_variable
       procedure :: register_surface_state_variable
+
       procedure :: register_bulk_diagnostic_variable
       procedure :: register_horizontal_diagnostic_variable
-      procedure :: register_bulk_dependency
-      procedure :: register_bulk_dependency_sn
-      procedure :: register_horizontal_dependency
-      procedure :: register_horizontal_dependency_sn
-      procedure :: register_global_dependency
-      procedure :: register_global_dependency_sn
+
+      procedure :: register_named_bulk_dependency
+      procedure :: register_standard_bulk_dependency
+      procedure :: register_named_horizontal_dependency
+      procedure :: register_standard_horizontal_dependency
+      procedure :: register_named_global_dependency
+      procedure :: register_standard_global_dependency
+
+      generic :: register_bulk_dependency       => register_named_bulk_dependency, register_standard_bulk_dependency
+      generic :: register_horizontal_dependency => register_named_horizontal_dependency, register_standard_horizontal_dependency
+      generic :: register_global_dependency     => register_named_global_dependency, register_standard_global_dependency
+
       procedure :: register_standard_conserved_quantity
       procedure :: register_custom_conserved_quantity
       procedure :: register_bulk_state_dependency_ex
@@ -441,9 +448,9 @@
       generic :: register_state_variable      => register_bulk_state_variable,register_bottom_state_variable, &
                                                  register_surface_state_variable
       generic :: register_diagnostic_variable => register_bulk_diagnostic_variable,register_horizontal_diagnostic_variable
-      generic :: register_dependency          => register_bulk_dependency, register_bulk_dependency_sn, &
-                                                 register_horizontal_dependency, register_horizontal_dependency_sn, &
-                                                 register_global_dependency, register_global_dependency_sn, &
+      generic :: register_dependency          => register_named_bulk_dependency, register_standard_bulk_dependency, &
+                                                 register_named_horizontal_dependency, register_standard_horizontal_dependency, &
+                                                 register_named_global_dependency, register_standard_global_dependency, &
                                                  register_bulk_expression_dependency, register_horizontal_expression_dependency
       generic :: register_state_dependency    => register_bulk_state_dependency_ex,register_bottom_state_dependency_ex, &
                                                  register_surface_state_dependency_ex,register_bulk_state_dependency_old, &
@@ -2043,35 +2050,35 @@ end subroutine
       call self%request_coupling(id,name)
    end subroutine
    
-   subroutine register_bulk_dependency_sn(model,id,standard_variable,required)
+   subroutine register_standard_bulk_dependency(model,id,standard_variable,required)
       class (type_base_model),           intent(inout)        :: model
       type (type_dependency_id),         intent(inout),target :: id
       type (type_bulk_standard_variable),intent(in)           :: standard_variable
       logical,optional,                  intent(in)           :: required
 
-      call register_bulk_dependency(model,id,standard_variable%name,standard_variable%units, &
-                                    standard_variable=standard_variable,required=required)
-   end subroutine register_bulk_dependency_sn
+      call register_named_bulk_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                          standard_variable=standard_variable,required=required)
+   end subroutine
 
-   subroutine register_horizontal_dependency_sn(model,id,standard_variable,required)
+   subroutine register_standard_horizontal_dependency(model,id,standard_variable,required)
       class (type_base_model),                 intent(inout)        :: model
       type (type_horizontal_dependency_id),    intent(inout),target :: id
       type (type_horizontal_standard_variable),intent(in)           :: standard_variable
       logical,optional,                        intent(in)           :: required
 
-      call register_horizontal_dependency(model,id,standard_variable%name,standard_variable%units, &
-                                          standard_variable=standard_variable,required=required)
-   end subroutine register_horizontal_dependency_sn
+      call register_named_horizontal_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                                standard_variable=standard_variable,required=required)
+   end subroutine
 
-   subroutine register_global_dependency_sn(model,id,standard_variable,required)
+   subroutine register_standard_global_dependency(model,id,standard_variable,required)
       class (type_base_model),             intent(inout)        :: model
       type (type_global_dependency_id),    intent(inout),target :: id
       type (type_global_standard_variable),intent(in)           :: standard_variable
       logical,optional,                    intent(in)           :: required
 
-      call register_global_dependency(model,id,standard_variable%name,standard_variable%units, &
-                                      standard_variable=standard_variable,required=required)
-   end subroutine register_global_dependency_sn
+      call register_named_global_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                            standard_variable=standard_variable,required=required)
+   end subroutine
 
 !-----------------------------------------------------------------------
 !BOP
@@ -2080,7 +2087,7 @@ end subroutine
 ! the full model domain.
 !
 ! !INTERFACE:
-   subroutine register_bulk_dependency(self,id,name,units,long_name,standard_variable,required)
+   subroutine register_named_bulk_dependency(self,id,name,units,long_name,standard_variable,required)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -2129,7 +2136,7 @@ end subroutine
 
       if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
-   end subroutine register_bulk_dependency
+   end subroutine register_named_bulk_dependency
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2139,7 +2146,7 @@ end subroutine
 ! a horizontal slice of the model domain.
 !
 ! !INTERFACE:
-   subroutine register_horizontal_dependency(self,id,name,units,long_name,standard_variable,required)
+   subroutine register_named_horizontal_dependency(self,id,name,units,long_name,standard_variable,required)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -2188,7 +2195,7 @@ end subroutine
 
       if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
-   end subroutine register_horizontal_dependency
+   end subroutine register_named_horizontal_dependency
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2198,7 +2205,7 @@ end subroutine
 ! independent) variable.
 !
 ! !INTERFACE:
-   subroutine register_global_dependency(self,id,name,units,long_name,standard_variable,required)
+   subroutine register_named_global_dependency(self,id,name,units,long_name,standard_variable,required)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -2247,7 +2254,7 @@ end subroutine
 
       if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
-   end subroutine register_global_dependency
+   end subroutine register_named_global_dependency
 !EOC
 
 subroutine register_bulk_expression_dependency(self,id,expression)
