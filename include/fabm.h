@@ -335,6 +335,9 @@
 #define _INDEX_HZ_OUTPUT_ _INDEX_OUTPUT_
 #define _INDEX_HZ_OUTPUT_1D_(index) _INDEX_OUTPUT_1D_(index)
 
+#define _SIZE_SLICE_HORIZONTAL_ SIZE_SLICE_
+#define _DIMENSION_SLICE_HORIZONTAL_AUTOMATIC_ _DIMENSION_SLICE_AUTOMATIC_
+
 #else
 
 ! ---------------------------------------------------------------------------------
@@ -354,6 +357,9 @@
 
 #define _INDEX_HZ_OUTPUT_
 #define _INDEX_HZ_OUTPUT_1D_(index) (index)
+
+#define _SIZE_SLICE_HORIZONTAL_
+#define _DIMENSION_SLICE_HORIZONTAL_AUTOMATIC_
 
 #endif
 
@@ -521,39 +527,13 @@
 #define _FABM_HZ_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_
 #define _FABM_HZ_LOOP_END_ _HORIZONTAL_LOOP_END_
 
-! Work-in-progress: extra definitions for coupling to pure-1D models [ERSEM]
-! Currently these are GOTM-specific - more logic will be needed to set these to
-! appropriate values for non-column or non-vectorized models.
-#define _DOMAIN_1D_ fabm_loop_start:fabm_loop_stop
-#define _GET_STATE_1D_(variable,target) target = environment%var(variable%dependencyid)%data(_DOMAIN_1D_)
-#define _GET_DEPENDENCY_1D_(variable,target) target = environment%var(variable)%data(_DOMAIN_1D_)
-#define _LOOP_BEGIN_1D_
-#define _LOOP_END_1D_
-#define _HORIZONTAL_LOOP_BEGIN_1D_
-#define _HORIZONTAL_LOOP_END_1D_
-#ifndef _INDEX_ODE_1D_
-#define _INDEX_ODE_1D_(variable) (1:fabm_loop_stop-fabm_loop_start+1,variable)
-#endif
-#define _SET_ODE_1D_(variable,value) rhs _INDEX_ODE_1D_(variable%id) = rhs _INDEX_ODE_1D_(variable%id) + (value)
-#define _SET_EXTINCTION_1D_(value) extinction(1:fabm_loop_stop-fabm_loop_start+1) = extinction(fabm_loop_start:fabm_loop_stop) + value
-#define _SET_VERTICAL_MOVEMENT_1D_(variable,value) velocity(1:fabm_loop_stop-fabm_loop_start+1,variable%id) = value
-
-! For the definitions below, it is assumed that the vertical dimension is vectorized!
-#define _DOMAIN_HZ_1D_ 1
-#define _INDEX_HZ_1D_ _VARIABLE_1DLOOP_
-#define _GET_STATE_HZ_1D_(variable,target) target = environment%var(variable%dependencyid)%data(_INDEX_HZ_1D_)
-#define _GET_DEPENDENCY_HZ_1D_(variable,target) target = environment%var(variable)%data(_INDEX_HZ_1D_)
-#define _GET_STATE_BEN_1D_(variable,target) target = environment%var_hz(variable%dependencyid)%data
-#define _SET_BOTTOM_FLUX_1D_(variable,value) flux_pel(variable%id) = flux_pel(variable%id) + (value)
-#define _SET_ODE_BEN_1D_(variable,value) flux_ben(variable%id) = flux_ben(variable%id) + (value)
-
 ! For backward compatibility (pre 20 June 2013)
 #define _FABM_LOOP_BEGIN_ _LOOP_BEGIN_
 #define _FABM_LOOP_END_ _LOOP_END_
 #define _FABM_HORIZONTAL_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_
 #define _FABM_HORIZONTAL_LOOP_END_ _HORIZONTAL_LOOP_END_
 
-#define _GET_WITHOUT_BACKGROUND_(variable,target) target = max(0.0_rk,variable%data%p _INDEX_LOCATION_-variable%background)
+#define _GET_WITH_BACKGROUND_(variable,target) target = variable%data%p _INDEX_LOCATION_+variable%background
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 

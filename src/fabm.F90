@@ -132,7 +132,6 @@
       type (type_bulk_standard_variable) :: standard_variable
       real(rk)                           :: initial_value             = 0.0_rk
       real(rk)                           :: vertical_movement         = 0.0_rk  ! Vertical movement (m/s, <0: sinking, >0: floating)
-      real(rk)                           :: specific_light_extinction = 0.0_rk  ! Specific light extinction (/m/state variable unit)
       logical                            :: no_precipitation_dilution = .false.
       logical                            :: no_river_dilution         = .false.
       type (type_bulk_variable_id)       :: globalid
@@ -193,6 +192,8 @@
       character(len=attribute_length),allocatable,dimension(:) :: dependencies        
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_hz     
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar 
+
+      type (type_bulk_data_pointer) :: extinction_data
 
       ! Derived types that belong to specific biogeochemical models.
       !type (type_metu_mnemiopsis)           :: metu_mnemiopsis
@@ -475,10 +476,16 @@
 !  Original author(s): Jorn Bruggeman
 !
       type (type_model_list_node),pointer :: node
+      type (type_aggregate_variable),pointer :: aggregate_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
       self%info => self ! For backward compatibility (pre 11/2013 hosts only)
+
+      ! Make sure a variable for light extinction is created at the root level.
+      ! This is used from fabm_get_light_extinction.
+      aggregate_variable => get_aggregate_variable(self%root,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
+      aggregate_variable%bulk_required = .true.
 
       ! This will resolve all FABM dependencies and generate final authorative lists of variables of different types.
       call freeze_model_info(self%root)
@@ -2134,7 +2141,9 @@ end subroutine
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   extinction = 0.0_rk
+   _LOOP_BEGIN_EX_(self%environment)
+      _GET_EX_(self%extinction_data,extinction _INDEX_OUTPUT_)
+   _LOOP_END_
    node => self%models%first
    do while (associated(node))
       call node%model%get_light_extinction(_ARGUMENTS_ND_IN_,extinction)
@@ -2597,16 +2606,21 @@ subroutine classify_variables(self)
       select type (object)
          class is (type_bulk_variable)
             call append_data_pointer(object%alldata,consvar%data)
-            write (*,*) trim(aggregate_variable%standard_variable%name),trim(object%name),size(object%alldata),object%write_indices%is_empty()
       end select
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
       select type (object)
          class is (type_horizontal_variable)
             call append_data_pointer(object%alldata,consvar%horizontal_data)
-            write (*,*) trim(aggregate_variable%standard_variable%name),trim(object%name),size(object%alldata),object%write_indices%is_empty()
       end select
       aggregate_variable => aggregate_variable%next
    end do
+
+   ! Get link to extinction variable.
+   object => self%root%find_object(trim(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux%name))
+   select type (object)
+      class is (type_bulk_variable)
+         call append_data_pointer(object%alldata,self%extinction_data)
+   end select
 
    ! Count number of bulk variables in various categories.
    nstate = 0
@@ -2711,7 +2725,6 @@ subroutine classify_variables(self)
                   statevar%standard_variable         = object%standard_variable
                   statevar%initial_value             = object%initial_value
                   statevar%vertical_movement         = object%vertical_movement
-                  statevar%specific_light_extinction = object%specific_light_extinction
                   statevar%no_precipitation_dilution = object%no_precipitation_dilution
                   statevar%no_river_dilution         = object%no_river_dilution
                end if

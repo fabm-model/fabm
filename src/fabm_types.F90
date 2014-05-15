@@ -209,6 +209,7 @@
    type type_contribution
       type (type_bulk_standard_variable)  :: target
       real(rk)                            :: scale_factor = 1.0_rk
+      logical                             :: include_background = .false.
       type (type_contribution),pointer    :: next => null()
    end type
 
@@ -221,6 +222,7 @@
    type type_contributing_variable
       type (type_link),                 pointer :: link => null()
       real(rk)                                  :: scale_factor = 1.0_rk
+      logical                                   :: include_background = .false.
       type (type_contributing_variable),pointer :: next => null()
    end type
 
@@ -267,7 +269,6 @@
    type,extends(type_internal_variable) :: type_bulk_variable
       ! Metadata
       real(rk)                                      :: vertical_movement         = 0.0_rk
-      real(rk)                                      :: specific_light_extinction = 0.0_rk
       logical                                       :: no_precipitation_dilution = .false.
       logical                                       :: no_river_dilution         = .false.
       type (type_bulk_standard_variable)            :: standard_variable
@@ -552,6 +553,7 @@
    type type_component
       character(len=attribute_length) :: name   = ''
       real(rk)                        :: weight = 1._rk
+      logical                         :: include_background = .false.
       type (type_dependency_id)       :: id
       type (type_component),pointer   :: next   => null()
    end type
@@ -559,6 +561,7 @@
    type type_horizontal_component
       character(len=attribute_length)          :: name   = ''
       real(rk)                                 :: weight = 1._rk
+      logical                                  :: include_background = .false.
       type (type_horizontal_dependency_id)     :: id
       type (type_horizontal_component),pointer :: next   => null()
    end type
@@ -567,19 +570,22 @@
       character(len=attribute_length) :: output_name      = ''
       character(len=attribute_length) :: output_long_name = ''
       character(len=attribute_length) :: output_units     = ''
+      real(rk)                        :: offset           = 0.0_rk
       type (type_diagnostic_variable_id) :: id_output
       type (type_component),pointer   :: first => null()
    contains
-      procedure :: initialize    => weighted_sum_initialize
-      procedure :: add_component => weighted_sum_add_component
-      procedure :: evaluate      => weighted_sum_evaluate
-      procedure :: do            => weighted_sum_do
+      procedure :: initialize     => weighted_sum_initialize
+      procedure :: add_component  => weighted_sum_add_component
+      procedure :: evaluate       => weighted_sum_evaluate
+      procedure :: do             => weighted_sum_do
+      procedure :: after_coupling => weighted_sum_after_coupling
    end type
 
    type,extends(type_base_model) :: type_horizontal_weighted_sum
       character(len=attribute_length) :: output_name      = ''
       character(len=attribute_length) :: output_long_name = ''
       character(len=attribute_length) :: output_units     = ''
+      real(rk)                        :: offset           = 0.0_rk
       type (type_horizontal_diagnostic_variable_id) :: id_output
       type (type_horizontal_component),pointer   :: first => null()
    contains
@@ -587,6 +593,7 @@
       procedure :: initialize          => horizontal_weighted_sum_initialize
       procedure :: evaluate_horizontal => horizontal_weighted_sum_evaluate_horizontal
       procedure :: do_bottom           => horizontal_weighted_sum_do_bottom
+      procedure :: after_coupling      => horizontal_weighted_sum_after_coupling
    end type
 
    ! ====================================================================================================
@@ -621,7 +628,7 @@
 
    ! Providing process rates and diagnostics
    subroutine base_do(self,_ARGUMENTS_DO_)
-      class (type_base_model),intent(in) ::  self
+      class (type_base_model),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
    end subroutine
 
@@ -664,7 +671,7 @@
 
             ! Store sum across spatial domain
             _LOOP_BEGIN_
-               _SET_DIAG_(aggregate_variable%id_rate,current_sum _INDEX_OUTPUT_)
+               _SET_DIAGNOSTIC_(aggregate_variable%id_rate,current_sum _INDEX_OUTPUT_)
             _LOOP_END_
          end if
          aggregate_variable => aggregate_variable%next
@@ -703,20 +710,6 @@
    subroutine base_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_EXTINCTION_
-
-      integer  :: i
-      real(rk) :: val,curext
-
-      ! Use variable-specific light extinction coefficients.
-      !do i=1,size(self%state_variables)
-      !   curext = self%state_variables(i)%specific_light_extinction
-      !   if (curext/=0.0_rk) then
-      !      _LOOP_BEGIN_
-      !         _GET_STATE_EX_(environment,self%state_variables(i)%globalid%p,val)
-      !         _SET_EXTINCTION_(val*curext)
-      !      _LOOP_END_
-      !   end if
-      !end do
    end subroutine
 
    subroutine base_get_drag(self,_ARGUMENTS_GET_DRAG_)
@@ -876,28 +869,30 @@
       call variable%link%target%properties%set_logical(name,value)
    end subroutine
 
-   subroutine add_to_aggregate_variable(self,target,variable_id,scale_factor)
+   subroutine add_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
       class (type_base_model),           intent(inout) :: self
       type (type_bulk_standard_variable),intent(in)    :: target
       class (type_variable_id),          intent(inout) :: variable_id
       real(rk),optional,                 intent(in)    :: scale_factor
+      logical,optional,                  intent(in)    :: include_background
 
       if (.not.associated(variable_id%link)) &
          call self%fatal_error('add_to_aggregate_variable','variable has not been registered')
 
       select type (variable=>variable_id%link%target)
          class is (type_internal_variable)
-            call variable%contributions%add(target,scale_factor)
+            call variable%contributions%add(target,scale_factor,include_background)
          class default
             call self%fatal_error('add_to_aggregate_variable','Only variables can contribute to conserved quantities at present.')
       end select
 
    end subroutine
 
-   subroutine contribution_list_add(self,target,scale_factor)
+   subroutine contribution_list_add(self,target,scale_factor,include_background)
       class (type_contribution_list),    intent(inout) :: self
       type (type_bulk_standard_variable),intent(in)    :: target
       real(rk),optional,                 intent(in)    :: scale_factor
+      logical,optional,                  intent(in)    :: include_background
 
       type (type_contribution),pointer :: contribution
 
@@ -927,6 +922,7 @@
 
       contribution%target = target
       if (present(scale_factor)) contribution%scale_factor = scale_factor
+      if (present(include_background)) contribution%include_background = include_background
    end subroutine
 
    subroutine model_list_append(self,model)
@@ -1478,7 +1474,6 @@ end subroutine
       if (present(maximum))                   variable%maximum                   = maximum
       if (present(missing_value))             variable%missing_value             = missing_value
       if (present(vertical_movement))         variable%vertical_movement         = vertical_movement
-      if (present(specific_light_extinction)) variable%specific_light_extinction = specific_light_extinction
       if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
       if (present(no_river_dilution))         variable%no_river_dilution         = no_river_dilution
       if (present(standard_variable))         variable%standard_variable         = standard_variable
@@ -3039,7 +3034,7 @@ recursive subroutine build_aggregate_variables(self)
             contribution => variable%contributions%first
             do while (associated(contribution))
                aggregate_variable => get_aggregate_variable(self,contribution%target)
-               call add_contribution(aggregate_variable,link,contribution%scale_factor)
+               call add_contribution(aggregate_variable,link,contribution%scale_factor,contribution%include_background)
                contribution => contribution%next
             end do
       end select
@@ -3111,10 +3106,11 @@ recursive subroutine build_aggregate_variables(self)
 
 contains
 
-   subroutine add_contribution(aggregate_variable,link,scale_factor)
+   subroutine add_contribution(aggregate_variable,link,scale_factor,include_background)
       type (type_aggregate_variable),intent(inout) :: aggregate_variable
       type (type_link),target,       intent(inout) :: link
       real(rk),                      intent(in)    :: scale_factor
+      logical,                       intent(in)    :: include_background
 
       type (type_contributing_variable),pointer :: contributing_variable
 
@@ -3149,6 +3145,7 @@ contains
       ! Store contribution properties.
       contributing_variable%link => link
       contributing_variable%scale_factor = scale_factor
+      contributing_variable%include_background = include_background
    end subroutine
 
 end subroutine build_aggregate_variables
@@ -3228,7 +3225,7 @@ subroutine create_aggregate_model(self,aggregate_variable,domain)
 
    type (type_contributing_variable),pointer :: contributing_variable
    integer                                   :: n
-   logical                                   :: noscale
+   logical                                   :: sumrequired
    character(len=attribute_length )          :: name
    class (type_internal_object),pointer      :: target_variable
    class (type_base_model),pointer           :: root
@@ -3244,7 +3241,7 @@ subroutine create_aggregate_model(self,aggregate_variable,domain)
    end select
 
    n = 0
-   noscale = .true.
+   sumrequired = .false.
    contributing_variable => aggregate_variable%first_contributing_variable
    do while (associated(contributing_variable))
       if (contributing_variable%link%owner) then
@@ -3252,13 +3249,13 @@ subroutine create_aggregate_model(self,aggregate_variable,domain)
             class is (type_bulk_variable)
                if (domain==domain_bulk) then
                   n = n + 1
-                  noscale = noscale.and.contributing_variable%scale_factor==1.0_rk
+                  if (contributing_variable%scale_factor/=1.0_rk.or.contributing_variable%include_background) sumrequired = .true.
                   target_variable => contributing_variable%link%target
                end if
             class is (type_horizontal_variable)
                if (domain/=domain_bulk) then
                   n = n + 1
-                  noscale = noscale.and.contributing_variable%scale_factor==1.0_rk
+                  if (contributing_variable%scale_factor/=1.0_rk.or.contributing_variable%include_background) sumrequired = .true.
                   target_variable => contributing_variable%link%target
                end if
          end select
@@ -3282,7 +3279,7 @@ subroutine create_aggregate_model(self,aggregate_variable,domain)
                call root%register_horizontal_dependency(root%id_zero_hz,'zero_hz','-','zero')
             call self%add_alias(root%id_zero_hz%link%target,name)
       end select            
-   elseif (n==1.and.noscale) then
+   elseif (n==1.and..not.sumrequired) then
       ! Always equal to another - create alias to this other
       call self%add_alias(target_variable,name)
    else
@@ -3304,10 +3301,14 @@ subroutine create_aggregate_model(self,aggregate_variable,domain)
             select type (variable=>contributing_variable%link%target)
                class is (type_bulk_variable)
                   ! This contribution comes from a bulk variable.
-                  if (domain==domain_bulk) call aggregate_variable%sum%add_component(trim(contributing_variable%link%name),weight=contributing_variable%scale_factor)
+                  if (domain==domain_bulk) &
+                     call aggregate_variable%sum%add_component(trim(contributing_variable%link%name), &
+                        weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
                class is (type_horizontal_variable)
                   ! This contribution comes from a variable defined on a horizontal interface (top or bottom).
-                  if (domain/=domain_bulk) call aggregate_variable%horizontal_sum%add_component(trim(contributing_variable%link%name),weight=contributing_variable%scale_factor)
+                  if (domain/=domain_bulk) &
+                     call aggregate_variable%horizontal_sum%add_component(trim(contributing_variable%link%name), &
+                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
             end select
          end if
          contributing_variable => contributing_variable%next
@@ -3458,10 +3459,11 @@ end subroutine
       call self%parent%add_alias(self%id_output%link%target,trim(self%output_name))
    end subroutine
 
-   subroutine weighted_sum_add_component(self,name,weight)
+   subroutine weighted_sum_add_component(self,name,weight,include_background)
       class (type_weighted_sum),intent(inout) :: self
       character(len=*),         intent(in)    :: name
       real(rk),optional,        intent(in)    :: weight
+      logical,optional,         intent(in)    :: include_background
 
       type (type_component),pointer :: component
 
@@ -3478,6 +3480,21 @@ end subroutine
       end if
       component%name = name
       if (present(weight)) component%weight = weight
+      if (present(include_background)) component%include_background = include_background
+   end subroutine
+
+   subroutine weighted_sum_after_coupling(self)
+      class (type_weighted_sum),intent(inout) :: self
+
+      type (type_component),pointer :: component
+
+      ! At this stage, the background values for all variables (if any) are fixed. We can therefore
+      ! compute background contributions already, and add those to the space- and time-invariant offset.
+      component => self%first
+      do while (associated(component))
+         if (component%include_background) self%offset = self%offset + component%weight*component%id%background
+         component => component%next
+      end do
    end subroutine
 
    subroutine weighted_sum_evaluate(self,_ARGUMENTS_ND_)
@@ -3488,8 +3505,8 @@ end subroutine
       real(rk)                             :: value
       real(rk) _DIMENSION_SLICE_AUTOMATIC_ :: sum
 
-      ! Initialize sum to zero.
-      sum = 0.0_rk
+      ! Initialize sum to starting value (typically zero).
+      sum = self%offset
 
       ! Enumerate components included in the sum, and add their contributions.
       component => self%first
@@ -3535,10 +3552,25 @@ end subroutine
       call self%parent%add_alias(self%id_output%link%target,trim(self%output_name))
    end subroutine
 
-   subroutine horizontal_weighted_sum_add_component(self,name,weight)
+   subroutine horizontal_weighted_sum_after_coupling(self)
+      class (type_horizontal_weighted_sum),intent(inout) :: self
+
+      type (type_horizontal_component),pointer :: component
+
+      ! At this stage, the background values for all variables (if any) are fixed. We can therefore
+      ! compute background contributions already, and add those to the space- and time-invariant offset.
+      component => self%first
+      do while (associated(component))
+         if (component%include_background) self%offset = self%offset + component%weight*component%id%background
+         component => component%next
+      end do
+   end subroutine
+
+   subroutine horizontal_weighted_sum_add_component(self,name,weight,include_background)
       class (type_horizontal_weighted_sum),intent(inout) :: self
       character(len=*),                    intent(in)    :: name
       real(rk),optional,                   intent(in)    :: weight
+      logical,optional,                    intent(in)    :: include_background
 
       type (type_horizontal_component),pointer :: component
 
@@ -3555,24 +3587,30 @@ end subroutine
       end if
       component%name = name
       if (present(weight)) component%weight = weight
+      if (present(include_background)) component%include_background = include_background
    end subroutine
 
    subroutine horizontal_weighted_sum_evaluate_horizontal(self,_ARGUMENTS_HZ_)
       class (type_horizontal_weighted_sum),intent(in) :: self
       _DECLARE_ARGUMENTS_HZ_
       
-      type (type_horizontal_component),pointer :: component
-      real(rk)                      :: sum,value
+      type (type_horizontal_component),pointer        :: component
+      real(rk)                                        :: value
+      real(rk) _DIMENSION_SLICE_HORIZONTAL_AUTOMATIC_ :: sum
+
+      sum = self%offset
+
+      component => self%first
+      do while (associated(component))
+         _HORIZONTAL_LOOP_BEGIN_
+            _GET_HORIZONTAL_(component%id,value)
+            sum _INDEX_HZ_OUTPUT_ = sum _INDEX_HZ_OUTPUT_ + component%weight*value
+         _HORIZONTAL_LOOP_END_
+         component => component%next
+      end do
 
       _HORIZONTAL_LOOP_BEGIN_
-         sum = 0._rk
-         component => self%first
-         do while (associated(component))
-            _GET_HORIZONTAL_(component%id,value)
-            sum = sum + component%weight*value
-            component => component%next
-         end do
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,sum)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,sum _INDEX_HZ_OUTPUT_)
       _HORIZONTAL_LOOP_END_
    end subroutine
 
