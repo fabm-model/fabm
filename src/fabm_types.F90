@@ -637,7 +637,7 @@
       _DECLARE_ARGUMENTS_DO_
 
       real(rk) _DIMENSION_SLICE_AUTOMATIC_ :: current_sum
-      real(rk) _DIMENSION_SLICE_PLUS_1_,allocatable :: dy
+      real(rk) _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_,allocatable :: dy
       integer :: index,i
       real(rk) :: scale_factor
       type (type_aggregate_variable),pointer :: aggregate_variable
@@ -648,7 +648,7 @@
       ! (access here is sparse - individual models will tend to write to subsets of dy only).
       ! This appears to be more efficient than prior allocation at startup, and explicitly
       ! zeroing every time.
-      allocate(dy(_SIZE_SLICE_ environment%nstate))
+      allocate(dy(_SIZE_SHAPE_ environment%nstate))
       dy = 0.0_rk
       call self%do(_ARGUMENTS_ND_,dy)
       rhs = rhs + dy
@@ -665,13 +665,13 @@
                index = aggregate_variable%state_indices(i)
                scale_factor = aggregate_variable%state_scale_factors(i)
                _LOOP_BEGIN_
-                  current_sum _INDEX_OUTPUT_ = current_sum _INDEX_OUTPUT_ + scale_factor*dy _INDEX_OUTPUT_1D_(index)
+                  current_sum _INDEX_SLICE_ = current_sum _INDEX_SLICE_ + scale_factor*dy _INDEX_SLICE_PLUS_1_(index)
                _LOOP_END_
             end do
 
             ! Store sum across spatial domain
             _LOOP_BEGIN_
-               _SET_DIAGNOSTIC_(aggregate_variable%id_rate,current_sum _INDEX_OUTPUT_)
+               _SET_DIAGNOSTIC_(aggregate_variable%id_rate,current_sum _INDEX_SLICE_)
             _LOOP_END_
          end if
          aggregate_variable => aggregate_variable%next
@@ -3513,14 +3513,14 @@ end subroutine
       do while (associated(component))
          _LOOP_BEGIN_
             _GET_(component%id,value)
-            sum _INDEX_OUTPUT_ = sum _INDEX_OUTPUT_ + component%weight*value
+            sum _INDEX_SLICE_ = sum _INDEX_SLICE_ + component%weight*value
          _LOOP_END_
          component => component%next
       end do
 
       ! Transfer summed values to diagnostic.
       _LOOP_BEGIN_
-         _SET_DIAGNOSTIC_(self%id_output,sum _INDEX_OUTPUT_)
+         _SET_DIAGNOSTIC_(self%id_output,sum _INDEX_SLICE_)
       _LOOP_END_
    end subroutine
 
@@ -3596,7 +3596,7 @@ end subroutine
       
       type (type_horizontal_component),pointer        :: component
       real(rk)                                        :: value
-      real(rk) _DIMENSION_SLICE_HORIZONTAL_AUTOMATIC_ :: sum
+      real(rk) _DIMENSION_HORIZONTAL_SLICE_AUTOMATIC_ :: sum
 
       sum = self%offset
 
@@ -3604,13 +3604,13 @@ end subroutine
       do while (associated(component))
          _HORIZONTAL_LOOP_BEGIN_
             _GET_HORIZONTAL_(component%id,value)
-            sum _INDEX_HZ_OUTPUT_ = sum _INDEX_HZ_OUTPUT_ + component%weight*value
+            sum _INDEX_HORIZONTAL_SLICE_ = sum _INDEX_HORIZONTAL_SLICE_ + component%weight*value
          _HORIZONTAL_LOOP_END_
          component => component%next
       end do
 
       _HORIZONTAL_LOOP_BEGIN_
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,sum _INDEX_HZ_OUTPUT_)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,sum _INDEX_HORIZONTAL_SLICE_)
       _HORIZONTAL_LOOP_END_
    end subroutine
 
@@ -3635,7 +3635,7 @@ end subroutine
       !      index = self%conserved_quantities(i)%state_indices(j)
       !      scale_factor = self%conserved_quantities(i)%state_scale_factors(j)
       !      _LOOP_BEGIN_
-      !         sums _INDEX_OUTPUT_1D_(i) = sums _INDEX_OUTPUT_1D_(i) + scale_factor*y _INDEX_OUTPUT_1D_(index)
+      !         sums _INDEX_SLICE_PLUS_1_(i) = sums _INDEX_SLICE_PLUS_1_(i) + scale_factor*y _INDEX_SLICE_PLUS_1_(index)
       !      _LOOP_END_
       !   end do
       !end do

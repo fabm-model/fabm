@@ -608,7 +608,7 @@
       call fabm_link_bulk_data(self,self%root%id_zero%link%name,self%environment%zero)
    end if
    if (_VARIABLE_REGISTERED_(self%root%id_zero_hz)) then
-      allocate(self%environment%zero_hz _INDEX_LOCATION_HZ_)
+      allocate(self%environment%zero_hz _INDEX_HORIZONTAL_LOCATION_)
       self%environment%zero_hz = 0.0_rk
       call fabm_link_horizontal_data(self,self%root%id_zero_hz%link%name,self%environment%zero_hz)
    end if
@@ -1982,11 +1982,11 @@ end subroutine
    subroutine fabm_do_surface(self _ARG_LOCATION_VARS_HZ_,flux)
 !
 ! !INPUT PARAMETERS:
-      class (type_model),             intent(inout) :: self
+      class (type_model),                          intent(inout) :: self
       _DECLARE_LOCATION_ARG_HZ_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-      real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_1_,intent(out)   :: flux
+      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: flux
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2018,11 +2018,11 @@ end subroutine
    subroutine fabm_do_bottom_rhs(self _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),             intent(inout) :: self
+   class (type_model),                          intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_1_,intent(inout) :: flux_pel,flux_ben
+   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_ben
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2057,7 +2057,7 @@ end subroutine
    integer,                   intent(in)    :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_2_,intent(inout) :: pp,dd
+   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2086,7 +2086,7 @@ end subroutine
    subroutine fabm_get_vertical_movement(self _ARG_LOCATION_ND_,velocity)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),          intent(inout) :: self
+   class (type_model),               intent(inout) :: self
    _DECLARE_LOCATION_ARG_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -2105,7 +2105,7 @@ end subroutine
       ! Use variable-specific constant vertical velocities.
       ! Automatic vectorization by compiler is possible without further modification (ifort 14.0, 2013-12-06)
       _LOOP_BEGIN_EX_(self%environment)
-         velocity _INDEX_VERTICAL_MOVEMENT_(i) = self%state_variables(i)%vertical_movement
+         velocity _INDEX_SLICE_PLUS_1_(i) = self%state_variables(i)%vertical_movement
       _LOOP_END_
    end do
 
@@ -2129,7 +2129,7 @@ end subroutine
    subroutine fabm_get_light_extinction(self _ARG_LOCATION_ND_,extinction)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),          intent(inout) :: self
+   class (type_model),        intent(inout) :: self
    _DECLARE_LOCATION_ARG_ND_
    real(rk) _DIMENSION_SLICE_,intent(out)   :: extinction
 !
@@ -2142,7 +2142,7 @@ end subroutine
 !-----------------------------------------------------------------------
 !BOC
    _LOOP_BEGIN_EX_(self%environment)
-      _GET_EX_(self%extinction_data,extinction _INDEX_OUTPUT_)
+      _GET_EX_(self%extinction_data,extinction _INDEX_SLICE_)
    _LOOP_END_
    node => self%models%first
    do while (associated(node))
@@ -2193,9 +2193,9 @@ end subroutine
    subroutine fabm_get_drag(self _ARG_LOCATION_VARS_HZ_,drag)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),             intent(inout) :: self
+   class (type_model),                   intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
-   real(rk) _DIMENSION_SLICE_HORIZONTAL_,intent(out)   :: drag
+   real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: drag
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2225,9 +2225,9 @@ end subroutine
    subroutine fabm_get_albedo(self _ARG_LOCATION_VARS_HZ_,albedo)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),             intent(inout) :: self
+   class (type_model),                   intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
-   real(rk) _DIMENSION_SLICE_HORIZONTAL_,intent(out)   :: albedo
+   real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: albedo
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2256,9 +2256,9 @@ end subroutine
    subroutine fabm_get_conserved_quantities(self _ARG_LOCATION_ND_,sums)
 !
 ! !INPUT PARAMETERS:
-   class (type_model), intent(inout)         :: self
+   class (type_model),               intent(inout) :: self
    _DECLARE_LOCATION_ARG_ND_
-   real(rk) _DIMENSION_SLICE_PLUS_1_,intent(out) :: sums
+   real(rk) _DIMENSION_SLICE_PLUS_1_,intent(out)   :: sums
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2271,7 +2271,7 @@ end subroutine
       if (associated(self%conserved_quantities(i)%aggregate_variable%sum)) &
          call self%conserved_quantities(i)%aggregate_variable%sum%evaluate(_ARGUMENTS_ND_IN_)
       _LOOP_BEGIN_EX_(self%environment)
-         _GET_EX_(self%conserved_quantities(i)%data,sums _INDEX_OUTPUT_1D_(i))
+         _GET_EX_(self%conserved_quantities(i)%data,sums _INDEX_SLICE_PLUS_1_(i))
       _LOOP_END_
    end do
 
@@ -2287,9 +2287,9 @@ end subroutine
    subroutine fabm_get_horizontal_conserved_quantities(self _ARG_LOCATION_VARS_HZ_,sums)
 !
 ! !INPUT PARAMETERS:
-   class (type_model), intent(inout)            :: self
+   class (type_model),                          intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
-   real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_1_,intent(out) :: sums
+   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: sums
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2303,7 +2303,7 @@ end subroutine
       if (associated(self%conserved_quantities(i)%aggregate_variable%horizontal_sum)) &
          call self%conserved_quantities(i)%aggregate_variable%horizontal_sum%evaluate_horizontal(_ARGUMENTS_IN_HZ_)
       _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-         _GET_HORIZONTAL_EX_(self%conserved_quantities(i)%horizontal_data,sums _INDEX_HZ_OUTPUT_1D_(i))
+         _GET_HORIZONTAL_EX_(self%conserved_quantities(i)%horizontal_data,sums _INDEX_HORIZONTAL_SLICE_PLUS_1_(i))
       _HORIZONTAL_LOOP_END_
    end do
 
