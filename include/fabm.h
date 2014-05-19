@@ -297,7 +297,7 @@
 #define _DIMENSION_SLICE_PLUS_1_ ,dimension(:)
 #define _DIMENSION_SLICE_PLUS_2_ ,dimension(:,:)
 
-#define _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_ ,dimension(:,:)
+#define _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_ ,dimension(:)
 
 ! Expressions for indexing space-dependent FABM variables defined on the full spatial domain.
 #define _INDEX_SLICE_
