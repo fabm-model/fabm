@@ -1718,6 +1718,10 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+   if (size(dy,1)/=fabm_loop_stop-fabm_loop_start+1) &
+      call fatal_error('fabm_do_rhs','Size of first dimension of dy should match loop length.')
+#endif
    node => self%models%first
    do while (associated(node))
       if (node%model%check_conservation) then
@@ -1756,6 +1760,13 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+   if (size(pp,1)/=fabm_loop_stop-fabm_loop_start+1) &
+      call fatal_error('fabm_do_ppdd','Size of first dimension of pp should match loop length.')
+   if (size(dd,1)/=fabm_loop_stop-fabm_loop_start+1) &
+      call fatal_error('fabm_do_ppdd','Size of first dimension of dd should match loop length.')
+#endif
+
    node => self%models%first
    do while (associated(node))
       call node%model%do_ppdd(_ARGUMENTS_ND_IN_,pp,dd)
@@ -2100,6 +2111,11 @@ end subroutine
    integer                              :: i
 !-----------------------------------------------------------------------
 !BOC
+#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+   if (size(velocity,1)/=fabm_loop_stop-fabm_loop_start+1) &
+      call fatal_error('fabm_get_vertical_movement','Size of first dimension of velocity should match loop length.')
+#endif
+
    ! First set constant sinking rates.
    do i=1,size(self%state_variables)
       ! Use variable-specific constant vertical velocities.
@@ -2141,6 +2157,11 @@ end subroutine
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+   if (size(extinction,1)/=fabm_loop_stop-fabm_loop_start+1) &
+      call fatal_error('fabm_get_light_extinction','Size of first dimension of extinction should match loop length.')
+#endif
+
    _LOOP_BEGIN_EX_(self%environment)
       _GET_EX_(self%extinction_data,extinction _INDEX_SLICE_)
    _LOOP_END_
