@@ -275,7 +275,7 @@
 #define _INDEX_SLICE_PLUS_1_(index) (_VARIABLE_1DLOOP_,index)
 #define _INDEX_SLICE_PLUS_2_(index1,index2) (_VARIABLE_1DLOOP_,index1,index2)
 
-#define _SIZE_SHAPE_ fabm_loop_start:fabm_loop_stop,
+#define _SLICE_SHAPE_ fabm_loop_start:fabm_loop_stop,
 #define _DIMENSION_SLICE_AUTOMATIC_ ,dimension(fabm_loop_start:fabm_loop_stop)
 
 #else
@@ -304,7 +304,7 @@
 #define _INDEX_SLICE_PLUS_1_(index) (index)
 #define _INDEX_SLICE_PLUS_2_(index1,index2) (index1,index2)
 
-#define _SIZE_SHAPE_
+#define _SLICE_SHAPE_
 #define _DIMENSION_SLICE_AUTOMATIC_
 
 #endif

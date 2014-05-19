@@ -648,7 +648,7 @@
       ! (access here is sparse - individual models will tend to write to subsets of dy only).
       ! This appears to be more efficient than prior allocation at startup, and explicitly
       ! zeroing every time.
-      allocate(dy(_SIZE_SHAPE_ environment%nstate))
+      allocate(dy(_SLICE_SHAPE_ environment%nstate))
       dy = 0.0_rk
       call self%do(_ARGUMENTS_ND_,dy)
       rhs = rhs + dy
