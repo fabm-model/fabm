@@ -30,7 +30,7 @@
 
    ! Collection with standard variables (e.g., temperature, practical_salinity)
    public standard_variables
-   public type_bulk_standard_variable
+   public type_standard_variable, type_bulk_standard_variable
 
    ! Variable identifier types used by biogeochemical models
    public type_variable_id
