@@ -5,7 +5,7 @@
 !                     a comma-separated list of one or model model names
 !-------------------------------------------------------------------------------
 &fabm_nml
-   models = 'iow_spm', 'iow_spm'
+   models = 'iow_spm', 'iow_spm', 'iow_spm', 'iow_spm'
 /
 
 ! diameter             : particle diameter in mikrons
@@ -34,22 +34,65 @@
 !
 ! for details, have a look into the code!
 
+
+! here we do sand-mud interaction. One mud variable iow_spm01 and three sand clasesse iow_spm0[2-4]
 &iow_spm
-   diameter=60
-   thickness_L1=0.1
-   M0=3e-3
+   diameter=20
+   thickness_L1=0.05
+   M0=1e-3
+   M1=1e-5
    sinking_method=1
    bottom_stress_method=1
-   resuspension_model=0
-   bedload_method=1
+   resuspension_model=1
+   add_to_density=True
+   sand_mud_interaction=True
+   bedload_method=0
 /
 
 &iow_spm
    diameter=60
    thickness_L1=0.1
+   M0=1e-4
    M1=1e-5
    sinking_method=1
    bottom_stress_method=1
+   ws_const=0.001
+   tauc_const=0.15
    resuspension_model=1
+   add_to_density=True
+   mudpool_variable='iow_spm01_pmpool'
+   sand_mud_interaction=True
+   bedload_method=3
+/
+
+&iow_spm
+   diameter=120
+   thickness_L1=0.1
+   M0=1e-4
+   M1=1e-5
+   sinking_method=1
+   bottom_stress_method=1
+   ws_const=0.001
+   tauc_const=0.15
+   resuspension_model=1
+   add_to_density=True
+   mudpool_variable='iow_spm01_pmpool'
+   sand_mud_interaction=True
+   bedload_method=3
+/
+
+&iow_spm
+   diameter=150
+   thickness_L1=0.1
+   M0=1e-4
+   M1=1e-5
+   sinking_method=2
+   bottom_stress_method=1
+   ws_const=0.001
+   tauc_const=0.15
+   resuspension_model=1
+   add_to_density=True
+   mudpool_variable='iow_spm01_pmpool'
+   sand_mud_interaction=True
    bedload_method=3
 /
