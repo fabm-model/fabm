@@ -32,6 +32,7 @@
    use fabm_hzg_omexdia_p
    use fabm_iow_spm
    use fabm_iow_age
+   use fabm_iow_ergom
    use fabm_msi_ergom1
    ! Add additional external modules containing models or model factories here
 
@@ -99,6 +100,7 @@
          case ('hzg_omexdia_p');             allocate(type_hzg_omexdia_p::model)
          case ('iow_spm');                   allocate(type_iow_spm::model)
          case ('iow_age');                   allocate(type_iow_age::model)
+         case ('iow_ergom');                 allocate(type_iow_ergom::model)
          case ('msi_ergom1');                allocate(type_msi_ergom1::model)
          ! Add additional individual models here
          case default

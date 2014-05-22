@@ -1,0 +1,183 @@
+!-------------------------------------------------------------------------------
+! fabm_nml
+!-------------------------------------------------------------------------------
+! models             [string array]
+!                     a comma-separated list of one or model model names
+!-------------------------------------------------------------------------------
+&fabm_nml
+   models = 'iow_ergom'
+/
+! critical_stress=0.016_rk    ! critical shear stress for sediment erosion [N/m2]
+! cya0           =4.5E-9_rk   ! seed concentration for diazotroph cyanobacteria [mol/kg]
+! din_min_lpp    =1.125E-6_rk ! DIN half saturation constant for large-cell phytoplankton growth [mol/kg]
+! din_min_spp    =4.5E-7_rk   ! DIN half saturation constant for small-cell phytoplankton growth [mol/kg]
+! dip_min_cya    =1.125E-7_rk ! DIP half saturation constant for diazotroph cyanobacteria growth [mol/kg]
+! epsilon        =4.5E-17_rk  ! no division by 0
+! food_min_zoo   =4.108E-6_rk ! Ivlev phytoplankton concentration for zooplankton grazing [mol/kg]
+! gamma0         =0.18_rk     ! light attenuation parameter (opacity of clear water) [1/m]
+! gamma1         =30.0_rk     ! light attenuation parameter (opacity of POM containing chlorophyll) [m**2/mol]
+! h2s_min_po4_liber=1.0E-6_rk   ! minimum h2s concentration for liberation of iron phosphate from the sediment [mol/kg]
+! ips_threshold  =0.1_rk      ! threshold for increased PO4 burial [mol/m**2]
+! ips_cl         =0.02025_rk  ! iron phosphate in sediment closure parameter [mol/m2]
+! k_h2s_no3      =800000.0_rk ! reaction constant h2s oxidation with no3 [kg/mol/d]
+! k_h2s_o2       =800000.0_rk ! reaction constant h2s oxidation with o2 [kg/mol/d]
+! k_sul_no3      =20000.0_rk  ! reaction constant sulfur oxidation with no3 [kg/mol/d]
+! k_sul_o2       =20000.0_rk  ! reaction constant sulfur oxidation with o2 [kg/mol/d]
+! light_opt_cya  =50.0_rk     ! optimal light for diazotroph cyanobacteria growth [W/m²]
+! light_opt_lpp  =35.0_rk     ! optimal light for large-cell phytoplankton growth [W/m²]
+! light_opt_spp  =50.0_rk     ! optimal light for small-cell phytoplankton growth [W/m²]
+! lpp0           =4.5E-9_rk   ! seed concentration for large-cell phytoplankton [mol/kg]
+! no3_min_sed_denit=1.423E-7_rk ! nitrate half-saturation concentration for denitrification in the water column [mol/kg]
+! no3_min_det_denit=1.0E-9_rk   ! minimum no3 concentration for recycling of detritus using nitrate (denitrification)
+! o2_min_det_resp=1.0E-6_rk   ! oxygen half-saturation constant for detritus recycling [mol/kg]
+! o2_min_nit     =3.75E-6_rk  ! oxygen half-saturation constant for nitrification [mol/kg]
+! o2_min_po4_retent=3.75E-5_rk  ! oxygen half-saturation concentration for retension of phosphate during sediment denitrification [mol/kg]
+! o2_min_sed_resp=6.4952E-5_rk ! oxygen half-saturation constant for recycling of sediment detritus using oxygen [mol/kg]
+! q10_det_rec    =0.15_rk     ! temperature dependence of recycling according to van t Hoffs rule [1/K], equivalent to Q10=4.5_rk
+! q10_h2s        =0.0693_rk   ! temperature dependence of oxidation of h2s and sul according to van t Hoffs rule [1/K], equivalent to Q10=2.0_rk
+! q10_nit        =0.11_rk     ! temperature dependence of nitrification according to van t Hoffs rule [1/K], equivalent to Q10=3.0_rk
+! q10_sed_rec    =0.175_rk    ! temperature dependence of detritus recycling in the sediment according to van t Hoffs rule [1/K], equivalent to Q10=5.8_rk
+! r_biores       =0.03_rk     ! bio-resuspension rate [1/d]
+! r_cya_assim    =0.75_rk     ! maximum rate for nutrient uptake of diazotroph cyanobacteria [1/d]
+! r_det_rec      =0.003_rk    ! recycling rate (detritus to ammonium) at 0°C [1/d]
+! r_ips_burial   =0.007_rk    ! final burial rate for PO4 [1/d]
+! r_ips_ero      =6.0_rk      ! erosion rate for iron PO4 [1/d]
+! r_ips_liber    =0.1_rk      ! PO4 liberation rate under anoxic conditions [1/d]
+! r_lpp_assim    =1.3_rk      ! maximum rate for nutrient uptake of large-cell phytoplankton [1/d]
+! r_nh4_nitrif   =0.1_rk      ! nitrification rate at 0°C [1/d]
+! r_pp_mort      =0.02_rk     ! mortality rate of phytoplankton [1/d]
+! r_pp_resp      =0.01_rk     ! respiration rate of phytoplankton to ammonium [1/d]
+! r_sed_ero      =6.0_rk      ! maximum sediment detritus erosion rate [1/d]
+! r_sed_rec      =0.002_rk    ! maximum recycling rate of sediment to ammonium [1/d]
+! r_spp_assim    =0.4_rk      ! maximum rate for nutrient uptake of small-cell phytoplankton [1/d]
+! r_zoo_graz     =0.5_rk      ! maximum zooplankton grazing rate [1/d]
+! r_zoo_mort     =0.03_rk     ! mortality rate of zooplankton [1/d]
+! r_zoo_resp     =0.01_rk     ! respiration rate of zooplankton [1/d]
+! rfr_c          =6.625_rk    ! redfield ratio C/N
+! rfr_h          =16.4375_rk  ! redfield ratio H/N
+! rfr_o          =6.875_rk    ! redfield ratio O/N
+! rfr_p          =0.0625_rk   ! redfield ratio P/N
+! sali_max_cya   =10.0_rk     ! upper salinity limit - diazotroph cyanobacteria [psu]
+! sali_min_cya   =1.0_rk      ! lower salinity limit - diazotroph cyanobacteria [psu]
+! sed_max        =4.5_rk      ! maximum sediment detritus concentration that feels erosion [mol/m**2]
+! spp0           =4.5E-9_rk   ! seed concentration for small-cell phytoplankton [mol/kg]
+! temp_min_cya   =13.5_rk     ! lower temperature limit - diazotroph cyanobacteria [°C]
+! temp_min_spp   =10.0_rk     ! lower temperature limit - small-cell phytoplankton [°C]
+! temp_opt_zoo   =20.0_rk     ! optimal temperature for zooplankton grazing [°C]
+! w_cya          =0.1_rk      ! vertical speed of diazotroph cyanobacteria [m/d]
+! w_det          =-4.5_rk     ! vertical speed of detritus [m/d]
+! w_det_sedi     =-2.25_rk    ! sedimentation speed (negative for downward) [m/d]
+! w_ipw          =-1.0_rk     ! vertical speed of suspended iron PO4 [m/d]
+! w_ipw_sedi     =-0.5_rk     ! sedimentation speed for iron PO4 [m/d]
+! w_lpp          =-0.5_rk     ! vertical speed of large-cell phytoplankton [m/d]
+! w_n2_stf       =5.0_rk      ! piston velocity for n2 surface flux [m/d]
+! w_o2_stf       =5.0_rk      ! piston velocity for oxygen surface flux [m/d]
+! zoo0           =4.5E-9_rk   ! seed concentration for zooplankton [mol/kg]
+! zoo_cl         =9.0E-8_rk   ! zooplankton closure parameter [mol/kg]
+! stf_no3        =0.0_rk      ! surface tracer flux for nitrate [mol/m2/d]
+! stf_nh4        =0.0_rk      ! surface tracer flux for ammonium [mol/m2/d]
+! stf_po4        =0.0_rk      ! surface tracer flux for phosphate [mol/m2/d]
+! t_n2_initial                ! dissolved molecular nitrogen
+! t_o2_initial                ! dissolved oxygen
+! t_nh4_initial               ! ammonium
+! t_no3_initial               ! nitrate
+! t_po4_initial               ! phosphate
+! t_spp_initial               ! small-cell phytoplankton
+! t_zoo_initial               ! zooplankton
+! t_h2s_initial               ! hydrogen sulfide
+! t_sul_initial               ! sulfur
+! t_ipw_initial               ! suspended iron phosphate
+! t_lpp_initial               ! large-cell phytoplankton
+! t_cya_initial               ! diazotroph cyanobacteria
+! t_det_initial               ! detritus
+! t_sed_initial               ! sediment detritus
+! t_ips_initial               ! iron phosphate in sediment
+! dic_variable                ! name of external dic variable
+
+&iow_ergom
+    critical_stress=0.016
+    cya0           =4.5E-9
+    din_min_lpp    =1.125E-6
+    din_min_spp    =4.5E-7
+    dip_min_cya    =1.125E-7
+    epsilon        =4.5E-17
+    food_min_zoo   =4.108E-6
+    gamma0         =0.18
+    gamma1         =30.0
+    h2s_min_po4_liber=1.0E-6
+    ips_threshold  =0.1
+    ips_cl         =0.02025
+    k_h2s_no3      =800000.0
+    k_h2s_o2       =800000.0
+    k_sul_no3      =20000.0
+    k_sul_o2       =20000.0
+    light_opt_cya  =50.0
+    light_opt_lpp  =35.0
+    light_opt_spp  =50.0
+    lpp0           =4.5E-9
+    no3_min_sed_denit=1.423E-7
+    no3_min_det_denit=1.0E-9
+    o2_min_det_resp=1.0E-6
+    o2_min_nit     =3.75E-6
+    o2_min_po4_retent=3.75E-5
+    o2_min_sed_resp=6.4952E-5
+    q10_det_rec    =0.15
+    q10_h2s        =0.0693
+    q10_nit        =0.11
+    q10_sed_rec    =0.175
+    r_biores       =0.03
+    r_cya_assim    =0.75
+    r_det_rec      =0.003
+    r_ips_burial   =0.007
+    r_ips_ero      =6.0
+    r_ips_liber    =0.1
+    r_lpp_assim    =1.3
+    r_nh4_nitrif   =0.1
+    r_pp_mort      =0.02
+    r_pp_resp      =0.01
+    r_sed_ero      =6.0
+    r_sed_rec      =0.002
+    r_spp_assim    =0.4
+    r_zoo_graz     =0.5
+    r_zoo_mort     =0.03
+    r_zoo_resp     =0.01
+    rfr_c          =6.625
+    rfr_h          =16.4375
+    rfr_o          =6.875
+    rfr_p          =0.0625
+    sali_max_cya   =10.0
+    sali_min_cya   =1.0
+    sed_max        =4.5
+    spp0           =4.5E-9
+    temp_min_cya   =13.5
+    temp_min_spp   =10.0
+    temp_opt_zoo   =20.0
+    w_cya          =0.1
+    w_det          =-4.5
+    w_det_sedi     =-2.25
+    w_ipw          =-1.0
+    w_ipw_sedi     =-0.5
+    w_lpp          =-0.5
+    w_n2_stf       =5.0
+    w_o2_stf       =5.0
+    zoo0           =4.5E-9
+    zoo_cl         =9.0E-8
+    t_n2_initial   =0.0
+    t_o2_initial   =375.0e-6
+    t_nh4_initial  =0.1e-6
+    t_no3_initial  =4.5e-6
+    t_po4_initial  =1.0e-6
+    t_spp_initial  =0.1e-6
+    t_zoo_initial  =0.01e-6
+    t_h2s_initial  =0.0
+    t_sul_initial  =0.0
+    t_ipw_initial  =0.0
+    t_lpp_initial  =0.1e-6
+    t_det_initial  =0.1e-6
+    t_sed_initial  =0.1
+    t_ips_initial  =0.1
+    t_cya_initial  =0.01e-6
+    stf_no3        =0.01e-6
+    stf_nh4        =0.01e-6
+    stf_po4        =0.01e-6
+/

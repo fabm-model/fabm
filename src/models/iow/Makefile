@@ -4,6 +4,7 @@
 
 SUBDIRS  = spm
 SUBDIRS += age
+SUBDIRS += ergom
 
 #all: objs
 #	$(MOVE_MODULES_COMMAND)
