@@ -174,18 +174,19 @@ contains
                node%string = trim(file%line)
          end select
          call file%next_line()
-         if (file%has_error) return
       else
          ! Colon found: item starts a mapping
          allocate(type_dictionary::node)
          firstindent = file%indent
          do
-            pair = read_key_value_pair(file)
+            pair = read_key_value_pair(file,icolon,icolon_stop)
             if (file%has_error) return
             select type (node)
                class is (type_dictionary)
                   call node%set(pair%key,pair%value)
             end select
+
+            ! Check indentation of next line.   
             if (file%indent>firstindent) then
                call file%set_error('unexpected increase in indentation following key-value pair "'//trim(pair%key)//'".')
                return
@@ -193,49 +194,49 @@ contains
                ! End-of-file or decrease in indentation signifies that the mapping has ended.
                exit
             end if
+
+            ! We are expecting a new key-value pair, since indentation has not changed. Find position of colon.
+            call find_mapping_character(file%line,icolon,icolon_stop)
+            if (icolon==-1) then
+               call file%set_error('expected a key indicated by inline ": " or trailing :')
+               return
+            end if
          end do
       end if
    end function
 
-   recursive function read_key_value_pair(file) result(pair)
+   recursive function read_key_value_pair(file,icolon,icolon_stop) result(pair)
       class (type_file),intent(inout) :: file
+      integer,          intent(in)    :: icolon,icolon_stop
       type (type_key_value_pair)      :: pair
 
-      integer :: istop,icolon,icolon_stop,baseindent
+      integer :: istop,baseindent
 
       istop = len_trim(file%line)
 
-      ! Find the first colon (if any)
-      call find_mapping_character(file%line,icolon,icolon_stop)
-      if (icolon==-1) then
-         call file%set_error('expected a key indicated by inline ": " or trailing :')
-         return
-      end if
-
       pair%key = file%line(:icolon-1)
       if (icolon_stop==istop) then
-         ! Colon ends the line; we need to read the value from the next line
+         ! Colon ends the line; we need to read the value from the next line.
          baseindent = file%indent
          call file%next_line()
          if (file%has_error) return
-         if (file%eof) then
-            call file%set_error('end-of-file found after key "'//trim(pair%key)//'".')
-            return
-         elseif (file%indent<baseindent) then
-            call file%set_error('line following key "'//trim(pair%key)//'" lacks required indentation.')
-            return
+         if (file%eof .or. file%indent<=baseindent) then
+            ! Indentation equal to, or below, that of label (or file ends after label).
+            ! That implies the value of the key-value pair is null.
+            ! See YAML specification, section 7.2. Empty Nodes.
+            allocate(type_null::pair%value)
+         else
+            ! Value on next line with higher indentation - read it.
+            pair%value => read_value(file)
          end if
-         pair%value => read_value(file)
-         if (file%has_error) return
       else
-         ! Value follows colon
+         ! Value follows colon-space. Read the value and proceed to next line.
          allocate(type_scalar::pair%value)
          select type (node=>pair%value)
             class is (type_scalar)
                node%string = file%line(icolon_stop+1:istop)
          end select
          call file%next_line()
-         if (file%has_error) return
       end if
    end function
 

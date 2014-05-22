@@ -4,8 +4,8 @@ module fabm_config_types
 
    private
 
-   public type_node,type_dictionary,type_key_value_pair,type_scalar
-   
+   public type_node,type_dictionary,type_key_value_pair,type_scalar,type_null
+
    integer,parameter :: string_length = 1024
 
    type,abstract :: type_node
@@ -30,6 +30,11 @@ module fabm_config_types
       procedure :: to_logical => scalar_to_logical
    end type
 
+   type,extends(type_node) :: type_null
+   contains
+      procedure :: dump => null_dump
+   end type
+
    type type_key_value_pair
       character(len=string_length)       :: key   = ''
       class (type_node),         pointer :: value => null()
@@ -49,7 +54,7 @@ module fabm_config_types
       procedure :: reset_accessed => dictionary_reset_accessed
       procedure :: set_path       => dictionary_set_path
    end type
-   
+
 contains
 
    function dictionary_get_string(self,key,default) result(value)
@@ -141,6 +146,12 @@ contains
       class (type_scalar),intent(in) :: self
       integer,            intent(in) :: unit,indent
       write (unit,*) repeat(' ',indent)//trim(self%string)
+   end subroutine
+
+   subroutine null_dump(self,unit,indent)
+      class (type_null),intent(in) :: self
+      integer,          intent(in) :: unit,indent
+      write (unit,*) repeat(' ',indent)//'null'
    end subroutine
 
    recursive subroutine dictionary_dump(self,unit,indent)
