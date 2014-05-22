@@ -758,6 +758,7 @@
             svs = svs
          case ( 2 )
             ! Winterwerp 2001
+            rhop    = self%rho
             ! compute volumetric concentration
             phi     = min(0.9999999_rk,spm/g/rhop)
             ! do a limiter
