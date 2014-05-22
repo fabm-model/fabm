@@ -116,6 +116,8 @@
 		<Filter Name="iow">
 		<Filter Name="age">
 		<File RelativePath="..\..\src\models\iow\age\iow_age.F90"/></Filter>
+		<Filter Name="ergom">
+		<File RelativePath="..\..\src\models\iow\ergom\ergom_cgt.F90"/></Filter>
 		<Filter Name="spm">
 		<File RelativePath="..\..\src\models\iow\spm\spm.F90"/></Filter></Filter>
 		<Filter Name="klimacampus">
