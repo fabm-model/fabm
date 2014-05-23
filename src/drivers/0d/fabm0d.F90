@@ -50,7 +50,7 @@
    integer                   :: setn
    integer                   :: time_id
    integer                   :: par_id,temp_id,salt_id
-   integer, allocatable, dimension(:)  :: statevar_ids,diagnostic_ids,conserved_ids
+   integer, allocatable, dimension(:)  :: statevar_ids,diagnostic_ids,conserved_ids,conserved_change_ids
 #endif
 
    ! Bio model info
@@ -70,7 +70,7 @@
    real(rk),target :: temp,salt,par,current_depth,dens,wind_sf,taub,decimal_yearday
    real(rk)        :: par_sf,par_bt,par_ct,column_depth
 
-   real(rk),allocatable      :: cc(:,:),totals(:),expression_data(:)
+   real(rk),allocatable      :: cc(:,:),totals(:),totals0(:),expression_data(:)
    type (type_model),pointer :: model
    character(len=128)        :: cbuf
 
@@ -291,7 +291,8 @@
    call fabm_set_domain(model,dt)
 
    ! Allocate space for totals of conserved quantities.
-   allocate(totals(1:size(model%conserved_quantities)))
+   allocate(totals0(1:size(model%conserved_quantities)))  ! at initial time
+   allocate(totals(1:size(model%conserved_quantities)))   ! at current time
 
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
@@ -836,6 +837,7 @@
          allocate(statevar_ids(size(model%state_variables)+size(model%bottom_state_variables)))
          allocate(diagnostic_ids(size(model%diagnostic_variables)+size(model%horizontal_diagnostic_variables)))
          allocate(conserved_ids(size(model%conserved_quantities)))
+         allocate(conserved_change_ids(size(model%conserved_quantities)))
 
          do i=1,size(model%state_variables)
             call create_variable(model%state_variables(i),statevar_ids(i))
@@ -853,6 +855,12 @@
 
          do i=1,size(model%conserved_quantities)
             call create_variable(model%conserved_quantities(i),conserved_ids(i))
+            iret = nf90_def_var(ncid,'int_'//trim(model%conserved_quantities(i)%name)//'_change',NF90_REAL,dims,conserved_change_ids(i))
+            call check_err(iret)
+            iret = nf90_put_att(ncid,conserved_change_ids(i),"long_name",'integrated change in '//trim(model%conserved_quantities(i)%long_name))
+            call check_err(iret)
+            iret = nf90_put_att(ncid,conserved_change_ids(i),"units",trim(model%conserved_quantities(i)%units))
+            call check_err(iret)
          end do
 
 !        global attributes
@@ -999,9 +1007,14 @@
          end do
 
          call fabm_get_conserved_quantities(model,totals)
+         if (n==0_timestepkind) totals0 = totals
          do i=1,size(model%conserved_quantities)
             x(1) = totals(i)
             iret = nf90_put_var(ncid,conserved_ids(i),x,start,edges)
+            call check_err(iret)
+
+            x(1) = totals(i)-totals0(i)
+            iret = nf90_put_var(ncid,conserved_change_ids(i),x,start,edges)
             call check_err(iret)
          end do
 #endif
