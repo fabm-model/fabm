@@ -13,8 +13,12 @@
 ! !USES:
    use time
    use input
+
+   use fabm_driver
+   use fabm_types, only:rk,type_expression
+   use fabm_expressions
    use fabm
-   use fabm_types, only:rk
+   use fabm_config
 #ifdef NETCDF4
    use netcdf
 #endif
@@ -26,7 +30,7 @@
    public init_run, time_loop, clean_up
 !
 ! !DEFINED PARAMETERS:
-   integer, parameter        :: namlst=10, out_unit = 12, bio_unit=22
+   integer, parameter        :: namlst=10, out_unit = 12, bio_unit=22, yaml_unit=23
    integer, parameter        :: CENTER=0,SURFACE=1,BOTTOM=2
    character, parameter      :: separator = char(9)
    integer, parameter        :: ASCII_FMT=1
@@ -66,7 +70,7 @@
    real(rk),target :: temp,salt,par,current_depth,dens,wind_sf,taub,decimal_yearday
    real(rk)        :: par_sf,par_bt,par_ct,column_depth
 
-   real(rk),allocatable      :: cc(:,:),totals(:)
+   real(rk),allocatable      :: cc(:,:),totals(:),expression_data(:)
    type (type_model),pointer :: model
    character(len=128)        :: cbuf
 
@@ -108,6 +112,7 @@
    integer                   :: i
    real(rk)                  :: depth
    real(rk),parameter        :: invalid_latitude = -100._rk,invalid_longitude = -400.0_rk
+   logical                   :: file_exists
 
    namelist /model_setup/ title,start,stop,dt,ode_method,repair_state
    namelist /environment/ env_file,swr_method, &
@@ -270,8 +275,16 @@
    call register_input_0d(env_file,2,temp)
    call register_input_0d(env_file,3,salt)
 
-   ! Build FABM model tree.
-   model => fabm_create_model_from_file(namlst)
+   ! Build FABM model tree. Use fabm.yaml if available, otherwise fall back to fabm.nml.
+   inquire(file='fabm.yaml',exist=file_exists)
+   if (file_exists) then
+      ! From YAML file fabm.yaml
+      allocate(model)
+      call fabm_create_model_from_yaml_file(model)
+   else
+      ! From namelists in fabm.nml
+      model => fabm_create_model_from_file(namlst)
+   end if
 
    ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
    call fabm_set_domain(model,dt)
@@ -312,6 +325,9 @@
    if (longitude/=invalid_longitude) call fabm_link_horizontal_data(model,standard_variables%longitude,longitude)
    call fabm_link_scalar_data(model,standard_variables%number_of_days_since_start_of_the_year,decimal_yearday)
 
+   ! Create variable to hold vertical integrals/averages
+   call check_fabm_expressions()
+
    call fabm_check_ready(model)
 
    call init_output(output_format,output_file,start)
@@ -336,6 +352,57 @@
    stop 'init_run'
    end subroutine init_run
 !EOC
+
+   subroutine init_yaml_input()
+      use fabm_config_types
+      use fabm_yaml,yaml_parse=>parse,yaml_error_length=>error_length
+
+      class (type_node),pointer :: node
+      character(len=yaml_error_length) :: yaml_error
+      character(len=64)                  :: variable_name
+      type (type_key_value_pair),pointer :: pair
+      logical                            :: exists
+
+      inquire(file='input.yaml',exist=exists)
+      if (.not.exists) return
+
+      node => yaml_parse('input.yaml',yaml_unit,yaml_error)
+      if (yaml_error/='') call driver%fatal_error('fabm_create_model_from_yaml_file',trim(yaml_error))      
+
+      select type (node)
+         class is (type_dictionary)
+            pair => node%first
+         class default
+            nullify(pair)
+            call fatal_error('init_input','input.yaml must contain a dictionary with (variable name : information) pairs, not a single value.')
+      end select
+
+      do while (associated(pair))
+         variable_name = trim(pair%key)
+         select type (dict=>pair%value)
+            class is (type_dictionary)
+               call parse_input_variable(variable_name,dict)
+            class default
+               call fatal_error('init_input','Information for variable "'//trim(variable_name)//'" must be a dictionary, not a single value.')
+         end select
+         pair => pair%next
+      end do
+   end subroutine
+
+   subroutine parse_input_variable(variable_name,dictionary)
+      use fabm_config_types
+
+      character(len=*),      intent(in) :: variable_name
+      type (type_dictionary),intent(in) :: dictionary
+
+      class (type_node),pointer :: childnode
+
+      childnode => dictionary%get('constant_value')
+      childnode => dictionary%get('file')
+      childnode => dictionary%get('column')
+      childnode => dictionary%get('relaxation_time')
+
+   end subroutine
 
 !-----------------------------------------------------------------------
 !BOP
@@ -578,6 +645,8 @@
       call fabm_link_bottom_state_data(model,n,cc(size(model%info%state_variables)+n,1))
    end do
 
+   call update_fabm_expressions()
+
    ! Shortcut to the number of pelagic state variables.
    n = size(model%info%state_variables)
 
@@ -635,6 +704,8 @@
    do n=1,size(model%info%state_variables_ben)
       call fabm_link_bottom_state_data(model,n,cc(size(model%info%state_variables)+n,1))
    end do
+
+   call update_fabm_expressions()
 
    ! Shortcut to the number of pelagic state variables.
    n = size(model%info%state_variables)
@@ -943,19 +1014,65 @@
 #endif
       case default
    end select
-   return
+
    end subroutine do_output
 !EOC
 
+   subroutine check_fabm_expressions()
+      class (type_expression),pointer :: expression
+      integer :: n
+      
+      n = 0
+      expression => model%root%first_expression
+      do while (associated(expression))
+         select type (expression)
+            class is (type_vertical_integral)
+                n = n + 1
+         end select
+         expression => expression%next
+      end do
+
+      allocate(expression_data(n))
+      expression_data = _ZERO_
+
+      n = 0
+      expression => model%root%first_expression
+      do while (associated(expression))
+         select type (expression)
+            class is (type_vertical_integral)
+               n = n + 1
+               call fabm_link_horizontal_data(model,trim(expression%output_name),expression_data(n))
+         end select
+         expression => expression%next
+      end do
+   end subroutine
+
+   subroutine update_fabm_expressions()
+      class (type_expression),pointer :: expression
+
+      expression => model%root%first_expression
+      do while (associated(expression))
+         select type (expression)
+            class is (type_vertical_integral)
+               expression%out%p = expression%in%p
+               if (.not.expression%average) expression%out%p = expression%out%p*(min(expression%maximum_depth,column_depth)-expression%minimum_depth)
+         end select
+         expression => expression%next
+      end do
+   end subroutine
+   
 #ifdef NETCDF4
-subroutine check_err(iret)
-use netcdf
-integer iret
-if (iret .ne. NF90_NOERR) then
-print *, nf90_strerror(iret)
-stop
-endif
-end subroutine
+   subroutine check_err(iret)
+      use netcdf
+
+      integer :: iret
+
+      if (iret .ne. NF90_NOERR) then
+         print *, nf90_strerror(iret)
+         stop
+      endif
+
+   end subroutine
 #endif
 
 !-----------------------------------------------------------------------
