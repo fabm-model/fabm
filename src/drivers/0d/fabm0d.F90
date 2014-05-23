@@ -331,7 +331,7 @@
    call fabm_check_ready(model)
 
    call init_output(output_format,output_file,start)
-   call do_output(output_format,0)
+   call do_output(output_format,0_timestepkind)
 
    LEVEL2 'done.'
    STDERR LINE
