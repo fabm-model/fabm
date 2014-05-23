@@ -291,21 +291,21 @@
    call fabm_set_domain(model,dt)
 
    ! Allocate space for totals of conserved quantities.
-   allocate(totals(1:size(model%info%conserved_quantities)))
+   allocate(totals(1:size(model%conserved_quantities)))
 
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
-   allocate(cc(size(model%info%state_variables)+size(model%info%state_variables_ben),0:1))
-   do i=1,size(model%info%state_variables)
-      cc(i,1) = model%info%state_variables(i)%initial_value
+   allocate(cc(size(model%state_variables)+size(model%bottom_state_variables),0:1))
+   do i=1,size(model%state_variables)
+      cc(i,1) = model%state_variables(i)%initial_value
       call fabm_link_bulk_state_data(model,i,cc(i,1))
    end do
 
    ! Create benthos variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
-   do i=1,size(model%info%state_variables_ben)
-      cc(size(model%info%state_variables)+i,1) = model%info%state_variables_ben(i)%initial_value
-      call fabm_link_bottom_state_data(model,i,cc(size(model%info%state_variables)+i,1))
+   do i=1,size(model%bottom_state_variables)
+      cc(size(model%state_variables)+i,1) = model%bottom_state_variables(i)%initial_value
+      call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i,1))
    end do
 
    ! Link environmental data to FABM
@@ -479,15 +479,15 @@
       call fabm_update_time(model,real(n,rk))
 
       ! Integrate one time step
-      call ode_solver(ode_method,size(model%info%state_variables)+size(model%info%state_variables_ben),1,dt,cc,get_rhs,get_ppdd)
+      call ode_solver(ode_method,size(model%state_variables)+size(model%bottom_state_variables),1,dt,cc,get_rhs,get_ppdd)
 
       ! ODE solver may have redirected the current state with to an array with intermediate values.
       ! Reset to global array.
-      do i=1,size(model%info%state_variables)
+      do i=1,size(model%state_variables)
          call fabm_link_bulk_state_data(model,i,cc(i,1))
       end do
-      do i=1,size(model%info%state_variables_ben)
-         call fabm_link_bottom_state_data(model,i,cc(size(model%info%state_variables)+i,1))
+      do i=1,size(model%bottom_state_variables)
+         call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i,1))
       end do
 
       call do_repair_state('0d::time_loop(), after ode_solver()')
@@ -555,8 +555,6 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-! !LOCAL PARAMETERS:
-   integer                              :: n
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -646,17 +644,17 @@
 
    ! Send current state to FABM
    ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
-   do n=1,size(model%info%state_variables)
+   do n=1,size(model%state_variables)
       call fabm_link_bulk_state_data(model,n,cc(n,1))
    end do
-   do n=1,size(model%info%state_variables_ben)
-      call fabm_link_bottom_state_data(model,n,cc(size(model%info%state_variables)+n,1))
+   do n=1,size(model%bottom_state_variables)
+      call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n,1))
    end do
 
    call update_fabm_expressions()
 
    ! Shortcut to the number of pelagic state variables.
-   n = size(model%info%state_variables)
+   n = size(model%state_variables)
 
    ! Calculate temporal derivatives due to benthic processes.
    call update_depth(BOTTOM)
@@ -706,17 +704,17 @@
 
    ! Send current state to FABM
    ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
-   do n=1,size(model%info%state_variables)
+   do n=1,size(model%state_variables)
       call fabm_link_bulk_state_data(model,n,cc(n,1))
    end do
-   do n=1,size(model%info%state_variables_ben)
-      call fabm_link_bottom_state_data(model,n,cc(size(model%info%state_variables)+n,1))
+   do n=1,size(model%bottom_state_variables)
+      call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n,1))
    end do
 
    call update_fabm_expressions()
 
    ! Shortcut to the number of pelagic state variables.
-   n = size(model%info%state_variables)
+   n = size(model%state_variables)
 
    ! Calculate temporal derivatives due to surface exchange.
    call update_depth(SURFACE)
@@ -754,7 +752,7 @@
 !  Original author(s): Karsten Bolding
 !
 ! !LOCAL PARAMETERS:
-   integer         :: i,n,iret
+   integer         :: i,iret
 #ifdef NETCDF4
    integer         :: lon_dim,lat_dim,time_dim
    integer         :: lon_id,lat_id
@@ -779,23 +777,23 @@
             write(out_unit,FMT=100,ADVANCE='NO') separator,'temperature',                        'degrees C'
             write(out_unit,FMT=100,ADVANCE='NO') separator,'salinity',                           'kg/m3'
          end if
-         do i=1,size(model%info%state_variables)
-            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables(i)%long_name),trim(model%info%state_variables(i)%units)
+         do i=1,size(model%state_variables)
+            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%state_variables(i)%long_name),trim(model%state_variables(i)%units)
          end do
-         do i=1,size(model%info%state_variables_ben)
-            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables_ben(i)%long_name),trim(model%info%state_variables_ben(i)%units)
+         do i=1,size(model%bottom_state_variables)
+            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%bottom_state_variables(i)%long_name),trim(model%bottom_state_variables(i)%units)
          end do
          if (add_diagnostic_variables) then
-            do i=1,size(model%info%diagnostic_variables)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables(i)%long_name),trim(model%info%diagnostic_variables(i)%units)
+            do i=1,size(model%diagnostic_variables)
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%diagnostic_variables(i)%long_name),trim(model%diagnostic_variables(i)%units)
             end do
-            do i=1,size(model%info%diagnostic_variables_hz)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables_hz(i)%long_name),trim(model%info%diagnostic_variables_hz(i)%units)
+            do i=1,size(model%horizontal_diagnostic_variables)
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%horizontal_diagnostic_variables(i)%long_name),trim(model%horizontal_diagnostic_variables(i)%units)
             end do
          end if
          if (add_conserved_quantities) then
-            do i=1,size(model%info%conserved_quantities)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%conserved_quantities(i)%long_name),trim(model%info%conserved_quantities(i)%units)
+            do i=1,size(model%conserved_quantities)
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%conserved_quantities(i)%long_name),trim(model%conserved_quantities(i)%units)
             end do
          end if
          write(out_unit,*)
@@ -835,55 +833,26 @@
          iret = nf90_def_var(ncid,'salt',NF90_REAL,dims,salt_id)
          call check_err(iret)
 
-         allocate(statevar_ids(size(model%info%state_variables)+size(model%info%state_variables_ben)))
-         allocate(diagnostic_ids(size(model%info%diagnostic_variables)+size(model%info%diagnostic_variables_hz)))
-         allocate(conserved_ids(size(model%info%conserved_quantities)))
+         allocate(statevar_ids(size(model%state_variables)+size(model%bottom_state_variables)))
+         allocate(diagnostic_ids(size(model%diagnostic_variables)+size(model%horizontal_diagnostic_variables)))
+         allocate(conserved_ids(size(model%conserved_quantities)))
 
-         do i=1,size(model%info%state_variables)
-            iret = nf90_def_var(ncid,trim(model%info%state_variables(i)%name),NF90_REAL,dims,statevar_ids(i))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,statevar_ids(i),"long_name",trim(model%info%state_variables(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,statevar_ids(i),"units",trim(model%info%state_variables(i)%units))
-            call check_err(iret)
+         do i=1,size(model%state_variables)
+            call create_variable(model%state_variables(i),statevar_ids(i))
+         end do
+         do i=1,size(model%bottom_state_variables)
+            call create_variable(model%bottom_state_variables(i),statevar_ids(i+size(model%state_variables)))
          end do
 
-         n = size(model%info%state_variables)
-         do i=1,size(model%info%state_variables_ben)
-            iret = nf90_def_var(ncid,trim(model%info%state_variables_ben(i)%name),NF90_REAL,dims,statevar_ids(i+n))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,statevar_ids(i+n),"long_name",trim(model%info%state_variables_ben(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,statevar_ids(i+n),"units",trim(model%info%state_variables_ben(i)%units))
-            call check_err(iret)
+         do i=1,size(model%diagnostic_variables)
+            call create_variable(model%diagnostic_variables(i),diagnostic_ids(i))
+         end do
+         do i=1,size(model%horizontal_diagnostic_variables)
+            call create_variable(model%horizontal_diagnostic_variables(i),diagnostic_ids(i+size(model%diagnostic_variables)))
          end do
 
-         do i=1,size(model%info%diagnostic_variables)
-            iret = nf90_def_var(ncid,trim(model%info%diagnostic_variables(i)%name),NF90_REAL,dims,diagnostic_ids(i))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,diagnostic_ids(i),"long_name",trim(model%info%diagnostic_variables(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,diagnostic_ids(i),"units",trim(model%info%diagnostic_variables(i)%units))
-            call check_err(iret)
-         end do
-
-         n = size(model%info%diagnostic_variables)
-         do i=1,size(model%info%diagnostic_variables_hz)
-            iret = nf90_def_var(ncid,trim(model%info%state_variables(i)%name),NF90_REAL,dims,diagnostic_ids(i+n))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,diagnostic_ids(i+n),"long_name",trim(model%info%diagnostic_variables_hz(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,diagnostic_ids(i+n),"units",trim(model%info%diagnostic_variables_hz(i)%units))
-            call check_err(iret)
-         end do
-
-         do i=1,size(model%info%conserved_quantities)
-            iret = nf90_def_var(ncid,trim(model%info%conserved_quantities(i)%name),NF90_REAL,dims,conserved_ids(i))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,conserved_ids(i),"long_name",trim(model%info%conserved_quantities(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,conserved_ids(i),"units",trim(model%info%conserved_quantities(i)%units))
-            call check_err(iret)
+         do i=1,size(model%conserved_quantities)
+            call create_variable(model%conserved_quantities(i),conserved_ids(i))
          end do
 
 !        global attributes
@@ -911,6 +880,21 @@
 96 FATAL 'I could not open ',trim(output_file)
    stop 'init_output'
 100 format (A, A, ' (', A, ')')
+
+   contains
+
+   subroutine create_variable(variable,id)
+      class (type_external_variable),intent(in)  :: variable
+      integer,                       intent(out) :: id
+
+      iret = nf90_def_var(ncid,trim(variable%name),NF90_REAL,dims,id)
+      call check_err(iret)
+      iret = nf90_put_att(ncid,id,"long_name",trim(variable%long_name))
+      call check_err(iret)
+      iret = nf90_put_att(ncid,id,"units",trim(variable%units))
+      call check_err(iret)
+   end subroutine
+
    end subroutine init_output
 !EOC
 
@@ -948,20 +932,20 @@
             write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,temp
             write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,salt
          end if
-         do i=1,(size(model%info%state_variables)+size(model%info%state_variables_ben))
+         do i=1,(size(model%state_variables)+size(model%bottom_state_variables))
             write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(i,1)
          end do
          if (add_diagnostic_variables) then
-            do i=1,size(model%info%diagnostic_variables)
+            do i=1,size(model%diagnostic_variables)
                write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
             end do
-            do i=1,size(model%info%diagnostic_variables_hz)
+            do i=1,size(model%horizontal_diagnostic_variables)
                write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_horizontal_diagnostic_data(model,i)
             end do
          end if
          if (add_conserved_quantities) then
             call fabm_get_conserved_quantities(model,totals)
-            do i=1,size(model%info%conserved_quantities)
+            do i=1,size(model%conserved_quantities)
                write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,totals(i)
             end do
          end if
@@ -988,33 +972,34 @@
          iret = nf90_put_var(ncid,salt_id,x,start,edges)
          call check_err(iret)
 
-         do i=1,size(model%info%state_variables)
+         do i=1,size(model%state_variables)
             x(1) = cc(i,1)
             iret = nf90_put_var(ncid,statevar_ids(i),x,start,edges)
             call check_err(iret)
          end do
 
-         j=size(model%info%state_variables)
-         do i=1,size(model%info%state_variables_ben)
+         j=size(model%state_variables)
+         do i=1,size(model%bottom_state_variables)
             x(1) = cc(i+j,1)
             iret = nf90_put_var(ncid,statevar_ids(i+j),x,start,edges)
             call check_err(iret)
          end do
 
-         do i=1,size(model%info%diagnostic_variables)
+         do i=1,size(model%diagnostic_variables)
             x(1) = fabm_get_bulk_diagnostic_data(model,i)
             iret = nf90_put_var(ncid,diagnostic_ids(i),x,start,edges)
             call check_err(iret)
          end do
 
-         j = size(model%info%diagnostic_variables)
-         do i=1,size(model%info%diagnostic_variables_hz)
+         j = size(model%diagnostic_variables)
+         do i=1,size(model%horizontal_diagnostic_variables)
             x(1) = fabm_get_horizontal_diagnostic_data(model,i)
             iret = nf90_put_var(ncid,diagnostic_ids(i+j),x,start,edges)
             call check_err(iret)
          end do
 
-         do i=1,size(model%info%conserved_quantities)
+         call fabm_get_conserved_quantities(model,totals)
+         do i=1,size(model%conserved_quantities)
             x(1) = totals(i)
             iret = nf90_put_var(ncid,conserved_ids(i),x,start,edges)
             call check_err(iret)
