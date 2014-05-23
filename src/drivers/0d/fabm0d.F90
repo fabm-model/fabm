@@ -113,6 +113,7 @@
    real(rk)                  :: depth
    real(rk),parameter        :: invalid_latitude = -100._rk,invalid_longitude = -400.0_rk
    logical                   :: file_exists
+   real(rk),allocatable      :: rhs(:,:)
 
    namelist /model_setup/ title,start,stop,dt,ode_method,repair_state
    namelist /environment/ env_file,swr_method, &
@@ -134,7 +135,7 @@
    temp = 0.0_rk
    salt = 0.0_rk
    par = 0.0_rk
-   dens = 0.0_rk
+   dens = 1027.0_rk
    wind_sf = 0.0_rk
    par_sf = 0.0_rk
    par_bt = 0.0_rk
@@ -330,6 +331,13 @@
 
    call fabm_check_ready(model)
 
+   ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
+   call update_time(0_timestepkind)
+   decimal_yearday = yearday-1 + dble(secondsofday)/86400
+   call do_input(julianday,secondsofday)
+   allocate(rhs(size(cc,1),0:1))
+   call get_rhs(.true.,size(cc,1),1,cc,rhs)
+
    call init_output(output_format,output_file,start)
    call do_output(output_format,0_timestepkind)
 
@@ -434,7 +442,7 @@
       ! Update time
       call update_time(n)
 
-      decimal_yearday = yearday-1 + dble(secondsofday)/86400.
+      decimal_yearday = yearday-1 + dble(secondsofday)/86400
 
       ! Update environment
       call do_input(julianday,secondsofday)
