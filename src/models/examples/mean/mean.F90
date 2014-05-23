@@ -38,10 +38,10 @@ module fabm_examples_mean
    call self%register_dependency(self%id_temp_tempmean,temporal_mean(self%id_temp,period=14._rk*86400._rk,resolution=3600._rk))
    call self%register_dependency(self%id_temp_vertmean_tempmean,temporal_mean(self%id_temp_vertmean,period=30._rk*86400._rk,resolution=86400._rk))
 
-   call self%register_diagnostic_variable(self%id_temp_tempmean_diag, 'temp_14dmean',  'degree_C','14-day mean temperature',   time_treatment=time_treatment_last)
-   call self%register_diagnostic_variable(self%id_temp_vertmean_diag, 'temp_vertmean','degree_C','vertical mean temperature',time_treatment=time_treatment_last)
-   call self%register_diagnostic_variable(self%id_temp_vertmean_20m_diag, 'temp_vertmean_20m','degree_C','vertical mean temperature above 20 m',time_treatment=time_treatment_last)
-   call self%register_diagnostic_variable(self%id_temp_vertmean_tempmean_diag, 'temp_vertmean_tempmean','degree_C','30-day mean of vertical mean temperature',time_treatment=time_treatment_last)
+   call self%register_diagnostic_variable(self%id_temp_tempmean_diag, 'temp_14dmean',  'degree_C','14-day mean temperature')
+   call self%register_diagnostic_variable(self%id_temp_vertmean_diag, 'temp_vertmean','degree_C','vertical mean temperature')
+   call self%register_diagnostic_variable(self%id_temp_vertmean_20m_diag, 'temp_vertmean_20m','degree_C','vertical mean temperature above 20 m')
+   call self%register_diagnostic_variable(self%id_temp_vertmean_tempmean_diag, 'temp_vertmean_tempmean','degree_C','30-day mean of vertical mean temperature')
    
    end subroutine initialize
 
