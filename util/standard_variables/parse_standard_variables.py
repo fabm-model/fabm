@@ -8,7 +8,7 @@ import yaml # http://pyyaml.org
 
 variablespath = 'variables.yaml'
 localpath = 'cf-standard-name-table.xml'
-url = 'http://cf-pcmdi.llnl.gov/documents/cf-standard-names/standard-name-table/25/cf-standard-name-table.xml'
+url = 'https://raw.githubusercontent.com/cf-convention/cf-documents/master/cf-standard-names/cf-standard-name-table-25.xml'
 output_F90 = '../../include/standard_variables.h'
 output_F90_assignments = '../../include/standard_variable_assignments.h'
 output_wiki = 'standard_variables.wiki'
