@@ -71,13 +71,18 @@ contains
       type (type_key_value_pair),pointer :: pair
       class (type_base_model),   pointer :: childmodel
       logical                            :: initialize,check_conservation,require_initialization,require_all_parameters
+      type (type_error),         pointer :: config_error
 
       ! If custom parameter values were provided, transfer these to the root model.
       if (present(parameters)) call model%root%parameters%update(parameters)
 
-      check_conservation = mapping_get_logical(mapping,'check_conservation',.false.)
-      require_initialization = mapping_get_logical(mapping,'require_initialization',.false.)
-      require_all_parameters = mapping_get_logical(mapping,'require_all_parameters',.false.)
+      nullify(config_error)
+      check_conservation = mapping%get_logical('check_conservation',default=.false.,error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_tree_from_dictionary', config_error%message)
+      require_initialization = mapping%get_logical('require_initialization',default=.false.,error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_tree_from_dictionary', config_error%message)
+      require_all_parameters = mapping%get_logical('require_all_parameters',default=.false.,error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_tree_from_dictionary', config_error%message)
 
       node => mapping%get('instances')
       if (.not.associated(node)) &
@@ -135,17 +140,22 @@ contains
       character(len=64)                  :: modelname
       character(len=256)                 :: long_name
       type (type_dictionary)             :: parametermap
-      class (type_node),pointer          :: childnode
+      class (type_dictionary),pointer    :: childmap
       class (type_property),pointer      :: property
       type (type_key_value_pair),pointer :: pair
       type (type_set)                    :: initialized_set,background_set
       type (type_link),pointer           :: link
+      type (type_error),pointer          :: config_error
+
+      nullify(config_error)
 
       ! Retrieve model name (default to instance name if not provided).
-      modelname = trim(node%get_string('model',default=instancename))
+      modelname = trim(node%get_string('model',default=instancename,error=config_error))
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
 
       ! Retrieve descriptive name for the model instance (default to instance name if not provided).
-      long_name = trim(node%get_string('long_name',default=instancename))
+      long_name = trim(node%get_string('long_name',default=instancename,error=config_error))
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
 
       ! Try to create the model based on name.
       call factory%create(trim(modelname),model)
@@ -153,25 +163,21 @@ contains
          trim(instancename)//': "'//trim(modelname)//'" is not a valid model name.')
 
       ! Transfer user-specified parameter values to the model.
-      childnode => node%get('parameters')
-      if (associated(childnode)) then
-         select type (childnode)
-            class is (type_dictionary)
-               call childnode%flatten(parametermap,'')
-               pair => parametermap%first
-               do while (associated(pair))
-                  select type (value=>pair%value)
-                     class is (type_scalar)
-                        call model%parameters%set_string(trim(pair%key),trim(value%string))
-                     class is (type_node)
-                        call fatal_error('create_model_from_dictionary','BUG: "flatten" should &
-                           &have ensured that the value of '//trim(value%path)//' is scalar, not a nested dictionary.')
-                  end select
-                  pair => pair%next   
-               end do
-            class is (type_node)
-               call fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
-         end select
+      childmap => node%get_dictionary('parameters',required=.false.,error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      if (associated(childmap)) then
+         call childmap%flatten(parametermap,'')
+         pair => parametermap%first
+         do while (associated(pair))
+            select type (value=>pair%value)
+               class is (type_scalar)
+                  call model%parameters%set_string(trim(pair%key),trim(value%string))
+               class is (type_node)
+                  call fatal_error('create_model_from_dictionary','BUG: "flatten" should &
+                     &have ensured that the value of '//trim(value%path)//' is scalar, not a nested dictionary.')
+            end select
+            pair => pair%next   
+         end do
       end if
 
       ! Add the model to its parent.
@@ -189,55 +195,38 @@ contains
       property => model%parameters%first
       do while (associated(property))
          if (.not.property%accessed) call fatal_error('create_model_from_dictionary', &
-            'Unrecognized parameter "'//trim(property%name)//'" found below '//trim(childnode%path)//'.')
+            'Unrecognized parameter "'//trim(property%name)//'" found below '//trim(childmap%path)//'.')
          property => property%next
       end do
 
       ! Interpret coupling links specified in configuration file.
       ! These override any couplings requested by the models during initialization.
       ! This step must therefore occur after model initialization [from parent%add_child] has completed.
-      childnode => node%get('coupling')
-      if (associated(childnode)) then
-         select type (childnode)
-            class is (type_dictionary)
-               pair => childnode%first
-               do while (associated(pair))
-                  select type (value=>pair%value)
-                     class is (type_scalar)
-                        call model%request_coupling(trim(get_safe_name(pair%key)),trim(get_safe_name(value%string)),required=.true.)
-                     class is (type_node)
-                        call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
-                           ' must be a string, not a nested dictionary.')
-                  end select
-                  pair => pair%next   
-               end do
-            class is (type_node)
-               call fatal_error('create_model_from_dictionary',trim(childnode%path)// &
-                  ' must be a dictionary, not a single value.')
-         end select
+      childmap => node%get_dictionary('coupling',required=.false.,error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      if (associated(childmap)) then
+         pair => childmap%first
+         do while (associated(pair))
+            select type (value=>pair%value)
+               class is (type_scalar)
+                  call model%request_coupling(trim(get_safe_name(pair%key)),trim(get_safe_name(value%string)),required=.true.)
+               class is (type_node)
+                  call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
+                     ' must be a string, not a nested dictionary.')
+            end select
+            pair => pair%next   
+         end do
       end if
 
       ! Transfer user-specified initial state to the model.
-      childnode => node%get('initialization')
-      if (associated(childnode)) then
-         select type (childnode)
-            class is (type_dictionary)
-               call parse_initialization(model,childnode,initialized_set,get_background=.false.)
-            class is (type_node)
-               call fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
-         end select
-      end if
+      childmap => node%get_dictionary('initialization',required=.false.,error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      if (associated(childmap)) call parse_initialization(model,childmap,initialized_set,get_background=.false.)
 
       ! Transfer user-specified background value to the model.
-      childnode => node%get('background')
-      if (associated(childnode)) then
-         select type (childnode)
-            class is (type_dictionary)
-               call parse_initialization(model,childnode,background_set,get_background=.true.)
-            class is (type_node)
-               call fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
-         end select
-      end if
+      childmap => node%get_dictionary('background',required=.false.,error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      if (associated(childmap)) call parse_initialization(model,childmap,background_set,get_background=.true.)
 
       ! Verify whether all state variables have been provided with an initial value.
       link => model%first_link
@@ -267,7 +256,8 @@ contains
          link => link%next
       end do
 
-      model%check_conservation = mapping_get_logical(node,'check_conservation',model%check_conservation)
+      model%check_conservation = node%get_logical('check_conservation',default=model%check_conservation,error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
 
       ! Check whether any keys at the model level remain unused.
       pair => node%first
@@ -287,7 +277,7 @@ contains
 
       type (type_key_value_pair),  pointer :: pair
       class (type_internal_object),pointer :: object
-      logical                              :: is_state_variable
+      logical                              :: is_state_variable,success
       real(rk)                             :: realvalue
 
       ! Transfer user-specified initial state to the model.
@@ -302,7 +292,9 @@ contains
                select type (object)
                   class is (type_internal_variable)
                      if (.not.object%state_indices%is_empty()) then
-                        read (value%string,*,err=99,end=99) realvalue
+                        realvalue = value%to_real(default=0.0_rk,success=success)
+                        if (.not.success) call fatal_error('parse_initialization', &
+                           trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
                         if (get_background) then
                            call object%background_values%set_value(realvalue)
                         else
@@ -314,43 +306,14 @@ contains
                end select
                if (.not.is_state_variable) call fatal_error('parse_initialization', &
                   trim(value%path)//': "'//trim(pair%key)//'" is not a state variable of model "'//trim(model%name)//'".')
-            class is (type_node)
-               call fatal_error('parse_initialization',trim(value%path)// &
-                  ' must be set to a scalar value, not to a nested dictionary.')
+            class is (type_null)
+               call fatal_error('parse_initialization',trim(value%path)//' must be set to a real number, not to null.')
+            class is (type_dictionary)
+               call fatal_error('parse_initialization',trim(value%path)//' must be set to a real number, not to a dictionary.')
          end select
          pair => pair%next
       end do
 
-      return
-
-99    continue
-      select type (value=>pair%value)
-         class is (type_scalar)
-            call fatal_error('parse_initialization',trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
-      end select
    end subroutine
-
-   function mapping_get_logical(mapping,key,default) result(value)
-      class (type_dictionary),intent(in) :: mapping
-      character(len=*),       intent(in) :: key
-      logical,                intent(in) :: default
-      logical                            :: value
-
-      class (type_node),pointer          :: node
-      logical                            :: success
-
-      value = default
-      node => mapping%get(key)
-      if (associated(node)) then
-         select type (node)
-            class is (type_scalar)
-               value = node%to_logical(.false.,success)
-               if (.not.success) call fatal_error('mapping_get_logical',trim(node%path)//' is set to "'// &
-                  trim(node%string)//'", which cannot be interpreted as a Boolean value.')
-            class is (type_node)
-               call fatal_error('mapping_get_logical',trim(node%path)//' must be a key, not a dictionary.')
-         end select
-      end if
-   end function
 
 end module fabm_config
