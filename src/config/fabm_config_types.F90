@@ -4,9 +4,10 @@ module fabm_config_types
 
    private
 
-   public type_node,type_dictionary,type_key_value_pair,type_scalar,type_null
+   public type_node,type_dictionary,type_key_value_pair,type_scalar,type_null,type_error
 
    integer,parameter :: string_length = 1024
+   integer,parameter :: real_kind = 8
 
    type,abstract :: type_node
       character(len=string_length) :: path = ''
@@ -26,8 +27,10 @@ module fabm_config_types
    type,extends(type_node) :: type_scalar
       character(len=string_length) :: string = ''
    contains
-      procedure :: dump => value_dump
+      procedure :: dump       => value_dump
       procedure :: to_logical => scalar_to_logical
+      procedure :: to_integer => scalar_to_integer
+      procedure :: to_real    => scalar_to_real
    end type
 
    type,extends(type_node) :: type_null
@@ -46,7 +49,12 @@ module fabm_config_types
       type (type_key_value_pair),pointer :: first => null()
    contains
       procedure :: get            => dictionary_get
+      procedure :: get_scalar     => dictionary_get_scalar
+      procedure :: get_dictionary => dictionary_get_dictionary
       procedure :: get_string     => dictionary_get_string
+      procedure :: get_logical    => dictionary_get_logical
+      procedure :: get_integer    => dictionary_get_integer
+      procedure :: get_real       => dictionary_get_real
       procedure :: set            => dictionary_set
       procedure :: set_string     => dictionary_set_string
       procedure :: dump           => dictionary_dump
@@ -55,23 +63,11 @@ module fabm_config_types
       procedure :: set_path       => dictionary_set_path
    end type
 
-contains
+   type type_error
+      character(len=string_length) :: message
+   end type
 
-   function dictionary_get_string(self,key,default) result(value)
-      class (type_dictionary),intent(in) :: self
-      character(len=*),       intent(in) :: key
-      character(len=*),       intent(in) :: default
-      character(len=string_length)       :: value
-      class(type_node),pointer :: node
-      value = default
-      node => self%get(key)
-      if (associated(node)) then
-         select type (node)
-            class is (type_scalar)
-               value = node%string
-         end select
-      end if
-   end function
+contains
 
    subroutine dictionary_reset_accessed(self)
       class (type_dictionary),intent(in) :: self
@@ -204,6 +200,34 @@ contains
 99    if (present(success)) success = .false.
    end function
 
+   function scalar_to_integer(self,default,success) result(value)
+      class (type_scalar),intent(in)  :: self
+      integer,            intent(in)  :: default
+      logical,optional,   intent(out) :: success
+      integer                         :: value
+
+      value = default
+      if (present(success)) success = .true.
+
+      read(self%string,*,err=99,end=99) value
+      return
+99    if (present(success)) success = .false.
+   end function
+
+   function scalar_to_real(self,default,success) result(value)
+      class (type_scalar),intent(in)  :: self
+      real(real_kind),    intent(in)  :: default
+      logical,optional,   intent(out) :: success
+      real(real_kind)                 :: value
+
+      value = default
+      if (present(success)) success = .true.
+
+      read(self%string,*,err=99,end=99) value
+      return
+99    if (present(success)) success = .false.
+   end function
+
    recursive subroutine node_set_path(self,path)
       class (type_node),intent(inout) :: self
       character(len=*), intent(in)    :: path
@@ -223,5 +247,139 @@ contains
          pair => pair%next
       end do
    end subroutine
+
+   function dictionary_get_scalar(self,key,required,error) result(scalar)
+      class (type_dictionary),  intent(in) :: self
+      character(len=*),         intent(in) :: key
+      logical,                  intent(in) :: required
+      type(type_error),pointer             :: error
+      class (type_scalar),pointer          :: scalar
+
+      class (type_node),pointer          :: node
+
+      nullify(scalar)
+      node => self%get(key)
+      if (required.and..not.associated(node)) then
+         allocate(error)
+         error%message = trim(self%path)//' does not contain key "'//trim(key)//'".'
+      end if
+      if (associated(node)) then
+         select type (node)
+            class is (type_scalar)
+               scalar => node
+            class is (type_null)
+               allocate(error)
+               error%message = trim(node%path)//' must be set to a scalar value, not to null.'
+            class is (type_dictionary)
+               allocate(error)
+               error%message = trim(node%path)//' must be set to a scalar value, not to a dictionary.'
+         end select
+      end if
+   end function
+
+   function dictionary_get_dictionary(self,key,required,error) result(dictionary)
+      class (type_dictionary),  intent(in) :: self
+      character(len=*),         intent(in) :: key
+      logical,                  intent(in) :: required
+      type(type_error),pointer             :: error
+      class (type_dictionary),pointer      :: dictionary
+
+      class (type_node),pointer          :: node
+
+      nullify(dictionary)
+      node => self%get(key)
+      if (required.and..not.associated(node)) then
+         allocate(error)
+         error%message = trim(self%path)//' does not contain key "'//trim(key)//'".'
+      end if
+      if (associated(node)) then
+         select type (node)
+            class is (type_scalar)
+               allocate(error)
+               error%message = trim(node%path)//' must be a dictionary, not a single value.'
+            class is (type_null)
+               allocate(dictionary)
+            class is (type_dictionary)
+               dictionary => node
+         end select
+      end if
+   end function
+
+   function dictionary_get_string(self,key,default,error) result(value)
+      class (type_dictionary),  intent(in) :: self
+      character(len=*),         intent(in) :: key
+      character(len=*),optional,intent(in) :: default
+      type(type_error),pointer             :: error
+      character(len=string_length)         :: value
+
+      class(type_scalar),pointer           :: node
+
+      if (present(default)) value = default
+      node => self%get_scalar(key,.not.present(default),error)
+      if (associated(node)) value = node%string
+   end function
+
+   function dictionary_get_logical(self,key,default,error) result(value)
+      class (type_dictionary),  intent(in) :: self
+      character(len=*),         intent(in) :: key
+      logical,         optional,intent(in) :: default
+      type(type_error),pointer             :: error
+      logical                              :: value
+
+      class (type_scalar),pointer          :: node
+      logical                              :: success
+
+      if (present(default)) value = default
+      node => self%get_scalar(key,.not.present(default),error)
+      if (associated(node)) then
+         value = node%to_logical(value,success)
+         if (.not.success) then
+            allocate(error)
+            error%message = trim(node%path)//' is set to "'//trim(node%string)//'", which cannot be interpreted as a Boolean value.'
+         end if
+      end if
+   end function
+
+   function dictionary_get_integer(self,key,default,error) result(value)
+      class (type_dictionary),  intent(in) :: self
+      character(len=*),         intent(in) :: key
+      integer,         optional,intent(in) :: default
+      type(type_error),pointer             :: error
+      integer                              :: value
+
+      class (type_scalar),pointer          :: node
+      logical                              :: success
+
+      if (present(default)) value = default
+      node => self%get_scalar(key,.not.present(default),error)
+      if (associated(node)) then
+         value = node%to_integer(value,success)
+         if (.not.success) then
+            allocate(error)
+            error%message = trim(node%path)//' is set to "'//trim(node%string)//'", which cannot be interpreted as an integer.'
+         end if
+      end if
+   end function
+
+   function dictionary_get_real(self,key,default,error) result(value)
+      class (type_dictionary),  intent(in) :: self
+      character(len=*),         intent(in) :: key
+      real(real_kind), optional,intent(in) :: default
+      type(type_error),pointer             :: error
+      real(real_kind)                      :: value
+
+      class (type_scalar),pointer          :: node
+      logical                              :: success
+
+      if (present(default)) value = default
+      node => self%get_scalar(key,.not.present(default),error)
+      if (associated(node)) then
+         value = node%to_real(value,success)
+         if (.not.success) then
+            allocate(error)
+            error%message = trim(node%path)//' is set to "'//trim(node%string)//'", which cannot be interpreted as an integer.'
+         end if
+      end if
+   end function
 
 end module fabm_config_types
