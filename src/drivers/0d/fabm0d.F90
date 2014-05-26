@@ -889,20 +889,20 @@
    stop 'init_output'
 100 format (A, A, ' (', A, ')')
 
+#ifdef NETCDF4
    contains
 
    subroutine create_variable(variable,id)
       class (type_external_variable),intent(in)  :: variable
       integer,                       intent(out) :: id
-#ifdef NETCDF4
       iret = nf90_def_var(ncid,trim(variable%name),NF90_REAL,dims,id)
       call check_err(iret)
       iret = nf90_put_att(ncid,id,"long_name",trim(variable%long_name))
       call check_err(iret)
       iret = nf90_put_att(ncid,id,"units",trim(variable%units))
       call check_err(iret)
-#endif
    end subroutine
+#endif
 
    end subroutine init_output
 !EOC
