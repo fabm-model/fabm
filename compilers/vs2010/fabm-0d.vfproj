@@ -155,6 +155,10 @@
 		<Filter Name="msi">
 		<Filter Name="ergom1">
 		<File RelativePath="..\..\src\models\msi\ergom1\ergom1.F90"/></Filter></Filter>
+		<Filter Name="niva">
+		<Filter Name="oxydep">
+		<File RelativePath="..\..\src\models\niva\oxydep\oxydep.F90"/></Filter>
+		<File RelativePath="..\..\src\models\niva\niva_model_library.F90"/></Filter>
 		<Filter Name="pml">
 		<Filter Name="carbonate">
 		<File RelativePath="..\..\src\models\pml\carbonate\carbonate.F90"/>

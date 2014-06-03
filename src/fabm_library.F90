@@ -12,6 +12,7 @@
    use fabm_types, only: type_base_model_factory, type_base_model, factory
 
    use aed_models
+   use niva_model_library
    use fabm_bb_passive
    use fabm_bb_filter_feeder
    use fabm_examples_npzd_nut
@@ -57,6 +58,7 @@
          allocate(type_model_factory::factory)
 
          call factory%add(aed_model_factory)
+         call factory%add(niva_model_factory)
          ! Add new additional model factories here
 
       end if

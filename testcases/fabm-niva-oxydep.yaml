@@ -1,0 +1,62 @@
+require_initialization: true
+instances:
+  niva_oxydep:
+    initialization:
+      nut: 4.
+      pom: 0.001
+      dom: 0.01
+      phy: 0.001
+      oxy: 50. #350.
+      zoo: 0.001 #Zooplankton
+    parameters:
+# PHY
+      Max_uptake: 8.2    # Maximum nutrient uptake rate (1/d)
+      Knut: 0.35         # Half-sat.const. for uptake of NUT by phy for NUT/PHY ratio, (1/d)
+      bm: 0.12           # Coefficient for uptake rate dependence on t
+      cm: 1.4            # Coefficient for uptake rate dependence on t
+      i_min: 25.         # bioshading parameter, (nd)  
+      r_phy_nut: 0.04    # Specific respiration rate, (1/d)
+      r_phy_pom: 0.02    # Specific rate of Phy mortality, (1/d)
+      r_phy_dom: 0.50    # Specific rate of Phy excretion, (1/d)
+      r_phy_om_anox: 0.4 # Specific rate of Phy mortality in anoxic cond,(1/d)
+# ZOO
+      r_phy_zoo: 2.0     # Max.spec. rate of grazing of ZOO on PHY, (1/d)
+      Kphy: 0.1          # Half-sat.const.for grazing of Zoo on Phy for Phy/Zoo ratio, (nd)
+      r_pop_zoo: 0.7     # Max.spec. rate of grazing of ZOO on POM , (1/d)
+      Kpop: 2.0          # Half-sat.const.for grazing of ZOO on POM for POM/ZOO ratio, (nd)
+      r_zoo_nut: 0.02    # Specific ZOO respiration rate (1/d)
+      r_zoo_pom: 0.05    # Specific ZOO mortality rate (1/d)
+      uz: 0.5            # Food absorbency for Zoo (nd)
+      hz: 0.5            # Ratio between diss. and part. excretes of Zoo (nd)
+      Trel: 1e12
+# POM
+      r_pom_dom: 0.10      # Specific rate of POM decomposition, (1/d)
+      r_pom_nut_oxy: 0.03  # Specific rate of POM oxic decay, (1/d)
+      r_pom_nut_nut: 0.006 # Specific rate of POM denitrification, (1/d)
+# DOM  
+      r_dom_nut_oxy: 0.01  # Specific rate of DOM oxic decay, (1/d)
+      r_dom_nut_nut: 0.002 # Specific rate of DOM denitrification, (1/d)
+      Tda: 13.             # Coefficient for dependence on t   
+      beta_da: 20.         # Coefficient for dependence on t 
+# Lower boundary
+      Bu: 0.25            # Burial coeficient for lower boundary, (nd)
+      Trel: 1e12          # Relaxation time for exchange with teh sediments (s/m)
+      O2LimC: 40.         # Limiting O2 value for oxic/suboxic switch, (mmol/m3)
+      b_ox: 0.           # OXY in the sediment, (mmol/m3)
+      b_dom_ox: 2.       # OM in the sediment (oxic conditions), (mmol/m3)  
+      b_dom_anox: 6.     # OM in the sediment (anoxic conditions), (mmol/m3)  
+      b_nut: 0.          # NUT in the sediment, (mmol/m3)  
+# Upper boundary
+      pvel: 5.           # wind speed, (m/s)
+      a0: 31.25,         # oxygen saturation parameter, (mmol/m3)
+      a1: 14.603         # oxygen saturation parameter, (nd)
+      a2: 0.4025         # oxygen saturation parameter, (1/degC)      
+# Stochiometric coefficients
+      NtoB: 0.016        # N[uM]/BIOMASS [mg/m3], (uM(N) / mgWW/m3)
+      OtoN: 8.625        # Redfield (138/16) to NO3, (uM(O)/uM(N))
+      NtoN: 5.3          # Richards denitrification (84.8/16.), (uM(N)/uM(N))
+# Sinking
+#      w_phy: -1.5        # PHY sinking rate, (m/d)
+#      w_zoo: -0.1        # ZOO sinking rate, (m/d)  
+#      w_pom: -1.5        # POM sinking rate, (m/d) 
+     
