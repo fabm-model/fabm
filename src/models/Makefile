@@ -13,6 +13,7 @@ SUBDIRS += pml/          # Plymouth Marine Laboratory
 SUBDIRS += aed/          # AED models
 SUBDIRS += hzg/          # Helmholtz-Zentrum Geesthacht
 SUBDIRS += msi/          # Marine Systems Institute, Tallinn University of Technology 
+SUBDIRS += niva/         # Norsk Institutt for Vannforskning
 
 objs doc clean:
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@; done
