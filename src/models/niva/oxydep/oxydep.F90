@@ -63,16 +63,16 @@
       !  Lower boundary
        real(rk) :: Bu,Trel,O2LimC,b_ox,b_dom_ox,b_dom_anox,b_nut
       ! Upper boundary	 ! for oxygen flux calculations
-       real(rk) :: pvel,a0,a1,a2 	 
+       real(rk) :: pvel,a0,a1,a2
       !  Stochiometric coefficients
-       real(rk) :: NtoB        = 0.016    ! N[uM]/BIOMASS [mg/m3]		      [uM(N)/mgWW/m3]
-       real(rk) :: OtoN        = 8.625    ! Redfield' (138/16)	to NO3		[uM(O)/uM(N)]
-      ! real(rk) :: OtoN       = -6.625    ! Redfield' (106/16)			[uM(O)/uM(N)]
-       real(rk) :: NtoN        = 5.3      ! Richards' denitrification (84.8/16.)	[uM(N)/uM(N)]
+       real(rk) :: NtoB   = 0.016    ! N[uM]/BIOMASS [mg/m3] [uM(N)/mgWW/m3]
+       real(rk) :: OtoN   = 8.625    ! Redfield' (138/16) to NO3 [uM(O)/uM(N)]
+      ! real(rk) :: OtoN  = -6.625    ! Redfield' (106/16) [uM(O)/uM(N)]
+       real(rk) :: NtoN   = 5.3      ! Richards' denitrification (84.8/16.) [uM(N)/uM(N)]
       !---sinking-------------------------------!
-       real(rk) :: w_phy	   = -1.5     ! PHY sinkng rate    [m/d]
-       real(rk) :: w_zoo	   = -0.1     ! ZOO sinkng rate    [m/d]
-       real(rk) :: w_pom	   = -1.5     ! POM sinkng rate    [m/d]
+       real(rk) :: w_phy  = -1.5     ! PHY sinkng rate    [m/d]
+       real(rk) :: w_zoo  = -0.1     ! ZOO sinkng rate    [m/d]
+       real(rk) :: w_pom  = -1.5     ! POM sinkng rate    [m/d]
    contains
       procedure :: initialize
       procedure :: do
@@ -231,11 +231,11 @@
    real(rk) :: GrazPhy,GrazPOM,RespZoo,MortZoo  
  ! POM  
    real(rk) :: Autolys                 ! Autolysis of POM to DOM (1/d)  
-   real(rk) :: POM_decay_ox	           ! oxic mineralization of POM and ammonification (1/d) 
-   real(rk) :: POM_decay_denitr	       ! suboxic mineralization of POM (denitrification) (1/d)
+   real(rk) :: POM_decay_ox            ! oxic mineralization of POM and ammonification (1/d) 
+   real(rk) :: POM_decay_denitr        ! suboxic mineralization of POM (denitrification) (1/d)
  ! DOM  
-   real(rk) :: DOM_decay_ox	           ! oxic mineralization of POM and ammonification (1/d)
-   real(rk) :: DOM_decay_denitr	       ! suboxic mineralization of POM (denitrification) (1/d)
+   real(rk) :: DOM_decay_ox            ! oxic mineralization of POM and ammonification (1/d)
+   real(rk) :: DOM_decay_denitr        ! suboxic mineralization of POM (denitrification) (1/d)
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -303,9 +303,9 @@
       Autolys = self%r_pom_dom*pom
 !--------------------------------------------------------------
 ! Oxic mineralization of POM and ammonification depend on T
-	  POM_decay_ox   = self%r_pom_nut_oxy*(1.+self%beta_da*yy(self%tda,t))*pom
+   POM_decay_ox   = self%r_pom_nut_oxy*(1.+self%beta_da*yy(self%tda,t))*pom
 ! Suboxic mineralization of OM (denitrification and anammox), depends on T,O2,NO3/NO2
-      POM_decay_denitr = self%r_pom_nut_nut*(1.+self%beta_da*yy(self%tda,t)) & 
+   POM_decay_denitr = self%r_pom_nut_nut*(1.+self%beta_da*yy(self%tda,t)) & 
                            * (0.5-0.5*tanh(self%O2LimC-oxy)) & 
                            * (1-tanh(1.-nut))*pom 
 ! Mineralization of OM, ammonification and growth of NUT 
@@ -314,9 +314,9 @@
 ! DOM  
 !--------------------------------------------------------------
 ! Oxic mineralization of DOM and ammonification depend on T
-	  DOM_decay_ox   = self%r_dom_nut_oxy*(1.+self%beta_da*yy(self%tda,t))*dom
+   DOM_decay_ox   = self%r_dom_nut_oxy*(1.+self%beta_da*yy(self%tda,t))*dom
 ! Suboxic mineralization of OM (denitrification and anammox), depends on T,O2,NO3/NO2
-      DOM_decay_denitr = self%r_dom_nut_nut*(1.+self%beta_da*yy(self%tda,t)) & 
+   DOM_decay_denitr = self%r_dom_nut_nut*(1.+self%beta_da*yy(self%tda,t)) & 
                            * (0.5-0.5*tanh(self%O2LimC-oxy)) & 
                            * (1-tanh(10.-nut))*dom 
 ! Mineralization of OM, ammonification and growth of NUT 
@@ -326,13 +326,13 @@
 ! OXY  
 !--------------------------------------------------------------
 ! Changes of OXY due to OM production and decay!
-      doxy = -self%OtoN*(POM_decay_ox + DOM_decay_ox +  &
-              (POM_decay_denitr + DOM_decay_denitr) &
-              - GrowthPhy*phy + RespPhy)
+   doxy = -self%OtoN*(POM_decay_ox + DOM_decay_ox +  &
+           (POM_decay_denitr + DOM_decay_denitr) &
+           - GrowthPhy*phy + RespPhy)
 ! additional consumption of OXY due to oxidation of reduced froms of S,Mn,Fe etc. 
 ! in suboxia equales condumption for NH4 oxidation (Yakushev et al, 2008 in Nauka Kubani)
 !                     + dd(dom,nut,ci)*(1.-0.5*(1.-tanh(O2LimC-oxy)))
-      if (oxy.lt.30.) doxy = doxy-self%OtoN*DOM_decay_ox
+   if (oxy.lt.30.) doxy = doxy-self%OtoN*DOM_decay_ox
 !--------------------------------------------------------------
 ! NUT  
 !--------------------------------------------------------------
@@ -387,28 +387,28 @@
    real(rk)                   :: Ox,Oa,TempT,Obe, Q_O2
 
    _HORIZONTAL_LOOP_BEGIN_
-      _GET_(self%id_oxy,O2)
-      _GET_(self%id_temp,temp)              ! temperature
-      _GET_(self%id_salt,salt)              ! salinity
+   _GET_(self%id_oxy,O2)
+   _GET_(self%id_temp,temp)              ! temperature
+   _GET_(self%id_salt,salt)              ! salinity
 
 !/*---------------------------------------------------O2 exchange with air */
-      Ox = 1800.6-120.1*temp+3.7818*temp*temp &
-                     -0.047608*temp*temp*temp !Ox=Sc, Schmidt number
-      if (Ox>0) then 
+   Ox = 1800.6-120.1*temp+3.7818*temp*temp &
+       -0.047608*temp*temp*temp !Ox=Sc, Schmidt number
+   if (Ox>0) then 
     !    Oa = 0.028*7.6*7.6*7.6*sqrt(660/Ox)   ! Pvel for the Baltic Sea by Schneider
-	      Oa = 0.028*6.*6.*6.*sqrt(660/Ox)       ! Pvel for the Black Sea
-      else
-         Oa = 0.
-      endif
+      Oa = 0.028*6.*6.*6.*sqrt(660/Ox)       ! Pvel for the Black Sea
+   else
+      Oa = 0.
+   end if
 
       ! Calculation of O2 saturation Obe according to UNESCO, 1986
-      TempT = (temp+273.15)/100.
-      Obe = dexp(-173.4292+249.6339/TempT+143.3483*dlog(TempT)-21.8492*TempT+salt*(-0.033096+0.014259*TempT-0.0017*TempT*TempT)) !Osat
-      Obe = Obe*1000./22.4  ! - in uM
+   TempT = (temp+273.15)/100.
+   Obe = dexp(-173.4292+249.6339/TempT+143.3483*dlog(TempT)-21.8492*TempT+salt*(-0.033096+0.014259*TempT-0.0017*TempT*TempT)) !Osat
+   Obe = Obe*1000./22.4  ! - in uM
 
-      Q_O2 = Oa*(Obe-O2)*0.24/86400. ! 0,24 is to transform from [cm/h] to [m/day]  
+   Q_O2 = Oa*(Obe-O2)*0.24/86400. ! 0,24 is to transform from [cm/h] to [m/day]  
   
-      _SET_SURFACE_EXCHANGE_(self%id_oxy,Q_O2)   
+   _SET_SURFACE_EXCHANGE_(self%id_oxy,Q_O2)   
       
    _HORIZONTAL_LOOP_END_
    
@@ -435,30 +435,30 @@
    real(rk)                   :: t,oxy,pom,dom,phy,zoo,nut
 
    _HORIZONTAL_LOOP_BEGIN_
-      _GET_(self%id_nut,nut)
-      _GET_(self%id_phy,phy)
-      _GET_(self%id_zoo,zoo)
-      _GET_(self%id_pom,pom)
-      _GET_(self%id_dom,dom)
-      _GET_(self%id_oxy,oxy)
-      _GET_(self%id_temp,t)              ! temperature
+   _GET_(self%id_nut,nut)
+   _GET_(self%id_phy,phy)
+   _GET_(self%id_zoo,zoo)
+   _GET_(self%id_pom,pom)
+   _GET_(self%id_dom,dom)
+   _GET_(self%id_oxy,oxy)
+   _GET_(self%id_temp,t)              ! temperature
 
       !----------------------------------------
       !-burying into the sediments (sinking rates "w_xxx" are in m/s and positive upward)
-      _SET_BOTTOM_EXCHANGE_(self%id_pom,self%Bu*self%w_pom*pom)   ! mmol/m2/s
-      _SET_BOTTOM_EXCHANGE_(self%id_phy,self%Bu*self%w_phy*phy)   ! mmol/m2/s
-      _SET_BOTTOM_EXCHANGE_(self%id_zoo,self%Bu*self%w_zoo*zoo)   ! mmol/m2/s
+   _SET_BOTTOM_EXCHANGE_(self%id_pom,self%Bu*self%w_pom*pom)   ! mmol/m2/s
+   _SET_BOTTOM_EXCHANGE_(self%id_phy,self%Bu*self%w_phy*phy)   ! mmol/m2/s
+   _SET_BOTTOM_EXCHANGE_(self%id_zoo,self%Bu*self%w_zoo*zoo)   ! mmol/m2/s
       !   cc(pon,1)=cc(pon,1)+w_pon/h(1)*cc(pon,1)*Bu from ROLM
 
       ! we use here the relaxation condition with relaxation time Trel
       !---------------------------------------- upward fluxes of dissolved parameters
       !---------------------------------------- independent on redox conditions
-      _SET_BOTTOM_EXCHANGE_(self%id_dom,-(dom-self%b_dom_ox)/self%Trel)   ! mmol/m2/s
+   _SET_BOTTOM_EXCHANGE_(self%id_dom,-(dom-self%b_dom_ox)/self%Trel)   ! mmol/m2/s
 
       !---------------------------------------- dependent on redox conditions
       !in suboxic and anoxic conditions upward flux of DOM increases 
-      _SET_BOTTOM_EXCHANGE_(self%id_dom,-(1.-0.5*(1.-tanh(self%O2LimC-oxy)))*(dom-self%b_dom_anox)/self%Trel)
-      _SET_BOTTOM_EXCHANGE_(self%id_oxy,-(1.-0.5*(1.-tanh(self%O2LimC-oxy)))*(oxy-0.)/self%Trel)
+   _SET_BOTTOM_EXCHANGE_(self%id_dom,-(1.-0.5*(1.-tanh(self%O2LimC-oxy)))*(dom-self%b_dom_anox)/self%Trel)
+   _SET_BOTTOM_EXCHANGE_(self%id_oxy,-(1.-0.5*(1.-tanh(self%O2LimC-oxy)))*(oxy-0.)/self%Trel)
 
 !    cc(oxy,1) =cc(oxy,1) -(1-tanh(O2LimC-cc(oxy,1)))*(cc( oxy,1)-min(b_ox,cc(oxy,1))) &
 !				/(Trel*timestep) !/86400)
@@ -467,10 +467,10 @@
 
 ! if (h(1).gt.0.75) then ! that is NOT valid in the channel (<5 m)!
 !! in oxic conditions OXY is additionally consumed due to its flux from water to sediments 
-      _SET_BOTTOM_EXCHANGE_(self%id_oxy,-(1-tanh(self%O2LimC-oxy))*(oxy-min(self%b_ox,oxy))/self%Trel)
+   _SET_BOTTOM_EXCHANGE_(self%id_oxy,-(1-tanh(self%O2LimC-oxy))*(oxy-min(self%b_ox,oxy))/self%Trel)
 !				/(Trel*timestep) !/86400)
 !! in oxic conditions fluxes of NO3/NO2 for denitrification in the sediments 
-      _SET_BOTTOM_EXCHANGE_(self%id_nut,-(1-tanh(self%O2LimC-oxy))*(nut-min(self%b_nut,nut))/self%Trel)
+   _SET_BOTTOM_EXCHANGE_(self%id_nut,-(1-tanh(self%O2LimC-oxy))*(nut-min(self%b_nut,nut))/self%Trel)
 !				/(Trel*timestep) !/86400)
 ! endif
 
