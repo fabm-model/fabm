@@ -15,7 +15,7 @@
    use input
 
    use fabm_driver
-   use fabm_types, only:rk,type_expression
+   use fabm_types
    use fabm_expressions
    use fabm
    use fabm_config
@@ -67,12 +67,19 @@
    logical  :: add_diagnostic_variables
 
    ! Environment
-   real(rk),target :: temp,salt,par,current_depth,dens,wind_sf,taub,decimal_yearday
+   real(rk),target :: temp,salt,par,current_depth,dens,decimal_yearday
    real(rk)        :: par_sf,par_bt,par_ct,column_depth
 
    real(rk),allocatable      :: cc(:,:),totals(:),totals0(:),expression_data(:)
    type (type_model),pointer :: model
    character(len=128)        :: cbuf
+
+   type type_input_data
+      character(len=attribute_length) :: variable_name = ''
+      real(rk)                        :: value         = 0.0_rk
+      type (type_input_data),pointer  :: next          => null()
+   end type
+   type (type_input_data), pointer, save :: first_input_data => null()
 
    interface
       function short_wave_radiation(jul,secs,dlon,dlat,cloud,bio_albedo) result(swr)
@@ -136,12 +143,10 @@
    salt = 0.0_rk
    par = 0.0_rk
    dens = 1027.0_rk
-   wind_sf = 0.0_rk
    par_sf = 0.0_rk
    par_bt = 0.0_rk
    par_ct = 0.0_rk
    decimal_yearday = 0.0_rk
-   taub  = 0.0_rk
 
    ! Read all namelists
    title = ''
@@ -317,9 +322,7 @@
    call fabm_link_bulk_data(model,standard_variables%density,dens)
    call fabm_link_bulk_data(model,standard_variables%cell_thickness,column_depth)
    call fabm_link_bulk_data(model,standard_variables%depth,current_depth)
-   call fabm_link_horizontal_data(model,standard_variables%wind_speed,wind_sf)
    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_photosynthetic_radiative_flux,par_sf)
-   call fabm_link_horizontal_data(model,standard_variables%bottom_stress,taub)
    call fabm_link_horizontal_data(model,standard_variables%cloud_area_fraction,cloud)
    call fabm_link_horizontal_data(model,standard_variables%bottom_depth,column_depth)
    call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,column_depth)
@@ -327,7 +330,10 @@
    if (longitude/=invalid_longitude) call fabm_link_horizontal_data(model,standard_variables%longitude,longitude)
    call fabm_link_scalar_data(model,standard_variables%number_of_days_since_start_of_the_year,decimal_yearday)
 
-   ! Create variable to hold vertical integrals/averages
+   ! Read forcing data specified in input.yaml.
+   call init_yaml()
+
+   ! Allocate memory for the value of any requested vertical integrals/averages of FABM variables.
    call check_fabm_expressions()
 
    call fabm_check_ready(model)
@@ -362,56 +368,150 @@
    end subroutine init_run
 !EOC
 
-   subroutine init_yaml_input()
+   subroutine init_yaml()
       use fabm_config_types
       use fabm_yaml,yaml_parse=>parse,yaml_error_length=>error_length
 
-      class (type_node),pointer :: node
-      character(len=yaml_error_length) :: yaml_error
-      character(len=64)                  :: variable_name
-      type (type_key_value_pair),pointer :: pair
       logical                            :: exists
+      character(len=yaml_error_length)   :: yaml_error
+      class (type_node),         pointer :: node
+      class (type_dictionary),   pointer :: mapping
+      type (type_error),         pointer :: config_error
+      type (type_key_value_pair),pointer :: pair
 
+      ! Determine whether input.yaml exists.
       inquire(file='input.yaml',exist=exists)
       if (.not.exists) return
 
+      ! Parse YAML.
       node => yaml_parse('input.yaml',yaml_unit,yaml_error)
-      if (yaml_error/='') call driver%fatal_error('fabm_create_model_from_yaml_file',trim(yaml_error))      
+      if (yaml_error/='') call driver%fatal_error('init_yaml',trim(yaml_error))
 
+      ! Process root-level dictionary.
       select type (node)
          class is (type_dictionary)
-            pair => node%first
+            ! Process "input" section.
+            call init_yaml_input(node)
          class default
-            nullify(pair)
-            call fatal_error('init_input','input.yaml must contain a dictionary with (variable name : information) pairs, not a single value.')
+            call fatal_error('init_yaml','input.yaml must contain a dictionary with (variable name : information) pairs, not a single value.')
       end select
+   end subroutine init_yaml
 
+   subroutine init_yaml_input(mapping)
+      use fabm_config_types
+
+      class (type_dictionary),intent(in)  :: mapping
+
+      character(len=64)                  :: variable_name
+      type (type_key_value_pair),pointer :: pair
+
+      pair => mapping%first
       do while (associated(pair))
          variable_name = trim(pair%key)
          select type (dict=>pair%value)
             class is (type_dictionary)
                call parse_input_variable(variable_name,dict)
             class default
-               call fatal_error('init_input','Information for variable "'//trim(variable_name)//'" must be a dictionary, not a single value.')
+               call fatal_error('init_input','Contents of '//trim(dict%path)//' must be a dictionary, not a single value.')
          end select
          pair => pair%next
       end do
-   end subroutine
+   end subroutine init_yaml_input
 
-   subroutine parse_input_variable(variable_name,dictionary)
+   subroutine parse_input_variable(variable_name,mapping)
       use fabm_config_types
 
       character(len=*),      intent(in) :: variable_name
-      type (type_dictionary),intent(in) :: dictionary
+      type (type_dictionary),intent(in) :: mapping
 
-      class (type_node),pointer :: childnode
+      type (type_error), pointer        :: config_error
+      class (type_node),  pointer :: node
+      class (type_scalar),pointer :: scalar
+      real(rk)            :: relaxation_time
+      character(len=1024) :: path
+      integer             :: column
+      logical             :: is_state_variable
+      type (type_input_data),pointer :: input_data
+      type (type_key_value_pair),pointer :: pair
 
-      childnode => dictionary%get('constant_value')
-      childnode => dictionary%get('file')
-      childnode => dictionary%get('column')
-      childnode => dictionary%get('relaxation_time')
+      type (type_bulk_variable_id)       :: bulk_id
+      type (type_horizontal_variable_id) :: horizontal_id
+      type (type_scalar_variable_id)     :: scalar_id
 
-   end subroutine
+      ! Try to locate the forced variable among bulk, horizontal, and global variables in the active biogeochemical models.
+      is_state_variable = .false.
+      bulk_id = fabm_get_bulk_variable_id(model,variable_name)
+      if (fabm_is_variable_used(bulk_id)) then
+         is_state_variable = bulk_id%state_index/=-1
+      else
+         horizontal_id = fabm_get_horizontal_variable_id(model,variable_name)
+         if (fabm_is_variable_used(horizontal_id)) then
+            is_state_variable = horizontal_id%state_index/=-1
+         else
+            scalar_id = fabm_get_scalar_variable_id(model,variable_name)
+            if (.not.fabm_is_variable_used(scalar_id)) &
+               call fatal_error('parse_input_variable','input.yaml: Variable "'//trim(variable_name)//'" is not present in any biogeochemical  model.')
+         end if
+      end if
+
+      ! Create an object to hold information on this input variable.      
+      if (associated(first_input_data)) then
+         input_data => first_input_data
+         do while (associated(input_data%next))
+            input_data => input_data%next
+         end do
+         allocate(input_data%next)
+         input_data => input_data%next
+      else
+         allocate(first_input_data)
+         input_data => first_input_data
+      end if
+      input_data%variable_name = variable_name
+
+      scalar => mapping%get_scalar('constant_value',required=.false.,error=config_error)
+      if (associated(scalar)) then
+         ! Input variable is set to a constant value.
+         input_data%value = mapping%get_real('constant_value',error=config_error)
+         if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
+
+         node => mapping%get('file')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "file" cannot both be present.')
+         node => mapping%get('column')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "column" cannot both be present.')
+      else
+         ! Input variable is set to a time-varying value. Obtain path and column number.
+         path = mapping%get_string('file',error=config_error)
+         if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
+         column = mapping%get_integer('column',default=1,error=config_error)
+         if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
+         call register_input_0d(path,column,input_data%value)
+      end if
+
+      if (is_state_variable) then
+         relaxation_time = mapping%get_real('relaxation_time',default=1.e15_rk,error=config_error)
+         if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
+      else
+         node => mapping%get('relaxation_time')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": key "relaxation_time" is not supported because "'//trim(variable_name)//'" is not a state variable.')
+      end if
+
+      ! Warn about uninterpreted keys.
+      pair => mapping%first
+      do while (associated(pair))
+         if (.not.pair%accessed) call fatal_error('parse_input_variable','input.yaml: Unrecognized option "'//trim(pair%key)//'" found for variable "'//trim(variable_name)//'".')
+         pair => pair%next
+      end do
+
+      ! Link forced data to target variable.
+      if (fabm_is_variable_used(bulk_id)) then
+         call fabm_link_bulk_data(model,bulk_id,input_data%value)
+      elseif (fabm_is_variable_used(horizontal_id)) then
+         call fabm_link_horizontal_data(model,horizontal_id,input_data%value)
+      else
+         call fabm_link_scalar_data(model,scalar_id,input_data%value)
+      end if
+
+   end subroutine parse_input_variable
 
 !-----------------------------------------------------------------------
 !BOP
