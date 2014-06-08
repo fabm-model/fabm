@@ -377,7 +377,7 @@ contains
          value = node%to_real(value,success)
          if (.not.success) then
             allocate(error)
-            error%message = trim(node%path)//' is set to "'//trim(node%string)//'", which cannot be interpreted as an integer.'
+            error%message = trim(node%path)//' is set to "'//trim(node%string)//'", which cannot be interpreted as a real number.'
          end if
       end if
    end function
