@@ -21,7 +21,9 @@ INCDIRS += -DNETCDF4 -I$(shell nf-config --includedir)
 LDFLAGS += $(shell nf-config --flibs)
 endif
 
-fabm0d.o: fabm
+fabm0d.o: fabm shared.o output.o
+
+output.o: shared.o
 
 main.o: fabm0d.o
 
