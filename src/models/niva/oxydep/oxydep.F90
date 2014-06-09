@@ -214,7 +214,7 @@
 !  Original author(s): 
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   :: oxy,nut,pom,dom,phy,zoo,par,t,iopt,I_0
+   real(rk)                   :: oxy,nut,pom,dom,phy,zoo,t,iopt,I_0
    
    real(rk) :: doxy,dnut,ddom,dpom,dphy,dzoo
  ! Rates of biogeochemical processes 
