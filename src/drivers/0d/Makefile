@@ -28,7 +28,7 @@ output.o: shared.o
 main.o: fabm0d.o
 
 fabm0d: main.o
-	$(FC) -o $@ main.o fabm0d.o $(LDFLAGS) $(LIBS)
+	$(FC) -o $@ main.o fabm0d.o shared.o output.o $(LDFLAGS) $(LIBS)
 	$(RM) fabm0d.o main.o
 	mkdir -p $(HOME)/bin
 	cp -p $@ $(HOME)/bin
