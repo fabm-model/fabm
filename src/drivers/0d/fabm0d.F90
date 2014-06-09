@@ -375,9 +375,6 @@
       logical                            :: exists
       character(len=yaml_error_length)   :: yaml_error
       class (type_node),         pointer :: node
-      class (type_dictionary),   pointer :: mapping
-      type (type_error),         pointer :: config_error
-      type (type_key_value_pair),pointer :: pair
 
       ! Determine whether input.yaml exists.
       inquire(file='input.yaml',exist=exists)
