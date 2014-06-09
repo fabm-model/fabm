@@ -14,9 +14,11 @@
    use netcdf
 #endif
 
+   ! From FABM
    use fabm
    use fabm_types
 
+   ! From GOTM
    use time
 
    use shared
@@ -75,7 +77,6 @@
    integer         :: lon_dim,lat_dim,time_dim
    integer         :: lon_id,lat_id
    integer         :: dims(3)
-   character(len=128) :: ncdf_time_str
 #endif
 !EOP
 !-----------------------------------------------------------------------
@@ -138,10 +139,8 @@
          iret = nf90_def_var(ncid,'time',NF90_REAL,time_dim,time_id)
          call check_err(iret)
 
-         write(ncdf_time_str,110) 'seconds',trim(start)
-         iret = nf90_put_att(ncid,time_id,"units",trim(ncdf_time_str))
+         iret = nf90_put_att(ncid,time_id,'units','seconds since '//trim(start))
          call check_err(iret)
-110 format(A,' since ',A)
 
 !        define variables
          iret = nf90_def_var(ncid,'par',NF90_REAL,dims,par_id)
@@ -174,9 +173,9 @@
             call create_variable(model%conserved_quantities(i),conserved_ids(i))
             iret = nf90_def_var(ncid,'int_'//trim(model%conserved_quantities(i)%name)//'_change',NF90_REAL,dims,conserved_change_ids(i))
             call check_err(iret)
-            iret = nf90_put_att(ncid,conserved_change_ids(i),"long_name",'integrated change in '//trim(model%conserved_quantities(i)%long_name))
+            iret = nf90_put_att(ncid,conserved_change_ids(i),'long_name','integrated change in '//trim(model%conserved_quantities(i)%long_name))
             call check_err(iret)
-            iret = nf90_put_att(ncid,conserved_change_ids(i),"units",trim(model%conserved_quantities(i)%units))
+            iret = nf90_put_att(ncid,conserved_change_ids(i),'units',trim(model%conserved_quantities(i)%units))
             call check_err(iret)
          end do
 
@@ -218,9 +217,9 @@
       integer,                       intent(out) :: id
       iret = nf90_def_var(ncid,trim(variable%name),NF90_REAL,dims,id)
       call check_err(iret)
-      iret = nf90_put_att(ncid,id,"long_name",trim(variable%long_name))
+      iret = nf90_put_att(ncid,id,'long_name',trim(variable%long_name))
       call check_err(iret)
-      iret = nf90_put_att(ncid,id,"units",trim(variable%units))
+      iret = nf90_put_att(ncid,id,'units',trim(variable%units))
       call check_err(iret)
    end subroutine
 #endif
