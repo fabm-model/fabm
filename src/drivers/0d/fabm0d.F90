@@ -13,15 +13,16 @@
 ! !USES:
    use time
    use input
+   use eqstate,only:rho_feistel
+
+   use shared
+   use output
 
    use fabm_driver
    use fabm_types
    use fabm_expressions
    use fabm
    use fabm_config
-#ifdef NETCDF4
-   use netcdf
-#endif
 
    implicit none
    private
@@ -30,28 +31,14 @@
    public init_run, time_loop, clean_up
 !
 ! !DEFINED PARAMETERS:
-   integer, parameter        :: namlst=10, out_unit = 12, bio_unit=22, yaml_unit=23
+   integer, parameter        :: namlst=10, yaml_unit=23
    integer, parameter        :: CENTER=0,SURFACE=1,BOTTOM=2
-   character, parameter      :: separator = char(9)
-   integer, parameter        :: ASCII_FMT=1
-   integer, parameter        :: NETCDF_FMT=2
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 !  private data members initialised via namelists
-   character(len=80)         :: title
    real(rk)                  :: dt
-!  station description
-   real(rk)                  :: latitude,longitude
-   integer                   :: output_format
-   integer                   :: ncid=-1
-#ifdef NETCDF4
-   integer                   :: setn
-   integer                   :: time_id
-   integer                   :: par_id,temp_id,salt_id
-   integer, allocatable, dimension(:)  :: statevar_ids,diagnostic_ids,conserved_ids,conserved_change_ids
-#endif
 
    ! Bio model info
    integer  :: ode_method
@@ -62,17 +49,15 @@
    real(rk) :: par_fraction
    real(rk) :: par_background_extinction
    logical  :: apply_self_shading
-   logical  :: add_environment
-   logical  :: add_conserved_quantities
-   logical  :: add_diagnostic_variables
 
    ! Environment
-   real(rk),target :: temp,salt,par,current_depth,dens,decimal_yearday
+   real(rk),target :: current_depth,dens,decimal_yearday
    real(rk)        :: par_sf,par_bt,par_ct,column_depth
 
-   real(rk),allocatable      :: cc(:,:),totals(:),totals0(:),expression_data(:)
-   type (type_model),pointer :: model
-   character(len=128)        :: cbuf
+   real(rk),allocatable :: expression_data(:)
+
+   type (type_bulk_variable_id) :: id_dens
+   logical                      :: compute_density
 
    type type_input_data
       character(len=attribute_length) :: variable_name = ''
@@ -142,7 +127,7 @@
    temp = 0.0_rk
    salt = 0.0_rk
    par = 0.0_rk
-   dens = 1027.0_rk
+   dens = 0.0_rk
    par_sf = 0.0_rk
    par_bt = 0.0_rk
    par_ct = 0.0_rk
@@ -215,7 +200,7 @@
       FATAL 'run.nml: a positive value for "depth" must be provided in "environment" namelist.'
       stop 'init_run'
    end if
-   column_depth = depth ! For now we have a single depth value only. Use that for both column depth and evaluation depth.
+   column_depth = depth ! Provided depth is the column depth. The modelled biogeochemistry will be positioned at half this depth.
    call update_depth(CENTER)
    
    ! If longitude and latitude are used, make sure they have been provided and are valid.
@@ -234,14 +219,6 @@
       FATAL 'run.nml: "output_file" must be set to a valid file path in "output" namelist.'
       stop 'init_run'
    end if
-#if 0
-   if (output_format/=ASCII_FMT) then
-      STDERR 'run.nml: "output_format" NetCDF is not fully implemented yet'
-      STDERR 'shifting to ASCII output.'
-      output_format=ASCII_FMT
-   end if
-#endif
-
 
    LEVEL2 'done.'
 
@@ -295,10 +272,6 @@
    ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
    call fabm_set_domain(model,dt)
 
-   ! Allocate space for totals of conserved quantities.
-   allocate(totals0(1:size(model%conserved_quantities)))  ! at initial time
-   allocate(totals(1:size(model%conserved_quantities)))   ! at current time
-
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
    allocate(cc(size(model%state_variables)+size(model%bottom_state_variables),0:1))
@@ -314,12 +287,15 @@
       call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i,1))
    end do
 
+   id_dens = fabm_get_bulk_variable_id(model,standard_variables%density)
+   compute_density = fabm_variable_needs_values(id_dens)
+   if (compute_density) call fabm_link_bulk_data(model,id_dens,dens)
+
    ! Link environmental data to FABM
    call fabm_link_bulk_data(model,standard_variables%temperature,temp)
    call fabm_link_bulk_data(model,standard_variables%practical_salinity,salt)
    call fabm_link_bulk_data(model,standard_variables%downwelling_photosynthetic_radiative_flux,par)
    call fabm_link_bulk_data(model,standard_variables%pressure,current_depth)
-   call fabm_link_bulk_data(model,standard_variables%density,dens)
    call fabm_link_bulk_data(model,standard_variables%cell_thickness,column_depth)
    call fabm_link_bulk_data(model,standard_variables%depth,current_depth)
    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_photosynthetic_radiative_flux,par_sf)
@@ -339,14 +315,13 @@
    call fabm_check_ready(model)
 
    ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
-   call update_time(0_timestepkind)
-   decimal_yearday = yearday-1 + dble(secondsofday)/86400
-   call do_input(julianday,secondsofday)
+   call start_time_step(0_timestepkind)
+
    allocate(rhs(size(cc,1),0:1))
    call get_rhs(.true.,size(cc,1),1,cc,rhs)
 
-   call init_output(output_format,output_file,start)
-   call do_output(output_format,0_timestepkind)
+   call init_output(output_file,start)
+   call do_output(0_timestepkind)
 
    LEVEL2 'done.'
    STDERR LINE
@@ -510,42 +485,21 @@
 
    end subroutine parse_input_variable
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Manage global time--stepping \label{timeLoop}
-!
-! !INTERFACE:
-   subroutine time_loop()
-!
-! !DESCRIPTION:
-! This internal routine is the heart of the code. It contains
-! the main time-loop inside of which all routines required
-! during the time step are called.
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   integer                   :: i
-   integer(timestepkind)     :: n
-   real(rk)                  :: extinction,bio_albedo
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   LEVEL1 'time_loop'
+   subroutine start_time_step(n)
+      integer(timestepkind),intent(in) :: n
 
-   do n=MinN,MaxN
+      real(rk)                         :: extinction,bio_albedo
 
-      ! Update time
+      ! Update time in time manager
       call update_time(n)
 
+      ! Compute decimal year day (input for some biogeochemical models)
       decimal_yearday = yearday-1 + dble(secondsofday)/86400
 
-      ! Update environment
+      ! Update environment (i.e., read from input files)
       call do_input(julianday,secondsofday)
 
-      ! Calculate photosynthetically active radiation if it is not provided in the input file.
+      ! Calculate photosynthetically active radiation at surface, if it is not provided in the input file.
       if (swr_method==0) then
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
          call fabm_get_albedo(model,bio_albedo)
@@ -571,6 +525,37 @@
       end if
       call update_depth(CENTER)
 
+      ! Compute density from temperature and salinity, if required by biogeochemistry.
+      if (compute_density) dens = rho_feistel(salt,temp,5._rk*column_depth,.true.)
+   end subroutine start_time_step
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Manage global time--stepping \label{timeLoop}
+!
+! !INTERFACE:
+   subroutine time_loop()
+!
+! !DESCRIPTION:
+! This internal routine is the heart of the code. It contains
+! the main time-loop inside of which all routines required
+! during the time step are called.
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   integer                   :: i
+   integer(timestepkind)     :: n
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   LEVEL1 'time_loop'
+
+   do n=MinN,MaxN
+      call start_time_step(n)
+
       ! Repair state before calling FABM
       call do_repair_state('0d::time_loop(), before ode_solver()')
 
@@ -592,7 +577,7 @@
 
       ! Do output
       if (mod(n,nsave)==0) then
-         call do_output(output_format,n)
+         call do_output(n)
       end if
 
    end do
@@ -624,14 +609,7 @@
    LEVEL1 'clean_up'
 
    call close_input()
-   if (ncid .ne. -1) then
-#ifdef NETCDF4
-      iret = nf90_close(ncid)
-      call check_err(iret)
-#endif
-   else
-      close(out_unit)
-   end if
+   call clean_output()
 
    end subroutine clean_up
 !EOC
@@ -832,296 +810,6 @@
    end subroutine get_rhs
 !EOC
 
-!-----------------------------------------------------------------------
-!BOP
-! !IROUTINE: prepare for output
-!
-! !INTERFACE:
-   subroutine init_output(output_format,output_file,start)
-!
-! !DESCRIPTION:
-! TODO
-!
-! !INPUT PARAMETERS:
-   integer, intent(in)                 :: output_format
-   character(len=*), intent(in)        :: output_file,start
-!
-! !REVISION HISTORY:
-!  Original author(s): Karsten Bolding
-!
-! !LOCAL PARAMETERS:
-   integer         :: i,iret
-#ifdef NETCDF4
-   integer         :: lon_dim,lat_dim,time_dim
-   integer         :: lon_id,lat_id
-   integer         :: dims(3)
-   character(len=128) :: ncdf_time_str
-#endif
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   select case (output_format)
-      case(ASCII_FMT)
-         open(out_unit,file=trim(output_file),action='write', &
-              status='replace',err=96)
-         LEVEL2 'Writing results to:'
-         LEVEL3 trim(output_file)
-
-         ! Write header to the output file.
-         write(out_unit,FMT='(''# '',A)') title
-         write(out_unit,FMT='(''# '',A)',ADVANCE='NO') 'time'
-         if (add_environment) then
-            write(out_unit,FMT=100,ADVANCE='NO') separator,'photosynthetically active radiation','W/m2'
-            write(out_unit,FMT=100,ADVANCE='NO') separator,'temperature',                        'degrees C'
-            write(out_unit,FMT=100,ADVANCE='NO') separator,'salinity',                           'kg/m3'
-         end if
-         do i=1,size(model%state_variables)
-            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%state_variables(i)%long_name),trim(model%state_variables(i)%units)
-         end do
-         do i=1,size(model%bottom_state_variables)
-            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%bottom_state_variables(i)%long_name),trim(model%bottom_state_variables(i)%units)
-         end do
-         if (add_diagnostic_variables) then
-            do i=1,size(model%diagnostic_variables)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%diagnostic_variables(i)%long_name),trim(model%diagnostic_variables(i)%units)
-            end do
-            do i=1,size(model%horizontal_diagnostic_variables)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%horizontal_diagnostic_variables(i)%long_name),trim(model%horizontal_diagnostic_variables(i)%units)
-            end do
-         end if
-         if (add_conserved_quantities) then
-            do i=1,size(model%conserved_quantities)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%conserved_quantities(i)%long_name),trim(model%conserved_quantities(i)%units)
-            end do
-         end if
-         write(out_unit,*)
-      case (NETCDF_FMT)
-#ifdef NETCDF4
-         setn=0
-         LEVEL2 'NetCDF version: ',trim(NF90_INQ_LIBVERS())
-         iret = nf90_create(output_file,NF90_CLOBBER,ncid)
-         call check_err(iret)
-!        define dimensions
-         iret = nf90_def_dim(ncid, 'lon', 1, lon_dim)
-         call check_err(iret)
-         iret = nf90_def_dim(ncid, 'lat', 1, lat_dim)
-         call check_err(iret)
-         iret = nf90_def_dim(ncid, 'time', NF90_UNLIMITED, time_dim)
-         call check_err(iret)
-         dims(1) = lon_dim; dims(2) = lat_dim; dims(3) = time_dim
-
-!        define coordinates
-         iret = nf90_def_var(ncid,'lon',NF90_REAL,lon_dim,lon_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'lat',NF90_REAL,lat_dim,lat_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'time',NF90_REAL,time_dim,time_id)
-         call check_err(iret)
-
-         write(ncdf_time_str,110) 'seconds',trim(start)
-         iret = nf90_put_att(ncid,time_id,"units",trim(ncdf_time_str))
-         call check_err(iret)
-110 format(A,' since ',A)
-
-!        define variables
-         iret = nf90_def_var(ncid,'par',NF90_REAL,dims,par_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'temp',NF90_REAL,dims,temp_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'salt',NF90_REAL,dims,salt_id)
-         call check_err(iret)
-
-         allocate(statevar_ids(size(model%state_variables)+size(model%bottom_state_variables)))
-         allocate(diagnostic_ids(size(model%diagnostic_variables)+size(model%horizontal_diagnostic_variables)))
-         allocate(conserved_ids(size(model%conserved_quantities)))
-         allocate(conserved_change_ids(size(model%conserved_quantities)))
-
-         do i=1,size(model%state_variables)
-            call create_variable(model%state_variables(i),statevar_ids(i))
-         end do
-         do i=1,size(model%bottom_state_variables)
-            call create_variable(model%bottom_state_variables(i),statevar_ids(i+size(model%state_variables)))
-         end do
-
-         do i=1,size(model%diagnostic_variables)
-            call create_variable(model%diagnostic_variables(i),diagnostic_ids(i))
-         end do
-         do i=1,size(model%horizontal_diagnostic_variables)
-            call create_variable(model%horizontal_diagnostic_variables(i),diagnostic_ids(i+size(model%diagnostic_variables)))
-         end do
-
-         do i=1,size(model%conserved_quantities)
-            call create_variable(model%conserved_quantities(i),conserved_ids(i))
-            iret = nf90_def_var(ncid,'int_'//trim(model%conserved_quantities(i)%name)//'_change',NF90_REAL,dims,conserved_change_ids(i))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,conserved_change_ids(i),"long_name",'integrated change in '//trim(model%conserved_quantities(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,conserved_change_ids(i),"units",trim(model%conserved_quantities(i)%units))
-            call check_err(iret)
-         end do
-
-!        global attributes
-         iret = nf90_put_att(ncid,NF90_GLOBAL,'title',trim(title))
-!         history = 'Created by GOTM v. '//RELEASE
-!         iret = nf90_put_att(ncid,NF90_GLOBAL,'history',trim(history))
-         iret = nf90_put_att(ncid,NF90_GLOBAL,'Conventions','COARDS')
-         call check_err(iret)
-
-!        leave define mode
-         iret = nf90_enddef(ncid)
-         call check_err(iret)
-
-!        save latitude and logitude
-         iret = nf90_put_var(ncid,lon_id,longitude)
-         iret = nf90_put_var(ncid,lat_id,latitude)
-
-         iret = nf90_sync(ncid)
-         call check_err(iret)
-#endif
-      case default
-   end select
-
-   return
-96 FATAL 'I could not open ',trim(output_file)
-   stop 'init_output'
-100 format (A, A, ' (', A, ')')
-
-#ifdef NETCDF4
-   contains
-
-   subroutine create_variable(variable,id)
-      class (type_external_variable),intent(in)  :: variable
-      integer,                       intent(out) :: id
-      iret = nf90_def_var(ncid,trim(variable%name),NF90_REAL,dims,id)
-      call check_err(iret)
-      iret = nf90_put_att(ncid,id,"long_name",trim(variable%long_name))
-      call check_err(iret)
-      iret = nf90_put_att(ncid,id,"units",trim(variable%units))
-      call check_err(iret)
-   end subroutine
-#endif
-
-   end subroutine init_output
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-! !IROUTINE: do the output
-!
-! !INTERFACE:
-   subroutine do_output(output_format,n)
-!
-! !DESCRIPTION:
-! TODO
-   implicit none
-!
-! !INPUT PARAMETERS:
-   integer, intent(in)                 :: output_format
-   integer(timestepkind), intent(in)   :: n
-!
-! !REVISION HISTORY:
-!  Original author(s): Karsten Bolding
-!
-! !LOCAL PARAMETERS:
-   integer         :: i,j,iret
-   integer         :: start(3),edges(3)
-   REALTYPE        :: x(1)
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   select case (output_format)
-      case(ASCII_FMT)
-         call write_time_string(julianday,secondsofday,timestr)
-         write (out_unit,FMT='(A)',ADVANCE='NO') timestr
-         if (add_environment) then
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,par
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,temp
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,salt
-         end if
-         do i=1,(size(model%state_variables)+size(model%bottom_state_variables))
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(i,1)
-         end do
-         if (add_diagnostic_variables) then
-            do i=1,size(model%diagnostic_variables)
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
-            end do
-            do i=1,size(model%horizontal_diagnostic_variables)
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_horizontal_diagnostic_data(model,i)
-            end do
-         end if
-         if (add_conserved_quantities) then
-            call fabm_get_conserved_quantities(model,totals)
-            do i=1,size(model%conserved_quantities)
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,totals(i)
-            end do
-         end if
-         write (out_unit,*)
-
-      case (NETCDF_FMT)
-#ifdef NETCDF4
-         setn = setn + 1
-         start(1) = setn; edges(1) = 1
-
-         x(1) = n * timestep
-         iret = nf90_put_var(ncid,time_id,x,start,edges)
-
-         start(1) = 1; start(2) = 1; start(3) = setn
-         edges(1) = 1; edges(2) = 1; edges(3) = 1
-
-         x(1) = par_sf
-         iret = nf90_put_var(ncid,par_id,x,start,edges)
-         call check_err(iret)
-         x(1) = temp
-         iret = nf90_put_var(ncid,temp_id,x,start,edges)
-         call check_err(iret)
-         x(1) = salt
-         iret = nf90_put_var(ncid,salt_id,x,start,edges)
-         call check_err(iret)
-
-         do i=1,size(model%state_variables)
-            x(1) = cc(i,1)
-            iret = nf90_put_var(ncid,statevar_ids(i),x,start,edges)
-            call check_err(iret)
-         end do
-
-         j=size(model%state_variables)
-         do i=1,size(model%bottom_state_variables)
-            x(1) = cc(i+j,1)
-            iret = nf90_put_var(ncid,statevar_ids(i+j),x,start,edges)
-            call check_err(iret)
-         end do
-
-         do i=1,size(model%diagnostic_variables)
-            x(1) = fabm_get_bulk_diagnostic_data(model,i)
-            iret = nf90_put_var(ncid,diagnostic_ids(i),x,start,edges)
-            call check_err(iret)
-         end do
-
-         j = size(model%diagnostic_variables)
-         do i=1,size(model%horizontal_diagnostic_variables)
-            x(1) = fabm_get_horizontal_diagnostic_data(model,i)
-            iret = nf90_put_var(ncid,diagnostic_ids(i+j),x,start,edges)
-            call check_err(iret)
-         end do
-
-         call fabm_get_conserved_quantities(model,totals)
-         if (n==0_timestepkind) totals0 = totals
-         do i=1,size(model%conserved_quantities)
-            x(1) = totals(i)
-            iret = nf90_put_var(ncid,conserved_ids(i),x,start,edges)
-            call check_err(iret)
-
-            x(1) = totals(i)-totals0(i)
-            iret = nf90_put_var(ncid,conserved_change_ids(i),x,start,edges)
-            call check_err(iret)
-         end do
-#endif
-      case default
-   end select
-
-   end subroutine do_output
-!EOC
-
    subroutine check_fabm_expressions()
       class (type_expression),pointer :: expression
       integer :: n
@@ -1164,20 +852,6 @@
          expression => expression%next
       end do
    end subroutine
-   
-#ifdef NETCDF4
-   subroutine check_err(iret)
-      use netcdf
-
-      integer :: iret
-
-      if (iret .ne. NF90_NOERR) then
-         print *, nf90_strerror(iret)
-         stop
-      endif
-
-   end subroutine
-#endif
 
 !-----------------------------------------------------------------------
 
