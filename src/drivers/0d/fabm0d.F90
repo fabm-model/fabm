@@ -81,6 +81,9 @@
 
    contains
 
+#define _ODE_ZEROD_   
+#include "ode_solvers_template.F90"
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -274,17 +277,17 @@
 
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
-   allocate(cc(size(model%state_variables)+size(model%bottom_state_variables),0:1))
+   allocate(cc(size(model%state_variables)+size(model%bottom_state_variables)))
    do i=1,size(model%state_variables)
-      cc(i,1) = model%state_variables(i)%initial_value
-      call fabm_link_bulk_state_data(model,i,cc(i,1))
+      cc(i) = model%state_variables(i)%initial_value
+      call fabm_link_bulk_state_data(model,i,cc(i))
    end do
 
    ! Create benthos variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
    do i=1,size(model%bottom_state_variables)
-      cc(size(model%state_variables)+i,1) = model%bottom_state_variables(i)%initial_value
-      call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i,1))
+      cc(size(model%state_variables)+i) = model%bottom_state_variables(i)%initial_value
+      call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i))
    end do
 
    id_dens = fabm_get_bulk_variable_id(model,standard_variables%density)
@@ -312,14 +315,17 @@
    ! Allocate memory for the value of any requested vertical integrals/averages of FABM variables.
    call check_fabm_expressions()
 
+   ! Check whether all dependencies of biogeochemical models have now been fulfilled.
    call fabm_check_ready(model)
 
-   ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
+   ! Update time and all time-dependent inputs.
    call start_time_step(0_timestepkind)
 
+   ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
    allocate(rhs(size(cc,1),0:1))
-   call get_rhs(.true.,size(cc,1),1,cc,rhs)
+   call get_rhs(.true.,size(cc,1),cc,rhs)
 
+   ! Output variable values at initial time
    call init_output(output_file,start)
    call do_output(0_timestepkind)
 
@@ -336,10 +342,7 @@
    stop 'init_run'
 93 FATAL 'I could not read the "output" namelist'
    stop 'init_run'
-95 FATAL 'I could not open ',trim(env_file)
-   stop 'init_run'
-97 FATAL 'I could not open fabm.nml for reading'
-   stop 'init_run'
+
    end subroutine init_run
 !EOC
 
@@ -554,6 +557,7 @@
    LEVEL1 'time_loop'
 
    do n=MinN,MaxN
+      ! Update time and all time-dependent inputs.
       call start_time_step(n)
 
       ! Repair state before calling FABM
@@ -562,15 +566,15 @@
       call fabm_update_time(model,real(n,rk))
 
       ! Integrate one time step
-      call ode_solver(ode_method,size(model%state_variables)+size(model%bottom_state_variables),1,dt,cc,get_rhs,get_ppdd)
+      call ode_solver(ode_method,size(model%state_variables)+size(model%bottom_state_variables),dt,cc,get_rhs,get_ppdd)
 
       ! ODE solver may have redirected the current state with to an array with intermediate values.
       ! Reset to global array.
       do i=1,size(model%state_variables)
-         call fabm_link_bulk_state_data(model,i,cc(i,1))
+         call fabm_link_bulk_state_data(model,i,cc(i))
       end do
       do i=1,size(model%bottom_state_variables)
-         call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i,1))
+         call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i))
       end do
 
       call do_repair_state('0d::time_loop(), after ode_solver()')
@@ -583,7 +587,6 @@
    end do
    STDERR LINE
 
-   return
    end subroutine time_loop
 !EOC
 
@@ -601,8 +604,6 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-! !LOCAL PARAMETERS:
-   integer                              :: iret
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -645,6 +646,7 @@
          current_depth = 0.5_rk*column_depth
          par = par_ct
    end select
+
    end subroutine update_depth
 !EOC
 
@@ -680,7 +682,7 @@
       FATAL location
       FATAL 'note that repair_state() should be used with caution.'
       FATAL 'try and decrease dt first - and see if that helps.'
-      stop 'od_fabm::do_repair_state'
+      stop 'fabm0d::do_repair_state'
    end if
 
    end subroutine do_repair_state
@@ -692,19 +694,19 @@
 ! !IROUTINE: Get the right-hand side of the ODE system.
 !
 ! !INTERFACE:
-   subroutine get_ppdd(first,numc,nlev,cc,pp,dd)
+   subroutine get_ppdd(first,numc,cc,pp,dd)
 !
 ! !DESCRIPTION:
 ! TODO
 !
 ! !INPUT PARAMETERS:
    logical, intent(in)                  :: first
-   integer, intent(in)                  :: numc,nlev
-   real(rk), intent(in)                 :: cc(1:numc,0:nlev)
+   integer, intent(in)                  :: numc
+   real(rk), intent(in)                 :: cc(1:numc)
 !
 ! !OUTPUT PARAMETERS:
-   real(rk), intent(out)                :: pp(1:numc,1:numc,0:nlev)
-   real(rk), intent(out)                :: dd(1:numc,1:numc,0:nlev)
+   real(rk), intent(out)                :: pp(1:numc,1:numc)
+   real(rk), intent(out)                :: dd(1:numc,1:numc)
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -715,16 +717,16 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Initialize production/destruction matrices to zero (entries will be incremented by FABM)
-   pp(:,:,1) = 0.0_rk
-   dd(:,:,1) = 0.0_rk
+   pp = 0.0_rk
+   dd = 0.0_rk
 
    ! Send current state to FABM
    ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
    do n=1,size(model%state_variables)
-      call fabm_link_bulk_state_data(model,n,cc(n,1))
+      call fabm_link_bulk_state_data(model,n,cc(n))
    end do
    do n=1,size(model%bottom_state_variables)
-      call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n,1))
+      call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n))
    end do
 
    call update_fabm_expressions()
@@ -734,15 +736,15 @@
 
    ! Calculate temporal derivatives due to benthic processes.
    call update_depth(BOTTOM)
-   call fabm_do_benthos(model,pp(:,:,1),dd(:,:,1),n)
+   call fabm_do_benthos(model,pp,dd,n)
 
    ! For pelagic variables: translate bottom flux to into change in concentration
-   pp(1:n,:,1) = pp(1:n,:,1)/column_depth
-   dd(1:n,:,1) = dd(1:n,:,1)/column_depth
+   pp(1:n,:) = pp(1:n,:)/column_depth
+   dd(1:n,:) = dd(1:n,:)/column_depth
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
    call update_depth(CENTER)
-   call fabm_do(model,pp(:,:,1),dd(:,:,1))
+   call fabm_do(model,pp,dd)
 
    end subroutine get_ppdd
 !EOC
@@ -753,18 +755,18 @@
 ! !IROUTINE: Get the right-hand side of the ODE system.
 !
 ! !INTERFACE:
-   subroutine get_rhs(first,numc,nlev,cc,rhs)
+   subroutine get_rhs(first,numc,cc,rhs)
 !
 ! !DESCRIPTION:
 ! TODO
 !
 ! !INPUT PARAMETERS:
    logical, intent(in)                  :: first
-   integer, intent(in)                  :: numc,nlev
-   real(rk), intent(in)                 :: cc(1:numc,0:nlev)
+   integer, intent(in)                  :: numc
+   real(rk), intent(in)                 :: cc(1:numc)
 !
 ! !OUTPUT PARAMETERS:
-   real(rk), intent(out)                :: rhs(1:numc,0:nlev)
+   real(rk), intent(out)                :: rhs(1:numc)
 !
 ! !LOCAL PARAMETERS:
    integer                              :: n
@@ -776,15 +778,15 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Initialize derivatives to zero (entries will be incremented by FABM)
-   rhs(:,1) = 0.0_rk
+   rhs = 0.0_rk
 
    ! Send current state to FABM
    ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
    do n=1,size(model%state_variables)
-      call fabm_link_bulk_state_data(model,n,cc(n,1))
+      call fabm_link_bulk_state_data(model,n,cc(n))
    end do
    do n=1,size(model%bottom_state_variables)
-      call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n,1))
+      call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n))
    end do
 
    call update_fabm_expressions()
@@ -794,18 +796,18 @@
 
    ! Calculate temporal derivatives due to surface exchange.
    call update_depth(SURFACE)
-   call fabm_get_surface_exchange(model,rhs(1:n,1))
+   call fabm_get_surface_exchange(model,rhs(1:n))
 
    ! Calculate temporal derivatives due to benthic processes.
    call update_depth(BOTTOM)
-   call fabm_do_benthos(model,rhs(1:n,1),rhs(n+1:,1))
+   call fabm_do_benthos(model,rhs(1:n),rhs(n+1:))
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
-   rhs(1:n,1) = rhs(1:n,1)/column_depth
+   rhs(1:n) = rhs(1:n)/column_depth
 
    ! Add change in pelagic variables.
    call update_depth(CENTER)
-   call fabm_do(model,rhs(:,1))
+   call fabm_do(model,rhs)
 
    end subroutine get_rhs
 !EOC

@@ -246,8 +246,7 @@
 !
 ! !LOCAL PARAMETERS:
    integer         :: i,j,iret
-   integer         :: start(3),edges(3)
-   REALTYPE        :: x(1)
+   integer         :: start(3)
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -261,7 +260,7 @@
             write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,salt
          end if
          do i=1,(size(model%state_variables)+size(model%bottom_state_variables))
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(i,1)
+            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(i)
          end do
          if (add_diagnostic_variables) then
             do i=1,size(model%diagnostic_variables)
@@ -282,59 +281,48 @@
       case (NETCDF_FMT)
 #ifdef NETCDF4
          setn = setn + 1
-         start(1) = setn; edges(1) = 1
+         start(1) = setn
 
-         x(1) = n * timestep
-         iret = nf90_put_var(ncid,time_id,x,start,edges)
+         iret = nf90_put_var(ncid,time_id,n*timestep,start(1:1))
 
          start(1) = 1; start(2) = 1; start(3) = setn
-         edges(1) = 1; edges(2) = 1; edges(3) = 1
 
-         x(1) = par
-         iret = nf90_put_var(ncid,par_id,x,start,edges)
+         iret = nf90_put_var(ncid,par_id,par,start)
          call check_err(iret)
-         x(1) = temp
-         iret = nf90_put_var(ncid,temp_id,x,start,edges)
+         iret = nf90_put_var(ncid,temp_id,temp,start)
          call check_err(iret)
-         x(1) = salt
-         iret = nf90_put_var(ncid,salt_id,x,start,edges)
+         iret = nf90_put_var(ncid,salt_id,salt,start)
          call check_err(iret)
 
          do i=1,size(model%state_variables)
-            x(1) = cc(i,1)
-            iret = nf90_put_var(ncid,statevar_ids(i),x,start,edges)
+            iret = nf90_put_var(ncid,statevar_ids(i),cc(i),start)
             call check_err(iret)
          end do
 
          j=size(model%state_variables)
          do i=1,size(model%bottom_state_variables)
-            x(1) = cc(i+j,1)
-            iret = nf90_put_var(ncid,statevar_ids(i+j),x,start,edges)
+            iret = nf90_put_var(ncid,statevar_ids(i+j),cc(i+j),start)
             call check_err(iret)
          end do
 
          do i=1,size(model%diagnostic_variables)
-            x(1) = fabm_get_bulk_diagnostic_data(model,i)
-            iret = nf90_put_var(ncid,diagnostic_ids(i),x,start,edges)
+            iret = nf90_put_var(ncid,diagnostic_ids(i),fabm_get_bulk_diagnostic_data(model,i),start)
             call check_err(iret)
          end do
 
          j = size(model%diagnostic_variables)
          do i=1,size(model%horizontal_diagnostic_variables)
-            x(1) = fabm_get_horizontal_diagnostic_data(model,i)
-            iret = nf90_put_var(ncid,diagnostic_ids(i+j),x,start,edges)
+            iret = nf90_put_var(ncid,diagnostic_ids(i+j),fabm_get_horizontal_diagnostic_data(model,i),start)
             call check_err(iret)
          end do
 
          call fabm_get_conserved_quantities(model,totals)
          if (n==0_timestepkind) totals0 = totals
          do i=1,size(model%conserved_quantities)
-            x(1) = totals(i)
-            iret = nf90_put_var(ncid,conserved_ids(i),x,start,edges)
+            iret = nf90_put_var(ncid,conserved_ids(i),totals(i),start)
             call check_err(iret)
 
-            x(1) = totals(i)-totals0(i)
-            iret = nf90_put_var(ncid,conserved_change_ids(i),x,start,edges)
+            iret = nf90_put_var(ncid,conserved_change_ids(i),totals(i)-totals0(i),start)
             call check_err(iret)
          end do
 #endif
