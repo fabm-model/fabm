@@ -56,8 +56,8 @@
 
    real(rk),allocatable :: expression_data(:)
 
-   type (type_bulk_variable_id) :: id_dens
-   logical                      :: compute_density
+   type (type_bulk_variable_id), save :: id_dens
+   logical                            :: compute_density
 
    type type_input_data
       character(len=attribute_length) :: variable_name = ''
