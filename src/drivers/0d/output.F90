@@ -41,7 +41,7 @@
 
    character, parameter       :: separator = char(9)
 
-   real(rk), allocatable     :: totals(:),totals0(:)
+   real(rk), allocatable, dimension(:) :: totals,totals0,totals_hz
 
    integer                   :: ncid=-1
 #ifdef NETCDF4
@@ -201,8 +201,9 @@
    end select
 
    ! Allocate space for totals of conserved quantities.
-   allocate(totals0(1:size(model%conserved_quantities)))  ! at initial time
-   allocate(totals(1:size(model%conserved_quantities)))   ! at current time
+   allocate(totals0  (size(model%conserved_quantities)))  ! at initial time
+   allocate(totals   (size(model%conserved_quantities)))  ! at current time
+   allocate(totals_hz(size(model%conserved_quantities)))  ! at current time, on top/bottom interfaces only
 
    return
 96 FATAL 'I could not open ',trim(output_file)
@@ -316,6 +317,8 @@
          end do
 
          call fabm_get_conserved_quantities(model,totals)
+         call fabm_get_horizontal_conserved_quantities(model,totals_hz)
+         totals = totals + totals_hz/column_depth
          if (n==0_timestepkind) totals0 = totals
          do i=1,size(model%conserved_quantities)
             iret = nf90_put_var(ncid,conserved_ids(i),totals(i),start)

@@ -52,11 +52,11 @@
 
    ! Environment
    real(rk),target :: current_depth,dens,decimal_yearday
-   real(rk)        :: par_sf,par_bt,par_ct,column_depth
+   real(rk)        :: swr_sf,par_sf,par_bt,par_ct,extinction
 
    real(rk),allocatable :: expression_data(:)
 
-   type (type_bulk_variable_id), save :: id_dens
+   type (type_bulk_variable_id), save :: id_dens, id_par
    logical                            :: compute_density
 
    type type_input_data
@@ -257,7 +257,7 @@
    LEVEL2 'Reading local environment data from:'
    LEVEL3 trim(env_file)
    call init_input()
-   call register_input_0d(env_file,1,par_sf)
+   call register_input_0d(env_file,1,swr_sf)
    call register_input_0d(env_file,2,temp)
    call register_input_0d(env_file,3,salt)
 
@@ -294,14 +294,18 @@
    compute_density = fabm_variable_needs_values(id_dens)
    if (compute_density) call fabm_link_bulk_data(model,id_dens,dens)
 
+   id_par = fabm_get_bulk_variable_id(model,standard_variables%downwelling_photosynthetic_radiative_flux)
+
    ! Link environmental data to FABM
    call fabm_link_bulk_data(model,standard_variables%temperature,temp)
    call fabm_link_bulk_data(model,standard_variables%practical_salinity,salt)
-   call fabm_link_bulk_data(model,standard_variables%downwelling_photosynthetic_radiative_flux,par)
+   if (fabm_variable_needs_values(id_par)) call fabm_link_bulk_data(model,id_par,par)
    call fabm_link_bulk_data(model,standard_variables%pressure,current_depth)
    call fabm_link_bulk_data(model,standard_variables%cell_thickness,column_depth)
    call fabm_link_bulk_data(model,standard_variables%depth,current_depth)
+   call fabm_link_bulk_data(model,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,extinction)
    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_photosynthetic_radiative_flux,par_sf)
+   call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,swr_sf)
    call fabm_link_horizontal_data(model,standard_variables%cloud_area_fraction,cloud)
    call fabm_link_horizontal_data(model,standard_variables%bottom_depth,column_depth)
    call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,column_depth)
@@ -491,7 +495,7 @@
    subroutine start_time_step(n)
       integer(timestepkind),intent(in) :: n
 
-      real(rk)                         :: extinction,bio_albedo
+      real(rk)                         :: bio_albedo
 
       ! Update time in time manager
       call update_time(n)
@@ -502,31 +506,34 @@
       ! Update environment (i.e., read from input files)
       call do_input(julianday,secondsofday)
 
+      ! Calculate light extinction
+      extinction = 0.0_rk
+      if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
+      extinction = extinction + par_background_extinction
+
       ! Calculate photosynthetically active radiation at surface, if it is not provided in the input file.
       if (swr_method==0) then
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
          call fabm_get_albedo(model,bio_albedo)
-         par_sf = short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,bio_albedo)
+         swr_sf = short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,bio_albedo)
       end if
 
       ! Multiply by fraction of short-wave radiation that is photosynthetically active.
-      par_sf = par_fraction*par_sf
+      par_sf = par_fraction*swr_sf
 
       ! Apply light attentuation with depth, unless local light is provided in the input file.
       if (swr_method/=2) then
          ! Either we calculate surface PAR, or surface PAR is provided.
          ! Calculate the local PAR at the given depth from par fraction, extinction coefficient, and depth.
-         extinction = 0.0_rk
-         if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
-         extinction = extinction + par_background_extinction
          par_ct = par_sf*exp(-0.5_rk*column_depth*extinction)
          par_bt = par_sf*exp(-column_depth*extinction)
-
       else
          par_ct = par_sf
          par_bt = par_sf
       end if
       call update_depth(CENTER)
+
+      call fabm_get_light(model)
 
       ! Compute density from temperature and salinity, if required by biogeochemistry.
       if (compute_density) dens = rho_feistel(salt,temp,5._rk*column_depth,.true.)

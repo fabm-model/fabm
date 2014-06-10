@@ -11,7 +11,7 @@ module shared
    real(rk),allocatable :: cc(:)
 
    real(rk),target :: temp,salt,par
-   real(rk)        :: latitude,longitude
+   real(rk)        :: latitude,longitude,column_depth
    character(len=80) :: title
 
 end module
