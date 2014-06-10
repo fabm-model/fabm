@@ -9,12 +9,12 @@ all: objs
 
 objs: ${LIBFABM}(niva_model_library.o)
 
+${LIBFABM}(niva_model_library.o): ${LIBFABM}(oxydep.o)
+
+${LIBFABM}(oxydep.o): oxydep
+	$(MAKE) -C oxydep objs
+
 doc clean:
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@ ; done
 
-${LIBFABM}(niva_model_library.o): subdirobjs
-
-subdirobjs:
-	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir objs ; done
-
-.PHONY: objs doc clean subdirobjs (SUBDIRS)
+.PHONY: doc clean $(SUBDIRS)

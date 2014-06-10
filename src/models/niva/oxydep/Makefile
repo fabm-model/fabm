@@ -10,9 +10,10 @@ OBJS    = ${LIBFABM}(oxydep.o)
 
 all: objs
 
-${OBJS}: $(FABMBASE) ${LIBFABM}(base.o)
+#${OBJS}: $(FABMBASE) ${LIBFABM}(base.o)
+${OBJS}: $(FABMBASE)
 
-${LIBFABM}(base.o): $(FABMBASE)
+#${LIBFABM}(base.o): $(FABMBASE)
 
 objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
