@@ -27,15 +27,17 @@
 
    private
 
-   public init_output,do_output,clean_output
+   public configure_output,init_output,do_output,clean_output
 
-   integer, parameter, public :: ASCII_FMT=1
-   integer, parameter, public :: NETCDF_FMT=2
+   integer, parameter :: ASCII_FMT  = 1
+   integer, parameter :: NETCDF_FMT = 2
 
-   integer, public :: output_format
-   logical, public :: add_environment
-   logical, public :: add_conserved_quantities
-   logical, public :: add_diagnostic_variables
+   character(len=PATH_MAX) :: output_file
+   integer :: output_format
+   logical :: add_environment
+   logical :: add_conserved_quantities
+   logical :: add_diagnostic_variables
+   integer(timestepkind) :: nsave
 
    integer                    :: out_unit = -1
 
@@ -57,16 +59,62 @@
 
 !-----------------------------------------------------------------------
 !BOP
-! !IROUTINE: prepare for output
+! !IROUTINE: configure output from namelists or YAML
 !
 ! !INTERFACE:
-   subroutine init_output(output_file,start)
+   subroutine configure_output(namlst)
 !
 ! !DESCRIPTION:
 ! TODO
 !
 ! !INPUT PARAMETERS:
-   character(len=*), intent(in) :: output_file,start
+   integer, intent(in) :: namlst
+!
+! !REVISION HISTORY:
+!  Original author(s): Karsten Bolding
+!
+! !LOCAL PARAMETERS:
+   namelist /output/ output_file,output_format,nsave,add_environment, &
+                     add_diagnostic_variables, add_conserved_quantities
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Read output namelist
+   output_file = ''
+   output_format = ASCII_FMT
+   nsave = 1
+   add_environment = .false.
+   add_conserved_quantities = .false.
+   add_diagnostic_variables = .false.
+
+   if (output_file=='') then
+      FATAL 'run.nml: "output_file" must be set to a valid file path in "output" namelist.'
+      stop 'configure_output'
+   end if
+   
+   read(namlst,nml=output,err=93)
+
+   return
+
+93 FATAL 'run.nml: I could not read the "output" namelist.'
+   stop 'configure_output'
+
+   end subroutine configure_output
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+! !IROUTINE: prepare for output
+!
+! !INTERFACE:
+   subroutine init_output(start)
+!
+! !DESCRIPTION:
+! TODO
+!
+! !INPUT PARAMETERS:
+   character(len=*), intent(in) :: start
 !
 ! !REVISION HISTORY:
 !  Original author(s): Karsten Bolding
@@ -250,6 +298,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if (mod(n,nsave)/=0) return
+
    select case (output_format)
       case(ASCII_FMT)
          call write_time_string(julianday,secondsofday,timestr)

@@ -43,7 +43,6 @@
    ! Bio model info
    integer  :: ode_method
    logical  :: repair_state
-   integer(timestepkind)::nsave
    integer  :: swr_method
    real(rk) :: cloud
    real(rk) :: par_fraction
@@ -103,7 +102,7 @@
 !
 !
 ! !LOCAL VARIABLES:
-   character(len=PATH_MAX)   :: env_file,output_file
+   character(len=PATH_MAX)   :: env_file
    integer                   :: i
    real(rk)                  :: depth
    real(rk),parameter        :: invalid_latitude = -100._rk,invalid_longitude = -400.0_rk
@@ -114,8 +113,6 @@
    namelist /environment/ env_file,swr_method, &
                           latitude,longitude,cloud,par_fraction, &
                           depth,par_background_extinction,apply_self_shading
-   namelist /output/      output_file,output_format,nsave,add_environment, &
-                          add_diagnostic_variables, add_conserved_quantities
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -157,14 +154,7 @@
    apply_self_shading = .true.
    read(namlst,nml=environment,err=92)
 
-   ! Read output namelist
-   output_file = ''
-   output_format=ASCII_FMT
-   nsave = 1
-   add_environment = .false.
-   add_conserved_quantities = .false.
-   add_diagnostic_variables=.false.
-   read(namlst,nml=output     ,err=93)
+   call configure_output(namlst)
 
    ! Close the namelist file.
    close (namlst)
@@ -218,11 +208,6 @@
       end if
    end if
    
-   if (output_file=='') then
-      FATAL 'run.nml: "output_file" must be set to a valid file path in "output" namelist.'
-      stop 'init_run'
-   end if
-
    LEVEL2 'done.'
 
    ! Configure the time module to use actual start and stop dates.
@@ -330,7 +315,7 @@
    call get_rhs(.true.,size(cc,1),cc,rhs)
 
    ! Output variable values at initial time
-   call init_output(output_file,start)
+   call init_output(start)
    call do_output(0_timestepkind)
 
    LEVEL2 'done.'
@@ -343,8 +328,6 @@
 91 FATAL 'I could not read the "model_setup" namelist'
    stop 'init_run'
 92 FATAL 'I could not read the "environment" namelist'
-   stop 'init_run'
-93 FATAL 'I could not read the "output" namelist'
    stop 'init_run'
 
    end subroutine init_run
@@ -594,9 +577,7 @@
       call do_repair_state('0d::time_loop(), after ode_solver()')
 
       ! Do output
-      if (mod(n,nsave)==0) then
-         call do_output(n)
-      end if
+      call do_output(n)
 
    end do
    STDERR LINE
