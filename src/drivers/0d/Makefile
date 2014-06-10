@@ -4,37 +4,44 @@ export FABMHOST=0d
 
 all: fabm0d
 
-fabm:
-	$(MAKE) -C $(FABMDIR)/src
-
 ifndef GOTMDIR
 GOTMDIR = $(HOME)/GOTM/gotm-git
 endif
 
+LIB0D	= lib0D.a
+#OBJS    = ${LIB0D}(fabm0d.o) ${LIB0D}(shared.o) ${LIB0D}(output.o)
 
 FFLAGS	+= -I$(GOTMDIR)/include -I$(GOTMDIR)/src/util -I$(GOTMDIR)/modules/$(FORTRAN_COMPILER)
-LDFLAGS += -L$(FABMDIR)/lib/$(FORTRAN_COMPILER) -L$(GOTMDIR)/lib/$(FORTRAN_COMPILER)
-LIBS	+= -lairsea$(buildtype) -linput$(buildtype) -lutil$(buildtype) -lfabm$(buildtype)
+LDFLAGS += -L. -L$(FABMDIR)/lib/$(FORTRAN_COMPILER) -L$(GOTMDIR)/lib/$(FORTRAN_COMPILER)
+LIBS	+= -l0D -lairsea$(buildtype) -linput$(buildtype) -lutil$(buildtype) -lfabm$(buildtype)
 
 ifeq ($(NETCDF_VERSION),NETCDF4)
 INCDIRS += -DNETCDF4 -I$(shell nf-config --includedir)
-LDFLAGS += $(shell nf-config --flibs)
+LIBS += $(shell nf-config --flibs)
 endif
 
-fabm0d.o: fabm shared.o output.o
-
-output.o: shared.o
-
-main.o: fabm0d.o
+#objs: $(OBJS)
 
 fabm0d: main.o
-	$(FC) -o $@ main.o fabm0d.o shared.o output.o $(LDFLAGS) $(LIBS)
-	$(RM) fabm0d.o main.o
+	$(FC) -o $@ main.o $(LDFLAGS) $(LIBS)
+	$(RM) main.o
 	mkdir -p $(HOME)/bin
 	cp -p $@ $(HOME)/bin
 
+main.o: ${LIB0D}(fabm0d.o)
+
+${LIB0D}(fabm0d.o): fabm ${LIB0D}(output.o)
+#${LIB0D}(fabm0d.o): ${LIB0D}(output.o)
+
+fabm:
+	$(MAKE) -C $(FABMDIR)/src
+
+${LIB0D}(output.o): ${LIB0D}(shared.o)
+
+lib0D.a: fabm
+
 clean:
-	$(RM) *.o *.mod *~
+	$(RM) *.o *.mod *~ lib0D.a
 
 realclean: clean
 	$(RM) fabm0d
@@ -42,4 +49,4 @@ realclean: clean
 distclean: realclean
 	$(MAKE) -C $(FABMDIR)/src $@
 
-.PHONY: all fabm fabm0d clean realclean distclean
+.PHONY: all clean realclean distclean
