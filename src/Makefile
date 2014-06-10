@@ -7,19 +7,19 @@ DOCSRC	= fabm.F90 fabm_types.F90
 FABMMOD	 = ${LIBFABM}(fabm.o)
 FABMMODELLIB = ${LIBFABM}(fabm_library.o)
 
-all: makedirs $(FABMBASE) $(FABMMOD) config
+all: makedirs models config
         $(MOVE_MODULES_COMMAND)
 
 makedirs:
 	mkdir -p $(MODDIR) $(LIBDIR)
 
+models: $(FABMBASE)
+	$(MAKE) -C models
+
 config: $(FABMMOD)
 	$(MAKE) -C config
 
-$(FABMMOD): models $(FABMMODELLIB)
-
-models: $(FABMBASE)
-	$(MAKE) -C models
+$(FABMMOD): $(FABMMODELLIB)
 
 0d getm gotm mossco python:
 	( export FABMHOST=$@ ; $(MAKE) )
