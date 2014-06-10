@@ -403,16 +403,16 @@
       character(len=*),      intent(in) :: variable_name
       type (type_dictionary),intent(in) :: mapping
 
-      type (type_error), pointer        :: config_error
-      class (type_node),  pointer :: node
-      class (type_scalar),pointer :: scalar
-      real(rk)            :: relaxation_time
-      character(len=1024) :: path
-      integer             :: column
-      logical             :: is_state_variable
-      type (type_input_data),pointer :: input_data
+      type (type_error),         pointer :: config_error
+      class (type_node),         pointer :: node
+      class (type_scalar),       pointer :: scalar
+      character(len=1024)                :: path
+      integer                            :: column
+      real(rk)                           :: scale_factor
+      real(rk)                           :: relaxation_time
+      logical                            :: is_state_variable
+      type (type_input_data),    pointer :: input_data
       type (type_key_value_pair),pointer :: pair
-
       type (type_bulk_variable_id)       :: bulk_id
       type (type_horizontal_variable_id) :: horizontal_id
       type (type_scalar_variable_id)     :: scalar_id
@@ -453,23 +453,30 @@
          input_data%value = mapping%get_real('constant_value',error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
 
+         ! Make sure keys related to time-varying input are not present.
          node => mapping%get('file')
          if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "file" cannot both be present.')
          node => mapping%get('column')
          if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "column" cannot both be present.')
+         node => mapping%get('scale_factor')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "scale_factor" cannot both be present.')
       else
-         ! Input variable is set to a time-varying value. Obtain path and column number.
+         ! Input variable is set to a time-varying value. Obtain path, column number and scale factor.
          path = mapping%get_string('file',error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
          column = mapping%get_integer('column',default=1,error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
-         call register_input_0d(path,column,input_data%value)
+         scale_factor = mapping%get_real('scale_factor',default=1.0_rk,error=config_error)
+         if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
+         call register_input_0d(path,column,input_data%value,scale_factor=scale_factor)
       end if
 
       if (is_state_variable) then
+         ! This is a state variable. Obtain associated relaxation time.
          relaxation_time = mapping%get_real('relaxation_time',default=1.e15_rk,error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
       else
+         ! This is not a state variable. Make sure no relaxation time is specified.
          node => mapping%get('relaxation_time')
          if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": key "relaxation_time" is not supported because "'//trim(variable_name)//'" is not a state variable.')
       end if
