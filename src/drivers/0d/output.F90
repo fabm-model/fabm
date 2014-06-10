@@ -37,18 +37,18 @@
    logical, public :: add_conserved_quantities
    logical, public :: add_diagnostic_variables
 
-   integer, parameter         :: out_unit = 12
+   integer                    :: out_unit = -1
 
    character, parameter       :: separator = char(9)
 
    real(rk), allocatable, dimension(:) :: totals,totals0,totals_hz
 
-   integer                   :: ncid=-1
 #ifdef NETCDF4
+   integer                   :: ncid = -1
    integer                   :: setn
    integer                   :: time_id
    integer                   :: par_id,temp_id,salt_id
-   integer, allocatable, dimension(:)  :: statevar_ids,diagnostic_ids,conserved_ids,conserved_change_ids
+   integer, allocatable, dimension(:) :: statevar_ids,diagnostic_ids,conserved_ids,conserved_change_ids
 #endif
 !EOP
 !-----------------------------------------------------------------------
@@ -82,9 +82,9 @@
 !-----------------------------------------------------------------------
 !BOC
    select case (output_format)
-      case(ASCII_FMT)
-         open(out_unit,file=trim(output_file),action='write', &
-              status='replace',err=96)
+      case (ASCII_FMT)
+         out_unit = get_free_unit()
+         open(out_unit,file=trim(output_file),action='write',status='replace',err=96)
          LEVEL2 'Writing results to:'
          LEVEL3 trim(output_file)
 
@@ -367,14 +367,14 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   if (ncid .ne. -1) then
+
+   if (out_unit/=-1) close(out_unit)
 #ifdef NETCDF4
+   if (ncid/=-1) then
       iret = nf90_close(ncid)
       call check_err(iret)
-#endif
-   else
-      close(out_unit)
    end if
+#endif
 
    end subroutine clean_output
 !EOC
