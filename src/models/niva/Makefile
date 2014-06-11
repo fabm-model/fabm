@@ -1,6 +1,7 @@
 #
-# Makefile to build the FABM models from the Plymouth Marine Laboratory
+# Makefile to build the FABM models from the Norsk Institutt for Vannforskning
 #
+
 include ../../Rules.make
 
 SUBDIRS += oxydep
