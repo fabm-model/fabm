@@ -57,11 +57,13 @@ class StateVariable(Variable):
     value = property(getValue, setValue)
 
 class Parameter(object):
-    def __init__(self,name,units=None,type=None,model=None):
+    def __init__(self,name,units=None,long_name=None,type=None,model=None):
         self.name = name
         self.units = units
         self.type = type
         self.model = model
+        if long_name is None: long_name = name
+        self.long_name = long_name
 
     def getValue(self):
         if self.type==1:
@@ -114,7 +116,7 @@ class Model(object):
         # Map string arrays in Fortran to variable objects with members decribing metadata.
         self.state_variables = tuple([StateVariable(name,i,units) for i,(name,units) in enumerate(zip(getStringArray(fabm.state_names),getStringArray(fabm.state_units)))])
         self.dependencies = tuple([Dependency(name,i,units) for i,(name,units) in enumerate(zip(getStringArray(fabm.environment_names),getStringArray(fabm.environment_units)))])
-        self.parameters = tuple([Parameter(name,type=type,model=self,units=units) for name,units,type in zip(getStringArray(fabm.parameter_names),getStringArray(fabm.parameter_units),fabm.parameter_types)])
+        self.parameters = tuple([Parameter(name,type=type,model=self,units=units,long_name=long_name) for name,units,long_name,type in zip(getStringArray(fabm.parameter_names),getStringArray(fabm.parameter_units),getStringArray(fabm.parameter_long_names),fabm.parameter_types)])
         self.conserved_quantities = tuple([Variable(name,units) for name,units in zip(getStringArray(fabm.conserved_quantity_names),getStringArray(fabm.conserved_quantity_units))])
 
         # Make module-level arrays in Fortran accessible as member variables of the model.

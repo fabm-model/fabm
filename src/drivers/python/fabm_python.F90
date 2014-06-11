@@ -28,7 +28,7 @@
    character(len=1024),dimension(:),allocatable :: state_names,state_units
    character(len=1024),dimension(:),allocatable :: environment_names,environment_units
    character(len=1024),dimension(:),allocatable :: conserved_quantity_names,conserved_quantity_units
-   character(len=1024),dimension(:),allocatable :: parameter_names,parameter_units
+   character(len=1024),dimension(:),allocatable :: parameter_long_names,parameter_names,parameter_units
    integer,            dimension(:),allocatable :: parameter_types
 
    type (type_property_dictionary),save,private :: forced_parameters
@@ -112,10 +112,12 @@
       call model%root%parameters%keys(parameter_names)
       allocate(parameter_types(size(parameter_names)))
       allocate(parameter_units(size(parameter_names)))
+      allocate(parameter_long_names(size(parameter_names)))
       do i = 1,size(parameter_names)
          property => model%root%parameters%get_property(parameter_names(i))
          parameter_types(i) = property%typecode()
          parameter_units(i) = property%units
+         parameter_long_names(i) = property%long_name
       end do
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
