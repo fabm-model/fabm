@@ -88,13 +88,13 @@
    add_conserved_quantities = .false.
    add_diagnostic_variables = .false.
 
+   read(namlst,nml=output,err=93)
+
    if (output_file=='') then
       FATAL 'run.nml: "output_file" must be set to a valid file path in "output" namelist.'
       stop 'configure_output'
    end if
    
-   read(namlst,nml=output,err=93)
-
    return
 
 93 FATAL 'run.nml: I could not read the "output" namelist.'
