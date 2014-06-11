@@ -17,9 +17,9 @@ contains
 
    subroutine create(self,name,model)
 
-      use fabm_gotm_npzd
-      use fabm_gotm_fasham
-      use fabm_gotm_ergom
+      use gotm_npzd
+      use gotm_fasham
+      use gotm_ergom
       ! Add new GOTM models here
 
       class (type_factory),intent(in) :: self

@@ -17,8 +17,8 @@ contains
 
    subroutine create(self,name,model)
 
-      use fabm_bb_filter_feeder
-      use fabm_bb_passive
+      use bb_filter_feeder
+      use bb_passive
       ! Add new BB models here
 
       class (type_factory),intent(in) :: self

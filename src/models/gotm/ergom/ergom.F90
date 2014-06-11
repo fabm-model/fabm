@@ -16,7 +16,7 @@
 ! !MODULE: fabm\_gotm\_ergom --- GOTM biogeochemical model ERGOM
 !
 ! !INTERFACE:
-   module fabm_gotm_ergom
+   module gotm_ergom
 !
 ! !DESCRIPTION:
 ! The biogeochemical model by
@@ -774,7 +774,7 @@ subroutine initialize(self,configunit)
 
 !-----------------------------------------------------------------------
 
-  END MODULE fabm_gotm_ergom
+  END MODULE gotm_ergom
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

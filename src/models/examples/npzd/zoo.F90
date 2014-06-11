@@ -2,10 +2,10 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_examples_npzd_zoo - Fennel & Neumann 1996 NPZD model - zooplankton component
+! !MODULE: examples_npzd_zoo - Fennel & Neumann 1996 NPZD model - zooplankton component
 !
 ! !INTERFACE:
-   module fabm_examples_npzd_zoo
+   module examples_npzd_zoo
 !
 ! !DESCRIPTION:
 !
@@ -220,7 +220,7 @@
 !EOC
 !-----------------------------------------------------------------------
 
-   end module fabm_examples_npzd_zoo
+   end module examples_npzd_zoo
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

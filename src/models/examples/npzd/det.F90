@@ -2,15 +2,15 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_examples_npzd_det - Fennel & Neumann 1996 NPZD model - detritus component
+! !MODULE: examples_npzd_det - Fennel & Neumann 1996 NPZD model - detritus component
 !
 ! !INTERFACE:
-   module fabm_examples_npzd_det
+   module examples_npzd_det
 !
 ! !DESCRIPTION:
 ! This model features a single detritus variable, characterized by a rate of decay (rdn)
 ! and a sinking rate. Mineralized detritus feeds into a dissolved mineral pool that must
-! be provided by an external model (e.g., fabm_examples_npzd_nut).
+! be provided by an external model (e.g., examples_npzd_nut).
 !
 ! !USES:
    use fabm_types
@@ -176,7 +176,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module fabm_examples_npzd_det
+   end module examples_npzd_det
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

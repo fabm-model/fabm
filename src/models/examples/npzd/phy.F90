@@ -3,10 +3,10 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_examples_npzd_phy - Fennel & Neumann 1996 NPZD model - phytoplankton component
+! !MODULE: examples_npzd_phy - Fennel & Neumann 1996 NPZD model - phytoplankton component
 !
 ! !INTERFACE:
-   module fabm_examples_npzd_phy
+   module examples_npzd_phy
 !
 ! !DESCRIPTION:
 !
@@ -147,7 +147,7 @@
 
    return
 
-99 call self%fatal_error('fabm_examples_npzd_phy','Error reading namelist examples_npzd_phy')
+99 call self%fatal_error('examples_npzd_phy','Error reading namelist examples_npzd_phy')
 
    end subroutine initialize
 !EOC
@@ -345,7 +345,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module fabm_examples_npzd_phy
+   end module examples_npzd_phy
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

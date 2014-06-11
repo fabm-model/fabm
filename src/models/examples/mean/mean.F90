@@ -1,6 +1,6 @@
 #include "fabm_driver.h"
 
-module fabm_examples_mean
+module examples_mean
 
    use fabm_types
    use fabm_expressions

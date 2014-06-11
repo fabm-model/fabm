@@ -2,10 +2,10 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_examples_npzd_nut - Fennel & Neumann 1996 NPZD model - nutrient component
+! !MODULE: examples_npzd_nut - Fennel & Neumann 1996 NPZD model - nutrient component
 !
 ! !INTERFACE:
-   module fabm_examples_npzd_nut
+   module examples_npzd_nut
 !
 ! !DESCRIPTION:
 ! This is a general nutrient (passive non-sinking, non-floating tracer), characterized by
@@ -77,7 +77,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module fabm_examples_npzd_nut
+   end module examples_npzd_nut
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

@@ -3,10 +3,10 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_examples_benthic_predator --- test for benthic interfaces in FABM
+! !MODULE: examples_benthic_predator --- test for benthic interfaces in FABM
 !
 ! !INTERFACE:
-   module fabm_examples_benthic_predator
+   module examples_benthic_predator
 !
 ! !DESCRIPTION:
 ! This is a very simple model for a benthic predator, grazing according to a
@@ -151,7 +151,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module fabm_examples_benthic_predator
+   end module examples_benthic_predator
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

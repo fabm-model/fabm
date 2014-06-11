@@ -10,7 +10,7 @@
 ! taken from GOTM and adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
-   module fabm_gotm_fasham
+   module gotm_fasham
 !
 ! !DESCRIPTION:
 !  The model developed by \cite{Fashametal1990} 
@@ -622,7 +622,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module fabm_gotm_fasham
+   end module gotm_fasham
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

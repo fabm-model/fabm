@@ -3,10 +3,10 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_bb_filter_feeder --- implicit filter feeder at fixed position in pelagic
+! !MODULE: bb_filter_feeder --- implicit filter feeder at fixed position in pelagic
 !
 ! !INTERFACE:
-   module fabm_bb_filter_feeder
+   module bb_filter_feeder
 !
 ! !DESCRIPTION:
 ! This model describes the food intake by an implicit predator, placed at
@@ -161,7 +161,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module fabm_bb_filter_feeder
+   end module bb_filter_feeder
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

@@ -3,10 +3,10 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_bb_passive --- passive tracer model
+! !MODULE: bb_passive --- passive tracer model
 !
 ! !INTERFACE:
-   module fabm_bb_passive
+   module bb_passive
 !
 ! !DESCRIPTION:
 ! This model describe a single passive tracer. Optionally, a vertical velocity
@@ -128,7 +128,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module fabm_bb_passive
+   end module bb_passive
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

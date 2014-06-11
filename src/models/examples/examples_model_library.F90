@@ -17,14 +17,14 @@ contains
 
    subroutine create(self,name,model)
 
-      use fabm_examples_benthic_predator
-      use fabm_examples_duplicator
-      use fabm_examples_mean
-      use fabm_examples_npzd_nut
-      use fabm_examples_npzd_phy
-      use fabm_examples_npzd_zoo
-      use fabm_examples_npzd_det
-      use fabm_examples_npzd_f2003
+      use examples_benthic_predator
+      use examples_duplicator
+      use examples_mean
+      use examples_npzd_nut
+      use examples_npzd_phy
+      use examples_npzd_zoo
+      use examples_npzd_det
+      use examples_npzd_f2003
 
       ! Add new examples models here
 

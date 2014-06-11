@@ -9,7 +9,7 @@
 ! taken from GOTM and adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
-   module fabm_gotm_npzd
+   module gotm_npzd
 !
 ! !DESCRIPTION:
 ! The NPZD (nutrient-phytoplankton-zooplankton-detritus) model described here
@@ -535,7 +535,7 @@
 
 !-----------------------------------------------------------------------
 
-   end module fabm_gotm_npzd
+   end module gotm_npzd
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
