@@ -131,15 +131,15 @@
 
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_GPP, 'GPP','mmol/m**3',  'gross primary production',           &
-                                     time_treatment=time_treatment_step_integrated)
+                                     output=output_time_step_integrated)
    call self%register_diagnostic_variable(self%id_NCP, 'NCP','mmol/m**3',  'net community production',           &
-                                     time_treatment=time_treatment_step_integrated)
+                                     output=output_time_step_integrated)
    call self%register_diagnostic_variable(self%id_PPR, 'PPR','mmol/m**3/d','gross primary production rate',      &
-                                     time_treatment=time_treatment_averaged)
+                                     output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_NPR, 'NPR','mmol/m**3/d','net community production rate',      &
-                                     time_treatment=time_treatment_averaged)
+                                     output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
-                                     time_treatment=time_treatment_averaged)
+                                     output=output_time_step_averaged)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
