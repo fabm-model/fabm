@@ -79,10 +79,12 @@ contains
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day, and are converted here to values per second.
-   call self%get_parameter(self%TA_offset,'alk_offset',default=alk_offset)
-   call self%get_parameter(self%TA_slope,'alk_slope',default=alk_slope)
-   call self%get_parameter(self%alk_param,'alk_param',default=alk_param)
-   call self%get_parameter(self%pCO2a,'pCO2a',default=pCO2a)
+   call self%get_parameter(self%alk_param,'alk_param','-','compute alkalinity as linear function of salinity',default=alk_param)
+   if (self%alk_param) then
+      call self%get_parameter(self%TA_offset,'alk_offset','mEq m-3','offset for alkalinity as linear function of salinity',default=alk_offset)
+      call self%get_parameter(self%TA_slope,'alk_slope','mEq m-3','scale factor for alkalinity as linear function of salinity',default=alk_slope)
+   end if
+   call self%get_parameter(self%pCO2a,'pCO2a','ppm','mole fraction of atmospheric CO2',default=pCO2a)
 
    ! First state variable: total dissolved inorganic carbon
    call self%register_state_variable(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon', &
