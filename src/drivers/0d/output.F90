@@ -129,12 +129,13 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   LEVEL2 'writing results to:'
+   LEVEL3 trim(output_file)
    select case (output_format)
       case (ASCII_FMT)
          out_unit = get_free_unit()
          open(out_unit,file=trim(output_file),action='write',status='replace',err=96)
-         LEVEL2 'Writing results to:'
-         LEVEL3 trim(output_file)
+         LEVEL3 'ASCII format'
 
          ! Write header to the output file.
          write(out_unit,FMT='(''# '',A)') title
@@ -167,7 +168,7 @@
       case (NETCDF_FMT)
 #ifdef NETCDF4
          setn=0
-         LEVEL2 'NetCDF version: ',trim(NF90_INQ_LIBVERS())
+         LEVEL3 'NetCDF version: ',trim(NF90_INQ_LIBVERS())
          iret = nf90_create(output_file,NF90_CLOBBER,ncid)
          call check_err(iret)
 !        define dimensions

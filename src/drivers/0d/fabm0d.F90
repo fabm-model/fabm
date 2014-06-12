@@ -40,6 +40,9 @@
 !  private data members initialised via namelists
    real(rk)                  :: dt
 
+!  FABM yalmm configuration file
+   character(len=PATH_MAX)   :: fabm_yaml_file='fabm.yaml'
+
    ! Bio model info
    integer  :: ode_method
    logical  :: repair_state
@@ -86,6 +89,60 @@
 !-----------------------------------------------------------------------
 !BOP
 !
+! !IROUTINE: Parse the command line
+!
+! !INTERFACE:
+   subroutine  cmdline
+   implicit none
+
+!   character(len=*), parameter :: version = '1.0'
+   character(len=32) :: arg
+   integer :: i
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   do i = 1, command_argument_count()
+      call get_command_argument(i, arg)
+ 
+      select case (arg)
+#if 0
+      case ('-v', '--version')
+         print '(2a)', 'fabm0d version ', version
+         stop
+#endif
+      case ('-h', '--help')
+         call print_help()
+         stop
+      case ('-y', '--yaml')
+         call get_command_argument(i+1, fabm_yaml_file)
+!         print '(a)', fabm_yaml_file
+      case default
+#if 0
+         print '(a,a,/)', 'Unrecognized command-line option: ', arg
+         call print_help()
+         stop
+#endif
+      end select
+   end do
+
+   contains
+
+   subroutine print_help()
+      print '(a)', 'usage: fabm0d [OPTIONS]'
+      print '(a)', ''
+      print '(a)', 'Without further options, fabm0d run using default input filenames.'
+      print '(a)', ''
+      print '(a)', 'fabm0d options:'
+      print '(a)', ''
+      print '(a)', '  -h, --help        print usage information and exit'
+      print '(a)', '  -y, --yaml file   use <file> as FABM yaml configuration file - default fabm.yaml'
+   end subroutine print_help
+
+   end subroutine  cmdline
+
+!-----------------------------------------------------------------------
+!BOP
+!
 ! !IROUTINE: Initialise the model
 !
 ! !INTERFACE:
@@ -116,6 +173,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   call cmdline
+
    LEVEL1 'init_run'
    STDERR LINE
 
@@ -208,8 +267,6 @@
       end if
    end if
    
-   LEVEL2 'done.'
-
    ! Configure the time module to use actual start and stop dates.
    timefmt = 2
 
@@ -239,21 +296,26 @@
    call init_time(MinN,MaxN)
 
    ! Open the file with observations of the local environment.
-   LEVEL2 'Reading local environment data from:'
+   LEVEL1 'init environment'
+   LEVEL2 'reading local environment data from:'
    LEVEL3 trim(env_file)
    call init_input()
    call register_input_0d(env_file,1,swr_sf)
    call register_input_0d(env_file,2,temp)
    call register_input_0d(env_file,3,salt)
 
-   ! Build FABM model tree. Use fabm.yaml if available, otherwise fall back to fabm.nml.
-   inquire(file='fabm.yaml',exist=file_exists)
+   ! Build FABM model tree. Use 'fabm_yaml_file' if available, otherwise fall back to fabm.nml.
+   LEVEL1 'initialize FABM'
+   LEVEL2 'reading configuration from:'
+   inquire(file=trim(fabm_yaml_file),exist=file_exists)
    if (file_exists) then
       ! From YAML file fabm.yaml
+      LEVEL3 trim(fabm_yaml_file)
       allocate(model)
-      call fabm_create_model_from_yaml_file(model)
+      call fabm_create_model_from_yaml_file(model,path_=trim(fabm_yaml_file))
    else
       ! From namelists in fabm.nml
+      LEVEL3 'fabm.nml'
       model => fabm_create_model_from_file(namlst)
    end if
 
@@ -315,10 +377,10 @@
    call get_rhs(.true.,size(cc,1),cc,rhs)
 
    ! Output variable values at initial time
+   LEVEL1 'init_output'
    call init_output(start)
    call do_output(0_timestepkind)
 
-   LEVEL2 'done.'
    STDERR LINE
 
    return

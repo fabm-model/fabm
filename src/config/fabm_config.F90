@@ -20,8 +20,9 @@ module fabm_config
 
 contains
 
-   subroutine fabm_create_model_from_yaml_file(model,do_not_initialize,parameters,unit)
+   subroutine fabm_create_model_from_yaml_file(model,path_,do_not_initialize,parameters,unit)
       type (type_model),                       intent(out) :: model
+      character(len=*),               optional,intent(in)  :: path_
       logical,                        optional,intent(in)  :: do_not_initialize
       type (type_property_dictionary),optional,intent(in)  :: parameters
       integer,                        optional,intent(in)  :: unit
@@ -29,10 +30,17 @@ contains
       class (type_node),pointer        :: node
       character(len=yaml_error_length) :: yaml_error
       integer                          :: unit_eff
-      character(len=*),parameter       :: path = 'fabm.yaml'
+      character(len=256)               :: path
 
       ! Make sure the library is initialized.
       call fabm_initialize_library()
+
+      ! Determine the path to use for YAML file.
+      if (present(path_)) then
+          path = trim(path_)
+      else
+          path = 'fabm.yaml'
+      end if
 
       ! Determine the unit to use for YAML file.
       if (present(unit)) then
@@ -42,7 +50,7 @@ contains
       end if
 
       ! Parse YAML file.
-      node => yaml_parse(path,unit_eff,yaml_error)
+      node => yaml_parse(trim(path),unit_eff,yaml_error)
       if (yaml_error/='') call fatal_error('fabm_create_model_from_yaml_file',trim(yaml_error))
       if (.not.associated(node)) call fatal_error('fabm_create_model_from_yaml_file', &
          'No configuration information found in '//trim(path)//'.')
