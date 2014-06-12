@@ -6,14 +6,18 @@ include ../../../Rules.make
 
 DOCSRC	= det.F90 nut.F90 phy.F90 zoo.F90
 
+NPZD	= ${LIBFABM}(examples_npzd.o)
+
 OBJS    = ${LIBFABM}(det.o) ${LIBFABM}(nut.o) ${LIBFABM}(phy.o) ${LIBFABM}(zoo.o)
 
 all: objs
 
-${OBJS}: $(FABMBASE)
-
-objs: ${OBJS}
+objs: $(NPZD)
 	$(MOVE_MODULES_COMMAND)
+
+$(NPZD): $(OBJS)
+
+${OBJS}: $(FABMBASE)
 
 doc:    $(DOCSRC)
 	$(PROTEX) $(DOCSRC) > ../../../../doc/examples_npzd.tex

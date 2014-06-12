@@ -4,31 +4,43 @@
 
 include ../../Rules.make
 
+LIBRARY  = ${LIBFABM}(examples_model_library.o)
+
 SUBDIRS += benthic_predator
+BENTHIC_PREDATOR = ${LIBFABM}(benthic_predator.o)
+
 SUBDIRS += duplicator
+DUPLICATOR = ${LIBFABM}(duplicator.o)
+
 SUBDIRS += mean
+MEAN = ${LIBFABM}(mean.o)
+
 SUBDIRS += npzd
+NPZD = ${LIBFABM}(examples_npzd.o)
+
 SUBDIRS += npzd_f2003
+NPZD_F2003 = ${LIBFABM}(npzd_f2003.o)
+
 
 all: objs
 
-objs: ${LIBFABM}(examples_model_library.o)
+objs: $(LIBRARY)
 
-${LIBFABM}(examples_model_library.o): ${LIBFABM}(benthic_predator.o) ${LIBFABM}(duplicator.o) ${LIBFABM}(mean.o) ${LIBFABM}(det.o) ${LIBFABM}(nut.o) ${LIBFABM}(phy.o) ${LIBFABM}(zoo.o) ${LIBFABM}(npzd_f2003.o)
+$(LIBRARY): $(BENTHIC_PREDATOR) $(DUPLICATOR) $(MEAN) $(NPZD) $(NPZD_F2003)
 
-${LIBFABM}(benthic_predator.o): benthic_predator
+$(BENTHIC_PREDATOR): benthic_predator
 	$(MAKE) -C benthic_predator objs
 
-${LIBFABM}(duplicator.o): duplicator
+$(DUPLICATOR): duplicator
 	$(MAKE) -C duplicator objs
 
-${LIBFABM}(mean.o): mean
+$(MEAN): mean
 	$(MAKE) -C mean objs
 
-${LIBFABM}(det.o) ${LIBFABM}(nut.o) ${LIBFABM}(phy.o) ${LIBFABM}(zoo.o): npzd
+$(NPZD): npzd
 	$(MAKE) -C npzd objs
 
-${LIBFABM}(npzd_f2003.o): npzd_f2003
+$(NPZD_F2003): npzd_f2003
 	$(MAKE) -C npzd_f2003 objs
 
 doc clean:

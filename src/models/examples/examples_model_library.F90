@@ -20,10 +20,7 @@ contains
       use examples_benthic_predator
       use examples_duplicator
       use examples_mean
-      use examples_npzd_nut
-      use examples_npzd_phy
-      use examples_npzd_zoo
-      use examples_npzd_det
+      use examples_npzd
       use examples_npzd_f2003
 
       ! Add new examples models here
