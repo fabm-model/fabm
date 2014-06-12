@@ -99,6 +99,7 @@
 		<File RelativePath="..\..\src\models\examples\mean\mean.F90"/></Filter>
 		<Filter Name="npzd">
 		<File RelativePath="..\..\src\models\examples\npzd\det.F90"/>
+		<File RelativePath="..\..\src\models\examples\npzd\examples_npzd.F90"/>
 		<File RelativePath="..\..\src\models\examples\npzd\nut.F90"/>
 		<File RelativePath="..\..\src\models\examples\npzd\phy.F90"/>
 		<File RelativePath="..\..\src\models\examples\npzd\zoo.F90"/></Filter>
