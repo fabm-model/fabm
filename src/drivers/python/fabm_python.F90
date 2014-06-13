@@ -35,8 +35,8 @@
 
    type,extends(type_base_driver) :: type_python_driver
    contains
-      procedure :: fatal_error
-      procedure :: log_message
+      procedure :: fatal_error => python_driver_fatal_error
+      procedure :: log_message => python_driver_log_message
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -76,37 +76,37 @@
 
       ! Create arrays to hold state variable values, use the initial values specified by the model,
       ! link state data to FABM.
-      n = size(model%info%state_variables) + size(model%info%bottom_state_variables) + size(model%info%surface_state_variables)
+      n = size(model%state_variables) + size(model%bottom_state_variables) + size(model%surface_state_variables)
       allocate(state(n))
       allocate(state_names(n))
       allocate(state_units(n))
       n = 0
-      do i=1,size(model%info%state_variables)
+      do i=1,size(model%state_variables)
          n = n + 1
-         state(n) = model%info%state_variables(i)%initial_value
-         state_names(n) = model%info%state_variables(i)%name
-         state_units(n) = model%info%state_variables(i)%units
+         state(n) = model%state_variables(i)%initial_value
+         state_names(n) = model%state_variables(i)%name
+         state_units(n) = model%state_variables(i)%units
          call fabm_link_bulk_state_data(model,i,state(n))
       end do
-      do i=1,size(model%info%bottom_state_variables)
+      do i=1,size(model%bottom_state_variables)
          n = n + 1
-         state(n) = model%info%bottom_state_variables(i)%initial_value
-         state_names(n) = model%info%bottom_state_variables(i)%name
-         state_units(n) = model%info%bottom_state_variables(i)%units
+         state(n) = model%bottom_state_variables(i)%initial_value
+         state_names(n) = model%bottom_state_variables(i)%name
+         state_units(n) = model%bottom_state_variables(i)%units
          call fabm_link_bulk_state_data(model,i,state(n))
       end do
-      do i=1,size(model%info%surface_state_variables)
+      do i=1,size(model%surface_state_variables)
          n = n + 1
-         state(n) = model%info%surface_state_variables(i)%initial_value
-         state_names(n) = model%info%surface_state_variables(i)%name
-         state_units(n) = model%info%surface_state_variables(i)%units
+         state(n) = model%surface_state_variables(i)%initial_value
+         state_names(n) = model%surface_state_variables(i)%name
+         state_units(n) = model%surface_state_variables(i)%units
          call fabm_link_bulk_state_data(model,i,state(n))
       end do
 
-      allocate(conserved_quantity_names(size(model%info%conserved_quantities)))
-      allocate(conserved_quantity_units(size(model%info%conserved_quantities)))
-      conserved_quantity_names = model%info%conserved_quantities(:)%name
-      conserved_quantity_units = model%info%conserved_quantities(:)%units
+      allocate(conserved_quantity_names(size(model%conserved_quantities)))
+      allocate(conserved_quantity_units(size(model%conserved_quantities)))
+      conserved_quantity_names = model%conserved_quantities(:)%name
+      conserved_quantity_units = model%conserved_quantities(:)%units
 
       ! Create arrays for parameter names, units, data types.
       call model%root%parameters%keys(parameter_names)
@@ -154,6 +154,7 @@
       if (allocated(environment_names)) deallocate(environment_names)
       if (allocated(environment_units)) deallocate(environment_units)
       if (allocated(parameter_names)) deallocate(parameter_names)
+      if (allocated(parameter_long_names)) deallocate(parameter_long_names)
       if (allocated(parameter_types)) deallocate(parameter_types)
       if (allocated(parameter_units)) deallocate(parameter_units)
       if (allocated(conserved_quantity_names)) deallocate(conserved_quantity_names)
@@ -242,20 +243,20 @@
       value = property%to_string()
    end function
 
-   subroutine fatal_error(self,location,message)
+   subroutine python_driver_fatal_error(self,location,message)
       class (type_python_driver),intent(inout) :: self
       character(len=*),          intent(in)    :: location,message
 
       write (*,*) trim(location)//': '//trim(message)
       stop 1
-   end subroutine fatal_error
+   end subroutine
 
-   subroutine log_message(self,message)
+   subroutine python_driver_log_message(self,message)
       class (type_python_driver),intent(inout) :: self
       character(len=*),          intent(in)    :: message
 
       !write (*,*) trim(message)
-   end subroutine log_message
+   end subroutine
 
    end module fabm_python
 

@@ -36,7 +36,7 @@ class Dependency(Variable):
         self.index = index
 
     def getValue(self):
-        return fabm.environment[self.index]
+        return float(fabm.environment[self.index])
 
     def setValue(self,value):
         fabm.environment[self.index] = value
@@ -49,7 +49,7 @@ class StateVariable(Variable):
         self.index = index
 
     def getValue(self):
-        return fabm.state[self.index]
+        return float(fabm.state[self.index])
 
     def setValue(self,value):
         fabm.state[self.index] = value
