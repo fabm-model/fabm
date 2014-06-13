@@ -2349,7 +2349,7 @@ recursive subroutine get_real_parameter(self,value,name,units,long_name,default,
    end if
 
    if (associated(self%parent)) then
-      call self%parent%get_parameter(value,trim(self%name)//'/'//name,units,long_name,1.0_rk,default_eff,found_eff)
+      call self%parent%get_parameter(value,trim(self%name)//'/'//name,units,long_name,default_eff,1.0_rk,found_eff)
    else
       value = default_eff
    end if
