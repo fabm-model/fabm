@@ -312,7 +312,7 @@
       ! From YAML file fabm.yaml
       LEVEL3 trim(fabm_yaml_file)
       allocate(model)
-      call fabm_create_model_from_yaml_file(model,path_=trim(fabm_yaml_file))
+      call fabm_create_model_from_yaml_file(model,path=trim(fabm_yaml_file))
    else
       ! From namelists in fabm.nml
       LEVEL3 'fabm.nml'

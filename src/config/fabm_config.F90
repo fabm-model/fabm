@@ -20,9 +20,9 @@ module fabm_config
 
 contains
 
-   subroutine fabm_create_model_from_yaml_file(model,path_,do_not_initialize,parameters,unit)
+   subroutine fabm_create_model_from_yaml_file(model,path,do_not_initialize,parameters,unit)
       type (type_model),                       intent(out) :: model
-      character(len=*),               optional,intent(in)  :: path_
+      character(len=*),               optional,intent(in)  :: path
       logical,                        optional,intent(in)  :: do_not_initialize
       type (type_property_dictionary),optional,intent(in)  :: parameters
       integer,                        optional,intent(in)  :: unit
@@ -30,16 +30,16 @@ contains
       class (type_node),pointer        :: node
       character(len=yaml_error_length) :: yaml_error
       integer                          :: unit_eff
-      character(len=256)               :: path
+      character(len=256)               :: path_eff
 
       ! Make sure the library is initialized.
       call fabm_initialize_library()
 
       ! Determine the path to use for YAML file.
-      if (present(path_)) then
-          path = trim(path_)
+      if (present(path)) then
+          path_eff = trim(path)
       else
-          path = 'fabm.yaml'
+          path_eff = 'fabm.yaml'
       end if
 
       ! Determine the unit to use for YAML file.
@@ -50,10 +50,10 @@ contains
       end if
 
       ! Parse YAML file.
-      node => yaml_parse(trim(path),unit_eff,yaml_error)
+      node => yaml_parse(trim(path_eff),unit_eff,yaml_error)
       if (yaml_error/='') call fatal_error('fabm_create_model_from_yaml_file',trim(yaml_error))
       if (.not.associated(node)) call fatal_error('fabm_create_model_from_yaml_file', &
-         'No configuration information found in '//trim(path)//'.')
+         'No configuration information found in '//trim(path_eff)//'.')
       !call node%dump(output_unit,0)
 
       ! Create model tree from YAML root node.
@@ -62,7 +62,7 @@ contains
             ! Create F2003 model tree.
             call create_model_tree_from_dictionary(model,node,do_not_initialize,parameters)
          class is (type_node)
-            call fatal_error('fabm_create_model_from_yaml_file', trim(path)//' must contain a dictionary &
+            call fatal_error('fabm_create_model_from_yaml_file', trim(path_eff)//' must contain a dictionary &
                &at the root (non-indented) level, not a single value. Are you missing a trailing colon?')
       end select
 
@@ -104,7 +104,7 @@ contains
                ' must be a dictionary with (model name : information) pairs, not a single value.')
       end select
 
-      ! Iterate over all models (key:value pairs at root level) and
+      ! Iterate over all models (key:value pairs below "instances" node at root level) and
       ! create corresponding objects.
       do while (associated(pair))
          instancename = trim(pair%key)
