@@ -2305,13 +2305,13 @@ recursive subroutine register_expression(self,expression)
    if (associated(self%parent)) call register_expression(self%parent,expression)
 end subroutine
 
-recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_factor,default,found)
+recursive subroutine get_real_parameter(self,value,name,units,long_name,default,scale_factor,found)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target  :: self
    real(rk),                intent(inout)          :: value
    character(len=*),        intent(in)             :: name
    character(len=*),        intent(in),   optional :: units,long_name
-   real(rk),                intent(in),   optional :: scale_factor,default
+   real(rk),                intent(in),   optional :: default,scale_factor
    logical,                 intent(inout),optional :: found
 !
 !EOP
@@ -2514,10 +2514,10 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
 !EOP
 !
 ! !LOCAL VARIABLES:
-   class (type_property),       pointer :: property
+   class (type_property),      pointer :: property
    type (type_string_property),pointer :: current_parameter
    character(len=1024)                 :: default_eff
-   logical                              :: found_eff
+   logical                             :: found_eff
 !
 !-----------------------------------------------------------------------
 !BOC
