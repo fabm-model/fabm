@@ -11,11 +11,15 @@
 ! TODO
 !
 ! !USES:
+   use iso_c_binding, only: c_double, c_int, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr
+
+   !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
+
    use fabm
    use fabm_config
-   use fabm_types, only:rk,attribute_length
+   use fabm_types, only:rk,attribute_length,type_model_list_node
    use fabm_driver, only: type_base_driver, driver
-   use fabm_properties, only: type_property, type_property_dictionary
+   use fabm_properties, only: type_property, type_property_dictionary, type_real_property
    use fabm_python_helper
 
    implicit none
@@ -23,13 +27,16 @@
 ! !PUBLIC MEMBER FUNCTIONS:
    public
 
+   integer,parameter :: BULK_STATE_VARIABLE            = 1
+   integer,parameter :: SURFACE_STATE_VARIABLE         = 2
+   integer,parameter :: BOTTOM_STATE_VARIABLE          = 3
+   integer,parameter :: BULK_DIAGNOSTIC_VARIABLE       = 4
+   integer,parameter :: HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
+   integer,parameter :: CONSERVED_QUANTITY             = 6
+
    type (type_model),private,target,save :: model
-   real(8),dimension(:),allocatable :: state,environment
-   character(len=1024),dimension(:),allocatable :: state_names,state_units
+   real(8),dimension(:),pointer :: state
    character(len=1024),dimension(:),allocatable :: environment_names,environment_units
-   character(len=1024),dimension(:),allocatable :: conserved_quantity_names,conserved_quantity_units
-   character(len=1024),dimension(:),allocatable :: parameter_long_names,parameter_names,parameter_units
-   integer,            dimension(:),allocatable :: parameter_types
 
    type (type_property_dictionary),save,private :: forced_parameters
 
@@ -49,7 +56,8 @@
 ! !IROUTINE: Initialise the model
 !
 ! !INTERFACE:
-   subroutine initialize()
+   subroutine initialize() bind(c)
+!DIR$ ATTRIBUTES DLLEXPORT :: initialize
 !
 ! !DESCRIPTION:
 !
@@ -74,156 +82,268 @@
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
       call fabm_set_domain(model)
 
-      ! Create arrays to hold state variable values, use the initial values specified by the model,
-      ! link state data to FABM.
-      n = size(model%state_variables) + size(model%bottom_state_variables) + size(model%surface_state_variables)
-      allocate(state(n))
-      allocate(state_names(n))
-      allocate(state_units(n))
-      n = 0
-      do i=1,size(model%state_variables)
-         n = n + 1
-         state(n) = model%state_variables(i)%initial_value
-         state_names(n) = model%state_variables(i)%name
-         state_units(n) = model%state_variables(i)%units
-         call fabm_link_bulk_state_data(model,i,state(n))
-      end do
-      do i=1,size(model%bottom_state_variables)
-         n = n + 1
-         state(n) = model%bottom_state_variables(i)%initial_value
-         state_names(n) = model%bottom_state_variables(i)%name
-         state_units(n) = model%bottom_state_variables(i)%units
-         call fabm_link_bulk_state_data(model,i,state(n))
-      end do
-      do i=1,size(model%surface_state_variables)
-         n = n + 1
-         state(n) = model%surface_state_variables(i)%initial_value
-         state_names(n) = model%surface_state_variables(i)%name
-         state_units(n) = model%surface_state_variables(i)%units
-         call fabm_link_bulk_state_data(model,i,state(n))
-      end do
-
-      allocate(conserved_quantity_names(size(model%conserved_quantities)))
-      allocate(conserved_quantity_units(size(model%conserved_quantities)))
-      conserved_quantity_names = model%conserved_quantities(:)%name
-      conserved_quantity_units = model%conserved_quantities(:)%units
-
-      ! Create arrays for parameter names, units, data types.
-      call model%root%parameters%keys(parameter_names)
-      allocate(parameter_types(size(parameter_names)))
-      allocate(parameter_units(size(parameter_names)))
-      allocate(parameter_long_names(size(parameter_names)))
-      do i = 1,size(parameter_names)
-         property => model%root%parameters%get_property(parameter_names(i))
-         parameter_types(i) = property%typecode()
-         parameter_units(i) = property%units
-         parameter_long_names(i) = property%long_name
-      end do
-
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment(model,environment_names,environment_units,environment)
-
-      call fabm_check_ready(model)
+      call get_environment_metadata(model,environment_names,environment_units)
 
    end subroutine initialize
 !EOC
 
-   subroutine get_rates(n,m,pelagic_rates,conserved_rates)
-      integer, intent(in)  :: n,m
-      real(8),intent(inout) :: pelagic_rates(n),conserved_rates(m)
+   subroutine check_ready()
+      !DIR$ ATTRIBUTES DLLEXPORT :: check_ready
+      call fabm_check_ready(model)
+   end subroutine
 
-      real(8) :: abs_conserved_rates(m)
+   integer function model_count() bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: model_count
 
+      type (type_model_list_node), pointer :: node
+
+      model_count = 0
+      node => model%root%children%first
+      do while (associated(node))
+         model_count = model_count + 1
+         node => node%next
+      end do
+   end function
+
+   subroutine get_variable_counts(nstate_bulk,nstate_surface,nstate_bottom,ndiagnostic_bulk,ndiagnostic_horizontal,nconserved,ndependencies,nparameters) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_counts
+      integer(c_int),intent(out) :: nstate_bulk,nstate_surface,nstate_bottom
+      integer(c_int),intent(out) :: ndiagnostic_bulk,ndiagnostic_horizontal
+      integer(c_int),intent(out) :: nconserved,ndependencies,nparameters
+      nstate_bulk = size(model%state_variables)
+      nstate_surface = size(model%surface_state_variables)
+      nstate_bottom = size(model%bottom_state_variables)
+      ndiagnostic_bulk = size(model%diagnostic_variables)
+      ndiagnostic_horizontal = size(model%horizontal_diagnostic_variables)
+      nconserved = size(model%conserved_quantities)
+      ndependencies = size(environment_names)
+      nparameters = model%root%parameters%size()
+   end subroutine
+
+   subroutine get_variable_metadata(category,index,length,name,units,long_name) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_metadata
+      integer(c_int),intent(in), value             :: category,index,length
+      character,     intent(out),dimension(length) :: name,units,long_name
+
+      class (type_external_variable),pointer :: variable
+      class (type_property),pointer :: property
+
+      ! Get a pointer to the target variable
+      select case (category)
+      case (BULK_STATE_VARIABLE)
+         variable => model%state_variables(index)
+      case (SURFACE_STATE_VARIABLE)
+         variable => model%surface_state_variables(index)
+      case (BOTTOM_STATE_VARIABLE)
+         variable => model%bottom_state_variables(index)
+      case (BULK_DIAGNOSTIC_VARIABLE)
+         variable => model%diagnostic_variables(index)
+      case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
+         variable => model%horizontal_diagnostic_variables(index)
+      case (CONSERVED_QUANTITY)
+         variable => model%conserved_quantities(index)
+      end select
+      call copy_to_c_string(variable%name,     name)
+      call copy_to_c_string(variable%units,    units)
+      call copy_to_c_string(variable%long_name,long_name)
+   end subroutine
+
+   subroutine get_parameter_metadata(index,length,name,units,long_name,typecode) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_parameter_metadata
+      integer(c_int),intent(in), value             :: index,length
+      character,     intent(out),dimension(length) :: name,units,long_name
+      integer(c_int),intent(out)                   :: typecode
+
+      integer                       :: i
+      class (type_property),pointer :: property
+
+      i = 1
+      property => model%root%parameters%first
+      do while (associated(property))
+         if (index==i) exit
+         property => property%next
+         i = i + 1
+      end do
+
+      call copy_to_c_string(property%name,     name)
+      call copy_to_c_string(property%units,    units)
+      call copy_to_c_string(property%long_name,long_name)
+      typecode = property%typecode()
+   end subroutine
+
+   subroutine get_dependency_metadata(index,length,name,units) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_dependency_metadata
+      integer(c_int),intent(in), value             :: index,length
+      character,     intent(out),dimension(length) :: name,units
+
+      call copy_to_c_string(environment_names(index),name)
+      call copy_to_c_string(environment_units(index),units)
+   end subroutine
+
+   subroutine link_dependency_data(index,value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: link_dependency_data
+      integer(c_int),intent(in),value  :: index
+      real(c_double),intent(in),target :: value
+
+      call fabm_link_bulk_data(model,environment_names(index),value)
+      call fabm_link_horizontal_data(model,environment_names(index),value)
+      call fabm_link_scalar_data(model,environment_names(index),value)
+   end subroutine
+
+   subroutine link_bulk_state_data(index,value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: link_bulk_state_data
+      integer(c_int),intent(in),   value  :: index
+      real(c_double),intent(inout),target :: value
+
+      value = model%state_variables(index)%initial_value
+      call fabm_link_bulk_state_data(model,index,value)
+   end subroutine
+
+   subroutine link_surface_state_data(index,value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: link_surface_state_data
+      integer(c_int),intent(in),   value  :: index
+      real(c_double),intent(inout),target :: value
+      integer :: i
+
+      value = model%surface_state_variables(index)%initial_value
+      call fabm_link_surface_state_data(model,index,value)
+   end subroutine
+   
+   subroutine link_bottom_state_data(index,value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: link_bottom_state_data
+      integer(c_int),intent(in),   value  :: index
+      real(c_double),intent(inout),target :: value
+
+      value = model%bottom_state_variables(index)%initial_value
+      call fabm_link_bottom_state_data(model,index,value)
+   end subroutine
+
+   subroutine get_rates(pelagic_rates_) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_rates
+      real(c_double),intent(in) :: pelagic_rates_(*)
+
+      real(c_double),pointer :: pelagic_rates(:)
+
+      call c_f_pointer(c_loc(pelagic_rates_),pelagic_rates,(/size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)/))
       pelagic_rates = 0.0_rk
       call fabm_do(model,pelagic_rates)
 
       ! Compute rate of change in conserved quantities
-      call fabm_state_to_conserved_quantities(model,pelagic_rates,conserved_rates)
+      !call fabm_state_to_conserved_quantities(model,pelagic_rates,conserved_rates)
 
       ! Normalize rate of change in conserved quantities to sum of absolute rates of change.
-      call fabm_state_to_conserved_quantities(model,abs(pelagic_rates),abs_conserved_rates)
-      where (abs_conserved_rates>0.0_rk) conserved_rates = conserved_rates/abs_conserved_rates
+      !call fabm_state_to_conserved_quantities(model,abs(pelagic_rates),abs_conserved_rates)
+      !where (abs_conserved_rates>0.0_rk) conserved_rates = conserved_rates/abs_conserved_rates
    end subroutine
 
-   subroutine finalize()
+   subroutine get_bulk_diagnostic_data(index,ptr) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_bulk_diagnostic_data
+      integer(c_int),intent(in),value :: index
+      type(c_ptr),   intent(out)      :: ptr
+      ptr = c_loc(fabm_get_bulk_diagnostic_data(model,index))
+   end subroutine
+
+   subroutine get_horizontal_diagnostic_data(index,ptr) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_horizontal_diagnostic_data
+      integer(c_int),intent(in),value :: index
+      type(c_ptr),   intent(out)      :: ptr
+      ptr = c_loc(fabm_get_horizontal_diagnostic_data(model,index))
+   end subroutine
+
+   subroutine finalize() bind(c)
       call fabm_finalize(model)
-      if (allocated(state)) deallocate(state)
-      if (allocated(state_names)) deallocate(state_names)
-      if (allocated(state_units))  deallocate(state_units)
-      if (allocated(environment)) deallocate(environment)
       if (allocated(environment_names)) deallocate(environment_names)
       if (allocated(environment_units)) deallocate(environment_units)
-      if (allocated(parameter_names)) deallocate(parameter_names)
-      if (allocated(parameter_long_names)) deallocate(parameter_long_names)
-      if (allocated(parameter_types)) deallocate(parameter_types)
-      if (allocated(parameter_units)) deallocate(parameter_units)
-      if (allocated(conserved_quantity_names)) deallocate(conserved_quantity_names)
-      if (allocated(conserved_quantity_units)) deallocate(conserved_quantity_units)
    end subroutine
 
-   subroutine reset_parameter(name)
-      character(len=*),intent(in) :: name
-      call forced_parameters%delete(name)
+   subroutine reset_parameter(name) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: reset_parameter
+      character,intent(in) :: name(*)
+
+      character(len=attribute_length),pointer :: pname
+
+      call c_f_pointer(c_loc(name), pname)
+      call forced_parameters%delete(pname)
 
       ! Re-initialize the model using updated parameter values
       call initialize()
    end subroutine
 
-   subroutine set_real_parameter(name,value)
-      character(len=*),intent(in) :: name
-      real(8),         intent(in) :: value
-      call forced_parameters%set_real(name,value)
+   subroutine set_real_parameter(name,value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_real_parameter
+      character,           intent(in) :: name(*)
+      real(c_double),value,intent(in) :: value
+
+      character(len=attribute_length),pointer :: pname
+
+      call c_f_pointer(c_loc(name), pname)
+      call forced_parameters%set_real(pname(:index(pname,C_NULL_CHAR)-1),value)
 
       ! Re-initialize the model using updated parameter values
       call initialize()
    end subroutine
 
-   function get_real_parameter(name,default) result(value)
-      character(len=*),intent(in) :: name
-      real(8),         intent(in) :: default
-      real(8)                     :: value
-      class (type_property),pointer :: property
-      value = default
-      property => model%root%parameters%get_property(name)
-      value = property%to_real()
+   function get_real_parameter(name,default) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_real_parameter
+      character,           intent(in) :: name(*)
+      real(c_double),value,intent(in) :: default
+      real(c_double)                  :: value
+      character(len=attribute_length),pointer :: pname
+      call c_f_pointer(c_loc(name), pname)
+      value = model%root%parameters%get_real(pname(:index(pname,C_NULL_CHAR)-1),default)
    end function
 
-   subroutine set_integer_parameter(name,value)
-      character(len=*),intent(in) :: name
-      integer,         intent(in) :: value
-      call forced_parameters%set_integer(name,value)
+   subroutine set_integer_parameter(name,value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_integer_parameter
+      character,           intent(in) :: name(*)
+      integer(c_int),value,intent(in) :: value
+
+      character(len=attribute_length),pointer :: pname
+
+      call c_f_pointer(c_loc(name), pname)
+      call forced_parameters%set_integer(pname(:index(pname,C_NULL_CHAR)-1),value)
 
       ! Re-initialize the model using updated parameter values
       call initialize()
    end subroutine
 
-   function get_integer_parameter(name,default) result(value)
-      character(len=*),intent(in) :: name
-      integer,         intent(in) :: default
-      integer                     :: value
-      class (type_property),pointer :: property
-      value = default
-      property => model%root%parameters%get_property(name)
-      value = property%to_integer()
+   function get_integer_parameter(name,default) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_integer_parameter
+      character,           intent(in) :: name(*)
+      integer(c_int),value,intent(in) :: default
+      integer(c_int)                  :: value
+      character(len=attribute_length),pointer :: pname
+      call c_f_pointer(c_loc(name), pname)
+      value = model%root%parameters%get_integer(pname(:index(pname,C_NULL_CHAR)-1),default)
    end function
 
-   subroutine set_logical_parameter(name,value)
-      character(len=*),intent(in) :: name
-      logical,         intent(in) :: value
-      call forced_parameters%set_logical(name,value)
+   subroutine set_logical_parameter(name,value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_logical_parameter
+      character,           intent(in) :: name(*)
+      integer(c_int),value,intent(in) :: value
+
+      character(len=attribute_length),pointer :: pname
+
+      call c_f_pointer(c_loc(name), pname)
+      call forced_parameters%set_logical(pname(:index(pname,C_NULL_CHAR)-1),value/=0)
 
       ! Re-initialize the model using updated parameter values
       call initialize()
    end subroutine
 
-   function get_logical_parameter(name,default) result(value)
-      character(len=*),intent(in) :: name
-      logical,         intent(in) :: default
-      logical                     :: value
-      class (type_property),pointer :: property
-      value = default
-      property => model%root%parameters%get_property(name)
-      value = property%to_logical()
+   function get_logical_parameter(name,default) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_logical_parameter
+      character,           intent(in) :: name(*)
+      integer(c_int),value,intent(in) :: default
+      integer(c_int)                  :: value
+      character(len=attribute_length),pointer :: pname
+      call c_f_pointer(c_loc(name), pname)
+      if (model%root%parameters%get_logical(pname(:index(pname,C_NULL_CHAR)-1),default/=0)) then
+         value = 1
+      else
+         value = 0
+      end if
    end function
 
    subroutine set_string_parameter(name,value)
@@ -235,11 +355,14 @@
    end subroutine
 
    function get_string_parameter(name,default) result(value)
-      character(len=*),intent(in) :: name,default
-      character(len=1024)         :: value
+      character,intent(in) :: name(*),default(*)
+      character            :: value(1024)
       class (type_property),pointer :: property
-      value = default
-      property => model%root%parameters%get_property(name)
+      character(len=attribute_length),pointer :: pname,pdefault
+      call c_f_pointer(c_loc(name), pname)
+      call c_f_pointer(c_loc(default), pdefault)
+      value = pdefault(:index(pdefault,C_NULL_CHAR)-1)
+      property => model%root%parameters%get_property(pname(:index(pname,C_NULL_CHAR)-1))
       value = property%to_string()
    end function
 
@@ -256,6 +379,17 @@
       character(len=*),          intent(in)    :: message
 
       !write (*,*) trim(message)
+   end subroutine
+
+   subroutine copy_to_c_string(string,cstring)
+      character(len=*),intent(in)  :: string
+      character,       intent(out) :: cstring(:)
+      integer i,n
+      n = min(len_trim(string),size(cstring)-1)
+      do i=1,n
+         cstring(i) = string(i:i)
+      end do
+      cstring(n+1) = C_NULL_CHAR 
    end subroutine
 
    end module fabm_python
