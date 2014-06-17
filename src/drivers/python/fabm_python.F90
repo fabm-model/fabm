@@ -66,10 +66,6 @@
 !
 !EOP
 !
-! !LOCAL VARIABLES:
-      integer           :: i,n
-      class (type_property),pointer :: property
-!
 !-----------------------------------------------------------------------
 !BOC
       if (model%initialized) call finalize()
@@ -128,7 +124,6 @@
       character,     intent(out),dimension(length) :: name,units,long_name
 
       class (type_external_variable),pointer :: variable
-      class (type_property),pointer :: property
 
       ! Get a pointer to the target variable
       select case (category)
@@ -205,7 +200,6 @@
       !DIR$ ATTRIBUTES DLLEXPORT :: link_surface_state_data
       integer(c_int),intent(in),   value  :: index
       real(c_double),intent(inout),target :: value
-      integer :: i
 
       value = model%surface_state_variables(index)%initial_value
       call fabm_link_surface_state_data(model,index,value)
@@ -222,7 +216,7 @@
 
    subroutine get_rates(pelagic_rates_) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_rates
-      real(c_double),intent(in) :: pelagic_rates_(*)
+      real(c_double),target,intent(in) :: pelagic_rates_(*)
 
       real(c_double),pointer :: pelagic_rates(:)
 
@@ -261,7 +255,7 @@
 
    subroutine reset_parameter(name) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: reset_parameter
-      character,intent(in) :: name(*)
+      character,target,intent(in) :: name(*)
 
       character(len=attribute_length),pointer :: pname
 
@@ -274,7 +268,7 @@
 
    subroutine set_real_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_real_parameter
-      character,           intent(in) :: name(*)
+      character,target,    intent(in) :: name(*)
       real(c_double),value,intent(in) :: value
 
       character(len=attribute_length),pointer :: pname
@@ -288,7 +282,7 @@
 
    function get_real_parameter(name,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_real_parameter
-      character,           intent(in) :: name(*)
+      character,target,    intent(in) :: name(*)
       real(c_double),value,intent(in) :: default
       real(c_double)                  :: value
       character(len=attribute_length),pointer :: pname
@@ -298,7 +292,7 @@
 
    subroutine set_integer_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_integer_parameter
-      character,           intent(in) :: name(*)
+      character,target,    intent(in) :: name(*)
       integer(c_int),value,intent(in) :: value
 
       character(len=attribute_length),pointer :: pname
@@ -312,7 +306,7 @@
 
    function get_integer_parameter(name,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_integer_parameter
-      character,           intent(in) :: name(*)
+      character,target,    intent(in) :: name(*)
       integer(c_int),value,intent(in) :: default
       integer(c_int)                  :: value
       character(len=attribute_length),pointer :: pname
@@ -322,7 +316,7 @@
 
    subroutine set_logical_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_logical_parameter
-      character,           intent(in) :: name(*)
+      character,target,    intent(in) :: name(*)
       integer(c_int),value,intent(in) :: value
 
       character(len=attribute_length),pointer :: pname
@@ -336,7 +330,7 @@
 
    function get_logical_parameter(name,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_logical_parameter
-      character,           intent(in) :: name(*)
+      character,target,    intent(in) :: name(*)
       integer(c_int),value,intent(in) :: default
       integer(c_int)                  :: value
       character(len=attribute_length),pointer :: pname
@@ -357,7 +351,7 @@
    end subroutine
 
    function get_string_parameter(name,default) result(value)
-      character,intent(in) :: name(*),default(*)
+      character,target,intent(in) :: name(*),default(*)
       character            :: value(1024)
       class (type_property),pointer :: property
       character(len=attribute_length),pointer :: pname,pdefault

@@ -2,7 +2,7 @@ include ../../Rules.make
 
 export FABMHOST=python
 
-EXTRA_FFLAGS+=-fPIC
+EXTRA_FFLAGS+=-fpic
 
 all: python
 
@@ -12,7 +12,7 @@ fabm:
 ${LIBFABM}(helper.o): fabm
 
 python: ${LIBFABM}(helper.o)
-	$(FC) -shared $(LDFLAGS) $(LIBS) fabm_python.F90 $(LIBFABM) -o fabm-python.so
+	$(FC) -shared -fpic $(LDFLAGS) $(LIBS) fabm_python.F90 $(LIBFABM) -o fabm-python.so
 
 clean:
 	$(RM) *.o *.mod *~
