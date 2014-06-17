@@ -51,7 +51,7 @@
    ! Management of model variables: retrieve identifiers, get and set data.
    public fabm_get_bulk_variable_id,fabm_get_horizontal_variable_id,fabm_get_scalar_variable_id
    public fabm_get_variable_name, fabm_is_variable_used, fabm_variable_needs_values
-   public fabm_link_bulk_state_data, fabm_link_bottom_state_data
+   public fabm_link_bulk_state_data, fabm_link_bottom_state_data, fabm_link_surface_state_data
    public fabm_link_bulk_data, fabm_link_horizontal_data, fabm_link_scalar_data
    public fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
 
@@ -1632,6 +1632,31 @@
    call fabm_link_horizontal_data(self,self%bottom_state_variables(id)%globalid,dat)
 
    end subroutine fabm_link_bottom_state_data
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
+! a single surface-bound state variable.
+!
+! !INTERFACE:
+   subroutine fabm_link_surface_state_data(self,id,dat)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                           intent(inout) :: self
+   integer,                                      intent(in)    :: id
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   call fabm_link_horizontal_data(self,self%surface_state_variables(id)%globalid,dat)
+
+   end subroutine fabm_link_surface_state_data
 !EOC
 
 !-----------------------------------------------------------------------
