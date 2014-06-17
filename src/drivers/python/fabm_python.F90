@@ -11,7 +11,7 @@
 ! TODO
 !
 ! !USES:
-   use iso_c_binding, only: c_double, c_int, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr
+   use iso_c_binding, only: c_double, c_int, c_char, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr
 
    !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
 
@@ -89,7 +89,7 @@
       call fabm_check_ready(model)
    end subroutine
 
-   integer function model_count() bind(c)
+   integer(c_int) function model_count() bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: model_count
 
       type (type_model_list_node), pointer :: node
@@ -121,7 +121,7 @@
    subroutine get_variable_metadata(category,index,length,name,units,long_name) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_metadata
       integer(c_int),intent(in), value             :: category,index,length
-      character,     intent(out),dimension(length) :: name,units,long_name
+      character(kind=c_char),intent(out),dimension(length) :: name,units,long_name
 
       class (type_external_variable),pointer :: variable
 
@@ -148,7 +148,7 @@
    subroutine get_parameter_metadata(index,length,name,units,long_name,typecode) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_parameter_metadata
       integer(c_int),intent(in), value             :: index,length
-      character,     intent(out),dimension(length) :: name,units,long_name
+      character(kind=c_char),intent(out),dimension(length) :: name,units,long_name
       integer(c_int),intent(out)                   :: typecode
 
       integer                       :: i
@@ -171,7 +171,7 @@
    subroutine get_dependency_metadata(index,length,name,units) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_dependency_metadata
       integer(c_int),intent(in), value             :: index,length
-      character,     intent(out),dimension(length) :: name,units
+      character(kind=c_char),intent(out),dimension(length) :: name,units
 
       call copy_to_c_string(environment_names(index),name)
       call copy_to_c_string(environment_units(index),units)
@@ -255,7 +255,7 @@
 
    subroutine reset_parameter(name) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: reset_parameter
-      character,target,intent(in) :: name(*)
+      character(kind=c_char),target,intent(in) :: name(*)
 
       character(len=attribute_length),pointer :: pname
 
@@ -268,7 +268,7 @@
 
    subroutine set_real_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_real_parameter
-      character,target,    intent(in) :: name(*)
+      character(kind=c_char),target,    intent(in) :: name(*)
       real(c_double),value,intent(in) :: value
 
       character(len=attribute_length),pointer :: pname
@@ -282,7 +282,7 @@
 
    function get_real_parameter(name,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_real_parameter
-      character,target,    intent(in) :: name(*)
+      character(kind=c_char),target,    intent(in) :: name(*)
       real(c_double),value,intent(in) :: default
       real(c_double)                  :: value
       character(len=attribute_length),pointer :: pname
@@ -292,7 +292,7 @@
 
    subroutine set_integer_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_integer_parameter
-      character,target,    intent(in) :: name(*)
+      character(kind=c_char),target,    intent(in) :: name(*)
       integer(c_int),value,intent(in) :: value
 
       character(len=attribute_length),pointer :: pname
@@ -306,7 +306,7 @@
 
    function get_integer_parameter(name,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_integer_parameter
-      character,target,    intent(in) :: name(*)
+      character(kind=c_char),target,    intent(in) :: name(*)
       integer(c_int),value,intent(in) :: default
       integer(c_int)                  :: value
       character(len=attribute_length),pointer :: pname
@@ -316,7 +316,7 @@
 
    subroutine set_logical_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_logical_parameter
-      character,target,    intent(in) :: name(*)
+      character(kind=c_char),target,    intent(in) :: name(*)
       integer(c_int),value,intent(in) :: value
 
       character(len=attribute_length),pointer :: pname
@@ -330,7 +330,7 @@
 
    function get_logical_parameter(name,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_logical_parameter
-      character,target,    intent(in) :: name(*)
+      character(kind=c_char),target,    intent(in) :: name(*)
       integer(c_int),value,intent(in) :: default
       integer(c_int)                  :: value
       character(len=attribute_length),pointer :: pname
