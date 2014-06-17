@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 
-import ctypes
+import ctypes,ctypes.util,sys
 from ctypes import CDLL, POINTER, c_int, c_double, c_char_p, byref, create_string_buffer, pointer
 from numpy.ctypeslib import ndpointer
 
 import sys,os
 sys.path.append(os.path.join(os.path.dirname(__file__),'../../../compilers/vs2010/x64-Debug/fabm-python'))
-sys.path.append(os.path.join(os.path.dirname(__file__),'fabm'))
+sys.path.append(os.path.dirname(__file__))
 import numpy
-#import fabm
 
-# Shortcut to FABM module living on the Fortran side
-#fabm = fabm.fabm_python
-dllpath = os.path.join(os.path.dirname(__file__),'../../../compilers/vs2010/x64-Debug/fabm-python/fabm-python.dll')
-fabm = CDLL(dllpath)
+if sys.platform=='win32':
+   dllpath = '../../../compilers/vs2010/x64-Debug/fabm-python/fabm-python.dll'
+else:
+   dllpath = 'fabm-python.so'
+fabm = CDLL(os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpath))
 fabm.get_variable_counts.argtypes = [POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int)]
 fabm.get_variable_metadata.argtypes = [c_int,c_int,c_int,c_char_p,c_char_p,c_char_p]
 fabm.get_parameter_metadata.argtypes = [c_int,c_int,c_char_p,c_char_p,c_char_p,POINTER(c_int)]

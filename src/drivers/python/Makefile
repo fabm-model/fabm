@@ -2,14 +2,6 @@ include ../../Rules.make
 
 export FABMHOST=python
 
-ifeq ($(FORTRAN_COMPILER),IFORT)
-SETUPARGS+=--fcompiler=intel
-endif
-
-ifeq ($(FORTRAN_COMPILER),GFORTRAN)
-SETUPARGS+=--fcompiler=gnu95
-endif
-
 EXTRA_FFLAGS+=-fPIC
 
 all: python
@@ -20,14 +12,13 @@ fabm:
 ${LIBFABM}(helper.o): fabm
 
 python: ${LIBFABM}(helper.o)
-	./setup.py build_ext --inplace $(SETUPARGS)
+	$(FC) -shared $(LDFLAGS) $(LIBS) fabm_python.F90 $(LIBFABM) -o fabm-python.so
 
 clean:
 	$(RM) *.o *.mod *~
-	$(RM) -rf build dist
 
 realclean: clean
-	$(RM) -rf fabm_fortran
+	$(RM) *.so
 
 distclean: realclean
 	$(MAKE) -C $(FABMDIR)/src $@

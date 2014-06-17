@@ -106,7 +106,8 @@
       end do
    end function
 
-   subroutine get_variable_counts(nstate_bulk,nstate_surface,nstate_bottom,ndiagnostic_bulk,ndiagnostic_horizontal,nconserved,ndependencies,nparameters) bind(c)
+   subroutine get_variable_counts(nstate_bulk,nstate_surface,nstate_bottom,ndiagnostic_bulk,ndiagnostic_horizontal,nconserved, &
+      ndependencies,nparameters) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_counts
       integer(c_int),intent(out) :: nstate_bulk,nstate_surface,nstate_bottom
       integer(c_int),intent(out) :: ndiagnostic_bulk,ndiagnostic_horizontal
@@ -225,7 +226,8 @@
 
       real(c_double),pointer :: pelagic_rates(:)
 
-      call c_f_pointer(c_loc(pelagic_rates_),pelagic_rates,(/size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)/))
+      call c_f_pointer(c_loc(pelagic_rates_),pelagic_rates, &
+        (/size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)/))
       pelagic_rates = 0.0_rk
       call fabm_do(model,pelagic_rates)
 
