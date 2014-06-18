@@ -124,10 +124,10 @@
       nparameters = model%root%parameters%size()
    end subroutine
 
-   subroutine get_variable_metadata(category,index,length,name,units,long_name) bind(c)
+   subroutine get_variable_metadata(category,index,length,name,units,long_name,path) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_metadata
       integer(c_int),intent(in), value             :: category,index,length
-      character(kind=c_char),intent(out),dimension(length) :: name,units,long_name
+      character(kind=c_char),intent(out),dimension(length) :: name,units,long_name,path
 
       class (type_external_variable),pointer :: variable
 
@@ -149,6 +149,7 @@
       call copy_to_c_string(variable%name,     name)
       call copy_to_c_string(variable%units,    units)
       call copy_to_c_string(variable%long_name,long_name)
+      call copy_to_c_string(variable%path,     path)
    end subroutine
 
    subroutine get_parameter_metadata(index,length,name,units,long_name,typecode) bind(c)

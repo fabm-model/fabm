@@ -13,7 +13,7 @@ fabm = ctypes.CDLL(os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpa
 # Specify arguments and return types for FABM interfaces.
 fabm.initialize.argtypes = [ctypes.c_char_p]
 fabm.get_variable_counts.argtypes = [ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
-fabm.get_variable_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
+fabm.get_variable_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
 fabm.get_parameter_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int)]
 fabm.get_dependency_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p]
 fabm.get_real_parameter.argtypes = [ctypes.c_char_p,ctypes.c_double]
@@ -55,11 +55,13 @@ def printTree(root,stringmapper,indent=''):
             print '%s%s = %s' % (indent,name,stringmapper(item))
 
 class Variable(object):
-    def __init__(self,name,units=None,long_name=None):
+    def __init__(self,name,units=None,long_name=None,path=None):
         self.name = name
         self.units = units
         if long_name is None: long_name = name
+        if path is None: path = name
         self.long_name = long_name
+        self.path = path
 
 class Dependency(Variable):
     def __init__(self,name,index,units=None,long_name=None):
@@ -76,8 +78,8 @@ class Dependency(Variable):
     value = property(getValue, setValue)
 
 class StateVariable(Variable):
-    def __init__(self,statearray,name,index,units=None,long_name=None):
-        Variable.__init__(self,name,units,long_name)
+    def __init__(self,statearray,name,index,units=None,long_name=None,path=None):
+        Variable.__init__(self,name,units,long_name,path)
         self.index = index
         self.statearray = statearray
 
@@ -90,8 +92,8 @@ class StateVariable(Variable):
     value = property(getValue, setValue)
 
 class DiagnosticVariable(Variable):
-    def __init__(self,name,index,horizontal,units=None,long_name=None):
-        Variable.__init__(self,name,units,long_name)
+    def __init__(self,name,index,horizontal,units=None,long_name=None,path=None):
+        Variable.__init__(self,name,units,long_name,path)
         pdata = ctypes.POINTER(ctypes.c_double)()
         if horizontal:
             fabm.get_horizontal_diagnostic_data(index+1,ctypes.byref(pdata))
@@ -104,14 +106,11 @@ class DiagnosticVariable(Variable):
 
     value = property(getValue)
 
-class Parameter(object):
+class Parameter(Variable):
     def __init__(self,name,units=None,long_name=None,type=None,model=None):
-        self.name = name
-        self.units = units
+        Variable.__init__(self,name,units,long_name)
         self.type = type
         self.model = model
-        if long_name is None: long_name = name
-        self.long_name = long_name
 
     def getValue(self):
         if self.type==1:
@@ -187,6 +186,7 @@ class Model(object):
         strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        strpath = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         typecode = ctypes.c_int()
         self.bulk_state_variables = []
         self.surface_state_variables = []
@@ -197,23 +197,23 @@ class Model(object):
         self.parameters = []
         self.dependencies = []
         for i in range(nstate_bulk.value):
-            fabm.get_variable_metadata(BULK_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
-            self.bulk_state_variables.append(StateVariable(self.state,strname.value,i,strunits.value,strlong_name.value))
+            fabm.get_variable_metadata(BULK_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
+            self.bulk_state_variables.append(StateVariable(self.state,strname.value,i,strunits.value,strlong_name.value,strpath.value))
         for i in range(nstate_surface.value):
-            fabm.get_variable_metadata(SURFACE_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
-            self.surface_state_variables.append(StateVariable(self.state,strname.value,nstate_bulk.value+i,strunits.value,strlong_name.value))
+            fabm.get_variable_metadata(SURFACE_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
+            self.surface_state_variables.append(StateVariable(self.state,strname.value,nstate_bulk.value+i,strunits.value,strlong_name.value,strpath.value))
         for i in range(nstate_bottom.value):
-            fabm.get_variable_metadata(BOTTOM_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
-            self.bottom_state_variables.append(StateVariable(self.state,strname.value,nstate_bulk.value+nstate_surface.value+i,strunits.value,strlong_name.value))
+            fabm.get_variable_metadata(BOTTOM_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
+            self.bottom_state_variables.append(StateVariable(self.state,strname.value,nstate_bulk.value+nstate_surface.value+i,strunits.value,strlong_name.value,strpath.value))
         for i in range(ndiag_bulk.value):
-            fabm.get_variable_metadata(BULK_DIAGNOSTIC_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
-            self.bulk_diagnostic_variables.append(DiagnosticVariable(strname.value,i,False,strunits.value))
+            fabm.get_variable_metadata(BULK_DIAGNOSTIC_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
+            self.bulk_diagnostic_variables.append(DiagnosticVariable(strname.value,i,False,strunits.value,strlong_name,strpath.value))
         for i in range(ndiag_horizontal.value):
-            fabm.get_variable_metadata(HORIZONTAL_DIAGNOSTIC_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
-            self.horizontal_diagnostic_variables.append(DiagnosticVariable(strname.value,i,True,strunits.value))
+            fabm.get_variable_metadata(HORIZONTAL_DIAGNOSTIC_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
+            self.horizontal_diagnostic_variables.append(DiagnosticVariable(strname.value,i,True,strunits.value,strlong_name,strpath.value))
         for i in range(nconserved.value):
-            fabm.get_variable_metadata(CONSERVED_QUANTITY,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
-            self.conserved_quantities.append(Variable(strname.value,strunits.value))
+            fabm.get_variable_metadata(CONSERVED_QUANTITY,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
+            self.conserved_quantities.append(Variable(strname.value,strunits.value,strlong_name,strpath.value))
         for i in range(nparameters.value):
             fabm.get_parameter_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,ctypes.byref(typecode))
             self.parameters.append(Parameter(strname.value,type=typecode.value,units=strunits.value,long_name=strlong_name.value,model=self))
@@ -221,7 +221,7 @@ class Model(object):
             fabm.get_dependency_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits)
             self.dependencies.append(Dependency(strname.value,i,units=strunits.value))
 
-        # Arrays that combine variables from pelagic and boudnary domains.
+        # Arrays that combine variables from pelagic and boundary domains.
         self.state_variables = self.bulk_state_variables + self.surface_state_variables + self.bottom_state_variables
         self.diagnostic_variables = self.bulk_diagnostic_variables + self.horizontal_diagnostic_variables
 

@@ -112,6 +112,7 @@
       character(len=attribute_length) :: name          = ''
       character(len=attribute_length) :: long_name     = ''
       character(len=attribute_length) :: units         = ''
+      character(len=attribute_length) :: path          = ''
       real(rk)                        :: minimum       = -1.e20_rk
       real(rk)                        :: maximum       =  1.e20_rk
       real(rk)                        :: missing_value = -2.e20_rk
@@ -2640,6 +2641,7 @@ subroutine classify_variables(self)
       consvar%name = trim(consvar%standard_variable%name)
       consvar%units = trim(consvar%standard_variable%units)
       consvar%long_name = trim(consvar%standard_variable%name)
+      consvar%path = trim(consvar%standard_variable%name)
       consvar%aggregate_variable => aggregate_variable
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
       select type (object)
@@ -2839,6 +2841,7 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    external_variable%name          = get_safe_name(internal_variable%name)
    external_variable%long_name     = internal_variable%long_name
    external_variable%units         = internal_variable%units
+   external_variable%path          = internal_variable%name
    external_variable%minimum       = internal_variable%minimum
    external_variable%maximum       = internal_variable%maximum
    external_variable%missing_value = internal_variable%missing_value
