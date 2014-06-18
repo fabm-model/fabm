@@ -893,7 +893,7 @@
    do while (associated(link))
       select type (object=>link%target)
          class is (type_bulk_variable)
-            if (object%name==name) then
+            if (object%name==name.or.get_safe_name(object%name)==name) then
                id = create_external_variable_id(object)
                return
             end if
@@ -968,7 +968,7 @@
    do while (associated(link))
       select type (object=>link%target)
          class is (type_horizontal_variable)
-            if (object%name==name) then
+            if (object%name==name.or.get_safe_name(object%name)==name) then
                id = create_external_variable_id(object)
                return
             end if
@@ -1045,7 +1045,7 @@
    do while (associated(link))
       select type (object=>link%target)
          class is (type_scalar_variable)
-            if (object%name==name) then
+            if (object%name==name.or.get_safe_name(object%name)==name) then
                id = create_external_variable_id(object)
                return
             end if
@@ -2686,7 +2686,7 @@ subroutine classify_variables(self)
                         call object%state_indices%set_value(nstate)
                      case (presence_external_required)
                         call fatal_error('classify_variables', &
-                           'Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
+                           'Variable '//trim(link%name)//' must be coupled to an existing state variable.')
                      case default
                         continue
                   end select
@@ -2713,7 +2713,7 @@ subroutine classify_variables(self)
                         end select
                      case (presence_external_required)
                         call fatal_error('classify_variables', &
-                           'Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
+                           'Variable '//trim(link%name)//' must be coupled to an existing state variable.')
                   end select
                end if
          end select
@@ -2836,7 +2836,7 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    class (type_external_variable),intent(inout) :: external_variable
    class (type_internal_variable),intent(in)    :: internal_variable
 
-   external_variable%name          = internal_variable%name
+   external_variable%name          = get_safe_name(internal_variable%name)
    external_variable%long_name     = internal_variable%long_name
    external_variable%units         = internal_variable%units
    external_variable%minimum       = internal_variable%minimum

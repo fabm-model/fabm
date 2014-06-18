@@ -217,7 +217,7 @@ contains
          do while (associated(pair))
             select type (value=>pair%value)
                class is (type_scalar)
-                  call model%request_coupling(trim(get_safe_name(pair%key)),trim(get_safe_name(value%string)),required=.true.)
+                  call model%request_coupling(trim(pair%key),trim(value%string),required=.true.)
                class is (type_node)
                   call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
                      ' must be a string, not a nested dictionary.')

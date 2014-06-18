@@ -361,9 +361,8 @@
       type (type_model_list)          :: children
 
       ! Model name and variable prefixes.
-      character(len=64) :: name             = ''
-      character(len=64) :: name_prefix      = ''
-      character(len=64) :: long_name_prefix = ''
+      character(len=64) :: name      = ''
+      character(len=64) :: long_name = ''
 
       ! Models constituents: links to variables, coupling requests, parameters, expressions
       type (type_link),              pointer :: first_link               => null()
@@ -829,11 +828,10 @@
       if (associated(model%parent)) call self%fatal_error('add_child','The provided child model has already been connected to a parent.')
 
       model%name = name
-      model%name_prefix = trim(name)//'_'
       if (present(long_name)) then
-         model%long_name_prefix = trim(long_name)//' '
+         model%long_name = trim(long_name)
       else
-         model%long_name_prefix = trim(name)//' '
+         model%long_name = trim(name)
       end if
       model%parent => self
       model%check_missing_parameters = self%check_missing_parameters
@@ -1049,7 +1047,7 @@ recursive subroutine add_alias(self,target,name)
    type (type_link),pointer :: link
 
    link => create_link(self,target,name,owner=.false.)
-   if (associated(self%parent)) call self%parent%add_alias(target,trim(self%name_prefix)//trim(name))
+   if (associated(self%parent)) call self%parent%add_alias(target,trim(self%name)//'/'//trim(name))
 end subroutine
 
 subroutine coupling_list_add(self,coupling)
@@ -1683,8 +1681,8 @@ end subroutine
 
       ! Forward to parent
       if (associated(self%parent)) then
-         object%name = trim(self%name_prefix)//trim(object%name)
-         object%long_name = trim(self%long_name_prefix)//' '//trim(object%long_name)
+         object%name = trim(self%name)//'/'//trim(object%name)
+         object%long_name = trim(self%long_name)//' '//trim(object%long_name)
          parent_link => self%parent%add_object(object)
       end if
    end function
@@ -2933,7 +2931,7 @@ end subroutine merge_scalar_variables
 
       link => self%first_link
       do while (associated(link))
-         if (link%name==name) return
+         if (link%name==name.or.get_safe_name(link%name)==name) return
          link => link%next
       end do
 
