@@ -1,42 +1,39 @@
 #!/usr/bin/env python
 
-import ctypes,ctypes.util,sys
-from ctypes import CDLL, POINTER, c_int, c_double, c_char_p, byref, create_string_buffer, pointer
-from numpy.ctypeslib import ndpointer
-
-import sys,os
-sys.path.append(os.path.join(os.path.dirname(__file__),'../../../compilers/vs2010/x64-Debug/fabm-python'))
-sys.path.append(os.path.dirname(__file__))
+import sys,os,ctypes
 import numpy
 
+# Load FABM library
 if sys.platform=='win32':
    dllpath = '../../../compilers/vs2010/x64-Debug/fabm-python/fabm-python.dll'
 else:
    dllpath = 'fabm-python.so'
-fabm = CDLL(os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpath))
-fabm.initialize.argtypes = [c_char_p]
-fabm.get_variable_counts.argtypes = [POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int)]
-fabm.get_variable_metadata.argtypes = [c_int,c_int,c_int,c_char_p,c_char_p,c_char_p]
-fabm.get_parameter_metadata.argtypes = [c_int,c_int,c_char_p,c_char_p,c_char_p,POINTER(c_int)]
-fabm.get_dependency_metadata.argtypes = [c_int,c_int,c_char_p,c_char_p]
-fabm.get_real_parameter.argtypes = [c_char_p,c_double]
-fabm.get_real_parameter.restype = c_double
-fabm.get_integer_parameter.argtypes = [c_char_p,c_int]
-fabm.get_integer_parameter.restype = c_int
-fabm.get_logical_parameter.argtypes = [c_char_p,c_int]
-fabm.get_logical_parameter.restype = c_int
-#fabm.get_string_parameter.argtypes = [c_char_p,c_char_p]
-#fabm.get_string_parameter.restype = c_char_p
-fabm.set_real_parameter.argtypes = [c_char_p,c_double]
-fabm.set_integer_parameter.argtypes = [c_char_p,c_int]
-fabm.set_logical_parameter.argtypes = [c_char_p,c_int]
-fabm.link_bulk_state_data.argtypes = [c_int,POINTER(c_double)]
-fabm.link_surface_state_data.argtypes = [c_int,POINTER(c_double)]
-fabm.link_bottom_state_data.argtypes = [c_int,POINTER(c_double)]
-fabm.link_dependency_data.argtypes = [c_int,POINTER(c_double)]
-fabm.get_bulk_diagnostic_data.argtypes = [c_int,POINTER(POINTER(c_double))]
-fabm.get_horizontal_diagnostic_data.argtypes = [c_int,POINTER(POINTER(c_double))]
-fabm.get_rates.argtypes = [ndpointer(dtype=c_double, ndim=1, flags='CONTIGUOUS')]
+fabm = ctypes.CDLL(os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpath))
+
+# Specify arguments and return types for FABM interfaces.
+fabm.initialize.argtypes = [ctypes.c_char_p]
+fabm.get_variable_counts.argtypes = [ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
+fabm.get_variable_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
+fabm.get_parameter_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int)]
+fabm.get_dependency_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p]
+fabm.get_real_parameter.argtypes = [ctypes.c_char_p,ctypes.c_double]
+fabm.get_real_parameter.restype = ctypes.c_double
+fabm.get_integer_parameter.argtypes = [ctypes.c_char_p,ctypes.c_int]
+fabm.get_integer_parameter.restype = ctypes.c_int
+fabm.get_logical_parameter.argtypes = [ctypes.c_char_p,ctypes.c_int]
+fabm.get_logical_parameter.restype = ctypes.c_int
+#fabm.get_string_parameter.argtypes = [ctypes.c_char_p,ctypes.c_char_p]
+#fabm.get_string_parameter.restype = ctypes.c_char_p
+fabm.set_real_parameter.argtypes = [ctypes.c_char_p,ctypes.c_double]
+fabm.set_integer_parameter.argtypes = [ctypes.c_char_p,ctypes.c_int]
+fabm.set_logical_parameter.argtypes = [ctypes.c_char_p,ctypes.c_int]
+fabm.link_bulk_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
+fabm.link_surface_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
+fabm.link_bottom_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
+fabm.link_dependency_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
+fabm.get_bulk_diagnostic_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
+fabm.get_horizontal_diagnostic_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
+fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS')]
 
 BULK_STATE_VARIABLE            = 1
 SURFACE_STATE_VARIABLE         = 2
@@ -67,8 +64,8 @@ class Variable(object):
 class Dependency(Variable):
     def __init__(self,name,index,units=None,long_name=None):
         Variable.__init__(self,name,units,long_name)
-        self.data = c_double(0.)
-        fabm.link_dependency_data(index+1,byref(self.data))
+        self.data = ctypes.c_double(0.)
+        fabm.link_dependency_data(index+1,ctypes.byref(self.data))
 
     def getValue(self):
         return self.data.value
@@ -95,11 +92,11 @@ class StateVariable(Variable):
 class DiagnosticVariable(Variable):
     def __init__(self,name,index,horizontal,units=None,long_name=None):
         Variable.__init__(self,name,units,long_name)
-        pdata = POINTER(c_double)()
+        pdata = ctypes.POINTER(ctypes.c_double)()
         if horizontal:
-            fabm.get_horizontal_diagnostic_data(index+1,byref(pdata))
+            fabm.get_horizontal_diagnostic_data(index+1,ctypes.byref(pdata))
         else:
-            fabm.get_bulk_diagnostic_data(index+1,byref(pdata))
+            fabm.get_bulk_diagnostic_data(index+1,ctypes.byref(pdata))
         self.data = pdata.contents
 
     def getValue(self):
@@ -165,32 +162,32 @@ class Model(object):
 
     def updateConfiguration(self,settings=None):
         # Get number of model variables per category
-        nstate_bulk = c_int()
-        nstate_surface = c_int()
-        nstate_bottom = c_int()
-        ndiag_bulk = c_int()
-        ndiag_horizontal = c_int()
-        nconserved = c_int()
-        ndependencies = c_int()
-        nparameters = c_int()
-        fabm.get_variable_counts(byref(nstate_bulk),byref(nstate_surface),byref(nstate_bottom),
-                                 byref(ndiag_bulk),byref(ndiag_horizontal),
-                                 byref(nconserved),byref(ndependencies),byref(nparameters))
+        nstate_bulk = ctypes.c_int()
+        nstate_surface = ctypes.c_int()
+        nstate_bottom = ctypes.c_int()
+        ndiag_bulk = ctypes.c_int()
+        ndiag_horizontal = ctypes.c_int()
+        nconserved = ctypes.c_int()
+        ndependencies = ctypes.c_int()
+        nparameters = ctypes.c_int()
+        fabm.get_variable_counts(ctypes.byref(nstate_bulk),ctypes.byref(nstate_surface),ctypes.byref(nstate_bottom),
+                                 ctypes.byref(ndiag_bulk),ctypes.byref(ndiag_horizontal),
+                                 ctypes.byref(nconserved),ctypes.byref(ndependencies),ctypes.byref(nparameters))
 
-        # Allocate memory for state variable values, and send pointer to this memory to FABM.
+        # Allocate memory for state variable values, and send ctypes.pointer to this memory to FABM.
         self.state = numpy.empty((nstate_bulk.value+nstate_surface.value+nstate_bottom.value,),dtype=float)
         for i in range(nstate_bulk.value):
-            fabm.link_bulk_state_data(i+1,self.state[i:].ctypes.data_as(POINTER(c_double)))
+            fabm.link_bulk_state_data(i+1,self.state[i:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
         for i in range(nstate_surface.value):
-            fabm.link_surface_state_data(i+1,self.state[i+nstate_bulk.value:].ctypes.data_as(POINTER(c_double)))
+            fabm.link_surface_state_data(i+1,self.state[i+nstate_bulk.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
         for i in range(nstate_bottom.value):
-            fabm.link_bottom_state_data(i+1,self.state[i+nstate_bulk.value+nstate_surface.value:].ctypes.data_as(POINTER(c_double)))
+            fabm.link_bottom_state_data(i+1,self.state[i+nstate_bulk.value+nstate_surface.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
 
         # Retrieve variable metadata
-        strname = create_string_buffer(ATTRIBUTE_LENGTH)
-        strunits = create_string_buffer(ATTRIBUTE_LENGTH)
-        strlong_name = create_string_buffer(ATTRIBUTE_LENGTH)
-        typecode = c_int()
+        strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        typecode = ctypes.c_int()
         self.bulk_state_variables = []
         self.surface_state_variables = []
         self.bottom_state_variables = []
@@ -218,7 +215,7 @@ class Model(object):
             fabm.get_variable_metadata(CONSERVED_QUANTITY,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
             self.conserved_quantities.append(Variable(strname.value,strunits.value))
         for i in range(nparameters.value):
-            fabm.get_parameter_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,byref(typecode))
+            fabm.get_parameter_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,ctypes.byref(typecode))
             self.parameters.append(Parameter(strname.value,type=typecode.value,units=strunits.value,long_name=strlong_name.value,model=self))
         for i in range(ndependencies.value):
             fabm.get_dependency_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits)
@@ -266,12 +263,17 @@ class Model(object):
 
     def printInformation(self):
         """Show information about the model."""
+        def printArray(classname,array):
+            if not array: return
+            print ' %i %s:' % (len(array),classname)
+            for variable in array: print '    %s = %s %s' % (variable.name,variable.value,variable.units)
+
         print 'FABM model contains the following:'
-        print ' %i state variables:' % len(self.state_variables)
-        for variable in self.state_variables: print '    %s = %s %s' % (variable.name,variable.value,variable.units)
-        print ' %i diagnostic variables:' % len(self.diagnostic_variables)
-        for variable in self.diagnostic_variables: print '    %s = %s %s' % (variable.name,variable.value,variable.units)
-        print ' %i external variables:' % len(self.dependencies)
-        for variable in self.dependencies: print '    %s = %s %s' % (variable.name,variable.value,variable.units)
+        printArray('bulk state variables',self.bulk_state_variables)
+        printArray('bottom state variables',self.bottom_state_variables)
+        printArray('surface state variables',self.surface_state_variables)
+        printArray('bulk diagnostic variables',self.bulk_diagnostic_variables)
+        printArray('horizontal diagnostic variables',self.horizontal_diagnostic_variables)
+        printArray('external variables',self.dependencies)
         print ' %i parameters:' % len(self.parameters)
         printTree(self.getParameterTree(),lambda x:'%s %s' % (x.value,x.units),'    ')
