@@ -14,6 +14,7 @@ if sys.platform=='win32':
 else:
    dllpath = 'fabm-python.so'
 fabm = CDLL(os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpath))
+fabm.initialize.argtypes = [c_char_p]
 fabm.get_variable_counts.argtypes = [POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int),POINTER(c_int)]
 fabm.get_variable_metadata.argtypes = [c_int,c_int,c_int,c_char_p,c_char_p,c_char_p]
 fabm.get_parameter_metadata.argtypes = [c_int,c_int,c_char_p,c_char_p,c_char_p,POINTER(c_int)]
@@ -146,8 +147,8 @@ class Parameter(object):
     value = property(getValue, setValue)
 
 class Model(object):
-    def __init__(self):
-        fabm.initialize()
+    def __init__(self,path='fabm.yaml'):
+        fabm.initialize(path)
         self.updateConfiguration()
 
     def saveSettings(self):
