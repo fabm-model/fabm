@@ -330,10 +330,12 @@
 #define _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ _DIMENSION_SLICE_PLUS_1_
 #define _DIMENSION_HORIZONTAL_SLICE_PLUS_2_ _DIMENSION_SLICE_PLUS_2_
 
+#define _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ALLOCATABLE_ _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_
+
 #define _INDEX_HORIZONTAL_SLICE_ _INDEX_SLICE_
 #define _INDEX_HORIZONTAL_SLICE_PLUS_1_(index) _INDEX_SLICE_PLUS_1_(index)
 
-#define _SIZE_HORIZONTAL_SLICE_ SIZE_SLICE_
+#define _HORIZONTAL_SLICE_SHAPE_ _SLICE_SHAPE_
 #define _DIMENSION_HORIZONTAL_SLICE_AUTOMATIC_ _DIMENSION_SLICE_AUTOMATIC_
 
 #else
@@ -353,10 +355,12 @@
 #define _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ ,dimension(:)
 #define _DIMENSION_HORIZONTAL_SLICE_PLUS_2_ ,dimension(:,:)
 
+#define _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ALLOCATABLE_ ,dimension(:)
+
 #define _INDEX_HORIZONTAL_SLICE_
 #define _INDEX_HORIZONTAL_SLICE_PLUS_1_(index) (index)
 
-#define _SIZE_HORIZONTAL_SLICE_
+#define _HORIZONTAL_SLICE_SHAPE_
 #define _DIMENSION_HORIZONTAL_SLICE_AUTOMATIC_
 
 #endif
@@ -375,7 +379,7 @@
 #define _ARGUMENTS_HZ_ _ARGUMENTS_SHARED_ _ARG_LOCATION_VARS_HZ_
 #define _ARGUMENTS_DO_ _ARGUMENTS_ND_,rhs
 #define _ARGUMENTS_DO_PPDD_ _ARGUMENTS_ND_,pp,dd
-#define _ARGUMENTS_DO_SURFACE_ _ARGUMENTS_HZ_,flux
+#define _ARGUMENTS_DO_SURFACE_ _ARGUMENTS_HZ_,flux_pel,flux_sf
 #define _ARGUMENTS_DO_BOTTOM_ _ARGUMENTS_HZ_,flux_pel,flux_ben
 #define _ARGUMENTS_DO_BOTTOM_PPDD_ _ARGUMENTS_HZ_,pp,dd,benthos_offset
 #define _ARGUMENTS_GET_VERTICAL_MOVEMENT_ _ARGUMENTS_ND_,velocity
@@ -399,7 +403,7 @@
 #define _DECLARE_ARGUMENTS_DO_PPDD_ _DECLARE_ARGUMENTS_ND_;real(rk) _DIMENSION_SLICE_PLUS_2_,intent(inout) :: pp,dd
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_ _DECLARE_ARGUMENTS_HZ_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_ben
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_ _DECLARE_ARGUMENTS_HZ_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
-#define _DECLARE_ARGUMENTS_DO_SURFACE_ _DECLARE_ARGUMENTS_HZ_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux
+#define _DECLARE_ARGUMENTS_DO_SURFACE_ _DECLARE_ARGUMENTS_HZ_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_sf
 #define _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ _DECLARE_ARGUMENTS_ND_;real(rk) _DIMENSION_SLICE_PLUS_1_,intent(inout) :: velocity
 #define _DECLARE_ARGUMENTS_GET_EXTINCTION_ _DECLARE_ARGUMENTS_ND_;real(rk) _DIMENSION_SLICE_,intent(inout) :: extinction
 #define _DECLARE_ARGUMENTS_GET_DRAG_ _DECLARE_ARGUMENTS_HZ_;real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: drag
@@ -446,9 +450,10 @@
 
 ! For BGC models: Expressions for setting space-dependent FABM variables defined on the full spatial domain.
 #define _SET_ODE_(variable,value) rhs _INDEX_SLICE_PLUS_1_(variable%state_index) = rhs _INDEX_SLICE_PLUS_1_(variable%state_index) + (value)/self%dt
-#define _SET_ODE_BEN_(variable,value) flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_state_index) = flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_state_index) + (value)/self%dt
+#define _SET_BOTTOM_ODE_(variable,value) flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_state_index) = flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_state_index) + (value)/self%dt
+#define _SET_SURFACE_ODE_(variable,value) flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_state_index) = flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_state_index) + (value)/self%dt
 #define _SET_BOTTOM_EXCHANGE_(variable,value) flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) + (value)/self%dt
-#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) = value/self%dt
+#define _SET_SURFACE_EXCHANGE_(variable,value) flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) + (value)/self%dt
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
 #define _SET_PP_(variable1,variable2,value) pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
 #define _SET_EXTINCTION_(value) extinction _INDEX_SLICE_ = extinction _INDEX_SLICE_ + (value)
@@ -499,6 +504,7 @@
 #define _SET_STATE_BEN_EX_(env,variable,value) _SET_HORIZONTAL_EX_(variable,value)
 #define _SET_DIAG_(variable,value) _SET_DIAGNOSTIC_(variable,value)
 #define _SET_DIAG_HZ_(variable,value) _SET_HORIZONTAL_DIAGNOSTIC_(variable,value)
+#define _SET_ODE_BEN_(variable,value) _SET_BOTTOM_ODE_(variable,value)
 #define _FABM_HZ_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_
 #define _FABM_HZ_LOOP_END_ _HORIZONTAL_LOOP_END_
 

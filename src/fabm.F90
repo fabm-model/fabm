@@ -304,13 +304,19 @@
       module procedure fabm_bulk_variable_needs_values
    end interface
 
+   interface fabm_do_surface
+      module procedure fabm_do_surface_nosfstate
+      module procedure fabm_do_surface_sfstate
+   end interface
+
    ! For backward compatibility only:
    interface fabm_do_benthos
       module procedure fabm_do_bottom_rhs
       module procedure fabm_do_bottom_ppdd
    end interface
    interface fabm_get_surface_exchange
-      module procedure fabm_do_surface
+      module procedure fabm_do_surface_nosfstate
+      module procedure fabm_do_surface_sfstate
    end interface
 
    interface create_external_variable_id
@@ -2009,14 +2015,50 @@ end subroutine
 ! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
-   subroutine fabm_do_surface(self _ARG_LOCATION_VARS_HZ_,flux)
+   subroutine fabm_do_surface_nosfstate(self _ARG_LOCATION_VARS_HZ_,flux_pel)
 !
 ! !INPUT PARAMETERS:
       class (type_model),                          intent(inout) :: self
       _DECLARE_LOCATION_ARG_HZ_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: flux
+      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: flux_pel
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!
+      type (type_model_list_node), pointer :: node
+      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ALLOCATABLE_ :: flux_sf
+!-----------------------------------------------------------------------
+!BOC
+      allocate(flux_sf(_HORIZONTAL_SLICE_SHAPE_ 0))
+      flux_pel = 0.0_rk
+      node => self%models%first
+      do while (associated(node))
+         call node%model%do_surface(_ARGUMENTS_IN_HZ_,flux_pel,flux_sf)
+         node => node%next
+      end do
+
+   end subroutine
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the air-water exchange fluxes for all biogeochemical state variables.
+! Positive values indicate fluxes into the ocean, negative values indicate fluxes
+! out of the ocean. Units are tracer unit * m/s.
+!
+! !INTERFACE:
+   subroutine fabm_do_surface_sfstate(self _ARG_LOCATION_VARS_HZ_,flux_pel,flux_sf)
+!
+! !INPUT PARAMETERS:
+      class (type_model),                          intent(inout) :: self
+      _DECLARE_LOCATION_ARG_HZ_
+!
+! !INPUT/OUTPUT PARAMETERS:
+      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: flux_pel,flux_sf
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2025,14 +2067,15 @@ end subroutine
       type (type_model_list_node), pointer :: node
 !-----------------------------------------------------------------------
 !BOC
-      flux = 0.0_rk
+      flux_pel = 0.0_rk
+      flux_sf = 0.0_rk
       node => self%models%first
       do while (associated(node))
-         call node%model%do_surface(_ARGUMENTS_IN_HZ_,flux)
+         call node%model%do_surface(_ARGUMENTS_IN_HZ_,flux_pel,flux_sf)
          node => node%next
       end do
 
-   end subroutine fabm_do_surface
+   end subroutine
 !EOC
 
 !-----------------------------------------------------------------------
