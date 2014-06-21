@@ -324,17 +324,24 @@
 
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
-   allocate(cc(size(model%state_variables)+size(model%bottom_state_variables)))
+   allocate(cc(size(model%state_variables)+size(model%bottom_state_variables)+size(model%surface_state_variables)))
    do i=1,size(model%state_variables)
       cc(i) = model%state_variables(i)%initial_value
       call fabm_link_bulk_state_data(model,i,cc(i))
    end do
 
-   ! Create benthos variable vector, using the initial values specified by the model,
+   ! Create bottom-bound state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
    do i=1,size(model%bottom_state_variables)
       cc(size(model%state_variables)+i) = model%bottom_state_variables(i)%initial_value
       call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i))
+   end do
+
+   ! Create surface-bound state variable vector, using the initial values specified by the model,
+   ! and link state data to FABM.
+   do i=1,size(model%surface_state_variables)
+      cc(size(model%state_variables)+size(model%bottom_state_variables)+i) = model%surface_state_variables(i)%initial_value
+      call fabm_link_surface_state_data(model,i,cc(size(model%state_variables)+size(model%bottom_state_variables)+i))
    end do
 
    id_dens = fabm_get_bulk_variable_id(model,standard_variables%density)
@@ -635,6 +642,9 @@
       do i=1,size(model%bottom_state_variables)
          call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i))
       end do
+      do i=1,size(model%surface_state_variables)
+         call fabm_link_surface_state_data(model,i,cc(size(model%state_variables)+size(model%bottom_state_variables)+i))
+      end do
 
       call do_repair_state('0d::time_loop(), after ode_solver()')
 
@@ -785,6 +795,9 @@
    do n=1,size(model%bottom_state_variables)
       call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n))
    end do
+   do n=1,size(model%surface_state_variables)
+      call fabm_link_surface_state_data(model,n,cc(size(model%state_variables)+size(model%bottom_state_variables)+n))
+   end do
 
    call update_fabm_expressions()
 
@@ -845,19 +858,22 @@
    do n=1,size(model%bottom_state_variables)
       call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n))
    end do
+   do n=1,size(model%surface_state_variables)
+      call fabm_link_surface_state_data(model,n,cc(size(model%state_variables)+size(model%bottom_state_variables)+n))
+   end do
 
    call update_fabm_expressions()
 
    ! Shortcut to the number of pelagic state variables.
    n = size(model%state_variables)
 
-   ! Calculate temporal derivatives due to surface exchange.
+   ! Calculate temporal derivatives due to surface-bound processes.
    call update_depth(SURFACE)
-   call fabm_get_surface_exchange(model,rhs(1:n))
+   call fabm_do_surface(model,rhs(1:n),rhs(n+size(model%bottom_state_variables)+1:))
 
-   ! Calculate temporal derivatives due to benthic processes.
+   ! Calculate temporal derivatives due to bottom-bound processes.
    call update_depth(BOTTOM)
-   call fabm_do_benthos(model,rhs(1:n),rhs(n+1:))
+   call fabm_do_bottom(model,rhs(1:n),rhs(n+1:n+size(model%bottom_state_variables)))
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
    rhs(1:n) = rhs(1:n)/column_depth

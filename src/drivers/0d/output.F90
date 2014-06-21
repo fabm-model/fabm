@@ -151,6 +151,9 @@
          do i=1,size(model%bottom_state_variables)
             write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%bottom_state_variables(i)%long_name),trim(model%bottom_state_variables(i)%units)
          end do
+         do i=1,size(model%surface_state_variables)
+            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%surface_state_variables(i)%long_name),trim(model%surface_state_variables(i)%units)
+         end do
          if (add_diagnostic_variables) then
             do i=1,size(model%diagnostic_variables)
                write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%diagnostic_variables(i)%long_name),trim(model%diagnostic_variables(i)%units)
@@ -199,7 +202,7 @@
          iret = nf90_def_var(ncid,'salt',NF90_REAL,dims,salt_id)
          call check_err(iret)
 
-         allocate(statevar_ids(size(model%state_variables)+size(model%bottom_state_variables)))
+         allocate(statevar_ids(size(model%state_variables)+size(model%bottom_state_variables)+size(model%surface_state_variables)))
          allocate(diagnostic_ids(size(model%diagnostic_variables)+size(model%horizontal_diagnostic_variables)))
          allocate(conserved_ids(size(model%conserved_quantities)))
          allocate(conserved_change_ids(size(model%conserved_quantities)))
@@ -209,6 +212,9 @@
          end do
          do i=1,size(model%bottom_state_variables)
             call create_variable(model%bottom_state_variables(i),statevar_ids(i+size(model%state_variables)))
+         end do
+         do i=1,size(model%surface_state_variables)
+            call create_variable(model%surface_state_variables(i),statevar_ids(i+size(model%state_variables)+size(model%bottom_state_variables)))
          end do
 
          do i=1,size(model%diagnostic_variables)
@@ -310,7 +316,7 @@
             write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,temp
             write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,salt
          end if
-         do i=1,(size(model%state_variables)+size(model%bottom_state_variables))
+         do i=1,size(cc)
             write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(i)
          end do
          if (add_diagnostic_variables) then
@@ -345,14 +351,8 @@
          iret = nf90_put_var(ncid,salt_id,salt,start)
          call check_err(iret)
 
-         do i=1,size(model%state_variables)
+         do i=1,size(cc)
             iret = nf90_put_var(ncid,statevar_ids(i),cc(i),start)
-            call check_err(iret)
-         end do
-
-         j=size(model%state_variables)
-         do i=1,size(model%bottom_state_variables)
-            iret = nf90_put_var(ncid,statevar_ids(i+j),cc(i+j),start)
             call check_err(iret)
          end do
 
