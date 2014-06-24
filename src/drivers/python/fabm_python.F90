@@ -17,7 +17,7 @@
 
    use fabm
    use fabm_config
-   use fabm_types, only:rk,attribute_length,type_model_list_node
+   use fabm_types, only:rk,attribute_length,type_model_list_node,type_base_model,factory
    use fabm_driver, only: type_base_driver, driver
    use fabm_properties, only: type_property, type_property_dictionary, type_real_property
    use fabm_python_helper
@@ -34,10 +34,9 @@
    integer,parameter :: HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
    integer,parameter :: CONSERVED_QUANTITY             = 6
 
-   type (type_model),private,target,save :: model
+   class (type_model),private,pointer,save :: model => null()
    real(8),dimension(:),pointer :: state
    character(len=1024),dimension(:),allocatable :: environment_names,environment_units
-   character(len=1024) :: yaml_path
 
    type (type_property_dictionary),save,private :: forced_parameters
 
@@ -69,17 +68,26 @@
 !EOP
 !
       character(len=attribute_length),pointer :: ppath
+      class (type_property),          pointer :: property
 !-----------------------------------------------------------------------
 !BOC
       call c_f_pointer(c_loc(path), ppath)
-      yaml_path = ppath(:index(ppath,C_NULL_CHAR)-1)
 
-      if (model%initialized) call finalize()
+      if (associated(model)) call finalize()
 
       if (.not.associated(driver)) allocate(type_python_driver::driver)
 
       ! Build FABM model tree (configuration will be read from fabm.yaml).
-      call fabm_create_model_from_yaml_file(model,path=yaml_path,parameters=forced_parameters)
+      allocate(model)
+      call fabm_create_model_from_yaml_file(model,path=ppath(:index(ppath,C_NULL_CHAR)-1),parameters=forced_parameters)
+
+      ! Get a list of all parameter that had an explicit value specified.
+      property => model%root%parameters%first
+      do while (associated(property))
+         if (.not.model%root%missing_parameters%contains(property%name)) &
+            call forced_parameters%set_property(property)
+         property => property%next
+      end do
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
       call fabm_set_domain(model)
@@ -89,6 +97,53 @@
 
    end subroutine initialize
 !EOC
+
+   subroutine reinitialize()
+      type (type_model),           pointer :: newmodel
+      type (type_model_list_node), pointer :: node
+      class (type_base_model),     pointer :: childmodel
+      class (type_property),       pointer :: property,next
+
+      allocate(newmodel)
+
+      ! Transfer forced parameters to root of the model.
+      call newmodel%root%parameters%update(forced_parameters)
+
+      ! Re-create original models
+      node => model%root%children%first
+      do while (associated(node))
+         if (node%model%type_name/='') then
+            call factory%create(node%model%type_name,childmodel)
+            call newmodel%root%add_child(childmodel,node%model%name,node%model%long_name,configunit=-1)
+         end if
+         node => node%next
+      end do
+
+      ! Clean up old model
+      call finalize()
+      model => newmodel
+
+      ! Initialize new model
+      call fabm_initialize(model)
+
+      ! Removed unused forced parameters from root model.
+      property => model%root%parameters%first
+      do while (associated(property))
+         if (.not. model%root%retrieved_parameters%contains(property%name)) then
+            next => property%next
+            call model%root%parameters%delete(property%name)
+            property => next
+         else
+            property => property%next
+         end if
+      end do
+
+      ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
+      call fabm_set_domain(model)
+
+      ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
+      call get_environment_metadata(model,environment_names,environment_units)
+   end subroutine
 
    subroutine check_ready()
       !DIR$ ATTRIBUTES DLLEXPORT :: check_ready
@@ -270,7 +325,7 @@
       call forced_parameters%delete(pname(:index(pname,C_NULL_CHAR)-1))
 
       ! Re-initialize the model using updated parameter values
-      call initialize(yaml_path)
+      call reinitialize()
    end subroutine
 
    subroutine set_real_parameter(name,value) bind(c)
@@ -284,7 +339,7 @@
       call forced_parameters%set_real(pname(:index(pname,C_NULL_CHAR)-1),value)
 
       ! Re-initialize the model using updated parameter values
-      call initialize(yaml_path)
+      call reinitialize()
    end subroutine
 
    function get_real_parameter(name,default) bind(c) result(value)
@@ -308,7 +363,7 @@
       call forced_parameters%set_integer(pname(:index(pname,C_NULL_CHAR)-1),value)
 
       ! Re-initialize the model using updated parameter values
-      call initialize(yaml_path)
+      call reinitialize()
    end subroutine
 
    function get_integer_parameter(name,default) bind(c) result(value)
@@ -332,7 +387,7 @@
       call forced_parameters%set_logical(pname(:index(pname,C_NULL_CHAR)-1),value/=0)
 
       ! Re-initialize the model using updated parameter values
-      call initialize(yaml_path)
+      call reinitialize()
    end subroutine
 
    function get_logical_parameter(name,default) bind(c) result(value)
@@ -354,7 +409,7 @@
       call forced_parameters%set_string(name,value)
 
       ! Re-initialize the model using updated parameter values
-      call initialize(yaml_path)
+      call reinitialize()
    end subroutine
 
    function get_string_parameter(name,default) result(value)

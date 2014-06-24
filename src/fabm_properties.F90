@@ -23,7 +23,6 @@ module fabm_properties
       character(len=metadata_string_length) :: name       = ''
       character(len=metadata_string_length) :: long_name  = ''
       character(len=metadata_string_length) :: units      = ''
-      logical                               :: accessed   = .false.
       class (type_property), pointer        :: next       => null()
    contains
       procedure :: typecode
@@ -74,8 +73,6 @@ module fabm_properties
       procedure :: keys
 
       procedure :: compare_keys
-
-      procedure :: reset_accessed
    end type
 
    type type_set_element
@@ -267,7 +264,6 @@ contains
          allocate(current%next,source=property)
          current => current%next
       end if
-      current%accessed = .true.
       nullify(current%next)
    end subroutine
 
@@ -319,10 +315,7 @@ contains
 
       property => dictionary%first
       do while (associated(property))
-         if (dictionary%compare_keys(property%name,name)) then
-            property%accessed = .true.
-            return
-         end if
+         if (dictionary%compare_keys(property%name,name)) return
          property => property%next
       end do
    end function
@@ -397,7 +390,7 @@ contains
 
       ! Now look internally for properties with this name.
       previous => dictionary%first
-      property => property%next
+      property => previous%next
       do while (associated(property))
          if (dictionary%compare_keys(property%name,name)) then
             previous%next => property%next
@@ -435,18 +428,6 @@ contains
       do while (associated(property))
          n = n + 1
          names(n) = trim(property%name)
-         property => property%next
-      end do
-   end subroutine
-
-   subroutine reset_accessed(dictionary)
-      class (type_property_dictionary),intent(inout) :: dictionary
-
-      class (type_property),pointer :: property
-
-      property => dictionary%first
-      do while (associated(property))
-         property%accessed = .false.
          property => property%next
       end do
    end subroutine

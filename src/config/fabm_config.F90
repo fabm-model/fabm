@@ -189,7 +189,6 @@ contains
       end if
 
       ! Add the model to its parent.
-      call model%parameters%reset_accessed()
       call log_message('Initializing biogeochemical model "'//trim(instancename)//'" (type "'//trim(modelname)//'")...')
       call parent%add_child(model,instancename,long_name,configunit=-1)
       call log_message('model "'//trim(instancename)//'" initialized successfully.')
@@ -202,7 +201,7 @@ contains
       ! Check for parameters present in configuration file, but not interpreted by the models.
       property => model%parameters%first
       do while (associated(property))
-         if (.not.property%accessed) call fatal_error('create_model_from_dictionary', &
+         if (.not.model%retrieved_parameters%contains(property%name)) call fatal_error('create_model_from_dictionary', &
             'Unrecognized parameter "'//trim(property%name)//'" found below '//trim(childmap%path)//'.')
          property => property%next
       end do
