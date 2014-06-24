@@ -363,6 +363,7 @@
       ! Model name and variable prefixes.
       character(len=64) :: name      = ''
       character(len=64) :: long_name = ''
+      character(len=64) :: type_name = ''
 
       ! Models constituents: links to variables, coupling requests, parameters, expressions
       type (type_link),              pointer :: first_link               => null()
@@ -377,7 +378,6 @@
       real(rk) :: dt = 1.0_rk
 
       logical :: check_conservation = .false.
-      logical :: check_missing_parameters = .true.
 
       ! Identifiers for variables that contain zero at all time.
       type (type_dependency_id)            :: id_zero
@@ -834,7 +834,6 @@
          model%long_name = trim(name)
       end if
       model%parent => self
-      model%check_missing_parameters = self%check_missing_parameters
       call self%children%append(model)
       call model%initialize(configunit)
    end subroutine add_child
@@ -2303,283 +2302,211 @@ recursive subroutine register_expression(self,expression)
    if (associated(self%parent)) call register_expression(self%parent,expression)
 end subroutine
 
-recursive subroutine get_real_parameter(self,value,name,units,long_name,default,scale_factor,found)
+subroutine get_real_parameter(self,value,name,units,long_name,default,scale_factor)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target  :: self
    real(rk),                intent(inout)          :: value
    character(len=*),        intent(in)             :: name
    character(len=*),        intent(in),   optional :: units,long_name
    real(rk),                intent(in),   optional :: default,scale_factor
-   logical,                 intent(inout),optional :: found
 !
 !EOP
 !
 ! !LOCAL VARIABLES:
    class (type_property),    pointer :: property
+   logical                           :: success
    type (type_real_property),pointer :: current_parameter
-   real(rk)                          :: default_eff
-   logical                           :: found_eff,success
 !
 !-----------------------------------------------------------------------
 !BOC
-   if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_real_parameter', &
-      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
-   call self%retrieved_parameters%add(name)
+   ! Start with default value, if provided.
+   if (present(default)) value = default
 
-   if (present(default)) then
-      default_eff = default
-   else
-      default_eff = value
-   end if
-   if (present(found)) then
-      found_eff = found
-   else
-      found_eff = .false.
-   end if
-
-   ! Try to find the parameter in the model's own parameter list.
-   property => self%parameters%get_property(name)
+   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+   property => find_parameter(self,name,.not.present(default))
    if (associated(property)) then
-      found_eff = .true.
-      default_eff = property%to_real(success=success)
+      ! Value found - try to convert to real.
+      value = property%to_real(success=success)
       if (.not.success) call self%fatal_error('get_real_parameter', &
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a real number.')
-   end if
-
-   if (associated(self%parent)) then
-      call self%parent%get_parameter(value,trim(self%name)//'/'//name,units,long_name,default_eff,1.0_rk,found_eff)
-   else
-      value = default_eff
-   end if
-
-   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
-      ! We are back at the model that started the parameter search, but have not found a value.
-      ! Raise an error if the model did not provide a default value.
-      if (.not.present(default)) call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
-      call self%missing_parameters%add(name)
    end if
 
    ! Store parameter settings
    allocate(current_parameter)
    current_parameter%value = value
+   call set_parameter(self,current_parameter,name,units,long_name)
 
-   call add_parameter(self,current_parameter,name,units,long_name)
-
+   ! Apply scale factor to value provided to the model (if requested).
    if (present(scale_factor)) value = value*scale_factor
-
 end subroutine get_real_parameter
 !EOC
 
-recursive subroutine get_integer_parameter(self,value,name,units,long_name,default,found)
+function find_parameter(self,name,required) result(property)
+   class (type_base_model), intent(inout), target :: self
+   character(len=*),        intent(in)            :: name
+   logical,                 intent(in)            :: required
+   class (type_property), pointer :: property
+
+   class (type_base_model), pointer :: pmodel
+   character(len=attribute_length)  :: localname
+
+   nullify(property)
+   pmodel => self
+   localname = name
+   do while (associated(pmodel))
+      ! Register that the value of this parameter was requested (i.e., used) by a biogeochemical model.
+      if (pmodel%retrieved_parameters%contains(localname)) call pmodel%fatal_error('find_parameter', &
+         'Value for parameter "'//trim(localname)//'" has already been retrieved once.')
+      call pmodel%retrieved_parameters%add(localname)
+
+      property => pmodel%parameters%get_property(localname)
+      if (associated(property)) return
+      localname = trim(self%name)//'/'//localname
+      pmodel => pmodel%parent
+   end do
+
+   ! Value not found. Raise an error if a value if required (e.g., if the model did not provide a default value).
+   ! Otherwise, just register at all levels of the model hierarchy that this parameter is missing.
+   if (required) call self%fatal_error('find_parameter','No value provided for parameter "'//trim(name)//'".')
+   pmodel => self
+   localname = name
+   do while (associated(pmodel))
+      localname = trim(self%name)//'/'//localname
+      call pmodel%missing_parameters%add(localname)
+      pmodel => pmodel%parent
+   end do
+end function find_parameter
+
+subroutine set_parameter(self,parameter,name,units,long_name)
+! !INPUT PARAMETERS:
+   class (type_base_model), intent(inout), target :: self
+   class (type_property),   intent(inout), target :: parameter
+   character(len=*),        intent(in)            :: name
+   character(len=*),        intent(in),optional   :: units,long_name
+!
+!EOP
+   class (type_base_model), pointer :: pmodel
+!-----------------------------------------------------------------------
+!BOC
+   pmodel => self
+   parameter%name = name
+   if (present(units))     parameter%units     = units
+   if (present(long_name)) parameter%long_name = long_name
+   do while (associated(pmodel))
+      ! Store metadata
+      call pmodel%parameters%set_property(parameter)
+      parameter%name = trim(self%name)//'/'//parameter%name
+      pmodel => pmodel%parent
+   end do
+end subroutine set_parameter
+!EOC
+
+subroutine get_integer_parameter(self,value,name,units,long_name,default)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
    integer,                 intent(inout)         :: value
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
    integer,                 intent(in),optional   :: default
-   logical,                 intent(inout),optional :: found
 !
 !EOP
 !
 ! !LOCAL VARIABLES:
    class (type_property),       pointer :: property
    type (type_integer_property),pointer :: current_parameter
-   integer                              :: default_eff
-   logical                              :: found_eff,success
+   logical                              :: success
 !
 !-----------------------------------------------------------------------
 !BOC
-   if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_integer_parameter', &
-      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
-   call self%retrieved_parameters%add(name)
+   ! Start with default value, if provided.
+   if (present(default)) value = default
 
-   if (present(default)) then
-      default_eff = default
-   else
-      default_eff = value
-   end if
-   if (present(found)) then
-      found_eff = found
-   else
-      found_eff = .false.
-   end if
-
-   ! Try to find the parameter in the model's own parameter list.
-   property => self%parameters%get_property(name)
+   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+   property => find_parameter(self,name,.not.present(default))
    if (associated(property)) then
-      found_eff = .true.
-      default_eff = property%to_integer(success=success)
+      ! Value found - try to convert to integer.
+      value = property%to_integer(success=success)
       if (.not.success) call self%fatal_error('get_integer_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an integer.')
-   end if
-
-   if (associated(self%parent)) then
-      call self%parent%get_parameter(value,trim(self%name)//'/'//name,units,long_name,default_eff,found_eff)
-   else
-      value = default_eff
-   end if
-
-   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
-      ! We are back at the model that started the parameter search, but have not found a value.
-      ! Raise an error if the model did not provide a default value.
-      if (.not.present(default)) call self%fatal_error('get_integer_parameter','No value provided for parameter "'//trim(name)//'".')
-      call self%missing_parameters%add(name)
+         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an integer number.')
    end if
 
    ! Store parameter settings
    allocate(current_parameter)
    current_parameter%value = value
-
-   call add_parameter(self,current_parameter,name,units,long_name)
-
+   call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_integer_parameter
 !EOC
 
-recursive subroutine get_logical_parameter(self,value,name,units,long_name,default,found)
+subroutine get_logical_parameter(self,value,name,units,long_name,default)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
    logical,                 intent(inout)         :: value
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
    logical,                 intent(in),optional   :: default
-   logical,                 intent(inout),optional :: found
 !
 !EOP
 !
 ! !LOCAL VARIABLES:
    class (type_property),       pointer :: property
    type (type_logical_property),pointer :: current_parameter
-   logical                              :: default_eff
-   logical                              :: found_eff,success
+   logical                              :: success
 !
 !-----------------------------------------------------------------------
 !BOC
-   if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_logical_parameter', &
-      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
-   call self%retrieved_parameters%add(name)
+   ! Start with default value, if provided.
+   if (present(default)) value = default
 
-   if (present(default)) then
-      default_eff = default
-   else
-      default_eff = value
-   end if
-   if (present(found)) then
-      found_eff = found
-   else
-      found_eff = .false.
-   end if
-
-   ! Try to find the parameter in the model's own parameter list.
-   property => self%parameters%get_property(name)
+   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+   property => find_parameter(self,name,.not.present(default))
    if (associated(property)) then
-      found_eff = .true.
-      default_eff = property%to_logical(success=success)
+      ! Value found - try to convert to logical.
+      value = property%to_logical(success=success)
       if (.not.success) call self%fatal_error('get_logical_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an Boolean.')
-   end if
-   
-   if (associated(self%parent)) then
-      call self%parent%get_parameter(value,trim(self%name)//'/'//name,units,long_name,default_eff,found_eff)
-   else
-      value = default_eff
-   end if
-
-   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
-      ! We are back at the model that started the parameter search, but have not found a value.
-      ! Raise an error if the model did not provide a default value.
-      if (.not.present(default)) call self%fatal_error('get_logical_parameter','No value provided for parameter "'//trim(name)//'".')
-      call self%missing_parameters%add(name)
+         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a Boolean value.')
    end if
 
    ! Store parameter settings
    allocate(current_parameter)
    current_parameter%value = value
-
-   call add_parameter(self,current_parameter,name,units,long_name)
-
+   call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_logical_parameter
 !EOC
 
-recursive subroutine get_string_parameter(self,value,name,units,long_name,default,found)
+recursive subroutine get_string_parameter(self,value,name,units,long_name,default)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
    character(len=*),        intent(inout)         :: value
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
    character(len=*),        intent(in),optional   :: default
-   logical,                 intent(inout),optional :: found
 !
 !EOP
 !
 ! !LOCAL VARIABLES:
    class (type_property),      pointer :: property
    type (type_string_property),pointer :: current_parameter
-   character(len=1024)                 :: default_eff
-   logical                             :: found_eff
+   logical                             :: success
 !
 !-----------------------------------------------------------------------
 !BOC
-   if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_string_parameter', &
-      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
-   call self%retrieved_parameters%add(name)
+   ! Start with default value, if provided.
+   if (present(default)) value = default
 
-   if (present(default)) then
-      default_eff = default
-   else
-      default_eff = value
-   end if
-   if (present(found)) then
-      found_eff = found
-   else
-      found_eff = .false.
-   end if
-
-   ! Try to find the parameter in the model's own parameter list.
-   property => self%parameters%get_property(name)
+   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+   property => find_parameter(self,name,.not.present(default))
    if (associated(property)) then
-      found_eff = .true.
-      default_eff = property%to_string()
-   end if
-
-   if (associated(self%parent)) then
-      call self%parent%get_parameter(value,trim(self%name)//'/'//name,units,long_name,default_eff,found_eff)
-   else
-      value = default_eff
-   end if
-
-   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
-      ! We are back at the model that started the parameter search, but have not found a value.
-      ! Raise an error if the model did not provide a default value.
-      if (.not.present(default)) call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
-      call self%missing_parameters%add(name)
+      ! Value found - try to convert to string.
+      value = property%to_string(success=success)
+      if (.not.success) call self%fatal_error('get_string_parameter', &
+         'Value for parameter "'//trim(name)//'" cannot be converted to string.')
    end if
 
    ! Store parameter settings
    allocate(current_parameter)
    current_parameter%value = value
-
-   call add_parameter(self,current_parameter,name,units,long_name)
-
+   call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_string_parameter
-!EOC
-
-subroutine add_parameter(model,parameter,name,units,long_name)
-! !INPUT PARAMETERS:
-   class (type_base_model), intent(inout), target :: model
-   class (type_property),   intent(inout), target :: parameter
-   character(len=*),        intent(in)            :: name
-   character(len=*),        intent(in),optional   :: units,long_name
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Store metadata
-   parameter%name = name
-   if (present(units))     parameter%units     = units
-   if (present(long_name)) parameter%long_name = long_name
-   call model%parameters%set_property(parameter)
-
-end subroutine add_parameter
 !EOC
 
 !-----------------------------------------------------------------------

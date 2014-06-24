@@ -85,6 +85,7 @@
             call self%type_base_model_factory%create(name,model)
       end select
 
+      model%type_name = name
    end subroutine
 !EOC
 

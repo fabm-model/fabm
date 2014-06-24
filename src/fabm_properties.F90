@@ -225,45 +225,49 @@ contains
       class (type_property),           intent(in)    :: property
       logical,optional,                intent(in)    :: overwrite
 
-      class (type_property),pointer                  :: current,next
+      class (type_property),pointer                  :: current,previous
       logical                                        :: overwrite_eff
 
       overwrite_eff = .true.
       if (present(overwrite)) overwrite_eff = overwrite
 
-      nullify(next)
+      ! First determine if a property with this name already exists (if so, delete it)
+      nullify(previous)
+      current => dictionary%first
+      do while (associated(current))
+         if (dictionary%compare_keys(current%name,property%name)) then
+            ! We found a property with the specified name - if we are not allowed to oevrwrite it, we're done.
+            if (.not.overwrite_eff) return
+
+            ! We are allowed to overwrite the existing property. Remove it from the list and deallocate it.
+            if (associated(previous)) then
+               ! Second or further down the list.
+               previous%next => current%next
+            else
+               ! First in the list.
+               dictionary%first => current%next
+            end if
+            deallocate(current)
+            exit
+         end if
+         previous => current
+         current => previous%next
+      end do
+
       if (.not.associated(dictionary%first)) then
          ! First property in list
          allocate(dictionary%first,source=property)
          current => dictionary%first
       else
-         ! List already contains one or more properties.
-         if (dictionary%compare_keys(dictionary%first%name,property%name)) then
-            ! The provided property replaces the head of the list.
-            if (.not.overwrite_eff) return
-            next => dictionary%first%next
-            deallocate(dictionary%first)
-            allocate(dictionary%first,source=property)
-            current => dictionary%first
-         else
-            ! Look for last element in list, or the one prior to the element with the same name.
-            current => dictionary%first
-            do while (associated(current%next))
-               if (dictionary%compare_keys(current%next%name,property%name)) exit
-               current => current%next
-            end do
-            if (associated(current%next)) then
-               ! We are replacing current%next
-               if (.not.overwrite_eff) return
-               next => current%next%next
-               deallocate(current%next)
-            end if
-            allocate(current%next,source=property)
+         ! Look for last element in list.
+         current => dictionary%first
+         do while (associated(current%next))
             current => current%next
-         end if
+         end do
+         allocate(current%next,source=property)
+         current => current%next
       end if
       current%accessed = .true.
-      current%next => next
    end subroutine
 
    subroutine update(target,source,overwrite)
