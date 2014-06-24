@@ -2371,8 +2371,8 @@ function find_parameter(self,name,required) result(property)
    pmodel => self
    localname = name
    do while (associated(pmodel))
-      localname = trim(self%name)//'/'//localname
       call pmodel%missing_parameters%add(localname)
+      localname = trim(self%name)//'/'//localname
       pmodel => pmodel%parent
    end do
 end function find_parameter

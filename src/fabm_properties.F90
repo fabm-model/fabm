@@ -268,6 +268,7 @@ contains
          current => current%next
       end if
       current%accessed = .true.
+      nullify(current%next)
    end subroutine
 
    subroutine update(target,source,overwrite)
