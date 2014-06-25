@@ -2315,12 +2315,15 @@ subroutine get_real_parameter(self,value,name,units,long_name,default,scale_fact
 ! !LOCAL VARIABLES:
    class (type_property),    pointer :: property
    logical                           :: success
-   type (type_real_property),pointer :: current_parameter
+   type (type_real_property)         :: current_parameter
 !
 !-----------------------------------------------------------------------
 !BOC
-   ! Start with default value, if provided.
-   if (present(default)) value = default
+   if (present(default)) then
+      current_parameter%has_default = .true.
+      current_parameter%default = default
+      value = default
+   end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
    property => find_parameter(self,name,.not.present(default))
@@ -2332,7 +2335,6 @@ subroutine get_real_parameter(self,value,name,units,long_name,default,scale_fact
    end if
 
    ! Store parameter settings
-   allocate(current_parameter)
    current_parameter%value = value
    call set_parameter(self,current_parameter,name,units,long_name)
 
@@ -2380,7 +2382,7 @@ end function find_parameter
 subroutine set_parameter(self,parameter,name,units,long_name)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
-   class (type_property),   intent(inout), target :: parameter
+   class (type_property),   intent(inout)         :: parameter
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
 !
@@ -2413,13 +2415,16 @@ subroutine get_integer_parameter(self,value,name,units,long_name,default)
 !
 ! !LOCAL VARIABLES:
    class (type_property),       pointer :: property
-   type (type_integer_property),pointer :: current_parameter
+   type (type_integer_property)         :: current_parameter
    logical                              :: success
 !
 !-----------------------------------------------------------------------
 !BOC
-   ! Start with default value, if provided.
-   if (present(default)) value = default
+   if (present(default)) then
+      current_parameter%has_default = .true.
+      current_parameter%default = default
+      value = default
+   end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
    property => find_parameter(self,name,.not.present(default))
@@ -2431,7 +2436,6 @@ subroutine get_integer_parameter(self,value,name,units,long_name,default)
    end if
 
    ! Store parameter settings
-   allocate(current_parameter)
    current_parameter%value = value
    call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_integer_parameter
@@ -2449,13 +2453,16 @@ subroutine get_logical_parameter(self,value,name,units,long_name,default)
 !
 ! !LOCAL VARIABLES:
    class (type_property),       pointer :: property
-   type (type_logical_property),pointer :: current_parameter
+   type (type_logical_property)         :: current_parameter
    logical                              :: success
 !
 !-----------------------------------------------------------------------
 !BOC
-   ! Start with default value, if provided.
-   if (present(default)) value = default
+   if (present(default)) then
+      current_parameter%has_default = .true.
+      current_parameter%default = default
+      value = default
+   end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
    property => find_parameter(self,name,.not.present(default))
@@ -2467,7 +2474,6 @@ subroutine get_logical_parameter(self,value,name,units,long_name,default)
    end if
 
    ! Store parameter settings
-   allocate(current_parameter)
    current_parameter%value = value
    call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_logical_parameter
@@ -2485,13 +2491,16 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
 !
 ! !LOCAL VARIABLES:
    class (type_property),      pointer :: property
-   type (type_string_property),pointer :: current_parameter
+   type (type_string_property)         :: current_parameter
    logical                             :: success
 !
 !-----------------------------------------------------------------------
 !BOC
-   ! Start with default value, if provided.
-   if (present(default)) value = default
+   if (present(default)) then
+      current_parameter%has_default = .true.
+      current_parameter%default = default
+      value = default
+   end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
    property => find_parameter(self,name,.not.present(default))
@@ -2503,7 +2512,6 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
    end if
 
    ! Store parameter settings
-   allocate(current_parameter)
    current_parameter%value = value
    call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_string_parameter
