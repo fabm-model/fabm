@@ -20,10 +20,11 @@ module fabm_properties
    integer, parameter :: typecode_unknown = -1, typecode_real = 1, typecode_integer = 2, typecode_logical = 3, typecode_string = 4
 
    type,abstract :: type_property
-      character(len=metadata_string_length) :: name       = ''
-      character(len=metadata_string_length) :: long_name  = ''
-      character(len=metadata_string_length) :: units      = ''
-      class (type_property), pointer        :: next       => null()
+      character(len=metadata_string_length) :: name        = ''
+      character(len=metadata_string_length) :: long_name   = ''
+      character(len=metadata_string_length) :: units       = ''
+      logical                               :: has_default = .false.
+      class (type_property), pointer        :: next        => null()
    contains
       procedure :: typecode
       procedure :: to_real
@@ -34,18 +35,22 @@ module fabm_properties
 
    type,extends(type_property) :: type_integer_property
       integer :: value
+      integer :: default = 0
    end type
 
    type,extends(type_property) :: type_real_property
       real(rk) :: value
+      real(rk) :: default = 0.0_rk
    end type
 
    type,extends(type_property) :: type_logical_property
       logical :: value
+      logical :: default = .true.
    end type
 
    type,extends(type_property) :: type_string_property
       character(len=value_string_length) :: value
+      character(len=value_string_length) :: default= ''
    end type
 
    type type_property_dictionary
@@ -59,13 +64,17 @@ module fabm_properties
       procedure :: set_logical
       procedure :: set_string
 
-      procedure :: get_property
+      procedure :: get_property_by_name
+      procedure :: get_property_by_index
+      generic   :: get_property => get_property_by_name,get_property_by_index
       procedure :: get_real
       procedure :: get_integer
       procedure :: get_logical
       procedure :: get_string
 
-      procedure :: delete => delete_property
+      procedure :: delete_by_name
+      procedure :: delete_by_index
+      generic   :: delete => delete_by_name, delete_by_index
 
       procedure :: update
 
@@ -308,7 +317,7 @@ contains
       call dictionary%set_property(type_string_property(name=name,value=value))
    end subroutine
 
-   function get_property(dictionary,name) result(property)
+   function get_property_by_name(dictionary,name) result(property)
       class (type_property_dictionary),intent(inout) :: dictionary
       character(len=*),                intent(in)    :: name
       class (type_property),pointer                  :: property
@@ -316,6 +325,20 @@ contains
       property => dictionary%first
       do while (associated(property))
          if (dictionary%compare_keys(property%name,name)) return
+         property => property%next
+      end do
+   end function
+
+   function get_property_by_index(dictionary,index) result(property)
+      class (type_property_dictionary),intent(inout) :: dictionary
+      integer,                         intent(in)    :: index
+      class (type_property),pointer                  :: property
+
+      integer                                        :: i
+
+      property => dictionary%first
+      do i=2,index
+         if (.not.associated(property)) return
          property => property%next
       end do
    end function
@@ -376,7 +399,7 @@ contains
       value = property%to_string(default=default)
    end function
 
-   subroutine delete_property(dictionary,name)
+   subroutine delete_by_name(dictionary,name)
       class (type_property_dictionary),intent(inout) :: dictionary
       character(len=*),                intent(in)    :: name
       class (type_property),pointer                  :: property,previous
@@ -400,6 +423,30 @@ contains
          end if
          property => previous%next
       end do
+   end subroutine
+
+   subroutine delete_by_index(dictionary,index)
+      class (type_property_dictionary),intent(inout) :: dictionary
+      integer,                         intent(in)    :: index
+
+      class (type_property),pointer                  :: property,previous
+      integer                                        :: i
+
+      if (.not.associated(dictionary%first)) return
+      property => dictionary%first
+      if (index==1) then
+         ! Remove head
+         dictionary%first => property%next
+      else
+         ! Remove non-head
+         do i=2,index
+            previous => property
+            property => previous%next
+            if (.not.associated(property)) return
+         end do
+         previous%next => property%next
+      end if
+      deallocate(property)
    end subroutine
 
    function get_size(dictionary) result(n)
