@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys,os,ctypes
+import sys,os,ctypes,re
 import numpy
 
 # Load FABM library
@@ -14,16 +14,17 @@ fabm = ctypes.CDLL(os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpa
 fabm.initialize.argtypes = [ctypes.c_char_p]
 fabm.get_variable_counts.argtypes = [ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
 fabm.get_variable_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
-fabm.get_parameter_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int)]
+fabm.get_parameter_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
 fabm.get_dependency_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p]
-fabm.get_real_parameter.argtypes = [ctypes.c_char_p,ctypes.c_double]
+fabm.get_real_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
 fabm.get_real_parameter.restype = ctypes.c_double
-fabm.get_integer_parameter.argtypes = [ctypes.c_char_p,ctypes.c_int]
+fabm.get_integer_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
 fabm.get_integer_parameter.restype = ctypes.c_int
-fabm.get_logical_parameter.argtypes = [ctypes.c_char_p,ctypes.c_int]
+fabm.get_logical_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
 fabm.get_logical_parameter.restype = ctypes.c_int
-#fabm.get_string_parameter.argtypes = [ctypes.c_char_p,ctypes.c_char_p]
+#fabm.get_string_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
 #fabm.get_string_parameter.restype = ctypes.c_char_p
+fabm.reset_parameter.argtypes = [ctypes.c_int]
 fabm.set_real_parameter.argtypes = [ctypes.c_char_p,ctypes.c_double]
 fabm.set_integer_parameter.argtypes = [ctypes.c_char_p,ctypes.c_int]
 fabm.set_logical_parameter.argtypes = [ctypes.c_char_p,ctypes.c_int]
@@ -43,6 +44,26 @@ HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
 CONSERVED_QUANTITY             = 6
 ATTRIBUTE_LENGTH               = 256
 
+unicodesuperscript = {'1':u'\u00B9','2':u'\u00B2','3':u'\u00B3',
+                      '4':u'\u2074','5':u'\u2075','6':u'\u2076',
+                      '7':u'\u2077','8':u'\u2078','9':u'\u2079',
+                      '0':u'\u2070','-':u'\u207B'}
+supnumber = re.compile('(?<=\w)(-?\d+)(?=[ \*+\-/]|$)')
+supenumber = re.compile('(?<=\d)e-(\d+)(?=[ \*+\-/]|$)')
+oldsupminus = re.compile('/(\w+)\*\*(\d+)(?=[ \*+\-/]|$)')
+oldsup = re.compile('/(\w+)\*\*(\d+)(?=[ \*+\-/]|$)')
+def createPrettyUnit(unit):
+    def repl(m):
+        return u''.join([unicodesuperscript[n] for n in m.group(1)])
+    def reple(m):
+        return u'\u00D710\u207B%s' % u''.join([unicodesuperscript[n] for n in m.group(1)])
+    def replold(m):
+        return u' %s\u207B%s' % (m.group(1),u''.join([unicodesuperscript[n] for n in m.group(2)]))
+    unit = supenumber.sub(reple,unit)
+    unit = supnumber.sub(repl,unit)
+    unit = oldsupminus.sub(replold,unit)
+    return unit
+
 def printTree(root,stringmapper,indent=''):
     """Print an indented tree of objects, encoded by dictionaries linking the names of children to
     their subtree, or to their object. Objects are finally printed as string obtained by
@@ -58,6 +79,10 @@ class Variable(object):
     def __init__(self,name,units=None,long_name=None,path=None):
         self.name = name
         self.units = units
+        if units is None:
+           self.units_unicode = None
+        else:
+           self.units_unicode = createPrettyUnit(units)
         if long_name is None: long_name = name
         if path is None: path = name
         self.long_name = long_name
@@ -65,7 +90,8 @@ class Variable(object):
 
 class Dependency(Variable):
     def __init__(self,name,index,units=None,long_name=None):
-        Variable.__init__(self,name,units,long_name)
+        if long_name is None: long_name = name
+        Variable.__init__(self,name,units,long_name.replace('_',' '))
         self.data = ctypes.c_double(0.)
         fabm.link_dependency_data(index+1,ctypes.byref(self.data))
 
@@ -107,20 +133,23 @@ class DiagnosticVariable(Variable):
     value = property(getValue)
 
 class Parameter(Variable):
-    def __init__(self,name,units=None,long_name=None,type=None,model=None):
+    def __init__(self,name,index,units=None,long_name=None,type=None,model=None,has_default=False):
         Variable.__init__(self,name,units,long_name)
         self.type = type
+        self.index = index+1
         self.model = model
+        self.has_default = has_default
 
-    def getValue(self):
+    def getValue(self,default=False):
+        default = 1 if default else 0
         if self.type==1:
-            return fabm.get_real_parameter(self.name,0.)
+            return fabm.get_real_parameter(self.index,default)
         elif self.type==2:
-            return fabm.get_integer_parameter(self.name,0)
+            return fabm.get_integer_parameter(self.index,default)
         elif self.type==3:
-            return fabm.get_logical_parameter(self.name,0)!=0
+            return fabm.get_logical_parameter(self.index,default)!=0
         elif self.type==4:
-            return fabm.get_string_parameter(self.name,'').rstrip()
+            return fabm.get_string_parameter(self.index,default).rstrip()
 
     def setValue(self,value):
         settings = self.model.saveSettings()
@@ -137,10 +166,17 @@ class Parameter(Variable):
         # Update the model configuration (arrays with variables and parameters have changed)
         self.model.updateConfiguration(settings)
 
+    def getDefault(self):
+       if not self.has_default: return None
+       return self.getValue(True)
+
     def reset(self):
-        fabm.reset_parameter(self.name)
+        settings = self.model.saveSettings()
+        fabm.reset_parameter(self.index)
+        self.model.updateConfiguration(settings)
 
     value = property(getValue, setValue)
+    default = property(getDefault)
 
 class Model(object):
     def __init__(self,path='fabm.yaml'):
@@ -188,6 +224,7 @@ class Model(object):
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         strpath = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         typecode = ctypes.c_int()
+        has_default = ctypes.c_int()
         self.bulk_state_variables = []
         self.surface_state_variables = []
         self.bottom_state_variables = []
@@ -215,8 +252,8 @@ class Model(object):
             fabm.get_variable_metadata(CONSERVED_QUANTITY,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
             self.conserved_quantities.append(Variable(strname.value,strunits.value,strlong_name,strpath.value))
         for i in range(nparameters.value):
-            fabm.get_parameter_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,ctypes.byref(typecode))
-            self.parameters.append(Parameter(strname.value,type=typecode.value,units=strunits.value,long_name=strlong_name.value,model=self))
+            fabm.get_parameter_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,ctypes.byref(typecode),ctypes.byref(has_default))
+            self.parameters.append(Parameter(strname.value,i,type=typecode.value,units=strunits.value,long_name=strlong_name.value,model=self,has_default=has_default.value!=0))
         for i in range(ndependencies.value):
             fabm.get_dependency_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits)
             self.dependencies.append(Dependency(strname.value,i,units=strunits.value))

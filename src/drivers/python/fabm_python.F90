@@ -19,7 +19,7 @@
    use fabm_config
    use fabm_types, only:rk,attribute_length,type_model_list_node,type_base_model,factory
    use fabm_driver, only: type_base_driver, driver
-   use fabm_properties, only: type_property, type_property_dictionary, type_real_property
+   use fabm_properties
    use fabm_python_helper
 
    implicit none
@@ -207,11 +207,11 @@
       call copy_to_c_string(variable%path,     path)
    end subroutine
 
-   subroutine get_parameter_metadata(index,length,name,units,long_name,typecode) bind(c)
+   subroutine get_parameter_metadata(index,length,name,units,long_name,typecode,has_default) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_parameter_metadata
-      integer(c_int),intent(in), value             :: index,length
+      integer(c_int),        intent(in), value             :: index,length
       character(kind=c_char),intent(out),dimension(length) :: name,units,long_name
-      integer(c_int),intent(out)                   :: typecode
+      integer(c_int),        intent(out)                   :: typecode,has_default
 
       integer                       :: i
       class (type_property),pointer :: property
@@ -228,6 +228,11 @@
       call copy_to_c_string(property%units,    units)
       call copy_to_c_string(property%long_name,long_name)
       typecode = property%typecode()
+      if (property%has_default) then
+         has_default = 1
+      else
+         has_default = 0
+      end if
    end subroutine
 
    subroutine get_dependency_metadata(index,length,name,units) bind(c)
@@ -315,14 +320,14 @@
       if (allocated(environment_units)) deallocate(environment_units)
    end subroutine
 
-   subroutine reset_parameter(name) bind(c)
+   subroutine reset_parameter(index) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: reset_parameter
-      character(kind=c_char),target,intent(in) :: name(*)
+      integer(c_int),value,intent(in) :: index
+      class (type_property),pointer   :: property
 
-      character(len=attribute_length),pointer :: pname
-
-      call c_f_pointer(c_loc(name), pname)
-      call forced_parameters%delete(pname(:index(pname,C_NULL_CHAR)-1))
+      property => model%root%parameters%get_property(index)
+      if (.not.associated(property)) return
+      call forced_parameters%delete(property%name)
 
       ! Re-initialize the model using updated parameter values
       call reinitialize()
@@ -342,14 +347,23 @@
       call reinitialize()
    end subroutine
 
-   function get_real_parameter(name,default) bind(c) result(value)
+   function get_real_parameter(index,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_real_parameter
-      character(kind=c_char),target,    intent(in) :: name(*)
-      real(c_double),value,intent(in) :: default
+      integer(c_int),value,intent(in) :: index,default
       real(c_double)                  :: value
-      character(len=attribute_length),pointer :: pname
-      call c_f_pointer(c_loc(name), pname)
-      value = model%root%parameters%get_real(pname(:index(pname,C_NULL_CHAR)-1),default)
+      class (type_property),pointer   :: property
+
+      property => model%root%parameters%get_property(index)
+      select type (property)
+      class is (type_real_property)
+         if (default/=0) then
+            value = property%default
+         else
+            value = property%value
+         end if
+      class default
+         call driver%fatal_error('get_real_parameter','not a real variable')
+      end select
    end function
 
    subroutine set_integer_parameter(name,value) bind(c)
@@ -366,14 +380,23 @@
       call reinitialize()
    end subroutine
 
-   function get_integer_parameter(name,default) bind(c) result(value)
+   function get_integer_parameter(index,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_integer_parameter
-      character(kind=c_char),target,    intent(in) :: name(*)
-      integer(c_int),value,intent(in) :: default
+      integer(c_int),value,intent(in) :: index,default
       integer(c_int)                  :: value
-      character(len=attribute_length),pointer :: pname
-      call c_f_pointer(c_loc(name), pname)
-      value = model%root%parameters%get_integer(pname(:index(pname,C_NULL_CHAR)-1),default)
+      class (type_property),pointer   :: property
+
+      property => model%root%parameters%get_property(index)
+      select type (property)
+      class is (type_integer_property)
+         if (default/=0) then
+            value = property%default
+         else
+            value = property%value
+         end if
+      class default
+         call driver%fatal_error('get_integer_parameter','not an integer variable')
+      end select
    end function
 
    subroutine set_logical_parameter(name,value) bind(c)
@@ -390,18 +413,24 @@
       call reinitialize()
    end subroutine
 
-   function get_logical_parameter(name,default) bind(c) result(value)
+   function get_logical_parameter(index,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_logical_parameter
-      character(kind=c_char),target,    intent(in) :: name(*)
-      integer(c_int),value,intent(in) :: default
+      integer(c_int),value,intent(in) :: index,default
       integer(c_int)                  :: value
-      character(len=attribute_length),pointer :: pname
-      call c_f_pointer(c_loc(name), pname)
-      if (model%root%parameters%get_logical(pname(:index(pname,C_NULL_CHAR)-1),default/=0)) then
-         value = 1
-      else
+      class (type_property),pointer   :: property
+
+      property => model%root%parameters%get_property(index)
+      select type (property)
+      class is (type_logical_property)
          value = 0
-      end if
+         if (default/=0) then
+            if (property%default) value = 1
+         else
+            if (property%value) value = 1
+         end if
+      class default
+         call driver%fatal_error('get_logical_parameter','not a logical variable')
+      end select
    end function
 
    subroutine set_string_parameter(name,value)
@@ -412,16 +441,22 @@
       call reinitialize()
    end subroutine
 
-   function get_string_parameter(name,default) result(value)
-      character,target,intent(in) :: name(*),default(*)
+   function get_string_parameter(index,default) result(value)
+      integer(c_int),value,intent(in) :: index,default
       character            :: value(1024)
-      class (type_property),pointer :: property
-      character(len=attribute_length),pointer :: pname,pdefault
-      call c_f_pointer(c_loc(name), pname)
-      call c_f_pointer(c_loc(default), pdefault)
-      value = pdefault(:index(pdefault,C_NULL_CHAR)-1)
-      property => model%root%parameters%get_property(pname(:index(pname,C_NULL_CHAR)-1))
-      value = property%to_string()
+      class (type_property),pointer   :: property
+
+      property => model%root%parameters%get_property(index)
+      select type (property)
+      class is (type_string_property)
+         if (default/=0) then
+            value = property%default
+         else
+            value = property%value
+         end if
+      class default
+         call driver%fatal_error('get_string_parameter','not a string variable')
+      end select
    end function
 
    subroutine python_driver_fatal_error(self,location,message)
