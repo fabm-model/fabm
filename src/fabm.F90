@@ -1122,7 +1122,7 @@
 !-----------------------------------------------------------------------
 !BOC
    name = ''
-   if (associated(id%variable)) name = id%variable%name
+   if (associated(id%variable)) name = get_safe_name(id%variable%name)
 
    end function fabm_get_bulk_variable_name
 !EOC
@@ -1150,7 +1150,7 @@
 !-----------------------------------------------------------------------
 !BOC
    name = ''
-   if (associated(id%variable)) name = id%variable%name
+   if (associated(id%variable)) name = get_safe_name(id%variable%name)
 
    end function fabm_get_horizontal_variable_name
 !EOC
@@ -1178,7 +1178,7 @@
 !-----------------------------------------------------------------------
 !BOC
    name = ''
-   if (associated(id%variable)) name = id%variable%name
+   if (associated(id%variable)) name = get_safe_name(id%variable%name)
 
    end function fabm_get_scalar_variable_name
 !EOC
