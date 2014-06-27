@@ -1634,6 +1634,8 @@ end subroutine
       type (type_bulk_variable),pointer                  :: variable
       type (type_link), pointer :: link
       class (type_internal_object),pointer :: object
+      if (variable%name=='' .or. variable%name/=get_safe_name(variable%name)) &
+         call self%fatal_error('add_bulk_variable','Cannot register variable because its name is not valid: "'//trim(variable%name)//'".')
       object => variable
       link => add_object(self,object)
       if (.not.associated(object)) nullify(variable)
@@ -1646,6 +1648,8 @@ end subroutine
       type (type_horizontal_variable),pointer            :: variable
       type (type_link), pointer :: link
       class (type_internal_object),pointer :: object
+      if (variable%name=='' .or. variable%name/=get_safe_name(variable%name)) &
+         call self%fatal_error('add_horizontal_variable','Cannot register variable because its name is not valid: "'//trim(variable%name)//'".')
       object => variable
       link => add_object(self,object)
       if (.not.associated(object)) nullify(variable)
@@ -1658,6 +1662,8 @@ end subroutine
       type (type_scalar_variable),pointer                :: variable
       type (type_link), pointer :: link
       class (type_internal_object),pointer :: object
+      if (variable%name=='' .or. variable%name/=get_safe_name(variable%name)) &
+         call self%fatal_error('add_scalar_variable','Cannot register variable because its name is not valid: "'//trim(variable%name)//'".')
       object => variable
       link => add_object(self,object)
       if (.not.associated(object)) nullify(variable)
