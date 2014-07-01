@@ -43,8 +43,10 @@
       type (type_horizontal_diagnostic_variable_id)   :: id_bedload  !bedload
       type (type_horizontal_diagnostic_variable_id)   :: id_massfraction  !
       type (type_horizontal_dependency_id)            :: id_mudpool
-      type (type_horizontal_dependency_id)            :: id_erosionvelocity
+      type (type_horizontal_dependency_id)            :: id_deepmudpool
       type (type_horizontal_dependency_id)            :: id_totalspmpool
+      type (type_horizontal_dependency_id)            :: id_totalspmpool2
+      type (type_dependency_id)                       :: id_totalconc
       ! provide information of the light model
       type (type_diagnostic_variable_id)              :: id_dPAR
       type (type_dependency_id)                       :: id_par
@@ -76,6 +78,7 @@
       real(rk) :: morfac
       logical  :: sand_mud_interaction
       logical  :: read_external_mud
+      logical  :: read_external_mud_deep
       logical  :: iam_sand
       logical  :: iam_mud
       real(rk) :: crit_mud
@@ -146,6 +149,7 @@
    real(rk) :: morfac=1.0_rk             ! morphological factor
    real(rk) :: bedload_factor=1.0_rk     ! morphological factor
    character(len=64) :: mudpool_variable='' ! name of external mudpool variable
+   character(len=64) :: deepmudpool_variable='' ! name of external deepmudpool variable
    real(rk) :: crit_mud=0.99_rk            ! citical mud content
    real(rk) :: stressexponent=1.5_rk      ! flux = M[0|1]*(taub/tauc-1)**stressexponent
                                           ! 1.5 for sand and 1.0 for mud/cohesive
@@ -158,7 +162,8 @@
          pm_pool, shading, ws_const, rho, bedload_method,               &
          add_to_density, sand_mud_interaction, crit_mud,stressexponent, &
          resuspension_model, thickness_L1, thickness_L2, flux_alpha,    &
-         morfac, bedload_factor, mudpool_variable, use_par
+         morfac, bedload_factor, mudpool_variable, use_par,             &
+         deepmudpool_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -276,6 +281,13 @@
             self%rho*self%thickness_L2)
          call self%register_horizontal_diagnostic_variable(self%id_massflux2,'massfraction_deep','percent', &
             'massfraction in the deep layer')
+         ! compute the total mass in the transport layer
+         call self%register_dependency(self%id_totalspmpool2,'total_spm_deep_at_interfaces')
+         call self%add_to_aggregate_variable(type_bulk_standard_variable(name='total_spm_deep'),self%id_pmpool2)
+         self%read_external_mud_deep = ( deepmudpool_variable/='' )
+         if ( self%read_external_mud_deep ) then
+            call self%register_dependency(self%id_deepmudpool,trim(deepmudpool_variable))
+         endif
       endif
    endif
 
@@ -304,9 +316,6 @@
          self%iam_mud  = .false.
          call self%register_dependency(self%id_mudpool,trim(mudpool_variable))
          LEVEL2 ' I am sand'
-         ! compute the mean erosion velocity of the sand fractions
-         !call self%register_dependency(self%id_erosionvelocity,'erovelo_at_interfaces')
-         !call self%add_to_aggregate_variable(type_bulk_standard_variable(name='erovelo'),self%id_massflux)
       else
          self%iam_sand = .false.
          self%iam_mud  = .true.
@@ -334,6 +343,8 @@
    call self%set_variable_property(self%id_spm,'density',self%rho)
    call self%set_variable_property(self%id_spm,'spm',.true.)
    call self%set_variable_property(self%id_spm,'morfac',self%morfac)
+   call self%set_variable_property(self%id_pmpool,'density',self%rho)
+   call self%set_variable_property(self%id_pmpool,'morfac',self%morfac)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_taub, standard_variables%bottom_stress)
@@ -429,8 +440,11 @@
    real(rk)                     :: bedload
    real(rk)                     :: fraction_L2
    real(rk)                     :: mudfraction=0.0_rk
+   real(rk)                     :: mudfraction2=0.0_rk
    real(rk)                     :: mudpool=0.0_rk
+   real(rk)                     :: mudpool2=0.0_rk
    real(rk)                     :: totalmass=0.0_rk
+   real(rk)                     :: totalmass2=0.0_rk
    real(rk)                     :: Es_avg=0.0_rk
    real(rk)                     :: Em_avg=0.0_rk
 
@@ -459,11 +473,17 @@
       _GET_HORIZONTAL_(self%id_taub,taub)
       if ( self%resuspension_model .eq. 2 ) then
          _GET_HORIZONTAL_(self%id_pmpool2,pmpool2)
+         _GET_HORIZONTAL_(self%id_totalspmpool2,totalmass2)
+         if ( self%read_external_mud_deep ) then
+            _GET_HORIZONTAL_(self%id_deepmudpool,mudpool2)
+            mudfraction2 = mudpool2/totalmass2
+         else
+            mudfraction2 = pmpool2/totalmass2
+         endif
       endif
 
       ! sum over all pools to get the total mass in the transport layer
       if ( self%sand_mud_interaction ) then
-         !_GET_HORIZONTAL_(self%id_erosionvelocity,Es_avg)
          ! compute the mud fraction
          if ( self%read_external_mud ) then
             _GET_HORIZONTAL_(self%id_mudpool,mudpool)
@@ -531,12 +551,11 @@
                            max(taub/tauc_erosion-1.0_rk,0.0_rk)**stressexponent
             Erosion_Flux = max(Erosion_Flux,0.0_rk)
          case ( 2 )
-            Erosion_Flux  = self%M1*pmpool*(1.0_rk-porosity) * &
-                            max(taub/tauc_erosion-1.0_rk,0.0_rk)**stressexponent
+            Erosion_Flux  = min(self%M0,self%M1*pmpool)*(1.0_rk-porosity) * &
+                            max(taub/tauc_erosion-1.0_rk,0.0_rk)
             Erosion_Flux  = max(Erosion_Flux,0.0_rk)
-            fraction_L2   = max((pmpool2/(self%rho*self%thickness_L2)-1.0_rk),0.0_rk)
-            Erosion_Flux2 = self%M2*fraction_L2*(1.0_rk-porosity) * &
-                            max((taub/1.5_rk-1.0_rk),0.0_rk)**stressexponent
+            Erosion_Flux2 = self%M2*mudfraction2*(1.0_rk-porosity) * &
+                            max((taub/1.5_rk-1.0_rk),0.0_rk)**(1.5d0)
             Erosion_Flux2 = max(Erosion_Flux2,0.0_rk)
       end select
 
@@ -632,8 +651,8 @@
             _SET_ODE_BEN_(self%id_pmpool2,-(massflux2)/1000.0_rk*self%morfac)
             ! Export diagnostic variables mass flux - unit is kg/m**2/s
             _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux ,-(massflux )/1000.0_rk)
-            !_SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux2,-(massflux2)/1000.0_rk)
-            _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux2,fraction_L2*100.0_rk)
+            _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux2,-(massflux2)/1000.0_rk)
+            !_SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux2,mudfraction2*100.0_rk)
       end select
 
       ! Export diagnostic variables bed load flux - unit is kg/m**2/s
