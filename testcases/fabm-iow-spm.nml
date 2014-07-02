@@ -47,6 +47,7 @@
 &iow_spm
    diameter=60
    thickness_L1=0.1
+   M0=3e-3
    M1=1e-5
    sinking_method=1
    bottom_stress_method=1

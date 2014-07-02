@@ -34,19 +34,17 @@
 !     Variable identifiers
       type (type_state_variable_id)                   :: id_spm      !concentrations
       type (type_bottom_state_variable_id)            :: id_pmpool   !sediment pool
-      type (type_bottom_state_variable_id)            :: id_pmpool2  !sediment pool
       type (type_horizontal_dependency_id)            :: id_taub     !bottom stress
       type (type_dependency_id)                       :: id_temp     !temperature
       type (type_dependency_id)                       :: id_rhow     !density
       type (type_horizontal_diagnostic_variable_id)   :: id_massflux !exchange layer
-      type (type_horizontal_diagnostic_variable_id)   :: id_massflux2!exchange layer
       type (type_horizontal_diagnostic_variable_id)   :: id_bedload  !bedload
       type (type_horizontal_diagnostic_variable_id)   :: id_massfraction  !
-      type (type_horizontal_dependency_id)            :: id_mudpool
-      type (type_horizontal_dependency_id)            :: id_deepmudpool
-      type (type_horizontal_dependency_id)            :: id_totalspmpool
-      type (type_horizontal_dependency_id)            :: id_totalspmpool2
-      type (type_dependency_id)                       :: id_totalconc
+      type (type_horizontal_dependency_id)            :: id_total_pmpool
+      ! van Kesse L2 model
+      type (type_bottom_state_variable_id)            :: id_flufflayer  !sediment pool
+      type (type_horizontal_dependency_id)            :: id_total_fluffpool
+      type (type_horizontal_dependency_id)            :: id_total_mudpool
       ! provide information of the light model
       type (type_diagnostic_variable_id)              :: id_dPAR
       type (type_dependency_id)                       :: id_par
@@ -55,7 +53,7 @@
       real(rk) :: diameter
       real(rk) :: c_init
       real(rk) :: thickness_L1
-      real(rk) :: thickness_L2
+      real(rk) :: thickness_fluff
       real(rk) :: tauc_factor
       real(rk) :: M0
       real(rk) :: M1
@@ -77,10 +75,6 @@
       integer  :: resuspension_model
       real(rk) :: morfac
       logical  :: sand_mud_interaction
-      logical  :: read_external_mud
-      logical  :: read_external_mud_deep
-      logical  :: iam_sand
-      logical  :: iam_mud
       real(rk) :: crit_mud
       real(rk) :: stressexponent
       logical  :: use_par
@@ -128,12 +122,12 @@
    real(rk) :: diameter=100.0_rk         ! mikrons
    real(rk) :: c_init=5.0_rk             ! mg/l
    real(rk) :: thickness_L1=0.2_rk       ! thickness of transport layer
-   real(rk) :: thickness_L2=0.2_rk       ! thickness of deep layer
+   real(rk) :: thickness_fluff=0.001_rk  ! thickness of fluff layer
    real(rk) :: tauc_factor=10000.0_rk
    real(rk) :: M0=0.5e-2_rk              ! g/m^2/s
    real(rk) :: M1=3e-5_rk                ! 1/s
-   real(rk) :: M2=3.5e-3_rk              !
-   real(rk) :: flux_alpha=0.01           ! partition of deposition flux for resuspension model 2
+   real(rk) :: M2=3.5e-3_rk              ! g/m^2/s
+   real(rk) :: flux_alpha=0.05           ! partition of deposition flux for resuspension model 2
    real(rk) :: tauc_const=0.01_rk        ! N/m**2
    real(rk) :: ws_const=0.001_rk         ! m/s
    logical  :: cohesive=.false.
@@ -148,11 +142,9 @@
    integer  :: resuspension_model=1      ! first order model, one layer
    real(rk) :: morfac=1.0_rk             ! morphological factor
    real(rk) :: bedload_factor=1.0_rk     ! morphological factor
-   character(len=64) :: mudpool_variable='' ! name of external mudpool variable
-   character(len=64) :: deepmudpool_variable='' ! name of external deepmudpool variable
-   real(rk) :: crit_mud=0.99_rk            ! citical mud content
-   real(rk) :: stressexponent=1.5_rk      ! flux = M[0|1]*(taub/tauc-1)**stressexponent
-                                          ! 1.5 for sand and 1.0 for mud/cohesive
+   real(rk) :: crit_mud=0.99_rk          ! citical mud content
+   real(rk) :: stressexponent=1.5_rk     ! flux = M[0|1]*(taub/tauc-1)**stressexponent
+                                         !   1.5 for sand and 1.0 for mud/cohesive
 
    logical  :: use_par=.false.
 
@@ -161,9 +153,8 @@
          tauc_const, cohesive, sinking_method, bottom_stress_method,    &
          pm_pool, shading, ws_const, rho, bedload_method,               &
          add_to_density, sand_mud_interaction, crit_mud,stressexponent, &
-         resuspension_model, thickness_L1, thickness_L2, flux_alpha,    &
-         morfac, bedload_factor, mudpool_variable, use_par,             &
-         deepmudpool_variable
+         resuspension_model, thickness_L1, thickness_fluff, flux_alpha,    &
+         morfac, bedload_factor, use_par
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -182,7 +173,7 @@
    call self%get_parameter(self%sinking_method,'sinking_method',default=sinking_method)
    call self%get_parameter(self%pm_pool,'pm_pool',default=pm_pool)
    call self%get_parameter(self%thickness_L1,'thickness_L1',default=thickness_L1)
-   call self%get_parameter(self%thickness_L2,'thickness_L2',default=thickness_L2)
+   call self%get_parameter(self%thickness_fluff,'thickness_fluff',default=thickness_fluff)
    call self%get_parameter(self%rho,'rho',default=rho)
    call self%get_parameter(self%M0,'M0',default=M0)
    call self%get_parameter(self%M1,'M1',default=M1)
@@ -244,7 +235,7 @@
       case ( 1 )
          LEVEL2 ' First order resuspension E=M1*mass_in_layer*(taub/taubc-1) '
       case ( 2 )
-         LEVEL2 ' Two layer bed model (van Kessel et al. 2011) '
+         LEVEL2 ' Fluff layer bed model (van Kessel et al. 2011) '
    end select
 
    ! bed load is only computed for non-cohesive spm
@@ -253,18 +244,18 @@
       self%bedload_method = 0
    endif
 
-   if ( self%bedload_method .gt. 0 ) then
-      select case ( self%bedload_method )
-         case ( 0 )
-             LEVEL2 ' bedload switched off '
-         case ( 1 )
-             LEVEL2 ' account for bedload : van Rijn 1984 '
-         case ( 2 )
-             LEVEL2 ' account for bedload : Nielsen 1992 '
-         case ( 3 )
-             LEVEL2 ' account for bedload : Engelund & Hansen 1972 '
-      end select
-   endif
+   select case ( self%bedload_method )
+      case ( 0 )
+          LEVEL2 ' bedload switched off '
+      case ( 1 )
+          LEVEL2 ' account for bedload : van Rijn 1984 '
+      case ( 2 )
+          LEVEL2 ' account for bedload : Nielsen 1992 '
+      case ( 3 )
+          LEVEL2 ' account for bedload : Engelund & Hansen 1972 '
+      case ( 4 )
+          LEVEL2 ' account for bedload : Lesser et al. 2004 '
+   end select
 
    ! Register state variables
    call self%register_state_variable(self%id_spm,'spm','mg/l','concentration of SPM',     &
@@ -273,62 +264,59 @@
                                     no_river_dilution=.true.)
 
    if ( self%pm_pool )  then
-      call self%register_state_variable(self%id_pmpool,'pmpool','kg/m**2','mass/m**2 of PM in sediment',  &
-            self%rho*self%thickness_L1)
-      if ( self%resuspension_model .eq. 2 ) then
-         ! if we use the van Kessel et al. 2011 formulation, a second pool is needed
-         call self%register_state_variable(self%id_pmpool2,'pmpool2','kg/m**2','mass/m**2 of PM in sediment in deep pool',  &
-            self%rho*self%thickness_L2)
-         call self%register_horizontal_diagnostic_variable(self%id_massflux2,'massfraction_deep','percent', &
-            'massfraction in the deep layer')
-         ! compute the total mass in the transport layer
-         call self%register_dependency(self%id_totalspmpool2,'total_spm_deep_at_interfaces')
-         call self%add_to_aggregate_variable(type_bulk_standard_variable(name='total_spm_deep'),self%id_pmpool2)
-         self%read_external_mud_deep = ( deepmudpool_variable/='' )
-         if ( self%read_external_mud_deep ) then
-            call self%register_dependency(self%id_deepmudpool,trim(deepmudpool_variable))
-         endif
-      endif
+      ! at first we need the bottom pool
+      call self%register_state_variable(self%id_pmpool,'pmpool','kg/m**2', &
+         'mass/m**2 of PM in bottom pool',self%rho*self%thickness_L1)
+      ! compute the total mass in the bottom pool
+      call self%register_dependency(self%id_total_pmpool,'total_bedpool_at_interfaces')
+      call self%add_to_aggregate_variable(type_bulk_standard_variable(name='total_bedpool'), &
+            self%id_pmpool)
+      ! now figure out, which resuspension model is used
+      select case (self%resuspension_model )
+         case ( 0,1 )
+            if ( self%bedload_method .gt. 0 ) then
+               call self%register_horizontal_diagnostic_variable(self%id_bedload, 'bedload', &
+                     'kg/m/s','massflux due to bed load')
+            endif
+         case ( 2 )
+            ! if we use the van Kessel et al. 2011 formulation,
+            ! we need at first a fluff layer ( with only mud )
+            call self%register_state_variable(self%id_flufflayer,'flufflayer','kg/m**2', &
+               'mass/m**2 of sediment in fluff layer',self%rho*self%thickness_fluff)
+            ! compute the total mass in the fluff layer
+            call self%register_dependency(self%id_total_fluffpool,'total_fluffpool_at_interfaces')
+            call self%add_to_aggregate_variable(type_bulk_standard_variable(name='total_fluffpool'), &
+               self%id_flufflayer)
+            if ( self%sand_mud_interaction ) then
+               ! compute the total mass of mud in the sand bed
+               call self%add_to_aggregate_variable(type_bulk_standard_variable(name='total_mudpool'), &
+                  self%id_pmpool)
+            endif
+      end select
    endif
 
-   call self%register_horizontal_diagnostic_variable(self%id_bedload, 'bedload', &
-         'kg/m**2/s','massflux due to bed load')
-
+   ! diagnostic output of the massflux
    call self%register_horizontal_diagnostic_variable(self%id_massflux,'massflux','kg/m**2/s', &
          'massflux in the exchange layer')
-
-   call self%register_horizontal_diagnostic_variable(self%id_massfraction,'massfraction','%', &
+   ! and the mass fraction of each class
+   call self%register_horizontal_diagnostic_variable(self%id_massfraction,'massfraction','0-1', &
          'massfraction in the exchange layer')
-
-   ! compute the total mass in the transport layer
-   call self%register_dependency(self%id_totalspmpool,'total_spm_at_interfaces')
-   call self%add_to_aggregate_variable(type_bulk_standard_variable(name='total_spm'),self%id_pmpool)
 
    ! check for sand mud interaction
    if ( self%sand_mud_interaction ) then
       LEVEL2 ' Account for sand-mud interaction '
       ! check for valid range
       self%crit_mud = max(min(self%crit_mud,0.99_rk),0.0_rk)
-      ! Register link to mud pool, if mud variable name is provided in namelist.
-      self%read_external_mud = ( mudpool_variable/='' )
-      if ( self%read_external_mud ) then
-         self%iam_sand = .true.
-         self%iam_mud  = .false.
-         call self%register_dependency(self%id_mudpool,trim(mudpool_variable))
-         LEVEL2 ' I am sand'
-      else
-         self%iam_sand = .false.
-         self%iam_mud  = .true.
-         LEVEL2 ' I am mud'
-         ! check if the diameter is larger than 63 mikron (limit for mud)
-         if (self%diameter .gt. 63.0_rk/1e6_rk ) then
-            LEVEL2 'This is the mud fraction'
-            LEVEL2 'Limit the diameter to max 63 mikron!'
-            self%diameter = 63.0_rk/1e6_rk
-         endif
-         bedload_method = 0
-         LEVEL2 ' bedload switched off for mud'
+      ! register link to the mudpool
+      call self%register_dependency(self%id_total_mudpool,'total_mudpool_at_interfaces')
+      ! check if the diameter is larger than 63 mikron (limit for mud)
+      if (self%diameter .gt. 63.0_rk/1e6_rk ) then
+         LEVEL2 'This is the mud fraction'
+         LEVEL2 'Limit the diameter to max 63 mikron!'
+         self%diameter = 63.0_rk/1e6_rk
       endif
+      bedload_method = 0
+      LEVEL2 ' bedload switched off for mud'
    endif
 
    if ( self%use_par ) then
@@ -388,7 +376,8 @@
        _LOOP_BEGIN_
 
    !   Retrieve current environmental conditions
-       _GET_   (self%id_par,par) ! local photosynthetically active radiation
+   !    local photosynthetically active radiation
+       _GET_(self%id_par,par)
 
    ! Export diagnostic variables
       _SET_DIAGNOSTIC_(self%id_dPAR,par)
@@ -421,11 +410,10 @@
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 
 ! !LOCAL VARIABLES:
-   real(rk)                     :: taub,spm,pmpool,pmpool2
+   real(rk)                     :: taub,spm,pmpool
    real(rk)                     :: porosity
    real(rk), parameter          :: rho_0=1025.0_rk
    real(rk)                     :: Erosion_Flux,Sedimentation_Flux
-   real(rk)                     :: Erosion_Flux2,Sedimentation_Flux2
    real(rk)                     :: tauc_erosion, tauc_sedimentation
    real(rk)                     :: temp
    real(rk)                     :: Ds
@@ -434,19 +422,19 @@
    real(rk)                     :: rhow
    real(rk)                     :: rhop
    real(rk)                     :: massflux
-   real(rk)                     :: massflux2
-   real(rk)                     :: stressexponent=1.0_rk
+   real(rk)                     :: stressexponent=1.5_rk
    real(rk)                     :: qstar
    real(rk)                     :: bedload
-   real(rk)                     :: fraction_L2
    real(rk)                     :: mudfraction=0.0_rk
-   real(rk)                     :: mudfraction2=0.0_rk
    real(rk)                     :: mudpool=0.0_rk
-   real(rk)                     :: mudpool2=0.0_rk
    real(rk)                     :: totalmass=0.0_rk
    real(rk)                     :: totalmass2=0.0_rk
    real(rk)                     :: Es_avg=0.0_rk
    real(rk)                     :: Em_avg=0.0_rk
+
+   real(rk)                     :: fluffraction,fluff,totalfluff
+   real(rk)                     :: Erosion_Flux_fluff,Sedimentation_Flux_fluff
+   real(rk)                     :: massflux_fluff
 
    real(rk), parameter          :: g=9.81_rk
 !
@@ -458,41 +446,33 @@
 !BOC
 
    if ( self%pm_pool ) then
-
+      ! we have to think about a proper porosity model !
       porosity=0.333_rk
 
       stressexponent = self%stressexponent
 
       _FABM_HORIZONTAL_LOOP_BEGIN_
-
+      ! get environmental variables
       _GET_(self%id_spm,spm)
       _GET_(self%id_temp,temp)
       _GET_(self%id_rhow,rhow)
-      _GET_HORIZONTAL_(self%id_totalspmpool,totalmass)
-      _GET_HORIZONTAL_(self%id_pmpool,pmpool)
       _GET_HORIZONTAL_(self%id_taub,taub)
+      ! get the total mass in the bottom
+      _GET_HORIZONTAL_(self%id_total_pmpool,totalmass)
+      ! get the mass of the individual class
+      _GET_HORIZONTAL_(self%id_pmpool,pmpool)
       if ( self%resuspension_model .eq. 2 ) then
-         _GET_HORIZONTAL_(self%id_pmpool2,pmpool2)
-         _GET_HORIZONTAL_(self%id_totalspmpool2,totalmass2)
-         if ( self%read_external_mud_deep ) then
-            _GET_HORIZONTAL_(self%id_deepmudpool,mudpool2)
-            mudfraction2 = mudpool2/totalmass2
-         else
-            mudfraction2 = pmpool2/totalmass2
-         endif
+         ! do the same thing for the fluff layer
+         _GET_HORIZONTAL_(self%id_flufflayer,fluff)
+         _GET_HORIZONTAL_(self%id_total_fluffpool,totalfluff)
+         fluffraction = fluff/totalfluff
       endif
 
-      ! sum over all pools to get the total mass in the transport layer
+      ! get the mass of the mud classes in the bottom pool
       if ( self%sand_mud_interaction ) then
          ! compute the mud fraction
-         if ( self%read_external_mud ) then
-            _GET_HORIZONTAL_(self%id_mudpool,mudpool)
-            mudfraction     = mudpool/totalmass
-            stressexponent  = 1.5_rk
-         else
-            mudfraction     = pmpool/totalmass
-            stressexponent  = 1.0_rk
-         endif
+         _GET_HORIZONTAL_(self%id_total_mudpool,mudpool)
+         mudfraction = mudpool/totalmass
       endif
 
       select case ( self%bottom_stress_method )
@@ -525,38 +505,43 @@
             tauc_erosion = tauc_erosion*g*self%diameter*(rhop-rhow)
       end select
 
-      if ( self%sand_mud_interaction ) then
+      if ( self%sand_mud_interaction .and. ( self%resuspension_model .ne. 2 ) ) then
+         ! The change in increased critical shear should only act on the bottom pool,
+         ! not on the fluff layer!
          ! Van Rijn (1993) and Van Rijn (2004) non_cohesive regime
          tauc_erosion = tauc_erosion*(1.0_rk+mudfraction)**3
       endif
 
       tauc_sedimentation = tauc_erosion*self%tauc_factor
 
-      Erosion_Flux        = 0.0_rk
-      Erosion_Flux2       = 0.0_rk
-      Sedimentation_Flux  = 0.0_rk
-      Sedimentation_Flux2 = 0.0_rk
+      Erosion_Flux             = 0.0_rk
+      Erosion_Flux_fluff       = 0.0_rk
+      Sedimentation_Flux       = 0.0_rk
+      Sedimentation_Flux_fluff = 0.0_rk
 
-      !erosion flux:
+      ! erosion flux:
       select case ( self%resuspension_model )
          case ( 0 )
-            if( (pmpool .gt. 0.1_rk) .and. (taub .gt. tauc_erosion) ) then
+            if( (pmpool .gt. 1.0_rk) .and. (taub .gt. tauc_erosion) ) then
                ! if there are sediments in the pool
                Erosion_Flux = self%M0*(1.0_rk-porosity) * &
                               max(taub/tauc_erosion-1.0_rk,0.0_rk)**stressexponent
                Erosion_Flux = max(Erosion_Flux,0.0_rk)
             endif
          case ( 1 )
-            Erosion_Flux = self%M1*pmpool*(1.0_rk-porosity) * &
+            ! do a smooth transition betwenn zero and first oder model, thus
+            ! E ~ min(M0, pmpool*M1)
+            Erosion_Flux = min(self%M0,self%M1*pmpool)*(1.0_rk-porosity) * &
                            max(taub/tauc_erosion-1.0_rk,0.0_rk)**stressexponent
             Erosion_Flux = max(Erosion_Flux,0.0_rk)
          case ( 2 )
-            Erosion_Flux  = min(self%M0,self%M1*pmpool)*(1.0_rk-porosity) * &
-                            max(taub/tauc_erosion-1.0_rk,0.0_rk)
-            Erosion_Flux  = max(Erosion_Flux,0.0_rk)
-            Erosion_Flux2 = self%M2*mudfraction2*(1.0_rk-porosity) * &
-                            max((taub/1.5_rk-1.0_rk),0.0_rk)**(1.5d0)
-            Erosion_Flux2 = max(Erosion_Flux2,0.0_rk)
+            ! do a smooth transition betwenn zero and first oder model
+            Erosion_Flux_fluff  = min(self%M0,self%M1*fluff*fluffraction) * &
+                                    max(taub/tauc_erosion-1.0_rk,0.0_rk)
+            Erosion_Flux_fluff  = max(Erosion_Flux_fluff,0.0_rk)
+            Erosion_Flux        = self%M2*fluffraction*(1.0_rk-porosity) * &
+                                  max((taub/1.5_rk-1.0_rk),0.0_rk)**stressexponent
+            Erosion_Flux        = max(Erosion_Flux,0.0_rk)
       end select
 
 #if 0
@@ -597,8 +582,10 @@
       !sedimentation flux:
       Sedimentation_Flux = min(0.0_rk,ws(self,temp,rhow,spm) * spm *(1.0_rk-taub / tauc_sedimentation))
       if (self%resuspension_model .eq. 2 ) then
-         Sedimentation_Flux  = Sedimentation_Flux * (1.0_rk - self%flux_alpha)
-         Sedimentation_Flux2 = Sedimentation_Flux * self%flux_alpha
+         ! 1-alpha deposits in the fluff layer, the remaining part
+         ! goes in the bottom pool
+         Sedimentation_Flux_fluff  = Sedimentation_Flux * (1.0_rk - self%flux_alpha)
+         Sedimentation_Flux        = Sedimentation_Flux * self%flux_alpha
       endif
 
       bedload = 0.0_rk
@@ -626,7 +613,8 @@
                bedload = qstar*sqrt(g*self%diameter**3*(rhop/rhow-1.0_rk))
             case ( 4 )
                ! Lesser et al. 2004
-               bedload = 0.5_rk*rhop*self%diameter*sqrt(taub/rhow)*Ds**(-0.3_rk)*taub/(g*self%diameter*(rhop-rhow))
+               bedload = 0.5_rk*rhop*self%diameter*sqrt(taub/rhow)*Ds**(-0.3_rk)* &
+                           taub/(g*self%diameter*(rhop-rhow))
                bedload = bedload*sqrt(g*self%diameter**2*(rhop/rhow-1.0_rk))
          end select
       endif
@@ -641,22 +629,21 @@
             _SET_ODE_BEN_(self%id_pmpool,-(massflux)/1000.0_rk*self%morfac)
             ! Export diagnostic variables mass flux - unit is kg/m**2/s
             _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux,-(massflux)/1000.0_rk)
+            ! Export diagnostic variables bed load flux - unit is kg/m/s
+            if ( self%bedload_method .gt. 0 ) then
+               _SET_HORIZONTAL_DIAGNOSTIC_(self%id_bedload,bedload*self%bedload_factor*self%morfac)
+            endif
          case ( 2 )
-            massflux  = Sedimentation_Flux  + Erosion_Flux
-            massflux2 = Sedimentation_Flux2 + Erosion_Flux2
+            massflux       = Sedimentation_Flux       + Erosion_Flux
+            massflux_fluff = Sedimentation_Flux_fluff + Erosion_Flux_fluff
             ! unit is g/m**3 * m/s
-            _SET_BOTTOM_EXCHANGE_(self%id_spm,(massflux+massflux2))
+            _SET_BOTTOM_EXCHANGE_(self%id_spm,(massflux+massflux_fluff))
             ! unit is kg/m**2/s
-            _SET_ODE_BEN_(self%id_pmpool ,-(massflux)/1000.0_rk*self%morfac)
-            _SET_ODE_BEN_(self%id_pmpool2,-(massflux2)/1000.0_rk*self%morfac)
+            _SET_ODE_BEN_(self%id_pmpool ,-(massflux)/1000.0_rk)
+            _SET_ODE_BEN_(self%id_flufflayer,-(massflux_fluff)/1000.0_rk)
             ! Export diagnostic variables mass flux - unit is kg/m**2/s
             _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux ,-(massflux )/1000.0_rk)
-            _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux2,-(massflux2)/1000.0_rk)
-            !_SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux2,mudfraction2*100.0_rk)
       end select
-
-      ! Export diagnostic variables bed load flux - unit is kg/m**2/s
-      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_bedload,bedload*self%bedload_factor*self%morfac)
 
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massfraction,pmpool/totalmass)
 

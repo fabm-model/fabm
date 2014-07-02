@@ -5,14 +5,16 @@
 !                     a comma-separated list of one or model model names
 !-------------------------------------------------------------------------------
 &fabm_nml
-   models = 'iow_spm', 'iow_spm', 'iow_spm', 'iow_spm'
+   models = 'iow_spm', 'iow_spm', 'iow_spm'
 /
 
 ! diameter             : particle diameter in mikrons
 ! c_init               : initial concentration in mg/l
 ! thickness_L1         :  thickness of transport layer [m]
+! thickness_fluff      :  thickness of fluff layer [m]
 ! M0                   : erosion constant for resuspension_model=0  [g/m^2/s]
 ! M1                   : erosion constant for resuspension_model=1  [1/s]
+! M2                   : erosion constant for resuspension_model=2  [g/m^2/s]
 ! sinking_method       : 0 - constant sinking speed - ws_const [m/s]
 !                        1 - Soulsby 1997
 !                        2 - Stokes/Newton
@@ -24,75 +26,58 @@
 !                        2 - Nielsen 1992
 !                        3 - Engelund & Hansen 1972
 ! resuspension_model   : 0 - Zero order resuspension E=M0*(taub/taubc-1)
-!                        1 - First order resuspension E=M1*mass_in_layer*(taub/taubc-1)
+!                        1 - First order resuspension E=min(M0,M1*mass_in_layer)*(taub/taubc-1)
+!                        2 - Fluff layer model (van Kessel et al. 2011)
 ! stressexponent       : flux = M[0|1]*(taub/tauc-1)**stressexponent
 !                               1.5 for sand and 1.0 for mud/cohesive
 ! shading               [1/m per mg/l]
 ! rho                  : dry bed density kg/m**3 [default 2650]
 ! sand_mud_interaction : switch on sand-mud interaction (only the low mud limit) [true|false]
-! mudpool_variable     : name of the external mudpool variable [i.e. 'iow_spm01_pmpool']
 !
-! for details, have a look into the code!
+! for details, have a look into the code,
+!  or ask ulf.graewe@io-warnemuende.de
+!
+! the first class is mud with a fluff layer of 1 cm and a 1 mm bottom pool
+! the second class is mud with a fluff layer of 1 cm and a 1 mm bottom pool
+! the third class is sand with a 10 cm bottom pool
+! you can switch of sand-mud-interaction by simply setting: sand_mud_interaction=False
 
-
-! here we do sand-mud interaction. One mud variable iow_spm01 and three sand clasesse iow_spm0[2-4]
 &iow_spm
-   diameter=20
-   thickness_L1=0.05
-   M0=1e-3
-   M1=1e-5
+   diameter=10
+   thickness_L1=0.01
+   thickness_fluff=0.001
+   M0=0.5e-4
+   M1=5.8e-4
+   M2=3.5e-5
    sinking_method=1
-   bottom_stress_method=1
-   resuspension_model=1
-   add_to_density=True
+   bottom_stress_method=0
+   tauc_const=0.15
+   resuspension_model=2
    sand_mud_interaction=True
-   bedload_method=0
+/
+&iow_spm
+   diameter=50
+   thickness_L1=0.01
+   thickness_fluff=0.001
+   M0=0.5e-3
+   M1=5.8e-3
+   M2=3.5e-4
+   sinking_method=1
+   bottom_stress_method=0
+   tauc_const=0.15
+   resuspension_model=2
+   sand_mud_interaction=True
 /
 
 &iow_spm
-   diameter=60
+   c_init = 0.
+   diameter=80
    thickness_L1=0.1
-   M0=1e-4
-   M1=1e-5
+   M0=0.5e-2
+   M1=2.3e-4
+   M2=3.5e-2
    sinking_method=1
    bottom_stress_method=1
-   ws_const=0.001
-   tauc_const=0.15
    resuspension_model=1
-   add_to_density=True
-   mudpool_variable='iow_spm01_pmpool'
    sand_mud_interaction=True
-   bedload_method=3
-/
-
-&iow_spm
-   diameter=120
-   thickness_L1=0.1
-   M0=1e-4
-   M1=1e-5
-   sinking_method=1
-   bottom_stress_method=1
-   ws_const=0.001
-   tauc_const=0.15
-   resuspension_model=1
-   add_to_density=True
-   mudpool_variable='iow_spm01_pmpool'
-   sand_mud_interaction=True
-   bedload_method=3
-/
-
-&iow_spm
-   diameter=150
-   thickness_L1=0.1
-   M0=1e-4
-   M1=1e-5
-   sinking_method=2
-   bottom_stress_method=1
-   ws_const=0.001
-   tauc_const=0.15
-   resuspension_model=1
-   add_to_density=True
-   mudpool_variable='iow_spm01_pmpool'
-   sand_mud_interaction=True
-   bedload_method=3
 /
