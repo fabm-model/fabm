@@ -142,7 +142,7 @@
    integer  :: resuspension_model=1      ! first order model, one layer
    real(rk) :: morfac=1.0_rk             ! morphological factor
    real(rk) :: bedload_factor=1.0_rk     ! morphological factor
-   real(rk) :: crit_mud=0.99_rk          ! citical mud content
+   real(rk) :: crit_mud=0.5_rk           ! citical mud content
    real(rk) :: stressexponent=1.5_rk     ! flux = M[0|1]*(taub/tauc-1)**stressexponent
                                          !   1.5 for sand and 1.0 for mud/cohesive
 
@@ -299,7 +299,7 @@
    call self%register_horizontal_diagnostic_variable(self%id_massflux,'massflux','kg/m**2/s', &
          'massflux in the exchange layer')
    ! and the mass fraction of each class
-   call self%register_horizontal_diagnostic_variable(self%id_massfraction,'massfraction','0-1', &
+   call self%register_horizontal_diagnostic_variable(self%id_massfraction,'massfraction','%', &
          'massfraction in the exchange layer')
 
    ! check for sand mud interaction
@@ -415,6 +415,8 @@
    real(rk), parameter          :: rho_0=1025.0_rk
    real(rk)                     :: Erosion_Flux,Sedimentation_Flux
    real(rk)                     :: tauc_erosion, tauc_sedimentation
+   real(rk)                     :: tauc_erosion_sandmud
+   real(rk)                     :: tauc_erosion_fluff
    real(rk)                     :: temp
    real(rk)                     :: Ds
    real(rk)                     :: visc
@@ -429,8 +431,8 @@
    real(rk)                     :: mudpool=0.0_rk
    real(rk)                     :: totalmass=0.0_rk
    real(rk)                     :: totalmass2=0.0_rk
-   real(rk)                     :: Es_avg=0.0_rk
-   real(rk)                     :: Em_avg=0.0_rk
+   real(rk)                     :: E0, E1, E2, weight
+   real(rk)                     :: stress
 
    real(rk)                     :: fluffraction,fluff,totalfluff
    real(rk)                     :: Erosion_Flux_fluff,Sedimentation_Flux_fluff
@@ -505,11 +507,18 @@
             tauc_erosion = tauc_erosion*g*self%diameter*(rhop-rhow)
       end select
 
-      if ( self%sand_mud_interaction .and. ( self%resuspension_model .ne. 2 ) ) then
+      ! save the erosion stress for the fluff layer, since the fluff layer
+      ! is not effected by the sand-mud interaction
+      tauc_erosion_fluff = tauc_erosion
+      if ( self%sand_mud_interaction ) then
          ! The change in increased critical shear should only act on the bottom pool,
          ! not on the fluff layer!
          ! Van Rijn (1993) and Van Rijn (2004) non_cohesive regime
-         tauc_erosion = tauc_erosion*(1.0_rk+mudfraction)**3
+         if ( mudfraction .le. self%crit_mud ) then
+            tauc_erosion = tauc_erosion*(1.0_rk+mudfraction)**2
+         else
+            tauc_erosion = tauc_erosion*(1.0_rk+self%crit_mud)**2
+         endif
       endif
 
       tauc_sedimentation = tauc_erosion*self%tauc_factor
@@ -519,76 +528,48 @@
       Sedimentation_Flux       = 0.0_rk
       Sedimentation_Flux_fluff = 0.0_rk
 
+      ! compute the excessive stress
+      stress = max(taub/tauc_erosion-1.0_rk,0.0_rk)**stressexponent
+      if ( self%sand_mud_interaction ) then
+         if ( mudfraction .ge. self%crit_mud ) then
+            ! stress is interpolated between
+            !  the non-cohesive (sand) and fully mud regime
+            weight = (1.0_rk - mudfraction)/(1.0_rk-self%crit_mud)
+            stress = weight * max(taub/tauc_erosion-1.0_rk,0.0_rk)**stressexponent + &
+                     (1.0_rk-weight) * max(taub/tauc_erosion_fluff-1.0_rk,0.0_rk)
+         endif
+      endif
+
       ! erosion flux:
       select case ( self%resuspension_model )
          case ( 0 )
             if( (pmpool .gt. 1.0_rk) .and. (taub .gt. tauc_erosion) ) then
                ! if there are sediments in the pool
-               Erosion_Flux = self%M0*(1.0_rk-porosity) * &
-                              max(taub/tauc_erosion-1.0_rk,0.0_rk)**stressexponent
-               Erosion_Flux = max(Erosion_Flux,0.0_rk)
+               E0           = self%M0*(1.0_rk-porosity)
+               Erosion_Flux = E0*stress
             endif
          case ( 1 )
-            ! do a smooth transition betwenn zero and first oder model, thus
+            ! do a smooth transition between zero and first oder model, thus
             ! E ~ min(M0, pmpool*M1)
-            Erosion_Flux = min(self%M0,self%M1*pmpool)*(1.0_rk-porosity) * &
-                           max(taub/tauc_erosion-1.0_rk,0.0_rk)**stressexponent
-            Erosion_Flux = max(Erosion_Flux,0.0_rk)
+            E1           = min(self%M0,self%M1*pmpool)*(1.0_rk-porosity)
+            Erosion_Flux = E1*stress
          case ( 2 )
-            ! do a smooth transition betwenn zero and first oder model
-            Erosion_Flux_fluff  = min(self%M0,self%M1*fluff*fluffraction) * &
-                                    max(taub/tauc_erosion-1.0_rk,0.0_rk)
-            Erosion_Flux_fluff  = max(Erosion_Flux_fluff,0.0_rk)
-            Erosion_Flux        = self%M2*fluffraction*(1.0_rk-porosity) * &
-                                  max((taub/1.5_rk-1.0_rk),0.0_rk)**stressexponent
-            Erosion_Flux        = max(Erosion_Flux,0.0_rk)
+            ! do a smooth transition between zero and first oder model
+            Erosion_Flux_fluff = min(self%M0,self%M1*fluff*fluffraction) * &
+                                    max(taub/tauc_erosion_fluff-1.0_rk,0.0_rk)
+            E2                 = self%M2*fluffraction*(1.0_rk-porosity)
+            Erosion_Flux       = E2*max((taub/1.5_rk-1.0_rk),0.0_rk)**stressexponent
       end select
-
-#if 0
-      if ( self%sand_mud_interaction ) then
-         if ( mudfraction .lt. self%crit_mud .and. self%iam_mud ) then
-            ! Non-cohesive regime
-            ! (mud is proportionally eroded with the sand)
-            ! Erosion_Flux = Es_avg
-         endif
-         if ( mudfraction .ge. self%crit_mud ) then
-            ! Cohesive regime
-            ! erosion velocity for mud is interpolated between
-            !  the non-cohesive and fully mud regime
-            if ( self%iam_mud ) then
-               Em_avg = Erosion_flux
-            else
-               ! i am sand
-               ! we have to compute the erosion_flux of mud in the fully mud regime
-               select case ( self%resuspension_model )
-                  case ( 0 )
-                     if( (pmpool .gt. 0.1_rk) .and. (taub .gt. tauc_erosion) ) then
-                        ! if there are sediments in the pool
-                        Erosion_Flux = self%M0*(1.0_rk-porosity) * &
-                           max(taub/tauc_erosion-1.0_rk,0.0_rk)**stressexponent
-                        Erosion_Flux = max(Erosion_Flux,0.0_rk)
-                     endif
-                  case default
-                     Erosion_Flux = self%M1*pmpool*(1.0_rk-porosity) * &
-                        max(taub/tauc_erosion-1.0_rk,0.0_rk)**stressexponent
-                     Erosion_Flux = max(Erosion_Flux,0.0_rk)
-               end select
-            endif
-            Erosion_Flux = Em_avg*(Es_avg/Em_avg)**((1.0_rk-mudfraction)/(1.0_rk-self%crit_mud))
-         endif
-      endif
-#endif
 
       !sedimentation flux:
       Sedimentation_Flux = min(0.0_rk,ws(self,temp,rhow,spm) * spm *(1.0_rk-taub / tauc_sedimentation))
       if (self%resuspension_model .eq. 2 ) then
          ! 1-alpha deposits in the fluff layer, the remaining part
-         ! goes in the bottom pool
+         ! goes into the bottom pool
          Sedimentation_Flux_fluff  = Sedimentation_Flux * (1.0_rk - self%flux_alpha)
          Sedimentation_Flux        = Sedimentation_Flux * self%flux_alpha
       endif
 
-      bedload = 0.0_rk
       if ( self%bedload_method .gt. 0 ) then
          rhop  = self%rho
          visc  = 1.0_rk/rhow*1.9909e-6_rk*exp(1828.4_rk/(temp+273.15_rk))
@@ -645,7 +626,7 @@
             _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux ,-(massflux )/1000.0_rk)
       end select
 
-      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massfraction,pmpool/totalmass)
+      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massfraction,pmpool/totalmass*100.0_rk)
 
       _FABM_HORIZONTAL_LOOP_END_
 
