@@ -4,8 +4,10 @@
 *.suo
 *.u2d
 *.nc
+*.patch
 lib/
 modules/
+build/
 timestamp
 VERSION
 include/version.h

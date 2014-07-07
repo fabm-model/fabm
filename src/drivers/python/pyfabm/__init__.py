@@ -4,10 +4,12 @@ import sys,os,ctypes,re
 import numpy
 
 # Load FABM library
-if sys.platform=='win32':
-   dllpath = '../../../compilers/vs2010/x64-Debug/fabm-python/fabm-python.dll'
+if os.name=='nt':
+   dllpath = 'fabm_python.dll'
+elif os.name == "posix" and sys.platform == "darwin":
+   dllpath = 'libfabm_python.dylib'
 else:
-   dllpath = 'fabm-python.so'
+   dllpath = 'libfabm_python.so'
 fabm = ctypes.CDLL(os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpath))
 
 # Specify arguments and return types for FABM interfaces.
