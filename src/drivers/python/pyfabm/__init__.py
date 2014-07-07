@@ -5,11 +5,11 @@ import numpy
 
 # Load FABM library
 if os.name=='nt':
-   dllpath = 'fabm_python.dll'
+   dllpath = 'python_fabm.dll'
 elif os.name == "posix" and sys.platform == "darwin":
-   dllpath = 'libfabm_python.dylib'
+   dllpath = 'libpython_fabm.dylib'
 else:
-   dllpath = 'libfabm_python.so'
+   dllpath = 'libpython_fabm.so'
 fabm = ctypes.CDLL(os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpath))
 
 # Specify arguments and return types for FABM interfaces.
