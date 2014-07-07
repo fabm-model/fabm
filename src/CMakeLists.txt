@@ -39,18 +39,21 @@ else()
   set(DEFAULT_PREFIX "$ENV{HOME}/local/fabm/${FABMHOST}")
 endif()
 
-# If installation prefix is still set to cmake default, overwrite it.
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in" FORCE)
-endif()
-
-# Retrieve actual and default installation prefix from cache.
+# Re-initialize instalaltion prefix if needed.
 mark_as_advanced(FABM_DEFAULT_PREFIX)
-set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in")
-set(FABM_DEFAULT_PREFIX  ${DEFAULT_PREFIX} CACHE PATH "Default directory to install FABM in")
-
-# If cached actual and default prefixes match, overwrite prefix with currently suggested default.
-if (CMAKE_INSTALL_PREFIX STREQUAL FABM_DEFAULT_PREFIX)
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  # Installation prefix is still set to cmake default - overwrite it.
+  set(FABM_INITIALIZE_PREFIX ON)
+else()
+  # Check whether cached actual and default prefixes match.
+  # If so, we'll overwrite prefix with our current preferred (host-specific) default.
+  set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in")
+  set(FABM_DEFAULT_PREFIX  ${DEFAULT_PREFIX} CACHE PATH "Default directory to install FABM in")
+  if (CMAKE_INSTALL_PREFIX STREQUAL FABM_DEFAULT_PREFIX)
+    set(FABM_INITIALIZE_PREFIX ON)
+  endif()
+endif()
+if (FABM_INITIALIZE_PREFIX)
   set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in" FORCE)
   set(FABM_DEFAULT_PREFIX  ${DEFAULT_PREFIX} CACHE PATH "Default directory to install FABM in" FORCE)
 endif()
