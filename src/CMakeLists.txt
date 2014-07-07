@@ -102,13 +102,12 @@ if(EXISTS ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/CMakeLists.txt)
   add_subdirectory (${PROJECT_SOURCE_DIR}/drivers/${FABMHOST})
 endif()
 
-if (${FABMHOST} STREQUAL python OR ${FABMHOST} STREQUAL 0d)
-  return()
+if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
+  install(TARGETS fabm
+    DESTINATION lib)
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/modules/\${BUILD_TYPE}/
+    DESTINATION include)
+  install(FILES ${PROJECT_SOURCE_DIR}/../include/fabm.h ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/fabm_driver.h
+    DESTINATION include)
 endif()
 
-install(TARGETS fabm
-  DESTINATION lib)
-install(DIRECTORY ${CMAKE_BINARY_DIR}/modules/\${BUILD_TYPE}/
-  DESTINATION include)
-install(FILES ${PROJECT_SOURCE_DIR}/../include/fabm.h ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/fabm_driver.h
-  DESTINATION include)

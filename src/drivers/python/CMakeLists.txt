@@ -3,4 +3,6 @@ target_link_libraries(python_fabm fabm)
 install(TARGETS python_fabm
   DESTINATION pyfabm)
 install(DIRECTORY pyfabm/
-  DESTINATION pyfabm) 
+  DESTINATION pyfabm)
+set(FABM_NO_LIBRARY_INSTALL ON PARENT_SCOPE)
+ 
