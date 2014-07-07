@@ -25,6 +25,7 @@ endif()
 FILE(GLOB HOSTNAMES RELATIVE "${PROJECT_SOURCE_DIR}/drivers" "${PROJECT_SOURCE_DIR}/drivers/*")
 set (FABMHOST "gotm" CACHE STRING "Host that FABM should be compiled for")
 set_property(CACHE FABMHOST PROPERTY STRINGS ${HOSTNAMES})
+message(STATUS "FABM host: ${FABMHOST}")
 
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
 if(BUILD_SHARED_LIBS OR ${FABMHOST} STREQUAL "python")
@@ -53,6 +54,7 @@ if (CMAKE_INSTALL_PREFIX STREQUAL FABM_DEFAULT_PREFIX)
   set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in" FORCE)
   set(FABM_DEFAULT_PREFIX  ${DEFAULT_PREFIX} CACHE PATH "Default directory to install FABM in" FORCE)
 endif()
+message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
 
 # Global include directories
 include_directories ("${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}")
