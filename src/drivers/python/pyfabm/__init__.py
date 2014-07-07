@@ -24,12 +24,12 @@ fabm.get_integer_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
 fabm.get_integer_parameter.restype = ctypes.c_int
 fabm.get_logical_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
 fabm.get_logical_parameter.restype = ctypes.c_int
-#fabm.get_string_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
-#fabm.get_string_parameter.restype = ctypes.c_char_p
+fabm.get_string_parameter.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_char_p]
 fabm.reset_parameter.argtypes = [ctypes.c_int]
 fabm.set_real_parameter.argtypes = [ctypes.c_char_p,ctypes.c_double]
 fabm.set_integer_parameter.argtypes = [ctypes.c_char_p,ctypes.c_int]
 fabm.set_logical_parameter.argtypes = [ctypes.c_char_p,ctypes.c_int]
+fabm.set_string_parameter.argtypes = [ctypes.c_char_p,ctypes.c_char_p]
 fabm.link_bulk_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
 fabm.link_surface_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
 fabm.link_bottom_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
@@ -151,7 +151,9 @@ class Parameter(Variable):
         elif self.type==3:
             return fabm.get_logical_parameter(self.index,default)!=0
         elif self.type==4:
-            return fabm.get_string_parameter(self.index,default).rstrip()
+            result = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+            fabm.get_string_parameter(self.index,default,ATTRIBUTE_LENGTH,result)
+            return result.value
 
     def setValue(self,value):
         settings = self.model.saveSettings()

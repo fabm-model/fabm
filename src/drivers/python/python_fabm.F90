@@ -433,31 +433,39 @@
       end select
    end function
 
-   subroutine set_string_parameter(name,value)
-      character(len=*),intent(in) :: name,value
-      call forced_parameters%set_string(name,value)
+   subroutine set_string_parameter(name,value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_string_parameter
+      character(kind=c_char),target,intent(in) :: name(*),value(*)
+
+      character(len=attribute_length),pointer :: pname,pvalue
+      
+      call c_f_pointer(c_loc(name),  pname)
+      call c_f_pointer(c_loc(value), pvalue)
+      call forced_parameters%set_string(pname(:index(pname,C_NULL_CHAR)-1),pvalue(:index(pname,C_NULL_CHAR)-1))
 
       ! Re-initialize the model using updated parameter values
       call reinitialize()
    end subroutine
 
-   function get_string_parameter(index,default) result(value)
-      integer(c_int),value,intent(in) :: index,default
-      character            :: value(1024)
+   subroutine get_string_parameter(index,default,length,value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_string_parameter
+      integer(c_int),value,intent(in) :: index,default,length
+      character(kind=c_char)          :: value(length)
+
       class (type_property),pointer   :: property
 
       property => model%root%parameters%get_property(index)
       select type (property)
       class is (type_string_property)
          if (default/=0) then
-            value = property%default
+            call copy_to_c_string(property%default, value)
          else
-            value = property%value
+            call copy_to_c_string(property%value, value)
          end if
       class default
          call driver%fatal_error('get_string_parameter','not a string variable')
       end select
-   end function
+   end subroutine
 
    subroutine python_driver_fatal_error(self,location,message)
       class (type_python_driver),intent(inout) :: self
