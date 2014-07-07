@@ -1,13 +1,16 @@
 cmake_minimum_required (VERSION 2.8)
 
+# Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(TARGET PROPERTY FOLDER library)
 
-project (fabm Fortran )
+# Create main project.
+project (fabm Fortran)
 
+# Specify default build type for single-type systems (not VS)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+  set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
 # Default module directory (used by individual models)
@@ -15,7 +18,7 @@ set (CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/model_modules)
 
 # Add compiler flags
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-set (CMAKE_Fortran_FLAGS "-ffree-line-length-none")
+  set (CMAKE_Fortran_FLAGS "-ffree-line-length-none")
 endif()
 
 # Make sure FABMHOST is set to a subdir of src/drivers
@@ -25,21 +28,31 @@ set_property(CACHE FABMHOST PROPERTY STRINGS ${HOSTNAMES})
 
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
 if(BUILD_SHARED_LIBS OR ${FABMHOST} STREQUAL "python")
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
 # Set default installation prefix.
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 if(WIN32)
-  SET(CMAKE_INSTALL_PREFIX
-    "$ENV{HOMEDRIVE}$ENV{HOMEPATH}/fabm" CACHE PATH "Directory to install FABM in" FORCE
-    )
+  set(DEFAULT_PREFIX "$ENV{HOMEDRIVE}$ENV{HOMEPATH}/fabm/${FABMHOST}")
 else()
-  SET(CMAKE_INSTALL_PREFIX
-    "$ENV{HOME}/local/fabm" CACHE PATH "Directory to install FABM in" FORCE
-    )
+  set(DEFAULT_PREFIX "$ENV{HOME}/local/fabm/${FABMHOST}")
 endif()
-endif(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+
+# If installation prefix is still set to cmake default, overwrite it.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in" FORCE)
+endif()
+
+# Retrieve actual and default installation prefix from cache.
+mark_as_advanced(FABM_DEFAULT_PREFIX)
+set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in")
+set(FABM_DEFAULT_PREFIX  ${DEFAULT_PREFIX} CACHE PATH "Default directory to install FABM in")
+
+# If cached actual and default prefixes match, overwrite prefix with currently suggested default.
+if (CMAKE_INSTALL_PREFIX STREQUAL FABM_DEFAULT_PREFIX)
+  set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in" FORCE)
+  set(FABM_DEFAULT_PREFIX  ${DEFAULT_PREFIX} CACHE PATH "Default directory to install FABM in" FORCE)
+endif()
 
 # Global include directories
 include_directories ("${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}")
@@ -83,15 +96,19 @@ set_property(TARGET fabm      PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_D
 # Add directory with model-specific *.mod to include directories of main FABM library.
 target_include_directories(fabm PRIVATE "${CMAKE_BINARY_DIR}/model_modules")
 
-add_subdirectory (models)
+add_subdirectory(models)
 
 if(EXISTS ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/CMakeLists.txt)
-add_subdirectory (${PROJECT_SOURCE_DIR}/drivers/${FABMHOST})
+  add_subdirectory (${PROJECT_SOURCE_DIR}/drivers/${FABMHOST})
+endif()
+
+if (${FABMHOST} STREQUAL python OR ${FABMHOST} STREQUAL 0d)
+  return()
 endif()
 
 install(TARGETS fabm
-  DESTINATION ${FABMHOST}/lib)
+  DESTINATION lib)
 install(DIRECTORY ${CMAKE_BINARY_DIR}/modules/\${BUILD_TYPE}/
-  DESTINATION ${FABMHOST}/include)
-INSTALL(FILES ${PROJECT_SOURCE_DIR}/../include/fabm.h ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/fabm_driver.h
-  DESTINATION ${FABMHOST}/include)
+  DESTINATION include)
+install(FILES ${PROJECT_SOURCE_DIR}/../include/fabm.h ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/fabm_driver.h
+  DESTINATION include)

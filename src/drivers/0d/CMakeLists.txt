@@ -30,7 +30,7 @@ target_include_directories(fabm0d PRIVATE "${GOTMDIR}/include")
 target_include_directories(fabm0d PRIVATE "${GOTMDIR}/src/util")
 target_include_directories(fabm0d PRIVATE "${CMAKE_BINARY_DIR}/0d_modules")
 if (WIN32)
-target_include_directories(fabm0d PRIVATE "${GOTMDIR}/compilers/vs2010")
+  target_include_directories(fabm0d PRIVATE "${GOTMDIR}/compilers/vs2010")
 endif(WIN32)
 
 # Make NetCDF use a configurable option.
@@ -89,36 +89,5 @@ target_compile_definitions(fabm0d PRIVATE NETCDF4)
 
 endif(USE_NETCDF)
 
-# Determine the appropriate FORTRAN_COMPILER string needed for gotm, getm.
-# This is used to infer gotm include and library directories.
-#KBif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-#KBset(BB_FORTRAN_COMPILER "GFORTRAN")
-#KBelseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-#KBset(BB_FORTRAN_COMPILER "IFORT")
-#KBelseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "PGI")
-#KBset(BB_FORTRAN_COMPILER "PGFORTRAN")
-#KBelse()
-#KB# This compiler has no obvious match with those known by gotm, getm. Let's hope the user set FORTRAN_COMPILER.
-#KBset(BB_FORTRAN_COMPILER "$ENV{FORTRAN_COMPILER}")
-#KBendif()
-
-#KBif(WIN32)
-#KBinclude_external_msproject(util $ENV{GOTMDIR}/compilers/vs2010/util.vfproj TYPE "6989167D-11E4-40FE-8C1A-2192A86A7E90")
-#KBinclude_external_msproject(gotmlib $ENV{GOTMDIR}/compilers/vs2010/gotmlib.vfproj TYPE "6989167D-11E4-40FE-8C1A-2192A86A7E90" util)
-#KBset_target_properties(gotmlib PROPERTIES MAP_IMPORTED_CONFIG_DEBUG "Debug-nobio")
-#KBadd_dependencies(fabm0d util gotmlib)
-#KBinclude_directories ("$ENV{GOTMDIR}/compilers/vs2010")
-#KBelse(WIN32)
-#KBinclude_directories ("$ENV{GOTMDIR}/modules/${BB_FORTRAN_COMPILER}")
-#KBadd_library(gotm_input STATIC IMPORTED)
-#KBadd_library(gotm_airsea STATIC IMPORTED)
-#KBadd_library(gotm_util STATIC IMPORTED)
-
-#KBset_target_properties(gotm_util PROPERTIES IMPORTED_LOCATION "$ENV{GOTMDIR}/lib/${BB_FORTRAN_COMPILER}/libutil_prod.a")
-#KBset_target_properties(gotm_input PROPERTIES IMPORTED_LOCATION "$ENV{GOTMDIR}/lib/${BB_FORTRAN_COMPILER}/libinput_prod.a")
-#KBset_target_properties(gotm_airsea PROPERTIES IMPORTED_LOCATION "$ENV{GOTMDIR}/lib/${BB_FORTRAN_COMPILER}/libairsea_prod.a")
-#KBtarget_link_libraries( fabm0d gotm_airsea gotm_input gotm_util )
-#KBendif(WIN32)
-
 install(TARGETS fabm0d
-  DESTINATION ${FABMHOST}/bin)
+  DESTINATION bin)
