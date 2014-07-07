@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-yamlfile = '../fabm-npzd-carbonate.yaml'
-
 import sys, os
+
+yamlfile = '../fabm-npzd-carbonate.yaml'
+if len(sys.argv)>1: yamlfile = sys.argv[1]
 
 # Try to locate FABM library.
 # Retrieve FABM installation directory from enviornemtn variable FABM_PREFIX if set.
