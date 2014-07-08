@@ -18,7 +18,7 @@ sys.path.append(os.path.join(prefix,'fabm/python'))
 import pyfabm
 
 # Create model object from YAML file.
-model = pyfabm.Model(os.path.join(os.path.dirname(__file__),yamlfile))
+model = pyfabm.Model(yamlfile)
 
 # List pelagic state variables
 for variable in model.bulk_state_variables:
