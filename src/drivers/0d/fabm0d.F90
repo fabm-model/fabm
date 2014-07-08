@@ -61,13 +61,6 @@
    type (type_bulk_variable_id), save :: id_dens, id_par
    logical                            :: compute_density
 
-   type type_input_data
-      character(len=attribute_length) :: variable_name = ''
-      real(rk)                        :: value         = 0.0_rk
-      type (type_input_data),pointer  :: next          => null()
-   end type
-   type (type_input_data), pointer, save :: first_input_data => null()
-
    interface
       function short_wave_radiation(jul,secs,dlon,dlat,cloud,bio_albedo) result(swr)
          import
@@ -485,18 +478,10 @@
          end if
       end if
 
-      ! Create an object to hold information on this input variable.      
-      if (associated(first_input_data)) then
-         input_data => first_input_data
-         do while (associated(input_data%next))
-            input_data => input_data%next
-         end do
-         allocate(input_data%next)
-         input_data => input_data%next
-      else
-         allocate(first_input_data)
-         input_data => first_input_data
-      end if
+      ! Prepend to list of input data.
+      allocate(input_data)
+      input_data%next => first_input_data
+      first_input_data => input_data
       input_data%variable_name = variable_name
 
       scalar => mapping%get_scalar('constant_value',required=.false.,error=config_error)

@@ -120,7 +120,8 @@
 !  Original author(s): Karsten Bolding
 !
 ! !LOCAL PARAMETERS:
-   integer         :: i,iret
+   integer                        :: i,iret
+   type (type_input_data),pointer :: input_data
 #ifdef NETCDF4
    integer         :: lon_dim,lat_dim,time_dim
    integer         :: lon_id,lat_id
@@ -195,6 +196,12 @@
          call check_err(iret)
 
 !        define variables
+         input_data => first_input_data
+         do while (associated(input_data))
+            iret = nf90_def_var(ncid,input_data%variable_name,NF90_REAL,dims,input_data%ncid)
+            call check_err(iret)
+            input_data => input_data%next
+         end do
          iret = nf90_def_var(ncid,'par',NF90_REAL,dims,par_id)
          call check_err(iret)
          iret = nf90_def_var(ncid,'temp',NF90_REAL,dims,temp_id)
@@ -302,6 +309,7 @@
 ! !LOCAL PARAMETERS:
    integer         :: i,j,iret
    integer         :: start(3)
+   type (type_input_data),pointer :: input_data
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -344,6 +352,12 @@
 
          start(1) = 1; start(2) = 1; start(3) = setn
 
+         input_data => first_input_data
+         do while (associated(input_data))
+            iret = nf90_put_var(ncid,input_data%ncid,input_data%value,start)
+            call check_err(iret)
+            input_data => input_data%next
+         end do
          iret = nf90_put_var(ncid,par_id,par,start)
          call check_err(iret)
          iret = nf90_put_var(ncid,temp_id,temp,start)
