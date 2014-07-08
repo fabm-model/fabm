@@ -83,8 +83,8 @@ find_path(NETCDF_INCLUDE_DIRS netcdf.mod
 
 endif()
 
-set_property(TARGET fabm0d PROPERTY LINK_FLAGS ${NETCDF_FLIBS})
 target_include_directories(fabm0d PRIVATE ${NETCDF_INCLUDE_DIRS})
+target_link_libraries(fabm0d ${NETCDF_FLIBS})
 target_compile_definitions(fabm0d PRIVATE NETCDF4)
 
 endif(USE_NETCDF)
