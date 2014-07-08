@@ -14,7 +14,7 @@ elif os.name=='nt':
     prefix = '%s%s' % (os.environ['HOMEDRIVE'],os.environ['HOMEPATH'])
 else:
     prefix = os.path.join(os.environ['HOME'],'local')
-sys.path.append(os.path.join(prefix,'fabm/python/python'))
+sys.path.append(os.path.join(prefix,'fabm/python'))
 import pyfabm
 import pyfabm.gui_qt
 
