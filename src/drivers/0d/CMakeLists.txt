@@ -52,15 +52,16 @@ if(NETCDF_CONFIG_EXECUTABLE)
 # Mark NetCDF paths as advanced configuration options in CMake (hidden by default).
 exec_program(${NETCDF_CONFIG_EXECUTABLE} ARGS --includedir OUTPUT_VARIABLE includedir)
 exec_program(${NETCDF_CONFIG_EXECUTABLE} ARGS --flibs      OUTPUT_VARIABLE flibs)
-set(NETCDF_INCLUDE_DIRS ${includedir} CACHE STRING "NetCDF include directory")
-set(NETCDF_FLIBS ${flibs} CACHE STRING "NetCDF linking flags")
+set(NETCDF_INCLUDE_DIRS ${includedir} CACHE STRING "NetCDF include directories")
+set(NETCDF_LIBRARIES ${flibs} CACHE STRING "NetCDF linking flags")
 mark_as_advanced(NETCDF_INCLUDE_DIRS NETCDF_FLIBS)
 
 elseif (WIN32)
 
 # On Windows: use CMake to locte paths; default to NetCDF static library provided with GOTM.
-find_library(NETCDF_LIBRARIES NAMES netcdfs HINTS ${GOTMDIR}/extras/netcdf/win32/3.6.3/lib DOC "NetCDF library")
-target_link_libraries(fabm0d ${NETCDF_LIBRARIES})
+find_library(NETCDF_LIBRARIES NAMES netcdfs
+             HINTS ${GOTMDIR}/extras/netcdf/win32/3.6.3/lib
+             DOC "NetCDF library")
 find_path(NETCDF_INCLUDE_DIRS netcdf.mod
           HINTS ${GOTMDIR}/extras/netcdf/win32/3.6.3/include ENV NETCDFINC
           DOC "NetCDF include directory")
@@ -69,14 +70,14 @@ else()
 
 # Use GOTM environment variables: NETCDFLIBNAME, NETCDFLIBDIR, NETCDFINC
 if(DEFINED ENV{NETCDFLIBNAME})
-set(flibs $ENV{NETCDFLIBNAME})
+  set(flibs $ENV{NETCDFLIBNAME})
 else()
-set(flibs "-lnetcdf")
+  set(flibs "-lnetcdf")
 endif()
 if(DEFINED ENV{NETCDFLIBDIR})
-set(flibs "${flibs} -L$ENV{NETCDFLIBDIR}")
+  set(flibs "${flibs} -L$ENV{NETCDFLIBDIR}")
 endif()
-set(NETCDF_FLIBS ${flibs} CACHE STRING "NetCDF linking flags")
+set(NETCDF_LIBRARIES ${flibs} CACHE STRING "NetCDF linking flags")
 find_path(NETCDF_INCLUDE_DIRS netcdf.mod
           HINTS ENV NETCDFINC
           DOC "NetCDF include directory")
@@ -84,7 +85,7 @@ find_path(NETCDF_INCLUDE_DIRS netcdf.mod
 endif()
 
 target_include_directories(fabm0d PRIVATE ${NETCDF_INCLUDE_DIRS})
-target_link_libraries(fabm0d ${NETCDF_FLIBS})
+target_link_libraries(fabm0d ${NETCDF_LIBRARIES})
 target_compile_definitions(fabm0d PRIVATE NETCDF4)
 
 endif(USE_NETCDF)
