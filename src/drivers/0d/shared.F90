@@ -17,7 +17,7 @@ module shared
    type type_input_data
       character(len=attribute_length) :: variable_name = ''
       real(rk)                        :: value         = 0.0_rk
-      integer                         :: ncid
+      integer                         :: ncid          = -1
       type (type_input_data),pointer  :: next          => null()
    end type
    type (type_input_data), pointer, save :: first_input_data => null()

@@ -121,7 +121,7 @@
 !
 ! !LOCAL PARAMETERS:
    integer                        :: i,iret
-   type (type_input_data),pointer :: input_data
+   type (type_input_data),pointer :: input_data,input_data2
 #ifdef NETCDF4
    integer         :: lon_dim,lat_dim,time_dim
    integer         :: lon_id,lat_id
@@ -198,8 +198,18 @@
 !        define variables
          input_data => first_input_data
          do while (associated(input_data))
-            iret = nf90_def_var(ncid,input_data%variable_name,NF90_REAL,dims,input_data%ncid)
-            call check_err(iret)
+            ! First check if an input variable of this name has already been added to NetCDF.
+            ! If so, this predefined one takes precedence, and we do nothing.
+            input_data2 => first_input_data
+            do while (.not.associated(input_data2,input_data))
+               if (input_data2%variable_name==input_data%variable_name) exit
+               input_data2 => input_data2%next
+            end do
+
+            if (associated(input_data2,input_data)) then
+               iret = nf90_def_var(ncid,input_data%variable_name,NF90_REAL,dims,input_data%ncid)
+               call check_err(iret)
+            end if
             input_data => input_data%next
          end do
          iret = nf90_def_var(ncid,'par',NF90_REAL,dims,par_id)
@@ -354,8 +364,10 @@
 
          input_data => first_input_data
          do while (associated(input_data))
-            iret = nf90_put_var(ncid,input_data%ncid,input_data%value,start)
-            call check_err(iret)
+            if (input_data%ncid/=-1) then
+               iret = nf90_put_var(ncid,input_data%ncid,input_data%value,start)
+               call check_err(iret)
+            end if
             input_data => input_data%next
          end do
          iret = nf90_put_var(ncid,par_id,par,start)
