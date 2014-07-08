@@ -53,6 +53,6 @@
 		<File RelativePath="..\..\src\config\fabm_config_types.F90"/>
 		<File RelativePath="..\..\src\config\fabm_yaml.F90"/></Filter>
 		<Filter Name="driver">
-		<File RelativePath="..\..\src\drivers\python\fabm_python.F90"/>
-		<File RelativePath="..\..\src\drivers\python\helper.F90"/></Filter></Filter></Files>
+		<File RelativePath="..\..\src\drivers\python\helper.F90"/>
+		<File RelativePath="..\..\src\drivers\python\python_fabm.F90"/></Filter></Filter></Files>
 	<Globals/></VisualStudioProject>
