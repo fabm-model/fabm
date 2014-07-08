@@ -2,7 +2,20 @@ cmake_minimum_required(VERSION 2.8)
 
 # Create a list of all institutes to include.
 # When adding new institutes to the source tree, please add them here as well.
-set(FABM_INSTITUTES aed au bb examples gotm hzg iow klimacampus metu msi niva pml)
+set(FABM_INSTITUTES
+    aed          # Aquatic Eco Dynamics, University of Western Australia
+    au           # University of Aarhus
+    bb           # Bolding & Burchard
+    examples     # Examples supplied with FABM itself
+    gotm         # Models ported from original GOTM/BIO library
+    hzg          # Helmholtz-Zentrum Geesthacht
+    iow          # Leibniz Institute for Baltic Sea Research
+    klimacampus  # KlimaCampus Hamburg
+    metu         # Middle East Technical University
+    msi          # Marine Systems Institute, Tallinn University of Technology
+    niva         # Norsk Institutt for Vannforskning
+    pml          # Plymouth Marine Laboratory
+   )
 
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -79,6 +92,7 @@ add_library(fabm_base OBJECT
 
 # Create a list of institute-specific object libraries.
 foreach(institute ${FABM_INSTITUTES}) 
+  add_subdirectory(models/${institute})
   list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:${institute}>)
 endforeach(institute) 
 
@@ -100,9 +114,6 @@ set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BIN
 
 # Add directory with model-specific *.mod to include directories of main FABM library.
 target_include_directories(fabm PRIVATE "${CMAKE_BINARY_DIR}/model_modules")
-
-# Add model-specific projects (must be done after defining library "fabm_base")
-add_subdirectory(models)
 
 # Run host-specific cmake scripts if present.
 if(EXISTS ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/CMakeLists.txt)
