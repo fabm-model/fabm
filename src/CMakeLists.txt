@@ -52,26 +52,6 @@ else()
   set(DEFAULT_PREFIX "$ENV{HOME}/local/fabm/${FABMHOST}")
 endif()
 
-# Re-initialize installation prefix if needed.
-mark_as_advanced(FABM_DEFAULT_PREFIX)
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  # Installation prefix is still set to cmake default - overwrite it.
-  set(FABM_INITIALIZE_PREFIX ON)
-else()
-  # Check whether cached actual and default prefixes match.
-  # If so, we'll overwrite prefix with our current preferred (host-specific) default.
-  set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in")
-  set(FABM_DEFAULT_PREFIX  ${DEFAULT_PREFIX} CACHE PATH "Default directory to install FABM in")
-  if (CMAKE_INSTALL_PREFIX STREQUAL FABM_DEFAULT_PREFIX)
-    set(FABM_INITIALIZE_PREFIX ON)
-  endif()
-endif()
-if (FABM_INITIALIZE_PREFIX)
-  set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in" FORCE)
-  set(FABM_DEFAULT_PREFIX  ${DEFAULT_PREFIX} CACHE PATH "Default directory to install FABM in" FORCE)
-endif()
-message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
-
 # Default module directory (used by individual models)
 set (CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/model_modules)
 
@@ -123,6 +103,26 @@ endif()
 # Place projects in specific solution folders (Visual Studio only).
 set_property(TARGET fabm_base fabm     PROPERTY FOLDER fabm)
 set_property(TARGET ${FABM_INSTITUTES} PROPERTY FOLDER fabm/models)
+
+# Re-initialize installation prefix if needed.
+mark_as_advanced(FABM_DEFAULT_PREFIX)
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  # Installation prefix is still set to cmake default - overwrite it.
+  set(FABM_INITIALIZE_PREFIX ON)
+else()
+  # Check whether cached actual and default prefixes match.
+  # If so, we'll overwrite prefix with our current preferred (host-specific) default.
+  set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in")
+  set(FABM_DEFAULT_PREFIX  ${DEFAULT_PREFIX} CACHE PATH "Default directory to install FABM in")
+  if (CMAKE_INSTALL_PREFIX STREQUAL FABM_DEFAULT_PREFIX)
+    set(FABM_INITIALIZE_PREFIX ON)
+  endif()
+endif()
+if (FABM_INITIALIZE_PREFIX)
+  set(CMAKE_INSTALL_PREFIX ${DEFAULT_PREFIX} CACHE PATH "Directory to install FABM in" FORCE)
+  set(FABM_DEFAULT_PREFIX  ${DEFAULT_PREFIX} CACHE PATH "Default directory to install FABM in" FORCE)
+endif()
+message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
 
 # Install FABM library and include files, unless the host overruled this.
 if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
