@@ -1,11 +1,14 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required(VERSION 2.8)
+
+# Create a list of all institutes to include.
+# When adding new institutes to the source tree, please add them here as well.
+set(FABM_INSTITUTES aed au bb examples gotm hzg iow klimacampus metu msi niva pml)
 
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set_property(TARGET PROPERTY FOLDER library)
 
 # Create main project.
-project (fabm Fortran)
+project(fabm Fortran)
 
 # Specify default build type for single-type systems (not VS)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -13,10 +16,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-# Default module directory (used by individual models)
-set (CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/model_modules)
-
-# Add compiler flags
+# Customize compiler flags
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
   set (CMAKE_Fortran_FLAGS "-ffree-line-length-none")
 endif()
@@ -39,7 +39,7 @@ else()
   set(DEFAULT_PREFIX "$ENV{HOME}/local/fabm/${FABMHOST}")
 endif()
 
-# Re-initialize instalaltion prefix if needed.
+# Re-initialize installation prefix if needed.
 mark_as_advanced(FABM_DEFAULT_PREFIX)
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   # Installation prefix is still set to cmake default - overwrite it.
@@ -59,10 +59,14 @@ if (FABM_INITIALIZE_PREFIX)
 endif()
 message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
 
+# Default module directory (used by individual models)
+set (CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/model_modules)
+
 # Global include directories
-include_directories ("${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}")
-include_directories ("${PROJECT_SOURCE_DIR}/../include")
-include_directories ("${CMAKE_BINARY_DIR}/modules")
+include_directories("${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}"
+                    "${PROJECT_SOURCE_DIR}/../include"
+                    "${CMAKE_BINARY_DIR}/modules"
+                   )
 
 add_library(fabm_base OBJECT
             fabm_driver.F90
@@ -73,20 +77,14 @@ add_library(fabm_base OBJECT
             fabm_expressions.F90
            )
 
+# Create a list of institute-specific object libraries.
+foreach(institute ${FABM_INSTITUTES}) 
+  list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:${institute}>)
+endforeach(institute) 
+
 add_library(fabm
             $<TARGET_OBJECTS:fabm_base>
-            $<TARGET_OBJECTS:aed>
-            $<TARGET_OBJECTS:au>
-            $<TARGET_OBJECTS:bb>
-            $<TARGET_OBJECTS:examples>
-            $<TARGET_OBJECTS:gotm>
-            $<TARGET_OBJECTS:hzg>
-            $<TARGET_OBJECTS:iow>
-            $<TARGET_OBJECTS:klimacampus>
-            $<TARGET_OBJECTS:metu>
-            $<TARGET_OBJECTS:msi>
-            $<TARGET_OBJECTS:niva>
-            $<TARGET_OBJECTS:pml>
+            ${MODEL_OBJECTS}
             fabm_library.F90
             fabm.F90
             config/fabm_config_types.F90
@@ -94,19 +92,28 @@ add_library(fabm
             config/fabm_config.F90
            )
 
+# Group config source files in a folder in IDEs that support this.
+source_group(config REGULAR_EXPRESSION config/)
+
 # Store FABM *.mod in separate directory, so these files can later be installed.
-set_property(TARGET fabm_base PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
-set_property(TARGET fabm      PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
+set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
 
 # Add directory with model-specific *.mod to include directories of main FABM library.
 target_include_directories(fabm PRIVATE "${CMAKE_BINARY_DIR}/model_modules")
 
+# Add model-specific projects (must be done after defining library "fabm_base")
 add_subdirectory(models)
 
+# Run host-specific cmake scripts if present.
 if(EXISTS ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/CMakeLists.txt)
   add_subdirectory (${PROJECT_SOURCE_DIR}/drivers/${FABMHOST})
 endif()
 
+# Place projects in specific solution folders (Visual Studio only).
+set_property(TARGET fabm_base fabm     PROPERTY FOLDER fabm)
+set_property(TARGET ${FABM_INSTITUTES} PROPERTY FOLDER fabm/models)
+
+# Install FABM library and include files, unless the host overruled this.
 if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
   install(TARGETS fabm
     DESTINATION lib)
