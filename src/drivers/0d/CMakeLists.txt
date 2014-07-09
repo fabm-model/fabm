@@ -69,6 +69,12 @@ find_library(NETCDF_LIBRARIES NAMES netcdfs
 find_path(NETCDF_INCLUDE_DIRS netcdf.mod
           HINTS ${GOTMDIR}/extras/netcdf/win32/3.6.3/include ENV NETCDFINC
           DOC "NetCDF include directory")
+if(MSVC AND NETCDF_LIBRARIES STREQUAL ${GOTMDIR}/extras/netcdf/win32/3.6.3/lib/netcdfs.lib)
+  # Win32 NetCDF library provided with GOTM is statically built against release libraries.
+  # Ensure that current project does the same to provide conflicts during linking phase.
+  set_property(TARGET fabm0d PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmtd\"")
+  target_compile_options(fabm0d PRIVATE "/libs:static")
+endif()
 
 else()
 
