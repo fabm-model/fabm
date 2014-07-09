@@ -433,6 +433,7 @@
       if (associated(pair)) call driver%log_message('Forcing data specified in input.yaml:')
       do while (associated(pair))
          variable_name = trim(pair%key)
+         if (variable_name=='') call driver%fatal_error('init_yaml_input','Empty variable name specified.')
          select type (dict=>pair%value)
             class is (type_dictionary)
                call parse_input_variable(variable_name,dict)
