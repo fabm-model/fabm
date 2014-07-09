@@ -3,14 +3,24 @@
 import sys,os,ctypes,re
 import numpy
 
-# Load FABM library
+# Determine potential names of FABM dynamic library.
 if os.name=='nt':
-   dllpath = 'python_fabm.dll'
+   dllpaths = ('python_fabm.dll','libpython_fabm.dll')
 elif os.name == "posix" and sys.platform == "darwin":
-   dllpath = 'libpython_fabm.dylib'
+   dllpaths = ('libpython_fabm.dylib',)
 else:
-   dllpath = 'libpython_fabm.so'
-fabm = ctypes.CDLL(os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpath))
+   dllpaths = ('libpython_fabm.so',)
+
+# Determine name of existing FABM dynamic library.
+for dllpath in dllpaths:
+   dllpath = os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpath)
+   if os.path.isfile(dllpath): break
+else:
+   print 'Unable to locate FABM dynamic library %s.' % (' or '.join(dllpaths),)
+   sys.exit(1)
+
+# Load FABM library.
+fabm = ctypes.CDLL(dllpath)
 
 # Specify arguments and return types for FABM interfaces.
 fabm.initialize.argtypes = [ctypes.c_char_p]
