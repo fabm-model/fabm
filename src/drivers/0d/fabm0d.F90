@@ -430,6 +430,7 @@
       type (type_key_value_pair),pointer :: pair
 
       pair => mapping%first
+      if (associated(pair)) call driver%log_message('Forcing data specified in input.yaml:')
       do while (associated(pair))
          variable_name = trim(pair%key)
          select type (dict=>pair%value)
@@ -451,7 +452,7 @@
       type (type_error),         pointer :: config_error
       class (type_node),         pointer :: node
       class (type_scalar),       pointer :: scalar
-      character(len=1024)                :: path
+      character(len=1024)                :: path,message
       integer                            :: column
       real(rk)                           :: scale_factor
       real(rk)                           :: relaxation_time
@@ -483,6 +484,7 @@
       input_data%next => first_input_data
       first_input_data => input_data
       input_data%variable_name = variable_name
+      call driver%log_message('  '//trim(input_data%variable_name))
 
       scalar => mapping%get_scalar('constant_value',required=.false.,error=config_error)
       if (associated(scalar)) then
@@ -497,6 +499,8 @@
          if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "column" cannot both be present.')
          node => mapping%get('scale_factor')
          if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "scale_factor" cannot both be present.')
+         write (message,'(g13.6)') input_data%value
+         call driver%log_message('    constant_value = '//adjustl(message))
       else
          ! Input variable is set to a time-varying value. Obtain path, column number and scale factor.
          path = mapping%get_string('file',error=config_error)
@@ -506,6 +510,11 @@
          scale_factor = mapping%get_real('scale_factor',default=1.0_rk,error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
          call register_input_0d(path,column,input_data%value,scale_factor=scale_factor)
+         call driver%log_message('    file = '//trim(path))
+         write (message,'(i0)') column
+         call driver%log_message('    column = '//adjustl(message))
+         write (message,'(g13.6)') scale_factor
+         call driver%log_message('    scale factor = '//adjustl(message))
       end if
 
       if (is_state_variable) then
