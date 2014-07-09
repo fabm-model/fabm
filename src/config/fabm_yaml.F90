@@ -10,7 +10,7 @@ module fabm_yaml
 !
 ! For instance:
 !
-! models:
+! instances:
 !   P1:
 !     model: pml/ersem/vphyt
 !     parameters:
@@ -72,7 +72,22 @@ contains
       call file%next_line()
       if (.not.file%has_error) root => read_value(file)
       if (.not.already_open) close(file%unit)
-      if (file%has_error) write (error,'(a,a,i0,a,a)') trim(path),', line ',file%iline,': ',trim(file%error_message)
+      if (file%has_error) then
+         write (error,'(a,a,i0,a,a)') trim(path),', line ',file%iline,': ',trim(file%error_message)
+      elseif (.not.file%eof) then
+         if (associated(root)) then
+            select type (root)
+               class is (type_dictionary)
+                  write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': unexpected decrease in indentation.'
+               class is (type_scalar)
+                  write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': expected end of file after reading one scalar value.'
+               class default
+                  write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': expected end of file.'
+            end select
+         else
+            write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': expected end of file.'
+         end if
+      end if
 
       if (associated(root)) call root%set_path('')
 
