@@ -47,7 +47,11 @@ endif()
 
 # Set default installation prefix.
 if(WIN32)
-  set(DEFAULT_PREFIX "$ENV{HOMEDRIVE}$ENV{HOMEPATH}/fabm/${FABMHOST}")
+  if(DEFINED ENV{LOCALAPPDATA})
+    set(DEFAULT_PREFIX "$ENV{LOCALAPPDATA}/fabm/${FABMHOST}")
+  else()
+    set(DEFAULT_PREFIX "$ENV{APPDATA}/fabm/${FABMHOST}")
+  endif()
 else()
   set(DEFAULT_PREFIX "$ENV{HOME}/local/fabm/${FABMHOST}")
 endif()
