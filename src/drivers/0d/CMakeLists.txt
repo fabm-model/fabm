@@ -94,6 +94,8 @@ find_path(NETCDF_INCLUDE_DIRS netcdf.mod
 
 endif()
 
+message(STATUS "NetCDF libraries: ${NETCDF_LIBRARIES}")
+message(STATUS "NetCDF include directories: ${NETCDF_INCLUDE_DIRS}")
 target_include_directories(fabm0d PRIVATE ${NETCDF_INCLUDE_DIRS})
 target_link_libraries(fabm0d ${NETCDF_LIBRARIES})
 target_compile_definitions(fabm0d PRIVATE NETCDF4)
