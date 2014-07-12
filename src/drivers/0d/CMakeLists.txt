@@ -26,11 +26,11 @@ target_link_libraries(fabm0d fabm)
 
 # Set module directory (output of *.mod) and include directories (input pf *.h, *.mod).
 set_property(TARGET fabm0d PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/0d_modules)
-target_include_directories(fabm0d PRIVATE "${GOTMDIR}/include")
-target_include_directories(fabm0d PRIVATE "${GOTMDIR}/src/util")
-target_include_directories(fabm0d PRIVATE "${CMAKE_BINARY_DIR}/0d_modules")
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTMDIR}/include")
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTMDIR}/src/util")
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/0d_modules")
 if (WIN32)
-  target_include_directories(fabm0d PRIVATE "${GOTMDIR}/compilers/vs2010")
+  set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTMDIR}/compilers/vs2010")
 endif(WIN32)
 
 # Make NetCDF use a configurable option.
@@ -94,9 +94,9 @@ find_path(NETCDF_INCLUDE_DIRS netcdf.mod
 
 endif()
 
-target_include_directories(fabm0d PRIVATE ${NETCDF_INCLUDE_DIRS})
 target_link_libraries(fabm0d ${NETCDF_LIBRARIES})
-target_compile_definitions(fabm0d PRIVATE NETCDF4)
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES ${NETCDF_INCLUDE_DIRS})
+set_property(TARGET fabm0d APPEND PROPERTY COMPILE_DEFINITIONS NETCDF4)
 
 endif(USE_NETCDF)
 

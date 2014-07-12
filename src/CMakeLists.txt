@@ -93,7 +93,7 @@ source_group(config REGULAR_EXPRESSION config/)
 set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
 
 # Add directory with model-specific *.mod to include directories of main FABM library.
-target_include_directories(fabm PRIVATE "${CMAKE_BINARY_DIR}/model_modules")
+set_property(TARGET fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/model_modules")
 
 # Run host-specific cmake scripts if present.
 if(EXISTS ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/CMakeLists.txt)

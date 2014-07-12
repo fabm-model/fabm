@@ -24,7 +24,7 @@ add_library(aed OBJECT
 add_dependencies(aed fabm_base)
 
 # Make sure aed.h can be found.
-target_include_directories(aed PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+set_property(TARGET aed APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2014 - Karsten Bolding and Jorn Bruggeman (BB)         !
