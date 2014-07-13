@@ -1,6 +1,6 @@
 module shared
-   use fabm
-   use fabm_types
+   use fabm,only: type_model
+   use fabm_types,only: attribute_length,rk
 
    implicit none
 

@@ -15,14 +15,14 @@
    use input
    use eqstate,only:rho_feistel
 
-   use shared
-   use output
-
+   use fabm
    use fabm_driver
    use fabm_types
    use fabm_expressions
-   use fabm
    use fabm_config
+
+   use shared
+   use output
 
    implicit none
    private
