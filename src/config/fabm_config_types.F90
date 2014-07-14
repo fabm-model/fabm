@@ -257,6 +257,7 @@ contains
 
       class (type_node),pointer          :: node
 
+      nullify(error)
       nullify(scalar)
       node => self%get(key)
       if (required.and..not.associated(node)) then
@@ -286,6 +287,7 @@ contains
 
       class (type_node),pointer          :: node
 
+      nullify(error)
       nullify(dictionary)
       node => self%get(key)
       if (required.and..not.associated(node)) then
