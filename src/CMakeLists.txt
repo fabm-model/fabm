@@ -32,6 +32,8 @@ endif()
 # Customize compiler flags
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
   set (CMAKE_Fortran_FLAGS "-ffree-line-length-none")
+elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
+  set (CMAKE_Fortran_FLAGS "-N 1023")
 endif()
 
 # Make sure FABMHOST is set to a subdir of src/drivers
