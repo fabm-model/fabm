@@ -85,7 +85,8 @@
             call self%type_base_model_factory%create(name,model)
       end select
 
-      model%type_name = name
+      ! Store name that was used to create this model, so we can re-create it in the future.
+      if (associated(model)) model%type_name = name
    end subroutine
 !EOC
 
