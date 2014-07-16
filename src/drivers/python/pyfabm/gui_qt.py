@@ -134,11 +134,11 @@ class ItemModel(QtCore.QAbstractItemModel):
         data = entry.object
         if role==QtCore.Qt.DisplayRole:
             if index.column()==0:
-                if isinstance(data,basestring): return entry.name
-                return data.long_name
+                return entry.name if isinstance(data,basestring) else data.long_name
             if not isinstance(data,basestring):
                 if index.column()==1:
-                    return data.value
+                    value = data.value
+                    if not isinstance(value,bool): return value
                 elif index.column()==2 and data.units:
                     return data.units_unicode
                 elif index.column()==3:
@@ -152,10 +152,13 @@ class ItemModel(QtCore.QAbstractItemModel):
                 font = QtGui.QFont()
                 font.setBold(True)
                 return font
+        elif role==QtCore.Qt.CheckStateRole and index.column()==1 and not isinstance(data,basestring) and isinstance(data.value,bool):
+            return QtCore.Qt.Checked if data.value else QtCore.Qt.Unchecked
         return None
 
     def setData(self,index,value,role):
-        if role==QtCore.Qt.EditRole:
+        if role==QtCore.Qt.CheckStateRole: value = value==QtCore.Qt.Checked
+        if role in (QtCore.Qt.EditRole,QtCore.Qt.CheckStateRole):
             data = index.internalPointer().object
             data.setValue(value)
             if isinstance(data,pyfabm.Parameter): self.rebuild()
@@ -165,8 +168,13 @@ class ItemModel(QtCore.QAbstractItemModel):
     def flags(self,index):
         flags = QtCore.Qt.NoItemFlags
         if not index.isValid(): return flags
-        if index.parent().isValid() and index.column()==1 and not isinstance(index.internalPointer().object,basestring):
-            flags |= QtCore.Qt.ItemIsEditable
+        if index.column()==1:
+            entry = index.internalPointer().object
+            if not isinstance(entry,basestring):
+                if isinstance(entry.value,bool):
+                    flags |= QtCore.Qt.ItemIsUserCheckable
+                else:
+                    flags |= QtCore.Qt.ItemIsEditable
         return flags | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
 
     def headerData(self,section,orientation,role):
