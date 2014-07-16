@@ -28,6 +28,7 @@ fabm.get_variable_counts.argtypes = [ctypes.POINTER(ctypes.c_int),ctypes.POINTER
 fabm.get_variable_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
 fabm.get_parameter_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
 fabm.get_dependency_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p]
+fabm.get_model_metadata.argtypes = [ctypes.c_char_p,ctypes.c_int,ctypes.c_char_p]
 fabm.get_real_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
 fabm.get_real_parameter.restype = ctypes.c_double
 fabm.get_integer_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
@@ -60,20 +61,31 @@ unicodesuperscript = {'1':u'\u00B9','2':u'\u00B2','3':u'\u00B3',
                       '4':u'\u2074','5':u'\u2075','6':u'\u2076',
                       '7':u'\u2077','8':u'\u2078','9':u'\u2079',
                       '0':u'\u2070','-':u'\u207B'}
+unicodesubscript = {'1':u'\u2081','2':u'\u2082','3':u'\u2083',
+                    '4':u'\u2084','5':u'\u2085','6':u'\u2086',
+                    '7':u'\u2087','8':u'\u2088','9':u'\u2089',
+                    '0':u'\u2080'}
 supnumber = re.compile('(?<=\w)(-?\d+)(?=[ \*+\-/]|$)')
-supenumber = re.compile('(?<=\d)e-(\d+)(?=[ \*+\-/]|$)')
-oldsupminus = re.compile('/(\w+)\*\*(\d+)(?=[ \*+\-/]|$)')
-oldsup = re.compile('/(\w+)\*\*(\d+)(?=[ \*+\-/]|$)')
+supenumber = re.compile('(?<=\d)e(-?\d+)(?=[ \*+\-/]|$)')
+oldsupminus = re.compile('/(\w+)(?:\*\*)|\^(\d+)(?=[ \*+\-/]|$)')
+oldsup = re.compile('(?<=\w)(?:\*\*)|\^(-?\d+)(?=[ \*+\-/]|$)')
+oldsub = re.compile('(?<=\w)_(-?\d+)(?=[ \*+\-/]|$)')
 def createPrettyUnit(unit):
-    def repl(m):
+    def replace_superscript(m):
         return u''.join([unicodesuperscript[n] for n in m.group(1)])
+    def replace_subscript(m):
+        return u''.join([unicodesubscript[n] for n in m.group(1)])
     def reple(m):
-        return u'\u00D710\u207B%s' % u''.join([unicodesuperscript[n] for n in m.group(1)])
-    def replold(m):
+        return u'\u00D710%s' % u''.join([unicodesuperscript[n] for n in m.group(1)])
+    def reploldminus(m):
         return u' %s\u207B%s' % (m.group(1),u''.join([unicodesuperscript[n] for n in m.group(2)]))
+    #def replold(m):
+    #    return u'%s%s' % (m.group(1),u''.join([unicodesuperscript[n] for n in m.group(2)]))
+    unit = oldsup.sub(replace_superscript,unit)
+    unit = oldsub.sub(replace_subscript,unit)
     unit = supenumber.sub(reple,unit)
-    unit = supnumber.sub(repl,unit)
-    unit = oldsupminus.sub(replold,unit)
+    unit = supnumber.sub(replace_superscript,unit)
+    #unit = oldsupminus.sub(reploldminus,unit)
     return unit
 
 def printTree(root,stringmapper,indent=''):
@@ -196,6 +208,11 @@ class Model(object):
     def __init__(self,path='fabm.yaml'):
         fabm.initialize(path)
         self.updateConfiguration()
+
+    def getModelLongName(self,name):
+        strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        fabm.get_model_metadata(name,ATTRIBUTE_LENGTH,strname)
+        return strname.value
 
     def saveSettings(self):
         environment = dict([(dependency.name,dependency.value) for dependency in self.dependencies])

@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
-import sys
+import sys,optparse
+
+parser = optparse.OptionParser()
+options, args = parser.parse_args()
 
 yamlfile = '../fabm-npzd-carbonate.yaml'
-if len(sys.argv)>1: yamlfile = sys.argv[1]
+if args: yamlfile = args[0]
 
 try:
     import pyfabm

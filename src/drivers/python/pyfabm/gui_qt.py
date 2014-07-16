@@ -53,6 +53,17 @@ class ItemModel(QtCore.QAbstractItemModel):
         root.addTree(self.model.parameters,'parameters')
         root.addTree(self.model.state_variables,'initialization')
         root.addChild(env)
+        class Submodel:
+            def __init__(self,long_name):
+                self.units = None
+                self.units_unicode = None
+                self.value = None
+                self.long_name = long_name
+        def processNode(n,prefix=()):
+            if isinstance(n.object,basestring) and prefix and prefix[-1] not in ('parameters','initialization','environment'):
+                n.object = Submodel(self.model.getModelLongName('/'.join(prefix)))
+            for child in n.children: processNode(child,prefix+(child.name,))
+        processNode(root)
         if self.root is not None:
             def processChange(newnode,oldnode,parent):
                 oldnode.object = newnode.object
@@ -119,26 +130,24 @@ class ItemModel(QtCore.QAbstractItemModel):
 
     def data(self,index,role):
         if not index.isValid(): return
+        entry = index.internalPointer()
+        data = entry.object
         if role==QtCore.Qt.DisplayRole:
-            entry = index.internalPointer()
-            if index.column()==0: return entry.name
-            data = entry.object
+            if index.column()==0:
+                if isinstance(data,basestring): return entry.name
+                return data.long_name
             if not isinstance(data,basestring):
                 if index.column()==1:
-                    return data.getValue()
-                elif index.column()==2:
+                    return data.value
+                elif index.column()==2 and data.units:
                     return data.units_unicode
                 elif index.column()==3:
-                    return data.long_name
+                    return entry.name
         elif role==QtCore.Qt.ToolTipRole and index.parent().isValid():
-           data = index.internalPointer().object
-           if not isinstance(data,basestring): return data.long_name
+           if not isinstance(data,basestring): return '%s (%s)' % (data.long_name,entry.name)
         elif role==QtCore.Qt.EditRole:
-           data = index.internalPointer().object
            if not isinstance(data,basestring): return data.getValue()
         elif role==QtCore.Qt.FontRole and index.column()==1:
-            if index.column()==0: return entry.name
-            data = index.internalPointer().object
             if isinstance(data,pyfabm.Parameter) and data.value!=data.default:
                 font = QtGui.QFont()
                 font.setBold(True)
@@ -162,4 +171,4 @@ class ItemModel(QtCore.QAbstractItemModel):
 
     def headerData(self,section,orientation,role):
         if orientation==QtCore.Qt.Horizontal and role==QtCore.Qt.DisplayRole and section>=0 and section<4:
-            return ('name','value','units','description')[section]
+            return ('name','value','units','symbol')[section]

@@ -244,6 +244,21 @@
       call copy_to_c_string(environment_units(index),units)
    end subroutine
 
+   subroutine get_model_metadata(name,length,long_name) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_model_metadata
+      character(kind=c_char),intent(in)        :: name(*)
+      integer(c_int),        intent(in), value :: length
+      character(kind=c_char),intent(out)       :: long_name(length)
+
+      character(len=attribute_length),pointer :: pname
+      class (type_base_model),        pointer :: found_model
+
+      call c_f_pointer(c_loc(name), pname)
+      found_model => model%root%find_model(pname(:index(pname,C_NULL_CHAR)-1))
+      if (.not.associated(found_model)) call driver%fatal_error('get_model_metadata','model "'//pname(:index(pname,C_NULL_CHAR)-1)//'" not found.')
+      call copy_to_c_string(found_model%long_name,long_name)
+   end subroutine
+
    subroutine link_dependency_data(index,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_dependency_data
       integer(c_int),intent(in),value  :: index
