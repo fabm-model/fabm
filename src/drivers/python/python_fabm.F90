@@ -84,7 +84,7 @@
       ! Get a list of all parameter that had an explicit value specified.
       property => model%root%parameters%first
       do while (associated(property))
-         if (.not.model%root%missing_parameters%contains(property%name)) &
+         if (.not.model%root%parameters%missing%contains(property%name)) &
             call forced_parameters%set_property(property)
          property => property%next
       end do
@@ -129,7 +129,7 @@
       ! Removed unused forced parameters from root model.
       property => model%root%parameters%first
       do while (associated(property))
-         if (.not. model%root%retrieved_parameters%contains(property%name)) then
+         if (.not. model%root%parameters%retrieved%contains(property%name)) then
             next => property%next
             call model%root%parameters%delete(property%name)
             property => next

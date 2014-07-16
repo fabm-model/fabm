@@ -369,9 +369,8 @@
       type (type_link),              pointer :: first_link               => null()
       type (type_aggregate_variable),pointer :: first_aggregate_variable => null()
 
-      type (type_coupling_list)       :: couplings
-      type (type_property_dictionary) :: parameters
-      type (type_set)                 :: retrieved_parameters, missing_parameters
+      type (type_coupling_list)           :: couplings
+      type (type_hierarchical_dictionary) :: parameters
 
       class (type_expression), pointer :: first_expression => null()
 
@@ -834,6 +833,7 @@
          model%long_name = trim(name)
       end if
       model%parent => self
+      call self%parameters%add_child(model%parameters,name)
       call self%children%append(model)
       call model%initialize(configunit)
    end subroutine add_child
@@ -2332,12 +2332,14 @@ subroutine get_real_parameter(self,value,name,units,long_name,default,scale_fact
    end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => find_parameter(self,name,.not.present(default))
+   property => self%parameters%find_in_tree(name)
    if (associated(property)) then
       ! Value found - try to convert to real.
       value = property%to_real(success=success)
       if (.not.success) call self%fatal_error('get_real_parameter', &
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a real number.')
+   elseif (.not.present(default)) then
+      call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
    ! Store parameter settings
@@ -2348,42 +2350,6 @@ subroutine get_real_parameter(self,value,name,units,long_name,default,scale_fact
    if (present(scale_factor)) value = value*scale_factor
 end subroutine get_real_parameter
 !EOC
-
-function find_parameter(self,name,required) result(property)
-   class (type_base_model), intent(inout), target :: self
-   character(len=*),        intent(in)            :: name
-   logical,                 intent(in)            :: required
-   class (type_property), pointer :: property
-
-   class (type_base_model), pointer :: pmodel
-   character(len=attribute_length)  :: localname
-
-   nullify(property)
-   pmodel => self
-   localname = name
-   do while (associated(pmodel))
-      ! Register that the value of this parameter was requested (i.e., used) by a biogeochemical model.
-      if (pmodel%retrieved_parameters%contains(localname)) call pmodel%fatal_error('find_parameter', &
-         'Value for parameter "'//trim(localname)//'" has already been retrieved once.')
-      call pmodel%retrieved_parameters%add(localname)
-
-      property => pmodel%parameters%get_property(localname)
-      if (associated(property)) return
-      localname = trim(self%name)//'/'//localname
-      pmodel => pmodel%parent
-   end do
-
-   ! Value not found. Raise an error if a value if required (e.g., if the model did not provide a default value).
-   ! Otherwise, just register at all levels of the model hierarchy that this parameter is missing.
-   if (required) call self%fatal_error('find_parameter','No value provided for parameter "'//trim(name)//'".')
-   pmodel => self
-   localname = name
-   do while (associated(pmodel))
-      call pmodel%missing_parameters%add(localname)
-      localname = trim(self%name)//'/'//localname
-      pmodel => pmodel%parent
-   end do
-end function find_parameter
 
 subroutine set_parameter(self,parameter,name,units,long_name)
 ! !INPUT PARAMETERS:
@@ -2396,16 +2362,10 @@ subroutine set_parameter(self,parameter,name,units,long_name)
    class (type_base_model), pointer :: pmodel
 !-----------------------------------------------------------------------
 !BOC
-   pmodel => self
    parameter%name = name
    if (present(units))     parameter%units     = units
    if (present(long_name)) parameter%long_name = long_name
-   do while (associated(pmodel))
-      ! Store metadata
-      call pmodel%parameters%set_property(parameter)
-      parameter%name = trim(self%name)//'/'//parameter%name
-      pmodel => pmodel%parent
-   end do
+   call self%parameters%set_in_tree(parameter)
 end subroutine set_parameter
 !EOC
 
@@ -2433,12 +2393,14 @@ subroutine get_integer_parameter(self,value,name,units,long_name,default)
    end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => find_parameter(self,name,.not.present(default))
+   property => self%parameters%find_in_tree(name)
    if (associated(property)) then
       ! Value found - try to convert to integer.
       value = property%to_integer(success=success)
       if (.not.success) call self%fatal_error('get_integer_parameter', &
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an integer number.')
+   elseif (.not.present(default)) then
+      call self%fatal_error('get_integer_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
    ! Store parameter settings
@@ -2471,12 +2433,14 @@ subroutine get_logical_parameter(self,value,name,units,long_name,default)
    end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => find_parameter(self,name,.not.present(default))
+   property => self%parameters%find_in_tree(name)
    if (associated(property)) then
       ! Value found - try to convert to logical.
       value = property%to_logical(success=success)
       if (.not.success) call self%fatal_error('get_logical_parameter', &
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a Boolean value.')
+   elseif (.not.present(default)) then
+      call self%fatal_error('get_logical_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
    ! Store parameter settings
@@ -2509,12 +2473,14 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
    end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => find_parameter(self,name,.not.present(default))
+   property => self%parameters%find_in_tree(name)
    if (associated(property)) then
       ! Value found - try to convert to string.
       value = property%to_string(success=success)
       if (.not.success) call self%fatal_error('get_string_parameter', &
          'Value for parameter "'//trim(name)//'" cannot be converted to string.')
+   elseif (.not.present(default)) then
+      call self%fatal_error('get_string_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
    ! Store parameter settings
