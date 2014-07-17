@@ -255,12 +255,12 @@
 
    subroutine get_model_metadata(name,length,long_name) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_model_metadata
-      character(kind=c_char),intent(in)        :: name(*)
-      integer(c_int),        intent(in), value :: length
-      character(kind=c_char),intent(out)       :: long_name(length)
+      character(kind=c_char),intent(in), target :: name(*)
+      integer(c_int),        intent(in), value  :: length
+      character(kind=c_char),intent(out)        :: long_name(length)
 
-      character(len=attribute_length),pointer :: pname
-      class (type_base_model),        pointer :: found_model
+      character(len=attribute_length),pointer   :: pname
+      class (type_base_model),        pointer   :: found_model
 
       call c_f_pointer(c_loc(name), pname)
       found_model => model%root%find_model(pname(:index(pname,C_NULL_CHAR)-1))
