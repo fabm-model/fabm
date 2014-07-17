@@ -23,6 +23,7 @@ module fabm_properties
       character(len=metadata_string_length) :: name        = ''
       character(len=metadata_string_length) :: long_name   = ''
       character(len=metadata_string_length) :: units       = ''
+      character(len=metadata_string_length) :: key         = ''      ! name wih normalized case
       logical                               :: has_default = .false.
       class (type_property), pointer        :: next        => null()
    contains
@@ -94,16 +95,17 @@ module fabm_properties
    contains
       procedure :: contains => set_contains
       procedure :: add      => set_add
+      procedure :: discard  => set_discard
       procedure :: size     => set_size
       procedure :: to_array => set_to_array
       procedure :: finalize => set_finalize
    end type
 
    type,extends(type_property_dictionary) :: type_hierarchical_dictionary
-      type (type_set)                              :: retrieved
-      type (type_set)                              :: missing
-      character(len=metadata_string_length)        :: name = ''
-      type (type_hierarchical_dictionary), pointer :: parent => null()
+      type (type_set)                               :: retrieved
+      type (type_set)                               :: missing
+      character(len=metadata_string_length)         :: name = ''
+      class (type_hierarchical_dictionary), pointer :: parent => null()
    contains
       procedure :: find_in_tree => hierarchical_dictionary_find_in_tree
       procedure :: set_in_tree  => hierarchical_dictionary_set_in_tree
@@ -244,15 +246,18 @@ contains
 
       class (type_property),pointer                  :: current,previous
       logical                                        :: overwrite_eff
+      character(len=metadata_string_length)          :: key
 
       overwrite_eff = .true.
       if (present(overwrite)) overwrite_eff = overwrite
+
+      key = string_lower(property%name)
 
       ! First determine if a property with this name already exists (if so, delete it)
       nullify(previous)
       current => dictionary%first
       do while (associated(current))
-         if (dictionary%compare_keys(current%name,property%name)) then
+         if (current%key==key) then
             ! We found a property with the specified name - if we are not allowed to oevrwrite it, we're done.
             if (.not.overwrite_eff) return
 
@@ -284,6 +289,7 @@ contains
          allocate(current%next,source=property)
          current => current%next
       end if
+      current%key = key
       nullify(current%next)
    end subroutine
 
@@ -333,9 +339,12 @@ contains
       character(len=*),                intent(in)    :: name
       class (type_property),pointer                  :: property
 
+      character(len=len(name))                       :: key
+
+      key = string_lower(name)
       property => dictionary%first
       do while (associated(property))
-         if (dictionary%compare_keys(property%name,name)) return
+         if (property%key==key) return
          property => property%next
       end do
    end function
@@ -415,8 +424,12 @@ contains
       character(len=*),                intent(in)    :: name
       class (type_property),pointer                  :: property,previous
 
+      character(len=len(name))                       :: key
+
+      key = string_lower(name)
+
       ! First consume properties with this name at the start of the list.
-      do while (dictionary%compare_keys(dictionary%first%name,name))
+      do while (dictionary%first%key==key)
          property => dictionary%first
          dictionary%first => property%next
          deallocate(property)
@@ -426,7 +439,7 @@ contains
       previous => dictionary%first
       property => previous%next
       do while (associated(property))
-         if (dictionary%compare_keys(property%name,name)) then
+         if (property%key==key) then
             previous%next => property%next
             deallocate(property)
          else
@@ -527,6 +540,29 @@ contains
          element => previous%next
       end if
       element%string = string
+   end subroutine
+
+   subroutine set_discard(self,string)
+      class (type_set),intent(inout) :: self
+      character(len=*),intent(in)    :: string
+
+      type (type_set_element),pointer :: previous,element
+
+      nullify(previous)
+      element => self%first
+      do while (associated(element))
+         if (element%string==string) exit
+         previous => element
+         element => element%next
+      end do
+      if (associated(element)) then
+         if (associated(previous)) then
+            previous%next => element%next
+         else
+            self%first => element%next
+         end if
+         deallocate(element)
+      end if
    end subroutine
 
    function set_size(self) result(n)

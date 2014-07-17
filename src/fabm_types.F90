@@ -59,7 +59,6 @@
    public type_expression, type_bulk_expression, type_horizontal_expression
 
    public type_weighted_sum
-   public type_coupling
    public connect_bulk_state_variable_id
 
    public type_bulk_data_pointer,type_horizontal_data_pointer,type_scalar_data_pointer
@@ -294,20 +293,6 @@
       type (type_scalar_data_pointer_pointer),allocatable :: alldata(:) 
    end type type_scalar_variable
 
-   type type_coupling
-      character(len=attribute_length) :: slave    = ''
-      character(len=attribute_length) :: master   = ''
-      logical                         :: required = .false.
-      class (type_coupling),pointer   :: next     => null()
-   end type
-
-   type type_coupling_list
-      class (type_coupling),pointer :: first => null()
-   contains
-      procedure :: add => coupling_list_add
-      procedure :: find => coupling_list_find
-   end type
-
    type type_link
       character(len=attribute_length)       :: name    = ''
       class (type_internal_object), pointer :: target  => null()
@@ -369,7 +354,7 @@
       type (type_link),              pointer :: first_link               => null()
       type (type_aggregate_variable),pointer :: first_aggregate_variable => null()
 
-      type (type_coupling_list)           :: couplings
+      type (type_hierarchical_dictionary) :: couplings
       type (type_hierarchical_dictionary) :: parameters
 
       class (type_expression), pointer :: first_expression => null()
@@ -834,6 +819,7 @@
       end if
       model%parent => self
       call self%parameters%add_child(model%parameters,name)
+      call self%couplings%add_child(model%couplings,name)
       call self%children%append(model)
       call model%initialize(configunit)
    end subroutine add_child
@@ -1049,106 +1035,27 @@ recursive subroutine add_alias(self,target,name)
    if (associated(self%parent)) call self%parent%add_alias(target,trim(self%name)//'/'//trim(name))
 end subroutine
 
-subroutine coupling_list_add(self,coupling)
-   class (type_coupling_list),intent(inout) :: self
-   class (type_coupling),pointer            :: coupling
-
-   class (type_coupling),pointer :: current_coupling,previous_coupling
-
-   if (.not.associated(self%first)) then
-      ! No couplings yet - add the first.
-      self%first => coupling
-   else
-      ! Try to find existing coupling for this slave.
-      nullify(previous_coupling)
-      current_coupling => self%first
-      do while (associated(current_coupling))
-         if (current_coupling%slave==coupling%slave) exit
-         previous_coupling => current_coupling
-         current_coupling => current_coupling%next
-      end do
-
-      if (associated(current_coupling)) then
-         ! Coupling for this slave exists - replace it.
-         coupling%next => current_coupling%next
-         if (associated(previous_coupling)) then
-            previous_coupling%next => coupling
-         else
-            self%first => coupling
-         end if
-         deallocate(current_coupling)
-      else
-         ! Coupling for this slave does not exist yet - add it.
-         current_coupling => self%first
-         do while (associated(current_coupling%next))
-            current_coupling => current_coupling%next
-         end do
-         current_coupling%next => coupling
-      end if
-   end if
-
-end subroutine
-
-function coupling_list_find(self,slave,remove) result(coupling)
-   class (type_coupling_list),intent(inout) :: self
-   character(len=*),          intent(in)    :: slave
-   logical,optional,          intent(in)    :: remove
-   class (type_coupling),pointer            :: coupling
-
-   class (type_coupling),pointer            :: previous_coupling
-   logical                                  :: remove_eff
-
-   remove_eff = .false.
-   if (present(remove)) remove_eff = remove
-
-   nullify(previous_coupling)
-   coupling => self%first
-   do while (associated(coupling))
-      if (coupling%slave==slave) exit
-      previous_coupling => coupling
-      coupling => coupling%next
-   end do
-
-   if (associated(coupling).and.remove_eff) then
-      ! Remove the coupling command from the list, as requested.
-      if (.not.associated(previous_coupling)) then
-         self%first => coupling%next
-      else
-         previous_coupling%next => coupling%next
-      end if
-   end if
-end function
-
-subroutine request_coupling_for_link(self,link,master,required)
+subroutine request_coupling_for_link(self,link,master)
    class (type_base_model),intent(inout)              :: self
    type (type_link),       intent(inout)              :: link
    character(len=*),       intent(in)                 :: master
-   logical,optional,       intent(in)                 :: required
 
-   call self%request_coupling(link%name,master,required)
+   call self%request_coupling(link%name,master)
 end subroutine request_coupling_for_link
 
-subroutine request_coupling_for_name(self,slave,master,required)
+subroutine request_coupling_for_name(self,slave,master)
    class (type_base_model),intent(inout)              :: self
    character(len=*),       intent(in)                 :: slave,master
-   logical,optional,       intent(in)                 :: required
 
-   class (type_coupling),pointer :: coupling
-
-   allocate(coupling)
-   coupling%slave = slave
-   coupling%master = master
-   if (present(required)) coupling%required = required
-   call self%couplings%add(coupling)
+   call self%couplings%set_string(slave,master)
 end subroutine request_coupling_for_name
 
-subroutine request_coupling_for_id(self,id,master,required)
+subroutine request_coupling_for_id(self,id,master)
    class (type_base_model), intent(inout) :: self
    class (type_variable_id),intent(inout) :: id
    character(len=*),        intent(in)    :: master
-   logical,optional,        intent(in)    :: required
 
-   call self%request_coupling(id%link,master,required)
+   call self%request_coupling(id%link,master)
 end subroutine request_coupling_for_id
 
 subroutine integer_pointer_set_append(self,value)
@@ -1400,7 +1307,7 @@ end subroutine
       ! Stage 1: implicit - couple variables based on overlapping standard identities.
       ! Stage 2: explicit - resolve user- or model-specified links between variables.
       call couple_standard_variables(self)
-      call process_coupling_tasks(self)
+      call process_coupling_tasks(self,.false.)
 
       ! Create models for aggregate variables at root level, to be used to compute conserved quantities.
       ! After this step, the set of variables that contribute to aggregate quatities may not be modified.
@@ -1409,7 +1316,7 @@ end subroutine
       call create_aggregate_models(self)
 
       ! Repeat coupling because new aggregate variables are now available.
-      call process_coupling_tasks(self)
+      call process_coupling_tasks(self,.true.)
 
       ! Allow inheriting models to perform additional tasks after coupling.
       call after_coupling(self)
@@ -2132,7 +2039,7 @@ end subroutine
 
       id%link => self%add_bulk_variable(variable)
 
-      if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
+      !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
    end subroutine register_named_bulk_dependency
 !EOC
@@ -2191,7 +2098,7 @@ end subroutine
 
       id%link => self%add_horizontal_variable(variable)
 
-      if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
+      !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
    end subroutine register_named_horizontal_dependency
 !EOC
@@ -2250,7 +2157,7 @@ end subroutine
 
       id%link => self%add_scalar_variable(variable)
 
-      if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
+      !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
    end subroutine register_named_global_dependency
 !EOC
@@ -2596,12 +2503,13 @@ end subroutine get_string_parameter
 ! !IROUTINE: Process all model-specific coupling tasks.
 !
 ! !INTERFACE:
-   recursive subroutine process_coupling_tasks(self)
+   recursive subroutine process_coupling_tasks(self,check)
 !
 ! !DESCRIPTION:
 !
 ! !INPUT PARAMETERS:
       class (type_base_model),intent(inout),target :: self
+      logical,                intent(in)           :: check
 !
 !EOP
 !
@@ -2609,7 +2517,7 @@ end subroutine get_string_parameter
       class (type_base_model),     pointer :: root
       type (type_model_list_node), pointer :: child
       type (type_link),            pointer :: link
-      class (type_coupling),       pointer :: coupling
+      class (type_property),       pointer :: master_name
       class (type_internal_object),pointer :: master
 !
 !-----------------------------------------------------------------------
@@ -2620,35 +2528,46 @@ end subroutine get_string_parameter
          root => root%parent
       end do
 
-      ! Enumerate named couplings, locate slave and target variables, and couple them.
-      coupling => self%couplings%first
-      do while (associated(coupling))
-         ! First locate the slave variable
-         link => self%find_link(coupling%slave)
-         if (.not.associated(link)) &
-            call self%fatal_error('process_coupling_tasks','Slave variable "'//trim(coupling%slave)//'" was not found.')
+      ! For each variable, determine if a coupling command is provided.
+      link => self%first_link
+      do while (associated(link))
 
-         ! Try to find the master variable among the variables of the requesting model or its parents.
-         if (coupling%slave/=coupling%master) then
-            ! Master and slave name differ: start master search in current model, then move up tree.
-            master => self%find_object(coupling%master,recursive=.true.)
-         elseif (associated(self%parent)) then
-            ! Master and slave name are identical: start master search in parent model, then move up tree.
-            master => self%parent%find_object(coupling%master,recursive=.true.)
-         end if
-         if (associated(master)) then
-            ! Target variable found: perform the coupling.
-            call couple_variables(root,master,link%target)
-         elseif (coupling%required) then
-            call self%fatal_error('process_coupling_tasks','Coupling target "'//trim(coupling%master)//'" for "'//trim(coupling%slave)//'" was not found.')
-         end if
-         coupling => coupling%next
+         ! Only process own links (those without slash in the name)
+         if (index(link%name,'/')==0) then
+
+            ! Try to find a coupling for this variable.
+            master_name => self%couplings%find_in_tree(link%name)
+
+            if (associated(master_name)) then
+               select type (master_name)
+                  class is (type_string_property)
+                     ! Try to find the master variable among the variables of the requesting model or its parents.
+                     if (link%name/=master_name%value) then
+                        ! Master and slave name differ: start master search in current model, then move up tree.
+                        master => self%find_object(master_name%value,recursive=.true.,exact=.false.)
+                     elseif (associated(self%parent)) then
+                        ! Master and slave name are identical: start master search in parent model, then move up tree.
+                        master => self%parent%find_object(master_name%value,recursive=.true.,exact=.false.)
+                     end if
+                     if (associated(master)) then
+                        ! Target variable found: perform the coupling.
+                        call couple_variables(root,master,link%target)
+                     elseif (check) then
+                        call self%fatal_error('process_coupling_tasks', &
+                           'Coupling target "'//trim(master_name%value)//'" for "'//trim(link%name)//'" was not found.')
+                     end if
+               end select
+            end if ! If own link (no / in name)
+
+         end if ! If coupling was specified
+
+         link => link%next
       end do
 
       ! Process coupling tasks registered with child models.
       child => self%children%first
       do while (associated(child))
-         call process_coupling_tasks(child%model)
+         call process_coupling_tasks(child%model,check)
          child => child%next
       end do
 
@@ -2812,40 +2731,62 @@ subroutine merge_scalar_variables(master,slave)
    end if
 end subroutine merge_scalar_variables
 
-   function find_object(self,name,recursive) result(object)
+   function find_object(self,name,recursive,exact) result(object)
 
       class (type_base_model),  intent(in),target :: self
       character(len=*),         intent(in)        :: name
-      logical,         optional,intent(in)        :: recursive
+      logical,         optional,intent(in)        :: recursive,exact
       class (type_internal_object),pointer        :: object
 
       type (type_link), pointer :: link
 
       nullify(object)
-      link => self%find_link(name,recursive)
+      link => self%find_link(name,recursive,exact)
       if (associated(link)) object => link%target
       
    end function find_object
 
-   recursive function find_link(self,name,recursive) result(link)
+   function find_link(self,name,recursive,exact) result(link)
 
       class (type_base_model),  intent(in),target :: self
       character(len=*),         intent(in)        :: name
-      logical,         optional,intent(in)        :: recursive
-      type (type_link),       pointer             :: link
+      logical,         optional,intent(in)        :: recursive,exact
+      type (type_link),pointer                    :: link
 
-      logical :: recursive_eff
+      logical                         :: recursive_eff,exact_eff
+      class (type_base_model),pointer :: current
 
-      link => self%first_link
-      do while (associated(link))
-         if (link%name==name.or.get_safe_name(link%name)==name) return
-         link => link%next
-      end do
-
-      ! Object not found - try parent if allowed.
       recursive_eff = .false.
       if (present(recursive)) recursive_eff = recursive
-      if (recursive_eff.and.associated(self%parent)) link => self%parent%find_link(name,recursive)
+      nullify(link)
+
+      ! First search self and ancestors (if allowed) based on exact name provided.
+      current => self
+      do while (associated(current))
+         link => current%first_link
+         do while (associated(link))
+            if (link%name==name) return
+            link => link%next
+         end do
+         if (.not.recursive_eff) exit
+         current => current%parent
+      end do
+
+      exact_eff = .true.
+      if (present(exact)) exact_eff = exact
+      if (exact_eff) return
+
+      ! Not found. Now search self and ancestors (if allowed) based on safe name (letters and underscores only).
+      current => self
+      do while (associated(current))
+         link => current%first_link
+         do while (associated(link))
+            if (get_safe_name(link%name)==name) return
+            link => link%next
+         end do
+         if (.not.recursive_eff) exit
+         current => current%parent
+      end do
 
    end function find_link
 

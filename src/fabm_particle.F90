@@ -29,6 +29,7 @@ module fabm_particle
 
    use fabm_types
    use fabm_standard_variables
+   use fabm_properties
 
    implicit none
 
@@ -48,13 +49,17 @@ module fabm_particle
       type (type_state_variable_id),allocatable :: state(:)
    end type
 
-   type,extends(type_coupling) :: type_coupling_from_model
-      type (type_model_reference),pointer :: model_reference => null()
-      type (type_bulk_standard_variable) :: standard_variable
+   type type_coupling_from_model
+      character(attribute_length)             :: master = ''
+      character(attribute_length)             :: slave = ''
+      type (type_model_reference),    pointer :: model_reference => null()
+      type (type_bulk_standard_variable)      :: standard_variable
+      type (type_coupling_from_model),pointer :: next => null()
    end type
 
    type,extends(type_base_model) :: type_particle_model
-      type (type_model_reference),pointer :: first_model_reference => null()
+      type (type_model_reference),    pointer :: first_model_reference => null()
+      type (type_coupling_from_model),pointer :: first_model_coupling  => null()
    contains
       ! Used by inheriting biogeochemical models:
       procedure :: register_model_dependency
@@ -130,8 +135,7 @@ module fabm_particle
       class (type_model_id),      intent(inout) :: master_model
       character(len=*),           intent(in)    :: master_variable
 
-      class (type_coupling_from_model), pointer :: coupling
-      class (type_coupling), pointer :: plain_coupling
+      type (type_coupling_from_model), pointer :: coupling
 
       ! Create object describing the coupling, and send it to FABM.
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
@@ -139,8 +143,8 @@ module fabm_particle
       coupling%slave = slave_variable%link%name
       coupling%master = master_variable
       coupling%model_reference => master_model%reference
-      plain_coupling => coupling
-      call self%couplings%add(plain_coupling)
+      coupling%next => self%first_model_coupling
+      self%first_model_coupling => coupling
    end subroutine
 
    subroutine request_coupling_to_model_sn(self,slave_variable,master_model,master_variable)
@@ -149,8 +153,7 @@ module fabm_particle
       class (type_model_id),        intent(inout) :: master_model
       type (type_bulk_standard_variable),intent(in)    :: master_variable
 
-      class (type_coupling_from_model), pointer :: coupling
-      class (type_coupling), pointer :: plain_coupling
+      type (type_coupling_from_model), pointer :: coupling
 
       ! Create object describing the coupling, and send it to FABM.
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
@@ -158,48 +161,46 @@ module fabm_particle
       coupling%slave = slave_variable%link%name
       coupling%standard_variable = master_variable
       coupling%model_reference => master_model%reference
-      plain_coupling => coupling
-      call self%couplings%add(plain_coupling)
+      coupling%next => self%first_model_coupling
+      self%first_model_coupling => coupling
    end subroutine
 
    subroutine before_coupling(self)
       class (type_particle_model),intent(inout) :: self
 
-      type (type_model_reference),pointer :: reference
-      class (type_coupling),      pointer :: coupling
-      type (type_aggregate_variable),pointer :: aggregate_variable
+      type (type_model_reference),    pointer :: reference
+      class (type_property),          pointer :: master_name
+      type (type_aggregate_variable), pointer :: aggregate_variable
+      type (type_coupling_from_model),pointer :: coupling
 
       reference => self%first_model_reference
       do while (associated(reference))
          ! First find a coupling for the referenced model.
-         coupling => self%couplings%find(reference%name,remove=.true.)
-         if (.not.associated(coupling)) call self%fatal_error('before_coupling','Model reference "'//trim(reference%name)//'" was not coupled.')
+         master_name => self%couplings%find_in_tree(reference%name)
+         if (.not.associated(master_name)) call self%fatal_error('before_coupling','Model reference "'//trim(reference%name)//'" was not coupled.')
 
          ! Now find the actual model that was coupled.
-         reference%model => self%find_model(coupling%master,recursive=.true.)
-         if (.not.associated(reference%model)) call self%fatal_error('before_coupling','Referenced model "'//trim(reference%name)//'" not found.')
+         select type (master_name)
+            class is (type_string_property)
+               reference%model => self%find_model(master_name%value,recursive=.true.)
+               if (.not.associated(reference%model)) call self%fatal_error('before_coupling','Referenced model "'//trim(master_name%value)//'" not found.')
+         end select
 
-         ! Now deallocate coupling (self%couplings%find rendered control to us)
-         deallocate(coupling)
-         
          reference => reference%next
       end do
 
       call build_state_id_list(self)
 
       ! Resolve all couplings to variables in specific other models.
-      coupling => self%couplings%first
+      coupling => self%first_model_coupling
       do while (associated(coupling))
-         select type (coupling)
-            class is (type_coupling_from_model)
-               if (coupling%master/='') then
-                  coupling%master = trim(coupling%model_reference%model%name)//'_'//trim(coupling%master)
-               else
-                  aggregate_variable => get_aggregate_variable(coupling%model_reference%model,coupling%standard_variable)
-                  aggregate_variable%bulk_required = .true.
-                  coupling%master = trim(coupling%model_reference%model%name)//'_'//trim(aggregate_variable%standard_variable%name)
-               end if
-         end select
+         if (coupling%master/='') then
+            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%name)//'/'//trim(coupling%master))
+         else
+            aggregate_variable => get_aggregate_variable(coupling%model_reference%model,coupling%standard_variable)
+            aggregate_variable%bulk_required = .true.
+            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%name)//'/'//trim(aggregate_variable%standard_variable%name))
+         end if
          coupling => coupling%next
       end do
    end subroutine

@@ -216,7 +216,8 @@ contains
          do while (associated(pair))
             select type (value=>pair%value)
                class is (type_scalar)
-                  call model%request_coupling(trim(pair%key),trim(value%string),required=.true.)
+                  ! Register couplings at the root level, so they override whatever the models themselves request.
+                  call parent%request_coupling(trim(instancename)//'/'//trim(pair%key),trim(value%string))
                class is (type_node)
                   call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
                      ' must be a string, not a nested dictionary.')
@@ -236,32 +237,32 @@ contains
       if (associated(childmap)) call parse_initialization(model,childmap,background_set,get_background=.true.)
 
       ! Verify whether all state variables have been provided with an initial value.
-      link => model%first_link
-      do while (associated(link))
-         if (link%owner.and..not.associated(model%couplings%find(link%name))) then
-            ! This link is our own: not coupled to another variable, not an alias, and no intention to couple was registered.
-            select type (object=>link%target)
-               class is (type_internal_variable)
-                  if (.not.object%state_indices%is_empty()) then
-                     if (object%presence/=presence_external_optional .and. .not.initialized_set%contains(trim(link%name))) then
-                        ! State variable is required, but initial value is not explicitly provided.
-                        if (require_initialization) then
-                           call fatal_error('parse_initialization','model '//trim(model%name) &
-                              //': no initial value provided for variable "'//trim(link%name)//'".')
-                        else
-                           call log_message('WARNING: no initial value provided for state variable "'//trim(link%name)// &
-                              '" of model "'//trim(model%name)//'" - using default.')
-                        end if
-                     elseif (object%presence==presence_external_optional .and. initialized_set%contains(trim(link%name))) then
-                        ! Optional state variable is not used, but an initial value is explicitly provided.
-                        call fatal_error('parse_initialization','model '//trim(model%name) &
-                           //': initial value provided for variable "'//trim(link%name)//'", but this variable is not used.')
-                     end if
-                  end if
-            end select
-         end if
-         link => link%next
-      end do
+      !link => model%first_link
+      !do while (associated(link))
+      !   if (link%owner.and..not.associated(model%couplings%find(link%name))) then
+      !      ! This link is our own: not coupled to another variable, not an alias, and no intention to couple was registered.
+      !      select type (object=>link%target)
+      !         class is (type_internal_variable)
+      !            if (.not.object%state_indices%is_empty()) then
+      !               if (object%presence/=presence_external_optional .and. .not.initialized_set%contains(trim(link%name))) then
+      !                  ! State variable is required, but initial value is not explicitly provided.
+      !                  if (require_initialization) then
+      !                     call fatal_error('parse_initialization','model '//trim(model%name) &
+      !                        //': no initial value provided for variable "'//trim(link%name)//'".')
+      !                  else
+      !                     call log_message('WARNING: no initial value provided for state variable "'//trim(link%name)// &
+      !                        '" of model "'//trim(model%name)//'" - using default.')
+      !                  end if
+      !               elseif (object%presence==presence_external_optional .and. initialized_set%contains(trim(link%name))) then
+      !                  ! Optional state variable is not used, but an initial value is explicitly provided.
+      !                  call fatal_error('parse_initialization','model '//trim(model%name) &
+      !                     //': initial value provided for variable "'//trim(link%name)//'", but this variable is not used.')
+      !               end if
+      !            end if
+      !      end select
+      !   end if
+      !   link => link%next
+      !end do
 
       model%check_conservation = node%get_logical('check_conservation',default=model%check_conservation,error=config_error)
       if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
