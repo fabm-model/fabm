@@ -67,8 +67,8 @@ unicodesubscript = {'1':u'\u2081','2':u'\u2082','3':u'\u2083',
                     '0':u'\u2080'}
 supnumber = re.compile('(?<=\w)(-?\d+)(?=[ \*+\-/]|$)')
 supenumber = re.compile('(?<=\d)e(-?\d+)(?=[ \*+\-/]|$)')
-oldsupminus = re.compile('/(\w+)(?:\*\*)|\^(\d+)(?=[ \*+\-/]|$)')
-oldsup = re.compile('(?<=\w)(?:\*\*)|\^(-?\d+)(?=[ \*+\-/]|$)')
+oldsupminus = re.compile('/(\w+)(?:\*\*|\^)(\d+)(?=[ \*+\-/]|$)')
+oldsup = re.compile('(?<=\w)(?:\*\*|\^)(-?\d+)(?=[ \*+\-/]|$)')
 oldsub = re.compile('(?<=\w)_(-?\d+)(?=[ \*+\-/]|$)')
 def createPrettyUnit(unit):
     def replace_superscript(m):
