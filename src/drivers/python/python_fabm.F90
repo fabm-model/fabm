@@ -38,7 +38,7 @@
    real(8),dimension(:),pointer :: state
    character(len=1024),dimension(:),allocatable :: environment_names,environment_units
 
-   type (type_property_dictionary),save,private :: forced_parameters
+   type (type_property_dictionary),save,private :: forced_parameters,forced_couplings
 
    type,extends(type_base_driver) :: type_python_driver
    contains
@@ -81,11 +81,19 @@
       allocate(model)
       call fabm_create_model_from_yaml_file(model,path=ppath(:index(ppath,C_NULL_CHAR)-1),parameters=forced_parameters)
 
-      ! Get a list of all parameter that had an explicit value specified.
+      ! Get a list of all parameters that had an explicit value specified.
       property => model%root%parameters%first
       do while (associated(property))
          if (.not.model%root%parameters%missing%contains(property%name)) &
             call forced_parameters%set_property(property)
+         property => property%next
+      end do
+
+      ! Get a list of all active couplings.
+      property => model%root%couplings%first
+      do while (associated(property))
+         if (.not.model%root%couplings%missing%contains(property%name)) &
+            call forced_couplings%set_property(property)
          property => property%next
       end do
 
@@ -108,6 +116,7 @@
 
       ! Transfer forced parameters to root of the model.
       call newmodel%root%parameters%update(forced_parameters)
+      call newmodel%root%couplings%update(forced_couplings)
 
       ! Re-create original models
       node => model%root%children%first
