@@ -300,9 +300,8 @@ class Model(object):
         given the current state and environment.
         """
         localrates = numpy.empty_like(self.state)
-        consrates = numpy.empty((len(self.conserved_quantities),))
         fabm.get_rates(localrates)
-        return localrates,consrates
+        return localrates
 
     def findParameter(self,name):
         for parameter in self.parameters:
