@@ -474,17 +474,21 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-      type (type_model_list_node),pointer :: node
+      type (type_model_list_node),   pointer :: node
       type (type_aggregate_variable),pointer :: aggregate_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
       self%info => self ! For backward compatibility (pre 11/2013 hosts only)
 
-      ! Make sure a variable for light extinction is created at the root level.
-      ! This is used from fabm_get_light_extinction.
+      ! Make sure a variable for light extinction is created at the root level when calling freeze_model_info.
+      ! This variable is used from fabm_get_light_extinction.
       aggregate_variable => get_aggregate_variable(self%root,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
       aggregate_variable%bulk_required = .true.
+
+      ! Filter out expressions that FABM can handle itself.
+      ! The remainder, if any, must be handled by the host model.
+      call filter_expressions(self)
 
       ! This will resolve all FABM dependencies and generate final authorative lists of variables of different types.
       call freeze_model_info(self%root)
@@ -506,6 +510,46 @@
 
    end subroutine fabm_initialize
 !EOC
+
+   subroutine filter_expressions(self)
+      class (type_model),intent(inout)           :: self
+      class (type_expression),           pointer :: current,previous,next
+      class (type_simple_depth_integral),pointer :: integral
+      logical                                    :: filter
+
+      nullify(previous)
+      current => self%root%first_expression
+      do while (associated(current))
+         select type (current)
+            class is (type_vertical_integral)
+#ifndef _FABM_DEPTH_DIMENSION_INDEX_
+               ! For models without depth dimension, FABM can calculate depth averages and integrals itself.
+               allocate(integral)
+               integral%minimum_depth = current%minimum_depth
+               integral%maximum_depth = current%maximum_depth
+               integral%average       = current%average
+               call self%root%add_child(integral,current%output_name,configunit=-1)
+               call integral%request_coupling(integral%id_input,current%input_name)
+               call self%root%request_coupling(current%output_name,integral%id_output%link%target%name)
+               filter = .true.
+#endif
+         end select
+         
+         ! If FABM handles this expression internally, remove it from the list.
+         next => current%next
+         if (filter) then
+            if (associated(previous)) then
+               previous%next => next
+            else
+               self%root%first_expression => next
+            end if
+            deallocate(current)
+         else
+            previous => current
+         end if
+         current => next
+      end do
+   end subroutine
 
 !-----------------------------------------------------------------------
 !BOP

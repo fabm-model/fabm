@@ -58,7 +58,7 @@
 
    public type_expression, type_bulk_expression, type_horizontal_expression
 
-   public type_weighted_sum
+   public type_weighted_sum,type_simple_depth_integral
    public connect_bulk_state_variable_id
 
    public type_bulk_data_pointer,type_horizontal_data_pointer,type_scalar_data_pointer
@@ -577,6 +577,18 @@
       procedure :: evaluate_horizontal => horizontal_weighted_sum_evaluate_horizontal
       procedure :: do_bottom           => horizontal_weighted_sum_do_bottom
       procedure :: after_coupling      => horizontal_weighted_sum_after_coupling
+   end type
+
+   type,extends(type_base_model) :: type_simple_depth_integral
+      type (type_dependency_id)                     :: id_input
+      type (type_horizontal_dependency_id)          :: id_depth
+      type (type_horizontal_diagnostic_variable_id) :: id_output
+      real(rk)                                      :: minimum_depth = 0.0_rk
+      real(rk)                                      :: maximum_depth = huge(1.0_rk)
+      logical                                       :: average       = .false.
+   contains
+      procedure :: initialize => simple_depth_integral_initialize
+      procedure :: do         => simple_depth_integral_do
    end type
 
    ! ====================================================================================================
@@ -3509,6 +3521,30 @@ end subroutine
          case (output_time_step_integrated); time_treatment = time_treatment_step_integrated
       end select
    end function
+
+   subroutine simple_depth_integral_initialize(self,configunit)
+      class (type_simple_depth_integral),intent(inout),target :: self
+      integer,                           intent(in)           :: configunit
+      call self%register_dependency(self%id_input,'source')
+      if (.not.self%average) call self%register_dependency(self%id_depth,standard_variables%bottom_depth)
+      call self%register_diagnostic_variable(self%id_output,'result','','result')
+   end subroutine
+
+   subroutine simple_depth_integral_do(self,_ARGUMENTS_DO_)
+      class (type_simple_depth_integral),intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_
+
+      real(rk) :: value,depth
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _GET_(self%id_input,value)
+         if (.not.self%average) then
+            _GET_HORIZONTAL_(self%id_depth,depth)
+            value = value*(min(self%maximum_depth,depth)-self%minimum_depth)
+         end if
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,value)
+      _HORIZONTAL_LOOP_END_
+   end subroutine
 
    end module fabm_types
 
