@@ -303,6 +303,32 @@ class Model(object):
         fabm.get_rates(localrates)
         return localrates
 
+    def getJacobian(self,pert=None):
+        # Define perturbation per state variable.
+        y_pert = numpy.empty_like(self.state)
+        if pert is None: pert = 1e-6
+        y_pert[:] = pert
+
+        # Compute dy for original state (used as reference for finite differences later on)
+        dy_ori = self.getRates()
+
+        # Create memory for Jacobian
+        Jac = numpy.empty((len(self.state),len(self.state)),dtype=self.state.dtype)
+
+        for i in range(len(self.state)):
+            # Save original state variable value, create perturbed one.
+            y_ori = self.state[i]
+            self.state[i] += y_pert[i]
+
+            # Compute dy for perturbed state, compute Jacobian elements using finite difference.
+            dy_pert = self.getRates()
+            Jac[:,i] = (dy_pert-dy_ori)/y_pert[i]
+
+            # Restore original state variable value.
+            self.state[i] = y_ori
+
+        return Jac
+
     def findParameter(self,name):
         for parameter in self.parameters:
             if parameter.name==name: return parameter
