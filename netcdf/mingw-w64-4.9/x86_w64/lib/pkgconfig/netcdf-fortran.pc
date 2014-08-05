@@ -1,0 +1,15 @@
+prefix=/home/kb/mingw32-w64/x86_64
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+ccompiler=x86_64-w64-mingw32-gcc
+fcompiler=x86_64-w64-mingw32-gfortran
+
+Name: netcdf-fortran
+Description: NetCDF Client Library for Fortran
+URL: http://www.unidata.ucar.edu/netcdf
+Version: 4.4.0
+Requires.private: netcdf > 4.1.1
+Libs: -L${libdir} -lnetcdff
+Libs.private: -L${libdir} -lnetcdff -lnetcdf
+Cflags: -I${includedir}

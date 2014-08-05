@@ -1,0 +1,13 @@
+prefix=/home/kb/mingw32-w64/i686
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+ccompiler=i686-w64-mingw32-gcc
+
+Name: netcdf
+Description: NetCDF Client Library for C
+URL: http://www.unidata.ucar.edu/netcdf
+Version: 4.3.2
+Libs: -L${libdir} -lnetcdf
+Cflags: -I${includedir}
+
