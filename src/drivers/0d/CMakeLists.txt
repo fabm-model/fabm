@@ -35,71 +35,16 @@ endif(WIN32)
 
 # Make NetCDF use a configurable option.
 option(USE_NETCDF "Enable NetCDF output" ON)
-
 if(USE_NETCDF)
-
-# First try to locate nf-config.
-find_program( NETCDF_CONFIG_EXECUTABLE
-   NAMES nf-config
-   HINTS ENV NETCDF_ROOT
-   PATH_SUFFIXES bin Bin
-   DOC "NetCDF config program. Used to detect NetCDF include directory and linker flags." )
-mark_as_advanced(NETCDF_CONFIG_EXECUTABLE)
-
-if(NETCDF_CONFIG_EXECUTABLE)
-
-# Found nf-config - use it to retrieve include directory and linking flags.
-# Mark NetCDF paths as advanced configuration options in CMake (hidden by default).
-execute_process(COMMAND ${NETCDF_CONFIG_EXECUTABLE} --includedir
-                OUTPUT_VARIABLE includedir
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${NETCDF_CONFIG_EXECUTABLE} --flibs
-                OUTPUT_VARIABLE flibs
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
-set(NETCDF_INCLUDE_DIRS ${includedir} CACHE STRING "NetCDF include directories")
-set(NETCDF_LIBRARIES ${flibs} CACHE STRING "NetCDF linking flags")
-mark_as_advanced(NETCDF_INCLUDE_DIRS NETCDF_FLIBS)
-
-elseif (WIN32)
-
-# On Windows: use CMake to locte paths; default to NetCDF static library provided with GOTM.
-find_library(NETCDF_LIBRARIES NAMES netcdfs
-             HINTS ${GOTMDIR}/extras/netcdf/win32/3.6.3/lib
-             DOC "NetCDF library")
-find_path(NETCDF_INCLUDE_DIRS netcdf.mod
-          HINTS ${GOTMDIR}/extras/netcdf/win32/3.6.3/include ENV NETCDFINC
-          DOC "NetCDF include directory")
-if(MSVC AND NETCDF_LIBRARIES STREQUAL ${GOTMDIR}/extras/netcdf/win32/3.6.3/lib/netcdfs.lib)
-  # Win32 NetCDF library provided with GOTM is statically built against release libraries.
-  # Ensure that current project does the same to provide conflicts during linking phase.
-  set_property(TARGET fabm0d PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmtd\"")
-  target_compile_options(fabm0d PRIVATE "/libs:static")
-endif()
-
-else()
-
-# Use GOTM environment variables: NETCDFLIBNAME, NETCDFLIBDIR, NETCDFINC
-if(DEFINED ENV{NETCDFLIBNAME})
-  set(flibs $ENV{NETCDFLIBNAME})
-else()
-  set(flibs "-lnetcdf")
-endif()
-if(DEFINED ENV{NETCDFLIBDIR})
-  set(flibs "${flibs} -L$ENV{NETCDFLIBDIR}")
-endif()
-set(NETCDF_LIBRARIES ${flibs} CACHE STRING "NetCDF linking flags")
-find_path(NETCDF_INCLUDE_DIRS netcdf.mod
-          HINTS ENV NETCDFINC
-          DOC "NetCDF include directory")
-
-endif()
-
-message(STATUS "NetCDF libraries: ${NETCDF_LIBRARIES}")
-message(STATUS "NetCDF include directories: ${NETCDF_INCLUDE_DIRS}")
-target_link_libraries(fabm0d ${NETCDF_LIBRARIES})
-set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES ${NETCDF_INCLUDE_DIRS})
-set_property(TARGET fabm0d APPEND PROPERTY COMPILE_DEFINITIONS NETCDF4)
-
+  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${GOTMDIR}/src/cmake/Modules/")
+  find_package(NetCDF REQUIRED)
+  target_link_libraries(fabm0d ${NetCDF_LIBRARIES})
+  set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES ${NetCDF_INCLUDE_DIRS})
+  set_property(TARGET fabm0d APPEND PROPERTY COMPILE_DEFINITIONS NETCDF4)
+  if (NetCDF_STATIC_MSVC_BUILD)
+    set_property(TARGET fabm0d PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmtd\"")
+    target_compile_options(fabm0d PRIVATE "/libs:static")
+  endif()
 endif(USE_NETCDF)
 
 install(TARGETS fabm0d
