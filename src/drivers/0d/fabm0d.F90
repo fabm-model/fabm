@@ -293,9 +293,9 @@
    LEVEL2 'reading local environment data from:'
    LEVEL3 trim(env_file)
    call init_input()
-   call register_input_0d(env_file,1,swr_sf)
-   call register_input_0d(env_file,2,temp)
-   call register_input_0d(env_file,3,salt)
+   call register_input_0d(env_file,1,swr_sf,'shortwave radiation')
+   call register_input_0d(env_file,2,temp,'temperature')
+   call register_input_0d(env_file,3,salt,'salinity')
 
    ! Build FABM model tree. Use 'fabm_yaml_file' if available, otherwise fall back to fabm.nml.
    LEVEL1 'initialize FABM'
@@ -510,7 +510,7 @@
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
          scale_factor = mapping%get_real('scale_factor',default=1.0_rk,error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
-         call register_input_0d(path,column,input_data%value,scale_factor=scale_factor)
+         call register_input_0d(path,column,input_data%value,variable_name,scale_factor=scale_factor)
          call driver%log_message('    file = '//trim(path))
          write (message,'(i0)') column
          call driver%log_message('    column = '//adjustl(message))
