@@ -6,6 +6,9 @@ find_path(GOTMDIR
           PATH_SUFFIXES GOTM/gotm-git gotm-git
           DOC "Directory with GOTM source code (www.gotm.net)")
 
+# generate GOTM's version.h
+configure_file("${GOTMDIR}/include/version.h.in" "${CMAKE_BINARY_DIR}/gotm/version.h")
+
 # Build 0d executable.
 add_executable (fabm0d main.F90 fabm0d.F90 shared.F90 output.F90 
                 ${GOTMDIR}/src/airsea/short_wave_radiation.F90
@@ -29,6 +32,7 @@ set_property(TARGET fabm0d PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}
 set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTMDIR}/include")
 set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTMDIR}/src/util")
 set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/0d_modules")
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/gotm")
 if (WIN32)
   set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTMDIR}/compilers/vs2010")
 endif(WIN32)
