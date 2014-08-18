@@ -6,7 +6,7 @@ find_package(PythonInterp)
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -m site --user-site
                 OUTPUT_VARIABLE SITE_PACKAGES_DIR
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-set(DEFAULT_PREFIX ${SITE_PACKAGES_DIR} PARENT_SCOPE)
+set(DEFAULT_PREFIX "${SITE_PACKAGES_DIR}" PARENT_SCOPE)
 
 install(TARGETS python_fabm
   DESTINATION pyfabm)
