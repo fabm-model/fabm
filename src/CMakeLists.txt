@@ -71,6 +71,8 @@ add_library(fabm_base OBJECT
             fabm_types.F90
             fabm_particle.F90
             fabm_expressions.F90
+            ../include/fabm.h
+            ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/fabm_driver.h
            )
 
 # Create a list of institute-specific object libraries.
