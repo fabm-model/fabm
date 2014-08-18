@@ -38,8 +38,8 @@ if (WIN32)
 endif(WIN32)
 
 # Make NetCDF use a configurable option.
-option(FABM_USE_NETCDF "Enable NetCDF output" ON)
-if(FABM_USE_NETCDF)
+option(FABM_USE_NetCDF "Enable NetCDF output" ON)
+if(FABM_USE_NetCDF)
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${GOTM_BASE}/src/cmake/Modules/")
   find_package(NetCDF REQUIRED)
   target_link_libraries(fabm0d ${NetCDF_LIBRARIES})
@@ -49,7 +49,7 @@ if(FABM_USE_NETCDF)
     set_property(TARGET fabm0d PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmtd\"")
     target_compile_options(fabm0d PRIVATE "/libs:static")
   endif()
-endif(FABM_USE_NETCDF)
+endif(FABM_USE_NetCDF)
 
 install(TARGETS fabm0d
   DESTINATION bin)
