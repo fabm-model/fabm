@@ -31,9 +31,14 @@ endif()
 
 # Customize compiler flags
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-  set (CMAKE_Fortran_FLAGS "-ffree-line-length-none")
+  set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-line-length-none")
+elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+  if(NOT WIN32)
+    # Do not warn about Windows-specific export directives
+    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -diag-disable 7841")
+  endif()
 elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
-  set (CMAKE_Fortran_FLAGS "-N 1023")
+  set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -N 1023")
 endif()
 
 # Make sure FABM_HOST is set to a subdir of src/drivers
