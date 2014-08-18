@@ -36,30 +36,30 @@ elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
   set (CMAKE_Fortran_FLAGS "-N 1023")
 endif()
 
-# Make sure FABMHOST is set to a subdir of src/drivers
+# Make sure FABM_HOST is set to a subdir of src/drivers
 FILE(GLOB HOSTNAMES RELATIVE "${PROJECT_SOURCE_DIR}/drivers" "${PROJECT_SOURCE_DIR}/drivers/*")
-set (FABMHOST "gotm" CACHE STRING "Host that FABM should be compiled for")
-set_property(CACHE FABMHOST PROPERTY STRINGS ${HOSTNAMES})
-message(STATUS "FABM host: ${FABMHOST}")
+set (FABM_HOST "gotm" CACHE STRING "Host that FABM should be compiled for")
+set_property(CACHE FABM_HOST PROPERTY STRINGS ${HOSTNAMES})
+message(STATUS "FABM host: ${FABM_HOST}")
 
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
-if(BUILD_SHARED_LIBS OR ${FABMHOST} STREQUAL "python")
+if(BUILD_SHARED_LIBS OR ${FABM_HOST} STREQUAL "python")
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
 # Set default installation prefix.
 if(WIN32)
   if(DEFINED ENV{LOCALAPPDATA})
-    set(DEFAULT_PREFIX "$ENV{LOCALAPPDATA}/fabm/${FABMHOST}")
+    set(DEFAULT_PREFIX "$ENV{LOCALAPPDATA}/fabm/${FABM_HOST}")
   else()
-    set(DEFAULT_PREFIX "$ENV{APPDATA}/fabm/${FABMHOST}")
+    set(DEFAULT_PREFIX "$ENV{APPDATA}/fabm/${FABM_HOST}")
   endif()
 else()
-  set(DEFAULT_PREFIX "$ENV{HOME}/local/fabm/${FABMHOST}")
+  set(DEFAULT_PREFIX "$ENV{HOME}/local/fabm/${FABM_HOST}")
 endif()
 
 # Global include directories
-include_directories("${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}"
+include_directories("${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}"
                     "${PROJECT_SOURCE_DIR}/../include"
                     "${CMAKE_BINARY_DIR}/modules"
                    )
@@ -72,7 +72,7 @@ add_library(fabm_base OBJECT
             fabm_particle.F90
             fabm_expressions.F90
             ../include/fabm.h
-            ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/fabm_driver.h
+            ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/fabm_driver.h
            )
 
 # Create a list of institute-specific object libraries.
@@ -103,8 +103,8 @@ foreach(institute ${FABM_INSTITUTES})
 endforeach(institute)
 
 # Run host-specific cmake scripts if present.
-if(EXISTS ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/CMakeLists.txt)
-  add_subdirectory (${PROJECT_SOURCE_DIR}/drivers/${FABMHOST})
+if(EXISTS ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/CMakeLists.txt)
+  add_subdirectory (${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST})
 endif()
 
 # Place projects in specific solution folders (Visual Studio only).
@@ -125,7 +125,7 @@ if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
     DESTINATION lib)
   install(DIRECTORY ${CMAKE_BINARY_DIR}/modules/\${BUILD_TYPE}/
     DESTINATION include)
-  install(FILES ${PROJECT_SOURCE_DIR}/../include/fabm.h ${PROJECT_SOURCE_DIR}/drivers/${FABMHOST}/fabm_driver.h
+  install(FILES ${PROJECT_SOURCE_DIR}/../include/fabm.h ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/fabm_driver.h
     DESTINATION include)
 endif()
 
