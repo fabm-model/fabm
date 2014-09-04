@@ -1908,15 +1908,13 @@ end subroutine
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-      logical :: required_eff
       integer :: presence
 !-----------------------------------------------------------------------
 !BOC
-      required_eff = .true.
-      if (present(required)) required_eff = required
-
       presence = presence_external_required
-      if (.not.required_eff) presence = presence_external_optional
+      if (present(required)) then
+         if (.not.required) presence = presence_external_optional
+      end if
       call register_bulk_state_variable(self, id, name, units, long_name, presence=presence)
 
    end subroutine register_bulk_state_dependency_ex
@@ -1947,15 +1945,13 @@ end subroutine
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-      logical :: required_eff
       integer :: presence
 !-----------------------------------------------------------------------
 !BOC
-      required_eff = .true.
-      if (present(required)) required_eff = required
-
       presence = presence_external_required
-      if (.not.required_eff) presence = presence_external_optional
+      if (present(required)) then
+         if (.not.required) presence = presence_external_optional
+      end if
       call register_bottom_state_variable(model, id, name, units, long_name, presence=presence)
 
    end subroutine register_bottom_state_dependency_ex
@@ -1985,15 +1981,13 @@ end subroutine
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-      logical :: required_eff
       integer :: presence
 !-----------------------------------------------------------------------
 !BOC
-      required_eff = .true.
-      if (present(required)) required_eff = required
-
       presence = presence_external_required
-      if (.not.required_eff) presence = presence_external_optional
+      if (present(required)) then
+         if (.not.required) presence = presence_external_optional
+      end if
       call register_surface_state_variable(model, id, name, units, long_name, presence=presence)
 
    end subroutine register_surface_state_dependency_ex
