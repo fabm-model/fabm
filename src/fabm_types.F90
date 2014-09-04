@@ -345,9 +345,9 @@
       type (type_model_list)          :: children
 
       ! Model name and variable prefixes.
-      character(len=64) :: name      = ''
-      character(len=64) :: long_name = ''
-      character(len=64) :: type_name = ''
+      character(len=attribute_length) :: name      = ''
+      character(len=attribute_length) :: long_name = ''
+      character(len=attribute_length) :: type_name = ''
 
       ! Models constituents: links to variables, coupling requests, parameters, expressions
       type (type_link),              pointer :: first_link               => null()
@@ -361,10 +361,6 @@
       real(rk) :: dt = 1.0_rk
 
       logical :: check_conservation = .false.
-
-      ! Identifiers for variables that contain zero at all time.
-      type (type_dependency_id)            :: id_zero
-      type (type_horizontal_dependency_id) :: id_zero_hz
    contains
 
       ! Procedures that can be used to add child models during initialization.
@@ -505,9 +501,6 @@
 
       real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: rhs
 
-      real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
-      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
-
 #ifdef _FABM_MASK_
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
 #endif
@@ -549,7 +542,6 @@
    end type
 
    type,extends(type_base_model) :: type_weighted_sum
-      character(len=attribute_length) :: output_name      = ''
       character(len=attribute_length) :: output_long_name = ''
       character(len=attribute_length) :: output_units     = ''
       real(rk)                        :: offset           = 0.0_rk
@@ -564,7 +556,6 @@
    end type
 
    type,extends(type_base_model) :: type_horizontal_weighted_sum
-      character(len=attribute_length) :: output_name      = ''
       character(len=attribute_length) :: output_long_name = ''
       character(len=attribute_length) :: output_units     = ''
       real(rk)                        :: offset           = 0.0_rk
@@ -823,6 +814,7 @@
       if (associated(model%parent)) &
          call self%fatal_error('add_child', 'The provided child model has already been connected to a parent.')
 
+      if (len_trim(name)>len(model%name)) call fatal_error('add_child','Model name "'//trim(name)//'" exceeds maximum length.')
       model%name = name
       if (present(long_name)) then
          model%long_name = trim(long_name)
@@ -1500,6 +1492,9 @@ end subroutine
          'Cannot register variable "'//trim(name)//'" because the model initialization phase has already completed &
          &(fabm_initialize has been called).')
 
+      if (len_trim(name)>len(variable%name)) call self%fatal_error('add_variable', &
+         'Variable name "'//trim(name)//'" exceeds maximum length.')
+
       ! Ascertain whether the provided name is valid.
       if (name=='' .or. name/=get_safe_name(name)) call self%fatal_error('add_variable', &
          'Cannot register variable "'//trim(name)//'" because its name is not valid. &
@@ -1743,11 +1738,13 @@ end subroutine
 
       ! Forward to parent
       if (associated(self%parent)) then
+         if (len_trim(self%name)+1+len_trim(object%name)>len(object%name)) call fatal_error('add_object', &
+            'Variable path "'//trim(self%name)//'/'//trim(object%name)//'" exceeds maximum allowed length.')
          object%name = trim(self%name)//'/'//trim(object%name)
          object%long_name = trim(self%long_name)//' '//trim(object%long_name)
          parent_link => self%parent%add_object(object)
       end if
-   end function
+   end function add_object
 
 !-----------------------------------------------------------------------
 !BOP
@@ -3108,7 +3105,6 @@ subroutine create_aggregate_model(self,aggregate_variable,domain)
    logical                                   :: sumrequired
    character(len=attribute_length )          :: name
    class (type_internal_object),pointer      :: target_variable
-   class (type_base_model),pointer           :: root
 
    ! This procedure takes an aggregate variable, and creates models that compute diagnostics
    ! for the total of these aggregate quantities on bulk and horizontal domains.
@@ -3116,8 +3112,12 @@ subroutine create_aggregate_model(self,aggregate_variable,domain)
    select case (domain)
       case (domain_bulk)
          name = trim(aggregate_variable%standard_variable%name)
+         call self%add_bulk_variable(name,aggregate_variable%standard_variable%units,name)
+         call self%request_coupling(name,'zero')
       case default
          name = trim(aggregate_variable%standard_variable%name)//'_at_interfaces'
+         call self%add_horizontal_variable(name,aggregate_variable%standard_variable%units,name)
+         call self%request_coupling(name,'zero_hz')
    end select
 
    n = 0
@@ -3143,35 +3143,17 @@ subroutine create_aggregate_model(self,aggregate_variable,domain)
       contributing_variable => contributing_variable%next
    end do
 
-   if (n==0) then
-      ! Always zero - create alias to zero field at root level
-      root => self
-      do while (associated(root%parent))
-         root => root%parent
-      end do
-      select case (domain)
-         case (domain_bulk)
-            if (.not._VARIABLE_REGISTERED_(root%id_zero)) &
-               call root%register_dependency(root%id_zero,'zero','-','zero')
-            call self%add_alias(root%id_zero%link%target,name)
-         case default
-            if (.not._VARIABLE_REGISTERED_(root%id_zero_hz)) &
-               call root%register_horizontal_dependency(root%id_zero_hz,'zero_hz','-','zero')
-            call self%add_alias(root%id_zero_hz%link%target,name)
-      end select            
-   elseif (n==1.and..not.sumrequired) then
-      ! Always equal to another - create alias to this other
-      call self%add_alias(target_variable,name)
-   else
+   if (n==1.and..not.sumrequired) then
+      ! Always equal to another - couple aggregate variable to this other
+      call self%request_coupling(name,target_variable%name)
+   elseif (n>0) then
       ! Weighted sum of variables
       select case (domain)
          case (domain_bulk)
             allocate(aggregate_variable%sum)
-            aggregate_variable%sum%output_name = name
             aggregate_variable%sum%output_units = trim(aggregate_variable%standard_variable%units)
          case default
             allocate(aggregate_variable%horizontal_sum)
-            aggregate_variable%horizontal_sum%output_name = name
             aggregate_variable%horizontal_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m'
       end select
 
@@ -3196,10 +3178,11 @@ subroutine create_aggregate_model(self,aggregate_variable,domain)
 
       select case (domain)
          case (domain_bulk)
-            call self%add_child(aggregate_variable%sum,trim(aggregate_variable%sum%output_name)//'_calculator',configunit=-1)
+            call self%add_child(aggregate_variable%sum,trim(name)//'_calculator',configunit=-1)
          case default
-            call self%add_child(aggregate_variable%horizontal_sum,trim(aggregate_variable%horizontal_sum%output_name)//'_calculator',configunit=-1)
+            call self%add_child(aggregate_variable%horizontal_sum,trim(name)//'_calculator',configunit=-1)
       end select
+      call self%request_coupling(name,trim(name)//'_calculator/result')
    end if
 end subroutine create_aggregate_model
 
@@ -3334,9 +3317,8 @@ end subroutine
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      if (self%output_long_name=='') self%output_long_name = self%output_name
+      if (self%output_long_name=='') self%output_long_name = 'result'
       call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
-      call self%parent%add_alias(self%id_output%link%target,trim(self%output_name))
    end subroutine
 
    subroutine weighted_sum_add_component(self,name,weight,include_background)
@@ -3427,9 +3409,8 @@ end subroutine
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      if (self%output_long_name=='') self%output_long_name = self%output_name
+      if (self%output_long_name=='') self%output_long_name = 'result'
       call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
-      call self%parent%add_alias(self%id_output%link%target,trim(self%output_name))
    end subroutine
 
    subroutine horizontal_weighted_sum_after_coupling(self)

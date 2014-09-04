@@ -189,9 +189,8 @@
 
       type (type_bulk_data_pointer) :: extinction_data
 
-      ! Derived types that belong to specific biogeochemical models.
-      !type (type_metu_mnemiopsis)           :: metu_mnemiopsis
-      ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
+      real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
+      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
    contains
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
       procedure :: link_bulk_data_by_sn   => fabm_link_bulk_data_by_sn
@@ -486,6 +485,11 @@
       aggregate_variable => get_aggregate_variable(self%root,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
       aggregate_variable%bulk_required = .true.
 
+      ! Create placeholder variables for zero fields.
+      ! Values for these fields will only be provided if actually used by one of the biogeochemical models.
+      call self%root%add_bulk_variable('zero')
+      call self%root%add_horizontal_variable('zero_hz')
+
       ! Filter out expressions that FABM can handle itself.
       ! The remainder, if any, must be handled by the host model.
       call filter_expressions(self)
@@ -628,6 +632,8 @@
   type (type_model_list_node), pointer :: node
   integer                              :: ivar
   class (type_expression),pointer      :: expression
+  type (type_bulk_variable_id)         :: id_zero
+  type (type_horizontal_variable_id)   :: id_zero_hz
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -645,15 +651,18 @@
    allocate(self%environment%diag_hz(_PREARG_LOCATION_HZ_ size(self%horizontal_diagnostic_variables)))
    self%environment%nstate = size(self%state_variables)
 
-   if (_VARIABLE_REGISTERED_(self%root%id_zero)) then
-      allocate(self%environment%zero _INDEX_LOCATION_)
-      self%environment%zero = 0.0_rk
-      call fabm_link_bulk_data(self,self%root%id_zero%link%name,self%environment%zero)
+   ! If any model has requested zero fields, provide them.
+   id_zero = self%get_bulk_variable_id('zero')
+   id_zero_hz = self%get_horizontal_variable_id('zero_hz')
+   if (fabm_is_variable_used(id_zero)) then
+      allocate(self%zero _INDEX_LOCATION_)
+      self%zero = 0.0_rk
+      call self%link_bulk_data(id_zero,self%zero)
    end if
-   if (_VARIABLE_REGISTERED_(self%root%id_zero_hz)) then
-      allocate(self%environment%zero_hz _INDEX_HORIZONTAL_LOCATION_)
-      self%environment%zero_hz = 0.0_rk
-      call fabm_link_horizontal_data(self,self%root%id_zero_hz%link%name,self%environment%zero_hz)
+   if (fabm_is_variable_used(id_zero_hz)) then
+      allocate(self%zero_hz _INDEX_HORIZONTAL_LOCATION_)
+      self%zero_hz = 0.0_rk
+      call self%link_horizontal_data(id_zero_hz,self%zero_hz)
    end if
 
    ! Initialize diagnostic variables to missing value.
