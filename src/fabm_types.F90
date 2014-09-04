@@ -59,7 +59,6 @@
    public type_expression, type_bulk_expression, type_horizontal_expression
 
    public type_weighted_sum,type_simple_depth_integral
-   public connect_bulk_state_variable_id
 
    public type_bulk_data_pointer,type_horizontal_data_pointer,type_scalar_data_pointer
    public type_bulk_data_pointer_pointer,type_horizontal_data_pointer_pointer,type_scalar_data_pointer_pointer
@@ -821,7 +820,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-      if (associated(model%parent)) call self%fatal_error('add_child','The provided child model has already been connected to a parent.')
+      if (associated(model%parent)) &
+         call self%fatal_error('add_child', 'The provided child model has already been connected to a parent.')
 
       model%name = name
       if (present(long_name)) then
@@ -1347,7 +1347,7 @@ end subroutine
                                            initial_value, vertical_movement, specific_light_extinction, &
                                            minimum, maximum, missing_value, &
                                            no_precipitation_dilution, no_river_dilution, &
-                                           standard_variable,presence, background_value)
+                                           standard_variable, presence, background_value)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical state variable in the global model database.
@@ -1365,50 +1365,20 @@ end subroutine
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       integer,                            intent(in),optional :: presence
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
-!
-! !LOCAL VARIABLES:
-      type (type_bulk_variable),pointer :: variable
-      character(len=256)        :: text
-!
 !-----------------------------------------------------------------------
 !BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error('register_bulk_state_variable', &
-         'State variables may only be registered during initialization.')
+      if (associated(id%link)) call self%fatal_error('register_bulk_state_variable', &
+         'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      ! Either use the provided variable object, or create a new one.
-      allocate(variable)
-      variable%name      = name
-      variable%units     = units
-      variable%long_name = long_name
-      if (present(initial_value))             variable%initial_value             = initial_value
-      if (present(minimum))                   variable%minimum                   = minimum
-      if (present(maximum))                   variable%maximum                   = maximum
-      if (present(missing_value))             variable%missing_value             = missing_value
-      if (present(vertical_movement))         variable%vertical_movement         = vertical_movement
-      if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
-      if (present(no_river_dilution))         variable%no_river_dilution         = no_river_dilution
-      if (present(standard_variable))         variable%standard_variable         = standard_variable
-      if (present(presence))                  variable%presence                  = presence
+      call self%add_bulk_variable(name, units, long_name, missing_value, minimum, maximum, &
+                                  initial_value=initial_value, background_value=background_value, &
+                                  vertical_movement=vertical_movement, specific_light_extinction=specific_light_extinction, &
+                                  no_precipitation_dilution=no_precipitation_dilution, no_river_dilution=no_river_dilution, &
+                                  standard_variable=standard_variable, presence=presence, &
+                                  state_index=id%state_index, data=id%data, background=id%background, &
+                                  link=id%link)
 
-      ! Ensure that initial value falls within prescribed valid range.
-      if (variable%initial_value<variable%minimum .or. variable%initial_value>variable%maximum) then
-         write (text,*) 'Initial value',variable%initial_value,'for variable "'//trim(name)//'" lies&
-               &outside allowed range',variable%minimum,'to',variable%maximum
-         call self%fatal_error('register_bulk_state_variable',text)
-      end if
-
-      call connect_bulk_state_variable_id(self,variable,id)
-      if (present(background_value)) call variable%background_values%set_value(background_value)
-
-      id%link => self%add_bulk_variable(variable)
-
-      if (present(specific_light_extinction)) &
-         call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,id,scale_factor=specific_light_extinction)
    end subroutine register_bulk_state_variable
 !EOC
 
@@ -1420,7 +1390,7 @@ end subroutine
 ! !INTERFACE:
    subroutine register_bottom_state_variable(self, id, name, units, long_name, &
                                              initial_value, minimum, maximum, missing_value, &
-                                             standard_variable,presence,background_value)
+                                             standard_variable, presence, background_value)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical state variable in the global model database.
@@ -1436,45 +1406,17 @@ end subroutine
       real(rk),                                 intent(in),optional :: minimum, maximum,missing_value,background_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
       integer,                                  intent(in),optional :: presence
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
-!
-! !LOCAL VARIABLES:
-      type (type_horizontal_variable),pointer :: variable
-      character(len=256)                      :: text
-!
 !-----------------------------------------------------------------------
 !BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error('register_bottom_state_variable', &
-         'State variables may only be registered during initialization.')
+      if (associated(id%link)) call self%fatal_error('register_bottom_state_variable', &
+         'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      allocate(variable)
-      variable%name      = name
-      variable%units     = units
-      variable%long_name = long_name
-      variable%domain = domain_bottom
-      if (present(initial_value))     variable%initial_value     = initial_value
-      if (present(minimum))           variable%minimum           = minimum
-      if (present(maximum))           variable%maximum           = maximum
-      if (present(missing_value))     variable%missing_value     = missing_value
-      if (present(standard_variable)) variable%standard_variable = standard_variable
-      if (present(presence))          variable%presence          = presence
-
-      ! Ensure that initial value falls within prescribed valid range.
-      if (variable%initial_value<variable%minimum .or. variable%initial_value>variable%maximum) then
-         write (text,*) 'Initial value',variable%initial_value,'for variable "'//trim(name)//'" lies&
-               &outside allowed range',variable%minimum,'to',variable%maximum
-         call self%fatal_error('register_bottom_state_variable',text)
-      end if
-
-      call connect_bottom_state_variable_id(self,variable,id)
-      if (present(background_value)) call variable%background_values%set_value(background_value)
-
-      id%link => self%add_horizontal_variable(variable)
+      call self%add_horizontal_variable(name, units, long_name, missing_value, minimum, maximum, &
+                                        initial_value=initial_value, background_value=background_value, &
+                                        standard_variable=standard_variable, presence=presence, domain=domain_bottom, &
+                                        state_index=id%bottom_state_index, data=id%horizontal_data, background=id%background, &
+                                        link=id%link)
 
    end subroutine register_bottom_state_variable
 !EOC
@@ -1487,7 +1429,7 @@ end subroutine
 ! !INTERFACE:
    subroutine register_surface_state_variable(self, id, name, units, long_name, &
                                               initial_value, minimum, maximum, missing_value, &
-                                              standard_variable,presence,background_value)
+                                              standard_variable, presence, background_value)
 !
 ! !DESCRIPTION:
 !  This subroutine registers a new surface-bound biogeochemical state variable in the global model database.
@@ -1503,90 +1445,286 @@ end subroutine
       real(rk),                                 intent(in),optional :: minimum, maximum,missing_value,background_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
       integer,                                  intent(in),optional :: presence
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
-!
-! !LOCAL VARIABLES:
-      type (type_horizontal_variable),pointer :: variable
-      character(len=256)                      :: text
-!
 !-----------------------------------------------------------------------
 !BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error('register_surface_state_variable', &
-         'State variables may only be registered during initialization.')
+      if (associated(id%link)) call self%fatal_error('register_surface_state_variable', &
+         'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      allocate(variable)
-      variable%name      = name
-      variable%units     = units
-      variable%long_name = long_name
-      variable%domain = domain_surface
-      if (present(initial_value))     variable%initial_value     = initial_value
-      if (present(minimum))           variable%minimum           = minimum
-      if (present(maximum))           variable%maximum           = maximum
-      if (present(missing_value))     variable%missing_value     = missing_value
-      if (present(standard_variable)) variable%standard_variable = standard_variable
-      if (present(presence))          variable%presence          = presence
-
-      ! Ensure that initial value falls within prescribed valid range.
-      if (variable%initial_value<variable%minimum .or. variable%initial_value>variable%maximum) then
-         write (text,*) 'Initial value',variable%initial_value,'for variable "'//trim(name)//'" lies&
-               &outside allowed range',variable%minimum,'to',variable%maximum
-         call self%fatal_error('register_bottom_state_variable',text)
-      end if
-
-      call connect_surface_state_variable_id(self,variable,id)
-      if (present(background_value)) call variable%background_values%set_value(background_value)
-
-      id%link => self%add_horizontal_variable(variable)
+      call self%add_horizontal_variable(name, units, long_name, missing_value, minimum, maximum, &
+                                        initial_value=initial_value, background_value=background_value, &
+                                        standard_variable=standard_variable, presence=presence, domain=domain_surface, &
+                                        state_index=id%surface_state_index, data=id%horizontal_data, background=id%background, &
+                                        link=id%link)
 
    end subroutine register_surface_state_variable
 !EOC
 
-   function add_bulk_variable(self,variable) result(link)
-      ! This subroutine converts the pointer to a bulk variable to a pointer
-      ! to a generic object, which can then be added to the model.
-      class (type_base_model),target,      intent(inout) :: self
-      type (type_bulk_variable),pointer                  :: variable
-      type (type_link), pointer :: link
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Adds a generic variable (bulk, horizontal or scalar) to the model and returns the link to it.
+!
+! !INTERFACE:
+   subroutine add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
+                           initial_value, background_value, presence, output, time_treatment, &
+                           state_index, write_index, background, link)
+!
+! !DESCRIPTION:
+!  This function fills all generic variable fields (i.e., those independent of the variable's domain), and returns
+!  a link to the variable. A pointer to the provided variable object will be kept after the function returns. Thus,
+!  the object must not be deallocated (create it by allocating a pointer).
+!
+! !INPUT/OUTPUT PARAMETERS:
+      class (type_base_model),       target,intent(inout)       :: self
+      class (type_internal_variable),pointer                    :: variable
+      character(len=*),              target,intent(in)          :: name
+      character(len=*),                     intent(in),optional :: long_name, units
+      real(rk),                             intent(in),optional :: minimum, maximum,missing_value,initial_value,background_value
+      integer,                              intent(in),optional :: presence, output, time_treatment
+      integer,                       target,           optional :: state_index, write_index
+      real(rk),                      target,           optional :: background
+      type (type_link),              pointer,          optional :: link
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+      character(len=256)                   :: text
       class (type_internal_object),pointer :: object
-      if (variable%name=='' .or. variable%name/=get_safe_name(variable%name)) &
-         call self%fatal_error('add_bulk_variable','Cannot register variable because its name is not valid: "'//trim(variable%name)//'".')
-      object => variable
-      link => add_object(self,object)
-      if (.not.associated(object)) nullify(variable)
-   end function
+      type (type_link),            pointer :: link_
+!
+!-----------------------------------------------------------------------
+!BOC
+      ! Check whether the model information may be written to (only during initialization)
+      if (self%frozen) call self%fatal_error('add_variable', &
+         'Cannot register variable "'//trim(name)//'" because the model initialization phase has already completed &
+         &(fabm_initialize has been called).')
 
-   function add_horizontal_variable(self,variable) result(link)
-      ! This subroutine converts the pointer to a horizontal variable to a pointer
-      ! to a generic object, which can then be added to the model.
-      class (type_base_model),target,      intent(inout) :: self
-      type (type_horizontal_variable),pointer            :: variable
-      type (type_link), pointer :: link
-      class (type_internal_object),pointer :: object
-      if (variable%name=='' .or. variable%name/=get_safe_name(variable%name)) &
-         call self%fatal_error('add_horizontal_variable','Cannot register variable because its name is not valid: "'//trim(variable%name)//'".')
-      object => variable
-      link => add_object(self,object)
-      if (.not.associated(object)) nullify(variable)
-   end function
+      ! Ascertain whether the provided name is valid.
+      if (name=='' .or. name/=get_safe_name(name)) call self%fatal_error('add_variable', &
+         'Cannot register variable "'//trim(name)//'" because its name is not valid. &
+         &Variable names should not be empty, and can contain letters, digits and underscores only.')
 
-   function add_scalar_variable(self,variable) result(link)
-      ! This subroutine converts the pointer to a scalar variable to a pointer
-      ! to a generic object, which can then be added to the model.
-      class (type_base_model),target,      intent(inout) :: self
-      type (type_scalar_variable),pointer                :: variable
-      type (type_link), pointer :: link
-      class (type_internal_object),pointer :: object
-      if (variable%name=='' .or. variable%name/=get_safe_name(variable%name)) &
-         call self%fatal_error('add_scalar_variable','Cannot register variable because its name is not valid: "'//trim(variable%name)//'".')
+      variable%name = name
+      if (present(units))         variable%units         = units
+      if (present(long_name))     variable%long_name     = long_name
+      if (present(minimum))       variable%minimum       = minimum
+      if (present(maximum))       variable%maximum       = maximum
+      if (present(missing_value)) variable%missing_value = missing_value
+      if (present(initial_value)) variable%initial_value = initial_value
+      if (present(presence))      variable%presence      = presence
+      if (present(time_treatment)) then
+         call self%log_message('variable "'//trim(name)//'": "time_treatment" argument is deprecated; &
+                               &please use "output" instead. For possible values, see time_treatment2output in fabm_types.F90.')
+         variable%output = time_treatment2output(time_treatment)
+      end if
+      if (present(output))        variable%output        = output
+
+      if (present(state_index)) then
+         ! Ensure that initial value falls within prescribed valid range.
+         if (variable%initial_value<variable%minimum .or. variable%initial_value>variable%maximum) then
+            write (text,*) 'Initial value',variable%initial_value,'for variable "'//trim(name)//'" lies&
+                  &outside allowed range',variable%minimum,'to',variable%maximum
+            call self%fatal_error('fill_internal_variable',text)
+         end if
+
+         ! Store a pointer to the variable that should hold the state variable index.
+         call variable%state_indices%append(state_index)
+      end if
+
+      if (present(write_index)) then
+         ! Register that this (diagnostic) variable will be computed by the current model.
+         ! This is used later to resolve model dependencies.
+         variable%source_model => self
+         
+         ! Store a pointer to the variable that should hold the diagnostic variable index.
+         call variable%write_indices%append(write_index)
+      end if
+
+      if (present(background)) then
+         ! Store a pointer to the variable that should hold the background value.
+         ! If the background value itself is also prescribed, use it.
+         call variable%background_values%append(background)
+         if (present(background_value)) call variable%background_values%set_value(background_value)
+      end if
+
+      ! Create a class pointer and use that to create a link.
       object => variable
-      link => add_object(self,object)
-      if (.not.associated(object)) nullify(variable)
-   end function
+      link_ => add_object(self,object)
+      if (present(link)) link => link_
+
+   end subroutine add_variable
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Adds a bulk variable to the model and returns the link to it.
+!
+! !INTERFACE:
+   subroutine add_bulk_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, background_value, &
+                                vertical_movement, specific_light_extinction, no_precipitation_dilution, no_river_dilution, &
+                                standard_variable, presence, output, time_treatment, &
+                                state_index, write_index, data, background, link)
+!
+! !DESCRIPTION:
+!  This function registers a new bulk variable. It is not predefined to be a state variable, diagnostic variable or dependency.
+!  This is set implicitly by providing (or omitting) target variables state_index, write_index, data, background.
+!
+! !INPUT/OUTPUT PARAMETERS:
+      class (type_base_model),target,    intent(inout)       :: self
+      character(len=*),                  intent(in)          :: name
+      character(len=*),                  intent(in),optional :: long_name, units
+      real(rk),                          intent(in),optional :: minimum, maximum, missing_value, initial_value, background_value
+      real(rk),                          intent(in),optional :: vertical_movement, specific_light_extinction
+      logical,                           intent(in),optional :: no_precipitation_dilution, no_river_dilution
+      type (type_bulk_standard_variable),intent(in),optional :: standard_variable
+      integer,                           intent(in),optional :: presence, output, time_treatment
+
+      integer,                      target,optional :: state_index, write_index
+      type (type_bulk_data_pointer),target,optional :: data
+      real(rk),                     target,optional :: background
+
+      type (type_link),pointer,optional :: link
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+      class (type_bulk_variable),     pointer :: variable
+      class (type_internal_variable), pointer :: pvariable
+!
+!-----------------------------------------------------------------------
+!BOC
+      allocate(variable)
+      
+      ! Fill fields specific to bulk variables.
+      if (present(vertical_movement))         variable%vertical_movement         = vertical_movement
+      if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
+      if (present(no_river_dilution))         variable%no_river_dilution         = no_river_dilution
+      if (present(standard_variable))         variable%standard_variable         = standard_variable
+      if (present(data))                      call append_data_pointer(variable%alldata,data)
+      if (present(specific_light_extinction)) call variable%contributions%add( &
+         standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,scale_factor=specific_light_extinction)
+
+      ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
+      ! NB the variable must be passed as POINTER in order to for it to be deallocated at any later time.
+      ! We must create an explicit pointer to type_internal_variable for it, since add_variable could
+      ! modify the pointer (e.g., by making it point to a variable type other than type_bulk_variable) 
+      pvariable => variable
+      call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
+                        initial_value, background_value, presence, output, time_treatment, &
+                        state_index, write_index, background, link)
+
+   end subroutine add_bulk_variable
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Adds a horizontal variable to the model and returns the link to it.
+!
+! !INTERFACE:
+   subroutine add_horizontal_variable(self,name,units,long_name, missing_value, minimum, maximum, initial_value, background_value, &
+                                      standard_variable, presence, output, time_treatment, domain, &
+                                      state_index, write_index, data, background, link)
+!
+! !DESCRIPTION:
+!  This function registers a new horizontal variable. It is not predefined to be a state variable, diagnostic variable
+!  or dependency. This is set implicitly by providing (or omitting) target variables state_index, write_index, data, background.
+!
+! !INPUT/OUTPUT PARAMETERS:
+      class (type_base_model),target,           intent(inout)       :: self
+      character(len=*),                         intent(in)          :: name
+      character(len=*),                         intent(in),optional :: long_name, units
+      real(rk),                                 intent(in),optional :: minimum, maximum, missing_value
+      real(rk),                                 intent(in),optional :: initial_value, background_value
+      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
+      integer,                                  intent(in),optional :: presence, domain, output, time_treatment
+
+      integer,                            target,optional :: state_index,write_index
+      type (type_horizontal_data_pointer),target,optional :: data
+      real(rk),                           target,optional :: background
+
+      type (type_link),pointer,optional :: link
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+      class (type_horizontal_variable),pointer :: variable
+      class (type_internal_variable),  pointer :: pvariable
+!
+!-----------------------------------------------------------------------
+!BOC
+      allocate(variable)
+
+      ! Fill fields specific to horizontal variables.
+      if (present(domain))            variable%domain = domain
+      if (present(standard_variable)) variable%standard_variable = standard_variable
+      if (present(data))              call append_data_pointer(variable%alldata,data)
+
+      ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
+      ! NB the variable must be passed as POINTER in order to for it to be deallocated at any later time.
+      ! We must create an explicit pointer to type_internal_variable for it, since add_variable could
+      ! modify the pointer (e.g., by making it point to a variable type other than type_horizontal_variable) 
+      pvariable => variable
+      call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
+                        initial_value, background_value, presence, output, time_treatment, &
+                        state_index, write_index, background, link)
+   end subroutine add_horizontal_variable
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Adds a scalar variable to the model and returns the link to it.
+!
+! !INTERFACE:
+   subroutine add_scalar_variable(self,name, long_name, units, missing_value, minimum, maximum, initial_value, background_value, &
+                                  standard_variable, presence, output, time_treatment, &
+                                  state_index, write_index, data, background, link)
+!
+! !DESCRIPTION:
+!  This function registers a new scalar variable. It is not predefined to be a state variable, diagnostic variable or dependency.
+!  This is set implicitly by providing (or omitting) target variables state_index, write_index, data, background.
+!
+! !INPUT/OUTPUT PARAMETERS:
+      class (type_base_model),target,       intent(inout)       :: self
+      character(len=*),                     intent(in)          :: name
+      character(len=*),                     intent(in),optional :: long_name, units
+      real(rk),                             intent(in),optional :: minimum, maximum, missing_value, initial_value, background_value
+      type (type_global_standard_variable), intent(in),optional :: standard_variable
+      integer,                              intent(in),optional :: presence, output, time_treatment
+
+      integer,                        target,optional :: state_index,write_index
+      type (type_scalar_data_pointer),target,optional :: data
+      real(rk),                       target,optional :: background
+
+      type (type_link),pointer,optional :: link
+!
+!EOP
+!
+! !LOCAL VARIABLES:
+      class (type_scalar_variable),   pointer :: variable
+      class (type_internal_variable), pointer :: pvariable
+!
+!-----------------------------------------------------------------------
+!BOC
+      allocate(variable)
+
+      ! Fill fields specific to scalar variables.
+      if (present(standard_variable)) variable%standard_variable = standard_variable
+      if (present(data))              call append_data_pointer(variable%alldata,data)
+
+      ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
+      ! NB the variable must be passed as POINTER in order to for it to be deallocated at any later time.
+      ! We must create an explicit pointer to type_internal_variable for it, since add_variable could
+      ! modify the pointer (e.g., by making it point to a variable type other than type_scalar_variable) 
+      pvariable => variable
+      call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
+                        initial_value, background_value, presence, output, time_treatment, &
+                        state_index, write_index, background, link)
+   end subroutine add_scalar_variable
+!EOC
 
    recursive function add_object(self,object) result(link)
       ! This subroutine creates a link to the supplied object, then allows
@@ -1610,45 +1748,6 @@ end subroutine
          parent_link => self%parent%add_object(object)
       end if
    end function
-   
-   subroutine connect_bulk_state_variable_id(self,variable,id)
-      class (type_base_model),       intent(in)           :: self
-      type (type_bulk_variable),     intent(inout),target :: variable
-      type (type_state_variable_id), intent(inout),target :: id
-
-      if (associated(id%link)) call self%fatal_error('connect_bulk_state_variable_id', &
-         'Identifier supplied for '//trim(variable%name)//' is already associated with '//trim(id%link%name)//'.')
-
-      call variable%state_indices%append(id%state_index)
-      call append_data_pointer(variable%alldata,id%data)
-      call variable%background_values%append(id%background)
-   end subroutine
-
-   subroutine connect_bottom_state_variable_id(self,variable,id)
-      class (type_base_model),       intent(in)           :: self
-      type (type_horizontal_variable),      intent(inout),target :: variable
-      type (type_bottom_state_variable_id), intent(inout),target :: id
-
-      if (associated(id%link)) call self%fatal_error('connect_bottom_state_variable_id', &
-         'Identifier supplied for '//trim(variable%name)//' is already associated with '//trim(id%link%name)//'.')
-
-      call variable%state_indices%append(id%bottom_state_index)
-      call append_data_pointer(variable%alldata,id%horizontal_data)
-      call variable%background_values%append(id%background)
-   end subroutine
-
-   subroutine connect_surface_state_variable_id(self,variable,id)
-      class (type_base_model),       intent(in)           :: self
-      type (type_horizontal_variable),      intent(inout),target :: variable
-      type (type_surface_state_variable_id),intent(inout),target :: id
-
-      if (associated(id%link)) call self%fatal_error('connect_surface_state_variable_id', &
-         'Identifier supplied for '//trim(variable%name)//' is already associated with '//trim(id%link%name)//'.')
-
-      call variable%state_indices%append(id%surface_state_index)
-      call append_data_pointer(variable%alldata,id%horizontal_data)
-      call variable%background_values%append(id%background)
-   end subroutine
 
 !-----------------------------------------------------------------------
 !BOP
@@ -1677,34 +1776,14 @@ end subroutine
 !
 !EOP
 !
-! !LOCAL VARIABLES:
-      type (type_bulk_variable),pointer :: variable
-!
 !-----------------------------------------------------------------------
 !BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error('register_bulk_diagnostic_variable',&
-                                             'Diagnostic variables may only be registered during initialization.')
-
-      ! Either use the provided variable object, or create a new one.
-      allocate(variable)
-      variable%name      = name
-      variable%units     = units
-      variable%long_name = long_name
-      variable%source_model => self
-      if (present(time_treatment)) then
-         variable%output = time_treatment2output(time_treatment)
-         call self%log_message('variable "'//trim(name)//'": "time_treatment" argument to register_diagnostic_variable is deprecated; &
-                               &please use "output" instead (see output_* parameters near top of fabm_types.F90.')
-      end if
-      if (present(missing_value))     variable%missing_value     = missing_value
-      if (present(standard_variable)) variable%standard_variable = standard_variable
-      if (present(output))            variable%output            = output
-      call variable%write_indices%append(id%diag_index)
       if (associated(id%link)) call self%fatal_error('register_bulk_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      id%link => self%add_bulk_variable(variable)
+      call self%add_bulk_variable(name, units, long_name, missing_value, &
+                                  standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
+                                  write_index=id%diag_index, link=id%link)
 
    end subroutine register_bulk_diagnostic_variable
 !EOC
@@ -1735,36 +1814,14 @@ end subroutine
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-!
-! !LOCAL VARIABLES:
-      type (type_horizontal_variable),pointer :: variable
-!
 !-----------------------------------------------------------------------
 !BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error('register_horizontal_diagnostic_variable',&
-                                             'Diagnostic variables may only be registered during initialization.')
-
-      ! Either use the provided variable object, or create a new one.
-      allocate(variable)
-      variable%name      = name
-      variable%units     = units
-      variable%long_name = long_name
-      variable%source_model => self
-      if (present(time_treatment)) then
-         variable%output = time_treatment2output(time_treatment)
-         call self%log_message('variable "'//trim(name)//'": "time_treatment" argument to register_diagnostic_variable is deprecated; &
-                               &please use "output" instead (see output_* parameters near top of fabm_types.F90.')
-      end if
-      if (present(missing_value))     variable%missing_value     = missing_value
-      if (present(standard_variable)) variable%standard_variable = standard_variable
-      if (present(output))            variable%output            = output
-
       if (associated(id%link)) call self%fatal_error('register_horizontal_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
-      call variable%write_indices%append(id%horizontal_diag_index)
 
-      id%link => self%add_horizontal_variable(variable)
+      call self%add_horizontal_variable(name, units, long_name, missing_value, &
+                                        standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
+                                        write_index=id%horizontal_diag_index, link=id%link)
 
    end subroutine register_horizontal_diagnostic_variable
 !EOC
@@ -1791,7 +1848,8 @@ end subroutine
 !
 !-----------------------------------------------------------------------
 !BOC
-      call self%fatal_error('register_standard_conserved_quantity','register_conserved_quantity is no longer supported; please use add_to_aggregate_variable.')
+      call self%fatal_error('register_standard_conserved_quantity', &
+                            'register_conserved_quantity is no longer supported; please use add_to_aggregate_variable.')
 
    end subroutine register_standard_conserved_quantity
 !EOC
@@ -1819,7 +1877,8 @@ end subroutine
 !
 !-----------------------------------------------------------------------
 !BOC
-      call self%fatal_error('register_standard_conserved_quantity','register_conserved_quantity is no longer supported; please use add_to_aggregate_variable.')
+      call self%fatal_error('register_standard_conserved_quantity', &
+                            'register_conserved_quantity is no longer supported; please use add_to_aggregate_variable.')
 
    end subroutine register_custom_conserved_quantity
 !EOC
@@ -2024,32 +2083,22 @@ end subroutine
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_bulk_variable),pointer :: variable
-      logical                           :: required_eff
+      integer :: presence
 !
 !-----------------------------------------------------------------------
 !BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error('register_bulk_dependency',&
-         'Dependencies may only be registered during initialization.')
-
-      required_eff = .true.
-      if (present(required)) required_eff = required
-
-      allocate(variable)
-      variable%name = name
-      if (present(units))     variable%units     = units
-      if (present(long_name)) variable%long_name = long_name
-      if (present(standard_variable)) variable%standard_variable = standard_variable
-      variable%presence = presence_external_required
-      if (.not.required_eff) variable%presence = presence_external_optional
-
-      call append_data_pointer(variable%alldata,id%data)
-      call variable%background_values%append(id%background)
-      if (associated(id%link)) call self%fatal_error('register_bulk_dependency', &
+      if (associated(id%link)) call self%fatal_error('register_named_bulk_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      id%link => self%add_bulk_variable(variable)
+      ! Dependencies MUST be fulfilled, unless explicitly specified that this is not so (required=.false.)
+      presence = presence_external_required
+      if (present(required)) then
+         if (.not.required) presence = presence_external_optional
+      end if
+
+      call self%add_bulk_variable(name, units, long_name, &
+                                  standard_variable=standard_variable, presence=presence, &
+                                  data=id%data, background=id%background, link=id%link)
 
       !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
@@ -2083,32 +2132,22 @@ end subroutine
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_horizontal_variable),pointer :: variable
-      logical                                 :: required_eff
+      integer :: presence
 !
 !-----------------------------------------------------------------------
 !BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error('register_horizontal_dependency',&
-         'Dependencies may only be registered during initialization.')
-
-      required_eff = .true.
-      if (present(required)) required_eff = required
-
-      allocate(variable)
-      variable%name = name
-      if (present(units))     variable%units     = units
-      if (present(long_name)) variable%long_name = long_name
-      if (present(standard_variable)) variable%standard_variable = standard_variable
-      variable%presence = presence_external_required
-      if (.not.required_eff) variable%presence = presence_external_optional
-
-      call append_data_pointer(variable%alldata,id%horizontal_data)
-      call variable%background_values%append(id%background)
-      if (associated(id%link)) call self%fatal_error(':register_horizontal_dependency', &
+      if (associated(id%link)) call self%fatal_error('register_named_horizontal_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      id%link => self%add_horizontal_variable(variable)
+      ! Dependencies MUST be fulfilled, unless explicitly specified that this is not so (required=.false.)
+      presence = presence_external_required
+      if (present(required)) then
+         if (.not.required) presence = presence_external_optional
+      end if
+
+      call self%add_horizontal_variable(name, units, long_name,&
+                                        standard_variable=standard_variable, presence=presence, &
+                                        data=id%horizontal_data, background=id%background, link=id%link)
 
       !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
@@ -2142,32 +2181,22 @@ end subroutine
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_scalar_variable),pointer :: variable
-      logical                             :: required_eff
+      integer :: presence
 !
 !-----------------------------------------------------------------------
 !BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error(':register_global_dependency',&
-         'Dependencies may only be registered during initialization.')
-
-      required_eff = .true.
-      if (present(required)) required_eff = required
-
-      allocate(variable)
-      variable%name = name
-      if (present(units))     variable%units     = units
-      if (present(long_name)) variable%long_name = long_name
-      if (present(standard_variable)) variable%standard_variable = standard_variable
-      variable%presence = presence_external_required
-      if (.not.required_eff) variable%presence = presence_external_optional
-
-      call append_data_pointer(variable%alldata,id%global_data)
-      call variable%background_values%append(id%background)
-      if (associated(id%link)) call self%fatal_error(':register_global_dependency', &
+      if (associated(id%link)) call self%fatal_error('register_named_global_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      id%link => self%add_scalar_variable(variable)
+      ! Dependencies MUST be fulfilled, unless explicitly specified that this is not so (required=.false.)
+      presence = presence_external_required
+      if (present(required)) then
+         if (.not.required) presence = presence_external_optional
+      end if
+
+      call self%add_scalar_variable(name, units, long_name, &
+                                    standard_variable=standard_variable, presence=presence, &
+                                    data=id%global_data, background=id%background, link=id%link)
 
       !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
@@ -2278,7 +2307,6 @@ subroutine set_parameter(self,parameter,name,units,long_name)
    character(len=*),        intent(in),optional   :: units,long_name
 !
 !EOP
-   class (type_base_model), pointer :: pmodel
 !-----------------------------------------------------------------------
 !BOC
    parameter%name = name
