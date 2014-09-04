@@ -188,6 +188,7 @@
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar 
 
       type (type_bulk_data_pointer) :: extinction_data
+      type (type_model_list)        :: extinction_call_list
 
       real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
@@ -219,6 +220,14 @@
       procedure :: get_scalar_variable_id_sn => fabm_get_scalar_variable_id_sn
       generic :: get_scalar_variable_id => get_scalar_variable_id_by_name, get_scalar_variable_id_sn
    end type type_model
+
+   type,extends(type_base_model) :: type_custom_extinction_calculator
+      type (type_diagnostic_variable_id) :: id_output
+      type (type_model_list)  :: models
+   contains
+      procedure :: initialize => custom_extinction_calculator_initialize
+      procedure :: do => custom_extinction_calculator_do
+   end type
 !
 ! !PUBLIC INTERFACES:
 !
@@ -475,6 +484,7 @@
 !
       type (type_model_list_node),   pointer :: node
       type (type_aggregate_variable),pointer :: aggregate_variable
+      class (type_custom_extinction_calculator),pointer :: extinction_calculator
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -489,6 +499,9 @@
       ! Values for these fields will only be provided if actually used by one of the biogeochemical models.
       call self%root%add_bulk_variable('zero')
       call self%root%add_horizontal_variable('zero_hz')
+
+      allocate(extinction_calculator)
+      call self%root%add_child(extinction_calculator,'custom_extinction_calculator',configunit=-1)
 
       ! Filter out expressions that FABM can handle itself.
       ! The remainder, if any, must be handled by the host model.
@@ -506,6 +519,8 @@
          call find_dependencies(node%model,self%models)
          node => node%next
       end do
+      call extinction_calculator%models%extend(self%models)
+      call create_model_call_list(self,'attenuation_coefficient_of_photosynthetic_radiative_flux',self%extinction_call_list)
 
       ! Consistency check (of find_dependencies): does every model (except the root) appear exactly once in the call list?
       call test_presence(self,self%root)
@@ -2276,14 +2291,16 @@ end subroutine
       call fatal_error('fabm_get_light_extinction','Size of first dimension of extinction should match loop length.')
 #endif
 
+   ! Call all models that calculate extinction components to make sure the extinction diagnostic is up to date.
+   node => self%extinction_call_list%first
+   do while (associated(node))
+      !call node%model%do(_ARGUMENTS_ND_IN_)
+      node => node%next
+   end do
+
    _LOOP_BEGIN_EX_(self%environment)
       _GET_EX_(self%extinction_data,extinction _INDEX_SLICE_)
    _LOOP_END_
-   node => self%models%first
-   do while (associated(node))
-      call node%model%get_light_extinction(_ARGUMENTS_ND_IN_,extinction)
-      node => node%next
-   end do
 
    end subroutine fabm_get_light_extinction
 !EOC
@@ -2943,6 +2960,51 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    external_variable%output        = internal_variable%output
    call external_variable%properties%update(internal_variable%properties)
 end subroutine
+
+   subroutine custom_extinction_calculator_initialize(self,configunit)
+      class (type_custom_extinction_calculator), intent(inout), target :: self
+      integer,                                   intent(in)            :: configunit
+
+      call self%register_diagnostic_variable(self%id_output,'total','1/m','total custom light extinction',output=output_none)
+      call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,self%id_output)
+   end subroutine
+
+   subroutine custom_extinction_calculator_do(self,_ARGUMENTS_DO_)
+      class (type_custom_extinction_calculator),intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_
+
+      type (type_model_list_node), pointer :: node
+      real(rk) _DIMENSION_SLICE_AUTOMATIC_ :: extinction
+
+      ! Ask all active biogeochemical models for custom light extinction values.
+      ! (custom as in: not computed by FABM from concentration+specific_light_extincton,
+      ! but by the model's own implementation of the get_light_extinction routine)
+      extinction = 0.0_rk
+      node => self%models%first
+      do while (associated(node))
+         call node%model%get_light_extinction(_ARGUMENTS_ND_,extinction)
+         node => node%next
+      end do
+
+      ! Transfer computed light extinction values to the output diagnostic.
+      _LOOP_BEGIN_
+         _SET_DIAGNOSTIC_(self%id_output,extinction _INDEX_SLICE_)
+      _LOOP_END_
+   end subroutine
+
+   subroutine create_model_call_list(self,variable_name,list)
+      class (type_model),     intent(inout),target :: self
+      character(len=*),       intent(in)           :: variable_name
+      type (type_model_list), intent(inout)        :: list
+
+      class (type_internal_object),pointer :: object
+
+      object => self%root%find_object(variable_name)
+      select type (object)
+         class is (type_internal_variable)
+            if (associated(object%source_model)) call find_dependencies(object%source_model,list)
+      end select
+   end subroutine create_model_call_list 
 
 end module fabm
 
