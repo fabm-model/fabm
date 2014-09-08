@@ -26,6 +26,8 @@
    use fabm_expressions
    use fabm_driver
    use fabm_properties
+   use fabm_builtin_models
+   use fabm_coupling
 !
 
    implicit none
@@ -156,6 +158,8 @@
       type (type_aggregate_variable),pointer        :: aggregate_variable
       type (type_bulk_data_pointer)                 :: data
       type (type_horizontal_data_pointer)           :: horizontal_data
+      class (type_weighted_sum),           pointer  :: sum                => null()
+      class (type_horizontal_weighted_sum),pointer  :: horizontal_sum     => null()
    end type type_conserved_quantity_info
 
    ! Derived type for a single generic biogeochemical model
@@ -190,8 +194,8 @@
       type (type_bulk_data_pointer) :: extinction_data
       type (type_model_list)        :: extinction_call_list
 
-      real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
-      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
+      real(rk),allocatable _DIMENSION_GLOBAL_            :: zero
+      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: zero_hz
    contains
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
       procedure :: link_bulk_data_by_sn   => fabm_link_bulk_data_by_sn
@@ -2420,8 +2424,8 @@ end subroutine
 !-----------------------------------------------------------------------
 !BOC
    do i=1,size(self%conserved_quantities)
-      if (associated(self%conserved_quantities(i)%aggregate_variable%sum)) &
-         call self%conserved_quantities(i)%aggregate_variable%sum%evaluate(_ARGUMENTS_ND_IN_)
+      if (associated(self%conserved_quantities(i)%sum)) &
+         call self%conserved_quantities(i)%sum%evaluate(_ARGUMENTS_ND_IN_)
       _LOOP_BEGIN_EX_(self%environment)
          _GET_EX_(self%conserved_quantities(i)%data,sums _INDEX_SLICE_PLUS_1_(i))
       _LOOP_END_
@@ -2452,8 +2456,8 @@ end subroutine
 !-----------------------------------------------------------------------
 !BOC
    do i=1,size(self%conserved_quantities)
-      if (associated(self%conserved_quantities(i)%aggregate_variable%horizontal_sum)) &
-         call self%conserved_quantities(i)%aggregate_variable%horizontal_sum%evaluate_horizontal(_ARGUMENTS_IN_HZ_)
+      if (associated(self%conserved_quantities(i)%horizontal_sum)) &
+         call self%conserved_quantities(i)%horizontal_sum%evaluate_horizontal(_ARGUMENTS_IN_HZ_)
       _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
          _GET_HORIZONTAL_EX_(self%conserved_quantities(i)%horizontal_data,sums _INDEX_HORIZONTAL_SLICE_PLUS_1_(i))
       _HORIZONTAL_LOOP_END_
@@ -2727,6 +2731,7 @@ subroutine classify_variables(self)
    type (type_conserved_quantity_info),            pointer :: consvar
    class (type_internal_object),                   pointer :: object
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
+   class (type_base_model),                        pointer :: model
 
    type (type_aggregate_variable),    pointer :: aggregate_variable
    type (type_set) :: dependencies,dependencies_hz,dependencies_scalar
@@ -2755,16 +2760,39 @@ subroutine classify_variables(self)
       consvar%long_name = trim(consvar%standard_variable%name)
       consvar%path = trim(consvar%standard_variable%name)
       consvar%aggregate_variable => aggregate_variable
+
+      ! Store pointer to total of conserved quantity in bulk domain.
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
       select type (object)
          class is (type_bulk_variable)
             call append_data_pointer(object%alldata,consvar%data)
       end select
+
+      ! Store pointer to total of conserved quantity at surface + bottom.
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
       select type (object)
          class is (type_horizontal_variable)
             call append_data_pointer(object%alldata,consvar%horizontal_data)
       end select
+
+      ! Store pointer to model that computes total of conserved quantity in bulk domain, so we can force recomputation.
+      model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_calculator')
+      if (associated(model)) then
+         select type (model)
+            class is (type_weighted_sum)
+               consvar%sum => model
+         end select
+      end if   
+
+      ! Store pointer to model that computes total of conserved quantity at surface + bottom, so we can force recomputation.
+      model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_at_interfaces_calculator')
+      if (associated(model)) then
+         select type (model)
+            class is (type_horizontal_weighted_sum)
+               consvar%horizontal_sum => model
+         end select
+      end if   
+
       aggregate_variable => aggregate_variable%next
    end do
 

@@ -76,6 +76,7 @@ add_library(fabm_base OBJECT
             fabm_types.F90
             fabm_particle.F90
             fabm_expressions.F90
+            fabm_builtin_models.F90
             ../include/fabm.h
             ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/fabm_driver.h
            )
@@ -90,6 +91,7 @@ add_library(fabm
             $<TARGET_OBJECTS:fabm_base>
             ${MODEL_OBJECTS}
             fabm_library.F90
+            fabm_coupling.F90
             fabm.F90
             config/fabm_config_types.F90
             config/fabm_yaml.F90

@@ -48,7 +48,6 @@
    public type_link
    public type_internal_object,type_internal_variable,type_bulk_variable,type_horizontal_variable,type_scalar_variable
    public type_environment
-   public freeze_model_info
    public find_dependencies
 
    public type_model_list,type_model_list_node
@@ -58,11 +57,9 @@
 
    public type_expression, type_bulk_expression, type_horizontal_expression
 
-   public type_weighted_sum,type_simple_depth_integral
-
    public type_bulk_data_pointer,type_horizontal_data_pointer,type_scalar_data_pointer
    public type_bulk_data_pointer_pointer,type_horizontal_data_pointer_pointer,type_scalar_data_pointer_pointer
-   public type_aggregate_variable, type_contributing_variable, get_aggregate_variable
+   public get_aggregate_variable, type_aggregate_variable, type_contributing_variable, type_contribution, merge_variables
    public time_treatment2output,output2time_treatment
    public append_data_pointer
 
@@ -227,8 +224,6 @@
    type type_aggregate_variable
       type (type_bulk_standard_variable)            :: standard_variable
       type (type_contributing_variable),   pointer  :: first_contributing_variable => null()
-      class (type_weighted_sum),           pointer  :: sum => null()
-      class (type_horizontal_weighted_sum),pointer  :: horizontal_sum => null()
       type (type_aggregate_variable),      pointer  :: next => null()
       logical                                       :: bulk_required = .false.
       logical                                       :: horizontal_required = .false.
@@ -363,13 +358,39 @@
       logical :: check_conservation = .false.
    contains
 
-      ! Procedures that can be used to add child models during initialization.
+      ! Procedure for adding child models [during initialization only]
       procedure :: add_child
 
+      ! Procedures for adding variables [during initialization only]
+      procedure :: add_bulk_variable
+      procedure :: add_horizontal_variable
+      procedure :: add_scalar_variable
+      procedure :: add_object
+
+      ! Procedures for locating links, objects, models.
+      procedure :: find_link
+      procedure :: find_object
+      procedure :: find_model
+
+      ! Procedures for requesting coupling between variables
       procedure :: request_coupling_for_link
       procedure :: request_coupling_for_name
       procedure :: request_coupling_for_id
       generic   :: request_coupling => request_coupling_for_link,request_coupling_for_name,request_coupling_for_id
+
+      ! Procedures that may be used to query parameter values during initialization.
+      procedure :: get_real_parameter
+      procedure :: get_integer_parameter
+      procedure :: get_logical_parameter
+      procedure :: get_string_parameter
+      generic :: get_parameter => get_real_parameter,get_integer_parameter,get_logical_parameter,get_string_parameter
+
+      procedure :: set_variable_property_real
+      procedure :: set_variable_property_integer
+      procedure :: set_variable_property_logical
+      generic   :: set_variable_property => set_variable_property_real,set_variable_property_integer,set_variable_property_logical
+
+      procedure :: add_to_aggregate_variable
 
       ! Procedures that may be used to register model variables and dependencies during initialization.
       procedure :: register_bulk_state_variable
@@ -399,26 +420,9 @@
       procedure :: register_bottom_state_dependency_old
       procedure :: register_surface_state_dependency_old
 
-      procedure :: add_bulk_variable
-      procedure :: add_horizontal_variable
-      procedure :: add_scalar_variable
-      procedure :: add_object
-      procedure :: add_alias
-
-      procedure :: find_link
-      procedure :: find_object
-      procedure :: find_model
-
       generic :: register_bulk_state_dependency => register_bulk_state_dependency_ex, register_bulk_state_dependency_old
       generic :: register_bottom_state_dependency => register_bottom_state_dependency_ex, register_bottom_state_dependency_old
       generic :: register_surface_state_dependency => register_surface_state_dependency_ex, register_surface_state_dependency_old
-
-      procedure :: set_variable_property_real
-      procedure :: set_variable_property_integer
-      procedure :: set_variable_property_logical
-      generic   :: set_variable_property => set_variable_property_real,set_variable_property_integer,set_variable_property_logical
-
-      procedure :: add_to_aggregate_variable
 
       procedure :: register_bulk_expression_dependency
       procedure :: register_horizontal_expression_dependency
@@ -435,13 +439,6 @@
                                                  register_surface_state_dependency_ex,register_bulk_state_dependency_old, &
                                                  register_bottom_state_dependency_old,register_surface_state_dependency_old
       generic :: register_conserved_quantity  => register_standard_conserved_quantity, register_custom_conserved_quantity
-
-      ! Procedures that may be used to query parameter values during initialization.
-      procedure :: get_real_parameter
-      procedure :: get_integer_parameter
-      procedure :: get_logical_parameter
-      procedure :: get_string_parameter
-      generic :: get_parameter => get_real_parameter,get_integer_parameter,get_logical_parameter,get_string_parameter
 
       ! ----------------------------------------------------------------------------------------------------
       ! Procedures below may be overridden by biogeochemical models to provide custom data or functionality.
@@ -499,8 +496,6 @@
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
       integer                                                   :: nstate
 
-      real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: rhs
-
 #ifdef _FABM_MASK_
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
 #endif
@@ -524,62 +519,6 @@
    end type
 
    class (type_base_model_factory),pointer,save,public :: factory => null()
-
-   type type_component
-      character(len=attribute_length) :: name   = ''
-      real(rk)                        :: weight = 1._rk
-      logical                         :: include_background = .false.
-      type (type_dependency_id)       :: id
-      type (type_component),pointer   :: next   => null()
-   end type
-
-   type type_horizontal_component
-      character(len=attribute_length)          :: name   = ''
-      real(rk)                                 :: weight = 1._rk
-      logical                                  :: include_background = .false.
-      type (type_horizontal_dependency_id)     :: id
-      type (type_horizontal_component),pointer :: next   => null()
-   end type
-
-   type,extends(type_base_model) :: type_weighted_sum
-      character(len=attribute_length) :: output_long_name = ''
-      character(len=attribute_length) :: output_units     = ''
-      real(rk)                        :: offset           = 0.0_rk
-      type (type_diagnostic_variable_id) :: id_output
-      type (type_component),pointer   :: first => null()
-   contains
-      procedure :: initialize     => weighted_sum_initialize
-      procedure :: add_component  => weighted_sum_add_component
-      procedure :: evaluate       => weighted_sum_evaluate
-      procedure :: do             => weighted_sum_do
-      procedure :: after_coupling => weighted_sum_after_coupling
-   end type
-
-   type,extends(type_base_model) :: type_horizontal_weighted_sum
-      character(len=attribute_length) :: output_long_name = ''
-      character(len=attribute_length) :: output_units     = ''
-      real(rk)                        :: offset           = 0.0_rk
-      type (type_horizontal_diagnostic_variable_id) :: id_output
-      type (type_horizontal_component),pointer   :: first => null()
-   contains
-      procedure :: add_component       => horizontal_weighted_sum_add_component
-      procedure :: initialize          => horizontal_weighted_sum_initialize
-      procedure :: evaluate_horizontal => horizontal_weighted_sum_evaluate_horizontal
-      procedure :: do_bottom           => horizontal_weighted_sum_do_bottom
-      procedure :: after_coupling      => horizontal_weighted_sum_after_coupling
-   end type
-
-   type,extends(type_base_model) :: type_simple_depth_integral
-      type (type_dependency_id)                     :: id_input
-      type (type_horizontal_dependency_id)          :: id_depth
-      type (type_horizontal_diagnostic_variable_id) :: id_output
-      real(rk)                                      :: minimum_depth = 0.0_rk
-      real(rk)                                      :: maximum_depth = huge(1.0_rk)
-      logical                                       :: average       = .false.
-   contains
-      procedure :: initialize => simple_depth_integral_initialize
-      procedure :: do         => simple_depth_integral_do
-   end type
 
    ! ====================================================================================================
    ! Interfaces
@@ -1028,17 +967,6 @@ function create_link(self,target,name,merge,owner) result(link)
    if (present(owner)) link%owner = owner
 end function create_link
 
-recursive subroutine add_alias(self,target,name)
-   class (type_base_model), intent(inout) :: self
-   class (type_internal_object),pointer   :: target
-   character(len=*),        intent(in)    :: name
-
-   type (type_link),pointer :: link
-
-   link => create_link(self,target,name,owner=.false.)
-   if (associated(self%parent)) call self%parent%add_alias(target,trim(self%name)//'/'//trim(name))
-end subroutine
-
 subroutine request_coupling_for_link(self,link,master)
    class (type_base_model),intent(inout)              :: self
    type (type_link),       intent(inout)              :: link
@@ -1239,95 +1167,6 @@ subroutine append_scalar_data_pointer(array,data)
    array(size(array))%p => data
    array(size(array))%p = array(1)%p
 end subroutine append_scalar_data_pointer
-
-recursive subroutine before_coupling(self)
-   class (type_base_model),intent(inout),target :: self
-
-   type (type_model_list_node), pointer :: node
-
-   call self%before_coupling()
-   node => self%children%first
-   do while (associated(node))
-      call before_coupling(node%model)
-      node => node%next
-   end do
-end subroutine
-
-recursive subroutine after_coupling(self)
-   class (type_base_model),intent(inout),target :: self
-
-   type (type_model_list_node), pointer :: node
-
-   call self%after_coupling()
-   node => self%children%first
-   do while (associated(node))
-      call after_coupling(node%model)
-      node => node%next
-   end do
-end subroutine
-
-recursive subroutine freeze(self)
-   class (type_base_model),intent(inout),target :: self
-
-   type (type_model_list_node), pointer :: node
-
-   self%frozen = .true.
-   node => self%children%first
-   do while (associated(node))
-      call freeze(node%model)
-      node => node%next
-   end do
-end subroutine
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Make model information read-only.
-!
-! !INTERFACE:
-   subroutine freeze_model_info(self)
-!
-! !DESCRIPTION:
-!  This function finalizes model initialization. It will resolve all remaining
-!  internal dependencies (coupling commands) and generate final authorative lists
-!  of state variables, diagnostic variables, conserved quantities and readable
-!  variables ("dependencies").
-!
-! !INPUT/OUTPUT PARAMETER:
-      class (type_base_model),intent(inout),target :: self
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-      if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
-         'BUG: freeze_model_info can only operate on the root model.')
-
-      call before_coupling(self)
-
-      ! Now couple model variables
-      ! Stage 1: implicit - couple variables based on overlapping standard identities.
-      ! Stage 2: explicit - resolve user- or model-specified links between variables.
-      call couple_standard_variables(self)
-      call process_coupling_tasks(self,.false.)
-
-      ! Create models for aggregate variables at root level, to be used to compute conserved quantities.
-      ! After this step, the set of variables that contribute to aggregate quatities may not be modified.
-      ! That is, no new such variables may be added, and no such variables may be coupled.
-      call build_aggregate_variables(self)
-      call create_aggregate_models(self)
-
-      ! Repeat coupling because new aggregate variables are now available.
-      call process_coupling_tasks(self,.true.)
-
-      ! Allow inheriting models to perform additional tasks after coupling.
-      call after_coupling(self)
-
-      call freeze(self)
-   end subroutine freeze_model_info
-!EOC
 
 !-----------------------------------------------------------------------
 !BOP
@@ -2427,240 +2266,6 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
 end subroutine get_string_parameter
 !EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Automatically couple variables that represent the same standard variable.
-!
-! !INTERFACE:
-   subroutine couple_standard_variables(model)
-!
-! !DESCRIPTION:
-!
-! !INPUT PARAMETERS:
-      class (type_base_model),intent(inout),target :: model
-!
-!EOP
-!
-! !LOCAL VARIABLES:
-      type (type_link),pointer                 :: link,link2
-      type (type_bulk_standard_variable)       :: bulk_standard_variable
-      type (type_horizontal_standard_variable) :: horizontal_standard_variable
-      type (type_global_standard_variable)     :: global_standard_variable
-      type (type_set)                          :: processed_bulk,processed_horizontal,processed_scalar
-!
-!-----------------------------------------------------------------------
-!BOC
-      link => model%first_link
-      do while (associated(link))
-         select type (object=>link%target)
-            class is (type_bulk_variable)
-               if (.not.object%standard_variable%is_null()) then
-                  if (.not.processed_bulk%contains(object%standard_variable%name)) then
-                     call processed_bulk%add(object%standard_variable%name)
-                     bulk_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
-                     link2 => link%next
-                     do while (associated(link2))
-                        select type (object2=>link2%target)
-                           class is (type_bulk_variable)
-                              if (bulk_standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
-                                 if (object2%write_indices%is_empty()) then
-                                    call couple_variables(model,link%target,link2%target)
-                                 else
-                                    call couple_variables(model,link2%target,link%target)
-                                 end if
-                              end if
-                        end select
-                        link2 => link2%next
-                     end do
-                  end if
-               end if
-            class is (type_horizontal_variable)
-               if (.not.object%standard_variable%is_null()) then
-                  if (.not.processed_horizontal%contains(object%standard_variable%name)) then
-                     call processed_horizontal%add(object%standard_variable%name)
-                     horizontal_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
-                     link2 => link%next
-                     do while (associated(link2))
-                        select type (object2=>link2%target)
-                           class is (type_horizontal_variable)
-                              if (horizontal_standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
-                                 if (object2%write_indices%is_empty()) then
-                                    call couple_variables(model,link%target,link2%target)
-                                 else
-                                    call couple_variables(model,link2%target,link%target)
-                                 end if
-                              end if
-                        end select
-                        link2 => link2%next
-                     end do
-                  end if
-               end if
-            class is (type_scalar_variable)
-               if (.not.object%standard_variable%is_null()) then
-                  if (.not.processed_scalar%contains(object%standard_variable%name)) then
-                     call processed_scalar%add(object%standard_variable%name)
-                     global_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
-                     link2 => link%next
-                     do while (associated(link2))
-                        select type (object2=>link2%target)
-                           class is (type_scalar_variable)
-                              if (global_standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
-                                 if (object2%write_indices%is_empty()) then
-                                    call couple_variables(model,link%target,link2%target)
-                                 else
-                                    call couple_variables(model,link2%target,link%target)
-                                 end if
-                              end if
-                        end select
-                        link2 => link2%next
-                     end do
-                  end if
-               end if
-         end select
-         link => link%next
-      end do
-
-      call processed_bulk%finalize()
-      call processed_horizontal%finalize()
-      call processed_scalar%finalize()
-
-   end subroutine couple_standard_variables
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Process all model-specific coupling tasks.
-!
-! !INTERFACE:
-   recursive subroutine process_coupling_tasks(self,check)
-!
-! !DESCRIPTION:
-!
-! !INPUT PARAMETERS:
-      class (type_base_model),intent(inout),target :: self
-      logical,                intent(in)           :: check
-!
-!EOP
-!
-! !LOCAL VARIABLES:
-      class (type_base_model),     pointer :: root
-      type (type_model_list_node), pointer :: child
-      type (type_link),            pointer :: link
-      class (type_property),       pointer :: master_name
-      class (type_internal_object),pointer :: master
-!
-!-----------------------------------------------------------------------
-!BOC
-      ! Find root model, which will handle the individual coupling tasks.
-      root => self
-      do while (associated(root%parent))
-         root => root%parent
-      end do
-
-      ! For each variable, determine if a coupling command is provided.
-      link => self%first_link
-      do while (associated(link))
-
-         ! Only process own links (those without slash in the name)
-         if (index(link%name,'/')==0) then
-
-            ! Try to find a coupling for this variable.
-            master_name => self%couplings%find_in_tree(link%name)
-
-            if (associated(master_name)) then
-               select type (master_name)
-                  class is (type_string_property)
-                     ! Try to find the master variable among the variables of the requesting model or its parents.
-                     if (link%name/=master_name%value) then
-                        ! Master and slave name differ: start master search in current model, then move up tree.
-                        master => self%find_object(master_name%value,recursive=.true.,exact=.false.)
-                     elseif (associated(self%parent)) then
-                        ! Master and slave name are identical: start master search in parent model, then move up tree.
-                        master => self%parent%find_object(master_name%value,recursive=.true.,exact=.false.)
-                     end if
-                     if (associated(master)) then
-                        ! Target variable found: perform the coupling.
-                        call couple_variables(root,master,link%target)
-                     elseif (check) then
-                        call self%fatal_error('process_coupling_tasks', &
-                           'Coupling target "'//trim(master_name%value)//'" for "'//trim(link%name)//'" was not found.')
-                     end if
-               end select
-            end if ! If own link (no / in name)
-
-         end if ! If coupling was specified
-
-         link => link%next
-      end do
-
-      ! Process coupling tasks registered with child models.
-      child => self%children%first
-      do while (associated(child))
-         call process_coupling_tasks(child%model,check)
-         child => child%next
-      end do
-
-   end subroutine process_coupling_tasks
-!EOC
-
-recursive subroutine redirect_links(model,oldtarget,newtarget)
-   class (type_base_model),     intent(inout),target :: model
-   class (type_internal_object),intent(in),   target :: oldtarget,newtarget
-
-   type (type_link),           pointer :: link
-   type (type_model_list_node),pointer :: child
-
-   ! Process all links and if they used to refer to the specified slave,
-   ! redirect them to the specified master.
-   link => model%first_link
-   do while (associated(link))
-      if (associated(link%target,oldtarget)) then
-         link%target => newtarget
-         link%owner = .false.
-      end if
-      link => link%next
-   end do
-
-   ! Allow child models to do the same.
-   child => model%children%first
-   do while (associated(child))
-      call redirect_links(child%model,oldtarget,newtarget)
-      child => child%next
-   end do
-end subroutine
-
-subroutine couple_variables(self,master,slave)
-   class (type_base_model),     intent(inout),target :: self
-   class (type_internal_object),intent(inout),target :: master
-   class (type_internal_object),intent(in),  pointer :: slave
-
-   class (type_internal_object),pointer :: pslave
-      
-   if (associated(self%parent)) call self%fatal_error('couple_variables','BUG: must be called on root node.')
-
-   ! Store a pointer to the slave, because the call to redirect_links will cause all pointers (from links)
-   ! to the slave node to be connected to the master node. This icludes the original "slave" argument.
-   pslave => slave
-
-   ! If slave and master are the same, we are done - return.
-   if (associated(pslave,master)) return
-
-   ! Note: in call below we provide our local copy of the pointer to the slave (pslave), not the original slave pointer (slave).
-   ! Reason: ifort appears to pass the slave pointer by reference. The original pointer comes from a link, and is therefore
-   ! overwritten by redirect_links. If we pass this original pointer to redirect_links for comparing object identities,
-   ! the recursive redirecting will fail after the very first redirect (which destroyed the pointer to the object that we
-   ! want to compare against).
-   call redirect_links(self,pslave,master)
-
-   ! Merge all information from the slave into the master.
-   call merge_variables(master,pslave)
-
-   ! Deallocate the slave, which is no longer needed.
-   deallocate(pslave)
-end subroutine couple_variables
-
 subroutine merge_variables(master,slave)
    class (type_internal_object),intent(inout) :: master
    class (type_internal_object),intent(in)    :: slave
@@ -2864,169 +2469,6 @@ end subroutine merge_scalar_variables
    end function find_model
 !EOC
 
-subroutine print_aggregate_variable_contributions(self)
-   class (type_base_model),intent(inout),target :: self
-
-   type (type_aggregate_variable),   pointer :: aggregate_variable
-   type (type_contributing_variable),pointer :: contributing_variable
-
-   aggregate_variable => self%first_aggregate_variable
-   do while (associated(aggregate_variable))
-      call log_message('Model '//trim(self%name)//' contributions to '//trim(aggregate_variable%standard_variable%name))
-      contributing_variable => aggregate_variable%first_contributing_variable
-      do while (associated(contributing_variable))
-         if (contributing_variable%link%owner) then
-            call log_message('   '//trim(contributing_variable%link%name)//' (internal)')
-         else
-            call log_message('   '//trim(contributing_variable%link%name)//' (external)')
-         end if
-         contributing_variable => contributing_variable%next
-      end do
-      aggregate_variable => aggregate_variable%next
-   end do
-end subroutine
-
-recursive subroutine build_aggregate_variables(self)
-   class (type_base_model),intent(inout),target :: self
-
-   type (type_aggregate_variable),pointer :: aggregate_variable
-   type (type_model_list_node),   pointer :: child
-   type (type_link),              pointer :: link
-   type (type_contribution),      pointer :: contribution
-   type (type_contributing_variable),pointer :: contributing_variable
-
-   integer :: nbulk,nhz
-
-   ! This routine takes the variable->aggregate variable mappings, and creates corresponding
-   ! aggregate variable->variable mappings.
-
-   ! Enumerate all model variables, and process their contributions to aggregate variables.
-   link => self%first_link
-   do while (associated(link))
-      select type (variable => link%target)
-         class is (type_internal_variable)
-            ! This link points to a variable (rather than e.g. a model dependency).
-            ! Enumerate its contributions to aggreagte variables, and register these with
-            ! aggregate variable objects on the model level.
-            contribution => variable%contributions%first
-            do while (associated(contribution))
-               aggregate_variable => get_aggregate_variable(self,contribution%target)
-               call add_contribution(aggregate_variable,link,contribution%scale_factor,contribution%include_background)
-               contribution => contribution%next
-            end do
-      end select
-      link => link%next
-   end do
-
-   if (self%check_conservation) then
-      aggregate_variable => self%first_aggregate_variable
-      do while (associated(aggregate_variable))
-         ! First count number of contributing state variables (separate different physical domains).
-         nbulk = 0
-         nhz = 0
-         contributing_variable => aggregate_variable%first_contributing_variable
-         do while (associated(contributing_variable))
-            select type (variable=>contributing_variable%link%target)
-               class is (type_bulk_variable)
-                  if (.not.variable%state_indices%is_empty()) nbulk = nbulk + 1
-               class is (type_horizontal_variable)
-                  if (.not.variable%state_indices%is_empty()) nhz = nhz + 1
-            end select
-            contributing_variable => contributing_variable%next
-         end do
-
-         ! Create diagnostic variables that hold the change in aggregate variables (specific to each physical domain).
-         if (nbulk>0) call self%register_diagnostic_variable(aggregate_variable%id_rate, &
-                        'change_in_'//trim(aggregate_variable%standard_variable%name), &
-                        trim(aggregate_variable%standard_variable%units), &
-                        'change in '//trim(aggregate_variable%standard_variable%name))
-         if (nhz>0) call self%register_diagnostic_variable(aggregate_variable%id_horizontal_rate, &
-                      'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces', &
-                      trim(aggregate_variable%standard_variable%units)//'*m', &
-                      'change in '//trim(aggregate_variable%standard_variable%name)//' at interfaces')
-
-         ! Create arrays of indices and scale factors for all contributing state variables (specific to each physical domain).
-         allocate(aggregate_variable%state_indices(nbulk))
-         allocate(aggregate_variable%state_scale_factors(nbulk))
-
-         nbulk = 0
-         nhz = 0
-         contributing_variable => aggregate_variable%first_contributing_variable
-         do while (associated(contributing_variable))
-            select type (variable=>contributing_variable%link%target)
-               class is (type_bulk_variable)
-                  if (.not.variable%state_indices%is_empty()) then
-                     nbulk = nbulk + 1
-                     call variable%state_indices%append(aggregate_variable%state_indices(nbulk))
-                     aggregate_variable%state_scale_factors(nbulk) = contributing_variable%scale_factor
-                  end if
-               class is (type_horizontal_variable)
-                  if (.not.variable%state_indices%is_empty()) then
-                     nhz = nhz + 1
-                  end if
-            end select
-            contributing_variable => contributing_variable%next
-         end do
-
-         aggregate_variable => aggregate_variable%next
-      end do
-   end if
-
-   ! Process child models
-   child => self%children%first
-   do while (associated(child))
-      call build_aggregate_variables(child%model)
-      child => child%next
-   end do
-
-   ! call print_aggregate_variable_contributions(self)
-
-contains
-
-   subroutine add_contribution(aggregate_variable,link,scale_factor,include_background)
-      type (type_aggregate_variable),intent(inout) :: aggregate_variable
-      type (type_link),target,       intent(inout) :: link
-      real(rk),                      intent(in)    :: scale_factor
-      logical,                       intent(in)    :: include_background
-
-      type (type_contributing_variable),pointer :: contributing_variable
-
-      if (.not.associated(aggregate_variable%first_contributing_variable)) then
-         ! This aggregate variable does not have any contribution registered yet. Create the first.
-         allocate(aggregate_variable%first_contributing_variable)
-         contributing_variable => aggregate_variable%first_contributing_variable
-      else
-         ! First determine whether the contribution of this variable has already been registered.
-         ! This can be the case if multiple links point to the same actual variable (i.e., if they are coupled)
-         contributing_variable => aggregate_variable%first_contributing_variable
-         do while (associated(contributing_variable))
-            if (associated(contributing_variable%link%target,link%target)) then
-               ! We already have registered a contribution from this variable.
-               ! The newly provided link replaces the previous if it owns the variable (i.e., it is not coupled),
-               ! so we can later check the link to determine ownership. Then we are done - return.
-               if (link%owner) contributing_variable%link => link
-               return
-            end if
-            contributing_variable => contributing_variable%next
-         end do
-
-         ! This aggregate variable has one or more contributions already. Find the last, so we can append another.
-         contributing_variable => aggregate_variable%first_contributing_variable
-         do while (associated(contributing_variable%next))
-            contributing_variable => contributing_variable%next
-         end do
-         allocate(contributing_variable%next)
-         contributing_variable => contributing_variable%next
-      end if
-
-      ! Store contribution properties.
-      contributing_variable%link => link
-      contributing_variable%scale_factor = scale_factor
-      contributing_variable%include_background = include_background
-   end subroutine
-
-end subroutine build_aggregate_variables
-
 function get_aggregate_variable(self,standard_variable,create) result(aggregate_variable)
    class (type_base_model),           intent(inout) :: self
    type (type_bulk_standard_variable),intent(in)    :: standard_variable
@@ -3073,118 +2515,6 @@ function get_aggregate_variable(self,standard_variable,create) result(aggregate_
    end if
 
 end function
-
-recursive subroutine create_aggregate_models(self)
-   class (type_base_model),       intent(inout),target :: self
-
-   type (type_aggregate_variable),pointer :: aggregate_variable
-   type (type_model_list_node),   pointer :: child
-
-   aggregate_variable => self%first_aggregate_variable
-   do while (associated(aggregate_variable))
-      if (aggregate_variable%bulk_required)       call create_aggregate_model(self,aggregate_variable,domain_bulk)
-      if (aggregate_variable%horizontal_required) call create_aggregate_model(self,aggregate_variable,domain_surface)
-      aggregate_variable => aggregate_variable%next
-   end do
-
-   ! Process child models
-   child => self%children%first
-   do while (associated(child))
-      call create_aggregate_models(child%model)
-      child => child%next
-   end do
-end subroutine
-
-subroutine create_aggregate_model(self,aggregate_variable,domain)
-   class (type_base_model),       intent(inout),target :: self
-   type (type_aggregate_variable),intent(inout)        :: aggregate_variable
-   integer,                       intent(in)           :: domain
-
-   type (type_contributing_variable),pointer :: contributing_variable
-   integer                                   :: n
-   logical                                   :: sumrequired
-   character(len=attribute_length )          :: name
-   class (type_internal_object),pointer      :: target_variable
-
-   ! This procedure takes an aggregate variable, and creates models that compute diagnostics
-   ! for the total of these aggregate quantities on bulk and horizontal domains.
-
-   select case (domain)
-      case (domain_bulk)
-         name = trim(aggregate_variable%standard_variable%name)
-         call self%add_bulk_variable(name,aggregate_variable%standard_variable%units,name)
-         call self%request_coupling(name,'zero')
-      case default
-         name = trim(aggregate_variable%standard_variable%name)//'_at_interfaces'
-         call self%add_horizontal_variable(name,aggregate_variable%standard_variable%units,name)
-         call self%request_coupling(name,'zero_hz')
-   end select
-
-   n = 0
-   sumrequired = .false.
-   contributing_variable => aggregate_variable%first_contributing_variable
-   do while (associated(contributing_variable))
-      if (contributing_variable%link%owner) then
-         select type (variable=>contributing_variable%link%target)
-            class is (type_bulk_variable)
-               if (domain==domain_bulk) then
-                  n = n + 1
-                  if (contributing_variable%scale_factor/=1.0_rk.or.contributing_variable%include_background) sumrequired = .true.
-                  target_variable => contributing_variable%link%target
-               end if
-            class is (type_horizontal_variable)
-               if (domain/=domain_bulk) then
-                  n = n + 1
-                  if (contributing_variable%scale_factor/=1.0_rk.or.contributing_variable%include_background) sumrequired = .true.
-                  target_variable => contributing_variable%link%target
-               end if
-         end select
-      end if
-      contributing_variable => contributing_variable%next
-   end do
-
-   if (n==1.and..not.sumrequired) then
-      ! Always equal to another - couple aggregate variable to this other
-      call self%request_coupling(name,target_variable%name)
-   elseif (n>0) then
-      ! Weighted sum of variables
-      select case (domain)
-         case (domain_bulk)
-            allocate(aggregate_variable%sum)
-            aggregate_variable%sum%output_units = trim(aggregate_variable%standard_variable%units)
-         case default
-            allocate(aggregate_variable%horizontal_sum)
-            aggregate_variable%horizontal_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m'
-      end select
-
-      contributing_variable => aggregate_variable%first_contributing_variable
-      do while (associated(contributing_variable))
-         if (contributing_variable%link%owner) then
-            select type (variable=>contributing_variable%link%target)
-               class is (type_bulk_variable)
-                  ! This contribution comes from a bulk variable.
-                  if (domain==domain_bulk) &
-                     call aggregate_variable%sum%add_component(trim(contributing_variable%link%name), &
-                        weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
-               class is (type_horizontal_variable)
-                  ! This contribution comes from a variable defined on a horizontal interface (top or bottom).
-                  if (domain/=domain_bulk) &
-                     call aggregate_variable%horizontal_sum%add_component(trim(contributing_variable%link%name), &
-                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
-            end select
-         end if
-         contributing_variable => contributing_variable%next
-      end do
-
-      select case (domain)
-         case (domain_bulk)
-            call self%add_child(aggregate_variable%sum,trim(name)//'_calculator',configunit=-1)
-         case default
-            call self%add_child(aggregate_variable%horizontal_sum,trim(name)//'_calculator',configunit=-1)
-      end select
-      call self%request_coupling(name,trim(name)//'_calculator/result')
-   end if
-end subroutine create_aggregate_model
 
 function get_free_unit() result(unit)
    integer :: unit
@@ -3300,187 +2630,6 @@ recursive subroutine abstract_model_factory_create(self,name,model)
    end do
 end subroutine
 
-   subroutine weighted_sum_initialize(self,configunit)
-      class (type_weighted_sum),intent(inout),target :: self
-      integer,                  intent(in)           :: configunit
-
-      type (type_component),pointer :: component
-      integer           :: i
-      character(len=10) :: temp
-
-      i = 0
-      component => self%first
-      do while (associated(component))
-         i = i + 1
-         write (temp,'(i0)') i
-         call self%register_dependency(component%id,'term'//trim(temp))
-         call self%request_coupling(component%id,trim(component%name))
-         component => component%next
-      end do
-      if (self%output_long_name=='') self%output_long_name = 'result'
-      call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
-   end subroutine
-
-   subroutine weighted_sum_add_component(self,name,weight,include_background)
-      class (type_weighted_sum),intent(inout) :: self
-      character(len=*),         intent(in)    :: name
-      real(rk),optional,        intent(in)    :: weight
-      logical,optional,         intent(in)    :: include_background
-
-      type (type_component),pointer :: component
-
-      if (.not.associated(self%first)) then
-         allocate(self%first)
-         component => self%first
-      else
-         component => self%first
-         do while (associated(component%next))
-            component => component%next
-         end do
-         allocate(component%next)
-         component => component%next
-      end if
-      component%name = name
-      if (present(weight)) component%weight = weight
-      if (present(include_background)) component%include_background = include_background
-   end subroutine
-
-   subroutine weighted_sum_after_coupling(self)
-      class (type_weighted_sum),intent(inout) :: self
-
-      type (type_component),pointer :: component
-
-      ! At this stage, the background values for all variables (if any) are fixed. We can therefore
-      ! compute background contributions already, and add those to the space- and time-invariant offset.
-      component => self%first
-      do while (associated(component))
-         if (component%include_background) self%offset = self%offset + component%weight*component%id%background
-         component => component%next
-      end do
-   end subroutine
-
-   subroutine weighted_sum_evaluate(self,_ARGUMENTS_ND_)
-      class (type_weighted_sum),intent(in) :: self
-      _DECLARE_ARGUMENTS_ND_
-
-      type (type_component),pointer        :: component
-      real(rk)                             :: value
-      real(rk) _DIMENSION_SLICE_AUTOMATIC_ :: sum
-
-      ! Initialize sum to starting value (typically zero).
-      sum = self%offset
-
-      ! Enumerate components included in the sum, and add their contributions.
-      component => self%first
-      do while (associated(component))
-         _LOOP_BEGIN_
-            _GET_(component%id,value)
-            sum _INDEX_SLICE_ = sum _INDEX_SLICE_ + component%weight*value
-         _LOOP_END_
-         component => component%next
-      end do
-
-      ! Transfer summed values to diagnostic.
-      _LOOP_BEGIN_
-         _SET_DIAGNOSTIC_(self%id_output,sum _INDEX_SLICE_)
-      _LOOP_END_
-   end subroutine
-
-   subroutine weighted_sum_do(self,_ARGUMENTS_DO_)
-      class (type_weighted_sum),intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_
-      call self%evaluate(_ARGUMENTS_ND_)
-   end subroutine
-
-   subroutine horizontal_weighted_sum_initialize(self,configunit)
-      class (type_horizontal_weighted_sum),intent(inout),target :: self
-      integer,                             intent(in)           :: configunit
-
-      type (type_horizontal_component),pointer :: component
-      integer           :: i
-      character(len=10) :: temp
-
-      i = 0
-      component => self%first
-      do while (associated(component))
-         i = i + 1
-         write (temp,'(i0)') i
-         call self%register_dependency(component%id,'term'//trim(temp))
-         call self%request_coupling(component%id,trim(component%name))
-         component => component%next
-      end do
-      if (self%output_long_name=='') self%output_long_name = 'result'
-      call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
-   end subroutine
-
-   subroutine horizontal_weighted_sum_after_coupling(self)
-      class (type_horizontal_weighted_sum),intent(inout) :: self
-
-      type (type_horizontal_component),pointer :: component
-
-      ! At this stage, the background values for all variables (if any) are fixed. We can therefore
-      ! compute background contributions already, and add those to the space- and time-invariant offset.
-      component => self%first
-      do while (associated(component))
-         if (component%include_background) self%offset = self%offset + component%weight*component%id%background
-         component => component%next
-      end do
-   end subroutine
-
-   subroutine horizontal_weighted_sum_add_component(self,name,weight,include_background)
-      class (type_horizontal_weighted_sum),intent(inout) :: self
-      character(len=*),                    intent(in)    :: name
-      real(rk),optional,                   intent(in)    :: weight
-      logical,optional,                    intent(in)    :: include_background
-
-      type (type_horizontal_component),pointer :: component
-
-      if (.not.associated(self%first)) then
-         allocate(self%first)
-         component => self%first
-      else
-         component => self%first
-         do while (associated(component%next))
-            component => component%next
-         end do
-         allocate(component%next)
-         component => component%next
-      end if
-      component%name = name
-      if (present(weight)) component%weight = weight
-      if (present(include_background)) component%include_background = include_background
-   end subroutine
-
-   subroutine horizontal_weighted_sum_evaluate_horizontal(self,_ARGUMENTS_HZ_)
-      class (type_horizontal_weighted_sum),intent(in) :: self
-      _DECLARE_ARGUMENTS_HZ_
-      
-      type (type_horizontal_component),pointer        :: component
-      real(rk)                                        :: value
-      real(rk) _DIMENSION_HORIZONTAL_SLICE_AUTOMATIC_ :: sum
-
-      sum = self%offset
-
-      component => self%first
-      do while (associated(component))
-         _HORIZONTAL_LOOP_BEGIN_
-            _GET_HORIZONTAL_(component%id,value)
-            sum _INDEX_HORIZONTAL_SLICE_ = sum _INDEX_HORIZONTAL_SLICE_ + component%weight*value
-         _HORIZONTAL_LOOP_END_
-         component => component%next
-      end do
-
-      _HORIZONTAL_LOOP_BEGIN_
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,sum _INDEX_HORIZONTAL_SLICE_)
-      _HORIZONTAL_LOOP_END_
-   end subroutine
-
-   subroutine horizontal_weighted_sum_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
-      class (type_horizontal_weighted_sum),intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_BOTTOM_
-      call self%evaluate_horizontal(_ARGUMENTS_HZ_)
-   end subroutine
-
    subroutine base_state_to_conserved_quantities(self,_ARGUMENTS_ND_,y,sums)
       class (type_base_model),          intent(in)  :: self
       _DECLARE_ARGUMENTS_ND_
@@ -3524,30 +2673,6 @@ end subroutine
          case (output_time_step_integrated); time_treatment = time_treatment_step_integrated
       end select
    end function
-
-   subroutine simple_depth_integral_initialize(self,configunit)
-      class (type_simple_depth_integral),intent(inout),target :: self
-      integer,                           intent(in)           :: configunit
-      call self%register_dependency(self%id_input,'source')
-      if (.not.self%average) call self%register_dependency(self%id_depth,standard_variables%bottom_depth)
-      call self%register_diagnostic_variable(self%id_output,'result','','result')
-   end subroutine
-
-   subroutine simple_depth_integral_do(self,_ARGUMENTS_DO_)
-      class (type_simple_depth_integral),intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_
-
-      real(rk) :: value,depth
-
-      _HORIZONTAL_LOOP_BEGIN_
-         _GET_(self%id_input,value)
-         if (.not.self%average) then
-            _GET_HORIZONTAL_(self%id_depth,depth)
-            value = value*(min(self%maximum_depth,depth)-self%minimum_depth)
-         end if
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,value)
-      _HORIZONTAL_LOOP_END_
-   end subroutine
 
    end module fabm_types
 
