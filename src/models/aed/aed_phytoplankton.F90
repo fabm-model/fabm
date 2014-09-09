@@ -246,12 +246,12 @@ SUBROUTINE aed_phytoplankton_load_params(self, dbase, count, list, w_model)
        CALL self%register_diagnostic_variable(self%id_NtoP(i), TRIM(self%phytos(i)%p_name)//'_NtoP','mmol/m**3', 'INi/IPi')
 
        IF (extra_debug) THEN
-          CALL self%register_diagnostic_variable(self%id_fT(i), TRIM(self%phytos(i)%p_name)//'_fT','', 'fT')
-          CALL self%register_diagnostic_variable(self%id_fI(i), TRIM(self%phytos(i)%p_name)//'_fI','', 'fI')
-          CALL self%register_diagnostic_variable(self%id_fNit(i), TRIM(self%phytos(i)%p_name)//'_fNit','', 'fNit')
-          CALL self%register_diagnostic_variable(self%id_fPho(i), TRIM(self%phytos(i)%p_name)//'_fPho','', 'fPho')
-          CALL self%register_diagnostic_variable(self%id_fSil(i), TRIM(self%phytos(i)%p_name)//'_fSil','', 'fSil')
-          CALL self%register_diagnostic_variable(self%id_fSal(i), TRIM(self%phytos(i)%p_name)//'_fSal','', 'fSal')
+          CALL self%register_diagnostic_variable(self%id_fT(i), TRIM(self%phytos(i)%p_name)//'_fT','mmol/m**3', 'fT')
+          CALL self%register_diagnostic_variable(self%id_fI(i), TRIM(self%phytos(i)%p_name)//'_fI','mmol/m**3', 'fI')
+          CALL self%register_diagnostic_variable(self%id_fNit(i), TRIM(self%phytos(i)%p_name)//'_fNit','mmol/m**3', 'fNit')
+          CALL self%register_diagnostic_variable(self%id_fPho(i), TRIM(self%phytos(i)%p_name)//'_fPho','mmol/m**3', 'fPho')
+          CALL self%register_diagnostic_variable(self%id_fSil(i), TRIM(self%phytos(i)%p_name)//'_fSil','mmol/m**3', 'fSil')
+          CALL self%register_diagnostic_variable(self%id_fSal(i), TRIM(self%phytos(i)%p_name)//'_fSal','mmol/m**3', 'fSal')
        ENDIF
     ENDDO
 END SUBROUTINE aed_phytoplankton_load_params
@@ -440,26 +440,26 @@ SUBROUTINE aed_phytoplankton_do(self,_ARGUMENTS_DO_)
    _DECLARE_ARGUMENTS_DO_
 !
 !LOCALS
-   AED_REAL           :: phy, tphy, tin, tip, tchla
-   AED_REAL           :: INi, IPi
-   AED_REAL           :: pup
-   AED_REAL           :: no3up,nh4up
-   AED_REAL           :: cup, rsiup
-   AED_REAL           :: temp,par,Io,salinity, extc,dz
-   AED_REAL           :: primprod(self%num_phytos), exudation(self%num_phytos), &
-                         a_nfix(self%num_phytos), respiration(self%num_phytos)
-   AED_REAL           :: cuptake(self%num_phytos), cexcretion(self%num_phytos), cmortality(self%num_phytos)
-   AED_REAL           :: nuptake(self%num_phytos,1:4), nexcretion(self%num_phytos), nmortality(self%num_phytos)
-   AED_REAL           :: puptake(self%num_phytos,1:2), pexcretion(self%num_phytos), pmortality(self%num_phytos)
-   AED_REAL           :: siuptake(self%num_phytos), siexcretion(self%num_phytos), simortality(self%num_phytos)
-   AED_REAL           :: fT, fNit, fPho, fSil, fI, fXl, fSal, PNf
-   AED_REAL           :: upTot
+   AED_REAL :: phy, tphy, tin, tip, tchla
+   AED_REAL :: INi, IPi
+   AED_REAL :: pup
+   AED_REAL :: no3up,nh4up
+   AED_REAL :: cup, rsiup
+   AED_REAL :: temp, par, Io, salinity, extc, dz
+   AED_REAL :: primprod(self%num_phytos), exudation(self%num_phytos), &
+               a_nfix(self%num_phytos), respiration(self%num_phytos)
+   AED_REAL :: cuptake(self%num_phytos), cexcretion(self%num_phytos), cmortality(self%num_phytos)
+   AED_REAL :: nuptake(self%num_phytos,1:4), nexcretion(self%num_phytos), nmortality(self%num_phytos)
+   AED_REAL :: puptake(self%num_phytos,1:2), pexcretion(self%num_phytos), pmortality(self%num_phytos)
+   AED_REAL :: siuptake(self%num_phytos), siexcretion(self%num_phytos), simortality(self%num_phytos)
+   AED_REAL :: fT, fNit, fPho, fSil, fI, fXl, fSal, PNf
+   AED_REAL :: upTot
 
-   INTEGER            :: phy_i,c
-   AED_REAL           :: flux, available
+   INTEGER  :: phy_i,c
+   AED_REAL :: flux, available
 
 ! MH to fix
-!  AED_REAL           :: dt = 3600. ! just for now, hard code it
+!  AED_REAL :: dt = 3600. ! just for now, hard code it
    AED_REAL,PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------

@@ -35,14 +35,14 @@ MODULE aed_organic_matter
 !
    TYPE,extends(type_base_model) :: aed_type_organic_matter
 !     Variable identifiers
-      TYPE (type_state_variable_id)      :: id_pon,id_don !particulate and dissolved organic nitrogen
-      TYPE (type_state_variable_id)      :: id_pop,id_dop !particulate and dissolved organic phosphorus
-      TYPE (type_state_variable_id)      :: id_poc,id_doc !particulate and dissolved organic carbon
+      TYPE (type_state_variable_id)      :: id_pon,id_don ! particulate and dissolved organic nitrogen
+      TYPE (type_state_variable_id)      :: id_pop,id_dop ! particulate and dissolved organic phosphorus
+      TYPE (type_state_variable_id)      :: id_poc,id_doc ! particulate and dissolved organic carbon
       TYPE (type_state_variable_id)      :: id_oxy,id_amm,id_frp,id_dic
-      TYPE (type_horizontal_dependency_id)      :: id_Fsed_pon,id_Fsed_don !sed. rate organic nitrogen
-      TYPE (type_horizontal_dependency_id)      :: id_Fsed_pop,id_Fsed_dop !sed. rate organic phosphorus
-      TYPE (type_horizontal_dependency_id)      :: id_Fsed_poc,id_Fsed_doc !sed. rate organic carbon
-      TYPE (type_horizontal_dependency_id)      :: id_Psed_poc, id_Psed_pon, id_Psed_pop !sedimentation rates
+      TYPE (type_horizontal_dependency_id)      :: id_Fsed_pon, id_Fsed_don ! sed. rate organic nitrogen
+      TYPE (type_horizontal_dependency_id)      :: id_Fsed_pop, id_Fsed_dop ! sed. rate organic phosphorus
+      TYPE (type_horizontal_dependency_id)      :: id_Fsed_poc, id_Fsed_doc ! sed. rate organic carbon
+      TYPE (type_horizontal_dependency_id)      :: id_Psed_poc, id_Psed_pon, id_Psed_pop ! sedimentation rates
       TYPE (type_dependency_id)          :: id_temp
       TYPE (type_diagnostic_variable_id) :: id_pon_miner, id_don_miner
       TYPE (type_diagnostic_variable_id) :: id_pop_miner, id_dop_miner
@@ -52,7 +52,7 @@ MODULE aed_organic_matter
       TYPE (type_horizontal_diagnostic_variable_id) :: id_sed_poc, id_sed_doc
       TYPE (type_diagnostic_variable_id) :: id_bod
 
-!     Model parameters
+      !# Model parameters
       AED_REAL :: w_pon,Rpon_miner,Rdon_miner,Fsed_pon,Fsed_don, &
                           Kpon_miner, Kdon_miner, Ksed_don, &
                           theta_pon_miner, theta_don_miner, theta_sed_don
@@ -147,10 +147,9 @@ SUBROUTINE aed_init_organic_matter(self,namlst)
    CHARACTER(len=64)         :: Fsed_poc_variable=''
    CHARACTER(len=64)         :: Fsed_doc_variable=''
 
-   CHARACTER(len=64)         :: Psed_poc_variable=''
-   CHARACTER(len=64)         :: Psed_pon_variable=''
-   CHARACTER(len=64)         :: Psed_pop_variable=''
-
+!  CHARACTER(len=64)         :: Psed_poc_variable=''
+!  CHARACTER(len=64)         :: Psed_pon_variable=''
+!  CHARACTER(len=64)         :: Psed_pop_variable=''
 
 
    AED_REAL,PARAMETER :: secs_pr_day = 86400.
@@ -169,8 +168,8 @@ SUBROUTINE aed_init_organic_matter(self,namlst)
              Kpoc_miner, Kdoc_miner, Ksed_doc,                &
              theta_poc_miner, theta_doc_miner, theta_sed_doc, KeDOM, KePOM, &
              doc_miner_reactant_variable, doc_miner_product_variable, &
-             Fsed_poc_variable, Fsed_doc_variable, &
-             Psed_poc_variable, Psed_pon_variable, Psed_pop_variable
+             Fsed_poc_variable, Fsed_doc_variable !, &
+!            Psed_poc_variable, Psed_pon_variable, Psed_pop_variable
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -272,12 +271,12 @@ SUBROUTINE aed_init_organic_matter(self,namlst)
      CALL self%register_horizontal_dependency(self%id_Fsed_doc,Fsed_doc_variable)
    ENDIF
 
-   self%use_sedmtn_model = Psed_poc_variable .NE. ''
-   IF (self%use_sedmtn_model) THEN
-     CALL self%register_horizontal_dependency(self%id_Psed_poc,Psed_poc_variable)
-     CALL self%register_horizontal_dependency(self%id_Psed_pon,Psed_pon_variable)
-     CALL self%register_horizontal_dependency(self%id_Psed_pop,Psed_pop_variable)
-   ENDIF
+!  self%use_sedmtn_model = Psed_poc_variable .NE. ''
+!  IF (self%use_sedmtn_model) THEN
+!    CALL self%register_horizontal_dependency(self%id_Psed_poc,Psed_poc_variable)
+!    CALL self%register_horizontal_dependency(self%id_Psed_pon,Psed_pon_variable)
+!    CALL self%register_horizontal_dependency(self%id_Psed_pop,Psed_pop_variable)
+!  ENDIF
 
    ! Register diagnostic variables
    CALL self%register_diagnostic_variable(self%id_pon_miner,'pon_miner','mmol/m**3/d',  'PON mineralisation')
@@ -567,7 +566,7 @@ SUBROUTINE aed_organic_matter_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
    ! Retrieve current environmental conditions for the bottom pelagic layer.
    _GET_(self%id_temp,temp)  ! local temperature
 
-    ! Retrieve current (local) state variable values.
+   ! Retrieve current (local) state variable values.
    _GET_(self%id_pon,pon) ! particulate organic matter
    _GET_(self%id_don,don) ! particulate organic matter
    _GET_(self%id_pop,pop) ! particulate organic matter
@@ -619,13 +618,12 @@ SUBROUTINE aed_organic_matter_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
    _SET_BOTTOM_EXCHANGE_(self%id_doc,doc_flux)
 
 
-  ! Set sedimentation flux (mmmol/m2) as calculated by organic matter.
-   IF (self%use_sedmtn_model) THEN
-      _SET_STATE_BEN_(self%id_Psed_poc,Psed_poc)
-      _SET_STATE_BEN_(self%id_Psed_pon,Psed_pon)
-      _SET_STATE_BEN_(self%id_Psed_pop,Psed_pop)
-   ENDIF
-
+   ! Set sedimentation flux (mmmol/m2) as calculated by organic matter.
+!  IF (self%use_sedmtn_model) THEN
+!     _SET_STATE_BEN_(self%id_Psed_poc,Psed_poc)
+!     _SET_STATE_BEN_(self%id_Psed_pon,Psed_pon)
+!     _SET_STATE_BEN_(self%id_Psed_pop,Psed_pop)
+!  ENDIF
 
    ! Set sink and source terms for the benthos (change per surface area per second)
    ! Note that this must include the fluxes to and from the pelagic.

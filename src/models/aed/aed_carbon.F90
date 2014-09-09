@@ -58,6 +58,7 @@ MODULE aed_carbon
         PROCEDURE :: do_ppdd                  => aed_carbon_do_ppdd
         PROCEDURE :: do_benthos               => aed_carbon_do_benthos
         PROCEDURE :: get_surface_exchange     => aed_carbon_get_surface_exchange
+!       PROCEDURE :: check_state              => aed_carbon_check_state
    END TYPE
 
 
@@ -97,7 +98,8 @@ SUBROUTINE aed_init_carbon(self,namlst)
    AED_REAL          :: Rch4ox = 0.01
    AED_REAL          :: Kch4ox = 0.01
    AED_REAL          :: vTch4ox= 1.05
-   AED_REAL          :: atmco2 = 367e-6
+!  AED_REAL          :: atmco2 = 367e-6
+   AED_REAL          :: atmco2 = 367.
    CHARACTER(len=64) :: methane_reactant_variable=''
 
 
@@ -320,11 +322,16 @@ SUBROUTINE aed_carbon_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
    ! FCO2 = kCO2 * Ko * (pCO2 - PCO2a)
    ! pCO2a = 367e-6 (Keeling & Wharf, 1999)
 
+   !------ Yanti correction (20/5/2013) ----------------------------------------
+   ! pCO2 is actually in uatm (=ppm)
    ! mmol/m2/s = m/s * mmol/L/atm * atm
-   FCO2 = kCO2 * Ko*1e6 * (pCO2 - self%atmco2)
+   FCO2 = kCO2 * Ko * (pCO2 - self%atmco2)
+
+   ! FCO2 = - kCO2 * Ko*1e6 * ((pCO2 * 1e-6) - self%atmco2) ! dCO2/dt
+   !----------------------------------------------------------------------------
 
    ! Transfer surface exchange value to FABM (mmmol/m2) converted by driver.
-   _SET_SURFACE_EXCHANGE_(self%id_dic,FCO2)
+   _SET_SURFACE_EXCHANGE_(self%id_dic,-FCO2)
 
    ! Also store oxygen flux across the atm/water interface as diagnostic variable (mmmol/m2).
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_atm_co2_exch,FCO2)
@@ -411,6 +418,39 @@ END SUBROUTINE aed_carbon_do_benthos
 
 
 !###############################################################################
+SUBROUTINE aed_carbon_check_state(self,_ARGUMENTS_CHECK_STATE_)
+!-------------------------------------------------------------------------------
+! Update pH after kinetic transformations are applied
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   CLASS (aed_type_carbon),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_CHECK_STATE_
+!
+!LOCALS
+   ! State
+   AED_REAL :: dic, pH
+
+!-------------------------------------------------------------------------------
+!BEGIN
+   IF(.NOT.self%simDIC) RETURN
+
+   ! Enter spatial loops (if any)
+   _LOOP_BEGIN_
+
+    ! Retrieve current (local) state variable values.
+!  _GET_(self%id_dic,dic) ! Concentration of carbon in surface layer
+!  _GET_(self%id_pH, pH) ! Concentration of carbon in surface layer
+
+!print*,"new pH = ",pH
+!  _SET_STATE_(self%id_pH, pH)
+
+   ! Leave spatial loops (if any)
+   _LOOP_END_
+END SUBROUTINE aed_carbon_check_state
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
 PURE AED_REAL FUNCTION aed_carbon_fch4ox(use_oxy,Rch4ox,Kch4ox,vTch4ox,oxy,temp)
 !-------------------------------------------------------------------------------
 ! Michaelis-Menten formulation for methane oxidation
@@ -435,12 +475,12 @@ END FUNCTION aed_carbon_fch4ox
 
 
 !###############################################################################
-PURE AED_REAL FUNCTION aed_carbon_co2(ionic,temp,dic,pH)
+PURE AED_REAL FUNCTION aed_carbon_co2(ionic, temp, dic, pH)
 !-------------------------------------------------------------------------------
 ! CO2 concentration of DIC at fixed T
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   AED_REAL, INTENT(IN)                 :: ionic, dic, temp, pH
+   AED_REAL, INTENT(IN) :: ionic, dic, temp, pH
 !
 !LOCALS
    ! Temporary variables

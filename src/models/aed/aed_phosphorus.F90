@@ -49,9 +49,8 @@ MODULE aed_phosphorus
 
       CONTAINS     ! Model Procedures
         PROCEDURE :: initialize               => aed_init_phosphorus
-        PROCEDURE :: do                       => aed_phosphorus_do
-        PROCEDURE :: do_ppdd                  => aed_phosphorus_do_ppdd
         PROCEDURE :: do_benthos               => aed_phosphorus_do_benthos
+        PROCEDURE :: check_state              => aed_phosphorus_check_state
    END TYPE
 
 
@@ -172,14 +171,14 @@ END SUBROUTINE aed_init_phosphorus
 
 
 !###############################################################################
-SUBROUTINE aed_phosphorus_do(self,_ARGUMENTS_DO_)
+SUBROUTINE aed_phosphorus_check_state(self,_ARGUMENTS_CHECK_STATE_)
 !-------------------------------------------------------------------------------
 ! Update partitioning of phosphate between dissolved and particulate pools
 ! after kinetic transformations are applied
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    CLASS (aed_type_phosphorus),INTENT(in) :: self
-   _DECLARE_ARGUMENTS_DO_
+   _DECLARE_ARGUMENTS_CHECK_STATE_
 !
 !LOCALS
    ! Environment
@@ -209,8 +208,8 @@ SUBROUTINE aed_phosphorus_do(self,_ARGUMENTS_DO_)
     ! Retrieve current (local) state variable values.
    _GET_(self%id_frp,frp)         ! dissolved PO4
    _GET_(self%id_frpads,frpads)   ! adsorped PO4
-   IF(.NOT.self%ads_use_external_tss) THEN
-     _GET_(self%id_tssfabm,tss)       ! local total susp solids
+   IF (.NOT.self%ads_use_external_tss) THEN
+      _GET_(self%id_tssfabm,tss)       ! local total susp solids
    END IF
 
 
@@ -220,9 +219,9 @@ SUBROUTINE aed_phosphorus_do(self,_ARGUMENTS_DO_)
    f_pH     = one_
    SSconc   = tss
 
-     ! calculate the total possible PO4 for sorption, and solids
-     PO4tot  = MAX(one_e_neg_ten, frp + frpads)  ! Co in Chao (mg)
-     SSconc  = MAX(one_e_neg_ten, SSconc )       ! s in Chao  (mg = mol/L * g/mol * mg/g)
+   ! calculate the total possible PO4 for sorption, and solids
+   PO4tot  = MAX(one_e_neg_ten, frp + frpads)  ! Co in Chao (mg)
+   SSconc  = MAX(one_e_neg_ten, SSconc )       ! s in Chao  (mg = mol/L * g/mol * mg/g)
 
 
    IF(self%PO4AdsorptionModel == 1) THEN
@@ -230,11 +229,9 @@ SUBROUTINE aed_phosphorus_do(self,_ARGUMENTS_DO_)
      ! This is the model for PO4 sorption from Ji 2008:
      !
      ! Ji, Z-G. 2008. Hydrodynamics and Water Quality. Wiley Press.
-
+     !
      PO4par = (self%Kpo4p*SSconc) / (one_+self%Kpo4p*SSconc) * PO4tot
      PO4dis = one_ / (one_+self%Kpo4p*SSconc) * PO4tot
-
-
    ELSEIF(self%PO4AdsorptionModel == 2) THEN
      !-----------------------------------------------------
      ! This is the model for PO4 sorption from Chao et al. 2010:
@@ -242,8 +239,7 @@ SUBROUTINE aed_phosphorus_do(self,_ARGUMENTS_DO_)
      ! Chao, X. et al. 2010. Three-dimensional numerical simulation of
      !   water quality and sediment associated processes with application
      !   to a Mississippi delta lake. J. Environ. Manage. 91 p1456-1466.
-
-
+     !
      IF(self%ads_use_pH) THEN
        _GET_(self%id_pH,pH) ! pH
 
@@ -286,42 +282,7 @@ SUBROUTINE aed_phosphorus_do(self,_ARGUMENTS_DO_)
 
    ! Leave spatial loops (if any)
    _LOOP_END_
-END SUBROUTINE aed_phosphorus_do
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-!###############################################################################
-SUBROUTINE aed_phosphorus_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
-!-------------------------------------------------------------------------------
-! Right hand sides of phosphorus biogeochemical model exporting
-! production/destruction matrices
-!-------------------------------------------------------------------------------
-!ARGUMENTS
-   CLASS (aed_type_phosphorus),INTENT(in) :: self
-   _DECLARE_ARGUMENTS_DO_PPDD_
-!
-!LOCALS
-   AED_REAL           :: frp
-   AED_REAL           :: diff_frp
-   AED_REAL,PARAMETER :: secs_pr_day = 86400.
-
-!-------------------------------------------------------------------------------
-!BEGIN
-   ! Enter spatial loops (if any)
-   _LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_frp,frp) ! phosphorus
-
-   ! Set temporal derivatives
-   diff_frp = 0.
-
-   _SET_PP_(self%id_frp,self%id_frp,diff_frp)
-
-   ! Leave spatial loops (if any)
-   _LOOP_END_
-
-END SUBROUTINE aed_phosphorus_do_ppdd
+END SUBROUTINE aed_phosphorus_check_state
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 

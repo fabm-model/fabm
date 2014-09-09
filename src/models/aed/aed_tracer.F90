@@ -36,7 +36,9 @@ MODULE aed_tracer
    TYPE,extends(type_base_model) :: aed_type_tracer
 !     Variable identifiers
       TYPE (type_state_variable_id),ALLOCATABLE :: id_ss(:)
+      TYPE (type_state_variable_id)             :: id_retain
       TYPE (type_dependency_id)                 :: id_temp
+      LOGICAL                                   :: retention_time
 
 !     Model parameters
       AED_REAL,ALLOCATABLE :: decay(:),settling(:), Fsed(:)
@@ -44,7 +46,7 @@ MODULE aed_tracer
       CONTAINS      ! Model Methods
         PROCEDURE :: initialize               => aed_init_tracer
         PROCEDURE :: do                       => aed_tracer_do
-        PROCEDURE :: do_ppdd                  => aed_tracer_do_ppdd
+!       PROCEDURE :: do_ppdd                  => aed_tracer_do_ppdd
         PROCEDURE :: do_benthos               => aed_tracer_do_benthos
    END TYPE
 
@@ -74,10 +76,11 @@ SUBROUTINE aed_init_tracer(self,namlst)
    AED_REAL :: Fsed(100)
    AED_REAL :: trace_initial = zero_
    INTEGER  :: i
+   LOGICAL  :: retention_time = .FALSE.
    CHARACTER(4) :: trac_name
 
    AED_REAL,PARAMETER :: secs_pr_day = 86400.
-   NAMELIST /aed_tracer/ num_tracers,decay,settling,Fsed
+   NAMELIST /aed_tracer/ num_tracers,decay,settling,Fsed,retention_time
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -87,10 +90,12 @@ SUBROUTINE aed_init_tracer(self,namlst)
 
    ! Store parameter values in our own derived type
 
-   ALLOCATE(self%id_ss(num_tracers))
-   ALLOCATE(self%decay(num_tracers))    ; self%decay(1:num_tracers)    = decay(1:num_tracers)
-   ALLOCATE(self%settling(num_tracers)) ; self%settling(1:num_tracers) = settling(1:num_tracers)
-   ALLOCATE(self%Fsed(num_tracers))     ; self%Fsed(1:num_tracers)     = Fsed(1:num_tracers)
+   IF ( num_tracers > 0 ) THEN
+      ALLOCATE(self%id_ss(num_tracers))
+      ALLOCATE(self%decay(num_tracers))    ; self%decay(1:num_tracers)    = decay(1:num_tracers)
+      ALLOCATE(self%settling(num_tracers)) ; self%settling(1:num_tracers) = settling(1:num_tracers)
+      ALLOCATE(self%Fsed(num_tracers))     ; self%Fsed(1:num_tracers)     = Fsed(1:num_tracers)
+   ENDIF
 
    trac_name = 'ss0'
    ! Register state variables
@@ -99,6 +104,11 @@ SUBROUTINE aed_init_tracer(self,namlst)
       CALL self%register_state_variable(self%id_ss(i),TRIM(trac_name),'mmol/m**3','tracer', &
                                    trace_initial,minimum=zero_,no_river_dilution=.false.)
    ENDDO
+   self%retention_time = retention_time
+   IF (retention_time) THEN
+      CALL self%register_state_variable(self%id_retain, "ret",'sec','tracer', &
+                                   trace_initial,minimum=zero_)
+   ENDIF
 
    ! Register environmental dependencies
    CALL self%register_dependency(self%id_temp,standard_variables%temperature)
@@ -109,45 +119,26 @@ END SUBROUTINE aed_init_tracer
 !###############################################################################
 SUBROUTINE aed_tracer_do(self,_ARGUMENTS_DO_)
 !-------------------------------------------------------------------------------
-! Right hand sides of aed_tracer model
+! Right hand sides of aed_carbon model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    CLASS (aed_type_tracer),INTENT(in) :: self
    _DECLARE_ARGUMENTS_DO_
-!
-!LOCALS
 
+!
 !-------------------------------------------------------------------------------
 !BEGIN
+   IF ( .NOT. self%retention_time ) RETURN
+
    ! Enter spatial loops (if any)
    _LOOP_BEGIN_
 
+   _SET_ODE_(self%id_retain, 1.0)
+
    ! Leave spatial loops (if any)
    _LOOP_END_
+
 END SUBROUTINE aed_tracer_do
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-!###############################################################################
-SUBROUTINE aed_tracer_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
-!-------------------------------------------------------------------------------
-! Right hand sides of tracer biogeochemical model exporting
-! production/destruction matrices
-!-------------------------------------------------------------------------------
-!ARGUMENTS
-   CLASS (aed_type_tracer),INTENT(in) :: self
-   _DECLARE_ARGUMENTS_DO_PPDD_
-!
-!LOCALS
-
-!-------------------------------------------------------------------------------
-!BEGIN
-   ! Enter spatial loops (if any)
-   _LOOP_BEGIN_
-
-   ! Leave spatial loops (if any)
-   _LOOP_END_
-END SUBROUTINE aed_tracer_do_ppdd
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -174,6 +165,9 @@ SUBROUTINE aed_tracer_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 
 !-------------------------------------------------------------------------------
 !BEGIN
+
+   IF ( .NOT. ALLOCATED(self%id_ss) ) RETURN
+
    ! Enter spatial loops (if any)
    _HORIZONTAL_LOOP_BEGIN_
 
