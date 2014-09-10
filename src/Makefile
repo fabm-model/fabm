@@ -5,7 +5,7 @@ SUBDIRS = models config
 DOCSRC	= fabm.F90 fabm_types.F90
 
 FABMMOD	 = ${LIBFABM}(fabm.o)
-FABMMODELLIB = ${LIBFABM}(fabm_library.o)
+FABMMODELLIB = ${LIBFABM}(fabm_library.o) ${LIBFABM}(fabm_coupling.o)
 
 all: makedirs models config
         $(MOVE_MODULES_COMMAND)
