@@ -33,24 +33,22 @@
    
       ! Get number of environmental dependencies (light, temperature, etc.)
       n = 0
-      link => model%root%first_link
+      link => model%links_postcoupling%first
       do while (associated(link))
-         if (link%owner) then
-            select type (object=>link%target)
-               class is (type_bulk_variable)
-                  if (allocated(object%alldata).and.object%state_indices%is_empty()) then
-                     if (.not.associated(object%alldata(1)%p%p)) n = n+1
-                  end if
-               class is (type_horizontal_variable)
-                  if (allocated(object%alldata).and.object%state_indices%is_empty()) then
-                     if (.not.associated(object%alldata(1)%p%p)) n = n+1
-                  end if
-               class is (type_scalar_variable)
-                  if (allocated(object%alldata).and.object%state_indices%is_empty()) then
-                     if (.not.associated(object%alldata(1)%p%p)) n = n+1
-                  end if
-            end select
-         end if
+         select type (object=>link%target)
+            class is (type_bulk_variable)
+               if (allocated(object%alldata).and.object%state_indices%is_empty()) then
+                  if (.not.associated(object%alldata(1)%p%p)) n = n+1
+               end if
+            class is (type_horizontal_variable)
+               if (allocated(object%alldata).and.object%state_indices%is_empty()) then
+                  if (.not.associated(object%alldata(1)%p%p)) n = n+1
+               end if
+            class is (type_scalar_variable)
+               if (allocated(object%alldata).and.object%state_indices%is_empty()) then
+                  if (.not.associated(object%alldata(1)%p%p)) n = n+1
+               end if
+         end select
          link => link%next
       end do
       
@@ -60,51 +58,49 @@
       
       ! Get metadata on environmental dependencies (light, temperature, etc.)
       n = 0
-      link => model%root%first_link
+      link => model%links_postcoupling%first
       do while (associated(link))
-         if (link%owner) then
-            select type (object=>link%target)
-               class is (type_bulk_variable)
-                  if (allocated(object%alldata).and.object%state_indices%is_empty()) then
-                     if (.not.associated(object%alldata(1)%p%p)) then
-                        n = n + 1
-                        if (object%standard_variable%is_null()) then
-                           environment_names(n) = trim(link%name)
-                           environment_units(n) = trim(object%units)
-                        else
-                           environment_names(n) = trim(object%standard_variable%name)
-                           environment_units(n) = trim(object%standard_variable%units)
-                        end if
+         select type (object=>link%target)
+            class is (type_bulk_variable)
+               if (allocated(object%alldata).and.object%state_indices%is_empty()) then
+                  if (.not.associated(object%alldata(1)%p%p)) then
+                     n = n + 1
+                     if (object%standard_variable%is_null()) then
+                        environment_names(n) = trim(link%name)
+                        environment_units(n) = trim(object%units)
+                     else
+                        environment_names(n) = trim(object%standard_variable%name)
+                        environment_units(n) = trim(object%standard_variable%units)
                      end if
                   end if
-               class is (type_horizontal_variable)
-                  if (allocated(object%alldata).and.object%state_indices%is_empty()) then
-                     if (.not.associated(object%alldata(1)%p%p)) then
-                        n = n + 1
-                        if (object%standard_variable%is_null()) then
-                           environment_names(n) = trim(link%name)
-                           environment_units(n) = trim(object%units)
-                        else
-                           environment_names(n) = trim(object%standard_variable%name)
-                           environment_units(n) = trim(object%standard_variable%units)
-                        end if
+               end if
+            class is (type_horizontal_variable)
+               if (allocated(object%alldata).and.object%state_indices%is_empty()) then
+                  if (.not.associated(object%alldata(1)%p%p)) then
+                     n = n + 1
+                     if (object%standard_variable%is_null()) then
+                        environment_names(n) = trim(link%name)
+                        environment_units(n) = trim(object%units)
+                     else
+                        environment_names(n) = trim(object%standard_variable%name)
+                        environment_units(n) = trim(object%standard_variable%units)
                      end if
                   end if
-               class is (type_scalar_variable)
-                  if (allocated(object%alldata).and.object%state_indices%is_empty()) then
-                     if (.not.associated(object%alldata(1)%p%p)) then
-                        n = n + 1
-                        if (object%standard_variable%is_null()) then
-                           environment_names(n) = trim(link%name)
-                           environment_units(n) = trim(object%units)
-                        else
-                           environment_names(n) = trim(object%standard_variable%name)
-                           environment_units(n) = trim(object%standard_variable%units)
-                        end if
+               end if
+            class is (type_scalar_variable)
+               if (allocated(object%alldata).and.object%state_indices%is_empty()) then
+                  if (.not.associated(object%alldata(1)%p%p)) then
+                     n = n + 1
+                     if (object%standard_variable%is_null()) then
+                        environment_names(n) = trim(link%name)
+                        environment_units(n) = trim(object%units)
+                     else
+                        environment_names(n) = trim(object%standard_variable%name)
+                        environment_units(n) = trim(object%standard_variable%units)
                      end if
                   end if
-            end select
-         end if
+               end if
+         end select
          link => link%next
       end do
    end subroutine
