@@ -36,6 +36,8 @@ elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
   if(NOT WIN32)
     # Do not warn about Windows-specific export directives
     set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -diag-disable 7841")
+  else()
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
   endif()
 elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
   set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -N 1023")
