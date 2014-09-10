@@ -217,11 +217,11 @@ module fabm_particle
       do while (associated(reference))
          ! Count number of state variables in target model.
          n = 0
-         link => reference%model%first_link
+         link => reference%model%links%first
          do while (associated(link))
             select type (object=>link%target)
                class is (type_bulk_variable)
-                  if (object%presence==presence_internal.and.link%owner.and..not.object%state_indices%is_empty()) n = n + 1
+                  if (object%presence==presence_internal.and.associated(link%target,link%original).and..not.object%state_indices%is_empty()) n = n + 1
             end select
             link => link%next
          end do
@@ -231,11 +231,11 @@ module fabm_particle
 
          ! Connect target state variables to identifiers in model reference.
          n = 0
-         link => reference%model%first_link
+         link => reference%model%links%first
          do while (associated(link))
             select type (object=>link%target)
                class is (type_bulk_variable)
-                  if (object%presence==presence_internal.and.link%owner.and..not.object%state_indices%is_empty()) then
+                  if (object%presence==presence_internal.and.associated(link%target,link%original).and..not.object%state_indices%is_empty()) then
                      n = n + 1
                      write (strindex,'(i0)') n
                      call self%register_state_dependency(reference%id%state(n),trim(reference%name)//'_state'//trim(strindex),object%units,trim(reference%name)//' state variable '//trim(strindex))

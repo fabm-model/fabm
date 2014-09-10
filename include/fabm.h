@@ -377,10 +377,10 @@
 #define _ARGUMENTS_LOCAL_ _ARGUMENTS_SHARED_ _ARG_LOCATION_
 #define _ARGUMENTS_ND_ _ARGUMENTS_SHARED_ _ARG_LOCATION_ND_
 #define _ARGUMENTS_HZ_ _ARGUMENTS_SHARED_ _ARG_LOCATION_VARS_HZ_
-#define _ARGUMENTS_DO_ _ARGUMENTS_ND_,rhs
+#define _ARGUMENTS_DO_ _ARGUMENTS_ND_
 #define _ARGUMENTS_DO_PPDD_ _ARGUMENTS_ND_,pp,dd
-#define _ARGUMENTS_DO_SURFACE_ _ARGUMENTS_HZ_,flux_pel,flux_sf
-#define _ARGUMENTS_DO_BOTTOM_ _ARGUMENTS_HZ_,flux_pel,flux_ben
+#define _ARGUMENTS_DO_SURFACE_ _ARGUMENTS_HZ_
+#define _ARGUMENTS_DO_BOTTOM_ _ARGUMENTS_HZ_
 #define _ARGUMENTS_DO_BOTTOM_PPDD_ _ARGUMENTS_HZ_,pp,dd,benthos_offset
 #define _ARGUMENTS_GET_VERTICAL_MOVEMENT_ _ARGUMENTS_ND_,velocity
 #define _ARGUMENTS_GET_EXTINCTION_ _ARGUMENTS_ND_,extinction
@@ -399,11 +399,11 @@
 #define _DECLARE_ARGUMENTS_LOCAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_LOCATION_ARG_
 #define _DECLARE_ARGUMENTS_ND_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_LOCATION_ARG_ND_
 #define _DECLARE_ARGUMENTS_HZ_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_LOCATION_ARG_HZ_
-#define _DECLARE_ARGUMENTS_DO_  _DECLARE_ARGUMENTS_ND_;real(rk) _DIMENSION_SLICE_PLUS_1_,intent(inout) :: rhs
+#define _DECLARE_ARGUMENTS_DO_  _DECLARE_ARGUMENTS_ND_
 #define _DECLARE_ARGUMENTS_DO_PPDD_ _DECLARE_ARGUMENTS_ND_;real(rk) _DIMENSION_SLICE_PLUS_2_,intent(inout) :: pp,dd
-#define _DECLARE_ARGUMENTS_DO_BOTTOM_ _DECLARE_ARGUMENTS_HZ_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_ben
+#define _DECLARE_ARGUMENTS_DO_BOTTOM_ _DECLARE_ARGUMENTS_HZ_
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_ _DECLARE_ARGUMENTS_HZ_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
-#define _DECLARE_ARGUMENTS_DO_SURFACE_ _DECLARE_ARGUMENTS_HZ_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_sf
+#define _DECLARE_ARGUMENTS_DO_SURFACE_ _DECLARE_ARGUMENTS_HZ_
 #define _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ _DECLARE_ARGUMENTS_ND_;real(rk) _DIMENSION_SLICE_PLUS_1_,intent(inout) :: velocity
 #define _DECLARE_ARGUMENTS_GET_EXTINCTION_ _DECLARE_ARGUMENTS_ND_;real(rk) _DIMENSION_SLICE_,intent(inout) :: extinction
 #define _DECLARE_ARGUMENTS_GET_DRAG_ _DECLARE_ARGUMENTS_HZ_;real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: drag
@@ -449,11 +449,11 @@
 #define _TYPE_CONSERVED_QUANTITY_ID_ type (type_conserved_quantity_id)
 
 ! For BGC models: Expressions for setting space-dependent FABM variables defined on the full spatial domain.
-#define _SET_ODE_(variable,value) rhs _INDEX_SLICE_PLUS_1_(variable%state_index) = rhs _INDEX_SLICE_PLUS_1_(variable%state_index) + (value)/self%dt
-#define _SET_BOTTOM_ODE_(variable,value) flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_state_index) = flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_state_index) + (value)/self%dt
-#define _SET_SURFACE_ODE_(variable,value) flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_state_index) = flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_state_index) + (value)/self%dt
-#define _SET_BOTTOM_EXCHANGE_(variable,value) flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) + (value)/self%dt
-#define _SET_SURFACE_EXCHANGE_(variable,value) flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) + (value)/self%dt
+#define _SET_ODE_(variable,value) environment%diag(_PREARG_LOCATION_ variable%sms_index) = environment%diag(_PREARG_LOCATION_ variable%sms_index) + (value)/self%dt
+#define _SET_BOTTOM_ODE_(variable,value) environment%diag_hz(_PREARG_LOCATION_HZ_ variable%bottom_sms_index) = environment%diag_hz(_PREARG_LOCATION_HZ_ variable%bottom_sms_index) + (value)/self%dt
+#define _SET_SURFACE_ODE_(variable,value) environment%diag_hz(_PREARG_LOCATION_HZ_ variable%surface_sms_index) = environment%diag_hz(_PREARG_LOCATION_HZ_ variable%surface_sms_index) + (value)/self%dt
+#define _SET_BOTTOM_EXCHANGE_(variable,value) environment%diag_hz(_PREARG_LOCATION_HZ_ variable%bottom_flux_index) = environment%diag_hz(_PREARG_LOCATION_HZ_ variable%bottom_flux_index) + (value)/self%dt
+#define _SET_SURFACE_EXCHANGE_(variable,value) environment%diag_hz(_PREARG_LOCATION_HZ_ variable%surface_flux_index) = environment%diag_hz(_PREARG_LOCATION_HZ_ variable%surface_flux_index) + (value)/self%dt
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
 #define _SET_PP_(variable1,variable2,value) pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
 #define _SET_EXTINCTION_(value) extinction _INDEX_SLICE_ = extinction _INDEX_SLICE_ + (value)

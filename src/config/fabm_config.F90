@@ -241,8 +241,6 @@ contains
       !do while (associated(link))
       !   if (link%owner.and..not.associated(model%couplings%find(link%name))) then
       !      ! This link is our own: not coupled to another variable, not an alias, and no intention to couple was registered.
-      !      select type (object=>link%target)
-      !         class is (type_internal_variable)
       !            if (.not.object%state_indices%is_empty()) then
       !               if (object%presence/=presence_external_optional .and. .not.initialized_set%contains(trim(link%name))) then
       !                  ! State variable is required, but initial value is not explicitly provided.
@@ -259,7 +257,6 @@ contains
       !                     //': initial value provided for variable "'//trim(link%name)//'", but this variable is not used.')
       !               end if
       !            end if
-      !      end select
       !   end if
       !   link => link%next
       !end do
@@ -283,10 +280,10 @@ contains
       type (type_set),        intent(out)   :: initialized_set
       logical,                intent(in)    :: get_background
 
-      type (type_key_value_pair),  pointer :: pair
-      class (type_internal_object),pointer :: object
-      logical                              :: is_state_variable,success
-      real(rk)                             :: realvalue
+      type (type_key_value_pair),    pointer :: pair
+      class (type_internal_variable),pointer :: object
+      logical                                :: is_state_variable,success
+      real(rk)                               :: realvalue
 
       ! Transfer user-specified initial state to the model.
       pair => node%first
@@ -297,21 +294,18 @@ contains
                if (.not.associated(object)) call fatal_error('parse_initialization', &
                   trim(value%path)//': "'//trim(pair%key)//'" is not a member of model "'//trim(model%name)//'".')
                is_state_variable = .false.
-               select type (object)
-                  class is (type_internal_variable)
-                     if (.not.object%state_indices%is_empty()) then
-                        realvalue = value%to_real(default=0.0_rk,success=success)
-                        if (.not.success) call fatal_error('parse_initialization', &
-                           trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
-                        if (get_background) then
-                           call object%background_values%set_value(realvalue)
-                        else
-                           object%initial_value = realvalue
-                        end if
-                        call initialized_set%add(trim(pair%key))
-                        is_state_variable = .true.
-                     end if
-               end select
+               if (.not.object%state_indices%is_empty()) then
+                  realvalue = value%to_real(default=0.0_rk,success=success)
+                  if (.not.success) call fatal_error('parse_initialization', &
+                     trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
+                  if (get_background) then
+                     call object%background_values%set_value(realvalue)
+                  else
+                     object%initial_value = realvalue
+                  end if
+                  call initialized_set%add(trim(pair%key))
+                  is_state_variable = .true.
+               end if
                if (.not.is_state_variable) call fatal_error('parse_initialization', &
                   trim(value%path)//': "'//trim(pair%key)//'" is not a state variable of model "'//trim(model%name)//'".')
             class is (type_null)

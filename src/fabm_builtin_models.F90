@@ -37,6 +37,7 @@ module fabm_builtin_models
       procedure :: evaluate       => weighted_sum_evaluate
       procedure :: do             => weighted_sum_do
       procedure :: after_coupling => weighted_sum_after_coupling
+      procedure :: add_to_parent  => weighted_sum_add_to_parent
    end type
 
    type,extends(type_base_model) :: type_horizontal_weighted_sum
@@ -51,6 +52,7 @@ module fabm_builtin_models
       procedure :: evaluate_horizontal => horizontal_weighted_sum_evaluate_horizontal
       procedure :: do_bottom           => horizontal_weighted_sum_do_bottom
       procedure :: after_coupling      => horizontal_weighted_sum_after_coupling
+      procedure :: add_to_parent       => horizontal_weighted_sum_add_to_parent
    end type
 
    type,extends(type_base_model) :: type_simple_depth_integral
@@ -66,6 +68,30 @@ module fabm_builtin_models
    end type
 
 contains
+
+   function weighted_sum_add_to_parent(self,parent,name) result(sum_used)
+      class (type_weighted_sum),intent(inout),target :: self
+      class (type_base_model),  intent(inout),target :: parent
+      character(len=*),         intent(in)           :: name
+
+      logical :: sum_used
+
+      call parent%add_bulk_variable(name,self%output_units,name)
+      if (.not.associated(self%first)) then
+         ! No components - add link to zero field to parent.
+         call parent%request_coupling(name,'zero')
+         sum_used = .false.
+      elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk) then
+         ! One component with scale factor 1 - add link to component to parent.
+         call parent%request_coupling(name,self%first%name)
+         sum_used = .false.
+      else
+         ! One component with scale factor non equal to 1, or multiple components. Create the sum.
+         call parent%add_child(self,trim(name)//'_calculator',configunit=-1)
+         call parent%request_coupling(name,trim(name)//'_calculator/result')
+         sum_used = .true.
+      end if
+   end function
 
    subroutine weighted_sum_initialize(self,configunit)
       class (type_weighted_sum),intent(inout),target :: self
@@ -158,6 +184,30 @@ contains
       _DECLARE_ARGUMENTS_DO_
       call self%evaluate(_ARGUMENTS_ND_)
    end subroutine
+
+   function horizontal_weighted_sum_add_to_parent(self,parent,name) result(sum_used)
+      class (type_horizontal_weighted_sum),intent(inout),target :: self
+      class (type_base_model),             intent(inout),target :: parent
+      character(len=*),                    intent(in)           :: name
+
+      logical :: sum_used
+
+      call parent%add_horizontal_variable(name,self%output_units,name)
+      if (.not.associated(self%first)) then
+         ! No components - add link to zero field to parent.
+         call parent%request_coupling(name,'zero_hz')
+         sum_used = .false.
+      elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk) then
+         ! One component with scale factor 1 - add link to component to parent.
+         call parent%request_coupling(name,self%first%name)
+         sum_used = .false.
+      else
+         ! One component with scale factor unequal to 1, or multiple components. Create the sum.
+         call parent%add_child(self,trim(name)//'_calculator',configunit=-1)
+         call parent%request_coupling(name,trim(name)//'_calculator/result')
+         sum_used = .true.
+      end if
+   end function
 
    subroutine horizontal_weighted_sum_initialize(self,configunit)
       class (type_horizontal_weighted_sum),intent(inout),target :: self

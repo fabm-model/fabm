@@ -88,6 +88,7 @@
       type (type_bulk_data_pointer_pointer),allocatable :: alldata(:)
       integer                                           :: state_index = -1
       integer                                           :: write_index = -1
+      integer,allocatable, dimension(:)                 :: sms_indices, surface_flux_indices, bottom_flux_indices
    end type
 
    type type_horizontal_variable_id
@@ -96,6 +97,7 @@
       type (type_horizontal_data_pointer_pointer),allocatable :: alldata(:)
       integer                                                 :: state_index = -1
       integer                                                 :: write_index = -1
+      integer,allocatable, dimension(:)                       :: sms_indices
    end type
 
    type type_scalar_variable_id
@@ -143,12 +145,14 @@
    type,extends(type_external_variable) :: type_diagnostic_variable_info
       type (type_bulk_standard_variable) :: standard_variable
       integer                            :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
+      logical                            :: prefill        = .false.
       type (type_bulk_variable_id)       :: globalid
    end type type_diagnostic_variable_info
 
    type,extends(type_external_variable) :: type_horizontal_diagnostic_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
       integer                                  :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
+      logical                                  :: prefill        = .false.
       type (type_horizontal_variable_id)       :: globalid
    end type type_horizontal_diagnostic_variable_info
 
@@ -196,6 +200,8 @@
 
       real(rk),allocatable _DIMENSION_GLOBAL_            :: zero
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: zero_hz
+
+      type (type_link_list) :: links_postcoupling
    contains
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
       procedure :: link_bulk_data_by_sn   => fabm_link_bulk_data_by_sn
@@ -778,36 +784,34 @@
    if (.not.associated(self%environment%mask)) call log_message('spatial mask has not been set.')
 #endif
 
-   link => self%root%first_link
+   link => self%links_postcoupling%first
    do while (associated(link))
-      if (link%owner) then
-         select type (object=>link%target)
-            class is (type_bulk_variable)
-               if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
-                  if (.not.associated(object%alldata(1)%p%p)) then
-                     call log_message('data for dependency "'//trim(link%name)// &
-                        & '", defined on the full model domain, have not been provided.')
-                     ready = .false.
-                  end if
+      select type (object=>link%target)
+         class is (type_bulk_variable)
+            if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
+               if (.not.associated(object%alldata(1)%p%p)) then
+                  call log_message('data for dependency "'//trim(link%name)// &
+                     & '", defined on the full model domain, have not been provided.')
+                  ready = .false.
                end if
-            class is (type_horizontal_variable)
-               if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
-                  if (.not.associated(object%alldata(1)%p%p)) then
-                     call log_message('data for dependency "'//trim(link%name)// &
-                        &  '", defined on a horizontal slice of the model domain, have not been provided.')
-                     ready = .false.
-                  end if
+            end if
+         class is (type_horizontal_variable)
+            if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
+               if (.not.associated(object%alldata(1)%p%p)) then
+                  call log_message('data for dependency "'//trim(link%name)// &
+                     &  '", defined on a horizontal slice of the model domain, have not been provided.')
+                  ready = .false.
                end if
-            class is (type_scalar_variable)
-               if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
-                  if (.not.associated(object%alldata(1)%p%p)) then
-                     call log_message('data for dependency "'//trim(link%name)// &
-                        &  '", defined as global scalar quantity, have not been provided.')
-                     ready = .false.
-                  end if
+            end if
+         class is (type_scalar_variable)
+            if (allocated(object%alldata).and..not.object%presence==presence_external_optional) then
+               if (.not.associated(object%alldata(1)%p%p)) then
+                  call log_message('data for dependency "'//trim(link%name)// &
+                     &  '", defined as global scalar quantity, have not been provided.')
+                  ready = .false.
                end if
-         end select
-      end if
+            end if
+      end select
       link => link%next
    end do
 
@@ -967,7 +971,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   link => self%root%first_link
+   link => self%root%links%first
    do while (associated(link))
       select type (object=>link%target)
          class is (type_bulk_variable)
@@ -980,12 +984,12 @@
    end do
 
    ! Name not found among variable names. Now try standard names that are in use.
-   link => self%root%first_link
+   link => self%root%links%first
    do while (associated(link))
       select type (object=>link%target)
          class is (type_bulk_variable)
             if (object%standard_variable%name==name) then
-               id = create_external_variable_id(self%root,object%standard_variable)
+               id = create_external_variable_id(self,object%standard_variable)
                return
             end if
       end select
@@ -1014,7 +1018,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   id = create_external_variable_id(self%root,standard_variable)
+   id = create_external_variable_id(self,standard_variable)
 
    end function fabm_get_bulk_variable_id_sn
 !EOC
@@ -1042,7 +1046,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   link => self%root%first_link
+   link => self%root%links%first
    do while (associated(link))
       select type (object=>link%target)
          class is (type_horizontal_variable)
@@ -1055,12 +1059,12 @@
    end do
 
    ! Name not found among variable names. Now try standard names that are in use.
-   link => self%root%first_link
+   link => self%root%links%first
    do while (associated(link))
       select type (object=>link%target)
          class is (type_horizontal_variable)
             if (object%standard_variable%name==name) then
-               id = create_external_variable_id(self%root,object%standard_variable)
+               id = create_external_variable_id(self,object%standard_variable)
                return
             end if
       end select
@@ -1089,7 +1093,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   id = create_external_variable_id(self%root,standard_variable)
+   id = create_external_variable_id(self,standard_variable)
 
    end function fabm_get_horizontal_variable_id_sn
 !EOC
@@ -1119,7 +1123,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   link => self%root%first_link
+   link => self%root%links%first
    do while (associated(link))
       select type (object=>link%target)
          class is (type_scalar_variable)
@@ -1132,12 +1136,12 @@
    end do
 
    ! Name not found among variable names. Now try standard names that are in use.
-   link => self%root%first_link
+   link => self%root%links%first
    do while (associated(link))
       select type (object=>link%target)
          class is (type_scalar_variable)
             if (object%standard_variable%name==name) then
-               id = create_external_variable_id(self%root,object%standard_variable)
+               id = create_external_variable_id(self,object%standard_variable)
                return
             end if
       end select
@@ -1166,7 +1170,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   id = create_external_variable_id(self%root,standard_variable)
+   id = create_external_variable_id(self,standard_variable)
 
    end function fabm_get_scalar_variable_id_sn
 !EOC
@@ -1811,6 +1815,7 @@
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
+   integer :: i,j,sms_index
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1818,14 +1823,30 @@
    if (size(dy,1)/=fabm_loop_stop-fabm_loop_start+1) &
       call fatal_error('fabm_do_rhs','Size of first dimension of dy should match loop length.')
 #endif
+
+   ! Prefill diagnostic variables where requested
+   do i=1,size(self%diagnostic_variables)
+      if (self%diagnostic_variables(i)%prefill) then
+         _LOOP_BEGIN_EX_(self%environment)
+            self%environment%diag(_PREARG_LOCATION_ i) = self%diagnostic_variables(i)%missing_value
+         _LOOP_END_
+      end if
+   end do
+
    node => self%models%first
    do while (associated(node))
-      if (node%model%check_conservation) then
-         call node%model%do_check_conservation(_ARGUMENTS_ND_IN_,dy)
-      else
-         call node%model%do(_ARGUMENTS_ND_IN_,dy)
-      end if
+      call node%model%do(_ARGUMENTS_ND_IN_)
       node => node%next
+   end do
+
+   ! Compose total sources-sinks for each state variable, combining model-specific contributions.
+   do i=1,size(self%state_variables)
+      do j=1,size(self%state_variables(i)%globalid%sms_indices)
+         sms_index = self%state_variables(i)%globalid%sms_indices(j)
+         _LOOP_BEGIN_EX_(self%environment)
+            dy _INDEX_SLICE_PLUS_1_(i) = dy _INDEX_SLICE_PLUS_1_(i) + self%environment%diag(_PREARG_LOCATION_ sms_index)
+         _LOOP_END_
+      end do
    end do
 
    end subroutine fabm_do_rhs
@@ -2100,17 +2121,35 @@ end subroutine
 !EOP
 !
       type (type_model_list_node), pointer :: node
-      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ALLOCATABLE_ :: flux_sf
+      integer                              :: i,j,index
 !-----------------------------------------------------------------------
 !BOC
-      allocate(flux_sf(_HORIZONTAL_SLICE_SHAPE_ 0))
-      flux_pel = 0.0_rk
+      ! Prefill diagnostic variables where requested
+      do i=1,size(self%horizontal_diagnostic_variables)
+         if (self%horizontal_diagnostic_variables(i)%prefill) then
+            _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               self%environment%diag_hz(_PREARG_LOCATION_HZ_ i) = self%horizontal_diagnostic_variables(i)%missing_value
+            _HORIZONTAL_LOOP_END_
+         end if
+      end do
+
       node => self%models%first
       do while (associated(node))
-         call node%model%do_surface(_ARGUMENTS_IN_HZ_,flux_pel,flux_sf)
+         call node%model%do_surface(_ARGUMENTS_IN_HZ_)
          node => node%next
       end do
 
+      ! Compose total sources-sinks for each state variable, combining model-specific contributions.
+      flux_pel = 0.0_rk
+      do i=1,size(self%state_variables)
+         do j=1,size(self%state_variables(i)%globalid%surface_flux_indices)
+            index = self%state_variables(i)%globalid%surface_flux_indices(j)
+            _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ index)
+            _HORIZONTAL_LOOP_END_
+         end do
+      end do
+      
    end subroutine
 !EOC
 
@@ -2136,14 +2175,44 @@ end subroutine
 !EOP
 !
       type (type_model_list_node), pointer :: node
+      integer                              :: i,j,index
 !-----------------------------------------------------------------------
 !BOC
-      flux_pel = 0.0_rk
-      flux_sf = 0.0_rk
+      ! Prefill diagnostic variables where requested
+      do i=1,size(self%horizontal_diagnostic_variables)
+         if (self%horizontal_diagnostic_variables(i)%prefill) then
+            _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               self%environment%diag_hz(_PREARG_LOCATION_HZ_ i) = self%horizontal_diagnostic_variables(i)%missing_value
+            _HORIZONTAL_LOOP_END_
+         end if
+      end do
+
       node => self%models%first
       do while (associated(node))
-         call node%model%do_surface(_ARGUMENTS_IN_HZ_,flux_pel,flux_sf)
+         call node%model%do_surface(_ARGUMENTS_IN_HZ_)
          node => node%next
+      end do
+
+      ! Compose surface fluxes each bulk state variable, combining model-specific contributions.
+      flux_pel = 0.0_rk
+      do i=1,size(self%state_variables)
+         do j=1,size(self%state_variables(i)%globalid%surface_flux_indices)
+            index = self%state_variables(i)%globalid%surface_flux_indices(j)
+            _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ index)
+            _HORIZONTAL_LOOP_END_
+         end do
+      end do
+
+      ! Compose total sources-sinks for each surface-bound state variable, combining model-specific contributions.
+      flux_sf = 0.0_rk
+      do i=1,size(self%surface_state_variables)
+         do j=1,size(self%surface_state_variables(i)%globalid%sms_indices)
+            index = self%surface_state_variables(i)%globalid%sms_indices(j)
+            _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ index)
+            _HORIZONTAL_LOOP_END_
+         end do
       end do
 
    end subroutine
@@ -2173,12 +2242,42 @@ end subroutine
 !EOP
 !
    type (type_model_list_node), pointer :: node
+   integer                              :: i,j,index
 !-----------------------------------------------------------------------
 !BOC
+   ! Prefill diagnostic variables where requested
+   do i=1,size(self%horizontal_diagnostic_variables)
+      if (self%horizontal_diagnostic_variables(i)%prefill) then
+         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            self%environment%diag_hz(_PREARG_LOCATION_HZ_ i) = self%horizontal_diagnostic_variables(i)%missing_value
+         _HORIZONTAL_LOOP_END_
+      end if
+   end do
+
    node => self%models%first
    do while (associated(node))
-      call node%model%do_bottom(_ARGUMENTS_IN_HZ_,flux_pel,flux_ben)
+      call node%model%do_bottom(_ARGUMENTS_IN_HZ_)
       node => node%next
+   end do
+
+   ! Compose bottom fluxes each bulk state variable, combining model-specific contributions.
+   do i=1,size(self%state_variables)
+      do j=1,size(self%state_variables(i)%globalid%bottom_flux_indices)
+         index = self%state_variables(i)%globalid%bottom_flux_indices(j)
+         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ index)
+         _HORIZONTAL_LOOP_END_
+      end do
+   end do
+
+   ! Compose total sources-sinks for each bottom-bound state variable, combining model-specific contributions.
+   do i=1,size(self%bottom_state_variables)
+      do j=1,size(self%bottom_state_variables(i)%globalid%sms_indices)
+         index = self%bottom_state_variables(i)%globalid%sms_indices(j)
+         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ index)
+         _HORIZONTAL_LOOP_END_
+      end do
    end do
 
    end subroutine fabm_do_bottom_rhs
@@ -2596,6 +2695,8 @@ end subroutine
 function create_external_bulk_id(variable) result(id)
    type (type_bulk_variable),intent(inout),target :: variable
    type (type_bulk_variable_id) :: id
+   integer :: i
+
    id%variable => variable
    if (allocated(variable%alldata)) then
       allocate(id%alldata(size(variable%alldata)))
@@ -2606,11 +2707,25 @@ function create_external_bulk_id(variable) result(id)
    end if
    if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
    if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
+   allocate(id%sms_indices(size(variable%sms_indices%pointers)))
+   do i=1,size(variable%sms_indices%pointers)
+      id%sms_indices(i) = variable%sms_indices%pointers(i)%p
+   end do
+   allocate(id%surface_flux_indices(size(variable%surface_flux_indices%pointers)))
+   do i=1,size(variable%surface_flux_indices%pointers)
+      id%surface_flux_indices(i) = variable%surface_flux_indices%pointers(i)%p
+   end do
+   allocate(id%bottom_flux_indices(size(variable%bottom_flux_indices%pointers)))
+   do i=1,size(variable%bottom_flux_indices%pointers)
+      id%bottom_flux_indices(i) = variable%bottom_flux_indices%pointers(i)%p
+   end do
 end function create_external_bulk_id
 
 function create_external_horizontal_id(variable) result(id)
    type (type_horizontal_variable),intent(inout),target :: variable
    type (type_horizontal_variable_id) :: id
+   integer :: i
+
    id%variable => variable
    if (allocated(variable%alldata)) then
       allocate(id%alldata(size(variable%alldata)))
@@ -2621,6 +2736,10 @@ function create_external_horizontal_id(variable) result(id)
    end if
    if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
    if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
+   allocate(id%sms_indices(size(variable%sms_indices%pointers)))
+   do i=1,size(variable%sms_indices%pointers)
+      id%sms_indices(i) = variable%sms_indices%pointers(i)%p
+   end do
 end function create_external_horizontal_id
 
 function create_external_scalar_id(variable) result(id)
@@ -2638,8 +2757,8 @@ function create_external_scalar_id(variable) result(id)
    if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
 end function create_external_scalar_id
 
-function create_external_bulk_id_for_standard_name(model,standard_variable) result(id)
-   class (type_base_model),           intent(in) :: model
+function create_external_bulk_id_for_standard_name(self,standard_variable) result(id)
+   class (type_model),                intent(in) :: self
    type (type_bulk_standard_variable),intent(in) :: standard_variable
    type (type_bulk_variable_id)                  :: id
 
@@ -2647,7 +2766,7 @@ function create_external_bulk_id_for_standard_name(model,standard_variable) resu
    integer                   :: i
 
    allocate(id%alldata(0))
-   link => model%first_link
+   link => self%root%links%first
    do while (associated(link))
       select type (object=>link%target)
          class is (type_bulk_variable)
@@ -2665,8 +2784,8 @@ function create_external_bulk_id_for_standard_name(model,standard_variable) resu
    if (size(id%alldata)>0) id%p => id%alldata(1)%p
 end function create_external_bulk_id_for_standard_name
 
-function create_external_horizontal_id_for_standard_name(model,standard_variable) result(id)
-   class (type_base_model),                 intent(in) :: model
+function create_external_horizontal_id_for_standard_name(self,standard_variable) result(id)
+   class (type_model),                      intent(in) :: self
    type (type_horizontal_standard_variable),intent(in) :: standard_variable
    type (type_horizontal_variable_id)                  :: id
 
@@ -2674,7 +2793,7 @@ function create_external_horizontal_id_for_standard_name(model,standard_variable
    integer                   :: i
 
    allocate(id%alldata(0))
-   link => model%first_link
+   link => self%root%links%first
    do while (associated(link))
       select type (object=>link%target)
          class is (type_horizontal_variable)
@@ -2692,8 +2811,8 @@ function create_external_horizontal_id_for_standard_name(model,standard_variable
    if (size(id%alldata)>0) id%p => id%alldata(1)%p
 end function create_external_horizontal_id_for_standard_name
 
-function create_external_scalar_id_for_standard_name(model,standard_variable) result(id)
-   class (type_base_model),             intent(in) :: model
+function create_external_scalar_id_for_standard_name(self,standard_variable) result(id)
+   class (type_model),                  intent(in) :: self
    type (type_global_standard_variable),intent(in) :: standard_variable
    type (type_scalar_variable_id)                  :: id
 
@@ -2701,7 +2820,7 @@ function create_external_scalar_id_for_standard_name(model,standard_variable) re
    integer                   :: i
 
    allocate(id%alldata(0))
-   link => model%first_link
+   link => self%root%links%first
    do while (associated(link))
       select type (object=>link%target)
          class is (type_scalar_variable)
@@ -2722,19 +2841,24 @@ end function create_external_scalar_id_for_standard_name
 subroutine classify_variables(self)
    class (type_model),intent(inout),target :: self
 
-   type (type_link),pointer :: link
-
+   type (type_link),                               pointer :: link,newlink
    type (type_state_variable_info),                pointer :: statevar
    type (type_horizontal_state_variable_info),     pointer :: hz_statevar
    type (type_diagnostic_variable_info),           pointer :: diagvar
    type (type_horizontal_diagnostic_variable_info),pointer :: hz_diagvar
    type (type_conserved_quantity_info),            pointer :: consvar
-   class (type_internal_object),                   pointer :: object
+   class (type_internal_variable),                 pointer :: object
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
    class (type_base_model),                        pointer :: model
 
    type (type_aggregate_variable),    pointer :: aggregate_variable
    type (type_set) :: dependencies,dependencies_hz,dependencies_scalar
+
+   link => self%root%links%first
+   do while (associated(link))
+      if (associated(link%target,link%original)) newlink => self%links_postcoupling%append(link%target,link%name)
+      link => link%next
+   end do
 
    ! Count number of conserved quantities and allocate associated array.
    ncons = 0
@@ -2763,6 +2887,7 @@ subroutine classify_variables(self)
 
       ! Store pointer to total of conserved quantity in bulk domain.
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
+      if (.not.associated(object)) call driver%fatal_error('','BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
       select type (object)
          class is (type_bulk_variable)
             call append_data_pointer(object%alldata,consvar%data)
@@ -2770,6 +2895,7 @@ subroutine classify_variables(self)
 
       ! Store pointer to total of conserved quantity at surface + bottom.
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
+      if (.not.associated(object)) call driver%fatal_error('','BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
       select type (object)
          class is (type_horizontal_variable)
             call append_data_pointer(object%alldata,consvar%horizontal_data)
@@ -2809,57 +2935,55 @@ subroutine classify_variables(self)
    nstate_bot  = 0
    nstate_surf = 0
    ndiag_hz    = 0
-   link => self%root%first_link
+   link => self%links_postcoupling%first
    do while (associated(link))
-      if (link%owner) then
-         select type (object => link%target)
-            class is (type_bulk_variable)
-               ! This is a variable owned by the model.
-               if (.not.object%write_indices%is_empty()) then
-                  ! This is a diagnostic variable.
-                  ndiag = ndiag+1
-                  call object%write_indices%set_value(ndiag)
-               end if
-               if (.not.object%state_indices%is_empty()) then
-                  ! This is a state variable.
-                  select case (object%presence)
-                     case (presence_internal)
-                        nstate = nstate+1
-                        call object%state_indices%set_value(nstate)
-                     case (presence_external_required)
-                        call fatal_error('classify_variables', &
-                           'Variable '//trim(link%name)//' must be coupled to an existing state variable.')
-                     case default
-                        continue
-                  end select
-               end if
-            class is (type_horizontal_variable)
-               if (.not.object%write_indices%is_empty()) then
-                  ! This is a diagnostic variable.
-                  ndiag_hz = ndiag_hz+1
-                  call object%write_indices%set_value(ndiag_hz)
-               end if
-               if (.not.object%state_indices%is_empty()) then
-                  ! This is a state variable.
-                  select case (object%presence)
-                     case (presence_internal)
-                        select case (object%domain)
-                           case (domain_bottom)
-                              ! Bottom state variable
-                              nstate_bot = nstate_bot+1
-                              call object%state_indices%set_value(nstate_bot)
-                           case (domain_surface)
-                              ! Surface state variable
-                              nstate_surf = nstate_surf+1
-                              call object%state_indices%set_value(nstate_surf)
-                        end select
-                     case (presence_external_required)
-                        call fatal_error('classify_variables', &
-                           'Variable '//trim(link%name)//' must be coupled to an existing state variable.')
-                  end select
-               end if
-         end select
-      end if
+      select type (object => link%target)
+         class is (type_bulk_variable)
+            ! This is a variable owned by the model.
+            if (.not.object%write_indices%is_empty()) then
+               ! This is a diagnostic variable.
+               ndiag = ndiag+1
+               call object%write_indices%set_value(ndiag)
+            end if
+            if (.not.object%state_indices%is_empty()) then
+               ! This is a state variable.
+               select case (object%presence)
+                  case (presence_internal)
+                     nstate = nstate+1
+                     call object%state_indices%set_value(nstate)
+                  case (presence_external_required)
+                     call fatal_error('classify_variables', &
+                        'Variable '//trim(link%name)//' must be coupled to an existing state variable.')
+                  case default
+                     continue
+               end select
+            end if
+         class is (type_horizontal_variable)
+            if (.not.object%write_indices%is_empty()) then
+               ! This is a diagnostic variable.
+               ndiag_hz = ndiag_hz+1
+               call object%write_indices%set_value(ndiag_hz)
+            end if
+            if (.not.object%state_indices%is_empty()) then
+               ! This is a state variable.
+               select case (object%presence)
+                  case (presence_internal)
+                     select case (object%domain)
+                        case (domain_bottom)
+                           ! Bottom state variable
+                           nstate_bot = nstate_bot+1
+                           call object%state_indices%set_value(nstate_bot)
+                        case (domain_surface)
+                           ! Surface state variable
+                           nstate_surf = nstate_surf+1
+                           call object%state_indices%set_value(nstate_surf)
+                     end select
+                  case (presence_external_required)
+                     call fatal_error('classify_variables', &
+                        'Variable '//trim(link%name)//' must be coupled to an existing state variable.')
+               end select
+            end if
+      end select
       link => link%next
    end do
 
@@ -2881,63 +3005,61 @@ subroutine classify_variables(self)
    nstate_bot  = 0
    nstate_surf = 0
    ndiag_hz    = 0
-   link => self%root%first_link
+   link => self%links_postcoupling%first
    do while (associated(link))
       select type (object=>link%target)
          class is (type_bulk_variable)
-            if (link%owner) then
-               ! The model owns this variable (no external master variable has been assigned)
-               ! Transfer variable information to the array that will be accessed by the host model.
-               if (.not.object%write_indices%is_empty()) then
-                  ndiag = ndiag + 1
-                  diagvar => self%diagnostic_variables(ndiag)
-                  call copy_variable_metadata(object,diagvar)
-                  diagvar%globalid          = create_external_variable_id(object)
-                  diagvar%standard_variable = object%standard_variable
-                  diagvar%time_treatment    = output2time_treatment(diagvar%output)
-                  call diagvar%properties%update(object%properties)
-               end if
+            ! The model owns this variable (no external master variable has been assigned)
+            ! Transfer variable information to the array that will be accessed by the host model.
+            if (.not.object%write_indices%is_empty()) then
+               ndiag = ndiag + 1
+               diagvar => self%diagnostic_variables(ndiag)
+               call copy_variable_metadata(object,diagvar)
+               diagvar%globalid          = create_external_variable_id(object)
+               diagvar%standard_variable = object%standard_variable
+               diagvar%prefill           = object%prefill !.and.object%missing_value/=0.0_rk
+               diagvar%time_treatment    = output2time_treatment(diagvar%output)
+               call diagvar%properties%update(object%properties)
+            end if
 
-               if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
-                  nstate = nstate + 1
-                  statevar => self%state_variables(nstate)
-                  call copy_variable_metadata(object,statevar)
-                  statevar%globalid                  = create_external_variable_id(object)
-                  statevar%standard_variable         = object%standard_variable
-                  statevar%initial_value             = object%initial_value
-                  statevar%vertical_movement         = object%vertical_movement
-                  statevar%no_precipitation_dilution = object%no_precipitation_dilution
-                  statevar%no_river_dilution         = object%no_river_dilution
-               end if
+            if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
+               nstate = nstate + 1
+               statevar => self%state_variables(nstate)
+               call copy_variable_metadata(object,statevar)
+               statevar%globalid                  = create_external_variable_id(object)
+               statevar%standard_variable         = object%standard_variable
+               statevar%initial_value             = object%initial_value
+               statevar%vertical_movement         = object%vertical_movement
+               statevar%no_precipitation_dilution = object%no_precipitation_dilution
+               statevar%no_river_dilution         = object%no_river_dilution
             end if
          class is (type_horizontal_variable)
-            if (link%owner) then
-               ! The model owns this variable (no external master variable has been assigned)
-               ! Transfer variable information to the array that will be accessed by the host model.
-               if (.not.object%write_indices%is_empty()) then
-                  ndiag_hz = ndiag_hz + 1
-                  hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
-                  call copy_variable_metadata(object,hz_diagvar)
-                  hz_diagvar%globalid          = create_external_variable_id(object)
-                  hz_diagvar%standard_variable = object%standard_variable
-                  hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
-               end if
-               if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
-                  select case (object%domain)
-                     case (domain_bottom)
-                        nstate_bot = nstate_bot + 1
-                        hz_statevar => self%bottom_state_variables(nstate_bot)
-                     case (domain_surface)
-                        nstate_surf = nstate_surf + 1
-                        hz_statevar => self%surface_state_variables(nstate_surf)
-                     case default
-                        nullify(hz_statevar)
-                  end select
-                  call copy_variable_metadata(object,hz_statevar)
-                  hz_statevar%globalid          = create_external_variable_id(object)
-                  hz_statevar%standard_variable = object%standard_variable
-                  hz_statevar%initial_value     = object%initial_value
-               end if
+            ! The model owns this variable (no external master variable has been assigned)
+            ! Transfer variable information to the array that will be accessed by the host model.
+            if (.not.object%write_indices%is_empty()) then
+               ndiag_hz = ndiag_hz + 1
+               hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
+               call copy_variable_metadata(object,hz_diagvar)
+               hz_diagvar%globalid          = create_external_variable_id(object)
+               hz_diagvar%standard_variable = object%standard_variable
+               hz_diagvar%prefill           = object%prefill !.and.object%missing_value/=0.0_rk
+               hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
+            end if
+            if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
+               select case (object%domain)
+                  case (domain_bottom)
+                     nstate_bot = nstate_bot + 1
+                     hz_statevar => self%bottom_state_variables(nstate_bot)
+                  case (domain_surface)
+                     nstate_surf = nstate_surf + 1
+                     hz_statevar => self%surface_state_variables(nstate_surf)
+                  case default
+                     nullify(hz_statevar)
+               end select
+               call copy_variable_metadata(object,hz_statevar)
+               hz_statevar%globalid          = create_external_variable_id(object)
+               hz_statevar%standard_variable = object%standard_variable
+               hz_statevar%initial_value     = object%initial_value
             end if
       end select
       link => link%next
@@ -2946,7 +3068,7 @@ subroutine classify_variables(self)
    ! Create lists of variables that may be provided by the host model.
    ! These lists include external dependencies, as well as the model's own state variables,
    ! which may be overridden by the host.
-   link => self%root%first_link
+   link => self%root%links%first
    do while (associated(link))
       select type (object=>link%target)
          class is (type_bulk_variable)
@@ -3025,13 +3147,10 @@ end subroutine
       character(len=*),       intent(in)           :: variable_name
       type (type_model_list), intent(inout)        :: list
 
-      class (type_internal_object),pointer :: object
+      class (type_internal_variable),pointer :: object
 
       object => self%root%find_object(variable_name)
-      select type (object)
-         class is (type_internal_variable)
-            if (associated(object%source_model)) call find_dependencies(object%source_model,list)
-      end select
+      if (associated(object%source_model)) call find_dependencies(object%source_model,list)
    end subroutine create_model_call_list 
 
 end module fabm
