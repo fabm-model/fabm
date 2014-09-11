@@ -122,10 +122,11 @@
    type type_integer_pointer_set
       type (type_integer_pointer),allocatable :: pointers(:)
    contains
-      procedure :: append    => integer_pointer_set_append
-      procedure :: extend    => integer_pointer_set_extend
-      procedure :: set_value => integer_pointer_set_set_value
-      procedure :: is_empty  => integer_pointer_set_is_empty
+      procedure :: append      => integer_pointer_set_append
+      procedure :: extend      => integer_pointer_set_extend
+      procedure :: set_value   => integer_pointer_set_set_value
+      procedure :: is_empty    => integer_pointer_set_is_empty
+      procedure :: copy_values => integer_pointer_copy_values
    end type
 
    ! ====================================================================================================
@@ -1029,6 +1030,22 @@ logical function integer_pointer_set_is_empty(self)
    class (type_integer_pointer_set),intent(in) :: self
    integer_pointer_set_is_empty = .not.allocated(self%pointers)
 end function integer_pointer_set_is_empty
+
+subroutine integer_pointer_copy_values(self,target)
+   class (type_integer_pointer_set),intent(in) :: self
+   integer,allocatable                         :: target(:)
+
+   integer :: i
+
+   if (.not.allocated(self%pointers)) then
+      allocate(target(0))
+   else
+      allocate(target(size(self%pointers)))
+      do i=1,size(self%pointers)
+         target(i) = self%pointers(i)%p
+      end do
+   end if
+end subroutine
 
 subroutine real_pointer_set_append(self,value)
    class (type_real_pointer_set),intent(inout) :: self

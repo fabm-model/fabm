@@ -2707,18 +2707,9 @@ function create_external_bulk_id(variable) result(id)
    end if
    if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
    if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
-   allocate(id%sms_indices(size(variable%sms_indices%pointers)))
-   do i=1,size(variable%sms_indices%pointers)
-      id%sms_indices(i) = variable%sms_indices%pointers(i)%p
-   end do
-   allocate(id%surface_flux_indices(size(variable%surface_flux_indices%pointers)))
-   do i=1,size(variable%surface_flux_indices%pointers)
-      id%surface_flux_indices(i) = variable%surface_flux_indices%pointers(i)%p
-   end do
-   allocate(id%bottom_flux_indices(size(variable%bottom_flux_indices%pointers)))
-   do i=1,size(variable%bottom_flux_indices%pointers)
-      id%bottom_flux_indices(i) = variable%bottom_flux_indices%pointers(i)%p
-   end do
+   call variable%sms_indices%copy_values(id%sms_indices)
+   call variable%surface_flux_indices%copy_values(id%surface_flux_indices)
+   call variable%bottom_flux_indices%copy_values(id%bottom_flux_indices)
 end function create_external_bulk_id
 
 function create_external_horizontal_id(variable) result(id)
@@ -2736,10 +2727,7 @@ function create_external_horizontal_id(variable) result(id)
    end if
    if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
    if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
-   allocate(id%sms_indices(size(variable%sms_indices%pointers)))
-   do i=1,size(variable%sms_indices%pointers)
-      id%sms_indices(i) = variable%sms_indices%pointers(i)%p
-   end do
+   call variable%sms_indices%copy_values(id%sms_indices)
 end function create_external_horizontal_id
 
 function create_external_scalar_id(variable) result(id)
