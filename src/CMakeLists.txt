@@ -86,7 +86,7 @@ add_library(fabm_base OBJECT
 # Create a list of institute-specific object libraries.
 foreach(institute ${FABM_INSTITUTES}) 
   add_subdirectory(models/${institute})
-  list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:${institute}>)
+  list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
 endforeach(institute) 
 
 add_library(fabm
@@ -118,7 +118,9 @@ endif()
 
 # Place projects in specific solution folders (Visual Studio only).
 set_property(TARGET fabm_base fabm     PROPERTY FOLDER fabm)
-set_property(TARGET ${FABM_INSTITUTES} PROPERTY FOLDER fabm/models)
+foreach(institute ${FABM_INSTITUTES})
+  set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
+endforeach(institute)
 
 # Re-initialize installation prefix if needed.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL PREVIOUS_DEFAULT_PREFIX)

@@ -1,4 +1,4 @@
-add_library(examples OBJECT
+add_library(fabm_models_examples OBJECT
             examples_model_library.F90
             benthic_predator/benthic_predator.F90
             duplicator/duplicator.F90
@@ -11,7 +11,7 @@ add_library(examples OBJECT
             npzd_f2003/npzd_f2003.F90
            )
 
-add_dependencies(examples fabm_base)
+add_dependencies(fabm_models_examples fabm_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2014 - Karsten Bolding and Jorn Bruggeman (BB)         !
