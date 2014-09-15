@@ -1430,6 +1430,7 @@ end subroutine append_scalar_data_pointer
 ! !LOCAL VARIABLES:
       class (type_bulk_variable),     pointer :: variable
       class (type_internal_variable), pointer :: pvariable
+      type (type_link),               pointer :: link_
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1451,23 +1452,24 @@ end subroutine append_scalar_data_pointer
       pvariable => variable
       call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
-                        state_index, write_index, sms_index, background, link)
+                        state_index, write_index, sms_index, background, link_)
 
       if (present(sms_index)) then
-         call self%add_bulk_variable(trim(variable%name)//'_sms', trim(variable%units)//'/s', trim(variable%long_name)//' sources-sinks', &
+         call self%add_bulk_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
                                      0.0_rk, output=output_none, write_index=sms_index, prefill=.true.)
       end if
       if (present(surface_flux_index)) then
-         call self%add_horizontal_variable(trim(variable%name)//'_sfl', trim(variable%units)//'*m/s', trim(variable%long_name)//' surface flux', &
+         call self%add_horizontal_variable(trim(link_%name)//'_sfl', trim(units)//'*m/s', trim(long_name)//' surface flux', &
                                      0.0_rk, output=output_none, write_index=surface_flux_index, prefill=.true.)
          call variable%surface_flux_indices%append(surface_flux_index,.false.)
       end if
       if (present(bottom_flux_index)) then
-         call self%add_horizontal_variable(trim(variable%name)//'_bfl', trim(variable%units)//'*m/s', trim(variable%long_name)//' bottom flux', &
+         call self%add_horizontal_variable(trim(link_%name)//'_bfl', trim(units)//'*m/s', trim(long_name)//' bottom flux', &
                                      0.0_rk, output=output_none, write_index=bottom_flux_index, prefill=.true.)
          call variable%bottom_flux_indices%append(bottom_flux_index,.false.)
       end if
 
+      if (present(link)) link => link_
    end subroutine add_bulk_variable
 !EOC
 
@@ -1506,6 +1508,7 @@ end subroutine append_scalar_data_pointer
 ! !LOCAL VARIABLES:
       class (type_horizontal_variable),pointer :: variable
       class (type_internal_variable),  pointer :: pvariable
+      type (type_link),                pointer :: link_
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1523,12 +1526,14 @@ end subroutine append_scalar_data_pointer
       pvariable => variable
       call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
-                        state_index, write_index, sms_index, background, link)
+                        state_index, write_index, sms_index, background, link_)
 
       if (present(sms_index)) then
-         call self%add_horizontal_variable(trim(variable%name)//'_sms', trim(variable%units)//'/s', trim(variable%long_name)//' sources-sinks', &
+         call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
                                            0.0_rk, output=output_none, write_index=sms_index, prefill=.true.)
       end if
+
+      if (present(link)) link => link_
    end subroutine add_horizontal_variable
 !EOC
 
