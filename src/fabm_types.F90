@@ -298,6 +298,7 @@
       type (type_link),pointer :: first => null()
    contains
       procedure :: append => link_list_append
+      procedure :: find   => link_list_find
    end type
 
    ! ====================================================================================================
@@ -910,31 +911,25 @@
       end do
    end subroutine
 
-function link_list_append(self,target,name,merge) result(link)
-   class (type_link_list),             intent(inout) :: self
-   class (type_internal_variable),pointer            :: target
-   character(len=*),                   intent(in)    :: name
-   logical,optional,                   intent(in)    :: merge
+function link_list_find(self,name) result(link)
+   class (type_link_list),intent(in) :: self
+   character(len=*),      intent(in) :: name
 
-   logical                  :: merge_eff
    type (type_link),pointer :: link
-
-   merge_eff = .false.
-   if (present(merge)) merge_eff = merge
 
    link => self%first
    do while (associated(link))
-      if (link%name==name) exit
+      if (link%name==name) return
       link => link%next
    end do
+end function link_list_find
 
-   ! First check if a link with this name exists. If so, merge new target with old target.
-   if (associated(link)) then
-      if (.not.merge_eff) call driver%fatal_error('link_list_append','Link with name "'//trim(name)//'" already exists.')
-      call merge_variables(link%target,target)
-      deallocate(target)
-      return
-   end if
+function link_list_append(self,target,name) result(link)
+   class (type_link_list),             intent(inout) :: self
+   class (type_internal_variable),pointer            :: target
+   character(len=*),                   intent(in)    :: name
+
+   type (type_link),pointer :: link
 
    ! Append a new link to the list.
    if (.not.associated(self%first)) then
@@ -1449,29 +1444,29 @@ end subroutine append_scalar_data_pointer
       if (present(specific_light_extinction)) call variable%contributions%add( &
          standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,scale_factor=specific_light_extinction)
 
-      if (present(sms_index)) then
-         call self%add_bulk_variable(trim(name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                     0.0_rk, output=output_none, write_index=sms_index, prefill=.true.)
-      end if
-      if (present(surface_flux_index)) then
-         call self%add_horizontal_variable(trim(name)//'_sfl', trim(units)//'*m/s', trim(long_name)//' surface flux', &
-                                     0.0_rk, output=output_none, write_index=surface_flux_index, prefill=.true.)
-         call variable%surface_flux_indices%append(surface_flux_index,.false.)
-      end if
-      if (present(bottom_flux_index)) then
-         call self%add_horizontal_variable(trim(name)//'_bfl', trim(units)//'*m/s', trim(long_name)//' bottom flux', &
-                                     0.0_rk, output=output_none, write_index=bottom_flux_index, prefill=.true.)
-         call variable%bottom_flux_indices%append(bottom_flux_index,.false.)
-      end if
-
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
-      ! NB the variable must be passed as POINTER in order to for it to be deallocated at any later time.
-      ! We must create an explicit pointer to type_internal_variable for it, since add_variable could
+      ! NB the variable must be passed as POINTER in order to for it to be possible to deallocate it at any later time.
+      ! Due to Fortran spec: we must create an explicit pointer to type_internal_variable for it, since add_variable could
       ! modify the pointer (e.g., by making it point to a variable type other than type_bulk_variable) 
       pvariable => variable
       call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
                         state_index, write_index, sms_index, background, link)
+
+      if (present(sms_index)) then
+         call self%add_bulk_variable(trim(variable%name)//'_sms', trim(variable%units)//'/s', trim(variable%long_name)//' sources-sinks', &
+                                     0.0_rk, output=output_none, write_index=sms_index, prefill=.true.)
+      end if
+      if (present(surface_flux_index)) then
+         call self%add_horizontal_variable(trim(variable%name)//'_sfl', trim(variable%units)//'*m/s', trim(variable%long_name)//' surface flux', &
+                                     0.0_rk, output=output_none, write_index=surface_flux_index, prefill=.true.)
+         call variable%surface_flux_indices%append(surface_flux_index,.false.)
+      end if
+      if (present(bottom_flux_index)) then
+         call self%add_horizontal_variable(trim(variable%name)//'_bfl', trim(variable%units)//'*m/s', trim(variable%long_name)//' bottom flux', &
+                                     0.0_rk, output=output_none, write_index=bottom_flux_index, prefill=.true.)
+         call variable%bottom_flux_indices%append(bottom_flux_index,.false.)
+      end if
 
    end subroutine add_bulk_variable
 !EOC
@@ -1521,11 +1516,6 @@ end subroutine append_scalar_data_pointer
       if (present(standard_variable)) variable%standard_variable = standard_variable
       if (present(data))              call append_data_pointer(variable%alldata,data)
 
-      if (present(sms_index)) then
-         call self%add_horizontal_variable(trim(name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                           0.0_rk, output=output_none, write_index=sms_index, prefill=.true.)
-      end if
-
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       ! NB the variable must be passed as POINTER in order to for it to be deallocated at any later time.
       ! We must create an explicit pointer to type_internal_variable for it, since add_variable could
@@ -1534,6 +1524,11 @@ end subroutine append_scalar_data_pointer
       call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
                         state_index, write_index, sms_index, background, link)
+
+      if (present(sms_index)) then
+         call self%add_horizontal_variable(trim(variable%name)//'_sms', trim(variable%units)//'/s', trim(variable%long_name)//' sources-sinks', &
+                                           0.0_rk, output=output_none, write_index=sms_index, prefill=.true.)
+      end if
    end subroutine add_horizontal_variable
 !EOC
 
@@ -1599,12 +1594,30 @@ end subroutine append_scalar_data_pointer
       class (type_base_model),target,      intent(inout) :: self
       class (type_internal_variable),pointer             :: object
 
-      type (type_link), pointer :: link,parent_link
+      type (type_link), pointer       :: link,parent_link
+      character(len=attribute_length) :: oriname
+      integer                         :: instance
+
+      ! First check if a link with this name exists.
+      link => self%links%find(object%name)
+
+      if (associated(link)) then
+         ! Link with this name exists already.
+         ! Append numbers to the variable name until a unique name is found.
+         oriname = object%name
+         instance = 0
+         do
+            write (object%name,'(a,a,i0)') trim(oriname),'_',instance
+            if (.not.associated(self%links%find(object%name))) exit
+            instance = instance + 1
+         end do
+         call self%request_coupling(object%name,oriname)
+      end if
 
       if (object%long_name=='') object%long_name = object%name
 
-      link => self%links%append(object,object%name,merge=.true.)
-      if (.not.associated(object)) return ! if create_link has merged the new object into an existing object
+      ! Create link for this object.
+      link => self%links%append(object,object%name)
 
       ! Forward to parent
       if (associated(self%parent)) then
@@ -2426,11 +2439,8 @@ end subroutine merge_scalar_variables
       ! First search self and ancestors (if allowed) based on exact name provided.
       current => self
       do while (associated(current))
-         link => current%links%first
-         do while (associated(link))
-            if (link%name==name) return
-            link => link%next
-         end do
+         link => current%links%find(name)
+         if (associated(link)) return
          if (.not.recursive_eff) exit
          current => current%parent
       end do
