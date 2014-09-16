@@ -557,7 +557,7 @@
                integral%minimum_depth = current%minimum_depth
                integral%maximum_depth = current%maximum_depth
                integral%average       = current%average
-               call self%root%add_child(integral,current%output_name,configunit=-1)
+               call self%root%add_child(integral,trim(current%output_name)//'_calculator',configunit=-1)
                call integral%request_coupling(integral%id_input,current%input_name)
                call self%root%request_coupling(current%output_name,integral%id_output%link%target%name)
                filter = .true.

@@ -331,12 +331,14 @@
    type type_model_list
       type (type_model_list_node),pointer :: first => null()
    contains
-      procedure :: append   => model_list_append
-      procedure :: extend   => model_list_extend
-      procedure :: find     => model_list_find
-      procedure :: count    => model_list_count
-      procedure :: finalize => model_list_finalize
-      procedure :: print    => model_list_print
+      procedure :: append     => model_list_append
+      procedure :: extend     => model_list_extend
+      procedure :: find_name  => model_list_find_name
+      procedure :: find_model => model_list_find_model
+      procedure :: count      => model_list_count
+      procedure :: finalize   => model_list_finalize
+      procedure :: print      => model_list_print
+      generic   :: find       => find_name, find_model
    end type
 
    type type_base_model
@@ -658,7 +660,7 @@
       class (type_base_model), intent(in) :: self
       character(len=*),        intent(in) :: location,message
       if (self%name/='') then
-         call fatal_error('model '//trim(self%parent%get_path())//', '//trim(location),message)
+         call fatal_error('model '//trim(self%get_path())//', '//trim(location),message)
       else
          call fatal_error(location,message)
       end if
@@ -724,13 +726,29 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
+      integer :: islash
+      type (type_base_model),pointer :: parent
 !EOP
 !-----------------------------------------------------------------------
 !BOC
       if (associated(model%parent)) &
          call self%fatal_error('add_child', 'The provided child model "'//trim(name)//'" has already been assigned parent '//trim(model%parent%name)//'.')
 
+      ! If a path with / is given, redirect to tentative parent model.
+      islash = index(name,'/',.true.)
+      if (islash/=0) then
+         parent => self%find_model(name(:islash-1))
+         if (.not.associated(parent)) call self%fatal_error('add_child','Proposed parent model "'//trim(name(:islash-1))//'" was not found.')
+         call parent%add_child(model,name(islash+1:),long_name,configunit)
+         return
+      end if
+
+      ! Ascertain whether the provided name is valid.
+      if (name=='' .or. name/=get_safe_name(name)) call self%fatal_error('add_child', &
+         'Cannot add child model "'//trim(name)//'" because its name is not valid. &
+         &Model names should not be empty, and can contain letters, digits and underscores only.')
       if (len_trim(name)>len(model%name)) call fatal_error('add_child','Model name "'//trim(name)//'" exceeds maximum length.')
+
       model%name = name
       if (present(long_name)) then
          model%long_name = trim(long_name)
@@ -856,7 +874,20 @@
       end do
    end subroutine
 
-   function model_list_find(self,model) result(node)
+   function model_list_find_name(self,name) result(node)
+      class (type_model_list),intent(in) :: self
+      character(len=*),       intent(in) :: name
+
+      type (type_model_list_node),pointer :: node
+
+      node => self%first
+      do while (associated(node))
+         if (node%model%name==name) return
+         node => node%next
+      end do
+   end function model_list_find_name
+
+   function model_list_find_model(self,model) result(node)
       class (type_model_list),       intent(in) :: self
       class (type_base_model),target,intent(in) :: model
 
@@ -867,8 +898,7 @@
          if (associated(node%model,model)) return
          node => node%next
       end do
-      nullify(node)
-   end function
+   end function model_list_find_model
 
    subroutine model_list_print(self)
       class (type_model_list),       intent(in) :: self
@@ -2474,7 +2504,7 @@ end subroutine merge_scalar_variables
 ! !IROUTINE: Find a model by name.
 !
 ! !INTERFACE:
-   recursive function find_model(self,name,recursive) result(found_model)
+   function find_model(self,name,recursive) result(found_model)
 !
 ! !DESCRIPTION:
 !
@@ -2484,8 +2514,10 @@ end subroutine merge_scalar_variables
       logical,optional,              intent(in)        :: recursive
       class (type_base_model),pointer                  :: found_model
 
+      class (type_base_model),pointer     :: current_root
       logical                             :: recursive_eff
       type (type_model_list_node),pointer :: node
+      integer                             :: istart,length
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2495,19 +2527,29 @@ end subroutine merge_scalar_variables
 !BOC
       nullify(found_model)
 
-      node => self%children%first
-      do while (associated(node))
-         if (node%model%name==name) then
-            found_model => node%model
-            return
-         end if
-         node => node%next
-      end do
-
-      ! Search among children of child
+      ! Determine whether to also try among ancestors
       recursive_eff = .false.
       if (present(recursive)) recursive_eff = recursive
-      if (recursive_eff.and.associated(self%parent)) found_model => self%parent%find_model(name,recursive)
+
+      current_root => self
+      do while (associated(current_root))
+         ! Process individual path components (separated by /)
+         found_model => current_root
+         istart = 1
+         do while (associated(found_model).and.istart<=len(name))
+            length = index(name(istart:),'/')-1
+            if (length==-1) length = len(name) - istart + 1
+            node => found_model%children%find(name(istart:istart+length-1))
+            istart = istart+length+1
+            nullify(found_model)
+            if (associated(node)) found_model => node%model
+         end do
+
+         ! Only continue if we have not found the model and are allowed to try parent model.
+         if (associated(found_model).or..not.recursive_eff) return
+
+         current_root => current_root%parent
+      end do
    end function find_model
 !EOC
 
