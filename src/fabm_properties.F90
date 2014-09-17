@@ -607,6 +607,7 @@ contains
          deallocate(element)
          element => next
       end do
+      nullify(self%first)
    end subroutine
 
    function hierarchical_dictionary_find_in_tree(self,name) result(property)
