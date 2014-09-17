@@ -110,6 +110,7 @@
    type,abstract :: type_external_variable
       character(len=attribute_length) :: name          = ''
       character(len=attribute_length) :: long_name     = ''
+      character(len=attribute_length) :: local_long_name = ''
       character(len=attribute_length) :: units         = ''
       character(len=attribute_length) :: path          = ''
       real(rk)                        :: minimum       = -1.e20_rk
@@ -3144,14 +3145,24 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    class (type_external_variable),intent(inout) :: external_variable
    class (type_internal_variable),intent(in)    :: internal_variable
 
-   external_variable%name          = get_safe_name(internal_variable%name)
-   external_variable%long_name     = internal_variable%long_name
-   external_variable%units         = internal_variable%units
-   external_variable%path          = internal_variable%name
-   external_variable%minimum       = internal_variable%minimum
-   external_variable%maximum       = internal_variable%maximum
-   external_variable%missing_value = internal_variable%missing_value
-   external_variable%output        = internal_variable%output
+   type (type_base_model), pointer :: owner
+   external_variable%name            = get_safe_name(internal_variable%name)
+   external_variable%long_name       = internal_variable%long_name
+   external_variable%local_long_name = internal_variable%long_name
+   external_variable%units           = internal_variable%units
+   external_variable%path            = internal_variable%name
+   external_variable%minimum         = internal_variable%minimum
+   external_variable%maximum         = internal_variable%maximum
+   external_variable%missing_value   = internal_variable%missing_value
+   external_variable%output          = internal_variable%output
+
+   ! Prepend long names of ancestor models to long name of variable.
+   owner => internal_variable%owner
+   do while (associated(owner%parent))
+      external_variable%long_name = trim(owner%long_name)//' '//trim(external_variable%long_name)
+      owner => owner%parent
+   end do
+
    call external_variable%properties%update(internal_variable%properties)
 end subroutine
 
@@ -3194,7 +3205,7 @@ end subroutine
       class (type_internal_variable),pointer :: object
 
       object => self%root%find_object(variable_name)
-      if (associated(object%source_model)) call find_dependencies(object%source_model,list)
+      if (.not.object%write_indices%is_empty()) call find_dependencies(object%owner,list)
    end subroutine create_model_call_list 
 
 end module fabm

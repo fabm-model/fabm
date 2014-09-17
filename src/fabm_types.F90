@@ -232,7 +232,7 @@
       integer                         :: output         = output_instantaneous
       integer                         :: presence       = presence_internal
       logical                         :: prefill        = .false.
-      class (type_base_model),pointer :: source_model   => null()
+      class (type_base_model),pointer :: owner          => null()
       type (type_contribution_list)   :: contributions
 
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices,sms_indices
@@ -272,8 +272,10 @@
    type type_link_list
       type (type_link),pointer :: first => null()
    contains
-      procedure :: append => link_list_append
-      procedure :: find   => link_list_find
+      procedure :: append   => link_list_append
+      procedure :: find     => link_list_find
+      procedure :: count    => link_list_count
+      procedure :: finalize => link_list_finalize
    end type
 
    ! ====================================================================================================
@@ -711,17 +713,18 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-      if (associated(model%parent)) &
-         call self%fatal_error('add_child', 'The provided child model "'//trim(name)//'" has already been assigned parent '//trim(model%parent%name)//'.')
-
       ! If a path with / is given, redirect to tentative parent model.
       islash = index(name,'/',.true.)
       if (islash/=0) then
          parent => self%find_model(name(:islash-1))
-         if (.not.associated(parent)) call self%fatal_error('add_child','Proposed parent model "'//trim(name(:islash-1))//'" was not found.')
+         if (.not.associated(parent)) call self%fatal_error('add_child', &
+            'Proposed parent model "'//trim(name(:islash-1))//'" was not found.')
          call parent%add_child(model,name(islash+1:),long_name,configunit)
          return
       end if
+
+      if (associated(model%parent)) call self%fatal_error('add_child', &
+         'The provided child model "'//trim(name)//'" has already been assigned parent '//trim(model%parent%name)//'.')
 
       ! Ascertain whether the provided name is valid.
       if (name=='' .or. name/=get_safe_name(name)) call self%fatal_error('add_child', &
@@ -959,6 +962,34 @@ function link_list_append(self,target,name) result(link)
    link%target => target
    link%original => target
 end function link_list_append
+
+function link_list_count(self) result(count)
+   class (type_link_list),intent(in) :: self
+
+   type (type_link),pointer :: link
+   integer                  :: count
+
+   count = 0
+   link => self%first
+   do while (associated(link))
+      count = count + 1
+      link => link%next
+   end do
+end function link_list_count
+
+subroutine link_list_finalize(self)
+   class (type_link_list),intent(inout) :: self
+
+   type (type_link),pointer :: link,next
+
+   link => self%first
+   do while (associated(link))
+      next => link%next
+      deallocate(link)
+      link => next
+   end do
+   nullify(self%first)
+end subroutine link_list_finalize
 
 subroutine request_coupling_for_link(self,link,master)
    class (type_base_model),intent(inout)              :: self
@@ -1270,8 +1301,13 @@ end subroutine real_pointer_set_set_value
          &Variable names should not be empty, and can contain letters, digits and underscores only.')
 
       variable%name = name
+      variable%owner => self
       if (present(units))         variable%units         = units
-      if (present(long_name))     variable%long_name     = long_name
+      if (present(long_name)) then
+         variable%long_name = long_name
+      else
+         variable%long_name = name
+      end if
       if (present(minimum))       variable%minimum       = minimum
       if (present(maximum))       variable%maximum       = maximum
       if (present(missing_value)) variable%missing_value = missing_value
@@ -1297,14 +1333,6 @@ end subroutine real_pointer_set_set_value
          call variable%state_indices%append(state_index,.true.)
       end if
 
-      if (present(write_index)) then
-         ! Register that this (diagnostic) variable will be computed by the current model.
-         ! This is used later to resolve model dependencies.
-         variable%source_model => self
-         
-         ! Store a pointer to the variable that should hold the diagnostic variable index.
-         call variable%write_indices%append(write_index,.true.)
-      end if
 
       if (present(background)) then
          ! Store a pointer to the variable that should hold the background value.
@@ -1313,8 +1341,9 @@ end subroutine real_pointer_set_set_value
          if (present(background_value)) call variable%background_values%set_value(background_value)
       end if
 
-      if (present(sms_index)) call variable%sms_indices%append(sms_index,.false.)
-      if (present(read_index)) call variable%read_indices%append(read_index,.true.)
+      if (present(sms_index))   call variable%sms_indices%append(sms_index,.false.)
+      if (present(read_index))  call variable%read_indices%append(read_index,.true.)
+      if (present(write_index)) call variable%write_indices%append(write_index,.true.)
 
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self,variable)
@@ -1543,8 +1572,6 @@ end subroutine real_pointer_set_set_value
          call self%request_coupling(object%name,oriname)
       end if
 
-      if (object%long_name=='') object%long_name = object%name
-
       ! Create link for this object.
       link => self%links%append(object,object%name)
 
@@ -1553,7 +1580,6 @@ end subroutine real_pointer_set_set_value
          if (len_trim(self%name)+1+len_trim(object%name)>len(object%name)) call fatal_error('add_object', &
             'Variable path "'//trim(self%name)//'/'//trim(object%name)//'" exceeds maximum allowed length.')
          object%name = trim(self%name)//'/'//trim(object%name)
-         object%long_name = trim(self%long_name)//' '//trim(object%long_name)
          parent_link => self%parent%add_object(object)
       end if
    end function add_object
