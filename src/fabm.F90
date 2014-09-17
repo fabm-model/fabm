@@ -3145,7 +3145,7 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    class (type_external_variable),intent(inout) :: external_variable
    class (type_internal_variable),intent(in)    :: internal_variable
 
-   type (type_base_model), pointer :: owner
+   class (type_base_model), pointer :: owner
    external_variable%name            = get_safe_name(internal_variable%name)
    external_variable%long_name       = internal_variable%long_name
    external_variable%local_long_name = internal_variable%long_name
