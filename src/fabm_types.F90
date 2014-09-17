@@ -707,7 +707,7 @@
 !  Original author(s): Jorn Bruggeman
 !
       integer :: islash
-      type (type_base_model),pointer :: parent
+      class (type_base_model),pointer :: parent
 !EOP
 !-----------------------------------------------------------------------
 !BOC
