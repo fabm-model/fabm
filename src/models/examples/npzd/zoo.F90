@@ -54,47 +54,20 @@
    integer,                        intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
-   real(rk)                  :: z_initial
-   real(rk)                  :: z0
-   real(rk)                  :: gmax
-   real(rk)                  :: iv
-   real(rk)                  :: rzn
-   real(rk)                  :: rzd
-   character(len=64)         :: excretion_target_variable
-   character(len=64)         :: mortality_target_variable
-   character(len=64)         :: grazing_target_variable
-
-   real(rk), parameter :: secs_pr_day = 86400.0_rk
-   namelist /examples_npzd_zoo/ &
-            z_initial,z0,gmax,iv,rzn,rzd,excretion_target_variable, &
-            mortality_target_variable,grazing_target_variable
+   real(rk), parameter :: d_per_s = 1.0_rk/86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   z_initial = 0.0_rk
-   z0        = 0.0225_rk
-   gmax      = 0.5_rk
-   iv        = 1.1_rk
-   rzn       = 0.01_rk
-   rzd       = 0.02_rk
-   excretion_target_variable = ''
-   mortality_target_variable = ''
-   grazing_target_variable   = ''
-
-   ! Read the namelist
-   if (configunit>=0) read(configunit,nml=examples_npzd_zoo,err=99)
-
    ! Store parameter values in our own derived type
-   ! NB: all rates must be provided in values per day,
-   ! and are converted here to values per second.
-   call self%get_parameter(self%z0,  'z0',  default=z0)
-   call self%get_parameter(self%gmax,'gmax',default=gmax, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%iv,  'iv',  default=iv)
-   call self%get_parameter(self%rzn, 'rzn', default=rzn, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%rzd, 'rzd', default=rzd, scale_factor=1.0_rk/secs_pr_day)
+   ! NB: all rates must be provided in values per day and are converted here to values per second.
+   call self%get_parameter(self%z0,  'z0',  'mmol m-3', 'background concentration',     default=0.0225_rk)
+   call self%get_parameter(self%gmax,'gmax','d-1',      'maximum specific grazing rate',default=0.5_rk,  scale_factor=d_per_s)
+   call self%get_parameter(self%iv,  'iv',  'm3 mmol-1','Ivlev grazing constant',       default=1.1_rk)
+   call self%get_parameter(self%rzn, 'rzn', 'd-1',      'loss rate to nutrients',       default=0.01_rk, scale_factor=d_per_s)
+   call self%get_parameter(self%rzd, 'rzd', 'd-1',      'mortality',                    default=0.02_rk, scale_factor=d_per_s)
 
    ! Register state variables
-   call self%register_state_variable(self%id_z,'zoo','mmol/m**3','zooplankton',z_initial,minimum=0.0_rk)
+   call self%register_state_variable(self%id_z,'c','mmol/m**3','concentration',0.0_rk,minimum=0.0_rk)
 
    ! Register contribution of state to global aggregate variables.
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_z)
@@ -103,15 +76,6 @@
    call self%register_state_dependency(self%id_exctarget, 'excretion_target','mmol/m**3','sink for excreted matter')
    call self%register_state_dependency(self%id_morttarget,'mortality_target','mmol/m**3','sink for dead matter')
    call self%register_state_dependency(self%id_grztarget, 'grazing_target',  'mmol/m**3','prey source')
-
-   ! Automatically couple dependencies if target variables have been specified.
-   if (excretion_target_variable/='') call self%request_coupling(self%id_exctarget, excretion_target_variable)
-   if (mortality_target_variable/='') call self%request_coupling(self%id_morttarget,mortality_target_variable)
-   if (grazing_target_variable  /='') call self%request_coupling(self%id_grztarget, grazing_target_variable)
-
-   return
-
-99 call self%fatal_error('examples_npzd_zoo::initialize','Error reading namelist examples_npzd_zoo')
 
    end subroutine initialize
 !EOC

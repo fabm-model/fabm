@@ -57,36 +57,20 @@
    integer,                        intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
-   real(rk)          :: d_initial
-   real(rk)          :: w_d
-   real(rk)          :: rdn
-   real(rk)          :: kc
-   character(len=64) :: mineralisation_target_variable
-
-   real(rk), parameter :: secs_pr_day = 86400.0_rk
-   namelist /examples_npzd_det/ d_initial, w_d, rdn, kc, mineralisation_target_variable
+   real(rk), parameter :: d_per_s = 1.0_rk/86400.0_rk
+   real(rk)            :: w_d, kc
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   d_initial = 4.5_rk
-   w_d       = -5.0_rk
-   kc        = 0.03_rk
-   rdn       = 0.003_rk
-   mineralisation_target_variable = ''
-
-   ! Read the namelist
-   if (configunit>=0) read(configunit,nml=examples_npzd_det,err=99)
-
    ! Store parameter values in our own derived type
-   ! NB: all rates must be provided in values per day,
-   ! and are converted here to values per second.
-   call self%get_parameter(w_d,     'w_d',default=w_d)
-   call self%get_parameter(kc,      'kc', default=kc)
-   call self%get_parameter(self%rdn,'rdn',default=rdn, scale_factor=1.0_rk/secs_pr_day)
+   ! NB: all rates must be provided in values per day and are converted here to values per second.
+   call self%get_parameter(w_d,     'w_d','m d-1',    'vertical velocity (<0 for sinking)',default=-5.0_rk,scale_factor=d_per_s)
+   call self%get_parameter(kc,      'kc', 'm2 mmol-1','specific light extinction',         default=0.03_rk)
+   call self%get_parameter(self%rdn,'rdn','d-1',      'remineralization rate',             default=0.003_rk,scale_factor=d_per_s)
 
    ! Register state variables
-   call self%register_state_variable(self%id_d,'det','mmol/m**3','detritus',           &
-                                d_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day, &
+   call self%register_state_variable(self%id_d,'c','mmol/m**3','concentration',    &
+                                4.5_rk,minimum=0.0_rk,vertical_movement=w_d, &
                                 specific_light_extinction=kc)
 
    ! Register contribution of state to global aggregate variables.
@@ -94,13 +78,6 @@
 
    ! Register dependencies on external state variables
    call self%register_state_dependency(self%id_mintarget,'mineralisation_target','mmol/m**3','sink for remineralized detritus')
-
-   ! Automatically couple dependencies if target variables have been specified.
-   if (mineralisation_target_variable/='') call self%request_coupling(self%id_mintarget,mineralisation_target_variable)
-
-   return
-
-99 call self%fatal_error('examples_npzd_det_init','Error reading namelist examples_npzd_det')
 
    end subroutine initialize
 !EOC

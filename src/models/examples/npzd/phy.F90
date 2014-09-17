@@ -60,61 +60,25 @@
    integer,                        intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
-   real(rk)                  :: p_initial
-   real(rk)                  :: p0
-   real(rk)                  :: w_p
-   real(rk)                  :: kc
-   real(rk)                  :: i_min
-   real(rk)                  :: rmax
-   real(rk)                  :: alpha
-   real(rk)                  :: rpn
-   real(rk)                  :: rpdu
-   real(rk)                  :: rpdl
-   character(len=64)         :: excretion_target_variable
-   character(len=64)         :: mortality_target_variable
-   character(len=64)         :: uptake_target_variable
-
-   real(rk), parameter :: secs_pr_day = 86400.0_rk
-   namelist /examples_npzd_phy/ &
-             p_initial,p0,w_p,kc,i_min,rmax,alpha,rpn,rpdu,rpdl,     &
-             excretion_target_variable,mortality_target_variable, &
-             uptake_target_variable
+   real(rk), parameter :: d_per_s = 1.0_rk/86400.0_rk
+   real(rk)            :: w_p
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   p_initial = 0.0_rk
-   p0        = 0.0225_rk
-   w_p       = -1.0_rk
-   kc        = 0.03_rk
-   i_min     = 25.0_rk
-   rmax      = 1.0_rk
-   alpha     = 0.3_rk
-   rpn       = 0.01_rk
-   rpdu      = 0.02_rk
-   rpdl      = 0.1_rk
-   excretion_target_variable = ''
-   mortality_target_variable = ''
-   uptake_target_variable    = ''
-
-   ! Read the namelist
-   if (configunit>=0) read(configunit,nml=examples_npzd_phy,err=99)
-
    ! Store parameter values in our own derived type
-   ! NB: all rates must be provided in values per day,
-   ! and are converted here to values per second.
-   call self%get_parameter(self%p0,   'p0',   default=p0)
-   call self%get_parameter(self%kc,   'kc',   default=kc)
-   call self%get_parameter(self%i_min,'i_min',default=i_min)
-   call self%get_parameter(self%rmax, 'rmax', default=rmax, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%alpha,'alpha',default=alpha)
-   call self%get_parameter(self%rpn,  'rpn',  default=rpn,  scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%rpdu, 'rpdu', default=rpdu, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%rpdl, 'rpdl', default=rpdl, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(w_p,       'w_p',  default=w_p,  scale_factor=1.0_rk/secs_pr_day)
+   ! NB: all rates must be provided in values per day and are converted here to values per second.
+   call self%get_parameter(self%p0,   'p0',   'mmol m-3', 'background concentration ',               default=0.0225_rk)
+   call self%get_parameter(self%kc,   'kc',   'm2 mmol-1','specific light extinction',               default=0.03_rk)
+   call self%get_parameter(self%i_min,'i_min','W m-2',    'minimum light intensity in euphotic zone',default=25.0_rk)
+   call self%get_parameter(self%rmax, 'rmax', 'd-1',      'maximum specific growth rate',            default=1.0_rk,  scale_factor=d_per_s)
+   call self%get_parameter(self%alpha,'alpha','mmol m-3', 'half-saturation nutrient concentration',  default=0.3_rk)
+   call self%get_parameter(self%rpn,  'rpn',  'd-1',      'loss rate to nutrients',                  default=0.01_rk, scale_factor=d_per_s)
+   call self%get_parameter(self%rpdu, 'rpdu', 'd-1',      'mortality in euphotic zone',              default=0.02_rk, scale_factor=d_per_s)
+   call self%get_parameter(self%rpdl, 'rpdl', 'd-1',      'mortality below euphotic zone',           default=0.1_rk,  scale_factor=d_per_s)
+   call self%get_parameter(w_p,       'w_p',  'm d-1',    'vertical velocity (<0 for sinking)',      default=-1.0_rk, scale_factor=d_per_s)
 
    ! Register state variables
-   call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton', &
-                                p_initial,minimum=0.0_rk,vertical_movement=w_p)
+   call self%register_state_variable(self%id_p,'c','mmol/m**3','concentration',0.0_rk,minimum=0.0_rk,vertical_movement=w_p)
 
    ! Register contribution of state to global aggregate variables.
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_p)
@@ -123,11 +87,6 @@
    call self%register_state_dependency(self%id_exctarget, 'excretion_target','mmol/m**3','sink for excreted matter')
    call self%register_state_dependency(self%id_morttarget,'mortality_target','mmol/m**3','sink for dead matter')
    call self%register_state_dependency(self%id_upttarget, 'uptake_target',   'mmol/m**3','nutrient source')
-
-   ! Automatically couple dependencies if target variables have been specified.
-   if (excretion_target_variable/='') call self%request_coupling(self%id_exctarget, excretion_target_variable)
-   if (mortality_target_variable/='') call self%request_coupling(self%id_morttarget,mortality_target_variable)
-   if (uptake_target_variable   /='') call self%request_coupling(self%id_upttarget, uptake_target_variable)
 
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_GPP, 'GPP','mmol/m**3',  'gross primary production',           &
@@ -144,10 +103,6 @@
    ! Register environmental dependencies
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_I_0, standard_variables%surface_downwelling_photosynthetic_radiative_flux)
-
-   return
-
-99 call self%fatal_error('examples_npzd_phy','Error reading namelist examples_npzd_phy')
 
    end subroutine initialize
 !EOC

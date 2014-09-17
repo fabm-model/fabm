@@ -1,20 +1,23 @@
 instances:
   nut:
     model: examples_npzd_nut
+    long_name: nutrient
     initialization:
-      nut: 4.5
+      c: 4.5
   det:
     model: examples_npzd_det
+    long_name: detritus
     parameters:
       w_d: -5.0
       rdn: 0.003
       kc: 0.03
     initialization:
-      det: 4.5
+      c: 4.5
     coupling:
-      mineralisation_target: nut/nut
+      mineralisation_target: nut/c
   phy:
     model: examples_npzd_phy
+    long_name: phytoplankton
     parameters:
       p0: 0.0225,
       w_p: -1.0,
@@ -26,13 +29,14 @@ instances:
       rpdu: 0.02,
       rpdl: 0.1,
     initialization:
-      phy: 1e-15
+      c: 1e-15
     coupling:
-      excretion_target: nut/nut
-      mortality_target: det/det
-      uptake_target: nut/nut
+      excretion_target: nut/c
+      mortality_target: det/c
+      uptake_target: nut/c
   zoo:
     model: examples_npzd_zoo
+    long_name: zooplankton
     parameters:
       z0: 0.0225,
       gmax: 0.2,
@@ -40,8 +44,8 @@ instances:
       rzn: 0.01,
       rzd: 0.02,
     initialization:
-      zoo: 1e-15
+      c: 1e-15
     coupling:
-      excretion_target: nut/nut
-      mortality_target: det/det
-      grazing_target: phy/phy
+      excretion_target: nut/c
+      mortality_target: det/c
+      grazing_target: phy/c
