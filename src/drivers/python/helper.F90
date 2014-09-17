@@ -2,7 +2,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: Helper fort the Python interface to FABM. This functionality may move to the FABM core in time.
+! !MODULE: Helper for the Python interface to FABM. This functionality may move to the FABM core in time.
 !
 ! !INTERFACE:
    module fabm_python_helper
@@ -18,7 +18,7 @@
    
    private
 
-   public get_environment_metadata
+   public get_environment_metadata, get_couplings, get_suitable_masters
 !EOP
 !-----------------------------------------------------------------------
 
@@ -95,7 +95,73 @@
          end if
          link => link%next
       end do
-   end subroutine
+   end subroutine get_environment_metadata
+
+   subroutine get_couplings(model,link_list)
+      type (type_model),    intent(inout) :: model
+      type (type_link_list),intent(inout) :: link_list
+
+      type (type_link),pointer :: link,link2
+
+      call link_list%finalize()
+      link => model%root%links%first
+      do while (associated(link))
+         if (link%original%presence/=presence_internal.and..not.link%original%read_indices%is_empty()) then
+            link2 => link_list%append(link%target,link%name)
+            link2%original => link%original
+         end if
+         link => link%next
+      end do
+
+   end subroutine get_couplings
+
+   function get_suitable_masters(model,slave) result(link_list)
+      type (type_model),                     intent(inout) :: model
+      class (type_internal_variable), pointer    :: slave
+      type (type_link_list),pointer                        :: link_list
+
+      type (type_link),pointer :: link,link2
+      logical                  :: use
+
+      allocate(link_list)
+      write (*,*) trim(slave%name)
+      link => model%root%links%first
+      do while (associated(link))
+         ! Coupled variables cannot serve as master
+         use = .false.
+         if (associated(link%target,link%original) &   ! Uncoupled
+             .and..not.associated(link%target,slave) & ! Not self
+             .and..not.(link%original%state_indices%is_empty().and..not.slave%state_indices%is_empty())) then ! And statet variable if state is state variable
+            select type (slave)
+               class is (type_bulk_variable)
+                  write (*,*) trim(slave%name),'bulk'
+                  select type (variable=>link%target)
+                     class is (type_bulk_variable)
+                        use = .true.
+                  end select
+               class is (type_horizontal_variable)
+                  write (*,*) trim(slave%name),'horizontal'
+                  select type (variable=>link%target)
+                     class is (type_horizontal_variable)
+                        use = .true.
+                  end select
+               class is (type_scalar_variable)
+                  write (*,*) trim(slave%name),'scalar'
+                  select type (variable=>link%target)
+                     class is (type_scalar_variable)
+                        use = .true.
+                  end select
+            end select
+            write (*,*) trim(link%name),use
+         end if
+         if (use) then
+            !write (*,*) link%name
+            link2 => link_list%append(link%target,link%name)
+            link2%original => link%original
+         end if
+         link => link%next
+      end do
+   end function get_suitable_masters
 
    end module fabm_python_helper
 

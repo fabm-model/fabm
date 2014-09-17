@@ -24,11 +24,14 @@ fabm = ctypes.CDLL(dllpath)
 
 # Specify arguments and return types for FABM interfaces.
 fabm.initialize.argtypes = [ctypes.c_char_p]
-fabm.get_variable_counts.argtypes = [ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
+fabm.get_variable_counts.argtypes = [ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
 fabm.get_variable_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
+fabm.get_variable_metadata_ptr.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
+fabm.get_variable_long_path.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_char_p]
 fabm.get_parameter_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
 fabm.get_dependency_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p]
 fabm.get_model_metadata.argtypes = [ctypes.c_char_p,ctypes.c_int,ctypes.c_char_p]
+fabm.get_coupling.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_void_p),ctypes.POINTER(ctypes.c_void_p)]
 fabm.get_real_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
 fabm.get_real_parameter.restype = ctypes.c_double
 fabm.get_integer_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
@@ -48,6 +51,10 @@ fabm.link_dependency_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_doubl
 fabm.get_bulk_diagnostic_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
 fabm.get_horizontal_diagnostic_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
 fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS')]
+fabm.get_suitable_masters_for_ptr.argtypes = [ctypes.c_void_p]
+fabm.get_suitable_masters_for_ptr.restype = ctypes.c_void_p
+fabm.link_list_count.argtypes = [ctypes.c_void_p]
+fabm.link_list_count.restype = ctypes.c_int
 
 BULK_STATE_VARIABLE            = 1
 SURFACE_STATE_VARIABLE         = 2
@@ -111,6 +118,11 @@ class Variable(object):
         if path is None: path = name
         self.long_name = long_name
         self.path = path
+    @property
+    def long_path(self):
+        return self.long_name
+    def getOptions(self):
+        pass
 
 class Dependency(Variable):
     def __init__(self,name,index,units=None,long_name=None):
@@ -204,6 +216,40 @@ class Parameter(Variable):
     value = property(getValue, setValue)
     default = property(getDefault)
 
+class Coupling(Variable):
+    def __init__(self,index):
+        self.master = ctypes.c_void_p()
+        self.slave = ctypes.c_void_p()
+        fabm.get_coupling(index,ctypes.byref(self.slave),ctypes.byref(self.master))
+
+        strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+
+        fabm.get_variable_metadata_ptr(self.slave,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
+        Variable.__init__(self,strname.value,'',strlong_name.value)
+
+    def getValue(self):
+        strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        fabm.get_variable_long_path(self.master,ATTRIBUTE_LENGTH,strlong_name)
+        return strlong_name.value
+
+    def setValue(self,value):
+        # TBI
+        pass
+
+    def getOptions(self):
+        list = fabm.get_suitable_masters_for_ptr(self.slave)
+        print fabm.link_list_count(list)
+
+    @property
+    def long_path(self):
+        strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        fabm.get_variable_long_path(self.slave,ATTRIBUTE_LENGTH,strlong_name)
+        return strlong_name.value
+
+    value = property(getValue, setValue)
+
 class Model(object):
     def __init__(self,path='fabm.yaml'):
         fabm.initialize(path)
@@ -236,9 +282,10 @@ class Model(object):
         nconserved = ctypes.c_int()
         ndependencies = ctypes.c_int()
         nparameters = ctypes.c_int()
+        ncouplings = ctypes.c_int()
         fabm.get_variable_counts(ctypes.byref(nstate_bulk),ctypes.byref(nstate_surface),ctypes.byref(nstate_bottom),
                                  ctypes.byref(ndiag_bulk),ctypes.byref(ndiag_horizontal),
-                                 ctypes.byref(nconserved),ctypes.byref(ndependencies),ctypes.byref(nparameters))
+                                 ctypes.byref(nconserved),ctypes.byref(ndependencies),ctypes.byref(nparameters),ctypes.byref(ncouplings))
 
         # Allocate memory for state variable values, and send ctypes.pointer to this memory to FABM.
         self.state = numpy.empty((nstate_bulk.value+nstate_surface.value+nstate_bottom.value,),dtype=float)
@@ -288,6 +335,8 @@ class Model(object):
         for i in range(ndependencies.value):
             fabm.get_dependency_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits)
             self.dependencies.append(Dependency(strname.value,i,units=strunits.value))
+
+        self.couplings = [Coupling(i+1) for i in range(ncouplings.value)]
 
         # Arrays that combine variables from pelagic and boundary domains.
         self.state_variables = self.bulk_state_variables + self.surface_state_variables + self.bottom_state_variables

@@ -32,6 +32,9 @@ class Entry(object):
     def addTree(self,arr,category=None):
         for variable in arr:
             pathcomps = variable.path.split('/')
+            if len(pathcomps)<2:
+                #print 'Skipping root level entity %s' % pathcomps[0]
+                continue
             if category is not None: pathcomps = [pathcomps[0],category] + list(pathcomps[1:])
             parent = self
             for component in pathcomps[:-1]:
@@ -52,19 +55,28 @@ class ItemModel(QtCore.QAbstractItemModel):
         for d in self.model.dependencies: env.addChild(Entry(d,d.name))
         root.addTree(self.model.parameters,'parameters')
         root.addTree(self.model.state_variables,'initialization')
+        root.addTree(self.model.couplings,'coupling')
         root.addChild(env)
+
+        # For all models, create an object that returns appropriate metadata.
         class Submodel:
             def __init__(self,long_name):
                 self.units = None
                 self.units_unicode = None
                 self.value = None
                 self.long_name = long_name
-        def processNode(n,prefix=()):
-            if isinstance(n.object,basestring) and prefix and prefix[-1] not in ('parameters','initialization','environment'):
-                n.object = Submodel(self.model.getModelLongName('/'.join(prefix)))
-            for child in n.children: processNode(child,prefix+(child.name,))
+        def processNode(n,path=()):
+            childprefix = path
+            if isinstance(n.object,basestring) and path:
+                if path[-1] in ('parameters','initialization','environment','coupling'):
+                    childprefix = path[:-1]
+                else:
+                    n.object = Submodel(self.model.getModelLongName('/'.join(path)))
+            for child in n.children: processNode(child,childprefix+(child.name,))
         processNode(root)
+
         if self.root is not None:
+            # We already have an old tree - compare and amend model.
             def processChange(newnode,oldnode,parent):
                 oldnode.object = newnode.object
                 if not newnode.children: return
@@ -94,7 +106,7 @@ class ItemModel(QtCore.QAbstractItemModel):
                     self.beginRemoveRows(parent,ioldstart,len(oldnode.children)-1)
                     for i in range(len(oldnode.children)-1,ioldstart-1,-1): oldnode.removeChild(i)
                     self.endRemoveRows()
-            # We already have an old tree - compare and amend model.
+
             processChange(root,self.root,QtCore.QModelIndex())
         else:
             # First time a tree was created - store it and move on.
@@ -144,9 +156,11 @@ class ItemModel(QtCore.QAbstractItemModel):
                 elif index.column()==3:
                     return entry.name
         elif role==QtCore.Qt.ToolTipRole and index.parent().isValid():
-           if not isinstance(data,basestring): return '%s (%s)' % (data.long_name,entry.name)
+           if not isinstance(data,basestring): return data.long_path
         elif role==QtCore.Qt.EditRole:
-           if not isinstance(data,basestring): return data.getValue()
+           if not isinstance(data,basestring):
+              print data.getOptions()
+              return data.getValue()
         elif role==QtCore.Qt.FontRole and index.column()==1:
             if isinstance(data,pyfabm.Parameter) and data.value!=data.default:
                 font = QtGui.QFont()

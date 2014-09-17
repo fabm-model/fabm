@@ -17,7 +17,7 @@
 
    use fabm
    use fabm_config
-   use fabm_types, only:rk,attribute_length,type_model_list_node,type_base_model,factory
+   use fabm_types, only:rk,attribute_length,type_model_list_node,type_base_model,factory,type_link,type_link_list,type_internal_variable,type_bulk_variable
    use fabm_driver, only: type_base_driver, driver
    use fabm_properties
    use fabm_python_helper
@@ -37,6 +37,7 @@
    class (type_model),private,pointer,save :: model => null()
    real(8),dimension(:),pointer :: state
    character(len=1024),dimension(:),allocatable :: environment_names,environment_units
+   type (type_link_list),save :: coupling_link_list
 
    type (type_property_dictionary),save,private :: forced_parameters,forced_couplings
 
@@ -103,6 +104,7 @@
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
       call get_environment_metadata(model,environment_names,environment_units)
 
+      call get_couplings(model,coupling_link_list)
    end subroutine initialize
 !EOC
 
@@ -152,6 +154,8 @@
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
       call get_environment_metadata(model,environment_names,environment_units)
+
+      call get_couplings(model,coupling_link_list)
    end subroutine
 
    subroutine check_ready()
@@ -173,11 +177,11 @@
    end function
 
    subroutine get_variable_counts(nstate_bulk,nstate_surface,nstate_bottom,ndiagnostic_bulk,ndiagnostic_horizontal,nconserved, &
-      ndependencies,nparameters) bind(c)
+      ndependencies,nparameters,ncouplings) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_counts
       integer(c_int),intent(out) :: nstate_bulk,nstate_surface,nstate_bottom
       integer(c_int),intent(out) :: ndiagnostic_bulk,ndiagnostic_horizontal
-      integer(c_int),intent(out) :: nconserved,ndependencies,nparameters
+      integer(c_int),intent(out) :: nconserved,ndependencies,nparameters,ncouplings
       nstate_bulk = size(model%state_variables)
       nstate_surface = size(model%surface_state_variables)
       nstate_bottom = size(model%bottom_state_variables)
@@ -186,6 +190,7 @@
       nconserved = size(model%conserved_quantities)
       ndependencies = size(environment_names)
       nparameters = model%root%parameters%size()
+      ncouplings = coupling_link_list%count()
    end subroutine
 
    subroutine get_variable_metadata(category,index,length,name,units,long_name,path) bind(c)
@@ -210,10 +215,10 @@
       case (CONSERVED_QUANTITY)
          variable => model%conserved_quantities(index)
       end select
-      call copy_to_c_string(variable%name,     name)
-      call copy_to_c_string(variable%units,    units)
-      call copy_to_c_string(variable%long_name,long_name)
-      call copy_to_c_string(variable%path,     path)
+      call copy_to_c_string(variable%name,           name)
+      call copy_to_c_string(variable%units,          units)
+      call copy_to_c_string(variable%local_long_name,long_name)
+      call copy_to_c_string(variable%path,           path)
    end subroutine
 
    subroutine get_parameter_metadata(index,length,name,units,long_name,typecode,has_default) bind(c)
@@ -252,6 +257,98 @@
       call copy_to_c_string(environment_names(index),name)
       call copy_to_c_string(environment_units(index),units)
    end subroutine
+
+   subroutine get_coupling(index,slave,master) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_coupling
+      integer(c_int),        intent(in), value :: index
+      type (c_ptr),          intent(out)       :: slave,master
+
+      type (type_link),pointer :: link_slave
+      integer                  :: i
+      
+      link_slave => coupling_link_list%first
+      do i=2,index
+         link_slave => link_slave%next
+      end do
+      slave = c_loc(link_slave%original)
+      master = c_loc(link_slave%target)
+   end subroutine
+
+   function get_suitable_masters_for_ptr(pvariable) result(plist) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_suitable_masters_for_ptr
+      type (c_ptr),          intent(in), value :: pvariable
+      type (c_ptr)                             :: plist
+
+      class (type_internal_variable),pointer :: variable
+      type (type_link_list),         pointer :: list
+
+      call c_f_pointer(pvariable, variable)
+      list => get_suitable_masters(model,variable)
+      plist = c_loc(list)
+   end function
+
+   function link_list_count(plist) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: link_list_count
+      type (c_ptr),          intent(in), value :: plist
+      integer(c_int)                           :: value
+
+      type (type_link_list),pointer :: list
+
+      call c_f_pointer(plist, list)
+      value = list%count()
+   end function
+
+   function link_list_index(plist,index) bind(c) result(pvariable)
+      !DIR$ ATTRIBUTES DLLEXPORT :: link_list_index
+      type (c_ptr),  intent(in), value :: plist
+      integer(c_int),intent(in), value :: index
+      type (c_ptr)                     :: pvariable
+
+      type (type_link_list),pointer :: list
+      type (type_link),     pointer :: link
+      integer                       :: i
+      
+      call c_f_pointer(plist, list)
+      link => list%first
+      do i=2,index
+         link => link%next
+      end do
+      pvariable = c_loc(link%target)
+   end function
+
+   subroutine get_variable_long_path(pvariable,length,long_name) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_long_path
+      type (c_ptr),          intent(in), value  :: pvariable
+      integer(c_int),        intent(in), value  :: length
+      character(kind=c_char),intent(out),dimension(length) ::long_name
+
+      class (type_internal_variable),pointer :: variable
+      class (type_base_model),       pointer :: owner
+      character(len=attribute_length)        :: long_name_
+      
+      call c_f_pointer(pvariable, variable)
+      long_name_ = variable%long_name
+      owner => variable%owner
+      do while (associated(owner%parent))
+         long_name_ = trim(owner%long_name)//'/'//trim(long_name_)
+         owner => owner%parent
+      end do
+      call copy_to_c_string(long_name_,long_name)
+   end subroutine get_variable_long_path
+
+   subroutine get_variable_metadata_ptr(pvariable,length,name,units,long_name) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_metadata_ptr
+      type (c_ptr),          intent(in), value  :: pvariable
+      integer(c_int),        intent(in), value  :: length
+      character(kind=c_char),intent(out),dimension(length) :: name,units,long_name
+
+      class (type_internal_variable),pointer :: variable
+
+      call c_f_pointer(pvariable, variable)
+      call copy_to_c_string(variable%name,     name)
+      call copy_to_c_string(variable%units,    units)
+      call copy_to_c_string(variable%long_name,long_name)
+   end subroutine get_variable_metadata_ptr
 
    subroutine get_model_metadata(name,length,long_name) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_model_metadata
