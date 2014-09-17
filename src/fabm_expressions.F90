@@ -20,7 +20,7 @@ module fabm_expressions
       real(rk) :: last_time, next_save_time
       integer  :: ioldest = -1
 
-      type (type_bulk_data_pointer),pointer :: in
+      integer,pointer :: in  => null()
       real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_ :: history 
    end type
 
@@ -30,7 +30,7 @@ module fabm_expressions
       real(rk) :: last_time, next_save_time
       integer  :: ioldest = -1
 
-      type (type_horizontal_data_pointer),pointer :: in
+      integer,pointer :: in  => null()
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: history 
    end type
 
@@ -40,7 +40,7 @@ module fabm_expressions
       logical  :: average       = .false.       ! Whether to divide the depth integral by water depth, thus computing the vertical average
       character(len=attribute_length) :: input_name = ''
 
-      type (type_bulk_data_pointer),pointer :: in  => null()
+      integer,pointer :: in  => null()
    end type
 
    interface temporal_mean
@@ -122,9 +122,9 @@ contains
 
       select type (input)
          class is (type_dependency_id)
-            expression%in => input%data
+            expression%in => input%index
          class is (type_state_variable_id)
-            expression%in => input%data
+            expression%in => input%index
       end select
       if (present(minimum_depth)) expression%minimum_depth = minimum_depth
       if (present(maximum_depth)) expression%maximum_depth = maximum_depth
@@ -145,7 +145,7 @@ contains
       write (postfix,'(a,i0,a)') '_at_',int(resolution),'_s_resolution'
       expression%output_name = trim(prefix)//trim(input%link%name)//trim(postfix)
 
-      expression%in => input%data
+      expression%in => input%index
       expression%n = nint(period/resolution)
       expression%period = period
    end function
@@ -165,7 +165,7 @@ contains
       write (postfix,'(a,i0,a)') '_at_',int(resolution),'_s_resolution'
       expression%output_name = trim(prefix)//trim(input%link%name)//trim(postfix)
 
-      expression%in => input%horizontal_data
+      expression%in => input%horizontal_index
       expression%n = nint(period/resolution)
       expression%period = period
    end function

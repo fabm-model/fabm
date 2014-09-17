@@ -9,7 +9,7 @@ module fabm_coupling
    
    private
 
-   public freeze_model_info, get_aggregate_variable
+   public freeze_model_info, get_aggregate_variable, find_dependencies
 
    contains
 
@@ -118,11 +118,8 @@ end subroutine
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_link),pointer                 :: link,link2
-      type (type_bulk_standard_variable)       :: bulk_standard_variable
-      type (type_horizontal_standard_variable) :: horizontal_standard_variable
-      type (type_global_standard_variable)     :: global_standard_variable
-      type (type_set)                          :: processed_bulk,processed_horizontal,processed_scalar
+      type (type_link),pointer :: link,link2
+      type (type_set)          :: processed_bulk,processed_horizontal,processed_scalar
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -133,12 +130,11 @@ end subroutine
                if (.not.object%standard_variable%is_null()) then
                   if (.not.processed_bulk%contains(object%standard_variable%name)) then
                      call processed_bulk%add(object%standard_variable%name)
-                     bulk_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
                         select type (object2=>link2%target)
                            class is (type_bulk_variable)
-                              if (bulk_standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
+                              if (object%standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
                                  if (object2%write_indices%is_empty()) then
                                     ! Default coupling: early variable is master, later variable is slave.
                                     call couple_variables(model,link%target,link2%target)
@@ -156,12 +152,11 @@ end subroutine
                if (.not.object%standard_variable%is_null()) then
                   if (.not.processed_horizontal%contains(object%standard_variable%name)) then
                      call processed_horizontal%add(object%standard_variable%name)
-                     horizontal_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
                         select type (object2=>link2%target)
                            class is (type_horizontal_variable)
-                              if (horizontal_standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
+                              if (object%standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
                                  if (object2%write_indices%is_empty()) then
                                     ! Default coupling: early variable is master, later variable is slave.
                                     call couple_variables(model,link%target,link2%target)
@@ -179,12 +174,11 @@ end subroutine
                if (.not.object%standard_variable%is_null()) then
                   if (.not.processed_scalar%contains(object%standard_variable%name)) then
                      call processed_scalar%add(object%standard_variable%name)
-                     global_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
                         select type (object2=>link2%target)
                            class is (type_scalar_variable)
-                              if (global_standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
+                              if (object%standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
                                  if (object2%write_indices%is_empty()) then
                                     ! Default coupling: early variable is master, later variable is slave.
                                     call couple_variables(model,link%target,link2%target)
@@ -443,7 +437,7 @@ subroutine couple_variables(self,master,slave)
    if (associated(self%parent)) call self%fatal_error('couple_variables','BUG: must be called on root node.')
 
    ! Store a pointer to the slave, because the call to redirect_links will cause all pointers (from links)
-   ! to the slave node to be connected to the master node. This icludes the original "slave" argument.
+   ! to the slave node to be connected to the master node. This includes the original "slave" argument.
    pslave => slave
 
    ! If slave and master are the same, we are done - return.
@@ -481,6 +475,118 @@ recursive subroutine redirect_links(model,oldtarget,newtarget)
       call redirect_links(child%model,oldtarget,newtarget)
       child => child%next
    end do
+end subroutine
+
+
+subroutine merge_variables(master,slave)
+   class (type_internal_variable),intent(inout) :: master
+   class (type_internal_variable),intent(in)    :: slave
+
+   type (type_contribution), pointer :: contribution
+
+   call log_message(trim(slave%name)//' --> '//trim(master%name))
+
+   if (.not.slave%write_indices%is_empty()) &
+      call fatal_error('merge_variables','Attempt to couple write-only variable ' &
+         //trim(slave%name)//' to '//trim(master%name)//'.')
+   if (master%state_indices%is_empty().and..not.slave%state_indices%is_empty()) &
+      call fatal_error('merge_variables','Attempt to couple state variable ' &
+         //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
+   if (master%presence==presence_external_optional) &
+      call fatal_error('merge_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
+
+   call master%state_indices%extend(slave%state_indices,.true.)
+   call master%read_indices%extend(slave%read_indices,.true.)
+   call master%sms_indices%extend(slave%sms_indices,.false.)
+   call master%background_values%extend(slave%background_values)
+   call master%properties%update(slave%properties,overwrite=.false.)
+   contribution => slave%contributions%first
+   do while (associated(contribution))
+      call master%contributions%add(contribution%target,contribution%scale_factor)
+      contribution => contribution%next
+   end do
+
+   select type (master)
+      class is (type_bulk_variable)
+         select type (slave)
+            class is (type_bulk_variable)
+               call master%surface_flux_indices%extend(slave%surface_flux_indices,.false.)
+               call master%bottom_flux_indices%extend(slave%bottom_flux_indices,.false.)
+            class is (type_internal_variable) ! class default would be preferable but breaks the next line with Cray 8.1
+               call fatal_error('merge_variables', &
+                  'type mismatch: '//trim(master%name)//' is defined on the whole domain, '//trim(slave%name)//' is not.')
+         end select      
+      class is (type_horizontal_variable)
+         select type (slave)
+            class is (type_horizontal_variable)
+               if (slave%domain/=master%domain) &
+                  call fatal_error('merge_variables','Cannot couple '//trim(slave%name)//' to '//trim(master%name)// &
+                     ', because domains do not match.')
+            class is (type_internal_variable) ! class default would be preferable but breaks the next line with Cray 8.1
+               call fatal_error('merge_variables', &
+                  'type mismatch: '//trim(master%name)//' is defined on the horizontal domain, '//trim(slave%name)//' is not.')
+         end select      
+      class is (type_scalar_variable)
+         select type (slave)
+            class is (type_scalar_variable)
+            class is (type_internal_variable) ! class default would be preferable but breaks the next line with Cray 8.1
+               call fatal_error('merge_variables', &
+                  'type mismatch: '//trim(master%name)//' is defined as a scalar, '//trim(slave%name)//' is not.')
+         end select      
+   end select
+end subroutine
+
+recursive subroutine find_dependencies(self,list,forbidden)
+   class (type_base_model),intent(in),target   :: self
+   type (type_model_list), intent(inout)       :: list
+   type (type_model_list), intent(in),optional :: forbidden
+
+   type (type_link),pointer            :: link
+   type (type_model_list)              :: forbidden_with_self
+   type (type_model_list_node),pointer :: node
+   character(len=2048)                 :: chain
+
+   if (associated(list%find(self))) return
+
+   ! Check the list of forbidden model (i.e., models that indirectly request the current model)
+   ! If the current model is on this list, there is a circular dependency between models.
+   if (present(forbidden)) then
+      node => forbidden%find(self)
+      if (associated(node)) then
+         ! Circular dependency found - report as fatal error.
+         chain = ''
+         do while (associated(node))
+            chain = trim(chain)//trim(node%model%name)//' -> '
+            node => node%next
+         end do
+         call fatal_error('find_dependencies','circular dependency found: '//trim(chain)//trim(self%name))
+      end if
+      call forbidden_with_self%extend(forbidden)
+   end if
+   call forbidden_with_self%append(self)
+
+   ! Loop over all variables, and if they belong to some other model, first add that model to the dependency list.
+   link => self%links%first
+   do while (associated(link))
+      if (index(link%name,'/')==0 &                              ! Our own link...
+          .and.associated(link%target%source_model) &            ! ...to a diagnostic variable...
+          .and..not.associated(link%target%source_model,self) &  ! ...not set by ourselves...
+          .and..not.link%original%read_indices%is_empty()) &     ! ...and we do depend on its value.
+         call find_dependencies(link%target%source_model,list,forbidden_with_self)
+      link => link%next
+   end do
+
+   ! We're happy - add ourselves to the list of processed models.
+   call list%append(self)
+
+   ! Now process any children that have not been processed before.
+   node => self%children%first
+   do while (associated(node))
+      call find_dependencies(node%model,list)
+      node => node%next
+   end do
+
+   call forbidden_with_self%finalize()
 end subroutine
 
 end module

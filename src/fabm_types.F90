@@ -48,7 +48,6 @@
    public type_link, type_link_list
    public type_internal_variable,type_bulk_variable,type_horizontal_variable,type_scalar_variable
    public type_environment
-   public find_dependencies
 
    public type_model_list,type_model_list_node
 
@@ -58,10 +57,8 @@
    public type_expression, type_bulk_expression, type_horizontal_expression
 
    public type_bulk_data_pointer,type_horizontal_data_pointer,type_scalar_data_pointer
-   public type_bulk_data_pointer_pointer,type_horizontal_data_pointer_pointer,type_scalar_data_pointer_pointer
-   public get_aggregate_variable, type_aggregate_variable, type_contributing_variable, type_contribution, merge_variables
+   public get_aggregate_variable, type_aggregate_variable, type_contributing_variable, type_contribution
    public time_treatment2output,output2time_treatment
-   public append_data_pointer
 
 ! !PUBLIC DATA MEMBERS:
 !
@@ -130,22 +127,6 @@
    end type
 
    ! ====================================================================================================
-   ! Data types to hold pointers to (components of) variable identifiers used by biogeochemical models.
-   ! ====================================================================================================
-
-   type type_bulk_data_pointer_pointer
-      type (type_bulk_data_pointer),pointer :: p => null()
-   end type
-
-   type type_horizontal_data_pointer_pointer
-      type (type_horizontal_data_pointer),pointer :: p => null()
-   end type
-
-   type type_scalar_data_pointer_pointer
-      type (type_scalar_data_pointer),pointer :: p => null()
-   end type
-
-   ! ====================================================================================================
    ! Variable identifiers used by biogeochemical models.
    ! ====================================================================================================
 
@@ -154,26 +135,26 @@
    end type
 
    type,extends(type_variable_id) :: type_state_variable_id
-      integer                       :: state_index        = -1
-      integer                       :: sms_index          = -1
-      integer                       :: surface_flux_index = -1
-      integer                       :: bottom_flux_index  = -1
-      real(rk)                      :: background         = 0.0_rk
-      type (type_bulk_data_pointer) :: data
+      integer  :: index              = -1
+      integer  :: state_index        = -1
+      integer  :: sms_index          = -1
+      integer  :: surface_flux_index = -1
+      integer  :: bottom_flux_index  = -1
+      real(rk) :: background         = 0.0_rk
    end type
 
    type,extends(type_variable_id) :: type_bottom_state_variable_id
-      integer                             :: bottom_sms_index   = -1
-      integer                             :: bottom_state_index = -1
-      real(rk)                            :: background = 0.0_rk
-      type (type_horizontal_data_pointer) :: horizontal_data
+      integer  :: horizontal_index   = -1
+      integer  :: bottom_sms_index   = -1
+      integer  :: bottom_state_index = -1
+      real(rk) :: background         = 0.0_rk
    end type
 
    type,extends(type_variable_id) :: type_surface_state_variable_id
-      integer                             :: surface_sms_index   = -1
-      integer                             :: surface_state_index = -1
-      real(rk)                            :: background          = 0.0_rk
-      type (type_horizontal_data_pointer) :: horizontal_data
+      integer  :: horizontal_index    = -1
+      integer  :: surface_sms_index   = -1
+      integer  :: surface_state_index = -1
+      real(rk) :: background          = 0.0_rk
    end type
 
    type,extends(type_variable_id) :: type_diagnostic_variable_id
@@ -185,18 +166,18 @@
    end type
 
    type,extends(type_variable_id) :: type_dependency_id
-      type (type_bulk_data_pointer) :: data
-      real(rk)                      :: background = 0.0_rk
+      integer  :: index      = -1
+      real(rk) :: background = 0.0_rk
    end type
 
    type,extends(type_variable_id) :: type_horizontal_dependency_id
-      type (type_horizontal_data_pointer) :: horizontal_data
-      real(rk)                            :: background = 0.0_rk
+      integer  :: horizontal_index = -1
+      real(rk) :: background       = 0.0_rk
    end type
 
    type,extends(type_variable_id) :: type_global_dependency_id
-      type (type_scalar_data_pointer) :: global_data
-      real(rk)                        :: background = 0.0_rk
+      integer  :: global_index = -1
+      real(rk) :: background   = 0.0_rk
    end type
 
    type,extends(type_variable_id) :: type_conserved_quantity_id
@@ -254,7 +235,7 @@
       class (type_base_model),pointer :: source_model   => null()
       type (type_contribution_list)   :: contributions
 
-      type (type_integer_pointer_set) :: state_indices,write_indices,sms_indices
+      type (type_integer_pointer_set) :: read_indices,state_indices,write_indices,sms_indices
       type (type_real_pointer_set)    :: background_values
    end type
 
@@ -265,8 +246,7 @@
       logical                                       :: no_river_dilution         = .false.
       type (type_bulk_standard_variable)            :: standard_variable
 
-      ! Arrays with all associated data and index pointers.
-      type (type_bulk_data_pointer_pointer),allocatable :: alldata(:) 
+      ! Arrays with additional domain-specific index pointers.
       type (type_integer_pointer_set) :: surface_flux_indices,bottom_flux_indices
    end type type_bulk_variable
 
@@ -274,17 +254,12 @@
       ! Metadata
       integer                                  :: domain         = domain_bottom
       type (type_horizontal_standard_variable) :: standard_variable
-      
-      ! Arrays with all associated data and index pointers.
-      type (type_horizontal_data_pointer_pointer),allocatable :: alldata(:) 
+
    end type type_horizontal_variable
 
    type,extends(type_internal_variable) :: type_scalar_variable
       ! Metadata
       type (type_global_standard_variable) :: standard_variable
-
-      ! Arrays with all associated data and index pointers.
-      type (type_scalar_data_pointer_pointer),allocatable :: alldata(:) 
    end type type_scalar_variable
 
    type type_link
@@ -308,14 +283,15 @@
    type,abstract :: type_expression
       class (type_expression), pointer :: next        => null()
       character(len=attribute_length)  :: output_name = ''
+      integer,pointer :: out => null()
    end type
 
    type,abstract,extends(type_expression) :: type_bulk_expression
-      type (type_bulk_data_pointer),pointer :: out => null()
+      !type (type_bulk_data_pointer),pointer :: out => null()
    end type
 
    type,abstract,extends(type_expression) :: type_horizontal_expression
-      type (type_horizontal_data_pointer),pointer :: out => null()
+      !type (type_horizontal_data_pointer),pointer :: out => null()
    end type
 
    ! ====================================================================================================
@@ -366,6 +342,9 @@
       real(rk) :: dt = 1.0_rk
 
       logical :: check_conservation = .false.
+
+      integer,dimension(:),allocatable :: reused_diag_write_indices,reused_diag_read_indices
+      integer,dimension(:),allocatable :: reused_diag_hz_write_indices,reused_diag_hz_read_indices
    contains
 
       ! Procedure for adding child models [during initialization only]
@@ -476,7 +455,6 @@
 
       ! Bookkeeping: calculate total of conserved quantities, check and repair model state.
       procedure :: get_conserved_quantities => base_get_conserved_quantities
-      procedure :: state_to_conserved_quantities => base_state_to_conserved_quantities
       procedure :: get_horizontal_conserved_quantities => base_get_horizontal_conserved_quantities
       procedure :: check_state              => base_check_state
       procedure :: check_surface_state      => base_check_surface_state
@@ -506,6 +484,18 @@
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
       integer                                                   :: nstate
 
+      ! Registry with pointers to global fields of readable variables.
+      ! These pointers are accessed to fill the prefetch (see below).
+      type (type_bulk_data_pointer),      allocatable :: data(:)
+      type (type_horizontal_data_pointer),allocatable :: data_hz(:)
+      type (type_scalar_data_pointer),    allocatable :: data_scalar(:)
+
+      ! Prefetch arrays that will hold readable data for a single domain slice.
+      ! Biogeochemical models use only these to read data.
+      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_            :: prefetch
+      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ALLOCATABLE_ :: prefetch_hz
+      real(rk),allocatable,dimension(:)                                    :: prefetch_scalar
+
 #ifdef _FABM_MASK_
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
 #endif
@@ -529,16 +519,6 @@
    end type
 
    class (type_base_model_factory),pointer,save,public :: factory => null()
-
-   ! ====================================================================================================
-   ! Interfaces
-   ! ====================================================================================================
-
-   interface append_data_pointer
-      module procedure append_bulk_data_pointer
-      module procedure append_horizontal_data_pointer
-      module procedure append_scalar_data_pointer
-   end interface
 
 !-----------------------------------------------------------------------
 
@@ -1118,87 +1098,6 @@ subroutine real_pointer_set_set_value(self,value)
    end do
 end subroutine real_pointer_set_set_value
 
-subroutine append_bulk_data_pointer(array,data)
-   type (type_bulk_data_pointer_pointer),allocatable :: array(:)
-   type (type_bulk_data_pointer),target :: data
-   type (type_bulk_data_pointer_pointer),allocatable :: oldarray(:)
-   integer :: i
-
-   ! Create a new list of data pointers, or extend it if already allocated.
-   if (.not.allocated(array)) then
-      allocate(array(1))
-   else
-      do i=1,size(array)
-         if (associated(array(i)%p,data)) return
-      end do
-
-      allocate(oldarray(size(array)))
-      oldarray = array
-      deallocate(array)
-      allocate(array(size(oldarray)+1))
-      array(1:size(oldarray)) = oldarray
-      deallocate(oldarray)
-   end if
-
-   ! Add pointer to provided data to the list.
-   array(size(array))%p => data
-   array(size(array))%p = array(1)%p
-end subroutine append_bulk_data_pointer
-
-subroutine append_horizontal_data_pointer(array,data)
-   type (type_horizontal_data_pointer_pointer),allocatable :: array(:)
-   type (type_horizontal_data_pointer),target :: data
-   type (type_horizontal_data_pointer_pointer),allocatable :: oldarray(:)
-   integer :: i
-
-   ! Create a new list of data pointers, or extend it if already allocated.
-   if (.not.allocated(array)) then
-      allocate(array(1))
-   else
-      do i=1,size(array)
-         if (associated(array(i)%p,data)) return
-      end do
-
-      allocate(oldarray(size(array)))
-      oldarray = array
-      deallocate(array)
-      allocate(array(size(oldarray)+1))
-      array(1:size(oldarray)) = oldarray
-      deallocate(oldarray)
-   end if
-
-   ! Add pointer to provided data to the list.
-   array(size(array))%p => data
-   array(size(array))%p = array(1)%p
-end subroutine append_horizontal_data_pointer
-
-subroutine append_scalar_data_pointer(array,data)
-   type (type_scalar_data_pointer_pointer),allocatable :: array(:)
-   type (type_scalar_data_pointer),target :: data
-   type (type_scalar_data_pointer_pointer),allocatable :: oldarray(:)
-   integer :: i
-
-   ! Create a new list of data pointers, or extend it if already allocated.
-   if (.not.allocated(array)) then
-      allocate(array(1))
-   else
-      do i=1,size(array)
-         if (associated(array(i)%p,data)) return
-      end do
-
-      allocate(oldarray(size(array)))
-      oldarray = array
-      deallocate(array)
-      allocate(array(size(oldarray)+1))
-      array(1:size(oldarray)) = oldarray
-      deallocate(oldarray)
-   end if
-
-   ! Add pointer to provided data to the list.
-   array(size(array))%p => data
-   array(size(array))%p = array(1)%p
-end subroutine append_scalar_data_pointer
-
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -1238,7 +1137,7 @@ end subroutine append_scalar_data_pointer
                                   vertical_movement=vertical_movement, specific_light_extinction=specific_light_extinction, &
                                   no_precipitation_dilution=no_precipitation_dilution, no_river_dilution=no_river_dilution, &
                                   standard_variable=standard_variable, presence=presence, &
-                                  state_index=id%state_index, data=id%data, sms_index=id%sms_index, background=id%background, &
+                                  state_index=id%state_index, read_index=id%index, sms_index=id%sms_index, background=id%background, &
                                   surface_flux_index=id%surface_flux_index, bottom_flux_index=id%bottom_flux_index, link=id%link)
 
    end subroutine register_bulk_state_variable
@@ -1277,7 +1176,7 @@ end subroutine append_scalar_data_pointer
       call self%add_horizontal_variable(name, units, long_name, missing_value, minimum, maximum, &
                                         initial_value=initial_value, background_value=background_value, &
                                         standard_variable=standard_variable, presence=presence, domain=domain_bottom, &
-                                        state_index=id%bottom_state_index, data=id%horizontal_data, sms_index=id%bottom_sms_index, &
+                                        state_index=id%bottom_state_index, read_index=id%horizontal_index, sms_index=id%bottom_sms_index, &
                                         background=id%background, link=id%link)
 
    end subroutine register_bottom_state_variable
@@ -1316,7 +1215,7 @@ end subroutine append_scalar_data_pointer
       call self%add_horizontal_variable(name, units, long_name, missing_value, minimum, maximum, &
                                         initial_value=initial_value, background_value=background_value, &
                                         standard_variable=standard_variable, presence=presence, domain=domain_surface, &
-                                        state_index=id%surface_state_index, data=id%horizontal_data, sms_index=id%surface_sms_index, &
+                                        state_index=id%surface_state_index, read_index=id%horizontal_index, sms_index=id%surface_sms_index, &
                                         background=id%background, link=id%link)
 
    end subroutine register_surface_state_variable
@@ -1330,7 +1229,7 @@ end subroutine append_scalar_data_pointer
 ! !INTERFACE:
    subroutine add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                            initial_value, background_value, presence, output, time_treatment, prefill, &
-                           state_index, write_index, sms_index, background, link)
+                           read_index, state_index, write_index, sms_index, background, link)
 !
 ! !DESCRIPTION:
 !  This function fills all generic variable fields (i.e., those independent of the variable's domain), and returns
@@ -1345,7 +1244,7 @@ end subroutine append_scalar_data_pointer
       real(rk),                             intent(in),optional :: minimum, maximum,missing_value,initial_value,background_value
       integer,                              intent(in),optional :: presence, output, time_treatment
       logical,                              intent(in),optional :: prefill
-      integer,                       target,           optional :: state_index, write_index, sms_index
+      integer,                       target,           optional :: read_index, state_index, write_index, sms_index
       real(rk),                      target,           optional :: background
       type (type_link),              pointer,          optional :: link
 !
@@ -1415,6 +1314,7 @@ end subroutine append_scalar_data_pointer
       end if
 
       if (present(sms_index)) call variable%sms_indices%append(sms_index,.false.)
+      if (present(read_index)) call variable%read_indices%append(read_index,.true.)
 
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self,variable)
@@ -1432,7 +1332,7 @@ end subroutine append_scalar_data_pointer
    recursive subroutine add_bulk_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, background_value, &
                                 vertical_movement, specific_light_extinction, no_precipitation_dilution, no_river_dilution, &
                                 standard_variable, presence, output, time_treatment, prefill, &
-                                state_index, write_index, sms_index, surface_flux_index, bottom_flux_index, data, background, link)
+                                read_index, state_index, write_index, sms_index, surface_flux_index, bottom_flux_index, background, link)
 !
 ! !DESCRIPTION:
 !  This function registers a new bulk variable. It is not predefined to be a state variable, diagnostic variable or dependency.
@@ -1449,8 +1349,7 @@ end subroutine append_scalar_data_pointer
       integer,                           intent(in),optional :: presence, output, time_treatment
       logical,                           intent(in),optional :: prefill
 
-      integer,                      target,optional :: state_index, write_index, sms_index, surface_flux_index, bottom_flux_index
-      type (type_bulk_data_pointer),target,optional :: data
+      integer,                      target,optional :: read_index, state_index, write_index, sms_index, surface_flux_index, bottom_flux_index
       real(rk),                     target,optional :: background
 
       type (type_link),pointer,optional :: link
@@ -1471,7 +1370,6 @@ end subroutine append_scalar_data_pointer
       if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
       if (present(no_river_dilution))         variable%no_river_dilution         = no_river_dilution
       if (present(standard_variable))         variable%standard_variable         = standard_variable
-      if (present(data))                      call append_data_pointer(variable%alldata,data)
       if (present(specific_light_extinction)) call variable%contributions%add( &
          standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,scale_factor=specific_light_extinction)
 
@@ -1482,7 +1380,7 @@ end subroutine append_scalar_data_pointer
       pvariable => variable
       call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
-                        state_index, write_index, sms_index, background, link_)
+                        read_index, state_index, write_index, sms_index, background, link_)
 
       if (present(sms_index)) then
          call self%add_bulk_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
@@ -1511,7 +1409,7 @@ end subroutine append_scalar_data_pointer
 ! !INTERFACE:
    recursive subroutine add_horizontal_variable(self,name,units,long_name, missing_value, minimum, maximum, initial_value, background_value, &
                                       standard_variable, presence, output, time_treatment, prefill, domain, &
-                                      state_index, write_index, sms_index, data, background, link)
+                                      read_index, state_index, write_index, sms_index, background, link)
 !
 ! !DESCRIPTION:
 !  This function registers a new horizontal variable. It is not predefined to be a state variable, diagnostic variable
@@ -1527,8 +1425,7 @@ end subroutine append_scalar_data_pointer
       integer,                                  intent(in),optional :: presence, domain, output, time_treatment
       logical,                                  intent(in),optional :: prefill
 
-      integer,                            target,optional :: state_index, write_index, sms_index
-      type (type_horizontal_data_pointer),target,optional :: data
+      integer,                            target,optional :: read_index, state_index, write_index, sms_index
       real(rk),                           target,optional :: background
 
       type (type_link),pointer,optional :: link
@@ -1547,7 +1444,6 @@ end subroutine append_scalar_data_pointer
       ! Fill fields specific to horizontal variables.
       if (present(domain))            variable%domain = domain
       if (present(standard_variable)) variable%standard_variable = standard_variable
-      if (present(data))              call append_data_pointer(variable%alldata,data)
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       ! NB the variable must be passed as POINTER in order to for it to be deallocated at any later time.
@@ -1556,7 +1452,7 @@ end subroutine append_scalar_data_pointer
       pvariable => variable
       call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
-                        state_index, write_index, sms_index, background, link_)
+                        read_index, state_index, write_index, sms_index, background, link_)
 
       if (present(sms_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
@@ -1575,7 +1471,7 @@ end subroutine append_scalar_data_pointer
 ! !INTERFACE:
    recursive subroutine add_scalar_variable(self,name, long_name, units, missing_value, minimum, maximum, initial_value, background_value, &
                                   standard_variable, presence, output, time_treatment, prefill, &
-                                  state_index, write_index, sms_index, data, background, link)
+                                  read_index, state_index, write_index, sms_index, background, link)
 !
 ! !DESCRIPTION:
 !  This function registers a new scalar variable. It is not predefined to be a state variable, diagnostic variable or dependency.
@@ -1590,8 +1486,7 @@ end subroutine append_scalar_data_pointer
       integer,                              intent(in),optional :: presence, output, time_treatment
       logical,                              intent(in),optional :: prefill
 
-      integer,                        target,optional :: state_index, write_index, sms_index
-      type (type_scalar_data_pointer),target,optional :: data
+      integer,                        target,optional :: read_index, state_index, write_index, sms_index
       real(rk),                       target,optional :: background
 
       type (type_link),pointer,optional :: link
@@ -1608,7 +1503,6 @@ end subroutine append_scalar_data_pointer
 
       ! Fill fields specific to scalar variables.
       if (present(standard_variable)) variable%standard_variable = standard_variable
-      if (present(data))              call append_data_pointer(variable%alldata,data)
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       ! NB the variable must be passed as POINTER in order to for it to be deallocated at any later time.
@@ -1617,7 +1511,7 @@ end subroutine append_scalar_data_pointer
       pvariable => variable
       call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
-                        state_index, write_index, sms_index, background, link)
+                        read_index, state_index, write_index, sms_index, background, link)
    end subroutine add_scalar_variable
 !EOC
 
@@ -2007,7 +1901,7 @@ end subroutine append_scalar_data_pointer
 
       call self%add_bulk_variable(name, units, long_name, &
                                   standard_variable=standard_variable, presence=presence, &
-                                  data=id%data, background=id%background, link=id%link)
+                                  read_index=id%index, background=id%background, link=id%link)
 
       !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
@@ -2056,7 +1950,7 @@ end subroutine append_scalar_data_pointer
 
       call self%add_horizontal_variable(name, units, long_name,&
                                         standard_variable=standard_variable, presence=presence, &
-                                        data=id%horizontal_data, background=id%background, link=id%link)
+                                        read_index=id%horizontal_index, background=id%background, link=id%link)
 
       !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
@@ -2105,7 +1999,7 @@ end subroutine append_scalar_data_pointer
 
       call self%add_scalar_variable(name, units, long_name, &
                                     standard_variable=standard_variable, presence=presence, &
-                                    data=id%global_data, background=id%background, link=id%link)
+                                    read_index=id%global_index, background=id%background, link=id%link)
 
       !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
@@ -2120,7 +2014,7 @@ subroutine register_bulk_expression_dependency(self,id,expression)
    class (type_bulk_expression),allocatable :: copy
 
    allocate(copy,source=expression)
-   copy%out => id%data
+   copy%out => id%index
    call self%register_dependency(id,trim(copy%output_name))
    copy%output_name = id%link%target%name
 
@@ -2136,7 +2030,7 @@ subroutine register_horizontal_expression_dependency(self,id,expression)
    class (type_horizontal_expression),allocatable :: copy
 
    allocate(copy,source=expression)
-   copy%out => id%horizontal_data
+   copy%out => id%horizontal_index
    call self%register_dependency(id,trim(copy%output_name))
    copy%output_name = id%link%target%name
 
@@ -2345,103 +2239,6 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
 end subroutine get_string_parameter
 !EOC
 
-subroutine merge_variables(master,slave)
-   class (type_internal_variable),intent(inout) :: master
-   class (type_internal_variable),intent(in)    :: slave
-
-   type (type_contribution), pointer :: contribution
-
-   call log_message(trim(slave%name)//' --> '//trim(master%name))
-
-   if (.not.slave%write_indices%is_empty()) &
-      call fatal_error('merge_variables','Attempt to couple write-only variable ' &
-         //trim(slave%name)//' to '//trim(master%name)//'.')
-   if (master%state_indices%is_empty().and..not.slave%state_indices%is_empty()) &
-      call fatal_error('merge_variables','Attempt to couple state variable ' &
-         //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
-   if (master%presence==presence_external_optional) &
-      call fatal_error('merge_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
-
-   call master%state_indices%extend(slave%state_indices,.true.)
-   call master%sms_indices%extend(slave%sms_indices,.false.)
-   call master%background_values%extend(slave%background_values)
-   call master%properties%update(slave%properties,overwrite=.false.)
-   contribution => slave%contributions%first
-   do while (associated(contribution))
-      call master%contributions%add(contribution%target,contribution%scale_factor)
-      contribution => contribution%next
-   end do
-
-   select type (master)
-      class is (type_bulk_variable)
-         select type (slave)
-            class is (type_bulk_variable)
-               call merge_bulk_variables(master,slave)
-            class is (type_internal_variable) ! class default would be preferable but breaks the next line with Cray 8.1
-               call fatal_error('merge_variables', &
-                  'type mismatch: '//trim(master%name)//' is defined on the whole domain, '//trim(slave%name)//' is not.')
-         end select      
-      class is (type_horizontal_variable)
-         select type (slave)
-            class is (type_horizontal_variable)
-               call merge_horizontal_variables(master,slave)
-            class is (type_internal_variable) ! class default would be preferable but breaks the next line with Cray 8.1
-               call fatal_error('merge_variables', &
-                  'type mismatch: '//trim(master%name)//' is defined on the horizontal domain, '//trim(slave%name)//' is not.')
-         end select      
-      class is (type_scalar_variable)
-         select type (slave)
-            class is (type_scalar_variable)
-               call merge_scalar_variables(master,slave)
-            class is (type_internal_variable) ! class default would be preferable but breaks the next line with Cray 8.1
-               call fatal_error('merge_variables', &
-                  'type mismatch: '//trim(master%name)//' is defined as a scalar, '//trim(slave%name)//' is not.')
-         end select      
-   end select
-end subroutine
-
-subroutine merge_bulk_variables(master,slave)
-   type (type_bulk_variable),intent(inout) :: master
-   type (type_bulk_variable),intent(in)    :: slave
-   integer :: i
-
-   if (allocated(slave%alldata)) then
-      do i=1,size(slave%alldata)
-         call append_data_pointer(master%alldata,slave%alldata(i)%p)
-      end do
-   end if
-   call master%surface_flux_indices%extend(slave%surface_flux_indices,.false.)
-   call master%bottom_flux_indices%extend(slave%bottom_flux_indices,.false.)
-end subroutine merge_bulk_variables
-
-subroutine merge_horizontal_variables(master,slave)
-   type (type_horizontal_variable),intent(inout) :: master
-   type (type_horizontal_variable),intent(in)    :: slave
-   integer :: i
-   
-   if (slave%domain/=master%domain) then
-      call fatal_error('merge_horizontal_variables','Domains of coupled variabled ' &
-         //trim(slave%name)//' to '//trim(master%name)//' do not match.')
-   end if
-   if (allocated(slave%alldata)) then
-      do i=1,size(slave%alldata)
-         call append_data_pointer(master%alldata,slave%alldata(i)%p)
-      end do
-   end if
-end subroutine merge_horizontal_variables
-
-subroutine merge_scalar_variables(master,slave)
-   type (type_scalar_variable),intent(inout) :: master
-   type (type_scalar_variable),intent(in)    :: slave
-   integer :: i
-
-   if (allocated(slave%alldata)) then
-      do i=1,size(slave%alldata)
-         call append_data_pointer(master%alldata,slave%alldata(i)%p)
-      end do
-   end if
-end subroutine merge_scalar_variables
-
    function find_object(self,name,recursive,exact) result(object)
 
       class (type_base_model),  intent(in),target :: self
@@ -2629,57 +2426,6 @@ function get_safe_name(name) result(safe_name)
    end do
 end function
 
-recursive subroutine find_dependencies(self,list,forbidden)
-   class (type_base_model),intent(in),target   :: self
-   type (type_model_list), intent(inout)       :: list
-   type (type_model_list), intent(in),optional :: forbidden
-
-   type (type_link),pointer            :: link
-   type (type_model_list)              :: forbidden_with_self
-   type (type_model_list_node),pointer :: node
-   character(len=2048)                 :: chain
-
-   if (associated(list%find(self))) return
-
-   ! Check the list of forbidden model (i.e., models that indirectly request the current model)
-   ! If the current model is on this list, there is a circular dependency between models.
-   if (present(forbidden)) then
-      node => forbidden%find(self)
-      if (associated(node)) then
-         ! Circular dependency found - report as fatal error.
-         chain = ''
-         do while (associated(node))
-            chain = trim(chain)//trim(node%model%name)//' -> '
-            node => node%next
-         end do
-         call fatal_error('find_dependencies','circular dependency found: '//trim(chain)//trim(self%name))
-      end if
-      call forbidden_with_self%extend(forbidden)
-   end if
-   call forbidden_with_self%append(self)
-
-   ! Loop over all variables, and if they belong to some other model, first add that model to the dependency list.
-   link => self%links%first
-   do while (associated(link))
-      if (index(link%name,'/')==0.and.associated(link%target%source_model).and..not.associated(link%target%source_model,self)) &
-         ! This is one of our own links, it is a diagnostic, and it is set by another model.
-         ! That's a true dependency - add it.
-         call find_dependencies(link%target%source_model,list,forbidden_with_self)
-      link => link%next
-   end do
-
-   ! We're happy - add ourselves to the list of processed models.
-   call list%append(self)
-
-   ! Now process any children that have not been processed before.
-   node => self%children%first
-   do while (associated(node))
-      call find_dependencies(node%model,list)
-      node => node%next
-   end do
-
-   call forbidden_with_self%finalize()
-end subroutine
 
 subroutine abstract_model_factory_add(self,child)
    class (type_base_model_factory),       intent(inout) :: self
@@ -2712,27 +2458,6 @@ recursive subroutine abstract_model_factory_create(self,name,model)
       child => child%next_sibling
    end do
 end subroutine
-
-   subroutine base_state_to_conserved_quantities(self,_ARGUMENTS_ND_,y,sums)
-      class (type_base_model),          intent(in)  :: self
-      _DECLARE_ARGUMENTS_ND_
-      real(rk) _DIMENSION_SLICE_PLUS_1_,intent(in)  :: y
-      real(rk) _DIMENSION_SLICE_PLUS_1_,intent(out) :: sums
-
-      integer  :: i,j,index
-      real(rk) :: scale_factor
-
-      sums = 0.0_rk
-      !do i=1,size(self%conserved_quantities)
-      !   do j=1,size(self%conserved_quantities(i)%state_indices)
-      !      index = self%conserved_quantities(i)%state_indices(j)
-      !      scale_factor = self%conserved_quantities(i)%state_scale_factors(j)
-      !      _LOOP_BEGIN_
-      !         sums _INDEX_SLICE_PLUS_1_(i) = sums _INDEX_SLICE_PLUS_1_(i) + scale_factor*y _INDEX_SLICE_PLUS_1_(index)
-      !      _LOOP_END_
-      !   end do
-      !end do
-   end subroutine
 
    function time_treatment2output(time_treatment) result(output)
       integer, intent(in) :: time_treatment

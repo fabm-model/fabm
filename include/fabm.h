@@ -258,9 +258,11 @@
 ! Beginning and end of spatial loop
 #ifdef _FABM_MASK_
 #define _LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop;if (_FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)) then
+#define _CONCURRENT_LOOP_BEGIN_EX_(environment) do concurrent (_VARIABLE_1DLOOP_=fabm_loop_start:fabm_loop_stop);if (_FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)) then
 #define _LOOP_END_ end if;end do
 #else
 #define _LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop
+#define _CONCURRENT_LOOP_BEGIN_EX_(environment) do concurrent (_VARIABLE_1DLOOP_=fabm_loop_start:fabm_loop_stop)
 #define _LOOP_END_ end do
 #endif
 
@@ -290,6 +292,7 @@
 
 ! Beginning and end of spatial loop
 #define _LOOP_BEGIN_EX_(environment)
+#define _CONCURRENT_LOOP_BEGIN_EX_(environment)
 #define _LOOP_END_
 
 ! Dimensionality of generic space-dependent arguments.
@@ -310,6 +313,7 @@
 #endif
 
 #define _LOOP_BEGIN_ _LOOP_BEGIN_EX_(environment)
+#define _CONCURRENT_LOOP_BEGIN_ _CONCURRENT_LOOP_BEGIN_EX_(environment)
 
 #ifdef _FABM_USE_1D_LOOP_IN_HORIZONTAL_
 
@@ -322,6 +326,7 @@
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
 #define _HORIZONTAL_LOOP_BEGIN_EX_(environment) _LOOP_BEGIN_EX_(environment)
+#define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment) _CONCURRENT_LOOP_BEGIN_EX_(environment)
 #define _HORIZONTAL_LOOP_END_ _LOOP_END_
 
 ! Vertical dimension is not among those vectorized:
@@ -349,6 +354,7 @@
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
 #define _HORIZONTAL_LOOP_BEGIN_EX_(environment)
+#define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
 #define _HORIZONTAL_LOOP_END_
 
 #define _DIMENSION_HORIZONTAL_SLICE_
@@ -366,6 +372,7 @@
 #endif
 
 #define _HORIZONTAL_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_EX_(environment)
+#define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_ _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
 
 ! For FABM: standard arguments used in calling biogeochemical routines.
 #define _ARGUMENTS_SHARED_IN_ self%environment
@@ -470,23 +477,15 @@
 
 ! For BGC models: macro to determine whether a variable identifier is in use (i.e., has been registered with FABM)
 #define _VARIABLE_REGISTERED_(variable) associated(variable%link)
-#define _AVAILABLE_(variable) associated(variable%data%p)
-
-! Within FABM: read/write variable access.
-#define _GET_EX_(variable,target) target = variable%p _INDEX_LOCATION_
-#define _GET_HORIZONTAL_EX_(variable,target) target = variable%p _INDEX_HORIZONTAL_LOCATION_
-#define _GET_GLOBAL_EX_(variable,target) target = variable%p
-#define _SET_EX_(variable,value) variable%p _INDEX_LOCATION_ = value
-#define _SET_HORIZONTAL_EX_(variable,value) variable%p _INDEX_HORIZONTAL_LOCATION_ = value
-#define _SET_GLOBAL_EX_(variable,value) variable%p = value
+#define _AVAILABLE_(variable) variable%index/=-1
 
 ! For BGC models: read/write variable access.
-#define _GET_(variable,target) _GET_EX_(variable%data,target)
-#define _GET_HORIZONTAL_(variable,target) _GET_HORIZONTAL_EX_(variable%horizontal_data,target)
-#define _GET_GLOBAL_(variable,target) _GET_GLOBAL_EX_(variable%global_data,target)
-#define _SET_(variable,value) _SET_EX_(variable%data,value)
-#define _SET_HORIZONTAL_(variable,value) _SET_HORIZONTAL_EX_(variable%horizontal_data,value)
-#define _SET_GLOBAL_(variable,value) _SET_GLOBAL_EX_(variable%global_data,value)
+#define _GET_(variable,target) target = environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index)
+#define _GET_HORIZONTAL_(variable,target) target = environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index)
+#define _GET_GLOBAL_(variable,target) target = environment%prefetch_scalar(variable%global_index)
+#define _SET_(variable,value) environment%data(variable%index)%p _INDEX_LOCATION_ = value
+#define _SET_HORIZONTAL_(variable,value) environment%data_hz(variable%horizontal_index)%p _INDEX_HORIZONTAL_LOCATION_ = value
+#define _SET_GLOBAL_(variable,value) environment%data_scalar(variable%global_index)%p = value
 #define _SET_DIAGNOSTIC_(variable,value) environment%diag(_PREARG_LOCATION_ variable%diag_index) = value
 #define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) environment%diag_hz(_PREARG_LOCATION_HZ_ variable%horizontal_diag_index) = value
 
@@ -514,7 +513,7 @@
 #define _FABM_HORIZONTAL_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_
 #define _FABM_HORIZONTAL_LOOP_END_ _HORIZONTAL_LOOP_END_
 
-#define _GET_WITH_BACKGROUND_(variable,target) target = variable%data%p _INDEX_LOCATION_+variable%background
+#define _GET_WITH_BACKGROUND_(variable,target) target = environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index)+variable%background
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 
