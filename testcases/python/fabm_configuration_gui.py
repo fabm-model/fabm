@@ -12,7 +12,7 @@ try:
     import pyfabm
     import pyfabm.gui_qt
 except ImportError:
-    print 'Unable to load pyfabm. Please build and install FABM with FABMHOST=python.'
+    print 'Unable to load pyfabm. Please build and install FABM with FABM_HOST=python.'
     sys.exit(1)
 
 # Create model object
@@ -40,7 +40,7 @@ def onTreeViewContextMenu(pos):
                 data.reset()
                 itemmodel.rebuild()
             contextMenu = QtGui.QMenu(tree)
-            contextMenu.addAction('Reset to %s' % data.default,reset)
+            contextMenu.addAction('Reset to default (%s)' % data.default,reset)
             contextMenu.exec_(tree.mapToGlobal(pos))
 tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 tree.customContextMenuRequested.connect(onTreeViewContextMenu)
