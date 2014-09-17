@@ -1971,6 +1971,17 @@ end subroutine
    ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
    ! This is always done, independently of any model-specific checks that may have been called above.
 
+   ! Quick bounds check for the common case where all values are valid.
+   do ivar=1,size(self%state_variables)
+      minimum = self%state_variables(ivar)%minimum
+      maximum = self%state_variables(ivar)%maximum
+      _LOOP_BEGIN_EX_(self%environment)
+         value = self%environment%prefetch _INDEX_SLICE_PLUS_1_(self%state_variables(ivar)%globalid%read_index)
+         if (value<minimum.or.value>maximum) valid = .false.
+      _LOOP_END_
+   end do
+   if (valid) return
+
    ! Check boundaries for pelagic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
    do ivar=1,size(self%state_variables)
@@ -2403,7 +2414,7 @@ end subroutine
    end do
 
    _LOOP_BEGIN_EX_(self%environment)
-      extinction _INDEX_SLICE_ = self%environment%prefetch _INDEX_SLICE_PLUS_1_(self%extinction_index)
+      extinction _INDEX_SLICE_ = self%environment%data(self%extinction_index)%p _INDEX_LOCATION_
    _LOOP_END_
 
    end subroutine fabm_get_light_extinction
@@ -2535,7 +2546,7 @@ end subroutine
       if (associated(self%conserved_quantities(i)%sum)) &
          call self%conserved_quantities(i)%sum%evaluate(_ARGUMENTS_ND_IN_)
       _LOOP_BEGIN_EX_(self%environment)
-         sums _INDEX_SLICE_PLUS_1_(i) = self%environment%prefetch _INDEX_SLICE_PLUS_1_(self%conserved_quantities(i)%index)
+         sums _INDEX_SLICE_PLUS_1_(i) = self%environment%data(self%conserved_quantities(i)%index)%p _INDEX_LOCATION_
       _LOOP_END_
    end do
 
@@ -2569,7 +2580,7 @@ end subroutine
       if (associated(self%conserved_quantities(i)%horizontal_sum)) &
          call self%conserved_quantities(i)%horizontal_sum%evaluate_horizontal(_ARGUMENTS_IN_HZ_)
       _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-         sums _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(self%conserved_quantities(i)%horizontal_index)
+         sums _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%environment%data_hz(self%conserved_quantities(i)%horizontal_index)%p _INDEX_HORIZONTAL_LOCATION_
       _HORIZONTAL_LOOP_END_
    end do
 
