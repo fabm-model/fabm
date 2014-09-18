@@ -69,19 +69,23 @@ module fabm_builtin_models
 
 contains
 
-   function weighted_sum_add_to_parent(self,parent,name) result(sum_used)
+   function weighted_sum_add_to_parent(self,parent,name,create_for_one) result(sum_used)
       class (type_weighted_sum),intent(inout),target :: self
       class (type_base_model),  intent(inout),target :: parent
       character(len=*),         intent(in)           :: name
+      logical,optional,         intent(in)           :: create_for_one
 
-      logical :: sum_used
+      logical :: sum_used,create_for_one_
+
+      create_for_one_ = .false.
+      if (present(create_for_one)) create_for_one_ = create_for_one
 
       call parent%add_bulk_variable(name,self%output_units,name)
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          call parent%request_coupling(name,'zero')
          sum_used = .false.
-      elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk) then
+      elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
          call parent%request_coupling(name,self%first%name)
          sum_used = .false.
@@ -185,19 +189,23 @@ contains
       call self%evaluate(_ARGUMENTS_ND_)
    end subroutine
 
-   function horizontal_weighted_sum_add_to_parent(self,parent,name) result(sum_used)
+   function horizontal_weighted_sum_add_to_parent(self,parent,name,create_for_one) result(sum_used)
       class (type_horizontal_weighted_sum),intent(inout),target :: self
       class (type_base_model),             intent(inout),target :: parent
       character(len=*),                    intent(in)           :: name
+      logical,optional,                    intent(in)           :: create_for_one
 
-      logical :: sum_used
+      logical :: sum_used,create_for_one_
+
+      create_for_one_ = .false.
+      if (present(create_for_one)) create_for_one_ = create_for_one
 
       call parent%add_horizontal_variable(name,self%output_units,name)
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          call parent%request_coupling(name,'zero_hz')
          sum_used = .false.
-      elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk) then
+      elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
          call parent%request_coupling(name,self%first%name)
          sum_used = .false.

@@ -362,9 +362,9 @@ recursive subroutine build_aggregate_variables(self)
          end do
 
          sum%output_units = trim(aggregate_variable%standard_variable%units)//'/s'
-         if (.not.sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name))) deallocate(sum)
+         if (.not.sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name),create_for_one=.true.)) deallocate(sum)
          horizontal_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m/s'
-         if (.not.horizontal_sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces')) deallocate(horizontal_sum)
+         if (.not.horizontal_sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces',create_for_one=.true.)) deallocate(horizontal_sum)
 
          aggregate_variable => aggregate_variable%next
       end do
