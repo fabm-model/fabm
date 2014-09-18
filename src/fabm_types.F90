@@ -66,7 +66,7 @@
 
    integer, parameter, public :: rk = _FABM_REAL_KIND_
 
-   integer, parameter, public :: domain_bulk = 0, domain_bottom = 1, domain_surface = 2
+   integer, parameter, public :: domain_bulk = 0, domain_bottom = 1, domain_surface = 2, domain_scalar = 3
 
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
 !
@@ -232,6 +232,7 @@
       integer                         :: output         = output_instantaneous
       integer                         :: presence       = presence_internal
       logical                         :: prefill        = .false.
+      integer                         :: domain         = domain_bulk
       class (type_base_model),pointer :: owner          => null()
       type (type_contribution_list)   :: contributions
 
@@ -252,7 +253,6 @@
 
    type,extends(type_internal_variable) :: type_horizontal_variable
       ! Metadata
-      integer                                  :: domain         = domain_bottom
       type (type_horizontal_standard_variable) :: standard_variable
 
    end type type_horizontal_variable
@@ -1393,7 +1393,8 @@ end subroutine real_pointer_set_set_value
 !-----------------------------------------------------------------------
 !BOC
       allocate(variable)
-      
+      variable%domain = domain_bulk
+
       ! Fill fields specific to bulk variables.
       if (present(vertical_movement))         variable%vertical_movement         = vertical_movement
       if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
@@ -1469,6 +1470,7 @@ end subroutine real_pointer_set_set_value
 !-----------------------------------------------------------------------
 !BOC
       allocate(variable)
+      variable%domain = domain_bottom
 
       ! Fill fields specific to horizontal variables.
       if (present(domain))            variable%domain = domain
@@ -1529,6 +1531,7 @@ end subroutine real_pointer_set_set_value
 !-----------------------------------------------------------------------
 !BOC
       allocate(variable)
+      variable%domain = domain_scalar
 
       ! Fill fields specific to scalar variables.
       if (present(standard_variable)) variable%standard_variable = standard_variable

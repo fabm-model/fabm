@@ -349,8 +349,11 @@ recursive subroutine build_aggregate_variables(self)
          do while (associated(contributing_variable))
             select type (variable=>contributing_variable%link%original)
                class is (type_bulk_variable)
-                  if (.not.variable%state_indices%is_empty()) &
+                  if (.not.variable%state_indices%is_empty()) then
                      call sum%add_component(trim(variable%name)//'_sms',contributing_variable%scale_factor)
+                     call horizontal_sum%add_component(trim(variable%name)//'_sfl',contributing_variable%scale_factor)
+                     call horizontal_sum%add_component(trim(variable%name)//'_bfl',contributing_variable%scale_factor)
+                  end if
                class is (type_horizontal_variable)
                   if (.not.variable%state_indices%is_empty()) &
                      call horizontal_sum%add_component(trim(variable%name)//'_sms',contributing_variable%scale_factor)
@@ -494,6 +497,8 @@ subroutine merge_variables(master,slave)
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
    if (master%presence==presence_external_optional) &
       call fatal_error('merge_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
+   if (slave%domain/=master%domain) call fatal_error('merge_variables', &
+      'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because domains do not match.')
 
    call master%state_indices%extend(slave%state_indices,.true.)
    call master%read_indices%extend(slave%read_indices,.true.)
@@ -512,26 +517,6 @@ subroutine merge_variables(master,slave)
             class is (type_bulk_variable)
                call master%surface_flux_indices%extend(slave%surface_flux_indices,.false.)
                call master%bottom_flux_indices%extend(slave%bottom_flux_indices,.false.)
-            class is (type_internal_variable) ! class default would be preferable but breaks the next line with Cray 8.1
-               call fatal_error('merge_variables', &
-                  'type mismatch: '//trim(master%name)//' is defined on the whole domain, '//trim(slave%name)//' is not.')
-         end select      
-      class is (type_horizontal_variable)
-         select type (slave)
-            class is (type_horizontal_variable)
-               if (slave%domain/=master%domain) &
-                  call fatal_error('merge_variables','Cannot couple '//trim(slave%name)//' to '//trim(master%name)// &
-                     ', because domains do not match.')
-            class is (type_internal_variable) ! class default would be preferable but breaks the next line with Cray 8.1
-               call fatal_error('merge_variables', &
-                  'type mismatch: '//trim(master%name)//' is defined on the horizontal domain, '//trim(slave%name)//' is not.')
-         end select      
-      class is (type_scalar_variable)
-         select type (slave)
-            class is (type_scalar_variable)
-            class is (type_internal_variable) ! class default would be preferable but breaks the next line with Cray 8.1
-               call fatal_error('merge_variables', &
-                  'type mismatch: '//trim(master%name)//' is defined as a scalar, '//trim(slave%name)//' is not.')
          end select      
    end select
 end subroutine

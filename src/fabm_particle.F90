@@ -219,10 +219,7 @@ module fabm_particle
          n = 0
          link => reference%model%links%first
          do while (associated(link))
-            select type (object=>link%target)
-               class is (type_bulk_variable)
-                  if (object%presence==presence_internal.and.associated(link%target,link%original).and..not.object%state_indices%is_empty()) n = n + 1
-            end select
+            if (link%target%domain==domain_bulk.and.link%original%presence==presence_internal.and..not.link%original%state_indices%is_empty()) n = n + 1
             link => link%next
          end do
 
@@ -233,15 +230,12 @@ module fabm_particle
          n = 0
          link => reference%model%links%first
          do while (associated(link))
-            select type (object=>link%target)
-               class is (type_bulk_variable)
-                  if (object%presence==presence_internal.and.associated(link%target,link%original).and..not.object%state_indices%is_empty()) then
-                     n = n + 1
-                     write (strindex,'(i0)') n
-                     call self%register_state_dependency(reference%id%state(n),trim(reference%name)//'_state'//trim(strindex),object%units,trim(reference%name)//' state variable '//trim(strindex))
-                     call self%request_coupling_to_model(reference%id%state(n),reference%id,link%name)
-                  end if
-            end select
+            if (link%target%domain==domain_bulk.and.link%original%presence==presence_internal.and..not.link%original%state_indices%is_empty()) then
+               n = n + 1
+               write (strindex,'(i0)') n
+               call self%register_state_dependency(reference%id%state(n),trim(reference%name)//'_state'//trim(strindex),link%target%units,trim(reference%name)//' state variable '//trim(strindex))
+               call self%request_coupling_to_model(reference%id%state(n),reference%id,link%name)
+            end if
             link => link%next
          end do
 
