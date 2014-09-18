@@ -55,6 +55,9 @@ fabm.get_suitable_masters_for_ptr.argtypes = [ctypes.c_void_p]
 fabm.get_suitable_masters_for_ptr.restype = ctypes.c_void_p
 fabm.link_list_count.argtypes = [ctypes.c_void_p]
 fabm.link_list_count.restype = ctypes.c_int
+fabm.link_list_index.argtypes = [ctypes.c_void_p,ctypes.c_int]
+fabm.link_list_index.restype = ctypes.c_void_p
+fabm.link_list_finalize.argtypes = [ctypes.c_void_p]
 
 BULK_STATE_VARIABLE            = 1
 SURFACE_STATE_VARIABLE         = 2
@@ -239,8 +242,15 @@ class Coupling(Variable):
         pass
 
     def getOptions(self):
+        options = []
         list = fabm.get_suitable_masters_for_ptr(self.slave)
-        print fabm.link_list_count(list)
+        strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        for i in range(fabm.link_list_count(list)):
+           variable = fabm.link_list_index(list,i+1)
+           fabm.get_variable_long_path(variable,ATTRIBUTE_LENGTH,strlong_name)
+           options.append(strlong_name.value)
+        fabm.link_list_finalize(list)
+        return options
 
     @property
     def long_path(self):

@@ -316,6 +316,17 @@
       pvariable = c_loc(link%target)
    end function
 
+   subroutine link_list_finalize(plist) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: link_list_finalize
+      type (c_ptr),  intent(in), value :: plist
+
+      type (type_link_list),pointer :: list
+      
+      call c_f_pointer(plist, list)
+      call list%finalize()
+      deallocate(list)
+   end subroutine
+
    subroutine get_variable_long_path(pvariable,length,long_name) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_long_path
       type (c_ptr),          intent(in), value  :: pvariable
