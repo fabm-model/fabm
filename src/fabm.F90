@@ -3065,7 +3065,7 @@ subroutine classify_variables(self)
                diagvar%globalid          = create_external_bulk_id(object)
                if (associated(object%standard_variable)) then
                   select type (standard_variable=>object%standard_variable)
-                     class is (type_bulk_standard_variable)
+                     type is (type_bulk_standard_variable)
                         diagvar%standard_variable = standard_variable
                   end select
                end if
@@ -3079,7 +3079,7 @@ subroutine classify_variables(self)
                statevar%globalid                  = create_external_bulk_id(object)
                if (associated(object%standard_variable)) then
                   select type (standard_variable=>object%standard_variable)
-                     class is (type_bulk_standard_variable)
+                     type is (type_bulk_standard_variable)
                         statevar%standard_variable = standard_variable
                   end select
                end if
@@ -3098,7 +3098,7 @@ subroutine classify_variables(self)
                hz_diagvar%globalid          = create_external_horizontal_id(object)
                if (associated(object%standard_variable)) then
                   select type (standard_variable=>object%standard_variable)
-                     class is (type_horizontal_standard_variable)
+                     type is (type_horizontal_standard_variable)
                         hz_diagvar%standard_variable = standard_variable
                   end select
                end if
@@ -3120,7 +3120,7 @@ subroutine classify_variables(self)
                hz_statevar%globalid          = create_external_horizontal_id(object)
                if (associated(object%standard_variable)) then
                   select type (standard_variable=>object%standard_variable)
-                     class is (type_horizontal_standard_variable)
+                     type is (type_horizontal_standard_variable)
                         hz_statevar%standard_variable = standard_variable
                   end select
                end if
