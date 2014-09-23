@@ -27,7 +27,7 @@ layout = QtGui.QHBoxLayout()
 tree = QtGui.QTreeView()
 
 itemmodel = pyfabm.gui_qt.ItemModel(model,dialog)
-
+tree.setItemDelegate(pyfabm.gui_qt.Delegate(dialog))
 tree.setModel(itemmodel)
 tree.setUniformRowHeights(True)
 tree.expandAll()
