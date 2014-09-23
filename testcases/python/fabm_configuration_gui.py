@@ -10,10 +10,16 @@ if args: yamlfile = args[0]
 
 try:
     import pyfabm
+except ImportError:
+    print 'Unable to load pyfabm. Please build and install FABM with FABM_HOST=python and make sure your Python installation includes numpy.'
+    sys.exit(1)
+
+try:
     import pyfabm.gui_qt
 except ImportError:
-    print 'Unable to load pyfabm. Please build and install FABM with FABM_HOST=python.'
+    print 'Unable to load pyfabm.gui_qt. Do you have PySide installed?'
     sys.exit(1)
+
 
 # Create model object
 model = pyfabm.Model(yamlfile)
