@@ -46,7 +46,7 @@
 
    ! Data types and procedures for variable management - used by FABM internally only.
    public type_link, type_link_list
-   public type_internal_variable,type_bulk_variable,type_horizontal_variable,type_scalar_variable
+   public type_internal_variable
    public type_environment
 
    public type_model_list,type_model_list_node
@@ -220,7 +220,7 @@
    ! Derived types used internally to store information on model variables and model references.
    ! ====================================================================================================
 
-   type,abstract :: type_internal_variable
+   type type_internal_variable
       character(len=attribute_length) :: name      = ''
       character(len=attribute_length) :: long_name = ''
       type (type_property_dictionary) :: properties
@@ -238,35 +238,21 @@
 
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices,sms_indices
       type (type_real_pointer_set)    :: background_values
-   end type
 
-   type,extends(type_internal_variable) :: type_bulk_variable
-      ! Metadata
+      class (type_standard_variable), pointer :: standard_variable => null()
+
+      ! Only used for bulk variables:
       real(rk)                                      :: vertical_movement         = 0.0_rk
       logical                                       :: no_precipitation_dilution = .false.
       logical                                       :: no_river_dilution         = .false.
-      type (type_bulk_standard_variable)            :: standard_variable
-
-      ! Arrays with additional domain-specific index pointers.
       type (type_integer_pointer_set) :: surface_flux_indices,bottom_flux_indices
-   end type type_bulk_variable
-
-   type,extends(type_internal_variable) :: type_horizontal_variable
-      ! Metadata
-      type (type_horizontal_standard_variable) :: standard_variable
-
-   end type type_horizontal_variable
-
-   type,extends(type_internal_variable) :: type_scalar_variable
-      ! Metadata
-      type (type_global_standard_variable) :: standard_variable
-   end type type_scalar_variable
+   end type
 
    type type_link
-      character(len=attribute_length)         :: name     = ''
-      class (type_internal_variable), pointer :: target   => null()
-      class (type_internal_variable), pointer :: original => null()
-      type (type_link), pointer               :: next     => null()
+      character(len=attribute_length)        :: name     = ''
+      type (type_internal_variable), pointer :: target   => null()
+      type (type_internal_variable), pointer :: original => null()
+      type (type_link), pointer              :: next     => null()
    end type
 
    type type_link_list
@@ -939,7 +925,7 @@ end function link_list_find
 
 function link_list_append(self,target,name) result(link)
    class (type_link_list),             intent(inout) :: self
-   class (type_internal_variable),pointer            :: target
+   type (type_internal_variable),pointer             :: target
    character(len=*),                   intent(in)    :: name
 
    type (type_link),pointer :: link
@@ -1269,7 +1255,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INPUT/OUTPUT PARAMETERS:
       class (type_base_model),       target,intent(inout)       :: self
-      class (type_internal_variable),pointer                    :: variable
+      type (type_internal_variable),pointer                     :: variable
       character(len=*),              target,intent(in)          :: name
       character(len=*),                     intent(in),optional :: long_name, units
       real(rk),                             intent(in),optional :: minimum, maximum,missing_value,initial_value,background_value
@@ -1374,7 +1360,7 @@ end subroutine real_pointer_set_set_value
       real(rk),                          intent(in),optional :: minimum, maximum, missing_value, initial_value, background_value
       real(rk),                          intent(in),optional :: vertical_movement, specific_light_extinction
       logical,                           intent(in),optional :: no_precipitation_dilution, no_river_dilution
-      type (type_bulk_standard_variable),intent(in),optional :: standard_variable
+      type (type_bulk_standard_variable),intent(in),optional,target :: standard_variable
       integer,                           intent(in),optional :: presence, output, time_treatment
       logical,                           intent(in),optional :: prefill
 
@@ -1386,9 +1372,8 @@ end subroutine real_pointer_set_set_value
 !EOP
 !
 ! !LOCAL VARIABLES:
-      class (type_bulk_variable),     pointer :: variable
-      class (type_internal_variable), pointer :: pvariable
-      type (type_link),               pointer :: link_
+      type (type_internal_variable), pointer :: variable
+      type (type_link),              pointer :: link_
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1399,16 +1384,12 @@ end subroutine real_pointer_set_set_value
       if (present(vertical_movement))         variable%vertical_movement         = vertical_movement
       if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
       if (present(no_river_dilution))         variable%no_river_dilution         = no_river_dilution
-      if (present(standard_variable))         variable%standard_variable         = standard_variable
+      if (present(standard_variable))         variable%standard_variable         => standard_variable
       if (present(specific_light_extinction)) call variable%contributions%add( &
          standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,scale_factor=specific_light_extinction)
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
-      ! NB the variable must be passed as POINTER in order to for it to be possible to deallocate it at any later time.
-      ! Due to Fortran spec: we must create an explicit pointer to type_internal_variable for it, since add_variable could
-      ! modify the pointer (e.g., by making it point to a variable type other than type_bulk_variable) 
-      pvariable => variable
-      call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
+      call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
                         read_index, state_index, write_index, sms_index, background, link_)
 
@@ -1451,7 +1432,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                         intent(in),optional :: long_name, units
       real(rk),                                 intent(in),optional :: minimum, maximum, missing_value
       real(rk),                                 intent(in),optional :: initial_value, background_value
-      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
+      type (type_horizontal_standard_variable), intent(in),optional,target :: standard_variable
       integer,                                  intent(in),optional :: presence, domain, output, time_treatment
       logical,                                  intent(in),optional :: prefill
 
@@ -1463,9 +1444,8 @@ end subroutine real_pointer_set_set_value
 !EOP
 !
 ! !LOCAL VARIABLES:
-      class (type_horizontal_variable),pointer :: variable
-      class (type_internal_variable),  pointer :: pvariable
-      type (type_link),                pointer :: link_
+      type (type_internal_variable),pointer :: variable
+      type (type_link),             pointer :: link_
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1474,14 +1454,10 @@ end subroutine real_pointer_set_set_value
 
       ! Fill fields specific to horizontal variables.
       if (present(domain))            variable%domain = domain
-      if (present(standard_variable)) variable%standard_variable = standard_variable
+      if (present(standard_variable)) variable%standard_variable => standard_variable
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
-      ! NB the variable must be passed as POINTER in order to for it to be deallocated at any later time.
-      ! We must create an explicit pointer to type_internal_variable for it, since add_variable could
-      ! modify the pointer (e.g., by making it point to a variable type other than type_horizontal_variable) 
-      pvariable => variable
-      call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
+      call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
                         read_index, state_index, write_index, sms_index, background, link_)
 
@@ -1513,7 +1489,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                     intent(in)          :: name
       character(len=*),                     intent(in),optional :: long_name, units
       real(rk),                             intent(in),optional :: minimum, maximum, missing_value, initial_value, background_value
-      type (type_global_standard_variable), intent(in),optional :: standard_variable
+      type (type_global_standard_variable), intent(in),optional,target :: standard_variable
       integer,                              intent(in),optional :: presence, output, time_treatment
       logical,                              intent(in),optional :: prefill
 
@@ -1525,8 +1501,7 @@ end subroutine real_pointer_set_set_value
 !EOP
 !
 ! !LOCAL VARIABLES:
-      class (type_scalar_variable),   pointer :: variable
-      class (type_internal_variable), pointer :: pvariable
+      type (type_internal_variable), pointer :: variable
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1534,14 +1509,10 @@ end subroutine real_pointer_set_set_value
       variable%domain = domain_scalar
 
       ! Fill fields specific to scalar variables.
-      if (present(standard_variable)) variable%standard_variable = standard_variable
+      if (present(standard_variable)) variable%standard_variable => standard_variable
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
-      ! NB the variable must be passed as POINTER in order to for it to be deallocated at any later time.
-      ! We must create an explicit pointer to type_internal_variable for it, since add_variable could
-      ! modify the pointer (e.g., by making it point to a variable type other than type_scalar_variable) 
-      pvariable => variable
-      call add_variable(self, pvariable, name, units, long_name, missing_value, minimum, maximum, &
+      call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
                         read_index, state_index, write_index, sms_index, background, link)
    end subroutine add_scalar_variable
@@ -1552,8 +1523,8 @@ end subroutine real_pointer_set_set_value
       ! parent models to do the same.
       ! NB this subroutine MUST be recursive, to allow parent models to override
       ! the properties of objects added by their child models.
-      class (type_base_model),target,      intent(inout) :: self
-      class (type_internal_variable),pointer             :: object
+      class (type_base_model),target,     intent(inout) :: self
+      type (type_internal_variable),pointer             :: object
 
       type (type_link), pointer       :: link,parent_link
       character(len=attribute_length) :: oriname
@@ -2273,7 +2244,7 @@ end subroutine get_string_parameter
       class (type_base_model),  intent(in),target :: self
       character(len=*),         intent(in)        :: name
       logical,         optional,intent(in)        :: recursive,exact
-      class (type_internal_variable),pointer      :: object
+      type (type_internal_variable),pointer       :: object
 
       type (type_link), pointer :: link
 

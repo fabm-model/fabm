@@ -120,79 +120,50 @@ end subroutine
 ! !LOCAL VARIABLES:
       type (type_link),pointer :: link,link2
       type (type_set)          :: processed_bulk,processed_horizontal,processed_scalar
+      logical                  :: match
 !
 !-----------------------------------------------------------------------
 !BOC
       link => model%links%first
       do while (associated(link))
-         select type (object=>link%target)
-            class is (type_bulk_variable)
-               if (.not.object%standard_variable%is_null()) then
-                  if (.not.processed_bulk%contains(object%standard_variable%name)) then
-                     call processed_bulk%add(object%standard_variable%name)
-                     link2 => link%next
-                     do while (associated(link2))
-                        select type (object2=>link2%target)
-                           class is (type_bulk_variable)
-                              if (object%standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
-                                 if (object2%write_indices%is_empty()) then
-                                    ! Default coupling: early variable is master, later variable is slave.
-                                    call couple_variables(model,link%target,link2%target)
-                                 else
-                                    ! Later variable is write-only and therefore can only be master. Try copuling with early variable as slave.
-                                    call couple_variables(model,link2%target,link%target)
-                                 end if
-                              end if
-                        end select
-                        link2 => link2%next
-                     end do
+         if (associated(link%target%standard_variable)) then
+            if (.not.processed_bulk%contains(link%target%standard_variable%name)) then
+               call processed_bulk%add(link%target%standard_variable%name)
+               link2 => link%next
+               do while (associated(link2))
+                  if (associated(link2%target%standard_variable)) then
+                     match = .false.
+                     select type (variable1=>link%target%standard_variable)
+                        class is (type_bulk_standard_variable)
+                           select type (variable2=>link2%target%standard_variable)
+                              class is (type_bulk_standard_variable)
+                                 match = variable1%compare(variable2)
+                           end select
+                        class is (type_horizontal_standard_variable)
+                           select type (variable2=>link2%target%standard_variable)
+                              class is (type_horizontal_standard_variable)
+                                 match = variable1%compare(variable2)
+                           end select
+                        class is (type_global_standard_variable)
+                           select type (variable2=>link2%target%standard_variable)
+                              class is (type_global_standard_variable)
+                                 match = variable1%compare(variable2)
+                           end select
+                     end select
+                     if (match) then
+                        if (link2%target%write_indices%is_empty()) then
+                           ! Default coupling: early variable is master, later variable is slave.
+                           call couple_variables(model,link%target,link2%target)
+                        else
+                           ! Later variable is write-only and therefore can only be master. Try copuling with early variable as slave.
+                           call couple_variables(model,link2%target,link%target)
+                        end if
+                     end if
                   end if
-               end if
-            class is (type_horizontal_variable)
-               if (.not.object%standard_variable%is_null()) then
-                  if (.not.processed_horizontal%contains(object%standard_variable%name)) then
-                     call processed_horizontal%add(object%standard_variable%name)
-                     link2 => link%next
-                     do while (associated(link2))
-                        select type (object2=>link2%target)
-                           class is (type_horizontal_variable)
-                              if (object%standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
-                                 if (object2%write_indices%is_empty()) then
-                                    ! Default coupling: early variable is master, later variable is slave.
-                                    call couple_variables(model,link%target,link2%target)
-                                 else
-                                    ! Later variable is write-only and therefore can only be master. Try copuling with early variable as slave.
-                                    call couple_variables(model,link2%target,link%target)
-                                 end if
-                              end if
-                        end select
-                        link2 => link2%next
-                     end do
-                  end if
-               end if
-            class is (type_scalar_variable)
-               if (.not.object%standard_variable%is_null()) then
-                  if (.not.processed_scalar%contains(object%standard_variable%name)) then
-                     call processed_scalar%add(object%standard_variable%name)
-                     link2 => link%next
-                     do while (associated(link2))
-                        select type (object2=>link2%target)
-                           class is (type_scalar_variable)
-                              if (object%standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
-                                 if (object2%write_indices%is_empty()) then
-                                    ! Default coupling: early variable is master, later variable is slave.
-                                    call couple_variables(model,link%target,link2%target)
-                                 else
-                                    ! Later variable is write-only and therefore can only be master. Try copuling with early variable as slave.
-                                    call couple_variables(model,link2%target,link%target)
-                                 end if
-                              end if
-                        end select
-                        link2 => link2%next
-                     end do
-                  end if
-               end if
-         end select
+                  link2 => link2%next
+               end do
+            end if ! if link%target%standard_variable%name not processed yet
+         end if ! if associated(link%target%standard_variable)
          link => link%next
       end do
 
@@ -220,11 +191,11 @@ end subroutine
 !EOP
 !
 ! !LOCAL VARIABLES:
-      class (type_base_model),       pointer :: root
-      type (type_model_list_node),   pointer :: child
-      type (type_link),              pointer :: link
-      class (type_property),         pointer :: master_name
-      class (type_internal_variable),pointer :: master
+      class (type_base_model),      pointer :: root
+      type (type_model_list_node),  pointer :: child
+      type (type_link),             pointer :: link
+      class (type_property),        pointer :: master_name
+      type (type_internal_variable),pointer :: master
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -347,16 +318,16 @@ recursive subroutine build_aggregate_variables(self)
 
          contributing_variable => aggregate_variable%first_contributing_variable
          do while (associated(contributing_variable))
-            select type (variable=>contributing_variable%link%original)
-               class is (type_bulk_variable)
-                  if (.not.variable%state_indices%is_empty()) then
-                     call sum%add_component(trim(variable%name)//'_sms',contributing_variable%scale_factor)
-                     call horizontal_sum%add_component(trim(variable%name)//'_sfl',contributing_variable%scale_factor)
-                     call horizontal_sum%add_component(trim(variable%name)//'_bfl',contributing_variable%scale_factor)
+            select case (contributing_variable%link%original%domain)
+               case (domain_bulk)
+                  if (.not.contributing_variable%link%original%state_indices%is_empty()) then
+                     call sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+                     call horizontal_sum%add_component(trim(contributing_variable%link%original%name)//'_sfl',contributing_variable%scale_factor)
+                     call horizontal_sum%add_component(trim(contributing_variable%link%original%name)//'_bfl',contributing_variable%scale_factor)
                   end if
-               class is (type_horizontal_variable)
-                  if (.not.variable%state_indices%is_empty()) &
-                     call horizontal_sum%add_component(trim(variable%name)//'_sms',contributing_variable%scale_factor)
+               case (domain_bottom,domain_surface)
+                  if (.not.contributing_variable%link%original%state_indices%is_empty()) &
+                     call horizontal_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
             end select
             contributing_variable => contributing_variable%next
          end do
@@ -399,11 +370,11 @@ recursive subroutine create_aggregate_models(self)
       contributing_variable => aggregate_variable%first_contributing_variable
       do while (associated(contributing_variable))
          if (associated(contributing_variable%link%target,contributing_variable%link%original)) then
-            select type (variable=>contributing_variable%link%target)
-               class is (type_bulk_variable)
+            select case (contributing_variable%link%target%domain)
+               case (domain_bulk)
                   if (associated(sum)) call sum%add_component(trim(contributing_variable%link%name), &
                      weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
-               class is (type_horizontal_variable)
+               case (domain_bottom,domain_surface)
                   if (associated(horizontal_sum)) call horizontal_sum%add_component(trim(contributing_variable%link%name), &
                      weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
             end select
@@ -432,19 +403,45 @@ end subroutine
 
 subroutine couple_variables(self,master,slave)
    class (type_base_model),     intent(inout),target :: self
-   class (type_internal_variable),intent(inout),target :: master
-   class (type_internal_variable),intent(in),  pointer :: slave
+   type (type_internal_variable),pointer             :: master,slave
 
-   class (type_internal_variable),pointer :: pslave
-      
+   type (type_internal_variable),pointer :: pslave
+   type (type_contribution),     pointer :: contribution
+
+   ! If slave and master are the same, we are done - return.
+   if (associated(slave,master)) return
+
    if (associated(self%parent)) call self%fatal_error('couple_variables','BUG: must be called on root node.')
+   if (.not.slave%write_indices%is_empty()) &
+      call fatal_error('couple_variables','Attempt to couple write-only variable ' &
+         //trim(slave%name)//' to '//trim(master%name)//'.')
+   if (master%state_indices%is_empty().and..not.slave%state_indices%is_empty()) &
+      call fatal_error('couple_variables','Attempt to couple state variable ' &
+         //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
+   if (master%presence==presence_external_optional) &
+      call fatal_error('couple_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
+   if (slave%domain/=master%domain) call fatal_error('couple_variables', &
+      'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because domains do not match.')
+
+   call log_message(trim(slave%name)//' --> '//trim(master%name))
+
+   ! Merge all information from the slave into the master.
+   call master%state_indices%extend(slave%state_indices,.true.)
+   call master%read_indices%extend(slave%read_indices,.true.)
+   call master%sms_indices%extend(slave%sms_indices,.false.)
+   call master%background_values%extend(slave%background_values)
+   call master%properties%update(slave%properties,overwrite=.false.)
+   contribution => slave%contributions%first
+   do while (associated(contribution))
+      call master%contributions%add(contribution%target,contribution%scale_factor)
+      contribution => contribution%next
+   end do
+   call master%surface_flux_indices%extend(slave%surface_flux_indices,.false.)
+   call master%bottom_flux_indices%extend(slave%bottom_flux_indices,.false.)
 
    ! Store a pointer to the slave, because the call to redirect_links will cause all pointers (from links)
    ! to the slave node to be connected to the master node. This includes the original "slave" argument.
    pslave => slave
-
-   ! If slave and master are the same, we are done - return.
-   if (associated(pslave,master)) return
 
    ! Note: in call below we provide our local copy of the pointer to the slave (pslave), not the original slave pointer (slave).
    ! Reason: ifort appears to pass the slave pointer by reference. The original pointer comes from a link, and is therefore
@@ -452,14 +449,11 @@ subroutine couple_variables(self,master,slave)
    ! the recursive redirecting will fail after the very first redirect (which destroyed the pointer to the object that we
    ! want to compare against).
    call redirect_links(self,pslave,master)
-
-   ! Merge all information from the slave into the master.
-   call merge_variables(master,pslave)
 end subroutine couple_variables
 
 recursive subroutine redirect_links(model,oldtarget,newtarget)
    class (type_base_model),     intent(inout),target :: model
-   class (type_internal_variable),intent(in),   target :: oldtarget,newtarget
+   type (type_internal_variable),pointer :: oldtarget,newtarget
 
    type (type_link),           pointer :: link
    type (type_model_list_node),pointer :: child
@@ -478,47 +472,6 @@ recursive subroutine redirect_links(model,oldtarget,newtarget)
       call redirect_links(child%model,oldtarget,newtarget)
       child => child%next
    end do
-end subroutine
-
-
-subroutine merge_variables(master,slave)
-   class (type_internal_variable),intent(inout) :: master
-   class (type_internal_variable),intent(in)    :: slave
-
-   type (type_contribution), pointer :: contribution
-
-   call log_message(trim(slave%name)//' --> '//trim(master%name))
-
-   if (.not.slave%write_indices%is_empty()) &
-      call fatal_error('merge_variables','Attempt to couple write-only variable ' &
-         //trim(slave%name)//' to '//trim(master%name)//'.')
-   if (master%state_indices%is_empty().and..not.slave%state_indices%is_empty()) &
-      call fatal_error('merge_variables','Attempt to couple state variable ' &
-         //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
-   if (master%presence==presence_external_optional) &
-      call fatal_error('merge_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
-   if (slave%domain/=master%domain) call fatal_error('merge_variables', &
-      'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because domains do not match.')
-
-   call master%state_indices%extend(slave%state_indices,.true.)
-   call master%read_indices%extend(slave%read_indices,.true.)
-   call master%sms_indices%extend(slave%sms_indices,.false.)
-   call master%background_values%extend(slave%background_values)
-   call master%properties%update(slave%properties,overwrite=.false.)
-   contribution => slave%contributions%first
-   do while (associated(contribution))
-      call master%contributions%add(contribution%target,contribution%scale_factor)
-      contribution => contribution%next
-   end do
-
-   select type (master)
-      class is (type_bulk_variable)
-         select type (slave)
-            class is (type_bulk_variable)
-               call master%surface_flux_indices%extend(slave%surface_flux_indices,.false.)
-               call master%bottom_flux_indices%extend(slave%bottom_flux_indices,.false.)
-         end select      
-   end select
 end subroutine
 
 recursive subroutine find_dependencies(self,list,forbidden)

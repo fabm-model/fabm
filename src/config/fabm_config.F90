@@ -280,10 +280,10 @@ contains
       type (type_set),        intent(out)   :: initialized_set
       logical,                intent(in)    :: get_background
 
-      type (type_key_value_pair),    pointer :: pair
-      class (type_internal_variable),pointer :: object
-      logical                                :: is_state_variable,success
-      real(rk)                               :: realvalue
+      type (type_key_value_pair),   pointer :: pair
+      type (type_internal_variable),pointer :: object
+      logical                               :: is_state_variable,success
+      real(rk)                              :: realvalue
 
       ! Transfer user-specified initial state to the model.
       pair => node%first
