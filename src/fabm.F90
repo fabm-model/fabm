@@ -1889,6 +1889,7 @@ end subroutine
 !
 ! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
+   integer                              :: i,j,k
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1907,6 +1908,16 @@ end subroutine
    node => self%models%first
    do while (associated(node))
       call node%model%do_ppdd(_ARGUMENTS_ND_IN_,pp,dd)
+
+      ! Copy newly written diagnostics to prefetch
+      do i=1,size(node%model%reused_diag_read_indices)
+         j = node%model%reused_diag_read_indices(i)
+         k = node%model%reused_diag_write_indices(i)
+         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+            self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%diag(_PREARG_LOCATION_ k)
+         _LOOP_END_
+      end do
+
       node => node%next
    end do
 
@@ -2159,7 +2170,7 @@ end subroutine
 !EOP
 !
       type (type_model_list_node), pointer :: node
-      integer                              :: i,j,index
+      integer                              :: i,j,k
 !-----------------------------------------------------------------------
 !BOC
       call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
@@ -2176,6 +2187,16 @@ end subroutine
       node => self%models%first
       do while (associated(node))
          call node%model%do_surface(_ARGUMENTS_IN_HZ_)
+
+         ! Copy newly written diagnostics to prefetch
+         do i=1,size(node%model%reused_diag_hz_read_indices)
+            j = node%model%reused_diag_hz_read_indices(i)
+            k = node%model%reused_diag_hz_write_indices(i)
+            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+               self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_ k)
+            _LOOP_END_
+         end do
+
          node => node%next
       end do
 
@@ -2183,9 +2204,9 @@ end subroutine
       flux_pel = 0.0_rk
       do i=1,size(self%state_variables)
          do j=1,size(self%state_variables(i)%globalid%surface_flux_indices)
-            index = self%state_variables(i)%globalid%surface_flux_indices(j)
+            k = self%state_variables(i)%globalid%surface_flux_indices(j)
             _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ index)
+               flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
             _HORIZONTAL_LOOP_END_
          end do
       end do
@@ -2195,15 +2216,15 @@ end subroutine
          flux_sf = 0.0_rk
          do i=1,size(self%surface_state_variables)
             do j=1,size(self%surface_state_variables(i)%globalid%sms_indices)
-               index = self%surface_state_variables(i)%globalid%sms_indices(j)
+               k = self%surface_state_variables(i)%globalid%sms_indices(j)
                _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-                  flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ index)
+                  flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
                _HORIZONTAL_LOOP_END_
             end do
          end do
       end if
          
-   end subroutine
+   end subroutine fabm_do_surface
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2230,7 +2251,7 @@ end subroutine
 !EOP
 !
    type (type_model_list_node), pointer :: node
-   integer                              :: i,j,index
+   integer                              :: i,j,k
 !-----------------------------------------------------------------------
 !BOC
    call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
@@ -2247,15 +2268,25 @@ end subroutine
    node => self%models%first
    do while (associated(node))
       call node%model%do_bottom(_ARGUMENTS_IN_HZ_)
+
+      ! Copy newly written diagnostics to prefetch
+      do i=1,size(node%model%reused_diag_hz_read_indices)
+         j = node%model%reused_diag_hz_read_indices(i)
+         k = node%model%reused_diag_hz_write_indices(i)
+         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+            self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_ k)
+         _LOOP_END_
+      end do
+
       node => node%next
    end do
 
    ! Compose bottom fluxes each bulk state variable, combining model-specific contributions.
    do i=1,size(self%state_variables)
       do j=1,size(self%state_variables(i)%globalid%bottom_flux_indices)
-         index = self%state_variables(i)%globalid%bottom_flux_indices(j)
+         k = self%state_variables(i)%globalid%bottom_flux_indices(j)
          _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ index)
+            flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
          _HORIZONTAL_LOOP_END_
       end do
    end do
@@ -2263,9 +2294,9 @@ end subroutine
    ! Compose total sources-sinks for each bottom-bound state variable, combining model-specific contributions.
    do i=1,size(self%bottom_state_variables)
       do j=1,size(self%bottom_state_variables(i)%globalid%sms_indices)
-         index = self%bottom_state_variables(i)%globalid%sms_indices(j)
+         k = self%bottom_state_variables(i)%globalid%sms_indices(j)
          _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ index)
+            flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
          _HORIZONTAL_LOOP_END_
       end do
    end do
@@ -2297,6 +2328,7 @@ end subroutine
 !EOP
 !
    type (type_model_list_node), pointer :: node
+   integer                              :: i,j,k
 !-----------------------------------------------------------------------
 !BOC
    call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
@@ -2304,6 +2336,16 @@ end subroutine
    node => self%models%first
    do while (associated(node))
       call node%model%do_bottom_ppdd(_ARGUMENTS_IN_HZ_,pp,dd,benthos_offset)
+
+      ! Copy newly written diagnostics to prefetch
+      do i=1,size(node%model%reused_diag_hz_read_indices)
+         j = node%model%reused_diag_hz_read_indices(i)
+         k = node%model%reused_diag_hz_write_indices(i)
+         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+            self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_ k)
+         _LOOP_END_
+      end do
+
       node => node%next
    end do
 
