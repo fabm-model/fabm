@@ -117,7 +117,7 @@
 
    function get_suitable_masters(model,slave) result(link_list)
       type (type_model),                     intent(inout) :: model
-      class (type_internal_variable), pointer    :: slave
+      type (type_internal_variable), pointer    :: slave
       type (type_link_list),pointer                        :: link_list
 
       type (type_link),pointer :: link,link2

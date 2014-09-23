@@ -279,7 +279,7 @@
       type (c_ptr),          intent(in), value :: pvariable
       type (c_ptr)                             :: plist
 
-      class (type_internal_variable),pointer :: variable
+      type (type_internal_variable),pointer :: variable
       type (type_link_list),         pointer :: list
 
       call c_f_pointer(pvariable, variable)
@@ -333,7 +333,7 @@
       integer(c_int),        intent(in), value  :: length
       character(kind=c_char),intent(out),dimension(length) ::long_name
 
-      class (type_internal_variable),pointer :: variable
+      type (type_internal_variable),pointer :: variable
       class (type_base_model),       pointer :: owner
       character(len=attribute_length)        :: long_name_
       
@@ -353,7 +353,7 @@
       integer(c_int),        intent(in), value  :: length
       character(kind=c_char),intent(out),dimension(length) :: name,units,long_name
 
-      class (type_internal_variable),pointer :: variable
+      type (type_internal_variable),pointer :: variable
 
       call c_f_pointer(pvariable, variable)
       call copy_to_c_string(variable%name,     name)
