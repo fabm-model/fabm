@@ -1,6 +1,39 @@
 import pyfabm
 from PySide import QtCore,QtGui
 
+class Delegate(QtGui.QStyledItemDelegate):
+    def __init__(self,parent=None):
+        QtGui.QStyledItemDelegate.__init__(self,parent)
+    def createEditor(self,parent,option,index):
+        assert index.isValid()
+        data = index.internalPointer().object
+        if not isinstance(data,basestring):
+            options = data.getOptions()
+            if options is not None:
+                widget = QtGui.QComboBox(parent)
+                widget.addItems(options)
+                return widget
+        return QtGui.QStyledItemDelegate.createEditor(self,parent,option,index)
+    def setEditorData(self,editor,index):
+        if isinstance(editor,QtGui.QComboBox):
+            data = index.internalPointer().object
+            if not isinstance(data,basestring):
+                options = data.getOptions()
+                if options is not None:
+                    editor.setCurrentIndex(list(options).index(data.value))
+                    return
+        return QtGui.QStyledItemDelegate.setEditorData(self,editor,index)
+    def setModelData(self,editor,model,index):
+        if isinstance(editor,QtGui.QComboBox):
+            data = index.internalPointer().object
+            if not isinstance(data,basestring):
+                options = data.getOptions()
+                if options is not None:
+                    i = editor.currentIndex()
+                    model.setData(index,options[i],QtCore.Qt.EditRole)
+                    return
+        return QtGui.QStyledItemDelegate.setModelData(self,editor,model,index)
+
 class Entry(object):
     def __init__(self,object=None,name=''):
         if name=='' and object is not None: name = object

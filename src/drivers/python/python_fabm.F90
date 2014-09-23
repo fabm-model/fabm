@@ -17,7 +17,7 @@
 
    use fabm
    use fabm_config
-   use fabm_types, only:rk,attribute_length,type_model_list_node,type_base_model,factory,type_link,type_link_list,type_internal_variable,type_bulk_variable
+   use fabm_types, only:rk,attribute_length,type_model_list_node,type_base_model,factory,type_link,type_link_list,type_internal_variable
    use fabm_driver, only: type_base_driver, driver
    use fabm_properties
    use fabm_python_helper

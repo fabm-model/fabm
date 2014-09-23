@@ -238,7 +238,7 @@ class Coupling(Variable):
         return strlong_name.value
 
     def setValue(self,value):
-        # TBI
+        print 'New coupling specified: %s' % value
         pass
 
     def getOptions(self):
