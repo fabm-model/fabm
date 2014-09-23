@@ -2145,7 +2145,7 @@ subroutine internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,state_var
          end if
       _HORIZONTAL_LOOP_END_
    end do
-end subroutine
+end subroutine internal_check_horizontal_state
 
 !-----------------------------------------------------------------------
 !BOP
@@ -2192,9 +2192,9 @@ end subroutine
          do i=1,size(node%model%reused_diag_hz_read_indices)
             j = node%model%reused_diag_hz_read_indices(i)
             k = node%model%reused_diag_hz_write_indices(i)
-            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-               self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_ k)
-            _LOOP_END_
+            _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
+            _HORIZONTAL_LOOP_END_
          end do
 
          node => node%next
@@ -2273,9 +2273,9 @@ end subroutine
       do i=1,size(node%model%reused_diag_hz_read_indices)
          j = node%model%reused_diag_hz_read_indices(i)
          k = node%model%reused_diag_hz_write_indices(i)
-         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_ k)
-         _LOOP_END_
+         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
+         _HORIZONTAL_LOOP_END_
       end do
 
       node => node%next
@@ -2341,9 +2341,9 @@ end subroutine
       do i=1,size(node%model%reused_diag_hz_read_indices)
          j = node%model%reused_diag_hz_read_indices(i)
          k = node%model%reused_diag_hz_write_indices(i)
-         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_ k)
-         _LOOP_END_
+         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
+         _HORIZONTAL_LOOP_END_
       end do
 
       node => node%next
