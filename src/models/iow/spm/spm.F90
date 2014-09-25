@@ -331,8 +331,11 @@
    call self%set_variable_property(self%id_spm,'density',self%rho)
    call self%set_variable_property(self%id_spm,'spm',.true.)
    call self%set_variable_property(self%id_spm,'morfac',self%morfac)
-   call self%set_variable_property(self%id_pmpool,'density',self%rho)
-   call self%set_variable_property(self%id_pmpool,'morfac',self%morfac)
+
+   if ( self%pm_pool ) then
+      call self%set_variable_property(self%id_pmpool,'density',self%rho)
+      call self%set_variable_property(self%id_pmpool,'morfac',self%morfac)
+   end if
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_taub, standard_variables%bottom_stress)
