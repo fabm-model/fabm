@@ -1836,17 +1836,21 @@ subroutine prefetch(environment _ARG_LOCATION_ND_)
    integer :: i
 
    do i=1,size(environment%data)
-      _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-         environment%prefetch _INDEX_SLICE_PLUS_1_(i) = environment%data(i)%p _INDEX_LOCATION_
-      _LOOP_END_
+      if (associated(environment%data(i)%p)) then
+         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = environment%data(i)%p _INDEX_LOCATION_
+         _LOOP_END_
+      end if
    end do
    do i=1,size(environment%data_hz)
-      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-         environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = environment%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
-      _HORIZONTAL_LOOP_END_
+      if (associated(environment%data_hz(i)%p)) then
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = environment%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
+         _HORIZONTAL_LOOP_END_
+      end if
    end do
    do i=1,size(environment%data_scalar)
-      environment%prefetch_scalar(i) = environment%data_scalar(i)%p
+      if (associated(environment%data_scalar(i)%p)) environment%prefetch_scalar(i) = environment%data_scalar(i)%p
    end do
 end subroutine
 
@@ -1857,17 +1861,21 @@ subroutine prefetch_hz(environment _ARG_LOCATION_VARS_HZ_)
    integer :: i
 
    do i=1,size(environment%data)
-      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-         environment%prefetch _INDEX_SLICE_PLUS_1_(i) = environment%data(i)%p _INDEX_LOCATION_
-      _HORIZONTAL_LOOP_END_
+      if (associated(environment%data(i)%p)) then
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = environment%data(i)%p _INDEX_LOCATION_
+         _HORIZONTAL_LOOP_END_
+      end if
    end do
    do i=1,size(environment%data_hz)
-      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-         environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = environment%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
-      _HORIZONTAL_LOOP_END_
+      if (associated(environment%data_hz(i)%p)) then
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = environment%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
+         _HORIZONTAL_LOOP_END_
+      end if
    end do
    do i=1,size(environment%data_scalar)
-      environment%prefetch_scalar(i) = environment%data_scalar(i)%p
+      if (associated(environment%data_scalar(i)%p)) environment%prefetch_scalar(i) = environment%data_scalar(i)%p
    end do
 end subroutine
 
