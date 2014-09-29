@@ -1359,7 +1359,7 @@
 !BOC
 #if defined(DEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(shape(dat))
-      if (size(dat,i)/=size(model%environment%diag,i)) then
+      if (size(dat,i)/=size(self%environment%diag,i)) then
          call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match.')
       end if
    end do
@@ -1462,7 +1462,7 @@
 #ifdef DEBUG
 #ifndef _FABM_HORIZONTAL_IS_SCALAR_
    do i=1,size(shape(dat))
-      if (size(dat,i)/=size(model%environment%diag,i)) then
+      if (size(dat,i)/=size(self%environment%diag,i)) then
          call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
       end if
    end do
