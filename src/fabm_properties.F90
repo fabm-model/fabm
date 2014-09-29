@@ -127,7 +127,7 @@ contains
             typecode = typecode_string
          class default
             typecode = typecode_unknown
-      end select   
+      end select
    end function
 
    function to_real(property,success,default) result(value)
@@ -216,21 +216,21 @@ contains
       end select
    end function
 
-   function string_lower(string) result (lowerstring) 
-       character(len=*),intent(in) :: string 
-       character(len=len(string))  :: lowerstring 
+   function string_lower(string) result (lowerstring)
+       character(len=*),intent(in) :: string
+       character(len=len(string))  :: lowerstring
 
        integer                     :: i,k
 
-       lowerstring = string 
-       do i = 1,len(string) 
-           k = iachar(string(i:i)) 
-           if (k>=iachar('A').and.k<=iachar('Z')) then 
-               k = k + iachar('a') - iachar('A') 
-               lowerstring(i:i) = achar(k) 
-           end if 
-       end do 
-   end function string_lower 
+       lowerstring = string
+       do i = 1,len(string)
+           k = iachar(string(i:i))
+           if (k>=iachar('A').and.k<=iachar('Z')) then
+               k = k + iachar('a') - iachar('A')
+               lowerstring(i:i) = achar(k)
+           end if
+       end do
+   end function string_lower
 
    function compare_keys(dictionary,key1,key2) result(equal)
       class (type_property_dictionary),intent(in) :: dictionary
@@ -370,7 +370,7 @@ contains
       logical                                        :: value
 
       class (type_property),pointer :: property
-      
+
       value = default
       property => dictionary%get_property(name)
       if (.not.associated(property)) return
@@ -384,7 +384,7 @@ contains
       integer                                        :: value
 
       class (type_property),pointer :: property
-      
+
       value = default
       property => dictionary%get_property(name)
       if (.not.associated(property)) return
@@ -412,7 +412,7 @@ contains
       character(len=value_string_length)               :: value
 
       class (type_property),pointer :: property
-      
+
       value = default
       property => dictionary%get_property(name)
       if (.not.associated(property)) return
@@ -669,7 +669,7 @@ contains
       class (type_hierarchical_dictionary), intent(in), target :: self
       class (type_hierarchical_dictionary), intent(inout)      :: child
       character(len=*),                     intent(in)         :: name
-      
+
       child%parent => self
       child%name = name
    end subroutine hierarchical_dictionary_add_child

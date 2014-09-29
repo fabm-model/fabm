@@ -186,9 +186,9 @@
       ! Arrays with names of variables read by one or more biogeochemical models.
       ! These are not used within FABM, but may be accessed by the host to determine the names of
       ! potential forcing variables.
-      character(len=attribute_length),allocatable,dimension(:) :: dependencies        
-      character(len=attribute_length),allocatable,dimension(:) :: dependencies_hz     
-      character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar 
+      character(len=attribute_length),allocatable,dimension(:) :: dependencies
+      character(len=attribute_length),allocatable,dimension(:) :: dependencies_hz
+      character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar
 
       integer                       :: extinction_index = -1
       type (type_model_list)        :: extinction_call_list
@@ -534,7 +534,7 @@
                filter = .true.
 #endif
          end select
-         
+
          ! If FABM handles this expression internally, remove it from the list.
          next => current%next
          if (filter) then
@@ -2223,7 +2223,7 @@ end subroutine internal_check_horizontal_state
             end do
          end do
       end if
-         
+
    end subroutine fabm_do_surface
 !EOC
 
@@ -2858,8 +2858,8 @@ recursive subroutine set_diagnostic_indices(self)
       link => link%next
    end do
 
-   allocate(self%reused_diag_write_indices(n))   
-   allocate(self%reused_diag_read_indices(n))   
+   allocate(self%reused_diag_write_indices(n))
+   allocate(self%reused_diag_read_indices(n))
    allocate(self%reused_diag_hz_write_indices(n_hz))
    allocate(self%reused_diag_hz_read_indices(n_hz))
 
@@ -2971,7 +2971,7 @@ subroutine classify_variables(self)
             class is (type_weighted_sum)
                consvar%sum => model
          end select
-      end if   
+      end if
 
       ! Store pointer to model that computes total of conserved quantity at surface + bottom, so we can force recomputation.
       model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_at_interfaces_calculator')
@@ -2980,7 +2980,7 @@ subroutine classify_variables(self)
             class is (type_horizontal_weighted_sum)
                consvar%horizontal_sum => model
          end select
-      end if   
+      end if
 
       aggregate_variable => aggregate_variable%next
    end do
@@ -3267,7 +3267,7 @@ end subroutine
 
       object => self%root%find_object(variable_name)
       if (.not.object%write_indices%is_empty()) call find_dependencies(object%owner,list)
-   end subroutine create_model_call_list 
+   end subroutine create_model_call_list
 
 end module fabm
 

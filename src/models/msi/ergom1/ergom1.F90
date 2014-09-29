@@ -33,7 +33,7 @@
 !  approximation (HELCOM Combine manual) and 3. Calculation according to     !
 !  Livingstone (1993). b. sedimentation/resuspension calculated in the       !
 !  same way as it was done in GOTM-BIO version. c. Optionally DIC variable   !
-!  can be included for linking with CO2 model. d. The following diagnostic   !  
+!  can be included for linking with CO2 model. d. The following diagnostic   !
 !  variables are calculated: PAR (photosynthetically active radiation),      !
 !  GPP (gross primary production), NCP (net community production),           !
 !  PPR (gross primary production rate), NPR (net primary production rate),   !
@@ -43,7 +43,7 @@
 !  e. Benthic denitrification rate constant (not depth-dependent).           !
 !  Updated 08/01/2013                                                        !
 !                                                                            !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! !MODULE:fabm_msi_ergom1
 !
@@ -125,8 +125,8 @@
    real(rk)           :: nue=0.01_rk            ! Zooplankton respiration rate (zz -> aa)
    real(rk)           :: sigma_b=0.03_rk        ! Zooplankton mortality   rate (zz -> dd)
    real(rk)           :: dn=0.003_rk            ! Detritus mineralization rate (dd -> aa)
-   real(rk)           :: dn_sed=0.002_rk        ! Sediment mineralization rate (fl -> aa) 
-   real(rk)           :: rp0=1.3_rk             ! Diatoms       uptake rate 
+   real(rk)           :: dn_sed=0.002_rk        ! Sediment mineralization rate (fl -> aa)
+   real(rk)           :: rp0=1.3_rk             ! Diatoms       uptake rate
    real(rk)           :: rf0=0.4_rk             ! Flagellates   uptake rate
    real(rk)           :: rb0=0.75_rk            ! Cyanobacteria uptake rate
    real(rk)           :: cyanotll=13.5_rk       ! Cyanobacteria lower temperature limit
@@ -147,9 +147,9 @@
    real(rk)           :: imin_di=35.0_rk        ! minimal optimal light radiation, diatoms
    real(rk)           :: imin=50.0_rk           ! minimal optimal light radiation, others
    real(rk)           :: kc=0.03_rk             ! attenuation constant for self-shading effect
-   real(rk)           :: q10_rec=0.15_rk        ! detritus recycling q10 rule factor 
+   real(rk)           :: q10_rec=0.15_rk        ! detritus recycling q10 rule factor
    real(rk)           :: ade_r0=0.1_rk          ! chemoautolithotrophic denitrification rate
-   real(rk)           :: alphaade=1.0_rk        ! half-saturation constant for ade  
+   real(rk)           :: alphaade=1.0_rk        ! half-saturation constant for ade
    real(rk)           :: q10_recs=0.175_rk      ! sediment recycling q10 rule factor
    real(rk)           :: rfr=0.0625_rk          ! Redfield ratio P/N
    real(rk)           :: rfc=6.625_rk           ! Redfield ratio C/N
@@ -160,20 +160,20 @@
    real(rk)           :: wpo4=-1.0_rk           ! P-Fe in water sinking velocity
    real(rk)           :: sedrate=2.25_rk        ! Detritus sedimentation rate
    real(rk)           :: erorate=6.0_rk         ! Sediment erosion rate
-   real(rk)           :: sedratepo4=0.5_rk      ! P-Fe     sedimentation rate 
+   real(rk)           :: sedratepo4=0.5_rk      ! P-Fe     sedimentation rate
    real(rk)           :: eroratepo4=6.0_rk      ! P-Fe     erosion rate
    real(rk)           :: po4ret=0.18_rk         ! Phosphate retention rate,  oxic sediments
    real(rk)           :: pburialrate=0.007_rk   ! Phopshate burial rate
    real(rk)           :: pliberationrate=0.1_rk ! Phosphate liberation rate, anoxic sediments
    real(rk)           :: ipo4th=100._rk         ! Increased phosphate burial threshold
-   real(rk)           :: maxsed=1000._rk        ! Maximum active sediment concentration 
+   real(rk)           :: maxsed=1000._rk        ! Maximum active sediment concentration
    real(rk)           :: br0=0.03_rk            ! Bioresuspension rate
-   real(rk)           :: fds=0.7_rk             ! Sediment denitrification rate, oxic 
-   real(rk)           :: pvel=5._rk             ! Piston velocity   
+   real(rk)           :: fds=0.7_rk             ! Sediment denitrification rate, oxic
+   real(rk)           :: pvel=5._rk             ! Piston velocity
    integer            :: newflux=2              ! Oxygen flux type
                                                 ! 1: Using Weiss(1970) for sat and wind dependent p_vel
                                                 ! 2: Using polynom approximation S&T**3 for sat
-                                                ! 3: Using simplified formulation for sat 
+                                                ! 3: Using simplified formulation for sat
    real(rk)           :: tau_crit=0.07_rk       ! Critical shear stress
    logical            :: calc_dic=.false.       ! Calculate dissolved organic carbon
    character(len=64)  :: dic_variable=''        ! Link variable to carbon  model
@@ -201,7 +201,7 @@
 !  and are converted here to values per second
    self%sfl_po   = sfl_po  ! Atmospheric nutrient fluxes are converted
    self%sfl_nn   = sfl_nn  ! to values per second in the subroutine!
-   self%sfl_aa   = sfl_aa  ! 
+   self%sfl_aa   = sfl_aa  !
    self%nb       = nb/secs_pr_day
    self%deltao   = deltao/secs_pr_day
    self%nue      = nue/secs_pr_day
@@ -263,7 +263,7 @@
    call self%register_state_variable(self%id_fl,'fl','mmol n/m**2', 'fluff',           fl_initial,minimum=0.0_rk,maximum=self%maxsed)
    call self%register_state_variable(self%id_pb,'pb','mmol p/m**2', 'P-Fe in sediment',pb_initial,minimum=0.0_rk)
    call self%register_state_variable(self%id_pw,'pw','mmol p/m**3', 'P-Fe in water',   pw_initial,minimum=0.0_rk,vertical_movement=wpo4/secs_pr_day,no_river_dilution=.true.)
-   
+
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    if (calc_dic) call self%register_state_dependency(self%id_dic,dic_variable)
 
@@ -353,19 +353,19 @@
     ! end if
 
     tempq = max(temp,0.0_rk)
-    tempq = tempq*tempq 
+    tempq = tempq*tempq
 
     zz0 = self%zcl1*zz*zz
 
-    ntemp = nn + aa     
+    ntemp = nn + aa
     ntemp_eps = ntemp + epsilon
-    ntemp = ntemp *ntemp 
-    ptemp = po * po     
+    ntemp = ntemp *ntemp
+    ptemp = po * po
     phyto = pp + ff + bb
-    ppg = pp + self%p0 
+    ppg = pp + self%p0
     ffg = ff + self%f0
     bbg = bb + self%b0
- 
+
     ! Diatom uptake
     nlim = ntemp / (self%alphap * self%alphap + ntemp) ! MiMe eq. for IN
     plim = ptemp / (self%alphap * self%alphap * self%rfr * self%rfr + ptemp) ! MiMe eq. for IP
@@ -400,22 +400,22 @@
 
     lp = lpn + lpd ! Phytoplankton loss rate (mortality + respiration)
     ! Uptake rates * concentrations / (sum of nitrate and ammonium)
-    part_uptake = (rp * ppg + rf *ffg) / ntemp_eps 
-    uptake_p = rp * ppg / ntemp_eps            
-    uptake_f = rf * ffg / ntemp_eps                
+    part_uptake = (rp * ppg + rf *ffg) / ntemp_eps
+    uptake_p = rp * ppg / ntemp_eps
+    uptake_f = rf * ffg / ntemp_eps
   !!!! NITRIFICATION RATE !!!!
     otemp = max(0.0_rk, o2) !for oxygen dependent process if o2<0 then o2=0
     ! Nitrification rate depends on oxygen availability and temperature
     nf = otemp / (0.01_rk + otemp) * 0.1_rk * exp (0.11_rk * temp)/secs_pr_day
-  !!!! ZOOPLANKTON RATES !!!! 
+  !!!! ZOOPLANKTON RATES !!!!
     ! Food available for zooplankton. Notice lower preference for cyanos
     food = max(pp,0.0_rk) + max(ff,0.0_rk) + 0.5_rk * max(bb,0.0_rk) + self%p0 + self%b0 + self%f0
     food_eps = max(food, epsilon) ! Be sure food is positive
     gg = self%graz * (1.0_rk - exp(self%iv * food * food * (-1.0_rk))) !Grazing rate
 
     lzd = self%sigma_b ! Zooplankton mortality rate
-    lzn = self%nue     ! Zooplankton respiration rate 
- 
+    lzn = self%nue     ! Zooplankton respiration rate
+
     if (o2 .le. 0.0_rk) then
       ! In anoxic conditions:
       gg = 0.0_rk                ! No grazing
@@ -431,7 +431,7 @@
 
     if (o2 .le. 0.0_rk .and. nn > 0.0_rk) then
       ldn_N = 5.3_rk * nn * nn / (0.001_rk + nn * nn)               ! Denitrification rate depends on nitrate availability
-      ldn_O = 6.625_rk * (1.0_rk - nn * nn / (0.001_rk + nn * nn))  ! Oxygen loss due to denitrification      
+      ldn_O = 6.625_rk * (1.0_rk - nn * nn / (0.001_rk + nn * nn))  ! Oxygen loss due to denitrification
       ade = self%ade_r0 * nn * nn / (self%alphaade +  nn * nn) * nn ! ade rate nitrate dependent
    else
       ldn_N = 0.0_rk
@@ -570,24 +570,24 @@
    endif
 
    ! Mineralization rates (see description of pelagic part)
-   if (oxb .le. 0.0_rk .and. nnb > 0.0_rk) then   
+   if (oxb .le. 0.0_rk .and. nnb > 0.0_rk) then
       ldn_N = 5.3_rk * nnb * nnb / (0.001_rk + nnb * nnb)
-      ldn_O = 6.625_rk * (1.0_rk - nnb * nnb / (0.001_rk + nnb * nnb)) 
+      ldn_O = 6.625_rk * (1.0_rk - nnb * nnb / (0.001_rk + nnb * nnb))
    else
       ldn_N = 0.0_rk
       ldn_O = 6.625_rk
    endif
 
-   if (oxb > 0.0_rk) then                      
+   if (oxb > 0.0_rk) then
       fracdenitsed = self%fds     ! denitrification is sediments
       plib = 0.0_rk               ! no phosphate release
       pret = self%po4ret          ! phosphate is stored
-   else                
+   else
       fracdenitsed = 0.0_rk       ! no denitrification in sediments
       plib = self%pliberationrate ! phosphorus is liberated
-      pret = 0.0_rk               ! no phosphate retention 
+      pret = 0.0_rk               ! no phosphate retention
    endif
- 
+
    oxlim = max (0.0_rk,oxb) * max (0.0_rk,oxb) / (0.01_rk + max(0.0_rk,oxb) * max(0.0_rk,oxb))
 
    ! Sediment resuspension, detritus settling, bio-resuspension and mineralization
@@ -608,7 +608,7 @@
    ! P-Fe resuspension, settling and bio-resuspension
    _SET_BOTTOM_EXCHANGE_(self%id_pw, bpsd * pb -bpds * pwb +biores * pb)
 
-   if (_AVAILABLE_(self%id_dic)) _SET_BOTTOM_EXCHANGE_(self%id_dic, self%rfc*recs * fl)    
+   if (_AVAILABLE_(self%id_dic)) _SET_BOTTOM_EXCHANGE_(self%id_dic, self%rfc*recs * fl)
 
    ! BENTHIC DIAGNOSTIC VARIABLES
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_pr_day)
@@ -731,7 +731,7 @@
 
    _SET_SURFACE_EXCHANGE_(self%id_nn,self%sfl_nn/secs_pr_day)
    _SET_SURFACE_EXCHANGE_(self%id_aa,self%sfl_aa/secs_pr_day)
-   _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po/secs_pr_day)    
+   _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po/secs_pr_day)
 
    _HORIZONTAL_LOOP_END_
 

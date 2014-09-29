@@ -178,7 +178,7 @@
 
 #ifndef _FABM_REAL_KIND_
 #define _FABM_REAL_KIND_ selected_real_kind(13)
-#endif 
+#endif
 
 ! Constants related to floating point precision; used throughout FABM.
 #undef REALTYPE

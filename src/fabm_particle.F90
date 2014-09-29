@@ -24,7 +24,7 @@
 ! dependency in the zooplankton model, and linking that at run-time to the phytoplankton model.
 ! The zooplankton model can then directly query the variables of the prey model (e.g., total carbon),
 ! and subsequently apply a specific loss rate to all of the prey model's state variables.
-   
+
 module fabm_particle
 
    use fabm_types
@@ -204,7 +204,7 @@ module fabm_particle
          coupling => coupling%next
       end do
    end subroutine
-   
+
    subroutine build_state_id_list(self)
       class (type_particle_model),intent(inout) :: self
 

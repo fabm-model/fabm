@@ -137,7 +137,7 @@
    rzd       = 0.02_rk
    dic_per_n = 106.0_rk/16.0_rk  ! Redfield C:N
    dic_variable = ''
-   
+
    ! Read the namelist
    if (configunit>0) read(configunit,nml=examples_npzd_f2003,err=99,end=100)
 

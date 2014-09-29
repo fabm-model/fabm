@@ -76,7 +76,7 @@
 
    contains
 
-#define _ODE_ZEROD_   
+#define _ODE_ZEROD_
 #include "ode_solvers_template.F90"
 
 !-----------------------------------------------------------------------
@@ -96,7 +96,7 @@
 !BOC
    do i = 1, command_argument_count()
       call get_command_argument(i, arg)
- 
+
       select case (arg)
 #if 0
       case ('-v', '--version')
@@ -193,7 +193,7 @@
    ode_method = 1
    repair_state = .false.
    read(namlst,nml=model_setup,err=91)
-   
+
    ! Read environment namelist
    env_file = ''
    swr_method = 0
@@ -247,7 +247,7 @@
    end if
    column_depth = depth ! Provided depth is the column depth. The modelled biogeochemistry will be positioned at half this depth.
    call update_depth(CENTER)
-   
+
    ! If longitude and latitude are used, make sure they have been provided and are valid.
    if (swr_method==0) then
       if (latitude==invalid_latitude) then
@@ -259,7 +259,7 @@
          stop 'init_run'
       end if
    end if
-   
+
    ! Configure the time module to use actual start and stop dates.
    timefmt = 2
 
@@ -699,7 +699,7 @@
          current_depth = 0.0_rk
          par = par_sf
       case (BOTTOM)
-         current_depth = column_depth            
+         current_depth = column_depth
          par = par_bt
       case (CENTER)
          current_depth = 0.5_rk*column_depth

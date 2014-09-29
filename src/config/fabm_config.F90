@@ -184,7 +184,7 @@ contains
                   call fatal_error('create_model_from_dictionary','BUG: "flatten" should &
                      &have ensured that the value of '//trim(value%path)//' is scalar, not a nested dictionary.')
             end select
-            pair => pair%next   
+            pair => pair%next
          end do
       end if
 
@@ -222,7 +222,7 @@ contains
                   call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
                      ' must be a string, not a nested dictionary.')
             end select
-            pair => pair%next   
+            pair => pair%next
          end do
       end if
 

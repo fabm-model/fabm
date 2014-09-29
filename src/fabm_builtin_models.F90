@@ -2,13 +2,13 @@
 
 module fabm_builtin_models
    use fabm_types
-   
+
    implicit none
 
    private
 
    public type_weighted_sum,type_horizontal_weighted_sum,type_simple_depth_integral
-   
+
    type type_component
       character(len=attribute_length) :: name   = ''
       real(rk)                        :: weight = 1._rk
@@ -279,7 +279,7 @@ contains
    subroutine horizontal_weighted_sum_evaluate_horizontal(self,_ARGUMENTS_HZ_)
       class (type_horizontal_weighted_sum),intent(in) :: self
       _DECLARE_ARGUMENTS_HZ_
-      
+
       type (type_horizontal_component),pointer        :: component
       real(rk)                                        :: value
       real(rk) _DIMENSION_HORIZONTAL_SLICE_AUTOMATIC_ :: sum
@@ -305,7 +305,7 @@ contains
       _DECLARE_ARGUMENTS_DO_BOTTOM_
       call self%evaluate_horizontal(_ARGUMENTS_HZ_)
    end subroutine
-   
+
    subroutine simple_depth_integral_initialize(self,configunit)
       class (type_simple_depth_integral),intent(inout),target :: self
       integer,                           intent(in)           :: configunit

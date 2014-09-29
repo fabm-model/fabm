@@ -21,7 +21,7 @@ module fabm_expressions
       integer  :: ioldest = -1
 
       integer,pointer :: in  => null()
-      real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_ :: history 
+      real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_ :: history
    end type
 
    type,extends(type_horizontal_expression) :: type_horizontal_temporal_mean
@@ -31,7 +31,7 @@ module fabm_expressions
       integer  :: ioldest = -1
 
       integer,pointer :: in  => null()
-      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: history 
+      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: history
    end type
 
    type,extends(type_horizontal_expression) :: type_vertical_integral

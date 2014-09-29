@@ -3,7 +3,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-!  fabm_prey_pred --- a simple example of biological interaction between 
+!  fabm_prey_pred --- a simple example of biological interaction between
 !  two conponents.based on http://www.scholarpedia.org/article/Predator-prey_model
 !  and adapted for FABM,implemented by  Fenjuan Hu(Joint PhD stududent of
 !  Southern Denmark University&Aarhus university),instructed by Karsten Bolding July,2013.

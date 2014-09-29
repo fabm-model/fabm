@@ -6,7 +6,7 @@ module fabm_coupling
    use fabm_driver
 
    implicit none
-   
+
    private
 
    public freeze_model_info, get_aggregate_variable, find_dependencies

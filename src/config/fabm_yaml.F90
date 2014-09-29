@@ -201,7 +201,7 @@ contains
                   call node%set(pair%key,pair%value)
             end select
 
-            ! Check indentation of next line.   
+            ! Check indentation of next line.
             if (file%indent>firstindent) then
                call file%set_error('unexpected increase in indentation following key-value pair "'//trim(pair%key)//'".')
                return
@@ -310,5 +310,5 @@ contains
       file%error_message = error
       file%has_error = .true.
    end subroutine
-   
+
 end module fabm_yaml

@@ -94,7 +94,7 @@
       FATAL 'run.nml: "output_file" must be set to a valid file path in "output" namelist.'
       stop 'configure_output'
    end if
-   
+
    return
 
 93 FATAL 'run.nml: I could not read the "output" namelist.'
@@ -410,7 +410,7 @@
 
    end subroutine do_output
 !EOC
-   
+
 #ifdef NETCDF4
    subroutine check_err(iret)
       use netcdf

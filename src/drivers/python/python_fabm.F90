@@ -265,7 +265,7 @@
 
       type (type_link),pointer :: link_slave
       integer                  :: i
-      
+
       link_slave => coupling_link_list%first
       do i=2,index
          link_slave => link_slave%next
@@ -307,7 +307,7 @@
       type (type_link_list),pointer :: list
       type (type_link),     pointer :: link
       integer                       :: i
-      
+
       call c_f_pointer(plist, list)
       link => list%first
       do i=2,index
@@ -321,7 +321,7 @@
       type (c_ptr),  intent(in), value :: plist
 
       type (type_link_list),pointer :: list
-      
+
       call c_f_pointer(plist, list)
       call list%finalize()
       deallocate(list)
@@ -336,7 +336,7 @@
       type (type_internal_variable),pointer :: variable
       class (type_base_model),       pointer :: owner
       character(len=attribute_length)        :: long_name_
-      
+
       call c_f_pointer(pvariable, variable)
       long_name_ = variable%long_name
       owner => variable%owner
@@ -403,7 +403,7 @@
       value = model%surface_state_variables(index)%initial_value
       call fabm_link_surface_state_data(model,index,value)
    end subroutine
-   
+
    subroutine link_bottom_state_data(index,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_bottom_state_data
       integer(c_int),intent(in),   value  :: index
@@ -570,7 +570,7 @@
       character(kind=c_char),target,intent(in) :: name(*),value(*)
 
       character(len=attribute_length),pointer :: pname,pvalue
-      
+
       call c_f_pointer(c_loc(name),  pname)
       call c_f_pointer(c_loc(value), pvalue)
       call forced_parameters%set_string(pname(:index(pname,C_NULL_CHAR)-1),pvalue(:index(pname,C_NULL_CHAR)-1))
@@ -622,7 +622,7 @@
       do i=1,n
          cstring(i) = string(i:i)
       end do
-      cstring(n+1) = C_NULL_CHAR 
+      cstring(n+1) = C_NULL_CHAR
    end subroutine
 
    end module fabm_python

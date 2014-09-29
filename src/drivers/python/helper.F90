@@ -15,7 +15,7 @@
    use fabm_types
 
    implicit none
-   
+
    private
 
    public get_environment_metadata, get_couplings, get_suitable_masters
@@ -30,7 +30,7 @@
 
      integer                         :: n
      type (type_link),       pointer :: link
-   
+
       ! Get number of environmental dependencies (light, temperature, etc.)
       n = 0
       link => model%links_postcoupling%first
@@ -44,14 +44,14 @@
                case (domain_scalar)
                   if (.not.associated(model%environment%data_scalar(link%target%read_indices%pointers(1)%p)%p)) n = n+1
             end select
-         end if   
+         end if
          link => link%next
       end do
-      
+
       ! Allocate arrays to hold information on environment
       allocate(environment_names(n))
       allocate(environment_units(n))
-      
+
       ! Get metadata on environmental dependencies (light, temperature, etc.)
       n = 0
       link => model%links_postcoupling%first

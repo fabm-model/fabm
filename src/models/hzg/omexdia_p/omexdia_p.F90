@@ -78,7 +78,7 @@
 !  Original author(s): Richard Hofmeister & Kai Wirtz
 !
 ! !LOCAL VARIABLES:
-      real(rk) :: rFast, rSlow, NCrFdet, NCrSdet      
+      real(rk) :: rFast, rSlow, NCrFdet, NCrSdet
       real(rk) :: PCrFdet,PCrSdet, PAds, PAdsODU
       real(rk) :: NH3Ads, rnit, ksO2nitri,rODUox
       real(rk) :: ksO2oduox,ksO2oxic,ksNO3denit,kinO2denit,kinNO3anox,kinO2anox
@@ -224,7 +224,7 @@
    Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)
 
    CprodF = self%rFast * fdet
-   CprodS = self%rSlow * sdet 
+   CprodS = self%rSlow * sdet
    Cprod  = CprodF + CprodS
    Nprod  = CprodF * self%NCrFdet + CprodS * self%NCrSdet
 
@@ -247,7 +247,7 @@
 
 !  pDepo      = min(1.0_rk,0.233_rk*(wDepo)**0.336_rk )
    pDepo      = 0.0_rk
-   OduDepo    = AnoxicMin*pDepo 
+   OduDepo    = AnoxicMin*pDepo
 
 #define _CONV_UNIT_ /secs_pr_day
 ! reaction rates

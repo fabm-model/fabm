@@ -99,7 +99,7 @@
       procedure :: do_bottom
       procedure :: get_light_extinction
       procedure :: do_surface
-      
+
   end type
 !EOP
 !-----------------------------------------------------------------------
@@ -191,7 +191,7 @@ subroutine initialize(self,configunit)
    real(rk)           :: ph1=0.15_rk
    real(rk)           :: ph2=0.1_rk
    real(rk),parameter :: secs_pr_day=86400.0_rk
-   
+
    namelist /gotm_ergom/ p1_initial,p2_initial,p3_initial,zo_initial,  &
                         de_initial,am_initial,ni_initial,po_initial,  &
                         o2_initial,sfl_po,sfl_am,sfl_ni,fluff,        &
@@ -282,7 +282,7 @@ subroutine initialize(self,configunit)
          po_initial,minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_o2,'oxy','mmol o2/m**3','oxygen',o2_initial)
    if (self%fluff) call self%register_state_variable(self%id_fl,'flf','mmol n/m**2','fluff', &
-         fl_initial,minimum=0.0_rk)         
+         fl_initial,minimum=0.0_rk)
 
 ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2','photosynthetically active radiation',   &
@@ -451,7 +451,7 @@ subroutine initialize(self,configunit)
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)

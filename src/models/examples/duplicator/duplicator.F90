@@ -11,7 +11,7 @@
 !
 ! !USES:
    use fabm_types
-   
+
    implicit none
 
 !  default: all is private.
@@ -48,7 +48,7 @@
    integer            :: number
    real(rk)           :: minimum,maximum,value
    namelist /examples_duplicator/ model,number,configfile,parameter,minimum,maximum
-   
+
    integer :: i
    character(len=64) :: instancename
    class (type_base_model),pointer :: childmodel

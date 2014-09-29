@@ -10,21 +10,21 @@
 !
 ! !DESCRIPTION:
 ! This model describes an age tracer. Mostly, you track the age of a river  discharge
-!  or something specified by lateral boundary conditions. However, you can also 
+!  or something specified by lateral boundary conditions. However, you can also
 !  track the age of water masses which had last contact with the surface / bottom.
 !  You only have to set track_[surface|bottom]_age.
 !  It is also possible to track the age of a external tracer. Simply specify : tracer_age_variable=???
 !  For detail of the age concept, have a look into;
 !     England, 1995, Journal of Physical Oceanography, 25, 2756-2777
 !     http://www.elic.ucl.ac.be/repomodx/cart/
-!     Delhez E.J.M., J.-M. Campin, A.C. Hirst and E. Deleersnijder, 1999, Toward a general 
-!        theory of the age in ocean modelling, Ocean Modelling, 1, 17-27 
-!     Deleersnijder E., J.-M. Campin and E.J.M. Delhez, 2001, The concept of age in marine 
+!     Delhez E.J.M., J.-M. Campin, A.C. Hirst and E. Deleersnijder, 1999, Toward a general
+!        theory of the age in ocean modelling, Ocean Modelling, 1, 17-27
+!     Deleersnijder E., J.-M. Campin and E.J.M. Delhez, 2001, The concept of age in marine
 !        modelling: I. Theory and preliminary model results, Journal of Marine Systems, 28, 229-267
 !
 ! !USES:
    use fabm_types
-   
+
 ! !REVISION HISTORY:!
 !  Original author(s): Ulf Gräwe (ulf.graewe@io-warnemuende.de)
 !
@@ -51,7 +51,7 @@
       procedure :: do
       procedure :: check_surface_state
       procedure :: check_bottom_state
-      
+
    end type
 !
 !EOP
@@ -100,8 +100,8 @@
    self%external_tracer   = .false.
 
    ! Register state variables
-   
-                    
+
+
    if ( tracer_age_variable/='' ) then
       call self%register_dependency(self%id_tracer,trim(tracer_age_variable))
       self%external_tracer   = .true.
@@ -186,10 +186,10 @@
         _HORIZONTAL_LOOP_BEGIN_
            _SET_(self%id_age,0.0_rk)
         _HORIZONTAL_LOOP_END_
-        
+
       endif
    endif
-     
+
    end subroutine check_surface_state
 !EOC
 
@@ -213,10 +213,10 @@
         _HORIZONTAL_LOOP_BEGIN_
            _SET_(self%id_age,0.0_rk)
         _HORIZONTAL_LOOP_END_
-        
+
       endif
    endif
-     
+
    end subroutine check_bottom_state
 
 !EOC

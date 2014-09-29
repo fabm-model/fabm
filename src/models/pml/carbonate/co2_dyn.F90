@@ -34,7 +34,7 @@
 ! 17/02/2010. Update calculation of K1, K2, Kb to make consistant with the OCMIP protocols.
 
    subroutine CO2_dynamics(T,S,Z,DIC,pco2w,TA,ph,carba,bicarb,carb,henry,om_cal,om_arg,TCO2,dcf)
-   
+
    use fabm_types,only:rk
 
    IMPLICIT NONE
@@ -320,7 +320,7 @@
 !     Modified by jcb 17/02/10 to use OCMIP calculations of K1, K2, Kb.
 !     Differences are subtle rather than significant
       use fabm_types
-      
+
       IMPLICIT NONE
 
       INTEGER MAXK, MAXCON, NKVAL, ICON, IC, IK
@@ -412,7 +412,7 @@
 
 !      IMPLICIT real(rk) (A-H,O-Z)
       use fabm_types
-      
+
       IMPLICIT NONE
 
       INTEGER NCONC, NKVAL, ICALC, II, KARL, LQ

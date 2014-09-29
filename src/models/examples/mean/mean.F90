@@ -42,7 +42,7 @@ module examples_mean
    call self%register_diagnostic_variable(self%id_temp_vertmean_diag, 'temp_vertmean','degree_C','vertical mean temperature')
    call self%register_diagnostic_variable(self%id_temp_vertmean_20m_diag, 'temp_vertmean_20m','degree_C','vertical mean temperature above 20 m')
    call self%register_diagnostic_variable(self%id_temp_vertmean_tempmean_diag, 'temp_vertmean_tempmean','degree_C','30-day mean of vertical mean temperature')
-   
+
    end subroutine initialize
 
    subroutine do(self,_ARGUMENTS_DO_)
@@ -76,5 +76,5 @@ module examples_mean
    _HORIZONTAL_LOOP_END_
 
    end subroutine do_surface
-   
+
 end module

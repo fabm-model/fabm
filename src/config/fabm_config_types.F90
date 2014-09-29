@@ -237,7 +237,7 @@ contains
    recursive subroutine dictionary_set_path(self,path)
       class (type_dictionary),intent(inout) :: self
       character(len=*),       intent(in)    :: path
-      
+
       type (type_key_value_pair),pointer :: pair
 
       self%path = path

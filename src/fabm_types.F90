@@ -1828,7 +1828,7 @@ end subroutine real_pointer_set_set_value
       call self%register_surface_state_dependency(id, name, '', name)
       call self%request_coupling(id,name)
    end subroutine
-   
+
    subroutine register_standard_bulk_dependency(model,id,standard_variable,required)
       class (type_base_model),           intent(inout)        :: model
       type (type_dependency_id),         intent(inout),target :: id
@@ -2251,7 +2251,7 @@ end subroutine get_string_parameter
       nullify(object)
       link => self%find_link(name,recursive,exact)
       if (associated(link)) object => link%target
-      
+
    end function find_object
 
    function find_link(self,name,recursive,exact) result(link)
