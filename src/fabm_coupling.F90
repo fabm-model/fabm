@@ -9,7 +9,7 @@ module fabm_coupling
 
    private
 
-   public freeze_model_info, get_aggregate_variable, find_dependencies
+   public freeze_model_info, find_dependencies
 
    contains
 
@@ -426,9 +426,9 @@ subroutine couple_variables(self,master,slave)
    call log_message(trim(slave%name)//' --> '//trim(master%name))
 
    ! Merge all information from the slave into the master.
-   call master%state_indices%extend(slave%state_indices,.true.)
-   call master%read_indices%extend(slave%read_indices,.true.)
-   call master%sms_indices%extend(slave%sms_indices,.false.)
+   call master%state_indices%extend(slave%state_indices)
+   call master%read_indices%extend(slave%read_indices)
+   call master%sms_list%extend(slave%sms_list)
    call master%background_values%extend(slave%background_values)
    call master%properties%update(slave%properties,overwrite=.false.)
    contribution => slave%contributions%first
@@ -436,8 +436,8 @@ subroutine couple_variables(self,master,slave)
       call master%contributions%add(contribution%target,contribution%scale_factor)
       contribution => contribution%next
    end do
-   call master%surface_flux_indices%extend(slave%surface_flux_indices,.false.)
-   call master%bottom_flux_indices%extend(slave%bottom_flux_indices,.false.)
+   call master%surface_flux_list%extend(slave%surface_flux_list)
+   call master%bottom_flux_list%extend(slave%bottom_flux_list)
 
    ! Store a pointer to the slave, because the call to redirect_links will cause all pointers (from links)
    ! to the slave node to be connected to the master node. This includes the original "slave" argument.

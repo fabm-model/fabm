@@ -216,6 +216,16 @@
       logical                                       :: horizontal_required = .false.
    end type
 
+   type type_link_list
+      type (type_link),pointer :: first => null()
+   contains
+      procedure :: append   => link_list_append
+      procedure :: find     => link_list_find
+      procedure :: count    => link_list_count
+      procedure :: finalize => link_list_finalize
+      procedure :: extend   => link_list_extend
+   end type
+
    ! ====================================================================================================
    ! Derived types used internally to store information on model variables and model references.
    ! ====================================================================================================
@@ -236,16 +246,17 @@
       class (type_base_model),pointer :: owner          => null()
       type (type_contribution_list)   :: contributions
 
-      type (type_integer_pointer_set) :: read_indices,state_indices,write_indices,sms_indices
+      type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
       type (type_real_pointer_set)    :: background_values
+      type (type_link_list)           :: sms_list
 
       class (type_standard_variable), pointer :: standard_variable => null()
 
       ! Only used for bulk variables:
-      real(rk)                                      :: vertical_movement         = 0.0_rk
-      logical                                       :: no_precipitation_dilution = .false.
-      logical                                       :: no_river_dilution         = .false.
-      type (type_integer_pointer_set) :: surface_flux_indices,bottom_flux_indices
+      real(rk)             :: vertical_movement         = 0.0_rk
+      logical              :: no_precipitation_dilution = .false.
+      logical              :: no_river_dilution         = .false.
+     type (type_link_list) :: surface_flux_list,bottom_flux_list
    end type
 
    type type_link
@@ -253,15 +264,6 @@
       type (type_internal_variable), pointer :: target   => null()
       type (type_internal_variable), pointer :: original => null()
       type (type_link), pointer              :: next     => null()
-   end type
-
-   type type_link_list
-      type (type_link),pointer :: first => null()
-   contains
-      procedure :: append   => link_list_append
-      procedure :: find     => link_list_find
-      procedure :: count    => link_list_count
-      procedure :: finalize => link_list_finalize
    end type
 
    ! ====================================================================================================
@@ -949,6 +951,19 @@ function link_list_append(self,target,name) result(link)
    link%original => target
 end function link_list_append
 
+subroutine link_list_extend(self,source)
+   class (type_link_list),intent(inout) :: self
+   class (type_link_list),intent(in)    :: source
+
+   type (type_link),pointer :: source_link,link
+
+   source_link => source%first
+   do while (associated(source_link))
+      link => self%append(source_link%target,source_link%name)
+      source_link => source_link%next
+   end do
+end subroutine link_list_extend
+
 function link_list_count(self) result(count)
    class (type_link_list),intent(in) :: self
 
@@ -1000,9 +1015,8 @@ subroutine request_coupling_for_id(self,id,master)
    call self%request_coupling(id%link,master)
 end subroutine request_coupling_for_id
 
-subroutine integer_pointer_set_append(self,value,synchronize)
+subroutine integer_pointer_set_append(self,value)
    class (type_integer_pointer_set),intent(inout) :: self
-   logical,                         intent(in)    :: synchronize
    integer,target :: value
    type (type_integer_pointer),allocatable :: oldarray(:)
 
@@ -1020,19 +1034,18 @@ subroutine integer_pointer_set_append(self,value,synchronize)
 
    ! Add pointer to provided integer to the list.
    self%pointers(size(self%pointers))%p => value
-   if (synchronize) self%pointers(size(self%pointers))%p = self%pointers(1)%p
+   self%pointers(size(self%pointers))%p = self%pointers(1)%p
 end subroutine integer_pointer_set_append
 
-subroutine integer_pointer_set_extend(self,other,synchronize)
+subroutine integer_pointer_set_extend(self,other)
    class (type_integer_pointer_set),intent(inout) :: self
    class (type_integer_pointer_set),intent(in)    :: other
-   logical,                         intent(in)    :: synchronize
 
    integer :: i
 
    if (allocated(other%pointers)) then
       do i=1,size(other%pointers)
-         call self%append(other%pointers(i)%p,synchronize)
+         call self%append(other%pointers(i)%p)
       end do
    end if
 end subroutine integer_pointer_set_extend
@@ -1246,7 +1259,7 @@ end subroutine real_pointer_set_set_value
 ! !INTERFACE:
    subroutine add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                            initial_value, background_value, presence, output, time_treatment, prefill, &
-                           read_index, state_index, write_index, sms_index, background, link)
+                           read_index, state_index, write_index, background, link)
 !
 ! !DESCRIPTION:
 !  This function fills all generic variable fields (i.e., those independent of the variable's domain), and returns
@@ -1261,7 +1274,7 @@ end subroutine real_pointer_set_set_value
       real(rk),                             intent(in),optional :: minimum, maximum,missing_value,initial_value,background_value
       integer,                              intent(in),optional :: presence, output, time_treatment
       logical,                              intent(in),optional :: prefill
-      integer,                       target,           optional :: read_index, state_index, write_index, sms_index
+      integer,                       target,           optional :: read_index, state_index, write_index
       real(rk),                      target,           optional :: background
       type (type_link),              pointer,          optional :: link
 !
@@ -1316,7 +1329,7 @@ end subroutine real_pointer_set_set_value
          end if
 
          ! Store a pointer to the variable that should hold the state variable index.
-         call variable%state_indices%append(state_index,.true.)
+         call variable%state_indices%append(state_index)
       end if
 
 
@@ -1327,9 +1340,8 @@ end subroutine real_pointer_set_set_value
          if (present(background_value)) call variable%background_values%set_value(background_value)
       end if
 
-      if (present(sms_index))   call variable%sms_indices%append(sms_index,.false.)
-      if (present(read_index))  call variable%read_indices%append(read_index,.true.)
-      if (present(write_index)) call variable%write_indices%append(write_index,.true.)
+      if (present(read_index))  call variable%read_indices%append(read_index)
+      if (present(write_index)) call variable%write_indices%append(write_index)
 
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self,variable)
@@ -1373,7 +1385,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !LOCAL VARIABLES:
       type (type_internal_variable), pointer :: variable
-      type (type_link),              pointer :: link_
+      type (type_link),              pointer :: link_,link2,link_dum
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1391,21 +1403,22 @@ end subroutine real_pointer_set_set_value
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
-                        read_index, state_index, write_index, sms_index, background, link_)
+                        read_index, state_index, write_index, background, link_)
 
       if (present(sms_index)) then
          call self%add_bulk_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                     0.0_rk, output=output_none, write_index=sms_index, prefill=.true.)
+                                     0.0_rk, output=output_none, write_index=sms_index, prefill=.true., link=link2)
+         link_dum => variable%sms_list%append(link2%target,link2%target%name)
       end if
       if (present(surface_flux_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_sfl', trim(units)//'*m/s', trim(long_name)//' surface flux', &
-                                     0.0_rk, output=output_none, write_index=surface_flux_index, prefill=.true.)
-         call variable%surface_flux_indices%append(surface_flux_index,.false.)
+                                     0.0_rk, output=output_none, write_index=surface_flux_index, prefill=.true., link=link2)
+         link_dum => variable%surface_flux_list%append(link2%target,link2%target%name)
       end if
       if (present(bottom_flux_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_bfl', trim(units)//'*m/s', trim(long_name)//' bottom flux', &
-                                     0.0_rk, output=output_none, write_index=bottom_flux_index, prefill=.true.)
-         call variable%bottom_flux_indices%append(bottom_flux_index,.false.)
+                                     0.0_rk, output=output_none, write_index=bottom_flux_index, prefill=.true., link=link2)
+         link_dum => variable%bottom_flux_list%append(link2%target,link2%target%name)
       end if
 
       if (present(link)) link => link_
@@ -1445,7 +1458,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !LOCAL VARIABLES:
       type (type_internal_variable),pointer :: variable
-      type (type_link),             pointer :: link_
+      type (type_link),             pointer :: link_,link2,link_dum
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1459,11 +1472,12 @@ end subroutine real_pointer_set_set_value
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
-                        read_index, state_index, write_index, sms_index, background, link_)
+                        read_index, state_index, write_index, background, link_)
 
       if (present(sms_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                           0.0_rk, output=output_none, write_index=sms_index, prefill=.true.)
+                                           0.0_rk, output=output_none, write_index=sms_index, prefill=.true., link=link2)
+         link_dum => variable%sms_list%append(link2%target,link2%target%name)
       end if
 
       if (present(link)) link => link_
@@ -1514,7 +1528,7 @@ end subroutine real_pointer_set_set_value
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
-                        read_index, state_index, write_index, sms_index, background, link)
+                        read_index, state_index, write_index, background, link)
    end subroutine add_scalar_variable
 !EOC
 

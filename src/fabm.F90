@@ -2740,6 +2740,33 @@ contains
 
 end subroutine
 
+subroutine copy_write_indices(source,target)
+   type (type_link_list),intent(in) :: source
+   integer,allocatable              :: target(:)
+
+   integer                  :: n
+   type (type_link),pointer :: link
+
+   n = 0
+   link => source%first
+   do while (associated(link))
+      if (.not.link%target%write_indices%is_empty()) n = n + 1
+      link => link%next
+   end do
+
+   allocate(target(n))
+
+   n = 0
+   link => source%first
+   do while (associated(link))
+      if (.not.link%target%write_indices%is_empty()) then
+         n = n + 1
+         target(n) = link%target%write_indices%pointers(1)%p
+      end if
+      link => link%next
+   end do
+end subroutine
+
 function create_external_bulk_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
    type (type_bulk_variable_id) :: id
@@ -2750,9 +2777,9 @@ function create_external_bulk_id(variable) result(id)
    if (.not.variable%read_indices%is_empty())  id%read_index = variable%read_indices%pointers(1)%p
    if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
    if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
-   call variable%sms_indices%copy_values(id%sms_indices)
-   call variable%surface_flux_indices%copy_values(id%surface_flux_indices)
-   call variable%bottom_flux_indices%copy_values(id%bottom_flux_indices)
+   call copy_write_indices(variable%sms_list,         id%sms_indices)
+   call copy_write_indices(variable%surface_flux_list,id%surface_flux_indices)
+   call copy_write_indices(variable%bottom_flux_list, id%bottom_flux_indices)
 end function create_external_bulk_id
 
 function create_external_horizontal_id(variable) result(id)
@@ -2766,7 +2793,7 @@ function create_external_horizontal_id(variable) result(id)
    if (.not.variable%read_indices%is_empty())  id%read_index = variable%read_indices%pointers(1)%p
    if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
    if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
-   call variable%sms_indices%copy_values(id%sms_indices)
+   call copy_write_indices(variable%sms_list,id%sms_indices)
 end function create_external_horizontal_id
 
 function create_external_scalar_id(variable) result(id)
@@ -2774,7 +2801,7 @@ function create_external_scalar_id(variable) result(id)
    type (type_scalar_variable_id) :: id
    if (variable%domain/=domain_scalar) call driver%fatal_error('create_external_scalar_id','BUG: called on non-scalar variable.')
    id%variable => variable
-   if (.not.variable%read_indices%is_empty())  id%read_index = variable%read_indices%pointers(1)%p
+   if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%pointers(1)%p
 end function create_external_scalar_id
 
 function create_external_bulk_id_for_standard_name(self,standard_variable) result(id)
@@ -2880,12 +2907,12 @@ recursive subroutine set_diagnostic_indices(self)
          select case (link%target%domain)
             case (domain_bulk)
                n = n + 1
-               call link%target%write_indices%append(self%reused_diag_write_indices(n),.true.)
-               call link%target%read_indices%append (self%reused_diag_read_indices (n),.true.)
+               call link%target%write_indices%append(self%reused_diag_write_indices(n))
+               call link%target%read_indices%append (self%reused_diag_read_indices (n))
             case (domain_bottom,domain_surface)
                n_hz = n_hz + 1
-               call link%target%write_indices%append(self%reused_diag_hz_write_indices(n_hz),.true.)
-               call link%target%read_indices%append (self%reused_diag_hz_read_indices (n_hz),.true.)
+               call link%target%write_indices%append(self%reused_diag_hz_write_indices(n_hz))
+               call link%target%read_indices%append (self%reused_diag_hz_read_indices (n_hz))
          end select
       end if
       link => link%next
@@ -2965,12 +2992,12 @@ subroutine classify_variables(self)
       ! Store pointer to total of conserved quantity in bulk domain.
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
       if (.not.associated(object)) call driver%fatal_error('classify_variables','BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
-      call object%read_indices%append(consvar%index,.true.)
+      call object%read_indices%append(consvar%index)
 
       ! Store pointer to total of conserved quantity at surface + bottom.
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
       if (.not.associated(object)) call driver%fatal_error('classify_variables','BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
-      call object%read_indices%append(consvar%horizontal_index,.true.)
+      call object%read_indices%append(consvar%horizontal_index)
 
       ! Store pointer to model that computes total of conserved quantity in bulk domain, so we can force recomputation.
       model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_calculator')
@@ -2996,7 +3023,7 @@ subroutine classify_variables(self)
    ! Get link to extinction variable.
    object => self%root%find_object(trim(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux%name))
    if (.not.associated(object)) call driver%fatal_error('classify_variables','BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux was not created')
-   call object%read_indices%append(self%extinction_index,.true.)
+   call object%read_indices%append(self%extinction_index)
 
    ! From this point on, variables will stay as they are.
    ! Coupling is done, and the framework will not add further read indices.
