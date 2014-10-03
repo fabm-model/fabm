@@ -34,7 +34,6 @@ module fabm_builtin_models
    contains
       procedure :: initialize     => weighted_sum_initialize
       procedure :: add_component  => weighted_sum_add_component
-      procedure :: evaluate       => weighted_sum_evaluate
       procedure :: do             => weighted_sum_do
       procedure :: after_coupling => weighted_sum_after_coupling
       procedure :: add_to_parent  => weighted_sum_add_to_parent
@@ -156,9 +155,9 @@ contains
       end do
    end subroutine
 
-   subroutine weighted_sum_evaluate(self,_ARGUMENTS_ND_)
+   subroutine weighted_sum_do(self,_ARGUMENTS_DO_)
       class (type_weighted_sum),intent(in) :: self
-      _DECLARE_ARGUMENTS_ND_
+      _DECLARE_ARGUMENTS_DO_
 
       type (type_component),pointer        :: component
       real(rk)                             :: value
@@ -181,12 +180,6 @@ contains
       _LOOP_BEGIN_
          _SET_DIAGNOSTIC_(self%id_output,sum _INDEX_SLICE_)
       _LOOP_END_
-   end subroutine
-
-   subroutine weighted_sum_do(self,_ARGUMENTS_DO_)
-      class (type_weighted_sum),intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_
-      call self%evaluate(_ARGUMENTS_ND_)
    end subroutine
 
    function horizontal_weighted_sum_add_to_parent(self,parent,name,create_for_one) result(sum_used)

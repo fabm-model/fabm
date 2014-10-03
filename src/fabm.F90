@@ -157,7 +157,6 @@
       type (type_aggregate_variable),pointer        :: aggregate_variable
       integer                                       :: index              = -1
       integer                                       :: horizontal_index   = -1
-      class (type_weighted_sum),           pointer  :: sum                => null()
       class (type_horizontal_weighted_sum),pointer  :: horizontal_sum     => null()
    end type type_conserved_quantity_info
 
@@ -191,7 +190,7 @@
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar
 
       integer                       :: extinction_index = -1
-      type (type_model_list)        :: extinction_call_list
+      type (type_model_list)        :: extinction_call_list, conserved_quantity_call_list
 
       real(rk),allocatable _DIMENSION_GLOBAL_            :: zero
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: zero_hz
@@ -2571,14 +2570,19 @@ end subroutine internal_check_horizontal_state
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
+   type (type_model_list_node), pointer :: node
    integer :: i
 !-----------------------------------------------------------------------
 !BOC
    call prefetch(self%environment _ARG_LOCATION_ND_)
 
+   node => self%conserved_quantity_call_list%first
+   do while (associated(node))
+      call node%model%do(_ARGUMENTS_ND_IN_)
+      node => node%next
+   end do
+
    do i=1,size(self%conserved_quantities)
-      if (associated(self%conserved_quantities(i)%sum)) &
-         call self%conserved_quantities(i)%sum%evaluate(_ARGUMENTS_ND_IN_)
       _LOOP_BEGIN_EX_(self%environment)
          sums _INDEX_SLICE_PLUS_1_(i) = self%environment%data(self%conserved_quantities(i)%index)%p _INDEX_LOCATION_
       _LOOP_END_
@@ -3000,13 +3004,9 @@ subroutine classify_variables(self)
       call object%read_indices%append(consvar%horizontal_index)
 
       ! Store pointer to model that computes total of conserved quantity in bulk domain, so we can force recomputation.
+
       model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_calculator')
-      if (associated(model)) then
-         select type (model)
-            class is (type_weighted_sum)
-               consvar%sum => model
-         end select
-      end if
+      if (associated(model)) call find_dependencies(model,self%conserved_quantity_call_list)
 
       ! Store pointer to model that computes total of conserved quantity at surface + bottom, so we can force recomputation.
       model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_at_interfaces_calculator')
