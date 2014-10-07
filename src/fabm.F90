@@ -2993,20 +2993,18 @@ subroutine classify_variables(self)
       consvar%path = trim(consvar%standard_variable%name)
       consvar%aggregate_variable => aggregate_variable
 
-      ! Store pointer to total of conserved quantity in bulk domain.
+      ! Get read index of the variable that will keep the total of conserved quantity in bulk domain.
+      ! If this variable is a diagnostic, add the source model and any dependencies to the call list
+      ! for conserved quantity calculations.
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
       if (.not.associated(object)) call driver%fatal_error('classify_variables','BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
       call object%read_indices%append(consvar%index)
+      if (.not.object%write_indices%is_empty()) call find_dependencies(object%owner,self%conserved_quantity_call_list)
 
       ! Store pointer to total of conserved quantity at surface + bottom.
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
       if (.not.associated(object)) call driver%fatal_error('classify_variables','BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
       call object%read_indices%append(consvar%horizontal_index)
-
-      ! Store pointer to model that computes total of conserved quantity in bulk domain, so we can force recomputation.
-
-      model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_calculator')
-      if (associated(model)) call find_dependencies(model,self%conserved_quantity_call_list)
 
       ! Store pointer to model that computes total of conserved quantity at surface + bottom, so we can force recomputation.
       model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_at_interfaces_calculator')
