@@ -140,3 +140,9 @@ if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
     DESTINATION include)
 endif()
 
+# Begin testing section
+
+add_custom_target(test_all COMMENT "building tests - nothing yet :-)")
+
+# End of testing section
+
