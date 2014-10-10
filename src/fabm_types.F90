@@ -1396,7 +1396,7 @@ end subroutine real_pointer_set_set_value
       if (present(vertical_movement))         variable%vertical_movement         = vertical_movement
       if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
       if (present(no_river_dilution))         variable%no_river_dilution         = no_river_dilution
-      if (present(standard_variable))         variable%standard_variable         => standard_variable
+      if (present(standard_variable))         allocate(variable%standard_variable,source=standard_variable)
       if (present(specific_light_extinction)) call variable%contributions%add( &
          standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,scale_factor=specific_light_extinction)
 
@@ -1467,7 +1467,7 @@ end subroutine real_pointer_set_set_value
 
       ! Fill fields specific to horizontal variables.
       if (present(domain))            variable%domain = domain
-      if (present(standard_variable)) variable%standard_variable => standard_variable
+      if (present(standard_variable)) allocate(variable%standard_variable,source=standard_variable)
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
@@ -1523,7 +1523,7 @@ end subroutine real_pointer_set_set_value
       variable%domain = domain_scalar
 
       ! Fill fields specific to scalar variables.
-      if (present(standard_variable)) variable%standard_variable => standard_variable
+      if (present(standard_variable)) allocate(variable%standard_variable,source=standard_variable)
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
