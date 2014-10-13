@@ -503,12 +503,12 @@ do n = 1, instances  !{
   call fm_util_end_namelist(package_name, biotic(n)%name, check = .true., caller = caller_str)
 
   ! Obtain ids of required external variables
-  biotic(n)%id_temp   = fabm_get_bulk_variable_id(biotic(n)%model,varname_temp)
-  biotic(n)%id_salt   = fabm_get_bulk_variable_id(biotic(n)%model,varname_salt)
-  biotic(n)%id_pres   = fabm_get_bulk_variable_id(biotic(n)%model,varname_pres)
-  biotic(n)%id_dens   = fabm_get_bulk_variable_id(biotic(n)%model,varname_dens)
-  biotic(n)%id_par    = fabm_get_bulk_variable_id(biotic(n)%model,varname_par)
-  biotic(n)%id_par_sf = fabm_get_horizontal_variable_id(biotic(n)%model,varname_par_sf)
+  biotic(n)%id_temp   = fabm_get_bulk_variable_id(biotic(n)%model,standard_variables%temperature)
+  biotic(n)%id_salt   = fabm_get_bulk_variable_id(biotic(n)%model,standard_variables%practical_salinity)
+  biotic(n)%id_pres   = fabm_get_bulk_variable_id(biotic(n)%model,standard_variables%pressure)
+  biotic(n)%id_dens   = fabm_get_bulk_variable_id(biotic(n)%model,standard_variables%density)
+  biotic(n)%id_par    = fabm_get_bulk_variable_id(biotic(n)%model,standard_variables%downwelling_photosynthetic_radiative_flux)
+  biotic(n)%id_par_sf = fabm_get_horizontal_variable_id(biotic(n)%model,standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
 enddo  !} n
 
