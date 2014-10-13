@@ -2039,13 +2039,13 @@ end subroutine real_pointer_set_set_value
 
 subroutine act_as_bulk_state_variable(self,id)
    class (type_base_model),             intent(inout) :: self
-   type (type_diagnostic_variable_id),  intent(in)    :: id
+   type (type_diagnostic_variable_id),  intent(inout) :: id
    id%link%target%fake_state_variable = .true.
 end subroutine
 
 subroutine act_as_horizontal_state_variable(self,id)
    class (type_base_model),                      intent(inout) :: self
-   type (type_horizontal_diagnostic_variable_id),intent(in)    :: id
+   type (type_horizontal_diagnostic_variable_id),intent(inout) :: id
    id%link%target%fake_state_variable = .true.
 end subroutine
 
