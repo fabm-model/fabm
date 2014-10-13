@@ -749,14 +749,14 @@
    subroutine fabm_check_ready(self)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),intent(in),target :: self
+   class (type_model),intent(inout),target :: self
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-  type (type_link),        pointer :: link
-  logical                          :: ready
+  type (type_link),pointer :: link
+  logical                  :: ready
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -795,6 +795,9 @@
    end do
 
    if (.not.ready) call fatal_error('fabm_check_ready','FABM is lacking required data.')
+
+   ! Host has sent all fields - disbale all optional fields that were not provided in individual BGC models.
+   call filter_readable_variable_registry(self)
 
    end subroutine fabm_check_ready
 !EOC
@@ -1837,14 +1840,14 @@ subroutine prefetch(environment _ARG_LOCATION_ND_)
 
    do i=1,size(environment%data)
       if (associated(environment%data(i)%p)) then
-         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+         _CONCURRENT_LOOP_BEGIN_EX_(environment)
             environment%prefetch _INDEX_SLICE_PLUS_1_(i) = environment%data(i)%p _INDEX_LOCATION_
          _LOOP_END_
       end if
    end do
    do i=1,size(environment%data_hz)
       if (associated(environment%data_hz(i)%p)) then
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
             environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = environment%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
          _HORIZONTAL_LOOP_END_
       end if
@@ -1862,14 +1865,14 @@ subroutine prefetch_hz(environment _ARG_LOCATION_VARS_HZ_)
 
    do i=1,size(environment%data)
       if (associated(environment%data(i)%p)) then
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
             environment%prefetch _INDEX_SLICE_PLUS_1_(i) = environment%data(i)%p _INDEX_LOCATION_
          _HORIZONTAL_LOOP_END_
       end if
    end do
    do i=1,size(environment%data_hz)
       if (associated(environment%data_hz(i)%p)) then
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
             environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = environment%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
          _HORIZONTAL_LOOP_END_
       end if
@@ -2928,6 +2931,74 @@ recursive subroutine set_diagnostic_indices(self)
    end do
 end subroutine set_diagnostic_indices
 
+subroutine create_readable_variable_registry(self)
+   class (type_model),intent(inout),target :: self
+
+   integer :: nread,nread_hz,nread_scalar
+   type (type_link), pointer :: link
+
+   nread = 0
+   nread_hz = 0
+   nread_scalar = 0
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      if (.not.link%target%read_indices%is_empty()) then
+         select case (link%target%domain)
+            case (domain_bulk)
+               ! Bulk variable read by one or more models
+               nread = nread+1
+               call link%target%read_indices%set_value(nread)
+            case (domain_bottom,domain_surface)
+               ! Horizontal variable read by one or more models
+               nread_hz = nread_hz+1
+               call link%target%read_indices%set_value(nread_hz)
+            case (domain_scalar)
+               ! Scalar variable read by one or more models
+               nread_scalar = nread_scalar+1
+               call link%target%read_indices%set_value(nread_scalar)
+         end select
+      end if   
+      link => link%next
+   end do
+
+   allocate(self%environment%data       (nread))
+   allocate(self%environment%data_hz    (nread_hz))
+   allocate(self%environment%data_scalar(nread_scalar))
+end subroutine create_readable_variable_registry
+
+subroutine filter_readable_variable_registry(self)
+   class (type_model),intent(inout),target :: self
+
+   integer :: nread,nread_hz,nread_scalar
+   type (type_link), pointer :: link
+
+   ! For all readable variables that are designated as "optional" by the biogeochemical model, and have not been
+   ! assigned a value, set their index in the biogeochemical model to -1 so the model is aware that it is not used/unavailable.
+   nread = 0
+   nread_hz = 0
+   nread_scalar = 0
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      if (.not.link%target%read_indices%is_empty()) then
+         select case (link%target%domain)
+            case (domain_bulk)
+               nread = nread+1
+               if (link%target%presence==presence_external_optional.and..not.associated(self%environment%data(nread)%p)) &
+                  call link%target%read_indices%set_value(-1)
+            case (domain_bottom,domain_surface)
+               nread_hz = nread_hz+1
+               if (link%target%presence==presence_external_optional.and..not.associated(self%environment%data_hz(nread_hz)%p)) &
+                  call link%target%read_indices%set_value(-1)
+            case (domain_scalar)
+               nread_scalar = nread_scalar+1
+               if (link%target%presence==presence_external_optional.and..not.associated(self%environment%data_scalar(nread_scalar)%p)) &
+                  call link%target%read_indices%set_value(-1)
+         end select
+      end if   
+      link => link%next
+   end do
+end subroutine filter_readable_variable_registry
+
 subroutine classify_variables(self)
    class (type_model),intent(inout),target :: self
 
@@ -2939,7 +3010,6 @@ subroutine classify_variables(self)
    type (type_conserved_quantity_info),            pointer :: consvar
    type (type_internal_variable),                  pointer :: object
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
-   integer                                                 :: nread,nread_hz,nread_scalar
    class (type_base_model),                        pointer :: model
 
    type (type_aggregate_variable),    pointer :: aggregate_variable
@@ -3025,25 +3095,19 @@ subroutine classify_variables(self)
    ! From this point on, variables will stay as they are.
    ! Coupling is done, and the framework will not add further read indices.
 
+   call create_readable_variable_registry(self)
+
    ! Count number of bulk variables in various categories.
    nstate = 0
    ndiag  = 0
    nstate_bot  = 0
    nstate_surf = 0
    ndiag_hz    = 0
-   nread = 0
-   nread_hz = 0
-   nread_scalar = 0
    link => self%links_postcoupling%first
    do while (associated(link))
       object => link%target
       select case (object%domain)
          case (domain_bulk)
-            if (.not.object%read_indices%is_empty()) then
-               ! Bulk variable read by one or more models
-               nread = nread+1
-               call object%read_indices%set_value(nread)
-            end if
             if (.not.object%write_indices%is_empty()) then
                ! Bulk diagnostic variable.
                ndiag = ndiag+1
@@ -3062,11 +3126,6 @@ subroutine classify_variables(self)
                end select
             end if
          case (domain_bottom,domain_surface)
-            if (.not.object%read_indices%is_empty()) then
-               ! Horizontal variable read by one or more models
-               nread_hz = nread_hz+1
-               call object%read_indices%set_value(nread_hz)
-            end if
             if (.not.object%write_indices%is_empty()) then
                ! Horizontal diagnostic variable.
                ndiag_hz = ndiag_hz+1
@@ -3090,12 +3149,6 @@ subroutine classify_variables(self)
                         'Variable '//trim(link%name)//' must be coupled to an existing state variable.')
                end select
             end if
-         case (domain_scalar)
-            if (.not.object%read_indices%is_empty()) then
-               ! Scalar variable read by one or more models
-               nread_scalar = nread_scalar+1
-               call object%read_indices%set_value(nread_scalar)
-            end if
       end select
       link => link%next
    end do
@@ -3106,10 +3159,6 @@ subroutine classify_variables(self)
    allocate(self%surface_state_variables        (nstate_surf))
    allocate(self%diagnostic_variables           (ndiag))
    allocate(self%horizontal_diagnostic_variables(ndiag_hz))
-
-   allocate(self%environment%data       (nread))
-   allocate(self%environment%data_hz    (nread_hz))
-   allocate(self%environment%data_scalar(nread_scalar))
 
    ! Set pointers for backward compatibility (pre 2013-06-15)
    ! Note: this must be done AFTER allocation of the target arrays, above!
