@@ -246,17 +246,22 @@
       class (type_base_model),pointer :: owner          => null()
       type (type_contribution_list)   :: contributions
 
-      type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
-      type (type_real_pointer_set)    :: background_values
-      type (type_link_list)           :: sms_list
-
       class (type_standard_variable), pointer :: standard_variable => null()
 
+      logical :: fake_state_variable = .false.
+
       ! Only used for bulk variables:
-      real(rk)             :: vertical_movement         = 0.0_rk
-      logical              :: no_precipitation_dilution = .false.
-      logical              :: no_river_dilution         = .false.
-     type (type_link_list) :: surface_flux_list,bottom_flux_list
+      real(rk) :: vertical_movement         = 0.0_rk
+      logical  :: no_precipitation_dilution = .false.
+      logical  :: no_river_dilution         = .false.
+
+      integer,pointer :: read_index  => null()
+      integer,pointer :: write_index => null()
+
+      ! Collections to collect information from all coupled variables.
+      type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
+      type (type_real_pointer_set)    :: background_values
+      type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list
    end type
 
    type type_link
@@ -419,6 +424,10 @@
                                                  register_bottom_state_dependency_old,register_surface_state_dependency_old
       generic :: register_conserved_quantity  => register_standard_conserved_quantity, register_custom_conserved_quantity
 
+      procedure :: act_as_bulk_state_variable
+      procedure :: act_as_horizontal_state_variable
+      generic :: act_as_state_variable => act_as_bulk_state_variable,act_as_horizontal_state_variable
+
       ! ----------------------------------------------------------------------------------------------------
       ! Procedures below may be overridden by biogeochemical models to provide custom data or functionality.
       ! ----------------------------------------------------------------------------------------------------
@@ -517,7 +526,6 @@
    subroutine base_initialize(self,configunit)
       class (type_base_model),intent(inout),target :: self
       integer,                intent(in)           :: configunit
-      call self%fatal_error('base_initialize','Model must implement the "initialize" subroutine.')
    end subroutine
 
    subroutine base_initialize_state(self,_ARGUMENTS_INITIALIZE_STATE_)
@@ -1340,8 +1348,14 @@ end subroutine real_pointer_set_set_value
          if (present(background_value)) call variable%background_values%set_value(background_value)
       end if
 
-      if (present(read_index))  call variable%read_indices%append(read_index)
-      if (present(write_index)) call variable%write_indices%append(write_index)
+      if (present(read_index)) then
+         variable%read_index => read_index
+         call variable%read_indices%append(read_index)
+      end if
+      if (present(write_index)) then
+         variable%write_index => write_index
+         call variable%write_indices%append(write_index)
+      end if
 
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self,variable)
@@ -1712,7 +1726,7 @@ end subroutine real_pointer_set_set_value
 ! !IROUTINE: Registers a dependency on an external state variable
 !
 ! !INTERFACE:
-   subroutine register_bulk_state_dependency_ex(self,id,name,units,long_name,required)
+   subroutine register_bulk_state_dependency_ex(self,id,name,units,long_name,required,standard_variable)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -1724,8 +1738,9 @@ end subroutine real_pointer_set_set_value
       type (type_state_variable_id),intent(inout),target :: id
 !
 ! !INPUT PARAMETERS:
-      character(len=*),intent(in)          :: name,units,long_name
-      logical,         intent(in),optional :: required
+      character(len=*),                   intent(in)          :: name,units,long_name
+      logical,                            intent(in),optional :: required
+      type (type_bulk_standard_variable), intent(in),optional :: standard_variable
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1738,7 +1753,7 @@ end subroutine real_pointer_set_set_value
       if (present(required)) then
          if (.not.required) presence = presence_external_optional
       end if
-      call register_bulk_state_variable(self, id, name, units, long_name, presence=presence)
+      call register_bulk_state_variable(self, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
 
    end subroutine register_bulk_state_dependency_ex
 !EOC
@@ -1749,7 +1764,7 @@ end subroutine real_pointer_set_set_value
 ! !IROUTINE: Registers a dependency on an external bottom state variable
 !
 ! !INTERFACE:
-   subroutine register_bottom_state_dependency_ex(model,id,name,units,long_name,required)
+   subroutine register_bottom_state_dependency_ex(model,id,name,units,long_name,required,standard_variable)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -1757,12 +1772,13 @@ end subroutine real_pointer_set_set_value
 !  the variable is not found), which may be used to retrieve the variable value at a later stage.
 !
 ! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),             intent(inout)        :: model
-      type (type_bottom_state_variable_id),intent(inout),target :: id
+      class (type_base_model),              intent(inout)        :: model
+      type (type_bottom_state_variable_id), intent(inout),target :: id
 !
 ! !INPUT PARAMETERS:
-      character(len=*),intent(in)          :: name,units,long_name
-      logical,         intent(in),optional :: required
+      character(len=*),                         intent(in)          :: name,units,long_name
+      logical,                                  intent(in),optional :: required
+      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1775,7 +1791,7 @@ end subroutine real_pointer_set_set_value
       if (present(required)) then
          if (.not.required) presence = presence_external_optional
       end if
-      call register_bottom_state_variable(model, id, name, units, long_name, presence=presence)
+      call register_bottom_state_variable(model, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
 
    end subroutine register_bottom_state_dependency_ex
 !EOC
@@ -1785,7 +1801,7 @@ end subroutine real_pointer_set_set_value
 ! !IROUTINE: Registers a dependency on an external surface-bound state variable
 !
 ! !INTERFACE:
-   subroutine register_surface_state_dependency_ex(model,id,name,units,long_name,required)
+   subroutine register_surface_state_dependency_ex(model,id,name,units,long_name,required,standard_variable)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -1793,12 +1809,13 @@ end subroutine real_pointer_set_set_value
 !  the variable is not found), which may be used to retrieve the variable value at a later stage.
 !
 ! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),              intent(inout)        :: model
-      type (type_surface_state_variable_id),intent(inout),target :: id
+      class (type_base_model),               intent(inout)        :: model
+      type (type_surface_state_variable_id), intent(inout),target :: id
 !
 ! !INPUT PARAMETERS:
-      character(len=*),intent(in)          :: name,units,long_name
-      logical,         intent(in),optional :: required
+      character(len=*),                         intent(in)          :: name,units,long_name
+      logical,                                  intent(in),optional :: required
+      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1811,7 +1828,7 @@ end subroutine real_pointer_set_set_value
       if (present(required)) then
          if (.not.required) presence = presence_external_optional
       end if
-      call register_surface_state_variable(model, id, name, units, long_name, presence=presence)
+      call register_surface_state_variable(model, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
 
    end subroutine register_surface_state_dependency_ex
 !EOC
@@ -2019,6 +2036,18 @@ end subroutine real_pointer_set_set_value
 
    end subroutine register_named_global_dependency
 !EOC
+
+subroutine act_as_bulk_state_variable(self,id)
+   class (type_base_model),             intent(inout) :: self
+   type (type_diagnostic_variable_id),  intent(in)    :: id
+   id%link%target%fake_state_variable = .true.
+end subroutine
+
+subroutine act_as_horizontal_state_variable(self,id)
+   class (type_base_model),                      intent(inout) :: self
+   type (type_horizontal_diagnostic_variable_id),intent(in)    :: id
+   id%link%target%fake_state_variable = .true.
+end subroutine
 
 subroutine register_bulk_expression_dependency(self,id,expression)
    class (type_base_model),       intent(inout)        :: self

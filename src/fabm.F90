@@ -502,7 +502,7 @@
       call classify_variables(self)
 
       call extinction_calculator%models%extend(self%models)
-      call create_model_call_list(self,'attenuation_coefficient_of_photosynthetic_radiative_flux',self%extinction_call_list)
+      call add_to_model_call_list(self,'attenuation_coefficient_of_photosynthetic_radiative_flux',self%extinction_call_list)
 
       self%initialized = .true.
 
@@ -567,13 +567,17 @@
 !
 ! !LOCAL VARIABLES:
       type (type_model_list_node),pointer :: child
+      character(len=4) :: strcount
 !EOP
 !-----------------------------------------------------------------------
 !BOC
       child => model%children%first
       do while (associated(child))
-         if (self%models%count(child%model)/=1) call fatal_error('fabm_initialize::test_presence', &
-            'BUG: Model "'//trim(model%name)//'" is not called exactly one time.')
+         if (self%models%count(child%model)/=1) then
+            write (strcount,'(i0)') self%models%count(child%model)
+            call fatal_error('fabm_initialize::test_presence', &
+               'BUG: Model "'//trim(child%model%get_path())//'" is not called exactly one time, but '//trim(strcount)//' times .')
+         end if
          call test_presence(self,child%model)
          child => child%next
       end do
@@ -1554,9 +1558,6 @@
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   integer :: i
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -2774,7 +2775,6 @@ end subroutine
 function create_external_bulk_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
    type (type_bulk_variable_id) :: id
-   integer :: i
 
    if (variable%domain/=domain_bulk) call driver%fatal_error('create_external_bulk_id','BUG: called on non-bulk variable.')
    id%variable => variable
@@ -2789,7 +2789,6 @@ end function create_external_bulk_id
 function create_external_horizontal_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
    type (type_horizontal_variable_id) :: id
-   integer :: i
 
    if (variable%domain/=domain_bottom.and.variable%domain/=domain_surface) &
       call driver%fatal_error('create_external_horizontal_id','BUG: called on non-horizontal variable.')
@@ -2885,8 +2884,8 @@ recursive subroutine set_diagnostic_indices(self)
    n_hz = 0
    link => self%links%first
    do while (associated(link))
-      if (index(link%name,'/')==0.and..not.link%original%write_indices%is_empty().and..not.link%target%read_indices%is_empty()) then
-         ! Variable is written to by current model, and read by someone.
+      if (index(link%name,'/')==0.and.associated(link%original%write_index).and..not.link%target%read_indices%is_empty()) then
+         ! Variable is a diagnostic written to by current model, and read by at least one model.
          select case (link%target%domain)
             case (domain_bulk)
                n = n + 1
@@ -2906,7 +2905,7 @@ recursive subroutine set_diagnostic_indices(self)
    n_hz = 0
    link => self%links%first
    do while (associated(link))
-      if (index(link%name,'/')==0.and..not.link%original%write_indices%is_empty().and..not.link%target%read_indices%is_empty()) then
+      if (index(link%name,'/')==0.and.associated(link%original%write_index).and..not.link%target%read_indices%is_empty()) then
          ! Variable is written to by current model, and read by someone.
          select case (link%target%domain)
             case (domain_bulk)
@@ -2948,7 +2947,7 @@ subroutine classify_variables(self)
    type (type_model_list_node),   pointer :: model_node
 
    ! Determine the order in which individual biogeochemical models should be called.
-   call find_dependencies(self%root,self%models)
+   call build_call_list(self%root,self%models)
 
    ! Consistency check (of find_dependencies): does every model (except the root) appear exactly once in the call list?
    call test_presence(self,self%root)
@@ -3040,19 +3039,17 @@ subroutine classify_variables(self)
       object => link%target
       select case (object%domain)
          case (domain_bulk)
-            ! This is a variable owned by the model.
-            if (.not.object%write_indices%is_empty()) then
-               ! This is a diagnostic variable.
-               ndiag = ndiag+1
-               call object%write_indices%set_value(ndiag)
-            end if
             if (.not.object%read_indices%is_empty()) then
-               ! The value of this variable is read by one or more models
+               ! Bulk variable read by one or more models
                nread = nread+1
                call object%read_indices%set_value(nread)
             end if
-            if (.not.object%state_indices%is_empty()) then
-               ! This is a state variable.
+            if (.not.object%write_indices%is_empty()) then
+               ! Bulk diagnostic variable.
+               ndiag = ndiag+1
+               call object%write_indices%set_value(ndiag)
+            elseif (.not.object%state_indices%is_empty()) then
+               ! Bulk state variable.
                select case (object%presence)
                   case (presence_internal)
                      nstate = nstate+1
@@ -3065,18 +3062,17 @@ subroutine classify_variables(self)
                end select
             end if
          case (domain_bottom,domain_surface)
-            if (.not.object%write_indices%is_empty()) then
-               ! This is a diagnostic variable.
-               ndiag_hz = ndiag_hz+1
-               call object%write_indices%set_value(ndiag_hz)
-            end if
             if (.not.object%read_indices%is_empty()) then
-               ! The value of this variable is read by one or more models
+               ! Horizontal variable read by one or more models
                nread_hz = nread_hz+1
                call object%read_indices%set_value(nread_hz)
             end if
-            if (.not.object%state_indices%is_empty()) then
-               ! This is a state variable.
+            if (.not.object%write_indices%is_empty()) then
+               ! Horizontal diagnostic variable.
+               ndiag_hz = ndiag_hz+1
+               call object%write_indices%set_value(ndiag_hz)
+            elseif (.not.object%state_indices%is_empty()) then
+               ! Horizontal state variable.
                select case (object%presence)
                   case (presence_internal)
                      select case (object%domain)
@@ -3096,7 +3092,7 @@ subroutine classify_variables(self)
             end if
          case (domain_scalar)
             if (.not.object%read_indices%is_empty()) then
-               ! The value of this variable is read by one or more models
+               ! Scalar variable read by one or more models
                nread_scalar = nread_scalar+1
                call object%read_indices%set_value(nread_scalar)
             end if
@@ -3131,9 +3127,8 @@ subroutine classify_variables(self)
       object => link%target
       select case (link%target%domain)
          case (domain_bulk)
-            ! The model owns this variable (no external master variable has been assigned)
-            ! Transfer variable information to the array that will be accessed by the host model.
             if (.not.object%write_indices%is_empty()) then
+               ! Bulk diagnostic variable
                ndiag = ndiag + 1
                diagvar => self%diagnostic_variables(ndiag)
                call copy_variable_metadata(object,diagvar)
@@ -3146,8 +3141,8 @@ subroutine classify_variables(self)
                end if
                diagvar%prefill           = object%prefill !.and.object%missing_value/=0.0_rk
                diagvar%time_treatment    = output2time_treatment(diagvar%output)
-            end if
-            if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
+            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
+               ! Bulk state variable
                nstate = nstate + 1
                statevar => self%state_variables(nstate)
                call copy_variable_metadata(object,statevar)
@@ -3164,9 +3159,8 @@ subroutine classify_variables(self)
                statevar%no_river_dilution         = object%no_river_dilution
             end if
          case (domain_bottom,domain_surface)
-            ! The model owns this variable (no external master variable has been assigned)
-            ! Transfer variable information to the array that will be accessed by the host model.
             if (.not.object%write_indices%is_empty()) then
+               ! Horizontal diagnostic variable
                ndiag_hz = ndiag_hz + 1
                hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
                call copy_variable_metadata(object,hz_diagvar)
@@ -3179,8 +3173,8 @@ subroutine classify_variables(self)
                end if
                hz_diagvar%prefill           = object%prefill !.and.object%missing_value/=0.0_rk
                hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
-            end if
-            if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
+            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
+               ! Horizontal state variable
                select case (object%domain)
                   case (domain_bottom)
                      nstate_bot = nstate_bot + 1
@@ -3291,7 +3285,7 @@ end subroutine
       _LOOP_END_
    end subroutine
 
-   subroutine create_model_call_list(self,variable_name,list)
+   subroutine add_to_model_call_list(self,variable_name,list)
       class (type_model),     intent(inout),target :: self
       character(len=*),       intent(in)           :: variable_name
       type (type_model_list), intent(inout)        :: list
@@ -3300,7 +3294,21 @@ end subroutine
 
       object => self%root%find_object(variable_name)
       if (.not.object%write_indices%is_empty()) call find_dependencies(object%owner,list)
-   end subroutine create_model_call_list
+   end subroutine add_to_model_call_list
+
+   recursive subroutine build_call_list(self,list)
+      class (type_base_model),intent(in),target   :: self
+      type (type_model_list), intent(inout)       :: list
+
+      type (type_model_list_node),pointer :: node
+
+      call find_dependencies(self,list)
+      node => self%children%first
+      do while (associated(node))
+         call build_call_list(node%model,list)
+         node => node%next
+      end do
+   end subroutine build_call_list
 
 end module fabm
 

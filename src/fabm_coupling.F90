@@ -47,8 +47,10 @@ module fabm_coupling
       call couple_standard_variables(self)
       call process_coupling_tasks(self,.false.)
 
+      call handle_fake_state_variables(self)
+
       ! Create models for aggregate variables at root level, to be used to compute conserved quantities.
-      ! After this step, the set of variables that contribute to aggregate quatities may not be modified.
+      ! After this step, the set of variables that contribute to aggregate quantities may not be modified.
       ! That is, no new such variables may be added, and no such variables may be coupled.
       call build_aggregate_variables(self)
       call create_aggregate_models(self)
@@ -151,7 +153,7 @@ end subroutine
                            end select
                      end select
                      if (match) then
-                        if (link2%target%write_indices%is_empty()) then
+                        if (link2%target%write_indices%is_empty().and..not.(link%target%presence/=presence_internal.and.link2%target%presence==presence_internal)) then
                            ! Default coupling: early variable is master, later variable is slave.
                            call couple_variables(model,link%target,link2%target)
                         else
@@ -415,7 +417,7 @@ subroutine couple_variables(self,master,slave)
    if (.not.slave%write_indices%is_empty()) &
       call fatal_error('couple_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
-   if (master%state_indices%is_empty().and..not.slave%state_indices%is_empty()) &
+   if (.not.slave%state_indices%is_empty().and.master%state_indices%is_empty().and..not.master%fake_state_variable) &
       call fatal_error('couple_variables','Attempt to couple state variable ' &
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
    if (master%presence==presence_external_optional) &
@@ -494,10 +496,10 @@ recursive subroutine find_dependencies(self,list,forbidden)
          ! Circular dependency found - report as fatal error.
          chain = ''
          do while (associated(node))
-            chain = trim(chain)//trim(node%model%name)//' -> '
+            chain = trim(chain)//' '//trim(node%model%get_path())//' ->'
             node => node%next
          end do
-         call fatal_error('find_dependencies','circular dependency found: '//trim(chain)//trim(self%name))
+         call fatal_error('find_dependencies','circular dependency found: '//trim(chain(2:))//' '//trim(self%get_path()))
       end if
       call forbidden_with_self%extend(forbidden)
    end if
@@ -506,10 +508,10 @@ recursive subroutine find_dependencies(self,list,forbidden)
    ! Loop over all variables, and if they belong to some other model, first add that model to the dependency list.
    link => self%links%first
    do while (associated(link))
-      if (index(link%name,'/')==0 &                              ! Our own link...
-          .and..not.link%target%write_indices%is_empty() &       ! ...to a diagnostic variable...
-          .and..not.associated(link%target%owner,self) &         ! ...not set by ourselves...
-          .and..not.link%original%read_indices%is_empty()) &     ! ...and we do depend on its value.
+      if (index(link%name,'/')==0 &                        ! Our own link...
+          .and..not.link%target%write_indices%is_empty() & ! ...to a diagnostic variable...
+          .and..not.associated(link%target%owner,self) &   ! ...not set by ourselves...
+          .and.associated(link%original%read_index)) &     ! ...and we do depend on its value.
          call find_dependencies(link%target%owner,list,forbidden_with_self)
       link => link%next
    end do
@@ -517,14 +519,70 @@ recursive subroutine find_dependencies(self,list,forbidden)
    ! We're happy - add ourselves to the list of processed models.
    call list%append(self)
 
-   ! Now process any children that have not been processed before.
-   node => self%children%first
-   do while (associated(node))
-      call find_dependencies(node%model,list)
-      node => node%next
+   ! Clean up our temporary list.
+   call forbidden_with_self%finalize()
+end subroutine find_dependencies
+
+recursive subroutine handle_fake_state_variables(self)
+   class (type_base_model),intent(inout),target :: self
+
+   type (type_weighted_sum),           pointer :: sum
+   type (type_horizontal_weighted_sum),pointer :: sum_hz
+   type (type_link),                   pointer :: link,link2
+   type (type_model_list_node),        pointer :: node
+
+   link => self%links%first
+   do while (associated(link))
+      if (index(link%name,'/')==0.and.associated(link%target,link%original).and.link%target%fake_state_variable) then
+         ! This is a diagnostic variable acting as a state variable.
+         select case (link%target%domain)
+            case (domain_bulk)
+               ! Create sum of sink-source terms.
+               allocate(sum)
+               link2 => link%target%sms_list%first
+               do while (associated(link2))
+                  call sum%add_component(link2%target%name)
+                  link2 => link2%next
+               end do
+               if (.not.sum%add_to_parent(link%target%owner,trim(link%name)//'_sms')) deallocate(sum)
+
+               ! Create sum of surface fluxes.
+               allocate(sum_hz)
+               link2 => link%target%surface_flux_list%first
+               do while (associated(link2))
+                  call sum_hz%add_component(link2%target%name)
+                  link2 => link2%next
+               end do
+               if (.not.sum_hz%add_to_parent(link%target%owner,trim(link%name)//'_sfl')) deallocate(sum_hz)
+
+               ! Create sum of bottom fluxes.
+               allocate(sum_hz)
+               link2 => link%target%bottom_flux_list%first
+               do while (associated(link2))
+                  call sum_hz%add_component(link2%target%name)
+                  link2 => link2%next
+               end do
+               if (.not.sum_hz%add_to_parent(link%target%owner,trim(link%name)//'_bfl')) deallocate(sum_hz)
+            case (domain_surface,domain_bottom)
+               ! Create sum of sink-source terms.
+               allocate(sum_hz)
+               link2 => link%target%sms_list%first
+               do while (associated(link2))
+                  call sum_hz%add_component(link2%target%name)
+                  link2 => link2%next
+               end do
+               if (.not.sum_hz%add_to_parent(link%target%owner,trim(link%name)//'_sms')) deallocate(sum_hz)
+         end select
+      end if
+      link => link%next
    end do
 
-   call forbidden_with_self%finalize()
-end subroutine
+   ! Now process any children
+   node => self%children%first
+   do while (associated(node))
+      call handle_fake_state_variables(node%model)
+      node => node%next
+   end do
+end subroutine handle_fake_state_variables
 
 end module
