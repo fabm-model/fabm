@@ -1386,7 +1386,7 @@ end subroutine real_pointer_set_set_value
       real(rk),                          intent(in),optional :: minimum, maximum, missing_value, initial_value, background_value
       real(rk),                          intent(in),optional :: vertical_movement, specific_light_extinction
       logical,                           intent(in),optional :: no_precipitation_dilution, no_river_dilution
-      type (type_bulk_standard_variable),intent(in),optional,target :: standard_variable
+      type (type_bulk_standard_variable),intent(in),optional :: standard_variable
       integer,                           intent(in),optional :: presence, output, time_treatment
       logical,                           intent(in),optional :: prefill
 
@@ -1459,7 +1459,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                         intent(in),optional :: long_name, units
       real(rk),                                 intent(in),optional :: minimum, maximum, missing_value
       real(rk),                                 intent(in),optional :: initial_value, background_value
-      type (type_horizontal_standard_variable), intent(in),optional,target :: standard_variable
+      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
       integer,                                  intent(in),optional :: presence, domain, output, time_treatment
       logical,                                  intent(in),optional :: prefill
 
@@ -1517,7 +1517,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                     intent(in)          :: name
       character(len=*),                     intent(in),optional :: long_name, units
       real(rk),                             intent(in),optional :: minimum, maximum, missing_value, initial_value, background_value
-      type (type_global_standard_variable), intent(in),optional,target :: standard_variable
+      type (type_global_standard_variable), intent(in),optional :: standard_variable
       integer,                              intent(in),optional :: presence, output, time_treatment
       logical,                              intent(in),optional :: prefill
 
