@@ -480,7 +480,8 @@
 
       ! Make sure a variable for light extinction is created at the root level when calling freeze_model_info.
       ! This variable is used from fabm_get_light_extinction.
-      aggregate_variable => get_aggregate_variable(self%root,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
+      aggregate_variable => get_aggregate_variable(self%root, &
+         standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
       aggregate_variable%bulk_required = .true.
 
       ! Create placeholder variables for zero fields.
@@ -645,7 +646,7 @@
       node => node%next
    end do
 
-   ! Allocate arrays for diagnostic variables defined on the full domain and on horizontonal slices.
+   ! Allocate arrays for diagnostic variables defined on the full domain and on horizontal slices.
    allocate(self%environment%diag   (_PREARG_LOCATION_ size(self%diagnostic_variables)))
    allocate(self%environment%diag_hz(_PREARG_LOCATION_HZ_ size(self%horizontal_diagnostic_variables)))
    self%environment%nstate = size(self%state_variables)
@@ -654,6 +655,10 @@
    allocate(self%environment%prefetch _INDEX_SLICE_PLUS_1_(size(self%environment%data)))
    allocate(self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(size(self%environment%data_hz)))
    allocate(self%environment%prefetch_scalar(size(self%environment%data_scalar)))
+
+#ifdef _FABM_MASK_
+   allocate(self%environment%prefetch_mask _INDEX_SLICE_)
+#endif
 
    self%environment%prefetch = 0.0_rk
    self%environment%prefetch_hz = 0.0_rk
@@ -725,7 +730,7 @@
    subroutine fabm_set_mask(self, mask)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,intent(inout)                            :: self
+   class (type_model),target,intent(inout)                    :: self
    _FABM_MASK_TYPE_, target, intent(in)    _DIMENSION_GLOBAL_ :: mask
 !
 ! !REVISION HISTORY:
@@ -825,13 +830,15 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   call prefetch(self%environment _ARG_LOCATION_ND_)
+
    do ivar=1,size(self%state_variables)
       ! Shortcuts to variable information - this demonstrably helps the compiler with vectorization (ifort).
       p = self%environment%data(self%state_variables(ivar)%globalid%read_index)
       initial_value = self%state_variables(ivar)%initial_value
-      _LOOP_BEGIN_EX_(self%environment)
+      _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
          p%p _INDEX_LOCATION_ = initial_value
-      _LOOP_END_
+      _CONCURRENT_LOOP_END_
    end do
 
    ! Allow biogeochemical models to initialize their bulk state.
@@ -867,13 +874,15 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
+
    ! Initialize bottom variables
    do ivar=1,size(self%bottom_state_variables)
       p = self%environment%data_hz(self%bottom_state_variables(ivar)%globalid%read_index)
       initial_value = self%bottom_state_variables(ivar)%initial_value
-      _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
          p%p _INDEX_HORIZONTAL_LOCATION_ = initial_value
-      _HORIZONTAL_LOOP_END_
+      _CONCURRENT_HORIZONTAL_LOOP_END_
    end do
 
    ! Allow biogeochemical models to initialize their bottom state.
@@ -909,13 +918,15 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
+
    ! Initialize surface variables
    do ivar=1,size(self%surface_state_variables)
       p = self%environment%data_hz(self%surface_state_variables(ivar)%globalid%read_index)
       initial_value = self%surface_state_variables(ivar)%initial_value
-      _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
          p%p _INDEX_HORIZONTAL_LOCATION_ = initial_value
-      _HORIZONTAL_LOOP_END_
+      _CONCURRENT_HORIZONTAL_LOOP_END_
    end do
 
    ! Allow biogeochemical models to initialize their surface state.
@@ -1040,7 +1051,8 @@
    ! Name not found among variable names. Now try standard names that are in use.
    link => self%root%links%first
    do while (associated(link))
-      if ((link%target%domain==domain_bottom.or.link%target%domain==domain_surface).and.associated(link%target%standard_variable)) then
+      if ((link%target%domain==domain_bottom.or.link%target%domain==domain_surface) &
+          .and.associated(link%target%standard_variable)) then
          if (link%target%standard_variable%name==name) then
             id = create_external_horizontal_id(link%target)
             return
@@ -1798,7 +1810,7 @@
       if (self%diagnostic_variables(i)%prefill) then
          _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
             self%environment%diag(_PREARG_LOCATION_ i) = self%diagnostic_variables(i)%missing_value
-         _LOOP_END_
+         _CONCURRENT_LOOP_END_
       end if
    end do
 
@@ -1812,7 +1824,7 @@
          k = node%model%reused_diag_write_indices(i)
          _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
             self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%diag(_PREARG_LOCATION_ k)
-         _LOOP_END_
+         _CONCURRENT_LOOP_END_
       end do
 
       ! Move to next model
@@ -1825,7 +1837,7 @@
          k = self%state_variables(i)%globalid%sms_indices(j)
          _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
             dy _INDEX_SLICE_PLUS_1_(i) = dy _INDEX_SLICE_PLUS_1_(i) + self%environment%diag(_PREARG_LOCATION_ k)
-         _LOOP_END_
+         _CONCURRENT_LOOP_END_
       end do
    end do
 
@@ -1838,18 +1850,24 @@ subroutine prefetch(environment _ARG_LOCATION_ND_)
 
    integer :: i
 
+#ifdef _FABM_MASK_
+   _CONCURRENT_LOOP_BEGIN_EX_NOMASK_(environment)
+      environment%prefetch_mask _INDEX_SLICE_ = _FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)
+   _CONCURRENT_LOOP_END_
+#endif
+
    do i=1,size(environment%data)
       if (associated(environment%data(i)%p)) then
          _CONCURRENT_LOOP_BEGIN_EX_(environment)
             environment%prefetch _INDEX_SLICE_PLUS_1_(i) = environment%data(i)%p _INDEX_LOCATION_
-         _LOOP_END_
+         _CONCURRENT_LOOP_END_
       end if
    end do
    do i=1,size(environment%data_hz)
       if (associated(environment%data_hz(i)%p)) then
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
             environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = environment%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
-         _HORIZONTAL_LOOP_END_
+         _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
    do i=1,size(environment%data_scalar)
@@ -1863,18 +1881,24 @@ subroutine prefetch_hz(environment _ARG_LOCATION_VARS_HZ_)
 
    integer :: i
 
+#ifdef _FABM_MASK_
+   _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_NOMASK_(environment)
+      environment%prefetch_mask _INDEX_SLICE_ = _FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)
+   _CONCURRENT_HORIZONTAL_LOOP_END_
+#endif
+
    do i=1,size(environment%data)
       if (associated(environment%data(i)%p)) then
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
             environment%prefetch _INDEX_SLICE_PLUS_1_(i) = environment%data(i)%p _INDEX_LOCATION_
-         _HORIZONTAL_LOOP_END_
+         _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
    do i=1,size(environment%data_hz)
       if (associated(environment%data_hz(i)%p)) then
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
             environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = environment%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
-         _HORIZONTAL_LOOP_END_
+         _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
    do i=1,size(environment%data_scalar)
@@ -1926,7 +1950,7 @@ end subroutine
          k = node%model%reused_diag_write_indices(i)
          _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
             self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%diag(_PREARG_LOCATION_ k)
-         _LOOP_END_
+         _CONCURRENT_LOOP_END_
       end do
 
       node => node%next
@@ -2189,9 +2213,9 @@ end subroutine internal_check_horizontal_state
       ! Prefill diagnostic variables where requested
       do i=1,size(self%horizontal_diagnostic_variables)
          if (self%horizontal_diagnostic_variables(i)%prefill) then
-            _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                self%environment%diag_hz(_PREARG_LOCATION_HZ_ i) = self%horizontal_diagnostic_variables(i)%missing_value
-            _HORIZONTAL_LOOP_END_
+            _CONCURRENT_HORIZONTAL_LOOP_END_
          end if
       end do
 
@@ -2203,9 +2227,9 @@ end subroutine internal_check_horizontal_state
          do i=1,size(node%model%reused_diag_hz_read_indices)
             j = node%model%reused_diag_hz_read_indices(i)
             k = node%model%reused_diag_hz_write_indices(i)
-            _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
-            _HORIZONTAL_LOOP_END_
+            _CONCURRENT_HORIZONTAL_LOOP_END_
          end do
 
          node => node%next
@@ -2216,9 +2240,9 @@ end subroutine internal_check_horizontal_state
       do i=1,size(self%state_variables)
          do j=1,size(self%state_variables(i)%globalid%surface_flux_indices)
             k = self%state_variables(i)%globalid%surface_flux_indices(j)
-            _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
-            _HORIZONTAL_LOOP_END_
+            _CONCURRENT_HORIZONTAL_LOOP_END_
          end do
       end do
 
@@ -2228,9 +2252,9 @@ end subroutine internal_check_horizontal_state
          do i=1,size(self%surface_state_variables)
             do j=1,size(self%surface_state_variables(i)%globalid%sms_indices)
                k = self%surface_state_variables(i)%globalid%sms_indices(j)
-               _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                   flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
-               _HORIZONTAL_LOOP_END_
+               _CONCURRENT_HORIZONTAL_LOOP_END_
             end do
          end do
       end if
@@ -2270,9 +2294,9 @@ end subroutine internal_check_horizontal_state
    ! Prefill diagnostic variables where requested
    do i=1,size(self%horizontal_diagnostic_variables)
       if (self%horizontal_diagnostic_variables(i)%prefill) then
-         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             self%environment%diag_hz(_PREARG_LOCATION_HZ_ i) = self%horizontal_diagnostic_variables(i)%missing_value
-         _HORIZONTAL_LOOP_END_
+         _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
 
@@ -2284,9 +2308,9 @@ end subroutine internal_check_horizontal_state
       do i=1,size(node%model%reused_diag_hz_read_indices)
          j = node%model%reused_diag_hz_read_indices(i)
          k = node%model%reused_diag_hz_write_indices(i)
-         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
-         _HORIZONTAL_LOOP_END_
+         _CONCURRENT_HORIZONTAL_LOOP_END_
       end do
 
       node => node%next
@@ -2296,9 +2320,9 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%state_variables)
       do j=1,size(self%state_variables(i)%globalid%bottom_flux_indices)
          k = self%state_variables(i)%globalid%bottom_flux_indices(j)
-         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
-         _HORIZONTAL_LOOP_END_
+         _CONCURRENT_HORIZONTAL_LOOP_END_
       end do
    end do
 
@@ -2306,9 +2330,9 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%bottom_state_variables)
       do j=1,size(self%bottom_state_variables(i)%globalid%sms_indices)
          k = self%bottom_state_variables(i)%globalid%sms_indices(j)
-         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
-         _HORIZONTAL_LOOP_END_
+         _CONCURRENT_HORIZONTAL_LOOP_END_
       end do
    end do
 
@@ -2352,9 +2376,9 @@ end subroutine internal_check_horizontal_state
       do i=1,size(node%model%reused_diag_hz_read_indices)
          j = node%model%reused_diag_hz_read_indices(i)
          k = node%model%reused_diag_hz_write_indices(i)
-         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%diag_hz(_PREARG_LOCATION_HZ_ k)
-         _HORIZONTAL_LOOP_END_
+         _CONCURRENT_HORIZONTAL_LOOP_END_
       end do
 
       node => node%next
@@ -2393,6 +2417,8 @@ end subroutine internal_check_horizontal_state
       call fatal_error('fabm_get_vertical_movement','Size of first dimension of velocity should match loop length.')
 #endif
 
+   call prefetch(self%environment _ARG_LOCATION_ND_)
+
    ! First set constant sinking rates.
    do i=1,size(self%state_variables)
       ! Use variable-specific constant vertical velocities.
@@ -2401,8 +2427,6 @@ end subroutine internal_check_horizontal_state
          velocity _INDEX_SLICE_PLUS_1_(i) = self%state_variables(i)%vertical_movement
       _LOOP_END_
    end do
-
-   call prefetch(self%environment _ARG_LOCATION_ND_)
 
    ! Now allow models to overwrite with spatially-varying sinking rates - if any.
    node => self%models%first
@@ -2587,9 +2611,9 @@ end subroutine internal_check_horizontal_state
    end do
 
    do i=1,size(self%conserved_quantities)
-      _LOOP_BEGIN_EX_(self%environment)
+      _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
          sums _INDEX_SLICE_PLUS_1_(i) = self%environment%data(self%conserved_quantities(i)%index)%p _INDEX_LOCATION_
-      _LOOP_END_
+      _CONCURRENT_LOOP_END_
    end do
 
    end subroutine fabm_get_conserved_quantities
@@ -2621,9 +2645,9 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%conserved_quantities)
       if (associated(self%conserved_quantities(i)%horizontal_sum)) &
          call self%conserved_quantities(i)%horizontal_sum%evaluate_horizontal(_ARGUMENTS_IN_HZ_)
-      _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
          sums _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%environment%data_hz(self%conserved_quantities(i)%horizontal_index)%p _INDEX_HORIZONTAL_LOCATION_
-      _HORIZONTAL_LOOP_END_
+      _CONCURRENT_HORIZONTAL_LOOP_END_
    end do
 
    end subroutine fabm_get_horizontal_conserved_quantities
@@ -2983,15 +3007,18 @@ subroutine filter_readable_variable_registry(self)
          select case (link%target%domain)
             case (domain_bulk)
                nread = nread+1
-               if (link%target%presence==presence_external_optional.and..not.associated(self%environment%data(nread)%p)) &
+               if (link%target%presence==presence_external_optional &
+                   .and..not.associated(self%environment%data(nread)%p)) &
                   call link%target%read_indices%set_value(-1)
             case (domain_bottom,domain_surface)
                nread_hz = nread_hz+1
-               if (link%target%presence==presence_external_optional.and..not.associated(self%environment%data_hz(nread_hz)%p)) &
+               if (link%target%presence==presence_external_optional &
+                   .and..not.associated(self%environment%data_hz(nread_hz)%p)) &
                   call link%target%read_indices%set_value(-1)
             case (domain_scalar)
                nread_scalar = nread_scalar+1
-               if (link%target%presence==presence_external_optional.and..not.associated(self%environment%data_scalar(nread_scalar)%p)) &
+               if (link%target%presence==presence_external_optional &
+                   .and..not.associated(self%environment%data_scalar(nread_scalar)%p)) &
                   call link%target%read_indices%set_value(-1)
          end select
       end if   
@@ -3066,13 +3093,15 @@ subroutine classify_variables(self)
       ! If this variable is a diagnostic, add the source model and any dependencies to the call list
       ! for conserved quantity calculations.
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
-      if (.not.associated(object)) call driver%fatal_error('classify_variables','BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
+      if (.not.associated(object)) call driver%fatal_error('classify_variables', &
+         'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
       call object%read_indices%append(consvar%index)
       if (.not.object%write_indices%is_empty()) call find_dependencies(object%owner,self%conserved_quantity_call_list)
 
       ! Store pointer to total of conserved quantity at surface + bottom.
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
-      if (.not.associated(object)) call driver%fatal_error('classify_variables','BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
+      if (.not.associated(object)) call driver%fatal_error('classify_variables', &
+         'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
       call object%read_indices%append(consvar%horizontal_index)
 
       ! Store pointer to model that computes total of conserved quantity at surface + bottom, so we can force recomputation.
@@ -3089,7 +3118,8 @@ subroutine classify_variables(self)
 
    ! Get link to extinction variable.
    object => self%root%find_object(trim(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux%name))
-   if (.not.associated(object)) call driver%fatal_error('classify_variables','BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux was not created')
+   if (.not.associated(object)) call driver%fatal_error('classify_variables', &
+      'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux was not created')
    call object%read_indices%append(self%extinction_index)
 
    ! From this point on, variables will stay as they are.
@@ -3308,7 +3338,8 @@ end subroutine
       integer,                                   intent(in)            :: configunit
 
       call self%register_diagnostic_variable(self%id_output,'total','1/m','total custom light extinction',output=output_none)
-      call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,self%id_output)
+      call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, &
+         self%id_output)
    end subroutine
 
    subroutine custom_extinction_calculator_do(self,_ARGUMENTS_DO_)
@@ -3329,9 +3360,9 @@ end subroutine
       end do
 
       ! Transfer computed light extinction values to the output diagnostic.
-      _LOOP_BEGIN_
+      _CONCURRENT_LOOP_BEGIN_
          _SET_DIAGNOSTIC_(self%id_output,extinction _INDEX_SLICE_)
-      _LOOP_END_
+      _CONCURRENT_LOOP_END_
    end subroutine
 
    subroutine add_to_model_call_list(self,variable_name,list)

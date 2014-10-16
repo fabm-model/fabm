@@ -497,6 +497,7 @@
 
 #ifdef _FABM_MASK_
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
+      logical,allocatable _DIMENSION_SLICE_ALLOCATABLE_ :: prefetch_mask
 #endif
    end type type_environment
 
@@ -1175,8 +1176,9 @@ end subroutine real_pointer_set_set_value
                                   vertical_movement=vertical_movement, specific_light_extinction=specific_light_extinction, &
                                   no_precipitation_dilution=no_precipitation_dilution, no_river_dilution=no_river_dilution, &
                                   standard_variable=standard_variable, presence=presence, &
-                                  state_index=id%state_index, read_index=id%index, sms_index=id%sms_index, background=id%background, &
-                                  surface_flux_index=id%surface_flux_index, bottom_flux_index=id%bottom_flux_index, link=id%link)
+                                  state_index=id%state_index, read_index=id%index, sms_index=id%sms_index, &
+                                  surface_flux_index=id%surface_flux_index, bottom_flux_index=id%bottom_flux_index, &
+                                  background=id%background, link=id%link)
 
    end subroutine register_bulk_state_variable
 !EOC
@@ -1214,8 +1216,8 @@ end subroutine real_pointer_set_set_value
       call self%add_horizontal_variable(name, units, long_name, missing_value, minimum, maximum, &
                                         initial_value=initial_value, background_value=background_value, &
                                         standard_variable=standard_variable, presence=presence, domain=domain_bottom, &
-                                        state_index=id%bottom_state_index, read_index=id%horizontal_index, sms_index=id%bottom_sms_index, &
-                                        background=id%background, link=id%link)
+                                        state_index=id%bottom_state_index, read_index=id%horizontal_index, &
+                                        sms_index=id%bottom_sms_index, background=id%background, link=id%link)
 
    end subroutine register_bottom_state_variable
 !EOC
@@ -1253,8 +1255,8 @@ end subroutine real_pointer_set_set_value
       call self%add_horizontal_variable(name, units, long_name, missing_value, minimum, maximum, &
                                         initial_value=initial_value, background_value=background_value, &
                                         standard_variable=standard_variable, presence=presence, domain=domain_surface, &
-                                        state_index=id%surface_state_index, read_index=id%horizontal_index, sms_index=id%surface_sms_index, &
-                                        background=id%background, link=id%link)
+                                        state_index=id%surface_state_index, read_index=id%horizontal_index, &
+                                        sms_index=id%surface_sms_index, background=id%background, link=id%link)
 
    end subroutine register_surface_state_variable
 !EOC
@@ -1371,10 +1373,12 @@ end subroutine real_pointer_set_set_value
 ! !IROUTINE: Adds a bulk variable to the model and returns the link to it.
 !
 ! !INTERFACE:
-   recursive subroutine add_bulk_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, background_value, &
-                                vertical_movement, specific_light_extinction, no_precipitation_dilution, no_river_dilution, &
-                                standard_variable, presence, output, time_treatment, prefill, act_as_state_variable, &
-                                read_index, state_index, write_index, sms_index, surface_flux_index, bottom_flux_index, background, link)
+   recursive subroutine add_bulk_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
+                                          background_value, vertical_movement, specific_light_extinction, &
+                                          no_precipitation_dilution, no_river_dilution, standard_variable, presence, output, &
+                                          time_treatment, prefill, act_as_state_variable, &
+                                          read_index, state_index, write_index, sms_index, surface_flux_index, bottom_flux_index, &
+                                          background, link)
 !
 ! !DESCRIPTION:
 !  This function registers a new bulk variable. It is not predefined to be a state variable, diagnostic variable or dependency.
@@ -1391,7 +1395,8 @@ end subroutine real_pointer_set_set_value
       integer,                           intent(in),optional :: presence, output, time_treatment
       logical,                           intent(in),optional :: prefill, act_as_state_variable
 
-      integer,                      target,optional :: read_index, state_index, write_index, sms_index, surface_flux_index, bottom_flux_index
+      integer,                      target,optional :: read_index, state_index, write_index
+      integer,                      target,optional :: sms_index, surface_flux_index, bottom_flux_index
       real(rk),                     target,optional :: background
 
       type (type_link),pointer,optional :: link
@@ -1446,9 +1451,10 @@ end subroutine real_pointer_set_set_value
 ! !IROUTINE: Adds a horizontal variable to the model and returns the link to it.
 !
 ! !INTERFACE:
-   recursive subroutine add_horizontal_variable(self,name,units,long_name, missing_value, minimum, maximum, initial_value, background_value, &
-                                      standard_variable, presence, output, time_treatment, prefill, act_as_state_variable, domain, &
-                                      read_index, state_index, write_index, sms_index, background, link)
+   recursive subroutine add_horizontal_variable(self,name,units,long_name, missing_value, minimum, maximum, initial_value, &
+                                                background_value, standard_variable, presence, output, time_treatment, prefill, &
+                                                act_as_state_variable, domain, &
+                                                read_index, state_index, write_index, sms_index, background, link)
 !
 ! !DESCRIPTION:
 !  This function registers a new horizontal variable. It is not predefined to be a state variable, diagnostic variable
@@ -1505,9 +1511,9 @@ end subroutine real_pointer_set_set_value
 ! !IROUTINE: Adds a scalar variable to the model and returns the link to it.
 !
 ! !INTERFACE:
-   recursive subroutine add_scalar_variable(self,name, long_name, units, missing_value, minimum, maximum, initial_value, background_value, &
-                                  standard_variable, presence, output, time_treatment, prefill, &
-                                  read_index, state_index, write_index, sms_index, background, link)
+   recursive subroutine add_scalar_variable(self,name, long_name, units, missing_value, minimum, maximum, initial_value, &
+                                            background_value, standard_variable, presence, output, time_treatment, prefill, &
+                                            read_index, state_index, write_index, sms_index, background, link)
 !
 ! !DESCRIPTION:
 !  This function registers a new scalar variable. It is not predefined to be a state variable, diagnostic variable or dependency.
@@ -1829,7 +1835,8 @@ end subroutine real_pointer_set_set_value
       if (present(required)) then
          if (.not.required) presence = presence_external_optional
       end if
-      call register_surface_state_variable(model, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
+      call register_surface_state_variable(model, id, name, units, long_name, &
+                                           presence=presence, standard_variable=standard_variable)
 
    end subroutine register_surface_state_dependency_ex
 !EOC

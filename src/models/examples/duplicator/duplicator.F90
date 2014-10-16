@@ -69,7 +69,8 @@
    if (model=='')        call self%fatal_error('initialize','parameter "model" must be provided.')
    if (number==0)        call self%fatal_error('initialize','parameter "number" must be provided.')
    if (configfile=='')   call self%fatal_error('initialize','parameter "configfile" must be provided.')
-   if (maximum<=minimum) call self%fatal_error('initialize','parameters "minimum" and "maximum" must be provided, and "maximum" must exceed "minimum".')
+   if (maximum<=minimum) call self%fatal_error('initialize','parameters "minimum" and "maximum" must be provided, &
+                                                            &and "maximum" must exceed "minimum".')
 
    childunit = get_free_unit()
 
@@ -90,9 +91,10 @@
       open(unit=childunit,file=configfile,action='read',status='old')
       call self%add_child(childmodel,instancename,configunit=childunit)
       close(childunit)
-   end do
 
-   !if (.not.self%found) call self%fatal_error('initialize','Parameter "'//trim(self%parameter)//'" was not registered by model "'//trim(model)//'".')
+      if (.not.childmodel%parameters%retrieved%contains(parameter)) &
+         call self%fatal_error('initialize','Parameter "'//trim(parameter)//'" was not registered by model "'//trim(model)//'".')
+   end do
 
    return
 

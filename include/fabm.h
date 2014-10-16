@@ -255,22 +255,12 @@
 #define _ARG_LOCATION_ND_ ,fabm_loop_start,fabm_loop_stop _ARG_LOCATION_1DLOOP_
 #define _DECLARE_LOCATION_ARG_ND_ integer,intent(in) :: fabm_loop_start,fabm_loop_stop _ARG_LOCATION_1DLOOP_;integer :: _VARIABLE_1DLOOP_
 
-! Beginning and end of spatial loop
-#ifdef _FABM_MASK_
-#define _LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop;if (_FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)) then
-#define _CONCURRENT_LOOP_BEGIN_EX_(environment) do concurrent (_VARIABLE_1DLOOP_=fabm_loop_start:fabm_loop_stop);if (_FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)) then
-#define _LOOP_END_ end if;end do
-#else
-#define _LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop
-#define _CONCURRENT_LOOP_BEGIN_EX_(environment) do concurrent (_VARIABLE_1DLOOP_=fabm_loop_start:fabm_loop_stop)
-#define _LOOP_END_ end do
-#endif
-
 ! Dimensionality of generic space-dependent arguments.
 #define _DIMENSION_SLICE_ ,dimension(fabm_loop_start:)
 #define _DIMENSION_SLICE_PLUS_1_ ,dimension(fabm_loop_start:,:)
 #define _DIMENSION_SLICE_PLUS_2_ ,dimension(fabm_loop_start:,:,:)
 
+#define _DIMENSION_SLICE_ALLOCATABLE_ ,dimension(:)
 #define _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_ ,dimension(:,:)
 
 #define _INDEX_SLICE_ (_VARIABLE_1DLOOP_)
@@ -279,6 +269,20 @@
 
 #define _SLICE_SHAPE_ fabm_loop_start:fabm_loop_stop,
 #define _DIMENSION_SLICE_AUTOMATIC_ ,dimension(fabm_loop_start:fabm_loop_stop)
+
+! Beginning and end of spatial loop
+#ifdef _FABM_MASK_
+#define _LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop;if (environment%prefetch_mask _INDEX_SLICE_) then
+#define _LOOP_END_ end if;end do
+#define _CONCURRENT_LOOP_BEGIN_EX_(environment) do concurrent (_VARIABLE_1DLOOP_=fabm_loop_start:fabm_loop_stop,environment%prefetch_mask _INDEX_SLICE_)
+#else
+#define _LOOP_BEGIN_EX_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop
+#define _LOOP_END_ end do
+#define _CONCURRENT_LOOP_BEGIN_EX_(environment) do concurrent (_VARIABLE_1DLOOP_=fabm_loop_start:fabm_loop_stop)
+#endif
+
+#define _CONCURRENT_LOOP_BEGIN_EX_NOMASK_(environment) do concurrent (_VARIABLE_1DLOOP_=fabm_loop_start:fabm_loop_stop)
+#define _CONCURRENT_LOOP_END_ end do
 
 #else
 
@@ -292,14 +296,17 @@
 
 ! Beginning and end of spatial loop
 #define _LOOP_BEGIN_EX_(environment)
-#define _CONCURRENT_LOOP_BEGIN_EX_(environment)
 #define _LOOP_END_
+#define _CONCURRENT_LOOP_BEGIN_EX_(environment)
+#define _CONCURRENT_LOOP_BEGIN_EX_NOMASK_(environment)
+#define _CONCURRENT_LOOP_END_
 
 ! Dimensionality of generic space-dependent arguments.
 #define _DIMENSION_SLICE_
 #define _DIMENSION_SLICE_PLUS_1_ ,dimension(:)
 #define _DIMENSION_SLICE_PLUS_2_ ,dimension(:,:)
 
+#define _DIMENSION_SLICE_ALLOCATABLE_
 #define _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_ ,dimension(:)
 
 ! Expressions for indexing space-dependent FABM variables defined on the full spatial domain.
@@ -326,8 +333,10 @@
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
 #define _HORIZONTAL_LOOP_BEGIN_EX_(environment) _LOOP_BEGIN_EX_(environment)
-#define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment) _CONCURRENT_LOOP_BEGIN_EX_(environment)
 #define _HORIZONTAL_LOOP_END_ _LOOP_END_
+#define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment) _CONCURRENT_LOOP_BEGIN_EX_(environment)
+#define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_NOMASK_(environment) _CONCURRENT_LOOP_BEGIN_EX_NOMASK_(environment)
+#define _CONCURRENT_HORIZONTAL_LOOP_END_ _CONCURRENT_LOOP_END_
 
 ! Vertical dimension is not among those vectorized:
 ! dimensionality of horizontal arrays will be equal to that of full domain arrays.
@@ -354,8 +363,10 @@
 
 ! Spatial loop for quantities defined on horizontal slice of the full spatial domain.
 #define _HORIZONTAL_LOOP_BEGIN_EX_(environment)
-#define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
 #define _HORIZONTAL_LOOP_END_
+#define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
+#define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_NOMASK_(environment)
+#define _CONCURRENT_HORIZONTAL_LOOP_END_
 
 #define _DIMENSION_HORIZONTAL_SLICE_
 #define _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ ,dimension(:)

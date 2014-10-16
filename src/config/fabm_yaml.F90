@@ -80,7 +80,8 @@ contains
                class is (type_dictionary)
                   write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': unexpected decrease in indentation.'
                class is (type_scalar)
-                  write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': expected end of file after reading one scalar value.'
+                  write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': expected end of file after reading &
+                                             &one scalar value.'
                class default
                   write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': expected end of file.'
             end select
