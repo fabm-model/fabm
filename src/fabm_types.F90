@@ -1267,7 +1267,7 @@ end subroutine real_pointer_set_set_value
 ! !INTERFACE:
    subroutine add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                            initial_value, background_value, presence, output, time_treatment, prefill, &
-                           read_index, state_index, write_index, background, link)
+                           act_as_state_variable, read_index, state_index, write_index, background, link)
 !
 ! !DESCRIPTION:
 !  This function fills all generic variable fields (i.e., those independent of the variable's domain), and returns
@@ -1281,7 +1281,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                     intent(in),optional :: long_name, units
       real(rk),                             intent(in),optional :: minimum, maximum,missing_value,initial_value,background_value
       integer,                              intent(in),optional :: presence, output, time_treatment
-      logical,                              intent(in),optional :: prefill
+      logical,                              intent(in),optional :: prefill, act_as_state_variable
       integer,                       target,           optional :: read_index, state_index, write_index
       real(rk),                      target,           optional :: background
       type (type_link),              pointer,          optional :: link
@@ -1321,6 +1321,7 @@ end subroutine real_pointer_set_set_value
       if (present(initial_value)) variable%initial_value = initial_value
       if (present(presence))      variable%presence      = presence
       if (present(prefill))       variable%prefill       = prefill
+      if (present(act_as_state_variable)) variable%fake_state_variable = act_as_state_variable
       if (present(time_treatment)) then
          call self%log_message('variable "'//trim(name)//'": "time_treatment" argument is deprecated; &
                                &please use "output" instead. For possible values, see time_treatment2output in fabm_types.F90.')
@@ -1372,7 +1373,7 @@ end subroutine real_pointer_set_set_value
 ! !INTERFACE:
    recursive subroutine add_bulk_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, background_value, &
                                 vertical_movement, specific_light_extinction, no_precipitation_dilution, no_river_dilution, &
-                                standard_variable, presence, output, time_treatment, prefill, &
+                                standard_variable, presence, output, time_treatment, prefill, act_as_state_variable, &
                                 read_index, state_index, write_index, sms_index, surface_flux_index, bottom_flux_index, background, link)
 !
 ! !DESCRIPTION:
@@ -1388,7 +1389,7 @@ end subroutine real_pointer_set_set_value
       logical,                           intent(in),optional :: no_precipitation_dilution, no_river_dilution
       type (type_bulk_standard_variable),intent(in),optional :: standard_variable
       integer,                           intent(in),optional :: presence, output, time_treatment
-      logical,                           intent(in),optional :: prefill
+      logical,                           intent(in),optional :: prefill, act_as_state_variable
 
       integer,                      target,optional :: read_index, state_index, write_index, sms_index, surface_flux_index, bottom_flux_index
       real(rk),                     target,optional :: background
@@ -1417,7 +1418,7 @@ end subroutine real_pointer_set_set_value
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
-                        read_index, state_index, write_index, background, link_)
+                        act_as_state_variable, read_index, state_index, write_index, background, link_)
 
       if (present(sms_index)) then
          call self%add_bulk_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
@@ -1446,7 +1447,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    recursive subroutine add_horizontal_variable(self,name,units,long_name, missing_value, minimum, maximum, initial_value, background_value, &
-                                      standard_variable, presence, output, time_treatment, prefill, domain, &
+                                      standard_variable, presence, output, time_treatment, prefill, act_as_state_variable, domain, &
                                       read_index, state_index, write_index, sms_index, background, link)
 !
 ! !DESCRIPTION:
@@ -1461,7 +1462,7 @@ end subroutine real_pointer_set_set_value
       real(rk),                                 intent(in),optional :: initial_value, background_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
       integer,                                  intent(in),optional :: presence, domain, output, time_treatment
-      logical,                                  intent(in),optional :: prefill
+      logical,                                  intent(in),optional :: prefill, act_as_state_variable
 
       integer,                            target,optional :: read_index, state_index, write_index, sms_index
       real(rk),                           target,optional :: background
@@ -1486,7 +1487,7 @@ end subroutine real_pointer_set_set_value
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
-                        read_index, state_index, write_index, background, link_)
+                        act_as_state_variable, read_index, state_index, write_index, background, link_)
 
       if (present(sms_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
@@ -1542,7 +1543,7 @@ end subroutine real_pointer_set_set_value
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, prefill, &
-                        read_index, state_index, write_index, background, link)
+                        .false., read_index, state_index, write_index, background, link)
    end subroutine add_scalar_variable
 !EOC
 
@@ -2297,7 +2298,7 @@ end subroutine get_string_parameter
 
    end function find_object
 
-   function find_link(self,name,recursive,exact) result(link)
+   recursive function find_link(self,name,recursive,exact) result(link)
 
       class (type_base_model),  intent(in),target :: self
       character(len=*),         intent(in)        :: name
@@ -2306,6 +2307,11 @@ end subroutine get_string_parameter
 
       logical                         :: recursive_eff,exact_eff
       class (type_base_model),pointer :: current
+
+      if (name(1:1)=='/') then
+         link => find_link(self,name(2:),recursive,exact)
+         return
+      end if
 
       recursive_eff = .false.
       if (present(recursive)) recursive_eff = recursive
