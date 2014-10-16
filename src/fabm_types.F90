@@ -481,7 +481,6 @@
       ! Declare the arrays for diagnostic variable values.
       real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: diag
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
-      integer                                                   :: nstate
 
       ! Registry with pointers to global fields of readable variables.
       ! These pointers are accessed to fill the prefetch (see below).
@@ -494,6 +493,10 @@
       real(rk),allocatable _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_            :: prefetch
       real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ALLOCATABLE_ :: prefetch_hz
       real(rk),allocatable,dimension(:)                                    :: prefetch_scalar
+
+      ! Scratch arrays for writing data associated with for a single domain slice.
+      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_            :: scratch
+      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ALLOCATABLE_ :: scratch_hz
 
 #ifdef _FABM_MASK_
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
@@ -1432,12 +1435,14 @@ end subroutine real_pointer_set_set_value
       end if
       if (present(surface_flux_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_sfl', trim(units)//'*m/s', trim(long_name)//' surface flux', &
-                                     0.0_rk, output=output_none, write_index=surface_flux_index, prefill=.true., link=link2)
+                                     0.0_rk, output=output_none, write_index=surface_flux_index, prefill=.true., link=link2, &
+                                     domain=domain_surface)
          link_dum => variable%surface_flux_list%append(link2%target,link2%target%name)
       end if
       if (present(bottom_flux_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_bfl', trim(units)//'*m/s', trim(long_name)//' bottom flux', &
-                                     0.0_rk, output=output_none, write_index=bottom_flux_index, prefill=.true., link=link2)
+                                     0.0_rk, output=output_none, write_index=bottom_flux_index, prefill=.true., link=link2, &
+                                     domain=domain_bottom)
          link_dum => variable%bottom_flux_list%append(link2%target,link2%target%name)
       end if
 
@@ -1497,7 +1502,8 @@ end subroutine real_pointer_set_set_value
 
       if (present(sms_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                           0.0_rk, output=output_none, write_index=sms_index, prefill=.true., link=link2)
+                                           0.0_rk, output=output_none, write_index=sms_index, prefill=.true., link=link2, &
+                                           domain=variable%domain)
          link_dum => variable%sms_list%append(link2%target,link2%target%name)
       end if
 
@@ -1639,7 +1645,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    subroutine register_horizontal_diagnostic_variable(self, id, name, units, long_name, &
-                                                      time_treatment, missing_value, standard_variable, output)
+                                                      time_treatment, missing_value, standard_variable, output, domain)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1650,7 +1656,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INPUT PARAMETERS:
       character(len=*),                         intent(in)          :: name, long_name, units
-      integer,                                  intent(in),optional :: time_treatment, output
+      integer,                                  intent(in),optional :: time_treatment, output, domain
       real(rk),                                 intent(in),optional :: missing_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
 !
@@ -1665,7 +1671,7 @@ end subroutine real_pointer_set_set_value
 
       call self%add_horizontal_variable(name, units, long_name, missing_value, &
                                         standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
-                                        write_index=id%horizontal_diag_index, link=id%link)
+                                        domain=domain, write_index=id%horizontal_diag_index, link=id%link)
 
    end subroutine register_horizontal_diagnostic_variable
 !EOC

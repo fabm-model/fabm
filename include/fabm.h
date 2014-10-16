@@ -467,11 +467,11 @@
 #define _TYPE_CONSERVED_QUANTITY_ID_ type (type_conserved_quantity_id)
 
 ! For BGC models: Expressions for setting space-dependent FABM variables defined on the full spatial domain.
-#define _SET_ODE_(variable,value) environment%diag(_PREARG_LOCATION_ variable%sms_index) = environment%diag(_PREARG_LOCATION_ variable%sms_index) + (value)/self%dt
-#define _SET_BOTTOM_ODE_(variable,value) environment%diag_hz(_PREARG_LOCATION_HZ_ variable%bottom_sms_index) = environment%diag_hz(_PREARG_LOCATION_HZ_ variable%bottom_sms_index) + (value)/self%dt
-#define _SET_SURFACE_ODE_(variable,value) environment%diag_hz(_PREARG_LOCATION_HZ_ variable%surface_sms_index) = environment%diag_hz(_PREARG_LOCATION_HZ_ variable%surface_sms_index) + (value)/self%dt
-#define _SET_BOTTOM_EXCHANGE_(variable,value) environment%diag_hz(_PREARG_LOCATION_HZ_ variable%bottom_flux_index) = environment%diag_hz(_PREARG_LOCATION_HZ_ variable%bottom_flux_index) + (value)/self%dt
-#define _SET_SURFACE_EXCHANGE_(variable,value) environment%diag_hz(_PREARG_LOCATION_HZ_ variable%surface_flux_index) = environment%diag_hz(_PREARG_LOCATION_HZ_ variable%surface_flux_index) + (value)/self%dt
+#define _SET_ODE_(variable,value) environment%scratch _INDEX_SLICE_PLUS_1_(variable%sms_index) = environment%scratch _INDEX_SLICE_PLUS_1_(variable%sms_index) + (value)/self%dt
+#define _SET_BOTTOM_ODE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_sms_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_sms_index) + (value)/self%dt
+#define _SET_SURFACE_ODE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_sms_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_sms_index) + (value)/self%dt
+#define _SET_BOTTOM_EXCHANGE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_flux_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_flux_index) + (value)/self%dt
+#define _SET_SURFACE_EXCHANGE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux_index) + (value)/self%dt
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
 #define _SET_PP_(variable1,variable2,value) pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
 #define _SET_EXTINCTION_(value) extinction _INDEX_SLICE_ = extinction _INDEX_SLICE_ + (value)
@@ -497,8 +497,8 @@
 #define _SET_(variable,value) environment%data(variable%index)%p _INDEX_LOCATION_ = value
 #define _SET_HORIZONTAL_(variable,value) environment%data_hz(variable%horizontal_index)%p _INDEX_HORIZONTAL_LOCATION_ = value
 #define _SET_GLOBAL_(variable,value) environment%data_scalar(variable%global_index)%p = value
-#define _SET_DIAGNOSTIC_(variable,value) environment%diag(_PREARG_LOCATION_ variable%diag_index) = value
-#define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) environment%diag_hz(_PREARG_LOCATION_HZ_ variable%horizontal_diag_index) = value
+#define _SET_DIAGNOSTIC_(variable,value) environment%scratch _INDEX_SLICE_PLUS_1_(variable%diag_index) = value
+#define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_diag_index) = value
 
 ! For backward compatibility: old macros to access variable data.
 #define _GET_DEPENDENCY_(variable,target) _GET_(variable,target)
