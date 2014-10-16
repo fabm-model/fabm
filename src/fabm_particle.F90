@@ -145,7 +145,7 @@ module fabm_particle
       coupling%model_reference => master_model%reference
       coupling%next => self%first_model_coupling
       self%first_model_coupling => coupling
-   end subroutine
+   end subroutine request_coupling_to_model_name
 
    subroutine request_coupling_to_model_sn(self,slave_variable,master_model,master_variable)
       class (type_particle_model),  intent(inout) :: self
@@ -163,7 +163,7 @@ module fabm_particle
       coupling%model_reference => master_model%reference
       coupling%next => self%first_model_coupling
       self%first_model_coupling => coupling
-   end subroutine
+   end subroutine request_coupling_to_model_sn
 
    subroutine before_coupling(self)
       class (type_particle_model),intent(inout) :: self
@@ -195,15 +195,15 @@ module fabm_particle
       coupling => self%first_model_coupling
       do while (associated(coupling))
          if (coupling%master/='') then
-            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%name)//'/'//trim(coupling%master))
+            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(coupling%master))
          else
             aggregate_variable => get_aggregate_variable(coupling%model_reference%model,coupling%standard_variable)
             aggregate_variable%bulk_required = .true.
-            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%name)//'/'//trim(aggregate_variable%standard_variable%name))
+            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name))
          end if
          coupling => coupling%next
       end do
-   end subroutine
+   end subroutine before_coupling
 
    subroutine build_state_id_list(self)
       class (type_particle_model),intent(inout) :: self
