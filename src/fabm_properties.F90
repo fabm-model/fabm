@@ -64,6 +64,7 @@ module fabm_properties
       procedure :: set_integer
       procedure :: set_logical
       procedure :: set_string
+      generic :: set => set_property, set_real, set_integer, set_logical, set_string
 
       procedure :: get_property_by_name
       procedure :: get_property_by_index
@@ -628,7 +629,7 @@ contains
 
          current_property => current_dictionary%get_property(localname)
          if (associated(current_property)) property => current_property
-         localname = trim(self%name)//'/'//localname
+         localname = trim(current_dictionary%name)//'/'//localname
          current_dictionary => current_dictionary%parent
       end do
       if (associated(property)) return
@@ -638,7 +639,7 @@ contains
       localname = name
       do while (associated(current_dictionary))
          call current_dictionary%missing%add(localname)
-         localname = trim(self%name)//'/'//localname
+         localname = trim(current_dictionary%name)//'/'//localname
          current_dictionary => current_dictionary%parent
       end do
    end function hierarchical_dictionary_find_in_tree
@@ -658,7 +659,7 @@ contains
       do while (associated(current_dictionary))
          ! Store metadata
          call current_dictionary%set_property(parameter)
-         parameter%name = trim(self%name)//'/'//parameter%name
+         parameter%name = trim(current_dictionary%name)//'/'//parameter%name
          current_dictionary => current_dictionary%parent
       end do
       parameter%name = oldname
