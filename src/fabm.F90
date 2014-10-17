@@ -144,6 +144,7 @@
       type (type_bulk_variable_id)       :: globalid
       logical                            :: save           = .false.
       integer                            :: save_index     = 0
+      integer                            :: source
    end type type_diagnostic_variable_info
 
    type,extends(type_external_variable) :: type_horizontal_diagnostic_variable_info
@@ -153,7 +154,7 @@
       type (type_horizontal_variable_id)       :: globalid
       logical                                  :: save           = .false.
       integer                                  :: save_index     = 0
-      integer                                  :: domain
+      integer                                  :: source
    end type type_horizontal_diagnostic_variable_info
 
 !  Derived type describing a conserved quantity
@@ -202,6 +203,8 @@
       ! Declare the arrays for diagnostic variable values.
       real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: diag
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
+      real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
+      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
    contains
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
       procedure :: link_bulk_data_by_sn   => fabm_link_bulk_data_by_sn
@@ -654,20 +657,43 @@
    allocate(self%environment%prefetch _INDEX_SLICE_PLUS_1_(size(self%environment%data)))
    allocate(self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(size(self%environment%data_hz)))
    allocate(self%environment%prefetch_scalar(size(self%environment%data_scalar)))
+   self%environment%prefetch = 0.0_rk
+   self%environment%prefetch_hz = 0.0_rk
+   self%environment%prefetch_scalar = 0.0_rk
+
+   allocate(self%zero _INDEX_LOCATION_)
+   self%zero = 0.0_rk
+   call self%link_bulk_data('zero',self%zero)
+
+   allocate(self%zero_hz _INDEX_HORIZONTAL_LOCATION_)
+   self%zero_hz = 0.0_rk
+   call self%link_horizontal_data('zero_hz',self%zero_hz)
 
    allocate(self%environment%scratch _INDEX_SLICE_PLUS_1_(size(self%diagnostic_variables)))
    allocate(self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(size(self%horizontal_diagnostic_variables)))
+   self%environment%scratch = 0.0_rk
+   self%environment%scratch_hz = 0.0_rk
 
 #ifdef _FABM_MASK_
    allocate(self%environment%prefetch_mask _INDEX_SLICE_)
 #endif
 
-   self%environment%prefetch = 0.0_rk
-   self%environment%prefetch_hz = 0.0_rk
-   self%environment%prefetch_scalar = 0.0_rk
-
+#ifdef _FULL_DOMAIN_IN_SLICE_
+   ! Fill memory for diagnostic variable with missing values, and save pointers for data retrieval.
+   do ivar=1,size(self%diagnostic_variables)
+      if (self%diagnostic_variables(ivar)%missing_value/=0) &
+         self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ ivar) = self%diagnostic_variables(ivar)%missing_value
+      call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%globalid, &
+         self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ ivar))
+   end do
+   do ivar=1,size(self%horizontal_diagnostic_variables)
+      if (self%horizontal_diagnostic_variables(ivar)%missing_value/=0) &
+         self%environment%scratch_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
+      call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%globalid, &
+         self%environment%scratch_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar))
+   end do
+#else
    ! Allocate memory for full-domain storage of bulk diagnostics
-   ! Index 0 is reserved to contain 0.0 at all times.
    n = 0
    do ivar=1,size(self%diagnostic_variables)
       if (self%diagnostic_variables(ivar)%save.or.self%diagnostic_variables(ivar)%globalid%read_index/=-1) then
@@ -679,7 +705,6 @@
    self%diag = 0.0_rk
 
    ! Allocate memory for full-domain storage of horizontal diagnostics
-   ! Index 0 is reserved to contain 0.0 at all times.
    n = 0
    do ivar=1,size(self%horizontal_diagnostic_variables)
       if (self%horizontal_diagnostic_variables(ivar)%save.or.self%horizontal_diagnostic_variables(ivar)%globalid%read_index/=-1) then
@@ -690,25 +715,24 @@
    allocate(self%diag_hz(_PREARG_LOCATION_HZ_ 0:n))
    self%diag_hz = 0.0_rk
 
-   ! If any model has requested zero fields, provide them.
-   call self%link_bulk_data('zero',self%diag(_PREARG_LOCATION_DIMENSIONS_ 0))
-   call self%link_horizontal_data('zero_hz',self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ 0))
-
    ! Initialize diagnostic variables to missing value.
    do ivar=1,size(self%diagnostic_variables)
       index = self%diagnostic_variables(ivar)%save_index
       if (index>0) then
-         self%diag(_PREARG_LOCATION_DIMENSIONS_ index) = self%diagnostic_variables(ivar)%missing_value
+         if (self%diagnostic_variables(ivar)%missing_value/=0) &
+            self%diag(_PREARG_LOCATION_DIMENSIONS_ index) = self%diagnostic_variables(ivar)%missing_value
          call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%globalid, self%diag(_PREARG_LOCATION_DIMENSIONS_ index))
       end if
    end do
    do ivar=1,size(self%horizontal_diagnostic_variables)
       index = self%horizontal_diagnostic_variables(ivar)%save_index
       if (index>0) then
-         self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
+         if (self%horizontal_diagnostic_variables(ivar)%missing_value/=0) &
+            self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
          call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%globalid, self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index))
       end if
    end do
+#endif
 
    if (present(seconds_per_time_unit)) then
       expression => self%root%first_expression
@@ -1755,8 +1779,13 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifdef _FULL_DOMAIN_IN_SLICE_
+   ! Retrieve a pointer to the array holding the requested data.
+   dat => self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ id)
+#else
    ! Retrieve a pointer to the array holding the requested data.
    dat => self%diag(_PREARG_LOCATION_DIMENSIONS_ self%diagnostic_variables(id)%save_index)
+#endif
 
    end function fabm_get_bulk_diagnostic_data
 !EOC
@@ -1782,8 +1811,13 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifdef _FULL_DOMAIN_IN_SLICE_
+   ! Retrieve a pointer to the array holding the requested data.
+   dat => self%environment%scratch_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ id)
+#else
    ! Retrieve a pointer to the array holding the requested data.
    dat => self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ self%horizontal_diagnostic_variables(id)%save_index)
+#endif
 
    end function fabm_get_horizontal_diagnostic_data
 !EOC
@@ -1821,7 +1855,7 @@
 
    ! Prefill diagnostic variables where requested
    do i=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(i)%prefill) then
+      if (self%diagnostic_variables(i)%source==source_do.and.self%diagnostic_variables(i)%prefill) then
          _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
             self%environment%scratch _INDEX_SLICE_PLUS_1_(i) = self%diagnostic_variables(i)%missing_value
          _CONCURRENT_LOOP_END_
@@ -1834,11 +1868,13 @@
 
       ! Copy newly written diagnostics to prefetch
       do i=1,size(node%model%reused_diag_read_indices)
-         j = node%model%reused_diag_read_indices(i)
          k = node%model%reused_diag_write_indices(i)
-         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
-         _CONCURRENT_LOOP_END_
+         if (self%diagnostic_variables(k)%source==source_do) then
+            j = node%model%reused_diag_read_indices(i)
+            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+               self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
+            _CONCURRENT_LOOP_END_
+         end if
       end do
 
       ! Move to next model
@@ -1855,15 +1891,17 @@
       end do
    end do
 
-   ! Copy diagnostics that need to be saved to global store.
+#ifndef _FULL_DOMAIN_IN_SLICE_
+   ! Copy newly written diagnostics that need to be saved to global store.
    do i=1,size(self%diagnostic_variables)
       k = self%diagnostic_variables(i)%save_index
-      if (k/=0) then
+      if (self%diagnostic_variables(i)%source==source_do.and.k/=0) then
          _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
             self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(i)
          _CONCURRENT_LOOP_END_
       end if
    end do
+#endif
 
    end subroutine fabm_do_rhs
 !EOC
@@ -1970,25 +2008,29 @@ end subroutine
 
       ! Copy newly written diagnostics to prefetch
       do i=1,size(node%model%reused_diag_read_indices)
-         j = node%model%reused_diag_read_indices(i)
          k = node%model%reused_diag_write_indices(i)
-         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
-         _CONCURRENT_LOOP_END_
+         if (self%diagnostic_variables(k)%source==source_do) then
+            j = node%model%reused_diag_read_indices(i)
+            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+               self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
+            _CONCURRENT_LOOP_END_
+         end if
       end do
 
       node => node%next
    end do
 
-   ! Copy diagnostics that need to be saved to global store.
+#ifndef _FULL_DOMAIN_IN_SLICE_
+   ! Copy newly written diagnostics that need to be saved to global store.
    do i=1,size(self%diagnostic_variables)
       k = self%diagnostic_variables(i)%save_index
-      if (k/=0) then
+      if (self%diagnostic_variables(k)%source==source_do.and.k/=0) then
          _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
             self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(i)
          _CONCURRENT_LOOP_END_
       end if
    end do
+#endif
 
    end subroutine fabm_do_ppdd
 !EOC
@@ -2244,20 +2286,22 @@ end subroutine internal_check_horizontal_state
 !BOC
       call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
 
+#ifndef _FULL_DOMAIN_IN_SLICE_
       ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
       ! This is needed to preserve the value of bottom diagnostics.
       do i=1,size(self%horizontal_diagnostic_variables)
          k = self%horizontal_diagnostic_variables(i)%save_index
-         if (k/=0) then
+         if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
             _CONCURRENT_HORIZONTAL_LOOP_END_
          end if
       end do
+#endif
 
       ! Prefill diagnostic variables where requested
       do i=1,size(self%horizontal_diagnostic_variables)
-         if (self%horizontal_diagnostic_variables(i)%prefill.and.self%horizontal_diagnostic_variables(i)%domain==domain_surface) then
+         if (self%horizontal_diagnostic_variables(i)%prefill.and.self%horizontal_diagnostic_variables(i)%source==source_do_surface) then
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%horizontal_diagnostic_variables(i)%missing_value
             _CONCURRENT_HORIZONTAL_LOOP_END_
@@ -2270,11 +2314,13 @@ end subroutine internal_check_horizontal_state
 
          ! Copy newly written diagnostics to prefetch
          do i=1,size(node%model%reused_diag_hz_read_indices)
-            j = node%model%reused_diag_hz_read_indices(i)
             k = node%model%reused_diag_hz_write_indices(i)
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-            _CONCURRENT_HORIZONTAL_LOOP_END_
+            if (self%horizontal_diagnostic_variables(k)%source==source_do_surface.or.self%horizontal_diagnostic_variables(k)%source==source_unknown) then
+               j = node%model%reused_diag_hz_read_indices(i)
+               _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+                  self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+               _CONCURRENT_HORIZONTAL_LOOP_END_
+            end if
          end do
 
          node => node%next
@@ -2304,15 +2350,17 @@ end subroutine internal_check_horizontal_state
          end do
       end if
 
-      ! Copy horizontal diagnostics that need to be saved to global store.
+#ifndef _FULL_DOMAIN_IN_SLICE_
+      ! Copy newly written horizontal diagnostics that need to be saved to global store.
       do i=1,size(self%horizontal_diagnostic_variables)
          k = self%horizontal_diagnostic_variables(i)%save_index
-         if (k/=0) then
+         if (k/=0.and.(self%horizontal_diagnostic_variables(i)%source==source_do_surface.or.self%horizontal_diagnostic_variables(i)%source==source_unknown)) then
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i)
             _CONCURRENT_HORIZONTAL_LOOP_END_
          end if
       end do
+#endif
 
    end subroutine fabm_do_surface
 !EOC
@@ -2346,20 +2394,22 @@ end subroutine internal_check_horizontal_state
 !BOC
    call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
 
+#ifndef _FULL_DOMAIN_IN_SLICE_
    ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
    ! This is needed to preserve the value of surface diagnostics.
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
-      if (k/=0) then
+      if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
          _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
+#endif
 
    ! Prefill diagnostic variables where requested
    do i=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(i)%prefill.and.self%horizontal_diagnostic_variables(i)%domain==domain_bottom) then
+      if (self%horizontal_diagnostic_variables(i)%prefill.and.self%horizontal_diagnostic_variables(i)%source==source_do_bottom) then
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%horizontal_diagnostic_variables(i)%missing_value
          _CONCURRENT_HORIZONTAL_LOOP_END_
@@ -2372,11 +2422,13 @@ end subroutine internal_check_horizontal_state
 
       ! Copy newly written diagnostics to prefetch
       do i=1,size(node%model%reused_diag_hz_read_indices)
-         j = node%model%reused_diag_hz_read_indices(i)
          k = node%model%reused_diag_hz_write_indices(i)
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-         _CONCURRENT_HORIZONTAL_LOOP_END_
+         if (self%horizontal_diagnostic_variables(k)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(k)%source==source_unknown) then
+            j = node%model%reused_diag_hz_read_indices(i)
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+            _CONCURRENT_HORIZONTAL_LOOP_END_
+         end if
       end do
 
       node => node%next
@@ -2402,15 +2454,17 @@ end subroutine internal_check_horizontal_state
       end do
    end do
 
-   ! Copy horizontal diagnostics that need to be saved to global store.
+#ifndef _FULL_DOMAIN_IN_SLICE_
+   ! Copy newly written horizontal diagnostics that need to be saved to global store.
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
-      if (k/=0) then
+      if (k/=0.and.(self%horizontal_diagnostic_variables(i)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(i)%source==source_unknown)) then
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i)
          _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
+#endif
 
    end subroutine fabm_do_bottom_rhs
 !EOC
@@ -2442,20 +2496,23 @@ end subroutine internal_check_horizontal_state
    integer                              :: i,j,k
 !-----------------------------------------------------------------------
 !BOC
+
+#ifndef _FULL_DOMAIN_IN_SLICE_
    ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
    ! This is needed to preserve the value of surface diagnostics.
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
-      if (k/=0) then
+      if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
          _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
+#endif
 
    ! Prefill diagnostic variables where requested
    do i=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(i)%prefill.and.self%horizontal_diagnostic_variables(i)%domain==domain_bottom) then
+      if (self%horizontal_diagnostic_variables(i)%prefill.and.self%horizontal_diagnostic_variables(i)%source==source_do_bottom) then
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%horizontal_diagnostic_variables(i)%missing_value
          _CONCURRENT_HORIZONTAL_LOOP_END_
@@ -2470,25 +2527,29 @@ end subroutine internal_check_horizontal_state
 
       ! Copy newly written diagnostics to prefetch
       do i=1,size(node%model%reused_diag_hz_read_indices)
-         j = node%model%reused_diag_hz_read_indices(i)
          k = node%model%reused_diag_hz_write_indices(i)
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-         _CONCURRENT_HORIZONTAL_LOOP_END_
+         if (self%horizontal_diagnostic_variables(k)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(k)%source==source_unknown) then
+            j = node%model%reused_diag_hz_read_indices(i)
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+            _CONCURRENT_HORIZONTAL_LOOP_END_
+         end if
       end do
 
       node => node%next
    end do
 
-   ! Copy horizontal diagnostics that need to be saved to global store.
+#ifndef _FULL_DOMAIN_IN_SLICE_
+   ! Copy newly written horizontal diagnostics that need to be saved to global store.
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
-      if (k/=0) then
+      if (k/=0.and.(self%horizontal_diagnostic_variables(i)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(i)%source==source_unknown)) then
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i)
          _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
+#endif
 
    end subroutine fabm_do_bottom_ppdd
 !EOC
@@ -2604,6 +2665,7 @@ end subroutine internal_check_horizontal_state
 !
 ! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
+   integer                              :: i,k
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -2614,6 +2676,18 @@ end subroutine internal_check_horizontal_state
       call node%model%get_light(_ARGUMENTS_VERT_IN_)
       node => node%next
    end do
+
+#ifndef _FULL_DOMAIN_IN_SLICE_
+   ! Copy diagnostics that need to be saved to global store.
+   do i=1,size(self%diagnostic_variables)
+      k = self%diagnostic_variables(i)%save_index
+      if (self%diagnostic_variables(i)%source==source_do_column.and.k/=0) then
+         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+            self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(i)
+         _CONCURRENT_LOOP_END_
+      end if
+   end do
+#endif
 
    end subroutine fabm_get_light
 !EOC
@@ -3327,6 +3401,7 @@ subroutine classify_variables(self)
                diagvar%prefill           = object%prefill !.and.object%missing_value/=0.0_rk
                diagvar%time_treatment    = output2time_treatment(diagvar%output)
                diagvar%save = diagvar%output/=output_none
+               diagvar%source = object%source
             elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
                ! Bulk state variable
                nstate = nstate + 1
@@ -3360,7 +3435,7 @@ subroutine classify_variables(self)
                hz_diagvar%prefill           = object%prefill !.and.object%missing_value/=0.0_rk
                hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
                hz_diagvar%save = hz_diagvar%output/=output_none
-               hz_diagvar%domain = object%domain
+               hz_diagvar%source = object%source
             elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
                ! Horizontal state variable
                select case (object%domain)

@@ -68,6 +68,8 @@
 
    integer, parameter, public :: domain_bulk = 0, domain_bottom = 1, domain_surface = 2, domain_scalar = 3
 
+   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4
+
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
 !
 ! !PUBLIC TYPES:
@@ -243,6 +245,7 @@
       integer                         :: presence       = presence_internal
       logical                         :: prefill        = .false.
       integer                         :: domain         = domain_bulk
+      integer                         :: source         = source_unknown
       class (type_base_model),pointer :: owner          => null()
       type (type_contribution_list)   :: contributions
 
@@ -1375,7 +1378,7 @@ end subroutine real_pointer_set_set_value
    recursive subroutine add_bulk_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
                                           background_value, vertical_movement, specific_light_extinction, &
                                           no_precipitation_dilution, no_river_dilution, standard_variable, presence, output, &
-                                          time_treatment, prefill, act_as_state_variable, &
+                                          time_treatment, prefill, act_as_state_variable, source, &
                                           read_index, state_index, write_index, sms_index, surface_flux_index, bottom_flux_index, &
                                           background, link)
 !
@@ -1391,7 +1394,7 @@ end subroutine real_pointer_set_set_value
       real(rk),                          intent(in),optional :: vertical_movement, specific_light_extinction
       logical,                           intent(in),optional :: no_precipitation_dilution, no_river_dilution
       type (type_bulk_standard_variable),intent(in),optional :: standard_variable
-      integer,                           intent(in),optional :: presence, output, time_treatment
+      integer,                           intent(in),optional :: presence, output, time_treatment, source
       logical,                           intent(in),optional :: prefill, act_as_state_variable
 
       integer,                      target,optional :: read_index, state_index, write_index
@@ -1412,6 +1415,8 @@ end subroutine real_pointer_set_set_value
       variable%domain = domain_bulk
 
       ! Fill fields specific to bulk variables.
+      variable%source = source_do
+      if (present(source))                    variable%source                    = source
       if (present(vertical_movement))         variable%vertical_movement         = vertical_movement
       if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
       if (present(no_river_dilution))         variable%no_river_dilution         = no_river_dilution
@@ -1432,13 +1437,13 @@ end subroutine real_pointer_set_set_value
       if (present(surface_flux_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_sfl', trim(units)//'*m/s', trim(long_name)//' surface flux', &
                                      0.0_rk, output=output_none, write_index=surface_flux_index, prefill=.true., link=link2, &
-                                     domain=domain_surface)
+                                     domain=domain_surface, source=source_do_surface)
          link_dum => variable%surface_flux_list%append(link2%target,link2%target%name)
       end if
       if (present(bottom_flux_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_bfl', trim(units)//'*m/s', trim(long_name)//' bottom flux', &
                                      0.0_rk, output=output_none, write_index=bottom_flux_index, prefill=.true., link=link2, &
-                                     domain=domain_bottom)
+                                     domain=domain_bottom, source=source_do_bottom)
          link_dum => variable%bottom_flux_list%append(link2%target,link2%target%name)
       end if
 
@@ -1454,7 +1459,7 @@ end subroutine real_pointer_set_set_value
 ! !INTERFACE:
    recursive subroutine add_horizontal_variable(self,name,units,long_name, missing_value, minimum, maximum, initial_value, &
                                                 background_value, standard_variable, presence, output, time_treatment, prefill, &
-                                                act_as_state_variable, domain, &
+                                                act_as_state_variable, domain, source, &
                                                 read_index, state_index, write_index, sms_index, background, link)
 !
 ! !DESCRIPTION:
@@ -1468,7 +1473,7 @@ end subroutine real_pointer_set_set_value
       real(rk),                                 intent(in),optional :: minimum, maximum, missing_value
       real(rk),                                 intent(in),optional :: initial_value, background_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
-      integer,                                  intent(in),optional :: presence, domain, output, time_treatment
+      integer,                                  intent(in),optional :: presence, domain, output, time_treatment, source
       logical,                                  intent(in),optional :: prefill, act_as_state_variable
 
       integer,                            target,optional :: read_index, state_index, write_index, sms_index
@@ -1481,15 +1486,18 @@ end subroutine real_pointer_set_set_value
 ! !LOCAL VARIABLES:
       type (type_internal_variable),pointer :: variable
       type (type_link),             pointer :: link_,link2,link_dum
+      integer                               :: sms_source
 !
 !-----------------------------------------------------------------------
 !BOC
       allocate(variable)
       variable%domain = domain_bottom
+      variable%source = source_unknown
 
       ! Fill fields specific to horizontal variables.
       if (present(domain))            variable%domain = domain
       if (present(standard_variable)) allocate(variable%standard_variable,source=standard_variable)
+      if (present(source))            variable%source = source
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
@@ -1497,9 +1505,11 @@ end subroutine real_pointer_set_set_value
                         act_as_state_variable, read_index, state_index, write_index, background, link_)
 
       if (present(sms_index)) then
+         sms_source = source_do_bottom
+         if (variable%domain==domain_surface) sms_source = source_do_surface
          call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
                                            0.0_rk, output=output_none, write_index=sms_index, prefill=.true., link=link2, &
-                                           domain=variable%domain)
+                                           domain=variable%domain, source=sms_source)
          link_dum => variable%sms_list%append(link2%target,link2%target%name)
       end if
 
@@ -1602,7 +1612,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    subroutine register_bulk_diagnostic_variable(self, id, name, units, long_name, &
-                                                time_treatment, missing_value, standard_variable, output)
+                                                time_treatment, missing_value, standard_variable, output, source)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1613,7 +1623,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INPUT PARAMETERS:
       character(len=*),                   intent(in)          :: name, long_name, units
-      integer,                            intent(in),optional :: time_treatment, output
+      integer,                            intent(in),optional :: time_treatment, output, source
       real(rk),                           intent(in),optional :: missing_value
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
 !
@@ -1629,7 +1639,7 @@ end subroutine real_pointer_set_set_value
 
       call self%add_bulk_variable(name, units, long_name, missing_value, &
                                   standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
-                                  write_index=id%diag_index, link=id%link)
+                                  source=source, write_index=id%diag_index, link=id%link)
 
    end subroutine register_bulk_diagnostic_variable
 !EOC
@@ -1641,7 +1651,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    subroutine register_horizontal_diagnostic_variable(self, id, name, units, long_name, &
-                                                      time_treatment, missing_value, standard_variable, output, domain)
+                                                      time_treatment, missing_value, standard_variable, output, source)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1652,7 +1662,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INPUT PARAMETERS:
       character(len=*),                         intent(in)          :: name, long_name, units
-      integer,                                  intent(in),optional :: time_treatment, output, domain
+      integer,                                  intent(in),optional :: time_treatment, output, source
       real(rk),                                 intent(in),optional :: missing_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
 !
@@ -1667,7 +1677,7 @@ end subroutine real_pointer_set_set_value
 
       call self%add_horizontal_variable(name, units, long_name, missing_value, &
                                         standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
-                                        domain=domain, write_index=id%horizontal_diag_index, link=id%link)
+                                        source=source, write_index=id%horizontal_diag_index, link=id%link)
 
    end subroutine register_horizontal_diagnostic_variable
 !EOC
