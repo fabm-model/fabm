@@ -478,10 +478,6 @@
    ! ====================================================================================================
 
    type type_environment
-      ! Declare the arrays for diagnostic variable values.
-      real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: diag
-      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
-
       ! Registry with pointers to global fields of readable variables.
       ! These pointers are accessed to fill the prefetch (see below).
       type (type_bulk_data_pointer),      allocatable :: data(:)
