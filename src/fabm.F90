@@ -662,11 +662,11 @@
    self%environment%prefetch_hz = 0.0_rk
    self%environment%prefetch_scalar = 0.0_rk
 
-   ! Allocate memroy for full-domain storage of bulk diagnostics
+   ! Allocate memory for full-domain storage of bulk diagnostics
    ! Index 0 is reserved to contain 0.0 at all times.
    n = 0
    do ivar=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(ivar)%save) then
+      if (self%diagnostic_variables(ivar)%save.or.self%diagnostic_variables(ivar)%globalid%read_index/=-1) then
          n = n + 1
          self%diagnostic_variables(ivar)%save_index = n
       end if
@@ -678,7 +678,7 @@
    ! Index 0 is reserved to contain 0.0 at all times.
    n = 0
    do ivar=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(ivar)%save) then
+      if (self%horizontal_diagnostic_variables(ivar)%save.or.self%horizontal_diagnostic_variables(ivar)%globalid%read_index/=-1) then
          n = n + 1
          self%horizontal_diagnostic_variables(ivar)%save_index = n
       end if
@@ -3322,7 +3322,7 @@ subroutine classify_variables(self)
                end if
                diagvar%prefill           = object%prefill !.and.object%missing_value/=0.0_rk
                diagvar%time_treatment    = output2time_treatment(diagvar%output)
-               diagvar%save = diagvar%output/=output_none.or..not.object%read_indices%is_empty()
+               diagvar%save = diagvar%output/=output_none
             elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
                ! Bulk state variable
                nstate = nstate + 1
@@ -3355,7 +3355,7 @@ subroutine classify_variables(self)
                end if
                hz_diagvar%prefill           = object%prefill !.and.object%missing_value/=0.0_rk
                hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
-               hz_diagvar%save = hz_diagvar%output/=output_none.or..not.object%read_indices%is_empty()
+               hz_diagvar%save = hz_diagvar%output/=output_none
                hz_diagvar%domain = object%domain
             elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
                ! Horizontal state variable
