@@ -558,10 +558,13 @@
 ! Define statements to start and finish vertical loops
 #ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
 #define _VERTICAL_LOOP_BEGIN_ do _VARIABLE_VERT_LOOP_=fabm_loop_stop,fabm_loop_start,-1
+#define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(environment) do concurrent (_VARIABLE_VERT_LOOP_=fabm_loop_stop:fabm_loop_start:-1)
 #else
 #define _VERTICAL_LOOP_BEGIN_ do _VARIABLE_VERT_LOOP_=fabm_loop_start,fabm_loop_stop
+#define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(environment) do concurrent (_VARIABLE_VERT_LOOP_=fabm_loop_start:fabm_loop_stop)
 #endif
 #define _VERTICAL_LOOP_END_ end do
+#define _CONCURRENT_VERTICAL_LOOP_END_ end do
 
 #else
 
@@ -575,6 +578,9 @@
 
 #define _VERTICAL_LOOP_BEGIN_
 #define _VERTICAL_LOOP_END_
+
+#define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(environment)
+#define _CONCURRENT_VERTICAL_LOOP_END_
 
 #endif
 

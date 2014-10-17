@@ -2682,9 +2682,9 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%diagnostic_variables)
       k = self%diagnostic_variables(i)%save_index
       if (self%diagnostic_variables(i)%source==source_do_column.and.k/=0) then
-         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+         _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(self%environment)
             self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(i)
-         _CONCURRENT_LOOP_END_
+         _CONCURRENT_VERTICAL_LOOP_END_
       end if
    end do
 #endif
