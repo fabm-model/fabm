@@ -84,17 +84,13 @@
    type type_bulk_variable_id
       type (type_internal_variable),pointer :: variable => null()
       integer                            :: state_index = -1
-      integer                            :: write_index = -1
       integer                            :: read_index = -1
-      integer,allocatable, dimension(:)  :: sms_indices, surface_flux_indices, bottom_flux_indices
    end type
 
    type type_horizontal_variable_id
       type (type_internal_variable),pointer :: variable => null()
       integer                                  :: state_index = -1
-      integer                                  :: write_index = -1
       integer                                  :: read_index = -1
-      integer,allocatable, dimension(:)        :: sms_indices
    end type
 
    type type_scalar_variable_id
@@ -118,6 +114,7 @@
       integer                         :: output        = output_instantaneous ! See output_* parameters above
       type (type_property_dictionary) :: properties
       integer                         :: externalid    = 0                    ! Identifier to be used freely by host
+      type (type_internal_variable),pointer :: target => null()
    end type
 
 !  Derived type describing a state variable
@@ -128,20 +125,20 @@
       logical                            :: no_precipitation_dilution = .false.
       logical                            :: no_river_dilution         = .false.
       type (type_bulk_variable_id)       :: globalid
+      integer,allocatable, dimension(:)  :: sms_indices, surface_flux_indices, bottom_flux_indices
    end type type_state_variable_info
 
    type,extends(type_external_variable) :: type_horizontal_state_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
       real(rk)                                 :: initial_value = 0.0_rk
       type (type_horizontal_variable_id)       :: globalid
+      integer,allocatable, dimension(:)        :: sms_indices
    end type type_horizontal_state_variable_info
 
 !  Derived type describing a diagnostic variable
    type,extends(type_external_variable) :: type_diagnostic_variable_info
       type (type_bulk_standard_variable) :: standard_variable
       integer                            :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
-      logical                            :: prefill        = .false.
-      type (type_bulk_variable_id)       :: globalid
       logical                            :: save           = .false.
       integer                            :: save_index     = 0
       integer                            :: source
@@ -150,8 +147,6 @@
    type,extends(type_external_variable) :: type_horizontal_diagnostic_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
       integer                                  :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
-      logical                                  :: prefill        = .false.
-      type (type_horizontal_variable_id)       :: globalid
       logical                                  :: save           = .false.
       integer                                  :: save_index     = 0
       integer                                  :: source
@@ -206,15 +201,17 @@
       real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
    contains
+      procedure :: link_bulk_data_by_variable => fabm_link_bulk_data_by_variable
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
       procedure :: link_bulk_data_by_sn   => fabm_link_bulk_data_by_sn
       procedure :: link_bulk_data_by_name => fabm_link_bulk_data_by_name
-      generic :: link_bulk_data => link_bulk_data_by_id,link_bulk_data_by_sn,link_bulk_data_by_name
+      generic :: link_bulk_data => link_bulk_data_by_variable,link_bulk_data_by_id,link_bulk_data_by_sn,link_bulk_data_by_name
 
-      procedure :: link_horizontal_data_by_id   => fabm_link_horizontal_data_by_id
-      procedure :: link_horizontal_data_by_sn   => fabm_link_horizontal_data_by_sn
-      procedure :: link_horizontal_data_by_name => fabm_link_horizontal_data_by_name
-      generic :: link_horizontal_data => link_horizontal_data_by_id,link_horizontal_data_by_sn,link_horizontal_data_by_name
+      procedure :: link_horizontal_data_by_variable => fabm_link_horizontal_data_by_variable
+      procedure :: link_horizontal_data_by_id       => fabm_link_horizontal_data_by_id
+      procedure :: link_horizontal_data_by_sn       => fabm_link_horizontal_data_by_sn
+      procedure :: link_horizontal_data_by_name     => fabm_link_horizontal_data_by_name
+      generic :: link_horizontal_data => link_horizontal_data_by_variable,link_horizontal_data_by_id,link_horizontal_data_by_sn,link_horizontal_data_by_name
 
       procedure :: link_scalar_by_id   => fabm_link_scalar_by_id
       procedure :: link_scalar_by_sn   => fabm_link_scalar_by_sn
@@ -269,6 +266,7 @@
 
    ! Subroutine for providing FABM with variable data on the full spatial domain.
    interface fabm_link_bulk_data
+      module procedure fabm_link_bulk_data_by_variable
       module procedure fabm_link_bulk_data_by_id
       module procedure fabm_link_bulk_data_by_sn
       module procedure fabm_link_bulk_data_by_name
@@ -276,6 +274,7 @@
 
    ! Subroutine for providing FABM with variable data on horizontal slices of the domain.
    interface fabm_link_horizontal_data
+      module procedure fabm_link_horizontal_data_by_variable
       module procedure fabm_link_horizontal_data_by_id
       module procedure fabm_link_horizontal_data_by_sn
       module procedure fabm_link_horizontal_data_by_name
@@ -641,6 +640,7 @@
   type (type_model_list_node), pointer :: node
   integer                              :: ivar,n,index
   class (type_expression),pointer      :: expression
+  type (type_link),pointer             :: link
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -669,10 +669,65 @@
    self%zero_hz = 0.0_rk
    call self%link_horizontal_data('zero_hz',self%zero_hz)
 
-   allocate(self%environment%scratch _INDEX_SLICE_PLUS_1_(size(self%diagnostic_variables)))
-   allocate(self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(size(self%horizontal_diagnostic_variables)))
-   self%environment%scratch = 0.0_rk
-   self%environment%scratch_hz = 0.0_rk
+   ! Merge diagnostic variables that contribute to the same sink/source terms,
+   ! surface fluxes, bottom fluxes, provided no other variables depend on them.
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      call merge_aggregating_diagnostics(link%target%sms_list)
+      call merge_aggregating_diagnostics(link%target%surface_flux_list)
+      call merge_aggregating_diagnostics(link%target%bottom_flux_list)
+      link => link%next
+   end do
+
+   ! Create arrays with diagnostic indices contributing to sink/source terms,
+   ! surface fluxes, bottom fluxes. Must be done after calls to merge_aggregating_diagnostics.
+   do ivar=1,size(self%state_variables)
+      call copy_write_indices(self%state_variables(ivar)%target%sms_list,         self%state_variables(ivar)%sms_indices)
+      call copy_write_indices(self%state_variables(ivar)%target%surface_flux_list,self%state_variables(ivar)%surface_flux_indices)
+      call copy_write_indices(self%state_variables(ivar)%target%bottom_flux_list, self%state_variables(ivar)%bottom_flux_indices)
+   end do
+   do ivar=1,size(self%surface_state_variables)
+      call copy_write_indices(self%surface_state_variables(ivar)%target%sms_list, self%surface_state_variables(ivar)%sms_indices)
+   end do
+   do ivar=1,size(self%bottom_state_variables)
+      call copy_write_indices(self%bottom_state_variables(ivar)%target%sms_list, self%bottom_state_variables(ivar)%sms_indices)
+   end do
+
+   ! Assign write indices in scratch space to all bulk diagnostic variables.
+   ! Must be done after calls to merge_aggregating_diagnostics.
+   n = 0
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      select case (link%target%domain)
+         case (domain_bulk)
+            if (.not.link%target%write_indices%is_empty().and.link%target%write_indices%value==-1) then
+               n = n + 1
+               call link%target%write_indices%set_value(n)
+            end if
+      end select
+      link => link%next
+   end do
+
+   ! Allocate scratch memory for bulk variables.
+   allocate(self%environment%scratch _INDEX_SLICE_PLUS_1_(n))
+
+   ! Assign write indicies in scratch space to all bulk diagnostic variables.
+   ! Must be done after calls to merge_aggregating_diagnostics.
+   n = 0
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      select case (link%target%domain)
+         case (domain_surface,domain_bottom)
+            if (.not.link%target%write_indices%is_empty().and.link%target%write_indices%value==-1) then
+               n = n + 1
+               call link%target%write_indices%set_value(n)
+            end if
+      end select
+      link => link%next
+   end do
+
+   ! Allocate scratch memory for horizontal variables.
+   allocate(self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(n))
 
 #ifdef _FABM_MASK_
    allocate(self%environment%prefetch_mask _INDEX_SLICE_)
@@ -681,22 +736,26 @@
 #ifdef _FULL_DOMAIN_IN_SLICE_
    ! Fill memory for diagnostic variable with missing values, and save pointers for data retrieval.
    do ivar=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(ivar)%missing_value/=0) &
-         self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ ivar) = self%diagnostic_variables(ivar)%missing_value
-      call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%globalid, &
-         self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ ivar))
+      index = self%diagnostic_variables(ivar)%target%write_indices%value
+      if (index>0) then
+         self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ index) = self%diagnostic_variables(ivar)%missing_value
+         call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%target, &
+            self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ index))
+      end if
    end do
    do ivar=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(ivar)%missing_value/=0) &
+      index = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
+      if (index>0) then
          self%environment%scratch_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
-      call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%globalid, &
-         self%environment%scratch_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ ivar))
+         call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%target, &
+            self%environment%scratch_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index))
+      end if
    end do
 #else
    ! Allocate memory for full-domain storage of bulk diagnostics
    n = 0
    do ivar=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(ivar)%save.or.self%diagnostic_variables(ivar)%globalid%read_index/=-1) then
+      if (self%diagnostic_variables(ivar)%save.or.self%diagnostic_variables(ivar)%target%read_indices%value/=-1) then
          n = n + 1
          self%diagnostic_variables(ivar)%save_index = n
       end if
@@ -707,7 +766,7 @@
    ! Allocate memory for full-domain storage of horizontal diagnostics
    n = 0
    do ivar=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(ivar)%save.or.self%horizontal_diagnostic_variables(ivar)%globalid%read_index/=-1) then
+      if (self%horizontal_diagnostic_variables(ivar)%save.or.self%horizontal_diagnostic_variables(ivar)%target%read_indices%value/=-1) then
          n = n + 1
          self%horizontal_diagnostic_variables(ivar)%save_index = n
       end if
@@ -719,17 +778,15 @@
    do ivar=1,size(self%diagnostic_variables)
       index = self%diagnostic_variables(ivar)%save_index
       if (index>0) then
-         if (self%diagnostic_variables(ivar)%missing_value/=0) &
-            self%diag(_PREARG_LOCATION_DIMENSIONS_ index) = self%diagnostic_variables(ivar)%missing_value
-         call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%globalid, self%diag(_PREARG_LOCATION_DIMENSIONS_ index))
+         self%diag(_PREARG_LOCATION_DIMENSIONS_ index) = self%diagnostic_variables(ivar)%missing_value
+         call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%target, self%diag(_PREARG_LOCATION_DIMENSIONS_ index))
       end if
    end do
    do ivar=1,size(self%horizontal_diagnostic_variables)
       index = self%horizontal_diagnostic_variables(ivar)%save_index
       if (index>0) then
-         if (self%horizontal_diagnostic_variables(ivar)%missing_value/=0) &
-            self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
-         call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%globalid, self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index))
+         self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
+         call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%target, self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index))
       end if
    end do
 #endif
@@ -757,6 +814,31 @@
 
    end subroutine fabm_set_domain
 !EOC
+
+   subroutine merge_aggregating_diagnostics(list)
+      type (type_link_list),intent(inout) :: list
+
+      type (type_link),             pointer :: link
+      type (type_internal_variable),pointer :: free_target
+
+      nullify(free_target)
+      link => list%first
+      do while (associated(link))
+         if (link%target%read_indices%is_empty()) then
+            ! This diagnostic is only used as increment of source-sink terms, surface flux or bulk flux.
+            ! It can be merged.
+            if (associated(free_target)) then
+               ! We already found a previous variable that can be merged - merge current and previous.
+               call free_target%write_indices%extend(link%target%write_indices)
+               call link%target%write_indices%clear()
+            else
+               ! This is the first variable that can be merged. Record it as such and move on.
+               free_target => link%target
+            end if
+         end if
+         link => link%next
+      end do
+   end subroutine merge_aggregating_diagnostics
 
 #ifdef _FABM_MASK_
 !-----------------------------------------------------------------------
@@ -815,19 +897,19 @@
       if (.not.link%target%read_indices%is_empty().and..not.link%target%presence==presence_external_optional) then
          select case (link%target%domain)
             case (domain_bulk)
-               if (.not.associated(self%environment%data(link%target%read_indices%pointers(1)%p)%p)) then
+               if (.not.associated(self%environment%data(link%target%read_indices%value)%p)) then
                   call log_message('data for dependency "'//trim(link%name)// &
                      & '", defined on the full model domain, have not been provided.')
                   ready = .false.
                end if
             case (domain_bottom,domain_surface)
-               if (.not.associated(self%environment%data_hz(link%target%read_indices%pointers(1)%p)%p)) then
+               if (.not.associated(self%environment%data_hz(link%target%read_indices%value)%p)) then
                   call log_message('data for dependency "'//trim(link%name)// &
                      &  '", defined on a horizontal slice of the model domain, have not been provided.')
                   ready = .false.
                end if
             case (domain_scalar)
-               if (.not.associated(self%environment%data_scalar(link%target%read_indices%pointers(1)%p)%p)) then
+               if (.not.associated(self%environment%data_scalar(link%target%read_indices%value)%p)) then
                   call log_message('data for dependency "'//trim(link%name)// &
                      &  '", defined as global scalar quantity, have not been provided.')
                   ready = .false.
@@ -1394,7 +1476,44 @@
 !
 ! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! the specified variable, defined on the full spatial domain. The variable
-! is identified by its integer id.
+! is identified by an internal variable object.
+!
+! !INTERFACE:
+   subroutine fabm_link_bulk_data_by_variable(self,variable,dat)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                intent(inout) :: self
+   type(type_internal_variable),      intent(in)    :: variable
+   real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   integer :: i
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#if defined(DEBUG)&&_FABM_DIMENSION_COUNT_>0
+   do i=1,size(shape(dat))
+      if (size(dat,i)/=size(self%diag,i)) then
+         call fatal_error('fabm_link_bulk_data_by_variable','dimensions of FABM domain and provided array do not match.')
+      end if
+   end do
+#endif
+
+   if (variable%read_indices%value/=-1) self%environment%data(variable%read_indices%value)%p => dat
+
+   end subroutine fabm_link_bulk_data_by_variable
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
+! the specified variable, defined on the full spatial domain. The variable
+! is identified by an external identifier.
 !
 ! !INTERFACE:
    subroutine fabm_link_bulk_data_by_id(self,id,dat)
@@ -1496,7 +1615,46 @@
 !
 ! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! the specified variable, defined on a horizontal slice of the spatial domain.
-! The variable is identified by its integer id.
+! The variable is identified by an internal variable object.
+!
+! !INTERFACE:
+   subroutine fabm_link_horizontal_data_by_variable(self,variable,dat)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                           intent(inout) :: self
+   type (type_internal_variable),                intent(inout) :: variable
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   integer                                                :: i
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#ifdef DEBUG
+#ifndef _FABM_HORIZONTAL_IS_SCALAR_
+   do i=1,size(shape(dat))
+      if (size(dat,i)/=size(self%diag,i)) then
+         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
+      end if
+   end do
+#endif
+#endif
+
+   if (variable%read_indices%value/=-1) self%environment%data_hz(variable%read_indices%value)%p => dat
+
+   end subroutine fabm_link_horizontal_data_by_variable
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
+! the specified variable, defined on a horizontal slice of the spatial domain.
+! The variable is identified by an external identifier.
 !
 ! !INTERFACE:
    subroutine fabm_link_horizontal_data_by_id(self,id,dat)
@@ -1599,7 +1757,8 @@
 !BOP
 !
 ! !IROUTINE: Provide FABM with (a pointer to) the scalar that will hold
-! data for the specified variable. The variable is identified by its integer id.
+! data for the specified variable. The variable is identified by an
+! external identifier.
 !
 ! !INTERFACE:
    subroutine fabm_link_scalar_by_id(self,id,dat)
@@ -1781,7 +1940,7 @@
 !BOC
 #ifdef _FULL_DOMAIN_IN_SLICE_
    ! Retrieve a pointer to the array holding the requested data.
-   dat => self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ id)
+   dat => self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ self%diagnostic_variables(id)%target%write_indices%value)
 #else
    ! Retrieve a pointer to the array holding the requested data.
    dat => self%diag(_PREARG_LOCATION_DIMENSIONS_ self%diagnostic_variables(id)%save_index)
@@ -1813,7 +1972,7 @@
 !BOC
 #ifdef _FULL_DOMAIN_IN_SLICE_
    ! Retrieve a pointer to the array holding the requested data.
-   dat => self%environment%scratch_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ id)
+   dat => self%environment%scratch_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ self%horizontal_diagnostic_variables(id)%target%write_indices%value)
 #else
    ! Retrieve a pointer to the array holding the requested data.
    dat => self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ self%horizontal_diagnostic_variables(id)%save_index)
@@ -1853,13 +2012,15 @@
 #endif
    call prefetch(self%environment _ARG_LOCATION_ND_)
 
-   ! Prefill diagnostic variables where requested
-   do i=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(i)%source==source_do.and.self%diagnostic_variables(i)%prefill) then
+   ! Initialize scratch variables that will hold source-sink terms to zero,
+   ! because they will be incremented.
+   do i=1,size(self%state_variables)
+      do j=1,size(self%state_variables(i)%sms_indices)
+         k = self%state_variables(i)%sms_indices(j)
          _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch _INDEX_SLICE_PLUS_1_(i) = self%diagnostic_variables(i)%missing_value
+            self%environment%scratch _INDEX_SLICE_PLUS_1_(k) = 0.0_rk
          _CONCURRENT_LOOP_END_
-      end if
+      end do
    end do
 
    node => self%models%first
@@ -1867,10 +2028,10 @@
       call node%model%do(_ARGUMENTS_ND_IN_)
 
       ! Copy newly written diagnostics to prefetch
-      do i=1,size(node%model%reused_diag_read_indices)
-         k = node%model%reused_diag_write_indices(i)
-         if (self%diagnostic_variables(k)%source==source_do) then
-            j = node%model%reused_diag_read_indices(i)
+      do i=1,size(node%model%reused_diag)
+         if (node%model%reused_diag(i)%source==source_do) then
+            j = node%model%reused_diag(i)%read_index
+            k = node%model%reused_diag(i)%write_index
             _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
                self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
             _CONCURRENT_LOOP_END_
@@ -1883,8 +2044,8 @@
 
    ! Compose total sources-sinks for each state variable, combining model-specific contributions.
    do i=1,size(self%state_variables)
-      do j=1,size(self%state_variables(i)%globalid%sms_indices)
-         k = self%state_variables(i)%globalid%sms_indices(j)
+      do j=1,size(self%state_variables(i)%sms_indices)
+         k = self%state_variables(i)%sms_indices(j)
          _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
             dy _INDEX_SLICE_PLUS_1_(i) = dy _INDEX_SLICE_PLUS_1_(i) + self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
          _CONCURRENT_LOOP_END_
@@ -1896,8 +2057,9 @@
    do i=1,size(self%diagnostic_variables)
       k = self%diagnostic_variables(i)%save_index
       if (self%diagnostic_variables(i)%source==source_do.and.k/=0) then
+         j = self%diagnostic_variables(i)%target%write_indices%value
          _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(i)
+            self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(j)
          _CONCURRENT_LOOP_END_
       end if
    end do
@@ -2007,10 +2169,10 @@ end subroutine
       call node%model%do_ppdd(_ARGUMENTS_ND_IN_,pp,dd)
 
       ! Copy newly written diagnostics to prefetch
-      do i=1,size(node%model%reused_diag_read_indices)
-         k = node%model%reused_diag_write_indices(i)
-         if (self%diagnostic_variables(k)%source==source_do) then
-            j = node%model%reused_diag_read_indices(i)
+      do i=1,size(node%model%reused_diag)
+         if (node%model%reused_diag(i)%source==source_do) then
+            j = node%model%reused_diag(i)%read_index
+            k = node%model%reused_diag(i)%write_index
             _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
                self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
             _CONCURRENT_LOOP_END_
@@ -2025,8 +2187,9 @@ end subroutine
    do i=1,size(self%diagnostic_variables)
       k = self%diagnostic_variables(i)%save_index
       if (self%diagnostic_variables(k)%source==source_do.and.k/=0) then
+         j = self%diagnostic_variables(i)%target%write_indices%value
          _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(i)
+            self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(j)
          _CONCURRENT_LOOP_END_
       end if
    end do
@@ -2286,37 +2449,48 @@ end subroutine internal_check_horizontal_state
 !BOC
       call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
 
+      ! Initialize scratch variables that will hold surface-attached source-sink terms
+      ! or bulk surface fluxes to zero, because they will be incremented.
+      do i=1,size(self%state_variables)
+         do j=1,size(self%state_variables(i)%surface_flux_indices)
+            k = self%state_variables(i)%surface_flux_indices(j)
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
+            _CONCURRENT_HORIZONTAL_LOOP_END_
+         end do
+      end do
+      do i=1,size(self%surface_state_variables)
+         do j=1,size(self%surface_state_variables(i)%sms_indices)
+            k = self%surface_state_variables(i)%sms_indices(j)
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
+            _CONCURRENT_HORIZONTAL_LOOP_END_
+         end do
+      end do
+
 #ifndef _FULL_DOMAIN_IN_SLICE_
       ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
       ! This is needed to preserve the value of bottom diagnostics.
       do i=1,size(self%horizontal_diagnostic_variables)
          k = self%horizontal_diagnostic_variables(i)%save_index
          if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
+            j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
+               self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
             _CONCURRENT_HORIZONTAL_LOOP_END_
          end if
       end do
 #endif
-
-      ! Prefill diagnostic variables where requested
-      do i=1,size(self%horizontal_diagnostic_variables)
-         if (self%horizontal_diagnostic_variables(i)%prefill.and.self%horizontal_diagnostic_variables(i)%source==source_do_surface) then
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%horizontal_diagnostic_variables(i)%missing_value
-            _CONCURRENT_HORIZONTAL_LOOP_END_
-         end if
-      end do
 
       node => self%models%first
       do while (associated(node))
          call node%model%do_surface(_ARGUMENTS_IN_HZ_)
 
          ! Copy newly written diagnostics to prefetch
-         do i=1,size(node%model%reused_diag_hz_read_indices)
-            k = node%model%reused_diag_hz_write_indices(i)
-            if (self%horizontal_diagnostic_variables(k)%source==source_do_surface.or.self%horizontal_diagnostic_variables(k)%source==source_unknown) then
-               j = node%model%reused_diag_hz_read_indices(i)
+         do i=1,size(node%model%reused_diag_hz)
+            if (node%model%reused_diag_hz(k)%source==source_do_surface.or.node%model%reused_diag_hz(k)%source==source_unknown) then
+               j = node%model%reused_diag_hz(i)%read_index
+               k = node%model%reused_diag_hz(i)%write_index
                _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                   self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
                _CONCURRENT_HORIZONTAL_LOOP_END_
@@ -2329,8 +2503,8 @@ end subroutine internal_check_horizontal_state
       ! Compose surface fluxes for each bulk state variable, combining model-specific contributions.
       flux_pel = 0.0_rk
       do i=1,size(self%state_variables)
-         do j=1,size(self%state_variables(i)%globalid%surface_flux_indices)
-            k = self%state_variables(i)%globalid%surface_flux_indices(j)
+         do j=1,size(self%state_variables(i)%surface_flux_indices)
+            k = self%state_variables(i)%surface_flux_indices(j)
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _CONCURRENT_HORIZONTAL_LOOP_END_
@@ -2341,8 +2515,8 @@ end subroutine internal_check_horizontal_state
       if (present(flux_sf)) then
          flux_sf = 0.0_rk
          do i=1,size(self%surface_state_variables)
-            do j=1,size(self%surface_state_variables(i)%globalid%sms_indices)
-               k = self%surface_state_variables(i)%globalid%sms_indices(j)
+            do j=1,size(self%surface_state_variables(i)%sms_indices)
+               k = self%surface_state_variables(i)%sms_indices(j)
                _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                   flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
                _CONCURRENT_HORIZONTAL_LOOP_END_
@@ -2355,8 +2529,9 @@ end subroutine internal_check_horizontal_state
       do i=1,size(self%horizontal_diagnostic_variables)
          k = self%horizontal_diagnostic_variables(i)%save_index
          if (k/=0.and.(self%horizontal_diagnostic_variables(i)%source==source_do_surface.or.self%horizontal_diagnostic_variables(i)%source==source_unknown)) then
+            j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i)
+               self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j)
             _CONCURRENT_HORIZONTAL_LOOP_END_
          end if
       end do
@@ -2394,37 +2569,48 @@ end subroutine internal_check_horizontal_state
 !BOC
    call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
 
+   ! Initialize scratch variables that will hold bottom-attached source-sink terms
+   ! or bulk bottom fluxes to zero, because they will be incremented.
+   do i=1,size(self%state_variables)
+      do j=1,size(self%state_variables(i)%bottom_flux_indices)
+         k = self%state_variables(i)%bottom_flux_indices(j)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
+         _CONCURRENT_HORIZONTAL_LOOP_END_
+      end do
+   end do
+   do i=1,size(self%bottom_state_variables)
+      do j=1,size(self%bottom_state_variables(i)%sms_indices)
+         k = self%bottom_state_variables(i)%sms_indices(j)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
+         _CONCURRENT_HORIZONTAL_LOOP_END_
+      end do
+   end do
+
 #ifndef _FULL_DOMAIN_IN_SLICE_
    ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
    ! This is needed to preserve the value of surface diagnostics.
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
       if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
+         j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
+            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
          _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
 #endif
-
-   ! Prefill diagnostic variables where requested
-   do i=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(i)%prefill.and.self%horizontal_diagnostic_variables(i)%source==source_do_bottom) then
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%horizontal_diagnostic_variables(i)%missing_value
-         _CONCURRENT_HORIZONTAL_LOOP_END_
-      end if
-   end do
 
    node => self%models%first
    do while (associated(node))
       call node%model%do_bottom(_ARGUMENTS_IN_HZ_)
 
       ! Copy newly written diagnostics to prefetch
-      do i=1,size(node%model%reused_diag_hz_read_indices)
-         k = node%model%reused_diag_hz_write_indices(i)
-         if (self%horizontal_diagnostic_variables(k)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(k)%source==source_unknown) then
-            j = node%model%reused_diag_hz_read_indices(i)
+      do i=1,size(node%model%reused_diag_hz)
+         if (node%model%reused_diag_hz(k)%source==source_do_bottom.or.node%model%reused_diag_hz(k)%source==source_unknown) then
+            j = node%model%reused_diag_hz(i)%read_index
+            k = node%model%reused_diag_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _CONCURRENT_HORIZONTAL_LOOP_END_
@@ -2436,8 +2622,8 @@ end subroutine internal_check_horizontal_state
 
    ! Compose bottom fluxes for each bulk state variable, combining model-specific contributions.
    do i=1,size(self%state_variables)
-      do j=1,size(self%state_variables(i)%globalid%bottom_flux_indices)
-         k = self%state_variables(i)%globalid%bottom_flux_indices(j)
+      do j=1,size(self%state_variables(i)%bottom_flux_indices)
+         k = self%state_variables(i)%bottom_flux_indices(j)
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
          _CONCURRENT_HORIZONTAL_LOOP_END_
@@ -2446,8 +2632,8 @@ end subroutine internal_check_horizontal_state
 
    ! Compose total sources-sinks for each bottom-bound state variable, combining model-specific contributions.
    do i=1,size(self%bottom_state_variables)
-      do j=1,size(self%bottom_state_variables(i)%globalid%sms_indices)
-         k = self%bottom_state_variables(i)%globalid%sms_indices(j)
+      do j=1,size(self%bottom_state_variables(i)%sms_indices)
+         k = self%bottom_state_variables(i)%sms_indices(j)
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
             flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
          _CONCURRENT_HORIZONTAL_LOOP_END_
@@ -2459,8 +2645,9 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
       if (k/=0.and.(self%horizontal_diagnostic_variables(i)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(i)%source==source_unknown)) then
+         j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i)
+            self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j)
          _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
@@ -2503,21 +2690,13 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
       if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
+         j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
+            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
          _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
 #endif
-
-   ! Prefill diagnostic variables where requested
-   do i=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(i)%prefill.and.self%horizontal_diagnostic_variables(i)%source==source_do_bottom) then
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%horizontal_diagnostic_variables(i)%missing_value
-         _CONCURRENT_HORIZONTAL_LOOP_END_
-      end if
-   end do
 
    call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
 
@@ -2526,10 +2705,10 @@ end subroutine internal_check_horizontal_state
       call node%model%do_bottom_ppdd(_ARGUMENTS_IN_HZ_,pp,dd,benthos_offset)
 
       ! Copy newly written diagnostics to prefetch
-      do i=1,size(node%model%reused_diag_hz_read_indices)
-         k = node%model%reused_diag_hz_write_indices(i)
-         if (self%horizontal_diagnostic_variables(k)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(k)%source==source_unknown) then
-            j = node%model%reused_diag_hz_read_indices(i)
+      do i=1,size(node%model%reused_diag_hz)
+         if (node%model%reused_diag_hz(k)%source==source_do_bottom.or.node%model%reused_diag_hz(k)%source==source_unknown) then
+            j = node%model%reused_diag_hz(i)%read_index
+            k = node%model%reused_diag_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
                self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _CONCURRENT_HORIZONTAL_LOOP_END_
@@ -2544,8 +2723,9 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
       if (k/=0.and.(self%horizontal_diagnostic_variables(i)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(i)%source==source_unknown)) then
+         j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i)
+            self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j)
          _CONCURRENT_HORIZONTAL_LOOP_END_
       end if
    end do
@@ -2665,7 +2845,7 @@ end subroutine internal_check_horizontal_state
 !
 ! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
-   integer                              :: i,k
+   integer                              :: i,j,k
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -2682,8 +2862,9 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%diagnostic_variables)
       k = self%diagnostic_variables(i)%save_index
       if (self%diagnostic_variables(i)%source==source_do_column.and.k/=0) then
+         j = self%diagnostic_variables(i)%target%write_indices%value
          _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(self%environment)
-            self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(i)
+            self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(j)
          _CONCURRENT_VERTICAL_LOOP_END_
       end if
    end do
@@ -2973,11 +3154,11 @@ subroutine copy_write_indices(source,target)
    do while (associated(link))
       if (.not.link%target%write_indices%is_empty()) then
          n = n + 1
-         target(n) = link%target%write_indices%pointers(1)%p
+         call link%target%write_indices%append(target(n))
       end if
       link => link%next
    end do
-end subroutine
+end subroutine copy_write_indices
 
 function create_external_bulk_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
@@ -2985,12 +3166,8 @@ function create_external_bulk_id(variable) result(id)
 
    if (variable%domain/=domain_bulk) call driver%fatal_error('create_external_bulk_id','BUG: called on non-bulk variable.')
    id%variable => variable
-   if (.not.variable%read_indices%is_empty())  id%read_index = variable%read_indices%pointers(1)%p
-   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
-   if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
-   call copy_write_indices(variable%sms_list,         id%sms_indices)
-   call copy_write_indices(variable%surface_flux_list,id%surface_flux_indices)
-   call copy_write_indices(variable%bottom_flux_list, id%bottom_flux_indices)
+   if (.not.variable%read_indices%is_empty())  id%read_index = variable%read_indices%value
+   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%value
 end function create_external_bulk_id
 
 function create_external_horizontal_id(variable) result(id)
@@ -3000,10 +3177,8 @@ function create_external_horizontal_id(variable) result(id)
    if (variable%domain/=domain_bottom.and.variable%domain/=domain_surface) &
       call driver%fatal_error('create_external_horizontal_id','BUG: called on non-horizontal variable.')
    id%variable => variable
-   if (.not.variable%read_indices%is_empty())  id%read_index = variable%read_indices%pointers(1)%p
-   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
-   if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
-   call copy_write_indices(variable%sms_list,id%sms_indices)
+   if (.not.variable%read_indices%is_empty())  id%read_index = variable%read_indices%value
+   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%value
 end function create_external_horizontal_id
 
 function create_external_scalar_id(variable) result(id)
@@ -3011,7 +3186,7 @@ function create_external_scalar_id(variable) result(id)
    type (type_scalar_variable_id) :: id
    if (variable%domain/=domain_scalar) call driver%fatal_error('create_external_scalar_id','BUG: called on non-scalar variable.')
    id%variable => variable
-   if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%pointers(1)%p
+   if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
 end function create_external_scalar_id
 
 function create_external_bulk_id_for_standard_name(self,standard_variable) result(id)
@@ -3103,10 +3278,8 @@ recursive subroutine set_diagnostic_indices(self)
       link => link%next
    end do
 
-   allocate(self%reused_diag_write_indices(n))
-   allocate(self%reused_diag_read_indices(n))
-   allocate(self%reused_diag_hz_write_indices(n_hz))
-   allocate(self%reused_diag_hz_read_indices(n_hz))
+   allocate(self%reused_diag(n))
+   allocate(self%reused_diag_hz(n_hz))
 
    n = 0
    n_hz = 0
@@ -3117,12 +3290,14 @@ recursive subroutine set_diagnostic_indices(self)
          select case (link%target%domain)
             case (domain_bulk)
                n = n + 1
-               call link%target%write_indices%append(self%reused_diag_write_indices(n))
-               call link%target%read_indices%append (self%reused_diag_read_indices (n))
+               self%reused_diag(n)%source = link%target%source
+               call link%target%write_indices%append(self%reused_diag(n)%write_index)
+               call link%target%read_indices%append (self%reused_diag(n)%read_index)
             case (domain_bottom,domain_surface)
                n_hz = n_hz + 1
-               call link%target%write_indices%append(self%reused_diag_hz_write_indices(n_hz))
-               call link%target%read_indices%append (self%reused_diag_hz_read_indices (n_hz))
+               self%reused_diag_hz(n_hz)%source = link%target%source
+               call link%target%write_indices%append(self%reused_diag_hz(n_hz)%write_index)
+               call link%target%read_indices%append (self%reused_diag_hz(n_hz)%read_index)
          end select
       end if
       link => link%next
@@ -3321,7 +3496,6 @@ subroutine classify_variables(self)
             if (.not.object%write_indices%is_empty()) then
                ! Bulk diagnostic variable.
                ndiag = ndiag+1
-               call object%write_indices%set_value(ndiag)
             elseif (.not.object%state_indices%is_empty()) then
                ! Bulk state variable.
                select case (object%presence)
@@ -3339,7 +3513,6 @@ subroutine classify_variables(self)
             if (.not.object%write_indices%is_empty()) then
                ! Horizontal diagnostic variable.
                ndiag_hz = ndiag_hz+1
-               call object%write_indices%set_value(ndiag_hz)
             elseif (.not.object%state_indices%is_empty()) then
                ! Horizontal state variable.
                select case (object%presence)
@@ -3391,14 +3564,12 @@ subroutine classify_variables(self)
                ndiag = ndiag + 1
                diagvar => self%diagnostic_variables(ndiag)
                call copy_variable_metadata(object,diagvar)
-               diagvar%globalid          = create_external_bulk_id(object)
                if (associated(object%standard_variable)) then
                   select type (standard_variable=>object%standard_variable)
                      type is (type_bulk_standard_variable)
                         diagvar%standard_variable = standard_variable
                   end select
                end if
-               diagvar%prefill           = object%prefill !.and.object%missing_value/=0.0_rk
                diagvar%time_treatment    = output2time_treatment(diagvar%output)
                diagvar%save = diagvar%output/=output_none
                diagvar%source = object%source
@@ -3425,14 +3596,12 @@ subroutine classify_variables(self)
                ndiag_hz = ndiag_hz + 1
                hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
                call copy_variable_metadata(object,hz_diagvar)
-               hz_diagvar%globalid          = create_external_horizontal_id(object)
                if (associated(object%standard_variable)) then
                   select type (standard_variable=>object%standard_variable)
                      type is (type_horizontal_standard_variable)
                         hz_diagvar%standard_variable = standard_variable
                   end select
                end if
-               hz_diagvar%prefill           = object%prefill !.and.object%missing_value/=0.0_rk
                hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
                hz_diagvar%save = hz_diagvar%output/=output_none
                hz_diagvar%source = object%source
@@ -3494,7 +3663,7 @@ end subroutine classify_variables
 
 subroutine copy_variable_metadata(internal_variable,external_variable)
    class (type_external_variable),intent(inout) :: external_variable
-   type (type_internal_variable),intent(in)     :: internal_variable
+   type (type_internal_variable),intent(in),target :: internal_variable
 
    class (type_base_model), pointer :: owner
    external_variable%name            = get_safe_name(internal_variable%name)
@@ -3506,6 +3675,7 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    external_variable%maximum         = internal_variable%maximum
    external_variable%missing_value   = internal_variable%missing_value
    external_variable%output          = internal_variable%output
+   external_variable%target          => internal_variable
 
    ! Prepend long names of ancestor models to long name of variable.
    owner => internal_variable%owner
