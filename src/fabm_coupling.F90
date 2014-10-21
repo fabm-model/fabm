@@ -288,7 +288,7 @@ recursive subroutine build_aggregate_variables(self)
    type (type_contributing_variable),pointer :: contributing_variable
 
    class (type_weighted_sum),           pointer :: sum
-   class (type_horizontal_weighted_sum),pointer :: horizontal_sum
+   class (type_horizontal_weighted_sum),pointer :: surface_sum,bottom_sum
 
    ! This routine takes the variable->aggregate variable mappings, and creates corresponding
    ! aggregate variable->variable mappings.
@@ -315,29 +315,32 @@ recursive subroutine build_aggregate_variables(self)
    if (self%check_conservation) then
       aggregate_variable => self%first_aggregate_variable
       do while (associated(aggregate_variable))
-         allocate(sum)
-         allocate(horizontal_sum)
+         allocate(sum,surface_sum,bottom_sum)
 
          contributing_variable => aggregate_variable%first_contributing_variable
          do while (associated(contributing_variable))
-            select case (contributing_variable%link%original%domain)
-               case (domain_bulk)
-                  if (.not.contributing_variable%link%original%state_indices%is_empty()) then
+            if (.not.contributing_variable%link%original%state_indices%is_empty()) then
+               ! Contributing variable is a state variable
+               select case (contributing_variable%link%original%domain)
+                  case (domain_bulk)
                      call sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
-                     call horizontal_sum%add_component(trim(contributing_variable%link%original%name)//'_sfl',contributing_variable%scale_factor)
-                     call horizontal_sum%add_component(trim(contributing_variable%link%original%name)//'_bfl',contributing_variable%scale_factor)
-                  end if
-               case (domain_bottom,domain_surface)
-                  if (.not.contributing_variable%link%original%state_indices%is_empty()) &
-                     call horizontal_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
-            end select
+                     call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sfl',contributing_variable%scale_factor)
+                     call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_bfl',contributing_variable%scale_factor)
+                  case (domain_surface)
+                     call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+                  case (domain_bottom)
+                     call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+               end select
+            end if   
             contributing_variable => contributing_variable%next
          end do
 
          sum%output_units = trim(aggregate_variable%standard_variable%units)//'/s'
          if (.not.sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name),create_for_one=.true.)) deallocate(sum)
-         horizontal_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m/s'
-         if (.not.horizontal_sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces',create_for_one=.true.)) deallocate(horizontal_sum)
+         surface_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m/s'
+         if (.not.surface_sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_surface',create_for_one=.true.)) deallocate(surface_sum)
+         bottom_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m/s'
+         if (.not.bottom_sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_bottom',create_for_one=.true.)) deallocate(bottom_sum)
 
          aggregate_variable => aggregate_variable%next
       end do
@@ -376,7 +379,7 @@ recursive subroutine create_aggregate_models(self)
                case (domain_bulk)
                   if (associated(sum)) call sum%add_component(trim(contributing_variable%link%name), &
                      weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
-               case (domain_bottom,domain_surface)
+               case (domain_horizontal,domain_surface,domain_bottom)
                   if (associated(horizontal_sum)) call horizontal_sum%add_component(trim(contributing_variable%link%name), &
                      weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
             end select
@@ -422,8 +425,9 @@ subroutine couple_variables(self,master,slave)
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
    if (master%presence==presence_external_optional) &
       call fatal_error('couple_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
-   if (slave%domain/=master%domain) call fatal_error('couple_variables', &
-      'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because domains do not match.')
+   if (slave%domain/=master%domain.and..not.(slave%domain==domain_horizontal.and. &
+      (master%domain==domain_surface.or.master%domain==domain_bottom))) call fatal_error('couple_variables', &
+      'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because their domains are incompatible.')
 
    call log_message(trim(slave%name)//' --> '//trim(master%name))
 
@@ -563,7 +567,7 @@ recursive subroutine handle_fake_state_variables(self)
                   link2 => link2%next
                end do
                if (.not.sum_hz%add_to_parent(link%target%owner,trim(link%name)//'_bfl')) deallocate(sum_hz)
-            case (domain_surface,domain_bottom)
+            case (domain_horizontal,domain_surface,domain_bottom)
                ! Create sum of sink-source terms.
                allocate(sum_hz)
                link2 => link%target%sms_list%first

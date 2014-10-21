@@ -66,7 +66,7 @@
 
    integer, parameter, public :: rk = _FABM_REAL_KIND_
 
-   integer, parameter, public :: domain_bulk = 0, domain_bottom = 1, domain_surface = 2, domain_scalar = 3
+   integer, parameter, public :: domain_bulk = 0, domain_horizontal = 1, domain_scalar = 2, domain_bottom = 3, domain_surface = 5
 
    integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4
 
@@ -1504,7 +1504,7 @@ end subroutine real_pointer_set_set_value
 !-----------------------------------------------------------------------
 !BOC
       allocate(variable)
-      variable%domain = domain_bottom
+      variable%domain = domain_horizontal
       variable%source = source_unknown
 
       ! Fill fields specific to horizontal variables.

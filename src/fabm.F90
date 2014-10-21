@@ -720,13 +720,13 @@
    ! Allocate scratch memory for bulk variables.
    allocate(self%environment%scratch _INDEX_SLICE_PLUS_1_(n))
 
-   ! Assign write indicies in scratch space to all bulk diagnostic variables.
+   ! Assign write indices in scratch space to all bulk diagnostic variables.
    ! Must be done after calls to merge_aggregating_diagnostics.
    n = 0
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
-         case (domain_surface,domain_bottom)
+         case (domain_horizontal,domain_surface,domain_bottom)
             if (.not.link%target%write_indices%is_empty().and.link%target%write_indices%value==-1) then
                n = n + 1
                call link%target%write_indices%set_value(n)
@@ -911,7 +911,7 @@
                      & '", defined on the full model domain, have not been provided.')
                   ready = .false.
                end if
-            case (domain_bottom,domain_surface)
+            case (domain_horizontal,domain_surface,domain_bottom)
                if (.not.associated(self%environment%data_hz(link%target%read_indices%value)%p)) then
                   call log_message('data for dependency "'//trim(link%name)// &
                      &  '", defined on a horizontal slice of the model domain, have not been provided.')
@@ -1168,7 +1168,7 @@
 !BOC
    link => self%root%links%first
    do while (associated(link))
-      if (link%target%domain==domain_bottom.or.link%target%domain==domain_surface) then
+      if (link%target%domain==domain_horizontal.or.link%target%domain==domain_surface.or.link%target%domain==domain_bottom) then
          if (link%target%name==name.or.get_safe_name(link%target%name)==name) then
             id = create_external_horizontal_id(link%target)
             return
@@ -1180,7 +1180,7 @@
    ! Name not found among variable names. Now try standard names that are in use.
    link => self%root%links%first
    do while (associated(link))
-      if ((link%target%domain==domain_bottom.or.link%target%domain==domain_surface) &
+      if ((link%target%domain==domain_horizontal.or.link%target%domain==domain_surface.or.link%target%domain==domain_bottom) &
           .and.associated(link%target%standard_variable)) then
          if (link%target%standard_variable%name==name) then
             id = create_external_horizontal_id(link%target)
@@ -3179,7 +3179,7 @@ function create_external_horizontal_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
    type (type_horizontal_variable_id) :: id
 
-   if (variable%domain/=domain_bottom.and.variable%domain/=domain_surface) &
+   if (variable%domain/=domain_horizontal.and.variable%domain/=domain_surface.and.variable%domain/=domain_bottom) &
       call driver%fatal_error('create_external_horizontal_id','BUG: called on non-horizontal variable.')
    id%variable => variable
    if (.not.variable%read_indices%is_empty())  id%read_index = variable%read_indices%value
@@ -3276,7 +3276,7 @@ recursive subroutine set_diagnostic_indices(self)
          select case (link%target%domain)
             case (domain_bulk)
                n = n + 1
-            case (domain_bottom,domain_surface)
+            case (domain_horizontal,domain_surface,domain_bottom)
                n_hz = n_hz + 1
          end select
       end if
@@ -3298,7 +3298,7 @@ recursive subroutine set_diagnostic_indices(self)
                self%reused_diag(n)%source = link%target%source
                call link%target%write_indices%append(self%reused_diag(n)%write_index)
                call link%target%read_indices%append (self%reused_diag(n)%read_index)
-            case (domain_bottom,domain_surface)
+            case (domain_horizontal,domain_surface,domain_bottom)
                n_hz = n_hz + 1
                self%reused_diag_hz(n_hz)%source = link%target%source
                call link%target%write_indices%append(self%reused_diag_hz(n_hz)%write_index)
@@ -3332,7 +3332,7 @@ subroutine create_readable_variable_registry(self)
                ! Bulk variable read by one or more models
                nread = nread+1
                call link%target%read_indices%set_value(nread)
-            case (domain_bottom,domain_surface)
+            case (domain_horizontal,domain_surface,domain_bottom)
                ! Horizontal variable read by one or more models
                nread_hz = nread_hz+1
                call link%target%read_indices%set_value(nread_hz)
@@ -3370,7 +3370,7 @@ subroutine filter_readable_variable_registry(self)
                if (link%target%presence==presence_external_optional &
                    .and..not.associated(self%environment%data(nread)%p)) &
                   call link%target%read_indices%set_value(-1)
-            case (domain_bottom,domain_surface)
+            case (domain_horizontal,domain_surface,domain_bottom)
                nread_hz = nread_hz+1
                if (link%target%presence==presence_external_optional &
                    .and..not.associated(self%environment%data_hz(nread_hz)%p)) &
@@ -3514,7 +3514,7 @@ subroutine classify_variables(self)
                      continue
                end select
             end if
-         case (domain_bottom,domain_surface)
+         case (domain_horizontal,domain_surface,domain_bottom)
             if (.not.object%write_indices%is_empty()) then
                ! Horizontal diagnostic variable.
                ndiag_hz = ndiag_hz+1
@@ -3595,7 +3595,7 @@ subroutine classify_variables(self)
                statevar%no_precipitation_dilution = object%no_precipitation_dilution
                statevar%no_river_dilution         = object%no_river_dilution
             end if
-         case (domain_bottom,domain_surface)
+         case (domain_horizontal,domain_surface,domain_bottom)
             if (.not.object%write_indices%is_empty()) then
                ! Horizontal diagnostic variable
                ndiag_hz = ndiag_hz + 1
@@ -3645,16 +3645,16 @@ subroutine classify_variables(self)
       if (.not.object%read_indices%is_empty().and. &
           .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
          select case (object%domain)
-            case (domain_bulk);                  call dependencies%add(link%name)
-            case (domain_bottom,domain_surface); call dependencies_hz%add(link%name)
-            case (domain_scalar);                call dependencies_scalar%add(link%name)
+            case (domain_bulk);                                    call dependencies%add(link%name)
+            case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(link%name)
+            case (domain_scalar);                                  call dependencies_scalar%add(link%name)
          end select
          if (associated(object%standard_variable)) then
             if (object%standard_variable%name/='') then
                select case (object%domain)
-                  case (domain_bulk);                  call dependencies%add(object%standard_variable%name)
-                  case (domain_bottom,domain_surface); call dependencies_hz%add(object%standard_variable%name)
-                  case (domain_scalar);                call dependencies_scalar%add(object%standard_variable%name)
+                  case (domain_bulk);                                    call dependencies%add(object%standard_variable%name)
+                  case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(object%standard_variable%name)
+                  case (domain_scalar);                                  call dependencies_scalar%add(object%standard_variable%name)
                end select
             end if
          end if
