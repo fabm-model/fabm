@@ -1504,7 +1504,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if defined(DEBUG)&&_FABM_DIMENSION_COUNT_>0
+#if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
       if (size(dat,i)/=self%domain_size(i)) then
          call fatal_error('fabm_link_bulk_data_by_variable','dimensions of FABM domain and provided array do not match.')
@@ -1541,7 +1541,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if defined(DEBUG)&&_FABM_DIMENSION_COUNT_>0
+#if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
       if (size(dat,i)/=self%domain_size(i)) then
          call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match.')
@@ -1643,7 +1643,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if defined(DEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
+#if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(dat,i)/=self%horizontal_domain_size(i)) then
          call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
@@ -1680,7 +1680,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if defined(DEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
+#if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(dat,i)/=self%horizontal_domain_size(i)) then
          call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
@@ -2011,7 +2011,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+#if !defined(NDEBUG)&&defined(_FABM_USE_1D_LOOP_)
    if (size(dy,1)/=fabm_loop_stop-fabm_loop_start+1) &
       call fatal_error('fabm_do_rhs','Size of first dimension of dy should match loop length.')
 #endif
@@ -2160,7 +2160,7 @@ end subroutine
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+#if !defined(NDEBUG)&&defined(_FABM_USE_1D_LOOP_)
    if (size(pp,1)/=fabm_loop_stop-fabm_loop_start+1) &
       call fatal_error('fabm_do_ppdd','Size of first dimension of pp should match loop length.')
    if (size(dd,1)/=fabm_loop_stop-fabm_loop_start+1) &
@@ -2764,7 +2764,7 @@ end subroutine internal_check_horizontal_state
    integer                              :: i
 !-----------------------------------------------------------------------
 !BOC
-#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+#if !defined(NDEBUG)&&defined(_FABM_USE_1D_LOOP_)
    if (size(velocity,1)/=fabm_loop_stop-fabm_loop_start+1) &
       call fatal_error('fabm_get_vertical_movement','Size of first dimension of velocity should match loop length.')
 #endif
@@ -2812,7 +2812,7 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+#if !defined(NDEBUG)&&defined(_FABM_USE_1D_LOOP_)
    if (size(extinction,1)/=fabm_loop_stop-fabm_loop_start+1) &
       call fatal_error('fabm_get_light_extinction','Size of first dimension of extinction should match loop length.')
 #endif
