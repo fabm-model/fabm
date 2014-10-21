@@ -111,15 +111,14 @@ contains
          select type (dict=>pair%value)
             class is (type_dictionary)
                childmodel => create_model_from_dictionary(instancename,dict,model%root, &
-                                                          require_initialization,require_all_parameters)
+                                                          require_initialization,require_all_parameters,check_conservation)
             class is (type_null)
                childmodel => create_model_from_dictionary(instancename,type_dictionary(),model%root, &
-                                                          require_initialization,require_all_parameters)
+                                                          require_initialization,require_all_parameters,check_conservation)
             class is (type_node)
                call fatal_error('create_model_tree_from_dictionary','Configuration information for model "'// &
                   trim(instancename)//'" must be a dictionary, not a single value.')
          end select
-         childmodel%check_conservation = check_conservation
          pair => pair%next
       end do
 
@@ -138,11 +137,12 @@ contains
 
    end subroutine create_model_tree_from_dictionary
 
-   function create_model_from_dictionary(instancename,node,parent,require_initialization,require_all_parameters) result(model)
+   function create_model_from_dictionary(instancename,node,parent, &
+                                         require_initialization,require_all_parameters,check_conservation) result(model)
       character(len=*),       intent(in)           :: instancename
       class (type_dictionary),intent(in)           :: node
       class (type_base_model),intent(inout),target :: parent
-      logical,                intent(in)           :: require_initialization,require_all_parameters
+      logical,                intent(in)           :: require_initialization,require_all_parameters,check_conservation
       class (type_base_model),pointer              :: model
 
       character(len=64)                  :: modelname
@@ -261,7 +261,7 @@ contains
       !   link => link%next
       !end do
 
-      model%check_conservation = node%get_logical('check_conservation',default=model%check_conservation,error=config_error)
+      model%check_conservation = node%get_logical('check_conservation',default=check_conservation,error=config_error)
       if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
 
       ! Check whether any keys at the model level remain unused.
