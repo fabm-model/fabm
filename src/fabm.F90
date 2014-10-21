@@ -200,6 +200,8 @@
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
       real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
+      integer                                                   :: domain_size(_FABM_DIMENSION_COUNT_)
+      integer                                                   :: horizontal_domain_size(_FABM_DIMENSION_COUNT_HZ_)
    contains
       procedure :: link_bulk_data_by_variable => fabm_link_bulk_data_by_variable
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
@@ -645,6 +647,13 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#if _FABM_DIMENSION_COUNT_>0
+   self%domain_size = (/ _LOCATION_ /)
+#endif
+#if _FABM_DIMENSION_COUNT_HZ_>0
+   self%horizontal_domain_size = (/ _LOCATION_HZ_ /)
+#endif
+
    ! Forward domain to individual biogeochemical models.
    ! Also determine whether one of the models needs conservation checks for its sink and source terms.
    node => self%models%first
@@ -1496,8 +1505,8 @@
 !-----------------------------------------------------------------------
 !BOC
 #if defined(DEBUG)&&_FABM_DIMENSION_COUNT_>0
-   do i=1,size(shape(dat))
-      if (size(dat,i)/=size(self%diag,i)) then
+   do i=1,size(self%domain_size)
+      if (size(dat,i)/=self%domain_size(i)) then
          call fatal_error('fabm_link_bulk_data_by_variable','dimensions of FABM domain and provided array do not match.')
       end if
    end do
@@ -1533,8 +1542,8 @@
 !-----------------------------------------------------------------------
 !BOC
 #if defined(DEBUG)&&_FABM_DIMENSION_COUNT_>0
-   do i=1,size(shape(dat))
-      if (size(dat,i)/=size(self%diag,i)) then
+   do i=1,size(self%domain_size)
+      if (size(dat,i)/=self%domain_size(i)) then
          call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match.')
       end if
    end do
@@ -1634,14 +1643,12 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifdef DEBUG
-#ifndef _FABM_HORIZONTAL_IS_SCALAR_
-   do i=1,size(shape(dat))
-      if (size(dat,i)/=size(self%diag,i)) then
+#if defined(DEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
+   do i=1,size(self%horizontal_domain_size)
+      if (size(dat,i)/=self%horizontal_domain_size(i)) then
          call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
       end if
    end do
-#endif
 #endif
 
    if (variable%read_indices%value/=-1) self%environment%data_hz(variable%read_indices%value)%p => dat
@@ -1673,14 +1680,12 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifdef DEBUG
-#ifndef _FABM_HORIZONTAL_IS_SCALAR_
-   do i=1,size(shape(dat))
-      if (size(dat,i)/=size(self%diag,i)) then
+#if defined(DEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
+   do i=1,size(self%horizontal_domain_size)
+      if (size(dat,i)/=self%horizontal_domain_size(i)) then
          call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
       end if
    end do
-#endif
 #endif
 
    if (id%read_index/=-1) self%environment%data_hz(id%read_index)%p => dat

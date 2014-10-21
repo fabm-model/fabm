@@ -6,7 +6,6 @@
 !   _LOCATION_HZ_DIMENSIONS_
 !   _VARIABLE_1DLOOP_
 !   _LOCATION_1DLOOP_
-!   _FABM_HORIZONTAL_IS_SCALAR_
 ! ========================================================
 
 #ifndef _FABM_DIMENSION_COUNT_
@@ -37,7 +36,6 @@
 
 #define _LOCATION_
 #define _LOCATION_DIMENSIONS_
-#define _FABM_HORIZONTAL_IS_SCALAR_
 #define _FULL_DOMAIN_IN_SLICE_
 
 #elif _FABM_DIMENSION_COUNT_==1
@@ -48,10 +46,6 @@
 
 #define _LOCATION_ i__
 #define _LOCATION_DIMENSIONS_ :
-
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#define _FABM_HORIZONTAL_IS_SCALAR_
-#endif
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
 #define _VARIABLE_1DLOOP_ i__
@@ -122,6 +116,9 @@
 #ifndef _FABM_DEPTH_DIMENSION_INDEX_
 #define _LOCATION_HZ_ _LOCATION_
 #define _LOCATION_DIMENSIONS_HZ_ _LOCATION_DIMENSIONS_
+#define _FABM_DIMENSION_COUNT_HZ_ _FABM_DIMENSION_COUNT_
+#else
+#define _FABM_DIMENSION_COUNT_HZ_ _FABM_DIMENSION_COUNT_-1
 #endif
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
@@ -139,7 +136,7 @@
 #ifndef _LOCATION_DIMENSIONS_
 #error Preprocessor variable _LOCATION_DIMENSIONS_ must be defined.
 #endif
-#ifndef _FABM_HORIZONTAL_IS_SCALAR_
+#if _FABM_DIMENSION_COUNT_HZ_>0
 #ifndef _LOCATION_HZ_
 #error Preprocessor variable _LOCATION_HZ_ must be defined.
 #endif
@@ -204,16 +201,16 @@
 ! Dimension attribute and index specifyer for horizontal (2D) fields.
 ! ---------------------------------------------------------------------------------
 
-#ifdef _FABM_HORIZONTAL_IS_SCALAR_
-#define _INDEX_HORIZONTAL_LOCATION_
-#define _DIMENSION_GLOBAL_HORIZONTAL_
-#define _PREARG_LOCATION_HZ_
-#define _PREARG_LOCATION_DIMENSIONS_HZ_
-#else
+#if _FABM_DIMENSION_COUNT_HZ_>0
 #define _INDEX_HORIZONTAL_LOCATION_ (_LOCATION_HZ_)
 #define _DIMENSION_GLOBAL_HORIZONTAL_ ,dimension(_LOCATION_DIMENSIONS_HZ_)
 #define _PREARG_LOCATION_HZ_ _LOCATION_HZ_,
 #define _PREARG_LOCATION_DIMENSIONS_HZ_ _LOCATION_DIMENSIONS_HZ_,
+#else
+#define _INDEX_HORIZONTAL_LOCATION_
+#define _DIMENSION_GLOBAL_HORIZONTAL_
+#define _PREARG_LOCATION_HZ_
+#define _PREARG_LOCATION_DIMENSIONS_HZ_
 #endif
 
 ! ---------------------------------------------------------------------------------
