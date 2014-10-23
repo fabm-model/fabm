@@ -43,11 +43,15 @@ elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
   set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -N 1023")
 endif()
 
-# Make sure FABM_HOST is set to a subdir of src/drivers
-FILE(GLOB HOSTNAMES RELATIVE "${PROJECT_SOURCE_DIR}/drivers" "${PROJECT_SOURCE_DIR}/drivers/*")
-set (FABM_HOST "gotm" CACHE STRING "Host that FABM should be compiled for")
-set_property(CACHE FABM_HOST PROPERTY STRINGS ${HOSTNAMES})
-message(STATUS "FABM host: ${FABM_HOST}")
+if(FORCED_FABM_HOST)
+  set(FABM_HOST ${FORCED_FABM_HOST})
+else()
+  # Make sure FABM_HOST is set to a subdir of src/drivers
+  FILE(GLOB HOSTNAMES RELATIVE "${PROJECT_SOURCE_DIR}/drivers" "${PROJECT_SOURCE_DIR}/drivers/*")
+  set (FABM_HOST "gotm" CACHE STRING "Host that FABM should be compiled for")
+  set_property(CACHE FABM_HOST PROPERTY STRINGS ${HOSTNAMES})
+  message(STATUS "FABM host: ${FABM_HOST}")
+endif()
 
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
 if(BUILD_SHARED_LIBS OR ${FABM_HOST} STREQUAL "python")
@@ -117,10 +121,12 @@ if(EXISTS ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/CMakeLists.txt)
 endif()
 
 # Place projects in specific solution folders (Visual Studio only).
-set_property(TARGET fabm_base fabm     PROPERTY FOLDER fabm)
+set_property(TARGET fabm_base fabm PROPERTY FOLDER fabm)
 foreach(institute ${FABM_INSTITUTES})
   set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
 endforeach(institute)
+
+if(NOT FORCED_FABM_HOST)
 
 # Re-initialize installation prefix if needed.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL PREVIOUS_DEFAULT_PREFIX)
@@ -146,3 +152,4 @@ add_custom_target(test_all COMMENT "building tests - nothing yet :-)")
 
 # End of testing section
 
+endif()
