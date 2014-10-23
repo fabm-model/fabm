@@ -72,7 +72,7 @@ endif()
 # Global include directories
 include_directories("${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}"
                     "${PROJECT_SOURCE_DIR}/../include"
-                    "${CMAKE_BINARY_DIR}/modules"
+                    "${CMAKE_CURRENT_BINARY_DIR}/modules"
                    )
 
 add_library(fabm_base OBJECT
@@ -108,11 +108,11 @@ add_library(fabm
 source_group(config REGULAR_EXPRESSION config/)
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
-set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
+set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
 foreach(institute ${FABM_INSTITUTES})
-  set_property(TARGET fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/models/${institute}")
+  set_property(TARGET fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
 endforeach(institute)
 
 # Run host-specific cmake scripts if present.
