@@ -1507,7 +1507,7 @@
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
       if (size(dat,i)/=self%domain_size(i)) then
-         call fatal_error('fabm_link_bulk_data_by_variable','dimensions of FABM domain and provided array do not match.')
+         call fatal_error('fabm_link_bulk_data_by_variable','dimensions of FABM domain and provided array do not match for variable '//trim(variable%name)//'.')
       end if
    end do
 #endif
@@ -1544,7 +1544,7 @@
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
       if (size(dat,i)/=self%domain_size(i)) then
-         call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match.')
+         call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match for variable '//trim(id%variable%name)//'.')
       end if
    end do
 #endif
@@ -1646,7 +1646,7 @@
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(dat,i)/=self%horizontal_domain_size(i)) then
-         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
+         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match for variable '//trim(variable%name)//'.')
       end if
    end do
 #endif
@@ -1683,7 +1683,7 @@
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(dat,i)/=self%horizontal_domain_size(i)) then
-         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
+         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match for variable '//trim(id%variable%name)//'.')
       end if
    end do
 #endif
@@ -2493,7 +2493,7 @@ end subroutine internal_check_horizontal_state
 
          ! Copy newly written diagnostics to prefetch
          do i=1,size(node%model%reused_diag_hz)
-            if (node%model%reused_diag_hz(k)%source==source_do_surface.or.node%model%reused_diag_hz(k)%source==source_unknown) then
+            if (node%model%reused_diag_hz(i)%source==source_do_surface.or.node%model%reused_diag_hz(i)%source==source_unknown) then
                j = node%model%reused_diag_hz(i)%read_index
                k = node%model%reused_diag_hz(i)%write_index
                _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
@@ -2613,7 +2613,7 @@ end subroutine internal_check_horizontal_state
 
       ! Copy newly written diagnostics to prefetch
       do i=1,size(node%model%reused_diag_hz)
-         if (node%model%reused_diag_hz(k)%source==source_do_bottom.or.node%model%reused_diag_hz(k)%source==source_unknown) then
+         if (node%model%reused_diag_hz(i)%source==source_do_bottom.or.node%model%reused_diag_hz(i)%source==source_unknown) then
             j = node%model%reused_diag_hz(i)%read_index
             k = node%model%reused_diag_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
@@ -2711,7 +2711,7 @@ end subroutine internal_check_horizontal_state
 
       ! Copy newly written diagnostics to prefetch
       do i=1,size(node%model%reused_diag_hz)
-         if (node%model%reused_diag_hz(k)%source==source_do_bottom.or.node%model%reused_diag_hz(k)%source==source_unknown) then
+         if (node%model%reused_diag_hz(i)%source==source_do_bottom.or.node%model%reused_diag_hz(i)%source==source_unknown) then
             j = node%model%reused_diag_hz(i)%read_index
             k = node%model%reused_diag_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
