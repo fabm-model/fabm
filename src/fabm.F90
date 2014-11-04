@@ -202,6 +202,7 @@
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
       integer                                                   :: domain_size(_FABM_DIMENSION_COUNT_)
       integer                                                   :: horizontal_domain_size(_FABM_DIMENSION_COUNT_HZ_)
+      integer,allocatable,dimension(:)                          :: zero_bulk_indices,zero_surface_indices,zero_bottom_indices
    contains
       procedure :: link_bulk_data_by_variable => fabm_link_bulk_data_by_variable
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
@@ -737,6 +738,22 @@
 
    ! Allocate scratch memory for horizontal variables.
    allocate(self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(n))
+
+   ! Create lists of scratch variables that require zeroing before calling biogeochemical models.
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      select case (link%target%domain)
+         case (domain_bulk)
+            call copy_write_indices(link%target%sms_list,         self%zero_bulk_indices)
+            call copy_write_indices(link%target%bottom_flux_list, self%zero_bottom_indices)
+            call copy_write_indices(link%target%surface_flux_list,self%zero_surface_indices)
+         case (domain_bottom)
+            call copy_write_indices(link%target%sms_list,self%zero_bottom_indices)
+         case (domain_surface)
+            call copy_write_indices(link%target%sms_list,self%zero_surface_indices)
+      end select
+      link => link%next
+   end do
 
 #ifdef _FABM_MASK_
    allocate(self%environment%prefetch_mask _INDEX_SLICE_)
@@ -2019,13 +2036,11 @@
 
    ! Initialize scratch variables that will hold source-sink terms to zero,
    ! because they will be incremented.
-   do i=1,size(self%state_variables)
-      do j=1,size(self%state_variables(i)%sms_indices)
-         k = self%state_variables(i)%sms_indices(j)
-         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch _INDEX_SLICE_PLUS_1_(k) = 0.0_rk
-         _CONCURRENT_LOOP_END_
-      end do
+   do i=1,size(self%zero_bulk_indices)
+      j = self%zero_bulk_indices(i)
+      _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+         self%environment%scratch _INDEX_SLICE_PLUS_1_(j) = 0.0_rk
+      _CONCURRENT_LOOP_END_
    end do
 
    node => self%models%first
@@ -2456,21 +2471,11 @@ end subroutine internal_check_horizontal_state
 
       ! Initialize scratch variables that will hold surface-attached source-sink terms
       ! or bulk surface fluxes to zero, because they will be incremented.
-      do i=1,size(self%state_variables)
-         do j=1,size(self%state_variables(i)%surface_flux_indices)
-            k = self%state_variables(i)%surface_flux_indices(j)
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
-            _CONCURRENT_HORIZONTAL_LOOP_END_
-         end do
-      end do
-      do i=1,size(self%surface_state_variables)
-         do j=1,size(self%surface_state_variables(i)%sms_indices)
-            k = self%surface_state_variables(i)%sms_indices(j)
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
-            _CONCURRENT_HORIZONTAL_LOOP_END_
-         end do
+      do i=1,size(self%zero_surface_indices)
+         j = self%zero_surface_indices(i)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = 0.0_rk
+         _CONCURRENT_HORIZONTAL_LOOP_END_
       end do
 
 #ifndef _FULL_DOMAIN_IN_SLICE_
@@ -2576,21 +2581,11 @@ end subroutine internal_check_horizontal_state
 
    ! Initialize scratch variables that will hold bottom-attached source-sink terms
    ! or bulk bottom fluxes to zero, because they will be incremented.
-   do i=1,size(self%state_variables)
-      do j=1,size(self%state_variables(i)%bottom_flux_indices)
-         k = self%state_variables(i)%bottom_flux_indices(j)
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
-         _CONCURRENT_HORIZONTAL_LOOP_END_
-      end do
-   end do
-   do i=1,size(self%bottom_state_variables)
-      do j=1,size(self%bottom_state_variables(i)%sms_indices)
-         k = self%bottom_state_variables(i)%sms_indices(j)
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
-         _CONCURRENT_HORIZONTAL_LOOP_END_
-      end do
+   do i=1,size(self%zero_bottom_indices)
+      j = self%zero_bottom_indices(i)
+      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = 0.0_rk
+      _CONCURRENT_HORIZONTAL_LOOP_END_
    end do
 
 #ifndef _FULL_DOMAIN_IN_SLICE_
@@ -3142,8 +3137,9 @@ subroutine copy_write_indices(source,target)
    type (type_link_list),intent(in) :: source
    integer,allocatable              :: target(:)
 
-   integer                  :: n
+   integer                  :: n,nold
    type (type_link),pointer :: link
+   integer,allocatable      :: old(:)
 
    n = 0
    link => source%first
@@ -3152,9 +3148,19 @@ subroutine copy_write_indices(source,target)
       link => link%next
    end do
 
-   allocate(target(n))
+   if (allocated(target)) then
+      nold = size(target)
+      allocate(old(nold))
+      old(:) = target
+      deallocate(target)
+   else
+      nold = 0
+   end if
 
-   n = 0
+   allocate(target(nold+n))
+   if (allocated(old)) target(1:nold) = old
+
+   n = nold
    link => source%first
    do while (associated(link))
       if (.not.link%target%write_indices%is_empty()) then
@@ -3349,6 +3355,24 @@ subroutine create_readable_variable_registry(self)
    allocate(self%environment%data_hz    (nread_hz))
    allocate(self%environment%data_scalar(nread_scalar))
 end subroutine create_readable_variable_registry
+
+function variable_from_data_index(self,index,domain) result(variable)
+   class (type_model),intent(inout),target :: self
+   integer,           intent(in)           :: index,domain
+   type (type_internal_variable),pointer   :: variable
+
+   type (type_link), pointer :: link
+
+   nullify(variable)
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      if (link%target%read_indices%value==index .and. iand(link%target%domain,domain)/=0) then
+         variable => link%target
+         return
+      end if   
+      link => link%next
+   end do
+end function variable_from_data_index
 
 subroutine filter_readable_variable_registry(self)
    class (type_model),intent(inout),target :: self
