@@ -66,7 +66,7 @@
 
    integer, parameter, public :: rk = _FABM_REAL_KIND_
 
-   integer, parameter, public :: domain_bulk = 0, domain_horizontal = 1, domain_scalar = 2, domain_bottom = 3, domain_surface = 5
+   integer, parameter, public :: domain_bulk = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
 
    integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4
 
@@ -432,10 +432,6 @@
                                                  register_surface_state_dependency_ex,register_bulk_state_dependency_old, &
                                                  register_bottom_state_dependency_old,register_surface_state_dependency_old
       generic :: register_conserved_quantity  => register_standard_conserved_quantity, register_custom_conserved_quantity
-
-      procedure :: act_as_bulk_state_variable
-      procedure :: act_as_horizontal_state_variable
-      generic :: act_as_state_variable => act_as_bulk_state_variable,act_as_horizontal_state_variable
 
       ! ----------------------------------------------------------------------------------------------------
       ! Procedures below may be overridden by biogeochemical models to provide custom data or functionality.
@@ -1624,7 +1620,8 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    subroutine register_bulk_diagnostic_variable(self, id, name, units, long_name, &
-                                                time_treatment, missing_value, standard_variable, output, source)
+                                                time_treatment, missing_value, standard_variable, output, source, &
+                                                act_as_state_variable)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1638,6 +1635,7 @@ end subroutine real_pointer_set_set_value
       integer,                            intent(in),optional :: time_treatment, output, source
       real(rk),                           intent(in),optional :: missing_value
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
+      logical,                            intent(in),optional :: act_as_state_variable
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1651,7 +1649,7 @@ end subroutine real_pointer_set_set_value
 
       call self%add_bulk_variable(name, units, long_name, missing_value, &
                                   standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
-                                  source=source, write_index=id%diag_index, link=id%link)
+                                  source=source, write_index=id%diag_index, link=id%link, act_as_state_variable=act_as_state_variable)
 
    end subroutine register_bulk_diagnostic_variable
 !EOC
@@ -1663,7 +1661,8 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    subroutine register_horizontal_diagnostic_variable(self, id, name, units, long_name, &
-                                                      time_treatment, missing_value, standard_variable, output, source)
+                                                      time_treatment, missing_value, standard_variable, output, source, &
+                                                      act_as_state_variable, domain)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1674,9 +1673,10 @@ end subroutine real_pointer_set_set_value
 !
 ! !INPUT PARAMETERS:
       character(len=*),                         intent(in)          :: name, long_name, units
-      integer,                                  intent(in),optional :: time_treatment, output, source
+      integer,                                  intent(in),optional :: time_treatment, output, source, domain
       real(rk),                                 intent(in),optional :: missing_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
+      logical,                                  intent(in),optional :: act_as_state_variable
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1689,7 +1689,8 @@ end subroutine real_pointer_set_set_value
 
       call self%add_horizontal_variable(name, units, long_name, missing_value, &
                                         standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
-                                        source=source, write_index=id%horizontal_diag_index, link=id%link)
+                                        source=source, write_index=id%horizontal_diag_index, link=id%link, &
+                                        act_as_state_variable=act_as_state_variable, domain=domain)
 
    end subroutine register_horizontal_diagnostic_variable
 !EOC
@@ -2068,18 +2069,6 @@ end subroutine real_pointer_set_set_value
 
    end subroutine register_named_global_dependency
 !EOC
-
-subroutine act_as_bulk_state_variable(self,id)
-   class (type_base_model),             intent(inout) :: self
-   type (type_diagnostic_variable_id),  intent(inout) :: id
-   id%link%target%fake_state_variable = .true.
-end subroutine
-
-subroutine act_as_horizontal_state_variable(self,id)
-   class (type_base_model),                      intent(inout) :: self
-   type (type_horizontal_diagnostic_variable_id),intent(inout) :: id
-   id%link%target%fake_state_variable = .true.
-end subroutine
 
 subroutine register_bulk_expression_dependency(self,id,expression)
    class (type_base_model),       intent(inout)        :: self
