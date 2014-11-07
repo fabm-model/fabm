@@ -43,8 +43,8 @@ elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
   set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -N 1023")
 endif()
 
-if(FORCED_FABM_HOST)
-  set(FABM_HOST ${FORCED_FABM_HOST})
+if(FABM_FORCED_HOST)
+  set(FABM_HOST ${FABM_FORCED_HOST})
 else()
   # Make sure FABM_HOST is set to a subdir of src/drivers
   FILE(GLOB HOSTNAMES RELATIVE "${PROJECT_SOURCE_DIR}/drivers" "${PROJECT_SOURCE_DIR}/drivers/*")
@@ -126,7 +126,7 @@ foreach(institute ${FABM_INSTITUTES})
   set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
 endforeach(institute)
 
-if(NOT FORCED_FABM_HOST)
+if(NOT FABM_FORCED_HOST)
 
 # Re-initialize installation prefix if needed.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL PREVIOUS_DEFAULT_PREFIX)
