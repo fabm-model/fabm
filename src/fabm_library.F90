@@ -11,6 +11,7 @@
 ! !USES:
    use fabm_types, only: type_base_model_factory, type_base_model, factory
 
+   use fabm_builtin_models
    use aed_models
    use bb_model_library
    use examples_model_library
@@ -45,6 +46,7 @@
       if (.not.associated(factory)) then
          allocate(type_model_factory::factory)
 
+         call factory%add(builtin_factory)
          call factory%add(aed_model_factory)
          call factory%add(bb_model_factory)
          call factory%add(examples_model_factory)
