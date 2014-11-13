@@ -76,13 +76,13 @@ module fabm_builtin_models
    type,extends(type_base_model) :: type_bulk_constant
       type (type_diagnostic_variable_id) :: id_constant
    contains
-      procedure initialize => bulk_constant_initialize
+      procedure :: initialize => bulk_constant_initialize
    end type
 
    type,extends(type_base_model) :: type_horizontal_constant
       type (type_horizontal_diagnostic_variable_id) :: id_constant
    contains
-      procedure initialize => horizontal_constant_initialize
+      procedure :: initialize => horizontal_constant_initialize
    end type
 
    contains
