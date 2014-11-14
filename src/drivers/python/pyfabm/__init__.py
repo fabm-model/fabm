@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 
 import sys,os,ctypes,re
-import numpy
+
+try:
+   import numpy
+except ImportError:
+   print 'Unable to import NumPy. Please ensure it is installed.'
+   sys.exit(1)
 
 # Determine potential names of FABM dynamic library.
 if os.name=='nt':
