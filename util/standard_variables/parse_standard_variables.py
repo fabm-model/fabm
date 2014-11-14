@@ -91,6 +91,7 @@ for domain,items in selection.iteritems():
         data = [('name',"'%s'" % item['name']),('units',"'%s'" % item['units'])]
         if 'cf_names' in item: data.append(('cf_names',"'%s'" % ','.join(item['cf_names'])))
         if item.get('aggregate_variable',domain=='conserved'): data.append(('aggregate_variable','.true.'))
+        if domain=='conserved': data.append(('conserved','.true.'))
 
         # Declare standard variable in Fortran.
         fout.write('type (%s) :: %s\n' % (domain2type[domain],item['name']))

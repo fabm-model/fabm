@@ -44,6 +44,7 @@ module fabm_standard_variables
                                           ! (http://cf-pcmdi.llnl.gov/documents/cf-standard-names/)
       logical            :: aggregate_variable = .false. ! Whether biogeochemical models can contribute (add to) this variable.
                                                          ! If .true., this variable is always available with a default value of 0.
+      logical            :: conserved = .false.          ! Whether this variable shoudl be included in lists of conserved quantities.
    contains
       procedure :: is_null => standard_variable_is_null
    end type

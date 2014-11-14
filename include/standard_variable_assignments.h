@@ -145,20 +145,25 @@ standard_variables%number_of_days_since_start_of_the_year%units = 'd'
 standard_variables%total_carbon%name = 'total_carbon'
 standard_variables%total_carbon%units = 'mmol m-3'
 standard_variables%total_carbon%aggregate_variable = .true.
+standard_variables%total_carbon%conserved = .true.
 
 standard_variables%total_iron%name = 'total_iron'
 standard_variables%total_iron%units = 'umol m-3'
 standard_variables%total_iron%aggregate_variable = .true.
+standard_variables%total_iron%conserved = .true.
 
 standard_variables%total_nitrogen%name = 'total_nitrogen'
 standard_variables%total_nitrogen%units = 'mmol m-3'
 standard_variables%total_nitrogen%aggregate_variable = .true.
+standard_variables%total_nitrogen%conserved = .true.
 
 standard_variables%total_phosphorus%name = 'total_phosphorus'
 standard_variables%total_phosphorus%units = 'mmol m-3'
 standard_variables%total_phosphorus%aggregate_variable = .true.
+standard_variables%total_phosphorus%conserved = .true.
 
 standard_variables%total_silicate%name = 'total_silicate'
 standard_variables%total_silicate%units = 'mmol m-3'
 standard_variables%total_silicate%aggregate_variable = .true.
+standard_variables%total_silicate%conserved = .true.
 

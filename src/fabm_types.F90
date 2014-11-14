@@ -2459,7 +2459,7 @@ function get_aggregate_variable(self,standard_variable,create) result(aggregate_
 
    ! Make sure that aggregate variables at the root level are computed.
    ! These are typically used by the host to check conservation.
-   if (.not.associated(self%parent)) then
+   if (.not.associated(self%parent).and.standard_variable%conserved) then
       aggregate_variable%bulk_required = .true.
       aggregate_variable%horizontal_required = .true.
    end if

@@ -315,33 +315,37 @@ recursive subroutine build_aggregate_variables(self)
    if (self%check_conservation) then
       aggregate_variable => self%first_aggregate_variable
       do while (associated(aggregate_variable))
-         allocate(sum,surface_sum,bottom_sum)
+         if (aggregate_variable%standard_variable%conserved) then
+            ! Allocate objects that will do the sumamtion across the different domains.
+            allocate(sum,surface_sum,bottom_sum)
 
-         contributing_variable => aggregate_variable%first_contributing_variable
-         do while (associated(contributing_variable))
-            if (.not.contributing_variable%link%original%state_indices%is_empty()) then
-               ! Contributing variable is a state variable
-               select case (contributing_variable%link%original%domain)
-                  case (domain_bulk)
-                     call sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
-                     call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sfl',contributing_variable%scale_factor)
-                     call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_bfl',contributing_variable%scale_factor)
-                  case (domain_surface)
-                     call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
-                  case (domain_bottom)
-                     call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
-               end select
-            end if   
-            contributing_variable => contributing_variable%next
-         end do
+            ! Enumerate contributions to aggregate variable.
+            contributing_variable => aggregate_variable%first_contributing_variable
+            do while (associated(contributing_variable))
+               if (.not.contributing_variable%link%original%state_indices%is_empty()) then
+                  ! Contributing variable is a state variable
+                  select case (contributing_variable%link%original%domain)
+                     case (domain_bulk)
+                        call sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+                        call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sfl',contributing_variable%scale_factor)
+                        call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_bfl',contributing_variable%scale_factor)
+                     case (domain_surface)
+                        call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+                     case (domain_bottom)
+                        call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+                  end select
+               end if   
+               contributing_variable => contributing_variable%next
+            end do
 
-         sum%output_units = trim(aggregate_variable%standard_variable%units)//'/s'
-         if (.not.sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name),create_for_one=.true.)) deallocate(sum)
-         surface_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m/s'
-         if (.not.surface_sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_surface',create_for_one=.true.)) deallocate(surface_sum)
-         bottom_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m/s'
-         if (.not.bottom_sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_bottom',create_for_one=.true.)) deallocate(bottom_sum)
-
+            ! Process sums now that all contributing terms are known.
+            sum%output_units = trim(aggregate_variable%standard_variable%units)//'/s'
+            if (.not.sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name),create_for_one=.true.)) deallocate(sum)
+            surface_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m/s'
+            if (.not.surface_sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_surface',create_for_one=.true.)) deallocate(surface_sum)
+            bottom_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m/s'
+            if (.not.bottom_sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_bottom',create_for_one=.true.)) deallocate(bottom_sum)
+         end if
          aggregate_variable => aggregate_variable%next
       end do
    end if
