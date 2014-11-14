@@ -5,8 +5,10 @@ import sys,optparse
 parser = optparse.OptionParser()
 options, args = parser.parse_args()
 
-yamlfile = '../fabm-npzd-carbonate.yaml'
-if args: yamlfile = args[0]
+if len(sys.argv)!=2:
+   print 'This script takes one argument: the path to a YAML file with FABM settings (typically fabm.yaml).'
+   sys.exit(2)
+yamlfile = sys.argv[1]
 
 try:
     import pyfabm

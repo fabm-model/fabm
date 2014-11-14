@@ -2,8 +2,10 @@
 
 import sys
 
-yamlfile = '../fabm-npzd-carbonate.yaml'
-if len(sys.argv)>1: yamlfile = sys.argv[1]
+if len(sys.argv)!=2:
+   print 'This script takes one argument: the path to a YAML file with FABM settings (typically fabm.yaml).'
+   sys.exit(2)
+yamlfile = sys.argv[1]
 
 try:
    import pyfabm
