@@ -2,6 +2,7 @@
 
 module fabm_builtin_models
    use fabm_types
+   use fabm_standard_variables
 
    implicit none
 
@@ -360,26 +361,36 @@ module fabm_builtin_models
       class (type_bulk_constant),intent(inout),target :: self
       integer,                   intent(in)           :: configunit
 
-      character(len=attribute_length) :: name
+      character(len=attribute_length) :: standard_name
       real(rk)                        :: value
 
-      call self%get_parameter(name,'name','','name')
+      call self%get_parameter(standard_name,'standard_name','','standard name')
       call self%get_parameter(value,'value','','value')
-      call self%register_diagnostic_variable(self%id_constant,'data','','data', &
-                                             missing_value=value,output=output_none)
+      if (standard_name/='') then
+         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
+            output=output_none, standard_variable=type_bulk_standard_variable(name=standard_name))
+      else
+         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
+            output=output_none)
+      end if
    end subroutine
 
    subroutine horizontal_constant_initialize(self,configunit)
       class (type_horizontal_constant),intent(inout),target :: self
       integer,                         intent(in)           :: configunit
 
-      character(len=attribute_length) :: name
+      character(len=attribute_length) :: standard_name
       real(rk)                        :: value
 
-      call self%get_parameter(name,'name','','name')
+      call self%get_parameter(standard_name,'standard_name','','standard name')
       call self%get_parameter(value,'value','','value')
-      call self%register_diagnostic_variable(self%id_constant,'data','','data', &
-                                             missing_value=value,output=output_none)
+      if (standard_name/='') then
+         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
+            output=output_none, standard_variable=type_horizontal_standard_variable(name=standard_name))
+      else
+         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
+            output=output_none)
+      end if
    end subroutine
 
 end module fabm_builtin_models
