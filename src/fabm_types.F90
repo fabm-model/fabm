@@ -326,6 +326,9 @@
       ! Flag determining whether the contents of the type are "frozen", i.e., they will not change anymore.
       logical :: frozen = .false.
 
+      ! Flag determining whether this model was explciitly created by the user (e.g., by requesting it in a namelist or YAML file)
+      logical :: user_created = .false.
+
       ! Pointers to linked models in the model tree.
       class (type_base_model),pointer :: parent => null()
       type (type_model_list)          :: children

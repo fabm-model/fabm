@@ -169,6 +169,7 @@ contains
       call factory%create(trim(modelname),model)
       if (.not.associated(model)) call fatal_error('create_model_from_dictionary', &
          trim(instancename)//': "'//trim(modelname)//'" is not a valid model name.')
+      model%user_created = .true.
 
       ! Transfer user-specified parameter values to the model.
       childmap => node%get_dictionary('parameters',required=.false.,error=config_error)

@@ -436,9 +436,9 @@
 
          ! Ask the factory to create the model.
          call factory%create(trim(models(i)),childmodel)
-
          if (.not.associated(childmodel)) call fatal_error('fabm_create_model_from_file', &
             '"'//trim(models(i))//'" is not a valid model name.')
+         childmodel%user_created = .true.
 
          call log_message('Initializing biogeochemical model "'//trim(instancename)//'"...')
          call model%root%add_child(childmodel,instancename,configunit=file_unit)
