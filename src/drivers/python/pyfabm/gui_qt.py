@@ -99,13 +99,20 @@ class ItemModel(QtCore.QAbstractItemModel):
                 self.value = None
                 self.long_name = long_name
         def processNode(n,path=()):
-            childprefix = path
-            if isinstance(n.object,basestring) and path:
-                if path[-1] in ('parameters','initialization','environment','coupling'):
-                    childprefix = path[:-1]
-                else:
-                    n.object = Submodel(self.model.getModelLongName('/'.join(path)))
-            for child in n.children: processNode(child,childprefix+(child.name,))
+            for i in range(len(n.children)-1,-1,-1):
+                child = n.children[i]
+                childpath = path + (child.name,)
+                if isinstance(child.object,basestring):
+                    if childpath[-1] in ('parameters','initialization','environment','coupling'):
+                        childpath = childpath[:-1]
+                    else:
+                        submodel = self.model.getSubModel('/'.join(childpath))
+                        if submodel.user_created:
+                            child.object = Submodel(submodel.long_name)
+                        else:
+                            n.removeChild(i)
+                            child = None
+                if child is not None: processNode(child,childpath)
         processNode(root)
 
         if self.root is not None:
@@ -227,3 +234,27 @@ class ItemModel(QtCore.QAbstractItemModel):
     def headerData(self,section,orientation,role):
         if orientation==QtCore.Qt.Horizontal and role==QtCore.Qt.DisplayRole and section>=0 and section<4:
             return ('name','value','units','symbol')[section]
+
+class TreeView(QtGui.QTreeView):
+    def __init__(self,model,parent):
+        QtGui.QTreeView.__init__(self,parent)
+        itemmodel = pyfabm.gui_qt.ItemModel(model,parent)
+        self.setItemDelegate(Delegate(parent))
+        self.setModel(itemmodel)
+        self.setUniformRowHeights(True)
+        self.expandAll()
+        def onTreeViewContextMenu(pos):
+            index = self.indexAt(pos)
+            if index.isValid() and index.column()==1:
+                data = index.internalPointer().object
+                if isinstance(data,pyfabm.Parameter) and data.value!=data.default and data.default is not None:
+                    def reset():
+                        data.reset()
+                        itemmodel.rebuild()
+                    contextMenu = QtGui.QMenu(self)
+                    contextMenu.addAction('Reset to default (%s)' % data.default,reset)
+                    contextMenu.exec_(self.mapToGlobal(pos))
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(onTreeViewContextMenu)
+        for i in range(3): self.resizeColumnToContents(i)
+

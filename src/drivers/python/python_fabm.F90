@@ -123,8 +123,9 @@
       ! Re-create original models
       node => model%root%children%first
       do while (associated(node))
-         if (node%model%type_name/='') then
+         if (node%model%user_created) then
             call factory%create(node%model%type_name,childmodel)
+            childmodel%user_created = .true.
             call newmodel%root%add_child(childmodel,node%model%name,node%model%long_name,configunit=-1)
          end if
          node => node%next
@@ -361,11 +362,12 @@
       call copy_to_c_string(variable%long_name,long_name)
    end subroutine get_variable_metadata_ptr
 
-   subroutine get_model_metadata(name,length,long_name) bind(c)
+   subroutine get_model_metadata(name,length,long_name,user_created) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_model_metadata
       character(kind=c_char),intent(in), target :: name(*)
       integer(c_int),        intent(in), value  :: length
       character(kind=c_char),intent(out)        :: long_name(length)
+      integer(c_int),        intent(out)        :: user_created
 
       character(len=attribute_length),pointer   :: pname
       class (type_base_model),        pointer   :: found_model
@@ -374,6 +376,7 @@
       found_model => model%root%find_model(pname(:index(pname,C_NULL_CHAR)-1))
       if (.not.associated(found_model)) call driver%fatal_error('get_model_metadata','model "'//pname(:index(pname,C_NULL_CHAR)-1)//'" not found.')
       call copy_to_c_string(found_model%long_name,long_name)
+      user_created = found_model%user_created
    end subroutine
 
    subroutine link_dependency_data(index,value) bind(c)

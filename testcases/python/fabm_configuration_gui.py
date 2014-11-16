@@ -32,27 +32,7 @@ app = QtGui.QApplication([' '])
 dialog = QtGui.QDialog()
 layout = QtGui.QHBoxLayout()
 
-tree = QtGui.QTreeView()
-
-itemmodel = pyfabm.gui_qt.ItemModel(model,dialog)
-tree.setItemDelegate(pyfabm.gui_qt.Delegate(dialog))
-tree.setModel(itemmodel)
-tree.setUniformRowHeights(True)
-tree.expandAll()
-def onTreeViewContextMenu(pos):
-    index = tree.indexAt(pos)
-    if index.isValid() and index.column()==1:
-        data = index.internalPointer().object
-        if isinstance(data,pyfabm.Parameter) and data.value!=data.default:
-            def reset():
-                data.reset()
-                itemmodel.rebuild()
-            contextMenu = QtGui.QMenu(tree)
-            contextMenu.addAction('Reset to default (%s)' % data.default,reset)
-            contextMenu.exec_(tree.mapToGlobal(pos))
-tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-tree.customContextMenuRequested.connect(onTreeViewContextMenu)
-for i in range(3): tree.resizeColumnToContents(i)
+tree = pyfabm.gui_qt.TreeView(model,dialog)
 
 layout.addWidget(tree)
 dialog.setLayout(layout)

@@ -35,7 +35,7 @@ fabm.get_variable_metadata_ptr.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c
 fabm.get_variable_long_path.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_char_p]
 fabm.get_parameter_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
 fabm.get_dependency_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p]
-fabm.get_model_metadata.argtypes = [ctypes.c_char_p,ctypes.c_int,ctypes.c_char_p]
+fabm.get_model_metadata.argtypes = [ctypes.c_char_p,ctypes.c_int,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int)]
 fabm.get_coupling.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_void_p),ctypes.POINTER(ctypes.c_void_p)]
 fabm.get_real_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
 fabm.get_real_parameter.restype = ctypes.c_double
@@ -265,15 +265,21 @@ class Coupling(Variable):
 
     value = property(getValue, setValue)
 
+class SubModel(object):
+    def __init__(self,name):
+        strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        iuser = ctypes.c_int()
+        fabm.get_model_metadata(name,ATTRIBUTE_LENGTH,strlong_name,iuser)
+        self.long_name = strlong_name.value
+        self.user_created = iuser.value!=0
+
 class Model(object):
     def __init__(self,path='fabm.yaml'):
         fabm.initialize(path)
         self.updateConfiguration()
 
-    def getModelLongName(self,name):
-        strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        fabm.get_model_metadata(name,ATTRIBUTE_LENGTH,strname)
-        return strname.value
+    def getSubModel(self,name):
+        return SubModel(name)
 
     def saveSettings(self):
         environment = dict([(dependency.name,dependency.value) for dependency in self.dependencies])
