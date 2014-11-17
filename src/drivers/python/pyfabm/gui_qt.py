@@ -1,5 +1,11 @@
+import sys
 import pyfabm
-from PySide import QtCore,QtGui
+
+try:
+    from PySide import QtCore,QtGui
+except ImportError:
+    print 'Unable to load PySide. Is it installed?'
+    sys.exit(1)
 
 class Delegate(QtGui.QStyledItemDelegate):
     def __init__(self,parent=None):
