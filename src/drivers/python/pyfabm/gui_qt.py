@@ -81,6 +81,13 @@ class Entry(object):
             entry = Entry(variable,pathcomps[-1])
             parent.addChild(entry)
 
+class Submodel:
+    def __init__(self,long_name):
+        self.units = None
+        self.units_unicode = None
+        self.value = None
+        self.long_name = long_name
+
 class ItemModel(QtCore.QAbstractItemModel):
     def __init__(self,model,parent):
         QtCore.QAbstractItemModel.__init__(self,parent)
@@ -98,12 +105,6 @@ class ItemModel(QtCore.QAbstractItemModel):
         root.addChild(env)
 
         # For all models, create an object that returns appropriate metadata.
-        class Submodel:
-            def __init__(self,long_name):
-                self.units = None
-                self.units_unicode = None
-                self.value = None
-                self.long_name = long_name
         def processNode(n,path=()):
             for i in range(len(n.children)-1,-1,-1):
                 child = n.children[i]
@@ -193,10 +194,14 @@ class ItemModel(QtCore.QAbstractItemModel):
         if role==QtCore.Qt.DisplayRole:
             if index.column()==0:
                 return entry.name if isinstance(data,basestring) else data.long_name
-            if not isinstance(data,basestring):
+            if not isinstance(data,(basestring,Submodel)):
                 if index.column()==1:
                     value = data.value
-                    if not isinstance(value,bool): return value
+                    if not isinstance(value,bool):
+                        if data.units:
+                            return u'%s %s' % (value,data.units_unicode)
+                        else:
+                            return unicode(value)
                 elif index.column()==2 and data.units:
                     return data.units_unicode
                 elif index.column()==3:
@@ -204,8 +209,8 @@ class ItemModel(QtCore.QAbstractItemModel):
         elif role==QtCore.Qt.ToolTipRole and index.parent().isValid():
            if not isinstance(data,basestring): return data.long_path
         elif role==QtCore.Qt.EditRole:
-           if not isinstance(data,basestring):
-              print data.getOptions()
+           if not isinstance(data,(basestring,Submodel)):
+              #print data.getOptions()
               return data.getValue()
         elif role==QtCore.Qt.FontRole and index.column()==1:
             if isinstance(data,pyfabm.Parameter) and data.value!=data.default:
@@ -230,7 +235,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         if not index.isValid(): return flags
         if index.column()==1:
             entry = index.internalPointer().object
-            if not isinstance(entry,basestring):
+            if not isinstance(entry,(basestring,Submodel)):
                 if isinstance(entry.value,bool):
                     flags |= QtCore.Qt.ItemIsUserCheckable
                 else:
@@ -258,7 +263,9 @@ class TreeView(QtGui.QTreeView):
                         data.reset()
                         itemmodel.rebuild()
                     contextMenu = QtGui.QMenu(self)
-                    contextMenu.addAction('Reset to default (%s)' % data.default,reset)
+                    default = data.default
+                    if data.units: default = u'%s %s' % (data.default,data.units_unicode)
+                    contextMenu.addAction(u'Reset to default: %s' % default,reset)
                     contextMenu.exec_(self.mapToGlobal(pos))
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(onTreeViewContextMenu)
