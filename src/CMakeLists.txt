@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.8)
 
 # Create a list of all institutes to include.
 # When adding new institutes to the source tree, please add them here as well.
