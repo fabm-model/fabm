@@ -1,4 +1,5 @@
 add_library(fabm_models_aed OBJECT
+            aed.h
             aed_carbon.F90
             aed_chlorophylla.F90
             aed_core.F90
