@@ -243,11 +243,7 @@
       call copy_to_c_string(property%units,    units)
       call copy_to_c_string(property%long_name,long_name)
       typecode = property%typecode()
-      if (property%has_default) then
-         has_default = 1
-      else
-         has_default = 0
-      end if
+      has_default = logical2int(property%has_default)
    end subroutine
 
    subroutine get_dependency_metadata(index,length,name,units) bind(c)
@@ -376,11 +372,7 @@
       found_model => model%root%find_model(pname(:index(pname,C_NULL_CHAR)-1))
       if (.not.associated(found_model)) call driver%fatal_error('get_model_metadata','model "'//pname(:index(pname,C_NULL_CHAR)-1)//'" not found.')
       call copy_to_c_string(found_model%long_name,long_name)
-      if (found_model%user_created) then
-         user_created = 1
-      else
-         user_created = 0
-      end if
+      user_created = logical2int(found_model%user_created)
    end subroutine
 
    subroutine link_dependency_data(index,value) bind(c)
@@ -495,7 +487,7 @@
       property => model%root%parameters%get_property(index)
       select type (property)
       class is (type_real_property)
-         if (default/=0) then
+         if (int2logical(default)) then
             value = property%default
          else
             value = property%value
@@ -528,7 +520,7 @@
       property => model%root%parameters%get_property(index)
       select type (property)
       class is (type_integer_property)
-         if (default/=0) then
+         if (int2logical(default)) then
             value = property%default
          else
             value = property%value
@@ -546,7 +538,7 @@
       character(len=attribute_length),pointer :: pname
 
       call c_f_pointer(c_loc(name), pname)
-      call forced_parameters%set_logical(pname(:index(pname,C_NULL_CHAR)-1),value/=0)
+      call forced_parameters%set_logical(pname(:index(pname,C_NULL_CHAR)-1),int2logical(value))
 
       ! Re-initialize the model using updated parameter values
       call reinitialize()
@@ -561,11 +553,10 @@
       property => model%root%parameters%get_property(index)
       select type (property)
       class is (type_logical_property)
-         value = 0
-         if (default/=0) then
-            if (property%default) value = 1
+         if (int2logical(default)) then
+            value = logical2int(property%default)
          else
-            if (property%value) value = 1
+            value = logical2int(property%value)
          end if
       class default
          call driver%fatal_error('get_logical_parameter','not a logical variable')
@@ -596,7 +587,7 @@
       property => model%root%parameters%get_property(index)
       select type (property)
       class is (type_string_property)
-         if (default/=0) then
+         if (int2logical(default)) then
             call copy_to_c_string(property%default, value)
          else
             call copy_to_c_string(property%value, value)
@@ -631,6 +622,22 @@
       end do
       cstring(n+1) = C_NULL_CHAR
    end subroutine
+
+   function logical2int(value) result(ivalue)
+      logical,intent(in) :: value
+      integer            :: ivalue
+      if (value) then
+         ivalue = 1
+      else
+         ivalue = 0
+      end if
+   end function
+
+   function int2logical(ivalue) result(value)
+      integer,intent(in) :: ivalue
+      logical            :: value
+      value = ivalue/=0
+   end function
 
    end module fabm_python
 
