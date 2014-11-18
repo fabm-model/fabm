@@ -376,7 +376,11 @@
       found_model => model%root%find_model(pname(:index(pname,C_NULL_CHAR)-1))
       if (.not.associated(found_model)) call driver%fatal_error('get_model_metadata','model "'//pname(:index(pname,C_NULL_CHAR)-1)//'" not found.')
       call copy_to_c_string(found_model%long_name,long_name)
-      user_created = found_model%user_created
+      if (found_model%user_created) then
+         user_created = 1
+      else
+         user_created = 0
+      end if
    end subroutine
 
    subroutine link_dependency_data(index,value) bind(c)
