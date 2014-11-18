@@ -11,12 +11,11 @@
 ! This is the core module of FABM, serving as the "glue layer" between a
 ! physical host model (e.g., a general circulation model), and one or more
 ! specific biogeochemical models. A physical host model will call the interfaces
-! of this module to access biogeochemistry. Specific biogeochemical models must
-! be referenced in this module to be available in FABM. Locations where
-! specific biogeochemical models may be referenced are indicated by
-! ADD\_NEW\_MODEL\_HERE strings in the code comments.
+! of this module to access biogeochemistry.
 !
-! For more information, see the documentation at /doc/documentation.pdf.
+! For more information, see the documentation at http://fabm.net/wiki.
+!
+! To add new biogeochemical models, edit fabm_library.F90.
 !
 ! !USES:
    use fabm_standard_variables,only: type_bulk_standard_variable, type_horizontal_standard_variable, &
