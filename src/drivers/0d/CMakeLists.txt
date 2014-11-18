@@ -10,7 +10,7 @@ find_path(GOTM_BASE
 configure_file("${GOTM_BASE}/include/version.h.in" "${CMAKE_BINARY_DIR}/gotm/version.h")
 
 # Build 0d executable.
-add_executable (fabm0d main.F90 fabm0d.F90 shared.F90 output.F90 
+add_executable (fabm0d main.F90 fabm0d.F90 shared.F90 output.F90 fabm_0d.h
                 ${GOTM_BASE}/src/airsea/short_wave_radiation.F90
                 ${GOTM_BASE}/src/input/input.F90
                 ${GOTM_BASE}/src/util/eqstate.F90
