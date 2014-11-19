@@ -56,6 +56,7 @@ module fabm_particle
       character(attribute_length)             :: slave = ''
       type (type_model_reference),    pointer :: model_reference => null()
       type (type_bulk_standard_variable)      :: standard_variable
+      integer                                 :: domain
       type (type_coupling_from_model),pointer :: next => null()
    end type
 
@@ -146,6 +147,12 @@ module fabm_particle
       coupling%master = master_variable
       coupling%model_reference => master_model%reference
       coupling%next => self%first_model_coupling
+      select type (slave_variable)
+         class is (type_dependency_id)
+            coupling%domain = domain_bulk
+         class is (type_horizontal_dependency_id)
+            coupling%domain = domain_horizontal
+      end select
       self%first_model_coupling => coupling
    end subroutine request_coupling_to_model_name
 
@@ -206,8 +213,14 @@ module fabm_particle
             call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(coupling%master))
          else
             aggregate_variable => get_aggregate_variable(coupling%model_reference%model,coupling%standard_variable)
-            aggregate_variable%bulk_required = .true.
-            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name))
+            select case (coupling%domain)
+               case (domain_bulk)
+                  aggregate_variable%bulk_required = .true.
+                  call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name))
+               case (domain_horizontal)
+                  aggregate_variable%horizontal_required = .true.
+                  call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
+            end select
          end if
          coupling => coupling%next
       end do
