@@ -1,9 +1,0 @@
-# Set options for the Portland Group (PGI) Fortran compiler.
-ifeq ($(FORTRAN_COMPILER),PGFORTRAN)
-FC=pgfortran
-MODULES=-module $(MODDIR)
-EXTRAS  =
-DEBUG_FLAGS = -g -Ktrap=fp -Mbounds
-PROF_FLAGS  = -Mprof=func
-PROD_FLAGS  = -fast
-endif

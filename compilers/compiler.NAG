@@ -1,9 +1,0 @@
-# Set options for the NAG Fortran compiler.
-ifeq ($(FORTRAN_COMPILER),NAG)
-FC=f95nag
-MODULES=-mdir $(MODDIR)
-EXTRAS	= -f77
-DEBUG_FLAGS = -g -C=all -O0
-PROF_FLAGS  = -pg -O3
-PROD_FLAGS  = -O3
-endif

@@ -1,9 +1,0 @@
-# Set options for the GNU Fortran compiler
-ifeq ($(FORTRAN_COMPILER),GFORTRAN)
-FC=gfortran
-MODULES=-J$(MODDIR)
-EXTRAS = -ffree-form -Wall -std=f2008 -pedantic -ffree-line-length-none -Wno-unused-dummy-argument
-DEBUG_FLAGS = -g -fcheck=all -fbacktrace
-PROF_FLAGS  = -p
-PROD_FLAGS  = -O3
-endif
