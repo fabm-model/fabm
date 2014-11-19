@@ -147,12 +147,6 @@ module fabm_particle
       coupling%master = master_variable
       coupling%model_reference => master_model%reference
       coupling%next => self%first_model_coupling
-      select type (slave_variable)
-         class is (type_dependency_id)
-            coupling%domain = domain_bulk
-         class is (type_horizontal_dependency_id)
-            coupling%domain = domain_horizontal
-      end select
       self%first_model_coupling => coupling
    end subroutine request_coupling_to_model_name
 
@@ -171,6 +165,14 @@ module fabm_particle
       coupling%standard_variable = master_variable
       coupling%model_reference => master_model%reference
       coupling%next => self%first_model_coupling
+      select type (slave_variable)
+         class is (type_dependency_id)
+            coupling%domain = domain_bulk
+         class is (type_horizontal_dependency_id)
+            coupling%domain = domain_horizontal
+         class default
+            call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of type type_dependency_id or type_horizontal_dependency_id.')
+      end select
       self%first_model_coupling => coupling
    end subroutine request_coupling_to_model_sn
 
