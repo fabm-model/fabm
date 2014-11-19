@@ -215,7 +215,7 @@ module fabm_particle
 
    subroutine build_state_id_list(self,reference,domain)
       class (type_particle_model),intent(inout) :: self
-      type (type_model_reference),intent(in)    :: reference
+      type (type_model_reference),intent(inout) :: reference
       integer,                    intent(in)    :: domain
 
       type (type_link),           pointer :: link
