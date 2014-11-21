@@ -241,7 +241,8 @@ module fabm_particle
       n = 0
       link => reference%model%links%first
       do while (associated(link))
-         if (link%target%domain==domain.and.link%original%presence==presence_internal.and..not.link%original%state_indices%is_empty()) n = n + 1
+         if (index(link%name,'/')==0.and.link%target%domain==domain.and.link%original%presence==presence_internal &
+             .and.(.not.link%original%state_indices%is_empty().or.link%original%fake_state_variable)) n = n + 1
          link => link%next
       end do
 
@@ -259,7 +260,8 @@ module fabm_particle
       n = 0
       link => reference%model%links%first
       do while (associated(link))
-         if (link%target%domain==domain.and.link%original%presence==presence_internal.and..not.link%original%state_indices%is_empty()) then
+         if (index(link%name,'/')==0.and.link%target%domain==domain.and.link%original%presence==presence_internal &
+             .and.(.not.link%original%state_indices%is_empty().or.link%original%fake_state_variable)) then
             n = n + 1
             write (strindex,'(i0)') n
             select case (domain)

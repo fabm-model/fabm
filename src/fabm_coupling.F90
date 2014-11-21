@@ -305,9 +305,9 @@ recursive subroutine build_aggregate_variables(self)
          contributing_variable%link => link
          contributing_variable%scale_factor = contribution%scale_factor
          contributing_variable%include_background = contribution%include_background
-         contribution => contribution%next
          contributing_variable%next => aggregate_variable%first_contributing_variable
          aggregate_variable%first_contributing_variable => contributing_variable
+         contribution => contribution%next
       end do
       link => link%next
    end do
@@ -322,7 +322,7 @@ recursive subroutine build_aggregate_variables(self)
             ! Enumerate contributions to aggregate variable.
             contributing_variable => aggregate_variable%first_contributing_variable
             do while (associated(contributing_variable))
-               if (.not.contributing_variable%link%original%state_indices%is_empty()) then
+               if (.not.contributing_variable%link%original%state_indices%is_empty().or.contributing_variable%link%original%fake_state_variable) then
                   ! Contributing variable is a state variable
                   select case (contributing_variable%link%original%domain)
                      case (domain_bulk)
@@ -378,7 +378,8 @@ recursive subroutine create_aggregate_models(self)
 
       contributing_variable => aggregate_variable%first_contributing_variable
       do while (associated(contributing_variable))
-         if (associated(contributing_variable%link%target,contributing_variable%link%original)) then
+         if (associated(contributing_variable%link%target,contributing_variable%link%original) &                  ! Variable must not be coupled
+             .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable)) then   ! Only include fake state variable for non-root models
             select case (contributing_variable%link%target%domain)
                case (domain_bulk)
                   if (associated(sum)) call sum%add_component(trim(contributing_variable%link%name), &
