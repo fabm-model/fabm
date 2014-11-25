@@ -137,12 +137,14 @@ class Dependency(Variable):
         if long_name is None: long_name = name
         Variable.__init__(self,name,units,long_name.replace('_',' '))
         self.data = ctypes.c_double(0.)
+        self.is_set = False
         fabm.link_dependency_data(index+1,ctypes.byref(self.data))
 
     def getValue(self):
         return self.data.value
 
     def setValue(self,value):
+        self.is_set = True
         self.data.value = value
 
     value = property(getValue, setValue)
@@ -411,8 +413,13 @@ class Model(object):
 
     def findStateVariable(self,name):
         for variable in self.state_variables:
-            if variable.name==name: return variable
+            if variable.name==name or variable.path==name: return variable
         raise Exception('State variable "%s" was not found.' % name)
+
+    def findDiagnosticVariable(self,name):
+        for variable in self.diagnostic_variables:
+            if variable.name==name or variable.path==name: return variable
+        raise Exception('Diagnostic variable "%s" was not found.' % name)
 
     def getParameterTree(self):
         root = {}
@@ -423,6 +430,15 @@ class Model(object):
                 parent = root.setdefault(component,{})
             parent[pathcomps[-1]] = parameter
         return root
+
+    def checkReady(self,verbose=True,stop=False):
+       ready = True
+       for dependency in self.dependencies:
+          if not dependency.is_set:
+             print 'Value for dependency %s is not set.' % dependency.name
+             ready = False
+       assert ready or not stop,'Not all dependencies have been fulfilled.'
+       return ready
 
     def printInformation(self):
         """Show information about the model."""
