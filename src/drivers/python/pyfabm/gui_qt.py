@@ -19,6 +19,10 @@ class Delegate(QtGui.QStyledItemDelegate):
                 widget = QtGui.QComboBox(parent)
                 widget.addItems(options)
                 return widget
+            elif isinstance(data.value,float):
+                widget = ScientificDoubleEditor(parent)
+                if data.units: widget.setSuffix(u' %s' % data.units_unicode)
+                return widget
         return QtGui.QStyledItemDelegate.createEditor(self,parent,option,index)
     def setEditorData(self,editor,index):
         if isinstance(editor,QtGui.QComboBox):
@@ -28,6 +32,10 @@ class Delegate(QtGui.QStyledItemDelegate):
                 if options is not None:
                     editor.setCurrentIndex(list(options).index(data.value))
                     return
+        elif isinstance(editor,ScientificDoubleEditor):
+            data = index.internalPointer().object
+            editor.setValue(data.value)
+            return
         return QtGui.QStyledItemDelegate.setEditorData(self,editor,index)
     def setModelData(self,editor,model,index):
         if isinstance(editor,QtGui.QComboBox):
@@ -38,6 +46,9 @@ class Delegate(QtGui.QStyledItemDelegate):
                     i = editor.currentIndex()
                     model.setData(index,options[i],QtCore.Qt.EditRole)
                     return
+        elif isinstance(editor,ScientificDoubleEditor):
+            model.setData(index,editor.value(),QtCore.Qt.EditRole)
+            return
         return QtGui.QStyledItemDelegate.setModelData(self,editor,model,index)
 
 class Entry(object):
@@ -271,3 +282,110 @@ class TreeView(QtGui.QTreeView):
         self.customContextMenuRequested.connect(onTreeViewContextMenu)
         for i in range(3): self.resizeColumnToContents(i)
 
+# From xmlstore (GOTM-GUI)
+
+class ScientificDoubleValidator(QtGui.QValidator):
+    """Qt validator for floating point values
+    Less strict than the standard QDoubleValidator, in the sense that is
+    also accepts values in scientific format (e.g. 1.2e6)
+    Also has properties 'minimum' and 'maximum', used for validation and
+    fix-up.
+    """
+    def __init__(self,parent=None):
+        QtGui.QValidator.__init__(self,parent)
+        self.minimum = None
+        self.maximum = None
+        self.suffix = ''
+
+    def validate(self,input,pos):
+        assert isinstance(input,basestring),'input argument is not a string (old PyQt4 API?)'
+
+        # Check for suffix (if ok, cut it off for further value checking)
+        if not input.endswith(self.suffix): return (QtGui.QValidator.Invalid,input,pos)
+        vallength = len(input)-len(self.suffix)
+
+        # Check for invalid characters
+        rx = QtCore.QRegExp('[^\d\-+eE,.]')
+        if rx.indexIn(input[:vallength])!=-1: return (QtGui.QValidator.Invalid,input,pos)
+        
+        # Check if we can convert it into a floating point value
+        try:
+            v = float(input[:vallength])
+        except ValueError:
+            return (QtGui.QValidator.Intermediate,input,pos)
+
+        # Check for minimum and maximum.
+        if self.minimum is not None and v<self.minimum: return (QtGui.QValidator.Intermediate,input,pos)
+        if self.maximum is not None and v>self.maximum: return (QtGui.QValidator.Intermediate,input,pos)
+        
+        return (QtGui.QValidator.Acceptable,input,pos)
+
+    def fixup(self,input):
+        assert isinstance(input,basestring),'input argument is not a string (old PyQt4 API?)'
+        if not input.endswith(self.suffix): return input
+
+        try:
+            v = float(input[:len(input)-len(self.suffix)])
+        except ValueError:
+            return input
+
+        if self.minimum is not None and v<self.minimum: input = u'%s%s' % (self.minimum,self.suffix)
+        if self.maximum is not None and v>self.maximum: input = u'%s%s' % (self.maximum,self.suffix)
+        print u'"%s"' % input
+        return input
+
+    def setSuffix(self,suffix):
+        self.suffix = suffix
+
+class ScientificDoubleEditor(QtGui.QLineEdit):
+    """Editor for a floating point value.
+    """
+    def __init__(self,parent):
+        QtGui.QLineEdit.__init__(self,parent)
+
+        self.curvalidator = ScientificDoubleValidator(self)
+        self.setValidator(self.curvalidator)
+        self.suffix = ''
+        #self.editingFinished.connect(self.onPropertyEditingFinished)
+
+    def setSuffix(self,suffix):
+        value = self.value()
+        self.suffix = suffix
+        self.curvalidator.setSuffix(suffix)
+        self.setValue(value)
+
+    def value(self):
+        text = self.text()
+        text = text[:len(text)-len(self.suffix)]
+        if text=='': return 0
+        return float(text)
+
+    def setValue(self,value,format=None):
+        if value is None:
+            strvalue = ''
+        else:  
+            if format is None:
+                strvalue = unicode(value)
+            else:
+                strvalue = format % value
+        self.setText(u'%s%s' % (strvalue,self.suffix))
+
+    def focusInEvent(self,e):
+        QtGui.QLineEdit.focusInEvent(self,e)
+        self.selectAll()
+
+    def selectAll(self):
+        QtGui.QLineEdit.setSelection(self,0,len(self.text())-len(self.suffix))
+
+    def setMinimum(self,minimum):
+        self.curvalidator.minimum = minimum
+
+    def setMaximum(self,maximum):
+        self.curvalidator.maximum = maximum
+
+    def interpretText(self):
+        if not self.hasAcceptableInput():
+            text = self.text()
+            textnew = self.curvalidator.fixup(text)
+            if textnew is None: textnew = text
+            self.setText(textnew)
