@@ -402,10 +402,16 @@
       procedure :: register_standard_horizontal_dependency
       procedure :: register_named_global_dependency
       procedure :: register_standard_global_dependency
+      procedure :: register_named_bulk_dependency_old
+      procedure :: register_named_horizontal_dependency_old
+      procedure :: register_named_global_dependency_old
 
-      generic :: register_bulk_dependency       => register_named_bulk_dependency, register_standard_bulk_dependency
-      generic :: register_horizontal_dependency => register_named_horizontal_dependency, register_standard_horizontal_dependency
-      generic :: register_global_dependency     => register_named_global_dependency, register_standard_global_dependency
+      generic :: register_bulk_dependency       => register_named_bulk_dependency, register_standard_bulk_dependency, &
+                                                   register_named_bulk_dependency_old
+      generic :: register_horizontal_dependency => register_named_horizontal_dependency, register_standard_horizontal_dependency, &
+                                                   register_named_horizontal_dependency_old
+      generic :: register_global_dependency     => register_named_global_dependency, register_standard_global_dependency, &
+                                                   register_named_global_dependency_old
 
       procedure :: register_standard_conserved_quantity
       procedure :: register_custom_conserved_quantity
@@ -428,8 +434,11 @@
                                                  register_surface_state_variable
       generic :: register_diagnostic_variable => register_bulk_diagnostic_variable,register_horizontal_diagnostic_variable
       generic :: register_dependency          => register_named_bulk_dependency, register_standard_bulk_dependency, &
+                                                 register_named_bulk_dependency_old, &
                                                  register_named_horizontal_dependency, register_standard_horizontal_dependency, &
+                                                 register_named_horizontal_dependency_old, &
                                                  register_named_global_dependency, register_standard_global_dependency, &
+                                                 register_named_global_dependency_old, &
                                                  register_bulk_expression_dependency, register_horizontal_expression_dependency
       generic :: register_state_dependency    => register_bulk_state_dependency_ex,register_bottom_state_dependency_ex, &
                                                  register_surface_state_dependency_ex,register_bulk_state_dependency_old, &
@@ -1902,7 +1911,7 @@ end subroutine real_pointer_set_set_value
       type (type_bulk_standard_variable),intent(in)           :: standard_variable
       logical,optional,                  intent(in)           :: required
 
-      call register_named_bulk_dependency(model,id,standard_variable%name,standard_variable%units, &
+      call register_named_bulk_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
                                           standard_variable=standard_variable,required=required)
    end subroutine
 
@@ -1912,7 +1921,7 @@ end subroutine real_pointer_set_set_value
       type (type_horizontal_standard_variable),intent(in)           :: standard_variable
       logical,optional,                        intent(in)           :: required
 
-      call register_named_horizontal_dependency(model,id,standard_variable%name,standard_variable%units, &
+      call register_named_horizontal_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
                                                 standard_variable=standard_variable,required=required)
    end subroutine
 
@@ -1922,7 +1931,7 @@ end subroutine real_pointer_set_set_value
       type (type_global_standard_variable),intent(in)           :: standard_variable
       logical,optional,                    intent(in)           :: required
 
-      call register_named_global_dependency(model,id,standard_variable%name,standard_variable%units, &
+      call register_named_global_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
                                             standard_variable=standard_variable,required=required)
    end subroutine
 
@@ -1946,7 +1955,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INPUT PARAMETERS:
       character(len=*),                  intent(in)          :: name
-      character(len=*),                  intent(in),optional :: units,long_name
+      character(len=*),                  intent(in)          :: units,long_name
       type (type_bulk_standard_variable),intent(in),optional :: standard_variable
       logical,                           intent(in),optional :: required
 !
@@ -1969,8 +1978,6 @@ end subroutine real_pointer_set_set_value
       call self%add_bulk_variable(name, units, long_name, &
                                   standard_variable=standard_variable, presence=presence, &
                                   read_index=id%index, background=id%background, link=id%link)
-
-      !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
    end subroutine register_named_bulk_dependency
 !EOC
@@ -1995,7 +2002,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INPUT PARAMETERS:
       character(len=*),                        intent(in)          :: name
-      character(len=*),                        intent(in),optional :: units,long_name
+      character(len=*),                        intent(in)          :: units,long_name
       type (type_horizontal_standard_variable),intent(in),optional :: standard_variable
       logical,                                 intent(in),optional :: required
 !
@@ -2018,8 +2025,6 @@ end subroutine real_pointer_set_set_value
       call self%add_horizontal_variable(name, units, long_name,&
                                         standard_variable=standard_variable, presence=presence, &
                                         read_index=id%horizontal_index, background=id%background, link=id%link)
-
-      !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
    end subroutine register_named_horizontal_dependency
 !EOC
@@ -2044,7 +2049,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INPUT PARAMETERS:
       character(len=*),                    intent(in)          :: name
-      character(len=*),                    intent(in),optional :: units,long_name
+      character(len=*),                    intent(in)          :: units,long_name
       type (type_global_standard_variable),intent(in),optional :: standard_variable
       logical,                             intent(in),optional :: required
 !
@@ -2068,10 +2073,41 @@ end subroutine real_pointer_set_set_value
                                     standard_variable=standard_variable, presence=presence, &
                                     read_index=id%global_index, background=id%background, link=id%link)
 
-      !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
-
    end subroutine register_named_global_dependency
 !EOC
+
+   subroutine register_named_bulk_dependency_old(self,id,name)
+      class (type_base_model),  intent(inout)        :: self
+      type (type_dependency_id),intent(inout),target :: id
+      character(len=*),         intent(in)           :: name
+
+      call self%log_message('Deprecated syntax for register_bulk_dependency; please call it with a local name, &
+                             units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+      call self%register_dependency(id,name, '', name)
+      if (associated(self%parent)) call self%request_coupling(id,name)
+   end subroutine register_named_bulk_dependency_old
+
+   subroutine register_named_horizontal_dependency_old(self,id,name)
+      class (type_base_model),             intent(inout)        :: self
+      type (type_horizontal_dependency_id),intent(inout),target :: id
+      character(len=*),                    intent(in)           :: name
+
+      call self%log_message('Deprecated syntax for register_horizontal_dependency; please call it with a local name, &
+                             units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+      call self%register_dependency(id,name, '', name)
+      if (associated(self%parent)) call self%request_coupling(id,name)
+   end subroutine register_named_horizontal_dependency_old
+
+   subroutine register_named_global_dependency_old(self,id,name)
+      class (type_base_model),         intent(inout)        :: self
+      type (type_global_dependency_id),intent(inout),target :: id
+      character(len=*),                intent(in)           :: name
+
+      call self%log_message('Deprecated syntax for register_global_dependency; please call it with a local name, &
+                             units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+      call self%register_dependency(id,name, '', name)
+      if (associated(self%parent)) call self%request_coupling(id,name)
+   end subroutine register_named_global_dependency_old
 
 subroutine register_bulk_expression_dependency(self,id,expression)
    class (type_base_model),       intent(inout)        :: self
@@ -2082,7 +2118,7 @@ subroutine register_bulk_expression_dependency(self,id,expression)
 
    allocate(copy,source=expression)
    copy%out => id%index
-   call self%register_dependency(id,trim(copy%output_name))
+   call self%register_dependency(id,copy%output_name,'',copy%output_name)
    copy%output_name = id%link%target%name
 
    call register_expression(self,copy)
@@ -2098,7 +2134,7 @@ subroutine register_horizontal_expression_dependency(self,id,expression)
 
    allocate(copy,source=expression)
    copy%out => id%horizontal_index
-   call self%register_dependency(id,trim(copy%output_name))
+   call self%register_dependency(id,copy%output_name,'',copy%output_name)
    copy%output_name = id%link%target%name
 
    call register_expression(self,copy)

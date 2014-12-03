@@ -143,7 +143,7 @@ module fabm_builtin_models
       do while (associated(component))
          i = i + 1
          write (temp,'(i0)') i
-         call self%register_dependency(component%id,'term'//trim(temp))
+         call self%register_dependency(component%id,'term'//trim(temp),self%output_units,'term '//trim(temp))
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
@@ -257,7 +257,7 @@ module fabm_builtin_models
       do while (associated(component))
          i = i + 1
          write (temp,'(i0)') i
-         call self%register_dependency(component%id,'term'//trim(temp))
+         call self%register_dependency(component%id,'term'//trim(temp),self%output_units,'term '//trim(temp))
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
@@ -336,7 +336,7 @@ module fabm_builtin_models
    subroutine simple_depth_integral_initialize(self,configunit)
       class (type_simple_depth_integral),intent(inout),target :: self
       integer,                           intent(in)           :: configunit
-      call self%register_dependency(self%id_input,'source')
+      call self%register_dependency(self%id_input,'source','','source')
       if (.not.self%average) call self%register_dependency(self%id_depth,standard_variables%bottom_depth)
       call self%register_diagnostic_variable(self%id_output,'result','','result')
    end subroutine
