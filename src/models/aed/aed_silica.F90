@@ -97,8 +97,10 @@ SUBROUTINE aed_init_silica(self,namlst)
       CALL self%register_state_dependency(self%id_oxy,silica_reactant_variable)
 
    self%use_sed_model = Fsed_rsi_variable .NE. ''
-   IF (self%use_sed_model) &
+   IF (self%use_sed_model) THEN
       CALL self%register_horizontal_dependency(self%id_Fsed_rsi,Fsed_rsi_variable)
+      CALL self%request_coupling(self%id_Fsed_rsi,Fsed_rsi_variable)
+   ENDIF
 
    ! Register diagnostic variables
    CALL self%register_horizontal_diagnostic_variable(self%id_sed_rsi,'sed_rsi','mmol/m**2/d', &

@@ -2,7 +2,7 @@
 ! fabm_nml
 !-------------------------------------------------------------------------------
 &fabm_nml
-   models = 'aed_sedflux',
+   models = !'aed_sedflux',
             'aed_oxygen',
             'aed_carbon',
             'aed_silica',
@@ -151,7 +151,7 @@
    Fsed_dic = 3.0
    Ksed_dic = 20.0
    theta_sed_dic = 1.08
-   Fsed_dic_variable = 'aed_sedflux_Fsed_dic'
+!  Fsed_dic_variable = 'aed_sedflux_Fsed_dic'
    pH_initial = 7.5
    atmco2 = 390
    ionic = 0.1
@@ -183,7 +183,7 @@
    Ksed_rsi = 50.0
    theta_sed_rsi = 1.08
    silica_reactant_variable='aed_oxygen_oxy'
-   Fsed_rsi_variable = 'aed_sedflux_Fsed_rsi'
+!  Fsed_rsi_variable = 'aed_sedflux_Fsed_rsi'
 /
 
 
@@ -249,8 +249,8 @@
    theta_sed_nit = 1.08
    nitrif_reactant_variable = 'aed_oxygen_oxy'
    denit_product_variable   = ''  !#'aed_nitrogen_N20'
-   Fsed_amm_variable='aed_sedflux_Fsed_amm'
-   Fsed_nit_variable='aed_sedflux_Fsed_nit'
+!  Fsed_amm_variable='aed_sedflux_Fsed_amm'
+!  Fsed_nit_variable='aed_sedflux_Fsed_nit'
 /
 
 
@@ -301,7 +301,7 @@
    Ksed_frp = 50.0
    theta_sed_frp = 1.08
    phosphorus_reactant_variable = '' !#'aed_oxygen_oxy'
-   Fsed_frp_variable ='aed_sedflux_Fsed_frp'
+!  Fsed_frp_variable ='aed_sedflux_Fsed_frp'
    simPO4Adsorption = .true.
    ads_use_external_tss = .true.
    po4sorption_target_variable =''
@@ -457,8 +457,8 @@
 !
 !-------------------------------------------------------------------------------
 &aed_phytoplankton
-   num_phytos = 2
-   the_phytos = 1,2
+   num_phytos = 3
+   the_phytos = 3,7,8
    p_excretion_target_variable  ='aed_organic_matter_dop'
    n_excretion_target_variable  ='aed_organic_matter_don'
    c_excretion_target_variable  ='aed_organic_matter_doc'
@@ -542,27 +542,29 @@
 
 !###############################################################################
 ! aed_totals
-!  TN        = list of variable contributing to total nitrogen
-!  TP        = list of variable contributing to total phosphorus
-!  TOC       = list of variable contributing to total organic carbon
-!  TSS       = list of variable contributing to total suspended solids
-!  turbidity = !,  <vector same length as TSS names>
+!  TN_vars      = list of variable contributing to total nitrogen
+!  TN_varscale  = scaling of TN variables contribution
+!  TP_vars      = list of variable contributing to total phosphorus
+!  TP_varscale  = scaling of TP variables contribution
+!  TOC_vars     = list of variable contributing to total organic carbon
+!  TOC_varscale = scaling of TOC variables contribution
+!  TSS_vars     = list of variable contributing to total suspended solids
+!  TSS_varscale = scaling of TSS variables contribution
 !-------------------------------------------------------------------------------
 &aed_totals
-
    TN_vars =  'aed_nitrogen_nit',
               'aed_nitrogen_amm',
               'aed_organic_matter_don',
               'aed_organic_matter_pon',
-              'aed_phytoplankton_green',
-              'aed_phytoplankton_crypto'
+              'aed_phytoplankton_green_IN',
+              'aed_phytoplankton_crypto_IN'
    TN_varscale = 1.0, 1.0, 1.0, 1.0, 0.15, 0.15
    TP_vars =  'aed_phosphorus_frp',
               'aed_phosphorus_frp_ads',
               'aed_organic_matter_dop',
               'aed_organic_matter_pop',
-              'aed_phytoplankton_green',
-              'aed_phytoplankton_crypto'
+              'aed_phytoplankton_green_IP',
+              'aed_phytoplankton_crypto_IP'
    TP_varscale = 1.0, 1.0, 1.0, 1.0, 0.01, 0.01
    TOC_vars = 'aed_organic_matter_doc',
               'aed_organic_matter_poc',
@@ -572,5 +574,5 @@
 !  TSS_vars = 'aed_phytoplankton_green'
    TSS_vars = 'aed_tracer_ss1',
               'aed_phytoplankton_green' !, ....
-!  TSS_varscale = 0.1,0.1,0.,0.1            !,  <vector same length as TSS names>
+!  TSS_varscale = 0.1,0.1,0.,0.1        !,  <vector same length as TSS names>
 /

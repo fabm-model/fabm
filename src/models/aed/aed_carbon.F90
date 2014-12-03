@@ -43,7 +43,7 @@ MODULE aed_carbon
       TYPE (type_horizontal_dependency_id)  :: id_wind
       TYPE (type_diagnostic_variable_id) :: id_ch4ox
       TYPE (type_horizontal_diagnostic_variable_id) :: id_sed_dic
-      TYPE (type_horizontal_diagnostic_variable_id) :: id_atm_co2_exch
+      TYPE (type_horizontal_diagnostic_variable_id) :: id_atm_co2_exch,id_atm_ch4_exch
 
 !     Model parameters
       AED_REAL :: Fsed_dic,Ksed_dic,theta_sed_dic
@@ -158,8 +158,10 @@ SUBROUTINE aed_init_carbon(self,namlst)
    ENDIF
 
    self%use_sed_model = Fsed_dic_variable .NE. ''
-   IF (self%use_sed_model) &
-       CALL self%register_horizontal_dependency(self%id_Fsed_dic,Fsed_dic_variable)
+   IF (self%use_sed_model) THEN
+      CALL self%register_horizontal_dependency(self%id_Fsed_dic,Fsed_dic_variable)
+      CALL self%request_coupling(self%id_Fsed_dic,Fsed_dic_variable)
+   ENDIF
 
    !# Register diagnostic variables
    CALL self%register_diagnostic_variable(self%id_ch4ox,'ch4ox','/d', 'methane oxidation rate')
@@ -168,6 +170,8 @@ SUBROUTINE aed_init_carbon(self,namlst)
 
    CALL self%register_horizontal_diagnostic_variable(self%id_atm_co2_exch,'atm_co2_exch',            &
                              'mmol/m**2/d', 'CO2 exchange across atm/water interface')
+   CALL self%register_horizontal_diagnostic_variable(self%id_atm_ch4_exch,'atm_ch4_exch',            &
+                             'mmol/m**2/d', 'CH4 exchange across atm/water interface')
 
    !# Register environmental dependencies
    CALL self%register_dependency(self%id_temp,standard_variables%temperature)
@@ -282,17 +286,18 @@ SUBROUTINE aed_carbon_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
    AED_REAL :: temp, salt, wind
 
    ! State
-   AED_REAL :: dic,ph
+   AED_REAL :: dic,ph,ch4
 
    ! Temporary variables
-   AED_REAL :: pCO2,FCO2
-   AED_REAL :: Ko, KCO2
-   AED_REAL :: Tabs,windHt
+   AED_REAL :: pCO2,FCO2,FCH4
+   AED_REAL :: Ko,kCH4,KCO2, CH4solub
+   AED_REAL :: Tabs,windHt,atm
+   AED_REAL :: A1,A2,A3,A4,B1,B2,B3,logC
 
 !-------------------------------------------------------------------------------
 !BEGIN
 
-   IF(.NOT.self%simDIC) RETURN
+   IF(.NOT.self%simDIC .AND. .NOT.self%simCH4) RETURN
 
    ! Enter spatial loops (if any)
    _HORIZONTAL_LOOP_BEGIN_
@@ -303,38 +308,85 @@ SUBROUTINE aed_carbon_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
    _GET_HORIZONTAL_(self%id_wind,wind)  ! Wind speed at 10 m above surface (m/s)
    windHt = 10.
 
-    ! Retrieve current (local) state variable values.
-   _GET_(self%id_dic,dic) ! Concentration of carbon in surface layer
-   _GET_(self%id_pH,ph) ! Concentration of carbon in surface layer
 
-   kCO2 = aed_gas_piston_velocity(windHt,wind,temp,salt)
-
-   ! Solubility, Ko (mol/L/atm)
    Tabs = temp + 273.15
-   Ko = -58.0931+90.5069*(100.0/Tabs) + 22.294*log(Tabs/100.0) &
+
+   ! CO2 flux
+   IF(self%simDIC) THEN
+
+      ! Retrieve current (local) state variable values.
+     _GET_(self%id_dic,dic) ! Concentration of carbon in surface layer
+     _GET_(self%id_pH,ph)   ! Concentration of carbon in surface layer
+
+     kCO2 = aed_gas_piston_velocity(windHt,wind,temp,salt,schmidt_model=2)
+
+     ! Solubility, Ko (mol/L/atm)
+     Ko = -58.0931+90.5069*(100.0/Tabs) + 22.294*log(Tabs/100.0) &
           + 0.027766*salt - 0.025888*salt*(Tabs/100.0)
-   Ko = Ko + 0.0050578*salt*(Tabs/100.0)*(Tabs/100.0)
-   Ko = exp(Ko)
+     Ko = Ko + 0.0050578*salt*(Tabs/100.0)*(Tabs/100.0)
+     Ko = exp(Ko)
 
-   ! pCO2 in surface water layer
-   pCO2 = aed_carbon_co2(self%ionic,temp,dic,ph) / Ko
+     ! pCO2 in surface water layer
+     pCO2 = aed_carbon_co2(self%ionic,temp,dic,ph) / Ko
 
-   ! FCO2 = kCO2 * Ko * (pCO2 - PCO2a)
-   ! pCO2a = 367e-6 (Keeling & Wharf, 1999)
+     ! FCO2 = kCO2 * Ko * (pCO2 - PCO2a)
+     ! pCO2a = 367e-6 (Keeling & Wharf, 1999)
 
-   !------ Yanti correction (20/5/2013) ----------------------------------------
-   ! pCO2 is actually in uatm (=ppm)
-   ! mmol/m2/s = m/s * mmol/L/atm * atm
-   FCO2 = kCO2 * Ko * (pCO2 - self%atmco2)
+     !------ Yanti correction (20/5/2013) ----------------------------------------
+     ! pCO2 is actually in uatm (=ppm)
+     ! mmol/m2/s = m/s * mmol/L/atm * atm
+     FCO2 = kCO2 * Ko * (pCO2 - self%atmco2)
 
-   ! FCO2 = - kCO2 * Ko*1e6 * ((pCO2 * 1e-6) - self%atmco2) ! dCO2/dt
-   !----------------------------------------------------------------------------
+     ! FCO2 = - kCO2 * Ko*1e6 * ((pCO2 * 1e-6) - self%atmco2) ! dCO2/dt
+     !----------------------------------------------------------------------------
 
-   ! Transfer surface exchange value to FABM (mmmol/m2) converted by driver.
-   _SET_SURFACE_EXCHANGE_(self%id_dic,-FCO2)
+     ! Transfer surface exchange value to FABM (mmmol/m2) converted by driver.
+     _SET_SURFACE_EXCHANGE_(self%id_dic,-FCO2)
 
-   ! Also store oxygen flux across the atm/water interface as diagnostic variable (mmmol/m2).
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_atm_co2_exch,FCO2)
+     ! Also store oxygen flux across the atm/water interface as diagnostic variable (mmmol/m2).
+     _SET_HORIZONTAL_DIAGNOSTIC_(self%id_atm_co2_exch,FCO2)
+   END IF
+
+   ! CH4 flux
+   IF(self%simCH4) THEN
+     ! Algorithm from Arianto Santoso <abs11@students.waikato.ac.nz>
+
+     ! Concentration of methane in surface layer
+     _GET_(self%id_ch4,ch4)
+
+     ! Piston velocity for CH4
+     kCH4 = aed_gas_piston_velocity(windHt,wind,temp,salt,schmidt_model=4)
+
+     ! Solubility, Ko (mol/L/atm)
+
+     atm = 1.76 * 1e-6 !## current atmospheric CH4 data from NOAA (in ppm)
+
+     A1 = -415.2807
+     A2 = 596.8104
+     A3 = 379.2599
+     A4 = -62.0757
+     B1 = -0.05916
+     B2 = 0.032174
+     B3 = -0.0048198
+
+     logC = (log(atm)) + A1 + (A2 * (100./Tabs)) + (A3 * log (Tabs/100.)) + (A4 * (Tabs/100.)) + &
+                 salt * (B1 + (B2  * (Tabs/100.)) + (B3 * (Tabs/100.)*(Tabs/100.)))
+
+     CH4solub = exp(logC) * 1e-3
+
+
+     ! mmol/m2/s = m/s * mmol/m3
+     FCH4 = kCH4 *  (ch4 - CH4solub)
+
+     !----------------------------------------------------------------------------
+
+     ! Transfer surface exchange value to FABM (mmmol/m2) converted by driver.
+     _SET_SURFACE_EXCHANGE_(self%id_ch4,-FCH4)
+
+     ! Also store ch4 flux across the atm/water interface as diagnostic variable (mmmol/m2).
+     _SET_HORIZONTAL_DIAGNOSTIC_(self%id_atm_ch4_exch,FCH4)
+   END IF
+
 
    ! Leave spatial loops (if any)
    _HORIZONTAL_LOOP_END_

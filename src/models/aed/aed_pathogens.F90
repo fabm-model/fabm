@@ -57,10 +57,10 @@ MODULE aed_pathogens
       AED_REAL      :: coef_sett_w_path      !-- Sedimentation velocity (m/d) at 20C (-ve means down) for NON-ATTACHED orgs
    END TYPE
 
-   TYPE pathogen_data
-      ! General Attributes
-      TYPE(pathogen_nml_data) :: par
-   END TYPE
+!  TYPE pathogen_data
+!     ! General Attributes
+!     TYPE(pathogen_nml_data) :: par
+!  END TYPE
 
    TYPE,extends(type_base_model) :: aed_type_pathogens
 !     Variable identifiers

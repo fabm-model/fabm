@@ -147,9 +147,9 @@ SUBROUTINE aed_init_organic_matter(self,namlst)
    CHARACTER(len=64)         :: Fsed_poc_variable=''
    CHARACTER(len=64)         :: Fsed_doc_variable=''
 
-!  CHARACTER(len=64)         :: Psed_poc_variable=''
-!  CHARACTER(len=64)         :: Psed_pon_variable=''
-!  CHARACTER(len=64)         :: Psed_pop_variable=''
+   CHARACTER(len=64)         :: Psed_poc_variable=''
+   CHARACTER(len=64)         :: Psed_pon_variable=''
+   CHARACTER(len=64)         :: Psed_pop_variable=''
 
 
    AED_REAL,PARAMETER :: secs_pr_day = 86400.
@@ -168,8 +168,8 @@ SUBROUTINE aed_init_organic_matter(self,namlst)
              Kpoc_miner, Kdoc_miner, Ksed_doc,                &
              theta_poc_miner, theta_doc_miner, theta_sed_doc, KeDOM, KePOM, &
              doc_miner_reactant_variable, doc_miner_product_variable, &
-             Fsed_poc_variable, Fsed_doc_variable !, &
-!            Psed_poc_variable, Psed_pon_variable, Psed_pop_variable
+             Fsed_poc_variable, Fsed_doc_variable, &
+             Psed_poc_variable, Psed_pon_variable, Psed_pop_variable
 
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -264,19 +264,25 @@ SUBROUTINE aed_init_organic_matter(self,namlst)
    self%use_sed_model = Fsed_pon_variable .NE. ''
    IF (self%use_sed_model) THEN
      CALL self%register_horizontal_dependency(self%id_Fsed_pon,Fsed_pon_variable)
+     CALL self%request_coupling(self%id_Fsed_pon,Fsed_pon_variable)
      CALL self%register_horizontal_dependency(self%id_Fsed_don,Fsed_don_variable)
+     CALL self%request_coupling(self%id_Fsed_don,Fsed_don_variable)
      CALL self%register_horizontal_dependency(self%id_Fsed_pop,Fsed_pop_variable)
+     CALL self%request_coupling(self%id_Fsed_pop,Fsed_pop_variable)
      CALL self%register_horizontal_dependency(self%id_Fsed_dop,Fsed_dop_variable)
+     CALL self%request_coupling(self%id_Fsed_dop,Fsed_dop_variable)
      CALL self%register_horizontal_dependency(self%id_Fsed_poc,Fsed_poc_variable)
+     CALL self%request_coupling(self%id_Fsed_poc,Fsed_poc_variable)
      CALL self%register_horizontal_dependency(self%id_Fsed_doc,Fsed_doc_variable)
+     CALL self%request_coupling(self%id_Fsed_doc,Fsed_doc_variable)
    ENDIF
 
-!  self%use_sedmtn_model = Psed_poc_variable .NE. ''
-!  IF (self%use_sedmtn_model) THEN
-!    CALL self%register_horizontal_dependency(self%id_Psed_poc,Psed_poc_variable)
-!    CALL self%register_horizontal_dependency(self%id_Psed_pon,Psed_pon_variable)
-!    CALL self%register_horizontal_dependency(self%id_Psed_pop,Psed_pop_variable)
-!  ENDIF
+   self%use_sedmtn_model = Psed_poc_variable .NE. ''
+   IF (self%use_sedmtn_model) THEN
+      CALL self%register_horizontal_dependency(self%id_Psed_poc,Psed_poc_variable)
+      CALL self%register_horizontal_dependency(self%id_Psed_pon,Psed_pon_variable)
+      CALL self%register_horizontal_dependency(self%id_Psed_pop,Psed_pop_variable)
+   ENDIF
 
    ! Register diagnostic variables
    CALL self%register_diagnostic_variable(self%id_pon_miner,'pon_miner','mmol/m**3/d',  'PON mineralisation')
@@ -619,11 +625,11 @@ SUBROUTINE aed_organic_matter_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 
 
    ! Set sedimentation flux (mmmol/m2) as calculated by organic matter.
-!  IF (self%use_sedmtn_model) THEN
-!     _SET_STATE_BEN_(self%id_Psed_poc,Psed_poc)
-!     _SET_STATE_BEN_(self%id_Psed_pon,Psed_pon)
-!     _SET_STATE_BEN_(self%id_Psed_pop,Psed_pop)
-!  ENDIF
+   IF (self%use_sedmtn_model) THEN
+      _SET_STATE_BEN_(self%id_Psed_poc,Psed_poc)
+      _SET_STATE_BEN_(self%id_Psed_pon,Psed_pon)
+      _SET_STATE_BEN_(self%id_Psed_pop,Psed_pop)
+   ENDIF
 
    ! Set sink and source terms for the benthos (change per surface area per second)
    ! Note that this must include the fluxes to and from the pelagic.

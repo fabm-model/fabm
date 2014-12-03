@@ -38,16 +38,20 @@ MODULE aed_tracer
       TYPE (type_state_variable_id),ALLOCATABLE :: id_ss(:)
       TYPE (type_state_variable_id)             :: id_retain
       TYPE (type_dependency_id)                 :: id_temp
+      TYPE (type_horizontal_dependency_id)      :: id_taub
       LOGICAL                                   :: retention_time
+      LOGICAL                                   :: resuspension
 
 !     Model parameters
-      AED_REAL,ALLOCATABLE :: decay(:),settling(:), Fsed(:)
+      AED_REAL,ALLOCATABLE :: decay(:), settling(:), Fsed(:)
+      AED_REAL,ALLOCATABLE :: epsilon(:), tau_0(:), tau_r(:), Ke_ss(:)
 
       CONTAINS      ! Model Methods
         PROCEDURE :: initialize               => aed_init_tracer
         PROCEDURE :: do                       => aed_tracer_do
 !       PROCEDURE :: do_ppdd                  => aed_tracer_do_ppdd
         PROCEDURE :: do_benthos               => aed_tracer_do_benthos
+        PROCEDURE :: get_light_extinction     => aed_tracer_get_light_extinction
    END TYPE
 
 
@@ -74,13 +78,18 @@ SUBROUTINE aed_init_tracer(self,namlst)
    AED_REAL :: decay(100)
    AED_REAL :: settling(100)
    AED_REAL :: Fsed(100)
+   AED_REAL :: epsilon(100)
+   AED_REAL :: tau_0(100)
+   AED_REAL :: tau_r(100)
+   AED_REAL :: Ke_ss(100)
    AED_REAL :: trace_initial = zero_
    INTEGER  :: i
    LOGICAL  :: retention_time = .FALSE.
+   LOGICAL  :: resuspension = .TRUE.
    CHARACTER(4) :: trac_name
 
    AED_REAL,PARAMETER :: secs_pr_day = 86400.
-   NAMELIST /aed_tracer/ num_tracers,decay,settling,Fsed,retention_time
+   NAMELIST /aed_tracer/ num_tracers,decay,settling,Fsed,resuspension,epsilon,tau_0,tau_r,Ke_ss,retention_time
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -95,16 +104,23 @@ SUBROUTINE aed_init_tracer(self,namlst)
       ALLOCATE(self%decay(num_tracers))    ; self%decay(1:num_tracers)    = decay(1:num_tracers)
       ALLOCATE(self%settling(num_tracers)) ; self%settling(1:num_tracers) = settling(1:num_tracers)
       ALLOCATE(self%Fsed(num_tracers))     ; self%Fsed(1:num_tracers)     = Fsed(1:num_tracers)
+
+      ALLOCATE(self%epsilon(num_tracers))  ; self%epsilon(1:num_tracers)  = epsilon(1:num_tracers)
+      ALLOCATE(self%tau_0(num_tracers))    ; self%tau_0(1:num_tracers)    = tau_0(1:num_tracers)
+      ALLOCATE(self%tau_r(num_tracers))    ; self%tau_r(1:num_tracers)    = tau_r(1:num_tracers)
+      ALLOCATE(self%Ke_ss(num_tracers))    ; self%Ke_ss(1:num_tracers)    = Ke_ss(1:num_tracers)
+
+      trac_name = 'ss0'
+      ! Register state variables
+      DO i=1,num_tracers
+         trac_name(3:3) = CHAR(ICHAR('0') + i)
+                                             ! divide settling by secs_pr_day to convert m/d to m/s
+         CALL self%register_state_variable(self%id_ss(i),TRIM(trac_name),'mmol/m**3','tracer', &
+                                   trace_initial,minimum=zero_,no_river_dilution=.false.,vertical_movement=(settling(i)/secs_pr_day))
+      ENDDO
+      self%retention_time = retention_time
    ENDIF
 
-   trac_name = 'ss0'
-   ! Register state variables
-   DO i=1,num_tracers
-      trac_name(3:3) = CHAR(ICHAR('0') + i)
-      CALL self%register_state_variable(self%id_ss(i),TRIM(trac_name),'mmol/m**3','tracer', &
-                                   trace_initial,minimum=zero_,no_river_dilution=.false.)
-   ENDDO
-   self%retention_time = retention_time
    IF (retention_time) THEN
       CALL self%register_state_variable(self%id_retain, "ret",'sec','tracer', &
                                    trace_initial,minimum=zero_)
@@ -112,14 +128,15 @@ SUBROUTINE aed_init_tracer(self,namlst)
 
    ! Register environmental dependencies
    CALL self%register_dependency(self%id_temp,standard_variables%temperature)
+   CALL self%register_dependency(self%id_taub,standard_variables%bottom_stress)
+
+   self%resuspension = resuspension
 END SUBROUTINE aed_init_tracer
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
 SUBROUTINE aed_tracer_do(self,_ARGUMENTS_DO_)
-!-------------------------------------------------------------------------------
-! Right hand sides of aed_carbon model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    CLASS (aed_type_tracer),INTENT(in) :: self
@@ -157,10 +174,10 @@ SUBROUTINE aed_tracer_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
    AED_REAL :: temp
 
    ! State
-   AED_REAL :: ss
+   AED_REAL :: ss, bottom_stress = 0.
 
    ! Temporary variables
-   AED_REAL :: ss_flux, theta_sed_ss = 1.0
+   AED_REAL :: ss_flux, theta_sed_ss = 1.0, resus_flux = 0.
    INTEGER  :: i
 
 !-------------------------------------------------------------------------------
@@ -173,16 +190,26 @@ SUBROUTINE aed_tracer_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 
    ! Retrieve current environmental conditions for the bottom pelagic layer.
    _GET_(self%id_temp,temp)  ! local temperature
+   _GET_HORIZONTAL_(self%id_taub,bottom_stress)
+   bottom_stress = MIN(bottom_stress, 100.)
 
     DO i=1,ubound(self%id_ss,1)
     ! Retrieve current (local) state variable values.
        _GET_(self%id_ss(i),ss)
 
+      IF ( self%resuspension ) THEN
+         IF (bottom_stress > self%tau_0(i)) THEN
+            resus_flux = self%epsilon(i) * ( bottom_stress - self%tau_0(i)) / self%tau_r(i)
+         ELSE
+            resus_flux = 0.
+         ENDIF
+      ENDIF
+
       ! Sediment flux dependent on temperature only.
       ss_flux = self%Fsed(i) * (theta_sed_ss**(temp-20.0))
 
-      ! Transfer sediment flux value to FABM.
-      _SET_BOTTOM_EXCHANGE_(self%id_ss(i),ss_flux)
+      ! Transfer sediment flux value to model.
+      _SET_BOTTOM_EXCHANGE_(self%id_ss(i), ss_flux + resus_flux)
 
    ENDDO
 
@@ -190,6 +217,38 @@ SUBROUTINE aed_tracer_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
    _HORIZONTAL_LOOP_END_
 
 END SUBROUTINE aed_tracer_do_benthos
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+!###############################################################################
+SUBROUTINE aed_tracer_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
+!-------------------------------------------------------------------------------
+! Get the light extinction coefficient due to biogeochemical variables
+!-------------------------------------------------------------------------------
+!ARGUMENTS
+   CLASS (aed_type_tracer),INTENT(in) :: self
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
+!
+!LOCALS
+   AED_REAL :: ss
+   INTEGER  :: ss_i
+!
+!-----------------------------------------------------------------------
+!BEGIN
+   ! Enter spatial loops (if any)
+   _LOOP_BEGIN_
+
+   DO ss_i=1,ubound(self%id_ss,1)
+      ! Retrieve current (local) state variable values.
+      _GET_(self%id_ss(ss_i), ss)
+
+      ! Self-shading with explicit contribution from background tracer concentration.
+      _SET_EXTINCTION_(self%Ke_ss(ss_i)*ss)
+   ENDDO
+
+   ! Leave spatial loops (if any)
+   _LOOP_END_
+END SUBROUTINE aed_tracer_get_light_extinction
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 

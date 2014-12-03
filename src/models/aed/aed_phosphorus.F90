@@ -35,7 +35,7 @@ MODULE aed_phosphorus
 !
    TYPE,extends(type_base_model) :: aed_type_phosphorus
 !     Variable identifiers
-      TYPE (type_state_variable_id) :: id_frp, id_frpads, id_oxy,  id_tssfabm, id_pH
+      TYPE (type_state_variable_id) :: id_frp, id_frpads, id_oxy,  id_tss, id_pH
       TYPE (type_horizontal_dependency_id) :: id_Fsed_frp
       TYPE (type_dependency_id)          :: id_temp, id_tssext
       TYPE (type_horizontal_diagnostic_variable_id) :: id_sed_frp
@@ -145,7 +145,7 @@ SUBROUTINE aed_init_phosphorus(self,namlst)
          CALL self%register_dependency(self%id_tssext,standard_variables%mass_concentration_of_suspended_matter)
      ELSE
        IF (po4sorption_target_variable .NE. '' ) THEN
-          CALL self%register_state_dependency(self%id_tssfabm,po4sorption_target_variable)
+          CALL self%register_state_dependency(self%id_tss,po4sorption_target_variable)
        ELSE
           PRINT *,'PO4 adsorption is configured but no internal or external target variable is set'
           STOP
@@ -209,7 +209,7 @@ SUBROUTINE aed_phosphorus_check_state(self,_ARGUMENTS_CHECK_STATE_)
    _GET_(self%id_frp,frp)         ! dissolved PO4
    _GET_(self%id_frpads,frpads)   ! adsorped PO4
    IF (.NOT.self%ads_use_external_tss) THEN
-      _GET_(self%id_tssfabm,tss)       ! local total susp solids
+      _GET_(self%id_tss,tss)       ! local total susp solids
    END IF
 
 

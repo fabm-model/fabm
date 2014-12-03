@@ -40,7 +40,7 @@ MODULE aed_oxygen
       TYPE (type_dependency_id)          :: id_temp, id_salt
       TYPE (type_horizontal_dependency_id) :: id_wind
       TYPE (type_horizontal_dependency_id) :: id_Fsed_oxy
-      TYPE (type_diagnostic_variable_id) :: id_oxy_sat !, id_atm_oxy_exch3d
+      TYPE (type_horizontal_diagnostic_variable_id) :: id_oxy_sat !, id_atm_oxy_exch3d
       TYPE (type_horizontal_diagnostic_variable_id) :: id_atm_oxy_exch
       TYPE (type_horizontal_diagnostic_variable_id) :: id_sed_oxy
 
@@ -108,7 +108,10 @@ SUBROUTINE aed_init_oxygen(self,namlst)
 
    ! Register link to external pools
 
-   IF (self%use_sed_model) CALL self%register_horizontal_dependency(self%id_Fsed_oxy,Fsed_oxy_variable)
+   IF (self%use_sed_model) THEN
+      CALL self%register_horizontal_dependency(self%id_Fsed_oxy,Fsed_oxy_variable)
+      CALL self%request_coupling(self%id_Fsed_oxy,Fsed_oxy_variable)
+   ENDIF
 
    ! Register diagnostic variables
    CALL self%register_horizontal_diagnostic_variable(self%id_sed_oxy,       &
@@ -120,7 +123,7 @@ SUBROUTINE aed_init_oxygen(self,namlst)
 !  CALL self%register_horizontal_diagnostic_variable(self%id_atm_oxy_exch3d, &
 !                    'atm_oxy_exch3d', 'mmol/m**2/d', 'Oxygen exchange across atm/water interface')
 
-   CALL self%register_diagnostic_variable(self%id_oxy_sat,                  &
+   CALL self%register_horizontal_diagnostic_variable(self%id_oxy_sat,       &
                      'sat', 'mmol/m**2/d', 'Oxygen saturation')
 
    ! Register environmental dependencies
@@ -223,7 +226,7 @@ SUBROUTINE aed_oxygen_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
 
    ! Also store oxygen flux across the atm/water interface as diagnostic variable (mmmol/m2).
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_atm_oxy_exch,oxy_atm_flux)
-   _SET_DIAGNOSTIC_(self%id_oxy_sat, Coxy_air)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_oxy_sat, Coxy_air)
 
    ! Leave spatial loops (if any)
    _HORIZONTAL_LOOP_END_

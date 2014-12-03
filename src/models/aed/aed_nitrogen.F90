@@ -139,7 +139,9 @@ SUBROUTINE aed_init_nitrogen(self,namlst)
    self%use_sed_model = Fsed_amm_variable .NE. ''
    IF (self%use_sed_model) THEN
      CALL self%register_horizontal_dependency(self%id_Fsed_amm,Fsed_amm_variable)
+     CALL self%request_coupling(self%id_Fsed_amm,Fsed_amm_variable)
      CALL self%register_horizontal_dependency(self%id_Fsed_nit,Fsed_nit_variable)
+     CALL self%request_coupling(self%id_Fsed_nit,Fsed_nit_variable)
    ENDIF
 
    ! Register diagnostic variables
@@ -303,7 +305,7 @@ SUBROUTINE aed_nitrogen_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
    AED_REAL :: Fsed_amm, Fsed_nit
 
    ! Parameters
-   AED_REAL,PARAMETER :: secs_pr_day = 86400.
+!  AED_REAL,PARAMETER :: secs_pr_day = 86400.
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -318,23 +320,23 @@ SUBROUTINE aed_nitrogen_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
    _GET_(self%id_nit,nit) ! nitrate
 
    IF (self%use_sed_model) THEN
-       _GET_HORIZONTAL_(self%id_Fsed_amm,Fsed_amm)
-       _GET_HORIZONTAL_(self%id_Fsed_nit,Fsed_nit)
-!print *,'Fsed_amm = ',Fsed_amm,' Fsed_nit = ',Fsed_nit
+      _GET_HORIZONTAL_(self%id_Fsed_amm,Fsed_amm)
+      _GET_HORIZONTAL_(self%id_Fsed_nit,Fsed_nit)
    ELSE
-       Fsed_amm = self%Fsed_amm
-       Fsed_nit = self%Fsed_nit
+      Fsed_amm = self%Fsed_amm
+      Fsed_nit = self%Fsed_nit
    ENDIF
 
    IF (self%use_oxy) THEN
       ! Sediment flux dependent on oxygen and temperature
-       _GET_(self%id_oxy,oxy)
-       amm_flux = Fsed_amm * self%Ksed_amm/(self%Ksed_amm+oxy) * (self%theta_sed_amm**(temp-20.0))
-       nit_flux = Fsed_nit * oxy/(self%Ksed_nit+oxy) * (self%theta_sed_nit**(temp-20.0))
+      _GET_(self%id_oxy,oxy)
+      amm_flux = Fsed_amm * self%Ksed_amm/(self%Ksed_amm+oxy) * (self%theta_sed_amm**(temp-20.0))
+      nit_flux = Fsed_nit * oxy/(self%Ksed_nit+oxy) * (self%theta_sed_nit**(temp-20.0))
    ELSE
       ! Sediment flux dependent on temperature only.
-       amm_flux = Fsed_amm * (self%theta_sed_amm**(temp-20.0))
-       nit_flux = Fsed_nit * (self%theta_sed_nit**(temp-20.0))
+      oxy = 0.
+      amm_flux = Fsed_amm * (self%theta_sed_amm**(temp-20.0))
+      nit_flux = Fsed_nit * (self%theta_sed_nit**(temp-20.0))
    ENDIF
 
    ! TODO:

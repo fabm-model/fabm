@@ -65,28 +65,33 @@ END FUNCTION find_free_lun
 
 
 !###############################################################################
-PURE AED_REAL FUNCTION aed_gas_piston_velocity(wshgt,wind,tem,sal,LA)
+PURE AED_REAL FUNCTION aed_gas_piston_velocity(wshgt,wind,tem,sal,LA,schmidt_model)
 !-------------------------------------------------------------------------------
 ! Atmospheric-surface water exchange piston velocity for O2, CO2 etc
 !-------------------------------------------------------------------------------
 !ARGUMENTS
    AED_REAL,INTENT(IN)    :: wshgt,wind
-   AED_REAL,INTENT(in),OPTIONAL :: tem,sal
+   AED_REAL,INTENT(in) :: tem,sal
    AED_REAL,INTENT(in),OPTIONAL :: LA
+   INTEGER,INTENT(in),OPTIONAL :: schmidt_model
 !
 !LOCALS
    ! Temporary variables
    AED_REAL :: schmidt,k_wind,k_flow,temp,salt,hgtCorrx
+   INTEGER :: schmidt_model_l
    ! Parameters
    AED_REAL,PARAMETER :: roughlength = 0.000114  ! momn roughness length(m)
-   AED_REAL,PARAMETER :: SCHMIDT_MODEL = 2.0
 !
 !-------------------------------------------------------------------------------
 !BEGIN
+   schmidt_model_l = 2
    k_flow = zero_ ! Needs to be set based on flow velocity
 
    ! Adjust the windspeed if the sensor height is not 10m
    hgtCorrx =  LOG(10.00 / roughLength) / LOG(wshgt / roughLength)
+
+
+   IF (PRESENT(schmidt_model)) schmidt_model_l = schmidt_model
 
    IF (PRESENT(LA)) THEN
 
@@ -116,16 +121,21 @@ PURE AED_REAL FUNCTION aed_gas_piston_velocity(wshgt,wind,tem,sal,LA)
 
       schmidt = 590.
 
-      IF(SCHMIDT_MODEL==1) THEN
+      SELECT CASE (schmidt_model_l)
+      CASE (1)
          schmidt = (0.9 + 0.1*salt/35.0)*(1953.4+temp*(-128.0+temp*(3.9918-temp*0.050091)))
-      ELSEIF(SCHMIDT_MODEL==2) THEN
+      CASE (2)
          schmidt = (0.9 + salt/350.0)
          schmidt = schmidt * (2073.1 -125.62*temp +3.6276*temp*temp - 0.043219*temp*temp*temp)
-      ELSEIF(SCHMIDT_MODEL==3) THEN
+      CASE (3)
          ! http://www.geo.uu.nl/Research/Geochemistry/kb/Knowledgebook/O2_transfer.pdf
          schmidt = (1.0 + 3.4e-3*salt)
          schmidt = schmidt * (1800.6 -120.1*temp +3.7818*temp*temp - 0.047608*temp*temp*temp)
-      ENDIF
+      CASE (4)
+         ! CH4 one from Arianto Santoso <abs11@students.waikato.ac.nz>
+         schmidt = 2039.2 - (120.31*temp) + (3.4209*temp*temp) - (0.040437*temp*temp*temp)
+         schmidt = schmidt / 600
+      END SELECT
 
       ! Gas transfer velocity, kCO2 (cm/hr)
       ! k = 0.31 u^2 (Sc/660)^-0.5
