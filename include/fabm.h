@@ -524,6 +524,7 @@
 #define _FABM_HORIZONTAL_LOOP_END_ _HORIZONTAL_LOOP_END_
 
 #define _GET_WITH_BACKGROUND_(variable,target) target = environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index)+variable%background
+#define _GET_HORIZONTAL_WITH_BACKGROUND_(variable,target) target = environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index)+variable%background
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 
