@@ -109,23 +109,24 @@ module fabm_builtin_models
       logical,optional,         intent(in)           :: create_for_one
 
       logical :: sum_used,create_for_one_
+      type (type_link),pointer :: link
 
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
 
-      call parent%add_bulk_variable(name,self%output_units,name)
+      call parent%add_bulk_variable(name,self%output_units,name,link=link)
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
-         call parent%request_coupling(name,'zero')
+         call parent%request_coupling(link,'zero')
          sum_used = .false.
       elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
-         call parent%request_coupling(name,self%first%name)
+         call parent%request_coupling(link,self%first%name)
          sum_used = .false.
       else
          ! One component with scale factor non equal to 1, or multiple components. Create the sum.
          call parent%add_child(self,trim(name)//'_calculator',configunit=-1)
-         call parent%request_coupling(name,trim(name)//'_calculator/result')
+         call parent%request_coupling(link,trim(name)//'_calculator/result')
          sum_used = .true.
       end if
    end function
@@ -223,23 +224,24 @@ module fabm_builtin_models
       logical,optional,                    intent(in)           :: create_for_one
 
       logical :: sum_used,create_for_one_
+      type (type_link),pointer :: link
 
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
 
-      call parent%add_horizontal_variable(name,self%output_units,name)
+      call parent%add_horizontal_variable(name,self%output_units,name,link=link)
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
-         call parent%request_coupling(name,'zero_hz')
+         call parent%request_coupling(link,'zero_hz')
          sum_used = .false.
       elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
-         call parent%request_coupling(name,self%first%name)
+         call parent%request_coupling(link,self%first%name)
          sum_used = .false.
       else
          ! One component with scale factor unequal to 1, or multiple components. Create the sum.
          call parent%add_child(self,trim(name)//'_calculator',configunit=-1)
-         call parent%request_coupling(name,trim(name)//'_calculator/result')
+         call parent%request_coupling(link,trim(name)//'_calculator/result')
          sum_used = .true.
       end if
    end function

@@ -60,6 +60,8 @@
    public get_aggregate_variable, type_aggregate_variable, type_contributing_variable, type_contribution
    public time_treatment2output,output2time_treatment
 
+   public type_coupling_task, create_coupling_task_for_link
+
 ! !PUBLIC DATA MEMBERS:
 !
    integer, parameter, public :: attribute_length = 256
@@ -128,6 +130,20 @@
       procedure :: is_empty    => integer_pointer_set_is_empty
       procedure :: copy_values => integer_pointer_copy_values
       procedure :: clear       => integer_pointer_clear
+   end type
+
+   type type_coupling_task
+      type (type_internal_variable), pointer :: slave       => null()
+      character(len=attribute_length)        :: slave_name  = ''
+      character(len=attribute_length)        :: master_name = ''
+      type (type_coupling_task), pointer     :: previous    => null()
+      type (type_coupling_task), pointer     :: next        => null()
+   end type
+
+   type type_coupling_task_list
+      type (type_coupling_task),pointer :: first => null()
+   contains
+      procedure :: pop => coupling_task_list_pop
    end type
 
    ! ====================================================================================================
@@ -346,6 +362,8 @@
       type (type_hierarchical_dictionary) :: parameters
 
       class (type_expression), pointer :: first_expression => null()
+
+      type (type_coupling_task_list), pointer :: coupling_task_list => null()
 
       real(rk) :: dt = 1.0_rk
 
@@ -1022,7 +1040,8 @@ subroutine request_coupling_for_link(self,link,master)
    type (type_link),       intent(inout)              :: link
    character(len=*),       intent(in)                 :: master
 
-   call self%request_coupling(link%name,master)
+   call self%couplings%set_string(link%name,master)
+   if (associated(self%coupling_task_list)) call create_coupling_task_for_link(self,link)
 end subroutine request_coupling_for_link
 
 subroutine request_coupling_for_name(self,slave,master)
@@ -1030,6 +1049,8 @@ subroutine request_coupling_for_name(self,slave,master)
    character(len=*),       intent(in)                 :: slave,master
 
    call self%couplings%set_string(slave,master)
+   if (associated(self%coupling_task_list)) call fatal_error('request_coupling_for_name', &
+      'BUG: Coupling by name requested while coupling_task_list exists. Couple by link or id instead.')
 end subroutine request_coupling_for_name
 
 subroutine request_coupling_for_id(self,id,master)
@@ -1386,7 +1407,6 @@ end subroutine real_pointer_set_set_value
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self,variable)
       if (present(link)) link => link_
-
    end subroutine add_variable
 !EOC
 
@@ -2589,6 +2609,39 @@ end subroutine
          case (output_time_step_integrated); time_treatment = time_treatment_step_integrated
       end select
    end function
+
+   subroutine create_coupling_task_for_link(self,link)
+      class (type_base_model),intent(inout) :: self
+      type (type_link),       intent(inout) :: link
+
+      class (type_property),     pointer :: master_name
+      type (type_coupling_task), pointer :: coupling
+
+      ! Try to find a coupling for this variable.
+      master_name => self%couplings%find_in_tree(link%name)
+      if (associated(master_name)) then
+         select type (master_name)
+            class is (type_string_property)
+               allocate(coupling)
+               coupling%next => self%coupling_task_list%first
+               if (associated(coupling%next)) coupling%next%previous => coupling
+               self%coupling_task_list%first => coupling
+               coupling%slave_name = link%name
+               coupling%master_name = master_name%value
+               coupling%slave => link%target
+         end select
+      end if
+   end subroutine create_coupling_task_for_link
+
+   subroutine coupling_task_list_pop(self,task)
+      class (type_coupling_task_list),intent(inout) :: self
+      type (type_coupling_task),pointer             :: task
+      if (associated(task%previous)) then
+         task%previous%next => task%next
+      else
+         self%first => task%next
+      end if
+   end subroutine
 
    end module fabm_types
 
