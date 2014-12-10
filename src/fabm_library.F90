@@ -12,19 +12,21 @@
    use fabm_types, only: type_base_model_factory, type_base_model, factory
 
    use fabm_builtin_models
+!  Add additional external modules containing models or model factories here
+!  please in alphabetically order
    use aed_models
+   use au_prey_predator
    use bb_model_library
    use examples_model_library
-   use gotm_model_library
-   use iow_model_library
-   use niva_model_library
    use fabm_metu_mnemiopsis
    use fabm_pml_carbonate
-   use au_prey_predator
    use fabm_klimacampus_phy_feedback
    use fabm_hzg_omexdia_p
    use fabm_msi_ergom1
-   ! Add additional external modules containing models or model factories here
+   use gotm_model_library
+   use iow_model_library
+   use niva_model_library
+   use pclake_model_library
 
    implicit none
 
@@ -54,6 +56,7 @@
          call factory%add(iow_model_factory)
          call factory%add(niva_model_factory)
          ! Add new additional model factories here
+         call factory%add(pclake_model_factory)
 
       end if
    end subroutine
