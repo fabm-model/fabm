@@ -11,6 +11,8 @@ configure_file("${GOTM_BASE}/include/version.h.in" "${CMAKE_BINARY_DIR}/gotm/ver
 
 # Build 0d executable.
 add_executable (fabm0d main.F90 fabm0d.F90 shared.F90 output.F90 fabm_0d.h
+                ${GOTM_BASE}/src/airsea/solar_zenith_angle.F90
+                ${GOTM_BASE}/src/airsea/albedo_water.F90
                 ${GOTM_BASE}/src/airsea/short_wave_radiation.F90
                 ${GOTM_BASE}/src/input/input.F90
                 ${GOTM_BASE}/src/util/eqstate.F90

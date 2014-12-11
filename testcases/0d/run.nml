@@ -15,7 +15,8 @@ repair_state=.false.
 
 &environment
 env_file='env_nns_annual.dat'
-swr_method=1
+swr_method=0
+albedo_correction=.true.
 latitude=54.0
 longitude=9.0
 cloud=0.0

@@ -48,6 +48,7 @@
    integer  :: ode_method
    logical  :: repair_state
    integer  :: swr_method
+   logical  :: albedo_correction
    real(rk) :: cloud
    real(rk) :: par_fraction
    real(rk) :: par_background_extinction
@@ -61,7 +62,7 @@
 
    type (type_bulk_variable_id), save :: id_dens, id_par
    logical                            :: compute_density
-
+#if 0
    interface
       function short_wave_radiation(jul,secs,dlon,dlat,cloud,bio_albedo) result(swr)
          import
@@ -72,6 +73,7 @@
          real(rk)                            :: swr
       end function short_wave_radiation
    end interface
+#endif
 !EOP
 !-----------------------------------------------------------------------
 
@@ -161,7 +163,7 @@
    real(rk),allocatable      :: rhs(:,:)
 
    namelist /model_setup/ title,start,stop,dt,ode_method,repair_state
-   namelist /environment/ env_file,swr_method, &
+   namelist /environment/ env_file,swr_method,albedo_correction, &
                           latitude,longitude,cloud,par_fraction, &
                           depth,par_background_extinction,apply_self_shading
 !EOP
@@ -198,6 +200,7 @@
    ! Read environment namelist
    env_file = ''
    swr_method = 0
+   albedo_correction = .true.
    latitude = invalid_latitude
    longitude = invalid_longitude
    cloud = 0.0_rk
@@ -276,6 +279,7 @@
          LEVEL2 latitude,longitude
          LEVEL2 'Local PAR will be calculated from the surface value,'
          LEVEL2 'depth, and light extinction coefficient.'
+         LEVEL2 'albedo_correction =',albedo_correction
       case (1)
          LEVEL2 'Surface photosynthetically active radiation (PAR) is provided as input.'
          LEVEL2 'Local PAR will be calculated from the surface value,'
@@ -547,7 +551,12 @@
    subroutine start_time_step(n)
       integer(timestepkind),intent(in) :: n
 
-      real(rk)                         :: bio_albedo
+      real(rk)                         :: zenith_angle,solar_zenith_angle
+      real(rk)                         :: short_wave_radiation
+      real(rk)                         :: albedo,albedo_water,bio_albedo
+      real(rk)                         :: hh
+
+      bio_albedo = _ZERO_
 
       ! Update time in time manager
       call update_time(n)
@@ -567,7 +576,23 @@
       if (swr_method==0) then
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
          call fabm_get_albedo(model,bio_albedo)
-         swr_sf = short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,bio_albedo)
+         hh = secondsofday*(_ONE_/3600)
+#if 0
+         zenith_angle = solar_zenith_angle(yearday,hh,longitude,latitude)
+         swr_sf = short_wave_radiation(zenith_angle,yearday,longitude,latitude,cloud)
+         if (albedo_correction) then
+            albedo = albedo_water(1,zenith_angle,yearday)
+            swr_sf = swr_sf*(_ONE_-albedo-bio_albedo)
+         end if
+#else
+         swr_sf = short_wave_radiation(yearday,hh,longitude,latitude,cloud)
+         if (albedo_correction) then
+            albedo = albedo_water(1,yearday,hh,longitude,latitude)
+            swr_sf = swr_sf*(_ONE_-albedo-bio_albedo)
+else
+stop 'egon'
+         end if
+#endif
       end if
 
       ! Multiply by fraction of short-wave radiation that is photosynthetically active.
