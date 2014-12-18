@@ -18,7 +18,7 @@
 ! !USES:
    use fabm_types
    use fabm_expressions
-   use pclake_utility, ONLY: uFunTmAbio,uFunTmBio
+   use au_pclake_utility, ONLY: uFunTmAbio,uFunTmBio
 
    implicit none
 

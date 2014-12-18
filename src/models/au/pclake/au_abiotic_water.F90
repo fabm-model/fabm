@@ -23,7 +23,7 @@
 ! !USES:
    use fabm_types
    use fabm_standard_variables
-   use pclake_utility, ONLY: uFunTmAbio
+   use au_pclake_utility, ONLY: uFunTmAbio
 
    implicit none
 

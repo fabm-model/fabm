@@ -37,7 +37,7 @@
 !
 ! !USES:
    use fabm_types
-   use pclake_utility, ONLY: uFunTmAbio
+   use au_pclake_utility, ONLY: uFunTmAbio
    implicit none
 !  default: all is private.
    private

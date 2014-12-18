@@ -22,7 +22,7 @@
    use fabm_types
    use fabm_expressions
    use fabm_standard_variables
-   use pclake_utility, ONLY:uFunTmVeg
+   use au_pclake_utility, ONLY:uFunTmVeg
 
    implicit none
 

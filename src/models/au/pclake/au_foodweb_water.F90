@@ -36,7 +36,7 @@
 !   sNH4W<==sNZoo&sNFiJv&sNFiAd&aNPisc,sPO4<==sPZoo&sPFiJv&sPFiAd&aPPisc,sNO3W<==0.0
 ! !USES:
    use fabm_types
-   use pclake_utility, ONLY:uFunTmBio
+   use au_pclake_utility, ONLY:uFunTmBio
 
    implicit none
 
