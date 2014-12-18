@@ -1,6 +1,6 @@
 !*******************************************************************************
 !*                                                                             *
-!* pclake_model_library.F90                                                           *
+!* au_pclake_model_library.F90                                                 *
 !*                                                                             *
 !* Developed by :                                                              *
 !*     Aquatic Ecology and Water Quality Management                            *
@@ -12,17 +12,17 @@
 !*     Copyright by the PCLake_FABM group @AU-silkeborg                        *
 !*     under the GNU Public License - www.gnu.org                              *
 !*                                                                             *
-!*      Created December 2014                                                     *
+!*      Created March 2014                                                     *
 !*-----------------------------------------------------------------------------*
 !*-----------------------------------------------------------------------------*
 !* If you have questions and suggestions regarding this model, please write to *
-!*      Fenjuan Hu: fenjuan@bios.au.dk                                         *
-!*      Dennis Trolle: trolle@bios.au.dk                                       *
-!*      Karsten Bolding: bolding@bios.au.dk                                    *
+!*      Fenjuan Hu: fenjuan@bios.au.dk                                             *
+!*      Dennis Trolle:dtr@bios.au.dk                                           *
+!*      Karsten Bolding:bold@bios.au.dk                                        *
 !*-----------------------------------------------------------------------------*
 !*******************************************************************************
 
-module pclake_model_library
+module au_pclake_model_library
 
    use fabm_types, only: type_base_model_factory,type_base_model
    
@@ -35,21 +35,21 @@ module pclake_model_library
       procedure :: create
    end type
 
-   type (type_factory),save,target,public :: pclake_model_factory
+   type (type_factory),save,target,public :: au_pclake_model_factory
 
 contains
 
    subroutine create(self,name,model)
 
-      use pclake_abiotic_water
-      use pclake_abiotic_sediment
-      use pclake_phytoplankton_water
-      use pclake_phytoplankton_sediment
-      use pclake_macrophytes
-      use pclake_foodweb_water
-      use pclake_foodweb_sediment
-      use pclake_auxilary
-      use pclake_dummy_state
+      use au_pclake_abiotic_water
+      use au_pclake_abiotic_sediment
+      use au_pclake_phytoplankton_water
+      use au_pclake_phytoplankton_sediment
+      use au_pclake_macrophytes
+      use au_pclake_foodweb_water
+      use au_pclake_foodweb_sediment
+      use au_pclake_auxilary
+      use au_pclake_dummy_state
       
 
       class (type_factory),intent(in) :: self
@@ -60,15 +60,15 @@ contains
     !NULLIFY(model)
     
        select case (name)
-       case ('pclake_abiotic_water');                allocate(type_pclake_abiotic_water::model);
-       case ('pclake_abiotic_sediment');                allocate(type_pclake_abiotic_sediment::model);
-       case ('pclake_phytoplankton_water');          allocate(type_pclake_phytoplankton_water::model);
-       case ('pclake_phytoplankton_sediment');          allocate(type_pclake_phytoplankton_sediment::model);
-       case ('pclake_macrophytes');                allocate(type_pclake_macrophytes::model);
-       case ('pclake_foodweb_water');                allocate(type_pclake_foodweb_water::model);
-       case ('pclake_foodweb_sediment');                allocate(type_pclake_foodweb_sediment::model);
-       case ('pclake_auxilary');                   allocate(type_pclake_auxilary::model);
-       case ('pclake_dummy_state');                   allocate(type_pclake_dummy_state::model);
+       case ('au_pclake_abiotic_water');                allocate(type_au_pclake_abiotic_water::model);
+       case ('au_pclake_abiotic_sediment');                allocate(type_au_pclake_abiotic_sediment::model);
+       case ('au_pclake_phytoplankton_water');          allocate(type_au_pclake_phytoplankton_water::model);
+       case ('au_pclake_phytoplankton_sediment');          allocate(type_au_pclake_phytoplankton_sediment::model);
+       case ('au_pclake_macrophytes');                allocate(type_au_pclake_macrophytes::model);
+       case ('au_pclake_foodweb_water');                allocate(type_au_pclake_foodweb_water::model);
+       case ('au_pclake_foodweb_sediment');                allocate(type_au_pclake_foodweb_sediment::model);
+       case ('au_pclake_auxilary');                   allocate(type_au_pclake_auxilary::model);
+       case ('au_pclake_dummy_state');                   allocate(type_au_pclake_dummy_state::model);
        
        !case default
            

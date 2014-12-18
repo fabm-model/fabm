@@ -27,6 +27,7 @@
    use iow_model_library
    use niva_model_library
    use pclake_model_library
+   use au_pclake_model_library
 
    implicit none
 
@@ -57,7 +58,7 @@
          call factory%add(niva_model_factory)
          ! Add new additional model factories here
          call factory%add(pclake_model_factory)
-
+         call factory%add(au_pclake_model_factory)
       end if
    end subroutine
 !-----------------------------------------------------------------------

@@ -1,0 +1,598 @@
+instances:
+  abiotic_water:
+    model: au_pclake_abiotic_water
+    long_name: abiotic_process_in_water
+    initialization:
+      sNH4W: 0.0781417         # gDW/m**3; water IM
+      sNO3W: 0.139291          # gN/m**3 ; NO3 in water
+      sPO4W: 0.0668054         # gP/m**3
+      sPAIMW: 0.000238167         # gP/m**3 ; adsorbed on IM in water
+      sSiO2W: 3.72024         # gSi/m**3 ; dissolved silica in water
+      sO2W: 12.9174          # gO2/m**3 ; oxygen in water
+      sDIMW: 3.84865          # gDW/m**3 ; water IM
+      sDDetW: 3.16455         # gDW/m**3 ; water detritus
+      sPDetW: 0.00878401       # gP/m**3 ; water detritus,cPDDet0=0.0025,gP/gDDet ; initial P fraction in detritus
+      sNDetW: 0.0596219       # gN/m**3 ; water detritus,cNDDet0 [ 0.025 ] gN/gDDet ; initial N fraction in detritus
+      sSiDetW: 0.147208       # gSi/m**3 ; water detritus,cSiDDet0 [ 0.01 ] gSi/gDDet ; initial Si fraction in detritus
+    parameters:       
+      cCPerDW: 0.4       # gC/gDW ; C content of organic matter
+      cExtSpDet : 0.15    # 0.15 m2/gDW  specific_extinction_detritus"
+      cExtSpIM: 0.05      # 0.05m2/gDW  specific_extinction_inert_matter"
+      cKPAdsOx: 0.6      # m3/gP ; P adsorption affinity at oxidized conditions
+      cRelPAdsAl: 0.134  # gP/gAl ; max. P adsorption per g Al
+      cRelPAdsD: 0.00003 # gP/gD ; max. P adsorption per g DW
+      cRelPAdsFe: 0.065  # gP/gFe ; max. P adsorption per g Fe
+      cThetaAer: 1.024   # 1/e^oC ; Temperature coeff. for reaeration
+      cThetaMinW: 1.07   # expon. temp. constant of mineralization in water
+      cThetaNitr: 1.08   # Temperature coefficient for nitrification
+      fAlDIM: 0.01       # gAl/gD ; Al content of inorg. matter
+      fFeDIM: 0.01       # gFe/gD ; Fe content of inorg. matter
+      fRedMax: 0.9       # max. reduction factor of P adsorption affinity
+      hNO3Denit: 2       # mgN/l ; quadratic half-sat. NO3 conc. for denitrification
+      hO2BOD: 1          # mgO2/l ; half-sat. oxygen conc. for BOD
+      hO2Nitr: 2         # mgO2/l'
+      kDMinDetW: 0.01    # day-1 ; decomposition constant of detritus
+      kNitrW: 0.1        # day-1 ; nitrification rate constant in water
+      kPSorp: 0.05       # day-1 ; P sorption rate constant not too high -> model speed day
+      NO3PerC: 0.8       # mol NO3 denitrified per mol C mineralised
+      O2PerNH4: 2        # mol O2 used per mol NH4+ nitrified
+# sinking                
+      cVSetIM: -1.0       # m/day ; max. sedimentation velocity of inert org. matter
+      cVSetDet: -0.25     # m/day ; max. sedimentation velocity of detritus
+  abiotic_sediment:      
+    model: au_pclake_abiotic_sediment
+    long_name: abiotic_process_in_sediment
+    initialization:
+      sNH4S: 0.0378029        # gN/m2 ; dissolved N-NH4 in interstitial water
+      sNO3S: 0.0255708       # gN/m2 ; dissolved N-NO3 in interstitial water
+      sPO4S: 0.0199575    # gP/m2 ; dissolved P-PO4 in interstitial water,sPO4S0 = (1.0 - fPAdsS0) * fPInorgS0 * bDTotS0
+      sPAIMS: 2.02023      # gP/m2 ; absorbed P in sediment,sPAIMS0 = fPAdsS0 * fPInorgS0 * bDTotS0
+      sDIMS: 31706.9     # gDW/m2; Inor. in sediment, sDIMS0 = bDTotS0 - sDHumS0 - sDDetS0
+      sDDetS: 474.522     # gDW/m2, detritus in sediment, sDDetS0 = fDDetS0 * fDOrgS0 * bDTotS0
+      sNDetS: 6.05322       # gN/m2, detritus in sediment,cNDDet0 [ 0.025 ] gN/gDDet ; initial N fraction in detritus
+      sPDetS: 0.997002      # gP/m2, detritus in sediment,cPDDet0=0.0025,gP/gDDet ; initial P fraction in detritus
+      sSiDetS: 14.4451      # gSi/m2, detritus in sediment,cSiDDet0 [ 0.01 ] gSi/gDDet ; initial Si fraction in detritus
+      sDHumS: 3719.32    # gDW/m2, humus in sediment,
+      sNHumS: 166.104     # gN/m2, humus in sediment,initial N fraction in humus
+      sPHumS: 16.9661      # gP/m2, humus in sediment, initial P fraction in humus
+    parameters:
+      bPorS: 0.847947    #  porosity [m3 water m-3 sediment],bPorS = 
+                         # (1.0 - fDTotS0) * bRhoSolidS0 / cRhoWat / 
+                         # ( fDTotS0 + (1.0 - fDTotS0) *bRhoSolidS0 / cRhoWat )
+      bPorCorS: 0.737275 # sediment porosity, corrected for tortuosity,bPorCorS = bPorS ** (bPorS + 1.0)
+      cCPerDW: 0.4       # gC/gDW ; C content of organic matter
+      cDepthS: 0.1       # sediment depth [m]
+      cKPAdsOx: 0.6      #   m3/gP ; P adsorption affinity at oxidized conditions
+      coPO4Max: 1.0      # mgP/l ; max. SRP conc. in pore water
+      cRelPAdsAl: 0.134  #  gP/gAl ; max. P adsorption per g Al
+      cRelPAdsD: 0.00003 # gP/gD ; max. P adsorption per g DW
+      cRelPAdsFe: 0.065  # gP/gFe ; max. P adsorption per g Fe
+      cThetaDif: 1.02    # Temperature coefficient for diffusion
+      cThetaMinS: 1.07   # - ; expon. temp. constant of sediment mineralization
+      cThetaNitr: 1.08   # Temperature coefficient for nitrification
+      cTurbDifNut: 5.0   # bioturbation factor for diffusion
+      cTurbDifO2: 5.0    # - ; bioturbation factor for diffusion
+      fAlDIM: 0.01       # gAl/gD ; Al content of inorg. matter
+      fDepthDifS: 0.5    # utrient diffusion distance as fraction of sediment depth
+      fFeDIM: 0.01       #  gFe/gD ; Fe content of inorg. matter
+      fRedMax: 0.9       #  max. reduction factor of P adsorption affinity
+      fRefrDetS: 0.15    # - ; refractory fraction of sed. detritus
+      hNO3Denit: 2.0     # mgN/l ; quadratic half-sat. NO3 conc. for denitrification
+      kDMinDetS: 0.002   # "day-1 ; decomposition constant of sediment detritus
+      kNDifNH4: 0.000112 # m2/day ; mol. NH4 diffusion constant
+      kNDifNO3: 0.000086 # m2/day ; mol. NO3 diffusion constant
+      kNitrS: 1.0        # day-1,nitrification rate constant in sediment
+      kO2Dif: 0.000026   # m2/day ; mol. O2 diffusion constant
+      kPChemPO4: 0.03    # day-1 ; chem. PO4 loss rate
+      kPDifPO4: 0.000072 # m2/day ; mol. PO4 diffusion constant
+      kPSorp: 0.05       #  day-1 ; P sorption rate constant not too high -> model speed
+      NO3PerC: 0.8       # mol NO3 denitrified per mol C mineralised
+      O2PerNH4: 2.0      # mol O2 used per mol NH4+ nitrified
+      kDMinHum: 0.00001  # day-1 ,maximum_decomposition_constant_of_humic_material_(1D-5)
+    coupling:
+      oxygen_pool_water: abiotic_water/sO2W
+      SiO2_generated_by_mineralization: abiotic_water/sSiO2W
+      NH4_diffusion_flux: abiotic_water/sNH4W
+      NO3_diffusion_flux: abiotic_water/sNO3W
+      PO4_diffusion_flux: abiotic_water/sPO4W
+  phytoplankton_water:
+    model: au_pclake_phytoplankton_water
+    long_name: phytoplankton_in_water
+    initialization:
+      sDDiatW: 0.414496
+      sPDiatW: 0.00183624
+      sNDiatW: 0.0175416
+      sDGrenW: 0.0113223
+      sPGrenW: 0.000127791
+      sNGrenW: 0.000875793
+      sDBlueW: 0.0280964
+      sPBlueW: 0.000663414
+      sNBlueW: 0.00356158
+    parameters:
+      cAffNUptBlue: 0.2    # l/mgDW/day ; initial N uptake affinity Bluegreens
+      cAffNUptDiat: 0.2    # l/mgDW/day ; initial N uptake affinity Diatoms
+      cAffNUptGren: 0.2    # l/mgDW/day ; initial N uptake affinity greensupling:
+      cAffPUptBlue: 0.8    # l/mgDW/day ; initial P uptake affinity Bluegreens
+      cAffPUptDiat: 0.2    # l/mgDW/day ; initial P uptake affinity Diatoms
+      cAffPUptGren: 0.2    # l/mgDW/day ; initial P uptake affinity greens
+      cChDBlueMax: 0.015   # mgChl/mgDW             max._chlorophyll/C_ratio_Bluegreens
+      cChDBlueMin: 0.005   # mgChl/mgDW             min._chlorophyll/C_ratio_Bluegreens
+      cChDDiatMax: 0.012   # mgChl/mgDW             max._chlorophyll/C_ratio_Diatoms
+      cChDDiatMin: 0.004   # mgChl/mgDW             min._chlorophyll/C_ratio_Diatoms
+      cChDGrenMax: 0.02    # mgChl/mgDW             max._chlorophyll/C_ratio_greens
+      cChDGrenMin: 0.01    # mgChl/mgDW             min._chlorophyll/C_ratio_greens
+      cCPerDW: 0.4         # gC/gDW ; C content of organic matter
+      cExtSpBlue : 0.35     #0.35m2/gDW             specific_extinction_Bluegreens"
+      cExtSpDiat : 0.25    # 0.25m2/gDW             specific_extinction_Diatoms"
+      cExtSpGren : 0.25    # 0.25m2/gDW             specific_extinction_greens"
+      cLOptRefBlue: 13.6   # W/m2 ; optimum PAR for blue-greens at 20 oC (Steele function)
+      cLOptRefDiat: 54.0   # W/m2 ; optimum PAR for Diatoms at 20 oC (Steele function)
+      cMuMaxBlue: 0.6      # day-1                  maximum_growth_rate_Bluegreens'
+      cMuMaxDiat: 2.0      # day-1                  maximum_growth_rate_Diatoms
+      cMuMaxGren: 1.5      # day-1                  maximum_growth_rate_greens
+      cNDBlueMax: 0.15     # mgN/mgDW ; max. N/day ratio Bluegreens
+      cNDBlueMin: 0.03     # mgN/mgDW ; minimum N/day ratio Bluegreens
+      cNDDiatMax: 0.05     # mgN/mgDW ; max. N/day ratio Diatoms
+      cNDDiatMin: 0.01     # mgN/mgDW ; minimum N/day ratio Diatoms
+      cNDGrenMax: 0.1      # mgN/mgDW ; max. N/day ratio greens
+      cNDGrenMin: 0.02     # mgN/mgDW ; minimum N/day ratio greens
+      cPDBlueMax: 0.025    # mgP/mgDW ; max. P/day ratio blue-greens
+      cPDBlueMin: 0.0025   # mgP/mgDW ; minimum P/day ratio Bluegreens
+      cPDDiatMax: 0.005    # mgP/mgDW ; max. P/day ratio Diatoms
+      cPDDiatMin: 0.0005   # mgP/mgDW ; minimum P/day ratio Diatoms
+      cPDGrenMax: 0.015    # mgP/mgDW ; max. P/day ratio greens
+      cPDGrenMin: 0.0015   # mgP/mgDW ; minimum P/day ratio greens
+      cSiDDiat: 0.15       # mgSi/mgDW ; Si/D ratio of diatoms
+      cSigTmBlue: 12.0     # oC ; temperature constant blue-greens (sigma in Gaussian curve)
+      cSigTmDiat: 20.0     # oC ; temperature constant diatoms (sigma in Gaussian curve)
+      cSigTmGren: 15.0     # oC ; temperature constant greens (sigma in Gaussian curve)
+      cTmOptBlue: 25.0     # oC ; optimum temp. blue-greens
+      cTmOptDiat: 18.0     # oC ; optimum temp. diatoms
+      cTmOptGren: 25.0     # oC ; optimum temp. of greens
+      cVNUptMaxBlue: 0.07  # mgN/mgDW/day ; maximum N uptake capacity of Bluegreens
+      cVNUptMaxDiat: 0.07  # mgN/mgDW/day ; maximum N uptake capacity of Diatoms
+      cVNUptMaxGren: 0.07  # mgN/mgDW/day ; maximum N uptake capacity of greens
+      cVPUptMaxBlue: 0.04  # mgP/mgDW/day ; maximum P uptake capacity of Bluegreens
+      cVPUptMaxDiat: 0.01  # mgP/mgDW/day ; maximum P uptake capacity of Diatoms
+      cVPUptMaxGren: 0.01  # mgP/mgDW/day ; maximum P uptake capacity of greens
+      fDissMortPhyt: 0.2   # [-], soluble_nutrient_fraction_of_died_Algae6
+      hLRefGren: 17.0      # W/m2 ; half-sat. PAR for green algae at 20 oC (Lehmann function)
+      hO2BOD: 1.0          # mgO2/l ; half-sat. oxygen conc. for BOD
+      hSiAssBlue: 0.0      # mgSi/l ; half-sat. Si conc. for growth of blue-greens: 0
+      hSiAssDiat: 0.09     # mgSi/l ; half-sat. Si for diatoms
+      hSiAssGren: 0.0      # mgSi/l ; half-sat. Si conc. for growth of green algae: 0
+      kDRespBlue: 0.03     # day-1 ; maintenance respiration constant blue-greens (: 0.05 * MuMax)
+      kDRespDiat: 0.1    # day-1 ; maintenance respiration constant diatoms (: 0.05 * MuMax)
+      kDRespGren: 0.075     # day-1 ; maintenance respiration constant greens (: 0.05 * MuMax)
+      kMortBlueW: 0.01     # day-1 ; mortality constant of blue-greens in water
+      kMortDiatW: 0.01     # day-1 ; mortality constant of Diatoms in water
+      kMortGrenW: 0.01     # day-1 ; mortality constant of Diatoms in water
+      UseLightMethodGren: 1  # light method, 1 without photoinhibition,Chalker (1980) model, 2 with photoinhibition, Klepper et al. (1988) / Ebenhoh et al. (1997) model.
+      UseLightMethodBlue: 2  # light method, 1 without photoinhibition,Chalker (1980) model, 2 with photoinhibition, Klepper et al. (1988) / Ebenhoh et al. (1997) model.
+      UseLightMethodDiat: 2  # light method, 1 without photoinhibition,Chalker (1980) model, 2 with photoinhibition, Klepper et al. (1988) / Ebenhoh et al. (1997) model.
+      hLRefDiat: 6.5         # W/m2 ; half-sat. PAR for diatoms at 20 oC (Lehmann function)
+      hLRefBlue: 34          # W/m2 ; half-sat. PAR for blue algea at 20 oC (Lehmann function)
+      cLOptRefDiat: 30       # W/m2 ; optimum PAR for diatoms at 20 oC (Steele function)
+# sinking
+      cVSetDiat: -0.5     # m/day ; sedimentation velocity Diatoms
+      cVSetGren: -0.2     # m/day ; sedimentation velocity of greens
+      cVSetBlue: -0.06    # m/day ; sedimentation velocity Blue-greens
+    coupling:
+      SiO2_pool_water: abiotic_water/sSiO2W
+      sPO4_pool_water: abiotic_water/sPO4W
+      sNH4_pool_water: abiotic_water/sNH4W
+      sNO3_pool_water: abiotic_water/sNO3W
+      oxygen_pool_water: abiotic_water/sO2W
+      detritus_DW_pool_water: abiotic_water/sDDetW
+      detritus_N_pool_water: abiotic_water/sNDetW
+      detritus_P_pool_water: abiotic_water/sPDetW
+      detritus_Si_pool_water: abiotic_water/sSiDetW
+      surface_vegetation_coverage: macrophytes/afCovSurfVeg
+  phytoplankton_sediment:
+    model: au_pclake_phytoplankton_sediment
+    long_name: phytoplankton_in_sediment
+    initialization:
+      sDDiatS: 0.204502
+      sPDiatS: 0.000933588
+      sNDiatS: 0.00914177
+      sDGrenS: 0.00308052
+      sPGrenS: 0.0000354802
+      sNGrenS: 0.000245786
+      sDBlueS: 0.00148975
+      sPBlueS: 0.0000352081
+      sNBlueS: 0.000188868
+    parameters:
+      cNDBlueMax: 0.15     # mgN/mgDW ; max. N/day ratio Bluegreens
+      cNDBlueMin: 0.03     # mgN/mgDW ; minimum N/day ratio Bluegreens
+      cNDDiatMax: 0.05     # mgN/mgDW ; max. N/day ratio Diatoms
+      cNDDiatMin: 0.01     # mgN/mgDW ; minimum N/day ratio Diatoms
+      cNDGrenMax: 0.1      # mgN/mgDW ; max. N/day ratio greens
+      cNDGrenMin: 0.02     # mgN/mgDW ; minimum N/day ratio greens
+      cPDBlueMax: 0.025    # mgP/mgDW ; max. P/day ratio blue-greens
+      cPDBlueMin: 0.0025   # mgP/mgDW ; minimum P/day ratio Bluegreens
+      cPDDiatMax: 0.005    # mgP/mgDW ; max. P/day ratio Diatoms
+      cPDDiatMin: 0.0005   # mgP/mgDW ; minimum P/day ratio Diatoms
+      cPDGrenMax: 0.015    # mgP/mgDW ; max. P/day ratio greens
+      cPDGrenMin: 0.0015   # mgP/mgDW ; minimum P/day ratio greens
+      cSiDDiat: 0.15       # mgSi/mgDW ; Si/D ratio of diatoms
+      cSigTmBlue: 12.0     # oC ; temperature constant blue-greens (sigma in Gaussian curve)
+      cSigTmDiat: 20.0     # oC ; temperature constant diatoms (sigma in Gaussian curve)
+      cSigTmGren: 15.0     # oC ; temperature constant greens (sigma in Gaussian curve)
+      cTmOptBlue: 25.0     # oC ; optimum temp. blue-greens
+      cTmOptDiat: 18.0     # oC ; optimum temp. diatoms
+      cTmOptGren: 25.0     # oC ; optimum temp. of greens
+      fDissMortPhyt: 0.2   # - ; soluble nutrient fraction of died Algae
+      kDRespBlue: 0.03     # day-1 ; maintenance respiration constant blue-greens (:  0.05 * MuMax)
+      kDRespDiat: 0.10     # day-1 ; maintenance respiration constant diatoms (:  0.05 * MuMax)
+      kDRespGren: 0.075    # day-1 ; maintenance respiration constant greens (:  0.05 * MuMax)
+      kMortBlueS: 0.2      # day-1 ; mortality constant Bluegreens
+      kMortDiatS: 0.05     # day-1 ; mortality constant of sed. Diatoms
+      kMortGrenS: 0.05     # day-1 ; mortality constant greens
+    coupling:
+      sPO4_pool_sediment: abiotic_sediment/sPO4S
+      sNH4_pool_sediment: abiotic_sediment/sNH4S
+      sNO3_pool_sediment: abiotic_sediment/sNO3S
+      detritus_DW_pool_sediment: abiotic_sediment/sDDetS
+      detritus_N_pool_sediment: abiotic_sediment/sNDetS
+      detritus_P_pool_sediment: abiotic_sediment/sPDetS
+      detritus_Si_pool_sediment: abiotic_sediment/sSiDetS
+      SiO2_pool_water: abiotic_water/sSiO2W
+  macrophytes:
+    model: au_pclake_macrophytes
+    long_name: macrophytes
+    initialization:
+      sDVeg: 21.2055
+      sNVeg: 0.740716
+      sPVeg: 0.074054
+    parameters:
+      bPorS: 0.847947        #  porosity [m3 water m-3 sediment]
+      cAffNUptVeg: 0.2       # l/mgDW/day,initial_N_uptake_affinity_vegetation
+      cAffPUptVeg: 0.2       #  l/mgDW/day,initial_P_uptake_affinity_vegetation
+      cCovSpVeg: 0.5         # %_cover/gDW/m2         specific_cover
+      cCPerDW: 0.4           #  gC/gDW ; C content of organic matte
+      cDayWinVeg: 259.0      # day ; end of growing season: 16 Sep
+      cDCarrVeg: 400.0       # gDW/m2 ; max. vegetation standing crop  ------changed to gWD/m3
+      cDepthS: 0.1           # sediment depth [m]
+      cDLayerVeg: 0.0        # gD/m2 ; biomass of a single layer floating leaves    ----change to gD/m3
+      cDVegIn: 1.0           # gD/m2 ; ?°external vegetation density?±---change to gD/m3
+      cExtSpVeg : 0.01       # 0.01 m2/gDW,specific_extinction
+      cLengAllo: 15.0        # day ; duration of allocation and reallocation phase
+      cLengMort: 15.0        # day ; length of shoot mort. period
+      cMuMaxVeg: 0.2         #  g/g shoot/day ; maximum growth rate of vegetation at 20oC
+      cNDVeg0: 0.02          # gN/gD ; initial N fraction in veg
+      cNDVegMax: 0.035       # mgN/mgD ; maximum N/day ratio vegetation
+      cNDVegMin: 0.01        # mgN/mgD ; minimum N/day ratio vegetation
+      cPDVeg0: 0.002         # gP/gD ; initial P fraction in veg
+      cPDVegMax: 0.0035      # mgP/mgD ; maximum P/day ratio vegetation
+      cPDVegMin: 0.0008      # mgP/mg ; minimum P/day ratio vegetation
+      cQ10ProdVeg: 1.2       # temperature quotient of production
+      cQ10RespVeg: 2.0       # temperature quotient of respiration
+      cTmInitVeg: 9.0        # oC ; temperature for initial growth
+      cVNUptMaxVeg: 0.1      # mgN/mgDW/day, maximum_N_uptake_capacity_of_vegetation
+      cVPUptMaxVeg: 0.01     #  mgP/mgDW/day ,maximum_P_uptake_capacity_of_vegetation
+      fDepth1Veg: 0.8        #  max._upper_depth_of_submerged_veget._layer,_as_fraction_of_water_depth, the depth of top of bottom layer
+      fDepth2Veg: 1.0        #  max._lower_depth_of_submerged_veget._layer,_as_fraction_of_water_depth,the depth of bottm of bottom laye
+      fDetWMortVeg: 0.1      #  fraction_of_shoot_mortality_becoming_water_detritus
+      fDissMortVeg: 0.25     # fraction_dissolved_nutrients_from_died_plants
+      fEmergVeg: 0.0         # g floating / g shoot ; emergent fraction of shoot
+      fFloatVeg: 0.0         # g floating / g shoot ; floating fraction of shoot
+      fRootVegSum: 0.1       # g root / g veg ; root fraction outside growing season
+      fRootVegWin: 0.6       # g root / g veg ; root fraction outside growing season
+      fSedUptVegCoef: 2.66   # -            sigm._regr._coeff._for_sediment_fraction_of_nutrient_uptake
+      fSedUptVegExp : -0.83  #  -            exponent_in_sigm._regr._for_sediment_fraction_of_nutrient_uptake
+      fSedUptVegMax: 0.998   # -            maximum_sediment_fraction_of_nutrient_uptake
+      fWinVeg: 0.3           # fraction surviving in winter
+      hLRefVeg: 17.0         # W/m2 PAR ; half-sat. light at 20 oC
+      hO2BOD: 1.0            #  mgO2/l ; half-sat. oxygen conc. for BOD
+      kDRespVeg: 0.02        # day-1 ; dark respiration rate of vegetation
+      kMigrVeg: 0.001        # day-1 ; vegetation migration rate
+      kMortVegSum: 0.005     # day-1 ; vegetation mortality rate in Spring and Summer (low)
+      UseEmpUpt: 0           # false_=_do_not_use_this_empirical_relation
+      cHeightVeg: 1.0
+    coupling:
+      ammonia_pool_water: abiotic_water/sNH4W
+      nitrate_pool_water: abiotic_water/sNO3W
+      phosphate_pool_water: abiotic_water/sPO4W
+      ammonia_pool_sediment: abiotic_sediment/sNH4S
+      nitrate_pool_sediment: abiotic_sediment/sNO3S
+      phosphate_pool_sediment: abiotic_sediment/sPO4S
+      oxygen_pool_water: abiotic_water/sO2W
+      detritus_DW_pool_water: abiotic_water/sDDetW
+      detritus_N_pool_water: abiotic_water/sPDetW
+      detritus_P_pool_water: abiotic_water/sNDetW
+      detritus_DW_pool_sediment: abiotic_sediment/sDDetS
+      detritus_N_pool_sediment: abiotic_sediment/sNDetS
+      detritus_P_pool_sediment: abiotic_sediment/sPDetS
+      oxic_layer_value: abiotic_sediment/afOxySed
+  foodweb_water:
+    model: au_pclake_foodweb_water
+    long_name: foodweb_components_in_water
+    initialization:
+      sDZoo: 0.199642
+      sPZoo: 0.00989778
+      sNZoo: 0.00137144
+      sDFiJv: 0.1767455         # for depth)1.0m,0.353491         
+      sPFiJv: 0.00370361         # for depth)1.0m,0.00740722        
+      sNFiJv: 0.0179063         # for depth)1.0m,0.0358126         
+      sDFiAd: 1.443465         # for depth)1.0m,2.88693           
+      sPFiAd: 0.02826425         # for depth)1.0m,0.0565285         
+      sNFiAd: 0.1479335         # for depth)1.0m,0.295867           
+      sDPisc: 0.03776645         # for depth)1.0m,0.0755329        
+    parameters:
+      cCovVegMin: 40         #   %                      min._subm.veg._coverage_for__Pi_sc
+      cDayReprFish: 120      #   -                      reproduction_date_of_fish_: _1_May
+      cDCarrFish: 15         #   gDW/m2                 carrying_capacity_of_fish(: _100_gFW/m2,Grimm_1983)  ----- to g/m**3
+      cDCarrPiscBare: 0.1    #   gDW/m2                 carrying_capacity_of__Pi_sc_for_lake_without_marsh_zone  ----- to g/m**3
+      cDCarrPiscMax: 1.2     #   gDW/m2                 maximum_carrying_capacity_of__Pi_sc(: 75_kg/ha)  ----- to g/m**3
+      cDCarrPiscMin: 0.1     #   gDW/m2                 minimum_carrying_capacity_of__Pi_sc(: 6_kg/ha)   ----- to g/m**3
+      cDCarrZoo: 25          #   mg/l                   carrying_capacity_of_zooplankton
+      cDFiAdIn: 0.005        #   gDW/m2                 external_fish_density----- to g/m**3
+      cDFiJvIn: 0.005        #   gDW/m2                 external_fish_density----- to g/m**3
+      cDPhraMinPisc: 50      #   gDW/m2                 min._reed_biomass_for__Pi_sc  ----- to g/m**3
+      cDPiscIn: 0.001        #   gDW/m2                 external__Pi_sc_density  ----- to g/m**3
+      cFiltMax: 4.5          #   ltr/mgDW/day           maximum_filtering_rate(when_DOMW: 0)
+      cNDFishRef: 0.1        #   mgN/mgDW               reference_N/C_ratio_of_Fish
+      cNDPisc: 0.1           #   mgN/mgDW               reference_N/C_ratio_of__Pi_sc   ing
+      cNDZooRef: 0.07        #   mgN/mgDW               reference_N/C-ratio_herb._zooplankton
+      cPDFishRef: 0.022      #   mgP/mgDW               reference_P/C_ratio_of_Fish
+      cPDPisc: 0.022         #   mgP/mgDW               reference_P/C_ratio_of__Pi_sc
+      cPDZooRef: 0.01        #   mgP/mgDW               reference_P/C-ratio_herb._zooplankton
+      cPrefBlue: 0.125       #   -                      selection_factor_for_Bluegreens_Cal.
+      cPrefDet: 0.25         #   -                      selection_factor_for_detritus
+      cPrefDiat: 0.75        #   -                      selection_factor_for_Diatoms
+      cPrefGren: 0.75        #   -                      selection_factor_for_Greens
+      cRelPhraPisc: 0.075    #   gDW/m2/%               rel.__Pi_sc_density_per_%_reed_if_subm.veg._absent  ----- to g/m**3
+      cRelVegPisc: 0.03      #   gDW/m2/%               extra_rel.__Pi_sc_density_per_%_reed_if__aCovVeg__>__cCovVegMin  ----- to g/m**3
+      cSiDDiat: 0.15         #  mgSi/mgDW              Si/DW_ratio_of_daitomscVSetBlue: -0.06    # m/day ; sedimentation velocity Blue-greens
+      cSigTmFish: 10         #   oC                     temperature_constant_of_fish(sigma_in_Gaussian_curve)
+      cSigTmPisc: 10         #   oC                     temperature_constant_of__Pi_sc(sigma_in_Gaussian_curve)
+      cSigTmZoo: 13          #   oC                     temperature_constant_zooplankton(sigma_in_Gaussian_curve)
+      cTmOptFish: 25         #   oC                     optimum_temp._of_fish
+      cTmOptPisc: 25         #   oC                     optimum_temp._of__Pi_sc
+      cTmOptZoo: 25          #   oC                     optimum_temp._zooplankton
+      fAgeFish: 0.5          #   -                      yearly_ageing_fraction_of_young_fish
+      fDAssFiJv: 0.4         #   -                      C_assimilation_efficiency_of_young_fish
+      fDAssPisc: 0.4         #   -                      C_ass._efficiency_of__Pi_sc
+      fDAssZoo: 0.35         #   -                      DW-assimilation_efficiency_of_herb._zooplankton
+      fDBone: 0.35           #   -                      fraction_of_fish_C_fixed_in_bones_and_scales
+      fDissEgesFish: 0.25    #   -                      soluble_nutrient_fraction_of_by_fish_egested_food
+      fDissEgesPisc: 0.25    #   -                      soluble_P_fraction_of_by_fish_egested_food
+      fDissEgesZoo: 0.25     #  -                      soluble_nutrient_fraction_of_by_herb.zoopl._egested_foodcVSetDiat: -0.5     # m/day ; sedimentation velocity Diatoms
+      fDissMortFish: 0.1     #   -                      soluble_nutrient_fraction_of_died_fish(excl._bones_and_scales
+      fDissMortPisc: 0.1     #   -                      soluble_nutrient_fraction_of_died__Pi_sc(excl._bones_and_scales
+      fDissMortZoo : 0.1     #  -                      soluble_nutrient_fraction_of_died_zooplanktoncVSetGren: -0.2     # m/day ; sedimentation velocity of greens
+      fPBone: 0.5            #   -                      fraction_of_fish_P_fixed_in_bones_and_scales
+      fReprFish: 0.02        #   -                      yearly_reproduction_fraction_of_adult_fish, divided by 86400 here
+      hDFishPisc: 1          #   g/m2                   half-saturating_DFish_for__Pi_sc_predation   ----- to g/m**3
+      hDVegPisc: 5           #   g/m2                   half-sat._vegetation_biomass_for__Pi_sc_growth  ----- to g/m**3
+      hDZooFiJv: 1.25        #   g/m2                   half-saturating_zooplankton_biomass_for_young_fish_predation  ----- to g/m**3
+      hFilt: 1.0             #   mgDW/l                 half-sat._food_conc._for_filtering
+      kDAssFiJv: 0.12        #   day-1                  maximum_assimilation_rate_of_young_fish
+      kDAssPisc: 0.025       #   day-1                  maximum_assimilation_rate
+      kDRespFiAd: 0.004      #   day-1                  maintenance_respiration_constant_of_adult_fish
+      kDRespFiJv: 0.01       #   day-1                  maintenance_respiration_constant_of_young_fish
+      kDRespPisc: 0.005      #   day-1                  maint._respiration_constant_of__Pi_sc
+      kDRespZoo: 0.15        #   day-1                  maintenance_respiration_constant_herb.zooplankton
+      kMigrFish: 0.001       #   day-1                  fish_migration_rate
+      kMigrPisc: 0.001       #   day-1                  _Pi_sc_migration_rate
+      kMortFiAd: 0.00027     #   day-1                  specific_mortality_of_adult_fish(: _0.1_y-1)
+      kMortFiJv: 0.00137     #   day-1                  specific_mortality_of_young_fish(: _0.1_y-1)
+      kMortPisc: 0.00027     #   day-1                  specific_mortality_of__Pi_sc_: _0.1_y-1
+      kMortZoo: 0.04         #   day-1                  mortality_constant_herb.zooplankton
+      cNDBlueMax: 0.15     # mgN/mgDW ; max. N/day ratio Bluegreens
+      cNDBlueMin: 0.03     # mgN/mgDW ; minimum N/day ratio Bluegreens
+      cNDDiatMax: 0.05     # mgN/mgDW ; max. N/day ratio Diatoms
+      cNDDiatMin: 0.01     # mgN/mgDW ; minimum N/day ratio Diatoms
+      cNDGrenMax: 0.1      # mgN/mgDW ; max. N/day ratio greens
+      cNDGrenMin: 0.02     # mgN/mgDW ; minimum N/day ratio greens
+      cPDBlueMax: 0.025    # mgP/mgDW ; max. P/day ratio blue-greens
+      cPDBlueMin: 0.0025   # mgP/mgDW ; minimum P/day ratio Bluegreens
+      cPDDiatMax: 0.005    # mgP/mgDW ; max. P/day ratio Diatoms
+      cPDDiatMin: 0.0005   # mgP/mgDW ; minimum P/day ratio Diatoms
+      cPDGrenMax: 0.015    # mgP/mgDW ; max. P/day ratio greens
+      cPDGrenMin: 0.0015   # mgP/mgDW ; minimum P/day ratio greens
+    coupling:
+      diatom_as_food_DW: phytoplankton_water/sDDiatW
+      green_as_food_DW: phytoplankton_water/sDGrenW
+      blue_as_food_DW: phytoplankton_water/sDBlueW
+      detritus_DW_pool_water: abiotic_water/sDDetW
+      diatom_as_food_N: phytoplankton_water/sNDiatW
+      green_as_food_N: phytoplankton_water/sNGrenW
+      blue_as_food_N: phytoplankton_water/sNBlueW
+      detritus_N_pool_water: abiotic_water/sNDetW
+      diatom_as_food_P: phytoplankton_water/sPDiatW
+      green_as_food_P: phytoplankton_water/sPGrenW
+      blue_as_food_P: phytoplankton_water/sPBlueW
+      detritus_P_pool_water: abiotic_water/sPDetW
+      detritus_Si_pool_water: abiotic_water/sSiDetW
+      NH4_pool_water: abiotic_water/sNH4W
+      NO3_pool_water: abiotic_water/sNO3W
+      PO4_pool_water: abiotic_water/sPO4W
+      submerged_vegetation: macrophytes/aDSubVeg
+      env_correction_adfish: foodweb_sediment/tDEnvFiAd
+      food_limit_function_adfish: foodweb_sediment/aDSatFiAd
+  foodweb_sediment:
+    model: au_pclake_foodweb_sediment
+    long_name: foodweb_components_in_sediment
+    initialization:
+      sDBent: 2.4032
+      sPBent: 0.108189
+      sNBent: 0.0178026
+    parameters:
+      cDBentIn: 0.01         #   gDW/m2                 external_zoobenthos_density
+      cDCarrBent: 10.0       #   gDW/m2                 carrying_capacity_of_zoobenthos
+      cDCarrFish: 15         #   gDW/m2                 carrying_capacity_of_fish(: _100_gFW/m2,Grimm_1983)
+      cNDBentRef: 0.07       #   mgN/mgDW               reference_N/C_ratio_of_zoobenthos
+      cNDFishRef: 0.1        #   mgN/mgDW               reference_N/C_ratio_of_Fish
+      cPDBentRef: 0.01       #   mgP/mgDW               reference_P/C_ratio_of_zoobenthos
+      cPDFishRef: 0.022      #   mgP/mgDW               reference_P/C_ratio_of_Fish
+      cRelVegFish: 0.009     #   -                      decrease_of_fish_feeding_per_%_vegetation_cover(max._0.01)
+      cSiDDiat: 0.15         #  mgSi/mgDW              Si/DW_ratio_of_daitoms
+      cSigTmBent: 16.0       #   oC                     temperature_constant_of_zoobenthos(sigma_in_Gaussian_curve)
+      cSigTmFish: 10         #   oC                     temperature_constant_of_fish(sigma_in_Gaussian_curve)
+      cTmOptBent: 25.0       #   oC                     optimum_temp._of_zoobenthos
+      cTmOptFish: 25         #   oC                     optimum_temp._of_fish
+      fDAssBent: 0.3         #   -                      C_ass._efficiency_of_zoobenthos
+      fDAssFiAd: 0.4         #   -                      C_assimilation_efficiency_of_adult_fish
+      fDissEgesBent: 0.25    #   -                      soluble_nutrient_fraction_of_by_zoobenthos_egested_food
+      fDissEgesFish: 0.25    #   -                      soluble_nutrient_fraction_of_by_fish_egested_food
+      fDissMortBent: 0.1     #   -                      soluble_P_fraction_of_died_zoobenthos_P
+      hDBentFiAd: 2.5        #   g/m2                   half-saturating_zoobenthos_biomass_for_adult_fish_predation
+      hDFoodBent: 200.0      #   g/m2                   half-saturating_food_for_zoobenthos
+      kDAssBent: 0.1         #   day-1                  maximum_assimilation_rate
+      kDAssFiAd: 0.06        #   day-1                  maximum_assimilation_rate_of_adult_fish
+      kDRespBent: 0.005      #   day-1                  maint._respiration_constant_of_zoobenthos
+      kDRespFiAd: 0.004      #   day-1                  maintenance_respiration_constant_of_adult_fish
+      kMigrBent: 0.001       #   day-1                  zoobenthos_migration_rate
+      kMortBent: 0.005       #   day-1                  mortality_constant_of_zoobenthos
+      kMortFiAd: 0.00027     #   day-1                  specific_mortality_of_adult_fish(: _0.1_y-1)
+      cNDBlueMax: 0.15     # mgN/mgDW ; max. N/day ratio Bluegreens
+      cNDBlueMin: 0.03     # mgN/mgDW ; minimum N/day ratio Bluegreens
+      cNDDiatMax: 0.05     # mgN/mgDW ; max. N/day ratio Diatoms
+      cNDDiatMin: 0.01     # mgN/mgDW ; minimum N/day ratio Diatoms
+      cNDGrenMax: 0.1      # mgN/mgDW ; max. N/day ratio greens
+      cNDGrenMin: 0.02     # mgN/mgDW ; minimum N/day ratio greens
+      cPDBlueMax: 0.025    # mgP/mgDW ; max. P/day ratio blue-greens
+      cPDBlueMin: 0.0025   # mgP/mgDW ; minimum P/day ratio Bluegreens
+      cPDDiatMax: 0.05    # mgP/mgDW ; max. P/day ratio Diatoms
+      cPDDiatMin: 0.005   # mgP/mgDW ; minimum P/day ratio Diatoms
+      cPDGrenMax: 0.015    # mgP/mgDW ; max. P/day ratio greens
+      cPDGrenMin: 0.0015   # mgP/mgDW ; minimum P/day ratio greens
+    coupling:
+      diatom_as_food_DW: phytoplankton_sediment/sDDiatS
+      green_as_food_DW: phytoplankton_sediment/sDGrenS
+      blue_as_food_DW: phytoplankton_sediment/sDBlueS
+      diatom_as_food_N: phytoplankton_sediment/sNDiatS
+      green_as_food_N: phytoplankton_sediment/sNGrenS
+      blue_as_food_N: phytoplankton_sediment/sNBlueS
+      diatom_as_food_P: phytoplankton_sediment/sPDiatS
+      green_as_food_P: phytoplankton_sediment/sPGrenS
+      blue_as_food_P: phytoplankton_sediment/sPBlueS
+      detritus_DW_pool_sediment: abiotic_sediment/sDDetS
+      detritus_P_pool_sediment: abiotic_sediment/sPDetS
+      detritus_N_pool_sediment: abiotic_sediment/sNDetS
+      detritus_Si_pool_sediment: abiotic_sediment/sSiDetS
+      NH4_pool_sediment: abiotic_sediment/sNH4S
+      NO3_pool_sediment: abiotic_sediment/sNO3S
+      PO4_pool_sediment: abiotic_sediment/sPO4S
+      adult_fish_biomass: foodweb_water/sDFiAd
+      adult_fish_nitrogen: foodweb_water/sNFiAd
+      adult_fish_phosphrus: foodweb_water/sPFiAd
+      NH4_pool_water: abiotic_water/sNH4W
+      PO4_pool_water: abiotic_water/sPO4W
+      DDet_pool_water: abiotic_water/sDDetW
+      NDet_pool_water: abiotic_water/sNDetW
+      PDet_pool_water: abiotic_water/sPDetW
+      vegetation_coverage: macrophytes/aCovVeg
+      young_fish_biomass: foodweb_water/sDFiJv
+  auxilary:
+    model: au_pclake_auxilary
+    long_name: extra_processes
+    parameters:
+      cDepthS: 0.1            # sediment depth [m]
+      cThetaSet: 1.01         # 1/e^oC ; temp. parameter of sedimentation
+      kVegResus: 0.01         # m2/gDW ; rel. resuspension reduction per g vegetation
+      kTurbFish: 1.0          # g/g fish/day ; relative resuspension by adult fish browsing
+      cSuspRef: 0.0           # ??reference?ˉ suspended matter function [-]
+      cSuspMin: 6.1           # minimum value of logistic function
+      cSuspMax: 25.2          # maximum value of logistic function
+      cSuspSlope: 2.1         # slope of logistic function
+      hDepthSusp: 2.0         # ??half-sat. value?ˉ of depth in logistic function
+      cFetchRef: 1000.0       # ??reference?ˉ fetch [m]
+      cFetch: 1000.0          # fetch [m](The fetch [m] is, roughly spoken, the length of the lake in the prevailing wind direction
+      fLutum: 0.1             # lutum content of inorg. matter
+      fLutumRef: 0.2          # ??reference?ˉ lutum fraction
+      bPorS: 0.847947             #  porosity [m3 water m-3 sediment]
+      kResusPhytMax: 0.25     # day-1,max._phytopl._resuspension
+      cResusPhytExp: -0.379   # (gDW/m2/day)-1 ,exp._par._for_phytopl._resuspension
+      cVSetIM: 1.0            # m/day ; max. sedimentation velocity of inert org. matter
+      cVSetDet: 0.25          # m/day ; max. sedimentation velocity of detritus
+      cVSetDiat: 0.5          # m/day ; sedimentation velocity Diatoms
+      cVSetGren: 0.2          # m/day ; sedimentation velocity of greens
+      cVSetBlue: 0.06         # m/day ; sedimentation velocity Blue-greens
+      cRhoIM: 2500000.0       # g/m3 solid ; density of sediment IM
+      cRhoOM: 1400000.0       # g/m3 ; density of sediment detritus
+      fDOrgSoil: 0.1          # fraction soil organic matter
+      cPO4Ground: 0.1         # mgP/l ; PO4 cone in groundwater
+      cNH4Ground: 1.0         # mgN/l ; NH4 cone in groundwater
+      cNO3Ground: 0.1         # mgN/l ; NO3 cone in groundwater
+      cTmOptFish: 25          #   oC                     optimum_temp._of_fish
+      cSigTmFish: 10          #   oC                     temperature_constant_of_fish(sigma_in_Gaussian_curve)
+      cLoadPO4: 0.0005        # gP/m2/day, constant, different from cLoadIM
+      cLoadNO3: 0.005         # gN/m2/day, constant
+      uQIn: 20.0             # mm/day, net water load rate, constant
+      cDErosTot: 0.1         # g/m2/day,Erosion_input_(tentative)
+      fSedErosIM: 0.95       # instantly_sedimentating_fraction_of_IM
+      cNDBlueMax: 0.15     # mgN/mgDW ; max. N/day ratio Bluegreens
+      cNDBlueMin: 0.03     # mgN/mgDW ; minimum N/day ratio Bluegreens
+      cNDDiatMax: 0.05     # mgN/mgDW ; max. N/day ratio Diatoms
+      cNDDiatMin: 0.01     # mgN/mgDW ; minimum N/day ratio Diatoms
+      cNDGrenMax: 0.1      # mgN/mgDW ; max. N/day ratio greens
+      cNDGrenMin: 0.02     # mgN/mgDW ; minimum N/day ratio greens
+      cPDBlueMax: 0.025    # mgP/mgDW ; max. P/day ratio blue-greens
+      cPDBlueMin: 0.0025   # mgP/mgDW ; minimum P/day ratio Bluegreens
+      cPDDiatMax: 0.005    # mgP/mgDW ; max. P/day ratio Diatoms
+      cPDDiatMin: 0.0005   # mgP/mgDW ; minimum P/day ratio Diatoms
+      cPDGrenMax: 0.015    # mgP/mgDW ; max. P/day ratio greens
+      cPDGrenMin: 0.0015   # mgP/mgDW ; minimum P/day ratio greens
+#     section of parameter of new resuspension method
+      crt_shear: 0.005      # critical shear stress
+      ref_shear: 1.0        # reference shear stress
+      alpha: 9000           # gross rate of sediment erosion(g/m**2/d,btween 9000-9900g/m**2/d) )
+      eta: 1.0         
+      cVSetMain: 0.5      # depth averaged settling velocity(m/d), between 0.5-1.5m/d)
+      resusp_meth: 2      # 1, original PCLake resuspension function; 2, shear stress related resuspension
+    coupling:
+      
+      Amonia_pool_in_water: abiotic_water/sNH4W
+      Nitrates_pool_in_water: abiotic_water/sNO3W
+      Phosphate_pool_in_water: abiotic_water/sPO4W
+      Absorbed_phosphrus_in_water: abiotic_water/sPAIMW
+      Oxygen_pool_in_water: abiotic_water/sO2W
+      Inorg_pool_in_water: abiotic_water/sDIMW
+      Detritus_DW_in_water: abiotic_water/sDDetW
+      Detritus_N_in_water: abiotic_water/sNDetW
+      Detritus_P_in_water: abiotic_water/sPDetW
+      Detritus_Si_in_water: abiotic_water/sSiDetW
+      Diatom_DW_in_water: phytoplankton_water/sDDiatW
+      Green_DW_in_water: phytoplankton_water/sDGrenW
+      Blue_DW_in_water: phytoplankton_water/sDBlueW
+      Diatom_N_in_water: phytoplankton_water/sNDiatW
+      Green_N_in_water: phytoplankton_water/sNGrenW
+      Blue_N_in_water: phytoplankton_water/sNBlueW
+      Diatom_P_in_water: phytoplankton_water/sPDiatW
+      Green_P_in_water: phytoplankton_water/sPGrenW
+      Blue_P_in_water: phytoplankton_water/sPBlueW
+      Amonia_pool_in_sediment: abiotic_sediment/sNH4S
+      Nitrates_pool_in_sediment: abiotic_sediment/sNO3S
+      Phosphate_pool_in_sediment: abiotic_sediment/sPO4S
+      Absorbed_phosphrus_in_sediment: abiotic_sediment/sPAIMS
+      Inorg_pool_in_sediment: abiotic_sediment/sDIMS
+      Detritus_DW_in_sediment: abiotic_sediment/sDDetS
+      Detritus_N_in_sediment: abiotic_sediment/sNDetS
+      Detritus_P_in_sediment: abiotic_sediment/sPDetS
+      Detritus_Si_in_sediment: abiotic_sediment/sSiDetS
+      Diatom_DW_in_sediment: phytoplankton_sediment/sDDiatS
+      Green_DW_in_sediment: phytoplankton_sediment/sDGrenS
+      Blue_DW_in_sediment: phytoplankton_sediment/sDBlueS
+      Diatom_N_in_sediment: phytoplankton_sediment/sNDiatS
+      Green_N_in_sediment: phytoplankton_sediment/sNGrenS
+      Blue_N_in_sediment: phytoplankton_sediment/sNBlueS
+      Diatom_P_in_sediment: phytoplankton_sediment/sPDiatS
+      Green_P_in_sediment: phytoplankton_sediment/sPGrenS
+      Blue_P_in_sediment: phytoplankton_sediment/sPBlueS
+      vegetation_DW: macrophytes/sDVeg
+      adult_fish_DW: foodweb_water/sDFiAd
+      Detritus_abiotic_update: abiotic_sediment/tDAbioDetS
+      Detritus_from_algae: phytoplankton_sediment/tDPrimDetS
+      Detritus_from_vegetation: macrophytes/tDBedDetS
+      Detritus_from_foodweb: foodweb_sediment/tDWebDetS
+      Humus_DW_in_sediment: abiotic_sediment/sDHumS
+      Humus_N_in_sediment: abiotic_sediment/sNHumS
+      Humus_P_in_sediment: abiotic_sediment/sPHumS
+      Humus_abiotic_update: abiotic_sediment/tDAbioHumS
+      Zooplankton_DW: foodweb_water/sDZoo
+      Zooplankton_P: foodweb_water/sPZoo
+      Zooplankton_N: foodweb_water/sNZoo
+      SiO2_pool_water: abiotic_water/sSiO2W
+

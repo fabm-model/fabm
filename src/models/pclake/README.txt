@@ -36,7 +36,7 @@ This directory include:
    all the other model variables indicated the same model behavior for the two versions.
 !*----------------------------------------------------------------------------------------------*
 !* If you have questions and suggestions regarding this model, please write to                  *
-!*      Fenjuan Hu: feh@bios.au.dk                                                              *
-!*      Dennis Trolle:dtr@bios.au.dk                                                            *
-!*      Karsten Bolding:bold@bios.au.dk                                                         *
+!*      Fenjuan Hu: fenjuan@bios.au.dk                                                          *
+!*      Dennis Trolle: trolle@bios.au.dk                                                        *
+!*      Karsten Bolding: bolding@bios.au.dk                                                     *
 !*----------------------------------------------------------------------------------------------*
