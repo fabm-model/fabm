@@ -179,7 +179,7 @@ module fabm_particle
    subroutine before_coupling(self)
       class (type_particle_model),intent(inout) :: self
 
-      type (type_model_reference),    pointer :: reference
+      type (type_model_reference),    pointer :: reference,reference2
       class (type_property),          pointer :: master_name
       type (type_aggregate_variable), pointer :: aggregate_variable
       type (type_coupling_from_model),pointer :: coupling
@@ -190,12 +190,24 @@ module fabm_particle
          master_name => self%couplings%find_in_tree(reference%name)
          if (.not.associated(master_name)) call self%fatal_error('before_coupling','Model reference "'//trim(reference%name)//'" was not coupled.')
 
-         ! Now find the actual model that was coupled.
-         select type (master_name)
-            class is (type_string_property)
-               reference%model => self%find_model(master_name%value,recursive=.true.)
-               if (.not.associated(reference%model)) call self%fatal_error('before_coupling','Referenced model "'//trim(master_name%value)//'" not found.')
-         end select
+         ! First try among earlier model references
+         reference2 => self%first_model_reference
+         do while (associated(reference2))
+            select type (master_name)
+               class is (type_string_property)
+                  if (master_name%value==reference2%name) reference%model => reference2%model
+            end select
+            reference2 => reference2%next
+         end do
+
+         if (.not.associated(reference%model)) then
+            ! Now find the actual model that was coupled.
+            select type (master_name)
+               class is (type_string_property)
+                  reference%model => self%find_model(master_name%value,recursive=.true.)
+                  if (.not.associated(reference%model)) call self%fatal_error('before_coupling','Referenced model "'//trim(master_name%value)//'" not found.')
+            end select
+         end if
 
          reference => reference%next
       end do
