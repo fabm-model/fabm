@@ -2102,7 +2102,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),         intent(in)           :: name
 
       call self%log_message('Deprecated syntax for register_bulk_dependency; please call it with a local name, &
-                             units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+&                            units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
       call self%register_dependency(id,name, '', name)
       if (associated(self%parent)) call self%request_coupling(id,name)
    end subroutine register_named_bulk_dependency_old
@@ -2113,7 +2113,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                    intent(in)           :: name
 
       call self%log_message('Deprecated syntax for register_horizontal_dependency; please call it with a local name, &
-                             units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+&                            units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
       call self%register_dependency(id,name, '', name)
       if (associated(self%parent)) call self%request_coupling(id,name)
    end subroutine register_named_horizontal_dependency_old
@@ -2124,7 +2124,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                intent(in)           :: name
 
       call self%log_message('Deprecated syntax for register_global_dependency; please call it with a local name, &
-                             units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+&                            units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
       call self%register_dependency(id,name, '', name)
       if (associated(self%parent)) call self%request_coupling(id,name)
    end subroutine register_named_global_dependency_old
