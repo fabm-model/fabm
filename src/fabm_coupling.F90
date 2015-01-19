@@ -412,7 +412,7 @@ recursive subroutine build_aggregate_variables(self)
       aggregate_variable => self%first_aggregate_variable
       do while (associated(aggregate_variable))
          if (aggregate_variable%standard_variable%conserved) then
-            ! Allocate objects that will do the sumamtion across the different domains.
+            ! Allocate objects that will do the summation across the different domains.
             allocate(sum,surface_sum,bottom_sum)
 
             ! Enumerate contributions to aggregate variable.
