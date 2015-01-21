@@ -594,12 +594,19 @@
    integer                   :: i
    integer(timestepkind)     :: n
    logical                   :: valid_state
+   character(len=10)         :: strstep
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    LEVEL1 'time_loop'
 
    do n=MinN,MaxN
+      if (mod(n-MinN+1,2000)==0) then
+         write (strstep,'(i0)') n
+         call write_time_string(julianday,secondsofday,timestr)
+         call log_message('     '//trim(timestr)//' (time step '//trim(strstep)//')')
+      end if
+
       ! Update time and all time-dependent inputs.
       call start_time_step(n)
 
@@ -629,7 +636,6 @@
 
       ! Do output
       call do_output(n)
-
    end do
    STDERR LINE
 
