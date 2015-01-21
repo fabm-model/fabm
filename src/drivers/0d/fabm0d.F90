@@ -446,7 +446,7 @@
          else
             scalar_id = fabm_get_scalar_variable_id(model,variable_name)
             if (.not.fabm_is_variable_used(scalar_id)) &
-               call fatal_error('parse_input_variable','input.yaml: Variable "'//trim(variable_name)//'" is not present in any biogeochemical  model.')
+               call log_message('WARNING! input.yaml: Variable "'//trim(variable_name)//'" is not present in any biogeochemical  model.')
          end if
       end if
 
