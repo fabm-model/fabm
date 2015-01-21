@@ -35,7 +35,7 @@
 
    call init_run()
    call time_loop()
-   call clean_up()
+   call clean_up(ignore_errors=.false.)
 
    call CPU_Time(t2)
    call Date_And_Time(datestr,timestr)

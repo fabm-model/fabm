@@ -62,18 +62,13 @@
 
    type (type_bulk_variable_id), save :: id_dens, id_par
    logical                            :: compute_density
-#if 0
-   interface
-      function short_wave_radiation(jul,secs,dlon,dlat,cloud,bio_albedo) result(swr)
-         import
-         integer, intent(in)                 :: jul,secs
-         real(rk), intent(in)                :: dlon,dlat
-         real(rk), intent(in)                :: cloud
-         real(rk), intent(in)                :: bio_albedo
-         real(rk)                            :: swr
-      end function short_wave_radiation
-   end interface
-#endif
+
+   type,extends(type_base_driver) :: type_0d_driver
+   contains
+      procedure :: fatal_error => custom_fatal_error
+      procedure :: log_message => custom_log_message
+   end type
+
 !EOP
 !-----------------------------------------------------------------------
 
@@ -88,8 +83,7 @@
 ! !IROUTINE: Parse the command line
 !
 ! !INTERFACE:
-   subroutine  cmdline
-   implicit none
+   subroutine cmdline
 
 !   character(len=*), parameter :: version = '1.0'
    character(len=32) :: arg
@@ -169,6 +163,10 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+
+   ! Make FABM use our custom logger/error reporter
+   allocate(type_0d_driver::driver)
+
    call cmdline
 
    LEVEL1 'init_run'
@@ -215,53 +213,26 @@
    ! Close the namelist file.
    close (namlst)
 
-   if (start=='') then
-      FATAL 'run.nml: start time "start" must be set in "model_setup" namelist.'
-      stop 'init_run'
-   end if
-
-   if (stop=='') then
-      FATAL 'run.nml: stop time "stop" must be set in "model_setup" namelist.'
-      stop 'init_run'
-   end if
-
-   if (dt<=0.0_rk) then
-      FATAL 'run.nml: time step "dt" must be set to a positive value in "model_setup" namelist.'
-      stop 'init_run'
-   end if
-
-   if (env_file=='') then
-      FATAL 'run.nml: "env_file" must be set to a valid file path in "environment" namelist.'
-      stop 'init_run'
-   end if
-
-   if (latitude/=invalid_latitude.and.(latitude<-90._rk.or.latitude>90._rk)) then
-      FATAL 'run.nml: latitude must lie between -90 and 90.'
-      stop 'init_run'
-   end if
-   if (longitude/=invalid_longitude.and.(longitude<-360._rk.or.longitude>360._rk)) then
-      FATAL 'run.nml: longitude must lie between -360 and 360.'
-      stop 'init_run'
-   end if
+   if (start=='')  call fatal_error('init_run','run.nml: start time "start" must be set in "model_setup" namelist.')
+   if (stop=='')   call fatal_error('init_run','run.nml: stop time "stop" must be set in "model_setup" namelist.')
+   if (dt<=0.0_rk) call fatal_error('init_run','run.nml: time step "dt" must be set to a positive value in "model_setup" namelist.')
+   if (env_file=='') call fatal_error('init_run','run.nml: "env_file" must be set to a valid file path in "environment" namelist.')
+   if (latitude/=invalid_latitude.and.(latitude<-90._rk.or.latitude>90._rk)) &
+      call fatal_error('init_run','run.nml: latitude must lie between -90 and 90.')
+   if (longitude/=invalid_longitude.and.(longitude<-360._rk.or.longitude>360._rk)) &
+      call fatal_error('init_run','run.nml: longitude must lie between -360 and 360.')
 
    ! Make sure depth has been provided.
-   if (depth<=0.0_rk) then
-      FATAL 'run.nml: a positive value for "depth" must be provided in "environment" namelist.'
-      stop 'init_run'
-   end if
+   if (depth<=0.0_rk) call fatal_error('init_run','run.nml: a positive value for "depth" must be provided in "environment" namelist.')
    column_depth = depth ! Provided depth is the column depth. The modelled biogeochemistry will be positioned at half this depth.
    call update_depth(CENTER)
 
    ! If longitude and latitude are used, make sure they have been provided and are valid.
    if (swr_method==0) then
-      if (latitude==invalid_latitude) then
-         FATAL 'run.nml: a valid value for "latitude" must be provided in "environment" if "swr_method" is 0.'
-         stop 'init_run'
-      end if
-      if (longitude==invalid_longitude) then
-         FATAL 'run.nml: a valid value for "longitude" must be provided in "environment" if "swr_method" is 0.'
-         stop 'init_run'
-      end if
+      if (latitude==invalid_latitude) &
+        call fatal_error('init_run','run.nml: a valid value for "latitude" must be provided in "environment" if "swr_method" is 0.')
+      if (longitude==invalid_longitude) &
+        call fatal_error('init_run','run.nml: a valid value for "longitude" must be provided in "environment" if "swr_method" is 0.')
    end if
 
    ! Configure the time module to use actual start and stop dates.
@@ -387,12 +358,9 @@
 
    return
 
-90 FATAL 'I could not open run.nml for reading'
-   stop 'init_run'
-91 FATAL 'I could not read the "model_setup" namelist'
-   stop 'init_run'
-92 FATAL 'I could not read the "environment" namelist'
-   stop 'init_run'
+90 call fatal_error('init_run','I could not open run.nml for reading.')
+91 call fatal_error('init_run','I could not read the "model_setup" namelist from run.nml.')
+92 call fatal_error('init_run','I could not read the "environment" namelist from run.nml.')
 
    end subroutine init_run
 !EOC
@@ -625,6 +593,7 @@
 ! !LOCAL VARIABLES:
    integer                   :: i
    integer(timestepkind)     :: n
+   logical                   :: valid_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -633,9 +602,6 @@
    do n=MinN,MaxN
       ! Update time and all time-dependent inputs.
       call start_time_step(n)
-
-      ! Repair state before calling FABM
-      call do_repair_state('0d::time_loop(), before ode_solver()')
 
       call fabm_update_time(model,real(n,rk))
 
@@ -654,7 +620,12 @@
          call fabm_link_surface_state_data(model,i,cc(size(model%state_variables)+size(model%bottom_state_variables)+i))
       end do
 
-      call do_repair_state('0d::time_loop(), after ode_solver()')
+      ! Verify whether the model state is still valid (clip if needed and allowed)
+      call fabm_check_state(model,repair_state,valid_state)
+      if (.not. (valid_state .or. repair_state)) &
+         call fatal_error('time_loop','State variable values are invalid and repair is not allowed. &
+            &This may be fixed by setting repair_state=.true. (clip state to nearest valid value), &
+            &but this should be used with caution. Try and decrease the time step (dt) first - and see if that helps.')
 
       ! Do output
       call do_output(n)
@@ -671,10 +642,13 @@
 ! !IROUTINE: The run is over --- now clean up.
 !
 ! !INTERFACE:
-   subroutine clean_up()
+   subroutine clean_up(ignore_errors)
 !
 ! !DESCRIPTION:
 ! Close all open files.
+!
+! !INPUT PARAMETERS:
+   logical, intent(in) :: ignore_errors
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -684,8 +658,8 @@
 !BOC
    LEVEL1 'clean_up'
 
+   call clean_output(ignore_errors=ignore_errors)
    call close_input()
-   call clean_output()
 
    end subroutine clean_up
 !EOC
@@ -723,44 +697,6 @@
    end select
 
    end subroutine update_depth
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Check the current values of all state variables
-!
-! !INTERFACE:
-   subroutine do_repair_state(location)
-!
-! !DESCRIPTION:
-!  Checks the current values of all state variables and repairs these
-!  if allowed and possible. If the state is invalid and repair is not
-!  allowed, the model is brought down.
-!
-! !INPUT PARAMETERS:
-   character(len=*),intent(in) :: location
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-!EOP
-!
-! !LOCAL VARIABLES:
-   logical :: valid
-!
-!-----------------------------------------------------------------------
-!BOC
-   call fabm_check_state(model,repair_state,valid)
-   if (.not. (valid .or. repair_state)) then
-      FATAL 'State variable values are invalid and repair is not allowed.'
-      FATAL location
-      FATAL 'note that repair_state() should be used with caution.'
-      FATAL 'try and decrease dt first - and see if that helps.'
-      stop 'fabm0d::do_repair_state'
-   end if
-
-   end subroutine do_repair_state
 !EOC
 
 !-----------------------------------------------------------------------
@@ -888,6 +824,22 @@
 
    end subroutine get_rhs
 !EOC
+
+   subroutine custom_fatal_error(self,location,message)
+      class (type_0d_driver), intent(inout) :: self
+      character(len=*),       intent(in)    :: location,message
+
+      FATAL trim(location)//': '//trim(message)
+      call clean_up(ignore_errors=.true.)
+      stop 1
+   end subroutine
+
+   subroutine custom_log_message(self,message)
+      class (type_0d_driver), intent(inout) :: self
+      character(len=*),       intent(in)    :: message
+
+      write (*,*) trim(message)
+   end subroutine
 
 !-----------------------------------------------------------------------
 

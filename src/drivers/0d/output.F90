@@ -460,10 +460,13 @@
 ! !IROUTINE: Clean up.
 !
 ! !INTERFACE:
-   subroutine clean_output()
+   subroutine clean_output(ignore_errors)
 !
 ! !DESCRIPTION:
 ! Close all open files.
+!
+! !INPUT PARAMETERS:
+   logical, intent(in) :: ignore_errors
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -478,7 +481,7 @@
 #ifdef NETCDF4
    if (ncid/=-1) then
       iret = nf90_close(ncid)
-      call check_err(iret)
+      if (.not.ignore_errors) call check_err(iret)
    end if
 #endif
 
