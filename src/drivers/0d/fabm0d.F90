@@ -577,22 +577,12 @@
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
          call fabm_get_albedo(model,bio_albedo)
          hh = secondsofday*(_ONE_/3600)
-#if 0
          zenith_angle = solar_zenith_angle(yearday,hh,longitude,latitude)
          swr_sf = short_wave_radiation(zenith_angle,yearday,longitude,latitude,cloud)
          if (albedo_correction) then
             albedo = albedo_water(1,zenith_angle,yearday)
             swr_sf = swr_sf*(_ONE_-albedo-bio_albedo)
          end if
-#else
-         swr_sf = short_wave_radiation(yearday,hh,longitude,latitude,cloud)
-         if (albedo_correction) then
-            albedo = albedo_water(1,yearday,hh,longitude,latitude)
-            swr_sf = swr_sf*(_ONE_-albedo-bio_albedo)
-else
-stop 'egon'
-         end if
-#endif
       end if
 
       ! Multiply by fraction of short-wave radiation that is photosynthetically active.

@@ -148,25 +148,31 @@
             write(out_unit,FMT=100,ADVANCE='NO') separator,'salinity',                           'kg/m3'
          end if
          do i=1,size(model%state_variables)
-            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%state_variables(i)%long_name),trim(model%state_variables(i)%units)
+            if (model%state_variables(i)%output/=output_none) &
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%state_variables(i)%long_name),trim(model%state_variables(i)%units)
          end do
          do i=1,size(model%bottom_state_variables)
-            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%bottom_state_variables(i)%long_name),trim(model%bottom_state_variables(i)%units)
+            if (model%bottom_state_variables(i)%output/=output_none) &
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%bottom_state_variables(i)%long_name),trim(model%bottom_state_variables(i)%units)
          end do
          do i=1,size(model%surface_state_variables)
-            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%surface_state_variables(i)%long_name),trim(model%surface_state_variables(i)%units)
+            if (model%surface_state_variables(i)%output/=output_none) &
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%surface_state_variables(i)%long_name),trim(model%surface_state_variables(i)%units)
          end do
          if (add_diagnostic_variables) then
             do i=1,size(model%diagnostic_variables)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%diagnostic_variables(i)%long_name),trim(model%diagnostic_variables(i)%units)
+               if (model%diagnostic_variables(i)%output/=output_none) &
+                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%diagnostic_variables(i)%long_name),trim(model%diagnostic_variables(i)%units)
             end do
             do i=1,size(model%horizontal_diagnostic_variables)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%horizontal_diagnostic_variables(i)%long_name),trim(model%horizontal_diagnostic_variables(i)%units)
+               if (model%horizontal_diagnostic_variables(i)%output/=output_none) &
+                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%horizontal_diagnostic_variables(i)%long_name),trim(model%horizontal_diagnostic_variables(i)%units)
             end do
          end if
          if (add_conserved_quantities) then
             do i=1,size(model%conserved_quantities)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%conserved_quantities(i)%long_name),trim(model%conserved_quantities(i)%units)
+               if (model%conserved_quantities(i)%output/=output_none) &
+                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%conserved_quantities(i)%long_name),trim(model%conserved_quantities(i)%units)
             end do
          end if
          write(out_unit,*)
@@ -289,6 +295,12 @@
    subroutine create_variable(variable,id)
       class (type_external_variable),intent(in)  :: variable
       integer,                       intent(out) :: id
+
+      if (variable%output==output_none) then
+         id = -1
+         return
+      end if
+
       iret = nf90_def_var(ncid,trim(variable%name),NF90_REAL,dims,id)
       call check_err(iret)
       iret = nf90_put_att(ncid,id,'long_name',trim(variable%long_name))
@@ -335,21 +347,33 @@
             write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,temp
             write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,salt
          end if
-         do i=1,size(cc)
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(i)
+         do i=1,size(model%state_variables)
+            if (model%state_variables(i)%output/=output_none) &
+               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(i)
+         end do
+         do i=1,size(model%bottom_state_variables)
+            if (model%bottom_state_variables(i)%output/=output_none) &
+               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(size(model%state_variables)+i)
+         end do
+         do i=1,size(model%surface_state_variables)
+            if (model%surface_state_variables(i)%output/=output_none) &
+               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(size(model%state_variables)+size(model%bottom_state_variables)+i)
          end do
          if (add_diagnostic_variables) then
             do i=1,size(model%diagnostic_variables)
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
+               if (model%diagnostic_variables(i)%output/=output_none) &
+                  write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
             end do
             do i=1,size(model%horizontal_diagnostic_variables)
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_horizontal_diagnostic_data(model,i)
+               if (model%horizontal_diagnostic_variables(i)%output/=output_none) &
+                  write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_horizontal_diagnostic_data(model,i)
             end do
          end if
          if (add_conserved_quantities) then
             call fabm_get_conserved_quantities(model,totals)
             do i=1,size(model%conserved_quantities)
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,totals(i)
+               if (model%conserved_quantities(i)%output/=output_none) &
+                  write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,totals(i)
             end do
          end if
          write (out_unit,*)
@@ -379,17 +403,20 @@
          call check_err(iret)
 
          do i=1,size(cc)
+            if (statevar_ids(i)==-1) cycle
             iret = nf90_put_var(ncid,statevar_ids(i),cc(i),start)
             call check_err(iret)
          end do
 
          do i=1,size(model%diagnostic_variables)
+            if (diagnostic_ids(i)==-1) cycle
             iret = nf90_put_var(ncid,diagnostic_ids(i),fabm_get_bulk_diagnostic_data(model,i),start)
             call check_err(iret)
          end do
 
          j = size(model%diagnostic_variables)
          do i=1,size(model%horizontal_diagnostic_variables)
+            if (diagnostic_ids(i+j)==-1) cycle
             iret = nf90_put_var(ncid,diagnostic_ids(i+j),fabm_get_horizontal_diagnostic_data(model,i),start)
             call check_err(iret)
          end do
@@ -399,9 +426,10 @@
          totals = totals + totals_hz/column_depth
          if (n==0_timestepkind) totals0 = totals
          do i=1,size(model%conserved_quantities)
-            iret = nf90_put_var(ncid,conserved_ids(i),totals(i),start)
-            call check_err(iret)
-
+            if (conserved_ids(i)/=-1) then
+               iret = nf90_put_var(ncid,conserved_ids(i),totals(i),start)
+               call check_err(iret)
+            end if
             iret = nf90_put_var(ncid,conserved_change_ids(i),totals(i)-totals0(i),start)
             call check_err(iret)
          end do
