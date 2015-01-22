@@ -1,3 +1,11 @@
+cmake_minimum_required(VERSION 2.8.8)
+
+# Use solution folders in IDEs
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+# Create main project.
+project(fabm0d Fortran)
+
 # Find GOTM directory.
 # This directory will also be configurable in the CMake GUI or interactive mode.
 find_path(GOTM_BASE
@@ -6,11 +14,30 @@ find_path(GOTM_BASE
           PATH_SUFFIXES GOTM/gotm-git gotm-git
           DOC "Directory with GOTM source code (www.gotm.net)")
 
+# Make NetCDF usage a configurable option.
+option(FABM_USE_NetCDF "Enable NetCDF output" ON)
+if(FABM_USE_NetCDF)
+  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${GOTM_BASE}/src/cmake/Modules/")
+  find_package(NetCDF REQUIRED)
+  if (NetCDF_STATIC_MSVC_BUILD)
+    add_compile_options("/libs:static")
+  endif()
+endif(FABM_USE_NetCDF)
+
+# Force FABM_HOST to 0d and include FABM CMakeLists.txt.
+set(FABM_FORCED_HOST 0d)
+add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
+
 # generate GOTM's version.h
 configure_file("${GOTM_BASE}/include/version.h.in" "${CMAKE_BINARY_DIR}/gotm/version.h")
 
 # Build 0d executable.
-add_executable (fabm0d main.F90 fabm0d.F90 shared.F90 output.F90 fabm_0d.h
+add_executable (fabm0d
+                main.F90
+                fabm0d.F90
+                shared.F90
+                output.F90
+                fabm_0d.h
                 ${GOTM_BASE}/src/airsea/solar_zenith_angle.F90
                 ${GOTM_BASE}/src/airsea/albedo_water.F90
                 ${GOTM_BASE}/src/airsea/short_wave_radiation.F90
@@ -23,37 +50,54 @@ add_executable (fabm0d main.F90 fabm0d.F90 shared.F90 output.F90 fabm_0d.h
 # Group GOTM source files in a folder in IDEs that support this.
 source_group(gotm REGULAR_EXPRESSION ${GOTM_BASE})
 
-# Give exectuable project its own folder in Visual Studio solutions.
-set_property(TARGET fabm0d PROPERTY FOLDER executable)
-
 # Link with FABM library.
 target_link_libraries(fabm0d fabm)
 
-# Set module directory (output of *.mod) and include directories (input pf *.h, *.mod).
-set_property(TARGET fabm0d PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/0d_modules)
-set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTM_BASE}/include")
-set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTM_BASE}/src/util")
-set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/0d_modules")
-set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/gotm")
-if (WIN32)
-  set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTM_BASE}/compilers/vs2010")
-endif(WIN32)
-
-# Make NetCDF use a configurable option.
-option(FABM_USE_NetCDF "Enable NetCDF output" ON)
 if(FABM_USE_NetCDF)
-  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${GOTM_BASE}/src/cmake/Modules/")
-  find_package(NetCDF REQUIRED)
   target_link_libraries(fabm0d ${NetCDF_LIBRARIES})
   set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES ${NetCDF_INCLUDE_DIRS})
   set_property(TARGET fabm0d APPEND PROPERTY COMPILE_DEFINITIONS NETCDF4)
   if (NetCDF_STATIC_MSVC_BUILD)
-    set_property(TARGET fabm0d PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmtd\"")
-    target_compile_options(fabm0d PRIVATE "/libs:static")
+    set_property(TARGET fabm0d PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmt\"")
   endif()
 endif(FABM_USE_NetCDF)
 
+# Set module directory (output of *.mod)
+set_property(TARGET fabm0d PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
+
+# Set include directories with modules (*.mod) - our own and FABM's.
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/modules")
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/fabm/modules")
+
+# Set include directories with header files (*.h) for GOTM - version.h, cppdefs.h, ode_solver_template.F90.
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/gotm")
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTM_BASE}/include")
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTM_BASE}/src/util")
+
+# Set include directories with header files (*.h) - our own and FABM's.
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}")
+set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../../../include")
+
+# Set default installation prefix.
+if(WIN32)
+  if(DEFINED ENV{LOCALAPPDATA})
+    set(DEFAULT_PREFIX "$ENV{LOCALAPPDATA}/fabm/0d")
+  else()
+    set(DEFAULT_PREFIX "$ENV{APPDATA}/fabm/0d")
+  endif()
+else()
+  set(DEFAULT_PREFIX "$ENV{HOME}/local/fabm/0d")
+endif()
+
+# Set cache variable with installation prefix.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  # None set - set our default prefix.
+  set(CMAKE_INSTALL_PREFIX "${DEFAULT_PREFIX}" CACHE PATH "Directory to install FABM's 0d driver in" FORCE)
+else()
+  # User specified a prefix - just update the variable description.
+  set(CMAKE_INSTALL_PREFIX "${DEFAULT_PREFIX}" CACHE PATH "Directory to install FABM's 0d driver in")
+endif()
+message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
+
 install(TARGETS fabm0d
   DESTINATION bin)
-
-set(FABM_NO_LIBRARY_INSTALL ON PARENT_SCOPE)

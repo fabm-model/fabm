@@ -1,17 +1,54 @@
-add_library (python_fabm SHARED python_fabm.F90 helper.F90 )
-target_link_libraries(python_fabm fabm)
-set_property(TARGET python_fabm PROPERTY FOLDER python)
+cmake_minimum_required(VERSION 2.8.8)
 
+# Use solution folders in IDEs
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+# Create main project.
+project(python_fabm Fortran)
+
+# Specify position-independent code since we will build a shared library.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# Force FABM_HOST to python and include FABM CMakeLists.txt.
+set(FABM_FORCED_HOST python)
+add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
+
+# Add Python-FABM library
+add_library (python_fabm SHARED python_fabm.F90 helper.F90 )
+
+# Link in FABM itself
+target_link_libraries(python_fabm fabm)
+
+# Set module directory (output of *.mod)
+set_property(TARGET python_fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
+
+# Set include directories with modules (*.mod) - our own and FABM's.
+set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/modules")
+set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/fabm/modules")
+
+# Set include directories with header files (*.h) - our own and FABM's.
+set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}")
+set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../../../include")
+
+# Query Python itself for default installation prefix.
 find_package(PythonInterp)
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -m site --user-site
                 OUTPUT_VARIABLE SITE_PACKAGES_DIR
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-set(DEFAULT_PREFIX "${SITE_PACKAGES_DIR}" PARENT_SCOPE)
+set(DEFAULT_PREFIX "${SITE_PACKAGES_DIR}")
+
+# Set cache variable with installation prefix.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  # None set - set our default prefix.
+  set(CMAKE_INSTALL_PREFIX "${DEFAULT_PREFIX}" CACHE PATH "Directory to install python_fabm in" FORCE)
+else()
+  # User specified a prefix - just update the variable description.
+  set(CMAKE_INSTALL_PREFIX "${DEFAULT_PREFIX}" CACHE PATH "Directory to install python_fabm in")
+endif()
+message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
 
 install(TARGETS python_fabm
   DESTINATION pyfabm)
 install(DIRECTORY pyfabm/
   DESTINATION pyfabm)
-
-set(FABM_NO_LIBRARY_INSTALL ON PARENT_SCOPE)
 
