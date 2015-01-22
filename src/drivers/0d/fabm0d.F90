@@ -223,16 +223,17 @@
       call fatal_error('init_run','run.nml: longitude must lie between -360 and 360.')
 
    ! Make sure depth has been provided.
-   if (depth<=0.0_rk) call fatal_error('init_run','run.nml: a positive value for "depth" must be provided in "environment" namelist.')
+   if (depth<=0.0_rk) call fatal_error('init_run','run.nml: &
+      &a positive value for "depth" must be provided in "environment" namelist.')
    column_depth = depth ! Provided depth is the column depth. The modelled biogeochemistry will be positioned at half this depth.
    call update_depth(CENTER)
 
    ! If longitude and latitude are used, make sure they have been provided and are valid.
    if (swr_method==0) then
-      if (latitude==invalid_latitude) &
-        call fatal_error('init_run','run.nml: a valid value for "latitude" must be provided in "environment" if "swr_method" is 0.')
-      if (longitude==invalid_longitude) &
-        call fatal_error('init_run','run.nml: a valid value for "longitude" must be provided in "environment" if "swr_method" is 0.')
+      if (latitude==invalid_latitude) call fatal_error('init_run','run.nml: &
+         &a valid value for "latitude" must be provided in "environment" if "swr_method" is 0.')
+      if (longitude==invalid_longitude) call fatal_error('init_run','run.nml: &
+         &a valid value for "longitude" must be provided in "environment" if "swr_method" is 0.')
    end if
 
    ! Configure the time module to use actual start and stop dates.
@@ -387,7 +388,8 @@
             ! Process "input" section.
             call init_yaml_input(node)
          class default
-            call fatal_error('init_yaml','input.yaml must contain a dictionary with (variable name : information) pairs, not a single value.')
+            call fatal_error('init_yaml','input.yaml must contain a dictionary with (variable name : information) pairs,&
+               & not a single value.')
       end select
    end subroutine init_yaml
 
@@ -445,8 +447,8 @@
             is_state_variable = horizontal_id%state_index/=-1
          else
             scalar_id = fabm_get_scalar_variable_id(model,variable_name)
-            if (.not.fabm_is_variable_used(scalar_id)) &
-               call log_message('WARNING! input.yaml: Variable "'//trim(variable_name)//'" is not present in any biogeochemical  model.')
+            if (.not.fabm_is_variable_used(scalar_id)) call log_message('WARNING! input.yaml: &
+               &Variable "'//trim(variable_name)//'" is not present in any biogeochemical  model.')
          end if
       end if
 
@@ -465,11 +467,14 @@
 
          ! Make sure keys related to time-varying input are not present.
          node => mapping%get('file')
-         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "file" cannot both be present.')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
+            &keys "constant_value" and "file" cannot both be present.')
          node => mapping%get('column')
-         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "column" cannot both be present.')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
+            &keys "constant_value" and "column" cannot both be present.')
          node => mapping%get('scale_factor')
-         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "scale_factor" cannot both be present.')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
+            &keys "constant_value" and "scale_factor" cannot both be present.')
          write (message,'(g13.6)') input_data%value
          call driver%log_message('    constant_value = '//adjustl(message))
       else
@@ -495,13 +500,15 @@
       else
          ! This is not a state variable. Make sure no relaxation time is specified.
          node => mapping%get('relaxation_time')
-         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": key "relaxation_time" is not supported because "'//trim(variable_name)//'" is not a state variable.')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
+            &key "relaxation_time" is not supported because "'//trim(variable_name)//'" is not a state variable.')
       end if
 
       ! Warn about uninterpreted keys.
       pair => mapping%first
       do while (associated(pair))
-         if (.not.pair%accessed) call fatal_error('parse_input_variable','input.yaml: Unrecognized option "'//trim(pair%key)//'" found for variable "'//trim(variable_name)//'".')
+         if (.not.pair%accessed) call fatal_error('parse_input_variable','input.yaml: &
+            &Unrecognized option "'//trim(pair%key)//'" found for variable "'//trim(variable_name)//'".')
          pair => pair%next
       end do
 

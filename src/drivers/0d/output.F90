@@ -51,7 +51,8 @@
    integer                   :: setn
    integer                   :: time_id
    integer                   :: par_id,temp_id,salt_id
-   integer, allocatable, dimension(:) :: statevar_ids,diagnostic_ids,conserved_ids,conserved_change_ids
+   integer, allocatable, dimension(:) :: statevar_ids,diagnostic_ids
+   integer, allocatable, dimension(:) :: conserved_ids,conserved_change_ids
 #endif
 !EOP
 !-----------------------------------------------------------------------
@@ -149,30 +150,36 @@
          end if
          do i=1,size(model%state_variables)
             if (model%state_variables(i)%output/=output_none) &
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%state_variables(i)%long_name),trim(model%state_variables(i)%units)
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%state_variables(i)%long_name), &
+                  trim(model%state_variables(i)%units)
          end do
          do i=1,size(model%bottom_state_variables)
             if (model%bottom_state_variables(i)%output/=output_none) &
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%bottom_state_variables(i)%long_name),trim(model%bottom_state_variables(i)%units)
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%bottom_state_variables(i)%long_name), &
+                  trim(model%bottom_state_variables(i)%units)
          end do
          do i=1,size(model%surface_state_variables)
             if (model%surface_state_variables(i)%output/=output_none) &
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%surface_state_variables(i)%long_name),trim(model%surface_state_variables(i)%units)
+               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%surface_state_variables(i)%long_name), &
+                  trim(model%surface_state_variables(i)%units)
          end do
          if (add_diagnostic_variables) then
             do i=1,size(model%diagnostic_variables)
                if (model%diagnostic_variables(i)%output/=output_none) &
-                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%diagnostic_variables(i)%long_name),trim(model%diagnostic_variables(i)%units)
+                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%diagnostic_variables(i)%long_name), &
+                     trim(model%diagnostic_variables(i)%units)
             end do
             do i=1,size(model%horizontal_diagnostic_variables)
                if (model%horizontal_diagnostic_variables(i)%output/=output_none) &
-                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%horizontal_diagnostic_variables(i)%long_name),trim(model%horizontal_diagnostic_variables(i)%units)
+                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%horizontal_diagnostic_variables(i)%long_name), &
+                     trim(model%horizontal_diagnostic_variables(i)%units)
             end do
          end if
          if (add_conserved_quantities) then
             do i=1,size(model%conserved_quantities)
                if (model%conserved_quantities(i)%output/=output_none) &
-                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%conserved_quantities(i)%long_name),trim(model%conserved_quantities(i)%units)
+                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%conserved_quantities(i)%long_name), &
+                     trim(model%conserved_quantities(i)%units)
             end do
          end if
          write(out_unit,*)
@@ -238,7 +245,8 @@
             call create_variable(model%bottom_state_variables(i),statevar_ids(i+size(model%state_variables)))
          end do
          do i=1,size(model%surface_state_variables)
-            call create_variable(model%surface_state_variables(i),statevar_ids(i+size(model%state_variables)+size(model%bottom_state_variables)))
+            call create_variable(model%surface_state_variables(i), &
+               statevar_ids(i+size(model%state_variables)+size(model%bottom_state_variables)))
          end do
 
          do i=1,size(model%diagnostic_variables)
@@ -250,9 +258,11 @@
 
          do i=1,size(model%conserved_quantities)
             call create_variable(model%conserved_quantities(i),conserved_ids(i))
-            iret = nf90_def_var(ncid,'int_'//trim(model%conserved_quantities(i)%name)//'_change',NF90_REAL,dims,conserved_change_ids(i))
+            iret = nf90_def_var(ncid,'int_'//trim(model%conserved_quantities(i)%name)//'_change',NF90_REAL,dims, &
+               conserved_change_ids(i))
             call check_err(iret)
-            iret = nf90_put_att(ncid,conserved_change_ids(i),'long_name','integrated change in '//trim(model%conserved_quantities(i)%long_name))
+            iret = nf90_put_att(ncid,conserved_change_ids(i),'long_name', &
+               'integrated change in '//trim(model%conserved_quantities(i)%long_name))
             call check_err(iret)
             iret = nf90_put_att(ncid,conserved_change_ids(i),'units',trim(model%conserved_quantities(i)%units))
             call check_err(iret)
@@ -357,7 +367,8 @@
          end do
          do i=1,size(model%surface_state_variables)
             if (model%surface_state_variables(i)%output/=output_none) &
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(size(model%state_variables)+size(model%bottom_state_variables)+i)
+               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator, &
+                  cc(size(model%state_variables)+size(model%bottom_state_variables)+i)
          end do
          if (add_diagnostic_variables) then
             do i=1,size(model%diagnostic_variables)
