@@ -17,7 +17,8 @@
 
    use fabm
    use fabm_config
-   use fabm_types, only:rk,attribute_length,type_model_list_node,type_base_model,factory,type_link,type_link_list,type_internal_variable
+   use fabm_types, only:rk,attribute_length,type_model_list_node,type_base_model, &
+                        factory,type_link,type_link_list,type_internal_variable
    use fabm_driver, only: type_base_driver, driver
    use fabm_properties
    use fabm_python_helper
@@ -370,7 +371,8 @@
 
       call c_f_pointer(c_loc(name), pname)
       found_model => model%root%find_model(pname(:index(pname,C_NULL_CHAR)-1))
-      if (.not.associated(found_model)) call driver%fatal_error('get_model_metadata','model "'//pname(:index(pname,C_NULL_CHAR)-1)//'" not found.')
+      if (.not.associated(found_model)) call driver%fatal_error('get_model_metadata', &
+         'model "'//pname(:index(pname,C_NULL_CHAR)-1)//'" not found.')
       call copy_to_c_string(found_model%long_name,long_name)
       user_created = logical2int(found_model%user_created)
    end subroutine
