@@ -9,6 +9,12 @@ project(python_fabm Fortran)
 # Specify position-independent code since we will build a shared library.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Customize compiler flags
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel" AND NOT WIN32)
+  # Do not warn about Windows-specific export directives
+  set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -diag-disable 7841")
+endif()
+
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST python)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
