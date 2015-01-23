@@ -1,0 +1,54 @@
+instances:
+  npzd:
+    model: gotm/npzd
+    parameters:
+      p0: 0.0225
+      z0: 0.0225
+      w_p: -1.0
+      w_d: -5.0
+      kc: 0.03
+      I_min: 25.0
+      rmax: 1.0
+      gmax: 0.2
+      Iv: 1.1
+      alpha: 1.35
+      rpn: 0.01
+      rzn: 0.01
+      rdn: 0.003
+      rpdu: 0.02
+      rpdl: 0.1
+      rzd: 0.02
+    initialization:
+      nut: 4.5
+      phy: 1e-15
+      zoo: 1e-15
+      det: 4.5
+  predator:
+    model: examples/benthic_predator
+    parameters:
+      g_max: 0.7
+      K: 0.5
+      h: 0.05
+      interact_with_pelagic: false
+    initialization:
+      bm: 1.
+    coupling:
+      prey: predator_food/result
+      waste: predator_waste/result
+  predator_habitat:
+    model: examples/vertical_distribution
+    parameters:
+      z_top: 10.
+      z_bot: 20.
+      w_top: 1
+      w_bot: 1
+  predator_food:
+    model: examples/depth_integral
+    coupling:
+      target: npzd/zoo
+      weights: predator_habitat/weights
+  predator_waste:
+    model: examples/depth_integral
+    coupling:
+      target: npzd/nut
+      weights: predator_habitat/weights

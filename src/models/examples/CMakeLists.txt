@@ -9,6 +9,7 @@ add_library(fabm_models_examples OBJECT
             npzd/phy.F90
             npzd/zoo.F90
             npzd_f2003/npzd_f2003.F90
+            nonlocal/nonlocal.F90
            )
 
 add_dependencies(fabm_models_examples fabm_base)

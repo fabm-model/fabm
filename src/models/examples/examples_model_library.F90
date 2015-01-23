@@ -22,6 +22,7 @@ contains
       use examples_mean
       use examples_npzd
       use examples_npzd_f2003
+      use nonlocal
 
       ! Add new examples models here
 
@@ -38,6 +39,8 @@ contains
          case ('npzd_zoo');              allocate(type_examples_npzd_zoo::model)
          case ('npzd_det');              allocate(type_examples_npzd_det::model)
          case ('npzd_f2003');            allocate(type_examples_npzd_f2003::model)
+         case ('depth_integral');        allocate(type_depth_integral::model)
+         case ('vertical_distribution'); allocate(type_vertical_distribution::model)
          ! Add new examples models here
       end select
 
