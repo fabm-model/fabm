@@ -27,9 +27,9 @@ contains
       class (type_base_model),pointer :: model
 
       select case (name)
-         case ('gotm_npzd');    allocate(type_gotm_npzd::model)
-         case ('gotm_fasham');  allocate(type_gotm_fasham::model)
-         case ('gotm_ergom');   allocate(type_gotm_ergom::model)
+         case ('npzd');   allocate(type_gotm_npzd::model)
+         case ('fasham'); allocate(type_gotm_fasham::model)
+         case ('ergom');  allocate(type_gotm_ergom::model)
          ! Add new GOTM models here
       end select
 

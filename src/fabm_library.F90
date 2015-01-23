@@ -51,9 +51,9 @@
 
          call factory%add(builtin_factory)
          call factory%add(aed_model_factory)
-         call factory%add(bb_model_factory)
-         call factory%add(examples_model_factory)
-         call factory%add(gotm_model_factory)
+         call factory%add(bb_model_factory,'bb')
+         call factory%add(examples_model_factory,'examples')
+         call factory%add(gotm_model_factory,'gotm')
          call factory%add(iow_model_factory)
          call factory%add(niva_model_factory)
          ! Add new additional model factories here

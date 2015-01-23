@@ -26,8 +26,8 @@ contains
       class (type_base_model),pointer :: model
 
       select case (name)
-         case ('bb_passive');        allocate(type_bb_passive::model)
-         case ('bb_filter_feeder');  allocate(type_bb_filter_feeder::model)
+         case ('passive');       allocate(type_bb_passive::model)
+         case ('filter_feeder'); allocate(type_bb_filter_feeder::model)
          ! Add new BB models here
       end select
 

@@ -544,9 +544,14 @@
    ! in the FABM core.
    ! ====================================================================================================
 
+   type,public :: type_base_model_factory_node
+      character(len=attribute_length)             :: prefix  = ''
+      class (type_base_model_factory),    pointer :: factory => null()
+      type (type_base_model_factory_node),pointer :: next    => null()
+   end type
+
    type,public :: type_base_model_factory
-      class (type_base_model_factory),pointer :: first_child => null()
-      class (type_base_model_factory),pointer :: next_sibling => null()
+      class (type_base_model_factory_node),pointer :: first_child => null()
    contains
       procedure :: create => abstract_model_factory_create
       procedure :: add    => abstract_model_factory_add
@@ -2555,21 +2560,27 @@ function get_safe_name(name) result(safe_name)
 end function
 
 
-subroutine abstract_model_factory_add(self,child)
+subroutine abstract_model_factory_add(self,child,prefix)
    class (type_base_model_factory),       intent(inout) :: self
    class (type_base_model_factory),target,intent(in)    :: child
+   character(len=*),intent(in),optional                 :: prefix
 
-   class (type_base_model_factory),pointer :: current
+   class (type_base_model_factory_node),pointer :: current
 
    if (.not.associated(self%first_child)) then
-      self%first_child => child
+      allocate(self%first_child)
+      current => self%first_child
    else
       current => self%first_child
-      do while(associated(current%next_sibling))
-         current => current%next_sibling
+      do while(associated(current%next))
+         current => current%next
       end do
-      current%next_sibling => child
+      allocate(current%next)
+      current => current%next
    end if
+
+   current%factory => child
+   if (present(prefix)) current%prefix = prefix
 end subroutine
 
 recursive subroutine abstract_model_factory_create(self,name,model)
@@ -2577,13 +2588,20 @@ recursive subroutine abstract_model_factory_create(self,name,model)
    character(len=*),               intent(in) :: name
    class (type_base_model),pointer            :: model
 
-   class (type_base_model_factory),pointer :: child
+   class (type_base_model_factory_node),pointer :: child
+   integer                                      :: prefixlen
 
    child => self%first_child
    do while(associated(child))
-      call child%create(name,model)
+      if (child%prefix/='') then
+         prefixlen = len_trim(child%prefix)
+         if (name(1:prefixlen)==child%prefix .and. (name(prefixlen+1:prefixlen+1)=='_' .or. name(prefixlen+1:prefixlen+1)=='/')) &
+            call child%factory%create(name(prefixlen+2:),model)
+      else
+         call child%factory%create(name,model)
+      end if
       if (associated(model)) return
-      child => child%next_sibling
+      child => child%next
    end do
 end subroutine
 

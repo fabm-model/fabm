@@ -30,14 +30,14 @@ contains
       class (type_base_model),pointer :: model
 
       select case (name)
-         case ('examples_benthic_predator'); allocate(type_examples_benthic_predator::model)
-         case ('examples_duplicator');       allocate(type_examples_duplicator::model)
-         case ('examples_mean');             allocate(type_examples_mean::model)
-         case ('examples_npzd_nut');         allocate(type_examples_npzd_nut::model)
-         case ('examples_npzd_phy');         allocate(type_examples_npzd_phy::model)
-         case ('examples_npzd_zoo');         allocate(type_examples_npzd_zoo::model)
-         case ('examples_npzd_det');         allocate(type_examples_npzd_det::model)
-         case ('examples_npzd_f2003');       allocate(type_examples_npzd_f2003::model)
+         case ('benthic_predator');      allocate(type_examples_benthic_predator::model)
+         case ('duplicator');            allocate(type_examples_duplicator::model)
+         case ('mean');                  allocate(type_examples_mean::model)
+         case ('npzd_nut');              allocate(type_examples_npzd_nut::model)
+         case ('npzd_phy');              allocate(type_examples_npzd_phy::model)
+         case ('npzd_zoo');              allocate(type_examples_npzd_zoo::model)
+         case ('npzd_det');              allocate(type_examples_npzd_det::model)
+         case ('npzd_f2003');            allocate(type_examples_npzd_f2003::model)
          ! Add new examples models here
       end select
 
