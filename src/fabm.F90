@@ -344,10 +344,8 @@
    contains
 
    subroutine fabm_initialize_library()
-      logical, save :: initialized = .false.
-
       ! Do nothing if already initialized.
-      if (initialized) return
+      if (associated(factory)) return
 
       ! If needed, create default object for communication (e.g., logging, error reporting) with host.
       if (.not.associated(driver)) allocate(type_base_driver::driver)
@@ -356,9 +354,8 @@
       call initialize_standard_variables()
 
       ! Create the model factory.
-      call fabm_create_model_factory()
-
-      initialized = .true.
+      allocate(type_model_factory::factory)
+      call factory%initialize()
    end subroutine fabm_initialize_library
 
 !-----------------------------------------------------------------------
@@ -439,9 +436,9 @@
             '"'//trim(models(i))//'" is not a valid model name.')
          childmodel%user_created = .true.
 
-         call log_message('Initializing biogeochemical model "'//trim(instancename)//'"...')
+         call log_message('Initializing '//trim(instancename)//'...')
          call model%root%add_child(childmodel,instancename,configunit=file_unit)
-         call log_message('model "'//trim(instancename)//'" initialized successfully.')
+         call log_message( '   initialization succeeded.')
       end if
    end do
 

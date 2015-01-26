@@ -552,9 +552,11 @@
 
    type,public :: type_base_model_factory
       class (type_base_model_factory_node),pointer :: first_child => null()
+      logical                                      :: initialized = .false.
    contains
-      procedure :: create => abstract_model_factory_create
-      procedure :: add    => abstract_model_factory_add
+      procedure :: initialize => abstract_model_factory_initialize
+      procedure :: add        => abstract_model_factory_add
+      procedure :: create     => abstract_model_factory_create
    end type
 
    class (type_base_model_factory),pointer,save,public :: factory => null()
@@ -2560,12 +2562,30 @@ function get_safe_name(name) result(safe_name)
 end function
 
 
+recursive subroutine abstract_model_factory_initialize(self)
+   class (type_base_model_factory),intent(inout) :: self
+
+   class (type_base_model_factory_node),pointer :: current
+
+   if (self%initialized) call fatal_error('abstract_model_factory_initialize','BUG! Factory has already initialized.')
+
+   self%initialized = .true.
+   current => self%first_child
+   do while(associated(current))
+      call current%factory%initialize()
+      current => current%next
+   end do
+end subroutine abstract_model_factory_initialize
+
 subroutine abstract_model_factory_add(self,child,prefix)
    class (type_base_model_factory),       intent(inout) :: self
    class (type_base_model_factory),target,intent(in)    :: child
    character(len=*),intent(in),optional                 :: prefix
 
    class (type_base_model_factory_node),pointer :: current
+
+   if (self%initialized) call fatal_error('abstract_model_factory_add', &
+      'BUG! Factory initialiation is complete. Child factories can no longer be added.')
 
    if (.not.associated(self%first_child)) then
       allocate(self%first_child)
@@ -2581,7 +2601,7 @@ subroutine abstract_model_factory_add(self,child,prefix)
 
    current%factory => child
    if (present(prefix)) current%prefix = prefix
-end subroutine
+end subroutine abstract_model_factory_add
 
 recursive subroutine abstract_model_factory_create(self,name,model)
    class (type_base_model_factory),intent(in) :: self
@@ -2603,7 +2623,7 @@ recursive subroutine abstract_model_factory_create(self,name,model)
       if (associated(model)) return
       child => child%next
    end do
-end subroutine
+end subroutine abstract_model_factory_create
 
    function time_treatment2output(time_treatment) result(output)
       integer, intent(in) :: time_treatment

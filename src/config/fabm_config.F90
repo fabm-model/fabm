@@ -190,9 +190,10 @@ contains
       end if
 
       ! Add the model to its parent.
-      call log_message('Initializing biogeochemical model "'//trim(instancename)//'" (type "'//trim(modelname)//'")...')
+      call log_message('Initializing '//trim(instancename)//'...')
+      call log_message('   model type: '//trim(modelname))
       call parent%add_child(model,instancename,long_name,configunit=-1)
-      call log_message('model "'//trim(instancename)//'" initialized successfully.')
+      call log_message('   initialization succeeded.')
 
       ! Check for parameters requested by the model, but not present in the configuration file.
       if (require_all_parameters.and.associated(model%parameters%missing%first)) &
