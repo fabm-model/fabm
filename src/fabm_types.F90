@@ -544,15 +544,15 @@
    ! in the FABM core.
    ! ====================================================================================================
 
-   type,public :: type_base_model_factory_node
+   type type_base_model_factory_node
       character(len=attribute_length)             :: prefix  = ''
       class (type_base_model_factory),    pointer :: factory => null()
       type (type_base_model_factory_node),pointer :: next    => null()
    end type
 
    type,public :: type_base_model_factory
-      class (type_base_model_factory_node),pointer :: first_child => null()
-      logical                                      :: initialized = .false.
+      type (type_base_model_factory_node),pointer :: first_child => null()
+      logical                                     :: initialized = .false.
    contains
       procedure :: initialize => abstract_model_factory_initialize
       procedure :: add        => abstract_model_factory_add
@@ -2565,7 +2565,7 @@ end function
 recursive subroutine abstract_model_factory_initialize(self)
    class (type_base_model_factory),intent(inout) :: self
 
-   class (type_base_model_factory_node),pointer :: current
+   type (type_base_model_factory_node),pointer :: current
 
    if (self%initialized) call fatal_error('abstract_model_factory_initialize','BUG! Factory has already initialized.')
 
@@ -2582,7 +2582,7 @@ subroutine abstract_model_factory_add(self,child,prefix)
    class (type_base_model_factory),target,intent(in)    :: child
    character(len=*),intent(in),optional                 :: prefix
 
-   class (type_base_model_factory_node),pointer :: current
+   type (type_base_model_factory_node),pointer :: current
 
    if (self%initialized) call fatal_error('abstract_model_factory_add', &
       'BUG! Factory initialiation is complete. Child factories can no longer be added.')
@@ -2608,15 +2608,15 @@ recursive subroutine abstract_model_factory_create(self,name,model)
    character(len=*),               intent(in) :: name
    class (type_base_model),pointer            :: model
 
-   class (type_base_model_factory_node),pointer :: child
-   integer                                      :: prefixlen
+   type (type_base_model_factory_node),pointer :: child
+   integer                                     :: n
 
    child => self%first_child
    do while(associated(child))
       if (child%prefix/='') then
-         prefixlen = len_trim(child%prefix)
-         if (name(1:prefixlen)==child%prefix .and. (name(prefixlen+1:prefixlen+1)=='_' .or. name(prefixlen+1:prefixlen+1)=='/')) &
-            call child%factory%create(name(prefixlen+2:),model)
+         n = len_trim(child%prefix)
+         if (name(1:n)==child%prefix .and. (name(n+1:n+1)=='_' .or. name(n+1:n+1)=='/')) &
+            call child%factory%create(name(n+2:),model)
       else
          call child%factory%create(name,model)
       end if
