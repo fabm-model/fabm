@@ -1,11 +1,11 @@
 instances:
   nut:
-    model: examples_npzd_nut
+    model: examples/npzd_nut
     long_name: nutrient
     initialization:
       c: 4.5
   det:
-    model: examples_npzd_det
+    model: examples/npzd_det
     long_name: detritus
     parameters:
       w_d: -5.0
@@ -16,7 +16,7 @@ instances:
     coupling:
       mineralisation_target: nut/c
   phy:
-    model: examples_npzd_phy
+    model: examples/npzd_phy
     long_name: phytoplankton
     parameters:
       p0: 0.0225,
@@ -35,7 +35,7 @@ instances:
       mortality_target: det/c
       uptake_target: nut/c
   zoo:
-    model: examples_npzd_zoo
+    model: examples/npzd_zoo
     long_name: zooplankton
     parameters:
       z0: 0.0225,

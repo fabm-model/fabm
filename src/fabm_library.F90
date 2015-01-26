@@ -12,6 +12,7 @@
    use fabm_types, only: type_base_model_factory, type_base_model, factory
 
    use fabm_builtin_models
+
 !  Add additional external modules containing models or model factories here
 !  please in alphabetically order
    use aed_models
@@ -19,7 +20,6 @@
    use bb_model_library
    use examples_model_library
    use fabm_metu_mnemiopsis
-   use fabm_pml_carbonate
    use fabm_klimacampus_phy_feedback
    use fabm_hzg_omexdia_p
    use fabm_msi_ergom1
@@ -27,6 +27,7 @@
    use iow_model_library
    use niva_model_library
    use pclake_model_library
+   use pml_model_library
    use au_pclake_model_library
 
    implicit none
@@ -56,9 +57,10 @@
          call factory%add(gotm_model_factory,'gotm')
          call factory%add(iow_model_factory)
          call factory%add(niva_model_factory)
-         ! Add new additional model factories here
          call factory%add(pclake_model_factory)
+         call factory%add(pml_model_factory,'pml')
          call factory%add(au_pclake_model_factory)
+         ! Add additional model factories here
       end if
    end subroutine
 !-----------------------------------------------------------------------
@@ -82,7 +84,6 @@
       select case (name)
          case ('au_prey_predator');          allocate(type_au_prey_predator::model)
          case ('metu_mnemiopsis');           allocate(type_metu_mnemiopsis::model)
-         case ('pml_carbonate');             allocate(type_pml_carbonate::model)
          case ('klimacampus_phy_feedback');  allocate(type_klimacampus_phy_feedback::model)
          case ('hzg_omexdia_p');             allocate(type_hzg_omexdia_p::model)
          case ('msi_ergom1');                allocate(type_msi_ergom1::model)

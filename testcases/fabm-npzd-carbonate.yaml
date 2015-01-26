@@ -1,5 +1,6 @@
 instances:
-  pml_carbonate:
+  carbonate:
+    model: pml/carbonate
     initialization:
       dic: 2200.
     parameters:
@@ -7,7 +8,8 @@ instances:
       alk_param: true
       alk_offset: 520.1
       alk_slope: 51.24
-  gotm_npzd:
+  npzd:
+    model: gotm/npzd
     initialization:
       nut: 4.5
       phy: 1e-15
@@ -31,5 +33,5 @@ instances:
       rpdl: 0.1
       rzd: 0.02
     coupling:
-      dic: pml_carbonate_dic
+      dic: carbonate/dic
 
