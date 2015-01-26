@@ -2567,7 +2567,7 @@ recursive subroutine abstract_model_factory_initialize(self)
 
    type (type_base_model_factory_node),pointer :: current
 
-   if (self%initialized) call fatal_error('abstract_model_factory_initialize','BUG! Factory has already initialized.')
+   if (self%initialized) return
 
    self%initialized = .true.
    current => self%first_child
