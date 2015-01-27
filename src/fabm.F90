@@ -2043,7 +2043,7 @@
    do while (associated(node))
       call node%model%do(_ARGUMENTS_ND_IN_)
 
-      ! Copy newly written diagnostics to prefetch
+      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
       do i=1,size(node%model%reused_diag)
          if (node%model%reused_diag(i)%source==source_do) then
             j = node%model%reused_diag(i)%read_index
@@ -2800,6 +2800,7 @@ end subroutine internal_check_horizontal_state
 !
 ! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
+   integer                              :: i,j,k
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -2814,6 +2815,19 @@ end subroutine internal_check_horizontal_state
    node => self%extinction_call_list%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_ND_IN_)
+
+      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      do i=1,size(node%model%reused_diag)
+         if (node%model%reused_diag(i)%source==source_do) then
+            j = node%model%reused_diag(i)%read_index
+            k = node%model%reused_diag(i)%write_index
+            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+               self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
+            _CONCURRENT_LOOP_END_
+         end if
+      end do
+
+      ! Move to next model
       node => node%next
    end do
 
@@ -2956,7 +2970,7 @@ end subroutine internal_check_horizontal_state
 !EOP
 !
    type (type_model_list_node), pointer :: node
-   integer :: i
+   integer :: i,j,k
 !-----------------------------------------------------------------------
 !BOC
    call prefetch(self%environment _ARG_LOCATION_ND_)
@@ -2964,6 +2978,19 @@ end subroutine internal_check_horizontal_state
    node => self%conserved_quantity_call_list%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_ND_IN_)
+
+      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      do i=1,size(node%model%reused_diag)
+         if (node%model%reused_diag(i)%source==source_do) then
+            j = node%model%reused_diag(i)%read_index
+            k = node%model%reused_diag(i)%write_index
+            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+               self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
+            _CONCURRENT_LOOP_END_
+         end if
+      end do
+
+      ! Move to next model
       node => node%next
    end do
 
