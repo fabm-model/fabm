@@ -24,6 +24,13 @@ if(FABM_USE_NetCDF)
   endif()
 endif(FABM_USE_NetCDF)
 
+# Specify additional compiler flags
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+  if(WIN32)
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
+  endif()
+endif()
+
 # Force FABM_HOST to 0d and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST 0d)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
