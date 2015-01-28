@@ -258,7 +258,7 @@ end subroutine
                   if (associated(link)) master => link%target
                else
                   ! Try to find the master variable among the variables of the requesting model or its parents.
-                  if (coupling%slave_name/=coupling%master_name) then
+                  if (coupling%slave%name/=coupling%master_name) then
                      ! Master and slave name differ: start master search in current model, then move up tree.
                      master => self%find_object(coupling%master_name,recursive=.true.,exact=.false.)
                   elseif (associated(self%parent)) then
@@ -283,13 +283,13 @@ end subroutine
 
          if (associated(master)) then
             ! Target variable found: perform the coupling.
-            call couple_variables(root,master,coupling%slave)
+            call couple_variables(root,master,coupling%slave%target)
 
             ! Remove coupling task from the list
             call self%coupling_task_list%remove(coupling)
          elseif (stage==2) then
             call self%fatal_error('process_coupling_tasks', &
-               'Coupling target "'//trim(coupling%master_name)//'" for "'//trim(coupling%slave_name)//'" was not found.')
+               'Coupling target "'//trim(coupling%master_name)//'" for "'//trim(coupling%slave%name)//'" was not found.')
          end if
 
          ! Move to next coupling task.

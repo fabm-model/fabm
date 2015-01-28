@@ -133,8 +133,7 @@
    end type
 
    type type_coupling_task
-      type (type_internal_variable), pointer :: slave       => null()
-      character(len=attribute_length)        :: slave_name  = ''
+      type (type_link), pointer              :: slave       => null()
       character(len=attribute_length)        :: master_name = ''
       class (type_standard_variable),pointer :: master_standard_variable => null()
       logical                                :: user_specified = .false.
@@ -2732,7 +2731,7 @@ end subroutine abstract_model_factory_create
       ! First try to find an existing coupling task for this link. If one exists, we'll replace it.
       task => self%first
       do while (associated(task))
-         if (link%name==task%slave_name) then
+         if (associated(task%slave,link)) then
             ! Found existing task
             if (task%user_specified.and..not.always_create) then
                nullify(task)
@@ -2752,8 +2751,7 @@ end subroutine abstract_model_factory_create
          task%next => self%first
          self%first => task
       end if
-      task%slave_name = link%name
-      task%slave => link%target
+      task%slave => link
       task%domain = link%target%domain
 
    end function coupling_task_list_add
