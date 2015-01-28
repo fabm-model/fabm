@@ -208,7 +208,7 @@ end subroutine
 ! !LOCAL VARIABLES:
       class (type_base_model),      pointer :: root
       type (type_model_list_node),  pointer :: child
-      type (type_coupling_task),    pointer :: coupling
+      type (type_coupling_task),    pointer :: coupling, next_coupling
       type (type_internal_variable),pointer :: master
       type (type_link),             pointer :: link
 !
@@ -277,18 +277,23 @@ end subroutine
                end if
          end select
 
+         ! Save pointer to the next coupling task in advance, because current task may
+         ! be deallocated from self%coupling_task_list%remove.
+         next_coupling => coupling%next
+
          if (associated(master)) then
             ! Target variable found: perform the coupling.
             call couple_variables(root,master,coupling%slave)
 
             ! Remove coupling task from the list
-            call self%coupling_task_list%pop(coupling)
+            call self%coupling_task_list%remove(coupling)
          elseif (stage==2) then
             call self%fatal_error('process_coupling_tasks', &
                'Coupling target "'//trim(coupling%master_name)//'" for "'//trim(coupling%slave_name)//'" was not found.')
          end if
 
-         coupling => coupling%next
+         ! Move to next coupling task.
+         coupling => next_coupling
       end do
 
       ! Process coupling tasks registered with child models.

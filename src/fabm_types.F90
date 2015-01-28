@@ -147,8 +147,8 @@
       type (type_coupling_task),pointer :: first => null()
       logical                           :: includes_custom = .false.
    contains
-      procedure :: pop => coupling_task_list_pop
-      procedure :: add => coupling_task_list_add
+      procedure :: remove => coupling_task_list_remove
+      procedure :: add    => coupling_task_list_add
    end type
 
    ! ====================================================================================================
@@ -2711,7 +2711,7 @@ end subroutine abstract_model_factory_create
       end select
    end function
 
-   subroutine coupling_task_list_pop(self,task)
+   subroutine coupling_task_list_remove(self,task)
       class (type_coupling_task_list),intent(inout) :: self
       type (type_coupling_task),pointer             :: task
       if (associated(task%previous)) then
@@ -2719,6 +2719,8 @@ end subroutine abstract_model_factory_create
       else
          self%first => task%next
       end if
+      if (associated(task%next)) task%next%previous => task%previous
+      deallocate(task)
    end subroutine
 
    function coupling_task_list_add(self,link,always_create) result(task)
