@@ -219,7 +219,7 @@ contains
             select type (value=>pair%value)
                class is (type_scalar)
                   ! Register couplings at the root level, so they override whatever the models themselves request.
-                  call parent%request_coupling(trim(instancename)//'/'//trim(pair%key),trim(value%string))
+                  call parent%couplings%set_string(trim(instancename)//'/'//trim(pair%key),trim(value%string))
                class is (type_node)
                   call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
                      ' must be a string, not a nested dictionary.')

@@ -3233,13 +3233,10 @@ function create_external_bulk_id_for_standard_name(self,standard_variable) resul
    link => self%root%links%first
    do while (associated(link))
       if (associated(link%target%standard_variable)) then
-         select type (variable=>link%target%standard_variable)
-            class is (type_bulk_standard_variable)
-               if (variable%compare(standard_variable)) then
-                  id = create_external_bulk_id(link%target)
-                  return
-               end if
-         end select
+         if (standard_variable%compare(link%target%standard_variable)) then
+            id = create_external_bulk_id(link%target)
+            return
+         end if
       end if
       link => link%next
    end do
@@ -3255,13 +3252,10 @@ function create_external_horizontal_id_for_standard_name(self,standard_variable)
    link => self%root%links%first
    do while (associated(link))
       if (associated(link%target%standard_variable)) then
-         select type (variable=>link%target%standard_variable)
-            class is (type_horizontal_standard_variable)
-               if (variable%compare(standard_variable)) then
-                  id = create_external_horizontal_id(link%target)
-                  return
-               end if
-         end select
+         if (standard_variable%compare(link%target%standard_variable)) then
+            id = create_external_horizontal_id(link%target)
+            return
+         end if
       end if
       link => link%next
    end do
@@ -3277,13 +3271,10 @@ function create_external_scalar_id_for_standard_name(self,standard_variable) res
    link => self%root%links%first
    do while (associated(link))
       if (associated(link%target%standard_variable)) then
-         select type (variable=>link%target%standard_variable)
-            class is (type_global_standard_variable)
-               if (variable%compare(standard_variable)) then
-                  id = create_external_scalar_id(link%target)
-                  return
-               end if
-         end select
+         if (standard_variable%compare(link%target%standard_variable)) then
+            id = create_external_scalar_id(link%target)
+            return
+         end if
       end if
       link => link%next
    end do

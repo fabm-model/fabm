@@ -11,7 +11,9 @@ module fabm_coupling
 
    public freeze_model_info, find_dependencies
 
-   contains
+   logical,parameter :: debug_coupling = .false.
+
+contains
 
 !-----------------------------------------------------------------------
 !BOP
@@ -47,14 +49,11 @@ module fabm_coupling
       ! Coupling stage 2: explicit - resolve user- or model-specified links between variables.
       call process_coupling_tasks(self,0)
 
-      ! Coupling stage 3: fulfil dependencies on aggregated sources-sinks of state variables
-      ! (or of diagnostics acting as such). This may create new child models (sums that aggregate sources-sinks)
+      ! Coupling stage 3: try to automatically fulfil remaining dependencies on
+      ! - aggregated sources-sinks of state variables (or of diagnostics acting as such)
+      ! - aggregate standard variables
+      ! This may create new child models to handle the necessary summations.
       call process_coupling_tasks(self,1)
-
-      ! Coupling stage 4: For unfulfilled dependencies on aggregate standard variables,
-      ! register that totals for these aggregate variables need to be computed, and link
-      ! the dependency (by name) to the name that the total will go by.
-      call fulfil_aggregate_variable_dependencies(self)
 
       ! Create models for aggregate variables at root level, to be used to compute conserved quantities.
       ! After this step, the set of variables that contribute to aggregate quantities may not be modified.
@@ -71,36 +70,6 @@ module fabm_coupling
       call freeze(self)
    end subroutine freeze_model_info
 !EOC
-
-   subroutine fulfil_aggregate_variable_dependencies(self)
-      class (type_base_model),intent(inout),target :: self
-
-      type (type_link),               pointer :: link
-      type (type_aggregate_variable), pointer :: aggregate_variable
-
-      link => self%links%first
-      do while (associated(link))
-         if (.not.link%target%read_indices%is_empty() & ! Variable value is needed
-             .and.(link%target%write_indices%is_empty().and.link%target%state_indices%is_empty().and..not.link%target%fake_state_variable) & ! No internal data source
-             .and.associated(link%target%standard_variable) &  ! Assigned a standard variable identity
-             ) then
-            if (link%target%standard_variable%aggregate_variable) then
-               select type (aggregate_standard_variable=>link%target%standard_variable)
-                  class is (type_bulk_standard_variable)
-                     aggregate_variable => get_aggregate_variable(self,aggregate_standard_variable)
-                     select case (link%target%domain)
-                        case (domain_bulk)
-                           aggregate_variable%bulk_required = .true.
-                           call self%request_coupling(link,aggregate_variable%standard_variable%name)
-                        case default
-                           call self%fatal_error('fulfil_aggregate_variable_dependencies','BUG: unknown type of standard variable with aggregate_variable set.')
-                     end select
-               end select
-             end if
-         end if
-         link => link%next
-      end do
-   end subroutine fulfil_aggregate_variable_dependencies
 
 recursive subroutine before_coupling(self)
    class (type_base_model),intent(inout),target :: self
@@ -158,7 +127,7 @@ end subroutine
 !
 ! !LOCAL VARIABLES:
       type (type_link),pointer :: link,link2
-      type (type_set)          :: processed_bulk,processed_horizontal,processed_scalar
+      type (type_set)          :: processed
       logical                  :: match
 !
 !-----------------------------------------------------------------------
@@ -166,35 +135,17 @@ end subroutine
       link => model%links%first
       do while (associated(link))
          if (associated(link%target%standard_variable)) then
-            if (.not.processed_bulk%contains(link%target%standard_variable%name)) then
-               call processed_bulk%add(link%target%standard_variable%name)
+            if (.not.processed%contains(link%target%standard_variable%name)) then
+               call processed%add(link%target%standard_variable%name)
                link2 => link%next
                do while (associated(link2))
                   if (associated(link2%target%standard_variable)) then
-                     match = .false.
-                     select type (variable1=>link%target%standard_variable)
-                        class is (type_bulk_standard_variable)
-                           select type (variable2=>link2%target%standard_variable)
-                              class is (type_bulk_standard_variable)
-                                 match = variable1%compare(variable2)
-                           end select
-                        class is (type_horizontal_standard_variable)
-                           select type (variable2=>link2%target%standard_variable)
-                              class is (type_horizontal_standard_variable)
-                                 match = variable1%compare(variable2)
-                           end select
-                        class is (type_global_standard_variable)
-                           select type (variable2=>link2%target%standard_variable)
-                              class is (type_global_standard_variable)
-                                 match = variable1%compare(variable2)
-                           end select
-                     end select
-                     if (match) then
+                     if (link%target%standard_variable%compare(link2%target%standard_variable)) then
                         if (link2%target%write_indices%is_empty().and..not.(link%target%presence/=presence_internal.and.link2%target%presence==presence_internal)) then
                            ! Default coupling: early variable is master, later variable is slave.
                            call couple_variables(model,link%target,link2%target)
                         else
-                           ! Later variable is write-only and therefore can only be master. Try copuling with early variable as slave.
+                           ! Later variable is write-only and therefore can only be master. Try coupling with early variable as slave.
                            call couple_variables(model,link2%target,link%target)
                         end if
                      end if
@@ -206,28 +157,37 @@ end subroutine
          link => link%next
       end do
 
-      call processed_bulk%finalize()
-      call processed_horizontal%finalize()
-      call processed_scalar%finalize()
+      call processed%finalize()
 
    end subroutine couple_standard_variables
 !EOC
 
-   subroutine create_coupling_task_list(self)
+   subroutine collect_user_specified_couplings(self)
       class (type_base_model),intent(inout) :: self
 
-      type (type_link),     pointer :: link
+      type (type_link),         pointer :: link
+      class (type_property),    pointer :: master_name
+      type (type_coupling_task),pointer :: task
 
-      if (associated(self%coupling_task_list)) return
-
-      allocate(self%coupling_task_list)
       link => self%links%first
       do while (associated(link))
          ! Only process own links (those without slash in the name)
-         if (index(link%name,'/')==0) call create_coupling_task_for_link(self,link)
+         if (index(link%name,'/')==0) then
+            master_name => self%couplings%find_in_tree(link%name)
+            if (associated(master_name)) then
+               task => self%coupling_task_list%add(link,.true.)
+               task%user_specified = .true.
+               select type (master_name)
+                  class is (type_string_property)
+                     task%master_name = master_name%value
+               end select
+            end if    ! Coupling provided
+         end if   ! Our own link, which may be coupled
          link => link%next
       end do
-   end subroutine
+
+      self%coupling_task_list%includes_custom = .true.
+   end subroutine collect_user_specified_couplings
 
 !-----------------------------------------------------------------------
 !BOP
@@ -250,6 +210,7 @@ end subroutine
       type (type_model_list_node),  pointer :: child
       type (type_coupling_task),    pointer :: coupling
       type (type_internal_variable),pointer :: master
+      type (type_link),             pointer :: link
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -259,7 +220,7 @@ end subroutine
          root => root%parent
       end do
 
-      call create_coupling_task_list(self)
+      if (.not.self%coupling_task_list%includes_custom) call collect_user_specified_couplings(self)
 
       ! For each variable, determine if a coupling command is provided.
       coupling => self%coupling_task_list%first
@@ -267,19 +228,53 @@ end subroutine
 
          select case (stage)
             case (0,2)
-               ! Try to find the master variable among the variables of the requesting model or its parents.
-               if (coupling%slave_name/=coupling%master_name) then
-                  ! Master and slave name differ: start master search in current model, then move up tree.
-                  master => self%find_object(coupling%master_name,recursive=.true.,exact=.false.)
-               elseif (associated(self%parent)) then
-                  ! Master and slave name are identical: start master search in parent model, then move up tree.
-                  master => self%parent%find_object(coupling%master_name,recursive=.true.,exact=.false.)
+               if (associated(coupling%master_standard_variable)) then
+                  ! Coupling to a standard variable - first try to find the corresponding standard variable.
+                  link => root%links%first
+                  do while (associated(link))
+                     if (associated(link%target%standard_variable)) then
+                        if (coupling%master_standard_variable%compare(link%target%standard_variable)) exit
+                     end if
+                     link => link%next
+                  end do
+
+                  if (stage==2.and..not.associated(link)) then
+                     ! This is our last chance - create an appropriate variable at the root level.
+                     select type (standard_variable=>coupling%master_standard_variable)
+                     class is (type_bulk_standard_variable)
+                        call root%add_bulk_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
+                                                    standard_variable=standard_variable, presence=presence_external_optional, link=link)
+                     class is (type_horizontal_standard_variable)
+                        call root%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
+                                                          standard_variable=standard_variable, presence=presence_external_optional, link=link)
+                     class is (type_global_standard_variable)
+                        call root%add_scalar_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
+                                                      standard_variable=standard_variable, presence=presence_external_optional, link=link)
+                     end select
+                  end if
+
+                  ! If we found a link to the required master variable, save a pointer to the master.
+                  nullify(master)
+                  if (associated(link)) master => link%target
                else
-                  call self%fatal_error('process_coupling_tasks', &
-                     'Master and slave name are identical: "'//trim(coupling%master_name)//'". This is not valid at the root of the model tree.')
+                  ! Try to find the master variable among the variables of the requesting model or its parents.
+                  if (coupling%slave_name/=coupling%master_name) then
+                     ! Master and slave name differ: start master search in current model, then move up tree.
+                     master => self%find_object(coupling%master_name,recursive=.true.,exact=.false.)
+                  elseif (associated(self%parent)) then
+                     ! Master and slave name are identical: start master search in parent model, then move up tree.
+                     master => self%parent%find_object(coupling%master_name,recursive=.true.,exact=.false.)
+                  else
+                     call self%fatal_error('process_coupling_tasks', &
+                        'Master and slave name are identical: "'//trim(coupling%master_name)//'". This is not valid at the root of the model tree.')
+                  end if
                end if
             case (1)
-               master => generate_master(self,coupling%master_name)
+               if (associated(coupling%master_standard_variable)) then
+                  master => generate_standard_master(root,coupling)
+               else
+                  master => generate_master(self,coupling%master_name)
+               end if
          end select
 
          if (associated(master)) then
@@ -318,6 +313,7 @@ end subroutine
 
       nullify(master)
       n = len_trim(name)
+      if (n<8) return
       if (name(n-7:n)=='_sms_tot') then
          ! This is a link to the combined sources-sinks of a variable.
          ! First locate the relevant variable, then create the necessary sms summation.
@@ -351,6 +347,35 @@ end subroutine
          end if
       end if
    end function generate_master
+
+   function generate_standard_master(self,task) result(master)
+      class (type_base_model),  intent(inout),target :: self
+      type (type_coupling_task),intent(inout)        :: task
+      type (type_internal_variable),pointer :: master
+
+      type (type_aggregate_variable),   pointer :: aggregate_variable
+
+      nullify(master)
+      if (task%master_standard_variable%aggregate_variable) then
+         ! Make sure that an aggregate variable will be created on the fly
+         select type (aggregate_standard_variable=>task%master_standard_variable)
+            class is (type_bulk_standard_variable)
+               aggregate_variable => get_aggregate_variable(self,aggregate_standard_variable)
+               select case (task%domain)
+                  case (domain_bulk)
+                     aggregate_variable%bulk_required = .true.
+                     deallocate(task%master_standard_variable)
+                     task%master_name = aggregate_variable%standard_variable%name
+                  case (domain_bottom)
+                     aggregate_variable%bottom_required = .true.
+                     deallocate(task%master_standard_variable)
+                     task%master_name = trim(aggregate_variable%standard_variable%name)//'_at_bottom'
+                  case default
+                     call self%fatal_error('generate_standard_master','BUG: unknown type of standard variable with aggregate_variable set.')
+               end select
+         end select
+      end if
+   end function generate_standard_master
 
 subroutine print_aggregate_variable_contributions(self)
    class (type_base_model),intent(inout),target :: self
@@ -462,28 +487,42 @@ recursive subroutine create_aggregate_models(self)
 
    type (type_aggregate_variable),      pointer :: aggregate_variable
    class (type_weighted_sum),           pointer :: sum
-   class (type_horizontal_weighted_sum),pointer :: horizontal_sum
+   class (type_horizontal_weighted_sum),pointer :: horizontal_sum,bottom_sum
    type (type_contributing_variable),   pointer :: contributing_variable
    type (type_model_list_node),         pointer :: child
 
    aggregate_variable => self%first_aggregate_variable
    do while (associated(aggregate_variable))
-      nullify(sum,horizontal_sum)
+      nullify(sum,horizontal_sum,bottom_sum)
       if (aggregate_variable%bulk_required)       allocate(sum)
       if (aggregate_variable%horizontal_required) allocate(horizontal_sum)
+      if (aggregate_variable%bottom_required)     allocate(bottom_sum)
 
       contributing_variable => aggregate_variable%first_contributing_variable
       do while (associated(contributing_variable))
          if (associated(contributing_variable%link%target,contributing_variable%link%original) &                  ! Variable must not be coupled
              .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable)) then   ! Only include fake state variable for non-root models
-            select case (contributing_variable%link%target%domain)
-               case (domain_bulk)
-                  if (associated(sum)) call sum%add_component(trim(contributing_variable%link%name), &
-                     weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
-               case (domain_horizontal,domain_surface,domain_bottom)
-                  if (associated(horizontal_sum)) call horizontal_sum%add_component(trim(contributing_variable%link%name), &
-                     weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
-            end select
+            if (associated(sum)) then
+               select case (contributing_variable%link%target%domain)
+                  case (domain_bulk)
+                     call sum%add_component(trim(contributing_variable%link%name), &
+                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+               end select
+            end if
+            if (associated(bottom_sum)) then
+               select case (contributing_variable%link%target%domain)
+                  case (domain_bottom)
+                     call bottom_sum%add_component(trim(contributing_variable%link%name), &
+                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+               end select
+            end if
+            if (associated(horizontal_sum)) then
+               select case (contributing_variable%link%target%domain)
+                  case (domain_horizontal,domain_surface,domain_bottom)
+                     call horizontal_sum%add_component(trim(contributing_variable%link%name), &
+                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+               end select
+            end if
          end if
          contributing_variable => contributing_variable%next
       end do
@@ -495,6 +534,10 @@ recursive subroutine create_aggregate_models(self)
       if (associated(horizontal_sum)) then
          horizontal_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m'
          if (.not.horizontal_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_interfaces')) deallocate(horizontal_sum)
+      end if
+      if (associated(bottom_sum)) then
+         bottom_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m'
+         if (.not.bottom_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_bottom')) deallocate(bottom_sum)
       end if
       aggregate_variable => aggregate_variable%next
    end do
@@ -524,13 +567,13 @@ subroutine couple_variables(self,master,slave)
    if (.not.slave%state_indices%is_empty().and.master%state_indices%is_empty().and..not.master%fake_state_variable) &
       call fatal_error('couple_variables','Attempt to couple state variable ' &
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
-   if (master%presence==presence_external_optional) &
-      call fatal_error('couple_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
-   if (slave%domain/=master%domain.and..not.(slave%domain==domain_horizontal.and. &
-      (master%domain==domain_surface.or.master%domain==domain_bottom))) call fatal_error('couple_variables', &
+   !if (slave%domain/=master%domain.and..not.(slave%domain==domain_horizontal.and. &
+   !   (master%domain==domain_surface.or.master%domain==domain_bottom))) call fatal_error('couple_variables', &
+   !   'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because their domains are incompatible.')
+   if (iand(slave%domain,master%domain)==0) call fatal_error('couple_variables', &
       'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because their domains are incompatible.')
 
-   call log_message(trim(slave%name)//' --> '//trim(master%name))
+   if (debug_coupling) call log_message(trim(slave%name)//' --> '//trim(master%name))
 
    ! Merge all information from the slave into the master.
    call master%state_indices%extend(slave%state_indices)
@@ -545,6 +588,8 @@ subroutine couple_variables(self,master,slave)
    end do
    call master%surface_flux_list%extend(slave%surface_flux_list)
    call master%bottom_flux_list%extend(slave%bottom_flux_list)
+   if (master%presence==presence_external_optional.and.slave%presence/=presence_external_optional) &
+      master%presence = presence_external_required
 
    ! Store a pointer to the slave, because the call to redirect_links will cause all pointers (from links)
    ! to the slave node to be connected to the master node. This includes the original "slave" argument.

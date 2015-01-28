@@ -224,16 +224,16 @@ module fabm_particle
       coupling => self%first_model_coupling
       do while (associated(coupling))
          if (coupling%master/='') then
-            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(coupling%master))
+            call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(coupling%master))
          else
             aggregate_variable => get_aggregate_variable(coupling%model_reference%model,coupling%standard_variable)
             select case (coupling%domain)
                case (domain_bulk)
                   aggregate_variable%bulk_required = .true.
-                  call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name))
+                  call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name))
                case (domain_horizontal)
                   aggregate_variable%horizontal_required = .true.
-                  call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
+                  call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
             end select
          end if
          coupling => coupling%next

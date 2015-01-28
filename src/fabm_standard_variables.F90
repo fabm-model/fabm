@@ -31,7 +31,7 @@ module fabm_standard_variables
    private
 
    public type_standard_variable, type_bulk_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
-   public standard_variables, initialize_standard_variables
+   public standard_variables, initialize_standard_variables, any_standard_variable_compare
 
    ! ====================================================================================================
    ! Data types that contain all metadata needed to describe standard variables.
@@ -47,21 +47,16 @@ module fabm_standard_variables
       logical            :: conserved = .false.          ! Whether this variable shoudl be included in lists of conserved quantities.
    contains
       procedure :: is_null => standard_variable_is_null
+      procedure :: compare => standard_variable_compare
    end type
 
    type,extends(type_standard_variable) :: type_bulk_standard_variable
-   contains
-      procedure :: compare => bulk_standard_variable_compare
    end type
 
    type,extends(type_standard_variable) :: type_horizontal_standard_variable
-   contains
-      procedure :: compare => horizontal_standard_variable_compare
    end type
 
    type,extends(type_standard_variable) :: type_global_standard_variable
-   contains
-      procedure :: compare => global_standard_variable_compare
    end type
 
    type type_standard_variable_collection
@@ -84,23 +79,33 @@ contains
 
    logical function standard_variable_compare(variable1,variable2)
       class (type_standard_variable),intent(in) :: variable1,variable2
+      standard_variable_compare = .false.
+
+      ! First test whether the types match.
+      select type (variable1)
+         class is (type_bulk_standard_variable)
+            select type (variable2)
+               class is (type_bulk_standard_variable)
+                  standard_variable_compare = .true.
+            end select
+         class is (type_horizontal_standard_variable)
+            select type (variable2)
+               class is (type_horizontal_standard_variable)
+                  standard_variable_compare = .true.
+            end select
+         class is (type_global_standard_variable)
+            select type (variable2)
+               class is (type_global_standard_variable)
+                  standard_variable_compare = .true.
+            end select
+      end select
+
+      ! If types do not match, the standard variables are not equal - we're done.
+      if (.not.standard_variable_compare) return
+
+      ! Compare the metadata of the standard variables.
       standard_variable_compare = (variable1%name ==''.or.variable2%name ==''.or.variable1%name ==variable2%name ) &
                             .and. (variable1%units==''.or.variable2%units==''.or.variable1%units==variable2%units)
-   end function
-
-   logical function bulk_standard_variable_compare(variable1,variable2)
-      class (type_bulk_standard_variable),intent(in) :: variable1,variable2
-      bulk_standard_variable_compare = standard_variable_compare(variable1,variable2)
-   end function
-
-   logical function horizontal_standard_variable_compare(variable1,variable2)
-      class (type_horizontal_standard_variable),intent(in) :: variable1,variable2
-      horizontal_standard_variable_compare = standard_variable_compare(variable1,variable2)
-   end function
-
-   logical function global_standard_variable_compare(variable1,variable2)
-      class (type_global_standard_variable),intent(in) :: variable1,variable2
-      global_standard_variable_compare = standard_variable_compare(variable1,variable2)
-   end function
+   end function standard_variable_compare
 
 end module fabm_standard_variables

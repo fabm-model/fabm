@@ -60,7 +60,7 @@
    public get_aggregate_variable, type_aggregate_variable, type_contributing_variable, type_contribution
    public time_treatment2output,output2time_treatment
 
-   public type_coupling_task, create_coupling_task_for_link
+   public type_coupling_task
 
 ! !PUBLIC DATA MEMBERS:
 !
@@ -136,14 +136,19 @@
       type (type_internal_variable), pointer :: slave       => null()
       character(len=attribute_length)        :: slave_name  = ''
       character(len=attribute_length)        :: master_name = ''
+      class (type_standard_variable),pointer :: master_standard_variable => null()
+      logical                                :: user_specified = .false.
+      integer                                :: domain = domain_bulk
       type (type_coupling_task), pointer     :: previous    => null()
       type (type_coupling_task), pointer     :: next        => null()
    end type
 
    type type_coupling_task_list
       type (type_coupling_task),pointer :: first => null()
+      logical                           :: includes_custom = .false.
    contains
       procedure :: pop => coupling_task_list_pop
+      procedure :: add => coupling_task_list_add
    end type
 
    ! ====================================================================================================
@@ -229,11 +234,12 @@
    end type
 
    type type_aggregate_variable
-      type (type_bulk_standard_variable)            :: standard_variable
-      type (type_contributing_variable),   pointer  :: first_contributing_variable => null()
-      type (type_aggregate_variable),      pointer  :: next => null()
-      logical                                       :: bulk_required = .false.
-      logical                                       :: horizontal_required = .false.
+      type (type_bulk_standard_variable)         :: standard_variable
+      type (type_contributing_variable),pointer  :: first_contributing_variable => null()
+      type (type_aggregate_variable),   pointer  :: next                        => null()
+      logical                                    :: bulk_required               = .false.
+      logical                                    :: horizontal_required         = .false.
+      logical                                    :: bottom_required             = .false.
    end type
 
    type type_link_list
@@ -363,7 +369,7 @@
 
       class (type_expression), pointer :: first_expression => null()
 
-      type (type_coupling_task_list), pointer :: coupling_task_list => null()
+      type (type_coupling_task_list) :: coupling_task_list
 
       real(rk) :: dt = 1.0_rk
 
@@ -390,7 +396,10 @@
       procedure :: request_coupling_for_link
       procedure :: request_coupling_for_name
       procedure :: request_coupling_for_id
-      generic   :: request_coupling => request_coupling_for_link,request_coupling_for_name,request_coupling_for_id
+      procedure :: request_standard_coupling_for_link
+      procedure :: request_standard_coupling_for_id
+      generic   :: request_coupling => request_coupling_for_link,request_coupling_for_name,request_coupling_for_id, &
+                                       request_standard_coupling_for_link,request_standard_coupling_for_id
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
@@ -418,6 +427,7 @@
       procedure :: register_standard_bulk_dependency
       procedure :: register_named_horizontal_dependency
       procedure :: register_standard_horizontal_dependency
+      procedure :: register_standard_interface_dependency
       procedure :: register_named_global_dependency
       procedure :: register_standard_global_dependency
       procedure :: register_named_bulk_dependency_old
@@ -427,7 +437,7 @@
       generic :: register_bulk_dependency       => register_named_bulk_dependency, register_standard_bulk_dependency, &
                                                    register_named_bulk_dependency_old
       generic :: register_horizontal_dependency => register_named_horizontal_dependency, register_standard_horizontal_dependency, &
-                                                   register_named_horizontal_dependency_old
+                                                   register_standard_interface_dependency, register_named_horizontal_dependency_old
       generic :: register_global_dependency     => register_named_global_dependency, register_standard_global_dependency, &
                                                    register_named_global_dependency_old
 
@@ -454,7 +464,7 @@
       generic :: register_dependency          => register_named_bulk_dependency, register_standard_bulk_dependency, &
                                                  register_named_bulk_dependency_old, &
                                                  register_named_horizontal_dependency, register_standard_horizontal_dependency, &
-                                                 register_named_horizontal_dependency_old, &
+                                                 register_standard_interface_dependency, register_named_horizontal_dependency_old, &
                                                  register_named_global_dependency, register_standard_global_dependency, &
                                                  register_named_global_dependency_old, &
                                                  register_bulk_expression_dependency, register_horizontal_expression_dependency
@@ -1043,21 +1053,31 @@ subroutine link_list_finalize(self)
 end subroutine link_list_finalize
 
 subroutine request_coupling_for_link(self,link,master)
-   class (type_base_model),intent(inout)              :: self
-   type (type_link),       intent(inout)              :: link
-   character(len=*),       intent(in)                 :: master
+   class (type_base_model),intent(inout) :: self
+   type (type_link),target,intent(inout) :: link
+   character(len=*),       intent(in)    :: master
 
-   call self%couplings%set_string(link%name,master)
-   if (associated(self%coupling_task_list)) call create_coupling_task_for_link(self,link)
+   type (type_coupling_task),pointer :: task
+
+   if (index(link%name,'/')/=0) call self%fatal_error('request_coupling_for_link', &
+      'Couplings can only be requested for own variables, not inherited ones such as the current '//trim(link%name)//'.')
+
+   task => self%coupling_task_list%add(link,.false.)
+   if (.not.associated(task)) return   ! We already have a user-specified task, which takes priority
+
+   ! Configure coupling task
+   task%master_name = master
 end subroutine request_coupling_for_link
 
 subroutine request_coupling_for_name(self,slave,master)
    class (type_base_model),intent(inout)              :: self
    character(len=*),       intent(in)                 :: slave,master
+   type (type_link),pointer :: link
 
-   call self%couplings%set_string(slave,master)
-   if (associated(self%coupling_task_list)) call fatal_error('request_coupling_for_name', &
-      'BUG: Coupling by name requested while coupling_task_list exists. Couple by link or id instead.')
+   link => self%links%find(slave)
+   if (.not.associated(link)) call self%fatal_error('request_coupling_for_name', &
+      'Specified slave variable ('//trim(slave)//') not found among own variables.')
+   call request_coupling_for_link(self,link,master)
 end subroutine request_coupling_for_name
 
 subroutine request_coupling_for_id(self,id,master)
@@ -1067,6 +1087,32 @@ subroutine request_coupling_for_id(self,id,master)
 
    call self%request_coupling(id%link,master)
 end subroutine request_coupling_for_id
+
+subroutine request_standard_coupling_for_link(self,link,master,domain)
+   class (type_base_model),       intent(inout) :: self
+   type (type_link),target,       intent(inout) :: link
+   class (type_standard_variable),intent(in)    :: master
+   integer,optional,              intent(in)    :: domain
+
+   type (type_coupling_task),pointer :: task
+
+   if (index(link%name,'/')/=0) call self%fatal_error('request_standard_coupling_for_link', &
+      'Couplings can only be requested for own variables, not inherited ones such as the current '//trim(link%name)//'.')
+
+   task => self%coupling_task_list%add(link,.false.)
+   if (.not.associated(task)) return   ! We already have a user-specified task, which takes priority
+   allocate(task%master_standard_variable,source=master)
+   if (present(domain)) task%domain = domain
+end subroutine request_standard_coupling_for_link
+
+subroutine request_standard_coupling_for_id(self,id,master,domain)
+   class (type_base_model),       intent(inout) :: self
+   class (type_variable_id),      intent(inout) :: id
+   class (type_standard_variable),intent(in)    :: master
+   integer,optional,              intent(in)    :: domain
+
+   call self%request_standard_coupling_for_link(id%link,master,domain)
+end subroutine request_standard_coupling_for_id
 
 subroutine integer_pointer_set_append(self,value)
    class (type_integer_pointer_set),intent(inout) :: self
@@ -1623,11 +1669,12 @@ end subroutine real_pointer_set_set_value
       type (type_link), pointer       :: link,parent_link
       character(len=attribute_length) :: oriname
       integer                         :: instance
+      logical                         :: duplicate
 
       ! First check if a link with this name exists.
-      link => self%links%find(object%name)
+      duplicate = associated(self%links%find(object%name))
 
-      if (associated(link)) then
+      if (duplicate) then
          ! Link with this name exists already.
          ! Append numbers to the variable name until a unique name is found.
          oriname = object%name
@@ -1637,11 +1684,13 @@ end subroutine real_pointer_set_set_value
             if (.not.associated(self%links%find(object%name))) exit
             instance = instance + 1
          end do
-         call self%request_coupling(object%name,oriname)
       end if
 
       ! Create link for this object.
       link => self%links%append(object,object%name)
+
+      ! If this name matched that of a previous variable, create a coupling to it.
+      if (duplicate) call self%request_coupling(object%name,oriname)
 
       ! Forward to parent
       if (associated(self%parent)) then
@@ -1952,6 +2001,23 @@ end subroutine real_pointer_set_set_value
                                                 standard_variable=standard_variable,required=required)
    end subroutine
 
+   subroutine register_standard_interface_dependency(model,id,standard_variable,domain,required)
+      class (type_base_model),                 intent(inout)        :: model
+      type (type_horizontal_dependency_id),    intent(inout),target :: id
+      type (type_bulk_standard_variable),      intent(in)           :: standard_variable
+      integer,                                 intent(in)           :: domain
+      logical,optional,                        intent(in)           :: required
+
+      select case (domain)
+         case (domain_surface,domain_bottom)
+         case default
+            call model%fatal_error('register_standard_interface_dependency','Specified domain must be domain_surface or domain_bottom.')
+      end select
+      call register_named_horizontal_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+                                                required=required)
+      call model%request_coupling(id,standard_variable,domain=domain)
+   end subroutine
+
    subroutine register_standard_global_dependency(model,id,standard_variable,required)
       class (type_base_model),             intent(inout)        :: model
       type (type_global_dependency_id),    intent(inout),target :: id
@@ -2002,10 +2068,9 @@ end subroutine real_pointer_set_set_value
          if (.not.required) presence = presence_external_optional
       end if
 
-      call self%add_bulk_variable(name, units, long_name, &
-                                  standard_variable=standard_variable, presence=presence, &
+      call self%add_bulk_variable(name, units, long_name, presence=presence, &
                                   read_index=id%index, background=id%background, link=id%link)
-
+      if (present(standard_variable)) call self%request_coupling(id,standard_variable)
    end subroutine register_named_bulk_dependency
 !EOC
 
@@ -2049,10 +2114,9 @@ end subroutine real_pointer_set_set_value
          if (.not.required) presence = presence_external_optional
       end if
 
-      call self%add_horizontal_variable(name, units, long_name,&
-                                        standard_variable=standard_variable, presence=presence, &
+      call self%add_horizontal_variable(name, units, long_name, presence=presence, &
                                         read_index=id%horizontal_index, background=id%background, link=id%link)
-
+      if (present(standard_variable)) call self%request_coupling(id,standard_variable)
    end subroutine register_named_horizontal_dependency
 !EOC
 
@@ -2096,10 +2160,9 @@ end subroutine real_pointer_set_set_value
          if (.not.required) presence = presence_external_optional
       end if
 
-      call self%add_scalar_variable(name, units, long_name, &
-                                    standard_variable=standard_variable, presence=presence, &
+      call self%add_scalar_variable(name, units, long_name, presence=presence, &
                                     read_index=id%global_index, background=id%background, link=id%link)
-
+      if (present(standard_variable)) call self%request_coupling(id,standard_variable)
    end subroutine register_named_global_dependency
 !EOC
 
@@ -2648,29 +2711,6 @@ end subroutine abstract_model_factory_create
       end select
    end function
 
-   subroutine create_coupling_task_for_link(self,link)
-      class (type_base_model),intent(inout) :: self
-      type (type_link),       intent(inout) :: link
-
-      class (type_property),     pointer :: master_name
-      type (type_coupling_task), pointer :: coupling
-
-      ! Try to find a coupling for this variable.
-      master_name => self%couplings%find_in_tree(link%name)
-      if (associated(master_name)) then
-         select type (master_name)
-            class is (type_string_property)
-               allocate(coupling)
-               coupling%next => self%coupling_task_list%first
-               if (associated(coupling%next)) coupling%next%previous => coupling
-               self%coupling_task_list%first => coupling
-               coupling%slave_name = link%name
-               coupling%master_name = master_name%value
-               coupling%slave => link%target
-         end select
-      end if
-   end subroutine create_coupling_task_for_link
-
    subroutine coupling_task_list_pop(self,task)
       class (type_coupling_task_list),intent(inout) :: self
       type (type_coupling_task),pointer             :: task
@@ -2680,6 +2720,41 @@ end subroutine abstract_model_factory_create
          self%first => task%next
       end if
    end subroutine
+
+   function coupling_task_list_add(self,link,always_create) result(task)
+      class (type_coupling_task_list),intent(inout)         :: self
+      type (type_link),               intent(inout), target :: link
+      logical,                        intent(in)            :: always_create
+      type (type_coupling_task),pointer                     :: task
+
+      ! First try to find an existing coupling task for this link. If one exists, we'll replace it.
+      task => self%first
+      do while (associated(task))
+         if (link%name==task%slave_name) then
+            ! Found existing task
+            if (task%user_specified.and..not.always_create) then
+               nullify(task)
+               return
+            end if
+            task%master_name = ''
+            if (associated(task%master_standard_variable)) deallocate(task%master_standard_variable)
+            exit
+         end if
+         task => task%next
+      end do
+
+      if (.not.associated(task)) then
+         ! No existing coupling task found for this variable: prepend a new task to the head of the list.
+         allocate(task)
+         if (associated(self%first)) self%first%previous => task
+         task%next => self%first
+         self%first => task
+      end if
+      task%slave_name = link%name
+      task%slave => link%target
+      task%domain = link%target%domain
+
+   end function coupling_task_list_add
 
    end module fabm_types
 
