@@ -10,9 +10,13 @@ project(python_fabm Fortran)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Customize compiler flags
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel" AND NOT WIN32)
-  # Do not warn about Windows-specific export directives
-  set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -diag-disable 7841")
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+  if(WIN32)
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
+  else()
+    # Do not warn about Windows-specific export directives
+    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -diag-disable 7841")
+  endif()
 endif()
 
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
