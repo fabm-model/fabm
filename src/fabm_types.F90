@@ -1071,11 +1071,22 @@ end subroutine request_coupling_for_link
 subroutine request_coupling_for_name(self,slave,master)
    class (type_base_model),intent(inout)              :: self
    character(len=*),       intent(in)                 :: slave,master
-   type (type_link),pointer :: link
 
-   link => self%links%find(slave)
+   class (type_base_model),pointer :: parent
+   type (type_link),       pointer :: link
+   integer                         :: islash
+
+   ! If a path with / is given, redirect to tentative parent model.
+   islash = index(slave,'/',.true.)
+   if (islash/=0) then
+      parent => self%find_model(slave(:islash-1))
+      link => parent%links%find(slave(islash+1:))
+   else
+      link => self%links%find(slave)
+   end if
+
    if (.not.associated(link)) call self%fatal_error('request_coupling_for_name', &
-      'Specified slave variable ('//trim(slave)//') not found among own variables.')
+      'Specified slave ('//trim(slave)//') not found. Make sure the variable is registered before calling request_coupling.')
    call request_coupling_for_link(self,link,master)
 end subroutine request_coupling_for_name
 
