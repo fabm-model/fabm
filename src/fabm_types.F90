@@ -1051,6 +1051,32 @@ subroutine link_list_finalize(self)
    nullify(self%first)
 end subroutine link_list_finalize
 
+function create_coupling_task(self,link) result(task)
+   class (type_base_model),intent(inout) :: self
+   type (type_link),target,intent(inout) :: link
+   type (type_coupling_task),pointer :: task
+
+   type (type_link), pointer :: current_link
+
+   ! First make sure that we are called for a link that we own ourselves.
+   current_link => self%links%first
+   do while (associated(current_link))
+      if (associated(current_link,link)) exit
+      current_link => current_link%next
+   end do
+   if (.not.associated(current_link)) call self%fatal_error('request_coupling_for_link', &
+      'Couplings can only be requested for variables that you own yourself.')
+
+   ! Make sure that the link also points to a variable that we registered ourselves,
+   ! rather than one registered by a child model.
+   if (index(link%name,'/')/=0) call self%fatal_error('request_coupling_for_link', &
+      'Couplings can only be requested for variables that you registered yourself, &
+      &not inherited ones such as the current '//trim(link%name)//'.')
+
+   ! Create a coupling task (reuse existing one if available, and not user-specified)
+   task => self%coupling_task_list%add(link,.false.)
+end function create_coupling_task
+
 subroutine request_coupling_for_link(self,link,master)
    class (type_base_model),intent(inout) :: self
    type (type_link),target,intent(inout) :: link
@@ -1058,19 +1084,17 @@ subroutine request_coupling_for_link(self,link,master)
 
    type (type_coupling_task),pointer :: task
 
-   if (index(link%name,'/')/=0) call self%fatal_error('request_coupling_for_link', &
-      'Couplings can only be requested for own variables, not inherited ones such as the current '//trim(link%name)//'.')
-
-   task => self%coupling_task_list%add(link,.false.)
+   ! Create a coupling task (reuse existing one if available, and not user-specified)
+   task => create_coupling_task(self,link)
    if (.not.associated(task)) return   ! We already have a user-specified task, which takes priority
 
    ! Configure coupling task
    task%master_name = master
 end subroutine request_coupling_for_link
 
-subroutine request_coupling_for_name(self,slave,master)
-   class (type_base_model),intent(inout)              :: self
-   character(len=*),       intent(in)                 :: slave,master
+recursive subroutine request_coupling_for_name(self,slave,master)
+   class (type_base_model),intent(inout),target :: self
+   character(len=*),       intent(in)           :: slave,master
 
    class (type_base_model),pointer :: parent
    type (type_link),       pointer :: link
@@ -1080,11 +1104,11 @@ subroutine request_coupling_for_name(self,slave,master)
    islash = index(slave,'/',.true.)
    if (islash/=0) then
       parent => self%find_model(slave(:islash-1))
-      link => parent%links%find(slave(islash+1:))
-   else
-      link => self%links%find(slave)
+      call request_coupling_for_name(parent,slave(islash+1:),master)
+      return
    end if
 
+   link => self%links%find(slave)
    if (.not.associated(link)) call self%fatal_error('request_coupling_for_name', &
       'Specified slave ('//trim(slave)//') not found. Make sure the variable is registered before calling request_coupling.')
    call request_coupling_for_link(self,link,master)
@@ -1106,10 +1130,7 @@ subroutine request_standard_coupling_for_link(self,link,master,domain)
 
    type (type_coupling_task),pointer :: task
 
-   if (index(link%name,'/')/=0) call self%fatal_error('request_standard_coupling_for_link', &
-      'Couplings can only be requested for own variables, not inherited ones such as the current '//trim(link%name)//'.')
-
-   task => self%coupling_task_list%add(link,.false.)
+   task => create_coupling_task(self,link)
    if (.not.associated(task)) return   ! We already have a user-specified task, which takes priority
    allocate(task%master_standard_variable,source=master)
    if (present(domain)) task%domain = domain
@@ -1700,7 +1721,7 @@ end subroutine real_pointer_set_set_value
       link => self%links%append(object,object%name)
 
       ! If this name matched that of a previous variable, create a coupling to it.
-      if (duplicate) call self%request_coupling(object%name,oriname)
+      if (duplicate) call self%request_coupling(link,oriname)
 
       ! Forward to parent
       if (associated(self%parent)) then
