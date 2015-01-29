@@ -2661,12 +2661,10 @@ recursive subroutine abstract_model_factory_initialize(self)
 
    type (type_base_model_factory_node),pointer :: current
 
-   if (self%initialized) return
-
    self%initialized = .true.
    current => self%first_child
    do while(associated(current))
-      call current%factory%initialize()
+      if (.not.current%factory%initialized) call current%factory%initialize()
       current => current%next
    end do
 end subroutine abstract_model_factory_initialize
