@@ -128,7 +128,6 @@ end subroutine
 ! !LOCAL VARIABLES:
       type (type_link),pointer :: link,link2
       type (type_set)          :: processed
-      logical                  :: match
 !
 !-----------------------------------------------------------------------
 !BOC
