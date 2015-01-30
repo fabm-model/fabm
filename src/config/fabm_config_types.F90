@@ -398,7 +398,7 @@ contains
       type (type_key_value_pair),pointer :: pair, next
 
       pair => self%first
-      do while (associated(pair%next))
+      do while (associated(pair))
          next => pair%next
          deallocate(pair%value)
          deallocate(pair)
