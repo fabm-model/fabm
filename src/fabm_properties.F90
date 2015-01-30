@@ -84,6 +84,8 @@ module fabm_properties
       procedure :: keys
 
       procedure :: compare_keys
+
+      procedure :: finalize
    end type
 
    type type_set_element
@@ -503,6 +505,20 @@ contains
          property => property%next
       end do
    end subroutine
+
+   subroutine finalize(dictionary)
+      class (type_property_dictionary),intent(inout) :: dictionary
+
+      class (type_property),pointer :: property, next
+
+      property => dictionary%first
+      do while (associated(property))
+         next => property%next
+         deallocate(property)
+         property => next
+      end do
+      nullify(dictionary%first)
+   end subroutine finalize
 
    logical function set_contains(self,string)
       class (type_set),intent(in) :: self

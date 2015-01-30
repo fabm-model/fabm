@@ -61,6 +61,7 @@ module fabm_config_types
       procedure :: flatten        => dictionary_flatten
       procedure :: reset_accessed => dictionary_reset_accessed
       procedure :: set_path       => dictionary_set_path
+      procedure :: finalize       => dictionary_finalize
    end type
 
    type type_error
@@ -121,6 +122,8 @@ contains
             ! Append a new pair.
             allocate(pair%next)
             pair => pair%next
+         else
+            deallocate(pair%value)
          end if
       end if
 
@@ -384,5 +387,20 @@ contains
          end if
       end if
    end function
+
+   subroutine dictionary_finalize(self)
+      class (type_dictionary),intent(inout) :: self
+
+      type (type_key_value_pair),pointer :: pair, next
+
+      pair => self%first
+      do while (associated(pair%next))
+         next => pair%next
+         deallocate(pair%value)
+         deallocate(pair)
+         pair => next
+      end do
+      nullify(self%first)
+   end subroutine dictionary_finalize
 
 end module fabm_config_types

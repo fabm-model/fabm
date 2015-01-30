@@ -187,6 +187,7 @@ contains
             end select
             pair => pair%next
          end do
+         call parametermap%finalize()
       end if
 
       ! Add the model to its parent.
@@ -262,6 +263,7 @@ contains
       !   end if
       !   link => link%next
       !end do
+      call initialized_set%finalize()
 
       model%check_conservation = node%get_logical('check_conservation',default=check_conservation,error=config_error)
       if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
