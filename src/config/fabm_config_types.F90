@@ -14,6 +14,7 @@ module fabm_config_types
    contains
       procedure (node_dump),deferred :: dump
       procedure                      :: set_path => node_set_path
+      procedure                      :: finalize => node_finalize
    end type
 
    abstract interface
@@ -69,6 +70,10 @@ module fabm_config_types
    end type
 
 contains
+
+   subroutine node_finalize(self)
+      class (type_node),intent(inout) :: self
+   end subroutine
 
    subroutine dictionary_reset_accessed(self)
       class (type_dictionary),intent(in) :: self
@@ -400,6 +405,7 @@ contains
       pair => self%first
       do while (associated(pair))
          next => pair%next
+         call pair%value%finalize()
          deallocate(pair%value)
          deallocate(pair)
          pair => next
