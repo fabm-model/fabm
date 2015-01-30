@@ -28,10 +28,12 @@
 
 module fabm_standard_variables
 
+   implicit none
+
    private
 
    public type_standard_variable, type_bulk_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
-   public standard_variables, initialize_standard_variables, any_standard_variable_compare
+   public standard_variables, initialize_standard_variables
 
    ! ====================================================================================================
    ! Data types that contain all metadata needed to describe standard variables.
