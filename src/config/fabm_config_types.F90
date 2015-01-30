@@ -102,7 +102,7 @@ contains
    subroutine dictionary_set(self,key,value)
       class (type_dictionary),intent(inout) :: self
       character(len=*),       intent(in)    :: key
-      class(type_node),target               :: value
+      class(type_node),pointer              :: value
 
       type (type_key_value_pair),pointer :: pair
 
@@ -135,9 +135,13 @@ contains
    subroutine dictionary_set_string(self,key,value)
       class (type_dictionary),intent(inout) :: self
       character(len=*),       intent(in)    :: key,value
-      type (type_scalar),pointer :: node
-      allocate(node)
-      node%string = value
+
+      class (type_scalar),pointer :: scalar_node
+      class (type_node),  pointer :: node
+
+      allocate(scalar_node)
+      scalar_node%string = value
+      node => scalar_node
       call self%set(key,node)
    end subroutine
 
