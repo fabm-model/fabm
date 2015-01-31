@@ -277,6 +277,7 @@ class SubModel(object):
 
 class Model(object):
     def __init__(self,path='fabm.yaml'):
+        self.lookup_tables = {}
         fabm.initialize(path)
         self.updateConfiguration()
 
@@ -401,25 +402,34 @@ class Model(object):
 
         return Jac
 
-    def findParameter(self,name):
-        for parameter in self.parameters:
-            if parameter.name==name: return parameter
-        raise Exception('Parameter "%s" was not found.' % name)
+    def findObject(self,name,objecttype,case_insensitive=False):
+        tablename = str(objecttype)
+        if case_insensitive: tablename += '_ci'
+        table = self.lookup_tables.get(tablename,None)
+        if table is None:
+           data = getattr(self,objecttype)
+           if case_insensitive:
+              table = dict([(obj.name.lower(),obj) for obj in data])
+           else:
+              table = dict([(obj.name,obj) for obj in data])
+           self.lookup_tables[tablename] = table
+        if case_insensitive: name = name.lower()
+        try:
+           return table[name]
+        except KeyError:
+           raise Exception('"%s" not found among %s.' % (name,objecttype))
 
-    def findDependency(self,name):
-        for dependency in self.dependencies:
-            if dependency.name==name: return dependency
-        raise Exception('Dependency "%s" was not found.' % name)
+    def findParameter(self,name,case_insensitive=False):
+        return self.findObject(name,'parameters',case_insensitive)
 
-    def findStateVariable(self,name):
-        for variable in self.state_variables:
-            if variable.name==name or variable.path==name: return variable
-        raise Exception('State variable "%s" was not found.' % name)
+    def findDependency(self,name,case_insensitive=False):
+        return self.findObject(name,'dependencies',case_insensitive)
 
-    def findDiagnosticVariable(self,name):
-        for variable in self.diagnostic_variables:
-            if variable.name==name or variable.path==name: return variable
-        raise Exception('Diagnostic variable "%s" was not found.' % name)
+    def findStateVariable(self,name,case_insensitive=False):
+        return self.findObject(name,'state_variables',case_insensitive)
+
+    def findDiagnosticVariable(self,name,case_insensitive=False):
+        return self.findObject(name,'diagnostic_variables',case_insensitive)
 
     def getParameterTree(self):
         root = {}
