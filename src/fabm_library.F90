@@ -34,11 +34,13 @@
 
    private
 
-   type,extends(type_base_model_factory),public :: type_model_factory
+   type,extends(type_base_model_factory) :: type_factory
       contains
       procedure :: create
       procedure :: initialize
    end type
+
+   type (type_factory),save,target,public :: fabm_model_factory
 
 !EOP
 !-----------------------------------------------------------------------
@@ -46,7 +48,7 @@
 contains
 
    subroutine initialize(self)
-      class (type_model_factory), intent(inout) :: self
+      class (type_factory), intent(inout) :: self
 
       call self%add(builtin_factory)
       call self%add(aed_model_factory)
@@ -73,9 +75,9 @@ contains
    subroutine create(self,name,model)
 !
 ! !INPUT PARAMETERS:
-      class (type_model_factory),intent(in) :: self
-      character(*),              intent(in) :: name
-      class (type_base_model),pointer       :: model
+      class (type_factory),intent(in) :: self
+      character(*),        intent(in) :: name
+      class (type_base_model),pointer :: model
 !
 !EOP
 !-----------------------------------------------------------------------

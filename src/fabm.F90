@@ -354,7 +354,7 @@
       call initialize_standard_variables()
 
       ! Create the model factory.
-      allocate(type_model_factory::factory)
+      factory => fabm_model_factory
       call factory%initialize()
    end subroutine fabm_initialize_library
 
