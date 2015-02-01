@@ -237,7 +237,7 @@ class Coupling(Variable):
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
 
         fabm.get_variable_metadata_ptr(self.slave,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
-        Variable.__init__(self,strname.value,'',strlong_name.value)
+        Variable.__init__(self,strname.value,strunits.value,strlong_name.value)
 
     def getValue(self):
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
@@ -414,10 +414,7 @@ class Model(object):
               table = dict([(obj.name,obj) for obj in data])
            self.lookup_tables[tablename] = table
         if case_insensitive: name = name.lower()
-        try:
-           return table[name]
-        except KeyError:
-           raise Exception('"%s" not found among %s.' % (name,objecttype))
+        return table[name]
 
     def findParameter(self,name,case_insensitive=False):
         return self.findObject(name,'parameters',case_insensitive)
@@ -430,6 +427,9 @@ class Model(object):
 
     def findDiagnosticVariable(self,name,case_insensitive=False):
         return self.findObject(name,'diagnostic_variables',case_insensitive)
+
+    def findCoupling(self,name,case_insensitive=False):
+        return self.findObject(name,'couplings',case_insensitive)
 
     def getParameterTree(self):
         root = {}
