@@ -85,11 +85,17 @@ def processDict(f,d,path=[]):
                metadata = model.findParameter(path[1]+'/'+key,case_insensitive=True)
             elif path[-1]=='initialization':
                metadata = model.findStateVariable(path[1]+'_'+key)
+            elif path[-1]=='coupling':
+               try:
+                  metadata = model.findCoupling(path[1]+'/'+key)
+               except KeyError:
+                  pass
          if metadata is not None:
             f.write('%s: %s' % (metadata.name[len(path[1])+1:],value))
             l = nspace+len(key)+2+len(str(value))
             f.write('%s# %s' % (' '*(icommentstart-l),metadata.long_name,))
             if metadata.units: f.write(' (%s)' % (metadata.units,))
+            if getattr(metadata,'default',None): f.write(', default = %s' % (metadata.default,))
          else:
             f.write('%s: %s' % (key,value))
          f.write('\n')
