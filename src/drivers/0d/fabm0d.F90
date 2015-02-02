@@ -41,7 +41,13 @@
 !  private data members initialised via namelists
    real(rk)                  :: dt
 
-!  FABM yalmm configuration file
+!  fabm0d run nml configuration file
+   character(len=PATH_MAX)   :: run_nml_file='run.nml'
+
+!  FABM nml configuration file
+   character(len=PATH_MAX)   :: fabm_nml_file='fabm.nml'
+
+!  FABM yaml configuration file
    character(len=PATH_MAX)   :: fabm_yaml_file='fabm.yaml'
 
    ! Bio model info
@@ -91,29 +97,42 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   do i = 1, command_argument_count()
+   i=1
+   do while (i <= command_argument_count())
       call get_command_argument(i, arg)
 
       select case (arg)
 #if 0
       case ('-v', '--version')
-         print '(2a)', 'fabm0d version ', version
+         print '(2a)', 'fabm0d version ', RELEASE
          stop
 #endif
       case ('-h', '--help')
          call print_help()
          stop
-      case ('-y', '--yaml')
-         call get_command_argument(i+1, fabm_yaml_file)
-!         print '(a)', fabm_yaml_file
-      case default
+      case ('-r', '--run_nml')
+         i = i+1
+         call get_command_argument(i, run_nml_file)
 #if 0
+      case ('-n', '--nml')
+         i = i+1
+         call get_command_argument(i, fabm_nml_file)
+#endif
+      case ('-y', '--yaml')
+         i = i+1
+         call get_command_argument(i, fabm_yaml_file)
+      case default
          print '(a,a,/)', 'Unrecognized command-line option: ', arg
          call print_help()
          stop
-#endif
       end select
+      i = i+1
    end do
+#if 0
+   print '(a)', trim(run_nml_file)
+   print '(a)', trim(fabm_nml_file)
+   print '(a)', trim(fabm_yaml_file)
+#endif
 
    contains
 
@@ -125,7 +144,13 @@
       print '(a)', 'fabm0d options:'
       print '(a)', ''
       print '(a)', '  -h, --help        print usage information and exit'
-      print '(a)', '  -y, --yaml file   use <file> as FABM yaml configuration file - default fabm.yaml'
+      print '(a)', '  -r, --run_nml     namelist file with run time options - default run.nml' 
+#if 0
+      print '(a)', '  -n, --nml         namelist file with FABM configuration - default fabm.nml' 
+#endif
+      print '(a)', '  -y, --yaml file   yaml formatted file FABM configuration - default fabm.yaml'
+      print '(a)', '                    a yaml configuration file overrides fabm.nml'
+      print '(a)', ''
    end subroutine print_help
 
    end subroutine  cmdline
@@ -173,8 +198,8 @@
    STDERR LINE
 
    ! Open the namelist file.
-   LEVEL2 'reading model setup namelists..'
-   open(namlst,file='run.nml',status='old',action='read',err=90)
+   LEVEL2 'reading model setup namelists from ',trim(run_nml_file)
+   open(namlst,file=run_nml_file,status='old',action='read',err=90)
 
    ! Initialize environment
    temp = 0.0_rk
@@ -284,9 +309,14 @@
       allocate(model)
       call fabm_create_model_from_yaml_file(model,path=trim(fabm_yaml_file))
    else
-      ! From namelists in fabm.nml
-      LEVEL3 'fabm.nml'
-      model => fabm_create_model_from_file(namlst)
+      ! From namelists in fabm_nml_file
+      inquire(file=trim(fabm_nml_file),exist=file_exists)
+      if (file_exists) then
+         LEVEL3 trim(fabm_nml_file)
+         model => fabm_create_model_from_file(namlst)
+      else
+         call fatal_error('init_run','can not find valid FABM yaml or nml files')
+      end if
    end if
 
    ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
@@ -358,7 +388,6 @@
    STDERR LINE
 
    return
-
 90 call fatal_error('init_run','I could not open run.nml for reading.')
 91 call fatal_error('init_run','I could not read the "model_setup" namelist from run.nml.')
 92 call fatal_error('init_run','I could not read the "environment" namelist from run.nml.')
