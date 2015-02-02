@@ -95,7 +95,7 @@ def processDict(f,d,path=[]):
             l = nspace+len(key)+2+len(str(value))
             f.write('%s# %s' % (' '*(icommentstart-l),metadata.long_name,))
             if metadata.units: f.write(' (%s)' % (metadata.units,))
-            if getattr(metadata,'default',None): f.write(', default = %s' % (metadata.default,))
+            if getattr(metadata,'default',None) is not None: f.write(', default = %s' % (metadata.default,))
          else:
             f.write('%s: %s' % (key,value))
          f.write('\n')
