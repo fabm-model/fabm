@@ -197,7 +197,7 @@
 
    subroutine get_variable_metadata(category,index,length,name,units,long_name,path) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_metadata
-      integer(c_int),intent(in), value             :: category,index,length
+      integer(c_int),        intent(in), value             :: category,index,length
       character(kind=c_char),intent(out),dimension(length) :: name,units,long_name,path
 
       class (type_external_variable),pointer :: variable
@@ -274,11 +274,11 @@
 
    function get_suitable_masters_for_ptr(pvariable) result(plist) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_suitable_masters_for_ptr
-      type (c_ptr),          intent(in), value :: pvariable
-      type (c_ptr)                             :: plist
+      type (c_ptr), intent(in), value :: pvariable
+      type (c_ptr)                    :: plist
 
       type (type_internal_variable),pointer :: variable
-      type (type_link_list),         pointer :: list
+      type (type_link_list),        pointer :: list
 
       call c_f_pointer(pvariable, variable)
       list => get_suitable_masters(model,variable)
@@ -287,8 +287,8 @@
 
    function link_list_count(plist) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_list_count
-      type (c_ptr),          intent(in), value :: plist
-      integer(c_int)                           :: value
+      type (c_ptr), intent(in), value :: plist
+      integer(c_int)                  :: value
 
       type (type_link_list),pointer :: list
 
@@ -347,8 +347,8 @@
 
    subroutine get_variable_metadata_ptr(pvariable,length,name,units,long_name) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_metadata_ptr
-      type (c_ptr),          intent(in), value  :: pvariable
-      integer(c_int),        intent(in), value  :: length
+      type (c_ptr),          intent(in), value             :: pvariable
+      integer(c_int),        intent(in), value             :: length
       character(kind=c_char),intent(out),dimension(length) :: name,units,long_name
 
       type (type_internal_variable),pointer :: variable
@@ -471,8 +471,8 @@
 
    subroutine set_real_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_real_parameter
-      character(kind=c_char),target,    intent(in) :: name(*)
-      real(c_double),value,intent(in) :: value
+      character(kind=c_char),target,intent(in) :: name(*)
+      real(c_double),value,         intent(in) :: value
 
       character(len=attribute_length),pointer :: pname
 
@@ -504,8 +504,8 @@
 
    subroutine set_integer_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_integer_parameter
-      character(kind=c_char),target,    intent(in) :: name(*)
-      integer(c_int),value,intent(in) :: value
+      character(kind=c_char),target,intent(in) :: name(*)
+      integer(c_int),value,         intent(in) :: value
 
       character(len=attribute_length),pointer :: pname
 
@@ -618,8 +618,8 @@
    end subroutine
 
    subroutine copy_to_c_string(string,cstring)
-      character(len=*),intent(in)  :: string
-      character,       intent(out) :: cstring(:)
+      character(len=*),      intent(in)  :: string
+      character(kind=c_char),intent(out) :: cstring(:)
       integer i,n
       n = min(len_trim(string),size(cstring)-1)
       do i=1,n
