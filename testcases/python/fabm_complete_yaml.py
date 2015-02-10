@@ -58,6 +58,11 @@ def reorderParameters(modelname,parameters):
    assert len(newparameters)>=len(parameters)
    return newparameters
 
+def python2yaml(value):
+   if isinstance(value,bool):
+      return 'true' if value else 'false'
+   return str(value)
+
 def processDict(f,d,path=[]):
    # If processing parameter list, reorder according to their registration by the model.
    if len(path)==3 and path[-1]=='parameters':
@@ -79,6 +84,7 @@ def processDict(f,d,path=[]):
          f.write('%s:\n' % key)
          processDict(f,value,path=path+[key])
       else:
+         value = python2yaml(value)
          metadata = None
          if len(path)==3:
             if path[-1]=='parameters':
@@ -95,7 +101,7 @@ def processDict(f,d,path=[]):
             l = nspace+len(key)+2+len(str(value))
             f.write('%s# %s' % (' '*(icommentstart-l),metadata.long_name,))
             if metadata.units: f.write(' (%s)' % (metadata.units,))
-            if getattr(metadata,'default',None) is not None: f.write(', default = %s' % (metadata.default,))
+            if getattr(metadata,'default',None) is not None: f.write(', default = %s' % (python2yaml(metadata.default),))
          else:
             f.write('%s: %s' % (key,value))
          f.write('\n')
