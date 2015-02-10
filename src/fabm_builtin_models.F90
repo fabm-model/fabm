@@ -34,9 +34,9 @@ module fabm_builtin_models
    end type
 
    type,extends(type_base_model) :: type_weighted_sum
-      character(len=attribute_length) :: output_long_name = ''
-      character(len=attribute_length) :: output_units     = ''
-      real(rk)                        :: offset           = 0.0_rk
+      character(len=attribute_length) :: units         = ''
+      integer                         :: result_output = output_instantaneous
+      real(rk)                        :: offset        = 0.0_rk
       type (type_diagnostic_variable_id) :: id_output
       type (type_component),pointer   :: first => null()
    contains
@@ -48,9 +48,9 @@ module fabm_builtin_models
    end type
 
    type,extends(type_base_model) :: type_horizontal_weighted_sum
-      character(len=attribute_length) :: output_long_name = ''
-      character(len=attribute_length) :: output_units     = ''
-      real(rk)                        :: offset           = 0.0_rk
+      character(len=attribute_length) :: units         = ''
+      integer                         :: result_output = output_instantaneous
+      real(rk)                        :: offset        = 0.0_rk
       type (type_horizontal_diagnostic_variable_id) :: id_output
       type (type_horizontal_component),pointer   :: first => null()
    contains
@@ -114,7 +114,7 @@ module fabm_builtin_models
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
 
-      call parent%add_bulk_variable(name,self%output_units,name,link=link)
+      call parent%add_bulk_variable(name,self%units,name,link=link)
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          call parent%request_coupling(link,'zero')
@@ -144,12 +144,11 @@ module fabm_builtin_models
       do while (associated(component))
          i = i + 1
          write (temp,'(i0)') i
-         call self%register_dependency(component%id,'term'//trim(temp),self%output_units,'term '//trim(temp))
+         call self%register_dependency(component%id,'term'//trim(temp),self%units,'term '//trim(temp))
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      if (self%output_long_name=='') self%output_long_name = 'result'
-      call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
+      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output)
    end subroutine
 
    subroutine weighted_sum_add_component(self,name,weight,include_background)
@@ -229,7 +228,7 @@ module fabm_builtin_models
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
 
-      call parent%add_horizontal_variable(name,self%output_units,name,link=link)
+      call parent%add_horizontal_variable(name,self%units,name,link=link)
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          call parent%request_coupling(link,'zero_hz')
@@ -259,12 +258,11 @@ module fabm_builtin_models
       do while (associated(component))
          i = i + 1
          write (temp,'(i0)') i
-         call self%register_dependency(component%id,'term'//trim(temp),self%output_units,'term '//trim(temp))
+         call self%register_dependency(component%id,'term'//trim(temp),self%units,'term '//trim(temp))
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      if (self%output_long_name=='') self%output_long_name = 'result'
-      call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
+      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output)
    end subroutine
 
    subroutine horizontal_weighted_sum_after_coupling(self)

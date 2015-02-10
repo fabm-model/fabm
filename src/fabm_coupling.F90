@@ -330,6 +330,7 @@ end subroutine
                   case (domain_bulk)
                      ! Create sum of sink-source terms for bulk variable.
                      allocate(sum)
+                     sum%result_output = output_none
                      link => master%sms_list%first
                      do while (associated(link))
                         call sum%add_component(link%target%name)
@@ -339,6 +340,7 @@ end subroutine
                   case (domain_horizontal,domain_surface,domain_bottom)
                      ! Create sum of sink-source terms for horizontal variable.
                      allocate(sum_hz)
+                     sum_hz%result_output = output_none
                      link => master%sms_list%first
                      do while (associated(link))
                         call sum_hz%add_component(link%target%name)
@@ -464,11 +466,11 @@ recursive subroutine build_aggregate_variables(self)
             end do
 
             ! Process sums now that all contributing terms are known.
-            sum%output_units = trim(aggregate_variable%standard_variable%units)//'/s'
+            sum%units = trim(aggregate_variable%standard_variable%units)//'/s'
             if (.not.sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name),create_for_one=.true.)) deallocate(sum)
-            surface_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m/s'
+            surface_sum%units = trim(aggregate_variable%standard_variable%units)//'*m/s'
             if (.not.surface_sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_surface',create_for_one=.true.)) deallocate(surface_sum)
-            bottom_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m/s'
+            bottom_sum%units = trim(aggregate_variable%standard_variable%units)//'*m/s'
             if (.not.bottom_sum%add_to_parent(self,'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_bottom',create_for_one=.true.)) deallocate(bottom_sum)
          end if
          aggregate_variable => aggregate_variable%next
@@ -532,15 +534,18 @@ recursive subroutine create_aggregate_models(self)
       end do
 
       if (associated(sum)) then
-         sum%output_units = trim(aggregate_variable%standard_variable%units)
+         sum%units = trim(aggregate_variable%standard_variable%units)
+         if (associated(self%parent)) sum%result_output = output_none
          if (.not.sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name))) deallocate(sum)
       end if
       if (associated(horizontal_sum)) then
-         horizontal_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m'
+         horizontal_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
+         if (associated(self%parent)) horizontal_sum%result_output = output_none
          if (.not.horizontal_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_interfaces')) deallocate(horizontal_sum)
       end if
       if (associated(bottom_sum)) then
-         bottom_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m'
+         bottom_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
+         if (associated(self%parent)) bottom_sum%result_output = output_none
          if (.not.bottom_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_bottom')) deallocate(bottom_sum)
       end if
       aggregate_variable => aggregate_variable%next
