@@ -223,6 +223,31 @@
       call copy_to_c_string(variable%path,           path)
    end subroutine
 
+   function get_variable_ptr(category,index) bind(c) result(pvariable)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_ptr
+      integer(c_int),        intent(in), value :: category,index
+      type (c_ptr)                             :: pvariable
+
+      type (type_internal_variable),pointer :: variable
+
+      ! Get a pointer to the target variable
+      select case (category)
+      case (BULK_STATE_VARIABLE)
+         variable => model%state_variables(index)%target
+      case (SURFACE_STATE_VARIABLE)
+         variable => model%surface_state_variables(index)%target
+      case (BOTTOM_STATE_VARIABLE)
+         variable => model%bottom_state_variables(index)%target
+      case (BULK_DIAGNOSTIC_VARIABLE)
+         variable => model%diagnostic_variables(index)%target
+      case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
+         variable => model%horizontal_diagnostic_variables(index)%target
+      case (CONSERVED_QUANTITY)
+         variable => model%conserved_quantities(index)%target
+      end select
+      pvariable = c_loc(variable)
+   end function get_variable_ptr
+
    subroutine get_parameter_metadata(index,length,name,units,long_name,typecode,has_default) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_parameter_metadata
       integer(c_int),        intent(in), value             :: index,length
@@ -344,6 +369,18 @@
       end do
       call copy_to_c_string(long_name_,long_name)
    end subroutine get_variable_long_path
+
+   function get_variable_background_value(pvariable) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_background_value
+      type (c_ptr), value, intent(in)  :: pvariable
+      real(kind=c_double)              :: value
+
+      type (type_internal_variable),pointer :: variable
+
+      call c_f_pointer(pvariable, variable)
+      value = 0.0_rk
+      if (size(variable%background_values%pointers)>0) value = variable%background_values%pointers(1)%p
+   end function get_variable_background_value
 
    subroutine get_variable_metadata_ptr(pvariable,length,name,units,long_name) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_metadata_ptr

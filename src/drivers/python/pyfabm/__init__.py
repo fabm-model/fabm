@@ -31,7 +31,11 @@ fabm = ctypes.CDLL(dllpath)
 fabm.initialize.argtypes = [ctypes.c_char_p]
 fabm.get_variable_counts.argtypes = [ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
 fabm.get_variable_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
+fabm.get_variable_ptr.argtypes = [ctypes.c_int,ctypes.c_int]
+fabm.get_variable_ptr.restype = ctypes.c_void_p
 fabm.get_variable_metadata_ptr.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
+fabm.get_variable_background_value.argtypes = [ctypes.c_void_p]
+fabm.get_variable_background_value.restype = ctypes.c_double
 fabm.get_variable_long_path.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_char_p]
 fabm.get_parameter_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
 fabm.get_dependency_metadata.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p]
@@ -150,8 +154,9 @@ class Dependency(Variable):
     value = property(getValue, setValue)
 
 class StateVariable(Variable):
-    def __init__(self,statearray,name,index,units=None,long_name=None,path=None):
+    def __init__(self,variable_pointer,statearray,name,index,units=None,long_name=None,path=None):
         Variable.__init__(self,name,units,long_name,path)
+        self.variable_pointer = variable_pointer
         self.index = index
         self.statearray = statearray
 
@@ -162,6 +167,10 @@ class StateVariable(Variable):
         self.statearray[self.index] = value
 
     value = property(getValue, setValue)
+
+    @property
+    def background_value(self):
+        return fabm.get_variable_background_value(self.variable_pointer)
 
 class DiagnosticVariable(Variable):
     def __init__(self,name,index,horizontal,units=None,long_name=None,path=None):
@@ -336,14 +345,17 @@ class Model(object):
         self.parameters = []
         self.dependencies = []
         for i in range(nstate_bulk.value):
+            ptr = fabm.get_variable_ptr(BULK_STATE_VARIABLE,i+1)
             fabm.get_variable_metadata(BULK_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.bulk_state_variables.append(StateVariable(self.state,strname.value,i,strunits.value,strlong_name.value,strpath.value))
+            self.bulk_state_variables.append(StateVariable(ptr,self.state,strname.value,i,strunits.value,strlong_name.value,strpath.value))
         for i in range(nstate_surface.value):
+            ptr = fabm.get_variable_ptr(SURFACE_STATE_VARIABLE,i+1)
             fabm.get_variable_metadata(SURFACE_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.surface_state_variables.append(StateVariable(self.state,strname.value,nstate_bulk.value+i,strunits.value,strlong_name.value,strpath.value))
+            self.surface_state_variables.append(StateVariable(ptr,self.state,strname.value,nstate_bulk.value+i,strunits.value,strlong_name.value,strpath.value))
         for i in range(nstate_bottom.value):
+            ptr = fabm.get_variable_ptr(BOTTOM_STATE_VARIABLE,i+1)
             fabm.get_variable_metadata(BOTTOM_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.bottom_state_variables.append(StateVariable(self.state,strname.value,nstate_bulk.value+nstate_surface.value+i,strunits.value,strlong_name.value,strpath.value))
+            self.bottom_state_variables.append(StateVariable(ptr,self.state,strname.value,nstate_bulk.value+nstate_surface.value+i,strunits.value,strlong_name.value,strpath.value))
         for i in range(ndiag_bulk.value):
             fabm.get_variable_metadata(BULK_DIAGNOSTIC_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
             self.bulk_diagnostic_variables.append(DiagnosticVariable(strname.value,i,False,strunits.value,strlong_name,strpath.value))

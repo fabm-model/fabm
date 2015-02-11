@@ -24,7 +24,7 @@ except ImportError:
     pass
 # ------------------------------------------
 
-def processFile(infile,outfile):
+def processFile(infile,outfile,subtract_background=False):
    # Create model object from YAML file.
    model = pyfabm.Model(infile)
 
@@ -83,14 +83,16 @@ def processFile(infile,outfile):
             if len(path)==3:
                if path[-1]=='parameters':
                   metadata = model.findParameter(path[1]+'/'+key,case_insensitive=True)
+                  value = metadata.value
                elif path[-1]=='initialization':
                   metadata = model.findStateVariable(path[1]+'_'+key)
+                  value = metadata.value
+                  if subtract_background: value -= metadata.background_value
                elif path[-1]=='coupling':
                   try:
                      metadata = model.findCoupling(path[1]+'/'+key)
                   except KeyError:
                      pass
-               if path[-1]!='coupling': value = metadata.value
             value = python2yaml(value)
             if metadata is not None:
                f.write('%s: %s' % (metadata.name[len(path[1])+1:],value))
