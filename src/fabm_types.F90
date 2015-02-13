@@ -445,6 +445,9 @@
       procedure :: register_bulk_state_dependency_ex
       procedure :: register_bottom_state_dependency_ex
       procedure :: register_surface_state_dependency_ex
+      procedure :: register_standard_bulk_state_dependency
+      procedure :: register_standard_bottom_state_dependency
+      procedure :: register_standard_surface_state_dependency
       procedure :: register_bulk_state_dependency_old
       procedure :: register_bottom_state_dependency_old
       procedure :: register_surface_state_dependency_old
@@ -469,7 +472,9 @@
                                                  register_bulk_expression_dependency, register_horizontal_expression_dependency
       generic :: register_state_dependency    => register_bulk_state_dependency_ex,register_bottom_state_dependency_ex, &
                                                  register_surface_state_dependency_ex,register_bulk_state_dependency_old, &
-                                                 register_bottom_state_dependency_old,register_surface_state_dependency_old
+                                                 register_bottom_state_dependency_old,register_surface_state_dependency_old, &
+                                                 register_standard_bulk_state_dependency,register_standard_bottom_state_dependency, &
+                                                 register_standard_surface_state_dependency
       generic :: register_conserved_quantity  => register_standard_conserved_quantity, register_custom_conserved_quantity
 
       ! ----------------------------------------------------------------------------------------------------
@@ -1984,6 +1989,36 @@ end subroutine real_pointer_set_set_value
 
    end subroutine register_surface_state_dependency_ex
 !EOC
+
+   subroutine register_standard_bulk_state_dependency(self,id,standard_variable,required)
+      class (type_base_model),             intent(inout) :: self
+      type (type_state_variable_id),target,intent(inout) :: id
+      type (type_bulk_standard_variable),  intent(in)    :: standard_variable
+      logical,optional,                    intent(in)    :: required
+
+      call register_bulk_state_dependency_ex(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
+         required=required, standard_variable=standard_variable)
+   end subroutine register_standard_bulk_state_dependency
+
+   subroutine register_standard_bottom_state_dependency(self,id,standard_variable,required)
+      class (type_base_model),                    intent(inout) :: self
+      type (type_bottom_state_variable_id),target,intent(inout) :: id
+      type (type_horizontal_standard_variable),   intent(in)    :: standard_variable
+      logical,optional,                           intent(in)    :: required
+
+      call register_bottom_state_dependency_ex(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
+         required=required, standard_variable=standard_variable)
+   end subroutine register_standard_bottom_state_dependency
+
+   subroutine register_standard_surface_state_dependency(self,id,standard_variable,required)
+      class (type_base_model),                     intent(inout) :: self
+      type (type_surface_state_variable_id),target,intent(inout) :: id
+      type (type_horizontal_standard_variable),    intent(in)    :: standard_variable
+      logical,optional,                            intent(in)    :: required
+
+      call register_surface_state_dependency_ex(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
+         required=required, standard_variable=standard_variable)
+   end subroutine register_standard_surface_state_dependency
 
    subroutine register_bulk_state_dependency_old(self,id,name)
       class (type_base_model),      intent(inout)        :: self
