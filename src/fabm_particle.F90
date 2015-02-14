@@ -170,8 +170,13 @@ module fabm_particle
             coupling%domain = domain_bulk
          class is (type_horizontal_dependency_id)
             coupling%domain = domain_horizontal
+         class is (type_state_variable_id)
+            coupling%domain = domain_bulk
+         class is (type_bottom_state_variable_id)
+            coupling%domain = domain_bottom
          class default
-            call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of type type_dependency_id or type_horizontal_dependency_id.')
+            call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of ones of the following types: &
+               &type type_dependency_id, type_horizontal_dependency_id, type_state_variable_id, type_bottom_state_variable_id.')
       end select
       self%first_model_coupling => coupling
    end subroutine request_coupling_to_model_sn
@@ -234,6 +239,9 @@ module fabm_particle
                case (domain_horizontal)
                   aggregate_variable%horizontal_required = .true.
                   call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
+               case (domain_bottom)
+                  aggregate_variable%bottom_required = .true.
+                  call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_bottom')
             end select
          end if
          coupling => coupling%next
