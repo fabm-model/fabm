@@ -137,7 +137,7 @@ contains
    end subroutine create_model_tree_from_dictionary
 
    subroutine create_model_from_dictionary(instancename,node,parent, &
-                                           require_initialization,require_all_parameters,check_conservation)s
+                                           require_initialization,require_all_parameters,check_conservation)
       character(len=*),       intent(in)           :: instancename
       class (type_dictionary),intent(in)           :: node
       class (type_base_model),intent(inout),target :: parent
