@@ -77,7 +77,6 @@ contains
       class (type_node),pointer          :: node
       character(len=64)                  :: instancename
       type (type_key_value_pair),pointer :: pair
-      class (type_base_model),   pointer :: childmodel
       logical                            :: initialize,check_conservation,require_initialization,require_all_parameters
       type (type_error),         pointer :: config_error
 
@@ -110,11 +109,11 @@ contains
          instancename = trim(pair%key)
          select type (dict=>pair%value)
             class is (type_dictionary)
-               childmodel => create_model_from_dictionary(instancename,dict,model%root, &
-                                                          require_initialization,require_all_parameters,check_conservation)
+               call create_model_from_dictionary(instancename,dict,model%root, &
+                                                 require_initialization,require_all_parameters,check_conservation)
             class is (type_null)
-               childmodel => create_model_from_dictionary(instancename,type_dictionary(),model%root, &
-                                                          require_initialization,require_all_parameters,check_conservation)
+               call create_model_from_dictionary(instancename,type_dictionary(),model%root, &
+                                                 require_initialization,require_all_parameters,check_conservation)
             class is (type_node)
                call fatal_error('create_model_tree_from_dictionary','Configuration information for model "'// &
                   trim(instancename)//'" must be a dictionary, not a single value.')
@@ -137,8 +136,8 @@ contains
 
    end subroutine create_model_tree_from_dictionary
 
-   function create_model_from_dictionary(instancename,node,parent, &
-                                         require_initialization,require_all_parameters,check_conservation) result(model)
+   subroutine create_model_from_dictionary(instancename,node,parent, &
+                                           require_initialization,require_all_parameters,check_conservation)s
       character(len=*),       intent(in)           :: instancename
       class (type_dictionary),intent(in)           :: node
       class (type_base_model),intent(inout),target :: parent
@@ -276,7 +275,7 @@ contains
          pair => pair%next
       end do
 
-   end function create_model_from_dictionary
+   end subroutine create_model_from_dictionary
 
    subroutine parse_initialization(model,node,initialized_set,get_background)
       class (type_base_model),intent(inout) :: model
