@@ -144,6 +144,7 @@ contains
       logical,                intent(in)           :: require_initialization,require_all_parameters,check_conservation
       class (type_base_model),pointer              :: model
 
+      logical                            :: use_model
       character(len=64)                  :: modelname
       character(len=256)                 :: long_name
       type (type_dictionary)             :: parametermap
@@ -155,6 +156,13 @@ contains
       type (type_error),pointer          :: config_error
 
       nullify(config_error)
+
+      use_model = node%get_logical('use',default=.true.,error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      if (.not.use_model) then
+         call log_message('SKIPPING model instance '//trim(instancename)//' because it has use=false set.')
+         return
+      end if
 
       ! Retrieve model name (default to instance name if not provided).
       modelname = trim(node%get_string('model',default=instancename,error=config_error))
