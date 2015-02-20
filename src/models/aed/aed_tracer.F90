@@ -191,7 +191,7 @@ SUBROUTINE aed_tracer_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
    ! Retrieve current environmental conditions for the bottom pelagic layer.
    _GET_(self%id_temp,temp)  ! local temperature
    _GET_HORIZONTAL_(self%id_taub,bottom_stress)
-   bottom_stress = MIN(bottom_stress, 100.)
+   bottom_stress = MIN(bottom_stress, 100.0_rk)
 
     DO i=1,ubound(self%id_ss,1)
     ! Retrieve current (local) state variable values.

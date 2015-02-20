@@ -1002,7 +1002,7 @@
 !  intrinsic_net_increase_rate_of_fish
    ukDIncrFiJv = (self%kDAssFiJv - self%kDRespFiJv) * uFunTmFish - self%kMortFiJv
 !  environmental_correction_of_fish
-   tDEnvFiJv = max(0.0,ukDIncrFiJv /(self%cDCarrFish - sDFiAd) * sDFiJv*sDFiJv)! sDFiJv,in g/m^2, cDCarrFish also in g/m^2
+   tDEnvFiJv = max(0.0_rk,ukDIncrFiJv /(self%cDCarrFish - sDFiAd) * sDFiJv*sDFiJv)! sDFiJv,in g/m^2, cDCarrFish also in g/m^2
 !   wDEnvFiJv = max(0.0_rk,ukDIncrFiJv /(self%cDCarrFish - sDFiAd) * sDFiJv*sDFiJv)  ! ! sDFiJv,in g/m^3,cDCarrFish, needs recalibration
 !  assimilation_of_fish
 !  PCLake_Osis: 
