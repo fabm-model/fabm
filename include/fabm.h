@@ -555,10 +555,10 @@
 
 ! Define statements to start and finish vertical loops
 #ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-#define _VERTICAL_LOOP_BEGIN_ do _VARIABLE_VERT_LOOP_=fabm_loop_stop,fabm_loop_start,-1
+#define _VERTICAL_LOOP_BEGIN_EX_(environment) do _VARIABLE_VERT_LOOP_=fabm_loop_stop,fabm_loop_start,-1
 #define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(environment) do concurrent (_VARIABLE_VERT_LOOP_=fabm_loop_stop:fabm_loop_start:-1)
 #else
-#define _VERTICAL_LOOP_BEGIN_ do _VARIABLE_VERT_LOOP_=fabm_loop_start,fabm_loop_stop
+#define _VERTICAL_LOOP_BEGIN_EX_(environment) do _VARIABLE_VERT_LOOP_=fabm_loop_start,fabm_loop_stop
 #define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(environment) do concurrent (_VARIABLE_VERT_LOOP_=fabm_loop_start:fabm_loop_stop)
 #endif
 #define _VERTICAL_LOOP_END_ end do
@@ -574,13 +574,15 @@
 #define _ARG_LOCATION_VERT_ _ARG_LOCATION_
 #define _DECLARE_LOCATION_ARG_VERT_ _DECLARE_LOCATION_ARG_
 
-#define _VERTICAL_LOOP_BEGIN_
+#define _VERTICAL_LOOP_BEGIN_EX_(environment)
 #define _VERTICAL_LOOP_END_
 
 #define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(environment)
 #define _CONCURRENT_VERTICAL_LOOP_END_
 
 #endif
+
+#define _VERTICAL_LOOP_BEGIN_ _VERTICAL_LOOP_BEGIN_EX_(environment)
 
 #define _ARGUMENTS_VERT_IN_ _ARGUMENTS_SHARED_IN_ _ARG_LOCATION_VERT_
 #define _ARGUMENTS_VERT_ _ARGUMENTS_SHARED_ _ARG_LOCATION_VERT_
