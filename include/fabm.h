@@ -280,6 +280,7 @@
 #define _CONCURRENT_LOOP_BEGIN_EX_(environment) do concurrent (_VARIABLE_1DLOOP_=fabm_loop_start:fabm_loop_stop)
 #endif
 
+#define _LOOP_BEGIN_EX_NOMASK_(environment) do _VARIABLE_1DLOOP_=fabm_loop_start,fabm_loop_stop
 #define _CONCURRENT_LOOP_BEGIN_EX_NOMASK_(environment) do concurrent (_VARIABLE_1DLOOP_=fabm_loop_start:fabm_loop_stop)
 #define _CONCURRENT_LOOP_END_ end do
 
@@ -295,6 +296,7 @@
 
 ! Beginning and end of spatial loop
 #define _LOOP_BEGIN_EX_(environment)
+#define _LOOP_BEGIN_EX_NOMASK_(environment)
 #define _LOOP_END_
 #define _CONCURRENT_LOOP_BEGIN_EX_(environment)
 #define _CONCURRENT_LOOP_BEGIN_EX_NOMASK_(environment)
