@@ -833,7 +833,7 @@
       logical,optional,                  intent(in)    :: include_background
 
       if (.not.associated(variable_id%link)) &
-         call self%fatal_error('add_to_aggregate_variable','variable has not been registered')
+         call self%fatal_error('add_to_aggregate_variable','variable added to '//trim(target%name)//' has not been registered')
 
       call variable_id%link%target%contributions%add(target,scale_factor,include_background)
 
