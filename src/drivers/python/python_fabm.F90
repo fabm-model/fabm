@@ -22,6 +22,7 @@
    use fabm_driver, only: type_base_driver, driver
    use fabm_properties
    use fabm_python_helper
+   use fabm_c_helper
 
    implicit none
 !
@@ -310,92 +311,6 @@
       plist = c_loc(list)
    end function variable_get_suitable_masters
 
-   function link_list_count(plist) bind(c) result(value)
-      !DIR$ ATTRIBUTES DLLEXPORT :: link_list_count
-      type (c_ptr), intent(in), value :: plist
-      integer(c_int)                  :: value
-
-      type (type_link_list),pointer :: list
-
-      call c_f_pointer(plist, list)
-      value = list%count()
-   end function link_list_count
-
-   function link_list_index(plist,index) bind(c) result(pvariable)
-      !DIR$ ATTRIBUTES DLLEXPORT :: link_list_index
-      type (c_ptr),  intent(in), value :: plist
-      integer(c_int),intent(in), value :: index
-      type (c_ptr)                     :: pvariable
-
-      type (type_link_list),pointer :: list
-      type (type_link),     pointer :: link
-      integer                       :: i
-
-      call c_f_pointer(plist, list)
-      link => list%first
-      do i=2,index
-         link => link%next
-      end do
-      pvariable = c_loc(link%target)
-   end function link_list_index
-
-   subroutine link_list_finalize(plist) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: link_list_finalize
-      type (c_ptr),  intent(in), value :: plist
-
-      type (type_link_list),pointer :: list
-
-      call c_f_pointer(plist, list)
-      call list%finalize()
-      deallocate(list)
-   end subroutine link_list_finalize
-
-   subroutine variable_get_long_path(pvariable,length,long_name) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_long_path
-      type (c_ptr),          intent(in), value  :: pvariable
-      integer(c_int),        intent(in), value  :: length
-      character(kind=c_char),intent(out),dimension(length) ::long_name
-
-      type (type_internal_variable),pointer :: variable
-      class (type_base_model),       pointer :: owner
-      character(len=attribute_length)        :: long_name_
-
-      call c_f_pointer(pvariable, variable)
-      long_name_ = variable%long_name
-      owner => variable%owner
-      do while (associated(owner%parent))
-         long_name_ = trim(owner%long_name)//'/'//trim(long_name_)
-         owner => owner%parent
-      end do
-      call copy_to_c_string(long_name_,long_name)
-   end subroutine variable_get_long_path
-
-   function variable_get_background_value(pvariable) bind(c) result(value)
-      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_background_value
-      type (c_ptr), value, intent(in)  :: pvariable
-      real(kind=c_double)              :: value
-
-      type (type_internal_variable),pointer :: variable
-
-      call c_f_pointer(pvariable, variable)
-      value = 0.0_rk
-      if (size(variable%background_values%pointers)>0) value = variable%background_values%pointers(1)%p
-   end function variable_get_background_value
-
-   subroutine variable_get_metadata(pvariable,length,name,units,long_name) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_metadata
-      type (c_ptr),          intent(in), value             :: pvariable
-      integer(c_int),        intent(in), value             :: length
-      character(kind=c_char),intent(out),dimension(length) :: name,units,long_name
-
-      type (type_internal_variable),pointer :: variable
-
-      call c_f_pointer(pvariable, variable)
-      call copy_to_c_string(variable%name,     name)
-      call copy_to_c_string(variable%units,    units)
-      call copy_to_c_string(variable%long_name,long_name)
-   end subroutine variable_get_metadata
-
    subroutine get_model_metadata(name,length,long_name,user_created) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_model_metadata
       character(kind=c_char),intent(in), target :: name(*)
@@ -653,33 +568,6 @@
 
       !write (*,*) trim(message)
    end subroutine python_driver_log_message
-
-   subroutine copy_to_c_string(string,cstring)
-      character(len=*),      intent(in)  :: string
-      character(kind=c_char),intent(out) :: cstring(:)
-      integer i,n
-      n = min(len_trim(string),size(cstring)-1)
-      do i=1,n
-         cstring(i) = string(i:i)
-      end do
-      cstring(n+1) = C_NULL_CHAR
-   end subroutine
-
-   function logical2int(value) result(ivalue)
-      logical,intent(in) :: value
-      integer            :: ivalue
-      if (value) then
-         ivalue = 1
-      else
-         ivalue = 0
-      end if
-   end function
-
-   function int2logical(ivalue) result(value)
-      integer,intent(in) :: ivalue
-      logical            :: value
-      value = ivalue/=0
-   end function
 
    end module fabm_python
 

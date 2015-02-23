@@ -24,7 +24,13 @@ set(FABM_FORCED_HOST python)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
 
 # Add Python-FABM library
-add_library (python_fabm SHARED python_fabm.F90 helper.F90 )
+add_library(python_fabm SHARED
+            python_fabm.F90
+            variable.F90
+            link_list.F90
+            c_helper.F90
+            helper.F90
+           )
 
 # Link in FABM itself
 target_link_libraries(python_fabm fabm)
