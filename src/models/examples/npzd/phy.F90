@@ -72,32 +72,32 @@
    call self%get_parameter(self%i_min,'i_min','W m-2',    'minimum light intensity in euphotic zone',default=25.0_rk)
    call self%get_parameter(self%rmax, 'rmax', 'd-1',      'maximum specific growth rate',            default=1.0_rk,  scale_factor=d_per_s)
    call self%get_parameter(self%alpha,'alpha','mmol m-3', 'half-saturation nutrient concentration',  default=0.3_rk)
-   call self%get_parameter(self%rpn,  'rpn',  'd-1',      'loss rate to nutrients',                  default=0.01_rk, scale_factor=d_per_s)
+   call self%get_parameter(self%rpn,  'rpn',  'd-1',      'excretion rate',                          default=0.01_rk, scale_factor=d_per_s)
    call self%get_parameter(self%rpdu, 'rpdu', 'd-1',      'mortality in euphotic zone',              default=0.02_rk, scale_factor=d_per_s)
    call self%get_parameter(self%rpdl, 'rpdl', 'd-1',      'mortality below euphotic zone',           default=0.1_rk,  scale_factor=d_per_s)
    call self%get_parameter(w_p,       'w_p',  'm d-1',    'vertical velocity (<0 for sinking)',      default=-1.0_rk, scale_factor=d_per_s)
 
    ! Register state variables
-   call self%register_state_variable(self%id_p,'c','mmol/m**3','concentration',0.0_rk,minimum=0.0_rk,vertical_movement=w_p)
+   call self%register_state_variable(self%id_p,'c','mmol m-3','concentration',0.0_rk,minimum=0.0_rk,vertical_movement=w_p)
 
    ! Register contribution of state to global aggregate variables.
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_p)
 
    ! Register dependencies on external state variables
-   call self%register_state_dependency(self%id_exctarget, 'excretion_target','mmol/m**3','sink for excreted matter')
-   call self%register_state_dependency(self%id_morttarget,'mortality_target','mmol/m**3','sink for dead matter')
-   call self%register_state_dependency(self%id_upttarget, 'uptake_target',   'mmol/m**3','nutrient source')
+   call self%register_state_dependency(self%id_upttarget, 'uptake_target',   'mmol m-3','nutrient source')
+   call self%register_state_dependency(self%id_exctarget, 'excretion_target','mmol m-3','sink for excreted matter')
+   call self%register_state_dependency(self%id_morttarget,'mortality_target','mmol m-3','sink for dead matter')
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_GPP, 'GPP','mmol/m**3',  'gross primary production',           &
+   call self%register_diagnostic_variable(self%id_GPP, 'GPP','mmol m-3',    'gross primary production',           &
                                      output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_NCP, 'NCP','mmol/m**3',  'net community production',           &
+   call self%register_diagnostic_variable(self%id_NCP, 'NCP','mmol m-3',    'net community production',           &
                                      output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_PPR, 'PPR','mmol/m**3/d','gross primary production rate',      &
+   call self%register_diagnostic_variable(self%id_PPR, 'PPR','mmol m-3 d-1','gross primary production rate',      &
                                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_NPR, 'NPR','mmol/m**3/d','net community production rate',      &
+   call self%register_diagnostic_variable(self%id_NPR, 'NPR','mmol m-3 d-1','net community production rate',      &
                                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
+   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W m-2',       'photosynthetically active radiation',&
                                      output=output_time_step_averaged)
 
    ! Register environmental dependencies
@@ -141,7 +141,7 @@
    iopt = max(0.25*I_0,self%I_min)
 
    ! Loss rate of phytoplankton to detritus depends on local light intensity.
-   if (par .ge. self%I_min) then
+   if (par>=self%I_min) then
       rpd = self%rpdu
    else
       rpd = self%rpdl
@@ -242,7 +242,7 @@
    iopt = max(0.25*I_0,self%I_min)
 
    ! Loss rate of phytoplankton to detritus depends on local light intensity.
-   if (par .ge. self%I_min) then
+   if (par>=self%I_min) then
       rpd = self%rpdu
    else
       rpd = self%rpdl

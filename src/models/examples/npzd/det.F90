@@ -69,7 +69,7 @@
    call self%get_parameter(self%rdn,'rdn','d-1',      'remineralization rate',             default=0.003_rk,scale_factor=d_per_s)
 
    ! Register state variables
-   call self%register_state_variable(self%id_d,'c','mmol/m**3','concentration',    &
+   call self%register_state_variable(self%id_d,'c','mmol m-3','concentration',    &
                                 4.5_rk,minimum=0.0_rk,vertical_movement=w_d, &
                                 specific_light_extinction=kc)
 
@@ -77,7 +77,7 @@
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_d)
 
    ! Register dependencies on external state variables
-   call self%register_state_dependency(self%id_mintarget,'mineralisation_target','mmol/m**3','sink for remineralized detritus')
+   call self%register_state_dependency(self%id_mintarget,'mineralisation_target','mmol m-3','sink for remineralized matter')
 
    end subroutine initialize
 !EOC

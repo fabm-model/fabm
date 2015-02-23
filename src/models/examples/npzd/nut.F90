@@ -50,7 +50,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Register state variables
-   call self%register_state_variable(self%id_n,'c','mmol/m**3','concentration',     &
+   call self%register_state_variable(self%id_n,'c','mmol m-3','concentration',     &
                                 1.0_rk,minimum=0.0_rk,no_river_dilution=.true.)
 
    ! Register contribution of state to global aggregate variables.

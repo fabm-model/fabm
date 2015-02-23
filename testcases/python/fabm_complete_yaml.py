@@ -53,6 +53,25 @@ def processFile(infile,outfile,subtract_background=False):
       assert len(newparameters)>=len(parameters)
       return newparameters
 
+   def reorderCouplings(modelname,variables):
+      newvariables = collections.OrderedDict()
+      modelname = modelname.lower()
+
+      # First insert all couplings we do not understand (e.g., to whole models)
+      couplings_lower = set([coupling.name.lower() for coupling in model.couplings])
+      for name in variables.iterkeys():
+         if modelname+'/'+name.lower() not in couplings_lower:
+            newvariables[name] = variables[name]
+
+      variables_lower = dict([(key.lower(),value) for key,value in variables.iteritems()])
+      for coupling in model.couplings:
+         if coupling.name.lower().startswith(modelname+'/'):
+            name = coupling.name[len(modelname)+1:]
+            name_lower = name.lower()
+            if name_lower in variables_lower:
+               newvariables[name] = variables_lower[name_lower]
+      return newvariables
+
    def python2yaml(value):
       if isinstance(value,bool):
          return 'true' if value else 'false'
@@ -60,8 +79,11 @@ def processFile(infile,outfile,subtract_background=False):
 
    def processDict(f,d,path=[]):
       # If processing parameter list, reorder according to their registration by the model.
-      if len(path)==3 and path[-1]=='parameters':
-         d = reorderParameters(path[1],d)
+      if len(path)==3:
+         if path[-1]=='parameters':
+            d = reorderParameters(path[1],d)
+         elif path[-1]=='coupling':
+            d = reorderCouplings(path[1],d)
 
       # If processing a model dictionary, reorder according to prescribed order.
       if len(path)==2 and path[0]=='instances':
@@ -92,6 +114,7 @@ def processFile(infile,outfile,subtract_background=False):
                   try:
                      metadata = model.findCoupling(path[1]+'/'+key)
                   except KeyError:
+                     # If YAML coupling was not found, it typically is a coupling to a model rather than to a variable. Ignore this.
                      pass
             value = python2yaml(value)
             if metadata is not None:

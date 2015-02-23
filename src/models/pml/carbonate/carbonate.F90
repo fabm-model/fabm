@@ -79,7 +79,7 @@ contains
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day, and are converted here to values per second.
-   call self%get_parameter(self%alk_param,'alk_param','-','compute alkalinity as linear function of salinity',default=alk_param)
+   call self%get_parameter(self%alk_param,'alk_param','','compute alkalinity as linear function of salinity',default=alk_param)
    if (self%alk_param) then
       call self%get_parameter(self%TA_offset,'alk_offset','mEq m-3','offset for alkalinity as linear function of salinity',default=alk_offset)
       call self%get_parameter(self%TA_slope,'alk_slope','mEq m-3','scale factor for alkalinity as linear function of salinity',default=alk_slope)
@@ -87,36 +87,36 @@ contains
    call self%get_parameter(self%pCO2a,'pCO2a','ppm','mole fraction of atmospheric CO2',default=pCO2a)
 
    ! First state variable: total dissolved inorganic carbon
-   call self%register_state_variable(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon', &
+   call self%register_state_variable(self%id_dic,'dic','mmol m-3','total dissolved inorganic carbon', &
                                 dic_initial,minimum=0.0_rk,no_precipitation_dilution=.false.,no_river_dilution=.true., &
                                 standard_variable=standard_variables%mole_concentration_of_dissolved_inorganic_carbon)
 
    if (self%alk_param) then
      ! Alkalinity is diagnosed from temperature and salinity. Register it as output variable.
-     call self%register_diagnostic_variable(self%id_alk_diag,'alk', 'mEq/m**3','alkalinity', &
+     call self%register_diagnostic_variable(self%id_alk_diag,'alk', 'mEq m-3','alkalinity', &
                                        output=output_time_step_averaged)
    else
      ! Alkalinity is a state variable.
-     call self%register_state_variable(self%id_alk,'alk','mEq/m**3','alkalinity', &
+     call self%register_state_variable(self%id_alk,'alk','mEq m-3','alkalinity', &
                                   alk_initial,minimum=0.0_rk,no_precipitation_dilution=.false.,no_river_dilution=.true.)
    end if
 
    ! Register diagnostic variables.
-   call self%register_diagnostic_variable(self%id_ph,      'pH',      '-',          'pH',                           &
+   call self%register_diagnostic_variable(self%id_ph,      'pH',      '-',           'pH',                           &
                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_pco2,    'pCO2',    'ppm',        'CO2 partial pressure',         &
+   call self%register_diagnostic_variable(self%id_pco2,    'pCO2',    'ppm',         'CO2 partial pressure',         &
                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_CarbA,   'CarbA',   'mmol/m**3',  'carbonic acid concentration',  &
+   call self%register_diagnostic_variable(self%id_CarbA,   'CarbA',   'mmol m-3',    'carbonic acid concentration',  &
                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_Bicarb,  'Bicarb',  'mmol/m**3',  'bicarbonate ion concentration',&
+   call self%register_diagnostic_variable(self%id_Bicarb,  'Bicarb',  'mmol m-3',    'bicarbonate ion concentration',&
                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_Carb,    'Carb',    'mmol/m**3',  'carbonate ion concentration',  &
+   call self%register_diagnostic_variable(self%id_Carb,    'Carb',    'mmol m-3',    'carbonate ion concentration',  &
                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_Om_cal,  'Om_cal',  '-',          'calcite saturation state',     &
+   call self%register_diagnostic_variable(self%id_Om_cal,  'Om_cal',  '-',           'calcite saturation state',     &
                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_Om_arg,  'Om_arg',  '-',          'aragonite saturation state',   &
+   call self%register_diagnostic_variable(self%id_Om_arg,  'Om_arg',  '-',           'aragonite saturation state',   &
                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_co2_flux,'CO2_flux','mmol/m**2/s','surface CO2 flux',             &
+   call self%register_diagnostic_variable(self%id_co2_flux,'CO2_flux','mmol m-2 s-1','surface CO2 flux',             &
                          output=output_time_step_averaged)
 
    ! Register external dependencies.

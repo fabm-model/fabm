@@ -63,19 +63,19 @@
    call self%get_parameter(self%z0,  'z0',  'mmol m-3', 'background concentration',     default=0.0225_rk)
    call self%get_parameter(self%gmax,'gmax','d-1',      'maximum specific grazing rate',default=0.5_rk,  scale_factor=d_per_s)
    call self%get_parameter(self%iv,  'iv',  'm3 mmol-1','Ivlev grazing constant',       default=1.1_rk)
-   call self%get_parameter(self%rzn, 'rzn', 'd-1',      'loss rate to nutrients',       default=0.01_rk, scale_factor=d_per_s)
+   call self%get_parameter(self%rzn, 'rzn', 'd-1',      'excretion rate',               default=0.01_rk, scale_factor=d_per_s)
    call self%get_parameter(self%rzd, 'rzd', 'd-1',      'mortality',                    default=0.02_rk, scale_factor=d_per_s)
 
    ! Register state variables
-   call self%register_state_variable(self%id_z,'c','mmol/m**3','concentration',0.0_rk,minimum=0.0_rk)
+   call self%register_state_variable(self%id_z,'c','mmol m-3','concentration',0.0_rk,minimum=0.0_rk)
 
    ! Register contribution of state to global aggregate variables.
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_z)
 
    ! Register dependencies on external state variables.
-   call self%register_state_dependency(self%id_exctarget, 'excretion_target','mmol/m**3','sink for excreted matter')
-   call self%register_state_dependency(self%id_morttarget,'mortality_target','mmol/m**3','sink for dead matter')
-   call self%register_state_dependency(self%id_grztarget, 'grazing_target',  'mmol/m**3','prey source')
+   call self%register_state_dependency(self%id_grztarget, 'grazing_target',  'mmol m-3','prey source')
+   call self%register_state_dependency(self%id_exctarget, 'excretion_target','mmol m-3','sink for excreted matter')
+   call self%register_state_dependency(self%id_morttarget,'mortality_target','mmol m-3','sink for dead matter')
 
    end subroutine initialize
 !EOC

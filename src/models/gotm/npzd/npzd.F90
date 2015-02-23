@@ -158,10 +158,10 @@
    call self%get_parameter(w_d,'w_d','m d-1','vertical velocity of detritus  (<0 for sinking)',default=w_d,scale_factor=d_per_s)
 
    ! Register state variables
-   call self%register_state_variable(self%id_n,'nut','mmol/m**3','nutrients',    n_initial,minimum=0.0_rk,no_river_dilution=.true.)
-   call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton',p_initial,minimum=0.0_rk,vertical_movement=w_p)
-   call self%register_state_variable(self%id_z,'zoo','mmol/m**3','zooplankton',  z_initial,minimum=0.0_rk)
-   call self%register_state_variable(self%id_d,'det','mmol/m**3','detritus',     d_initial,minimum=0.0_rk,vertical_movement=w_d)
+   call self%register_state_variable(self%id_n,'nut','mmol m-3','nutrients',    n_initial,minimum=0.0_rk,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_p,'phy','mmol m-3','phytoplankton',p_initial,minimum=0.0_rk,vertical_movement=w_p)
+   call self%register_state_variable(self%id_z,'zoo','mmol m-3','zooplankton',  z_initial,minimum=0.0_rk)
+   call self%register_state_variable(self%id_d,'det','mmol m-3','detritus',     d_initial,minimum=0.0_rk,vertical_movement=w_d)
 
    ! Register the contribution of all state variables to total nitrogen
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_n)
@@ -170,19 +170,19 @@
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_d)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   call self%register_state_dependency(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon',required=.false.)
+   call self%register_state_dependency(self%id_dic,'dic','mmol m-3','total dissolved inorganic carbon',required=.false.)
    if (dic_variable/='') call self%request_coupling(self%id_dic,dic_variable)
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
+   call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol m-3',  'gross primary production',           &
                      output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_NCP,'NCP','mmol/m**3',  'net community production',           &
+   call self%register_diagnostic_variable(self%id_NCP,'NCP','mmol m-3',  'net community production',           &
                      output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',      &
+   call self%register_diagnostic_variable(self%id_PPR,'PPR','mmol m-3 d-1','gross primary production rate',      &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_NPR,'NPR','mmol/m**3/d','net community production rate',      &
+   call self%register_diagnostic_variable(self%id_NPR,'NPR','mmol m-3 d-1','net community production rate',      &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',    'photosynthetically active radiation',&
+   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W m-2',    'photosynthetically active radiation',&
                      output=output_time_step_averaged)
 
    ! Register environmental dependencies
