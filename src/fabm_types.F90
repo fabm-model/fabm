@@ -847,6 +847,10 @@
 
       type (type_contribution),pointer :: contribution
 
+      if (present(scale_factor)) then
+         if (scale_factor==0.0_rk) return
+      end if
+
       if (.not.associated(self%first)) then
          ! Add first contribution
          allocate(self%first)
