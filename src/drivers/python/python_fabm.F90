@@ -158,12 +158,12 @@
       call get_environment_metadata(model,environment_names,environment_units)
 
       call get_couplings(model,coupling_link_list)
-   end subroutine
+   end subroutine reinitialize
 
    subroutine check_ready()
       !DIR$ ATTRIBUTES DLLEXPORT :: check_ready
       call fabm_check_ready(model)
-   end subroutine
+   end subroutine check_ready
 
    integer(c_int) function model_count() bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: model_count
@@ -176,11 +176,11 @@
          model_count = model_count + 1
          node => node%next
       end do
-   end function
+   end function model_count
 
-   subroutine get_variable_counts(nstate_bulk,nstate_surface,nstate_bottom,ndiagnostic_bulk,ndiagnostic_horizontal,nconserved, &
+   subroutine get_counts(nstate_bulk,nstate_surface,nstate_bottom,ndiagnostic_bulk,ndiagnostic_horizontal,nconserved, &
       ndependencies,nparameters,ncouplings) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_counts
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_counts
       integer(c_int),intent(out) :: nstate_bulk,nstate_surface,nstate_bottom
       integer(c_int),intent(out) :: ndiagnostic_bulk,ndiagnostic_horizontal
       integer(c_int),intent(out) :: nconserved,ndependencies,nparameters,ncouplings
@@ -193,7 +193,7 @@
       ndependencies = size(environment_names)
       nparameters = model%root%parameters%size()
       ncouplings = coupling_link_list%count()
-   end subroutine
+   end subroutine get_counts
 
    subroutine get_variable_metadata(category,index,length,name,units,long_name,path) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_metadata
@@ -221,12 +221,12 @@
       call copy_to_c_string(variable%units,          units)
       call copy_to_c_string(variable%local_long_name,long_name)
       call copy_to_c_string(variable%path,           path)
-   end subroutine
+   end subroutine get_variable_metadata
 
-   function get_variable_ptr(category,index) bind(c) result(pvariable)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_ptr
-      integer(c_int),        intent(in), value :: category,index
-      type (c_ptr)                             :: pvariable
+   function get_variable(category,index) bind(c) result(pvariable)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable
+      integer(c_int),intent(in), value :: category,index
+      type (c_ptr)                     :: pvariable
 
       type (type_internal_variable),pointer :: variable
 
@@ -246,7 +246,7 @@
          variable => model%conserved_quantities(index)%target
       end select
       pvariable = c_loc(variable)
-   end function get_variable_ptr
+   end function get_variable
 
    subroutine get_parameter_metadata(index,length,name,units,long_name,typecode,has_default) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_parameter_metadata
@@ -270,16 +270,16 @@
       call copy_to_c_string(property%long_name,long_name)
       typecode = property%typecode()
       has_default = logical2int(property%has_default)
-   end subroutine
+   end subroutine get_parameter_metadata
 
    subroutine get_dependency_metadata(index,length,name,units) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_dependency_metadata
-      integer(c_int),intent(in), value             :: index,length
+      integer(c_int),        intent(in), value             :: index,length
       character(kind=c_char),intent(out),dimension(length) :: name,units
 
       call copy_to_c_string(environment_names(index),name)
       call copy_to_c_string(environment_units(index),units)
-   end subroutine
+   end subroutine get_dependency_metadata
 
    subroutine get_coupling(index,slave,master) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_coupling
@@ -295,10 +295,10 @@
       end do
       slave = c_loc(link_slave%original)
       master = c_loc(link_slave%target)
-   end subroutine
+   end subroutine get_coupling
 
-   function get_suitable_masters_for_ptr(pvariable) result(plist) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_suitable_masters_for_ptr
+   function variable_get_suitable_masters(pvariable) result(plist) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_suitable_masters
       type (c_ptr), intent(in), value :: pvariable
       type (c_ptr)                    :: plist
 
@@ -308,7 +308,7 @@
       call c_f_pointer(pvariable, variable)
       list => get_suitable_masters(model,variable)
       plist = c_loc(list)
-   end function
+   end function variable_get_suitable_masters
 
    function link_list_count(plist) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_list_count
@@ -319,7 +319,7 @@
 
       call c_f_pointer(plist, list)
       value = list%count()
-   end function
+   end function link_list_count
 
    function link_list_index(plist,index) bind(c) result(pvariable)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_list_index
@@ -337,7 +337,7 @@
          link => link%next
       end do
       pvariable = c_loc(link%target)
-   end function
+   end function link_list_index
 
    subroutine link_list_finalize(plist) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_list_finalize
@@ -348,10 +348,10 @@
       call c_f_pointer(plist, list)
       call list%finalize()
       deallocate(list)
-   end subroutine
+   end subroutine link_list_finalize
 
-   subroutine get_variable_long_path(pvariable,length,long_name) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_long_path
+   subroutine variable_get_long_path(pvariable,length,long_name) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_long_path
       type (c_ptr),          intent(in), value  :: pvariable
       integer(c_int),        intent(in), value  :: length
       character(kind=c_char),intent(out),dimension(length) ::long_name
@@ -368,10 +368,10 @@
          owner => owner%parent
       end do
       call copy_to_c_string(long_name_,long_name)
-   end subroutine get_variable_long_path
+   end subroutine variable_get_long_path
 
-   function get_variable_background_value(pvariable) bind(c) result(value)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_background_value
+   function variable_get_background_value(pvariable) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_background_value
       type (c_ptr), value, intent(in)  :: pvariable
       real(kind=c_double)              :: value
 
@@ -380,10 +380,10 @@
       call c_f_pointer(pvariable, variable)
       value = 0.0_rk
       if (size(variable%background_values%pointers)>0) value = variable%background_values%pointers(1)%p
-   end function get_variable_background_value
+   end function variable_get_background_value
 
-   subroutine get_variable_metadata_ptr(pvariable,length,name,units,long_name) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_metadata_ptr
+   subroutine variable_get_metadata(pvariable,length,name,units,long_name) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_metadata
       type (c_ptr),          intent(in), value             :: pvariable
       integer(c_int),        intent(in), value             :: length
       character(kind=c_char),intent(out),dimension(length) :: name,units,long_name
@@ -394,7 +394,7 @@
       call copy_to_c_string(variable%name,     name)
       call copy_to_c_string(variable%units,    units)
       call copy_to_c_string(variable%long_name,long_name)
-   end subroutine get_variable_metadata_ptr
+   end subroutine variable_get_metadata
 
    subroutine get_model_metadata(name,length,long_name,user_created) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_model_metadata
@@ -412,7 +412,7 @@
          'model "'//pname(:index(pname,C_NULL_CHAR)-1)//'" not found.')
       call copy_to_c_string(found_model%long_name,long_name)
       user_created = logical2int(found_model%user_created)
-   end subroutine
+   end subroutine get_model_metadata
 
    subroutine link_dependency_data(index,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_dependency_data
@@ -422,7 +422,7 @@
       call fabm_link_bulk_data(model,environment_names(index),value)
       call fabm_link_horizontal_data(model,environment_names(index),value)
       call fabm_link_scalar_data(model,environment_names(index),value)
-   end subroutine
+   end subroutine link_dependency_data
 
    subroutine link_bulk_state_data(index,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_bulk_state_data
@@ -431,7 +431,7 @@
 
       value = model%state_variables(index)%initial_value
       call fabm_link_bulk_state_data(model,index,value)
-   end subroutine
+   end subroutine link_bulk_state_data
 
    subroutine link_surface_state_data(index,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_surface_state_data
@@ -440,7 +440,7 @@
 
       value = model%surface_state_variables(index)%initial_value
       call fabm_link_surface_state_data(model,index,value)
-   end subroutine
+   end subroutine link_surface_state_data
 
    subroutine link_bottom_state_data(index,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_bottom_state_data
@@ -449,7 +449,7 @@
 
       value = model%bottom_state_variables(index)%initial_value
       call fabm_link_bottom_state_data(model,index,value)
-   end subroutine
+   end subroutine link_bottom_state_data
 
    subroutine get_rates(pelagic_rates_) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_rates
@@ -471,27 +471,27 @@
       ! Normalize rate of change in conserved quantities to sum of absolute rates of change.
       !call fabm_state_to_conserved_quantities(model,abs(pelagic_rates),abs_conserved_rates)
       !where (abs_conserved_rates>0.0_rk) conserved_rates = conserved_rates/abs_conserved_rates
-   end subroutine
+   end subroutine get_rates
 
    subroutine get_bulk_diagnostic_data(index,ptr) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_bulk_diagnostic_data
       integer(c_int),intent(in),value :: index
       type(c_ptr),   intent(out)      :: ptr
       ptr = c_loc(fabm_get_bulk_diagnostic_data(model,index))
-   end subroutine
+   end subroutine get_bulk_diagnostic_data
 
    subroutine get_horizontal_diagnostic_data(index,ptr) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_horizontal_diagnostic_data
       integer(c_int),intent(in),value :: index
       type(c_ptr),   intent(out)      :: ptr
       ptr = c_loc(fabm_get_horizontal_diagnostic_data(model,index))
-   end subroutine
+   end subroutine get_horizontal_diagnostic_data
 
    subroutine finalize() bind(c)
       call fabm_finalize(model)
       if (allocated(environment_names)) deallocate(environment_names)
       if (allocated(environment_units)) deallocate(environment_units)
-   end subroutine
+   end subroutine finalize
 
    subroutine reset_parameter(index) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: reset_parameter
@@ -504,7 +504,7 @@
 
       ! Re-initialize the model using updated parameter values
       call reinitialize()
-   end subroutine
+   end subroutine reset_parameter
 
    subroutine set_real_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_real_parameter
@@ -518,7 +518,7 @@
 
       ! Re-initialize the model using updated parameter values
       call reinitialize()
-   end subroutine
+   end subroutine set_real_parameter
 
    function get_real_parameter(index,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_real_parameter
@@ -537,7 +537,7 @@
       class default
          call driver%fatal_error('get_real_parameter','not a real variable')
       end select
-   end function
+   end function get_real_parameter
 
    subroutine set_integer_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_integer_parameter
@@ -551,7 +551,7 @@
 
       ! Re-initialize the model using updated parameter values
       call reinitialize()
-   end subroutine
+   end subroutine set_integer_parameter
 
    function get_integer_parameter(index,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_integer_parameter
@@ -570,7 +570,7 @@
       class default
          call driver%fatal_error('get_integer_parameter','not an integer variable')
       end select
-   end function
+   end function get_integer_parameter
 
    subroutine set_logical_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_logical_parameter
@@ -584,7 +584,7 @@
 
       ! Re-initialize the model using updated parameter values
       call reinitialize()
-   end subroutine
+   end subroutine set_logical_parameter
 
    function get_logical_parameter(index,default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_logical_parameter
@@ -603,7 +603,7 @@
       class default
          call driver%fatal_error('get_logical_parameter','not a logical variable')
       end select
-   end function
+   end function get_logical_parameter
 
    subroutine set_string_parameter(name,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_string_parameter
@@ -617,7 +617,7 @@
 
       ! Re-initialize the model using updated parameter values
       call reinitialize()
-   end subroutine
+   end subroutine set_string_parameter
 
    subroutine get_string_parameter(index,default,length,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_string_parameter
@@ -637,7 +637,7 @@
       class default
          call driver%fatal_error('get_string_parameter','not a string variable')
       end select
-   end subroutine
+   end subroutine get_string_parameter
 
    subroutine python_driver_fatal_error(self,location,message)
       class (type_python_driver),intent(inout) :: self
@@ -645,14 +645,14 @@
 
       write (*,*) trim(location)//': '//trim(message)
       stop 1
-   end subroutine
+   end subroutine python_driver_fatal_error
 
    subroutine python_driver_log_message(self,message)
       class (type_python_driver),intent(inout) :: self
       character(len=*),          intent(in)    :: message
 
       !write (*,*) trim(message)
-   end subroutine
+   end subroutine python_driver_log_message
 
    subroutine copy_to_c_string(string,cstring)
       character(len=*),      intent(in)  :: string
