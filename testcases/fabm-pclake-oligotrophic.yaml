@@ -172,7 +172,7 @@ instances:
       UseLightMethodDiat: 2  # light method, 1 without photoinhibition,Chalker (1980) model, 2 with photoinhibition, Klepper et al. (1988) / Ebenhoh et al. (1997) model.
       hLRefDiat: 6.5         # W/m2 ; half-sat. PAR for diatoms at 20 oC (Lehmann function)
       hLRefBlue: 34          # W/m2 ; half-sat. PAR for blue algea at 20 oC (Lehmann function)
-      cLOptRefDiat: 30       # W/m2 ; optimum PAR for diatoms at 20 oC (Steele function)
+      cLOptRefGren: 30       # W/m2 ; optimum PAR for diatoms at 20 oC (Steele function)
 # sinking
       cVSetDiat: -0.5     # m/day ; sedimentation velocity Diatoms
       cVSetGren: -0.2     # m/day ; sedimentation velocity of greens
