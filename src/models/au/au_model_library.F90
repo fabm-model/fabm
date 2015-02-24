@@ -1,0 +1,48 @@
+module au_model_library
+
+   use fabm_types, only: type_base_model_factory,type_base_model
+
+   use au_pclake_model_library
+   use au_prey_predator
+! Add new AU models here
+
+   implicit none
+
+   private
+
+   type,extends(type_base_model_factory) :: type_factory
+      contains
+      procedure :: initialize
+      procedure :: create
+   end type
+
+   type (type_factory),save,target,public :: au_model_factory
+
+contains
+
+   subroutine initialize(self)
+      class (type_factory), intent(inout) :: self
+
+      call self%add(pclake_factory,'pclake')
+      ! Add additional model factories here
+
+      ! Go through default initializaton steps. 
+      ! This also allows new added child model factories to initialize.
+      call self%type_base_model_factory%initialize()
+   end subroutine initialize
+
+   subroutine create(self,name,model)
+      class (type_factory),intent(in) :: self
+      character(*),        intent(in) :: name
+      class (type_base_model),pointer :: model
+
+      select case (name)
+         case ('prey_predator'); allocate(type_au_prey_predator::model)
+         case default
+            call self%type_base_model_factory%create(name,model)
+!           Add new AU models here
+      end select
+
+   end subroutine
+
+end module
