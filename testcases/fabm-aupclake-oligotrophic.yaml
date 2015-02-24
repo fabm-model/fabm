@@ -1,6 +1,6 @@
 instances:
   abiotic_water:
-    model: au_pclake_abiotic_water
+    model: au/pclake/abiotic_water
     long_name: abiotic_process_in_water
     initialization:
       sNH4W: 0.0781417         # gDW/m**3; water IM
@@ -40,7 +40,7 @@ instances:
       cVSetIM: -1.0       # m/day ; max. sedimentation velocity of inert org. matter
       cVSetDet: -0.25     # m/day ; max. sedimentation velocity of detritus
   abiotic_sediment:      
-    model: au_pclake_abiotic_sediment
+    model: au/pclake/abiotic_sediment
     long_name: abiotic_process_in_sediment
     initialization:
       sNH4S: 0.0378029        # gN/m2 ; dissolved N-NH4 in interstitial water
@@ -96,7 +96,7 @@ instances:
       NO3_diffusion_flux: abiotic_water/sNO3W
       PO4_diffusion_flux: abiotic_water/sPO4W
   phytoplankton_water:
-    model: au_pclake_phytoplankton_water
+    model: au/pclake/phytoplankton_water
     long_name: phytoplankton_in_water
     initialization:
       sDDiatW: 0.414496
@@ -189,7 +189,7 @@ instances:
       detritus_Si_pool_water: abiotic_water/sSiDetW
       surface_vegetation_coverage: macrophytes/afCovSurfVeg
   phytoplankton_sediment:
-    model: au_pclake_phytoplankton_sediment
+    model: au/pclake/phytoplankton_sediment
     long_name: phytoplankton_in_sediment
     initialization:
       sDDiatS: 0.204502
@@ -238,7 +238,7 @@ instances:
       detritus_Si_pool_sediment: abiotic_sediment/sSiDetS
       SiO2_pool_water: abiotic_water/sSiO2W
   macrophytes:
-    model: au_pclake_macrophytes
+    model: au/pclake/macrophytes
     long_name: macrophytes
     initialization:
       sDVeg: 21.2055
@@ -305,7 +305,7 @@ instances:
       detritus_P_pool_sediment: abiotic_sediment/sPDetS
       oxic_layer_value: abiotic_sediment/afOxySed
   foodweb_water:
-    model: au_pclake_foodweb_water
+    model: au/pclake/foodweb_water
     long_name: foodweb_components_in_water
     initialization:
       sDZoo: 0.199642
@@ -412,7 +412,7 @@ instances:
       env_correction_adfish: foodweb_sediment/tDEnvFiAd
       food_limit_function_adfish: foodweb_sediment/aDSatFiAd
   foodweb_sediment:
-    model: au_pclake_foodweb_sediment
+    model: au/pclake/foodweb_sediment
     long_name: foodweb_components_in_sediment
     initialization:
       sDBent: 2.4032
@@ -486,7 +486,7 @@ instances:
       vegetation_coverage: macrophytes/aCovVeg
       young_fish_biomass: foodweb_water/sDFiJv
   auxilary:
-    model: au_pclake_auxilary
+    model: au/pclake/auxilary
     long_name: extra_processes
     parameters:
       cDepthS: 0.1            # sediment depth [m]
