@@ -25,7 +25,17 @@
 module au_pclake_model_library
 
    use fabm_types, only: type_base_model_factory,type_base_model
-   
+ 
+   use au_pclake_abiotic_water
+   use au_pclake_abiotic_sediment
+   use au_pclake_phytoplankton_water
+   use au_pclake_phytoplankton_sediment
+   use au_pclake_macrophytes
+   use au_pclake_foodweb_water
+   use au_pclake_foodweb_sediment
+   use au_pclake_auxilary
+   use au_pclake_dummy_state
+
    implicit none
 
    private
@@ -35,23 +45,11 @@ module au_pclake_model_library
       procedure :: create
    end type
 
-   type (type_factory),save,target,public :: au_pclake_model_factory
+   type (type_factory),save,target,public :: pclake_factory
 
 contains
 
    subroutine create(self,name,model)
-
-      use au_pclake_abiotic_water
-      use au_pclake_abiotic_sediment
-      use au_pclake_phytoplankton_water
-      use au_pclake_phytoplankton_sediment
-      use au_pclake_macrophytes
-      use au_pclake_foodweb_water
-      use au_pclake_foodweb_sediment
-      use au_pclake_auxilary
-      use au_pclake_dummy_state
-      
-
       class (type_factory),intent(in) :: self
       character(*),        intent(in) :: name
       class (type_base_model),pointer :: model
@@ -59,30 +57,23 @@ contains
    
     !NULLIFY(model)
     
-       select case (name)
-       case ('au_pclake_abiotic_water');                allocate(type_au_pclake_abiotic_water::model);
-       case ('au_pclake_abiotic_sediment');                allocate(type_au_pclake_abiotic_sediment::model);
-       case ('au_pclake_phytoplankton_water');          allocate(type_au_pclake_phytoplankton_water::model);
-       case ('au_pclake_phytoplankton_sediment');          allocate(type_au_pclake_phytoplankton_sediment::model);
-       case ('au_pclake_macrophytes');                allocate(type_au_pclake_macrophytes::model);
-       case ('au_pclake_foodweb_water');                allocate(type_au_pclake_foodweb_water::model);
-       case ('au_pclake_foodweb_sediment');                allocate(type_au_pclake_foodweb_sediment::model);
-       case ('au_pclake_auxilary');                   allocate(type_au_pclake_auxilary::model);
-       case ('au_pclake_dummy_state');                   allocate(type_au_pclake_dummy_state::model);
-       
-       !case default
-           
-           
+      select case (name)
+         case ('abiotic_water');          allocate(type_au_pclake_abiotic_water::model);
+         case ('abiotic_sediment');       allocate(type_au_pclake_abiotic_sediment::model);
+         case ('phytoplankton_water');    allocate(type_au_pclake_phytoplankton_water::model);
+         case ('phytoplankton_sediment'); allocate(type_au_pclake_phytoplankton_sediment::model);
+         case ('macrophytes');            allocate(type_au_pclake_macrophytes::model);
+         case ('foodweb_water');          allocate(type_au_pclake_foodweb_water::model);
+         case ('foodweb_sediment');       allocate(type_au_pclake_foodweb_sediment::model);
+         case ('auxilary');               allocate(type_au_pclake_auxilary::model);
+         case ('dummy_state');            allocate(type_au_pclake_dummy_state::model);
+         case default
+            call self%type_base_model_factory%create(name,model)
        end select
+   end subroutine create
 
-   end subroutine
-!EOC
-
-!------------------------------------------------------------------------------
-!
-!EOP
-!------------------------------------------------------------------------------
 end module
+
 !------------------------------------------------------------------------------
 ! Copyright by the FABM_PCLake-team under the GNU Public License - www.gnu.org
 !------------------------------------------------------------------------------

@@ -1,4 +1,6 @@
 add_library(fabm_models_au OBJECT
+            au_model_library.F90
+            pclake/au_pclake_model_library.F90
             pclake/au_abiotic_sediment.F90
             pclake/au_abiotic_water.F90
             pclake/au_auxilary.F90
