@@ -85,8 +85,15 @@ def processFile(infile,outfile,subtract_background=False):
          elif path[-1]=='coupling':
             d = reorderCouplings(path[1],d)
 
+      # If processing model instances list, first wield out models with use=False
+      if len(path)==1 and path[0]=='instances':
+         for key in d.keys():
+            instance = d[key]
+            if isinstance(instance,dict) and not instance.get('use',True): del d[key]
+
       # If processing a model dictionary, reorder according to prescribed order.
       if len(path)==2 and path[0]=='instances':
+         d.pop('use',None)
          newd = collections.OrderedDict()
          order = ('long_name','model','parameters','initialization','coupling')
          for key in order:
