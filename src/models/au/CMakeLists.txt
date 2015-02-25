@@ -12,6 +12,8 @@ add_library(fabm_models_au OBJECT
             pclake/phytoplankton_water.F90
             pclake/utility.F90
             prey_predator/prey_predator.F90
+            prey_predator/lotka_volterra.F90
+            prey_predator/jacob_monod.F90
            )
 
 add_dependencies(fabm_models_au fabm_base)

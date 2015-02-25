@@ -37,7 +37,8 @@ contains
       class (type_base_model),pointer :: model
 
       select case (name)
-         case ('prey_predator'); allocate(type_au_prey_predator::model)
+         case ('lotka_volterra'); allocate(type_au_pp_lotka_volterra::model)
+         case ('jacob_monod');    allocate(type_au_pp_jacob_monod::model)
          case default
             call self%type_base_model_factory%create(name,model)
 !           Add new AU models here
