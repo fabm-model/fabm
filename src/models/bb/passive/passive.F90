@@ -64,7 +64,7 @@
 !-----------------------------------------------------------------------
 !BOC
    call self%get_parameter(unit,'unit',default='mol m-3')
-   call self%get_parameter(vertical_velocity,'vertical_velocity','m d-1','vertical velocity (negative for upward, positive for downward)',default=0.0_rk,scale_factor=days_per_second)
+   call self%get_parameter(vertical_velocity,'vertical_velocity','m d-1','vertical velocity (negative for settling, positive for rising)',default=0.0_rk,scale_factor=days_per_second)
    call self%get_parameter(specific_light_attenuation,'specific_light_attenuation','m-1 '//trim(unit),'specific light attenuation',default=0.0_rk)
    call self%get_parameter(self%surface_flux,'surface_flux',trim(unit)//' m d-1','surface flux (positive for into the water)',default=0.0_rk,scale_factor=days_per_second)
 
