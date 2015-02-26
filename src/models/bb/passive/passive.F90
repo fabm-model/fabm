@@ -58,19 +58,19 @@
 ! !LOCAL VARIABLES:
    real(rk)                  :: vertical_velocity
    real(rk)                  :: specific_light_attenuation
-   character(len=64)         :: unit
+   character(len=64)         :: units
    real(rk), parameter       :: days_per_second = 1.0_rk/86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call self%get_parameter(unit,'unit',default='mol m-3')
+   call self%get_parameter(units,'units',default='mol m-3')
    call self%get_parameter(vertical_velocity,'vertical_velocity','m d-1','vertical velocity (negative for settling, positive for rising)',default=0.0_rk,scale_factor=days_per_second)
-   call self%get_parameter(specific_light_attenuation,'specific_light_attenuation','m-1 '//trim(unit),'specific light attenuation',default=0.0_rk)
-   call self%get_parameter(self%surface_flux,'surface_flux',trim(unit)//' m d-1','surface flux (positive for into the water)',default=0.0_rk,scale_factor=days_per_second)
+   call self%get_parameter(specific_light_attenuation,'specific_light_attenuation','m-1 ('//trim(units)//')-1','specific light attenuation',default=0.0_rk)
+   call self%get_parameter(self%surface_flux,'surface_flux',trim(units)//' m d-1','surface flux (positive for into the water)',default=0.0_rk,scale_factor=days_per_second)
 
    ! Register state variables
    call self%register_state_variable(self%id_tracer, &
-                    'c',unit,'concentration', &
+                    'c',units,'concentration', &
                     1.0_rk,minimum=0.0_rk, &
                     vertical_movement=vertical_velocity, &
                     specific_light_extinction=specific_light_attenuation)
