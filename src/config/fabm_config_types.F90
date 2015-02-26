@@ -4,7 +4,7 @@ module fabm_config_types
 
    private
 
-   public type_node,type_dictionary,type_key_value_pair,type_scalar,type_null,type_error
+   public type_node,type_dictionary,type_key_value_pair,type_scalar,type_null,type_error,real_kind
 
    integer,parameter :: string_length = 1024
    integer,parameter :: real_kind = 8

@@ -306,7 +306,7 @@ contains
                   trim(value%path)//': "'//trim(pair%key)//'" is not a member of model "'//trim(model%name)//'".')
                is_state_variable = .false.
                if (.not.object%state_indices%is_empty()) then
-                  realvalue = value%to_real(default=0.0_rk,success=success)
+                  realvalue = value%to_real(default=real(0,real_kind),success=success)
                   if (.not.success) call fatal_error('parse_initialization', &
                      trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
                   if (get_background) then
