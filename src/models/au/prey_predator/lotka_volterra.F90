@@ -27,8 +27,6 @@
       type (type_state_variable_id)   :: id_prey,id_predator
 !
 !     Model parameters
-!     b,p,d,r are the parameters in Lotka-Volterra model: b is the natural growth rate of prey in the absence of predation;p measures the impact of predation on prey;
-!     d is the death (or emigration) rate of predator in the absence of interaction with prey; r is the efficiency of turning predated prey into pred.
       real(rk)        :: b ! natural growth rate of prey
       real(rk)        :: p ! impact of predation
       real(rk)        :: r ! efficiency
@@ -69,10 +67,10 @@
 !-----------------------------------------------------------------------
 !BOC
 !   Register model parameters
-   call self%get_parameter(self%b,'b','d-1','??',default=1.00_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%p,'p','d-1','??',default=0.05_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%r,'r','d-1','??',default=0.02_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%d,'d','d-1','??',default=0.50_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%b,'b','d-1','growth rate of prey',   default=1.00_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%p,'p','d-1','impact of predation',   default=0.05_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%r,'r','d-1','growth efficiency rate',default=0.02_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%d,'d','d-1','death rate',            default=0.50_rk,scale_factor=d_per_s)
 
 !  Register state variables
    call self%register_state_variable(self%id_prey,'prey','mmol/m**3','nutrient',     &
