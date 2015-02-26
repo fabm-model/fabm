@@ -53,6 +53,11 @@ else()
   message(STATUS "FABM host: ${FABM_HOST}")
 endif()
 
+# Use host-prescribed real kind if set.
+if(FABM_REAL_KIND)
+  add_definitions(-D_FABM_REAL_KIND_=${FABM_REAL_KIND})
+endif()
+
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
 if(BUILD_SHARED_LIBS)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
