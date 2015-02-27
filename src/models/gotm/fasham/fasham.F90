@@ -109,145 +109,56 @@
    integer,                  intent(in)           :: configunit
 !
 ! !LOCAL VARIABLES:
-   real(rk) ::  p_initial
-   real(rk) ::  z_initial
-   real(rk) ::  b_initial
-   real(rk) ::  d_initial
-   real(rk) ::  n_initial
-   real(rk) ::  a_initial
-   real(rk) ::  l_initial
-   real(rk) ::  p0
-   real(rk) ::  z0
-   real(rk) ::  b0
-   real(rk) ::  kc
-   real(rk) ::  vp
-   real(rk) ::  alpha
-   real(rk) ::  k1
-   real(rk) ::  k2
-   real(rk) ::  mu1
-   real(rk) ::  k5
-   real(rk) ::  gamma
-   real(rk) ::  w_p
-   real(rk) ::  gmax
-   real(rk) ::  k3
-   real(rk) ::  beta
-   real(rk) ::  mu2
-   real(rk) ::  k6
-   real(rk) ::  delta
-   real(rk) ::  epsi
-   real(rk) ::  r1
-   real(rk) ::  r2
-   real(rk) ::  r3
-   real(rk) ::  vb
-   real(rk) ::  k4
-   real(rk) ::  mu3
-   real(rk) ::  eta
-   real(rk) ::  mu4
-   real(rk) ::  w_d
-
-   real(rk), parameter :: secs_pr_day = 86400.0_rk
-   namelist /gotm_fasham/ p_initial,z_initial,b_initial,d_initial,n_initial,&
-                          a_initial,l_initial,p0,z0,b0,vp,alpha,k1,k2,mu1,k5,&
-                          gamma,w_p,gmax,k3,beta,mu2,k6,delta,epsi,r1,r2,r3, &
-                          vb,k4,mu3,eta,mu4,w_d,kc
+   real(rk), parameter :: days_per_sec = 1.0_rk/86400.0_rk
+   real(rk)            :: w_p, w_d
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   p_initial = 0.056666666_rk
-   z_initial = 0.05_rk
-   b_initial = 0.001_rk
-   d_initial = 0.416666666_rk
-   n_initial = 8.3_rk
-   a_initial = 0.22_rk
-   l_initial = 0.14_rk
-   p0        = 0.0_rk
-   z0        = 0.0_rk
-   b0        = 0.0_rk
-   kc        = 0.03_rk
-   vp        = 1.5_rk
-   alpha     = 0.065_rk
-   k1        = 0.2_rk
-   k2        = 0.8_rk
-   mu1       = 0.05_rk
-   k5        = 0.2_rk
-   gamma     = 0.05_rk
-   w_p       = -1.0_rk
-   gmax      = 1.0_rk
-   k3        = 1.0_rk
-   beta      = 0.625_rk
-   mu2       = 0.3_rk
-   k6        = 0.2_rk
-   delta     = 0.1_rk
-   epsi      = 0.70_rk
-   r1        = 0.55_rk
-   r2        = 0.4_rk
-   r3        = 0.05_rk
-   vb        = 1.2_rk
-   k4        = 0.5_rk
-   mu3       = 0.15_rk
-   eta       = 0.0_rk
-   mu4       = 0.02_rk
-   w_d       = -2.0_rk
-
-   ! Read the namelist
-   if (configunit>0) read(configunit,nml=gotm_fasham,err=99,end=100)
-
-   ! All rates must be provided in values per day,
-   ! and are converted here to values per second.
-   vp   = vp   /secs_pr_day
-   vb   = vb   /secs_pr_day
-   mu1  = mu1  /secs_pr_day
-   mu2  = mu2  /secs_pr_day
-   mu3  = mu3  /secs_pr_day
-   mu4  = mu4  /secs_pr_day
-   gmax = gmax /secs_pr_day
-   w_p  = w_p  /secs_pr_day
-   w_d  = w_d  /secs_pr_day
-   alpha= alpha/secs_pr_day
-
    ! Store parameter values in our own derived type
-   self%p0    = p0
-   self%z0    = z0
-   self%b0    = b0
-   self%vp    = vp
-   self%alpha = alpha
-   self%k1    = k1
-   self%k2    = k2
-   self%mu1   = mu1
-   self%k5    = k5
-   self%gamma = gamma
-   self%gmax  = gmax
-   self%k3    = k3
-   self%beta  = beta
-   self%mu2   = mu2
-   self%k6    = k6
-   self%delta = delta
-   self%epsi  = epsi
-   self%r1    = r1
-   self%r2    = r2
-   self%r3    = r3
-   self%vb    = vb
-   self%k4    = k4
-   self%mu3   = mu3
-   self%eta   = eta
-   self%mu4   = mu4
-   self%kc    = kc
-   
+   call self%get_parameter(self%p0,   'p0',   'mmol m-3',  'minimum phytoplankton concentration',default=0.0_rk)
+   call self%get_parameter(self%vp,   'vp',   'd-1',       'maximum phytoplankton uptake rate',default=1.5_rk, scale_factor=days_per_sec)
+   call self%get_parameter(self%alpha,'alpha','m2 W-1 d-1','initial slope of photosynthesis-irradiance curve',default=0.065_rk, scale_factor=days_per_sec)
+   call self%get_parameter(self%k1,   'k1',   'mmol m-3',  'half saturation constant for nitrate uptake',default=0.2_rk)
+   call self%get_parameter(self%k2,   'k2',   'mmol m-3',  'half saturation constant for ammonium uptake',default=0.8_rk)
+   call self%get_parameter(self%mu1,  'mu1',  'd-1',       'maximum phytoplankton mortality rate',default=0.05_rk, scale_factor=days_per_sec)
+   call self%get_parameter(self%k5,   'k5',   'mmol m-3',  'half saturation constant for phytoplankton mortality',default=0.2_rk)
+   call self%get_parameter(self%gamma,'gamma','-',         'fraction of primary production that is exudated',default=0.05_rk)
+   call self%get_parameter(w_p,       'w_p',  'm d-1',     'phytoplankton settling velocity (negative for sinking)',default=-1.0_rk, scale_factor=days_per_sec)
+   call self%get_parameter(self%kc,   'kc',   'm2 mmol-1', 'specific light attenuation of phytoplankton',default=0.03_rk)
+   call self%get_parameter(self%z0,   'z0',   'mmol m-3',  'minimum zooplankton concentration',default=0.0_rk)
+   call self%get_parameter(self%gmax, 'gmax', 'd-1',       'maximum ingestion rate',default=1.0_rk, scale_factor=days_per_sec)
+   call self%get_parameter(self%k3,   'k3',   'mmol m-3',  'half saturation constant for zooplankton ingestion',default=1.0_rk)
+   call self%get_parameter(self%beta, 'beta', '-',         'grazing efficiency',default=0.625_rk)
+   call self%get_parameter(self%mu2,  'mu2',  'd-1',       'maximum zooplankton loss rate',default=0.3_rk, scale_factor=days_per_sec)
+   call self%get_parameter(self%k6,   'k6',   'mmol m-3',  'half saturation constant for zooplankton loss',default=0.2_rk)
+   call self%get_parameter(self%delta,'delta','-',         'fractional zooplankton loss to LDON',default=0.1_rk)
+   call self%get_parameter(self%epsi, 'epsi', '-',         'fractional zooplankton loss to ammonium',default=0.7_rk)
+   call self%get_parameter(self%r1,   'r1',   '-',         'zooplankton preference for phytoplankton',default=0.55_rk)
+   call self%get_parameter(self%r2,   'r2',   '-',         'zooplankton preference for bacteria',default=0.4_rk)
+   call self%get_parameter(self%r3,   'r3',   '-',         'zooplankton preference for detritus',default=0.05_rk)
+   call self%get_parameter(self%b0,   'b0',   'mmol m-3',  'minimum bacteria concentration',default=0.0_rk)
+   call self%get_parameter(self%vb,   'vb',   'd-1',       'maximum bacterial uptake rate',default=1.2_rk, scale_factor=days_per_sec)
+   call self%get_parameter(self%k4,   'k4',   'mmol m-3',  'half saturation constant for bacterial uptake',default=0.5_rk)
+   call self%get_parameter(self%mu3,  'mu3',  'd-1',       'bacterial excretion rate',default=0.15_rk, scale_factor=days_per_sec)
+   call self%get_parameter(self%eta,  'eta',  '-',         'bacterial ammonium:LDON uptake ratio',default=0.0_rk)
+   call self%get_parameter(self%mu4,  'mu4',  'd-1',       'detritus breakdown rate',default=0.02_rk, scale_factor=days_per_sec)
+   call self%get_parameter(w_d,       'w_d',  'm d-1',     'detritus settling velocity (negative for sinking)',default=-2.0_rk, scale_factor=days_per_sec)
+
    ! Register state variables
-   call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton',     &
-                                    p_initial,minimum=0.0_rk,vertical_movement=w_p)
-   call self%register_state_variable(self%id_z,'zoo','mmol/m**3','zooplankton',     &
-                                    z_initial,minimum=0.0_rk)
-   call self%register_state_variable(self%id_b,'bac','mmol/m**3','bacteria',     &
-                                    b_initial,minimum=0.0_rk)
-   call self%register_state_variable(self%id_d,'det','mmol/m**3','detritus',     &
-                                    d_initial,minimum=0.0_rk,vertical_movement=w_d)
-   call self%register_state_variable(self%id_n,'nit','mmol/m**3','nitrate',     &
-                                    n_initial,minimum=0.0_rk,no_river_dilution=.true.)
-   call self%register_state_variable(self%id_a,'amm','mmol/m**3','ammonium',     &
-                                    a_initial,minimum=0.0_rk,no_river_dilution=.true.)
-   call self%register_state_variable(self%id_l,'ldn','mmol/m**3','labile dissolved organic nitrogen',     &
-                                    l_initial,minimum=0.0_rk,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_p,'phy','mmol m-3','phytoplankton',     &
+                                    0.056666666_rk,minimum=0.0_rk,vertical_movement=w_p)
+   call self%register_state_variable(self%id_z,'zoo','mmol m-3','zooplankton',     &
+                                    0.05_rk,minimum=0.0_rk)
+   call self%register_state_variable(self%id_b,'bac','mmol m-3','bacteria',     &
+                                    0.001_rk,minimum=0.0_rk)
+   call self%register_state_variable(self%id_d,'det','mmol m-3','detritus',     &
+                                    0.416666666_rk,minimum=0.0_rk,vertical_movement=w_d)
+   call self%register_state_variable(self%id_n,'nit','mmol m-3','nitrate',     &
+                                    8.3_rk,minimum=0.0_rk,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_a,'amm','mmol m-3','ammonium',     &
+                                    0.22_rk,minimum=0.0_rk,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_l,'ldn','mmol m-3','labile dissolved organic nitrogen',     &
+                                    0.14_rk,minimum=0.0_rk,no_river_dilution=.true.)
 
    ! Register the contribution of all state variables to total nitrogen
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_p)
@@ -259,15 +170,10 @@
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_l)
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_pp,'pp','/d','specific primary production',time_treatment=time_treatment_averaged)
+   call self%register_diagnostic_variable(self%id_pp,'pp','d-1','specific primary production',time_treatment=time_treatment_averaged)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
-
-   return
-
-99 call self%fatal_error('gotm_fasham_init','Error reading namelist gotm_fasham')
-100 call self%fatal_error('gotm_fasham_init','Namelist gotm_fasham was not found')
    
    end subroutine initialize
 !EOC

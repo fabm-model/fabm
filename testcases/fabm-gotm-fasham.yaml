@@ -1,0 +1,40 @@
+instances:
+  fasham:
+    model: gotm/fasham
+    parameters:
+      p0: 0.0001         # minimum phytoplankton concentration (mmol m-3), default = 0.0
+      vp: 1.5            # maximum phytoplankton uptake rate (d-1), default = 1.5
+      alpha: 0.065       # initial slope of photosynthesis-irradiance curve (m2 W-1 d-1), default = 0.065
+      k1: 0.2            # half saturation constant for nitrate uptake (mmol m-3), default = 0.2
+      k2: 0.8            # half saturation constant for ammonium uptake (mmol m-3), default = 0.8
+      mu1: 0.05          # maximum phytoplankton mortality rate (d-1), default = 0.05
+      k5: 0.2            # half saturation constant for phytoplankton mortality (mmol m-3), default = 0.2
+      gamma: 0.05        # fraction of primary production that is exudated (-), default = 0.05
+      w_p: -1.0          # phytoplankton settling velocity (negative for sinking) (m d-1), default = -1.0
+      kc: 0.03           # specific light attenuation of phytoplankton (m2 mmol-1), default = 0.03
+      z0: 0.0001         # minimum zooplankton concentration (mmol m-3), default = 0.0
+      gmax: 1.0          # maximum ingestion rate (d-1), default = 1.0
+      k3: 1.0            # half saturation constant for zooplankton ingestion (mmol m-3), default = 1.0
+      beta: 0.625        # grazing efficiency (-), default = 0.625
+      mu2: 0.3           # maximum zooplankton loss rate (d-1), default = 0.3
+      k6: 0.2            # half saturation constant for zooplankton loss (mmol m-3), default = 0.2
+      delta: 0.1         # fractional zooplankton loss to LDON (-), default = 0.1
+      epsi: 0.7          # fractional zooplankton loss to ammonium (-), default = 0.7
+      r1: 0.55           # zooplankton preference for phytoplankton (-), default = 0.55
+      r2: 0.4            # zooplankton preference for bacteria (-), default = 0.4
+      r3: 0.05           # zooplankton preference for detritus (-), default = 0.05
+      b0: 0.0001         # minimum bacteria concentration (mmol m-3), default = 0.0
+      vb: 1.2            # maximum bacterial uptake rate (d-1), default = 1.2
+      k4: 0.5            # half saturation constant for bacterial uptake (mmol m-3), default = 0.5
+      mu3: 0.15          # bacterial excretion rate (d-1), default = 0.15
+      eta: 0.0           # bacterial ammonium:LDON uptake ratio (-), default = 0.0
+      mu4: 0.02          # detritus breakdown rate (d-1), default = 0.02
+      w_d: -2.0          # detritus settling velocity (negative for sinking) (m d-1), default = -2.0
+    initialization:
+      phy: 0.056666666   # phytoplankton (mmol m-3)
+      zoo: 0.05          # zooplankton (mmol m-3)
+      bac: 0.001         # bacteria (mmol m-3)
+      det: 0.416666666   # detritus (mmol m-3)
+      nit: 8.3           # nitrate (mmol m-3)
+      amm: 0.22          # ammonium (mmol m-3)
+      ldn: 0.14          # labile dissolved organic nitrogen (mmol m-3)
