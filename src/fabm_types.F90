@@ -544,7 +544,11 @@
       real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ALLOCATABLE_ :: scratch_hz
 
 #ifdef _FABM_MASK_
+#ifdef _FABM_HORIZONTAL_MASK_
+      _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: mask => null()
+#else
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
+#endif
       logical,allocatable _DIMENSION_SLICE_ALLOCATABLE_ :: prefetch_mask
 #endif
    end type type_environment

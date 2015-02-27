@@ -873,7 +873,11 @@
 !
 ! !INPUT PARAMETERS:
    class (type_model),target,intent(inout)                    :: self
-   _FABM_MASK_TYPE_, target, intent(in)    _DIMENSION_GLOBAL_ :: mask
+#ifdef _FABM_HORIZONTAL_MASK_
+   _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: mask
+#else
+   _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_ :: mask
+#endif
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2092,7 +2096,11 @@ subroutine prefetch(environment _ARG_LOCATION_ND_)
 
 #ifdef _FABM_MASK_
    _CONCURRENT_LOOP_BEGIN_EX_NOMASK_(environment)
+#ifdef _FABM_HORIZONTAL_MASK_
+      environment%prefetch_mask _INDEX_SLICE_ = _FABM_IS_UNMASKED_(environment%mask _INDEX_HORIZONTAL_LOCATION_)
+#else
       environment%prefetch_mask _INDEX_SLICE_ = _FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)
+#endif
    _CONCURRENT_LOOP_END_
 #endif
 
@@ -2123,7 +2131,11 @@ subroutine prefetch_hz(environment _ARG_LOCATION_VARS_HZ_)
 
 #ifdef _FABM_MASK_
    _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_NOMASK_(environment)
+#ifdef _FABM_HORIZONTAL_MASK_
+      environment%prefetch_mask _INDEX_SLICE_ = _FABM_IS_UNMASKED_(environment%mask _INDEX_HORIZONTAL_LOCATION_)
+#else
       environment%prefetch_mask _INDEX_SLICE_ = _FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)
+#endif
    _CONCURRENT_HORIZONTAL_LOOP_END_
 #endif
 
