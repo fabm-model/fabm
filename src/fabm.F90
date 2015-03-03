@@ -82,19 +82,17 @@
 
    type type_bulk_variable_id
       type (type_internal_variable),pointer :: variable => null()
-      integer                            :: state_index = -1
-      integer                            :: read_index = -1
+      integer                               :: read_index = -1
    end type
 
    type type_horizontal_variable_id
       type (type_internal_variable),pointer :: variable => null()
-      integer                                  :: state_index = -1
-      integer                                  :: read_index = -1
+      integer                               :: read_index = -1
    end type
 
    type type_scalar_variable_id
       type (type_internal_variable),pointer :: variable => null()
-      integer                              :: read_index = -1
+      integer                               :: read_index = -1
    end type
 
    ! ====================================================================================================
@@ -3233,8 +3231,7 @@ function create_external_bulk_id(variable) result(id)
 
    if (variable%domain/=domain_bulk) call driver%fatal_error('create_external_bulk_id','BUG: called on non-bulk variable.')
    id%variable => variable
-   if (.not.variable%read_indices%is_empty())  id%read_index = variable%read_indices%value
-   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%value
+   if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
 end function create_external_bulk_id
 
 function create_external_horizontal_id(variable) result(id)
@@ -3244,8 +3241,7 @@ function create_external_horizontal_id(variable) result(id)
    if (variable%domain/=domain_horizontal.and.variable%domain/=domain_surface.and.variable%domain/=domain_bottom) &
       call driver%fatal_error('create_external_horizontal_id','BUG: called on non-horizontal variable.')
    id%variable => variable
-   if (.not.variable%read_indices%is_empty())  id%read_index = variable%read_indices%value
-   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%value
+   if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
 end function create_external_horizontal_id
 
 function create_external_scalar_id(variable) result(id)
