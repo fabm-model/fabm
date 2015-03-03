@@ -872,19 +872,37 @@
    subroutine fabm_set_mask(self, mask)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,intent(inout)                    :: self
+   class (type_model),target,intent(inout)                            :: self
 #ifdef _FABM_HORIZONTAL_MASK_
    _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: mask
 #else
-   _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_ :: mask
+   _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_            :: mask
 #endif
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
+! !LOCAL VARIABLES:
+   integer :: i
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifdef _FABM_HORIZONTAL_MASK_
+#if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
+   do i=1,size(self%horizontal_domain_size)
+      if (size(mask,i)/=self%horizontal_domain_size(i)) &
+         call fatal_error('fabm_check_ready','dimensions of FABM domain and provided mask do not match.')
+   end do
+#endif
+#else
+#if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
+   do i=1,size(self%domain_size)
+      if (size(mask,i)/=self%domain_size(i)) &
+         call fatal_error('fabm_check_ready','dimensions of FABM domain and provided mask do not match.')
+   end do
+#endif
+#endif
+
    self%environment%mask => mask
 
    end subroutine fabm_set_mask
@@ -915,7 +933,10 @@
    ready = .true.
 
 #ifdef _FABM_MASK_
-   if (.not.associated(self%environment%mask)) call log_message('spatial mask has not been set.')
+   if (.not.associated(self%environment%mask)) then
+      call log_message('spatial mask has not been set.')
+      ready = .false.
+   end if
 #endif
 
    link => self%links_postcoupling%first
