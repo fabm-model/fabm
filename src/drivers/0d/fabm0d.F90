@@ -469,11 +469,11 @@
       is_state_variable = .false.
       bulk_id = fabm_get_bulk_variable_id(model,variable_name)
       if (fabm_is_variable_used(bulk_id)) then
-         is_state_variable = bulk_id%state_index/=-1
+         is_state_variable = bulk_id%variable%state_indices%value/=-1
       else
          horizontal_id = fabm_get_horizontal_variable_id(model,variable_name)
          if (fabm_is_variable_used(horizontal_id)) then
-            is_state_variable = horizontal_id%state_index/=-1
+            is_state_variable = horizontal_id%variable%state_indices%value/=-1
          else
             scalar_id = fabm_get_scalar_variable_id(model,variable_name)
             if (.not.fabm_is_variable_used(scalar_id)) call log_message('WARNING! input.yaml: &
