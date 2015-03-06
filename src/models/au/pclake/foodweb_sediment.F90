@@ -84,296 +84,103 @@
 ! !INPUT PARAMETERS:
    class (type_au_pclake_foodweb_sediment), intent(inout),      target :: self
    integer,                          intent(in)            :: configunit
-!  LOCAL VARIABLES:
-   real(rk)              :: sDBent_initial
-   real(rk)              :: sPBent_initial
-   real(rk)              :: sNBent_initial
-   real(rk)              :: cDBentIn
-   real(rk)              :: kMigrBent
-   real(rk)              :: cDCarrBent
-   real(rk)              :: kDAssBent
-   real(rk)              :: hDFoodBent
-   real(rk)              :: fDAssBent
-   real(rk)              :: fDissEgesBent
-   real(rk)              :: kDRespBent
-   real(rk)              :: kMortBent
-   real(rk)              :: fDissMortBent
-   real(rk)              :: cTmOptBent
-   real(rk)              :: cSigTmBent
-   real(rk)              :: cPDBentRef
-   real(rk)              :: cNDBentRef
-   real(rk)              :: cSiDDiat
-   real(rk)              :: fDAssFiAd
-   real(rk)              :: cPDFishRef
-   real(rk)              :: cNDFishRef
-   real(rk)              :: fDissEgesFish
-   real(rk)              :: kDAssFiAd
-   real(rk)              :: cSigTmFish
-   real(rk)              :: cTmOptFish
-   real(rk)              :: cRelVegFish
-   real(rk)              ::  hDBentFiAd
-   real(rk)              :: kMortFiAd
-   real(rk)              :: kDRespFiAd
-   real(rk)              :: cDCarrFish
-   real(rk)              ::cNDBlueMax
-   real(rk)              ::cNDBlueMin
-   real(rk)              ::cNDDiatMax
-   real(rk)              ::cNDDiatMin
-   real(rk)              ::cNDGrenMax
-   real(rk)              ::cNDGrenMin
-   real(rk)              ::cPDBlueMax
-   real(rk)              ::cPDBlueMin
-   real(rk)              ::cPDDiatMax
-   real(rk)              ::cPDDiatMin
-   real(rk)              ::cPDGrenMax
-   real(rk)              ::cPDGrenMin
-   character(len=64)     :: diatom_as_food_DW
-   character(len=64)     :: green_as_food_DW
-   character(len=64)     :: blue_as_food_DW
-   character(len=64)     :: detritus_DW_pool_sediment
-   character(len=64)     :: diatom_as_food_N
-   character(len=64)     :: green_as_food_N
-   character(len=64)     :: blue_as_food_N
-   character(len=64)     :: detritus_N_pool_sediment
-   character(len=64)     :: diatom_as_food_P
-   character(len=64)     :: green_as_food_P
-   character(len=64)     :: blue_as_food_P
-   character(len=64)     :: detritus_P_pool_sediment
-   character(len=64)     :: detritus_Si_pool_sediment
-   character(len=64)     :: NH4_pool_sediment
-   character(len=64)     :: NO3_pool_sediment
-   character(len=64)     :: PO4_pool_sediment
-   character(len=64)     :: adult_fish_biomass
-   character(len=64)     :: adult_fish_nitrogen
-   character(len=64)     :: adult_fish_phosphrus
-   character(len=64)     :: young_fish_biomass
-   character(len=64)     :: NH4_pool_water
-   character(len=64)     :: PO4_pool_water
-   character(len=64)     :: DDet_pool_water
-   character(len=64)     :: NDet_pool_water
-   character(len=64)     :: PDet_pool_water
-   character(len=64)     :: vegetation_coverage
-!  create namelist
-   namelist /au_pclake_foodweb_sediment/ sDBent_initial,sPBent_initial,sNBent_initial, &
-                           & cDBentIn,kMigrBent,cDCarrBent,kDAssBent,hDFoodBent,fDAssBent,fDissEgesBent, &
-                           & kDRespBent,kMortBent,fDissMortBent,cTmOptBent,cSigTmBent,cPDBentRef,cNDBentRef,cSiDDiat,&
-                           & fDAssFiAd,cPDFishRef,cNDFishRef,fDissEgesFish,cSigTmFish,cTmOptFish,&
-                           & cRelVegFish,hDBentFiAd,kMortFiAd,kDRespFiAd,kDAssFiAd,cDCarrFish, &
-                           & cNDDiatMin,cPDDiatMin,cNDGrenMin,cPDGrenMin,cNDBlueMin,cPDBlueMin, &
-                           & cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax, &
-                           & diatom_as_food_DW,green_as_food_DW,blue_as_food_DW,diatom_as_food_N,green_as_food_N,&
-                           & blue_as_food_N,diatom_as_food_P,green_as_food_P,blue_as_food_P,&
-                           & detritus_DW_pool_sediment,detritus_P_pool_sediment,detritus_N_pool_sediment,detritus_Si_pool_sediment,&
-                           & NH4_pool_sediment,NO3_pool_sediment,PO4_pool_sediment, &
-                           & adult_fish_biomass,adult_fish_nitrogen,adult_fish_phosphrus,young_fish_biomass, &
-                           & NH4_pool_water,PO4_pool_water,DDet_pool_water,NDet_pool_water, &
-                           & PDet_pool_water,vegetation_coverage
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-!  initialize the parameters
-   sDBent_initial=1.0_rk
-   sPBent_initial=0.1_rk
-   sNBent_initial=0.01_rk
-   cDBentIn=0.01_rk
-   kMigrBent=0.001_rk
-   cDCarrBent=10.0_rk
-   kDAssBent=0.1_rk
-   hDFoodBent=200.0_rk
-   fDAssBent=0.3_rk
-   fDissEgesBent=0.25_rk
-   kDRespBent=0.005_rk
-   kMortBent=0.005_rk
-   fDissMortBent=0.1_rk
-   cTmOptBent=25.0_rk
-   cSigTmBent=16.0_rk
-   cPDBentRef=0.01_rk
-   cNDBentRef=0.07_rk
-   cSiDDiat=0.15_rk
-   fDAssFiAd=0.4_rk
-   cPDFishRef=0.022_rk
-   cNDFishRef=0.1_rk
-   fDissEgesFish=0.25_rk
-   cTmOptFish=25.0_rk
-   cSigTmFish=10.0_rk
-   cRelVegFish=0.009_rk
-   hDBentFiAd=0.023_rk
-   kMortFiAd=0.00027_rk
-   kDRespFiAd=0.004_rk
-   kDAssFiAd=0.06_rk
-   cDCarrFish=0.14_rk
-   cNDBlueMax=0.15_rk
-   cNDBlueMin=0.03_rk
-   cNDDiatMax=0.05_rk
-   cNDDiatMin=0.01_rk
-   cNDGrenMax=0.1_rk
-   cNDGrenMin=0.02_rk
-   cPDBlueMax=0.025_rk
-   cPDBlueMin=0.0025_rk
-   cPDDiatMax=0.005_rk
-   cPDDiatMin=0.0005_rk
-   cPDGrenMax=0.015_rk
-   cPDGrenMin=0.0015_rk
-   diatom_as_food_DW=''
-   green_as_food_DW=''
-   blue_as_food_DW=''
-   detritus_DW_pool_sediment=''
-   diatom_as_food_N=''
-   green_as_food_N=''
-   blue_as_food_N=''
-   detritus_N_pool_sediment=''
-   diatom_as_food_P=''
-   green_as_food_P=''
-   blue_as_food_P=''
-   detritus_P_pool_sediment=''
-   detritus_Si_pool_sediment=''
-   NH4_pool_sediment=''
-   NO3_pool_sediment=''
-   PO4_pool_sediment=''
-   adult_fish_biomass=''
-   adult_fish_nitrogen=''
-   adult_fish_phosphrus=''
-   young_fish_biomass=''
-   NH4_pool_water=''
-   PO4_pool_water=''
-   DDet_pool_water=''
-   NDet_pool_water=''
-   PDet_pool_water=''
-   vegetation_coverage=''
+
+
+
 !EOP                             
 !-----------------------------------------------------------------------
 !BOC                             
-!  Read parameters namelist
-   if (configunit>0) read(configunit,nml=au_pclake_foodweb_sediment,err=99,end=100)
 !  Store parameter values in our own derived type
 !  NB: all rates must be provided in values per day,
 !  and are converted here to values per second.
-   call self%get_parameter(self%cDBentIn,'cDBentIn',default=cDBentIn)
-   call self%get_parameter(self%kMigrBent,'kMigrBent',default=kMigrBent,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cDCarrBent,'cDCarrBent',default=cDCarrBent)
-   call self%get_parameter(self%kDAssBent,'kDAssBent',default=kDAssBent,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%hDFoodBent,'hDFoodBent',default=hDFoodBent)
-   call self%get_parameter(self%fDAssBent,'fDAssBent',default=fDAssBent)
-   call self%get_parameter(self%fDissEgesBent,'fDissEgesBent',default=fDissEgesBent)
-   call self%get_parameter(self%kDRespBent,'kDRespBent',default=kDRespBent,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%kMortBent,'kMortBent',default=kMortBent,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%fDissMortBent,'fDissMortBent',default=fDissMortBent)
-   call self%get_parameter(self%cTmOptBent,'cTmOptBent',default=cTmOptBent)
-   call self%get_parameter(self%cSigTmBent,'cSigTmBent',default=cSigTmBent)
-   call self%get_parameter(self%cPDBentRef,'cPDBentRef',default=cPDBentRef)
-   call self%get_parameter(self%cNDBentRef,'cNDBentRef',default=cNDBentRef)
-   call self%get_parameter(self%cSiDDiat,'cSiDDiat',default=cSiDDiat)
-   call self%get_parameter(self%fDAssFiAd,'fDAssFiAd',default=fDAssFiAd)
-   call self%get_parameter(self%cPDFishRef,'cPDFishRef',default=cPDFishRef)
-   call self%get_parameter(self%cNDFishRef,'cNDFishRef',default=cNDFishRef)
-   call self%get_parameter(self%fDissEgesFish,'fDissEgesFish',default=fDissEgesFish)
-   call self%get_parameter(self%cTmOptFish,'cTmOptFish',default=cTmOptFish)
-   call self%get_parameter(self%cSigTmFish,'cSigTmFish',default=cSigTmFish)
-   call self%get_parameter(self%cRelVegFish,'cRelVegFish',default=cRelVegFish)
-   call self%get_parameter(self%kDAssFiAd,'kDAssFiAd',default=kDAssFiAd,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%hDBentFiAd,'hDBentFiAd',default=hDBentFiAd)
-   call self%get_parameter(self%kDRespFiAd,'kDRespFiAd',default=kDRespFiAd,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%kMortFiAd,'kMortFiAd',default=kMortFiAd,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cDCarrFish,'cDCarrFish',default=cDCarrFish)
-   call self%get_parameter(self%cNDDiatMin,'cNDDiatMin',default=cNDDiatMin)
-   call self%get_parameter(self%cPDDiatMin,'cPDDiatMin',default=cPDDiatMin)
-   call self%get_parameter(self%cNDGrenMin,'cNDGrenMin',default=cNDGrenMin)
-   call self%get_parameter(self%cPDGrenMin,'cPDGrenMin',default=cPDGrenMin)
-   call self%get_parameter(self%cNDBlueMin,'cNDBlueMin',default=cNDBlueMin)
-   call self%get_parameter(self%cPDBlueMin,'cPDBlueMin',default=cPDBlueMin)
-   call self%get_parameter(self%cNDBlueMax,'cNDBlueMax',default=cNDBlueMax)
-   call self%get_parameter(self%cNDDiatMax,'cNDDiatMax',default=cNDDiatMax)
-   call self%get_parameter(self%cNDGrenMax,'cNDGrenMax',default=cNDGrenMax)
-   call self%get_parameter(self%cPDBlueMax,'cPDBlueMax',default=cPDBlueMax)
-   call self%get_parameter(self%cPDDiatMax,'cPDDiatMax',default=cPDDiatMax)
-   call self%get_parameter(self%cPDGrenMax,'cPDGrenMax',default=cPDGrenMax)
-   
-   
-   
+   call self%get_parameter(self%cDBentIn,     'cDBentIn',     'gDW m-2',  'external zoobenthos density',                                default=0.01_rk)
+   call self%get_parameter(self%kMigrBent,    'kMigrBent',    'd-1',      'zoobenthos migration rate',                                  default=0.001_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cDCarrBent,   'cDCarrBent',   'gDW m-2',  'carrying capacity of zoobenthos',                            default=10.0_rk)
+   call self%get_parameter(self%kDAssBent,    'kDAssBent',    'd-1',      'maximum assimilation rate',                                  default=0.1_rk,    scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%hDFoodBent,   'hDFoodBent',   'g m-2',    'half-saturating food for zoobenthos',                        default=200.0_rk)
+   call self%get_parameter(self%fDAssBent,    'fDAssBent',    '[-]',      'C ass. efficiency of zoobenthos',                            default=0.3_rk)
+   call self%get_parameter(self%fDissEgesBent,'fDissEgesBent','[-]',      'soluble nutrient fraction of by zoobenthos egested food',    default=0.25_rk)
+   call self%get_parameter(self%kDRespBent,   'kDRespBent',   'd-1',      'maint. respiration constant of zoobenthos',                  default=0.005_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%kMortBent,    'kMortBent',    'd-1',      'mortality constant of zoobenthos',                           default=0.005_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%fDissMortBent,'fDissMortBent','[-]',      'soluble P fraction of died zoobenthos P',                    default=0.1_rk)
+   call self%get_parameter(self%cTmOptBent,   'cTmOptBent',   '°C',       'optimum temp. of zoobenthos',                                default=25.0_rk)
+   call self%get_parameter(self%cSigTmBent,   'cSigTmBent',   '°C',       'temperature constant of zoobenthos(sigma in Gaussian curve)',default=16.0_rk)
+   call self%get_parameter(self%cPDBentRef,   'cPDBentRef',   'mgP/mgDW', 'reference P/C ratio of zoobenthos',                          default=0.01_rk)
+   call self%get_parameter(self%cNDBentRef,   'cNDBentRef',   'mgN/mgDW', 'reference N/C ratio of zoobenthos',                          default=0.07_rk)
+   call self%get_parameter(self%cSiDDiat,     'cSiDDiat',     'mgSi/mgDW','Si/DW ratio of daitoms',                                     default=0.15_rk)
+   call self%get_parameter(self%fDAssFiAd,    'fDAssFiAd',    '[-]',      'C assimilation efficiency of adult fish',                    default=0.4_rk)
+   call self%get_parameter(self%cPDFishRef,   'cPDFishRef',   'mgP/mgDW', 'reference P/C ratio of Fish',                                default=0.022_rk)
+   call self%get_parameter(self%cNDFishRef,   'cNDFishRef',   'mgN/mgDW', 'reference N/C ratio of Fish',                                default=0.1_rk)
+   call self%get_parameter(self%fDissEgesFish,'fDissEgesFish','[-]',      'soluble nutrient fraction of by fish egested food',          default=0.25_rk)
+   call self%get_parameter(self%cTmOptFish,   'cTmOptFish',   '°C',       'optimum temp. of fish',                                      default=25.0_rk)
+   call self%get_parameter(self%cSigTmFish,   'cSigTmFish',   '°C',       'temperature constant of fish(sigma in Gaussian curve)',      default=10.0_rk)
+   call self%get_parameter(self%cRelVegFish,  'cRelVegFish',  '[-]',      'decrease of fish feeding per vegetation cover(max. 0.01)', default=0.009_rk)
+   call self%get_parameter(self%kDAssFiAd,    'kDAssFiAd',    'd-1',      'maximum assimilation rate of adult fish',                    default=0.06_rk,   scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%hDBentFiAd,   'hDBentFiAd',   'g m-2',    'half-saturating zoobenthos biomass for adult fish predation',default=2.5_rk)
+   call self%get_parameter(self%kDRespFiAd,   'kDRespFiAd',   'd-1',      'maintenance respiration constant of adult fish',             default=0.004_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%kMortFiAd,    'kMortFiAd',    'd-1',      'specific mortality of adult fish',                           default=0.00027_rk,scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cDCarrFish,   'cDCarrFish',   'gDW m-2',  'carrying capacity of fish',                                  default=15.0_rk)
+   call self%get_parameter(self%cNDDiatMin,   'cNDDiatMin',   'mgN/mgDW', 'minimum N/day ratio Diatoms',                                default=0.01_rk)
+   call self%get_parameter(self%cPDDiatMin,   'cPDDiatMin',   'mgP/mgDW', 'minimum P/day ratio Diatoms',                                default=0.0005_rk)
+   call self%get_parameter(self%cNDGrenMin,   'cNDGrenMin',   'mgN/mgDW', 'minimum N/day ratio greens',                                 default=0.02_rk)
+   call self%get_parameter(self%cPDGrenMin,   'cPDGrenMin',   'mgP/mgDW', 'minimum P/day ratio greens',                                 default=0.0015_rk)
+   call self%get_parameter(self%cNDBlueMin,   'cNDBlueMin',   'mgN/mgDW', 'minimum N/day ratio Bluegreens',                             default=0.03_rk)
+   call self%get_parameter(self%cPDBlueMin,   'cPDBlueMin',   'mgP/mgDW', 'minimum P/day ratio Bluegreens',                             default=0.0025_rk)
+   call self%get_parameter(self%cNDBlueMax,   'cNDBlueMax',   'mgN/mgDW', 'max. N/day ratio Bluegreens',                                default=0.15_rk)
+   call self%get_parameter(self%cNDDiatMax,   'cNDDiatMax',   'mgN/mgDW', 'max. N/day ratio Diatoms',                                   default=0.005_rk)
+   call self%get_parameter(self%cNDGrenMax,   'cNDGrenMax',   'mgN/mgDW', 'max. N/day ratio greens',                                    default=0.1_rk)
+   call self%get_parameter(self%cPDBlueMax,   'cPDBlueMax',   'mgP/mgDW', 'max. P/day ratio blue-greens',                               default=0.025_rk)
+   call self%get_parameter(self%cPDDiatMax,   'cPDDiatMax',   'mgP/mgDW', 'max. P/day ratio Diatoms',                                   default=0.05_rk)
+   call self%get_parameter(self%cPDGrenMax,   'cPDGrenMax',   'mgP/mgDW', 'max. P/day ratio greens',                                    default=0.015_rk)
+
 !  Register local state variable
-   call self%register_state_variable(self%id_sDBent,'sDBent','g/m**2','zoobenthos_DW',     &
-                                    sDBent_initial,minimum=WebZero)
-   call self%register_state_variable(self%id_sPBent,'sPBent','g/m**2','zoobenthos_P',     &
-                                    sPBent_initial,minimum=WebZero)
-   call self%register_state_variable(self%id_sNBent,'sNBent','g/m**2','zoobenthos_N',     &
-                                    sNBent_initial,minimum=WebZero)
+   call self%register_state_variable(self%id_sDBent,'sDBent','g m-2','zoobenthos_DW',     &
+                                    initial_value=1.0_rk,minimum=WebZero)
+   call self%register_state_variable(self%id_sPBent,'sPBent','g m-2','zoobenthos_P',     &
+                                    initial_value=0.1_rk,minimum=WebZero)
+   call self%register_state_variable(self%id_sNBent,'sNBent','g m-2','zoobenthos_N',     &
+                                    initial_value=0.01_rk,minimum=WebZero)
 !  Register diagnostic variables for dependencies in other modules
-   call self%register_diagnostic_variable(self%id_tDWebDetS,'tDWebDetS','g/m**2/s','tDWebDetS',           &
-                   output=output_none)
-   call self%register_diagnostic_variable(self%id_tDEnvFiAd,'tDEnvFiAd','g/m**2','tDEnvFiAd',           &
-                   output=output_none)
-   call self%register_diagnostic_variable(self%id_aDSatFiAd,'aDSatFiAd','g/m**2','aDSatFiAd',           &
-                   output=output_none)
+   call self%register_diagnostic_variable(self%id_tDWebDetS,'tDWebDetS','g m-2 s-1','tDWebDetS', output=output_none)
+   call self%register_diagnostic_variable(self%id_tDEnvFiAd,'tDEnvFiAd','g m-2',    'tDEnvFiAd', output=output_none)
+   call self%register_diagnostic_variable(self%id_aDSatFiAd,'aDSatFiAd','g m-2',    'aDSatFiAd', output=output_none)
    
 !  Register contribution of state to global aggregate variables
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNBent)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPBent)
-!  regirster state variables dependencies (2 steps) (the external link to sediment is unsolved)
-!  step1, Register dependencies on external state variables
-   call self%register_state_dependency(self%id_DfoodDiatS, 'diatom_as_food_DW','g/m**2','diatom_as_food_DW')
-   call self%register_state_dependency(self%id_DfoodGrenS, 'green_as_food_DW','g/m**2','green_as_food_DW')
-   call self%register_state_dependency(self%id_DfoodBlueS, 'blue_as_food_DW','g/m**2','blue_as_food_DW')
-   call self%register_state_dependency(self%id_NfoodDiatS, 'diatom_as_food_N','g/m**2','diatom_as_food_N')
-   call self%register_state_dependency(self%id_NfoodGrenS, 'green_as_food_N','g/m**2','green_as_food_N')
-   call self%register_state_dependency(self%id_NfoodBlueS, 'blue_as_food_N','g/m**2','blue_as_food_N')
-   call self%register_state_dependency(self%id_PfoodDiatS, 'diatom_as_food_P','g/m**2','diatom_as_food_P')
-   call self%register_state_dependency(self%id_PfoodGrenS, 'green_as_food_P','g/m**2','green_as_food_P')
-   call self%register_state_dependency(self%id_PfoodBlueS, 'blue_as_food_P','g/m**2','blue_as_food_P')
-   call self%register_state_dependency(self%id_DDetpoolS, 'detritus_DW_pool_sediment','g/m**2','detritus_DW_pool_sediment')
-   call self%register_state_dependency(self%id_PDetpoolS, 'detritus_P_pool_sediment','g/m**2','detritus_P_pool_sediment')
-   call self%register_state_dependency(self%id_NDetpoolS, 'detritus_N_pool_sediment','g/m**2','detritus_N_pool_sediment')
-   call self%register_state_dependency(self%id_SiDetpoolS, 'detritus_Si_pool_sediment','g/m**2','detritus_Si_pool_sediment')
-   call self%register_state_dependency(self%id_NH4poolS, 'NH4_pool_sediment','g/m**2','NH4_pool_sediment')
-   call self%register_state_dependency(self%id_NO3poolS, 'NO3_pool_sediment','g/m**2','NO3_pool_sediment')
-   call self%register_state_dependency(self%id_PO4poolS, 'PO4_pool_sediment','g/m**2','PO4_pool_sediment')
-   call self%register_state_dependency(self%id_DAdFish, 'adult_fish_biomass','g/m**3','adult_fish_biomass')
-   call self%register_state_dependency(self%id_NAdFish, 'adult_fish_nitrogen','g/m**3','adult_fish_nitrogen')
-   call self%register_state_dependency(self%id_PAdFish, 'adult_fish_phosphrus','g/m**3','adult_fish_phosphrus')
-   call self%register_state_dependency(self%id_NH4poolW, 'NH4_pool_water','g/m**3','NH4_pool_water')
-   call self%register_state_dependency(self%id_PO4poolW, 'PO4_pool_water','g/m**3','PO4_pool_water')
-   call self%register_state_dependency(self%id_DDetpoolW, 'DDet_pool_water','g/m**3','DDet_pool_water')
-   call self%register_state_dependency(self%id_NDetpoolW, 'NDet_pool_water','g/m**3','NDet_pool_water')
-   call self%register_state_dependency(self%id_PDetpoolW, 'PDet_pool_water','g/m**3','PDet_pool_water')
-   call self%register_state_dependency(self%id_DJvFish, 'young_fish_biomass','g/m**3','young_fish_biomass')
-!  step 2, Automatically couple dependencies if target variables have been specified.
-   if (diatom_as_food_DW/='')     call self%request_coupling(self%id_DfoodDiatS,diatom_as_food_DW)
-   if (green_as_food_DW/='')      call self%request_coupling(self%id_DfoodGrenS,green_as_food_DW)
-   if (blue_as_food_DW/='')       call self%request_coupling(self%id_DfoodBlueS,blue_as_food_DW)
-   if (diatom_as_food_N/='')      call self%request_coupling(self%id_NfoodDiatS,diatom_as_food_N)
-   if (green_as_food_N/='')       call self%request_coupling(self%id_NfoodGrenS,green_as_food_N)
-   if (blue_as_food_N/='')        call self%request_coupling(self%id_NfoodBlueS,blue_as_food_N)
-   if (diatom_as_food_P/='')      call self%request_coupling(self%id_PfoodDiatS,diatom_as_food_P)
-   if (green_as_food_P/='')       call self%request_coupling(self%id_PfoodGrenS,green_as_food_P)
-   if (blue_as_food_P/='')        call self%request_coupling(self%id_PfoodBlueS,blue_as_food_P)
-   if (detritus_DW_pool_sediment/='')   call self%request_coupling(self%id_DDetpoolS,detritus_DW_pool_sediment)
-   if (detritus_P_pool_sediment/='')    call self%request_coupling(self%id_PDetpoolS,detritus_P_pool_sediment)
-   if (detritus_N_pool_sediment/='')    call self%request_coupling(self%id_NDetpoolS,detritus_N_pool_sediment)
-   if (detritus_Si_pool_sediment/='')   call self%request_coupling(self%id_SiDetpoolS,detritus_Si_pool_sediment)
-   if (NH4_pool_sediment/='')  call self%request_coupling(self%id_NH4poolS,NH4_pool_sediment)
-   if (NO3_pool_sediment/='')  call self%request_coupling(self%id_NO3poolS,NO3_pool_sediment)
-   if (PO4_pool_sediment/='')  call self%request_coupling(self%id_PO4poolS,PO4_pool_sediment)
-   if (adult_fish_biomass/='')    call self%request_coupling(self%id_DAdFish,adult_fish_biomass)
-   if (adult_fish_nitrogen/='')   call self%request_coupling(self%id_NAdFish,adult_fish_nitrogen)
-   if (adult_fish_phosphrus/='')  call self%request_coupling(self%id_PAdFish,adult_fish_phosphrus)
-   if (NH4_pool_water/='')   call self%request_coupling(self%id_NH4poolW,NH4_pool_water)
-   if (PO4_pool_water/='')   call self%request_coupling(self%id_PO4poolW,PO4_pool_water)
-   if (DDet_pool_water/='')  call self%request_coupling(self%id_DDetpoolW,DDet_pool_water)
-   if (NDet_pool_water/='')  call self%request_coupling(self%id_NDetpoolW,NDet_pool_water)
-   if (PDet_pool_water/='')  call self%request_coupling(self%id_PDetpoolW,PDet_pool_water)
-   if (young_fish_biomass/='')    call self%request_coupling(self%id_DJvFish,young_fish_biomass)
-!  register diagnostic dependencies, 2 steps
-!  step1, Register dependencies on external diagnostic variables
-   call self%register_dependency(self%id_aCovVeg, 'vegetation_coverage','--','vegetation_coverage')
-!  step 2, Automatically couple dependencies if target variables have been specified.
-   if (vegetation_coverage/='') call self%request_coupling(self%id_aCovVeg,vegetation_coverage)
+!  regirster state variables dependencies 
+   call self%register_state_dependency(self%id_DfoodDiatS, 'diatom_as_food_DW',        'g m-2', 'diatom_as_food_DW')
+   call self%register_state_dependency(self%id_DfoodGrenS, 'green_as_food_DW',         'g m-2', 'green_as_food_DW')
+   call self%register_state_dependency(self%id_DfoodBlueS, 'blue_as_food_DW',          'g m-2', 'blue_as_food_DW')
+   call self%register_state_dependency(self%id_NfoodDiatS, 'diatom_as_food_N',         'g m-2', 'diatom_as_food_N')
+   call self%register_state_dependency(self%id_NfoodGrenS, 'green_as_food_N',          'g m-2', 'green_as_food_N')
+   call self%register_state_dependency(self%id_NfoodBlueS, 'blue_as_food_N',           'g m-2', 'blue_as_food_N')
+   call self%register_state_dependency(self%id_PfoodDiatS, 'diatom_as_food_P',         'g m-2', 'diatom_as_food_P')
+   call self%register_state_dependency(self%id_PfoodGrenS, 'green_as_food_P',          'g m-2', 'green_as_food_P')
+   call self%register_state_dependency(self%id_PfoodBlueS, 'blue_as_food_P',           'g m-2', 'blue_as_food_P')
+   call self%register_state_dependency(self%id_DDetpoolS,  'detritus_DW_pool_sediment','g m-2', 'detritus_DW_pool_sediment')
+   call self%register_state_dependency(self%id_PDetpoolS,  'detritus_P_pool_sediment', 'g m-2', 'detritus_P_pool_sediment')
+   call self%register_state_dependency(self%id_NDetpoolS,  'detritus_N_pool_sediment', 'g m-2', 'detritus_N_pool_sediment')
+   call self%register_state_dependency(self%id_SiDetpoolS, 'detritus_Si_pool_sediment','g m-2', 'detritus_Si_pool_sediment')
+   call self%register_state_dependency(self%id_NH4poolS,   'NH4_pool_sediment',        'g m-2', 'NH4_pool_sediment')
+   call self%register_state_dependency(self%id_NO3poolS,   'NO3_pool_sediment',        'g m-2', 'NO3_pool_sediment')
+   call self%register_state_dependency(self%id_PO4poolS,   'PO4_pool_sediment',        'g m-2', 'PO4_pool_sediment')
+   call self%register_state_dependency(self%id_DAdFish,    'adult_fish_biomass',       'g m-3', 'adult_fish_biomass')
+   call self%register_state_dependency(self%id_NAdFish,    'adult_fish_nitrogen',      'g m-3', 'adult_fish_nitrogen')
+   call self%register_state_dependency(self%id_PAdFish,    'adult_fish_phosphrus',     'g m-3', 'adult_fish_phosphrus')
+   call self%register_state_dependency(self%id_NH4poolW,   'NH4_pool_water',           'g m-3', 'NH4_pool_water')
+   call self%register_state_dependency(self%id_PO4poolW,   'PO4_pool_water',           'g m-3', 'PO4_pool_water')
+   call self%register_state_dependency(self%id_DDetpoolW, 'DDet_pool_water',           'g m-3', 'DDet_pool_water')
+   call self%register_state_dependency(self%id_NDetpoolW, 'NDet_pool_water',           'g m-3', 'NDet_pool_water')
+   call self%register_state_dependency(self%id_PDetpoolW, 'PDet_pool_water',           'g m-3', 'PDet_pool_water')
+   call self%register_state_dependency(self%id_DJvFish,   'young_fish_biomass',        'g m-3', 'young_fish_biomass')
+!  register diagnostic dependencies
+   call self%register_dependency(self%id_aCovVeg, 'vegetation_coverage','[-]','vegetation_coverage')
 !  register environmental dependencies
-   call self%register_dependency(self%id_uTm,standard_variables%temperature)
+   call self%register_dependency(self%id_uTm,    standard_variables%temperature)
    call self%register_dependency(self%id_sDepthW,standard_variables%bottom_depth)
+   
    return
-
-99 call self%fatal_error('au_pclake_foodweb_sediment_init','Error reading namelist au_pclake_foodweb_sediment')
-
-100 call self%fatal_error('au_pclake_foodweb_sediment_init','Namelist au_pclake_foodweb_sediment was not found.')
 
    end subroutine initialize
 !EOC
