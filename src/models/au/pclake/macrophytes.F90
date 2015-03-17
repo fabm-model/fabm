@@ -63,7 +63,7 @@
 !    Model parameters
 !    Primary production parameters
      real(rk)    :: cDVegIn,kMigrVeg,cMuMaxVeg,cDCarrVeg,kDRespVeg
-     real(rk)    :: hLRefVeg,fDepth1Veg,fDepth2Veg
+     real(rk)    :: hLRefVeg
 !    nutrient ratio parameters
      real(rk)    :: cNDVegMin,cNDVegMax,cPDVegMin,cPDVegMax
 !    vegetation shoots and roots allocation parameters
@@ -167,8 +167,6 @@
    call self%get_parameter(self%fDissMortVeg,  'fDissMortVeg',   '[-]',                 'fraction_dissolved_nutrients_from_died_plants',                                                           default=0.25_rk)
    call self%get_parameter(self%cCPerDW,       'cCPerDW',        'gC/gDW',              'C content of organic matte',                                                                              default=0.4_rk)
    call self%get_parameter(self%fDetWMortVeg,  'fDetWMortVeg',   '[-]',                 'fraction of shoot mortality becoming water detritus',                                                     default=0.1_rk)
-   call self%get_parameter(self%fDepth1Veg,    'fDepth1Veg',     '[-]',                 'max. upper depth of submerged veget. layer, as fraction of water depth, the depth of top of bottom layer',default=0.8_rk)
-   call self%get_parameter(self%fDepth2Veg,    'fDepth2Veg',     '[-]',                 'max. lower depth of submerged veget. layer, as fraction of water depth,the depth of bottm of bottom laye',default=1.0_rk)
    call self%get_parameter(self%hO2BOD,        'hO2BOD',         'mgO2/l',              'half-sat. oxygen conc. for BOD',                                                                          default=1.0_rk)
    call self%get_parameter(self%cHeightVeg,    'cHeightVeg',     'm',                   'vegetation height',                                                                                       default=1.0_rk)
    call self%get_parameter(self%cExtSpVeg,     'cExtSpVeg',      'm2/gDW',              'specific extinction',                                                                                     default=0.01_rk)
@@ -268,7 +266,7 @@
 !  light funtion variables
    real(rk)    :: afCovSurfVeg,aLLimShootVeg
    real(rk)    :: uhLVeg,aMuTmLVeg,ufDay,par_bott
-   real(rk)    :: aDepth1Veg,aDepth2Veg,aLPAR1Veg,aLPAR2Veg
+   real(rk)    :: aLPAR1Veg,aLPAR2Veg
 !  nutrient ratio variables
    real(rk)    :: rPDVeg,rNDVeg
 !  variables for dry-weight change of Vegetation

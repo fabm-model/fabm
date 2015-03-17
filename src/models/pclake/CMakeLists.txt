@@ -8,7 +8,6 @@ add_library(fabm_models_pclake OBJECT
             foodweb_sediment.F90
             foodweb_water.F90
             auxilary.F90
-            dummy_state.F90
             model_library.F90
            )
 

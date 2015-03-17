@@ -41,6 +41,7 @@
       type (type_horizontal_diagnostic_variable_id)       :: id_tO2BedW
 !     diagnostic variables for dependencies(without output)
       type (type_horizontal_diagnostic_variable_id)       :: id_aDSubVeg,id_aCovVeg,id_tDBedDetS,id_afCovSurfVeg
+
 !     diagonostic variables for light attenuation coefficient for plant.
       type (type_horizontal_diagnostic_variable_id)       :: id_aDayInitVeg,id_tDBedVeg
 !     state dependencies identifers
@@ -80,6 +81,7 @@
 !    paremters for sediment properties(pore water concentration)
      real(rk)   :: cDepthS,bPorS,cCPerDW,hO2BOD
      real(rk)   :: cExtSpVeg
+
    contains
 
 !     Model procedure
@@ -119,281 +121,111 @@
 ! !INPUT PARAMETERS:
    class (type_pclake_macrophytes), intent(inout), target :: self
    integer,                          intent(in)            :: configunit
-!----------------------------------------------------------------------------
-!  LOCAL VARIABLES:
-!----------------------------------------------------------------------------
-   real(rk)                  :: sDVeg_initial
-   real(rk)                  :: sNVeg_initial
-   real(rk)                  :: sPVeg_initial
-   integer                   :: UseEmpUpt
-   real(rk)                  :: cDVegIn
-   real(rk)                  :: kMigrVeg
-   real(rk)                  :: cNDVegMin
-   real(rk)                  :: cNDVegMax
-   real(rk)                  :: cPDVegMin
-   real(rk)                  :: cPDVegMax
-   real(rk)                  :: cMuMaxVeg
-   real(rk)                  :: cDCarrVeg
-   real(rk)                  :: kDRespVeg
-   real(rk)                  :: cDayWinVeg
-   real(rk)                  :: cLengAllo
-   real(rk)                  :: fRootVegWin
-   real(rk)                  :: fRootVegSum
-   real(rk)                  :: cTmInitVeg
-   real(rk)                  :: fEmergVeg
-   real(rk)                  :: fFloatVeg
-   real(rk)                  :: cDLayerVeg
-   real(rk)                  :: cCovSpVeg
-   real(rk)                  :: hLRefVeg
-   real(rk)                  :: cQ10ProdVeg
-   real(rk)                  :: cQ10RespVeg
-   real(rk)                  :: kMortVegSum
-   real(rk)                  :: cLengMort
-   real(rk)                  :: fWinVeg
-   real(rk)                  :: cPDVeg0
-   real(rk)                  :: cNDVeg0
-   real(rk)                  :: fSedUptVegMax
-   real(rk)                  :: fSedUptVegCoef
-   real(rk)                  :: fSedUptVegExp
-   real(rk)                  :: cAffNUptVeg
-   real(rk)                  :: cVNUptMaxVeg
-   real(rk)                  :: cDepthS
-   real(rk)                  :: bPorS
-   real(rk)                  :: cVPUptMaxVeg
-   real(rk)                  :: cAffPUptVeg
-   real(rk)                  :: fDissMortVeg
-   real(rk)                  :: cCPerDW
-   real(rk)                  :: fDetWMortVeg
-   real(rk)                  :: fDepth1Veg
-   real(rk)                  :: fDepth2Veg
-   real(rk)                  :: hO2BOD
-   real(rk)                  :: cExtSpVeg
-   character(len=64)         :: ammonia_pool_water
-   character(len=64)         :: nitrate_pool_water
-   character(len=64)         :: phosphate_pool_water
-   character(len=64)         :: ammonia_pool_sediment
-   character(len=64)         :: nitrate_pool_sediment
-   character(len=64)         :: phosphate_pool_sediment
-   character(len=64)         :: oxygen_pool_water
-   character(len=64)         :: detritus_DW_pool_water
-   character(len=64)         :: detritus_N_pool_water
-   character(len=64)         :: detritus_P_pool_water
-   character(len=64)         :: detritus_DW_pool_sediment
-   character(len=64)         :: detritus_N_pool_sediment
-   character(len=64)         :: detritus_P_pool_sediment
-   character(len=64)         :: oxic_layer_value
-!----------------------------------------------------------------------------
-!  create namelist
-!----------------------------------------------------------------------------
-   namelist /pclake_macrophytes/ sDVeg_initial,sNVeg_initial,sPVeg_initial,UseEmpUpt,cDVegIn,kMigrVeg,cNDVegMin,cNDVegMax,cPDVegMin,cPDVegMax, &
-                              & cMuMaxVeg,cDCarrVeg,kDRespVeg,cDayWinVeg,cLengAllo,fRootVegWin,fRootVegSum,cTmInitVeg, &
-                              & fEmergVeg,fFloatVeg,cDLayerVeg,cCovSpVeg,hLRefVeg,cQ10ProdVeg,cQ10RespVeg,kMortVegSum,cLengMort,&
-                              & fWinVeg,cPDVeg0,cNDVeg0,fSedUptVegMax,fSedUptVegCoef,fSedUptVegExp,cAffNUptVeg,cVNUptMaxVeg,&
-                              & cDepthS,bPorS,cVPUptMaxVeg,cAffPUptVeg,fDissMortVeg,cCPerDW,fDetWMortVeg, &
-                              & fDepth1Veg,fDepth2Veg ,hO2BOD, cExtSpVeg,&
-                              & ammonia_pool_water,nitrate_pool_water,phosphate_pool_water,&
-                              & ammonia_pool_sediment,nitrate_pool_sediment,phosphate_pool_sediment,&
-                              & oxygen_pool_water,detritus_DW_pool_water,detritus_N_pool_water,detritus_P_pool_water,detritus_DW_pool_sediment,&
-                              & detritus_N_pool_sediment,detritus_P_pool_sediment,oxic_layer_value
-!EOP
+!EOP                             
 !-----------------------------------------------------------------------
 !BOC
-!  initialize the parameters
-   sDVeg_initial=1.0_rk
-   sNVeg_initial=0.02_rk
-   sPVeg_initial=0.002_rk
-   UseEmpUpt= 0
-   cDVegIn=1.0_rk
-   kMigrVeg=0.001_rk
-   cNDVegMin=0.01_rk
-   cNDVegMax=0.035_rk
-   cPDVegMin=0.0008_rk
-   cPDVegMax=0.0035_rk
-   cMuMaxVeg= 0.2_rk
-   cDCarrVeg=400.0_rk
-   kDRespVeg=0.02_rk
-   cDayWinVeg=259.0_rk
-   cLengAllo=15.0_rk  
-   fRootVegWin=0.6_rk 
-   fRootVegSum=0.1_rk 
-   cTmInitVeg=9.0_rk  
-   fEmergVeg=0.0_rk 
-   fFloatVeg=0.0_rk 
-   cDLayerVeg=0.0_rk
-   cCovSpVeg=0.5_rk
-   hLRefVeg=17.0_rk
-   cQ10ProdVeg=1.2_rk
-   cQ10RespVeg=2.0_rk
-   kMortVegSum=0.005_rk
-   cLengMort=42.0_rk
-   fWinVeg=0.3_rk
-   cPDVeg0=0.002_rk
-   cNDVeg0= 0.02_rk
-   fSedUptVegMax=0.998_rk 
-   fSedUptVegCoef= 2.66_rk
-   fSedUptVegExp =-0.83_rk
-   cAffNUptVeg=0.2_rk
-   cVNUptMaxVeg=0.1_rk
-   cVPUptMaxVeg=0.01_rk 
-   cAffPUptVeg=0.2_rk
-   fDissMortVeg=0.25_rk
-   cCPerDW=0.4_rk
-   fDetWMortVeg=0.1_rk
-   fDepth1Veg=0.0_rk
-   fDepth2Veg=1.0_rk
-   hO2BOD = 1.0_rk
-   cExtSpVeg=0.01_rk
-   ammonia_pool_water=''
-   nitrate_pool_water=''
-   phosphate_pool_water=''
-   ammonia_pool_sediment=''
-   nitrate_pool_sediment=''
-   phosphate_pool_sediment=''
-   oxygen_pool_water=''
-   detritus_DW_pool_water=''
-   detritus_N_pool_water=''
-   detritus_P_pool_water=''
-   detritus_DW_pool_sediment=''
-   detritus_N_pool_sediment=''
-   detritus_P_pool_sediment=''
-   oxic_layer_value=''
-!  Read parameters namelist
-   if (configunit>0) read(configunit,nml=pclake_macrophytes,err=99,end=100)
 !  Store parameter values in our own derived type
 !  NB: all rates must be provided in values per day,
 !  and are converted here to values per second.
-   call self%get_parameter(self%cDVegIn,'cDVegIn',default=cDVegIn)
-   call self%get_parameter(self%kMigrVeg,'kMigrVeg',default=kMigrVeg,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cNDVegMin,'cNDVegMin',default=cNDVegMin)
-   call self%get_parameter(self%cNDVegMax,'cNDVegMax',default=cNDVegMax)
-   call self%get_parameter(self%cPDVegMin,'cPDVegMin',default=cPDVegMin)
-   call self%get_parameter(self%cPDVegMax,'cPDVegMax',default=cPDVegMax)
-   call self%get_parameter(self%cMuMaxVeg,'cMuMaxVeg',default=cMuMaxVeg,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cDCarrVeg,'cDCarrVeg',default=cDCarrVeg)
-   call self%get_parameter(self%kDRespVeg,'kDRespVeg',default=kDRespVeg,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cDayWinVeg,'cDayWinVeg',default=cDayWinVeg)
-   call self%get_parameter(self%cLengAllo,'cLengAllo',default=cLengAllo)
-   call self%get_parameter(self%fRootVegWin,'fRootVegWin',default=fRootVegWin)
-   call self%get_parameter(self%fRootVegSum,'fRootVegSum',default=fRootVegSum)
-   call self%get_parameter(self%cTmInitVeg,'cTmInitVeg',default=cTmInitVeg)
-   call self%get_parameter(self%fEmergVeg,'fEmergVeg',default=fEmergVeg)
-   call self%get_parameter(self%fFloatVeg,'fFloatVeg',default=fFloatVeg)
-   call self%get_parameter(self%cDLayerVeg,'cDLayerVeg',default=cDLayerVeg)
-   call self%get_parameter(self%cCovSpVeg,'cCovSpVeg',default=cCovSpVeg)
-   call self%get_parameter(self%hLRefVeg,'hLRefVeg',default=hLRefVeg)
-   call self%get_parameter(self%cQ10ProdVeg,'cQ10ProdVeg',default=cQ10ProdVeg)
-   call self%get_parameter(self%cQ10RespVeg,'cQ10RespVeg',default=cQ10RespVeg)
-   call self%get_parameter(self%kMortVegSum,'kMortVegSum',default=kMortVegSum,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cLengMort,'cLengMort',default=cLengMort)
-   call self%get_parameter(self%fWinVeg,'fWinVeg',default=fWinVeg)
-   call self%get_parameter(self%cPDVeg0,'cPDVeg0',default=cPDVeg0)
-   call self%get_parameter(self%cNDVeg0,'cNDVeg0',default=cNDVeg0)
-   call self%get_parameter(self%fSedUptVegMax,'fSedUptVegMax',default=fSedUptVegMax)
-   call self%get_parameter(self%fSedUptVegCoef,'fSedUptVegCoef',default=fSedUptVegCoef)
-   call self%get_parameter(self%fSedUptVegExp,'fSedUptVegExp',default=fSedUptVegExp)
-   call self%get_parameter(self%cAffNUptVeg,'cAffNUptVeg',default=cAffNUptVeg,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cVNUptMaxVeg,'cVNUptMaxVeg',default=cVNUptMaxVeg,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cDepthS,'cDepthS',default=cDepthS)
-   call self%get_parameter(self%bPorS,'bPorS',default=bPorS)
-   call self%get_parameter(self%UseEmpUpt,'UseEmpUpt',default=UseEmpUpt)
-   call self%get_parameter(self%cAffPUptVeg,'cAffPUptVeg',default=cAffPUptVeg,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cVPUptMaxVeg,'cVPUptMaxVeg',default=cVPUptMaxVeg,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%fDissMortVeg,'fDissMortVeg',default=fDissMortVeg)
-   call self%get_parameter(self%cCPerDW,'cCPerDW',default=cCPerDW)
-   call self%get_parameter(self%fDetWMortVeg,'fDetWMortVeg',default=fDetWMortVeg)
-   call self%get_parameter(self%fDepth1Veg,'fDepth1Veg',default=fDepth1Veg)
-   call self%get_parameter(self%fDepth2Veg,'fDepth2Veg',default=fDepth2Veg)
-   call self%get_parameter(self%hO2BOD,'hO2BOD',default=hO2BOD)
-!  for vegetation light attenuation
-   call self%get_parameter(self%cExtSpVeg,'cExtSpVeg',default=cExtSpVeg)
+   call self%get_parameter(self%cDVegIn,       'cDVegIn',        'gD/m2',               'external vegetation density',                                                                             default=1.0_rk)
+   call self%get_parameter(self%kMigrVeg,      'kMigrVeg',       'd-1',                 'vegetation migration rate',                                                                               default=0.001_rk,scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cNDVegMin,     'cNDVegMin',      'mgN/mgD',             'minimum N/day ratio vegetation',                                                                          default=0.01_rk)
+   call self%get_parameter(self%cNDVegMax,     'cNDVegMax',      'mgN/mgD',             'maximum N/day ratio vegetation',                                                                          default=0.035_rk)
+   call self%get_parameter(self%cPDVegMin,     'cPDVegMin',      'mgP/mg',              'minimum P/day ratio vegetation',                                                                          default=0.0008_rk)
+   call self%get_parameter(self%cPDVegMax,     'cPDVegMax',      'mgP/mgD',             'maximum P/day ratio vegetation',                                                                          default=0.0035_rk)
+   call self%get_parameter(self%cMuMaxVeg,     'cMuMaxVeg',      'g/gshoot/d',          'maximum growth rate of vegetation at 20°C',                                                               default=0.2_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cDCarrVeg,     'cDCarrVeg',      'gDW m-2',             'max. vegetation standing crop',                                                                           default=400.0_rk)
+   call self%get_parameter(self%kDRespVeg,     'kDRespVeg',      'd-1',                 'dark respiration rate of vegetation',                                                                     default=0.02_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cDayWinVeg,    'cDayWinVeg',     'd',                   'end of growing season',                                                                                   default=259.0_rk)
+   call self%get_parameter(self%cLengAllo,     'cLengAllo',      'd',                   'duration of allocation and reallocation phase',                                                           default=15.0_rk)
+   call self%get_parameter(self%fRootVegWin,   'fRootVegWin',    'groot/gveg',          'root fraction outside growing season',                                                                    default=0.6_rk)
+   call self%get_parameter(self%fRootVegSum,   'fRootVegSum',    'groot/gveg',          'root fraction outside growing season',                                                                    default=0.1_rk)
+   call self%get_parameter(self%cTmInitVeg,    'cTmInitVeg',     '°C',                  'temperature for initial growth',                                                                          default=9.0_rk)
+   call self%get_parameter(self%fEmergVeg,     'fEmergVeg',      'gfloating/gshoot',    'emergent fraction of shoot',                                                                              default=0.0_rk)
+   call self%get_parameter(self%fFloatVeg,     'fFloatVeg',      'gfloating/gshoot',    'floating fraction of shoot',                                                                              default=0.0_rk)
+   call self%get_parameter(self%cDLayerVeg,    'cDLayerVeg',     'gD/m2',               'biomass of a single layer floating leaves',                                                               default=0.0_rk)
+   call self%get_parameter(self%cCovSpVeg,     'cCovSpVeg',      'l/gDW/m2',            'specific cover',                                                                                          default=0.5_rk)
+   call self%get_parameter(self%hLRefVeg,      'hLRefVeg',       'W/m2PAR',             'half-sat. light at 20 °C',                                                                                default=17.0_rk)
+   call self%get_parameter(self%cQ10ProdVeg,   'cQ10ProdVeg',    '[-]',                 'temperature quotient of production',                                                                      default=1.2_rk)
+   call self%get_parameter(self%cQ10RespVeg,   'cQ10RespVeg',    '[-]',                 'temperature quotient of respiration',                                                                     default=2.0_rk)
+   call self%get_parameter(self%kMortVegSum,   'kMortVegSum',    'day-1',               'vegetation mortality rate in Spring and Summer (low)',                                                    default=0.005_rk,scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cLengMort,     'cLengMort',      'day',                 'length of shoot mort. period',                                                                            default=15.0_rk)
+   call self%get_parameter(self%fWinVeg,       'fWinVeg',        '[-]',                 'fraction surviving in winter',                                                                            default=0.3_rk)
+   call self%get_parameter(self%cPDVeg0,       'cPDVeg0',        'gP/gD',               'initial P fraction in veg',                                                                               default=0.002_rk)
+   call self%get_parameter(self%cNDVeg0,       'cNDVeg0',        'gN/gD',               'initial N fraction in veg',                                                                               default=0.02_rk)
+   call self%get_parameter(self%fSedUptVegMax, 'fSedUptVegMax',  '[-]',                 'maximum_sediment_fraction_of_nutrient_uptake',                                                            default=0.998_rk)
+   call self%get_parameter(self%fSedUptVegCoef,'fSedUptVegCoef', '[-]',                 'sigm. regr. coeff. for sediment fraction of nutrient uptake',                                             default=2.66_rk)
+   call self%get_parameter(self%fSedUptVegExp, 'fSedUptVegExp',  '[-]',                 'exponent in sigm. regr. for sediment fraction of nutrient uptake',                                        default=-0.83_rk)
+   call self%get_parameter(self%cAffNUptVeg,   'cAffNUptVeg',    'l/mgDW/d',            'initial N uptake affinity vegetation',                                                                    default=0.2_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cVNUptMaxVeg,  'cVNUptMaxVeg',   'mgN/mgDW/d',          'maximum N uptake capacity of vegetation',                                                                 default=0.1_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cDepthS,       'cDepthS',        '[m]',                 'sediment depth',                                                                                          default=0.1_rk)
+   call self%get_parameter(self%bPorS,         'bPorS',          '[m3waterm-3sediment]','porosity',                                                                                                default=0.847947_rk)
+   call self%get_parameter(self%UseEmpUpt,     'UseEmpUpt',      '[-]',                 'false=do not use this empirical relation',                                                                default=0)
+   call self%get_parameter(self%cAffPUptVeg,   'cAffPUptVeg',    'l/mgDW/d',            'initial P uptake affinity vegetation',                                                                    default=0.2_rk,   scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cVPUptMaxVeg,  'cVPUptMaxVeg',   'mgP/mgDW/d',          'maximum P uptake capacity of vegetation',                                                                 default=0.01_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%fDissMortVeg,  'fDissMortVeg',   '[-]',                 'fraction_dissolved_nutrients_from_died_plants',                                                           default=0.25_rk)
+   call self%get_parameter(self%cCPerDW,       'cCPerDW',        'gC/gDW',              'C content of organic matte',                                                                              default=0.4_rk)
+   call self%get_parameter(self%fDetWMortVeg,  'fDetWMortVeg',   '[-]',                 'fraction of shoot mortality becoming water detritus',                                                     default=0.1_rk)
+   call self%get_parameter(self%fDepth1Veg,    'fDepth1Veg',     '[-]',                 'max. upper depth of submerged veget. layer, as fraction of water depth, the depth of top of bottom layer',default=0.8_rk)
+   call self%get_parameter(self%fDepth2Veg,    'fDepth2Veg',     '[-]',                 'max. lower depth of submerged veget. layer, as fraction of water depth,the depth of bottm of bottom laye',default=1.0_rk)
+   call self%get_parameter(self%hO2BOD,        'hO2BOD',         'mgO2/l',              'half-sat. oxygen conc. for BOD',                                                                          default=1.0_rk)
+   call self%get_parameter(self%cExtSpVeg,     'cExtSpVeg',      'm2/gDW',              'specific extinction',                                                                                     default=0.01_rk)
+
 !  Register local state variable
-   call self%register_state_variable(self%id_sDVeg,'sDVeg','g/m**2','vegetation_dry_weight',     &
-                                    sDVeg_initial,minimum=VegZero)
-   call self%register_state_variable(self%id_sNVeg,'sNVeg','g/m**2','vegetation_Nitrogen',     &
-                                    sNVeg_initial,minimum=VegZero)
-   call self%register_state_variable(self%id_sPVeg,'sPVeg','g/m**2','vegetation_Phosphrus',     &
-                                    sPVeg_initial,minimum=VegZero)
-!  register diagnostic variables for local output(with different ways of output)
-   call self%register_diagnostic_variable(self%id_tO2BedW,'tO2BedW','g/m**2/s','vegetation_O2_change',           &
-                 output=output_none)
-!  Register diagnostic variables for dependencies in other modules
-   call self%register_diagnostic_variable(self%id_aDSubVeg,'aDSubVeg','g/m**2','aDSubVeg',           &
-                     output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_aCovVeg,'aCovVeg','%','aCovVeg',           &
-                     output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_tDBedDetS,'tDBedDetS','g/m**2/s','tDBedDetS',           &
-                     output=output_none)
-   call self%register_diagnostic_variable(self%id_afCovSurfVeg,'afCovSurfVeg','--','afCovSurfVeg',           &
-                     output=output_none)
-   call self%register_diagnostic_variable(self%id_aDayInitVeg,'aDayInitVeg','day','aDayInitVeg',           &
-                     output=output_none)
-   call self%register_diagnostic_variable(self%id_tDBedVeg,'tDBedVeg','g/m**2/s','tDBedVeg',           &
-                     output=output_none)
-   call self%register_diagnostic_variable(self%id_aNutLimVeg,'aNutLimVeg','--','aNutLimVeg',  &
-                  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_macroextinction,'macroextinction','--','macroextinction',  &
-                  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_allimveg,'allimveg','--','allimveg',  &
-                  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_aLPAR1Veg,'aLPAR1Veg','--','aLPAR1Veg',  &
-                  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_aLPAR2Veg,'aLPAR2Veg','--','aLPAR2Veg',  &
-                  output=output_instantaneous)
+   call self%register_state_variable(self%id_sDVeg,'sDVeg','g m-2','vegetation_dry_weight',    &
+                                    initial_value=1.0_rk,minimum=VegZero)
+   call self%register_state_variable(self%id_sNVeg,'sNVeg','g m-2','vegetation_Nitrogen',     &
+                                    initial_value=0.02_rk,minimum=VegZero)
+   call self%register_state_variable(self%id_sPVeg,'sPVeg','g m-2','vegetation_Phosphrus',     &
+                                    initial_value=0.002_rk,minimum=VegZero)
+!  register diagnostic variables
+   call self%register_diagnostic_variable(self%id_tO2BedW,        'tO2BedW',        'g m-2 s-1',  'vegetation_O2_change',             output=output_none)
+   call self%register_diagnostic_variable(self%id_aDSubVeg,       'aDSubVeg',       'g m-2',      'aDSubVeg',                         output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_aCovVeg,        'aCovVeg',        '%',          'aCovVeg',                          output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDBedDetS,      'tDBedDetS',      'g m-2 s-1',  'tDBedDetS',                        output=output_none)
+   call self%register_diagnostic_variable(self%id_afCovSurfVeg,   'afCovSurfVeg',   '[-]',        'afCovSurfVeg',                     output=output_none)
+   call self%register_diagnostic_variable(self%id_aDayInitVeg,    'aDayInitVeg',    'd',          'aDayInitVeg',                      output=output_none)
+   call self%register_diagnostic_variable(self%id_tDBedVeg,       'tDBedVeg',       'g m-2 s-1',  'tDBedVeg',                         output=output_none)
+   call self%register_diagnostic_variable(self%id_aNutLimVeg,     'aNutLimVeg',     '[-]',        'aNutLimVeg',                       output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_macroextinction,'macroextinction','[-]',        'macroextinction',                  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_allimveg,       'allimveg',       '[-]',        'light limitation faction',         output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_aLPAR1Veg,      'aLPAR1Veg',      'W m-2',      'light at top of the vegetation',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_aLPAR2Veg,      'aLPAR2Veg',      'W m-2',      'light at bottom of the vegetation',output=output_instantaneous)
 !  Register contribution of state to global aggregate variables
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNVeg)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNVeg)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPVeg)
-!  regirster state variables dependencies (2 steps) (the external link to sediment is unsolved)
-!  step1, Register dependencies on external state variables
-   call self%register_state_dependency(self%id_NH4poolW, 'ammonia_pool_water','g/m**3','Amonia pool for nutrient uptake')
-   call self%register_state_dependency(self%id_NO3poolW, 'nitrate_pool_water','g/m**3','Nitrate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_PO4poolW, 'phosphate_pool_water','g/m**3','Phosphate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_O2poolW, 'oxygen_pool_water','g/m**3','oxygen pool in water')
-   call self%register_state_dependency(self%id_DDetpoolW, 'detritus_DW_pool_water','g/m**3','detritus_DW_pool_water')
-   call self%register_state_dependency(self%id_DNetpoolW, 'detritus_N_pool_water','g/m**3','detritus_N_pool_water')
-   call self%register_state_dependency(self%id_DPetpoolW, 'detritus_P_pool_water','g/m**3','detritus_P_pool_water')
-   call self%register_state_dependency(self%id_NH4poolS, 'ammonia_pool_sediment','g/m**2','Amonia pool for nutrient uptake')
-   call self%register_state_dependency(self%id_NO3poolS, 'nitrate_pool_sediment','g/m**2','Nitrate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_PO4poolS, 'phosphate_pool_sediment','g/m**2','Phosphate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_DDetpoolS, 'detritus_DW_pool_sediment','g/m**2','detritus_DW_pool_sediment')
-   call self%register_state_dependency(self%id_DNetpoolS, 'detritus_N_pool_sediment','g/m**2','detritus_N_pool_sediment')
-   call self%register_state_dependency(self%id_DPetpoolS, 'detritus_P_pool_sediment','g/m**2','detritus_P_pool_sediment')
-!  step 2, Automatically couple dependencies if target variables have been specified.
-   if (ammonia_pool_water/='') call self%request_coupling(self%id_NH4poolW,ammonia_pool_water)
-   if (nitrate_pool_water/='') call self%request_coupling(self%id_NO3poolW,nitrate_pool_water)
-   if (phosphate_pool_water/='') call self%request_coupling(self%id_PO4poolW,phosphate_pool_water)
-   if (oxygen_pool_water/='') call self%request_coupling(self%id_O2poolW,oxygen_pool_water)
-   if (detritus_DW_pool_water/='') call self%request_coupling(self%id_DDetpoolW,detritus_DW_pool_water)
-   if (detritus_N_pool_water/='') call self%request_coupling(self%id_DNetpoolW,detritus_N_pool_water)
-   if (detritus_P_pool_water/='') call self%request_coupling(self%id_DPetpoolW,detritus_P_pool_water)
-   if (ammonia_pool_sediment/='') call self%request_coupling(self%id_NH4poolS,ammonia_pool_sediment)
-   if (nitrate_pool_sediment/='') call self%request_coupling(self%id_NO3poolS,nitrate_pool_sediment)
-   if (phosphate_pool_sediment/='') call self%request_coupling(self%id_PO4poolS,phosphate_pool_sediment)
-   if (detritus_DW_pool_sediment/='') call self%request_coupling(self%id_DDetpoolS,detritus_DW_pool_sediment)
-   if (detritus_N_pool_sediment/='') call self%request_coupling(self%id_DNetpoolS,detritus_N_pool_sediment)
-   if (detritus_P_pool_sediment/='') call self%request_coupling(self%id_DPetpoolS,detritus_P_pool_sediment)
+!  regirster state variables dependencies 
+   call self%register_state_dependency(self%id_NH4poolW,  'ammonia_pool_water',       'g m-3', 'Amonia pool for nutrient uptake')
+   call self%register_state_dependency(self%id_NO3poolW,  'nitrate_pool_water',       'g m-3', 'Nitrate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_PO4poolW,  'phosphate_pool_water',     'g m-3', 'Phosphate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_O2poolW,   'oxygen_pool_water',        'g m-3', 'oxygen pool in water')
+   call self%register_state_dependency(self%id_DDetpoolW, 'detritus_DW_pool_water',   'g m-3', 'detritus_DW_pool_water')
+   call self%register_state_dependency(self%id_DNetpoolW, 'detritus_N_pool_water',    'g m-3', 'detritus_N_pool_water')
+   call self%register_state_dependency(self%id_DPetpoolW, 'detritus_P_pool_water',    'g m-3', 'detritus_P_pool_water')
+   call self%register_state_dependency(self%id_NH4poolS,  'ammonia_pool_sediment',    'g m-2', 'Amonia pool for nutrient uptake')
+   call self%register_state_dependency(self%id_NO3poolS,  'nitrate_pool_sediment',    'g m-2', 'Nitrate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_PO4poolS,  'phosphate_pool_sediment',  'g m-2', 'Phosphate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_DDetpoolS, 'detritus_DW_pool_sediment','g m-2', 'detritus_DW_pool_sediment')
+   call self%register_state_dependency(self%id_DNetpoolS, 'detritus_N_pool_sediment', 'g m-2', 'detritus_N_pool_sediment')
+   call self%register_state_dependency(self%id_DPetpoolS, 'detritus_P_pool_sediment', 'g m-2', 'detritus_P_pool_sediment')
 !------------------------------------------------------------------------------------------------------------
 !  register environmental dependencies
 !------------------------------------------------------------------------------------------------------------
-   call self%register_dependency(self%id_uTm,standard_variables%temperature)
-   call self%register_dependency(self%id_extc,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
-   call self%register_dependency(self%id_Day,standard_variables%number_of_days_since_start_of_the_year)
+   call self%register_dependency(self%id_uTm,    standard_variables%temperature)
+   call self%register_dependency(self%id_extc,   standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
+   call self%register_dependency(self%id_Day,    standard_variables%number_of_days_since_start_of_the_year)
    call self%register_dependency(self%id_sDepthW,standard_variables%bottom_depth)
-   call self%register_dependency(self%id_dz,standard_variables%cell_thickness)
-   call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
+   call self%register_dependency(self%id_dz,     standard_variables%cell_thickness)
+   call self%register_dependency(self%id_par,    standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_meanpar,temporal_mean(self%id_par,period=86400._rk,resolution=3600._rk))
 !------------------------------------------------------------------------------------------------------------
-!  register diagnostic dependencies, 2 steps
+!  register diagnostic dependencies
 !------------------------------------------------------------------------------------------------------------
 !  step1, Register dependencies on external diagnostic variables
-   call self%register_dependency(self%id_afOxySed, 'oxic_layer_value','--','oxic_layer_value')
-  
-!  step 2, Automatically couple dependencies if target variables have been specified.
-   if (oxic_layer_value/='') call self%request_coupling(self%id_afOxySed,oxic_layer_value)
+   call self%register_dependency(self%id_afOxySed, 'oxic_layer_value','[-]','oxic_layer_value')
+
    return
 
-99  call self%fatal_error('pclake_macrophytes_init','Error reading namelist pclake_macrophytes')
-
-100 call self%fatal_error('pclake_macrophytes_init','Namelist pclake_macrophytes was not found.')
 
 
    end subroutine initialize
@@ -476,6 +308,7 @@
    real(rk)   :: tDBedDetS,tDMortVegS
    real(rk)   :: tNBedDetS,tNMortVegS,tNMortVegDetS
    real(rk)   :: tPBedDetS,tPMortVegS,tPMortVegDetS
+
 ! 
 !EOP
 !-----------------------------------------------------------------------
@@ -524,7 +357,6 @@
    rPDVeg=sPVeg/(sDVeg+NearZero)
 !  N/D_ratio_of_Diatom
    rNDVeg = sNVeg /(sDVeg+NearZero)
-
 !-----------------------------------------------------------------------
 !  temperature functions of vegetation
 !-----------------------------------------------------------------------
@@ -616,13 +448,11 @@
    aDepth2Veg = self%fDepth2Veg * sDepthW
 !  half-sat._light_for_vegetation_production_at_current_temp.
    uhLVeg = self%hLRefVeg * uFunTmProdVeg
-!  retrieve bottom light, 0d, center par in the water column, 1d, center par of the bottom layer
    par_bott= meanpar
 !  light_at_bottom_of_vegetation_layer
    aLPAR2Veg = par_bott*exp(- extc *dz/2.0_rk)
 !  light_at_top_of_vegetation_layer
    aLPAR1Veg = aLPAR2Veg / exp(- extc * (aDepth2Veg - aDepth1Veg))
-!  light_function_of_growth,_based_on_shoot_fraction
    aLLimShootVeg = self%fEmergVeg + self%fFloatVeg * (1.0 - afCovEmergVeg) + bfSubVeg * (1.0 &
    &- afCovSurfVeg) * 1.0 / (extc * sDepthW) * log( (1.0 + aLPAR1Veg / uhLVeg) /& 
    & (1.0 + aLPAR2Veg / uhLVeg))
@@ -961,12 +791,14 @@
 !  for vegetation light attenutaion output
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aDayInitVeg,aDayInitVeg)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBedVeg,tDBedVeg)
+   
 !  light output
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_macroextinction,extc)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aLPAR1Veg,aLPAR1Veg)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aLPAR2Veg,aLPAR2Veg)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_allimveg,aLLimShootVeg)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aNutLimVeg,aNutLimVeg)
+
    _FABM_HORIZONTAL_LOOP_END_
 !
 ! Spatial loop end
@@ -1012,7 +844,7 @@
    _GET_(self%id_uTm,uTm)
    _GET_HORIZONTAL_(self%id_sDepthW,sDepthW)
 
-   ! Self-shading with explicit contribution from background phytoplankton concentration.
+!  Self-shading with explicit contribution from background phytoplankton concentration.
 !    Initial_growth_only_once_a_year
    if (Day < 1) then
       aDayInitVeg=367

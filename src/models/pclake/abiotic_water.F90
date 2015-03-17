@@ -47,7 +47,7 @@
       type (type_state_variable_id)   :: id_sDIMW,id_sDDetW,id_sNDetW,id_sPDetW,id_sSiDetW
       type (type_state_variable_id)   :: id_sPO4W,id_sPAIMW,id_sNH4W,id_sNO3W
       type (type_state_variable_id)   :: id_sSiO2W,id_sO2W
-
+     
 !     diagnostic variables for local output
 !     rPDDetW: P/D ratio of detritus
 !     rNDDetW: N/D ratio of detritus
@@ -116,169 +116,87 @@
 ! !INPUT PARAMETERS:
    class (type_pclake_abiotic_water), intent(inout), target  :: self
    integer,                          intent(in)            :: configunit
-   
-! !LOCAL VARIABLES:
-   real(rk)          :: sNH4W_initial
-   real(rk)          :: sNO3W_initial
-   real(rk)          :: sPO4W_initial
-   real(rk)          :: sPAIMW_initial
-   real(rk)          :: sSiO2W_initial
-   real(rk)          :: sO2W_initial
-   real(rk)          :: sDIMW_initial
-   real(rk)          :: sDDetW_initial
-   real(rk)          :: sPDetW_initial
-   real(rk)          :: sNDetW_initial
-   real(rk)          :: sSiDetW_initial
-   real(rk)          :: kDMinDetW
-   real(rk)          :: cThetaMinW
-   real(rk)          :: kNitrW
-   real(rk)          :: cThetaNitr
-   real(rk)          :: hO2Nitr
-   real(rk)          :: cThetaAer
-   real(rk)          :: cCPerDW
-   real(rk)          :: hO2BOD
-   real(rk)          :: O2PerNH4
-   real(rk)          :: NO3PerC
-   real(rk)          :: hNO3Denit
-   real(rk)          :: kPSorp
-   real(rk)          :: cRelPAdsD
-   real(rk)          :: cRelPAdsFe
-   real(rk)          :: fFeDIM
-   real(rk)          :: cRelPAdsAl
-   real(rk)          :: fAlDIM
-   real(rk)          :: fRedMax
-   real(rk)          :: cKPAdsOx
-   real(rk)          :: cVSetIM
-   real(rk)          :: cVSetDet
-   real(rk)          :: cExtSpIM
-   real(rk)          :: cExtSpDet
-!   create namelist
-   namelist /pclake_abiotic_water/ sNH4W_initial,sNO3W_initial,sPO4W_initial,sPAIMW_initial,sSiO2W_initial,sO2W_initial, & !background_initial,
-                              & sDIMW_initial,sDDetW_initial,sPDetW_initial,sNDetW_initial,sSiDetW_initial, &
-                              & cThetaMinW,cThetaNitr,cThetaAer,kDMinDetW,hO2BOD,cCPerDW,hNO3Denit,NO3PerC,&
-                              & hO2Nitr,kNitrW,O2PerNH4,cRelPAdsD,cRelPAdsFe,fFeDIM,cRelPAdsAl,fAlDIM,fRedMax,&
-                              & cKPAdsOx,kPSorp,cVSetIM,cVSetDet,cExtSpIM,cExtSpDet
+
 !EOP
 !-----------------------------------------------------------------------------
 !BOC
-!  initialize the parameters
-!   background_initial=1.0_rk
-   sNH4W_initial=0.1_rk
-   sNO3W_initial=0.1_rk
-   sPO4W_initial=0.01_rk
-   sPAIMW_initial=0.0_rk
-   sSiO2W_initial=3.0_rk
-   sO2W_initial=10.0_rk
-   sDIMW_initial=5.0_rk
-   sDDetW_initial=2.0_rk
-   sPDetW_initial=0.005_rk
-   sNDetW_initial=0.05_rk
-   sSiDetW_initial=0.02_rk
-   kDMinDetW=0.01_rk
-   cThetaMinW=1.07_rk
-   kNitrW=0.1_rk
-   cThetaNitr=1.08_rk
-   hO2Nitr=2.0_rk
-   cThetaAer=1.024_rk
-   cCPerDW=0.4_rk
-   hO2BOD=1.0_rk
-   O2PerNH4=2.0_rk
-   NO3PerC=0.8_rk
-   hNO3Denit=2.0_rk
-   kPSorp=0.05_rk
-   cRelPAdsD=0.00003_rk
-   cRelPAdsFe=0.065_rk
-   fFeDIM=0.01_rk
-   cRelPAdsAl=0.134_rk
-   fAlDIM=0.01_rk
-   fRedMax=0.9_rk
-   cKPAdsOx=0.6_rk
-   cVSetIM=-1.0_rk
-   cVSetDet=-0.25_rk
-   cExtSpIM=0.05_rk
-   cExtSpDet=0.15_rk
-!  Read parameters namelist
-   if (configunit>0) read(configunit,nml=pclake_abiotic_water,err=99,end=100)
+
 !  Store parameter values in our own derived type
 !  NB: all rates must be provided in values per day,
 !  and are converted here to values per second.
-   call self%get_parameter(self%kDMinDetW, 'kDMinDetW', default=kDMinDetW,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cThetaMinW,'cThetaMinW',default=cThetaMinW)
-   call self%get_parameter(self%kNitrW,'kNitrW',default=kNitrW ,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cThetaNitr,'cThetaNitr',default=cThetaNitr)
-   call self%get_parameter(self%hO2Nitr,'hO2Nitr',default=hO2Nitr)
-   call self%get_parameter(self%cThetaAer,'cThetaAer',default=cThetaAer)
-   call self%get_parameter(self%cCPerDW,'cCPerDW',default=cCPerDW)
-   call self%get_parameter(self%hO2BOD,'hO2BOD',default=hO2BOD)
-   call self%get_parameter(self%O2PerNH4,'O2PerNH4',default=O2PerNH4)
-   call self%get_parameter(self%NO3PerC,'NO3PerC',default=NO3PerC)
-   call self%get_parameter(self%hNO3Denit,'hNO3Denit',default=hNO3Denit)
-   call self%get_parameter(self%kPSorp,'kPSorp',default=kPSorp,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cRelPAdsD,'cRelPAdsD',default=cRelPAdsD)
-   call self%get_parameter(self%cRelPAdsFe,'cRelPAdsFe',default=cRelPAdsFe)
-   call self%get_parameter(self%fFeDIM,'fFeDIM',default=fFeDIM)
-   call self%get_parameter(self%cRelPAdsAl,'cRelPAdsAl',default=cRelPAdsAl)
-   call self%get_parameter(self%fAlDIM,'fAlDIM',default=fAlDIM)
-   call self%get_parameter(self%fRedMax,'fRedMax',default=fRedMax)
-   call self%get_parameter(self%cKPAdsOx,'cKPAdsOx',default=cKPAdsOx)
-   call self%get_parameter(self%cVSetIM,'cVSetIM',default=cVSetIM,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cVSetDet,'cVSetDet',default=cVSetDet,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cExtSpIM,'cExtSpIM',default=cExtSpIM)
-   call self%get_parameter(self%cExtSpDet,'cExtSpDet',default=cExtSpDet)
+   call self%get_parameter(self%cCPerDW,   'cCPerDW',   'gC/gDW', 'C content of organic matter',                              default=0.4_rk)
+   call self%get_parameter(self%cExtSpDet, 'cExtSpDet', 'm2/gDW', 'specific extinction detritus',                             default=0.15_rk)
+   call self%get_parameter(self%cExtSpIM,  'cExtSpIM',  'm2/gDW', 'specific extinction inert matter',                         default=0.05_rk)
+   call self%get_parameter(self%cKPAdsOx,  'cKPAdsOx',  'm3/gP',  'P adsorption affinity at oxidized conditions',             default=0.6_rk)
+   call self%get_parameter(self%cRelPAdsAl,'cRelPAdsAl','gP/gAl', 'max. P adsorption per g Al',                               default=0.134_rk)
+   call self%get_parameter(self%cRelPAdsD, 'cRelPAdsD', 'gP/gD',  'max. P adsorption per g DW',                               default=0.00003_rk)
+   call self%get_parameter(self%cRelPAdsFe,'cRelPAdsFe','gP/gFe', 'max. P adsorption per g Fe',                               default=0.065_rk)
+   call self%get_parameter(self%cThetaAer, 'cThetaAer', '1/e^oC', 'temperature coeff. for reaeration',                        default=1.024_rk)
+   call self%get_parameter(self%cThetaMinW,'cThetaMinW','[-]',    'expon. temp. constant of mineralization in water',         default=1.07_rk)
+   call self%get_parameter(self%cThetaNitr,'cThetaNitr','[-]',    'temperature coefficient for nitrification',                default=1.08_rk)
+   call self%get_parameter(self%cVSetDet,  'cVSetDet',  'm/day',  'max. sedimentation velocity of detritus',                  default=-0.25_rk,scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cVSetIM,   'cVSetIM',   'm/day',  'max. sedimentation velocity of inert org. matter',         default=-1.0_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%fAlDIM,    'fAlDIM',    'gAl/gD', 'Al content of inorg. matter',                              default=0.01_rk)
+   call self%get_parameter(self%fFeDIM,    'fFeDIM',    'gFe/gD', 'Fe content of inorg. matter',                              default=0.01_rk)
+   call self%get_parameter(self%fRedMax,   'fRedMax',   '[-]',    'max. reduction factor of P adsorption affinity',           default=0.9_rk)
+   call self%get_parameter(self%hNO3Denit, 'hNO3Denit', 'mgN/l',  'quadratic half-sat. NO3 conc. for denitrification',        default=2.0_rk)
+   call self%get_parameter(self%hO2BOD,    'hO2BOD',    'mgO2/l', 'half-sat. oxygen conc. for BOD',                           default=1.0_rk)
+   call self%get_parameter(self%hO2Nitr,   'hO2Nitr',   'mgO2/l', 'half sat.oxygen conc. for for nitrogen',                   default=2.0_rk)
+   call self%get_parameter(self%kDMinDetW, 'kDMinDetW', 'day-1',  'decomposition constant of detritus',                       default=0.01_rk,scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%kNitrW,    'kNitrW',    'day-1',  'nitrification rate constant in water',                     default=0.1_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%kPSorp,    'kPSorp',    'day-1',  'P sorption rate constant not too high -> model speed day', default=0.05_rk,scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%NO3PerC,   'NO3PerC',   'molNO3', 'denitrified per mol C mineralised',                        default=0.8_rk)
+   call self%get_parameter(self%O2PerNH4,  'O2PerNH4',  'molO2',  'used per mol NH4+ nitrified',                              default=2.0_rk)
+
    
-   
+ 
 !  Register local state variable
 !  particles, including inorganic matter(sDIM) and organic matter(sDDetW,sNDetW,sPDetW,sSiDetW) have 
 !  vertical movement, usually settling(negative values)
-
-   call self%register_state_variable(self%id_sDIMW,'sDIMW','g/m**3','Inorg. matter in water',sDIMW_initial,minimum=_ZERO_,     &
-                                    vertical_movement= self%cVSetIM,no_river_dilution=.FALSE.) !,specific_light_extinction=self%cExtSpIM)
-   call self%register_state_variable(self%id_sDDetW,'sDDetW','g/m**3','detritus dry-weight in water',sDDetW_initial,minimum=_ZERO_,     &
-                                    vertical_movement= self%cVSetDet,no_river_dilution=.FALSE.) !,specific_light_extinction=self%cExtSpDet)
-   call self%register_state_variable(self%id_sPDetW,'sPDetW','g/m**3','detritus phosphrus in water',     &
-                                    sPDetW_initial,minimum=_ZERO_,vertical_movement= self%cVSetDet,no_river_dilution=.FALSE.)
-   call self%register_state_variable(self%id_sNDetW,'sNDetW','g/m**3','detritus nitrogen in water',     &
-                                    sNDetW_initial,minimum=_ZERO_,vertical_movement= self%cVSetDet,no_river_dilution=.FALSE.)
-   call self%register_state_variable(self%id_sSiDetW,'sSiDetW','g/m**3','detritus silica in water',     &
-                                    sSiDetW_initial,minimum=_ZERO_,vertical_movement= self%cVSetDet,no_river_dilution=.FALSE.)
-   call self%register_state_variable(self%id_sPO4W,'sPO4W','g/m**3','Phosphate in water',     &
-                                    sPO4W_initial,minimum=_ZERO_,no_river_dilution=.FALSE.)
-   call self%register_state_variable(self%id_sPAIMW,'sPAIMW','g/m**3','Absorbed_P in water',     &
-                                    sPAIMW_initial,minimum=_ZERO_,vertical_movement= self%cVSetIM,no_river_dilution=.FALSE.)
-   call self%register_state_variable(self%id_sNH4W,'sNH4W','g/m**3','Amonia in water',     &
-                                    sNH4W_initial,minimum=_ZERO_,no_river_dilution=.TRUE.)
-   call self%register_state_variable(self%id_sNO3W,'sNO3W','g/m**3','Nitrates in water',     &
-                                    sNO3W_initial,minimum=_ZERO_,no_river_dilution=.TRUE.)
-   call self%register_state_variable(self%id_sSiO2W,'sSiO2W','g/m**3','Silica dioxide in water',     &
-                                    sSiO2W_initial,minimum=_ZERO_,no_river_dilution=.FALSE.)
-   call self%register_state_variable(self%id_sO2W,'sO2W','g/m**3','oxygen in water',     &
-                                    sO2W_initial,minimum=_ZERO_,no_river_dilution=.FALSE.)
+   call self%register_state_variable(self%id_sDIMW,'sDIMW','g m-3','Inorg. matter in water',           &
+                                    initial_value=5.0_rk,  minimum=_ZERO_, vertical_movement= self%cVSetIM,no_river_dilution=.FALSE.) 
+!  detritus
+   call self%register_state_variable(self%id_sDDetW,'sDDetW','g m-3','detritus dry-weight in water',    &
+                                    initial_value=2.0_rk,  minimum=_ZERO_, vertical_movement= self%cVSetDet,no_river_dilution=.FALSE.)
+   call self%register_state_variable(self%id_sPDetW,'sPDetW','g m-3','detritus phosphrus in water',     &
+                                    initial_value=0.005_rk,minimum=_ZERO_,vertical_movement= self%cVSetDet,no_river_dilution=.FALSE.)
+   call self%register_state_variable(self%id_sNDetW,'sNDetW','g m-3','detritus nitrogen in water',      &
+                                    initial_value=0.05_rk ,minimum=_ZERO_,vertical_movement=self%cVSetDet,no_river_dilution=.FALSE.)
+   call self%register_state_variable(self%id_sSiDetW,'sSiDetW','g m-3','detritus silica in water',      &
+                                    initial_value=0.02_rk, minimum=_ZERO_,vertical_movement= self%cVSetDet,no_river_dilution=.FALSE.)
+!  dissolved nutrients
+   call self%register_state_variable(self%id_sPO4W,  'sPO4W',   'g m-3','Phosphate in water',     &
+                                    initial_value=0.01_rk, minimum=_ZERO_,no_river_dilution=.FALSE.)
+   call self%register_state_variable(self%id_sPAIMW,'sPAIMW','g m-3','Absorbed_P in water',     &
+                                    initial_value=0.0_rk,minimum=_ZERO_,vertical_movement= self%cVSetIM,no_river_dilution=.FALSE.)
+   call self%register_state_variable(self%id_sNH4W,'sNH4W','g m-3','Amonia in water',     &
+                                    initial_value=0.1_rk,minimum=_ZERO_,no_river_dilution=.TRUE.)
+   call self%register_state_variable(self%id_sNO3W,'sNO3W','g m-3','Nitrates in water',     &
+                                    initial_value=0.1_rk,minimum=_ZERO_,no_river_dilution=.TRUE.)
+   call self%register_state_variable(self%id_sSiO2W,'sSiO2W','g m-3','Silica dioxide in water',     &
+                                    initial_value=3.0_rk,minimum=_ZERO_,no_river_dilution=.FALSE.)
+!  oxygen
+   call self%register_state_variable(self%id_sO2W,'sO2W','g m-3','oxygen in water',     &
+                                    initial_value=10.0_rk,minimum=_ZERO_,no_river_dilution=.FALSE.)
 !  Register diagnostic variables for dependencies in other modules
-   call self%register_diagnostic_variable(self%id_wO2AbioW,'abiotic_water_O2_change','g/m**3/s ','wO2AbioW',      &
-                    output=output_none)
-   call self%register_diagnostic_variable(self%id_tO2Aer,'O2_reareation','g/m**2/s ','tO2Aer',           &
-                    output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_rPDDetW,'rPDDetW','--','detritus_P/D_ratio_wat',           &
-                    output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_rNDDetW,'rNDDetW','--','detritus_N/D_ratio_wat',           &
-                     output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_wind,'windspeed','m/s ','wind',           &
-                    output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_extIM,'extIM','--','extIM',           &
-                    output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_extDet,'extDet','--','extDet',           &
-                     output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_wO2AbioW,'wO2AbioW',  'g m-3 s-1','abiotic_water_O2_change',   output=output_none)
+   call self%register_diagnostic_variable(self%id_tO2Aer,  'tO2Aer',    'g m-2 s-1','O2_reareation',             output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_rPDDetW, 'rPDDetW',   '[-]',       'detritus_P/D_ratio_wat',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_rNDDetW, 'rNDDetW',   '[-]',       'detritus_N/D_ratio_wat',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wind,    'wind',      'm/s',       'windspeed',                output=output_none)
+   call self%register_diagnostic_variable(self%id_extIM,   'extIM',     '[-]',       'extIM',                    output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_extDet,  'extDet',    '[-]',       'extDet',                   output=output_instantaneous)
 
 
 !  Register contribution of state to global aggregate variables
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNDetW)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNH4W)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNO3W)
-   call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPO4W)
-   call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPAIMW)
-   call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPDetW)
-   call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_sSiO2W)
-   call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_sSiDetW)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,              self%id_sNDetW)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,              self%id_sNH4W)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,              self%id_sNO3W)
+   call self%add_to_aggregate_variable(standard_variables%total_phosphorus,            self%id_sPO4W)
+   call self%add_to_aggregate_variable(standard_variables%total_phosphorus,            self%id_sPAIMW)
+   call self%add_to_aggregate_variable(standard_variables%total_phosphorus,            self%id_sPDetW)
+   call self%add_to_aggregate_variable(standard_variables%total_silicate,              self%id_sSiO2W)
+   call self%add_to_aggregate_variable(standard_variables%total_silicate,              self%id_sSiDetW)
    call self%add_to_aggregate_variable(type_bulk_standard_variable(name='pclake_totN'),self%id_sNDetW)
    call self%add_to_aggregate_variable(type_bulk_standard_variable(name='pclake_totN'),self%id_sNH4W)
    call self%add_to_aggregate_variable(type_bulk_standard_variable(name='pclake_totN'),self%id_sNO3W)
@@ -286,16 +204,14 @@
    call self%add_to_aggregate_variable(type_bulk_standard_variable(name='pclake_totP'),self%id_sPAIMW)
    call self%add_to_aggregate_variable(type_bulk_standard_variable(name='pclake_totP'),self%id_sPDetW)
 !  register environmental dependencies
-   call self%register_dependency(self%id_uTm,standard_variables%temperature)
+   call self%register_dependency(self%id_uTm,   standard_variables%temperature)
    call self%register_dependency(self%id_uVWind,standard_variables%wind_speed)
 
 !  register diagnostic dependencies
 
    return
 
-99 call self%fatal_error('pclake_abiotic_water_init','Error reading namelist pclake_abiotic_water')
 
-100 call self%fatal_error('pclake_abiotic_water_init','Namelist pclake_abiotic_water was not found.')
 
 
    end subroutine initialize
@@ -348,7 +264,7 @@
 !  Retrieve current (local) state variable values.
    _GET_(self%id_sDIMW,sDIMW)
    _GET_(self%id_sDDetW,sDDetW)
-   _GET_(self%id_sPDetW,sPDetW)
+   _GET_(self%id_sPDetW,sPDetW)	
    _GET_(self%id_sNDetW,sNDetW)
    _GET_(self%id_sSiDetW,sSiDetW)
    _GET_(self%id_sPO4W,sPO4W)
@@ -474,7 +390,7 @@
    _SET_DIAGNOSTIC_(self%id_wO2AbioW,wO2AbioW)
    _SET_DIAGNOSTIC_(self%id_rPDDetW,rPDDetW)
    _SET_DIAGNOSTIC_(self%id_rNDDetW,rNDDetW)
-   
+
 
    _LOOP_END_
 !-----------------------------------------------------------------------
@@ -511,7 +427,6 @@
    ! Retrieve current (local) state variable values.
    _GET_(self%id_sDIMW,sDIMW)
    _GET_(self%id_sDDetW,sDDetW)
-   
    
    extIM=self%cExtSpIM*sDIMW
    extDet=self%cExtSpDet*sDDetW
@@ -572,6 +487,8 @@
 !  keep this, t is in day
    _SET_SURFACE_EXCHANGE_(self%id_sO2W,tO2Aer/secs_pr_day)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tO2Aer,tO2Aer/secs_pr_day)
+!   gotm output for 0d input
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_wind,uVWind)
    _HORIZONTAL_LOOP_END_
  
    end subroutine do_surface

@@ -100,8 +100,6 @@
 !     nutrient ratios parameter
       real(rk)   :: cNDDiatMin,cPDDiatMin,cNDGrenMin,cPDGrenMin,cNDBlueMin,cPDBlueMin
       real(rk)   :: cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax
-!  harvest paramter: ,kHarvFishWin,kHarvFishSum,kHarvPiscSum,kHarvPiscWin
-      
    contains
    
 !     Model procedures
@@ -344,27 +342,18 @@
 !  variables for Zooplankton P fluxes
    real(rk)      ::wPWebZoo,wPAssZoo,wPExcrZoo,wPMortZoo
 !  variables for fish(include JV and AD)
-!   real(rk)      :: wDReprFish,wDAgeFish
-!   real(rk)      :: wPReprFish,wPAgeFish
-!   real(rk)      :: wNReprFish,wNAgeFish
 !  PCLake_Osis, /m^2
    real(rk)      :: tDReprFish,tDAgeFish
    real(rk)      :: tPReprFish,tPAgeFish
    real(rk)      :: tNReprFish,tNAgeFish
 !  variables for young fish flux_DW
    real(rk)     :: wDWebFiJv
-!   ,wDMigrFiJv
-!   real(rk)     :: wDAssFiJv,wDRespFiJv,wDMortFiJv,wDConsFiJvPisc
-!   real(rk)     :: aDSatFiJv,wDEnvFiJv,ukDIncrFiJv,wDConsFiJv
 !  PCLake_Osis, /m^2
    real(rk)     :: tDWebFiJv,tDMigrFiJv
    real(rk)     :: tDAssFiJv,tDRespFiJv,tDMortFiJv,tDConsFiJvPisc
    real(rk)     :: aDSatFiJv,tDEnvFiJv,ukDIncrFiJv,tDConsFiJv
 !  variables for young fish flux_P
    real(rk)     :: wPWebFiJv
-!   ,wPMigrFiJv,wPAssFiJv
-!   real(rk)     :: wPExcrFiJv,wPMortFiJv,wPConsFiJvPisc
-!   real(rk)     :: afPAssFiJv,wPConsFiJv,afNAssFiJv,wNConsFiJv
 !  PCLake_Osis, /m^2
    real(rk)     :: tPWebFiJv,tPMigrFiJv,tPAssFiJv
    real(rk)     :: tPExcrFiJv,tPMortFiJv,tPConsFiJvPisc
@@ -378,32 +367,20 @@
    real(rk)     :: tNExcrFiJv,tNMortFiJv,tNConsFiJvPisc
 !  variables for adult fish flux_DW
    real(rk)     :: wDWebFiAd
-!   ,wDMigrFiAd,wDRespFiAd,wDMortFiAd
-!   real(rk)     :: wDConsFiAdPisc
 !  PCLake_Osis, /m^2
    real(rk)     :: tDWebFiAd,tDMigrFiAd,tDRespFiAd,tDMortFiAd
    real(rk)     :: tDConsFiAdPisc
-!!  variables for fish harvest
-!   real(rk)     :: wDHarvFish,ukHarvFish,wPHarvFish,wNHarvFish,ukHarvPisc,wDHarvPisc,wPHarvPisc,wNHarvPisc
-!  variables for adult fish flux_P
    real(rk)     :: wPWebFiAd
-!   ,wPMigrFiAd,wPExcrFiAd,wPMortFiAd
-!   real(rk)     :: wPConsFiAdPisc,wPHarvFish
 !  PCLake_Osis, /m^2
    real(rk)     :: tPWebFiAd,tPMigrFiAd,tPExcrFiAd,tPMortFiAd
    real(rk)     :: tPConsFiAdPisc 
 !  assimilation
 !  variables for adult fish flux_N
    real(rk)     :: wNWebFiAd
-!   ,wNMigrFiAd,wNExcrFiAd,wNMortFiAd
-!   real(rk)     :: wNConsFiAdPisc
 !  PCLake_Osis, /m^2
    real(rk)     :: tNWebFiAd,tNMigrFiAd,tNExcrFiAd,tNMortFiAd
    real(rk)     :: tNConsFiAdPisc
 !  variables for piscivorous fish ,DW process
-!   real(rk)     :: wDConsPisc,wDAssPisc,aDSatPisc,aFunVegPisc
-!   real(rk)     :: wDEnvPisc,akDIncrPisc,aDCarrPisc
-!   real(rk)     :: DMigrPisc,wDRespPisc,wDMortPisc,wDHarvPisc
    real(rk)      :: wDWebPisc 
 !  PCLake_Osis, /m^2
    real(rk)     :: tDConsPisc,tDAssPisc,aDSatPisc,aFunVegPisc
@@ -411,21 +388,14 @@
    real(rk)     :: tDMigrPisc,tDRespPisc,tDMortPisc
    real(rk)     :: tDWebPisc
 !  variables for piscivorous fish P process
-!   real(rk)     :: aPPisc,wPConsPisc,rPDFoodPisc,afPAssPisc,wPAssPisc
-!   real(rk)     :: wPEgesPisc,wPExcrPisc,wPMortPisc,wPMigrPisc
 !  PCLake_Osis, /m^2
    real(rk)     :: aPPisc,tPConsPisc,rPDFoodPisc,afPAssPisc,tPAssPisc
    real(rk)     :: tPEgesPisc,tPExcrPisc,tPMortPisc,tPMigrPisc
 !  variables for piscicorous fish N process
-!   real(rk)     :: aNPisc,wNConsPisc,rNDFoodPisc,afNAssPisc,wNAssPisc
-!   real(rk)     :: wNEgesPisc,wNExcrPisc,wNMortPisc,wNMigrPisc
 !  PCLake_Osis, /m^2
    real(rk)     :: aNPisc,tNConsPisc,rNDFoodPisc,afNAssPisc,tNAssPisc
    real(rk)     :: tNEgesPisc,tNExcrPisc,tNMortPisc,tNMigrPisc
 !  variables for exchange of NH4
-!   real(rk)     :: wNWebNH4W,wNEgesZooNH4,wNEgesZoo,wNMortZooNH4,wNEgesFiJvNH4
-!   real(rk)     :: wNEgesFiJv,wNMortFishNH4,wNMortFishBot
-!   real(rk)     :: wNMortFish,wNEgesPiscNH4,wNMortPiscNH4,wNMortPiscBot
 !  PCLake_Osis, /m^2
    real(rk)     :: wNWebNH4W,wNEgesZooNH4,wNEgesZoo,wNMortZooNH4,tNEgesFiJvNH4
    real(rk)     :: tNEgesFiJv,tNMortFishNH4,tNMortFishBot
@@ -433,28 +403,19 @@
 !  variables for exchange of NH4
    real(rk)     :: wNWebNO3W
 !  variables for exchange of PO4
-!   real(rk)     :: wPWebPO4W,wPEgesZooPO4,wPEgesZoo,wPMortZooPO4,wPEgesFiJvPO4
-!   real(rk)     :: wPEgesFiJv,wPMortFish,wPMortFishBot
-!   real(rk)     :: wPMortFishPO4,wPEgesPiscPO4,wPMortPiscPO4,wPMortPiscBot
 !  PCLake_Osis, /m^2
    real(rk)     :: wPWebPO4W,wPEgesZooPO4,wPEgesZoo,wPMortZooPO4,tPEgesFiJvPO4
    real(rk)     :: tPEgesFiJv,tPMortFish,tPMortFishBot
    real(rk)     :: tPMortFishPO4,tPEgesPiscPO4,tPMortPiscPO4,tPMortPiscBot
 !  variables for exchange of Detritus DW
-!   real(rk)     :: wDWebDetW,wDEgesZoo,wDEgesFiJv, wDMortFishDet
-!   real(rk)     :: wDMortFish,wDMortFishBot,wDEgesPisc,wDMortPiscDet,wDMortPiscBot
 !  PCLake_Osis, /m^2
    real(rk)     :: wDWebDetW,wDEgesZoo,tDEgesFiJv, tDMortFishDet
    real(rk)     :: tDMortFish,tDMortFishBot,tDEgesPisc,tDMortPiscDet,tDMortPiscBot
 !  variables for exchange of Detritus N
-!   real(rk)     :: wNWebDetW,wNEgesZooDet,wNMortZooDet,wNEgesFiJvDet,wNMortFishDet
-!   real(rk)     :: wNEgesPiscDet,wNMortPiscDet
 !  PCLake_Osis, /m^2
    real(rk)     :: wNWebDetW,wNEgesZooDet,wNMortZooDet,tNEgesFiJvDet,tNMortFishDet
    real(rk)     :: tNEgesPiscDet,tNMortPiscDet
 !  variables for exchange of detritus P
-!   real(rk)     :: wPWebDetW,wPEgesZooDet,wPMortZooDet,wPEgesFiJvDet,wPMortFishDet
-!   real(rk)     :: wPEgesPiscDet,wPMortPiscDet
 !  PCLake_Osis, /m^2
    real(rk)     :: wPWebDetW,wPEgesZooDet,wPMortZooDet,tPEgesFiJvDet,tPMortFishDet
    real(rk)     :: tPEgesPiscDet,tPMortPiscDet
@@ -734,35 +695,27 @@
 !  young fish assimilation_DW
 !-----------------------------------------------------------------------
 !  food_limitation_function_of_young_fish
-!   aDSatFiJv = sDZoo *sDZoo /(self%hDZooFiJv * self%hDZooFiJv &
-!   &+sDZoo * sDZoo )
-!  this need to be modified and re-calibrate of the parameter when transfer to 1d
-    aDSatFiJv = (sDZoo * sDepthW) *(sDZoo * sDepthW) /(self%hDZooFiJv * &
+   aDSatFiJv = (sDZoo * sDepthW) *(sDZoo * sDepthW) /(self%hDZooFiJv * &
    &self%hDZooFiJv + (sDZoo * sDepthW) *(sDZoo * sDepthW))
 !  intrinsic_net_increase_rate_of_fish
    ukDIncrFiJv = (self%kDAssFiJv - self%kDRespFiJv) * uFunTmFish - self%kMortFiJv
 !  environmental_correction_of_fish
-   tDEnvFiJv = max(0.0_rk,ukDIncrFiJv /(self%cDCarrFish - sDFiAd) * sDFiJv*sDFiJv)! sDFiJv,in g/m^2, cDCarrFish also in g/m^2
-!   wDEnvFiJv = max(0.0_rk,ukDIncrFiJv /(self%cDCarrFish - sDFiAd) * sDFiJv*sDFiJv)  ! ! sDFiJv,in g/m^3,cDCarrFish, needs recalibration
+   tDEnvFiJv = max(0.0_rk,ukDIncrFiJv /(self%cDCarrFish - sDFiAd) * sDFiJv*sDFiJv)
 !  assimilation_of_fish
 !  PCLake_Osis: 
-   tDAssFiJv = aDSatFiJv *(self%kDAssFiJv * uFunTmFish * sDFiJv - tDEnvFiJv)  ! sDFiJv,in g/m^2
-!   wDAssFiJv = aDSatFiJv *(self%kDAssFiJv * uFunTmFish * sDFiJv - wDEnvFiJv)   ! sDFiJv,in g/m^3
+   tDAssFiJv = aDSatFiJv *(self%kDAssFiJv * uFunTmFish * sDFiJv - tDEnvFiJv)
 !-----------------------------------------------------------------------
 !  zooplankton predated by fish
 !-----------------------------------------------------------------------
 !  zooplankton_consumption_of_fish
 !  PCLake_osis:sDFiJv,in g/m^2
     tDConsFiJv = tDAssFiJv / self%fDAssFiJv
-!   wDConsFiJv = wDAssFiJv / self%fDAssFiJv  ! sDFiJv,in g/m^3
 !  (zooplankton)_P_consumption_by_FiJv
 !  PCLake_osis:sPFiJv,in g/m^2 
    tPConsFiJv = rPDZoo * tDConsFiJv
-!   wPConsFiJv = rPDZoo * wDConsFiJv  ! sPFiJv,in g/m^3
 !  (zooplankton)_N_consumption_by_FiJv
 !  PCLake_osis:sNFiJv,in g/m^2
    tNConsFiJv = rNDZoo * tDConsFiJv
-!   wNConsFiJv = rNDZoo * wDConsFiJv  ! sNFiJv,in g/m^3
 !-----------------------------------------------------------------------
 !  young fish assimilation_P
 !-----------------------------------------------------------------------
@@ -771,7 +724,6 @@
 !  P_assimilation_of_FiJv
 !  PCLake_osis:sPFiJv,in g/m^2
    tPAssFiJv = afPAssFiJv * tPConsFiJv
-!    wPAssFiJv = afPAssFiJv * wPConsFiJv  ! sPFiJv,in g/m^3
 !-----------------------------------------------------------------------
 !  young fish assimilation_N
 !-----------------------------------------------------------------------
@@ -780,37 +732,30 @@
 !  N_assimilation_of_FiJv
 !  PCLake_osis:sNFiJv,in g/m^2
    tNAssFiJv = afNAssFiJv * tNConsFiJv
-!   wNAssFiJv = afNAssFiJv * wNConsFiJv   ! sNFiJv,in g/m^3
 !-----------------------------------------------------------------------
 !  young fish migration
 !-----------------------------------------------------------------------
 !  migration_flux of young fish, DW
 !  PCLake_osis:sDFiJv,in g/m^2
    tDMigrFiJv = self%kMigrFish *(self%cDFiJvIn - sDFiJv)
-!    wDMigrFiJv = self%kMigrFish *(self%cDFiJvIn - sDFiJv)  ! sDFiJv,in g/m^3
 !  net_migration_flux of young fish,P
 !  PCLake_osis:sPFiJv,in g/m^2
    tPMigrFiJv = self%kMigrFish *(self%cPDFishRef * self%cDFiJvIn - sPFiJv)
-!    wPMigrFiJv = self%kMigrFish *(self%cPDFishRef * self%cDFiJvIn - sPFiJv) ! sPFiJv,in g/m^3
 !  net_migration_flux of young fish,N
 !  PCLake_osis:sNFiJv,in g/m^2
    tNMigrFiJv = self%kMigrFish *(self%cNDFishRef * self%cDFiJvIn - sNFiJv)
-!   wNMigrFiJv = self%kMigrFish *(self%cNDFishRef * self%cDFiJvIn - sNFiJv) ! sNFiJv,in g/m^3
 !-----------------------------------------------------------------------
 !  adult fish migration
 !-----------------------------------------------------------------------
 !  migration_flux of adult fish,DW
 !  PCLake_osis:sDFiAd,in g/m^2
    tDMigrFiAd = self%kMigrFish *(self%cDFiAdIn - sDFiAd)  
-!    wDMigrFiAd = self%kMigrFish *(self%cDFiAdIn - sDFiAd) ! sDFiAd,in g/m^3
 !  net_migration_flux of adult fish, P
 !  PCLake_osis:sPFiAd,in g/m^2
    tPMigrFiAd = self%kMigrFish *(self%cPDFishRef * self%cDFiAdIn - sPFiAd)
-!    wPMigrFiAd = self%kMigrFish *(self%cPDFishRef * self%cDFiAdIn - sPFiAd)! sPFiAd,in g/m^3
 !  net_migration_flux of adult fish, N
 !  PCLake_osis:sPFiAd,in g/m^2
    tNMigrFiAd = self%kMigrFish *(self%cNDFishRef * self%cDFiAdIn - sNFiAd)
-!   wNMigrFiAd = self%kMigrFish *(self%cNDFishRef * self%cDFiAdIn - sNFiAd)   !sNFiAd,in g/m^3
 !-----------------------------------------------------------------------
 !  fish reproduction
 !-----------------------------------------------------------------------
@@ -818,126 +763,87 @@
    if (Day >= self%cDayReprFish .and. Day < self%cDayReprFish + 1.0_rk) then
 !  PCLake_osis:sDFiAd,in g/m^2
    tDReprFish = self%fReprFish * sDFiAd/secs_pr_day
-!   wDReprFish = self%fReprFish * sDFiAd/secs_pr_day  ! sDFiAd,in g/m^3
    else
    tDReprFish =0.0_rk
-!   wDReprFish = 0.0_rk 
    endif
 !  Reproduction_flux_P
    tPReprFish = rPDFiAd * tDReprFish
-!    wPReprFish = rPDFiAd * wDReprFish
 !  Reproduction_flux_N
    tNReprFish = rNDFiAd * tDReprFish
-!   wNReprFish = rNDFiAd * wDReprFish
 !-----------------------------------------------------------------------
 !  fish aging
 !-----------------------------------------------------------------------
 !  Ageing_DW
-   if (Day >=  364.0_rk .AND. Day <= 365.0_rk) then
+   if (Day >=  365.0_rk .AND. Day <= 365.0_rk) then
 !  PCLake_osis:sDFiAd,in g/m^2
    tDAgeFish = self%fAgeFish * sDFiJv/secs_pr_day
-!   wDAgeFish = self%fAgeFish * sDFiJv/secs_pr_day
    else
-!   wDAgeFish = 0.0_rk
     tDAgeFish = 0.0_rk
    endif
 !  Ageing_P
    tPAgeFish = rPDFiJv * tDAgeFish
-!   wPAgeFish = rPDFiJv * wDAgeFish
 !  Ageing_N
    tNAgeFish = rNDFiJv * tDAgeFish
-!   wNAgeFish = rNDFiJv * wDAgeFish
 !-----------------------------------------------------------------------
 !  young fish respiration and excretion
 !-----------------------------------------------------------------------
 !  respiration_of_fish_DW
 !  PCLake_osis:sDFiAd,in g/m^2
    tDRespFiJv = (self%cPDFishRef / rPDFiJv) * self%kDRespFiJv * uFunTmFish * sDFiJv
-!   wDRespFiJv = (self%cPDFishRef / rPDFiJv) * self%kDRespFiJv * uFunTmFish * sDFiJv
 !  P_excretion_of_FiJv
 !  PCLake_osis:sPFiAd,in g/m^2
    tPExcrFiJv = (rPDFiJv / self%cPDFishRef) * self%kDRespFiJv * uFunTmFish * sPFiJv
-!   wPExcrFiJv = (rPDFiJv / self%cPDFishRef) * self%kDRespFiJv * uFunTmFish * sPFiJv
 !  N_excretion_of_FiJv
 !  PCLake_osis:sNFiAd,in g/m^2
    tNExcrFiJv = (rNDFiJv / self%cNDFishRef) * self%kDRespFiJv * uFunTmFish * sNFiJv
-   !wNExcrFiJv = (rNDFiJv / self%cNDFishRef) * self%kDRespFiJv * uFunTmFish * sNFiJv
 !-----------------------------------------------------------------------
 !  adult fish respiration and excretion
 !-----------------------------------------------------------------------
 !  respiration_of_fish
 !  PCLake_osis:sDFiAd,in g/m^2
    tDRespFiAd = (self%cPDFishRef / rPDFiAd) * self%kDRespFiAd * uFunTmFish * sDFiAd
-!   wDRespFiAd = (self%cPDFishRef / rPDFiAd) * self%kDRespFiAd * uFunTmFish * sDFiAd
 !  P_excretion_of_FiAd
 !  PCLake_osis:sPFiAd,in g/m^2
    tPExcrFiAd = (rPDFiAd / self%cPDFishRef) * self%kDRespFiAd * uFunTmFish * sPFiAd
-!   wPExcrFiAd = (rPDFiAd / self%cPDFishRef) * self%kDRespFiAd * uFunTmFish * sPFiAd
 !  N_excretion_of_FiAd
 !  PCLake_osis:sNFiAd,in g/m^2
    tNExcrFiAd = (rNDFiAd / self%cNDFishRef) * self%kDRespFiAd * uFunTmFish * sNFiAd
-!   wNExcrFiAd = (rNDFiAd / self%cNDFishRef) * self%kDRespFiAd * uFunTmFish * sNFiAd
 !-----------------------------------------------------------------------
 !  young fish mortality
 !-----------------------------------------------------------------------
 !  fish_mortality_incl._environmental_correction
 !  PCLake_osis:sDFiAd,in g/m^2
    tDMortFiJv = self%kMortFiJv * sDFiJv +(1.0_rk - aDSatFiJv) * tDEnvFiJv
-!   wDMortFiJv = self%kMortFiJv * sDFiJv +(1.0_rk - aDSatFiJv) * wDEnvFiJv
 !  mortality_of_FiJv_P
 !  PCLake_osis:sPFiAd,in g/m^2
    tPMortFiJv = rPDFiJv * tDMortFiJv
-!   wPMortFiJv = rPDFiJv * wDMortFiJv
 !  mortality_of_FiJv_N
 !  PCLake_osis:sNFiAd,in g/m^2
    tNMortFiJv = rNDFiJv * tDMortFiJv
-!   wNMortFiJv = rNDFiJv * wDMortFiJv
 !-----------------------------------------------------------------------
 !  adult fish mortality
 !-----------------------------------------------------------------------
 !  fish_mortality_incl._environmental_correction
 !  PCLake_osis:sDFiAd,in g/m^2
    tDMortFiAd = self%kMortFiAd * sDFiAd +(1.0_rk - aDSatFiAd) * tDEnvFiAd
-!   wDMortFiAd = self%kMortFiAd * sDFiAd +(1.0_rk - aDSatFiAd) * tDEnvFiAd  ! when modified to volumn, this variable should be 
-!   vertial averaged???
 !  mortality_of_FiAd
 !  PCLake_osis:sPFiAd,in g/m^2
    tPMortFiAd = rPDFiAd * tDMortFiAd
-!   wPMortFiAd = rPDFiAd * wDMortFiAd
 !  mortality_of_FiAd
 !  PCLake_osis:sNFiAd,in g/m^2
    tNMortFiAd = rNDFiAd * tDMortFiAd
-!   wNMortFiAd = rNDFiAd * wDMortFiAd
-!-----------------------------------------------------------------------
-!  fish harvest (excluded)
-!-----------------------------------------------------------------------
-!  fish_harvesting_constant
-!   if (cos(2.0_rk * Pi * Day / 365.0_rk) > 0.1_rk) then
-!   ukHarvFish = self%kHarvFishWin 
-!   else
-!   ukHarvFish = self%kHarvFishSum
-!   endif
-!!  harvesting_of_fish
-!   wDHarvFish = ukHarvFish * sDFiAd
-!!  harvesting_of_FiAd
-!   wPHarvFish = rPDFiAd * wDHarvFish
-!!  harvesting_of_FiAd
-!   wNHarvFish = rNDFiAd * wDHarvFish
 !-----------------------------------------------------------------------
 !  fish egestion
 !-----------------------------------------------------------------------
 !  egestion_of_fish,young fish
 !  PCLake_osis:sDFiAd,in g/m^2
    tDEgesFiJv = tDConsFiJv - tDAssFiJv
-!   wDEgesFiJv = wDConsFiJv - wDAssFiJv
 !  egestion_of_FiJv
 !  PCLake_osis:sPFiAd,in g/m^2
    tNEgesFiJv = tNConsFiJv - tNAssFiJv
-!   wNEgesFiJv = wNConsFiJv - wNAssFiJv
 !  egestion_of_FiJv
 !  PCLake_osis:sNFiAd,in g/m^2
    tPEgesFiJv = tPConsFiJv - tPAssFiJv
-!   wPEgesFiJv = wPConsFiJv - wPAssFiJv
 !---------------------------------------------------------------------------
 !  Piscivorous fish assimilation( this whole area is calibrated in /m^2)
 !---------------------------------------------------------------------------
@@ -952,76 +858,53 @@
 !  environmental_correction_of_Pisc
 !  PCLake_osis:sDPisc,in g/m^2
    tDEnvPisc = max(0.0_rk,akDIncrPisc / aDCarrPisc * sDPisc*sDPisc)
-!   wDEnvPisc = max(0.0_rk,akDIncrPisc / aDCarrPisc * sDPisc*sDPisc)
 !  assimilation_of_Pisc
 !  PCLake_osis:sDPisc,in g/m^2
    tDAssPisc = aDSatPisc *(self%kDAssPisc * aFunVegPisc * uFunTmPisc * sDPisc - tDEnvPisc)
-!   wDAssPisc = aDSatPisc *(self%kDAssPisc * aFunVegPisc * uFunTmPisc * sDPisc - wDEnvPisc)
 !-----------------------------------------------------------------------
 !  Piscivorous fish consumption
 !-----------------------------------------------------------------------
 !  consumption_of_Pisc
 !  PCLake_osis:sDPisc,in g/m^2
    tDConsPisc = tDAssPisc / self%fDAssPisc
-!   wDConsPisc = wDAssPisc / self%fDAssPisc
 !-----------------------------------------------------------------------
 !  young fish predated by piscivirious fish
 !-----------------------------------------------------------------------
 !  young_fish_consumption_by_Pisc_DW
 !  PCLake_osis:sDPisc,aDFish,in g/m^2
    tDConsFiJvPisc = sDFiJv / aDFish * tDConsPisc
-!   wDConsFiJvPisc = sDFiJv / aDFish * wDConsPisc
 !  young_fish_consumption_by_Pisc
    tPConsFiJvPisc = rPDFiJv * tDConsFiJvPisc
-!   wPConsFiJvPisc = rPDFiJv * wDConsFiJvPisc
 !  young_fish_consumption_by_Pisc
    tNConsFiJvPisc = rNDFiJv * tDConsFiJvPisc
-!   wNConsFiJvPisc = rNDFiJv * wDConsFiJvPisc
 !-----------------------------------------------------------------------
 !  adult fish predated by piscivirious fish
 !-----------------------------------------------------------------------
 !  adult_fish_consumption_by_Pisc
 !  PCLake_osis:sDPisc,aDFish,in g/m^2
    tDConsFiAdPisc = tDConsPisc - tDConsFiJvPisc
-!   wDConsFiAdPisc = wDConsPisc - wDConsFiJvPisc
 !  adult_fish_consumption_by_Pisc
    tPConsFiAdPisc = rPDFiAd * tDConsFiAdPisc
-!   wPConsFiAdPisc = rPDFiAd * wDConsFiAdPisc
 !  adult_fish_consumption_by_Pisc
    tNConsFiAdPisc = rNDFiAd * tDConsFiAdPisc
-!   wNConsFiAdPisc = rNDFiAd * wDConsFiAdPisc
 !-----------------------------------------------------------------------
 !  piscivirious fish migration
 !-----------------------------------------------------------------------
 !  migration_flux
 !  PCLake_osis:sDPisc,in g/m^2
    tDMigrPisc = self%kMigrPisc *(self%cDPiscIn - sDPisc)
-!   wDMigrPisc = self%kMigrPisc *(self%cDPiscIn - sDPisc)
 !-----------------------------------------------------------------------
 !  piscivirious fish respiration
 !-----------------------------------------------------------------------
 !  respiration_of_Pisc
 !  PCLake_osis:sDPisc,in g/m^2
    tDRespPisc = self%kDRespPisc * uFunTmPisc * sDPisc
-!   wDRespPisc = self%kDRespPisc * uFunTmPisc * sDPisc
 !-----------------------------------------------------------------------
 !  piscivirious fish mortality
 !-----------------------------------------------------------------------
 !  mortality_of_Pisc(incl._environmental_correction)
 !  PCLake_osis:sDPisc,in g/m^2
    tDMortPisc = self%kMortPisc * sDPisc +(1.0_rk - aDSatPisc) * tDEnvPisc
-!   wDMortPisc = self%kMortPisc * sDPisc +(1.0_rk - aDSatPisc) * wDEnvPisc
-!-----------------------------------------------------------------------
-!  piscivirious fish harvest--excluded
-!-----------------------------------------------------------------------
-!  fish_harvesting_constant
-!   if (cos(2.0_rk*Pi * Day / 365.0_rk) > 0.1_rk) then
-!   ukHarvPisc = self%kHarvPiscWin 
-!   else
-!   ukHarvPisc = self%kHarvPiscSum
-!   endif
-!  harvesting_of_Pisc
-!   wDHarvPisc = ukHarvPisc * sDPisc
 !---------------------------------------------------------------------------
 !  piscivirious fish N process
 !---------------------------------------------------------------------------
@@ -1029,26 +912,18 @@
     aPPisc = self%cPDPisc * sDPisc
 !  total_P_consumption_by_Pisc
    tPConsPisc = tPConsFiJvPisc + tPConsFiAdPisc
-!   wPConsPisc = wPConsFiJvPisc + wPConsFiAdPisc
 !  average_P/D_ratio_of_Pisc_food
    rPDFoodPisc = tPConsPisc / tDConsPisc
-!   rPDFoodPisc = wPConsPisc / wDConsPisc
 !  P_assim._efficiency_of_Pisc
     afPAssPisc = min(1.0_rk,self%cPDPisc / rPDFoodPisc * self%fDAssPisc)
 !  P_assimilation_of_Pisc
    tPAssPisc = afPAssPisc * tPConsPisc
-!   wPAssPisc = afPAssPisc * wPConsPisc
 !  respiration_of_Pisc
    tPExcrPisc = self%cPDPisc * tDRespPisc
-!   wPExcrPisc = self%cPDPisc * wDRespPisc
 !  mortality_of_Pisc
    tPMortPisc = self%cPDPisc * tDMortPisc
-!  wPMortPisc = self%cPDPisc * wDMortPisc
 !  net_migration_flux
    tPMigrPisc = self%kMigrPisc *(self%cPDPisc * self%cDPiscIn - aPPisc)
-!   wPMigrPisc = self%kMigrPisc *(self%cPDPisc * self%cDPiscIn - aPPisc)
-!!  harvesting_of_Pisc
-!    wPHarvPisc = self%cPDPisc * wDHarvPisc
 !-----------------------------------------------------------------------
 !  piscivirious fish N process
 !-----------------------------------------------------------------------
@@ -1056,41 +931,29 @@
     aNPisc = self%cNDPisc * sDPisc
 !  total_N_consumption_by_Pisc
    tNConsPisc = tNConsFiJvPisc + tNConsFiAdPisc
-!   wNConsPisc = wNConsFiJvPisc + wNConsFiAdPisc
 !  average_N/D_ratio_of_Pisc_food
    rNDFoodPisc = tNConsPisc / tDConsPisc
-!   rNDFoodPisc = wNConsPisc / wDConsPisc
 !  N_assim._efficiency_of_Pisc
     afNAssPisc = min(1.0_rk,self%cNDPisc / rNDFoodPisc * self%fDAssPisc)
 !  N_assimilation_of_Pisc
    tNAssPisc = afNAssPisc * tNConsPisc
-!   wNAssPisc = afNAssPisc * wNConsPisc
 !  egestion_of_Pisc
    tNEgesPisc = tNConsPisc - tNAssPisc
-!   wNEgesPisc = wNConsPisc - wNAssPisc
 !  respiration_of_Pisc
    tNExcrPisc = self%cNDPisc * tDRespPisc
-!   wNExcrPisc = self%cNDPisc * wDRespPisc
 !  mortality_of_Pisc
    tNMortPisc = self%cNDPisc * tDMortPisc
-!   wNMortPisc = self%cNDPisc * wDMortPisc
 !  net_migration_flux
    tNMigrPisc = self%kMigrPisc *(self%cNDPisc * self%cDPiscIn - aNPisc)
-!   wNMigrPisc = self%kMigrPisc *(self%cNDPisc * self%cDPiscIn - aNPisc)
-!!  harvesting_of_Pisc
-!    wNHarvPisc = self%cNDPisc * wDHarvPisc
 !-----------------------------------------------------------------------
 !  piscivirious fish egestion
 !-----------------------------------------------------------------------
 !  egestion_of_Pisc
    tDEgesPisc = tDConsPisc - tDAssPisc
-!   wDEgesPisc = wDConsPisc - wDAssPisc
 !  egestion_of_Pisc
    tNEgesPisc = tNConsPisc - tNAssPisc
-!   wNEgesPisc = wNConsPisc - wNAssPisc
 !  egestion_of_Pisc
    tPEgesPisc = tPConsPisc - tPAssPisc
-!   wPEgesPisc = wPConsPisc - wPAssPisc
 !-----------------------------------------------------------------------
 !  total flux of web change to state variables
 !-----------------------------------------------------------------------
@@ -1104,36 +967,29 @@
    tDWebFiJv = tDMigrFiJv + tDReprFish + tDAssFiJv - tDRespFiJv - tDMortFiJv - tDConsFiJvPisc - tDAgeFish
 !  temperal solution, vertial averaged
    wDWebFiJv=tDWebFiJv/sDepthW
-!   wDWebFiJv = wDMigrFiJv + wDReprFish + wDAssFiJv - wDRespFiJv - wDMortFiJv - wDConsFiJvPisc - wDAgeFish
 !  total_foodweb_flux_of_P_in_Young_fish
    tPWebFiJv = tPMigrFiJv + tPReprFish  + tPAssFiJv - tPExcrFiJv - tPMortFiJv - tPConsFiJvPisc - tPAgeFish
 !  temperal solution, vertial averaged
    wPWebFiJv = tPWebFiJv/sDepthW
-!   wPWebFiJv = wPMigrFiJv + wPReprFish  + wPAssFiJv - wPExcrFiJv - wPMortFiJv - wPConsFiJvPisc - wPAgeFish 
 !  total_foodweb_flux_of_N_in_Young_fish
    tNWebFiJv = tNMigrFiJv + tNReprFish + tNAssFiJv - tNExcrFiJv - tNMortFiJv - tNConsFiJvPisc - tNAgeFish
 !  temperal solution, vertial averaged
    wNWebFiJv= tNWebFiJv/ sDepthW
-!   wNWebFiJv = wNMigrFiJv + wNReprFish + wNAssFiJv - wNExcrFiJv - wNMortFiJv - wNConsFiJvPisc - wNAgeFish
 !  total_foodweb_flux_of_DW_in_Adult_fish
    tDWebFiAd = tDMigrFiAd - tDRespFiAd - tDMortFiAd - tDReprFish - tDConsFiAdPisc + tDAgeFish
 !  temperal solution, vertial averaged
    wDWebFiAd= tDWebFiAd/ sDepthW
-!   wDWebFiAd = wDMigrFiAd - wDRespFiAd - wDMortFiAd - wDReprFish - wDConsFiAdPisc - wDHarvFish + wDAgeFish
 !  total_foodweb_flux_of_P_in_Adult_fish
    tPWebFiAd = tPMigrFiAd  - tPExcrFiAd - tPMortFiAd - tPReprFish - tPConsFiAdPisc + tPAgeFish 
 !  temperal solution, vertial averaged
-   wPWebFiAd= tPWebFiAd/ sDepthW
-!   wPWebFiAd = wPMigrFiAd  - wPExcrFiAd - wPMortFiAd - wPReprFish - wPConsFiAdPisc - wPHarvFish  + wPAgeFish 
+   wPWebFiAd= tPWebFiAd/ sDepthW 
 !  total_foodweb_flux_of_N_in_Adult_fish
    tNWebFiAd = tNMigrFiAd - tNExcrFiAd - tNMortFiAd - tNReprFish - tNConsFiAdPisc + tNAgeFish
 !  temperal solution, vertial averaged
    wNWebFiAd= tNWebFiAd/ sDepthW
-!   wNWebFiAd = wNMigrFiAd - wNExcrFiAd - wNMortFiAd - wNReprFish - wNConsFiAdPisc - wNHarvFish  + wNAgeFish 
 !  total_foodweb_flux_of_DW_in_predatory_fish
    tDWebPisc = tDMigrPisc + tDAssPisc - tDRespPisc - tDMortPisc
    wDWebPisc=tDWebPisc/sDepthW
-!   wDWebPisc = wDMigrPisc + wDAssPisc - wDRespPisc - wDMortPisc - wDHarvPisc
 !=======================================================================
 !  foodweb part relating to other modules
 !=======================================================================

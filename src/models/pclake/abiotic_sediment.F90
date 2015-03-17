@@ -138,232 +138,92 @@
 ! !INPUT PARAMETERS:
    class (type_pclake_abiotic_sediment), intent(inout), target :: self
    integer,                              intent(in)            :: configunit
-!
-! !local variables
-   real(rk)                  :: sNH4S_initial
-   real(rk)                  :: sNO3S_initial
-   real(rk)                  :: sPO4S_initial
-   real(rk)                  :: sPAIMS_initial
-   real(rk)                  :: sDIMS_initial
-   real(rk)                  :: sDDetS_initial
-   real(rk)                  :: sPDetS_initial
-   real(rk)                  :: sNDetS_initial
-   real(rk)                  :: sSiDetS_initial
-   real(rk)                  :: sDHumS_initial
-   real(rk)                  :: sPHumS_initial
-   real(rk)                  :: sNHumS_initial
-   real(rk)                  :: cDepthS
-   real(rk)                  :: fRefrDetS
-   real(rk)                  :: kDMinDetS
-   real(rk)                  :: cThetaMinS
-   real(rk)                  :: cCPerDW
-   real(rk)                  :: O2PerNH4
-   real(rk)                  :: kNitrS
-   real(rk)                  :: cThetaNitr
-   real(rk)                  :: NO3PerC
-   real(rk)                  :: hNO3Denit
-   real(rk)                  :: kPSorp
-   real(rk)                  :: cRelPAdsD
-   real(rk)                  :: cRelPAdsFe
-   real(rk)                  :: fFeDIM
-   real(rk)                  :: cRelPAdsAl
-   real(rk)                  :: fAlDIM
-   real(rk)                  :: fRedMax
-   real(rk)                  :: cKPAdsOx
-   real(rk)                  :: kPChemPO4
-   real(rk)                  :: coPO4Max
-   real(rk)                  :: bPorS
-   real(rk)                  :: cThetaDif
-   real(rk)                  :: fDepthDifS
-   real(rk)                  :: kNDifNH4
-   real(rk)                  :: cTurbDifNut
-   real(rk)                  :: bPorCorS
-   real(rk)                  :: kNDifNO3
-   real(rk)                  :: kPDifPO4
-   real(rk)                  :: kO2Dif
-   real(rk)                  :: cTurbDifO2
-   real(rk)                  :: kDMinHum
-   character(len=64)         :: oxygen_pool_water
-   character(len=64)         :: SiO2_generated_by_mineralization
-   character(len=64)         :: NH4_diffusion_flux
-   character(len=64)         :: NO3_diffusion_flux
-   character(len=64)         :: PO4_diffusion_flux
-!  create namelist
-   namelist /pclake_abiotic_sediment/ sDHumS_initial,sNHumS_initial,sPHumS_initial, &
-                      & sNH4S_initial,sNO3S_initial,sPO4S_initial,sPAIMS_initial,sDIMS_initial, &
-                      & sDDetS_initial,sNDetS_initial,sPDetS_initial,sSiDetS_initial,&
-                      & cDepthS,fRefrDetS,kDMinDetS, &
-                      & cThetaMinS,cCPerDW,O2PerNH4,kNitrS,cThetaNitr,NO3PerC,hNO3Denit,kPSorp,&
-                      & cRelPAdsD,cRelPAdsFe,fFeDIM,cRelPAdsAl,fAlDIM,fRedMax,cKPAdsOx,kPChemPO4,coPO4Max,bPorS,&
-                      & cThetaDif,fDepthDifS,kNDifNH4,cTurbDifNut,bPorCorS, kNDifNO3,kPDifPO4,kO2Dif,cTurbDifO2,kDMinHum,&
-                      & oxygen_pool_water,SiO2_generated_by_mineralization,NH4_diffusion_flux,NO3_diffusion_flux, &
-                      & PO4_diffusion_flux
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-!
-!  initialize the parameters
-   sNH4S_initial=0.02_rk
-   sNO3S_initial=0.002_rk
-   sPO4S_initial=0.182_rk
-   sPAIMS_initial=17.99_rk
-   sDIMS_initial=39611.3_rk
-   sDDetS_initial=181.7_rk
-   sNDetS_initial=4.54_rk
-   sPDetS_initial=0.454_rk
-   sSiDetS_initial=1.82_rk
-   sDHumS_initial=3452.34_rk
-   sNHumS_initial=172.62_rk
-   sPHumS_initial=17.26_rk
-   cDepthS=0.1_rk
-   fRefrDetS=0.15_rk
-   kDMinDetS=0.002_rk
-   cThetaMinS=1.07_rk
-   cCPerDW=0.4_rk
-   O2PerNH4=2.0_rk
-   kNitrS=1.0_rk
-   cThetaNitr=1.08_rk
-   NO3PerC=0.8_rk
-   hNO3Denit=2.0_rk
-   kPSorp=0.05_rk
-   cRelPAdsD=0.00003_rk
-   cRelPAdsFe=0.065_rk
-   fFeDIM=0.01_rk
-   cRelPAdsAl=0.134_rk
-   fAlDIM=0.01_rk
-   fRedMax=0.9_rk
-   cKPAdsOx=0.6_rk
-   kPChemPO4=0.03_rk
-   coPO4Max=2.0_rk
-   bPorS= 0.85_rk
-   cThetaDif = 1.02_rk
-   fDepthDifS = 0.5_rk
-   kNDifNH4 = 0.000112_rk
-   cTurbDifNut =5.0_rk
-   bPorCorS = 0.975_rk
-   kNDifNO3 = 0.000086_rk
-   kPDifPO4=0.000072_rk
-   kO2Dif = 0.000026_rk
-   cTurbDifO2 = 5.0_rk
-   kDMinHum=0.00001_rk
-   oxygen_pool_water=''
-   SiO2_generated_by_mineralization=''
-   NH4_diffusion_flux=''
-   NO3_diffusion_flux=''
-   PO4_diffusion_flux=''
-!
-!  Read parameters namelist
-   if (configunit>0) read(configunit,nml=pclake_abiotic_sediment,err=99,end=100)
-!
+
+
 !  Store parameter values in our own derived type
 !  NB: all rates must be provided in values per day,
 !  and are converted here to values per second.
-   call self%get_parameter(self%cDepthS,'cDepthS',default=cDepthS)
-   call self%get_parameter(self%fRefrDetS,'fRefrDetS',default=fRefrDetS)
-   call self%get_parameter(self%kDMinDetS,'kDMinDetS',default=kDMinDetS,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cThetaMinS,'cThetaMinS',default=cThetaMinS)
-   call self%get_parameter(self%cCPerDW,'cCPerDW',default=cCPerDW)
-   call self%get_parameter(self%O2PerNH4,'O2PerNH4',default=O2PerNH4)
-   call self%get_parameter(self%kNitrS,'kNitrS',default=kNitrS,scale_factor =1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cThetaNitr,'cThetaNitr',default=cThetaNitr)
-   call self%get_parameter(self%NO3PerC,'NO3PerC',default=NO3PerC)
-   call self%get_parameter(self%hNO3Denit,'hNO3Denit',default=hNO3Denit)
-   call self%get_parameter(self%kPSorp,'kPSorp',default=kPSorp,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cRelPAdsD,'cRelPAdsD',default=cRelPAdsD)
-   call self%get_parameter(self%cRelPAdsFe,'cRelPAdsFe',default=cRelPAdsFe)
-   call self%get_parameter(self%fFeDIM,'fFeDIM',default=fFeDIM)
-   call self%get_parameter(self%cRelPAdsAl,'cRelPAdsAl',default=cRelPAdsAl)
-   call self%get_parameter(self%fAlDIM,'fAlDIM',default=fAlDIM)
-   call self%get_parameter(self%fRedMax,'fRedMax',default=fRedMax)
-   call self%get_parameter(self%cKPAdsOx,'cKPAdsOx',default=cKPAdsOx)
-   call self%get_parameter(self%kPChemPO4,'kPChemPO4',default=kPChemPO4,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%coPO4Max,'coPO4Max',default=coPO4Max)
-   call self%get_parameter(self%bPorS,'bPorS',default=bPorS)
-   call self%get_parameter(self%cThetaDif,'cThetaDif',default=cThetaDif)
-   call self%get_parameter(self%fDepthDifS,'fDepthDifS',default=fDepthDifS)
-   call self%get_parameter(self%kNDifNH4,'kNDifNH4',default=kNDifNH4, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cTurbDifNut,'cTurbDifNut',default=cTurbDifNut)
-   call self%get_parameter(self%bPorCorS,'bPorCorS',default=bPorCorS)
-   call self%get_parameter(self%kNDifNO3,'kNDifNO3',default=kNDifNO3,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%kPDifPO4,'kPDifPO4',default=kPDifPO4, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%kO2Dif,'kO2Dif',default=kO2Dif,scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cTurbDifO2,'cTurbDifO2',default=cTurbDifO2)
-   call self%get_parameter(self%kDMinHum,'kDMinHum',default=kDMinHum ,scale_factor=1.0_rk/secs_pr_day)
-   
-!
+   call self%get_parameter(self%cDepthS,    'cDepthS',     'm',                    'sediment depth',                                           default=0.1_rk)
+   call self%get_parameter(self%fRefrDetS,  'fRefrDetS',   '[-]',                  'nutrient diffusion distance as fraction of sediment depth',default=0.15_rk)
+   call self%get_parameter(self%kDMinDetS,  'kDMinDetS',   'd-1',                  'decomposition constant of sediment detritus',              default=0.002_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cThetaMinS, 'cThetaMinS',  '[-]',                  'expon. temp. constant of sediment mineralization',         default=1.07_rk)
+   call self%get_parameter(self%cCPerDW,    'cCPerDW',     'gC/gDW',               'C content of organic matter',                              default=0.4_rk)
+   call self%get_parameter(self%O2PerNH4,   'O2PerNH4',    'mol',                  'O2 used per mol NH4+ nitrified',                           default=2.0_rk)
+   call self%get_parameter(self%kNitrS,     'kNitrS',      'd-1',                  'nitrification rate constant in sediment',                  default=1.0_rk,    scale_factor =1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cThetaNitr, 'cThetaNitr',  '[-]',                  'temperature coefficient for nitrification',                default=1.08_rk)
+   call self%get_parameter(self%NO3PerC,    'NO3PerC',     '[-]',                  'NO3 denitrified per mol C mineralised',                    default=0.8_rk)
+   call self%get_parameter(self%hNO3Denit,  'hNO3Denit',   'mgN/l',                'quadratic half-sat. NO3 conc. for denitrification',        default=2.0_rk)
+   call self%get_parameter(self%kPSorp,     'kPSorp',      'd-1',                  'P sorption rate constant not too high -> model speed',     default=0.05_rk,    scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cRelPAdsD,  'cRelPAdsD',   'gP/gD',                'max. P adsorption per g DW',                               default=0.00003_rk)
+   call self%get_parameter(self%cRelPAdsFe, 'cRelPAdsFe',  'gP/gFe',               'max. P adsorption per g Fe',                               default=0.065_rk)
+   call self%get_parameter(self%fFeDIM,     'fFeDIM',      'gFe/gD',               'Fe content of inorg. matter',                              default=0.01_rk)
+   call self%get_parameter(self%cRelPAdsAl, 'cRelPAdsAl',  'gP/gAl',               'max. P adsorption per g Al',                               default=0.134_rk)
+   call self%get_parameter(self%fAlDIM,     'fAlDIM',      'gAl/gD',               'Al content of inorg. matter',                              default=0.01_rk)
+   call self%get_parameter(self%fRedMax,    'fRedMax',     '[-]',                  'max. reduction factor of P adsorption affinity',           default=0.9_rk)
+   call self%get_parameter(self%cKPAdsOx,   'cKPAdsOx',    'm3/gP',                'P adsorption affinity at oxidized conditions',             default=0.6_rk)
+   call self%get_parameter(self%kPChemPO4,  'kPChemPO4',   'd-1',                  'chem. PO4 loss rate',                                      default=0.03_rk,    scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%coPO4Max,   'coPO4Max',    'mgP/l',                'max. SRP conc. in pore water',                             default=1.0_rk)
+   call self%get_parameter(self%bPorS,      'bPorS',       'm3 water m-3 sediment','sediment porosity',                                        default=0.847947_rk)
+   call self%get_parameter(self%cThetaDif,  'cThetaDif',   '[-]',                  'temperature coefficient for diffusion',                    default=1.02_rk)
+   call self%get_parameter(self%fDepthDifS, 'fDepthDifS',  '[-]',                  'utrient diffusion distance as fraction of sediment depth', default=0.5_rk)
+   call self%get_parameter(self%kNDifNH4,   'kNDifNH4',    'm2/day',               'mol. NH4 diffusion constant',                              default=0.000112_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cTurbDifNut,'cTurbDifNut', '[-]',                  'bioturbation factor for diffusion',                        default=5.0_rk)
+   call self%get_parameter(self%bPorCorS,   'bPorCorS',    'm3 water m-3 sediment','sediment porosity, corrected for tortuosity',              default=0.737275_rk)
+   call self%get_parameter(self%kNDifNO3,   'kNDifNO3',    'm2/day',               'mol. NO3 diffusion constant',                              default=0.000086_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%kPDifPO4,   'kPDifPO4',    'm2/day',               'mol. PO4 diffusion constant',                              default=0.000072_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%kO2Dif,     'kO2Dif',      'm2/day',               'mol. O2 diffusion constant',                               default=0.000026_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cTurbDifO2, 'cTurbDifO2',  '[-]',                  'bioturbation factor for diffusion',                        default=5.0_rk)
+   call self%get_parameter(self%kDMinHum,   'kDMinHum',    'd-1',                  'maximum_decomposition_constant_of_humic_material_(1D-5)',  default=0.00001_rk , scale_factor=1.0_rk/secs_pr_day)
+  
 !  Register local state variable
-!
-   call self%register_state_variable(self%id_sDIMS,'sDIMS','g/m**2','sediment inorg.Matter',     &
-                                     sDIMS_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_sDDetS,'sDDetS','g/m**2','sediment detritus DW',     &
-                                     sDDetS_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_sNDetS,'sNDetS','g/m**2','sediment detritus N',     &
-                                     sNDetS_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_sPDetS,'sPDetS','g/m**2','sediment detritus P',     &
-                                     sPDetS_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_sSiDetS,'sSiDetS','g/m**2','sediment detritus Si',     &
-                                     sSiDetS_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_sPO4S,'sPO4S','g/m**2','Sediment Phosphate',     &
-                                     sPO4S_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_sPAIMS,'sPAIMS','g/m**2','SED_Absorbed Phosphate',     &
-                                     sPAIMS_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_sNH4S,'sNH4S','g/m**2','Sediment Amonia',     &
-                                     sNH4S_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_sNO3S,'sNO3S','g/m**2','Sediment Nitrates',     &
-                                     sNO3S_initial,minimum=_ZERO_)
+!  Inorganic matter
+   call self%register_state_variable(self%id_sDIMS,  'sDIMS',  'g m-2','sediment inorg.Matter',  initial_value=39611.3_rk, minimum=_ZERO_)
+!  Detritus                                                                                      
+   call self%register_state_variable(self%id_sDDetS, 'sDDetS', 'g m-2','sediment detritus DW',   initial_value=181.7_rk,   minimum=_ZERO_)
+   call self%register_state_variable(self%id_sNDetS, 'sNDetS', 'g m-2','sediment detritus N',    initial_value=4.54_rk,    minimum=_ZERO_)
+   call self%register_state_variable(self%id_sPDetS, 'sPDetS', 'g m-2','sediment detritus P',    initial_value=0.454_rk,   minimum=_ZERO_)
+   call self%register_state_variable(self%id_sSiDetS,'sSiDetS','g m-2','sediment detritus Si',   initial_value=1.82_rk,    minimum=_ZERO_)
+!  Dissolved nutrients                                                                           
+   call self%register_state_variable(self%id_sPO4S,  'sPO4S',   'g m-2','Sediment Phosphate',    initial_value=0.182_rk,   minimum=_ZERO_)
+   call self%register_state_variable(self%id_sPAIMS, 'sPAIMS',  'g m-2','SED_Absorbed Phosphate',initial_value=17.99_rk,   minimum=_ZERO_)
+   call self%register_state_variable(self%id_sNH4S,  'sNH4S',   'g m-2','Sediment Amonia',       initial_value=0.02_rk,    minimum=_ZERO_)
+   call self%register_state_variable(self%id_sNO3S,  'sNO3S',   'g m-2','Sediment Nitrates',     initial_value=0.002_rk,   minimum=_ZERO_)
 !  Humus
-   call self%register_state_variable(self%id_sDHumS,'sDHumS','g/m**2','sediment Humus DW',     &
-                                     sDHumS_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_sNHumS,'sNHumS','g/m**2','sediment Humus N',     &
-                                     sNHumS_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_sPHumS,'sPHumS','g/m**2','sediment Humus P',     &
-                                     sPHumS_initial,minimum=_ZERO_)
+   call self%register_state_variable(self%id_sDHumS,'sDHumS','g m-2','sediment Humus DW',        initial_value=3452.34_rk, minimum=_ZERO_)
+   call self%register_state_variable(self%id_sNHumS,'sNHumS','g m-2','sediment Humus N',         initial_value=172.62_rk,  minimum=_ZERO_)
+   call self%register_state_variable(self%id_sPHumS,'sPHumS','g m-2','sediment Humus P',         initial_value=17.26_rk,   minimum=_ZERO_)
 !  Register contribution of state to global aggregate variables
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNH4S)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNO3S)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNDetS)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNH4S)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNO3S)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNDetS)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPO4S)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPAIMS)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPDetS)
-   call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_sSiDetS)
-
+   call self%add_to_aggregate_variable(standard_variables%total_silicate,  self%id_sSiDetS)
 !---------------------------------------------------------------------------------------------------------------
 !  regirster state variables dependencies (2 steps) 
 !---------------------------------------------------------------------------------------------------------------
-!  step1, Register dependencies on external state variables
-   call self%register_state_dependency(self%id_O2ConsumpSed, 'oxygen_pool_water','g/m**3','oxygen_pool_water')
-   call self%register_state_dependency(self%id_MinSiO2Sed, 'SiO2_generated_by_mineralization','g/m**3','SiO2_generated_by_mineralization')
-   call self%register_state_dependency(self%id_diffNH4, 'NH4_diffusion_flux','g/m**3','NH4_diffusion_flux')
-   call self%register_state_dependency(self%id_diffNO3, 'NO3_diffusion_flux','g/m**3','NO3_diffusion_flux')
-   call self%register_state_dependency(self%id_diffPO4, 'PO4_diffusion_flux','g/m**3','PO4_diffusion_flux')
-!  step 2, Automatically couple dependencies if target variables have been specified.
-   if (oxygen_pool_water/='') call self%request_coupling(self%id_O2ConsumpSed,oxygen_pool_water)
-   if (SiO2_generated_by_mineralization/='') call self%request_coupling(self%id_MinSiO2Sed,SiO2_generated_by_mineralization)
-   if (NH4_diffusion_flux/='') call self%request_coupling(self%id_diffNH4,NH4_diffusion_flux)
-   if (NO3_diffusion_flux/='') call self%request_coupling(self%id_diffNO3,NO3_diffusion_flux)
-   if (PO4_diffusion_flux/='') call self%request_coupling(self%id_diffPO4,PO4_diffusion_flux)!
-!  Register diagnostic variables for dependencies in other modules
-   call self%register_diagnostic_variable(self%id_afOxySed,'afOxySed','-- ','afOxySed',output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_tDAbioDetS,'tDAbioDetS','g/m**2/s ','abiotic_sediment_DDet_change', &
-                                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_tDAbioHumS,'tDAbioHumS','g/m**2/s ','abiotic_sediment_DHum_change', &
-                                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_tDAbioO2S,'tDAbioO2S','g/m**2/s ','abiotic_sediment_O2_change', &
-                                          output=output_none)
-   call self%register_diagnostic_variable(self%id_rPDDetS,'rPDDetS','-- ','detritus_P/D_ration_sed', &
-                                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_rNDDetS,'rNDDetS','-- ','detritus_N/D_ration_sed', &
-                                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_aPEqIMS,'aPEqIMS','-- ','equilibrium_absorbed_PO4', &
-                                          output=output_time_step_averaged)
+!   Register dependencies on external state variables
+   call self%register_state_dependency(self%id_O2ConsumpSed, 'oxygen_pool_water',               'g m-3', 'oxygen_pool_water')
+   call self%register_state_dependency(self%id_MinSiO2Sed,   'SiO2_generated_by_mineralization','g m-3', 'SiO2_generated_by_mineralization')
+   call self%register_state_dependency(self%id_diffNH4,      'NH4_diffusion_flux',              'g m-3', 'NH4_diffusion_flux')
+   call self%register_state_dependency(self%id_diffNO3,      'NO3_diffusion_flux',              'g m-3', 'NO3_diffusion_flux')
+   call self%register_state_dependency(self%id_diffPO4,      'PO4_diffusion_flux',              'g m-3', 'PO4_diffusion_flux')
+!  Register diagnostic variables
+   call self%register_diagnostic_variable(self%id_afOxySed,  'afOxySed',  '[-]',       'fraction of aerobic sediment',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAbioDetS,'tDAbioDetS','g m-2 s-1', 'abiotic_sediment_DDet_change',output=output_none)
+   call self%register_diagnostic_variable(self%id_tDAbioHumS,'tDAbioHumS','g m-2 s-1','abiotic_sediment_DHum_change',output=output_none)
+   call self%register_diagnostic_variable(self%id_tDAbioO2S, 'tDAbioO2S', 'g m-2 s-1','sediment oxygen consumption', output=output_time_step_integrated)
+   call self%register_diagnostic_variable(self%id_rPDDetS,   'rPDDetS',   '[-]',       'detritus_P/D_ration_sed',     output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_rNDDetS,   'rNDDetS',   '[-]',       'detritus_N/D_ration_sed',     output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_aPEqIMS,   'aPEqIMS',   '[-]',       'equilibrium_absorbed_PO4',    output=output_instantaneous)
 
 !  register environmental dependencies
    call self%register_dependency(self%id_uTm,standard_variables%temperature)
+   
    return
 
-99 call self%fatal_error('pclake_abiotic_sediment_init','Error reading namelist pclake_abiotic_sediment')
-
-100 call self%fatal_error('pclake_abiotic_sediment_init','Namelist pclake_abiotic_sediment was not found.')
+   
    end subroutine initialize
 !EOC
 !-----------------------------------------------------------------------

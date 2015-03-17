@@ -104,210 +104,89 @@
 ! !INPUT PARAMETERS:
    class (type_pclake_phytoplankton_sediment), intent(inout), target :: self
    integer,                     intent(in)            :: configunit
-! !LOCAL VARIABLES:
-   real(rk)          :: sDDiatS_initial
-   real(rk)          :: sPDiatS_initial
-   real(rk)          :: sNDiatS_initial
-   real(rk)          :: sDGrenS_initial
-   real(rk)          :: sPGrenS_initial
-   real(rk)          :: sNGrenS_initial
-   real(rk)          :: sDBlueS_initial
-   real(rk)          :: sPBlueS_initial
-   real(rk)          :: sNBlueS_initial
-   real(rk)          :: cSigTmDiat
-   real(rk)          :: cTmOptDiat
-   real(rk)          :: cSigTmBlue
-   real(rk)          :: cTmOptBlue
-   real(rk)          :: cSigTmGren
-   real(rk)          :: cTmOptGren
-   real(rk)          :: kMortDiatS
-   real(rk)          :: kDRespDiat
-   real(rk)          :: cNDDiatMin
-   real(rk)          :: cPDDiatMin
-   real(rk)          :: cNDDiatMax
-   real(rk)          :: cPDDiatMax
-   real(rk)          :: kMortGrenS
-   real(rk)          :: kDRespGren
-   real(rk)          :: cNDGrenMin
-   real(rk)          :: cPDGrenMin
-   real(rk)          :: cNDGrenMax
-   real(rk)          :: cPDGrenMax
-   real(rk)          :: kMortBlueS
-   real(rk)          :: kDRespBlue
-   real(rk)          :: cNDBlueMin
-   real(rk)          :: cPDBlueMin
-   real(rk)          :: cNDBlueMax
-   real(rk)          :: cPDBlueMax
-   real(rk)          :: fDissMortPhyt
-   real(rk)          :: cSiDDiat
-   character(len=64)   :: sPO4_pool_sediment
-   character(len=64)   :: sNH4_pool_sediment
-   character(len=64)   :: sNO3_pool_sediment
-   character(len=64)   :: detritus_DW_pool_sediment
-   character(len=64)   :: detritus_N_pool_sediment
-   character(len=64)   :: detritus_P_pool_sediment
-   character(len=64)   :: detritus_Si_pool_sediment
-   character(len=64)   :: SiO2_pool_water
-!----------------------------------------------------------------------------
-!  create namelist
-!----------------------------------------------------------------------------
-   namelist /pclake_phytoplankton_sediment/ sDDiatS_initial,sPDiatS_initial,sNDiatS_initial,sDGrenS_initial,sPGrenS_initial,sNGrenS_initial,& 
-                        & sDBlueS_initial,sPBlueS_initial,sNBlueS_initial,cSigTmDiat,cTmOptDiat,cSigTmBlue,&
-                        & cTmOptBlue,cSigTmGren,cTmOptGren,kMortDiatS,kDRespDiat,cNDDiatMin,cPDDiatMin,kMortGrenS,&
-                        & kDRespGren,cNDGrenMin,cPDGrenMin,kMortBlueS,kDRespBlue,cNDBlueMin,cPDBlueMin, &
-                        & fDissMortPhyt,cSiDDiat,cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax,&
-                        & sPO4_pool_sediment,sNH4_pool_sediment,sNO3_pool_sediment,detritus_DW_pool_sediment,detritus_N_pool_sediment,&
-                        & detritus_P_pool_sediment,detritus_Si_pool_sediment,SiO2_pool_water
+
 !EOP
 !-----------------------------------------------------------------------
 !BOC
 
-!  initialize the parameters
-!  initialize the parameters
-   sDDiatS_initial =0.001_rk
-   sPDiatS_initial =0.00001_rk
-   sNDiatS_initial =0.0001_rk
-   sDGrenS_initial =0.001_rk
-   sPGrenS_initial =0.00001_rk
-   sNGrenS_initial =0.0001_rk
-   sDBlueS_initial =0.001_rk
-   sPBlueS_initial =0.00001_rk
-   sNBlueS_initial =0.0001_rk
-   cSigTmDiat= 20.0_rk
-   cTmOptDiat= 18.0_rk
-   cSigTmBlue=12.0_rk
-   cTmOptBlue=25.0_rk
-   cSigTmGren=15.0_rk
-   cTmOptGren=25.0_rk
-   kMortDiatS=0.05_rk
-   kDRespDiat=0.10_rk
-   cNDDiatMin= 0.01_rk
-   cPDDiatMin=0.0005_rk
-   kMortGrenS=0.05_rk
-   kDRespGren=0.075_rk
-   cNDGrenMin=0.02_rk
-   cPDGrenMin=0.0015_rk
-   kMortBlueS=0.2_rk
-   kDRespBlue=0.03_rk
-   cNDBlueMin=0.03_rk
-   cPDBlueMin=0.0025_rk
-   fDissMortPhyt=0.2_rk
-   cSiDDiat=0.15_rk
-   sPO4_pool_sediment=''
-   sNH4_pool_sediment=''
-   sNO3_pool_sediment=''
-   detritus_DW_pool_sediment=''
-   detritus_N_pool_sediment=''
-   detritus_P_pool_sediment=''
-   detritus_Si_pool_sediment=''
-   SiO2_pool_water=''
-   cNDDiatMax=0.05_rk
-   cPDDiatMax=0.005_rk
-   cNDGrenMax=0.1_rk
-   cPDGrenMax=0.015_rk
-   cNDBlueMax=0.15_rk
-   cPDBlueMax=0.025_rk
-   
-   
-!EOP                             
-!-----------------------------------------------------------------------
-!BOC                             
-!  Read parameters namelist
-   if (configunit>0) read(configunit,nml=pclake_phytoplankton_sediment,err=99,end=100)
 !  Store parameter values in our own derived type
 !  NB: all rates must be provided in values per day,
 !  and are converted here to values per second.
-   call self%get_parameter(self%cSigTmDiat,'cSigTmDiat',default=cSigTmDiat)
-   call self%get_parameter(self%cTmOptDiat,'cTmOptDiat',default=cTmOptDiat)
-   call self%get_parameter(self%cSigTmBlue,'cSigTmBlue',default=cSigTmBlue)
-   call self%get_parameter(self%cTmOptBlue,'cTmOptBlue',default=cTmOptBlue)
-   call self%get_parameter(self%cSigTmGren,'cSigTmGren',default=cSigTmGren)
-   call self%get_parameter(self%cTmOptGren,'cTmOptGren',default=cTmOptGren)
-   call self%get_parameter(self%kMortDiatS,'kMortDiatS',default=kMortDiatS, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%kDRespDiat,'kDRespDiat',default=kDRespDiat, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cNDDiatMin,'cNDDiatMin',default=cNDDiatMin)
-   call self%get_parameter(self%cPDDiatMin,'cPDDiatMin',default=cPDDiatMin)
-   call self%get_parameter(self%kMortGrenS,'kMortGrenS',default=kMortGrenS, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%kDRespGren,'kDRespGren',default=kDRespGren, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cNDGrenMin,'cNDGrenMin',default=cNDGrenMin)
-   call self%get_parameter(self%cPDGrenMin,'cPDGrenMin',default=cPDGrenMin)
-   call self%get_parameter(self%kMortBlueS,'kMortBlueS',default=kMortBlueS, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%kDRespBlue,'kDRespBlue',default=kDRespBlue, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cNDBlueMin,'cNDBlueMin',default=cNDBlueMin)
-   call self%get_parameter(self%cPDBlueMin,'cPDBlueMin',default=cPDBlueMin)
-   call self%get_parameter(self%fDissMortPhyt,'fDissMortPhyt',default=fDissMortPhyt)
-   call self%get_parameter(self%cSiDDiat,'cSiDDiat',default=cSiDDiat)
-   call self%get_parameter(self%cNDBlueMax,'cNDBlueMax',default=cNDBlueMax)
-   call self%get_parameter(self%cNDDiatMax,'cNDDiatMax',default=cNDDiatMax)
-   call self%get_parameter(self%cNDGrenMax,'cNDGrenMax',default=cNDGrenMax)
-   call self%get_parameter(self%cPDBlueMax,'cPDBlueMax',default=cPDBlueMax)
-   call self%get_parameter(self%cPDDiatMax,'cPDDiatMax',default=cPDDiatMax)
-   call self%get_parameter(self%cPDGrenMax,'cPDGrenMax',default=cPDGrenMax)
+   call self%get_parameter(self%cSigTmDiat,   'cSigTmDiat',   '°C',       'temperature constant diatoms (sigma in Gaussian curve)',    default=20.0_rk)
+   call self%get_parameter(self%cTmOptDiat,   'cTmOptDiat',   '°C',       'optimum temp. diatoms',                                     default=18.0_rk)
+   call self%get_parameter(self%cSigTmBlue,   'cSigTmBlue',   '°C',       'temperature constant blue-greens (sigma in Gaussian curve)',default=12.0_rk)
+   call self%get_parameter(self%cTmOptBlue,   'cTmOptBlue',   '°C',       'optimum temp. blue-greens',                                 default=25.0_rk)
+   call self%get_parameter(self%cSigTmGren,   'cSigTmGren',   '°C',       'temperature constant greens (sigma in Gaussian curve)',     default=15.0_rk)
+   call self%get_parameter(self%cTmOptGren,   'cTmOptGren',   '°C',       'optimum temp. of greens',                                   default=25.0_rk)
+   call self%get_parameter(self%kMortDiatS,   'kMortDiatS',   'd-1',      'mortality constant of sed. Diatoms',                        default=0.05_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%kDRespDiat,   'kDRespDiat',   'd-1',      'maintenance respiration constant diatoms',                  default=0.1_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cNDDiatMin,   'cNDDiatMin',   'mgN/mgDW', 'minimum N/day ratio Diatoms',                               default=0.01_rk)
+   call self%get_parameter(self%cPDDiatMin,   'cPDDiatMin',   'mgP/mgDW', 'minimum P/day ratio Diatoms',                               default=0.0005_rk)
+   call self%get_parameter(self%kMortGrenS,   'kMortGrenS',   'd-1',      'mortality constant greens',                                 default=0.05_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%kDRespGren,   'kDRespGren',   'd-1',      'maintenance respiration constant greens ',                  default=0.075_rk,scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cNDGrenMin,   'cNDGrenMin',   'mgN/mgDW', 'minimum N/day ratio greens',                                default=0.02_rk)
+   call self%get_parameter(self%cPDGrenMin,   'cPDGrenMin',   'mgP/mgDW', 'minimum P/day ratio greens',                                default=0.0015_rk)
+   call self%get_parameter(self%kMortBlueS,   'kMortBlueS',   'd-1',      'mortality constant Bluegreens',                             default=0.2_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%kDRespBlue,   'kDRespBlue',   'd-1',      'maintenance respiration constant blue-greens',              default=0.03_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cNDBlueMin,   'cNDBlueMin',   'mgN/mgDW', 'minimum N/day ratio Bluegreens',                            default=0.03_rk)
+   call self%get_parameter(self%cPDBlueMin,   'cPDBlueMin',   'mgP/mgDW', 'minimum P/day ratio Bluegreens',                            default=0.0025_rk)
+   call self%get_parameter(self%fDissMortPhyt,'fDissMortPhyt','[-]',      'soluble nutrient fraction of died Algae',                   default=0.2_rk)
+   call self%get_parameter(self%cSiDDiat,     'cSiDDiat',     'mgSi/mgDW','Si/D ratio of diatoms',                                     default=0.15_rk)
+   call self%get_parameter(self%cNDBlueMax,   'cNDBlueMax',   'mgN/mgDW', 'max. N/day ratio Bluegreens',                               default=0.15_rk)
+   call self%get_parameter(self%cNDDiatMax,   'cNDDiatMax',   'mgN/mgDW', 'max. N/day ratio Diatoms',                                  default=0.05_rk)
+   call self%get_parameter(self%cNDGrenMax,   'cNDGrenMax',   'mgN/mgDW', 'max. N/day ratio greens',                                   default=0.1_rk)
+   call self%get_parameter(self%cPDBlueMax,   'cPDBlueMax',   'mgP/mgDW', 'max. P/day ratio blue-greens',                              default=0.025_rk)
+   call self%get_parameter(self%cPDDiatMax,   'cPDDiatMax',   'mgP/mgDW', 'max. P/day ratio Diatoms',                                  default=0.005_rk)
+   call self%get_parameter(self%cPDGrenMax,   'cPDGrenMax',   'mgP/mgDW', 'max. P/day ratio greens',                                   default=0.015_rk)
+
 !  Register local state variable
-   call self%register_state_variable(self%id_sDDiatS,'sDDiatS','g/m**2','diatom_D in sediment',     &
-                                    sDDiatS_initial,minimum= PhyZeroS)
-   call self%register_state_variable(self%id_sPDiatS,'sPDiatS','g/m**2','diatom_P in sediment',     &
-                                    sPDiatS_initial,minimum= PhyZeroS)
-   call self%register_state_variable(self%id_sNDiatS,'sNDiatS','g/m**2','diatom_N in sediment',     &
-                                    sNDiatS_initial,minimum= PhyZeroS)
-   call self%register_state_variable(self%id_sDGrenS,'sDGrenS','g/m**2','green_D in sediment',     &
-                                    sDGrenS_initial,minimum= PhyZeroS)
-   call self%register_state_variable(self%id_sPGrenS,'sPGrenS','g/m**2','green_P in sediment',     &
-                                    sPGrenS_initial,minimum= PhyZeroS)
-   call self%register_state_variable(self%id_sNGrenS,'sNGrenS','g/m**2','green_N in sediment',     &
-                                    sNGrenS_initial,minimum=PhyZeroS)
-   call self%register_state_variable(self%id_sDBlueS,'sDBlueS','g/m**2','blue_D in sediment',     &
-                                    sDBlueS_initial,minimum=PhyZeroS)
-   call self%register_state_variable(self%id_sPBlueS,'sPBlueS','g/m**2','blue_P in sediment',     &
-                                    sPBlueS_initial,minimum=PhyZeroS)
-   call self%register_state_variable(self%id_sNBlueS,'sNBlueS','g/m**2','blue_N in sediment',     &
-                                    sNBlueS_initial,minimum=PhyZeroS)
-!  register diagnostic variables for local output(with different ways of output)
-   call self%register_diagnostic_variable(self%id_oSiDiatS,'oSiDiatS','g/m**2/s','oSiDiatS',           &
-                  output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_rPDPhytS,'rPDPhytS','--','rPDPhytS',           &
-                  output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_rNDPhytS,'rNDPhytS','--','rNDPhytS',           &
-                  output=output_time_step_averaged)
-!  Register diagnostic variables for dependencies in other modules
-   call self%register_diagnostic_variable(self%id_tDPrimDetS,'tDPrimDetS','g/m**2/s','tDPrimDetS',           &
-                  output=output_none)
+   call self%register_state_variable(self%id_sDDiatS,'sDDiatS','g m-2','diatom_D in sediment',     &
+                                    initial_value=0.001_rk,minimum= PhyZeroS)
+   call self%register_state_variable(self%id_sPDiatS,'sPDiatS','g m-2','diatom_P in sediment',     &
+                                    initial_value=0.00001_rk,minimum= PhyZeroS)
+   call self%register_state_variable(self%id_sNDiatS,'sNDiatS','g m-2','diatom_N in sediment',     &
+                                    initial_value=0.0001_rk,minimum= PhyZeroS)
+   call self%register_state_variable(self%id_sDGrenS,'sDGrenS','g m-2','green_D in sediment',     &
+                                    initial_value=0.001_rk,minimum= PhyZeroS)
+   call self%register_state_variable(self%id_sPGrenS,'sPGrenS','g m-2','green_P in sediment',     &
+                                    initial_value=0.00001_rk,minimum= PhyZeroS)
+   call self%register_state_variable(self%id_sNGrenS,'sNGrenS','g m-2','green_N in sediment',     &
+                                    initial_value=0.0001_rk,minimum=PhyZeroS)
+   call self%register_state_variable(self%id_sDBlueS,'sDBlueS','g m-2','blue_D in sediment',     &
+                                    initial_value=0.001_rk,minimum=PhyZeroS)
+   call self%register_state_variable(self%id_sPBlueS,'sPBlueS','g m-2','blue_P in sediment',     &
+                                    initial_value=0.00001_rk,minimum=PhyZeroS)
+   call self%register_state_variable(self%id_sNBlueS,'sNBlueS','g m-2','blue_N in sediment',     &
+                                    initial_value=0.0001_rk,minimum=PhyZeroS)
+!  register diagnostic variables
+   call self%register_diagnostic_variable(self%id_oSiDiatS,  'oSiDiatS',  'g m-2 s-1','oSiDiatS',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_rPDPhytS,  'rPDPhytS',  '[-]',      'rPDPhytS',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_rNDPhytS,  'rNDPhytS',  '[-]',      'rNDPhytS',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDPrimDetS,'tDPrimDetS','g m-2 s-1','tDPrimDetS',output=output_none)
 !  Register contribution of state to global aggregate variables
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNDiatS)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNGrenS)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNBlueS)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNDiatS)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNGrenS)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNBlueS)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPDiatS)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPGrenS)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPBlueS)
-   call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_oSiDiatS)
+   call self%add_to_aggregate_variable(standard_variables%total_silicate,  self%id_oSiDiatS)
    
 !  regirster state variables dependencies
-!  step1, Register dependencies on external state variables
-   call self%register_state_dependency(self%id_PO4poolS, 'sPO4_pool_sediment','g/m**2','sPO4_pool_sediment')
-   call self%register_state_dependency(self%id_NO3poolS, 'sNO3_pool_sediment','g/m**2','sNO3_pool_sediment')
-   call self%register_state_dependency(self%id_NH4poolS, 'sNH4_pool_sediment','g/m**2','sNH4_pool_sediment')
-   call self%register_state_dependency(self%id_DDetpoolS, 'detritus_DW_pool_sediment','g/m**2','detritus_DW_pool_sediment')
-   call self%register_state_dependency(self%id_NDetpoolS, 'detritus_N_pool_sediment','g/m**2','detritus_N_pool_sediment')
-   call self%register_state_dependency(self%id_PDetpoolS, 'detritus_P_pool_sediment','g/m**2','detritus_P_pool_sediment')
-   call self%register_state_dependency(self%id_SiDetpoolS, 'detritus_Si_pool_sediment','g/m**2','detritus_Si_pool_sediment')
-   call self%register_state_dependency(self%id_SiO2poolW, 'SiO2_pool_water','g/m**3','SiO2_pool_water')
-!  step 2, Automatically couple dependencies if target variables have been specified.
-   if (sPO4_pool_sediment/='') call self%request_coupling(self%id_PO4poolS,sPO4_pool_sediment)
-   if (sNO3_pool_sediment/='') call self%request_coupling(self%id_NO3poolS,sNO3_pool_sediment)
-   if (sNH4_pool_sediment/='') call self%request_coupling(self%id_NH4poolS,sNH4_pool_sediment)
-   if (detritus_DW_pool_sediment/='') call self%request_coupling(self%id_DDetpoolS,detritus_DW_pool_sediment)
-   if (detritus_N_pool_sediment/='') call self%request_coupling(self%id_NDetpoolS,detritus_N_pool_sediment)
-   if (detritus_P_pool_sediment/='') call self%request_coupling(self%id_PDetpoolS,detritus_P_pool_sediment)
-   if (detritus_Si_pool_sediment/='') call self%request_coupling(self%id_SiDetpoolS,detritus_Si_pool_sediment)
-   if (SiO2_pool_water/='') call self%request_coupling(self%id_SiO2poolW,SiO2_pool_water)
-!  register environmental dependencies
+   call self%register_state_dependency(self%id_PO4poolS,  'sPO4_pool_sediment',       'g m-2', 'sPO4_pool_sediment')
+   call self%register_state_dependency(self%id_NO3poolS,  'sNO3_pool_sediment',       'g m-2', 'sNO3_pool_sediment')
+   call self%register_state_dependency(self%id_NH4poolS,  'sNH4_pool_sediment',       'g m-2', 'sNH4_pool_sediment')
+   call self%register_state_dependency(self%id_DDetpoolS, 'detritus_DW_pool_sediment','g m-2', 'detritus_DW_pool_sediment')
+   call self%register_state_dependency(self%id_NDetpoolS, 'detritus_N_pool_sediment', 'g m-2', 'detritus_N_pool_sediment')
+   call self%register_state_dependency(self%id_PDetpoolS, 'detritus_P_pool_sediment', 'g m-2', 'detritus_P_pool_sediment')
+   call self%register_state_dependency(self%id_SiDetpoolS,'detritus_Si_pool_sediment','g m-2', 'detritus_Si_pool_sediment')
+   call self%register_state_dependency(self%id_SiO2poolW, 'SiO2_pool_water',          'g m-3', 'SiO2_pool_water')
+
+
    call self%register_dependency(self%id_uTm,standard_variables%temperature)
 
       return
 
-99 call self%fatal_error('pclake_phytoplankton_sediment_init','Error reading namelist pclake_phytoplankton_sediment')
-
-100 call self%fatal_error('pclake_phytoplankton_sediment_init','Namelist pclake_phytoplankton_sediment was not found.')
    end subroutine initialize
 !EOC
 !-----------------------------------------------------------------------

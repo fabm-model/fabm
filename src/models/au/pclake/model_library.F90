@@ -34,7 +34,6 @@ module au_pclake_model_library
    use au_pclake_foodweb_water
    use au_pclake_foodweb_sediment
    use au_pclake_auxilary
-   use au_pclake_dummy_state
 
    implicit none
 
@@ -66,7 +65,6 @@ contains
          case ('foodweb_water');          allocate(type_au_pclake_foodweb_water::model);
          case ('foodweb_sediment');       allocate(type_au_pclake_foodweb_sediment::model);
          case ('auxilary');               allocate(type_au_pclake_auxilary::model);
-         case ('dummy_state');            allocate(type_au_pclake_dummy_state::model);
          case default
             call self%type_base_model_factory%create(name,model)
        end select
