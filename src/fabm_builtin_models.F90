@@ -86,8 +86,15 @@ module fabm_builtin_models
       procedure :: initialize => horizontal_constant_initialize
    end type
 
+   type,extends(type_base_model) :: type_surface_flux
+      type (type_state_variable_id) :: id_target
+      real(rk) :: flux
    contains
+      procedure :: initialize => surface_flux_initialize
+      procedure :: do_surface => surface_flux_do_surface
+   end type
 
+   contains
 
    subroutine create(self,name,model)
       class (type_factory),intent(in) :: self
@@ -97,6 +104,7 @@ module fabm_builtin_models
       select case (name)
          case ('bulk_constant');       allocate(type_bulk_constant::model)
          case ('horizontal_constant'); allocate(type_horizontal_constant::model)
+         case ('surface_flux');        allocate(type_surface_flux::model)
          ! Add new examples models here
       end select
 
@@ -373,7 +381,7 @@ module fabm_builtin_models
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
             output=output_none)
       end if
-   end subroutine
+   end subroutine bulk_constant_initialize
 
    subroutine horizontal_constant_initialize(self,configunit)
       class (type_horizontal_constant),intent(inout),target :: self
@@ -391,6 +399,26 @@ module fabm_builtin_models
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
             output=output_none)
       end if
-   end subroutine
+   end subroutine horizontal_constant_initialize
+
+   subroutine surface_flux_initialize(self,configunit)
+      class (type_surface_flux),intent(inout),target :: self
+      integer,                  intent(in)           :: configunit
+
+      character(len=attribute_length) :: standard_name
+      real(rk)                        :: value
+
+      call self%register_state_dependency(self%id_target,'target','UNITS m-3','target variable')
+      call self%get_parameter(self%flux,'flux','UNITS m-2 s-1','flux (positive for into water)')
+   end subroutine surface_flux_initialize
+
+   subroutine surface_flux_do_surface(self,_ARGUMENTS_DO_SURFACE_)
+      class (type_surface_flux), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_SURFACE_
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _SET_SURFACE_EXCHANGE_(self%id_target,self%flux)
+      _HORIZONTAL_LOOP_END_
+   end subroutine surface_flux_do_surface
 
 end module fabm_builtin_models
