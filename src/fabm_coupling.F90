@@ -67,6 +67,9 @@ contains
       ! Allow inheriting models to perform additional tasks after coupling.
       call after_coupling(self)
 
+      ! Check whether units of coupled variables match
+      !call check_coupling_units(self)
+
       call freeze(self)
    end subroutine freeze_model_info
 !EOC
@@ -681,5 +684,29 @@ recursive subroutine find_dependencies(self,list,forbidden)
    ! Clean up our temporary list.
    call forbidden_with_self%finalize()
 end subroutine find_dependencies
+
+   recursive subroutine check_coupling_units(self)
+      class (type_base_model),intent(in),target :: self
+
+      type (type_link),           pointer :: link
+      type (type_model_list_node),pointer :: child
+
+      link => self%links%first
+      do while (associated(link))
+         if (index(link%name,'/')==0 .and. .not. associated(link%target,link%original)) then
+            if (link%target%units/=''.and. link%original%units/=''.and. link%target%units/=link%original%units) &
+               call log_message('WARNING: unit mismatch between master '//trim(link%target%name)//' ('//trim(link%target%units)// &
+                  ') and slave '//trim(link%original%name)//' ('//trim(link%original%units)//').')
+         end if
+         link => link%next
+      end do
+
+      ! Process child models
+      child => self%children%first
+      do while (associated(child))
+         call check_coupling_units(child%model)
+         child => child%next
+      end do
+   end subroutine check_coupling_units
 
 end module
