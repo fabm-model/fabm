@@ -23,7 +23,6 @@
 !!                                                                   !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include <fms_platform.h>
-#include "fabm_driver.h"
 
 !
 !
@@ -766,9 +765,7 @@ do n = 1, instances  !{
     '-', missing_value = -1.0e+10)
 
   call fabm_set_domain(biotic(n)%model,iec-isc+1,jec-jsc+1,nk)
-#ifdef _FABM_MASK_
   call fabm_set_mask(biotic(n)%model,grid_tmask(isc:iec,jsc:jec,:))
-#endif
 
 enddo  !} n
 
@@ -791,7 +788,7 @@ do n=1,instances
    allocate(biotic(n)%adv    (        nk+1,size(biotic(n)%model%info%state_variables)))
    if (any(biotic(n)%inds_cons>0).or.any(biotic(n)%inds_cons_tot>0).or.any(biotic(n)%inds_cons_ave>0)) then
       allocate(biotic(n)%work_cons(isd:ied,jsd:jed,nk,size(biotic(n)%model%info%conserved_quantities)))
-      biotic(n)%work_cons = _ZERO_
+      biotic(n)%work_cons = 0
    end if
   allocate(biotic(n)%bottom_state(isc:iec,jsc:jec,size(biotic(n)%model%info%bottom_state_variables)))
   do i=1,size(biotic(n)%model%info%bottom_state_variables)
@@ -1000,19 +997,10 @@ do n = 1, instances  !{
   call fabm_check_ready(biotic(n)%model)
 
   ! Repair bio state at the start of the time step
-  clipped = _ZERO_
+  clipped = 0
   do k = 1, nk  !{
     do j = jsc, jec  !{
-#ifdef _FABM_USE_1D_LOOP_
       call fabm_check_state(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,.true.,valid)
-#else
-      do i = isc, iec  !{
-        if (grid_tmask(i,j,k)==1.) then
-          call fabm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.,valid)
-          if (.not.valid) clipped(i,j,k) = _ONE_
-        end if
-      end do
-#endif
     end do
   end do
 
@@ -1032,15 +1020,7 @@ do n = 1, instances  !{
      ! Get 3D fields of conserved quantities from FABM
      do k = 1, nk  !{
        do j = jsc, jec  !{
-#ifdef _FABM_USE_1D_LOOP_
          call fabm_get_conserved_quantities(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,biotic(n)%work_cons(isc:iec,j,k,:))
-#else
-         do i = isc, iec  !{
-           if (grid_tmask(i,j,k)==1.) then
-             call fabm_get_conserved_quantities(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_cons(i,j,k,:))
-           end if
-         end do
-#endif
        end do
      end do
 
@@ -1089,22 +1069,10 @@ do n = 1, instances  !{
       ! Initialize derivatives to zero, because the bio model will increment/decrement values rather than set them.
       biotic(n)%work_dy = 0.d0
 
-#ifdef _FABM_USE_1D_LOOP_
       call fabm_do(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,biotic(n)%work_dy(isc:iec,:))
       if (any(isnan(biotic(n)%work_dy(isc:iec,:)))) then
          call mpp_error(FATAL,trim(error_header) // ' NaN in FABM sink/source terms.')
       end if
-#else
-      do i = isc, iec  !{
-        ! Call bio model for current grid point, provided that it is wet
-        if (grid_tmask(i,j,k)==1.) then
-           call fabm_do(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%work_dy(i,:))
-           if (any(isnan(biotic(n)%work_dy(i,:)))) then
-              call mpp_error(FATAL,trim(error_header) // ' NaN in FABM sink/source terms.')
-           end if
-        end if
-      end do  !} i
-#endif
 
       if (.not.disable_sources) then
          ! Update tendencies with current sink and source terms.
@@ -1151,19 +1119,9 @@ do n = 1, instances  !{
   ! Vertical movement is applied with a first-order upwind scheme.
   do j = jsc, jec
     ! For every i: get sinking speed in cell centers, over entire column, for all state variables.
-#ifdef _FABM_USE_1D_LOOP_
     do k=1,nk
       call fabm_get_vertical_movement(biotic(n)%model,1,iec-isc+1,j-jsc+1,k,biotic(n)%w(:,k,:))
     end do
-#else
-    do i = isc, iec
-      if (grid_tmask(i,j,1)==1.) then
-         do k=1,grid_kmt(i,j)
-           call fabm_get_vertical_movement(biotic(n)%model,i-isc+1,j-jsc+1,k,biotic(n)%w(i,k,:))
-         end do
-      end if
-    end do
-#endif
 
     do i = isc, iec
      if (grid_tmask(i,j,1)/=1.) cycle
@@ -1799,14 +1757,7 @@ do n = 1, instances  !{
    ! Set surface fluxes for biota
    do j = jsc, jec  !{
     biotic(n)%work_dy = 0.d0
-#ifdef _FABM_USE_1D_LOOP_
     call fabm_get_surface_exchange(biotic(n)%model,1,iec-isc+1,j-jsc+1,1,biotic(n)%work_dy(:,:))
-#else
-    do i = isc, iec  !{
-      if (grid_tmask(i,j,1)==1.) &
-         call fabm_get_surface_exchange(biotic(n)%model,i-isc+1,j-jsc+1,1,biotic(n)%work_dy(i,:))
-    enddo  !} i
-#endif
     do ivar=1,size(biotic(n)%model%info%state_variables)
       biotic(n)%sf_fluxes(isc:iec,j,ivar) = biotic(n)%sf_fluxes(isc:iec,j,ivar) + biotic(n)%work_dy(isc:iec,ivar)*rho(isc:iec,j,1,taum1)
     end do
@@ -2130,14 +2081,7 @@ do n = 1, instances  !{
 !   ! Set surface fluxes for biota
 !   do j = jsc, jec  !{
 !    biotic(n)%work_dy = 0.d0
-!#ifdef _FABM_USE_1D_LOOP_
 !    call fabm_get_surface_exchange(biotic(n)%model,1,iec-isc+1,j-jsc+1,1,biotic(n)%work_dy(:,:))
-!#else
-!    do i = isc, iec  !{
-!      if (grid_tmask(i,j,1)==1.) &
-!         call fabm_get_surface_exchange(biotic(n)%model,i-isc+1,j-jsc+1,1,biotic(n)%work_dy(i,:))
-!    enddo  !} i
-!#endif
     do ivar=1,size(biotic(n)%model%info%state_variables)
       t_prog(biotic(n)%inds(ivar))%stf(isc:iec,jsc:jec) = biotic(n)%sf_fluxes(isc:iec,jsc:jec,ivar)
     end do

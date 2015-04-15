@@ -321,9 +321,9 @@ module fabm_builtin_models
       if (present(include_background)) component%include_background = include_background
    end subroutine
 
-   subroutine horizontal_weighted_sum_evaluate_horizontal(self,_ARGUMENTS_HZ_)
+   subroutine horizontal_weighted_sum_evaluate_horizontal(self,_ARGUMENTS_HORIZONTAL_)
       class (type_horizontal_weighted_sum),intent(in) :: self
-      _DECLARE_ARGUMENTS_HZ_
+      _DECLARE_ARGUMENTS_HORIZONTAL_
 
       type (type_horizontal_component),pointer        :: component
       real(rk)                                        :: value
@@ -348,7 +348,7 @@ module fabm_builtin_models
    subroutine horizontal_weighted_sum_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
       class (type_horizontal_weighted_sum),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
-      call self%evaluate_horizontal(_ARGUMENTS_HZ_)
+      call self%evaluate_horizontal(_ARGUMENTS_HORIZONTAL_)
    end subroutine
 
    subroutine simple_depth_integral_initialize(self,configunit)
@@ -386,10 +386,10 @@ module fabm_builtin_models
       call self%get_parameter(value,'value','','value')
       if (standard_name/='') then
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none, standard_variable=type_bulk_standard_variable(name=standard_name))
+            output=output_none, standard_variable=type_bulk_standard_variable(name=standard_name), source=source_none)
       else
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none)
+            output=output_none, source=source_none)
       end if
    end subroutine bulk_constant_initialize
 
@@ -404,10 +404,10 @@ module fabm_builtin_models
       call self%get_parameter(value,'value','','value')
       if (standard_name/='') then
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none, standard_variable=type_horizontal_standard_variable(name=standard_name))
+            output=output_none, standard_variable=type_horizontal_standard_variable(name=standard_name), source=source_none)
       else
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none)
+            output=output_none, source=source_none)
       end if
    end subroutine horizontal_constant_initialize
 

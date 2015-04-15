@@ -89,6 +89,7 @@ add_library(fabm_base OBJECT
             fabm_expressions.F90
             fabm_builtin_models.F90
             ../include/fabm.h
+            ../include/fabm_private.h
             ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/fabm_driver.h
            )
 

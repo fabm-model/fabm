@@ -114,9 +114,9 @@ contains
       call rate_distributor%request_coupling(rate_distributor%id_sms,'result_sms_tot')
    end subroutine depth_integral_initialize
 
-   subroutine depth_integral_do(self,_ARGUMENTS_VERT_)
+   subroutine depth_integral_do(self,_ARGUMENTS_VERTICAL_)
       class (type_depth_integral),intent(in) :: self
-      _DECLARE_ARGUMENTS_VERT_
+      _DECLARE_ARGUMENTS_VERTICAL_
 
       real(rk) :: local,weight,thickness,integral
 

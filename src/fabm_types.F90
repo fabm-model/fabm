@@ -56,7 +56,6 @@
 
    public type_expression, type_bulk_expression, type_horizontal_expression
 
-   public type_bulk_data_pointer,type_horizontal_data_pointer,type_scalar_data_pointer
    public get_aggregate_variable, type_aggregate_variable, type_contributing_variable, type_contribution
    public time_treatment2output,output2time_treatment
 
@@ -70,7 +69,7 @@
 
    integer, parameter, public :: domain_bulk = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
 
-   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4
+   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5
 
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
 !
@@ -91,18 +90,6 @@
    ! ====================================================================================================
    ! Data types for pointers to variable values.
    ! ====================================================================================================
-
-   type type_bulk_data_pointer
-      real(rk),pointer _DIMENSION_GLOBAL_ :: p => null()
-   end type
-
-   type type_horizontal_data_pointer
-      real(rk),pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: p => null()
-   end type
-
-   type type_scalar_data_pointer
-      real(rk),pointer :: p => null()
-   end type
 
    type type_integer_pointer
       integer,pointer :: p => null()
@@ -512,7 +499,6 @@
       procedure :: get_path                 => base_get_path
 
       ! For backward compatibility only - do not use these in new models!
-      procedure :: set_domain               => base_set_domain
       procedure :: do_benthos               => base_do_benthos           ! superceded by do_bottom
       procedure :: do_benthos_ppdd          => base_do_benthos_ppdd      ! superceded by do_bottom_ppdd
       procedure :: get_surface_exchange     => base_get_surface_exchange ! superceded by do_surface
@@ -527,29 +513,18 @@
    ! ====================================================================================================
 
    type type_environment
-      ! Registry with pointers to global fields of readable variables.
-      ! These pointers are accessed to fill the prefetch (see below).
-      type (type_bulk_data_pointer),      allocatable :: data(:)
-      type (type_horizontal_data_pointer),allocatable :: data_hz(:)
-      type (type_scalar_data_pointer),    allocatable :: data_scalar(:)
-
       ! Prefetch arrays that will hold readable data for a single domain slice.
       ! Biogeochemical models use only these to read data.
-      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_            :: prefetch
-      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ALLOCATABLE_ :: prefetch_hz
-      real(rk),allocatable,dimension(:)                                    :: prefetch_scalar
+      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_            :: prefetch
+      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: prefetch_hz
+      real(rk),allocatable,dimension(:)                        :: prefetch_scalar
 
       ! Scratch arrays for writing data associated with for a single domain slice.
-      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_            :: scratch
-      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ALLOCATABLE_ :: scratch_hz
+      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_            :: scratch
+      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: scratch_hz
 
-#ifdef _FABM_MASK_
-#ifdef _FABM_HORIZONTAL_MASK_
-      _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: mask => null()
-#else
-      _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
-#endif
-      logical,allocatable _DIMENSION_SLICE_ALLOCATABLE_ :: prefetch_mask
+#ifdef _FABM_MASK_TYPE_
+      logical,allocatable _DIMENSION_SLICE_ :: mask
 #endif
    end type type_environment
 
@@ -649,9 +624,9 @@
       _DECLARE_ARGUMENTS_GET_ALBEDO_
    end subroutine
 
-   subroutine base_get_light(self,_ARGUMENTS_VERT_)
+   subroutine base_get_light(self,_ARGUMENTS_VERTICAL_)
       class (type_base_model),intent(in) :: self
-      _DECLARE_ARGUMENTS_VERT_
+      _DECLARE_ARGUMENTS_VERTICAL_
    end subroutine
 
    ! Bookkeeping
@@ -712,12 +687,6 @@
       else
          call log_message(message)
       end if
-   end subroutine
-
-   ! For backward compatibility only
-   subroutine base_set_domain(self _ARG_LOCATION_)
-      class (type_base_model),intent(inout) :: self
-      _DECLARE_LOCATION_ARG_
    end subroutine
 
    subroutine base_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)

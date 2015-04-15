@@ -1,4 +1,5 @@
 #include "fabm_driver.h"
+#include "fabm_private.h"
 
 ! This module define standard expressions that can be used by biogeochemical models.
 

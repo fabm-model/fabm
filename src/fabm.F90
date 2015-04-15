@@ -1,4 +1,5 @@
 #include "fabm_driver.h"
+#include "fabm_private.h"
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -56,7 +57,7 @@
    public fabm_link_bulk_data, fabm_link_horizontal_data, fabm_link_scalar_data
    public fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
 
-#ifdef _FABM_MASK_
+#ifdef _HAS_MASK_
    ! Set spatial mask
    public fabm_set_mask
 #endif
@@ -158,6 +159,18 @@
       class (type_horizontal_weighted_sum),pointer  :: horizontal_sum     => null()
    end type type_conserved_quantity_info
 
+   type type_bulk_data_pointer
+      real(rk),pointer _DIMENSION_GLOBAL_ :: p => null()
+   end type
+
+   type type_horizontal_data_pointer
+      real(rk),pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: p => null()
+   end type
+
+   type type_scalar_data_pointer
+      real(rk),pointer :: p => null()
+   end type
+
    ! Derived type for a single generic biogeochemical model
    type type_model
       type (type_base_model)  :: root
@@ -187,8 +200,8 @@
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_hz
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar
 
-      integer                       :: extinction_index = -1
-      type (type_model_list)        :: extinction_call_list, conserved_quantity_call_list
+      integer                :: extinction_index = -1
+      type (type_model_list) :: extinction_call_list, conserved_quantity_call_list
 
       type (type_link_list) :: links_postcoupling
 
@@ -198,8 +211,25 @@
       real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
       integer                                                   :: domain_size(_FABM_DIMENSION_COUNT_)
-      integer                                                   :: horizontal_domain_size(_FABM_DIMENSION_COUNT_HZ_)
+      integer                                                   :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
       integer,allocatable,dimension(:)                          :: zero_bulk_indices,zero_surface_indices,zero_bottom_indices
+
+      ! Registry with pointers to global fields of readable variables.
+      ! These pointers are accessed to fill the prefetch (see below).
+      type (type_bulk_data_pointer),      allocatable :: data(:)
+      type (type_horizontal_data_pointer),allocatable :: data_hz(:)
+      type (type_scalar_data_pointer),    allocatable :: data_scalar(:)
+
+#ifdef _HAS_MASK_
+#  ifdef _FABM_HORIZONTAL_MASK_
+      _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: mask => null()
+#  else
+      _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
+#  endif
+#endif
+
+      integer :: nscratch = -1
+      integer :: nscratch_hz = -1
    contains
       procedure :: link_bulk_data_by_variable => fabm_link_bulk_data_by_variable
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
@@ -333,9 +363,6 @@
       module procedure fabm_do_surface
    end interface
 !
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !-----------------------------------------------------------------------
 
@@ -369,10 +396,8 @@
    integer,                  intent(in) :: file_unit
    logical,optional,         intent(in) :: do_not_initialize
    type (type_model),pointer            :: model
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 
+! !LOCAL VARIABLES:
    logical                   :: isopen,initialize
    character(len=256)        :: file_eff
    integer                   :: i,j,modelcount,ownindex
@@ -380,6 +405,7 @@
    class (type_base_model),pointer :: childmodel
    logical,parameter         :: alwayspostfixindex=.false.
    namelist /fabm_nml/ models
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -473,11 +499,10 @@
 ! !INPUT PARAMETERS:
       class (type_model),target,intent(inout) :: self
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
+! !LOCAL VARIABLES:
       type (type_aggregate_variable),pointer :: aggregate_variable
       class (type_custom_extinction_calculator),pointer :: extinction_calculator
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -568,12 +593,10 @@
       class (type_model),     intent(in) :: self
       class (type_base_model),intent(in) :: model
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
       type (type_model_list_node),pointer :: child
       character(len=4) :: strcount
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -601,8 +624,6 @@
 ! !INPUT PARAMETERS:
    class (type_model),target,intent(inout) :: self
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -623,21 +644,19 @@
 ! !IROUTINE: Provide FABM with the extents of the spatial domain.
 !
 ! !INTERFACE:
-   subroutine fabm_set_domain(self _ARG_LOCATION_,seconds_per_time_unit)
+   subroutine fabm_set_domain(self _ARGUMENTS_LOCATION_,seconds_per_time_unit)
 !
 ! !INPUT PARAMETERS:
    class (type_model),target,intent(inout) :: self
-   _DECLARE_LOCATION_ARG_
+   _DECLARE_ARGUMENTS_LOCATION_
    real(rk),optional,        intent(in)    :: seconds_per_time_unit
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
   type (type_model_list_node), pointer :: node
-  integer                              :: ivar,n,index
+  integer                              :: ivar,index
   class (type_expression),pointer      :: expression
   type (type_link),pointer             :: link
+  integer                              :: n
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -645,25 +664,9 @@
 #if _FABM_DIMENSION_COUNT_>0
    self%domain_size = (/ _LOCATION_ /)
 #endif
-#if _FABM_DIMENSION_COUNT_HZ_>0
-   self%horizontal_domain_size = (/ _LOCATION_HZ_ /)
+#if _HORIZONTAL_DIMENSION_COUNT_>0
+   self%horizontal_domain_size = (/ _HORIZONTAL_LOCATION_ /)
 #endif
-
-   ! Forward domain to individual biogeochemical models.
-   ! Also determine whether one of the models needs conservation checks for its sink and source terms.
-   node => self%models%first
-   do while (associated(node))
-      call node%model%set_domain(_LOCATION_)
-      node => node%next
-   end do
-
-   ! Allocate memory to hold readable variables for a single domain slice.
-   allocate(self%environment%prefetch _INDEX_SLICE_PLUS_1_(size(self%environment%data)))
-   allocate(self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(size(self%environment%data_hz)))
-   allocate(self%environment%prefetch_scalar(size(self%environment%data_scalar)))
-   self%environment%prefetch = 0.0_rk
-   self%environment%prefetch_hz = 0.0_rk
-   self%environment%prefetch_scalar = 0.0_rk
 
    allocate(self%zero _INDEX_LOCATION_)
    self%zero = 0.0_rk
@@ -699,39 +702,33 @@
 
    ! Assign write indices in scratch space to all bulk diagnostic variables.
    ! Must be done after calls to merge_aggregating_diagnostics.
-   n = 0
+   self%nscratch = 0
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
          case (domain_bulk)
             if (.not.link%target%write_indices%is_empty().and.link%target%write_indices%value==-1) then
-               n = n + 1
-               call link%target%write_indices%set_value(n)
+               self%nscratch = self%nscratch + 1
+               call link%target%write_indices%set_value(self%nscratch)
             end if
       end select
       link => link%next
    end do
 
-   ! Allocate scratch memory for bulk variables.
-   allocate(self%environment%scratch _INDEX_SLICE_PLUS_1_(n))
-
-   ! Assign write indices in scratch space to all bulk diagnostic variables.
+   ! Assign write indices in scratch space to all horizontal diagnostic variables.
    ! Must be done after calls to merge_aggregating_diagnostics.
-   n = 0
+   self%nscratch_hz = 0
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
          case (domain_horizontal,domain_surface,domain_bottom)
             if (.not.link%target%write_indices%is_empty().and.link%target%write_indices%value==-1) then
-               n = n + 1
-               call link%target%write_indices%set_value(n)
+               self%nscratch_hz = self%nscratch_hz + 1
+               call link%target%write_indices%set_value(self%nscratch_hz)
             end if
       end select
       link => link%next
    end do
-
-   ! Allocate scratch memory for horizontal variables.
-   allocate(self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(n))
 
    ! Create lists of scratch variables that require zeroing before calling biogeochemical models.
    link => self%links_postcoupling%first
@@ -749,29 +746,6 @@
       link => link%next
    end do
 
-#ifdef _FABM_MASK_
-   allocate(self%environment%prefetch_mask _INDEX_SLICE_)
-#endif
-
-#ifdef _FULL_DOMAIN_IN_SLICE_
-   ! Fill memory for diagnostic variable with missing values, and save pointers for data retrieval.
-   do ivar=1,size(self%diagnostic_variables)
-      index = self%diagnostic_variables(ivar)%target%write_indices%value
-      if (index>0) then
-         self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ index) = self%diagnostic_variables(ivar)%missing_value
-         call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%target, &
-            self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ index))
-      end if
-   end do
-   do ivar=1,size(self%horizontal_diagnostic_variables)
-      index = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
-      if (index>0) then
-         self%environment%scratch_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
-         call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%target, &
-            self%environment%scratch_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index))
-      end if
-   end do
-#else
    ! Allocate memory for full-domain storage of bulk diagnostics
    n = 0
    do ivar=1,size(self%diagnostic_variables)
@@ -791,7 +765,7 @@
          self%horizontal_diagnostic_variables(ivar)%save_index = n
       end if
    end do
-   allocate(self%diag_hz(_PREARG_LOCATION_HZ_ 0:n))
+   allocate(self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ 0:n))
    self%diag_hz = 0.0_rk
 
    ! Initialize diagnostic variables to missing value.
@@ -805,11 +779,10 @@
    do ivar=1,size(self%horizontal_diagnostic_variables)
       index = self%horizontal_diagnostic_variables(ivar)%save_index
       if (index>0) then
-         self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
-         call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%target, self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ index))
+         self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
+         call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%target, self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ index))
       end if
    end do
-#endif
 
    if (present(seconds_per_time_unit)) then
       expression => self%root%first_expression
@@ -823,10 +796,10 @@
                                         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
             class is (type_horizontal_temporal_mean)
                expression%period = expression%period/seconds_per_time_unit
-               allocate(expression%history(_PREARG_LOCATION_HZ_ expression%n+3))
+               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n+3))
                expression%history = 0.0_rk
                call fabm_link_horizontal_data(self,expression%output_name, &
-                                              expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+3))
+                                              expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+3))
          end select
          expression => expression%next
       end do
@@ -860,7 +833,7 @@
       end do
    end subroutine merge_aggregating_diagnostics
 
-#ifdef _FABM_MASK_
+#ifdef _HAS_MASK_
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -877,16 +850,14 @@
    _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_            :: mask
 #endif
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
    integer :: i
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
 #ifdef _FABM_HORIZONTAL_MASK_
-#if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
+#if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(mask,i)/=self%horizontal_domain_size(i)) &
          call fatal_error('fabm_check_ready','dimensions of FABM domain and provided mask do not match.')
@@ -901,7 +872,7 @@
 #endif
 #endif
 
-   self%environment%mask => mask
+   self%mask => mask
 
    end subroutine fabm_set_mask
 !EOC
@@ -918,9 +889,6 @@
 ! !INPUT PARAMETERS:
    class (type_model),intent(inout),target :: self
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
   type (type_link),pointer :: link
   logical                  :: ready
@@ -930,8 +898,8 @@
 !BOC
    ready = .true.
 
-#ifdef _FABM_MASK_
-   if (.not.associated(self%environment%mask)) then
+#ifdef _HAS_MASK_
+   if (.not.associated(self%mask)) then
       call log_message('spatial mask has not been set.')
       ready = .false.
    end if
@@ -942,19 +910,19 @@
       if (.not.link%target%read_indices%is_empty().and..not.link%target%presence==presence_external_optional) then
          select case (link%target%domain)
             case (domain_bulk)
-               if (.not.associated(self%environment%data(link%target%read_indices%value)%p)) then
+               if (.not.associated(self%data(link%target%read_indices%value)%p)) then
                   call log_message('data for dependency "'//trim(link%name)// &
                      & '", defined on the full model domain, have not been provided.')
                   ready = .false.
                end if
             case (domain_horizontal,domain_surface,domain_bottom)
-               if (.not.associated(self%environment%data_hz(link%target%read_indices%value)%p)) then
+               if (.not.associated(self%data_hz(link%target%read_indices%value)%p)) then
                   call log_message('data for dependency "'//trim(link%name)// &
                      &  '", defined on a horizontal slice of the model domain, have not been provided.')
                   ready = .false.
                end if
             case (domain_scalar)
-               if (.not.associated(self%environment%data_scalar(link%target%read_indices%value)%p)) then
+               if (.not.associated(self%data_scalar(link%target%read_indices%value)%p)) then
                   call log_message('data for dependency "'//trim(link%name)// &
                      &  '", defined as global scalar quantity, have not been provided.')
                   ready = .false.
@@ -966,142 +934,10 @@
 
    if (.not.ready) call fatal_error('fabm_check_ready','FABM is lacking required data.')
 
-   ! Host has sent all fields - disbale all optional fields that were not provided in individual BGC models.
+   ! Host has sent all fields - disable all optional fields that were not provided in individual BGC models.
    call filter_readable_variable_registry(self)
 
    end subroutine fabm_check_ready
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Initialize the model state (pelagic).
-!
-! !INTERFACE:
-   subroutine fabm_initialize_state(self _ARG_LOCATION_ND_)
-!
-! !INPUT PARAMETERS:
-   class (type_model),     intent(inout) :: self
-   _DECLARE_LOCATION_ARG_ND_
-!
-! !LOCAL PARAMETERS:
-   integer                               :: ivar
-   type (type_model_list_node), pointer  :: node
-   real(rk)                              :: initial_value
-   type (type_bulk_data_pointer)         :: p
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   call prefetch(self%environment _ARG_LOCATION_ND_)
-
-   do ivar=1,size(self%state_variables)
-      ! Shortcuts to variable information - this demonstrably helps the compiler with vectorization (ifort).
-      p = self%environment%data(self%state_variables(ivar)%globalid%read_index)
-      initial_value = self%state_variables(ivar)%initial_value
-      _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-         p%p _INDEX_LOCATION_ = initial_value
-      _CONCURRENT_LOOP_END_
-   end do
-
-   ! Allow biogeochemical models to initialize their bulk state.
-   node => self%models%first
-   do while (associated(node))
-      call node%model%initialize_state(_ARGUMENTS_ND_IN_)
-      node => node%next
-   end do
-
-   end subroutine fabm_initialize_state
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Initialize the bottom model state.
-!
-! !INTERFACE:
-   subroutine fabm_initialize_bottom_state(self _ARG_LOCATION_VARS_HZ_)
-!
-! !INPUT PARAMETERS:
-   class (type_model), intent(inout) :: self
-   _DECLARE_LOCATION_ARG_HZ_
-!
-! !LOCAL PARAMETERS:
-   integer                               :: ivar
-   type (type_model_list_node), pointer  :: node
-   real(rk)                              :: initial_value
-   type (type_horizontal_data_pointer)   :: p
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
-
-   ! Initialize bottom variables
-   do ivar=1,size(self%bottom_state_variables)
-      p = self%environment%data_hz(self%bottom_state_variables(ivar)%globalid%read_index)
-      initial_value = self%bottom_state_variables(ivar)%initial_value
-      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-         p%p _INDEX_HORIZONTAL_LOCATION_ = initial_value
-      _CONCURRENT_HORIZONTAL_LOOP_END_
-   end do
-
-   ! Allow biogeochemical models to initialize their bottom state.
-   node => self%models%first
-   do while (associated(node))
-      call node%model%initialize_bottom_state(_ARGUMENTS_IN_HZ_)
-      node => node%next
-   end do
-
-   end subroutine fabm_initialize_bottom_state
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Initialize the surface model state.
-!
-! !INTERFACE:
-   subroutine fabm_initialize_surface_state(self _ARG_LOCATION_VARS_HZ_)
-!
-! !INPUT PARAMETERS:
-   class (type_model),     intent(inout) :: self
-   _DECLARE_LOCATION_ARG_HZ_
-!
-! !LOCAL PARAMETERS:
-   integer                               :: ivar
-   type (type_model_list_node), pointer  :: node
-   real(rk)                              :: initial_value
-   type (type_horizontal_data_pointer)   :: p
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
-
-   ! Initialize surface variables
-   do ivar=1,size(self%surface_state_variables)
-      p = self%environment%data_hz(self%surface_state_variables(ivar)%globalid%read_index)
-      initial_value = self%surface_state_variables(ivar)%initial_value
-      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-         p%p _INDEX_HORIZONTAL_LOCATION_ = initial_value
-      _CONCURRENT_HORIZONTAL_LOOP_END_
-   end do
-
-   ! Allow biogeochemical models to initialize their surface state.
-   node => self%models%first
-   do while (associated(node))
-      call node%model%initialize_surface_state(_ARGUMENTS_IN_HZ_)
-      node => node%next
-   end do
-
-   end subroutine fabm_initialize_surface_state
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1122,8 +958,7 @@
 ! !RETURN VALUE:
    type (type_bulk_variable_id) :: id
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
+! !LOCAL VARIABLES:
    type (type_link),       pointer :: link
 !
 !EOP
@@ -1195,8 +1030,7 @@
 ! !RETURN VALUE:
    type (type_horizontal_variable_id) :: id
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
+! !LOCAL VARIABLES:
    type (type_link),       pointer :: link
 !
 !EOP
@@ -1271,8 +1105,7 @@
 ! !RETURN VALUE:
    type (type_scalar_variable_id) :: id
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
+! !LOCAL VARIABLES:
    type (type_link),       pointer :: link
 !
 !EOP
@@ -1344,9 +1177,6 @@
 ! !RETURN VALUE:
    character(len=attribute_length)            :: name
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1371,9 +1201,6 @@
 !
 ! !RETURN VALUE:
    character(len=attribute_length)              :: name
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1400,9 +1227,6 @@
 ! !RETURN VALUE:
    character(len=attribute_length)           :: name
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1425,9 +1249,6 @@
 !
 ! !RETURN VALUE:
    logical                                    :: used
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1452,14 +1273,11 @@
 ! !RETURN VALUE:
    logical                                :: required
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    required = id%read_index/=-1
-   if (required) required = .not.associated(self%environment%data(id%read_index)%p)
+   if (required) required = .not.associated(self%data(id%read_index)%p)
 
    end function fabm_bulk_variable_needs_values
 !EOC
@@ -1478,9 +1296,6 @@
 !
 ! !RETURN VALUE:
    logical                                     :: used
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1505,9 +1320,6 @@
 ! !RETURN VALUE:
    logical                                    :: used
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1531,9 +1343,6 @@
    type(type_internal_variable),      intent(in)    :: variable
    real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
    integer :: i
 !
@@ -1548,7 +1357,7 @@
    end do
 #endif
 
-   if (variable%read_indices%value/=-1) self%environment%data(variable%read_indices%value)%p => dat
+   if (variable%read_indices%value/=-1) self%data(variable%read_indices%value)%p => dat
 
    end subroutine fabm_link_bulk_data_by_variable
 !EOC
@@ -1568,9 +1377,6 @@
    type(type_bulk_variable_id),       intent(inout) :: id
    real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
    integer                                                :: i
 !
@@ -1585,7 +1391,7 @@
    end do
 #endif
 
-   if (id%read_index/=-1) self%environment%data(id%read_index)%p => dat
+   if (id%read_index/=-1) self%data(id%read_index)%p => dat
 
    end subroutine fabm_link_bulk_data_by_id
 !EOC
@@ -1604,9 +1410,6 @@
    class (type_model),                intent(inout) :: model
    type(type_bulk_standard_variable), intent(in)    :: standard_variable
    real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
    type (type_bulk_variable_id)                             :: id
@@ -1638,11 +1441,9 @@
    character(len=*),                  intent(in)    :: name
    real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
    type (type_bulk_variable_id)                             :: id
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1670,16 +1471,13 @@
    type (type_internal_variable),                intent(inout) :: variable
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
    integer                                                :: i
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
+#if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(dat,i)/=self%horizontal_domain_size(i)) then
          call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match for variable '//trim(variable%name)//'.')
@@ -1687,7 +1485,7 @@
    end do
 #endif
 
-   if (variable%read_indices%value/=-1) self%environment%data_hz(variable%read_indices%value)%p => dat
+   if (variable%read_indices%value/=-1) self%data_hz(variable%read_indices%value)%p => dat
 
    end subroutine fabm_link_horizontal_data_by_variable
 !EOC
@@ -1707,16 +1505,13 @@
    type (type_horizontal_variable_id),           intent(inout) :: id
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
    integer                                                :: i
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
+#if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(dat,i)/=self%horizontal_domain_size(i)) then
          call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match for variable '//trim(id%variable%name)//'.')
@@ -1724,7 +1519,7 @@
    end do
 #endif
 
-   if (id%read_index/=-1) self%environment%data_hz(id%read_index)%p => dat
+   if (id%read_index/=-1) self%data_hz(id%read_index)%p => dat
 
    end subroutine fabm_link_horizontal_data_by_id
 !EOC
@@ -1743,9 +1538,6 @@
    class (type_model),                           intent(inout) :: model
    type(type_horizontal_standard_variable),      intent(in)    :: standard_variable
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
    type (type_horizontal_variable_id)                             :: id
@@ -1777,11 +1569,9 @@
    character(len=*),                             intent(in)    :: name
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
    type(type_horizontal_variable_id) :: id
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1809,13 +1599,10 @@
    type (type_scalar_variable_id),intent(inout) :: id
    real(rk),target,               intent(in)    :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   if (id%read_index/=-1) self%environment%data_scalar(id%read_index)%p => dat
+   if (id%read_index/=-1) self%data_scalar(id%read_index)%p => dat
 
    end subroutine fabm_link_scalar_by_id
 !EOC
@@ -1834,9 +1621,6 @@
    class (type_model),                 intent(inout) :: model
    type(type_global_standard_variable),intent(in)    :: standard_variable
    real(rk),target,                    intent(in)    :: dat
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
    type (type_scalar_variable_id) :: id
@@ -1867,11 +1651,9 @@
    character(len=*),  intent(in)    :: name
    real(rk),target,   intent(in)    :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 ! !LOCAL VARIABLES:
    type(type_scalar_variable_id) :: id
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1898,9 +1680,6 @@
    integer,                           intent(in)    :: id
    real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1922,9 +1701,6 @@
    class (type_model),                           intent(inout) :: self
    integer,                                      intent(in)    :: id
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1948,9 +1724,6 @@
    integer,                                      intent(in)    :: id
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1973,19 +1746,11 @@
    integer,                           intent(in) :: id
    real(rk) _DIMENSION_GLOBAL_,pointer           :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifdef _FULL_DOMAIN_IN_SLICE_
-   ! Retrieve a pointer to the array holding the requested data.
-   dat => self%environment%scratch(_PREARG_LOCATION_DIMENSIONS_ self%diagnostic_variables(id)%target%write_indices%value)
-#else
    ! Retrieve a pointer to the array holding the requested data.
    dat => self%diag(_PREARG_LOCATION_DIMENSIONS_ self%diagnostic_variables(id)%save_index)
-#endif
 
    end function fabm_get_bulk_diagnostic_data
 !EOC
@@ -2005,21 +1770,387 @@
    integer,                                    intent(in) :: id
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,pointer         :: dat
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Retrieve a pointer to the array holding the requested data.
+   dat => self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ self%horizontal_diagnostic_variables(id)%save_index)
+
+   end function fabm_get_horizontal_diagnostic_data
+!EOC
+
+subroutine prefetch_interior(self _ARGUMENTS_INTERIOR_IN_ _ARGUMENTS_SLICE_LENGTH_)
+   type (type_model),intent(inout) :: self
+   _DECLARE_ARGUMENTS_INTERIOR_IN_
+   _DECLARE_ARGUMENTS_SLICE_LENGTH_
+   _DECLARE_INTERIOR_INDICES_
+
+   integer :: i
+
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   _N_ = loop_stop-loop_start+1
+#  ifdef _HAS_MASK_
+   allocate(self%environment%mask(_N_))
+   _DO_CONCURRENT_(_I_,1,_N_)
+#    ifdef _FABM_HORIZONTAL_MASK_
+      self%environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_HORIZONTAL_(loop_start+_I_-1))
+#    else
+      self%environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1))
+#    endif
+   end do
+   _N_ = count(self%environment%mask)
+#  endif
+#endif
+   
+#if defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(self%environment%scratch(_N_,self%nscratch))
+   allocate(self%environment%prefetch(_N_,size(self%data)))
+#else
+   allocate(self%environment%scratch(self%nscratch))
+   allocate(self%environment%prefetch(size(self%data)))
+#endif
+   do i=1,size(self%data)
+      if (associated(self%data(i)%p)) then
+         _PACK_GLOBAL_(self%data(i)%p,self%environment%prefetch,i,self%environment%mask)
+      end if
+   end do
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(self%environment%prefetch_hz(_N_,size(self%data_hz)))
+#else
+   allocate(self%environment%prefetch_hz(size(self%data_hz)))
+#endif
+   do i=1,size(self%data_hz)
+      if (associated(self%data_hz(i)%p)) then
+         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(i)%p,self%environment%prefetch_hz,i,self%environment%mask)
+      end if
+   end do
+
+   ! Prefetch global scalars
+   allocate(self%environment%prefetch_scalar(size(self%data_scalar)))
+   do i=1,size(self%data_scalar)
+      if (associated(self%data_scalar(i)%p)) self%environment%prefetch_scalar(i) = self%data_scalar(i)%p
+   end do
+end subroutine prefetch_interior
+
+subroutine prefetch_horizontal(self _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_HORIZONTAL_SLICE_LENGTH_)
+   type (type_model),intent(inout) :: self
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+   _DECLARE_ARGUMENTS_HORIZONTAL_SLICE_LENGTH_
+   _DECLARE_HORIZONTAL_INDICES_
+
+   integer :: i
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   _N_ = loop_stop-loop_start+1
+#  ifdef _HAS_MASK_
+   allocate(self%environment%mask(_N_))
+   _DO_CONCURRENT_(_J_,1,_N_)
+#    ifdef _FABM_HORIZONTAL_MASK_
+      self%environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1))
+#    else
+      self%environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(loop_start+_J_-1))
+#    endif
+   end do
+   _N_ = count(self%environment%mask)
+#  endif
+#endif
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(self%environment%prefetch(_N_,size(self%data)))
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(self%environment%prefetch(1,size(self%data)))
+#else
+   allocate(self%environment%prefetch(size(self%data)))
+#endif
+   do i=1,size(self%data)
+      if (associated(self%data(i)%p)) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+#  ifdef _HAS_MASK_
+         self%environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),self%environment%mask)
+#  else
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            self%environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1)
+         _HORIZONTAL_LOOP_END_
+#  endif
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+         self%environment%prefetch(1,i) = self%data(i)%p _INDEX_LOCATION_
+#else
+         self%environment%prefetch(i) = self%data(i)%p _INDEX_LOCATION_
+#endif
+      end if
+   end do
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(self%environment%scratch_hz(_N_,self%nscratch_hz))
+   allocate(self%environment%prefetch_hz(_N_,size(self%data_hz)))
+#else
+   allocate(self%environment%scratch_hz(self%nscratch_hz))
+   allocate(self%environment%prefetch_hz(size(self%data_hz)))
+#endif
+   do i=1,size(self%data_hz)
+      if (associated(self%data_hz(i)%p)) then
+         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(i)%p,self%environment%prefetch_hz,i,self%environment%mask)
+      end if
+   end do
+
+   ! Prefetch global scalars
+   allocate(self%environment%prefetch_scalar(size(self%data_scalar)))
+   do i=1,size(self%data_scalar)
+      if (associated(self%data_scalar(i)%p)) self%environment%prefetch_scalar(i) = self%data_scalar(i)%p
+   end do
+end subroutine prefetch_horizontal
+
+subroutine prefetch_vertical(self _ARGUMENTS_VERTICAL_IN_ _ARGUMENTS_VERTICAL_SLICE_LENGTH_)
+   type (type_model),intent(inout) :: self
+   _DECLARE_ARGUMENTS_VERTICAL_IN_
+   _DECLARE_ARGUMENTS_VERTICAL_SLICE_LENGTH_
+   _DECLARE_VERTICAL_INDICES_
+
+   integer :: i
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   _N_ = loop_stop-loop_start+1
+#  ifdef _HAS_MASK_
+   allocate(self%environment%mask(_N_))
+   _DO_CONCURRENT_(_I_,1,_N_)
+#    ifdef _FABM_HORIZONTAL_MASK_
+      self%environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_HORIZONTAL_(loop_start+_I_-1))
+#    else
+      self%environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1))
+#    endif
+   end do
+   _N_ = count(self%environment%mask)
+#  endif
+#endif
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   allocate(self%environment%scratch(_N_,self%nscratch))
+   allocate(self%environment%prefetch(_N_,size(self%data)))
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(self%environment%scratch(1,self%nscratch))
+   allocate(self%environment%prefetch(1,size(self%data)))
+#else
+   allocate(self%environment%scratch(self%nscratch))
+   allocate(self%environment%prefetch(size(self%data)))
+#endif
+   do i=1,size(self%data)
+      if (associated(self%data(i)%p)) then
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  ifdef _HAS_MASK_
+         self%environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(loop_start:loop_stop),self%environment%mask)
+#  else
+         _CONCURRENT_VERTICAL_LOOP_BEGIN_
+            self%environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(loop_start+_I_-1)
+         _VERTICAL_LOOP_END_
+#  endif
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+         self%environment%prefetch(1,i) = self%data(i)%p _INDEX_LOCATION_
+#else
+         self%environment%prefetch(i) = self%data(i)%p _INDEX_LOCATION_
+#endif
+      end if
+   end do
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(self%environment%scratch_hz(1,self%nscratch_hz))
+   allocate(self%environment%prefetch_hz(1,size(self%data_hz)))
+#else
+   allocate(self%environment%scratch_hz(self%nscratch_hz))
+   allocate(self%environment%prefetch_hz(size(self%data_hz)))
+#endif
+   do i=1,size(self%data_hz)
+      if (associated(self%data_hz(i)%p)) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+            self%environment%prefetch_hz(1,i) = self%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
+#else
+            self%environment%prefetch_hz(i) = self%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
+#endif
+      end if
+   end do
+
+   ! Prefetch global scalars
+   allocate(self%environment%prefetch_scalar(size(self%data_scalar)))
+   do i=1,size(self%data_scalar)
+      if (associated(self%data_scalar(i)%p)) self%environment%prefetch_scalar(i) = self%data_scalar(i)%p
+   end do
+end subroutine prefetch_vertical
+
+subroutine deallocate_prefetch(environment)
+   type (type_environment),intent(inout) :: environment
+#ifdef _HAS_MASK_
+   deallocate(environment%mask)
+#endif
+   deallocate(environment%prefetch)
+   deallocate(environment%prefetch_hz)
+   deallocate(environment%prefetch_scalar)
+   deallocate(environment%scratch)
+end subroutine deallocate_prefetch
+
+subroutine deallocate_prefetch_horizontal(environment)
+   type (type_environment),intent(inout) :: environment
+#ifdef _HAS_MASK_
+   deallocate(environment%mask)
+#endif
+   deallocate(environment%prefetch)
+   deallocate(environment%prefetch_hz)
+   deallocate(environment%prefetch_scalar)
+   deallocate(environment%scratch_hz)
+end subroutine deallocate_prefetch_horizontal
+
+subroutine deallocate_prefetch_vertical(environment)
+   type (type_environment),intent(inout) :: environment
+#ifdef _HAS_MASK_
+   deallocate(environment%mask)
+#endif
+   deallocate(environment%prefetch)
+   deallocate(environment%prefetch_hz)
+   deallocate(environment%prefetch_scalar)
+   deallocate(environment%scratch)
+   deallocate(environment%scratch_hz)
+end subroutine deallocate_prefetch_vertical
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initialize the model state (pelagic).
+!
+! !INTERFACE:
+   subroutine fabm_initialize_state(self _ARGUMENTS_INTERIOR_IN_)
+!
+! !INPUT PARAMETERS:
+   class (type_model),intent(inout) :: self
+   _DECLARE_ARGUMENTS_INTERIOR_IN_
+!
+! !LOCAL PARAMETERS:
+   integer                               :: ivar,read_index
+   type (type_model_list_node), pointer  :: node
+   _DECLARE_INTERIOR_ITERATORS_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifdef _FULL_DOMAIN_IN_SLICE_
-   ! Retrieve a pointer to the array holding the requested data.
-   dat => self%environment%scratch_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ self%horizontal_diagnostic_variables(id)%target%write_indices%value)
-#else
-   ! Retrieve a pointer to the array holding the requested data.
-   dat => self%diag_hz(_PREARG_LOCATION_DIMENSIONS_HZ_ self%horizontal_diagnostic_variables(id)%save_index)
-#endif
+   call prefetch_interior(self _ARGUMENTS_INTERIOR_IN_ _ARGUMENTS_SLICE_LENGTH_)
 
-   end function fabm_get_horizontal_diagnostic_data
+   do ivar=1,size(self%state_variables)
+      read_index = self%state_variables(ivar)%globalid%read_index
+      _CONCURRENT_LOOP_BEGIN_
+         self%environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = self%state_variables(ivar)%initial_value
+      _LOOP_END_
+   end do
+
+   ! Allow biogeochemical models to initialize their bulk state.
+   node => self%models%first
+   do while (associated(node))
+      call node%model%initialize_state(_ARGUMENTS_INTERIOR_OUT_)
+      node => node%next
+   end do
+
+   ! Copy from prefetch back to global data store.
+   do ivar=1,size(self%state_variables)
+      read_index = self%state_variables(ivar)%globalid%read_index
+      _UNPACK_TO_GLOBAL_(self%environment%prefetch,read_index,self%data(read_index)%p,self%environment%mask)
+   end do
+
+   call deallocate_prefetch(self%environment)
+
+   end subroutine fabm_initialize_state
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initialize the bottom model state.
+!
+! !INTERFACE:
+   subroutine fabm_initialize_bottom_state(self _ARGUMENTS_HORIZONTAL_IN_)
+!
+! !INPUT PARAMETERS:
+   class (type_model), intent(inout) :: self
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+!
+! !LOCAL PARAMETERS:
+   integer                               :: ivar,read_index
+   type (type_model_list_node), pointer  :: node
+   _DECLARE_HORIZONTAL_ITERATORS_
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   call prefetch_horizontal(self _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_HORIZONTAL_SLICE_LENGTH_)
+
+   ! Initialize bottom variables
+   do ivar=1,size(self%bottom_state_variables)
+      read_index = self%bottom_state_variables(ivar)%globalid%read_index
+      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+         self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%bottom_state_variables(ivar)%initial_value
+      _HORIZONTAL_LOOP_END_
+   end do
+
+   ! Allow biogeochemical models to initialize their bottom state.
+   node => self%models%first
+   do while (associated(node))
+      call node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_OUT_)
+      node => node%next
+   end do
+
+   ! Copy from prefetch back to global data store.
+   do ivar=1,size(self%bottom_state_variables)
+      read_index = self%bottom_state_variables(ivar)%globalid%read_index
+      _HORIZONTAL_UNPACK_TO_GLOBAL_(self%environment%prefetch_hz,read_index,self%data_hz(read_index)%p,self%environment%mask)
+   end do
+
+   call deallocate_prefetch_horizontal(self%environment)
+
+   end subroutine fabm_initialize_bottom_state
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Initialize the surface model state.
+!
+! !INTERFACE:
+   subroutine fabm_initialize_surface_state(self _ARGUMENTS_HORIZONTAL_IN_)
+!
+! !INPUT PARAMETERS:
+   class (type_model), intent(inout) :: self
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+!
+! !LOCAL PARAMETERS:
+   integer                               :: ivar,read_index
+   type (type_model_list_node), pointer  :: node
+   _DECLARE_HORIZONTAL_ITERATORS_
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   call prefetch_horizontal(self _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_HORIZONTAL_SLICE_LENGTH_)
+
+   ! Initialize surface variables
+   do ivar=1,size(self%surface_state_variables)
+      read_index = self%surface_state_variables(ivar)%globalid%read_index
+      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+         self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%surface_state_variables(ivar)%initial_value
+      _HORIZONTAL_LOOP_END_
+   end do
+
+   ! Allow biogeochemical models to initialize their surface state.
+   node => self%models%first
+   do while (associated(node))
+      call node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_OUT_)
+      node => node%next
+   end do
+
+   ! Copy from prefetch back to global data store.
+   do ivar=1,size(self%surface_state_variables)
+      read_index = self%surface_state_variables(ivar)%globalid%read_index
+      _HORIZONTAL_UNPACK_TO_GLOBAL_(self%environment%prefetch_hz,read_index,self%data_hz(read_index)%p,self%environment%mask)
+   end do
+
+   call deallocate_prefetch_horizontal(self%environment)
+
+   end subroutine fabm_initialize_surface_state
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2029,51 +2160,50 @@
 ! model tree.
 !
 ! !INTERFACE:
-   subroutine fabm_do_rhs(self _ARG_LOCATION_ND_,dy)
+   subroutine fabm_do_rhs(self _ARGUMENTS_INTERIOR_IN_,dy)
 !
 ! !INPUT PARAMETERS:
    class (type_model),           intent(inout) :: self
-   _DECLARE_LOCATION_ARG_ND_
+   _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_SLICE_PLUS_1_, intent(inout) :: dy
+   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_, intent(inout) :: dy
 !
 ! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
    integer :: i,j,k
+   _DECLARE_INTERIOR_ITERATORS_
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_USE_1D_LOOP_)
-   if (size(dy,1)/=fabm_loop_stop-fabm_loop_start+1) &
+#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
+   if (size(dy,1)/=loop_stop-loop_start+1) &
       call fatal_error('fabm_do_rhs','Size of first dimension of dy should match loop length.')
 #endif
-   call prefetch(self%environment _ARG_LOCATION_ND_)
+   call prefetch_interior(self _ARGUMENTS_INTERIOR_IN_ _ARGUMENTS_SLICE_LENGTH_)
 
    ! Initialize scratch variables that will hold source-sink terms to zero,
    ! because they will be incremented.
    do i=1,size(self%zero_bulk_indices)
       j = self%zero_bulk_indices(i)
-      _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+      _CONCURRENT_LOOP_BEGIN_
          self%environment%scratch _INDEX_SLICE_PLUS_1_(j) = 0.0_rk
-      _CONCURRENT_LOOP_END_
+      _LOOP_END_
    end do
 
    node => self%models%first
    do while (associated(node))
-      call node%model%do(_ARGUMENTS_ND_IN_)
+      call node%model%do(_ARGUMENTS_INTERIOR_OUT_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
       do i=1,size(node%model%reused_diag)
          if (node%model%reused_diag(i)%source==source_do) then
             j = node%model%reused_diag(i)%read_index
             k = node%model%reused_diag(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+            _CONCURRENT_LOOP_BEGIN_
                self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
-            _CONCURRENT_LOOP_END_
+            _LOOP_END_
          end if
       end do
 
@@ -2085,97 +2215,23 @@
    do i=1,size(self%state_variables)
       do j=1,size(self%state_variables(i)%sms_indices)
          k = self%state_variables(i)%sms_indices(j)
-         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            dy _INDEX_SLICE_PLUS_1_(i) = dy _INDEX_SLICE_PLUS_1_(i) + self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
-         _CONCURRENT_LOOP_END_
+         _UNPACK_AND_ADD_TO_PLUS_1_(self%environment%scratch,k,dy,i,self%environment%mask)
       end do
    end do
 
-#ifndef _FULL_DOMAIN_IN_SLICE_
    ! Copy newly written diagnostics that need to be saved to global store.
    do i=1,size(self%diagnostic_variables)
       k = self%diagnostic_variables(i)%save_index
       if (self%diagnostic_variables(i)%source==source_do.and.k/=0) then
          j = self%diagnostic_variables(i)%target%write_indices%value
-         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(j)
-         _CONCURRENT_LOOP_END_
+         _UNPACK_TO_GLOBAL_PLUS_1_(self%environment%scratch,j,self%diag,k,self%environment%mask)
       end if
    end do
-#endif
+
+   call deallocate_prefetch(self%environment)
 
    end subroutine fabm_do_rhs
 !EOC
-
-subroutine prefetch(environment _ARG_LOCATION_ND_)
-   type (type_environment),intent(inout) :: environment
-  _DECLARE_LOCATION_ARG_ND_
-
-   integer :: i
-
-#ifdef _FABM_MASK_
-   _CONCURRENT_LOOP_BEGIN_EX_NOMASK_(environment)
-#ifdef _FABM_HORIZONTAL_MASK_
-      environment%prefetch_mask _INDEX_SLICE_ = _FABM_IS_UNMASKED_(environment%mask _INDEX_HORIZONTAL_LOCATION_)
-#else
-      environment%prefetch_mask _INDEX_SLICE_ = _FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)
-#endif
-   _CONCURRENT_LOOP_END_
-#endif
-
-   do i=1,size(environment%data)
-      if (associated(environment%data(i)%p)) then
-         _CONCURRENT_LOOP_BEGIN_EX_(environment)
-            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = environment%data(i)%p _INDEX_LOCATION_
-         _CONCURRENT_LOOP_END_
-      end if
-   end do
-   do i=1,size(environment%data_hz)
-      if (associated(environment%data_hz(i)%p)) then
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
-            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = environment%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
-         _CONCURRENT_HORIZONTAL_LOOP_END_
-      end if
-   end do
-   do i=1,size(environment%data_scalar)
-      if (associated(environment%data_scalar(i)%p)) environment%prefetch_scalar(i) = environment%data_scalar(i)%p
-   end do
-end subroutine
-
-subroutine prefetch_hz(environment _ARG_LOCATION_VARS_HZ_)
-   type (type_environment),intent(inout) :: environment
-  _DECLARE_LOCATION_ARG_HZ_
-
-   integer :: i
-
-#ifdef _FABM_MASK_
-   _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_NOMASK_(environment)
-#ifdef _FABM_HORIZONTAL_MASK_
-      environment%prefetch_mask _INDEX_SLICE_ = _FABM_IS_UNMASKED_(environment%mask _INDEX_HORIZONTAL_LOCATION_)
-#else
-      environment%prefetch_mask _INDEX_SLICE_ = _FABM_IS_UNMASKED_(environment%mask _INDEX_LOCATION_)
-#endif
-   _CONCURRENT_HORIZONTAL_LOOP_END_
-#endif
-
-   do i=1,size(environment%data)
-      if (associated(environment%data(i)%p)) then
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
-            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = environment%data(i)%p _INDEX_LOCATION_
-         _CONCURRENT_HORIZONTAL_LOOP_END_
-      end if
-   end do
-   do i=1,size(environment%data_hz)
-      if (associated(environment%data_hz(i)%p)) then
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
-            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = environment%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
-         _CONCURRENT_HORIZONTAL_LOOP_END_
-      end if
-   end do
-   do i=1,size(environment%data_scalar)
-      if (associated(environment%data_scalar(i)%p)) environment%prefetch_scalar(i) = environment%data_scalar(i)%p
-   end do
-end subroutine
 
 !-----------------------------------------------------------------------
 !BOP
@@ -2184,63 +2240,60 @@ end subroutine
 ! model tree in the form of production and destruction matrices.
 !
 ! !INTERFACE:
-   subroutine fabm_do_ppdd(self _ARG_LOCATION_ND_,pp,dd)
+   subroutine fabm_do_ppdd(self _ARGUMENTS_INTERIOR_IN_,pp,dd)
 !
 ! !INPUT PARAMETERS:
    class (type_model),          intent(inout) :: self
-  _DECLARE_LOCATION_ARG_ND_
+  _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_SLICE_PLUS_2_,intent(inout) :: pp,dd
+   real(rk) _DIMENSION_EXT_SLICE_PLUS_2_,intent(inout) :: pp,dd
 !
 ! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
    integer                              :: i,j,k
+   _DECLARE_INTERIOR_ITERATORS_
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_USE_1D_LOOP_)
-   if (size(pp,1)/=fabm_loop_stop-fabm_loop_start+1) &
+#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
+   if (size(pp,1)/=loop_stop-loop_start+1) &
       call fatal_error('fabm_do_ppdd','Size of first dimension of pp should match loop length.')
-   if (size(dd,1)/=fabm_loop_stop-fabm_loop_start+1) &
+   if (size(dd,1)/=loop_stop-loop_start+1) &
       call fatal_error('fabm_do_ppdd','Size of first dimension of dd should match loop length.')
 #endif
 
-   call prefetch(self%environment _ARG_LOCATION_ND_)
+   call prefetch_interior(self _ARGUMENTS_INTERIOR_IN_ _ARGUMENTS_SLICE_LENGTH_)
 
    node => self%models%first
    do while (associated(node))
-      call node%model%do_ppdd(_ARGUMENTS_ND_IN_,pp,dd)
+      call node%model%do_ppdd(_ARGUMENTS_INTERIOR_OUT_,pp,dd)
 
       ! Copy newly written diagnostics to prefetch
       do i=1,size(node%model%reused_diag)
          if (node%model%reused_diag(i)%source==source_do) then
             j = node%model%reused_diag(i)%read_index
             k = node%model%reused_diag(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+            _CONCURRENT_LOOP_BEGIN_
                self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
-            _CONCURRENT_LOOP_END_
+            _LOOP_END_
          end if
       end do
 
       node => node%next
    end do
 
-#ifndef _FULL_DOMAIN_IN_SLICE_
    ! Copy newly written diagnostics that need to be saved to global store.
    do i=1,size(self%diagnostic_variables)
       k = self%diagnostic_variables(i)%save_index
       if (self%diagnostic_variables(k)%source==source_do.and.k/=0) then
          j = self%diagnostic_variables(i)%target%write_indices%value
-         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(j)
-         _CONCURRENT_LOOP_END_
+         _UNPACK_TO_GLOBAL_PLUS_1_(self%environment%scratch,j,self%diag,k,self%environment%mask)
       end if
    end do
-#endif
+
+   call deallocate_prefetch(self%environment)
 
    end subroutine fabm_do_ppdd
 !EOC
@@ -2252,34 +2305,32 @@ end subroutine
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   subroutine fabm_check_state(self _ARG_LOCATION_ND_,repair,valid)
+   subroutine fabm_check_state(self _ARGUMENTS_INTERIOR_IN_,repair,valid)
 !
 ! !INPUT PARAMETERS:
    class (type_model),     intent(inout) :: self
-   _DECLARE_LOCATION_ARG_ND_
+   _DECLARE_ARGUMENTS_INTERIOR_IN_
    logical,                intent(in)    :: repair
    logical,                intent(out)   :: valid
 !
 ! !LOCAL PARAMETERS:
-   integer                               :: ivar
+   integer                               :: ivar, read_index
    type (type_model_list_node), pointer :: node
    real(rk)                              :: value,minimum,maximum
    character(len=256)                    :: err
-   type (type_bulk_data_pointer)         :: p
+   _DECLARE_INTERIOR_ITERATORS_
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    valid = .true.
 
-   call prefetch(self%environment _ARG_LOCATION_ND_)
+   call prefetch_interior(self _ARGUMENTS_INTERIOR_IN_ _ARGUMENTS_SLICE_LENGTH_)
 
    ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
    node => self%models%first
    do while (associated(node) .and. valid)
-      call node%model%check_state(_ARGUMENTS_ND_IN_,repair,valid)
+      call node%model%check_state(_ARGUMENTS_INTERIOR_OUT_,repair,valid)
       if (.not. (valid .or. repair)) return
       node => node%next
    end do
@@ -2289,48 +2340,52 @@ end subroutine
 
    ! Quick bounds check for the common case where all values are valid.
    do ivar=1,size(self%state_variables)
+      read_index = self%state_variables(ivar)%globalid%read_index
       minimum = self%state_variables(ivar)%minimum
       maximum = self%state_variables(ivar)%maximum
-      _LOOP_BEGIN_EX_(self%environment)
-         value = self%environment%prefetch _INDEX_SLICE_PLUS_1_(self%state_variables(ivar)%globalid%read_index)
+      _LOOP_BEGIN_
+         value = self%environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
          if (value<minimum.or.value>maximum) valid = .false.
       _LOOP_END_
    end do
-   if (valid) return
+   if (.not.valid) then
 
    ! Check boundaries for pelagic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
    do ivar=1,size(self%state_variables)
       ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
-      p = self%environment%data(self%state_variables(ivar)%globalid%read_index)
+      read_index = self%state_variables(ivar)%globalid%read_index
       minimum = self%state_variables(ivar)%minimum
       maximum = self%state_variables(ivar)%maximum
 
-      _LOOP_BEGIN_EX_(self%environment)
-         value = self%environment%prefetch _INDEX_SLICE_PLUS_1_(self%state_variables(ivar)%globalid%read_index)
+      _LOOP_BEGIN_
+         value = self%environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
          if (value<minimum) then
             ! State variable value lies below prescribed minimum.
-            valid = .false.
             if (.not.repair) then
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
                                                           & ' below minimum value ',minimum
                call log_message(err)
                return
             end if
-            p%p _INDEX_LOCATION_ = minimum
+            self%environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = minimum
          elseif (value>maximum) then
             ! State variable value exceeds prescribed maximum.
-            valid = .false.
             if (.not.repair) then
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
                                                           & ' above maximum value ',maximum
                call log_message(err)
                return
             end if
-            p%p _INDEX_LOCATION_ = maximum
+            self%environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = maximum
          end if
       _LOOP_END_
+      _UNPACK_TO_GLOBAL_(self%environment%prefetch,read_index,self%data(read_index)%p,self%environment%mask)
    end do
+
+   end if
+
+   call deallocate_prefetch(self%environment)
 
    end subroutine fabm_check_state
 !EOC
@@ -2342,37 +2397,18 @@ end subroutine
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   subroutine fabm_check_bottom_state(self _ARG_LOCATION_VARS_HZ_,repair,valid)
+   subroutine fabm_check_bottom_state(self _ARGUMENTS_HORIZONTAL_IN_,repair,valid)
 !
 ! !INPUT PARAMETERS:
    class (type_model),     intent(inout) :: self
-   _DECLARE_LOCATION_ARG_HZ_
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    logical,                intent(in)    :: repair
    logical,                intent(out)   :: valid
 !
-! !LOCAL PARAMETERS:
-   type (type_model_list_node), pointer :: node
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   valid = .true.
-
-   call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
-
-   ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
-   node => self%models%first
-   do while (associated(node) .and. valid)
-      call node%model%check_bottom_state(_ARGUMENTS_IN_HZ_,repair,valid)
-      if (.not. (valid .or. repair)) return
-      node => node%next
-   end do
-
-   ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
-   ! This is always done, independently of any model-specific checks that may have been called above.
-   call internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,self%bottom_state_variables,repair,valid)
+   call internal_check_horizontal_state(self _ARGUMENTS_HORIZONTAL_IN_,2,self%bottom_state_variables,repair,valid)
 
    end subroutine fabm_check_bottom_state
 !EOC
@@ -2384,63 +2420,62 @@ end subroutine
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   subroutine fabm_check_surface_state(self _ARG_LOCATION_VARS_HZ_,repair,valid)
+   subroutine fabm_check_surface_state(self _ARGUMENTS_HORIZONTAL_IN_,repair,valid)
 !
 ! !INPUT PARAMETERS:
    class (type_model),     intent(inout) :: self
-   _DECLARE_LOCATION_ARG_HZ_
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    logical,                intent(in)    :: repair
    logical,                intent(out)   :: valid
 !
-! !LOCAL PARAMETERS:
-   type (type_model_list_node), pointer :: node
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   valid = .true.
-
-   call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
-
-   ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
-   node => self%models%first
-   do while (associated(node) .and. valid)
-      call node%model%check_surface_state(_ARGUMENTS_IN_HZ_,repair,valid)
-      if (.not. (valid .or. repair)) return
-      node => node%next
-   end do
-
-   ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
-   ! This is always done, independently of any model-specific checks that may have been called above.
-   call internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,self%info%surface_state_variables,repair,valid)
+   call internal_check_horizontal_state(self _ARGUMENTS_HORIZONTAL_IN_,1,self%info%surface_state_variables,repair,valid)
 
    end subroutine fabm_check_surface_state
 !EOC
 
-subroutine internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,state_variables,repair,valid)
+subroutine internal_check_horizontal_state(self _ARGUMENTS_HORIZONTAL_IN_,flag,state_variables,repair,valid)
    class (type_model),                        intent(inout) :: self
-   _DECLARE_LOCATION_ARG_HZ_
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+   integer,                                   intent(in)    :: flag
    type (type_horizontal_state_variable_info),intent(inout) :: state_variables(:)
    logical,                                   intent(in)    :: repair
    logical,                                   intent(out)   :: valid
 
-   integer                               :: ivar
+   type (type_model_list_node), pointer :: node
+   integer                               :: ivar,read_index
    real(rk)                              :: value,minimum,maximum
    character(len=256)                    :: err
-   type (type_horizontal_data_pointer)   :: p_hz
+   _DECLARE_HORIZONTAL_ITERATORS_
+
+   call prefetch_horizontal(self _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_HORIZONTAL_SLICE_LENGTH_)
+
+   valid = .true.
+
+   ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
+   node => self%models%first
+   do while (associated(node) .and. valid)
+      if (flag==1) then
+         call node%model%check_surface_state(_ARGUMENTS_HORIZONTAL_OUT_,repair,valid)
+      else
+         call node%model%check_bottom_state(_ARGUMENTS_HORIZONTAL_OUT_,repair,valid)
+      end if
+      if (.not. (valid .or. repair)) return
+      node => node%next
+   end do
 
    ! Check boundaries for horizontal state variables, as prescribed by the owning models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
    do ivar=1,size(state_variables)
       ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
-      p_hz = self%environment%data_hz(state_variables(ivar)%globalid%read_index)
+      read_index = state_variables(ivar)%globalid%read_index
       minimum = state_variables(ivar)%minimum
       maximum = state_variables(ivar)%maximum
 
-      _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-         value = self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(state_variables(ivar)%globalid%read_index)
+      _HORIZONTAL_LOOP_BEGIN_
+         value = self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index)
          if (value<minimum) then
             ! State variable value lies below prescribed minimum.
             valid = .false.
@@ -2451,7 +2486,7 @@ subroutine internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,state_var
                call log_message(err)
                return
             end if
-            p_hz%p _INDEX_HORIZONTAL_LOCATION_ = minimum
+            self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = minimum
          elseif (value>maximum) then
             ! State variable value exceeds prescribed maximum.
             valid = .false.
@@ -2462,10 +2497,18 @@ subroutine internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,state_var
                call log_message(err)
                return
             end if
-            p_hz%p _INDEX_HORIZONTAL_LOCATION_ = maximum
+            self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = maximum
          end if
       _HORIZONTAL_LOOP_END_
    end do
+
+   do ivar=1,size(state_variables)
+      read_index = state_variables(ivar)%globalid%read_index
+      _HORIZONTAL_UNPACK_TO_GLOBAL_(self%environment%prefetch_hz,read_index,self%data_hz(read_index)%p,self%environment%mask)
+   end do
+
+   call deallocate_prefetch_horizontal(self%environment)
+
 end subroutine internal_check_horizontal_state
 
 !-----------------------------------------------------------------------
@@ -2476,61 +2519,57 @@ end subroutine internal_check_horizontal_state
 ! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
-   subroutine fabm_do_surface(self _ARG_LOCATION_VARS_HZ_,flux_pel,flux_sf)
+   subroutine fabm_do_surface(self _ARGUMENTS_HORIZONTAL_IN_,flux_pel,flux_sf)
 !
 ! !INPUT PARAMETERS:
       class (type_model),                          intent(inout) :: self
-      _DECLARE_LOCATION_ARG_HZ_
+      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
       real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)          :: flux_pel
       real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out),optional :: flux_sf
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!
+! !LOCAL PARAMETERS:
       type (type_model_list_node), pointer :: node
       integer                              :: i,j,k
+      _DECLARE_HORIZONTAL_ITERATORS_
+!
+!EOP
 !-----------------------------------------------------------------------
 !BOC
-      call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
+      call prefetch_horizontal(self _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_HORIZONTAL_SLICE_LENGTH_)
 
       ! Initialize scratch variables that will hold surface-attached source-sink terms
       ! or bulk surface fluxes to zero, because they will be incremented.
       do i=1,size(self%zero_surface_indices)
          j = self%zero_surface_indices(i)
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
             self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = 0.0_rk
-         _CONCURRENT_HORIZONTAL_LOOP_END_
+         _HORIZONTAL_LOOP_END_
       end do
 
-#ifndef _FULL_DOMAIN_IN_SLICE_
       ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
       ! This is needed to preserve the value of bottom diagnostics.
       do i=1,size(self%horizontal_diagnostic_variables)
          k = self%horizontal_diagnostic_variables(i)%save_index
          if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
             j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
-            _CONCURRENT_HORIZONTAL_LOOP_END_
+            _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,k,self%environment%scratch_hz,j,self%environment%mask)
          end if
       end do
-#endif
 
       node => self%models%first
       do while (associated(node))
-         call node%model%do_surface(_ARGUMENTS_IN_HZ_)
+         call node%model%do_surface(_ARGUMENTS_HORIZONTAL_OUT_)
 
          ! Copy newly written diagnostics to prefetch
          do i=1,size(node%model%reused_diag_hz)
             if (node%model%reused_diag_hz(i)%source==source_do_surface.or.node%model%reused_diag_hz(i)%source==source_unknown) then
                j = node%model%reused_diag_hz(i)%read_index
                k = node%model%reused_diag_hz(i)%write_index
-               _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+               _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
                   self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-               _CONCURRENT_HORIZONTAL_LOOP_END_
+               _HORIZONTAL_LOOP_END_
             end if
          end do
 
@@ -2542,9 +2581,7 @@ end subroutine internal_check_horizontal_state
       do i=1,size(self%state_variables)
          do j=1,size(self%state_variables(i)%surface_flux_indices)
             k = self%state_variables(i)%surface_flux_indices(j)
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-            _CONCURRENT_HORIZONTAL_LOOP_END_
+            _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(self%environment%scratch_hz,k,flux_pel,i,self%environment%mask)
          end do
       end do
 
@@ -2554,25 +2591,21 @@ end subroutine internal_check_horizontal_state
          do i=1,size(self%surface_state_variables)
             do j=1,size(self%surface_state_variables(i)%sms_indices)
                k = self%surface_state_variables(i)%sms_indices(j)
-               _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-                  flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_sf _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-               _CONCURRENT_HORIZONTAL_LOOP_END_
+               _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(self%environment%scratch_hz,k,flux_sf,i,self%environment%mask)
             end do
          end do
       end if
 
-#ifndef _FULL_DOMAIN_IN_SLICE_
       ! Copy newly written horizontal diagnostics that need to be saved to global store.
       do i=1,size(self%horizontal_diagnostic_variables)
          k = self%horizontal_diagnostic_variables(i)%save_index
          if (k/=0.and.(self%horizontal_diagnostic_variables(i)%source==source_do_surface.or.self%horizontal_diagnostic_variables(i)%source==source_unknown)) then
             j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j)
-            _CONCURRENT_HORIZONTAL_LOOP_END_
+            _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(self%environment%scratch_hz,j,self%diag_hz,k,self%environment%mask)
          end if
       end do
-#endif
+
+   call deallocate_prefetch_horizontal(self%environment)
 
    end subroutine fabm_do_surface
 !EOC
@@ -2587,60 +2620,56 @@ end subroutine internal_check_horizontal_state
 ! Positive values denote state variable increases, negative values state variable decreases.
 !
 ! !INTERFACE:
-   subroutine fabm_do_bottom_rhs(self _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
+   subroutine fabm_do_bottom_rhs(self _ARGUMENTS_HORIZONTAL_IN_,flux_pel,flux_ben)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                          intent(inout) :: self
-   _DECLARE_LOCATION_ARG_HZ_
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
    real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_ben
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!
+! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
    integer                              :: i,j,k
+   _DECLARE_HORIZONTAL_ITERATORS_
+!
+!EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
+   call prefetch_horizontal(self _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_HORIZONTAL_SLICE_LENGTH_)
 
    ! Initialize scratch variables that will hold bottom-attached source-sink terms
    ! or bulk bottom fluxes to zero, because they will be incremented.
    do i=1,size(self%zero_bottom_indices)
       j = self%zero_bottom_indices(i)
-      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
          self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = 0.0_rk
-      _CONCURRENT_HORIZONTAL_LOOP_END_
+      _HORIZONTAL_LOOP_END_
    end do
 
-#ifndef _FULL_DOMAIN_IN_SLICE_
    ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
    ! This is needed to preserve the value of surface diagnostics.
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
       if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
          j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
-         _CONCURRENT_HORIZONTAL_LOOP_END_
+         _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,k,self%environment%scratch_hz,j,self%environment%mask)
       end if
    end do
-#endif
 
    node => self%models%first
    do while (associated(node))
-      call node%model%do_bottom(_ARGUMENTS_IN_HZ_)
+      call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_OUT_)
 
       ! Copy newly written diagnostics to prefetch
       do i=1,size(node%model%reused_diag_hz)
          if (node%model%reused_diag_hz(i)%source==source_do_bottom.or.node%model%reused_diag_hz(i)%source==source_unknown) then
             j = node%model%reused_diag_hz(i)%read_index
             k = node%model%reused_diag_hz(i)%write_index
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
                self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-            _CONCURRENT_HORIZONTAL_LOOP_END_
+            _HORIZONTAL_LOOP_END_
          end if
       end do
 
@@ -2651,9 +2680,7 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%state_variables)
       do j=1,size(self%state_variables(i)%bottom_flux_indices)
          k = self%state_variables(i)%bottom_flux_indices(j)
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_pel _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-         _CONCURRENT_HORIZONTAL_LOOP_END_
+         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(self%environment%scratch_hz,k,flux_pel,i,self%environment%mask)
       end do
    end do
 
@@ -2661,24 +2688,20 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%bottom_state_variables)
       do j=1,size(self%bottom_state_variables(i)%sms_indices)
          k = self%bottom_state_variables(i)%sms_indices(j)
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = flux_ben _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) + self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-         _CONCURRENT_HORIZONTAL_LOOP_END_
+         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(self%environment%scratch_hz,k,flux_ben,i,self%environment%mask)
       end do
    end do
 
-#ifndef _FULL_DOMAIN_IN_SLICE_
    ! Copy newly written horizontal diagnostics that need to be saved to global store.
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
       if (k/=0.and.(self%horizontal_diagnostic_variables(i)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(i)%source==source_unknown)) then
          j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j)
-         _CONCURRENT_HORIZONTAL_LOOP_END_
+         _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(self%environment%scratch_hz,j,self%diag_hz,k,self%environment%mask)
       end if
    end do
-#endif
+
+   call deallocate_prefetch_horizontal(self%environment)
 
    end subroutine fabm_do_bottom_rhs
 !EOC
@@ -2692,71 +2715,65 @@ end subroutine internal_check_horizontal_state
 ! for the pelagic, and variable units/s for the benthos.
 !
 ! !INTERFACE:
-   subroutine fabm_do_bottom_ppdd(self _ARG_LOCATION_VARS_HZ_,pp,dd,benthos_offset)
+   subroutine fabm_do_bottom_ppdd(self _ARGUMENTS_HORIZONTAL_IN_,pp,dd,benthos_offset)
 !
 ! !INPUT PARAMETERS:
    class (type_model),        intent(inout) :: self
-   _DECLARE_LOCATION_ARG_HZ_
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    integer,                   intent(in)    :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:
    real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!
+! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
    integer                              :: i,j,k
+   _DECLARE_HORIZONTAL_ITERATORS_
+!
+!EOP
 !-----------------------------------------------------------------------
 !BOC
 
-#ifndef _FULL_DOMAIN_IN_SLICE_
    ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
    ! This is needed to preserve the value of surface diagnostics.
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
       if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
          j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%diag_hz(_PREARG_LOCATION_HZ_ k)
-         _CONCURRENT_HORIZONTAL_LOOP_END_
+         _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,k,self%environment%scratch_hz,j,self%environment%mask)
       end if
    end do
-#endif
 
-   call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
+   call prefetch_horizontal(self _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_HORIZONTAL_SLICE_LENGTH_)
 
    node => self%models%first
    do while (associated(node))
-      call node%model%do_bottom_ppdd(_ARGUMENTS_IN_HZ_,pp,dd,benthos_offset)
+      call node%model%do_bottom_ppdd(_ARGUMENTS_HORIZONTAL_OUT_,pp,dd,benthos_offset)
 
       ! Copy newly written diagnostics to prefetch
       do i=1,size(node%model%reused_diag_hz)
          if (node%model%reused_diag_hz(i)%source==source_do_bottom.or.node%model%reused_diag_hz(i)%source==source_unknown) then
             j = node%model%reused_diag_hz(i)%read_index
             k = node%model%reused_diag_hz(i)%write_index
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
                self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-            _CONCURRENT_HORIZONTAL_LOOP_END_
+            _HORIZONTAL_LOOP_END_
          end if
       end do
 
       node => node%next
    end do
 
-#ifndef _FULL_DOMAIN_IN_SLICE_
    ! Copy newly written horizontal diagnostics that need to be saved to global store.
    do i=1,size(self%horizontal_diagnostic_variables)
       k = self%horizontal_diagnostic_variables(i)%save_index
       if (k/=0.and.(self%horizontal_diagnostic_variables(i)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(i)%source==source_unknown)) then
          j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%diag_hz(_PREARG_LOCATION_HZ_ k) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j)
-         _CONCURRENT_HORIZONTAL_LOOP_END_
+         _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(self%environment%scratch_hz,j,self%diag_hz,k,self%environment%mask)
       end if
    end do
-#endif
+
+   call deallocate_prefetch_horizontal(self%environment)
 
    end subroutine fabm_do_bottom_ppdd
 !EOC
@@ -2769,45 +2786,64 @@ end subroutine internal_check_horizontal_state
 ! and positive values indicate movemment towards the surface, e.g., floating.
 !
 ! !INTERFACE:
-   subroutine fabm_get_vertical_movement(self _ARG_LOCATION_ND_,velocity)
+   subroutine fabm_get_vertical_movement(self _ARGUMENTS_INTERIOR_IN_,velocity)
 !
 ! !INPUT PARAMETERS:
    class (type_model),               intent(inout) :: self
-   _DECLARE_LOCATION_ARG_ND_
+   _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_SLICE_PLUS_1_,intent(out)  :: velocity
+   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out)  :: velocity
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!
+! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
    integer                              :: i
+   _DECLARE_INTERIOR_ITERATORS_
+#ifdef _HAS_MASK_
+   real(rk),allocatable :: packed_velocity(:,:)
+#endif
+!
+!EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_USE_1D_LOOP_)
-   if (size(velocity,1)/=fabm_loop_stop-fabm_loop_start+1) &
+#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
+   if (size(velocity,1)/=loop_stop-loop_start+1) &
       call fatal_error('fabm_get_vertical_movement','Size of first dimension of velocity should match loop length.')
 #endif
 
-   call prefetch(self%environment _ARG_LOCATION_ND_)
+   call prefetch_interior(self _ARGUMENTS_INTERIOR_IN_ _ARGUMENTS_SLICE_LENGTH_)
+
+#ifdef _HAS_MASK_
+   allocate(packed_velocity(_N_,size(self%state_variables)))
+#  define _VELOCITY_ packed_velocity
+#else
+#  define _VELOCITY_ velocity
+#endif
 
    ! First set constant sinking rates.
    do i=1,size(self%state_variables)
       ! Use variable-specific constant vertical velocities.
       ! Automatic vectorization by compiler is possible without further modification (ifort 14.0, 2013-12-06)
-      _LOOP_BEGIN_EX_(self%environment)
-         velocity _INDEX_SLICE_PLUS_1_(i) = self%state_variables(i)%vertical_movement
+      _CONCURRENT_LOOP_BEGIN_
+         _VELOCITY_ _INDEX_EXT_SLICE_PLUS_1_(i) = self%state_variables(i)%vertical_movement
       _LOOP_END_
    end do
 
    ! Now allow models to overwrite with spatially-varying sinking rates - if any.
    node => self%models%first
    do while (associated(node))
-      call node%model%get_vertical_movement(_ARGUMENTS_ND_IN_,velocity)
+      call node%model%get_vertical_movement(_ARGUMENTS_INTERIOR_OUT_,_VELOCITY_)
       node => node%next
    end do
+
+#ifdef _HAS_MASK_
+   do i=1,size(self%state_variables)
+      _UNPACK_TO_PLUS_1_(packed_velocity,i,velocity,i,self%environment%mask)
+   end do
+#endif
+#undef _VELOCITY_
+
+   call deallocate_prefetch(self%environment)
 
    end subroutine fabm_get_vertical_movement
 !EOC
@@ -2819,42 +2855,41 @@ end subroutine internal_check_horizontal_state
 ! variables
 !
 ! !INTERFACE:
-   subroutine fabm_get_light_extinction(self _ARG_LOCATION_ND_,extinction)
+   subroutine fabm_get_light_extinction(self _ARGUMENTS_INTERIOR_IN_,extinction)
 !
 ! !INPUT PARAMETERS:
    class (type_model),        intent(inout) :: self
-   _DECLARE_LOCATION_ARG_ND_
-   real(rk) _DIMENSION_SLICE_,intent(out)   :: extinction
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
+   _DECLARE_ARGUMENTS_INTERIOR_IN_
+   real(rk) _DIMENSION_EXT_SLICE_,intent(out)   :: extinction
 !
 ! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
    integer                              :: i,j,k
+   _DECLARE_INTERIOR_ITERATORS_
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_USE_1D_LOOP_)
-   if (size(extinction,1)/=fabm_loop_stop-fabm_loop_start+1) &
+#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
+   if (size(extinction,1)/=loop_stop-loop_start+1) &
       call fatal_error('fabm_get_light_extinction','Size of first dimension of extinction should match loop length.')
 #endif
 
-   call prefetch(self%environment _ARG_LOCATION_ND_)
+   call prefetch_interior(self _ARGUMENTS_INTERIOR_IN_ _ARGUMENTS_SLICE_LENGTH_)
 
    ! Call all models that calculate extinction components to make sure the extinction diagnostic is up to date.
    node => self%extinction_call_list%first
    do while (associated(node))
-      call node%model%do(_ARGUMENTS_ND_IN_)
+      call node%model%do(_ARGUMENTS_INTERIOR_OUT_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
       do i=1,size(node%model%reused_diag)
          if (node%model%reused_diag(i)%source==source_do) then
             j = node%model%reused_diag(i)%read_index
             k = node%model%reused_diag(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+            _CONCURRENT_LOOP_BEGIN_
                self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
-            _CONCURRENT_LOOP_END_
+            _LOOP_END_
          end if
       end do
 
@@ -2862,9 +2897,9 @@ end subroutine internal_check_horizontal_state
       node => node%next
    end do
 
-   _LOOP_BEGIN_EX_(self%environment)
-      extinction _INDEX_SLICE_ = self%environment%data(self%extinction_index)%p _INDEX_LOCATION_
-   _LOOP_END_
+   _UNPACK_(self%environment%prefetch,self%extinction_index,extinction,self%environment%mask)
+
+   call deallocate_prefetch(self%environment)
 
    end subroutine fabm_get_light_extinction
 !EOC
@@ -2875,41 +2910,38 @@ end subroutine internal_check_horizontal_state
 ! !IROUTINE: Calculate the light field
 !
 ! !INTERFACE:
-   subroutine fabm_get_light(self _ARG_LOCATION_VERT_)
+   subroutine fabm_get_light(self _ARGUMENTS_VERTICAL_IN_)
 !
 ! !INPUT PARAMETERS:
    class (type_model), intent(inout) :: self
-   _DECLARE_LOCATION_ARG_VERT_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
+   _DECLARE_ARGUMENTS_VERTICAL_IN_
 !
 ! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
    integer                              :: i,j,k
+   _DECLARE_VERTICAL_ITERATORS_
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch(self%environment _ARG_LOCATION_ND_)
+   call prefetch_vertical(self _ARGUMENTS_VERTICAL_IN_ _ARGUMENTS_VERTICAL_SLICE_LENGTH_)
 
    node => self%models%first
    do while (associated(node))
-      call node%model%get_light(_ARGUMENTS_VERT_IN_)
+      call node%model%get_light(_ARGUMENTS_VERTICAL_OUT_)
       node => node%next
    end do
 
-#ifndef _FULL_DOMAIN_IN_SLICE_
    ! Copy diagnostics that need to be saved to global store.
    do i=1,size(self%diagnostic_variables)
       k = self%diagnostic_variables(i)%save_index
       if (self%diagnostic_variables(i)%source==source_do_column.and.k/=0) then
          j = self%diagnostic_variables(i)%target%write_indices%value
-         _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(self%environment)
-            self%diag(_PREARG_LOCATION_ k) = self%environment%scratch _INDEX_SLICE_PLUS_1_(j)
-         _CONCURRENT_VERTICAL_LOOP_END_
+         _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(self%environment%scratch,j,self%diag,k,self%environment%mask)
       end if
    end do
-#endif
+
+   call deallocate_prefetch_vertical(self%environment)
 
    end subroutine fabm_get_light
 !EOC
@@ -2922,29 +2954,30 @@ end subroutine internal_check_horizontal_state
 ! 1 leaving drag unchanged, and 0 suppressing it completely.
 !
 ! !INTERFACE:
-   subroutine fabm_get_drag(self _ARG_LOCATION_VARS_HZ_,drag)
+   subroutine fabm_get_drag(self _ARGUMENTS_HORIZONTAL_IN_,drag)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                   intent(inout) :: self
-   _DECLARE_LOCATION_ARG_HZ_
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: drag
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
+   _DECLARE_HORIZONTAL_ITERATORS_
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
+   call prefetch_horizontal(self _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_HORIZONTAL_SLICE_LENGTH_)
 
    drag = 1.0_rk
    node => self%models%first
    do while (associated(node))
-      call node%model%get_drag(_ARGUMENTS_IN_HZ_,drag)
+      call node%model%get_drag(_ARGUMENTS_HORIZONTAL_OUT_,drag)
       node => node%next
    end do
+
+   call deallocate_prefetch_horizontal(self%environment)
 
    end subroutine fabm_get_drag
 !EOC
@@ -2956,29 +2989,30 @@ end subroutine internal_check_horizontal_state
 ! This feedback is represented by an albedo value (0-1) relating to biogeochemistry.
 !
 ! !INTERFACE:
-   subroutine fabm_get_albedo(self _ARG_LOCATION_VARS_HZ_,albedo)
+   subroutine fabm_get_albedo(self _ARGUMENTS_HORIZONTAL_IN_,albedo)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                   intent(inout) :: self
-   _DECLARE_LOCATION_ARG_HZ_
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: albedo
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
+   _DECLARE_HORIZONTAL_ITERATORS_
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
+   call prefetch_horizontal(self _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_HORIZONTAL_SLICE_LENGTH_)
 
    albedo = 0.0_rk
    node => self%models%first
    do while (associated(node))
-      call node%model%get_albedo(_ARGUMENTS_IN_HZ_,albedo)
+      call node%model%get_albedo(_ARGUMENTS_HORIZONTAL_OUT_,albedo)
       node => node%next
    end do
+
+   call deallocate_prefetch_horizontal(self%environment)
 
    end subroutine fabm_get_albedo
 !EOC
@@ -2989,35 +3023,35 @@ end subroutine internal_check_horizontal_state
 ! !IROUTINE: Get the total of all conserved quantities in pelagic domain
 !
 ! !INTERFACE:
-   subroutine fabm_get_conserved_quantities(self _ARG_LOCATION_ND_,sums)
+   subroutine fabm_get_conserved_quantities(self _ARGUMENTS_INTERIOR_IN_,sums)
 !
 ! !INPUT PARAMETERS:
    class (type_model),               intent(inout) :: self
-   _DECLARE_LOCATION_ARG_ND_
-   real(rk) _DIMENSION_SLICE_PLUS_1_,intent(out)   :: sums
+   _DECLARE_ARGUMENTS_INTERIOR_IN_
+   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out)   :: sums
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!
+! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
    integer :: i,j,k
+   _DECLARE_INTERIOR_ITERATORS_
+!
+!EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch(self%environment _ARG_LOCATION_ND_)
+   call prefetch_interior(self _ARGUMENTS_INTERIOR_IN_ _ARGUMENTS_SLICE_LENGTH_)
 
    node => self%conserved_quantity_call_list%first
    do while (associated(node))
-      call node%model%do(_ARGUMENTS_ND_IN_)
+      call node%model%do(_ARGUMENTS_INTERIOR_OUT_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
       do i=1,size(node%model%reused_diag)
          if (node%model%reused_diag(i)%source==source_do) then
             j = node%model%reused_diag(i)%read_index
             k = node%model%reused_diag(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+            _CONCURRENT_LOOP_BEGIN_
                self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
-            _CONCURRENT_LOOP_END_
+            _LOOP_END_
          end if
       end do
 
@@ -3026,10 +3060,10 @@ end subroutine internal_check_horizontal_state
    end do
 
    do i=1,size(self%conserved_quantities)
-      _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-         sums _INDEX_SLICE_PLUS_1_(i) = self%environment%data(self%conserved_quantities(i)%index)%p _INDEX_LOCATION_
-      _CONCURRENT_LOOP_END_
+      _UNPACK_TO_PLUS_1_(self%environment%prefetch,self%conserved_quantities(i)%index,sums,i,self%environment%mask)
    end do
+
+   call deallocate_prefetch(self%environment)
 
    end subroutine fabm_get_conserved_quantities
 !EOC
@@ -3040,30 +3074,36 @@ end subroutine internal_check_horizontal_state
 ! !IROUTINE: Get the total of all conserved quantities at top and bottom boundaries
 !
 ! !INTERFACE:
-   subroutine fabm_get_horizontal_conserved_quantities(self _ARG_LOCATION_VARS_HZ_,sums)
+   subroutine fabm_get_horizontal_conserved_quantities(self _ARGUMENTS_HORIZONTAL_IN_,sums)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                          intent(inout) :: self
-   _DECLARE_LOCATION_ARG_HZ_
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: sums
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!EOP
-!
+! !LOCAL PARAMETERS:
    integer :: i
-
+   _DECLARE_HORIZONTAL_ITERATORS_
+!
+!EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_hz(self%environment _ARG_LOCATION_VARS_HZ_)
+   call prefetch_horizontal(self _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_HORIZONTAL_SLICE_LENGTH_)
 
    do i=1,size(self%conserved_quantities)
-      if (associated(self%conserved_quantities(i)%horizontal_sum)) &
-         call self%conserved_quantities(i)%horizontal_sum%evaluate_horizontal(_ARGUMENTS_IN_HZ_)
-      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-         sums _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%environment%data_hz(self%conserved_quantities(i)%horizontal_index)%p _INDEX_HORIZONTAL_LOCATION_
-      _CONCURRENT_HORIZONTAL_LOOP_END_
+      if (associated(self%conserved_quantities(i)%horizontal_sum)) then
+         call self%conserved_quantities(i)%horizontal_sum%evaluate_horizontal(_ARGUMENTS_HORIZONTAL_OUT_)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            self%environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(self%conserved_quantities(i)%horizontal_index) = self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(self%conserved_quantities(i)%horizontal_sum%id_output%horizontal_diag_index)
+         _HORIZONTAL_LOOP_END_
+      end if
    end do
+
+   do i=1,size(self%conserved_quantities)
+      _HORIZONTAL_UNPACK_TO_PLUS_1_(self%environment%prefetch_hz,self%conserved_quantities(i)%horizontal_index,sums,i,self%environment%mask)
+   end do
+
+   call deallocate_prefetch_horizontal(self%environment)
 
    end subroutine fabm_get_horizontal_conserved_quantities
 !EOC
@@ -3095,7 +3135,7 @@ contains
       if (expression%ioldest==-1) then
          ! Start of simulation; set entire history equal to current value.
          do i=1,expression%n+3
-            expression%history(_PREARG_LOCATION_DIMENSIONS_ i) = self%environment%data(expression%in)%p
+            expression%history(_PREARG_LOCATION_DIMENSIONS_ i) = self%data(expression%in)%p
          end do
          expression%next_save_time = t + expression%period/expression%n
          expression%ioldest = 1
@@ -3111,7 +3151,7 @@ contains
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
             - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) &
-            + weight_right*self%environment%data(expression%in)%p
+            + weight_right*self%data(expression%in)%p
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
             + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
 
@@ -3129,7 +3169,7 @@ contains
       ! For temporal means:
       ! - store values at current time step
       ! - for current mean, use historical mean but account for change since most recent point in history.
-      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) = self%environment%data(expression%in)%p
+      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) = self%data(expression%in)%p
       expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
          + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1))
 
@@ -3144,7 +3184,7 @@ contains
       if (expression%ioldest==-1) then
          ! Start of simulation; set entire history equal to current value.
          do i=1,expression%n+3
-            expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ i) = self%environment%data_hz(expression%in)%p
+            expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%data_hz(expression%in)%p
          end do
          expression%next_save_time = t + expression%period/expression%n
          expression%ioldest = 1
@@ -3157,12 +3197,12 @@ contains
          ! - remove contribution of oldest point from historical mean
          ! - linearly interpolate to desired time
          ! - add contribution of new point to historical mean
-         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) &
-            - expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
-         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1) &
-            + weight_right*self%environment%data_hz(expression%in)%p
-         expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) &
-            + expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest)/expression%n
+         expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) &
+            - expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
+         expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+1) &
+            + weight_right*self%data_hz(expression%in)%p
+         expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) &
+            + expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
 
          ! Compute next time for which we want to store output
          expression%next_save_time = expression%next_save_time + expression%period/expression%n
@@ -3178,9 +3218,9 @@ contains
       ! For temporal means:
       ! - store values at current time step
       ! - for current mean, use historical mean but account for change since most recent point in history.
-      expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1) = self%environment%data_hz(expression%in)%p
-      expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+2) &
-         + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_HZ_ expression%n+1))
+      expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+1) = self%data_hz(expression%in)%p
+      expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) &
+         + frac_outside*(-expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+1))
 
       expression%last_time = t
    end subroutine
@@ -3394,9 +3434,9 @@ subroutine create_readable_variable_registry(self)
       link => link%next
    end do
 
-   allocate(self%environment%data       (nread))
-   allocate(self%environment%data_hz    (nread_hz))
-   allocate(self%environment%data_scalar(nread_scalar))
+   allocate(self%data       (nread))
+   allocate(self%data_hz    (nread_hz))
+   allocate(self%data_scalar(nread_scalar))
 end subroutine create_readable_variable_registry
 
 function variable_from_data_index(self,index,domain) result(variable)
@@ -3435,17 +3475,17 @@ subroutine filter_readable_variable_registry(self)
             case (domain_bulk)
                nread = nread+1
                if (link%target%presence==presence_external_optional &
-                   .and..not.associated(self%environment%data(nread)%p)) &
+                   .and..not.associated(self%data(nread)%p)) &
                   call link%target%read_indices%set_value(-1)
             case (domain_horizontal,domain_surface,domain_bottom)
                nread_hz = nread_hz+1
                if (link%target%presence==presence_external_optional &
-                   .and..not.associated(self%environment%data_hz(nread_hz)%p)) &
+                   .and..not.associated(self%data_hz(nread_hz)%p)) &
                   call link%target%read_indices%set_value(-1)
             case (domain_scalar)
                nread_scalar = nread_scalar+1
                if (link%target%presence==presence_external_optional &
-                   .and..not.associated(self%environment%data_scalar(nread_scalar)%p)) &
+                   .and..not.associated(self%data_scalar(nread_scalar)%p)) &
                   call link%target%read_indices%set_value(-1)
          end select
       end if   
@@ -3488,8 +3528,6 @@ subroutine classify_variables(self)
       end do
       model_node => model_node%next
    end do
-
-   call set_diagnostic_indices(self%root)
 
    ! Count number of conserved quantities and allocate associated array.
    ncons = 0
@@ -3549,6 +3587,8 @@ subroutine classify_variables(self)
    if (.not.associated(object)) call driver%fatal_error('classify_variables', &
       'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux was not created')
    call object%read_indices%append(self%extinction_index)
+
+   call set_diagnostic_indices(self%root)
 
    ! From this point on, variables will stay as they are.
    ! Coupling is done, and the framework will not add further read indices.
@@ -3782,14 +3822,14 @@ end subroutine
       extinction = 0.0_rk
       node => self%models%first
       do while (associated(node))
-         call node%model%get_light_extinction(_ARGUMENTS_ND_,extinction)
+         call node%model%get_light_extinction(_ARGUMENTS_INTERIOR_,extinction)
          node => node%next
       end do
 
       ! Transfer computed light extinction values to the output diagnostic.
-      _CONCURRENT_LOOP_BEGIN_
+      _LOOP_BEGIN_
          _SET_DIAGNOSTIC_(self%id_output,extinction _INDEX_SLICE_)
-      _CONCURRENT_LOOP_END_
+      _LOOP_END_
    end subroutine
 
    subroutine add_to_model_call_list(self,variable_name,list)

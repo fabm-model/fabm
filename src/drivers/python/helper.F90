@@ -38,11 +38,11 @@
          if (.not.link%target%read_indices%is_empty().and.link%target%state_indices%is_empty()) then
             select case (link%target%domain)
                case (domain_bulk)
-                  if (.not.associated(model%environment%data(link%target%read_indices%pointers(1)%p)%p)) n = n+1
+                  if (.not.associated(model%data(link%target%read_indices%pointers(1)%p)%p)) n = n+1
                case (domain_bottom,domain_surface,domain_horizontal)
-                  if (.not.associated(model%environment%data_hz(link%target%read_indices%pointers(1)%p)%p)) n = n+1
+                  if (.not.associated(model%data_hz(link%target%read_indices%pointers(1)%p)%p)) n = n+1
                case (domain_scalar)
-                  if (.not.associated(model%environment%data_scalar(link%target%read_indices%pointers(1)%p)%p)) n = n+1
+                  if (.not.associated(model%data_scalar(link%target%read_indices%pointers(1)%p)%p)) n = n+1
             end select
          end if
          link => link%next
@@ -59,7 +59,7 @@
          if (.not.link%target%read_indices%is_empty().and.link%target%state_indices%is_empty()) then
             select case (link%target%domain)
                case (domain_bulk)
-                  if (.not.associated(model%environment%data(link%target%read_indices%pointers(1)%p)%p)) then
+                  if (.not.associated(model%data(link%target%read_indices%pointers(1)%p)%p)) then
                      n = n + 1
                      if (.not.associated(link%target%standard_variable)) then
                         environment_names(n) = trim(link%name)
@@ -70,7 +70,7 @@
                      end if
                   end if
                case (domain_bottom,domain_surface,domain_horizontal)
-                  if (.not.associated(model%environment%data_hz(link%target%read_indices%pointers(1)%p)%p)) then
+                  if (.not.associated(model%data_hz(link%target%read_indices%pointers(1)%p)%p)) then
                      n = n + 1
                      if (.not.associated(link%target%standard_variable)) then
                         environment_names(n) = trim(link%name)
@@ -81,7 +81,7 @@
                      end if
                   end if
                case (domain_scalar)
-                  if (.not.associated(model%environment%data_scalar(link%target%read_indices%pointers(1)%p)%p)) then
+                  if (.not.associated(model%data_scalar(link%target%read_indices%pointers(1)%p)%p)) then
                      n = n + 1
                      if (.not.associated(link%target%standard_variable)) then
                         environment_names(n) = trim(link%name)
