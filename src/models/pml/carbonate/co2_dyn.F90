@@ -363,7 +363,7 @@
       TK=T+273.15D0
       DO 100 IK=1,NKVAL
         VAL=A(IK) + B(IK)/TK + C(IK)*LOG(TK)
-        VAL=VAL + (A0(IK,IC) + A1(IK,IC)/TK + A2(IK,IC)*LOG(TK))*DSQRT(S)
+        VAL=VAL + (A0(IK,IC) + A1(IK,IC)/TK + A2(IK,IC)*LOG(TK))*SQRT(S)
         VAL=VAL + (B0(IK,IC) + B1(IK,IC)*TK + B2(IK,IC)*TK*TK)*S
         AKVAL(IK)=EXP(VAL)
 100    CONTINUE
