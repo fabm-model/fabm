@@ -6,7 +6,7 @@
 ! variable (derived type) that has all standard identities as its members. This can then be used as
 ! standard_variables%temperature, standard_variables%wind_speed, etc.
 ! For a list of all supported variables, please see:
-! http://sourceforge.net/apps/mediawiki/fabm/index.php?title=List_of_standard_variables
+! http://sourceforge.net/p/fabm/wiki/List_of_standard_variables
 !
 ! Biogeochemical models can use these "identity" objects in two ways. First, they can access the value
 ! of the corresponding variable by registering them as dependency. To do so, call register_dependency
@@ -16,7 +16,7 @@
 ! standard identities enables implicit variable coupling.
 ! ====================================================================================================
 ! The names of standard variables are based on the Standard Name Table from the NetCDF Climate and
-! Forecast (CF) Metadata Convention. See http://cf-pcmdi.llnl.gov/documents/cf-standard-names/.
+! Forecast (CF) Metadata Convention. See http://cfconventions.org/.
 ! In deriving names from the CF convention, the following exceptions are made to account for the fact
 ! that FABM handles both marine and limnic systems and has the water column as default domain:
 ! - "sea_water_" prefix is suppressed.
