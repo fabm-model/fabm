@@ -71,7 +71,7 @@ module fabm_builtin_models
       logical                                       :: average       = .false.
    contains
       procedure :: initialize => simple_depth_integral_initialize
-      procedure :: do         => simple_depth_integral_do
+      procedure :: do_bottom  => simple_depth_integral_do_bottom
    end type
 
    type,extends(type_base_model) :: type_bulk_constant
@@ -356,12 +356,12 @@ module fabm_builtin_models
       integer,                           intent(in)           :: configunit
       call self%register_dependency(self%id_input,'source','','source')
       if (.not.self%average) call self%register_dependency(self%id_depth,standard_variables%bottom_depth)
-      call self%register_diagnostic_variable(self%id_output,'result','','result')
+      call self%register_diagnostic_variable(self%id_output,'result','','result',source=source_do_bottom)
    end subroutine
 
-   subroutine simple_depth_integral_do(self,_ARGUMENTS_DO_)
+   subroutine simple_depth_integral_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
       class (type_simple_depth_integral),intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_
+      _DECLARE_ARGUMENTS_DO_BOTTOM_
 
       real(rk) :: value,depth
 
