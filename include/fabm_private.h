@@ -170,14 +170,19 @@
 #  ifndef _INTERIOR_IS_VECTORIZED_
 #    error _FABM_MASK_TYPE_/_FABM_MASKED_VALUE_/_FABM_UNMASKED_VALUE_ are not used if no dimension is vectorized.
 #  endif
-#  ifdef _FABM_MASKED_VALUE_
+#  ifdef _FABM_IS_UNMASKED_
+#    define _IS_UNMASKED_(maskvalue) _FABM_IS_UNMASKED_(maskvalue)
+#  elif defined(_FABM_MASKED_VALUE_)
 #    define _IS_UNMASKED_(maskvalue) maskvalue/=_FABM_MASKED_VALUE_
 #  elif defined(_FABM_UNMASKED_VALUE_)
 #    define _IS_UNMASKED_(maskvalue) maskvalue==_FABM_UNMASKED_VALUE_
 #  else
-#    error If _FABM_MASK_TYPE_ is set, _FABM_MASKED_VALUE_ or _FABM_UNMASKED_VALUE_ must be set as well.
+#    error If _FABM_MASK_TYPE_ is set, _FABM_MASKED_VALUE_, _FABM_UNMASKED_VALUE_ or _FABM_IS_UNMASKED_ must be set as well.
 #  endif
 #else
+#  ifdef _FABM_IS_UNMASKED_
+#    error To use _FABM_IS_UNMASKED_, _FABM_MASK_TYPE_ must be set as well.
+#  endif
 #  ifdef _FABM_MASKED_VALUE_
 #    error To use _FABM_MASKED_VALUE_, _FABM_MASK_TYPE_ must be set as well.
 #  endif
