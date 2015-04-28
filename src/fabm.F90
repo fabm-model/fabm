@@ -61,6 +61,10 @@
    ! Set spatial mask
    public fabm_set_mask
 #endif
+#if _FABM_BOTTOM_INDEX_==-1
+   ! Provide vertical indices of bottommost cells
+   public fabm_set_bottom_indices
+#endif
 
    ! For backward compatibility only (use fabm_do_surface and fabm_do_bottom instead)
    public fabm_get_surface_exchange, fabm_do_benthos
