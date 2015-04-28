@@ -359,6 +359,7 @@
 
    interface fabm_variable_needs_values
       module procedure fabm_bulk_variable_needs_values
+      module procedure fabm_horizontal_variable_needs_values
    end interface
 
    ! For backward compatibility only:
@@ -1300,7 +1301,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Determine whether a bulk variable is available to biogeochemical models running in FABM.
+! !IROUTINE: Determine whether values for a bulk variable are still required.
 !
 ! !INTERFACE:
    function fabm_bulk_variable_needs_values(self,id) result(required)
@@ -1319,6 +1320,30 @@
    if (required) required = .not.associated(self%data(id%read_index)%p)
 
    end function fabm_bulk_variable_needs_values
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Determine whether values for a horizontal variable are still required.
+!
+! !INTERFACE:
+   function fabm_horizontal_variable_needs_values(self,id) result(required)
+!
+! !INPUT PARAMETERS:
+   class (type_model),               intent(inout) :: self
+   type(type_horizontal_variable_id),intent(in)    :: id
+!
+! !RETURN VALUE:
+   logical :: required
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   required = id%read_index/=-1
+   if (required) required = .not.associated(self%data_hz(id%read_index)%p)
+
+   end function fabm_horizontal_variable_needs_values
 !EOC
 
 !-----------------------------------------------------------------------
