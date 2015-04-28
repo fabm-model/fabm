@@ -227,6 +227,9 @@
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
 #  endif
 #endif
+#if _FABM_BOTTOM_INDEX_==-1
+      integer,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_indices => null()
+#endif
 
       integer :: nscratch = -1
       integer :: nscratch_hz = -1
@@ -860,14 +863,14 @@
 #if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(mask,i)/=self%horizontal_domain_size(i)) &
-         call fatal_error('fabm_check_ready','dimensions of FABM domain and provided mask do not match.')
+         call fatal_error('fabm_set_mask','dimensions of FABM domain and provided mask do not match.')
    end do
 #endif
 #else
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
       if (size(mask,i)/=self%domain_size(i)) &
-         call fatal_error('fabm_check_ready','dimensions of FABM domain and provided mask do not match.')
+         call fatal_error('fabm_set_mask','dimensions of FABM domain and provided mask do not match.')
    end do
 #endif
 #endif
@@ -875,6 +878,38 @@
    self%mask => mask
 
    end subroutine fabm_set_mask
+!EOC
+#endif
+
+#if _FABM_BOTTOM_INDEX_==-1
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with the vertical indices of bottommost cells.
+!
+! !INTERFACE:
+   subroutine fabm_set_bottom_indices(self, indices)
+!
+! !INPUT PARAMETERS:
+   class (type_model),target,intent(inout)                   :: self
+   integer, target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: indices
+!
+! !LOCAL VARIABLES:
+   integer :: i
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
+   do i=1,size(self%horizontal_domain_size)
+      if (size(indices,i)/=self%horizontal_domain_size(i)) &
+         call fatal_error('fabm_set_bottom_indices','dimensions of FABM domain and provided index field do not match.')
+   end do
+#endif
+
+   self%bottom_indices => indices
+
+   end subroutine fabm_set_bottom_indices
 !EOC
 #endif
 
