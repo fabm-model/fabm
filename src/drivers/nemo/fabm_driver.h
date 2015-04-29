@@ -3,7 +3,7 @@
 #define _FABM_VECTORIZED_DIMENSION_INDEX_ 1
 
 #define _FABM_MASK_TYPE_ real(rk)
-#define _FABM_IS_UNMASKED_(maskvalue) maskvalue<=0
+#define _FABM_IS_UNMASKED_(maskvalue) maskvalue>0
 
 ! Specify that the vertical index of the bottom cell is variable (kmax depends on i,j)
 #define _FABM_BOTTOM_INDEX_ -1
