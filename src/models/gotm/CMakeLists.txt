@@ -3,6 +3,7 @@ add_library(fabm_models_gotm OBJECT
             ergom/ergom.F90
             fasham/fasham.F90
             npzd/npzd.F90
+            light/light.F90
            )
 
 add_dependencies(fabm_models_gotm fabm_base)
