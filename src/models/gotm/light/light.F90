@@ -9,11 +9,15 @@ module gotm_light
    private
 
    type,extends(type_base_model),public :: type_gotm_light
-      ! Identifiers for diagnostic variables
-      type (type_diagnostic_variable_id)            :: id_par, id_swr
-      type (type_horizontal_diagnostic_variable_id) :: id_par0
-      type (type_dependency_id)                     :: id_dz
-      type (type_horizontal_dependency_id)          :: id_swr0
+      ! Identifiers for dependencies [model inputs]
+      type (type_horizontal_dependency_id)          :: id_swr0 ! Surface shortwave radiation
+      type (type_dependency_id)                     :: id_dz   ! Cell thickness
+      type (type_dependency_id)                     :: id_ext  ! Attentuation coefficient for PAR
+
+      ! Identifiers for diagnostic variables [model outputs]
+      type (type_diagnostic_variable_id)            :: id_par  ! Photosynthetically active radiation
+      type (type_diagnostic_variable_id)            :: id_swr  ! Shortwave radiation
+      type (type_horizontal_diagnostic_variable_id) :: id_par0 ! Surface photosynthetically active radiation
 
       ! Parameters
       real(rk) :: a,g1,g2
@@ -50,6 +54,7 @@ contains
 
       ! Register environmental dependencies (temperature, shortwave radiation)
       call self%register_dependency(self%id_swr0,standard_variables%surface_downwelling_shortwave_flux)
+      call self%register_dependency(self%id_ext, standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
       call self%register_dependency(self%id_dz,  standard_variables%cell_thickness)
    end subroutine
    
@@ -57,17 +62,19 @@ contains
       class (type_gotm_light),intent(in) :: self
       _DECLARE_ARGUMENTS_VERT_
 
-      real(rk) :: swr0,dz,swr,par,z
-      real(rk),parameter :: bioext = 0.0_rk
+      real(rk) :: swr0,dz,swr,par,z,ext,bioext
 
       _GET_HORIZONTAL_(self%id_swr0,swr0)
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_par0,swr0*(1-self%a))
       z = 0
+      bioext = 0
       _VERTICAL_LOOP_BEGIN_
          _GET_(self%id_dz,dz)     ! Layer height (m)
+         _GET_(self%id_ext,ext)   ! PAR attenuation (m-1)
 
          ! Set depth to centre of layer
          z = z + dz/2
+         bioext = bioext + ext*dz/2
 
          ! Calculate photosynthetically active radiation (PAR), shortwave radiation, and PAR attenuation.
          par = swr0*(1-self%A)*exp(-z/self%g2-bioext)
@@ -75,6 +82,7 @@ contains
 
          ! Move to bottom of layer
          z = z + dz/2
+         bioext = bioext + ext*dz/2
 
          _SET_DIAGNOSTIC_(self%id_swr,swr) ! Shortwave radiation at layer centre
          _SET_DIAGNOSTIC_(self%id_par,par) ! Photosynthetically active radiation at layer centre
