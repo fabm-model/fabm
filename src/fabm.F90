@@ -1981,9 +1981,9 @@ subroutine prefetch_vertical(self,environment _ARGUMENTS_VERTICAL_IN_ _ARGUMENTS
    allocate(environment%mask(_N_))
    _DO_CONCURRENT_(_I_,1,_N_)
 #    ifdef _FABM_HORIZONTAL_MASK_
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_HORIZONTAL_(loop_start+_I_-1))
+      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_HORIZONTAL_LOCATION_)
 #    else
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1))
+      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(loop_start+_I_-1))
 #    endif
    end do
    _N_ = count(environment%mask)
@@ -3016,6 +3016,17 @@ end subroutine internal_check_horizontal_state
       if (self%diagnostic_variables(i)%source==source_do_column.and.k/=0) then
          j = self%diagnostic_variables(i)%target%write_indices%value
          _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(environment%scratch,j,self%diag,k,environment%mask)
+      end if
+   end do
+   do i=1,size(self%horizontal_diagnostic_variables)
+      k = self%horizontal_diagnostic_variables(i)%save_index
+      if (self%horizontal_diagnostic_variables(i)%source==source_do_column.and.k/=0) then
+         j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+         self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ k) = environment%scratch_hz(1,j)
+#else
+         self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ k) = environment%scratch_hz(j)
+#endif
       end if
    end do
 
