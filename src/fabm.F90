@@ -783,8 +783,8 @@
    allocate(self%get_light_environment%save_sources(nsave))
    allocate(self%get_light_environment%save_sources_hz(nsave_hz))
    self%do_interior_environment%save_sources = -1
-   self%do_bottom_environment%save_sources = -1
-   self%do_surface_environment%save_sources = -1
+   self%do_bottom_environment%save_sources_hz = -1
+   self%do_surface_environment%save_sources_hz = -1
    self%get_light_environment%save_sources = -1
    self%get_light_environment%save_sources_hz = -1
    do ivar=1,size(self%diagnostic_variables)
