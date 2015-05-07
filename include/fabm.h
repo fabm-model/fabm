@@ -48,7 +48,7 @@
 
 #define _I_ l__
 #define _J_ m__
-#define _N_ n__
+#define _N_ environment%n
 
 #ifdef _INTERIOR_IS_VECTORIZED_
 !  Interior fields are 1D
@@ -113,7 +113,6 @@
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
 !  Interior procedures operate in 1D
 !  Interior slices MUST be 1D arrays; horizontal slices may be scalars or 1D arrays
-#  define _ARGUMENTS_INTERIOR_ _ARGUMENTS_SHARED_,_N_
 #  define _LOOP_END_ end do
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
 !    Horizontal slices are 1D arrays
@@ -128,11 +127,9 @@
 #    define _LOOP_BEGIN_ do _I_=1,_N_
 #    define _CONCURRENT_LOOP_BEGIN_ _DO_CONCURRENT_(_I_,1,_N_)
 #  endif
-#  define _DECLARE_ARGUMENTS_INTERIOR_ _DECLARE_ARGUMENTS_SHARED_;integer,intent(in) :: _N_;_DECLARE_INTERIOR_INDICES_
 #else
 !  Interior procedures operate in 0D
 !  Interior slices may be 0D scalars or 1D arrays [the latter if the model has a vertical dimension]
-#  define _ARGUMENTS_INTERIOR_ _ARGUMENTS_SHARED_
 #  define _LOOP_BEGIN_
 #  define _CONCURRENT_LOOP_BEGIN_
 #  define _LOOP_END_
@@ -143,23 +140,21 @@
 !    Interior slices are scalars
 #    define _DECLARE_INTERIOR_INDICES_
 #  endif
-#  define _DECLARE_ARGUMENTS_INTERIOR_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_INTERIOR_INDICES_
 #endif
+#define _ARGUMENTS_INTERIOR_ _ARGUMENTS_SHARED_
+#define _DECLARE_ARGUMENTS_INTERIOR_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_INTERIOR_INDICES_
 
 ! Preprocessor symbols for procedures operating on a HORIZONTAL slice
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 !  Horizontal procedures operate in 1D
 !  Horizontal and interior slices MUST be 1D. Use same index for horizontal and interior (_I_=_J_)
-#  define _ARGUMENTS_HORIZONTAL_ _ARGUMENTS_SHARED_,_N_
 #  define _DECLARE_HORIZONTAL_INDICES_ integer :: _I_,_J_
-#  define _DECLARE_ARGUMENTS_HORIZONTAL_ _DECLARE_ARGUMENTS_SHARED_;integer,intent(in) :: _N_;_DECLARE_HORIZONTAL_INDICES_
 #  define _HORIZONTAL_LOOP_BEGIN_ do _J_=1,_N_;_I_=_J_
 #  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_ _DO_CONCURRENT_(_J_,1,_N_);_I_=_J_
 #  define _HORIZONTAL_LOOP_END_ end do
 #else
 !  Horizontal procedures operate in 0D
 !  Horizontal slices MUST be scalars; interior slices can be scalars or 1D arrays
-#  define _ARGUMENTS_HORIZONTAL_ _ARGUMENTS_SHARED_
 #  define _HORIZONTAL_LOOP_BEGIN_
 #  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
 #  define _HORIZONTAL_LOOP_END_
@@ -170,15 +165,15 @@
 !    Interior slices are scalars
 #    define _DECLARE_HORIZONTAL_INDICES_
 #  endif
-#  define _DECLARE_ARGUMENTS_HORIZONTAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_HORIZONTAL_INDICES_
 #endif
+#define _ARGUMENTS_HORIZONTAL_ _ARGUMENTS_SHARED_
+#define _DECLARE_ARGUMENTS_HORIZONTAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_HORIZONTAL_INDICES_
 
 ! Preprocessor symbols for procedures operating on a VERTICAL slice
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 !  Vertical procedures operate in 1D
 !  Interior slices MUST be 1D arrays; horizontal slices may be 0D or 1D
 !  Applies to all models with depth dimension. For instance, model with i,j,k [MOM,NEMO], i,k [FVCOM], or k [GOTM]
-#  define _ARGUMENTS_VERTICAL_ _ARGUMENTS_SHARED_,_N_
 #  define _VERTICAL_LOOP_END_ end do
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
 #    define _VERTICAL_LOOP_BEGIN_ do _I_=_N_,1,-1
@@ -196,12 +191,10 @@
 !    For instance model with k [GOTM] or i,k, i,j,k, vectorized along k
 #    define _DECLARE_VERTICAL_INDICES_ integer :: _I_
 #  endif
-#  define _DECLARE_ARGUMENTS_VERTICAL_ _DECLARE_ARGUMENTS_SHARED_;integer,intent(in) :: _N_;_DECLARE_VERTICAL_INDICES_
 #else
 !  Vertical procedures operate in 0D
 !  Interior slices may scalars or 1D arrays [the latter if the model is vectorized over a horizontal dimension]
 !  Applies to all models without depth dimension; for instance, 0D box or model with i,j or i
-#  define _ARGUMENTS_VERTICAL_ _ARGUMENTS_SHARED_
 #  define _VERTICAL_LOOP_BEGIN_
 #  define _CONCURRENT_VERTICAL_LOOP_BEGIN_
 #  define _VERTICAL_LOOP_END_
@@ -215,8 +208,9 @@
 !    For instance, 0D box
 #    define _DECLARE_VERTICAL_INDICES_
 #  endif
-#  define _DECLARE_ARGUMENTS_VERTICAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_VERTICAL_INDICES_
 #endif
+#define _ARGUMENTS_VERTICAL_ _ARGUMENTS_SHARED_
+#define _DECLARE_ARGUMENTS_VERTICAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_VERTICAL_INDICES_
 
 ! Preprocessor symbols for procedures operating on a single point in space.
 #ifdef _INTERIOR_IS_VECTORIZED_

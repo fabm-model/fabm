@@ -513,6 +513,8 @@
    ! ====================================================================================================
 
    type type_environment
+      integer :: n = 1
+
       ! Prefetch arrays that will hold readable data for a single domain slice.
       ! Biogeochemical models use only these to read data.
       real(rk),allocatable _DIMENSION_SLICE_PLUS_1_            :: prefetch
