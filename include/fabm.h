@@ -135,7 +135,7 @@
 #  define _LOOP_END_
 #  ifdef _INTERIOR_IS_VECTORIZED_
 !    Interior slices are 1D arrays - we will operate on their first element (_I_=1)
-#    define _DECLARE_INTERIOR_INDICES_ integer,parameter :: _I_=1,_N_=1
+#    define _DECLARE_INTERIOR_INDICES_ integer,parameter :: _I_=1
 #  else
 !    Interior slices are scalars
 #    define _DECLARE_INTERIOR_INDICES_
@@ -202,7 +202,7 @@
 !    Interior slices are 1D arrays. Since the vectorized dimension is not depth, horizontal slices MUST be 1D arrays too
 !    Operate on their first element (_I_=1,_J_=1)
 !    For instance, model with i,j or i; vectorized along i or j
-#    define _DECLARE_VERTICAL_INDICES_ integer,parameter :: _I_=1,_J_=1,_N_=1
+#    define _DECLARE_VERTICAL_INDICES_ integer,parameter :: _I_=1,_J_=1
 #  else
 !    Both interior and horizontal slices are scalars
 !    For instance, 0D box
