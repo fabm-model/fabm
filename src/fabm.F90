@@ -2962,7 +2962,7 @@ end subroutine internal_check_horizontal_state
 
 #ifdef _HAS_MASK_
    do i=1,size(self%state_variables)
-      _UNPACK_TO_PLUS_1_(packed_velocity,i,velocity,i,environment%mask)
+      _UNPACK_TO_PLUS_1_(packed_velocity,i,velocity,i,environment%mask,0.0_rk)
    end do
 #endif
 #undef _VELOCITY_
