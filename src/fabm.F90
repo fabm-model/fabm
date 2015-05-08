@@ -217,6 +217,9 @@
       ! Declare the arrays for diagnostic variable values.
       real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: diag
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
+      real(rk),allocatable                                      :: diag_missing_value(:)
+      real(rk),allocatable                                      :: diag_hz_missing_value(:)
+
       real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
       integer                                                   :: domain_size(_FABM_DIMENSION_COUNT_)
@@ -775,6 +778,20 @@
    end do
    allocate(self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ 0:nsave_hz))
    self%diag_hz = 0.0_rk
+
+   ! Create array with missing values for all stored interior diagnostics
+   allocate(self%diag_missing_value(nsave))
+   do ivar=1,size(self%diagnostic_variables)
+      if (self%diagnostic_variables(ivar)%save_index>0) &
+         self%diag_missing_value(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%missing_value
+   end do
+
+   ! Create array with missing values for all stored horizontal diagnostics
+   allocate(self%diag_hz_missing_value(nsave_hz))
+   do ivar=1,size(self%horizontal_diagnostic_variables)
+      if (self%horizontal_diagnostic_variables(ivar)%save_index>0) &
+         self%diag_hz_missing_value(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%missing_value
+   end do
 
    ! For each saved scratch variable, store its scratch index where the data can be found.
    allocate(self%do_interior_environment%save_sources(nsave))
@@ -2116,7 +2133,7 @@ subroutine deallocate_prefetch(self,settings,environment _ARGUMENTS_INTERIOR_IN_
    if (allocated(settings%save_sources)) then
       do i=1,size(settings%save_sources)
          if (settings%save_sources(i)/=-1) then
-            _UNPACK_TO_GLOBAL_PLUS_1_(environment%scratch,settings%save_sources(i),self%diag,i,environment%mask,0.0_rk)
+            _UNPACK_TO_GLOBAL_PLUS_1_(environment%scratch,settings%save_sources(i),self%diag,i,environment%mask,self%diag_missing_value(i))
          end if
       end do
    end if
@@ -2143,7 +2160,7 @@ subroutine deallocate_prefetch_horizontal(self,settings,environment _ARGUMENTS_H
    if (allocated(settings%save_sources_hz)) then
       do i=1,size(settings%save_sources_hz)
          if (settings%save_sources_hz(i)/=-1) then
-            _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(environment%scratch_hz,settings%save_sources_hz(i),self%diag_hz,i,environment%mask,0.0_rk)
+            _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(environment%scratch_hz,settings%save_sources_hz(i),self%diag_hz,i,environment%mask,self%diag_hz_missing_value(i))
          end if
       end do
    end if
@@ -2170,7 +2187,7 @@ subroutine deallocate_prefetch_vertical(self,settings,environment _ARGUMENTS_VER
    if (allocated(settings%save_sources)) then
       do i=1,size(settings%save_sources)
          if (settings%save_sources(i)/=-1) then
-            _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(environment%scratch,settings%save_sources(i),self%diag,i,environment%mask,0.0_rk)
+            _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(environment%scratch,settings%save_sources(i),self%diag,i,environment%mask,self%diag_missing_value(i))
          end if
       end do
    end if
