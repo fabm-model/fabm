@@ -2721,8 +2721,10 @@ recursive subroutine abstract_model_factory_create(self,name,model)
    do while(associated(child))
       if (child%prefix/='') then
          n = len_trim(child%prefix)
-         if (name(1:n)==child%prefix .and. (name(n+1:n+1)=='_' .or. name(n+1:n+1)=='/')) &
-            call child%factory%create(name(n+2:),model)
+         if (len_trim(name)>n+1) then
+            if (name(1:n)==child%prefix .and. (name(n+1:n+1)=='_' .or. name(n+1:n+1)=='/')) &
+               call child%factory%create(name(n+2:),model)
+         end if
       else
          call child%factory%create(name,model)
       end if
