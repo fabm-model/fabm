@@ -1,3 +1,8 @@
+# This file defines all standard variables known to FABM.
+# It is the ONLY authoritative source of this information.
+# This script parse_standard_variables.py parses this file
+# to generate the standard variable include files as well
+# as the text on the wiki.
 bulk:
   - name: alkalinity_expressed_as_mole_equivalent
     units: mmol m-3
@@ -47,6 +52,8 @@ horizontal:
   - name: bottom_depth_below_geoid
     units: m
   - name: bottom_depth
+    units: m
+  - name: bottom_roughness_length
     units: m
   - name: bottom_stress
     units: Pa
