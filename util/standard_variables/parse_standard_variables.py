@@ -9,6 +9,7 @@ import yaml # http://pyyaml.org
 variablespath = 'variables.yaml'
 localpath = 'cf-standard-name-table.xml'
 url = 'http://cfconventions.org/Data/cf-standard-names/28/src/cf-standard-name-table.xml'
+html = 'http://cfconventions.org/Data/cf-standard-names/28/build/cf-standard-name-table.html'
 output_F90 = '../../include/standard_variables.h'
 output_F90_assignments = '../../include/standard_variable_assignments.h'
 output_wiki = 'standard_variables.wiki'
@@ -86,7 +87,7 @@ fout_assignments.write(msg)
 fwiki = open(output_wiki,'w')
 for domain,items in selection.iteritems():
     fwiki.write('## %s variables\n' % (domain[0].upper()+domain[1:]))
-    fwiki.write('|Variable|Units|Corresponding name in [CF convention](http://cfconventions.org/standard-names-26.html)|\n')
+    fwiki.write('|Variable|Units|Corresponding name in [CF convention](%s)|\n' % html)
     fwiki.write('|---|---|---|\n')
     fout.write('! %s variables\n' % (domain[0].upper()+domain[1:]))
     for i,item in enumerate(sorted(items,cmp=lambda x,y:cmp(x['name'],y['name']))):
