@@ -25,6 +25,7 @@ type (type_bulk_standard_variable) :: temperature
 type (type_horizontal_standard_variable) :: bottom_depth
 type (type_horizontal_standard_variable) :: bottom_depth_below_geoid
 type (type_horizontal_standard_variable) :: bottom_stress
+type (type_horizontal_standard_variable) :: bottom_roughness
 type (type_horizontal_standard_variable) :: cloud_area_fraction
 type (type_horizontal_standard_variable) :: latitude
 type (type_horizontal_standard_variable) :: longitude

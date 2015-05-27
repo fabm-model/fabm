@@ -92,6 +92,9 @@ standard_variables%bottom_depth_below_geoid%cf_names = 'sea_floor_depth_below_ge
 standard_variables%bottom_stress%name = 'bottom_stress'
 standard_variables%bottom_stress%units = 'Pa'
 
+standard_variables%bottom_roughness%name = 'bottom_roughness'
+standard_variables%bottom_roughness%units = 'm'
+
 standard_variables%cloud_area_fraction%name = 'cloud_area_fraction'
 standard_variables%cloud_area_fraction%units = '1'
 standard_variables%cloud_area_fraction%cf_names = 'cloud_area_fraction'
