@@ -281,6 +281,16 @@
       procedure :: get_scalar_variable_id_by_name => fabm_get_scalar_variable_id_by_name
       procedure :: get_scalar_variable_id_sn => fabm_get_scalar_variable_id_sn
       generic :: get_scalar_variable_id => get_scalar_variable_id_by_name, get_scalar_variable_id_sn
+
+      procedure :: bulk_variable_needs_values => fabm_bulk_variable_needs_values
+      procedure :: bulk_variable_needs_values_sn => fabm_bulk_variable_needs_values_sn
+      procedure :: horizontal_variable_needs_values => fabm_horizontal_variable_needs_values
+      procedure :: horizontal_variable_needs_values_sn => fabm_horizontal_variable_needs_values_sn
+      procedure :: scalar_variable_needs_values => fabm_scalar_variable_needs_values
+      procedure :: scalar_variable_needs_values_sn => fabm_scalar_variable_needs_values_sn
+      generic :: variable_needs_values => bulk_variable_needs_values, bulk_variable_needs_values_sn, &
+                                          horizontal_variable_needs_values, horizontal_variable_needs_values_sn, &
+                                          scalar_variable_needs_values, scalar_variable_needs_values_sn
    end type type_model
 
    type,extends(type_base_model) :: type_custom_extinction_calculator
@@ -1352,17 +1362,17 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Determine whether values for a bulk variable are still required.
+! !IROUTINE: Determine whether values for a bulk variable are required (read but not provided yet).
 !
 ! !INTERFACE:
    function fabm_bulk_variable_needs_values(self,id) result(required)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),         intent(inout) :: self
-   type(type_bulk_variable_id),intent(in)    :: id
+   class (type_model),         intent(in) :: self
+   type(type_bulk_variable_id),intent(in) :: id
 !
 ! !RETURN VALUE:
-   logical                                :: required
+   logical :: required
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1373,17 +1383,43 @@
    end function fabm_bulk_variable_needs_values
 !EOC
 
+!BOP
+!
+! !IROUTINE: Determine whether values for a bulk standard variable are required (read but not provided yet).
+!
+! !INTERFACE:
+   function fabm_bulk_variable_needs_values_sn(self,standard_variable) result(required)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                intent(in) :: self
+   type (type_bulk_standard_variable),intent(in) :: standard_variable
+!
+! !RETURN VALUE:
+   logical :: required
+!
+! !LOCAL VARIABLES:
+   type(type_bulk_variable_id) :: id
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   id = self%get_bulk_variable_id(standard_variable)
+   required = self%variable_needs_values(id)
+
+   end function fabm_bulk_variable_needs_values_sn
+!EOC
+
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Determine whether values for a horizontal variable are still required.
+! !IROUTINE: Determine whether values for a horizontal variable are required (read but not provided yet).
 !
 ! !INTERFACE:
    function fabm_horizontal_variable_needs_values(self,id) result(required)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),               intent(inout) :: self
-   type(type_horizontal_variable_id),intent(in)    :: id
+   class (type_model),               intent(in) :: self
+   type(type_horizontal_variable_id),intent(in) :: id
 !
 ! !RETURN VALUE:
    logical :: required
@@ -1395,6 +1431,82 @@
    if (required) required = .not.associated(self%data_hz(id%read_index)%p)
 
    end function fabm_horizontal_variable_needs_values
+!EOC
+
+!BOP
+!
+! !IROUTINE: Determine whether values for a horizontal standard variable are required (read but not provided yet).
+!
+! !INTERFACE:
+   function fabm_horizontal_variable_needs_values_sn(self,standard_variable) result(required)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                      intent(in) :: self
+   type (type_horizontal_standard_variable),intent(in) :: standard_variable
+!
+! !RETURN VALUE:
+   logical :: required
+!
+! !LOCAL VARIABLES:
+   type(type_horizontal_variable_id) :: id
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   id = self%get_horizontal_variable_id(standard_variable)
+   required = self%variable_needs_values(id)
+
+   end function fabm_horizontal_variable_needs_values_sn
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Determine whether the value for a scalar is required (read but not provided yet).
+!
+! !INTERFACE:
+   function fabm_scalar_variable_needs_values(self,id) result(required)
+!
+! !INPUT PARAMETERS:
+   class (type_model),           intent(in) :: self
+   type(type_scalar_variable_id),intent(in) :: id
+!
+! !RETURN VALUE:
+   logical :: required
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   required = id%read_index/=-1
+   if (required) required = .not.associated(self%data_scalar(id%read_index)%p)
+
+   end function fabm_scalar_variable_needs_values
+!EOC
+
+!BOP
+!
+! !IROUTINE: Determine whether the value for a standard scalar is required (read but not provided yet).
+!
+! !INTERFACE:
+   function fabm_scalar_variable_needs_values_sn(self,standard_variable) result(required)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                  intent(in) :: self
+   type (type_global_standard_variable),intent(in) :: standard_variable
+!
+! !RETURN VALUE:
+   logical :: required
+!
+! !LOCAL VARIABLES:
+   type(type_scalar_variable_id) :: id
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   id = self%get_scalar_variable_id(standard_variable)
+   required = self%variable_needs_values(id)
+
+   end function fabm_scalar_variable_needs_values_sn
 !EOC
 
 !-----------------------------------------------------------------------
