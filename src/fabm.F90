@@ -128,6 +128,7 @@
       logical                            :: no_river_dilution         = .false.
       type (type_bulk_variable_id)       :: globalid
       integer,allocatable, dimension(:)  :: sms_indices, surface_flux_indices, bottom_flux_indices
+      integer                            :: movement_index
    end type type_state_variable_info
 
    type,extends(type_external_variable) :: type_horizontal_state_variable_info
@@ -234,6 +235,7 @@
       type (type_environment_settings)                          :: do_bottom_ppdd_environment
       type (type_environment_settings)                          :: do_surface_environment
       type (type_environment_settings)                          :: get_light_environment
+      type (type_environment_settings)                          :: get_vertical_movement_environment
 
       ! Registry with pointers to global fields of readable variables.
       ! These pointers are accessed to fill the prefetch (see below).
@@ -738,6 +740,7 @@
       call copy_write_indices(self%state_variables(ivar)%target%sms_list,         self%state_variables(ivar)%sms_indices)
       call copy_write_indices(self%state_variables(ivar)%target%surface_flux_list,self%state_variables(ivar)%surface_flux_indices)
       call copy_write_indices(self%state_variables(ivar)%target%bottom_flux_list, self%state_variables(ivar)%bottom_flux_indices)
+      self%state_variables(ivar)%movement_index = self%state_variables(ivar)%target%movement_diagnostic%target%write_indices%value
    end do
    do ivar=1,size(self%surface_state_variables)
       call copy_write_indices(self%surface_state_variables(ivar)%target%sms_list, self%surface_state_variables(ivar)%sms_indices)
@@ -820,17 +823,21 @@
    allocate(self%do_surface_environment%save_sources_hz(nsave_hz))
    allocate(self%get_light_environment%save_sources(nsave))
    allocate(self%get_light_environment%save_sources_hz(nsave_hz))
+   allocate(self%get_vertical_movement_environment%save_sources(nsave))
    self%do_interior_environment%save_sources = -1
    self%do_bottom_environment%save_sources_hz = -1
    self%do_surface_environment%save_sources_hz = -1
    self%get_light_environment%save_sources = -1
    self%get_light_environment%save_sources_hz = -1
+   self%get_vertical_movement_environment%save_sources = -1
    do ivar=1,size(self%diagnostic_variables)
       if (self%diagnostic_variables(ivar)%save_index>0) then
          if (self%diagnostic_variables(ivar)%source==source_do) &
             self%do_interior_environment%save_sources(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%target%write_indices%value
          if (self%diagnostic_variables(ivar)%source==source_do_column) &
             self%get_light_environment%save_sources(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%target%write_indices%value
+         if (self%diagnostic_variables(ivar)%source==source_get_vertical_movement) &
+            self%get_vertical_movement_environment%save_sources(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%target%write_indices%value
       end if
    end do
    do ivar=1,size(self%horizontal_diagnostic_variables)
@@ -3030,16 +3037,13 @@ end subroutine internal_check_horizontal_state
    _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out)  :: velocity
+   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out) :: velocity
 !
 ! !LOCAL PARAMETERS:
    type (type_environment)              :: environment
    type (type_model_list_node), pointer :: node
-   integer                              :: i
+   integer                              :: i,j,k
    _DECLARE_INTERIOR_INDICES_
-#ifdef _HAS_MASK_
-   real(rk),allocatable :: packed_velocity(:,:)
-#endif
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -3049,39 +3053,31 @@ end subroutine internal_check_horizontal_state
       call fatal_error('fabm_get_vertical_movement','Size of first dimension of velocity should match loop length.')
 #endif
 
-   call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
-
-#ifdef _HAS_MASK_
-   allocate(packed_velocity(_N_,size(self%state_variables)))
-#  define _VELOCITY_ packed_velocity
-#else
-#  define _VELOCITY_ velocity
-#endif
+   call prefetch_interior(self,self%get_vertical_movement_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    ! First set constant sinking rates.
    do i=1,size(self%state_variables)
       ! Use variable-specific constant vertical velocities.
-      ! Automatic vectorization by compiler is possible without further modification (ifort 14.0, 2013-12-06)
+      k = self%state_variables(i)%movement_index
       _CONCURRENT_LOOP_BEGIN_
-         _VELOCITY_ _INDEX_EXT_SLICE_PLUS_1_(i) = self%state_variables(i)%vertical_movement
+         environment%scratch _INDEX_SLICE_PLUS_1_(k) = self%state_variables(i)%vertical_movement
       _LOOP_END_
    end do
 
    ! Now allow models to overwrite with spatially-varying sinking rates - if any.
    node => self%models%first
    do while (associated(node))
-      call node%model%get_vertical_movement(_ARGUMENTS_INTERIOR_,_VELOCITY_)
+      call node%model%get_vertical_movement(_ARGUMENTS_INTERIOR_)
       node => node%next
    end do
 
-#ifdef _HAS_MASK_
+   ! Compose total sources-sinks for each state variable, combining model-specific contributions.
    do i=1,size(self%state_variables)
-      _UNPACK_TO_PLUS_1_(packed_velocity,i,velocity,i,environment%mask,0.0_rk)
+      k = self%state_variables(i)%movement_index
+      _UNPACK_TO_PLUS_1_(environment%scratch,k,velocity,i,environment%mask,0.0_rk)
    end do
-#endif
-#undef _VELOCITY_
 
-   call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call deallocate_prefetch(self,self%get_vertical_movement_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_vertical_movement
 !EOC

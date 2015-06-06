@@ -457,7 +457,7 @@ subroutine print_aggregate_variable_contributions(self)
       end do
       aggregate_variable => aggregate_variable%next
    end do
-end subroutine
+end subroutine print_aggregate_variable_contributions
 
 recursive subroutine build_aggregate_variables(self)
    class (type_base_model),intent(inout),target :: self
@@ -616,7 +616,7 @@ recursive subroutine create_aggregate_models(self)
    end do
 end subroutine create_aggregate_models
 
-subroutine couple_variables(self,master,slave)
+recursive subroutine couple_variables(self,master,slave)
    class (type_base_model),     intent(inout),target :: self
    type (type_internal_variable),pointer             :: master,slave
 
@@ -627,7 +627,7 @@ subroutine couple_variables(self,master,slave)
    if (associated(slave,master)) return
 
    if (associated(self%parent)) call self%fatal_error('couple_variables','BUG: must be called on root node.')
-   if (.not.slave%write_indices%is_empty()) &
+   if (.not.slave%can_be_slave) &
       call fatal_error('couple_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
    if ((slave%fake_state_variable.or..not.slave%state_indices%is_empty()).and.(master%state_indices%is_empty().and..not.master%fake_state_variable)) &
@@ -644,6 +644,7 @@ subroutine couple_variables(self,master,slave)
    ! Merge all information from the slave into the master.
    call master%state_indices%extend(slave%state_indices)
    call master%read_indices%extend(slave%read_indices)
+   call master%write_indices%extend(slave%write_indices)
    call master%sms_list%extend(slave%sms_list)
    call master%background_values%extend(slave%background_values)
    call master%properties%update(slave%properties,overwrite=.false.)
@@ -654,6 +655,12 @@ subroutine couple_variables(self,master,slave)
    end do
    call master%surface_flux_list%extend(slave%surface_flux_list)
    call master%bottom_flux_list%extend(slave%bottom_flux_list)
+
+   ! For vertical movement rates only keep the master, which all models will (over)write.
+   ! NB if the slave has vertical movement but the master does not (e.g., if the master is
+   ! a fake state variable, the slaev variable can still be set, but won't be used).
+   if (associated(slave%movement_diagnostic).and.associated(master%movement_diagnostic)) &
+      call couple_variables(self,slave%movement_diagnostic%target,master%movement_diagnostic%target)
    if (master%presence==presence_external_optional.and.slave%presence/=presence_external_optional) &
       master%presence = presence_external_required
 

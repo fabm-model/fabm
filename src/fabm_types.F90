@@ -69,7 +69,7 @@
 
    integer, parameter, public :: domain_bulk = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
 
-   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5
+   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5, source_get_vertical_movement = 6
 
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
 
@@ -157,6 +157,7 @@
       integer  :: sms_index          = -1
       integer  :: surface_flux_index = -1
       integer  :: bottom_flux_index  = -1
+      integer  :: movement_index     = -1
       real(rk) :: background         = 0.0_rk
    end type
 
@@ -268,6 +269,7 @@
       class (type_standard_variable), pointer :: standard_variable => null()
 
       logical :: fake_state_variable = .false.
+      logical :: can_be_slave = .false.
 
       ! Only used for bulk variables:
       real(rk) :: vertical_movement         = 0.0_rk
@@ -281,6 +283,7 @@
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
       type (type_real_pointer_set)    :: background_values
       type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list
+      type (type_link),pointer        :: movement_diagnostic => null()
    end type
 
    type type_link
@@ -1298,7 +1301,7 @@ end subroutine real_pointer_set_set_value
                                   standard_variable=standard_variable, presence=presence, &
                                   state_index=id%state_index, read_index=id%index, sms_index=id%sms_index, &
                                   surface_flux_index=id%surface_flux_index, bottom_flux_index=id%bottom_flux_index, &
-                                  background=id%background, link=id%link)
+                                  movement_index=id%movement_index, background=id%background, link=id%link)
 
    end subroutine register_bulk_state_variable
 !EOC
@@ -1478,6 +1481,7 @@ end subroutine real_pointer_set_set_value
          variable%write_index => write_index
          call variable%write_indices%append(write_index)
       end if
+      variable%can_be_slave = .not.present(write_index)
 
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self,variable)
@@ -1496,7 +1500,7 @@ end subroutine real_pointer_set_set_value
                                           no_precipitation_dilution, no_river_dilution, standard_variable, presence, output, &
                                           time_treatment, act_as_state_variable, source, &
                                           read_index, state_index, write_index, sms_index, surface_flux_index, bottom_flux_index, &
-                                          background, link)
+                                          movement_index, background, link)
 !
 ! !DESCRIPTION:
 !  This function registers a new bulk variable. It is not predefined to be a state variable, diagnostic variable or dependency.
@@ -1514,7 +1518,7 @@ end subroutine real_pointer_set_set_value
       logical,                           intent(in),optional :: act_as_state_variable
 
       integer,                      target,optional :: read_index, state_index, write_index
-      integer,                      target,optional :: sms_index, surface_flux_index, bottom_flux_index
+      integer,                      target,optional :: sms_index, surface_flux_index, bottom_flux_index, movement_index
       real(rk),                     target,optional :: background
 
       type (type_link),pointer,optional :: link
@@ -1561,6 +1565,13 @@ end subroutine real_pointer_set_set_value
                                      0.0_rk, output=output_none, write_index=bottom_flux_index, link=link2, &
                                      domain=domain_bottom, source=source_do_bottom)
          link_dum => variable%bottom_flux_list%append(link2%target,link2%target%name)
+      end if
+      if (present(movement_index)) then
+         call self%add_bulk_variable(trim(link_%name)//'_w', 'm/s', trim(long_name)//' vertical movement', &
+                                     0.0_rk, output=output_none, write_index=movement_index, link=link2, &
+                                     source=source_get_vertical_movement)
+         link2%target%can_be_slave = .true.
+         variable%movement_diagnostic => link2
       end if
 
       if (present(link)) link => link_
