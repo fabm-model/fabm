@@ -1,21 +1,29 @@
 cmake_minimum_required(VERSION 2.8.8)
 
-# Create a list of all institutes to include.
+# List of contributing institutes that should be included in compilation.
 # When adding new institutes to the source tree, please add them here as well.
+# You can exclude institute directories from compilation by commenting them out.
 set(FABM_INSTITUTES
-    aed          # Aquatic Eco Dynamics, University of Western Australia
-    au           # University of Aarhus
-    bb           # Bolding & Bruggeman - former Bolding & Burchard
+    au           # University of Aarhus, Denmark
+    bb           # Bolding & Bruggeman - formerly Bolding & Burchard
     examples     # Examples supplied with FABM itself
     gotm         # Models ported from original GOTM/BIO library
-    hzg          # Helmholtz-Zentrum Geesthacht
-    iow          # Leibniz Institute for Baltic Sea Research
-    klimacampus  # KlimaCampus Hamburg
-    metu         # Middle East Technical University
-    msi          # Marine Systems Institute, Tallinn University of Technology
-    niva         # Norsk Institutt for Vannforskning
     pclake       # The PCLake model - reference implementation
-    pml          # Plymouth Marine Laboratory
+    pml          # Plymouth Marine Laboratory, United Kingdom
+    ersem        # European Regional Seas Ecosytem Model
+)
+
+# List of institutes that use manual edits to fabm_library.F90.
+# This is DEPRECATED. Please use the new conventions described on
+# this wiki and add your institute to the above FABM_INSTITUTES instead.
+set(FABM_INSTITUTES_OLD
+    aed          # Aquatic Eco Dynamics, University of Western Australia
+    hzg          # Helmholtz-Zentrum Geesthacht, Germany
+    iow          # Leibniz Institute for Baltic Sea Research, Germany
+    klimacampus  # KlimaCampus Hamburg, Germany
+    metu         # Middle East Technical University, Turkey
+    msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
+    niva         # Norsk Institutt for Vannforskning, Norway
    )
 
 # Use solution folders in IDEs
@@ -23,6 +31,35 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # Create main project.
 project(fabm Fortran)
+
+# Create fabm_library.F90 with all active institutes,
+# and set final paths to institute source directories (FABM_${INSTITUTE_UC}_DIR)
+set(FABM_LIBRARY_USE "")
+set(FABM_LIBRARY_ADD "")
+set(ACTIVE_INSTITUTES ${FABM_INSTITUTES_OLD})
+foreach(institute ${FABM_INSTITUTES})
+  # First retrieve the effective source directory
+  get_filename_component(DEFAULT_INSTITUTE_DIR "${PROJECT_SOURCE_DIR}/models/${institute}" ABSOLUTE)
+  string(TOUPPER ${institute} INSTITUTE_UC)
+  set(FABM_${INSTITUTE_UC}_DIR ${DEFAULT_INSTITUTE_DIR} CACHE PATH "Path to source code of ${institute} models")
+  get_filename_component(FABM_${INSTITUTE_UC}_DIR ${FABM_${INSTITUTE_UC}_DIR} ABSOLUTE)
+  if(EXISTS "${DEFAULT_INSTITUTE_DIR}/CMakeLists.txt")
+    mark_as_advanced(FABM_${INSTITUTE_UC}_DIR)
+  endif()
+
+  if((EXISTS "${DEFAULT_INSTITUTE_DIR}/CMakeLists.txt") OR NOT FABM_${INSTITUTE_UC}_DIR STREQUAL ${DEFAULT_INSTITUTE_DIR})
+    # Either a custom institute directory has been specified, or the default institute directory exists.
+    set(FABM_LIBRARY_USE "${FABM_LIBRARY_USE}
+   use ${institute}_model_library")
+    set(FABM_LIBRARY_ADD "${FABM_LIBRARY_ADD}
+      call self%add(${institute}_model_factory,'${institute}')")
+    set(ACTIVE_INSTITUTES ${ACTIVE_INSTITUTES} ${institute})
+  else()
+    message(STATUS "${institute} will not be compiled because FABM_${INSTITUTE_UC}_DIR is not set. Please visit http://fabm.net/${institute} for more information.")
+  endif()
+endforeach(institute)
+configure_file(${PROJECT_SOURCE_DIR}/fabm_library.F90.in
+               ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90)
 
 # Specify default build type for single-type systems (not VS)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -94,15 +131,19 @@ add_library(fabm_base OBJECT
            )
 
 # Create a list of institute-specific object libraries.
-foreach(institute ${FABM_INSTITUTES}) 
-  add_subdirectory(models/${institute})
+foreach(institute ${ACTIVE_INSTITUTES})
+  string(TOUPPER ${institute} INSTITUTE_UC)
+  if(NOT DEFINED FABM_${INSTITUTE_UC}_DIR)
+    set(FABM_${INSTITUTE_UC}_DIR "${PROJECT_SOURCE_DIR}/models/${institute}")
+  endif()
+  add_subdirectory(${FABM_${INSTITUTE_UC}_DIR} ${CMAKE_CURRENT_BINARY_DIR}/models/${institute})
   list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
 endforeach(institute) 
 
 add_library(fabm
             $<TARGET_OBJECTS:fabm_base>
             ${MODEL_OBJECTS}
-            fabm_library.F90
+            ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
             fabm_coupling.F90
             fabm.F90
             config/fabm_config_types.F90
@@ -117,13 +158,13 @@ source_group(config REGULAR_EXPRESSION config/)
 set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
-foreach(institute ${FABM_INSTITUTES})
+foreach(institute ${ACTIVE_INSTITUTES})
   set_property(TARGET fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
 endforeach(institute)
 
 # Place projects in specific solution folders (Visual Studio only).
 set_property(TARGET fabm_base fabm PROPERTY FOLDER fabm)
-foreach(institute ${FABM_INSTITUTES})
+foreach(institute ${ACTIVE_INSTITUTES})
   set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
 endforeach(institute)
 
