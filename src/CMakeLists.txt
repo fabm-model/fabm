@@ -55,7 +55,7 @@ foreach(institute ${FABM_INSTITUTES})
       call self%add(${institute}_model_factory,'${institute}')")
     set(ACTIVE_INSTITUTES ${ACTIVE_INSTITUTES} ${institute})
   else()
-    message(STATUS "${institute} will not be compiled because FABM_${INSTITUTE_UC}_DIR is not set. Please visit http://fabm.net/${institute} for more information.")
+    #message(STATUS "${institute} will not be compiled because FABM_${INSTITUTE_UC}_DIR is not set. Please visit http://fabm.net/${institute} for more information.")
   endif()
 endforeach(institute)
 configure_file(${PROJECT_SOURCE_DIR}/fabm_library.F90.in
