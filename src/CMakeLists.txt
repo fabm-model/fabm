@@ -137,6 +137,8 @@ foreach(institute ${ACTIVE_INSTITUTES})
     set(FABM_${INSTITUTE_UC}_BASE "${PROJECT_SOURCE_DIR}/models/${institute}")
   endif()
   add_subdirectory(${FABM_${INSTITUTE_UC}_BASE} ${CMAKE_CURRENT_BINARY_DIR}/models/${institute})
+  set_property(TARGET fabm_models_${institute} PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
+  set_property(TARGET fabm_models_${institute} APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
   list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
 endforeach(institute) 
 
