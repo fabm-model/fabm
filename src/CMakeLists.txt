@@ -39,15 +39,18 @@ set(FABM_LIBRARY_ADD "")
 set(ACTIVE_INSTITUTES ${FABM_INSTITUTES_OLD})
 foreach(institute ${FABM_INSTITUTES})
   # First retrieve the effective source directory
-  get_filename_component(DEFAULT_INSTITUTE_BASE "${PROJECT_SOURCE_DIR}/models/${institute}" ABSOLUTE)
+  set(DEFAULT_INSTITUTE_BASE "${PROJECT_SOURCE_DIR}/models/${institute}")
   string(TOUPPER ${institute} INSTITUTE_UC)
-  set(FABM_${INSTITUTE_UC}_BASE ${DEFAULT_INSTITUTE_BASE} CACHE PATH "Path to source code of ${institute} models")
-  get_filename_component(FABM_${INSTITUTE_UC}_BASE ${FABM_${INSTITUTE_UC}_BASE} ABSOLUTE)
+  find_path(FABM_${INSTITUTE_UC}_BASE
+    NAMES CMakeLists.txt
+    HINTS "${DEFAULT_INSTITUTE_BASE}"
+    DOC "Path to source code of ${institute} models"
+  )
   if(EXISTS "${DEFAULT_INSTITUTE_BASE}/CMakeLists.txt")
     mark_as_advanced(FABM_${INSTITUTE_UC}_BASE)
   endif()
 
-  if((EXISTS "${DEFAULT_INSTITUTE_BASE}/CMakeLists.txt") OR NOT FABM_${INSTITUTE_UC}_BASE STREQUAL ${DEFAULT_INSTITUTE_BASE})
+  if(FABM_${INSTITUTE_UC}_BASE)
     # Either a custom institute directory has been specified, or the default institute directory exists.
     set(FABM_LIBRARY_USE "${FABM_LIBRARY_USE}
    use ${institute}_model_library")
