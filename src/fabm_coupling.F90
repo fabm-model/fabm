@@ -308,50 +308,86 @@ end subroutine
    end subroutine process_coupling_tasks
 !EOC
 
+   subroutine create_sum(parent,link_list,name)
+      class (type_base_model),intent(inout),target :: parent
+      type (type_link_list),  intent(in)           :: link_list
+      character(len=*),       intent(in)           :: name
+
+      type (type_weighted_sum),pointer :: sum
+      type (type_link),        pointer :: link
+
+      allocate(sum)
+      sum%result_output = output_none
+      link => link_list%first
+      do while (associated(link))
+         call sum%add_component(link%target%name)
+         link => link%next
+      end do
+      if (.not.sum%add_to_parent(parent,name)) deallocate(sum)
+   end subroutine create_sum
+
+   subroutine create_horizontal_sum(parent,link_list,name)
+      class (type_base_model),intent(inout),target :: parent
+      type (type_link_list),  intent(in)           :: link_list
+      character(len=*),       intent(in)           :: name
+
+      type (type_horizontal_weighted_sum),pointer :: sum
+      type (type_link),                   pointer :: link
+
+      allocate(sum)
+      sum%result_output = output_none
+      link => link_list%first
+      do while (associated(link))
+         call sum%add_component(link%target%name)
+         link => link%next
+      end do
+      if (.not.sum%add_to_parent(parent,name)) deallocate(sum)
+   end subroutine create_horizontal_sum
+
    function generate_master(self,name) result(master)
       class (type_base_model),intent(inout),target :: self
       character(len=*),       intent(in)           :: name
-
       type (type_internal_variable),pointer :: master
+
+      type (type_internal_variable),pointer :: originator
       type (type_link),             pointer :: link
-      integer :: istart,n
-      type (type_weighted_sum),           pointer :: sum
-      type (type_horizontal_weighted_sum),pointer :: sum_hz
+      character(len=attribute_length)       :: local_name
+      integer :: n
 
       nullify(master)
       n = len_trim(name)
       if (n<8) return
-      if (name(n-7:n)=='_sms_tot') then
-         ! This is a link to the combined sources-sinks of a variable.
-         ! First locate the relevant variable, then create the necessary sms summation.
-         master => self%find_object(name(:n-8),recursive=.true.,exact=.false.)
-         if (associated(master)) then
-            if (.not.master%state_indices%is_empty().or.master%fake_state_variable) then
-               ! Master variable is indeed a state variable (or acts like one)
-               istart = index(master%name,'/',.true.)
-               select case (master%domain)
-                  case (domain_bulk)
-                     ! Create sum of sink-source terms for bulk variable.
-                     allocate(sum)
-                     sum%result_output = output_none
-                     link => master%sms_list%first
-                     do while (associated(link))
-                        call sum%add_component(link%target%name)
-                        link => link%next
-                     end do
-                     if (.not.sum%add_to_parent(master%owner,trim(master%name(istart+1:))//'_sms_tot')) deallocate(sum)
-                  case (domain_horizontal,domain_surface,domain_bottom)
-                     ! Create sum of sink-source terms for horizontal variable.
-                     allocate(sum_hz)
-                     sum_hz%result_output = output_none
-                     link => master%sms_list%first
-                     do while (associated(link))
-                        call sum_hz%add_component(link%target%name)
-                        link => link%next
-                     end do
-                     if (.not.sum_hz%add_to_parent(master%owner,trim(master%name(istart+1:))//'_sms_tot')) deallocate(sum_hz)
+      if (name(n-7:n)=='_sms_tot'.or.name(n-7:n)=='_sfl_tot'.or.name(n-7:n)=='_bfl_tot') then
+         ! This is can be a link to the sources-sinks, surface flux, or bottom flux of a state variable.
+         ! First locate the related variable (same name but without the postfix), then create the necessary summation.
+         originator => self%find_object(name(:n-8),recursive=.true.,exact=.false.)
+         if (associated(originator)) then
+            if (.not.originator%state_indices%is_empty().or.originator%fake_state_variable) then
+               ! Related variable without the postfix is indeed a state variable (or acts like one)
+               local_name = trim(originator%name(index(originator%name,'/',.true.)+1:))//name(n-7:n)
+
+               ! Now we know the full paht of the target variable - try to resolve it.
+               ! (needed in case the derived quantity was requested for a slave)
+               master => originator%owner%find_object(local_name,recursive=.false.,exact=.false.)
+               if (associated(master)) return
+
+               ! Derived quantity does not exsit yet - create it.
+               select case (originator%domain)
+               case (domain_bulk)
+                  select case (name(n-7:n))
+                     case ('_sms_tot')
+                        call create_sum(originator%owner,originator%sms_list,local_name)
+                     case ('_sfl_tot')
+                        call create_horizontal_sum(originator%owner,originator%surface_flux_list,local_name)
+                     case ('_bfl_tot')
+                        call create_horizontal_sum(originator%owner,originator%bottom_flux_list,local_name)
+                  end select
+               case (domain_horizontal,domain_surface,domain_bottom)
+                  call create_horizontal_sum(originator%owner,originator%sms_list,local_name)
                end select
-               master => self%find_object(trim(master%name(istart+1:))//'_sms_tot',recursive=.true.,exact=.false.)
+
+               ! Get pointer to newly created derived quantity
+               master => originator%owner%find_object(local_name,recursive=.false.,exact=.false.)
             end if
          end if
       end if
