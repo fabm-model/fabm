@@ -350,7 +350,6 @@ end subroutine
       type (type_internal_variable),pointer :: master
 
       type (type_internal_variable),pointer :: originator
-      type (type_link),             pointer :: link
       character(len=attribute_length)       :: local_name
       integer :: n
 

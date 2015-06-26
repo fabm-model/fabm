@@ -425,9 +425,6 @@ module fabm_builtin_models
       class (type_constant_surface_flux),intent(inout),target :: self
       integer,                  intent(in)           :: configunit
 
-      character(len=attribute_length) :: standard_name
-      real(rk)                        :: value
-
       call self%register_state_dependency(self%id_target,'target','UNITS m-3','target variable')
       call self%get_parameter(self%flux,'flux','UNITS m-2 s-1','flux (positive for into water)')
    end subroutine constant_surface_flux_initialize
@@ -444,9 +441,6 @@ module fabm_builtin_models
    subroutine external_surface_flux_initialize(self,configunit)
       class (type_external_surface_flux),intent(inout),target :: self
       integer,                  intent(in)           :: configunit
-
-      character(len=attribute_length) :: standard_name
-      real(rk)                        :: value
 
       call self%register_state_dependency(self%id_target,'target','UNITS m-3','target variable')
       call self%register_dependency(self%id_flux,'flux','UNITS m-2 s-1','surface flux')

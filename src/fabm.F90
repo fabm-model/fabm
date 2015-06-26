@@ -685,7 +685,6 @@
    real(rk),optional,        intent(in)    :: seconds_per_time_unit
 !
 ! !LOCAL VARIABLES:
-  type (type_model_list_node), pointer :: node
   integer                              :: ivar,index
   class (type_expression),pointer      :: expression
   type (type_link),pointer             :: link
@@ -3173,7 +3172,6 @@ end subroutine internal_check_horizontal_state
 ! !LOCAL PARAMETERS:
    type (type_environment)              :: environment
    type (type_model_list_node), pointer :: node
-   integer                              :: i,j,k
    _DECLARE_VERTICAL_INDICES_
 !
 !EOP
