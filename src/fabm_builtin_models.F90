@@ -107,9 +107,9 @@ module fabm_builtin_models
       type (type_dependency_id)            :: id_sms
       type (type_horizontal_dependency_id) :: id_bottom_flux, id_surface_flux
    contains
-      procedure :: flux_copier_do
-      procedure :: flux_copier_do_surface
-      procedure :: flux_copier_do_bottom
+      procedure :: do         => flux_copier_do
+      procedure :: do_surface => flux_copier_do_surface
+      procedure :: do_bottom  => flux_copier_do_bottom
    end type
 
    contains
