@@ -178,6 +178,8 @@ contains
          allocate(type_list::node)
          firstindent = file%indent
          do
+            file%line = file%line(3:)
+            file%indent = file%indent + 2
             list_item => read_value(file)
             if (file%has_error) return
             select type (node)
