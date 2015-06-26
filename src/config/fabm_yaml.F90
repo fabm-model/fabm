@@ -156,12 +156,6 @@ contains
             return
          end if
       end do
-      do i=1,len(file%line)-1
-         if (file%line(i:i+1)=='- ') then
-            call file%set_error('block sequences using "- " are not supported.')
-            return
-         end if
-      end do
 
       return
 
@@ -175,9 +169,32 @@ contains
 
       integer                    :: icolon,icolon_stop,firstindent
       type (type_key_value_pair) :: pair
+      class (type_node), pointer :: list_item
 
       nullify(node)
       if (file%eof) return
+
+      if (file%line(1:2)=='- ') then
+         allocate(type_list::node)
+         firstindent = file%indent
+         do
+            list_item => read_value(file)
+            if (file%has_error) return
+            select type (node)
+               class is (type_list)
+                  call node%append(list_item)
+            end select
+
+            ! Check indentation of next line.
+            if (file%indent>firstindent) then
+               call file%set_error('unexpected increase in indentation following list item.')
+               return
+            elseif (file%eof .or. file%indent<firstindent) then
+               ! End-of-file or decrease in indentation signifies that the list has ended.
+               return
+            end if
+         end do
+      end if
 
       ! Find the first colon (if any)
       call find_mapping_character(file%line,icolon,icolon_stop)
@@ -246,13 +263,10 @@ contains
             pair%value => read_value(file)
          end if
       else
-         ! Value follows colon-space. Read the value and proceed to next line.
-         allocate(type_scalar::pair%value)
-         select type (node=>pair%value)
-            class is (type_scalar)
-               node%string = file%line(icolon_stop+1:istop)
-         end select
-         call file%next_line()
+         ! Value follows colon-space. Skip the label and read the value.
+         file%line = file%line(icolon_stop+1:)
+         file%indent = file%indent + icolon_stop
+         pair%value => read_value(file)
       end if
    end function
 

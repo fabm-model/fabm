@@ -4,7 +4,9 @@ module fabm_config_types
 
    private
 
-   public type_node,type_dictionary,type_key_value_pair,type_scalar,type_null,type_error,real_kind
+   public type_node,type_scalar,type_null,type_error,real_kind
+   public type_dictionary,type_key_value_pair
+   public type_list,type_list_item
 
    integer,parameter :: string_length = 1024
    integer,parameter :: real_kind = 8
@@ -63,6 +65,18 @@ module fabm_config_types
       procedure :: reset_accessed => dictionary_reset_accessed
       procedure :: set_path       => dictionary_set_path
       procedure :: finalize       => dictionary_finalize
+   end type
+
+   type type_list_item
+      class (type_node),    pointer :: node => null()
+      type (type_list_item),pointer :: next => null()
+   end type
+
+   type,extends(type_node) :: type_list
+      type (type_list_item),pointer :: first => null()
+   contains
+      procedure :: append => list_append
+      procedure :: dump   => list_dump
    end type
 
    type type_error
@@ -412,5 +426,38 @@ contains
       end do
       nullify(self%first)
    end subroutine dictionary_finalize
+
+   subroutine list_append(self,node)
+      class (type_list),intent(inout) :: self
+      class(type_node),target         :: node
+
+      type (type_list_item),pointer :: item
+
+      if (.not.associated(self%first)) then
+         ! This will be the first pair.
+         allocate(self%first)
+         self%first%node => node
+      else
+         ! Try to find a pair with the same key, or failing that, the last pair.
+         item => self%first
+         do while (associated(item%next))
+            item => item%next
+         end do
+         allocate(item%next)
+         item%next%node => node
+      end if
+   end subroutine list_append
+
+   recursive subroutine list_dump(self,unit,indent)
+      class (type_list),intent(in) :: self
+      integer,          intent(in) :: unit,indent
+      type (type_list_item),pointer :: item
+      item => self%first
+      do while (associated(item))
+         write (unit,'(a)',advance='NO') repeat(' ',indent)//'- '
+         call item%node%dump(unit,indent+2)
+         item => item%next
+      end do
+   end subroutine list_dump
 
 end module fabm_config_types
