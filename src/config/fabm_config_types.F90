@@ -41,6 +41,9 @@ module fabm_config_types
       procedure :: dump => null_dump
    end type
 
+   type,abstract,extends(type_node) :: type_collection
+   end type
+
    type type_key_value_pair
       character(len=string_length)       :: key   = ''
       class (type_node),         pointer :: value => null()
@@ -48,7 +51,7 @@ module fabm_config_types
       type (type_key_value_pair),pointer :: next  => null()
    end type
 
-   type,extends(type_node) :: type_dictionary
+   type,extends(type_collection) :: type_dictionary
       type (type_key_value_pair),pointer :: first => null()
    contains
       procedure :: get            => dictionary_get
@@ -72,7 +75,7 @@ module fabm_config_types
       type (type_list_item),pointer :: next => null()
    end type
 
-   type,extends(type_node) :: type_list
+   type,extends(type_collection) :: type_list
       type (type_list_item),pointer :: first => null()
    contains
       procedure :: append => list_append
@@ -167,27 +170,39 @@ contains
    subroutine value_dump(self,unit,indent)
       class (type_scalar),intent(in) :: self
       integer,            intent(in) :: unit,indent
-      write (unit,*) repeat(' ',indent)//trim(self%string)
+      write (unit,'(a)') trim(self%string)
    end subroutine
 
    subroutine null_dump(self,unit,indent)
       class (type_null),intent(in) :: self
       integer,          intent(in) :: unit,indent
-      write (unit,*) repeat(' ',indent)//'null'
+      write (unit,'(a)') 'null'
    end subroutine
 
    recursive subroutine dictionary_dump(self,unit,indent)
       class (type_dictionary),intent(in) :: self
       integer,                intent(in) :: unit,indent
       type (type_key_value_pair),pointer :: pair
+
+      logical :: first
+
+      first = .true.
       pair => self%first
       do while (associated(pair))
+         if (first) then
+            first = .false.
+         else
+            write (unit,'(a)',advance='NO') repeat(' ',indent)
+         end if
+
          select type (value=>pair%value)
-            class is (type_scalar)
-               write (unit,*) repeat(' ',indent)//trim(pair%key)//': '//trim(value%string)
-            class is (type_dictionary)
-               write (unit,*) repeat(' ',indent)//trim(pair%key)//':'
+            class is (type_collection)
+               write (unit,'(a)') trim(pair%key)//':'
+               write (unit,'(a)',advance='NO') repeat(' ',indent+2)
                call value%dump(unit,indent+2)
+            class default
+               write (unit,'(a)',advance='NO') trim(pair%key)//': '
+               call value%dump(unit,indent+len_trim(pair%key)+2)
          end select
          pair => pair%next
       end do
@@ -451,10 +466,19 @@ contains
    recursive subroutine list_dump(self,unit,indent)
       class (type_list),intent(in) :: self
       integer,          intent(in) :: unit,indent
+
       type (type_list_item),pointer :: item
+      logical :: first
+
+      first = .true.
       item => self%first
       do while (associated(item))
-         write (unit,'(a)',advance='NO') repeat(' ',indent)//'- '
+         if (first) then
+            first = .false.
+         else
+            write (unit,'(a)',advance='NO') repeat(' ',indent)
+         end if
+         write (unit,'(a)',advance='NO') '- '
          call item%node%dump(unit,indent+2)
          item => item%next
       end do
