@@ -57,6 +57,7 @@ module fabm_config_types
       procedure :: get            => dictionary_get
       procedure :: get_scalar     => dictionary_get_scalar
       procedure :: get_dictionary => dictionary_get_dictionary
+      procedure :: get_list       => dictionary_get_list
       procedure :: get_string     => dictionary_get_string
       procedure :: get_logical    => dictionary_get_logical
       procedure :: get_integer    => dictionary_get_integer
@@ -315,6 +316,9 @@ contains
             class is (type_dictionary)
                allocate(error)
                error%message = trim(node%path)//' must be set to a scalar value, not to a dictionary.'
+            class is (type_list)
+               allocate(error)
+               error%message = trim(node%path)//' must be set to a scalar value, not to a list.'
          end select
       end if
    end function
@@ -326,7 +330,7 @@ contains
       type(type_error),pointer             :: error
       class (type_dictionary),pointer      :: dictionary
 
-      class (type_node),pointer          :: node
+      class (type_node),pointer :: node
 
       nullify(error)
       nullify(dictionary)
@@ -337,13 +341,42 @@ contains
       end if
       if (associated(node)) then
          select type (node)
-            class is (type_scalar)
-               allocate(error)
-               error%message = trim(node%path)//' must be a dictionary, not a single value.'
             class is (type_null)
                allocate(dictionary)
             class is (type_dictionary)
                dictionary => node
+            class default
+               allocate(error)
+               error%message = trim(node%path)//' must be a dictionary.'
+         end select
+      end if
+   end function
+
+   function dictionary_get_list(self,key,required,error) result(list)
+      class (type_dictionary),  intent(in) :: self
+      character(len=*),         intent(in) :: key
+      logical,                  intent(in) :: required
+      type(type_error),pointer             :: error
+      class (type_list),pointer            :: list
+
+      class (type_node),pointer :: node
+
+      nullify(error)
+      nullify(list)
+      node => self%get(key)
+      if (required.and..not.associated(node)) then
+         allocate(error)
+         error%message = trim(self%path)//' does not contain key "'//trim(key)//'".'
+      end if
+      if (associated(node)) then
+         select type (node)
+            class is (type_null)
+               allocate(list)
+            class is (type_list)
+               list => node
+            class default
+               allocate(error)
+               error%message = trim(node%path)//' must be a list.'
          end select
       end if
    end function
