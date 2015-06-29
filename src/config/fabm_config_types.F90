@@ -41,9 +41,6 @@ module fabm_config_types
       procedure :: dump => null_dump
    end type
 
-   type,abstract,extends(type_node) :: type_collection
-   end type
-
    type type_key_value_pair
       character(len=string_length)       :: key   = ''
       class (type_node),         pointer :: value => null()
@@ -51,7 +48,7 @@ module fabm_config_types
       type (type_key_value_pair),pointer :: next  => null()
    end type
 
-   type,extends(type_collection) :: type_dictionary
+   type,extends(type_node) :: type_dictionary
       type (type_key_value_pair),pointer :: first => null()
    contains
       procedure :: get            => dictionary_get
@@ -76,7 +73,7 @@ module fabm_config_types
       type (type_list_item),pointer :: next => null()
    end type
 
-   type,extends(type_collection) :: type_list
+   type,extends(type_node) :: type_list
       type (type_list_item),pointer :: first => null()
    contains
       procedure :: append => list_append
@@ -197,7 +194,11 @@ contains
          end if
 
          select type (value=>pair%value)
-            class is (type_collection)
+            class is (type_dictionary)
+               write (unit,'(a)') trim(pair%key)//':'
+               write (unit,'(a)',advance='NO') repeat(' ',indent+2)
+               call value%dump(unit,indent+2)
+            class is (type_list)
                write (unit,'(a)') trim(pair%key)//':'
                write (unit,'(a)',advance='NO') repeat(' ',indent+2)
                call value%dump(unit,indent+2)
