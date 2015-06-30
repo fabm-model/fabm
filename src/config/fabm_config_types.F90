@@ -76,8 +76,9 @@ module fabm_config_types
    type,extends(type_node) :: type_list
       type (type_list_item),pointer :: first => null()
    contains
-      procedure :: append => list_append
-      procedure :: dump   => list_dump
+      procedure :: append   => list_append
+      procedure :: dump     => list_dump
+      procedure :: set_path => list_set_path
    end type
 
    type type_error
@@ -517,5 +518,24 @@ contains
          item => item%next
       end do
    end subroutine list_dump
+
+   recursive subroutine list_set_path(self,path)
+      class (type_list),intent(inout) :: self
+      character(len=*), intent(in)    :: path
+
+      type (type_list_item),pointer :: item
+      integer :: inode
+      character(len=6) :: strindex
+
+      self%path = path
+      inode = 0
+      item => self%first
+      do while (associated(item))
+         write (strindex,'(i0)') inode
+         call item%node%set_path(trim(self%path)//'['//trim(strindex)//']')
+         inode = inode + 1
+         item => item%next
+      end do
+   end subroutine list_set_path
 
 end module fabm_config_types
