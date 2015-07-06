@@ -176,7 +176,8 @@
    end type
 
    type type_environment_settings
-      logical,allocatable :: zero(:)
+      integer,allocatable :: prefill_type(:)
+      real(rk),allocatable :: prefill_values(:)
       integer,allocatable :: save_sources(:)
       integer,allocatable :: save_sources_hz(:)
    end type
@@ -745,23 +746,20 @@
    end do
 
    ! Flag all scratch variables that require zeroing before calling biogeochemical models
-   allocate(self%do_interior_environment%zero(self%nscratch))
-   allocate(self%do_surface_environment%zero(self%nscratch_hz))
-   allocate(self%do_bottom_environment%zero(self%nscratch_hz))
-   self%do_interior_environment%zero = .false.
-   self%do_surface_environment%zero = .false.
-   self%do_bottom_environment%zero = .false.
+   call initialize_prefill(self%do_interior_environment,self%nscratch,self%links_postcoupling,domain_bulk)
+   call initialize_prefill(self%do_surface_environment,self%nscratch_hz,self%links_postcoupling,domain_horizontal)
+   call initialize_prefill(self%do_bottom_environment,self%nscratch_hz,self%links_postcoupling,domain_horizontal)
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
          case (domain_bulk)
-            call flag_write_indices(link%target%sms_list,         self%do_interior_environment%zero)
-            call flag_write_indices(link%target%bottom_flux_list, self%do_bottom_environment%zero)
-            call flag_write_indices(link%target%surface_flux_list,self%do_surface_environment%zero)
+            call flag_write_indices(self%do_interior_environment, link%target%sms_list)
+            call flag_write_indices(self%do_bottom_environment,   link%target%bottom_flux_list)
+            call flag_write_indices(self%do_surface_environment,  link%target%surface_flux_list)
          case (domain_bottom)
-            call flag_write_indices(link%target%sms_list,self%do_bottom_environment%zero)
+            call flag_write_indices(self%do_bottom_environment, link%target%sms_list)
          case (domain_surface)
-            call flag_write_indices(link%target%sms_list,self%do_surface_environment%zero)
+            call flag_write_indices(self%do_surface_environment, link%target%sms_list)
       end select
       link => link%next
    end do
@@ -2062,11 +2060,11 @@ subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
 #else
    allocate(environment%scratch(self%nscratch))
 #endif
-   if (allocated(settings%zero)) then
+   if (allocated(settings%prefill_type)) then
       do i=1,self%nscratch
-         if (settings%zero(i)) then
+         if (settings%prefill_type(i)==prefill_missing_value) then
             _CONCURRENT_LOOP_BEGIN_
-               environment%scratch _INDEX_SLICE_PLUS_1_(i) = 0.0_rk
+               environment%scratch _INDEX_SLICE_PLUS_1_(i) = settings%prefill_values(i)
             _LOOP_END_
          end if
       end do
@@ -2144,11 +2142,11 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
 #else
    allocate(environment%scratch_hz(self%nscratch_hz))
 #endif
-   if (allocated(settings%zero)) then
+   if (allocated(settings%prefill_type)) then
       do i=1,self%nscratch_hz
-         if (settings%zero(i)) then
+         if (settings%prefill_type(i)==prefill_missing_value) then
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-               environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = 0.0_rk
+               environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = settings%prefill_values(i)
             _HORIZONTAL_LOOP_END_
          end if
       end do
@@ -3532,15 +3530,38 @@ subroutine copy_write_indices(source,target)
    end do
 end subroutine copy_write_indices
 
-subroutine flag_write_indices(source,target)
-   type (type_link_list),intent(in)    :: source
-   logical,              intent(inout) :: target(:)
+subroutine initialize_prefill(self,n,link_list,domain)
+   type (type_environment_settings),intent(inout) :: self
+   integer,                         intent(in)    :: n
+   type (type_link_list),           intent(in)    :: link_list
+   integer,                         intent(in)    :: domain
+
+   type (type_link),pointer :: link
+
+   allocate(self%prefill_type(n))
+   allocate(self%prefill_values(n))
+   link => link_list%first
+   do while (associated(link))
+      if (iand(link%target%domain,domain)/=0.and.link%target%write_indices%value/=-1) then
+         self%prefill_type(link%target%write_indices%value) = link%target%prefill
+         self%prefill_values(link%target%write_indices%value) = link%target%missing_value
+      end if
+      link => link%next
+   end do
+end subroutine initialize_prefill
+
+subroutine flag_write_indices(self,source)
+   type (type_environment_settings),intent(inout) :: self
+   type (type_link_list),           intent(in)    :: source
 
    type (type_link),pointer :: link
 
    link => source%first
    do while (associated(link))
-      if (.not.link%target%write_indices%is_empty()) target(link%target%write_indices%value) = .true.
+      if (.not.link%target%write_indices%is_empty()) then
+         self%prefill_type(link%target%write_indices%value) = prefill_missing_value
+         self%prefill_values(link%target%write_indices%value) = 0
+      end if
       link => link%next
    end do
 end subroutine flag_write_indices

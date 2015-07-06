@@ -72,6 +72,8 @@
    integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5
 
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
+
+   integer, parameter, public :: prefill_none = 0, prefill_missing_value = 1
 !
 ! !PUBLIC TYPES:
 !
@@ -255,6 +257,7 @@
       integer                         :: presence       = presence_internal
       integer                         :: domain         = domain_bulk
       integer                         :: source         = source_unknown
+      integer                         :: prefill        = prefill_none
       class (type_base_model),pointer :: owner          => null()
       type (type_contribution_list)   :: contributions
 
