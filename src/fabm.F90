@@ -747,9 +747,9 @@
    end do
 
    ! Flag all scratch variables that require zeroing before calling biogeochemical models
-   call initialize_prefill(self%do_interior_environment,self%nscratch,self%links_postcoupling,source_do)
-   call initialize_prefill(self%do_surface_environment,self%nscratch_hz,self%links_postcoupling,source_do_surface)
-   call initialize_prefill(self%do_bottom_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom)
+   call initialize_prefill(self%do_interior_environment,self%nscratch,self%links_postcoupling,source_do,domain_bulk)
+   call initialize_prefill(self%do_surface_environment,self%nscratch_hz,self%links_postcoupling,source_do_surface,domain_horizontal)
+   call initialize_prefill(self%do_bottom_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
@@ -769,8 +769,14 @@
    nsave = 0
    do ivar=1,size(self%diagnostic_variables)
       if (self%diagnostic_variables(ivar)%save.or.self%diagnostic_variables(ivar)%target%read_indices%value/=-1) then
+         ! This diagnostic must be saved for any of the following reasons:
+         ! (1) the user requested it, (2) another model needs it.
          nsave = nsave + 1
          self%diagnostic_variables(ivar)%save_index = nsave
+
+         ! Store index at which data will be saved, so we can access it when prefilling.
+         index = self%diagnostic_variables(ivar)%target%write_indices%value
+         self%do_interior_environment%prefill_index(index) = nsave
       end if
    end do
    allocate(self%diag(_PREARG_LOCATION_ 0:nsave))
@@ -780,17 +786,15 @@
    nsave_hz = 0
    do ivar=1,size(self%horizontal_diagnostic_variables)
       if (self%horizontal_diagnostic_variables(ivar)%save.or.self%horizontal_diagnostic_variables(ivar)%target%read_indices%value/=-1) then
+         ! This diagnostic must be saved for any of the following reasons:
+         ! (1) the user requested it, (2) another model needs it.
          nsave_hz = nsave_hz + 1
          self%horizontal_diagnostic_variables(ivar)%save_index = nsave_hz
-         if (self%horizontal_diagnostic_variables(ivar)%source==source_unknown) then
-            ! For horizontal variables from unknown source, values will be saved after calls to both do_surface and do_bottom.
-            ! To avoid saving uninitialized data, always prefetch the previous value before making these calls.
-            index = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
-            self%do_bottom_environment%prefill_type  (index) = prefill_previous_value
-            self%do_bottom_environment%prefill_index (index) = nsave_hz
-            self%do_surface_environment%prefill_type (index) = prefill_previous_value
-            self%do_surface_environment%prefill_index(index) = nsave_hz
-         end if
+
+         ! Store index at which data will be saved, so we can access it when prefilling.
+         index = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
+         self%do_bottom_environment%prefill_index (index) = nsave_hz
+         self%do_surface_environment%prefill_index(index) = nsave_hz
       end if
    end do
    allocate(self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ 0:nsave_hz))
@@ -3514,11 +3518,11 @@ subroutine copy_write_indices(source,target)
    end do
 end subroutine copy_write_indices
 
-subroutine initialize_prefill(self,n,link_list,source)
+subroutine initialize_prefill(self,n,link_list,source,domain)
    type (type_environment_settings),intent(inout) :: self
    integer,                         intent(in)    :: n
    type (type_link_list),           intent(in)    :: link_list
-   integer,                         intent(in)    :: source
+   integer,                         intent(in)    :: source,domain
 
    type (type_link),pointer :: link
 
@@ -3526,11 +3530,17 @@ subroutine initialize_prefill(self,n,link_list,source)
    allocate(self%prefill_values(n))
    allocate(self%prefill_index(n))
    self%prefill_type = prefill_none
-   self%prefill_index = -1
+   self%prefill_index = 0
    link => link_list%first
    do while (associated(link))
-      if (link%target%write_indices%value/=-1.and.link%target%source==source) then
-         self%prefill_type(link%target%write_indices%value) = link%target%prefill
+      if (link%target%write_indices%value/=-1.and.iand(link%target%domain,domain)/=0) then
+         if (link%target%source==source) then
+            self%prefill_type(link%target%write_indices%value) = link%target%prefill
+         elseif (link%target%source==source_unknown) then
+            ! For diagnostics from unknown source, values will be saved after any call for the variable's domain.
+            ! To avoid saving uninitialized data, prefill the target field with the previous value before any such calls.
+            self%prefill_type(link%target%write_indices%value) = prefill_previous_value
+         end if
          self%prefill_values(link%target%write_indices%value) = link%target%missing_value
       end if
       link => link%next
