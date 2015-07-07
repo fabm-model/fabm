@@ -73,7 +73,7 @@
 
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
 
-   integer, parameter, public :: prefill_none = 0, prefill_missing_value = 1
+   integer, parameter, public :: prefill_none = 0, prefill_missing_value = 1, prefill_previous_value = 2
 !
 ! !PUBLIC TYPES:
 !

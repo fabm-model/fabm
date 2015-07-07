@@ -332,6 +332,7 @@
 
 #ifdef _HAS_MASK_
 #  define _PACK_GLOBAL_(in,out,i,mask) out(:,i) = pack(in _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),mask)
+#  define _PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_INTERIOR_PLUS_1_(loop_start:loop_stop,i),mask)
 #  define _UNPACK_(in,i,out,mask,missing) out(:) = unpack(in(:,i),mask,missing)
 #  define _UNPACK_TO_PLUS_1_(in,i,out,j,mask,missing) out(:,j) = unpack(in(:,i),mask,missing)
 #  define _UNPACK_AND_ADD_TO_PLUS_1_(in,i,out,j,mask,missing) out(:,j) = out(:,j) + unpack(in(:,i),mask,missing)
@@ -339,6 +340,7 @@
 #  define _UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_INTERIOR_PLUS_1_(loop_start:loop_stop,j) = unpack(in(:,i),mask,missing)
 #else
 #  define _PACK_GLOBAL_(in,out,i,mask) _CONCURRENT_LOOP_BEGIN_;out _INDEX_SLICE_PLUS_1_(i) = in _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1);_LOOP_END_
+#  define _PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) _CONCURRENT_LOOP_BEGIN_;out _INDEX_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_INTERIOR_PLUS_1_(loop_start+_I_-1,i);_LOOP_END_
 #  define _UNPACK_(in,i,out,mask,missing) _CONCURRENT_LOOP_BEGIN_;out _INDEX_EXT_SLICE_ = in _INDEX_SLICE_PLUS_1_(i);_LOOP_END_
 #  define _UNPACK_TO_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_LOOP_BEGIN_;out _INDEX_EXT_SLICE_PLUS_1_(j) = in _INDEX_SLICE_PLUS_1_(i);_LOOP_END_
 #  define _UNPACK_AND_ADD_TO_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_LOOP_BEGIN_;out _INDEX_EXT_SLICE_PLUS_1_(j) = out _INDEX_EXT_SLICE_PLUS_1_(j) + in _INDEX_SLICE_PLUS_1_(i);_LOOP_END_

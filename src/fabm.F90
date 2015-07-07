@@ -178,6 +178,7 @@
    type type_environment_settings
       integer,allocatable :: prefill_type(:)
       real(rk),allocatable :: prefill_values(:)
+      integer,allocatable :: prefill_index(:)
       integer,allocatable :: save_sources(:)
       integer,allocatable :: save_sources_hz(:)
    end type
@@ -746,9 +747,9 @@
    end do
 
    ! Flag all scratch variables that require zeroing before calling biogeochemical models
-   call initialize_prefill(self%do_interior_environment,self%nscratch,self%links_postcoupling,domain_bulk)
-   call initialize_prefill(self%do_surface_environment,self%nscratch_hz,self%links_postcoupling,domain_horizontal)
-   call initialize_prefill(self%do_bottom_environment,self%nscratch_hz,self%links_postcoupling,domain_horizontal)
+   call initialize_prefill(self%do_interior_environment,self%nscratch,self%links_postcoupling,source_do)
+   call initialize_prefill(self%do_surface_environment,self%nscratch_hz,self%links_postcoupling,source_do_surface)
+   call initialize_prefill(self%do_bottom_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom)
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
@@ -781,6 +782,15 @@
       if (self%horizontal_diagnostic_variables(ivar)%save.or.self%horizontal_diagnostic_variables(ivar)%target%read_indices%value/=-1) then
          nsave_hz = nsave_hz + 1
          self%horizontal_diagnostic_variables(ivar)%save_index = nsave_hz
+         if (self%horizontal_diagnostic_variables(ivar)%source==source_unknown) then
+            ! For horizontal variables from unknown source, values will be saved after calls to both do_surface and do_bottom.
+            ! To avoid saving uninitialized data, always prefetch the previous value before making these calls.
+            index = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
+            self%do_bottom_environment%prefill_type  (index) = prefill_previous_value
+            self%do_bottom_environment%prefill_index (index) = nsave_hz
+            self%do_surface_environment%prefill_type (index) = prefill_previous_value
+            self%do_surface_environment%prefill_index(index) = nsave_hz
+         end if
       end if
    end do
    allocate(self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ 0:nsave_hz))
@@ -2066,6 +2076,8 @@ subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
             _CONCURRENT_LOOP_BEGIN_
                environment%scratch _INDEX_SLICE_PLUS_1_(i) = settings%prefill_values(i)
             _LOOP_END_
+         elseif (settings%prefill_type(i)==prefill_previous_value) then
+            _PACK_GLOBAL_PLUS_1_(self%diag,settings%prefill_index(i),environment%scratch,i,environment%mask)
          end if
       end do
    end if
@@ -2148,6 +2160,8 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
                environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = settings%prefill_values(i)
             _HORIZONTAL_LOOP_END_
+         elseif (settings%prefill_type(i)==prefill_previous_value) then
+            _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,settings%prefill_index(i),environment%scratch_hz,i,environment%mask)
          end if
       end do
    end if
@@ -2832,16 +2846,6 @@ end subroutine internal_check_horizontal_state
 !BOC
       call prefetch_horizontal(self,self%do_surface_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
-      ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
-      ! This is needed to preserve the value of bottom diagnostics.
-      do i=1,size(self%horizontal_diagnostic_variables)
-         k = self%horizontal_diagnostic_variables(i)%save_index
-         if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
-            j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-            _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,k,environment%scratch_hz,j,environment%mask)
-         end if
-      end do
-
       node => self%models%first
       do while (associated(node))
          call node%model%do_surface(_ARGUMENTS_HORIZONTAL_)
@@ -2915,16 +2919,6 @@ end subroutine internal_check_horizontal_state
 !BOC
    call prefetch_horizontal(self,self%do_bottom_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
-   ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
-   ! This is needed to preserve the value of surface diagnostics.
-   do i=1,size(self%horizontal_diagnostic_variables)
-      k = self%horizontal_diagnostic_variables(i)%save_index
-      if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
-         j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-         _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,k,environment%scratch_hz,j,environment%mask)
-      end if
-   end do
-
    node => self%models%first
    do while (associated(node))
       call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
@@ -2993,16 +2987,6 @@ end subroutine internal_check_horizontal_state
 !-----------------------------------------------------------------------
 !BOC
    call prefetch_horizontal(self,self%do_bottom_ppdd_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
-
-   ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
-   ! This is needed to preserve the value of surface diagnostics.
-   do i=1,size(self%horizontal_diagnostic_variables)
-      k = self%horizontal_diagnostic_variables(i)%save_index
-      if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
-         j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-         _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,k,environment%scratch_hz,j,environment%mask)
-      end if
-   end do
 
    node => self%models%first
    do while (associated(node))
@@ -3530,19 +3514,22 @@ subroutine copy_write_indices(source,target)
    end do
 end subroutine copy_write_indices
 
-subroutine initialize_prefill(self,n,link_list,domain)
+subroutine initialize_prefill(self,n,link_list,source)
    type (type_environment_settings),intent(inout) :: self
    integer,                         intent(in)    :: n
    type (type_link_list),           intent(in)    :: link_list
-   integer,                         intent(in)    :: domain
+   integer,                         intent(in)    :: source
 
    type (type_link),pointer :: link
 
    allocate(self%prefill_type(n))
    allocate(self%prefill_values(n))
+   allocate(self%prefill_index(n))
+   self%prefill_type = prefill_none
+   self%prefill_index = -1
    link => link_list%first
    do while (associated(link))
-      if (iand(link%target%domain,domain)/=0.and.link%target%write_indices%value/=-1) then
+      if (link%target%write_indices%value/=-1.and.link%target%source==source) then
          self%prefill_type(link%target%write_indices%value) = link%target%prefill
          self%prefill_values(link%target%write_indices%value) = link%target%missing_value
       end if
