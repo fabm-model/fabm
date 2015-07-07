@@ -3326,7 +3326,7 @@ end subroutine internal_check_horizontal_state
 
    do i=1,size(self%conserved_quantities)
       if (associated(self%conserved_quantities(i)%horizontal_sum)) then
-         call self%conserved_quantities(i)%horizontal_sum%evaluate_horizontal(_ARGUMENTS_HORIZONTAL_)
+         call self%conserved_quantities(i)%horizontal_sum%do_bottom(_ARGUMENTS_HORIZONTAL_)
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
             environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(self%conserved_quantities(i)%horizontal_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(self%conserved_quantities(i)%horizontal_sum%id_output%horizontal_diag_index)
          _HORIZONTAL_LOOP_END_

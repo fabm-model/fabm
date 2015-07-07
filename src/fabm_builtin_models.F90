@@ -56,7 +56,6 @@ module fabm_builtin_models
    contains
       procedure :: add_component       => horizontal_weighted_sum_add_component
       procedure :: initialize          => horizontal_weighted_sum_initialize
-      procedure :: evaluate_horizontal => horizontal_weighted_sum_evaluate_horizontal
       procedure :: do_bottom           => horizontal_weighted_sum_do_bottom
       procedure :: after_coupling      => horizontal_weighted_sum_after_coupling
       procedure :: add_to_parent       => horizontal_weighted_sum_add_to_parent
@@ -290,7 +289,7 @@ module fabm_builtin_models
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output)
+      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output,source=source_do_bottom)
    end subroutine
 
    subroutine horizontal_weighted_sum_after_coupling(self)
@@ -331,9 +330,9 @@ module fabm_builtin_models
       if (present(include_background)) component%include_background = include_background
    end subroutine
 
-   subroutine horizontal_weighted_sum_evaluate_horizontal(self,_ARGUMENTS_HORIZONTAL_)
+   subroutine horizontal_weighted_sum_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
       class (type_horizontal_weighted_sum),intent(in) :: self
-      _DECLARE_ARGUMENTS_HORIZONTAL_
+      _DECLARE_ARGUMENTS_DO_BOTTOM_
 
       type (type_horizontal_component),pointer        :: component
       real(rk)                                        :: value
@@ -353,12 +352,6 @@ module fabm_builtin_models
       _HORIZONTAL_LOOP_BEGIN_
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,sum _INDEX_HORIZONTAL_SLICE_)
       _HORIZONTAL_LOOP_END_
-   end subroutine
-
-   subroutine horizontal_weighted_sum_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
-      class (type_horizontal_weighted_sum),intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_BOTTOM_
-      call self%evaluate_horizontal(_ARGUMENTS_HORIZONTAL_)
    end subroutine
 
    subroutine simple_depth_integral_initialize(self,configunit)
