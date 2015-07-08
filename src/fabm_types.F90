@@ -74,6 +74,8 @@
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
 
    integer, parameter, public :: prefill_none = 0, prefill_missing_value = 1, prefill_previous_value = 2
+
+   integer, parameter, public :: access_none = 0, access_read = 1, access_set_source = 2, access_state = ior(access_read,access_set_source)
 !
 ! !PUBLIC TYPES:
 !
@@ -225,9 +227,9 @@
       type (type_bulk_standard_variable)         :: standard_variable
       type (type_contributing_variable),pointer  :: first_contributing_variable => null()
       type (type_aggregate_variable),   pointer  :: next                        => null()
-      logical                                    :: bulk_required               = .false.
-      logical                                    :: horizontal_required         = .false.
-      logical                                    :: bottom_required             = .false.
+      integer                                    :: bulk_access                 = access_none
+      integer                                    :: horizontal_access           = access_none
+      integer                                    :: bottom_access               = access_none
    end type
 
    type type_link_list
@@ -2637,8 +2639,8 @@ function get_aggregate_variable(self,standard_variable,create) result(aggregate_
    ! Make sure that aggregate variables at the root level are computed.
    ! These are typically used by the host to check conservation.
    if (.not.associated(self%parent)) then !.and.standard_variable%conserved) then
-      aggregate_variable%bulk_required = .true.
-      aggregate_variable%horizontal_required = .true.
+      aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,access_read)
+      aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,access_read)
    end if
 
 end function get_aggregate_variable

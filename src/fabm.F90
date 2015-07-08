@@ -547,12 +547,12 @@
       ! This variable is used from fabm_get_light_extinction.
       aggregate_variable => get_aggregate_variable(self%root, &
          standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
-      aggregate_variable%bulk_required = .true.
+      aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,access_read)
 
       ! Create placeholder variables for zero fields.
       ! Values for these fields will only be provided if actually used by one of the biogeochemical models.
-      call self%root%add_bulk_variable('zero')
-      call self%root%add_horizontal_variable('zero_hz')
+      call self%root%add_bulk_variable('zero',act_as_state_variable=.true.)
+      call self%root%add_horizontal_variable('zero_hz',act_as_state_variable=.true.)
 
       allocate(extinction_calculator)
       call self%root%add_child(extinction_calculator,'custom_extinction_calculator',configunit=-1)

@@ -37,6 +37,7 @@ module fabm_builtin_models
       character(len=attribute_length) :: units         = ''
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
+      integer                         :: access        = access_read
       type (type_diagnostic_variable_id) :: id_output
       type (type_component),pointer   :: first => null()
    contains
@@ -47,10 +48,19 @@ module fabm_builtin_models
       procedure :: add_to_parent  => weighted_sum_add_to_parent
    end type
 
+   type,extends(type_base_model) :: type_weighted_sum_sms_distributor
+      type (type_dependency_id)                 :: id_total_sms
+      type (type_state_variable_id),allocatable :: id_targets(:)
+      real(rk),allocatable                      :: weights(:)
+   contains
+      !procedure :: do => weighted_sum_flux_distributor
+   end type
+
    type,extends(type_base_model) :: type_horizontal_weighted_sum
       character(len=attribute_length) :: units         = ''
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
+      integer                         :: access        = access_read
       type (type_horizontal_diagnostic_variable_id) :: id_output
       type (type_horizontal_component),pointer   :: first => null()
    contains
@@ -141,7 +151,7 @@ module fabm_builtin_models
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
 
-      call parent%add_bulk_variable(name,self%units,name,link=link)
+      call parent%add_bulk_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0)
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          call parent%request_coupling(link,'zero')
@@ -163,19 +173,44 @@ module fabm_builtin_models
       integer,                  intent(in)           :: configunit
 
       type (type_component),pointer :: component
-      integer           :: i
+      integer           :: ncomponents
       character(len=10) :: temp
+      class (type_weighted_sum_sms_distributor), pointer :: sms_distributor
 
-      i = 0
+      ncomponents = 0
       component => self%first
       do while (associated(component))
-         i = i + 1
-         write (temp,'(i0)') i
+         ncomponents = ncomponents + 1
+         write (temp,'(i0)') ncomponents
          call self%register_dependency(component%id,'term'//trim(temp),self%units,'term '//trim(temp))
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output)
+      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output) !,act_as_state_variable=iand(self%access,access_set_source)/=0)
+
+      if (iand(self%access,access_set_source)/=0) then
+         ! NB this does not fucntion yet (hence the commented out act_as_state_variable above)
+         ! Auto-generation of result_sms_tot fails and the do routine of type_weighted_sum_sms_distributor is not yet implemented.
+
+         ! The sum will act as a state variable. Any source terms will have to be distributed over the individual variables that contribute to the sum.
+         allocate(sms_distributor)
+         call self%add_child(sms_distributor,'sms_distributor',configunit=-1)
+         call sms_distributor%register_dependency(sms_distributor%id_total_sms,'total_sms',trim(self%units)//'/s','sources-sinks of sum')
+         call sms_distributor%request_coupling(sms_distributor%id_total_sms,'result_sms_tot')
+         allocate(sms_distributor%weights(ncomponents))
+         allocate(sms_distributor%id_targets(ncomponents))
+
+         ncomponents = 0
+         component => self%first
+         do while (associated(component))
+            ncomponents = ncomponents + 1
+            write (temp,'(i0)') ncomponents
+            call sms_distributor%register_state_dependency(sms_distributor%id_targets(ncomponents),'target'//trim(temp),self%units,'target '//trim(temp))
+            call sms_distributor%request_coupling(sms_distributor%id_targets(ncomponents),trim(component%name))
+            sms_distributor%weights(ncomponents) = component%weight
+            component => component%next
+         end do
+      end if
    end subroutine
 
    subroutine weighted_sum_add_component(self,name,weight,include_background)
@@ -185,6 +220,9 @@ module fabm_builtin_models
       logical,optional,         intent(in)    :: include_background
 
       type (type_component),pointer :: component
+
+      if (_VARIABLE_REGISTERED_(self%id_output)) &
+         call self%fatal_error('weighted_sum_add_component','cannot be called after model initialization')
 
       if (.not.associated(self%first)) then
          allocate(self%first)
@@ -255,7 +293,7 @@ module fabm_builtin_models
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
 
-      call parent%add_horizontal_variable(name,self%units,name,link=link)
+      call parent%add_horizontal_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0)
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          call parent%request_coupling(link,'zero_hz')
@@ -313,6 +351,9 @@ module fabm_builtin_models
       logical,optional,                    intent(in)    :: include_background
 
       type (type_horizontal_component),pointer :: component
+
+      if (_VARIABLE_REGISTERED_(self%id_output)) &
+         call self%fatal_error('weighted_sum_add_component','cannot be called after model initialization')
 
       if (.not.associated(self%first)) then
          allocate(self%first)

@@ -407,11 +407,11 @@ end subroutine
                aggregate_variable => get_aggregate_variable(self,aggregate_standard_variable)
                select case (task%domain)
                   case (domain_bulk)
-                     aggregate_variable%bulk_required = .true.
+                     aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,access_read)
                      deallocate(task%master_standard_variable)
                      task%master_name = aggregate_variable%standard_variable%name
                   case (domain_bottom)
-                     aggregate_variable%bottom_required = .true.
+                     aggregate_variable%bottom_access = ior(aggregate_variable%bottom_access,access_read)
                      deallocate(task%master_standard_variable)
                      task%master_name = trim(aggregate_variable%standard_variable%name)//'_at_bottom'
                   case default
@@ -538,9 +538,9 @@ recursive subroutine create_aggregate_models(self)
    aggregate_variable => self%first_aggregate_variable
    do while (associated(aggregate_variable))
       nullify(sum,horizontal_sum,bottom_sum)
-      if (aggregate_variable%bulk_required)       allocate(sum)
-      if (aggregate_variable%horizontal_required) allocate(horizontal_sum)
-      if (aggregate_variable%bottom_required)     allocate(bottom_sum)
+      if (aggregate_variable%bulk_access/=access_none)       allocate(sum)
+      if (aggregate_variable%horizontal_access/=access_none) allocate(horizontal_sum)
+      if (aggregate_variable%bottom_access/=access_none)     allocate(bottom_sum)
 
       contributing_variable => aggregate_variable%first_contributing_variable
       do while (associated(contributing_variable))
@@ -573,16 +573,19 @@ recursive subroutine create_aggregate_models(self)
 
       if (associated(sum)) then
          sum%units = trim(aggregate_variable%standard_variable%units)
+         sum%access = aggregate_variable%bulk_access
          if (associated(self%parent)) sum%result_output = output_none
          if (.not.sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name))) deallocate(sum)
       end if
       if (associated(horizontal_sum)) then
          horizontal_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
+         horizontal_sum%access = aggregate_variable%horizontal_access
          if (associated(self%parent)) horizontal_sum%result_output = output_none
          if (.not.horizontal_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_interfaces')) deallocate(horizontal_sum)
       end if
       if (associated(bottom_sum)) then
          bottom_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
+         bottom_sum%access = aggregate_variable%bottom_access
          if (associated(self%parent)) bottom_sum%result_output = output_none
          if (.not.bottom_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_bottom')) deallocate(bottom_sum)
       end if
@@ -611,7 +614,7 @@ subroutine couple_variables(self,master,slave)
    if (.not.slave%write_indices%is_empty()) &
       call fatal_error('couple_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
-   if (.not.slave%state_indices%is_empty().and.master%state_indices%is_empty().and..not.master%fake_state_variable) &
+   if ((slave%fake_state_variable.or..not.slave%state_indices%is_empty()).and.(master%state_indices%is_empty().and..not.master%fake_state_variable)) &
       call fatal_error('couple_variables','Attempt to couple state variable ' &
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
    !if (slave%domain/=master%domain.and..not.(slave%domain==domain_horizontal.and. &

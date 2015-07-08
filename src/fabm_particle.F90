@@ -57,6 +57,7 @@ module fabm_particle
       type (type_model_reference),    pointer :: model_reference => null()
       type (type_bulk_standard_variable)      :: standard_variable
       integer                                 :: domain
+      integer                                 :: access = access_read
       type (type_coupling_from_model),pointer :: next => null()
    end type
 
@@ -140,6 +141,9 @@ module fabm_particle
 
       type (type_coupling_from_model), pointer :: coupling
 
+      if (.not.associated(slave_variable%link)) &
+         call self%fatal_error('request_coupling_to_model_sn','slave variable must be registered before it is coupled.')
+
       ! Create object describing the coupling, and send it to FABM.
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
       allocate(coupling)
@@ -158,6 +162,9 @@ module fabm_particle
 
       type (type_coupling_from_model), pointer :: coupling
 
+      if (.not.associated(slave_variable%link)) &
+         call self%fatal_error('request_coupling_to_model_sn','slave variable must be registered before it is coupled.')
+
       ! Create object describing the coupling, and send it to FABM.
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
       allocate(coupling)
@@ -172,8 +179,10 @@ module fabm_particle
             coupling%domain = domain_horizontal
          class is (type_state_variable_id)
             coupling%domain = domain_bulk
+            coupling%access = access_state
          class is (type_bottom_state_variable_id)
             coupling%domain = domain_bottom
+            coupling%access = access_state
          class default
             call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of ones of the following types: &
                &type type_dependency_id, type_horizontal_dependency_id, type_state_variable_id, type_bottom_state_variable_id.')
@@ -234,13 +243,13 @@ module fabm_particle
             aggregate_variable => get_aggregate_variable(coupling%model_reference%model,coupling%standard_variable)
             select case (coupling%domain)
                case (domain_bulk)
-                  aggregate_variable%bulk_required = .true.
+                  aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,coupling%access)
                   call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name))
                case (domain_horizontal)
-                  aggregate_variable%horizontal_required = .true.
+                  aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,coupling%access)
                   call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
                case (domain_bottom)
-                  aggregate_variable%bottom_required = .true.
+                  aggregate_variable%bottom_access = ior(aggregate_variable%bottom_access,coupling%access)
                   call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_bottom')
             end select
          end if
