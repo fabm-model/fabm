@@ -61,8 +61,10 @@ module fabm_builtin_models
       type (type_diagnostic_variable_id) :: id_result
       real(rk)                           :: weight = 1.0_rk
       real(rk)                           :: offset = 0.0_rk
+      logical                            :: include_background = .false.
    contains
-      procedure :: do => scaled_bulk_variable_do
+      procedure :: do             => scaled_bulk_variable_do
+      procedure :: after_coupling => scaled_bulk_variable_after_coupling
    end type
 
    type,extends(type_base_model) :: type_horizontal_weighted_sum
@@ -178,10 +180,11 @@ module fabm_builtin_models
          call scaled_bulk_variable%request_coupling(scaled_bulk_variable%id_source,self%first%name)
          call scaled_bulk_variable%register_diagnostic_variable(scaled_bulk_variable%id_result,'result',self%units,'result',output=self%result_output)
          scaled_bulk_variable%weight = self%first%weight
+         scaled_bulk_variable%include_background = self%first%include_background
          scaled_bulk_variable%offset = self%offset
          call parent%request_coupling(link,trim(name)//'_calculator/result')
       else
-         ! One component with scale factor non equal to 1, or multiple components. Create the sum.
+         ! Multiple components. Create the sum.
          call parent%add_child(self,trim(name)//'_calculator',configunit=-1)
          call parent%request_coupling(link,trim(name)//'_calculator/result')
          sum_used = .true.
@@ -311,6 +314,12 @@ module fabm_builtin_models
          _GET_(self%id_source,value)
          _SET_DIAGNOSTIC_(self%id_result,self%offset + self%weight*value)
       _LOOP_END_
+   end subroutine
+
+   subroutine scaled_bulk_variable_after_coupling(self)
+      class (type_scaled_bulk_variable),intent(inout) :: self
+
+      if (self%include_background) self%offset = self%offset + self%weight*self%id_source%background
    end subroutine
 
    function horizontal_weighted_sum_add_to_parent(self,parent,name,create_for_one) result(sum_used)
