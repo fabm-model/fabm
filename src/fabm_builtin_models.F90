@@ -56,6 +56,15 @@ module fabm_builtin_models
       !procedure :: do => weighted_sum_flux_distributor
    end type
 
+   type,extends(type_base_model) :: type_scaled_bulk_variable
+      type (type_dependency_id)          :: id_source
+      type (type_diagnostic_variable_id) :: id_result
+      real(rk)                           :: weight = 1.0_rk
+      real(rk)                           :: offset = 0.0_rk
+   contains
+      procedure :: do => scaled_bulk_variable_do
+   end type
+
    type,extends(type_base_model) :: type_horizontal_weighted_sum
       character(len=attribute_length) :: units         = ''
       integer                         :: result_output = output_instantaneous
@@ -147,6 +156,7 @@ module fabm_builtin_models
 
       logical :: sum_used,create_for_one_
       type (type_link),pointer :: link
+      class (type_scaled_bulk_variable), pointer :: scaled_bulk_variable
 
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
@@ -160,6 +170,16 @@ module fabm_builtin_models
          ! One component with scale factor 1 - add link to component to parent.
          call parent%request_coupling(link,self%first%name)
          sum_used = .false.
+      elseif (.not.associated(self%first%next)) then
+         ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
+         allocate(scaled_bulk_variable)
+         call parent%add_child(scaled_bulk_variable,trim(name)//'_calculator',configunit=-1)
+         call scaled_bulk_variable%register_dependency(scaled_bulk_variable%id_source,'source',self%units,'source variable')
+         call scaled_bulk_variable%request_coupling(scaled_bulk_variable%id_source,self%first%name)
+         call scaled_bulk_variable%register_diagnostic_variable(scaled_bulk_variable%id_result,'result',self%units,'result',output=self%result_output)
+         scaled_bulk_variable%weight = self%first%weight
+         scaled_bulk_variable%offset = self%offset
+         call parent%request_coupling(link,trim(name)//'_calculator/result')
       else
          ! One component with scale factor non equal to 1, or multiple components. Create the sum.
          call parent%add_child(self,trim(name)//'_calculator',configunit=-1)
@@ -278,6 +298,18 @@ module fabm_builtin_models
       ! Transfer summed values to diagnostic.
       _LOOP_BEGIN_
          _SET_DIAGNOSTIC_(self%id_output,sum _INDEX_SLICE_)
+      _LOOP_END_
+   end subroutine
+
+   subroutine scaled_bulk_variable_do(self,_ARGUMENTS_DO_)
+      class (type_scaled_bulk_variable),intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_
+
+      real(rk) :: value
+
+      _LOOP_BEGIN_
+         _GET_(self%id_source,value)
+         _SET_DIAGNOSTIC_(self%id_result,self%offset + self%weight*value)
       _LOOP_END_
    end subroutine
 
