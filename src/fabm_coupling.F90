@@ -185,7 +185,7 @@ end subroutine
 
       type (type_link),         pointer :: link
       class (type_property),    pointer :: master_name
-      type (type_coupling_task),pointer :: task
+      class (type_coupling_task),pointer :: task
 
       link => self%links%first
       do while (associated(link))
@@ -226,7 +226,7 @@ end subroutine
 ! !LOCAL VARIABLES:
       class (type_base_model),      pointer :: root
       type (type_model_list_node),  pointer :: child
-      type (type_coupling_task),    pointer :: coupling, next_coupling
+      class (type_coupling_task),   pointer :: coupling, next_coupling
       type (type_internal_variable),pointer :: master
       type (type_link),             pointer :: link
 !
@@ -409,8 +409,8 @@ end subroutine
    end function generate_master
 
    function generate_standard_master(self,task) result(master)
-      class (type_base_model),  intent(inout),target :: self
-      type (type_coupling_task),intent(inout)        :: task
+      class (type_base_model),   intent(inout),target :: self
+      class (type_coupling_task),intent(inout)        :: task
       type (type_internal_variable),pointer :: master
 
       type (type_aggregate_variable),   pointer :: aggregate_variable

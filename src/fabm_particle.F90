@@ -51,19 +51,13 @@ module fabm_particle
       type (type_surface_state_variable_id),allocatable :: surface_state(:)
    end type
 
-   type type_coupling_from_model
-      character(attribute_length)             :: master = ''
-      character(attribute_length)             :: slave = ''
-      type (type_model_reference),    pointer :: model_reference => null()
-      type (type_bulk_standard_variable)      :: standard_variable
-      integer                                 :: domain
-      integer                                 :: access = access_read
-      type (type_coupling_from_model),pointer :: next => null()
+   type,extends(type_coupling_task) :: type_coupling_from_model
+      type (type_model_reference), pointer :: model_reference => null()
+      integer                              :: access          = access_read
    end type
 
    type,extends(type_base_model) :: type_particle_model
       type (type_model_reference),    pointer :: first_model_reference => null()
-      type (type_coupling_from_model),pointer :: first_model_coupling  => null()
    contains
       ! Used by inheriting biogeochemical models:
       procedure :: register_model_dependency
@@ -93,10 +87,10 @@ module fabm_particle
 !
 ! !INPUT/OUTPUT PARAMETERS:
       class (type_particle_model), intent(inout) :: self
-      type (type_model_id),target,      intent(inout) :: id
+      type (type_model_id),target, intent(inout) :: id
 !
 ! !INPUT PARAMETERS:
-      character(len=*),                 intent(in)    :: name
+      character(len=*),            intent(in)    :: name
 !
 !EOP
 !
@@ -140,6 +134,8 @@ module fabm_particle
       character(len=*),           intent(in)    :: master_variable
 
       type (type_coupling_from_model), pointer :: coupling
+      class (type_coupling_task), pointer      :: base_coupling
+      logical                                  :: used
 
       if (.not.associated(slave_variable%link)) &
          call self%fatal_error('request_coupling_to_model_sn','slave variable must be registered before it is coupled.')
@@ -147,11 +143,11 @@ module fabm_particle
       ! Create object describing the coupling, and send it to FABM.
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
       allocate(coupling)
-      coupling%slave = slave_variable%link%name
-      coupling%master = master_variable
+      coupling%slave => slave_variable%link
+      coupling%master_name = master_variable
       coupling%model_reference => master_model%reference
-      coupling%next => self%first_model_coupling
-      self%first_model_coupling => coupling
+      base_coupling => coupling
+      if (.not.self%coupling_task_list%add(base_coupling,.false.)) deallocate(coupling)
    end subroutine request_coupling_to_model_name
 
    subroutine request_coupling_to_model_sn(self,slave_variable,master_model,master_variable)
@@ -161,6 +157,7 @@ module fabm_particle
       type (type_bulk_standard_variable),intent(in)    :: master_variable
 
       type (type_coupling_from_model), pointer :: coupling
+      class (type_coupling_task), pointer      :: base_coupling
 
       if (.not.associated(slave_variable%link)) &
          call self%fatal_error('request_coupling_to_model_sn','slave variable must be registered before it is coupled.')
@@ -168,10 +165,9 @@ module fabm_particle
       ! Create object describing the coupling, and send it to FABM.
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
       allocate(coupling)
-      coupling%slave = slave_variable%link%name
-      coupling%standard_variable = master_variable
+      coupling%slave => slave_variable%link
+      allocate(coupling%master_standard_variable,source=master_variable)
       coupling%model_reference => master_model%reference
-      coupling%next => self%first_model_coupling
       select type (slave_variable)
          class is (type_dependency_id)
             coupling%domain = domain_bulk
@@ -187,39 +183,41 @@ module fabm_particle
             call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of ones of the following types: &
                &type type_dependency_id, type_horizontal_dependency_id, type_state_variable_id, type_bottom_state_variable_id.')
       end select
-      self%first_model_coupling => coupling
+      base_coupling => coupling
+      if (.not.self%coupling_task_list%add(base_coupling,.false.)) deallocate(coupling)
    end subroutine request_coupling_to_model_sn
 
    subroutine before_coupling(self)
       class (type_particle_model),intent(inout) :: self
 
       type (type_model_reference),    pointer :: reference,reference2
-      class (type_property),          pointer :: master_name
+      class (type_property),          pointer :: model_master_name
       type (type_aggregate_variable), pointer :: aggregate_variable
-      type (type_coupling_from_model),pointer :: coupling
+      class (type_coupling_task),     pointer :: coupling, next_coupling
+      character(len=attribute_length) :: master_name
 
       reference => self%first_model_reference
       do while (associated(reference))
          ! First find a coupling for the referenced model.
-         master_name => self%couplings%find_in_tree(reference%name)
-         if (.not.associated(master_name)) call self%fatal_error('before_coupling','Model reference "'//trim(reference%name)//'" was not coupled.')
+         model_master_name => self%couplings%find_in_tree(reference%name)
+         if (.not.associated(model_master_name)) call self%fatal_error('before_coupling','Model reference "'//trim(reference%name)//'" was not coupled.')
 
          ! First try among earlier model references
          reference2 => self%first_model_reference
          do while (associated(reference2))
-            select type (master_name)
+            select type (model_master_name)
                class is (type_string_property)
-                  if (master_name%value==reference2%name) reference%model => reference2%model
+                  if (model_master_name%value==reference2%name) reference%model => reference2%model
             end select
             reference2 => reference2%next
          end do
 
          if (.not.associated(reference%model)) then
             ! Now find the actual model that was coupled.
-            select type (master_name)
+            select type (model_master_name)
                class is (type_string_property)
-                  reference%model => self%find_model(master_name%value,recursive=.true.)
-                  if (.not.associated(reference%model)) call self%fatal_error('before_coupling','Referenced model "'//trim(master_name%value)//'" not found.')
+                  reference%model => self%find_model(model_master_name%value,recursive=.true.)
+                  if (.not.associated(reference%model)) call self%fatal_error('before_coupling','Referenced model "'//trim(model_master_name%value)//'" not found.')
             end select
          end if
 
@@ -235,25 +233,35 @@ module fabm_particle
       end do
 
       ! Resolve all couplings to variables in specific other models.
-      coupling => self%first_model_coupling
+      coupling => self%coupling_task_list%first
       do while (associated(coupling))
-         if (coupling%master/='') then
-            call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(coupling%master))
-         else
-            aggregate_variable => get_aggregate_variable(coupling%model_reference%model,coupling%standard_variable)
-            select case (coupling%domain)
-               case (domain_bulk)
-                  aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,coupling%access)
-                  call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name))
-               case (domain_horizontal)
-                  aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,coupling%access)
-                  call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
-               case (domain_bottom)
-                  aggregate_variable%bottom_access = ior(aggregate_variable%bottom_access,coupling%access)
-                  call self%request_coupling(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_bottom')
-            end select
-         end if
-         coupling => coupling%next
+         next_coupling => coupling%next
+         select type (model_coupling=>coupling)
+         class is (type_coupling_from_model)
+            if (coupling%master_name/='') then
+               ! Coupling to a named variable
+               master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(coupling%master_name)
+            else
+               ! Coupling to a standard [aggregate] variable
+               select type (standard_variable=>coupling%master_standard_variable)
+               class is (type_bulk_standard_variable)
+                  aggregate_variable => get_aggregate_variable(model_coupling%model_reference%model,standard_variable)
+               end select
+               select case (coupling%domain)
+                  case (domain_bulk)
+                     aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)
+                  case (domain_horizontal)
+                     aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces'
+                  case (domain_bottom)
+                     aggregate_variable%bottom_access = ior(aggregate_variable%bottom_access,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_bottom'
+               end select
+            end if
+            call self%request_coupling(coupling%slave,master_name)
+         end select
+         coupling => next_coupling
       end do
    end subroutine before_coupling
 

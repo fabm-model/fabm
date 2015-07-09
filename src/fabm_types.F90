@@ -129,16 +129,18 @@
       class (type_standard_variable),pointer :: master_standard_variable => null()
       logical                                :: user_specified = .false.
       integer                                :: domain = domain_bulk
-      type (type_coupling_task), pointer     :: previous    => null()
-      type (type_coupling_task), pointer     :: next        => null()
+      class (type_coupling_task), pointer    :: previous    => null()
+      class (type_coupling_task), pointer    :: next        => null()
    end type
 
    type type_coupling_task_list
-      type (type_coupling_task),pointer :: first => null()
-      logical                           :: includes_custom = .false.
+      class (type_coupling_task),pointer :: first => null()
+      logical                            :: includes_custom = .false.
    contains
       procedure :: remove => coupling_task_list_remove
-      procedure :: add    => coupling_task_list_add
+      procedure :: add_for_link => coupling_task_list_add
+      procedure :: add_object => coupling_task_list_add_object
+      generic :: add => add_for_link, add_object
    end type
 
    ! ====================================================================================================
@@ -1043,7 +1045,7 @@ end subroutine link_list_finalize
 function create_coupling_task(self,link) result(task)
    class (type_base_model),intent(inout) :: self
    type (type_link),target,intent(inout) :: link
-   type (type_coupling_task),pointer :: task
+   class (type_coupling_task),pointer :: task
 
    type (type_link), pointer :: current_link
 
@@ -1071,7 +1073,7 @@ subroutine request_coupling_for_link(self,link,master)
    type (type_link),target,intent(inout) :: link
    character(len=*),       intent(in)    :: master
 
-   type (type_coupling_task),pointer :: task
+   class (type_coupling_task),pointer :: task
 
    ! Create a coupling task (reuse existing one if available, and not user-specified)
    task => create_coupling_task(self,link)
@@ -1117,7 +1119,7 @@ subroutine request_standard_coupling_for_link(self,link,master,domain)
    class (type_standard_variable),intent(in)    :: master
    integer,optional,              intent(in)    :: domain
 
-   type (type_coupling_task),pointer :: task
+   class (type_coupling_task),pointer :: task
 
    task => create_coupling_task(self,link)
    if (.not.associated(task)) return   ! We already have a user-specified task, which takes priority
@@ -2763,7 +2765,7 @@ end subroutine abstract_model_factory_create
 
    subroutine coupling_task_list_remove(self,task)
       class (type_coupling_task_list),intent(inout) :: self
-      type (type_coupling_task),pointer             :: task
+      class (type_coupling_task),pointer            :: task
       if (associated(task%previous)) then
          task%previous%next => task%next
       else
@@ -2773,37 +2775,63 @@ end subroutine abstract_model_factory_create
       deallocate(task)
    end subroutine
 
+   function coupling_task_list_add_object(self,task,always_create) result(used)
+      class (type_coupling_task_list),intent(inout) :: self
+      class (type_coupling_task),pointer            :: task
+      logical,                        intent(in)    :: always_create
+      logical                                       :: used
+
+      class (type_coupling_task),pointer            :: existing_task
+
+      ! First try to find an existing coupling task for this link. If one exists, we'll replace it.
+      used = .false.
+      existing_task => self%first
+      do while (associated(existing_task))
+         ! Check if we have found an existing task for the same link.
+         if (associated(existing_task%slave,task%slave)) then
+            ! If existing one has higher priority, do not add the new task and return (used=.false.)
+            if (existing_task%user_specified.and..not.always_create) return
+
+            ! We will overwrite the existing task - remove existing task and exit loop
+            call self%remove(existing_task)
+            exit
+         end if
+         existing_task => existing_task%next
+      end do
+
+      used = .true.
+      if (.not.associated(self%first)) then
+         ! Task list is empty - add first.
+         self%first => task
+         nullify(task%previous)
+      else
+         ! Task list contains items - append to tail.
+
+         ! Find tail of the list
+         existing_task => self%first
+         do while (associated(existing_task%next))
+            existing_task => existing_task%next
+         end do
+
+         existing_task%next => task
+         task%previous => existing_task
+      end if
+      nullify(task%next)
+   end function coupling_task_list_add_object
+
    function coupling_task_list_add(self,link,always_create) result(task)
       class (type_coupling_task_list),intent(inout)         :: self
       type (type_link),               intent(inout), target :: link
       logical,                        intent(in)            :: always_create
-      type (type_coupling_task),pointer                     :: task
+      class (type_coupling_task),pointer                    :: task
 
-      ! First try to find an existing coupling task for this link. If one exists, we'll replace it.
-      task => self%first
-      do while (associated(task))
-         if (associated(task%slave,link)) then
-            ! Found existing task
-            if (task%user_specified.and..not.always_create) then
-               nullify(task)
-               return
-            end if
-            task%master_name = ''
-            if (associated(task%master_standard_variable)) deallocate(task%master_standard_variable)
-            exit
-         end if
-         task => task%next
-      end do
+      logical :: used
 
-      if (.not.associated(task)) then
-         ! No existing coupling task found for this variable: prepend a new task to the head of the list.
-         allocate(task)
-         if (associated(self%first)) self%first%previous => task
-         task%next => self%first
-         self%first => task
-      end if
+      allocate(task)
       task%slave => link
       task%domain = link%target%domain
+      used = self%add(task,always_create)
+      if (.not.used) deallocate(task)
 
    end function coupling_task_list_add
 
