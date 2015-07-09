@@ -10,8 +10,24 @@ module fabm_coupling
    private
 
    public freeze_model_info, find_dependencies
+   public type_model_call_list_node, type_model_call_list, find_dependencies2
 
    logical,parameter :: debug_coupling = .false.
+
+   type type_model_call_list_node
+      class (type_base_model),          pointer :: model => null()
+      integer                                   :: source = source_unknown
+      type (type_model_call_list_node), pointer :: next => null()
+   end type
+
+   type type_model_call_list
+      type (type_model_call_list_node), pointer :: first => null()
+   contains
+      procedure :: find   => model_call_list_find
+      procedure :: append => model_call_list_append
+      procedure :: extend => model_call_list_extend
+      procedure :: print  => model_call_list_print
+   end type
 
 contains
 
@@ -746,5 +762,137 @@ end subroutine find_dependencies
          child => child%next
       end do
    end subroutine check_coupling_units
+
+function model_call_list_find(self,model,source) result(node)
+   class (type_model_call_list), intent(in)        :: self
+   class (type_base_model),      intent(in),target :: model
+   integer,                      intent(in)        :: source
+
+   type (type_model_call_list_node),pointer :: node
+
+   node => self%first
+   do while (associated(node))
+      if (associated(node%model,model).and.node%source==source) return
+      node => node%next
+   end do
+end function model_call_list_find
+
+subroutine model_call_list_extend(self,other)
+   class (type_model_call_list), intent(inout) :: self
+   class (type_model_call_list), intent(in)    :: other
+
+   type (type_model_call_list_node),pointer :: last, node2
+
+   ! Find tail of the list [if any]
+   last => self%first
+   if (associated(last)) then
+      do while (associated(last%next))
+         last => last%next
+      end do
+   end if
+
+   node2 => other%first
+   do while (associated(node2))
+      if (associated(last)) then
+         ! List contains one or more items - append to tail.
+         allocate(last%next)
+         last => last%next
+      else
+         ! List is empty - create first node.
+         allocate(self%first)
+         last => self%first
+      end if
+      last%model => node2%model
+      last%source = node2%source
+      node2 => node2%next
+   end do
+end subroutine model_call_list_extend
+
+subroutine model_call_list_append(self,model,source)
+   class (type_model_call_list), intent(inout)     :: self
+   class (type_base_model),      intent(in),target :: model
+   integer,                      intent(in)        :: source
+
+   type (type_model_call_list_node),pointer :: node
+
+   if (associated(self%first)) then
+      ! List contains one or more items - append to tail.
+      node => self%first
+      do while (associated(node%next))
+         node => node%next
+      end do
+      allocate(node%next)
+      node => node%next
+   else
+      ! List is empty - create first node.
+      allocate(self%first)
+      node => self%first
+   end if
+
+   ! Set new node
+   node%model => model
+   node%source = source
+end subroutine model_call_list_append
+
+subroutine model_call_list_print(self)
+   class (type_model_call_list), intent(in) :: self
+
+   type (type_model_call_list_node),pointer :: node
+
+   node => self%first
+   do while (associated(node))
+      write (*,'(a,x,i0)') trim(node%model%get_path()),node%source
+      node => node%next
+   end do
+end subroutine model_call_list_print
+
+recursive subroutine find_dependencies2(self,source,list,forbidden)
+   class (type_base_model),     intent(in),target   :: self
+   integer,                     intent(in)          :: source
+   type (type_model_call_list), intent(inout)       :: list
+   type (type_model_call_list), intent(in),optional :: forbidden
+
+   type (type_link),pointer       :: link
+   type (type_model_call_list)    :: forbidden_with_self
+   type (type_model_call_list_node),pointer :: node
+   character(len=2048)            :: chain
+
+   if (source==source_none) return
+   if (associated(list%find(self,source))) return
+
+   ! Check the list of forbidden model (i.e., models that indirectly request the current model)
+   ! If the current model is on this list, there is a circular dependency between models.
+   if (present(forbidden)) then
+      node => forbidden%find(self,source)
+      if (associated(node)) then
+         ! Circular dependency found - report as fatal error.
+         chain = ''
+         do while (associated(node))
+            chain = trim(chain)//' '//trim(node%model%get_path())//' ->'
+            node => node%next
+         end do
+         call fatal_error('find_dependencies','circular dependency found: '//trim(chain(2:))//' '//trim(self%get_path()))
+      end if
+      call forbidden_with_self%extend(forbidden)
+   end if
+   call forbidden_with_self%append(self,source)
+
+   ! Loop over all variables, and if they belong to some other model, first add that model to the dependency list.
+   link => self%links%first
+   do while (associated(link))
+      if (index(link%name,'/')==0 &                                                       ! Our own link...
+          .and..not.link%target%write_indices%is_empty() &                                ! ...to a diagnostic variable...
+          .and..not.(associated(link%target%owner,self).and.link%target%source==source) & ! ...not set by ourselves...
+          .and.associated(link%original%read_index)) &                                    ! ...and we do depend on its value.
+         call find_dependencies2(link%target%owner,link%target%source,list,forbidden_with_self)
+      link => link%next
+   end do
+
+   ! We're happy - add ourselves to the list of processed models.
+   call list%append(self,source)
+
+   ! Clean up our temporary list.
+   !call forbidden_with_self%finalize() !TODO
+end subroutine find_dependencies2
 
 end module
