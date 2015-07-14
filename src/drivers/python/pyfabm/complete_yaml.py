@@ -133,11 +133,3 @@ def processFile(infile,outfile,subtract_background=False):
    icommentstart = findMaximumDepth(config)+3
    with open(outfile,'w') as f:   
       processDict(f,config)
-
-if __name__=='__main__':
-   if len(sys.argv)!=3:
-      print 'This script takes two arguments: the path to the input YAML file and the path to the output YAML file.'
-      sys.exit(2)
-   infile = sys.argv[1]
-   outfile = sys.argv[2]
-   processFile(infile,outfile)
