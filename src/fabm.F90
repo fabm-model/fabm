@@ -753,6 +753,7 @@
    call initialize_prefill(self%do_interior_environment,self%nscratch,self%links_postcoupling,source_do,domain_bulk)
    call initialize_prefill(self%do_surface_environment,self%nscratch_hz,self%links_postcoupling,source_do_surface,domain_horizontal)
    call initialize_prefill(self%do_bottom_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
+   call initialize_prefill(self%get_vertical_movement_environment,self%nscratch,self%links_postcoupling,source_get_vertical_movement,domain_bulk)
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
@@ -3054,15 +3055,6 @@ end subroutine internal_check_horizontal_state
 #endif
 
    call prefetch_interior(self,self%get_vertical_movement_environment,environment _ARGUMENTS_INTERIOR_IN_)
-
-   ! First set constant sinking rates.
-   do i=1,size(self%state_variables)
-      ! Use variable-specific constant vertical velocities.
-      k = self%state_variables(i)%movement_index
-      _CONCURRENT_LOOP_BEGIN_
-         environment%scratch _INDEX_SLICE_PLUS_1_(k) = self%state_variables(i)%vertical_movement
-      _LOOP_END_
-   end do
 
    ! Now allow models to overwrite with spatially-varying sinking rates - if any.
    node => self%models%first

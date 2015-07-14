@@ -1568,9 +1568,10 @@ end subroutine real_pointer_set_set_value
       end if
       if (present(movement_index)) then
          call self%add_bulk_variable(trim(link_%name)//'_w', 'm/s', trim(long_name)//' vertical movement', &
-                                     0.0_rk, output=output_none, write_index=movement_index, link=link2, &
+                                     variable%vertical_movement, output=output_none, write_index=movement_index, link=link2, &
                                      source=source_get_vertical_movement)
          link2%target%can_be_slave = .true.
+         link2%target%prefill = prefill_missing_value
          variable%movement_diagnostic => link2
       end if
 
