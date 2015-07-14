@@ -660,7 +660,7 @@ recursive subroutine couple_variables(self,master,slave)
    ! NB if the slave has vertical movement but the master does not (e.g., if the master is
    ! a fake state variable, the slaev variable can still be set, but won't be used).
    if (associated(slave%movement_diagnostic).and.associated(master%movement_diagnostic)) &
-      call couple_variables(self,slave%movement_diagnostic%target,master%movement_diagnostic%target)
+      call couple_variables(self,master%movement_diagnostic%target,slave%movement_diagnostic%target)
    if (master%presence==presence_external_optional.and.slave%presence/=presence_external_optional) &
       master%presence = presence_external_required
 
