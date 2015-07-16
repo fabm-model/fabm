@@ -18,6 +18,12 @@ contains
    subroutine create(self,name,model)
 
       use fabm_niva_oxydep
+      use fabm_niva_brom_bio
+      use fabm_niva_brom_carb
+      use fabm_niva_brom_eqconst
+      use fabm_niva_brom_metals
+      use fabm_niva_brom_redox
+      use fabm_niva_brom_salt
       ! Add new NIVA models here
 
       class (type_factory),intent(in) :: self
@@ -25,7 +31,13 @@ contains
       class (type_base_model),pointer :: model
 
       select case (name)
-         case ('niva_oxydep');      allocate(type_niva_oxydep::model)
+         case ('oxydep');       allocate(type_niva_oxydep::model)
+         case ('brom_bio');     allocate(type_niva_brom_bio::model)
+         case ('brom_carb');    allocate(type_niva_brom_carb::model)
+         case ('brom_eqconst'); allocate(type_niva_brom_eqconst::model)
+         case ('brom_metals');  allocate(type_niva_brom_metals::model)
+         case ('brom_redox');   allocate(type_niva_brom_redox::model)
+         case ('brom_salt');    allocate(type_niva_brom_salt::model)
          ! Add new NIVA models here
       end select
 

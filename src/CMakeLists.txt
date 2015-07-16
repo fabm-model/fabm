@@ -11,6 +11,7 @@ set(FABM_INSTITUTES
     pclake       # The PCLake model - reference implementation
     pml          # Plymouth Marine Laboratory, United Kingdom
     ersem        # European Regional Seas Ecosytem Model
+    niva         # Norsk Institutt for Vannforskning, Norway
 )
 
 # List of institutes that use manual edits to fabm_library.F90.
@@ -23,7 +24,6 @@ set(FABM_INSTITUTES_OLD
     klimacampus  # KlimaCampus Hamburg, Germany
     metu         # Middle East Technical University, Turkey
     msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
-    niva         # Norsk Institutt for Vannforskning, Norway
    )
 
 # Use solution folders in IDEs

@@ -25,7 +25,6 @@
    use fabm_hzg_omexdia_p
    use fabm_msi_ergom1
    use iow_model_library
-   use niva_model_library
 
    implicit none
 
@@ -56,7 +55,6 @@ contains
       call self%add(builtin_factory)
       call self%add(aed_model_factory)
       call self%add(iow_model_factory)
-      call self%add(niva_model_factory)
 
       ! Go through default initializaton steps.
       ! This also allows new added child model factories to initialize.
