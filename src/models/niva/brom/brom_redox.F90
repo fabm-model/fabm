@@ -732,14 +732,12 @@
           _SET_ODE_(self%id_FeS,fes_prec-fes_diss-fes_ox-feS2_form)
           _SET_ODE_(self%id_FeS2,feS2_form-feS2_ox)
  
-          _SET_ODE_(self%id_H2S,-0.5*mn_rd-0.5*mn_rd2-0.5*fe_rd -hs_ox-fes_prec-mns_prec+mns_diss +0.5*Disprop &
-                    -sulfido+s23_rd+fes_diss-feS2_form)
+          _SET_ODE_(self%id_H2S,-0.5*mn_rd-0.5*mn_rd2-0.5*fe_rd -hs_ox-fes_prec-mns_prec+mns_diss +0.5*Disprop-sulfido+s23_rd+fes_diss-feS2_form)
           _SET_ODE_(self%id_S0, hs_ox+0.5*mn_rd+0.5*mn_rd2+0.5*fe_rd -s0_ox -Disprop-s0_no3)
           _SET_ODE_(self%id_S2O3,0.5*s0_ox-s23_ox+0.25*Disprop +0.5*s4_rd-0.5*s23_rd-s23_no3)
           _SET_ODE_(self%id_SO4,sulfido-s4_rd+0.5*s23_ox+s0_no3+2.*s23_no3+fes_ox+2.*feS2_ox)
           
-          _SET_ODE_(self%id_O2,(-DcDM_O2-DcPM_O2)*self%OkN -0.25*mn_ox-0.25*mn_ox2-0.25*fe_ox -0.5*hs_ox-0.5*s0_ox-0.5*s23_ox &
-                                -1.5*Nitrif1-0.5*Nitrif2-2.25*fes_ox-3.5*feS2_ox-0.5*mnco3_ox )
+          _SET_ODE_(self%id_O2,(-DcDM_O2-DcPM_O2)*self%OkN -0.25*mn_ox-0.25*mn_ox2-0.25*fe_ox -0.5*hs_ox-0.5*s0_ox-0.5*s23_ox -1.5*Nitrif1-0.5*Nitrif2-2.25*fes_ox-3.5*feS2_ox-0.5*mnco3_ox )
           _SET_ODE_(self%id_DON,(autolis-DcDM_O2-DcDM_NOX-DcDM_SO4 -DcDM_Mn -DcDM_Fe -HetBhae-HetBhan))
           _SET_ODE_(self%id_PON,(-autolis-DcPM_O2-DcPM_NOX-DcPM_SO4 -DcPM_Mn -DcPM_Fe+MortBaae+MortBaan+MortBhae+MortBhan))
           _SET_ODE_(self%id_NH4,(Dc_OM_total-Nitrif1-anammox +0.75*s0_no3+s23_no3-ChemBaae-ChemBaan)) 
@@ -879,10 +877,6 @@
     !_SET_DIAGNOSTIC_(self%id_CaCO3_diss,CaCO3_diss) 
     _SET_DIAGNOSTIC_(self%id_mnco3_diss,mnco3_diss)    
     _SET_DIAGNOSTIC_(self%id_mnco3_prec,mnco3_prec)    
-    
-    if ( L__ == 53) then
-        continue
-    end if
     
     _LOOP_END_
 
