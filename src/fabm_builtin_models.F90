@@ -484,7 +484,7 @@ module fabm_builtin_models
       character(len=attribute_length) :: standard_name
       real(rk)                        :: value
 
-      call self%get_parameter(standard_name,'standard_name','','standard name')
+      call self%get_parameter(standard_name,'standard_name','','standard name',default='')
       call self%get_parameter(value,'value','','value')
       if (standard_name/='') then
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
@@ -502,7 +502,7 @@ module fabm_builtin_models
       character(len=attribute_length) :: standard_name
       real(rk)                        :: value
 
-      call self%get_parameter(standard_name,'standard_name','','standard name')
+      call self%get_parameter(standard_name,'standard_name','','standard name',default='')
       call self%get_parameter(value,'value','','value')
       if (standard_name/='') then
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
