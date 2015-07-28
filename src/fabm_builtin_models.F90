@@ -53,7 +53,7 @@ module fabm_builtin_models
       type (type_state_variable_id),allocatable :: id_targets(:)
       real(rk),allocatable                      :: weights(:)
    contains
-      !procedure :: do => weighted_sum_flux_distributor
+      !procedure :: do => weighted_sum_sms_distributor_do
    end type
 
    type,extends(type_base_model) :: type_scaled_bulk_variable
@@ -65,6 +65,14 @@ module fabm_builtin_models
    contains
       procedure :: do             => scaled_bulk_variable_do
       procedure :: after_coupling => scaled_bulk_variable_after_coupling
+   end type
+
+   type,extends(type_base_model) :: type_scaled_bulk_variable_sms_distributor
+      type (type_dependency_id)     :: id_source_sms
+      type (type_state_variable_id) :: id_target
+      real(rk)                      :: weight = 1.0_rk
+   contains
+      !procedure :: do => scaled_bulk_variable_sms_distributor_do
    end type
 
    type,extends(type_base_model) :: type_horizontal_weighted_sum
@@ -159,6 +167,7 @@ module fabm_builtin_models
       logical :: sum_used,create_for_one_
       type (type_link),pointer :: link
       class (type_scaled_bulk_variable), pointer :: scaled_bulk_variable
+      class (type_scaled_bulk_variable_sms_distributor), pointer :: scaled_bulk_variable_sms_distributor
 
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
@@ -178,11 +187,19 @@ module fabm_builtin_models
          call parent%add_child(scaled_bulk_variable,trim(name)//'_calculator',configunit=-1)
          call scaled_bulk_variable%register_dependency(scaled_bulk_variable%id_source,'source',self%units,'source variable')
          call scaled_bulk_variable%request_coupling(scaled_bulk_variable%id_source,self%first%name)
-         call scaled_bulk_variable%register_diagnostic_variable(scaled_bulk_variable%id_result,'result',self%units,'result',output=self%result_output)
+         call scaled_bulk_variable%register_diagnostic_variable(scaled_bulk_variable%id_result,'result',self%units,'result',output=self%result_output) !,act_as_state_variable=iand(self%access,access_set_source)/=0)
          scaled_bulk_variable%weight = self%first%weight
          scaled_bulk_variable%include_background = self%first%include_background
          scaled_bulk_variable%offset = self%offset
          call parent%request_coupling(link,trim(name)//'_calculator/result')
+         if (iand(self%access,access_set_source)/=0) then
+            ! This scaled variable acts as a state variable. Create a child model to distribute source terms to the original source variable.
+            allocate(scaled_bulk_variable_sms_distributor)
+            call parent%add_child(scaled_bulk_variable_sms_distributor,trim(name)//'_sms_distributor',configunit=-1)
+            scaled_bulk_variable_sms_distributor%weight = scaled_bulk_variable%weight
+            call scaled_bulk_variable_sms_distributor%register_dependency(scaled_bulk_variable_sms_distributor%id_source_sms,'source_sms',self%units,'sources-sinks of source variable')
+            call scaled_bulk_variable_sms_distributor%request_coupling(scaled_bulk_variable_sms_distributor%id_source_sms,trim(scaled_bulk_variable%id_result%link%target%name)//'_sms_tot')
+         end if
       else
          ! Multiple components. Create the sum.
          call parent%add_child(self,trim(name)//'_calculator',configunit=-1)
