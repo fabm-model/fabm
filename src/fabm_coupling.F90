@@ -48,9 +48,6 @@ contains
 ! !INPUT/OUTPUT PARAMETER:
       class (type_base_model),intent(inout),target :: self
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !-----------------------------------------------------------------------
 !BOC

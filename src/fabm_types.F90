@@ -742,9 +742,6 @@
       character(len=*),optional,     intent(in)    :: long_name
       integer,                       intent(in)    :: configunit
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
       integer :: islash
       class (type_base_model),pointer :: parent
 !EOP
@@ -1759,9 +1756,6 @@ end subroutine real_pointer_set_set_value
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       logical,                            intent(in),optional :: act_as_state_variable
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !
 !-----------------------------------------------------------------------
@@ -1799,9 +1793,6 @@ end subroutine real_pointer_set_set_value
       real(rk),                                 intent(in),optional :: missing_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
       logical,                                  intent(in),optional :: act_as_state_variable
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1896,9 +1887,6 @@ end subroutine real_pointer_set_set_value
       logical,                            intent(in),optional :: required
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
       integer :: presence
 !-----------------------------------------------------------------------
@@ -1934,9 +1922,6 @@ end subroutine real_pointer_set_set_value
       logical,                                  intent(in),optional :: required
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
       integer :: presence
 !-----------------------------------------------------------------------
@@ -1970,9 +1955,6 @@ end subroutine real_pointer_set_set_value
       character(len=*),                         intent(in)          :: name,units,long_name
       logical,                                  intent(in),optional :: required
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 !EOP
       integer :: presence
@@ -2577,9 +2559,6 @@ end subroutine get_string_parameter
       logical                             :: recursive_eff
       type (type_model_list_node),pointer :: node
       integer                             :: istart,length
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 !EOP
 !-----------------------------------------------------------------------
