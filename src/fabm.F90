@@ -3895,7 +3895,7 @@ subroutine classify_variables(self)
             if (.not.object%write_indices%is_empty()) then
                ! Bulk diagnostic variable.
                ndiag = ndiag+1
-            elseif (.not.object%state_indices%is_empty()) then
+            elseif (.not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
                ! Bulk state variable.
                select case (object%presence)
                   case (presence_internal)
@@ -3912,7 +3912,7 @@ subroutine classify_variables(self)
             if (.not.object%write_indices%is_empty()) then
                ! Horizontal diagnostic variable.
                ndiag_hz = ndiag_hz+1
-            elseif (.not.object%state_indices%is_empty()) then
+            elseif (.not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
                ! Horizontal state variable.
                select case (object%presence)
                   case (presence_internal)
@@ -3972,7 +3972,7 @@ subroutine classify_variables(self)
                diagvar%time_treatment    = output2time_treatment(diagvar%output)
                diagvar%save = diagvar%output/=output_none
                diagvar%source = object%source
-            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
+            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
                ! Bulk state variable
                nstate = nstate + 1
                statevar => self%state_variables(nstate)
@@ -4004,7 +4004,7 @@ subroutine classify_variables(self)
                hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
                hz_diagvar%save = hz_diagvar%output/=output_none
                hz_diagvar%source = object%source
-            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
+            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
                ! Horizontal state variable
                select case (object%domain)
                   case (domain_bottom)
