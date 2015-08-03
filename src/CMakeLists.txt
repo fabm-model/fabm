@@ -198,6 +198,12 @@ endif()
 
 add_custom_target(test_all COMMENT "building tests - nothing yet :-)")
 
+add_executable(test_yaml EXCLUDE_FROM_ALL
+               config/test_yaml.F90
+               config/fabm_config_types.F90
+               config/fabm_yaml.F90
+              )
+
 # End of testing section
 
 endif()
