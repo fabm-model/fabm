@@ -445,7 +445,7 @@ implicit none
         real(rk),intent(in)  :: temp,salt,Pbar,Kc0,Kc1,Kc2,tic,H_
         real(rk),intent(out) :: co2,pco2,hco3,co3
         real(rk),intent(out) :: Ca,KsatCal,KsatAra
-        real(8) K_Cal,K_Ara
+        real(rk) K_Cal,K_Ara
      
            hco3 = tic/(1.+H_/Kc1+Kc2/H_)       !these are in [uM]
            co3  = tic/(1.+H_/Kc2+H_*H_/Kc1/Kc2)

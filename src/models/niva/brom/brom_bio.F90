@@ -486,7 +486,7 @@ _LOOP_END_
       endif
 ! Calculation of O2 saturation Obe according to UNESCO, 1986
   TempT = (temp+273.15)/100.
-  Obe = dexp(-173.4292+249.6339/TempT+143.3483*dlog(TempT)-21.8492*TempT+salt*(-0.033096+0.014259*TempT-0.0017*TempT*TempT)) !Osat
+  Obe = exp(-173.4292+249.6339/TempT+143.3483*log(TempT)-21.8492*TempT+salt*(-0.033096+0.014259*TempT-0.0017*TempT*TempT)) !Osat
   Obe = Obe*1000./22.4  ! - in uM
 
   Q_O2 = 1000.*Oa*(Obe-O2)*0.24 ! 0,24 perehod ot [cm/h] k [m/day]  (iz razmernosti koef. skorosti vetra ), DH - shag setki
