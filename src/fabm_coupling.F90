@@ -10,23 +10,50 @@ module fabm_coupling
    private
 
    public freeze_model_info, find_dependencies
-   public type_model_call_list_node, type_model_call_list, find_dependencies2
+   public type_call_list_node, type_call_list, find_variable_dependencies
 
    logical,parameter :: debug_coupling = .false.
 
-   type type_model_call_list_node
-      class (type_base_model),          pointer :: model => null()
-      integer                                   :: source = source_unknown
-      type (type_model_call_list_node), pointer :: next => null()
+   type type_copy_command
+      integer :: read_index
+      integer :: write_index
    end type
 
-   type type_model_call_list
-      type (type_model_call_list_node), pointer :: first => null()
+   type type_variable_set_node
+      type (type_internal_variable), pointer :: target => null()
+      type (type_variable_set_node), pointer :: next   => null()
+   end type
+
+   type type_variable_set
+      type (type_variable_set_node), pointer :: first => null()
    contains
-      procedure :: find   => model_call_list_find
-      procedure :: append => model_call_list_append
-      procedure :: extend => model_call_list_extend
-      procedure :: print  => model_call_list_print
+      procedure :: add      => variable_set_add
+      procedure :: contains => variable_set_contains
+      procedure :: finalize => variable_set_finalize
+   end type
+
+   type type_call_list_node
+      class (type_base_model),          pointer :: model => null()
+      integer                                   :: source = source_unknown
+      type (type_copy_command), allocatable     :: copy_commands(:)
+      type (type_variable_set)                  :: written_variables
+      type (type_variable_set)                  :: computed_variables
+      type (type_call_list_node), pointer :: next => null()
+   contains
+      procedure :: finalize   => call_list_node_finalize
+   end type
+
+   type type_call_list
+      type (type_call_list_node), pointer :: first => null()
+   contains
+      procedure :: find       => call_list_find
+      procedure :: filter     => call_list_filter
+      procedure :: append     => call_list_append
+      procedure :: extend     => call_list_extend
+      procedure :: print      => call_list_print
+      procedure :: initialize => call_list_initialize
+      procedure :: finalize   => call_list_finalize
+      procedure :: computes   => call_list_computes
    end type
 
 contains
@@ -767,25 +794,25 @@ end subroutine find_dependencies
       end do
    end subroutine check_coupling_units
 
-function model_call_list_find(self,model,source) result(node)
-   class (type_model_call_list), intent(in)        :: self
-   class (type_base_model),      intent(in),target :: model
-   integer,                      intent(in)        :: source
+function call_list_find(self,model,source) result(node)
+   class (type_call_list), intent(in)        :: self
+   class (type_base_model),intent(in),target :: model
+   integer,                intent(in)        :: source
 
-   type (type_model_call_list_node),pointer :: node
+   type (type_call_list_node),pointer :: node
 
    node => self%first
    do while (associated(node))
       if (associated(node%model,model).and.node%source==source) return
       node => node%next
    end do
-end function model_call_list_find
+end function call_list_find
 
-subroutine model_call_list_extend(self,other)
-   class (type_model_call_list), intent(inout) :: self
-   class (type_model_call_list), intent(in)    :: other
+subroutine call_list_extend(self,other)
+   class (type_call_list), intent(inout) :: self
+   class (type_call_list), intent(in)    :: other
 
-   type (type_model_call_list_node),pointer :: last, node2
+   type (type_call_list_node),pointer :: last, node2
 
    ! Find tail of the list [if any]
    last => self%first
@@ -810,14 +837,14 @@ subroutine model_call_list_extend(self,other)
       last%source = node2%source
       node2 => node2%next
    end do
-end subroutine model_call_list_extend
+end subroutine call_list_extend
 
-subroutine model_call_list_append(self,model,source)
-   class (type_model_call_list), intent(inout)     :: self
-   class (type_base_model),      intent(in),target :: model
-   integer,                      intent(in)        :: source
+function call_list_append(self,model,source) result(node)
+   class (type_call_list), intent(inout)     :: self
+   class (type_base_model),intent(in),target :: model
+   integer,                intent(in)        :: source
 
-   type (type_model_call_list_node),pointer :: node
+   type (type_call_list_node),pointer :: node
 
    if (associated(self%first)) then
       ! List contains one or more items - append to tail.
@@ -836,33 +863,129 @@ subroutine model_call_list_append(self,model,source)
    ! Set new node
    node%model => model
    node%source = source
-end subroutine model_call_list_append
+end function call_list_append
 
-subroutine model_call_list_print(self)
-   class (type_model_call_list), intent(in) :: self
+subroutine call_list_filter(self,source)
+   class (type_call_list), intent(inout) :: self
+   integer,                intent(in)    :: source
 
-   type (type_model_call_list_node),pointer :: node
+   type (type_call_list_node),pointer :: node, previous, next
+
+   previous => null()
+   node => self%first
+   do while (associated(node))
+      next => node%next
+      if (node%source==source) then
+         if (.not.associated(previous)) then
+            self%first => next
+         else
+            previous%next => next
+         end if
+         call node%finalize()
+         deallocate(node)
+      else
+         previous => node
+      end if
+      node => next
+   end do
+end subroutine call_list_filter
+
+subroutine call_list_print(self)
+   class (type_call_list), intent(in) :: self
+
+   type (type_call_list_node),   pointer :: node
+   type (type_variable_set_node),pointer :: variable_list_node
+   integer                               :: n
 
    node => self%first
    do while (associated(node))
       write (*,'(a,x,i0)') trim(node%model%get_path()),node%source
+      n = 0
+      variable_list_node => node%written_variables%first
+      do while (associated(variable_list_node))
+         n = n + 1
+         write (*,'(x,x,x,a,x,i0)') trim(variable_list_node%target%name)
+         variable_list_node => variable_list_node%next
+      end do
       node => node%next
    end do
-end subroutine model_call_list_print
+end subroutine call_list_print
 
-recursive subroutine find_dependencies2(self,source,list,forbidden)
+subroutine call_list_finalize(self)
+   class (type_call_list), intent(inout) :: self
+
+   type (type_call_list_node),pointer :: node,next
+
+   node => self%first
+   do while (associated(node))
+      next => node%next
+      call node%finalize()
+      deallocate(node)
+      node => next
+   end do
+   nullify(self%first)
+end subroutine call_list_finalize
+
+logical function call_list_computes(self,variable)
+   class (type_call_list), intent(inout) :: self
+   type (type_internal_variable),target  :: variable
+
+   type (type_call_list_node),pointer :: node
+
+   call_list_computes = .true.
+   node => self%first
+   do while (associated(node))
+      if (node%computed_variables%contains(variable)) return
+      node => node%next
+   end do
+   call_list_computes = .false.
+end function call_list_computes
+
+subroutine call_list_node_finalize(self)
+   class (type_call_list_node), intent(inout) :: self
+
+   if (allocated(self%copy_commands)) deallocate(self%copy_commands)
+   call self%written_variables%finalize()
+   call self%computed_variables%finalize()
+end subroutine call_list_node_finalize
+
+subroutine variable_set_finalize(self)
+   class (type_variable_set), intent(inout) :: self
+
+   type (type_variable_set_node),pointer :: node, next
+
+   node => self%first
+   do while (associated(node))
+      next => node%next
+      deallocate(node)
+      node => next
+   end do
+end subroutine variable_set_finalize
+
+recursive subroutine find_dependencies2(self,source,allowed_sources,list,forbidden,call_list_node)
    class (type_base_model),     intent(in),target   :: self
    integer,                     intent(in)          :: source
-   type (type_model_call_list), intent(inout)       :: list
-   type (type_model_call_list), intent(in),optional :: forbidden
+   integer,                     intent(in)          :: allowed_sources(:)
+   type (type_call_list),       intent(inout)       :: list
+   type (type_call_list),       intent(in),optional :: forbidden
+   type (type_call_list_node),  pointer,   optional :: call_list_node
 
-   type (type_link),pointer       :: link
-   type (type_model_call_list)    :: forbidden_with_self
-   type (type_model_call_list_node),pointer :: node
-   character(len=2048)            :: chain
+   type (type_link),pointer           :: link
+   type (type_call_list)              :: forbidden_with_self
+   type (type_call_list_node),pointer :: node
+   character(len=2048)                :: chain
 
+   if (present(call_list_node)) nullify(call_list_node)
+
+   ! Do nothing if we are looking for constants.
    if (source==source_none) return
-   if (associated(list%find(self,source))) return
+
+   ! Check whether we are already processed this call.
+   node => list%find(self,source)
+   if (associated(node)) then
+      if (present(call_list_node)) call_list_node => node
+      return
+   end if
 
    ! Check the list of forbidden model (i.e., models that indirectly request the current model)
    ! If the current model is on this list, there is a circular dependency between models.
@@ -879,7 +1002,7 @@ recursive subroutine find_dependencies2(self,source,list,forbidden)
       end if
       call forbidden_with_self%extend(forbidden)
    end if
-   call forbidden_with_self%append(self,source)
+   node => forbidden_with_self%append(self,source)
 
    ! Loop over all variables, and if they belong to some other model, first add that model to the dependency list.
    link => self%links%first
@@ -887,16 +1010,153 @@ recursive subroutine find_dependencies2(self,source,list,forbidden)
       if (index(link%name,'/')==0 &                                                       ! Our own link...
           .and..not.link%target%write_indices%is_empty() &                                ! ...to a diagnostic variable...
           .and..not.(associated(link%target%owner,self).and.link%target%source==source) & ! ...not set by ourselves...
-          .and.associated(link%original%read_index)) &                                    ! ...and we do depend on its value.
-         call find_dependencies2(link%target%owner,link%target%source,list,forbidden_with_self)
+          .and.associated(link%original%read_index)) then                                 ! ...and we do depend on its value
+
+         if (contains_value(allowed_sources,link%target%source)) &
+            call find_variable_dependencies(link%target,allowed_sources,list,copy_to_prefetch=.true.,forbidden=forbidden_with_self)
+      end if
       link => link%next
    end do
 
    ! We're happy - add ourselves to the list of processed models.
-   call list%append(self,source)
+   node => list%append(self,source)
+   if (present(call_list_node)) call_list_node => node
 
    ! Clean up our temporary list.
-   !call forbidden_with_self%finalize() !TODO
+   call forbidden_with_self%finalize()
 end subroutine find_dependencies2
+
+recursive subroutine find_variable_dependencies(variable,allowed_sources,list,copy_to_prefetch,forbidden)
+   type (type_internal_variable),intent(in)          :: variable
+   integer,                      intent(in)          :: allowed_sources(:)
+   type (type_call_list),        intent(inout)       :: list
+   logical,                      intent(in)          :: copy_to_prefetch
+   type (type_call_list),        intent(in),optional :: forbidden
+
+   type (type_call_list_node),pointer :: node
+
+   if (variable%source==source_unknown) then
+      if (contains_value(allowed_sources,source_do_surface)) then
+         call find_dependencies2(variable%owner,source_do_surface,allowed_sources,list,forbidden,call_list_node=node)
+         if (copy_to_prefetch.and.associated(node)) call node%written_variables%add(variable)
+         if (associated(node)) call node%computed_variables%add(variable)
+      end if
+      if (contains_value(allowed_sources,source_do_bottom)) then
+         call find_dependencies2(variable%owner,source_do_bottom,allowed_sources,list,forbidden,call_list_node=node)
+         if (copy_to_prefetch.and.associated(node)) call node%written_variables%add(variable)
+         if (associated(node)) call node%computed_variables%add(variable)
+      end if
+   else
+      call find_dependencies2(variable%owner,variable%source,allowed_sources,list,forbidden,call_list_node=node)
+      if (copy_to_prefetch.and.associated(node)) call node%written_variables%add(variable)
+      if (associated(node)) call node%computed_variables%add(variable)
+   end if
+end subroutine
+
+logical function contains_value(array,value)
+   integer,intent(in) :: array(:),value
+   integer :: i
+   contains_value = .true.
+   do i=1,size(array)
+      if (array(i)==value) return
+   end do
+   contains_value = .false.
+end function
+
+subroutine variable_set_add(self,variable)
+   class (type_variable_set),intent(inout) :: self
+   type (type_internal_variable),target    :: variable
+
+   type (type_variable_set_node), pointer :: node
+
+   node => self%first
+   do while (associated(node))
+      if (associated(node%target,variable)) return
+      node => node%next
+   end do
+   allocate(node)
+   node%target => variable
+   node%next => self%first
+   self%first => node
+end subroutine variable_set_add
+
+logical function variable_set_contains(self,variable)
+   class (type_variable_set),intent(inout) :: self
+   type (type_internal_variable),target    :: variable
+
+   type (type_variable_set_node), pointer :: node
+
+   variable_set_contains = .true.
+   node => self%first
+   do while (associated(node))
+      if (associated(node%target,variable)) return
+      node => node%next
+   end do
+   variable_set_contains = .false.
+end function variable_set_contains
+
+subroutine call_list_initialize(call_list)
+   class (type_call_list),intent(inout) :: call_list
+
+   type (type_call_list_node),pointer :: node
+
+   node => call_list%first
+   do while (associated(node))
+      call call_list_node_initialize(node)
+      node => node%next
+   end do
+end subroutine call_list_initialize
+
+subroutine call_list_node_initialize(call_list_node)
+   type (type_call_list_node),intent(inout) :: call_list_node
+
+   class (type_base_model),      pointer :: parent
+   class (type_model_list_node), pointer :: model_list_node
+   type (type_variable_set_node), pointer :: node
+   integer :: i, n, maxwrite
+
+   ! Make sure the pointer to the model has the highest class (and not a base class)
+   ! This is needed because model classes that use inheritance and call base class methods
+   ! may end up with model pointers that are base class specific (and do not reference
+   ! procedures overwritten at a higher level)
+   parent => call_list_node%model%parent
+   if (associated(parent)) then
+      model_list_node => parent%children%first
+      do while (associated(model_list_node))
+         if (associated(call_list_node%model,model_list_node%model)) then
+            ! Found ourselves in our parent - use the parent pointer to replace ours.
+            call_list_node%model => model_list_node%model
+            exit
+         end if
+         model_list_node => model_list_node%next
+      end do
+   end if
+
+   n = 0
+   maxwrite = -1
+   node => call_list_node%written_variables%first
+   do while (associated(node))
+      n = n + 1
+      if (node%target%write_indices%is_empty()) call driver%fatal_error('call_list_node_initialize','target without write indices')
+      maxwrite = max(maxwrite,node%target%write_indices%value)
+      node => node%next
+   end do
+
+   ! Create list of copy commands, sorted by write index
+   allocate(call_list_node%copy_commands(n))
+   n = 0
+   do i=1,maxwrite
+      node => call_list_node%written_variables%first
+      do while (associated(node))
+         if (node%target%write_indices%value==i) then
+            n = n + 1
+            call_list_node%copy_commands(n)%read_index = node%target%read_indices%value
+            call_list_node%copy_commands(n)%write_index = node%target%write_indices%value
+            exit
+         end if
+         node => node%next
+      end do
+   end do
+end subroutine
 
 end module

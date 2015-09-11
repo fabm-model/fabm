@@ -161,7 +161,7 @@
       type (type_aggregate_variable),pointer        :: aggregate_variable
       integer                                       :: index              = -1
       integer                                       :: horizontal_index   = -1
-      class (type_horizontal_weighted_sum),pointer  :: horizontal_sum     => null()
+      type (type_internal_variable),pointer         :: target_hz => null()
    end type type_conserved_quantity_info
 
    type type_bulk_data_pointer
@@ -177,6 +177,7 @@
    end type
 
    type type_environment_settings
+      type (type_call_list) :: call_list
       integer,allocatable :: prefill_type(:)
       real(rk),allocatable :: prefill_values(:)
       integer,allocatable :: prefill_index(:)
@@ -212,8 +213,8 @@
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_hz
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar
 
-      integer                :: extinction_index = -1
-      type (type_model_list) :: extinction_call_list, conserved_quantity_call_list
+      integer                                :: extinction_index = -1
+      type (type_internal_variable), pointer :: extinction_target => null()
 
       type (type_link_list) :: links_postcoupling
 
@@ -236,6 +237,9 @@
       type (type_environment_settings)                          :: do_surface_environment
       type (type_environment_settings)                          :: get_light_environment
       type (type_environment_settings)                          :: get_vertical_movement_environment
+      type (type_environment_settings)                          :: get_conserved_quantities_environment
+      type (type_environment_settings)                          :: get_horizontal_conserved_quantities_environment
+      type (type_environment_settings)                          :: get_light_extinction_environment
 
       ! Registry with pointers to global fields of readable variables.
       ! These pointers are accessed to fill the prefetch (see below).
@@ -570,7 +574,6 @@
       call classify_variables(self)
 
       call extinction_calculator%models%extend(self%models)
-      call add_to_model_call_list(self,'attenuation_coefficient_of_photosynthetic_radiative_flux',self%extinction_call_list)
 
       self%initialized = .true.
 
@@ -712,6 +715,21 @@
    self%zero_hz = 0.0_rk
    call self%link_horizontal_data('zero_hz',self%zero_hz)
 
+   call append_to_call_list(self%do_interior_environment,self%links_postcoupling,source_do,(/source_do/))
+   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_do_surface,(/source_do_surface,source_unknown/))
+   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_unknown,(/source_do_surface,source_unknown/))
+   call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_do_bottom,(/source_do_bottom,source_unknown/))
+   call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_unknown,(/source_do_bottom,source_unknown/))
+   call append_to_call_list(self%get_light_environment,self%links_postcoupling,source_do_column,(/source_do_column/))
+   call append_to_call_list(self%get_light_extinction_environment,self%links_postcoupling,source_do_column,(/source_do_column,source_do/))
+   call self%get_light_extinction_environment%call_list%filter(source_do_column)
+   !call self%get_light_extinction_environment%call_list%print()
+   do ivar=1,size(self%conserved_quantities)
+      call append_variable_to_call_list(self%get_conserved_quantities_environment,self%conserved_quantities(ivar)%target,source_do,(/source_do/))
+      call append_variable_to_call_list(self%get_horizontal_conserved_quantities_environment,self%conserved_quantities(ivar)%target_hz,source_do_bottom,(/source_do_bottom,source_unknown/))
+   end do
+   call append_variable_to_call_list(self%get_light_extinction_environment,self%extinction_target,source_do,(/source_do/))
+
    ! Merge diagnostic variables that contribute to the same sink/source terms,
    ! surface fluxes, bottom fluxes, provided no other variables depend on them.
    link => self%links_postcoupling%first
@@ -754,6 +772,9 @@
    call initialize_prefill(self%do_surface_environment,self%nscratch_hz,self%links_postcoupling,source_do_surface,domain_horizontal)
    call initialize_prefill(self%do_bottom_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
    call initialize_prefill(self%get_vertical_movement_environment,self%nscratch,self%links_postcoupling,source_get_vertical_movement,domain_bulk)
+   call initialize_prefill(self%get_conserved_quantities_environment,self%nscratch,self%links_postcoupling,source_do,domain_bulk)
+   call initialize_prefill(self%get_horizontal_conserved_quantities_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
+   call initialize_prefill(self%get_light_extinction_environment,self%nscratch,self%links_postcoupling,source_do,domain_bulk)
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
@@ -804,62 +825,15 @@
    allocate(self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ 0:nsave_hz))
    self%diag_hz = 0.0_rk
 
-   ! Create array with missing values for all stored interior diagnostics
+   ! Create arrays with missing values for all stored diagnostics (used as fill value for masked cells)
    allocate(self%diag_missing_value(nsave))
-   do ivar=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(ivar)%save_index>0) &
-         self%diag_missing_value(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%missing_value
-   end do
-
-   ! Create array with missing values for all stored horizontal diagnostics
    allocate(self%diag_hz_missing_value(nsave_hz))
-   do ivar=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(ivar)%save_index>0) &
-         self%diag_hz_missing_value(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%missing_value
-   end do
-
-   ! For each saved scratch variable, store its scratch index where the data can be found.
-   allocate(self%do_interior_environment%save_sources(nsave))
-   allocate(self%do_bottom_environment%save_sources_hz(nsave_hz))
-   allocate(self%do_surface_environment%save_sources_hz(nsave_hz))
-   allocate(self%get_light_environment%save_sources(nsave))
-   allocate(self%get_light_environment%save_sources_hz(nsave_hz))
-   allocate(self%get_vertical_movement_environment%save_sources(nsave))
-   self%do_interior_environment%save_sources = -1
-   self%do_bottom_environment%save_sources_hz = -1
-   self%do_surface_environment%save_sources_hz = -1
-   self%get_light_environment%save_sources = -1
-   self%get_light_environment%save_sources_hz = -1
-   self%get_vertical_movement_environment%save_sources = -1
-   do ivar=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(ivar)%save_index>0) then
-         if (self%diagnostic_variables(ivar)%source==source_do) &
-            self%do_interior_environment%save_sources(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%target%write_indices%value
-         if (self%diagnostic_variables(ivar)%source==source_do_column) &
-            self%get_light_environment%save_sources(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%target%write_indices%value
-         if (self%diagnostic_variables(ivar)%source==source_get_vertical_movement) &
-            self%get_vertical_movement_environment%save_sources(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%target%write_indices%value
-      end if
-   end do
-   do ivar=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(ivar)%save_index>0) then
-         if (self%horizontal_diagnostic_variables(ivar)%source==source_do_surface.or.self%horizontal_diagnostic_variables(ivar)%source==source_unknown) &
-            self%do_surface_environment%save_sources_hz(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
-         if (self%horizontal_diagnostic_variables(ivar)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(ivar)%source==source_unknown) &
-            self%do_bottom_environment%save_sources_hz(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
-         if (self%horizontal_diagnostic_variables(ivar)%source==source_do_column) &
-            self%get_light_environment%save_sources_hz(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
-      end if
-   end do
-   allocate(self%do_interior_ppdd_environment%save_sources(nsave))
-   allocate(self%do_bottom_ppdd_environment%save_sources_hz(nsave_hz))
-   self%do_interior_ppdd_environment%save_sources(:) = self%do_interior_environment%save_sources
-   self%do_bottom_ppdd_environment%save_sources_hz(:) = self%do_bottom_environment%save_sources_hz
 
    ! Initialize diagnostic variables to missing value.
    do ivar=1,size(self%diagnostic_variables)
       index = self%diagnostic_variables(ivar)%save_index
       if (index>0) then
+         self%diag_missing_value(index) = self%diagnostic_variables(ivar)%missing_value
          self%diag(_PREARG_LOCATION_DIMENSIONS_ index) = self%diagnostic_variables(ivar)%missing_value
          call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%target, self%diag(_PREARG_LOCATION_DIMENSIONS_ index))
       end if
@@ -867,6 +841,7 @@
    do ivar=1,size(self%horizontal_diagnostic_variables)
       index = self%horizontal_diagnostic_variables(ivar)%save_index
       if (index>0) then
+         self%diag_hz_missing_value(index) = self%horizontal_diagnostic_variables(ivar)%missing_value
          self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
          call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%target, self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ index))
       end if
@@ -892,6 +867,54 @@
          expression => expression%next
       end do
    end if
+
+   call initialize_settings(self%do_interior_environment)
+   call initialize_settings(self%do_surface_environment)
+   call initialize_settings(self%do_bottom_environment)
+   call initialize_settings(self%get_conserved_quantities_environment)
+   call initialize_settings(self%get_horizontal_conserved_quantities_environment)
+   call initialize_settings(self%get_light_extinction_environment)
+   call initialize_settings(self%get_light_environment)
+   call initialize_settings(self%get_vertical_movement_environment)
+
+   if (allocated(self%do_interior_environment%save_sources)) then
+      allocate(self%do_interior_ppdd_environment%save_sources(nsave))
+      self%do_interior_ppdd_environment%save_sources(:) = self%do_interior_environment%save_sources
+   end if
+   if (allocated(self%do_bottom_environment%save_sources_hz)) then
+      allocate(self%do_bottom_ppdd_environment%save_sources_hz(nsave_hz))
+      self%do_bottom_ppdd_environment%save_sources_hz(:) = self%do_bottom_environment%save_sources_hz
+   end if
+
+   contains
+
+   subroutine initialize_settings(settings)
+      type (type_environment_settings), intent(inout) :: settings
+
+      integer :: ivar
+
+      allocate(settings%save_sources(nsave))
+      settings%save_sources = -1
+      do ivar=1,size(self%diagnostic_variables)
+         if (self%diagnostic_variables(ivar)%save_index>0) then
+            if (settings%call_list%computes(self%diagnostic_variables(ivar)%target)) &
+               settings%save_sources(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%target%write_indices%value
+         end if
+      end do
+      if (all(settings%save_sources==-1)) deallocate(settings%save_sources)
+
+      allocate(settings%save_sources_hz(nsave_hz))
+      settings%save_sources_hz = -1
+      do ivar=1,size(self%horizontal_diagnostic_variables)
+         if (self%horizontal_diagnostic_variables(ivar)%save_index>0) then
+            if (settings%call_list%computes(self%horizontal_diagnostic_variables(ivar)%target)) &
+               settings%save_sources_hz(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
+         end if
+      end do
+      if (all(settings%save_sources_hz==-1)) deallocate(settings%save_sources_hz)
+
+      call settings%call_list%initialize()
+   end subroutine initialize_settings
 
    end subroutine fabm_set_domain
 !EOC
@@ -2511,9 +2534,9 @@ end subroutine deallocate_prefetch_vertical
    real(rk) _DIMENSION_EXT_SLICE_PLUS_1_, intent(inout) :: dy
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
-   type (type_model_list_node), pointer :: node
-   integer                              :: i,j,k
+   type (type_environment)             :: environment
+   type (type_call_list_node), pointer :: node
+   integer                             :: i,j,k
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -2525,19 +2548,17 @@ end subroutine deallocate_prefetch_vertical
 #endif
    call prefetch_interior(self,self%do_interior_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
-   node => self%models%first
+   node => self%do_interior_environment%call_list%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-      do i=1,size(node%model%reused_diag)
-         if (node%model%reused_diag(i)%source==source_do) then
-            j = node%model%reused_diag(i)%read_index
-            k = node%model%reused_diag(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_
-               environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
-            _LOOP_END_
-         end if
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
+         _CONCURRENT_LOOP_BEGIN_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+         _LOOP_END_
       end do
 
       ! Move to next model
@@ -2675,29 +2696,30 @@ end subroutine deallocate_prefetch_vertical
       minimum = self%state_variables(ivar)%minimum
       maximum = self%state_variables(ivar)%maximum
 
-      _LOOP_BEGIN_
-         value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
-         if (value<minimum) then
-            ! State variable value lies below prescribed minimum.
-            if (.not.repair) then
+      if (repair) then
+         _CONCURRENT_LOOP_BEGIN_
+            value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+            environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = max(minimum,min(maximum,value))
+         _LOOP_END_
+         _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+      else
+         _LOOP_BEGIN_
+            value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+            if (value<minimum) then
+               ! State variable value lies below prescribed minimum.
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
                                                           & ' below minimum value ',minimum
                call log_message(err)
                return
-            end if
-            environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = minimum
-         elseif (value>maximum) then
-            ! State variable value exceeds prescribed maximum.
-            if (.not.repair) then
+            elseif (value>maximum) then
+               ! State variable value exceeds prescribed maximum.
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
                                                           & ' above maximum value ',maximum
                call log_message(err)
                return
             end if
-            environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = maximum
-         end if
-      _LOOP_END_
-      _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+         _LOOP_END_
+      end if
    end do
 
    end if
@@ -2848,9 +2870,9 @@ end subroutine internal_check_horizontal_state
       real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out),optional :: flux_sf
 !
 ! !LOCAL PARAMETERS:
-      type (type_environment)              :: environment
-      type (type_model_list_node), pointer :: node
-      integer                              :: i,j,k
+      type (type_environment)             :: environment
+      type (type_call_list_node), pointer :: node
+      integer                             :: i,j,k
       _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -2858,19 +2880,17 @@ end subroutine internal_check_horizontal_state
 !BOC
       call prefetch_horizontal(self,self%do_surface_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
-      node => self%models%first
+      node => self%do_surface_environment%call_list%first
       do while (associated(node))
          call node%model%do_surface(_ARGUMENTS_HORIZONTAL_)
 
          ! Copy newly written diagnostics to prefetch
-         do i=1,size(node%model%reused_diag_hz)
-            if (node%model%reused_diag_hz(i)%source==source_do_surface.or.node%model%reused_diag_hz(i)%source==source_unknown) then
-               j = node%model%reused_diag_hz(i)%read_index
-               k = node%model%reused_diag_hz(i)%write_index
-               _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-                  environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-               _HORIZONTAL_LOOP_END_
-            end if
+         _DO_CONCURRENT_(i,1,size(node%copy_commands))
+            j = node%copy_commands(i)%read_index
+            k = node%copy_commands(i)%write_index
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+               environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+            _HORIZONTAL_LOOP_END_
          end do
 
          node => node%next
@@ -2921,9 +2941,9 @@ end subroutine internal_check_horizontal_state
    real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_ben
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
-   type (type_model_list_node), pointer :: node
-   integer                              :: i,j,k
+   type (type_environment)             :: environment
+   type (type_call_list_node), pointer :: node
+   integer                             :: i,j,k
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -2931,19 +2951,17 @@ end subroutine internal_check_horizontal_state
 !BOC
    call prefetch_horizontal(self,self%do_bottom_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
-   node => self%models%first
+   node => self%do_bottom_environment%call_list%first
    do while (associated(node))
       call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
 
       ! Copy newly written diagnostics to prefetch
-      do i=1,size(node%model%reused_diag_hz)
-         if (node%model%reused_diag_hz(i)%source==source_do_bottom.or.node%model%reused_diag_hz(i)%source==source_unknown) then
-            j = node%model%reused_diag_hz(i)%read_index
-            k = node%model%reused_diag_hz(i)%write_index
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-               environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-            _HORIZONTAL_LOOP_END_
-         end if
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+         _HORIZONTAL_LOOP_END_
       end do
 
       node => node%next
@@ -3084,14 +3102,14 @@ end subroutine internal_check_horizontal_state
    subroutine fabm_get_light_extinction(self _ARGUMENTS_INTERIOR_IN_,extinction)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),        intent(inout) :: self
+   class (type_model),            intent(inout) :: self
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    real(rk) _DIMENSION_EXT_SLICE_,intent(out)   :: extinction
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
-   type (type_model_list_node), pointer :: node
-   integer                              :: i,j,k
+   type (type_environment)             :: environment
+   type (type_call_list_node), pointer :: node
+   integer                             :: i,j,k
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -3102,22 +3120,20 @@ end subroutine internal_check_horizontal_state
       call fatal_error('fabm_get_light_extinction','Size of first dimension of extinction should match loop length.')
 #endif
 
-   call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call prefetch_interior(self,self%get_light_extinction_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    ! Call all models that calculate extinction components to make sure the extinction diagnostic is up to date.
-   node => self%extinction_call_list%first
+   node => self%get_light_extinction_environment%call_list%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-      do i=1,size(node%model%reused_diag)
-         if (node%model%reused_diag(i)%source==source_do) then
-            j = node%model%reused_diag(i)%read_index
-            k = node%model%reused_diag(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_
-               environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
-            _LOOP_END_
-         end if
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
+         _CONCURRENT_LOOP_BEGIN_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+         _LOOP_END_
       end do
 
       ! Move to next model
@@ -3126,7 +3142,7 @@ end subroutine internal_check_horizontal_state
 
    _UNPACK_(environment%prefetch,self%extinction_index,extinction,environment%mask,0.0_rk)
 
-   call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call deallocate_prefetch(self,self%get_light_extinction_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_light_extinction
 !EOC
@@ -3144,18 +3160,29 @@ end subroutine internal_check_horizontal_state
    _DECLARE_ARGUMENTS_VERTICAL_IN_
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
-   type (type_model_list_node), pointer :: node
+   type (type_environment)             :: environment
+   type (type_call_list_node), pointer :: node
    _DECLARE_VERTICAL_INDICES_
+   integer :: i,j,k
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    call prefetch_vertical(self,self%get_light_environment,environment _ARGUMENTS_VERTICAL_IN_)
 
-   node => self%models%first
+   node => self%get_light_environment%call_list%first
    do while (associated(node))
       call node%model%get_light(_ARGUMENTS_VERTICAL_)
+
+      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
+         _CONCURRENT_VERTICAL_LOOP_BEGIN_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+         _VERTICAL_LOOP_END_
+      end do
+
       node => node%next
    end do
 
@@ -3246,34 +3273,32 @@ end subroutine internal_check_horizontal_state
    subroutine fabm_get_conserved_quantities(self _ARGUMENTS_INTERIOR_IN_,sums)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),               intent(inout) :: self
+   class (type_model),                   intent(inout) :: self
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out)   :: sums
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
-   type (type_model_list_node), pointer :: node
+   type (type_environment)             :: environment
+   type (type_call_list_node), pointer :: node
    integer :: i,j,k
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call prefetch_interior(self,self%get_conserved_quantities_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
-   node => self%conserved_quantity_call_list%first
+   node => self%get_conserved_quantities_environment%call_list%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-      do i=1,size(node%model%reused_diag)
-         if (node%model%reused_diag(i)%source==source_do) then
-            j = node%model%reused_diag(i)%read_index
-            k = node%model%reused_diag(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_
-               environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
-            _LOOP_END_
-         end if
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
+         _CONCURRENT_LOOP_BEGIN_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+         _LOOP_END_
       end do
 
       ! Move to next model
@@ -3284,7 +3309,7 @@ end subroutine internal_check_horizontal_state
       _UNPACK_TO_PLUS_1_(environment%prefetch,self%conserved_quantities(i)%index,sums,i,environment%mask,0.0_rk)
    end do
 
-   call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call deallocate_prefetch(self,self%get_conserved_quantities_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_conserved_quantities
 !EOC
@@ -3303,29 +3328,38 @@ end subroutine internal_check_horizontal_state
    real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: sums
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment) :: environment
-   integer                 :: i
+   type (type_environment)             :: environment
+   integer                             :: i,j,k
+   type (type_call_list_node), pointer :: node
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call prefetch_horizontal(self,self%get_horizontal_conserved_quantities_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
-   do i=1,size(self%conserved_quantities)
-      if (associated(self%conserved_quantities(i)%horizontal_sum)) then
-         call self%conserved_quantities(i)%horizontal_sum%do_bottom(_ARGUMENTS_HORIZONTAL_)
+   node => self%get_horizontal_conserved_quantities_environment%call_list%first
+   do while (associated(node))
+      call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
+
+      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(self%conserved_quantities(i)%horizontal_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(self%conserved_quantities(i)%horizontal_sum%id_output%horizontal_diag_index)
+            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
          _HORIZONTAL_LOOP_END_
-      end if
+      end do
+
+      ! Move to next model
+      node => node%next
    end do
 
    do i=1,size(self%conserved_quantities)
       _HORIZONTAL_UNPACK_TO_PLUS_1_(environment%prefetch_hz,self%conserved_quantities(i)%horizontal_index,sums,i,environment%mask,0.0_rk)
    end do
 
-   call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call deallocate_prefetch_horizontal(self,self%get_horizontal_conserved_quantities_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_get_horizontal_conserved_quantities
 !EOC
@@ -3840,39 +3874,23 @@ subroutine classify_variables(self)
          consvar%long_name = trim(consvar%standard_variable%name)
          consvar%path = trim(consvar%standard_variable%name)
          consvar%aggregate_variable => aggregate_variable
-
-         ! Get read index of the variable that will keep the total of conserved quantity in bulk domain.
-         ! If this variable is a diagnostic, add the source model and any dependencies to the call list
-         ! for conserved quantity calculations.
-         object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
-         if (.not.associated(object)) call driver%fatal_error('classify_variables', &
+         consvar%target => self%root%find_object(trim(aggregate_variable%standard_variable%name))
+         if (.not.associated(consvar%target)) call driver%fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
-         call object%read_indices%append(consvar%index)
-         if (.not.object%write_indices%is_empty()) call find_dependencies(object%owner,self%conserved_quantity_call_list)
-
-         ! Store pointer to total of conserved quantity at surface + bottom.
-         object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
-         if (.not.associated(object)) call driver%fatal_error('classify_variables', &
+         call consvar%target%read_indices%append(consvar%index)
+         consvar%target_hz => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
+         if (.not.associated(consvar%target_hz)) call driver%fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
-         call object%read_indices%append(consvar%horizontal_index)
-
-         ! Store pointer to model that computes total of conserved quantity at surface + bottom, so we can force recomputation.
-         model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_at_interfaces_calculator')
-         if (associated(model)) then
-            select type (model)
-               class is (type_horizontal_weighted_sum)
-                  consvar%horizontal_sum => model
-            end select
-         end if
+         call consvar%target_hz%read_indices%append(consvar%horizontal_index)
       end if
       aggregate_variable => aggregate_variable%next
    end do
 
    ! Get link to extinction variable.
-   object => self%root%find_object(trim(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux%name))
-   if (.not.associated(object)) call driver%fatal_error('classify_variables', &
+   self%extinction_target => self%root%find_object(trim(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux%name))
+   if (.not.associated(self%extinction_target)) call driver%fatal_error('classify_variables', &
       'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux was not created')
-   call object%read_indices%append(self%extinction_index)
+   call self%extinction_target%read_indices%append(self%extinction_index)
 
    call set_diagnostic_indices(self%root)
 
@@ -4142,6 +4160,32 @@ end subroutine
          node => node%next
       end do
    end subroutine build_call_list
+
+   subroutine append_to_call_list(self,link_list,routine_source,variable_sources)
+      type (type_environment_settings), intent(inout) :: self
+      type (type_link_list),            intent(in)    :: link_list
+      integer,                          intent(in)    :: routine_source
+      integer,                          intent(in)    :: variable_sources(:)
+
+      type (type_link), pointer :: link
+
+      link => link_list%first
+      do while (associated(link))
+         if (link%target%source==routine_source .and. .not. link%target%write_indices%is_empty()) &
+            call find_variable_dependencies(link%target,variable_sources,self%call_list,copy_to_prefetch=.false.)
+         link => link%next
+      end do
+   end subroutine append_to_call_list
+
+   subroutine append_variable_to_call_list(self,variable,routine_source,variable_sources)
+      type (type_environment_settings), intent(inout) :: self
+      type (type_internal_variable),    intent(in)    :: variable
+      integer,                          intent(in)    :: routine_source
+      integer,                          intent(in)    :: variable_sources(:)
+
+      if (variable%source==routine_source .and. .not. variable%write_indices%is_empty()) &
+         call find_variable_dependencies(variable,variable_sources,self%call_list,copy_to_prefetch=.true.)
+   end subroutine append_variable_to_call_list
 
 end module fabm
 
