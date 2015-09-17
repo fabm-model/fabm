@@ -22,6 +22,15 @@
 !  Baltic Sea and shifts in nitrogen fixation analyzed with a 3D ecosystem   
 !  model, J. Mar. Sys., 74 (1.2), pp. 592-602. 
 !
+!  Revision history:
+!  September 2015, by Dennis Trolle (AU):
+!  Implemented a switch for choosing between fresh and marine (default) environments.
+!  If "fresh" is selected, oxygen debt (negative O2) due to H2S production is disabled.
+!  Added a sediment burial process, and a range of additional diagnostic variables to output, 
+!  incl. chlorophyll a, oxygen and nutrients in mass concentration units. 
+!  Updated yaml input file with new entries (e.g., sediment burial rate, and phytoplankton
+!  carbon:chla ratios for individual phyto groups)
+!
 ! !MODULE:fabm_msi_ergom1
 !
 ! !INTERFACE:
@@ -43,18 +52,19 @@
       type (type_bottom_state_variable_id) :: id_fl,id_pb
       type (type_dependency_id)            :: id_par,id_temp,id_salt
       type (type_horizontal_dependency_id) :: id_I_0,id_taub,id_wind
-      type (type_diagnostic_variable_id)   :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR,id_NFX,id_DNP
+      type (type_diagnostic_variable_id)   :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR,id_NFX,id_DNP,id_NO3,id_NH4,id_TN,id_PO4,id_TP,id_O2_mg,id_pp_chla,id_ff_chla,id_bb_chla,id_tot_chla
       type (type_horizontal_diagnostic_variable_id) :: id_DNB,id_SBR,id_PBR,id_OFL
 
       ! Model parameters
       real(rk) :: nb,deltao,nue,sigma_b,dn,dn_sed,sfl_po,sfl_aa,sfl_nn
-      real(rk) :: rp0,rf0,rb0,cyanotll,cyanosll,cyanosul,flagtll
+      real(rk) :: rp0,rf0,rb0,cyanotll,cyanosll,cyanosul,flagtll,Yc_cyan,Yc_diat,Yc_flag
       real(rk) :: alphap,alphaf,alphab,iv,graz,toptz,zcl1,p0,f0,b0,z0
       real(rk) :: imin_di,imin,kc,q10_rec,ade_r0,alphaade,q10_recs
       real(rk) :: rfr,rfc,sedrate,erorate,sedratepo4,eroratepo4,po4ret
-      real(rk) :: pburialrate,pliberationrate,ipo4th,maxsed,br0,fds,pvel,tau_crit
+      real(rk) :: fl_burialrate,pburialrate,pliberationrate,ipo4th,maxsed,br0,fds,pvel,tau_crit
       integer  :: newflux
       logical  :: calc_dic=.false.
+      character(len=16) :: env_type ! identifier for setting the environment to "marine" or "fresh" (freshwater/lake) 
       character(len=64) :: dic_variable      
    contains
       procedure :: initialize
@@ -84,15 +94,15 @@
    integer,               intent(in)           :: configunit
    real(rk),parameter :: secs_per_day = 86400._rk
    real(rk) :: wdz,wpz,wfz,wbz,wpo4
+   
+   call self%get_parameter(self%env_type, 'env_type', 'Define environment type, either fresh or marine') 
    call self%get_parameter(self%calc_dic, 'calc_dic', 'Deside whether to calculate DIC', default=.false.)
    call self%get_parameter(self%dic_variable, 'dic_variable', 'Define DIC variable')
-
    call self%get_parameter(wdz,     'wdz',   'm/d',  'Detritus      sinking velocity', default=4.5_rk)
    call self%get_parameter(wpz,     'wpz',   'm/d',  'Diatoms       sinking velocity', default=-0.5_rk)
    call self%get_parameter(wfz,     'wfz',   'm/d',  'Zooplankton   sinking velocity', default=0.0_rk)
    call self%get_parameter(wbz,     'wbz',   'm/d',  'Cyanobacteria sinking velocity (positive)', default=0.1_rk)
    call self%get_parameter(wpo4,    'wpo4',  'm/d',  'P-Fe in water sinking velocity', default=-1.0_rk)
-
    call self%get_parameter(self%sfl_po,  'sfl_po',  'mmol p/m2/d', 'constant surface phosphate flux', default=0.0015_rk)
    call self%get_parameter(self%sfl_nn,  'sfl_nn',  'mmol n/m2/d', 'constant surface nitrate flux', default=0.083_rk)
    call self%get_parameter(self%sfl_aa,  'sfl_aa',  'mmol n/m2/d','constant surface ammonium flux', default=0.06_rk)
@@ -121,6 +131,9 @@
    call self%get_parameter(self%alphap,  'alphap',  'mmol n/m3', 'Half-saturation const, diatoms', default=0.25_rk)
    call self%get_parameter(self%alphaf,  'alphaf',  'mmol n/m3', 'Half-saturation const, flagellates', default=0.10_rk)
    call self%get_parameter(self%alphab,  'alphab',  'mmol n/m3', 'Half-saturation const, cyanobacteria', default=0.4_rk)
+   call self%get_parameter(self%Yc_diat,  'Yc_diat',  'umol C/mg Chla', 'Carbon to Chla ratio (micro-mol : mg), diatoms', default=6.25_rk)
+   call self%get_parameter(self%Yc_flag,  'Yc_flag',  'umol C/mg Chla', 'Carbon to Chla ratio (micro-mol : mg), flagellates', default=6.25_rk)
+   call self%get_parameter(self%Yc_cyan,  'Yc_cyan',  'umol C/mg Chla', 'Carbon to Chla ratio (micro-mol : mg), cyanobacteria', default=6.25_rk)
    call self%get_parameter(self%iv,      'iv',      '1/(mmol n/m3)3', 'Ivlev constant, quadratic', default=1.2_rk)
    call self%get_parameter(self%graz,    'graz',    '1/d', 'Zooplankton grazing rate', default=0.5_rk)
    self%graz = self%graz/secs_per_day
@@ -151,6 +164,8 @@
    call self%get_parameter(self%po4ret,  'po4ret',  '-', 'Phosphate retention rate, oxic sediments', default=0.18_rk)
    call self%get_parameter(self%pburialrate,'pburialrate','-', 'Phopshate burial rate', default=0.007_rk)
    self%pburialrate = self%pburialrate/secs_per_day
+   call self%get_parameter(self%fl_burialrate,'fl_burialrate','-', 'Sediment burial rate', default=0.001_rk)
+   self%fl_burialrate = self%fl_burialrate/secs_per_day
    call self%get_parameter(self%pliberationrate,'pliberationrate','-', 'Phosphate liberation rate, anoxic sediments', default=0.1_rk)
    self%pliberationrate = self%pliberationrate/secs_per_day
    call self%get_parameter(self%ipo4th,  'ipo4th',  'mmol p/m2', 'Increased phosphate burial threshold', default=100._rk)
@@ -162,7 +177,7 @@
    self%pvel = self%pvel/secs_per_day
    call self%get_parameter(self%newflux, 'newflux', '-', 'Oxygen flux type', default=2)
    call self%get_parameter(self%tau_crit,'tau_crit','N/m2', 'Critical shear stress', default=0.07_rk)
-
+   
    ! Register state variables
    call self%register_state_variable(self%id_pp,'pp','mmol n/m**3', 'diatoms', minimum=0.0_rk,vertical_movement=wpz/secs_per_day,no_river_dilution=.true.)
    call self%register_state_variable(self%id_ff,'ff','mmol n/m**3', 'flagellates', minimum=0.0_rk,vertical_movement=wfz/secs_per_day,no_river_dilution=.true.)
@@ -172,27 +187,41 @@
    call self%register_state_variable(self%id_aa,'aa','mmol n/m**3', 'ammonium', minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_nn,'nn','mmol n/m**3', 'nitrate', minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_po,'po','mmol p/m**3', 'phosphate', minimum=0.0_rk,no_river_dilution=.true.)
-   call self%register_state_variable(self%id_o2,'o2','mmol o2/m**3','oxygen', no_river_dilution=.true.)
+   if (self%env_type .eq. "fresh") then
+      call self%register_state_variable(self%id_o2,'o2','mmol o2/m**3','oxygen', minimum=0.0_rk,no_river_dilution=.true.)
+   else
+      call self%register_state_variable(self%id_o2,'o2','mmol o2/m**3','oxygen', no_river_dilution=.true.)
+   end if
    call self%register_state_variable(self%id_fl,'fl','mmol n/m**2', 'fluff', minimum=0.0_rk,maximum=self%maxsed)
    call self%register_state_variable(self%id_pb,'pb','mmol p/m**2', 'PFe_s', minimum=0.0_rk)
    call self%register_state_variable(self%id_pw,'pw','mmol p/m**3', 'PFe_w', minimum=0.0_rk,vertical_movement=wpo4/secs_per_day,no_river_dilution=.true.)
-
+     
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    if (self%calc_dic) call self%register_state_dependency(self%id_dic,self%dic_variable)
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_GPP, 'GPP','mmol/m**3',  'gross primary production',           output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_NCP, 'NCP','mmol/m**3',  'net community production',           output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_PPR, 'PPR','mmol/m**3/d','gross primary production rate',      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_NPR, 'NPR','mmol/m**3/d','net community production rate',      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_NFX, 'NFX','mmol/m**3/d','nitrogen fixation rate',             output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_DNP, 'DNP','mmol/m**3/d','denitrification pelagic',            output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_DNB, 'DNB','mmol/m**2/d','denitrification benthic',            output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_SBR, 'SBR','mmol/m**2',  'sediment burial',                    output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_PBR, 'PBR','mmol/m**2/d','phosphorus burial',                  output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_OFL, 'OFL','mmol/m**2/d','oxygen surface flux',                output=output_time_step_averaged)
-
+   call self%register_diagnostic_variable(self%id_NO3,    'Nit',      'mgNO3N/m**3','nitrate conc in mass unit',                output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_NH4,    'Amm',      'mgNH4N/m**3','ammonium  conc in nitrogen mass unit',     output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_TN,     'TN',       'mgTN/m**3',  'total nitrogen conc in nitrogen mass unit',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_PO4,    'Pho',      'mgPO4P/m**3','phosphate conc in phosphorus mass unit',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_TP,     'TP',       'mgTP/m**3',  'total phosphorus in phosphorus mass unit', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_O2_mg,  'DO_mg',    'mgO2/m**3',  'oxygen in O2 mass unit',                   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_pp_chla,'pp_chla',  'mgchla/m**3','diatoms conc in chla unit',                output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_ff_chla,'ff_chla',  'mgchla/m**3','flagellates conc in chla unit',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_bb_chla,'bb_chla',  'mgchla/m**3','cyanobacteria conc in chla unit',          output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tot_chla,'tot_chla','mgchla/m**3','total chlorophyll a',                      output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_dPAR,    'PAR',     'W/m**2',     'photosynthetically active radiation',      output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_GPP,     'GPP',     'mmol/m**3',  'gross primary production',                 output=output_time_step_integrated)
+   call self%register_diagnostic_variable(self%id_NCP,     'NCP',     'mmol/m**3',  'net community production',                 output=output_time_step_integrated)
+   call self%register_diagnostic_variable(self%id_PPR,     'PPR',     'mmol/m**3/d','gross primary production rate',            output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_NPR,     'NPR',     'mmol/m**3/d','net community production rate',            output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_NFX,     'NFX',     'mmol/m**3/d','nitrogen fixation rate',                   output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_DNP,     'DNP',     'mmol/m**3/d','denitrification pelagic',                  output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_DNB,     'DNB',     'mmol/m**2/d','denitrification benthic',                  output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_SBR,     'SBR',     'mmol/m**2',  'sediment burial',                          output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_PBR,     'PBR',     'mmol/m**2/d','phosphorus burial',                        output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_OFL,     'OFL',     'mmol/m**2/d','oxygen surface flux',                      output=output_time_step_averaged)
+     
    ! Register environmental dependencies
    call self%register_dependency(self%id_par,  standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_temp, standard_variables%temperature)
@@ -222,6 +251,9 @@
     real(rk)           :: ppg,ffg,bbg,nlim,plim,rp,rf,rb
     real(rk)           :: iopt,iopt_di,ppi,ppi_di,temp,tempq,salt,ldn,nf,lpn,lpd,lp
     real(rk)           :: part_uptake,uptake_p,uptake_f,otemp,food,food_eps,lz,graz_z,ldn_N,ldn_O,ade,lzn,lzd,gg
+    real(rk),parameter :: p_molar_mass = 30.973761_rk ! molar mass of phosphorus
+    real(rk),parameter :: n_molar_mass =  14.0067_rk ! molar mass of nitrogen
+    real(rk),parameter :: o2_molar_mass =  31.9988_rk ! molar mass of O2
     real(rk),parameter :: epsilon = 0.00000000001_rk
     real(rk),parameter :: secs_per_day = 86400._rk
 !EOP
@@ -358,14 +390,25 @@
 
   if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic, self%rfc*( lpn * phyto + lzn * zz0 + ldn * dd - rp * ppg - rf * ffg - rb * bbg))
 
-   _SET_DIAGNOSTIC_(self%id_dPAR,par)
-   _SET_DIAGNOSTIC_(self%id_GPP ,rp + rf)
-   _SET_DIAGNOSTIC_(self%id_NCP ,rp + rf + rb - lpn * phyto)
-   _SET_DIAGNOSTIC_(self%id_PPR ,(rp + rf + rb) * secs_per_day)
-   _SET_DIAGNOSTIC_(self%id_NPR ,(rp + rf + rb - lpn*phyto) * secs_per_day)
-   _SET_DIAGNOSTIC_(self%id_NFX, rb * bbg * secs_per_day)
-   _SET_DIAGNOSTIC_(self%id_DNP, (ldn_N * ldn *dd + ade) * secs_per_day)
-
+  _SET_DIAGNOSTIC_(self%id_NO3, nn * n_molar_mass)
+  _SET_DIAGNOSTIC_(self%id_NH4, aa * n_molar_mass)
+  _SET_DIAGNOSTIC_(self%id_TN, nn * n_molar_mass + aa * n_molar_mass + phyto * n_molar_mass)
+  _SET_DIAGNOSTIC_(self%id_PO4, po * p_molar_mass)
+  _SET_DIAGNOSTIC_(self%id_TP, po * p_molar_mass + phyto * self%rfr * p_molar_mass)
+  _SET_DIAGNOSTIC_(self%id_O2_mg, o2 * o2_molar_mass)
+  _SET_DIAGNOSTIC_(self%id_pp_chla, (pp * 9.5 + 2.1)/self%Yc_diat) ! relation between carbon and nitrogen from Hecky et al 1993. The stoichiometry of carbon, nitrogen, and phosphorus in particulate matter of lakes and oceans. Limnology and Oceanography, 38: 709-724.
+  _SET_DIAGNOSTIC_(self%id_ff_chla, (ff * 9.5 + 2.1)/self%Yc_flag)
+  _SET_DIAGNOSTIC_(self%id_bb_chla, (bb * 9.5 + 2.1)/self%Yc_cyan)
+  _SET_DIAGNOSTIC_(self%id_tot_chla, (pp * 9.5 + 2.1)/self%Yc_diat + (ff * 9.5 + 2.1)/self%Yc_flag + (bb * 9.5 + 2.1)/self%Yc_cyan)
+  _SET_DIAGNOSTIC_(self%id_dPAR,par)
+  _SET_DIAGNOSTIC_(self%id_GPP ,rp + rf)
+  _SET_DIAGNOSTIC_(self%id_NCP ,rp + rf + rb - lpn * phyto)
+  _SET_DIAGNOSTIC_(self%id_PPR ,(rp + rf + rb) * secs_per_day)
+  _SET_DIAGNOSTIC_(self%id_NPR ,(rp + rf + rb - lpn*phyto) * secs_per_day)
+  _SET_DIAGNOSTIC_(self%id_NFX, rb * bbg * secs_per_day)
+  _SET_DIAGNOSTIC_(self%id_DNP, (ldn_N * ldn *dd + ade) * secs_per_day)
+  
+  
    ! Leave spatial loops (if any)
    _LOOP_END_
 
@@ -447,10 +490,12 @@
    _GET_HORIZONTAL_(self%id_taub,taub)
    _GET_(self%id_temp,temp)
 
-   pbr = max(pb, pb * (pb -self%ipo4th + 1.0_rk)) !increased phosphorus burial
+   !increased phosphorus burial
+   pbr = max(pb, pb * (pb -self%ipo4th + 1.0_rk)) 
 
+   !bio-resuspension rate
    biores = self%br0 * max(0.0_rk, oxb) * max(0.0_rk, oxb) &
-            / (max(0.0_rk, oxb) * max(0.0_rk, oxb) + 0.03_rk)  !bio-resuspension rate
+            / (max(0.0_rk, oxb) * max(0.0_rk, oxb) + 0.03_rk)  
 
    ! Resuspension-sedimentation rate are computed as in GOTM-BIO
    if (self%tau_crit .gt. taub) then
@@ -497,8 +542,8 @@
 
    oxlim = max (0.0_rk,oxb) * max (0.0_rk,oxb) / (0.01_rk + max(0.0_rk,oxb) * max(0.0_rk,oxb))
 
-   ! Sediment resuspension, detritus settling, bio-resuspension and mineralization
-   _SET_ODE_BEN_(self%id_fl,-llsd * fl + llds * ddb - biores * fl - recs * fl)
+   ! Sediment resuspension, detritus settling, bio-resuspension, mineralization and burial
+   _SET_ODE_BEN_(self%id_fl,-llsd * fl + llds * ddb - biores * fl - recs * fl - fl * self%fl_burialrate * fl/self%maxsed)
    ! P-Fe resuspension, sedimentation, bio-resuspension, liberation, retention and burial
    _SET_ODE_BEN_(self%id_pb,-bpsd * pb + bpds * pwb -biores * pb -plib * pb + self%rfr * recs * fl * pret * oxlim - pbr * self%pburialrate * fl/self%maxsed)
 
@@ -511,14 +556,15 @@
    ! Phosphate production due to mineralization (retention if oxic) and release in anoxic
    _SET_BOTTOM_EXCHANGE_(self%id_po, (1.0_rk - pret * oxlim) * self%rfr * recs * fl + plib * pb)
    ! Sediment resuspension, detritus settling, bio-resuspension
-   _SET_BOTTOM_EXCHANGE_(self%id_dd, llsd * fl -llds *ddb + biores * fl)
+   _SET_BOTTOM_EXCHANGE_(self%id_dd, llsd * fl -llds * ddb + biores * fl)
    ! P-Fe resuspension, settling and bio-resuspension
-   _SET_BOTTOM_EXCHANGE_(self%id_pw, bpsd * pb -bpds * pwb +biores * pb)
+   _SET_BOTTOM_EXCHANGE_(self%id_pw, bpsd * pb -bpds * pwb + biores * pb)
 
    if (_AVAILABLE_(self%id_dic)) _SET_BOTTOM_EXCHANGE_(self%id_dic, self%rfc*recs * fl)
 
    ! BENTHIC DIAGNOSTIC VARIABLES
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_per_day)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_SBR,(fl * self%fl_burialrate * fl/self%maxsed) * secs_per_day)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_PBR,(pbr * self%pburialrate * fl/self%maxsed) * secs_per_day)
 
    ! Leave spatial loops over the horizontal domain (if any).
