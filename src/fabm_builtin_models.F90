@@ -284,14 +284,21 @@ module fabm_builtin_models
       class (type_weighted_sum),intent(inout) :: self
 
       type (type_component),pointer :: component
+      real(rk) :: background
 
       ! At this stage, the background values for all variables (if any) are fixed. We can therefore
       ! compute background contributions already, and add those to the space- and time-invariant offset.
+      background = 0
       component => self%first
       do while (associated(component))
-         if (component%include_background) self%offset = self%offset + component%weight*component%id%background
+         if (component%include_background) then
+            self%offset = self%offset + component%weight*component%id%background
+         else
+            background = background + component%weight*component%id%background
+         end if
          component => component%next
       end do
+      call self%id_output%link%target%background_values%set_value(background)
    end subroutine
 
    subroutine weighted_sum_do(self,_ARGUMENTS_DO_)
@@ -336,7 +343,11 @@ module fabm_builtin_models
    subroutine scaled_bulk_variable_after_coupling(self)
       class (type_scaled_bulk_variable),intent(inout) :: self
 
-      if (self%include_background) self%offset = self%offset + self%weight*self%id_source%background
+      if (self%include_background) then
+         self%offset = self%offset + self%weight*self%id_source%background
+      else
+         call self%id_result%link%target%background_values%set_value(self%weight*self%id_source%background)
+      end if
    end subroutine
 
    function horizontal_weighted_sum_add_to_parent(self,parent,name,create_for_one) result(sum_used)
@@ -392,14 +403,21 @@ module fabm_builtin_models
       class (type_horizontal_weighted_sum),intent(inout) :: self
 
       type (type_horizontal_component),pointer :: component
+      real(rk) :: background
 
       ! At this stage, the background values for all variables (if any) are fixed. We can therefore
       ! compute background contributions already, and add those to the space- and time-invariant offset.
+      background = 0
       component => self%first
       do while (associated(component))
-         if (component%include_background) self%offset = self%offset + component%weight*component%id%background
+         if (component%include_background) then
+            self%offset = self%offset + component%weight*component%id%background
+         else
+            background = background + component%weight*component%id%background
+         end if
          component => component%next
       end do
+      call self%id_output%link%target%background_values%set_value(background)
    end subroutine
 
    subroutine horizontal_weighted_sum_add_component(self,name,weight,include_background)
