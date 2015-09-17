@@ -288,6 +288,7 @@
 ! For BGC models: macro to determine whether a variable identifier is in use (i.e., has been registered with FABM)
 #define _VARIABLE_REGISTERED_(variable) associated(variable%link)
 #define _AVAILABLE_(variable) variable%index/=-1
+#define _AVAILABLE_HORIZONTAL_(variable) variable%horizontal_index/=-1
 
 ! For BGC models: read/write variable access.
 #define _GET_(variable,target) target = environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index)
