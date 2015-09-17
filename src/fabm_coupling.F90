@@ -974,6 +974,7 @@ recursive subroutine find_dependencies2(self,source,allowed_sources,list,forbidd
    type (type_call_list)              :: forbidden_with_self
    type (type_call_list_node),pointer :: node
    character(len=2048)                :: chain
+   logical                            :: same_source
 
    if (present(call_list_node)) nullify(call_list_node)
 
@@ -1007,10 +1008,11 @@ recursive subroutine find_dependencies2(self,source,allowed_sources,list,forbidd
    ! Loop over all variables, and if they belong to some other model, first add that model to the dependency list.
    link => self%links%first
    do while (associated(link))
-      if (index(link%name,'/')==0 &                                                       ! Our own link...
-          .and..not.link%target%write_indices%is_empty() &                                ! ...to a diagnostic variable...
-          .and..not.(associated(link%target%owner,self).and.link%target%source==source) & ! ...not set by ourselves...
-          .and.associated(link%original%read_index)) then                                 ! ...and we do depend on its value
+      same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
+      if (index(link%name,'/')==0 &                                        ! Our own link...
+          .and..not.link%target%write_indices%is_empty() &                 ! ...to a diagnostic variable...
+          .and..not.(associated(link%target%owner,self).and.same_source) & ! ...not set by ourselves...
+          .and.associated(link%original%read_index)) then                  ! ...and we do depend on its value
 
          if (contains_value(allowed_sources,link%target%source)) &
             call find_variable_dependencies(link%target,allowed_sources,list,copy_to_prefetch=.true.,forbidden=forbidden_with_self)
