@@ -557,8 +557,8 @@
 
       ! Create placeholder variables for zero fields.
       ! Values for these fields will only be provided if actually used by one of the biogeochemical models.
-      call self%root%add_bulk_variable('zero',act_as_state_variable=.true.)
-      call self%root%add_horizontal_variable('zero_hz',act_as_state_variable=.true.)
+      call self%root%add_bulk_variable('zero',act_as_state_variable=.true.,source=source_none)
+      call self%root%add_horizontal_variable('zero_hz',act_as_state_variable=.true.,source=source_none)
 
       allocate(extinction_calculator)
       call self%root%add_child(extinction_calculator,'custom_extinction_calculator',configunit=-1)
