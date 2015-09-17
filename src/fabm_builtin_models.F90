@@ -172,15 +172,14 @@ module fabm_builtin_models
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
 
+      sum_used = .false.
       call parent%add_bulk_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0)
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          call parent%request_coupling(link,'zero')
-         sum_used = .false.
       elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
          call parent%request_coupling(link,self%first%name)
-         sum_used = .false.
       elseif (.not.associated(self%first%next)) then
          ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
          allocate(scaled_bulk_variable)
