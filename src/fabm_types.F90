@@ -1252,9 +1252,11 @@ subroutine real_pointer_set_set_value(self,value)
 
    integer :: i
 
-   do i=1,size(self%pointers)
-      self%pointers(i)%p = value
-   end do
+   if (allocated(self%pointers)) then
+      do i=1,size(self%pointers)
+         self%pointers(i)%p = value
+      end do
+   end if
 end subroutine real_pointer_set_set_value
 
 !-----------------------------------------------------------------------
