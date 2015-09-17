@@ -175,6 +175,7 @@
 !  Interior slices MUST be 1D arrays; horizontal slices may be 0D or 1D
 !  Applies to all models with depth dimension. For instance, model with i,j,k [MOM,NEMO], i,k [FVCOM], or k [GOTM]
 #  define _VERTICAL_LOOP_END_ end do
+#  define _VERTICAL_LOOP_EXIT_ exit
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
 #    define _VERTICAL_LOOP_BEGIN_ do _I_=_N_,1,-1
 #    define _CONCURRENT_VERTICAL_LOOP_BEGIN_ _DO_CONCURRENT_WITH_STRIDE_(_I_,_N_,1,-1)
@@ -198,6 +199,7 @@
 #  define _VERTICAL_LOOP_BEGIN_
 #  define _CONCURRENT_VERTICAL_LOOP_BEGIN_
 #  define _VERTICAL_LOOP_END_
+#  define _VERTICAL_LOOP_EXIT_
 #  ifdef _INTERIOR_IS_VECTORIZED_
 !    Interior slices are 1D arrays. Since the vectorized dimension is not depth, horizontal slices MUST be 1D arrays too
 !    Operate on their first element (_I_=1,_J_=1)

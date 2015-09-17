@@ -8,7 +8,7 @@ module fabm_builtin_models
 
    private
 
-   public type_weighted_sum,type_horizontal_weighted_sum,type_simple_depth_integral,copy_fluxes
+   public type_weighted_sum,type_horizontal_weighted_sum,type_depth_integral,copy_fluxes
 
    type,extends(type_base_model_factory) :: type_factory
       contains
@@ -90,16 +90,16 @@ module fabm_builtin_models
       procedure :: add_to_parent       => horizontal_weighted_sum_add_to_parent
    end type
 
-   type,extends(type_base_model) :: type_simple_depth_integral
+   type,extends(type_base_model) :: type_depth_integral
       type (type_dependency_id)                     :: id_input
-      type (type_horizontal_dependency_id)          :: id_depth
+      type (type_dependency_id)                     :: id_thickness
       type (type_horizontal_diagnostic_variable_id) :: id_output
       real(rk)                                      :: minimum_depth = 0.0_rk
       real(rk)                                      :: maximum_depth = huge(1.0_rk)
       logical                                       :: average       = .false.
    contains
-      procedure :: initialize => simple_depth_integral_initialize
-      procedure :: do_bottom  => simple_depth_integral_do_bottom
+      procedure :: initialize => depth_integral_initialize
+      procedure :: get_light  => depth_integral_do_column
    end type
 
    type,extends(type_base_model) :: type_bulk_constant
@@ -470,29 +470,50 @@ module fabm_builtin_models
       _HORIZONTAL_LOOP_END_
    end subroutine
 
-   subroutine simple_depth_integral_initialize(self,configunit)
-      class (type_simple_depth_integral),intent(inout),target :: self
+   subroutine depth_integral_initialize(self,configunit)
+      class (type_depth_integral),intent(inout),target :: self
       integer,                           intent(in)           :: configunit
       call self%register_dependency(self%id_input,'source','','source')
-      if (.not.self%average) call self%register_dependency(self%id_depth,standard_variables%bottom_depth)
-      call self%register_diagnostic_variable(self%id_output,'result','','result',source=source_do_bottom)
-   end subroutine
+      call self%register_dependency(self%id_thickness,standard_variables%cell_thickness)
+      call self%register_diagnostic_variable(self%id_output,'result','','result',source=source_do_column)
+   end subroutine depth_integral_initialize
 
-   subroutine simple_depth_integral_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
-      class (type_simple_depth_integral),intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_BOTTOM_
+   subroutine depth_integral_do_column(self,_ARGUMENTS_VERTICAL_)
+      class (type_depth_integral),intent(in) :: self
+      _DECLARE_ARGUMENTS_VERTICAL_
 
-      real(rk) :: value,depth
+      real(rk) :: h,value,cum,depth
+      logical :: started
 
-      _HORIZONTAL_LOOP_BEGIN_
+      cum = 0
+      depth = 0
+      started = self%minimum_depth<=0
+      _VERTICAL_LOOP_BEGIN_
+         _GET_(self%id_thickness,h)
          _GET_(self%id_input,value)
-         if (.not.self%average) then
-            _GET_HORIZONTAL_(self%id_depth,depth)
-            value = value*(min(self%maximum_depth,depth)-self%minimum_depth)
+
+         depth = depth + h
+         if (.not.started) then
+            ! Not yet at minimum depth before
+            if (depth>=self%minimum_depth) then
+               ! Now crossing minimum depth interface
+               started = .true.
+               h = depth-self%minimum_depth
+            end if
+         elseif (depth>self%maximum_depth) then
+            ! Now crossing maximum depth interface; subtract part of layer height that is not included
+            h = h - (depth-self%maximum_depth)
+            _VERTICAL_LOOP_EXIT_
          end if
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,value)
-      _HORIZONTAL_LOOP_END_
-   end subroutine
+         cum = cum + h*value
+      _VERTICAL_LOOP_END_
+
+      if (.not.self%average) then
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,cum)
+      elseif (depth>self%minimum_depth) then
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,cum/(min(self%maximum_depth,depth)-self%minimum_depth))
+      endif
+   end subroutine depth_integral_do_column
 
    subroutine bulk_constant_initialize(self,configunit)
       class (type_bulk_constant),intent(inout),target :: self

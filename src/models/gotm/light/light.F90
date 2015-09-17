@@ -58,9 +58,9 @@ contains
       call self%register_dependency(self%id_dz,  standard_variables%cell_thickness)
    end subroutine
    
-   subroutine get_light(self,_ARGUMENTS_VERT_)
+   subroutine get_light(self,_ARGUMENTS_VERTICAL_)
       class (type_gotm_light),intent(in) :: self
-      _DECLARE_ARGUMENTS_VERT_
+      _DECLARE_ARGUMENTS_VERTICAL_
 
       real(rk) :: swr0,dz,swr,par,z,ext,bioext
 
