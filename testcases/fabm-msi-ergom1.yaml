@@ -1,7 +1,7 @@
 instances:
   msi_ergom1:
     parameters:
-      env_type: fresh         #  (Deside whether to run for "fresh" or "marine" environment type)
+      env_type: marine        #  (Deside whether to run for "fresh" or "marine" environment type)
       calc_dic: false         #  (Deside whether to calculate DIC), default = false
       dic_variable: nothing   #  (Define DIC variable)
       wdz: -4.5               # Detritus      sinking velocity (m/d), default = 4.5

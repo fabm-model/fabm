@@ -95,7 +95,7 @@
    real(rk),parameter :: secs_per_day = 86400._rk
    real(rk) :: wdz,wpz,wfz,wbz,wpo4
    
-   call self%get_parameter(self%env_type, 'env_type', 'Define environment type, either fresh or marine') 
+   call self%get_parameter(self%env_type, 'env_type', 'Define environment type, either fresh or marine', default='marine') 
    call self%get_parameter(self%calc_dic, 'calc_dic', 'Deside whether to calculate DIC', default=.false.)
    call self%get_parameter(self%dic_variable, 'dic_variable', 'Define DIC variable')
    call self%get_parameter(wdz,     'wdz',   'm/d',  'Detritus      sinking velocity', default=4.5_rk)
