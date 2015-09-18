@@ -394,13 +394,13 @@ class Model(object):
             self.bottom_state_variables.append(StateVariable(ptr,self.state,strname.value,nstate_bulk.value+nstate_surface.value+i,strunits.value,strlong_name.value,strpath.value))
         for i in range(ndiag_bulk.value):
             fabm.get_variable_metadata(BULK_DIAGNOSTIC_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.bulk_diagnostic_variables.append(DiagnosticVariable(strname.value,i,False,strunits.value,strlong_name,strpath.value))
+            self.bulk_diagnostic_variables.append(DiagnosticVariable(strname.value,i,False,strunits.value,strlong_name.value,strpath.value))
         for i in range(ndiag_horizontal.value):
             fabm.get_variable_metadata(HORIZONTAL_DIAGNOSTIC_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.horizontal_diagnostic_variables.append(DiagnosticVariable(strname.value,i,True,strunits.value,strlong_name,strpath.value))
+            self.horizontal_diagnostic_variables.append(DiagnosticVariable(strname.value,i,True,strunits.value,strlong_name.value,strpath.value))
         for i in range(nconserved.value):
             fabm.get_variable_metadata(CONSERVED_QUANTITY,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.conserved_quantities.append(Variable(strname.value,strunits.value,strlong_name,strpath.value))
+            self.conserved_quantities.append(Variable(strname.value,strunits.value,strlong_name.value,strpath.value))
         for i in range(nparameters.value):
             fabm.get_parameter_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,ctypes.byref(typecode),ctypes.byref(has_default))
             self.parameters.append(Parameter(strname.value,i,type=typecode.value,units=strunits.value,long_name=strlong_name.value,model=self,has_default=has_default.value!=0))
