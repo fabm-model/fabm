@@ -16,6 +16,30 @@ except ImportError:
 # Create model object from YAML file.
 model = pyfabm.Model(yamlfile)
 
-# List pelagic state variables
+print 'Interior state variables:'
 for variable in model.bulk_state_variables:
-   print variable.name,variable.units,variable.long_name
+   print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
+
+print 'Surface-attached state variables:'
+for variable in model.surface_state_variables:
+   print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
+
+print 'Bottom-attached state variables:'
+for variable in model.bottom_state_variables:
+   print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
+
+print 'Interior diagnostic variables:'
+for variable in model.bulk_diagnostic_variables:
+   print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
+
+print 'Horizontal diagnostic variables:'
+for variable in model.horizontal_diagnostic_variables:
+   print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
+
+print 'Conserved quantities:'
+for variable in model.conserved_quantities:
+   print '  %s (%s)' % (variable.name,variable.units)
+
+print 'Dependencies:'
+for variable in model.dependencies:
+   print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
