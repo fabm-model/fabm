@@ -222,10 +222,10 @@ module fabm_particle
    end subroutine request_named_coupling_to_named_model
 
    subroutine request_standard_coupling_to_named_model(self,slave_variable,master_model,master_variable)
-      class (type_particle_model),intent(inout) :: self
-      class (type_variable_id),   intent(in)    :: slave_variable
-      character(len=*),           intent(inout) :: master_model
-      type (type_bulk_standard_variable),intent(in) :: master_variable
+      class (type_particle_model),       intent(inout) :: self
+      class (type_variable_id),          intent(in)    :: slave_variable
+      character(len=*),                  intent(in)    :: master_model
+      type (type_bulk_standard_variable),intent(in)    :: master_variable
 
       call request_coupling_to_model_generic(self,slave_variable,master_model_name=master_model,master_standard_variable=master_variable)
    end subroutine request_standard_coupling_to_named_model
