@@ -102,6 +102,7 @@ contains
       call create_aggregate_models(self)
 
       ! Repeat coupling because new aggregate variables are now available.
+      call process_coupling_tasks(self,1)
       call process_coupling_tasks(self,2)
 
       ! Allow inheriting models to perform additional tasks after coupling.
@@ -405,7 +406,7 @@ end subroutine
                ! Related variable without the postfix is indeed a state variable (or acts like one)
                local_name = trim(originator%name(index(originator%name,'/',.true.)+1:))//name(n-7:n)
 
-               ! Now we know the full paht of the target variable - try to resolve it.
+               ! Now we know the full path of the target variable - try to resolve it.
                ! (needed in case the derived quantity was requested for a slave)
                master => originator%owner%find_object(local_name,recursive=.false.,exact=.false.)
                if (associated(master)) return

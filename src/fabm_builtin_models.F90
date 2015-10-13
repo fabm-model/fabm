@@ -56,23 +56,23 @@ module fabm_builtin_models
       !procedure :: do => weighted_sum_sms_distributor_do
    end type
 
-   type,extends(type_base_model) :: type_scaled_bulk_variable
+   type,extends(type_base_model) :: type_scaled_interior_variable
       type (type_dependency_id)          :: id_source
       type (type_diagnostic_variable_id) :: id_result
       real(rk)                           :: weight = 1.0_rk
       real(rk)                           :: offset = 0.0_rk
       logical                            :: include_background = .false.
    contains
-      procedure :: do             => scaled_bulk_variable_do
-      procedure :: after_coupling => scaled_bulk_variable_after_coupling
+      procedure :: do             => scaled_interior_variable_do
+      procedure :: after_coupling => scaled_interior_variable_after_coupling
    end type
 
-   type,extends(type_base_model) :: type_scaled_bulk_variable_sms_distributor
+   type,extends(type_base_model) :: type_interior_sms_scaler
       type (type_dependency_id)     :: id_source_sms
       type (type_state_variable_id) :: id_target
       real(rk)                      :: weight = 1.0_rk
    contains
-      !procedure :: do => scaled_bulk_variable_sms_distributor_do
+      procedure :: do => interior_sms_scaler_do
    end type
 
    type,extends(type_base_model) :: type_horizontal_weighted_sum
@@ -164,10 +164,10 @@ module fabm_builtin_models
       character(len=*),         intent(in)           :: name
       logical,optional,         intent(in)           :: create_for_one
 
-      logical :: sum_used,create_for_one_
-      type (type_link),pointer :: link
-      class (type_scaled_bulk_variable), pointer :: scaled_bulk_variable
-      class (type_scaled_bulk_variable_sms_distributor), pointer :: scaled_bulk_variable_sms_distributor
+      logical                                       :: sum_used,create_for_one_
+      type (type_link),                     pointer :: link
+      class (type_scaled_interior_variable),pointer :: scaled_variable
+      class (type_interior_sms_scaler),     pointer :: sms_scaler
 
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
@@ -182,22 +182,24 @@ module fabm_builtin_models
          call parent%request_coupling(link,self%first%name)
       elseif (.not.associated(self%first%next)) then
          ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
-         allocate(scaled_bulk_variable)
-         call parent%add_child(scaled_bulk_variable,trim(name)//'_calculator',configunit=-1)
-         call scaled_bulk_variable%register_dependency(scaled_bulk_variable%id_source,'source',self%units,'source variable')
-         call scaled_bulk_variable%request_coupling(scaled_bulk_variable%id_source,self%first%name)
-         call scaled_bulk_variable%register_diagnostic_variable(scaled_bulk_variable%id_result,'result',self%units,'result',output=self%result_output) !,act_as_state_variable=iand(self%access,access_set_source)/=0)
-         scaled_bulk_variable%weight = self%first%weight
-         scaled_bulk_variable%include_background = self%first%include_background
-         scaled_bulk_variable%offset = self%offset
+         allocate(scaled_variable)
+         call parent%add_child(scaled_variable,trim(name)//'_calculator',configunit=-1)
+         call scaled_variable%register_dependency(scaled_variable%id_source,'source',self%units,'source variable')
+         call scaled_variable%request_coupling(scaled_variable%id_source,self%first%name)
+         call scaled_variable%register_diagnostic_variable(scaled_variable%id_result,'result',self%units,'result',output=self%result_output,act_as_state_variable=iand(self%access,access_set_source)/=0)
+         scaled_variable%weight = self%first%weight
+         scaled_variable%include_background = self%first%include_background
+         scaled_variable%offset = self%offset
          call parent%request_coupling(link,trim(name)//'_calculator/result')
          if (iand(self%access,access_set_source)/=0) then
             ! This scaled variable acts as a state variable. Create a child model to distribute source terms to the original source variable.
-            allocate(scaled_bulk_variable_sms_distributor)
-            call parent%add_child(scaled_bulk_variable_sms_distributor,trim(name)//'_sms_distributor',configunit=-1)
-            scaled_bulk_variable_sms_distributor%weight = scaled_bulk_variable%weight
-            call scaled_bulk_variable_sms_distributor%register_dependency(scaled_bulk_variable_sms_distributor%id_source_sms,'source_sms',self%units,'sources-sinks of source variable')
-            call scaled_bulk_variable_sms_distributor%request_coupling(scaled_bulk_variable_sms_distributor%id_source_sms,trim(scaled_bulk_variable%id_result%link%target%name)//'_sms_tot')
+            allocate(sms_scaler)
+            call scaled_variable%add_child(sms_scaler,'sms_distributor',configunit=-1)
+            sms_scaler%weight = 1/scaled_variable%weight
+            call sms_scaler%register_dependency(sms_scaler%id_source_sms,'source_sms',trim(self%units)//' s-1','sources-sinks of source variable')
+            call sms_scaler%request_coupling(sms_scaler%id_source_sms,'result_sms_tot')
+            call sms_scaler%register_state_dependency(sms_scaler%id_target,'target',self%units,'target variable')
+            call sms_scaler%request_coupling(sms_scaler%id_target,self%first%name)
          end if
       else
          ! Multiple components. Create the sum.
@@ -228,7 +230,7 @@ module fabm_builtin_models
       call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output) !,act_as_state_variable=iand(self%access,access_set_source)/=0)
 
       if (iand(self%access,access_set_source)/=0) then
-         ! NB this does not fucntion yet (hence the commented out act_as_state_variable above)
+         ! NB this does not function yet (hence the commented out act_as_state_variable above)
          ! Auto-generation of result_sms_tot fails and the do routine of type_weighted_sum_sms_distributor is not yet implemented.
 
          ! The sum will act as a state variable. Any source terms will have to be distributed over the individual variables that contribute to the sum.
@@ -327,8 +329,8 @@ module fabm_builtin_models
       _LOOP_END_
    end subroutine
 
-   subroutine scaled_bulk_variable_do(self,_ARGUMENTS_DO_)
-      class (type_scaled_bulk_variable),intent(in) :: self
+   subroutine scaled_interior_variable_do(self,_ARGUMENTS_DO_)
+      class (type_scaled_interior_variable),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 
       real(rk) :: value
@@ -337,17 +339,29 @@ module fabm_builtin_models
          _GET_(self%id_source,value)
          _SET_DIAGNOSTIC_(self%id_result,self%offset + self%weight*value)
       _LOOP_END_
-   end subroutine
+   end subroutine scaled_interior_variable_do
 
-   subroutine scaled_bulk_variable_after_coupling(self)
-      class (type_scaled_bulk_variable),intent(inout) :: self
+   subroutine interior_sms_scaler_do(self,_ARGUMENTS_DO_)
+      class (type_interior_sms_scaler),intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_
+
+      real(rk) :: sms
+
+      _LOOP_BEGIN_
+         _GET_(self%id_source_sms,sms)
+         _SET_ODE_(self%id_target,sms*self%weight)
+      _LOOP_END_
+   end subroutine interior_sms_scaler_do
+
+   subroutine scaled_interior_variable_after_coupling(self)
+      class (type_scaled_interior_variable),intent(inout) :: self
 
       if (self%include_background) then
          self%offset = self%offset + self%weight*self%id_source%background
       else
          call self%id_result%link%target%background_values%set_value(self%weight*self%id_source%background)
       end if
-   end subroutine
+   end subroutine scaled_interior_variable_after_coupling
 
    function horizontal_weighted_sum_add_to_parent(self,parent,name,create_for_one) result(sum_used)
       class (type_horizontal_weighted_sum),intent(inout),target :: self
