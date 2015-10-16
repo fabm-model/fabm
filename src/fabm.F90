@@ -715,6 +715,7 @@
    call append_to_call_list(self%do_interior_environment,self%links_postcoupling,source_do,(/source_do/))
    call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_do_surface,(/source_do_surface,source_unknown,source_do_horizontal/))
    call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_unknown,(/source_do_surface,source_unknown,source_do_horizontal/))
+   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_do_horizontal,(/source_do_surface,source_unknown,source_do_horizontal/))
    call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_do_bottom,(/source_do_bottom,source_unknown,source_do_horizontal/))
    call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_unknown,(/source_do_bottom,source_unknown,source_do_horizontal/))
    call append_to_call_list(self%get_light_environment,self%links_postcoupling,source_do_column,(/source_do_column/))
@@ -723,7 +724,7 @@
    !call self%get_light_extinction_environment%call_list%print()
    do ivar=1,size(self%conserved_quantities)
       call append_variable_to_call_list(self%get_conserved_quantities_environment,self%conserved_quantities(ivar)%target,source_do,(/source_do/))
-      call append_variable_to_call_list(self%get_horizontal_conserved_quantities_environment,self%conserved_quantities(ivar)%target_hz,source_do_bottom,(/source_do_bottom,source_unknown/))
+      call append_variable_to_call_list(self%get_horizontal_conserved_quantities_environment,self%conserved_quantities(ivar)%target_hz,source_do_horizontal,(/source_do_bottom,source_unknown,source_do_horizontal/))
    end do
    call append_variable_to_call_list(self%get_light_extinction_environment,self%extinction_target,source_do,(/source_do/))
 
@@ -874,6 +875,8 @@
    call initialize_settings(self%get_light_environment)
    call initialize_settings(self%get_vertical_movement_environment)
 
+   !call describe_environment_settings(self%get_light_environment)
+
    if (allocated(self%do_interior_environment%save_sources)) then
       allocate(self%do_interior_ppdd_environment%save_sources(nsave))
       self%do_interior_ppdd_environment%save_sources(:) = self%do_interior_environment%save_sources
@@ -884,6 +887,35 @@
    end if
 
    contains
+
+   subroutine describe_environment_settings(settings)
+      type (type_environment_settings), intent(in) :: settings
+
+      integer :: isave,ivar
+
+      if (allocated(settings%save_sources)) then
+         write (*,'(a)') 'The following variables will be saved to the interior diagnostic store:'
+         do isave=1,size(settings%save_sources)
+            if (settings%save_sources(isave)/=-1) then
+               do ivar=1,size(self%diagnostic_variables)
+                  if (self%diagnostic_variables(ivar)%save_index==isave) exit
+               end do
+               write (*,'(a)') '  '//trim(self%diagnostic_variables(ivar)%name) 
+            end if
+         end do
+      end if
+      if (allocated(settings%save_sources_hz)) then
+         write (*,'(a)') 'The following variables will be saved to the horizontal diagnostic store:'
+         do isave=1,size(settings%save_sources_hz)
+            if (settings%save_sources_hz(isave)/=-1) then
+               do ivar=1,size(self%horizontal_diagnostic_variables)
+                  if (self%horizontal_diagnostic_variables(ivar)%save_index==isave) exit
+               end do
+               write (*,'(a)') '  '//trim(self%horizontal_diagnostic_variables(ivar)%name) 
+            end if
+         end do
+      end if
+   end subroutine describe_environment_settings
 
    subroutine initialize_settings(settings)
       type (type_environment_settings), intent(inout) :: settings
@@ -3345,7 +3377,11 @@ end subroutine internal_check_horizontal_state
 
    node => self%get_horizontal_conserved_quantities_environment%call_list%first
    do while (associated(node))
-      call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
+      if (node%source==source_do_horizontal) then
+         call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
+      else
+         call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
+      end if
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(node%copy_commands))
