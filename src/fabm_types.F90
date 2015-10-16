@@ -69,7 +69,7 @@
 
    integer, parameter, public :: domain_bulk = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
 
-   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5, source_get_vertical_movement = 6
+   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5, source_get_vertical_movement = 6, source_do_horizontal = 7
 
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
 
@@ -488,6 +488,7 @@
       procedure :: do                       => base_do
       procedure :: do_bottom                => base_do_bottom
       procedure :: do_surface               => base_do_surface
+      procedure :: do_horizontal            => base_do_horizontal
       procedure :: do_ppdd                  => base_do_ppdd
       procedure :: do_bottom_ppdd           => base_do_bottom_ppdd
 
@@ -613,6 +614,11 @@
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
       call self%get_surface_exchange(_ARGUMENTS_DO_SURFACE_)
+   end subroutine
+
+   subroutine base_do_horizontal(self,_ARGUMENTS_HORIZONTAL_)
+      class (type_base_model),intent(in) :: self
+      _DECLARE_ARGUMENTS_HORIZONTAL_
    end subroutine
 
    ! Vertical movement, light attenuation, feedbacks to drag and albedo

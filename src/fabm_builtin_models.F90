@@ -85,7 +85,7 @@ module fabm_builtin_models
    contains
       procedure :: add_component       => horizontal_weighted_sum_add_component
       procedure :: initialize          => horizontal_weighted_sum_initialize
-      procedure :: do_bottom           => horizontal_weighted_sum_do_bottom
+      procedure :: do_horizontal       => horizontal_weighted_sum_do_horizontal
       procedure :: after_coupling      => horizontal_weighted_sum_after_coupling
       procedure :: add_to_parent       => horizontal_weighted_sum_add_to_parent
    end type
@@ -409,7 +409,7 @@ module fabm_builtin_models
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output,source=source_do_bottom)
+      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output,source=source_do_horizontal)
    end subroutine
 
    subroutine horizontal_weighted_sum_after_coupling(self)
@@ -460,9 +460,9 @@ module fabm_builtin_models
       if (present(include_background)) component%include_background = include_background
    end subroutine
 
-   subroutine horizontal_weighted_sum_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
+   subroutine horizontal_weighted_sum_do_horizontal(self,_ARGUMENTS_HORIZONTAL_)
       class (type_horizontal_weighted_sum),intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_BOTTOM_
+      _DECLARE_ARGUMENTS_HORIZONTAL_
 
       type (type_horizontal_component),pointer        :: component
       real(rk)                                        :: value
@@ -482,7 +482,7 @@ module fabm_builtin_models
       _HORIZONTAL_LOOP_BEGIN_
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,sum _INDEX_HORIZONTAL_SLICE_)
       _HORIZONTAL_LOOP_END_
-   end subroutine
+   end subroutine horizontal_weighted_sum_do_horizontal
 
    subroutine depth_integral_initialize(self,configunit)
       class (type_depth_integral),intent(inout),target :: self

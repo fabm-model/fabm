@@ -713,10 +713,10 @@
    call self%link_horizontal_data('zero_hz',self%zero_hz)
 
    call append_to_call_list(self%do_interior_environment,self%links_postcoupling,source_do,(/source_do/))
-   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_do_surface,(/source_do_surface,source_unknown/))
-   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_unknown,(/source_do_surface,source_unknown/))
-   call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_do_bottom,(/source_do_bottom,source_unknown/))
-   call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_unknown,(/source_do_bottom,source_unknown/))
+   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_do_surface,(/source_do_surface,source_unknown,source_do_horizontal/))
+   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_unknown,(/source_do_surface,source_unknown,source_do_horizontal/))
+   call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_do_bottom,(/source_do_bottom,source_unknown,source_do_horizontal/))
+   call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_unknown,(/source_do_bottom,source_unknown,source_do_horizontal/))
    call append_to_call_list(self%get_light_environment,self%links_postcoupling,source_do_column,(/source_do_column/))
    call append_to_call_list(self%get_light_extinction_environment,self%links_postcoupling,source_do_column,(/source_do_column,source_do/))
    call self%get_light_extinction_environment%call_list%filter(source_do_column)
@@ -2879,7 +2879,11 @@ end subroutine internal_check_horizontal_state
 
       node => self%do_surface_environment%call_list%first
       do while (associated(node))
-         call node%model%do_surface(_ARGUMENTS_HORIZONTAL_)
+         if (node%source==source_do_horizontal) then
+            call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
+         else
+            call node%model%do_surface(_ARGUMENTS_HORIZONTAL_)
+         end if
 
          ! Copy newly written diagnostics to prefetch
          _DO_CONCURRENT_(i,1,size(node%copy_commands))
@@ -2950,7 +2954,11 @@ end subroutine internal_check_horizontal_state
 
    node => self%do_bottom_environment%call_list%first
    do while (associated(node))
-      call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
+      if (node%source==source_do_horizontal) then
+         call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
+      else
+         call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
+      end if
 
       ! Copy newly written diagnostics to prefetch
       _DO_CONCURRENT_(i,1,size(node%copy_commands))
