@@ -18,6 +18,7 @@
    ! From FABM
    use fabm
    use fabm_types
+   use fabm_properties
 
    ! From GOTM
    use time
@@ -221,7 +222,7 @@
             end do
 
             if (associated(input_data2,input_data)) then
-               iret = nf90_def_var(ncid,input_data%variable_name,NF90_REAL,dims,input_data%ncid)
+               iret = nf90_def_var(ncid,get_safe_name(input_data%variable_name),NF90_REAL,dims,input_data%ncid)
                call check_err(iret)
             end if
             input_data => input_data%next
@@ -306,6 +307,8 @@
       class (type_external_variable),intent(in)  :: variable
       integer,                       intent(out) :: id
 
+      class (type_property),pointer :: property
+
       if (variable%output==output_none) then
          id = -1
          return
@@ -317,6 +320,16 @@
       call check_err(iret)
       iret = nf90_put_att(ncid,id,'units',trim(variable%units))
       call check_err(iret)
+      property => variable%properties%first
+      do while (associated(property))
+         select type (property)
+         class is (type_real_property)
+            iret = nf90_put_att(ncid,id,trim(property%name),property%value)
+            call check_err(iret)
+         end select
+         property => property%next
+      end do
+
    end subroutine
 #endif
 
@@ -434,7 +447,7 @@
 
          call fabm_get_conserved_quantities(model,totals)
          call fabm_get_horizontal_conserved_quantities(model,totals_hz)
-         totals = totals + totals_hz/column_depth
+         totals = totals*column_depth + totals_hz
          if (n==0_timestepkind) totals0 = totals
          do i=1,size(model%conserved_quantities)
             if (conserved_ids(i)/=-1) then
