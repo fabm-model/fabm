@@ -592,10 +592,10 @@
       _DECLARE_ARGUMENTS_DO_
    end subroutine
 
-
    subroutine base_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
       class (type_base_model),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_PPDD_
+      call self%do(_ARGUMENTS_DO_)
    end subroutine
 
    subroutine base_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
