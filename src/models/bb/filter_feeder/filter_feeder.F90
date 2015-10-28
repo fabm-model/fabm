@@ -12,11 +12,13 @@
 ! This model describes the food intake by an implicit predator, placed at
 ! fixed position in the pelagic. The presence of the predator is prescribed in
 ! the form of a spatial field of clearance rates. Clearance removes the specified
-! prey for the water (th prey field must be a state variable of another biogeochemical
+! prey for the water (the prey field must be a state variable of another biogeochemical
 ! model running within FABM). The model keeps track of ingested prey by including
 ! a state variable for time-integrated consumed prey.
 !
 ! Note: the clearance rate is typically calculated as (volume filtered) individual-1 s-1,
+! When an external filtration rate is applied it is given as d-1 and during initialisation
+! it is converted to s-1.
 ! multiplied by the concentration of predator (individuals volume-1).
 ! Thus, the final result has unit s-1 - it can be thought of as the fraction of the water
 ! volume that is filtered by predators per unit time.
@@ -29,11 +31,8 @@
 !  default: all is private.
    private
 !
-! !PUBLIC MEMBER FUNCTIONS:
-   public type_bb_filter_feeder
-!
-! !PUBLIC TYPES:
-   type,extends(type_base_model) :: type_bb_filter_feeder
+! !PUBLIC DERIVED TYPES:
+   type,extends(type_base_model), public :: type_bb_filter_feeder
       type (type_state_variable_id) :: id_consumed_prey
       type (type_state_variable_id) :: id_prey
       type (type_dependency_id)     :: id_clearance_rate
@@ -64,8 +63,7 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  Here, the bb\_benthic\_predator namelist is read and te variables
-!  exported by the model are registered with FABM.
+!  Here, the bb\_filter\_feeder type is initialized.
 !
 ! !INPUT PARAMETERS:
    class (type_bb_filter_feeder),intent(inout),target :: self
@@ -75,28 +73,16 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   character(len=64) :: prey_source_variable=''
-   real(rk)          :: clearance_rate
-   logical           :: use_external_clearance_rate
-   namelist /bb_filter_feeder/ clearance_rate,use_external_clearance_rate,prey_source_variable
+   real(rk), parameter       :: days_per_second = 1.0_rk/86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   use_external_clearance_rate = .true.
-   clearance_rate = 0.0_rk      ! per second!
-   prey_source_variable = ''
-
-   ! Read the namelist
-   if (configunit>0) read(configunit,nml=bb_filter_feeder,err=99,end=100)
-
-   ! Determine whether to use externally-prescribed clearance rate.
-   call self%get_parameter(self%use_external_clearance_rate,'use_external_clearance_rate',default=use_external_clearance_rate)
-
+   call self%get_parameter(self%use_external_clearance_rate,'use_external_clearance_rate',' ','use external clearance rate',default=.false.)
    ! Get clearance rate as constant or extenral dependency.
    if (self%use_external_clearance_rate) then
       call self%register_dependency(self%id_clearance_rate,'clearance_rate','s-1','clearance rate')
    else
-      call self%get_parameter(self%clearance_rate,'clearance_rate','s-1',default=clearance_rate)
+      call self%get_parameter(self%clearance_rate,'clearance_rate','d-1','constant clearance rate',default=0.0_rk,scale_factor=days_per_second)
    end if
 
    ! Register state variables
@@ -105,13 +91,7 @@
 
    ! Register link to external pelagic prey.
    call self%register_state_dependency(self%id_prey,'prey')
-   if (prey_source_variable/='') call self%request_coupling(self%id_prey,prey_source_variable)
-
    return
-
-99 call self%fatal_error('bb_filter_feeder_init','Error reading namelist bb_filter_feeder')
-100 call self%fatal_error('bb_filter_feeder_init','Namelist bb_filter_feeder was not found')
-
    end subroutine initialize
 !EOC
 
