@@ -2586,6 +2586,10 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_initialize_state')
+#endif
+
    call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    do ivar=1,size(self%state_variables)
@@ -2634,6 +2638,10 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_initialize_bottom_state')
+#endif
+
    call prefetch_bottom(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    ! Initialize bottom variables
@@ -2683,6 +2691,10 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_initialize_surface_state')
+#endif
+
    call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    ! Initialize surface variables
@@ -2736,10 +2748,15 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
-   if (size(dy,1)/=loop_stop-loop_start+1) &
-      call fatal_error('fabm_do_rhs','Size of first dimension of dy should match loop length.')
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_do_rhs')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   call check_extents_2d(dy,loop_stop-loop_start+1,size(self%state_variables),'fabm_do_rhs','dy','stop-start+1, # interior state variables')
+#  else
+   call check_extents_1d(dy,size(self%state_variables),'fabm_do_rhs','dy','# interior state variables')
+#  endif
 #endif
+
    call prefetch_interior(self,self%do_interior_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    node => self%do_interior_environment%call_list%first
@@ -2797,11 +2814,15 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
-   if (size(pp,1)/=loop_stop-loop_start+1) &
-      call fatal_error('fabm_do_ppdd','Size of first dimension of pp should match loop length.')
-   if (size(dd,1)/=loop_stop-loop_start+1) &
-      call fatal_error('fabm_do_ppdd','Size of first dimension of dd should match loop length.')
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_do_ppdd')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   call check_extents_3d(pp,loop_stop-loop_start+1,size(self%state_variables),size(self%state_variables),'fabm_do_ppdd','pp','stop-start+1, # interior state variables, # interior state variables')
+   call check_extents_3d(dd,loop_stop-loop_start+1,size(self%state_variables),size(self%state_variables),'fabm_do_ppdd','dd','stop-start+1, # interior state variables, # interior state variables')
+#  else
+   call check_extents_2d(pp,size(self%state_variables),size(self%state_variables),'fabm_do_ppdd','pp','# interior state variables, # interior state variables')
+   call check_extents_2d(dd,size(self%state_variables),size(self%state_variables),'fabm_do_ppdd','dd','# interior state variables, # interior state variables')
+#  endif
 #endif
 
    call prefetch_interior(self,self%do_interior_ppdd_environment,environment _ARGUMENTS_INTERIOR_IN_)
@@ -2856,6 +2877,10 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_check_state')
+#endif
+
    valid = .true.
    set_interior = .false.
 
@@ -2952,6 +2977,10 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_check_bottom_state')
+#endif
+
    call prefetch_bottom(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    call internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTAL_IN_,2,self%bottom_state_variables,repair,valid)
@@ -2979,6 +3008,10 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_check_surface_state')
+#endif
+
    call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    call internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTAL_IN_,1,self%info%surface_state_variables,repair,valid)
@@ -3158,6 +3191,17 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_surface')
+#  ifdef _HORIZONTAL_IS_VECTORIZED_
+   call check_extents_2d(flux_pel,loop_stop-loop_start+1,size(self%state_variables),'fabm_do_surface','flux_pel','stop-start+1, # interior state variables')
+   if (present(flux_sf)) call check_extents_2d(flux_sf,loop_stop-loop_start+1,size(self%surface_state_variables),'fabm_do_surface','flux_sf','stop-start+1, # surface state variables')
+#  else
+   call check_extents_1d(flux_pel,size(self%state_variables),'fabm_do_surface','flux_pel','# interior state variables')
+   if (present(flux_sf)) call check_extents_1d(flux_sf,size(self%surface_state_variables),'fabm_do_surface','flux_sf','# surface state variables')
+#  endif
+#endif
+
       call prefetch_surface(self,self%do_surface_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
       node => self%do_surface_environment%call_list%first
@@ -3233,6 +3277,17 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_bottom_rhs')
+#  ifdef _HORIZONTAL_IS_VECTORIZED_
+   call check_extents_2d(flux_pel,loop_stop-loop_start+1,size(self%state_variables),'fabm_do_bottom_rhs','flux_pel','stop-start+1, # interior state variables')
+   call check_extents_2d(flux_ben,loop_stop-loop_start+1,size(self%bottom_state_variables),'fabm_do_bottom_rhs','flux_ben','stop-start+1, # bottom state variables')
+#  else
+   call check_extents_1d(flux_pel,size(self%state_variables),'fabm_do_bottom_rhs','flux_pel','# interior state variables')
+   call check_extents_1d(flux_ben,size(self%bottom_state_variables),'fabm_do_bottom_rhs','flux_ben','# bottom state variables')
+#  endif
+#endif
+
    call prefetch_bottom(self,self%do_bottom_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    node => self%do_bottom_environment%call_list%first
@@ -3304,6 +3359,10 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_bottom_ppdd')
+#endif
+
    call prefetch_bottom(self,self%do_bottom_ppdd_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    node => self%models%first
@@ -3355,9 +3414,13 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
-   if (size(velocity,1)/=loop_stop-loop_start+1) &
-      call fatal_error('fabm_get_vertical_movement','Size of first dimension of velocity should match loop length.')
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_get_vertical_movement')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   call check_extents_2d(velocity,loop_stop-loop_start+1,size(self%state_variables),'fabm_get_vertical_movement','velocity','stop-start+1, # interior state variables')
+#  else
+   call check_extents_1d(velocity,size(self%state_variables),'fabm_get_vertical_movement','velocity','# interior state variables')
+#  endif
 #endif
 
    call prefetch_interior(self,self%get_vertical_movement_environment,environment _ARGUMENTS_INTERIOR_IN_)
@@ -3403,9 +3466,11 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
-   if (size(extinction,1)/=loop_stop-loop_start+1) &
-      call fatal_error('fabm_get_light_extinction','Size of first dimension of extinction should match loop length.')
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_get_light_extinction')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   call check_extents_1d(extinction,loop_stop-loop_start+1,'fabm_get_light_extinction','extinction','stop-start+1')
+#  endif
 #endif
 
    call prefetch_interior(self,self%get_light_extinction_environment,environment _ARGUMENTS_INTERIOR_IN_)
@@ -3456,6 +3521,10 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_vertical_location(self _ARGUMENTS_VERTICAL_IN_,'fabm_get_light')
+#endif
+
    call prefetch_vertical(self,self%get_light_environment,environment _ARGUMENTS_VERTICAL_IN_)
 
    node => self%get_light_environment%call_list%first
@@ -3502,6 +3571,13 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_get_drag')
+#  ifdef _HORIZONTAL_IS_VECTORIZED_
+   call check_extents_1d(drag,loop_stop-loop_start+1,'fabm_get_drag','drag','stop-start+1')
+#  endif
+#endif
+
    call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    drag = 1.0_rk
@@ -3538,6 +3614,13 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_get_albedo')
+#  ifdef _HORIZONTAL_IS_VECTORIZED_
+   call check_extents_1d(albedo,loop_stop-loop_start+1,'fabm_get_albedo','albedo','stop-start+1')
+#  endif
+#endif
+
    call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    albedo = 0.0_rk
@@ -3574,6 +3657,15 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_get_conserved_quantities')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   call check_extents_2d(sums,loop_stop-loop_start+1,size(self%conserved_quantities),'fabm_get_conserved_quantities','sums','stop-start+1, # conserved quantities')
+#  else
+   call check_extents_1d(sums,size(self%conserved_quantities),'fabm_get_conserved_quantities','sums','# conserved quantities')
+#  endif
+#endif
+
    call prefetch_interior(self,self%get_conserved_quantities_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    node => self%get_conserved_quantities_environment%call_list%first
@@ -3624,6 +3716,15 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_get_horizontal_conserved_quantities')
+#  ifdef _HORIZONTAL_IS_VECTORIZED_
+   call check_extents_2d(sums,loop_stop-loop_start+1,size(self%conserved_quantities),'fabm_get_horizontal_conserved_quantities','sums','stop-start+1, # conserved quantities')
+#  else
+   call check_extents_1d(sums,size(self%conserved_quantities),'fabm_get_horizontal_conserved_quantities','sums','# conserved quantities')
+#  endif
+#endif
+
    call prefetch_horizontal(self,self%get_horizontal_conserved_quantities_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    node => self%get_horizontal_conserved_quantities_environment%call_list%first
@@ -4477,6 +4578,136 @@ end subroutine
       if (variable%source==routine_source .and. .not. variable%write_indices%is_empty()) &
          call find_variable_dependencies(variable,variable_sources,self%call_list,copy_to_prefetch=.true.)
    end subroutine append_variable_to_call_list
+
+   subroutine check_interior_location(self _ARGUMENTS_INTERIOR_IN_,routine)
+      class (type_model),intent(in) :: self
+      _DECLARE_ARGUMENTS_INTERIOR_IN_
+      character(len=*), intent(in) :: routine
+
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+      call check_loop(loop_start,loop_stop,self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),routine)
+#endif
+#if _FABM_DIMENSION_COUNT_>0&&_FABM_VECTORIZED_DIMENSION_INDEX_!=1
+      call check_index(i__,self%domain_size(1),routine,'i')
+#endif
+#if _FABM_DIMENSION_COUNT_>1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=2
+      call check_index(j__,self%domain_size(2),routine,'j')
+#endif
+#if _FABM_DIMENSION_COUNT_>2&&_FABM_VECTORIZED_DIMENSION_INDEX_!=3
+      call check_index(k__,self%domain_size(3),routine,'k')
+#endif
+   end subroutine check_interior_location
+
+   subroutine check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,routine)
+      class (type_model),intent(in) :: self
+      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+      character(len=*), intent(in) :: routine
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+      call check_loop(loop_start,loop_stop,self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),routine)
+#endif
+#if _FABM_DIMENSION_COUNT_>0&&_FABM_VECTORIZED_DIMENSION_INDEX_!=1&&_FABM_DEPTH_DIMENSION_INDEX_!=1
+      call check_index(i__,self%domain_size(1),routine,'i')
+#endif
+#if _FABM_DIMENSION_COUNT_>1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=2&&_FABM_DEPTH_DIMENSION_INDEX_!=2
+      call check_index(j__,self%domain_size(2),routine,'j')
+#endif
+#if _FABM_DIMENSION_COUNT_>2&&_FABM_VECTORIZED_DIMENSION_INDEX_!=3&&_FABM_DEPTH_DIMENSION_INDEX_!=3
+      call check_index(k__,self%domain_size(3),routine,'k')
+#endif
+   end subroutine check_horizontal_location
+
+   subroutine check_vertical_location(self _ARGUMENTS_VERTICAL_IN_,routine)
+      class (type_model),intent(in) :: self
+      _DECLARE_ARGUMENTS_VERTICAL_IN_
+      character(len=*), intent(in) :: routine
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      call check_loop(loop_start,loop_stop,self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_),routine)
+#endif
+#if _FABM_DIMENSION_COUNT_>0&&_FABM_DEPTH_DIMENSION_INDEX_!=1
+      call check_index(i__,self%domain_size(1),routine,'i')
+#endif
+#if _FABM_DIMENSION_COUNT_>1&&_FABM_DEPTH_DIMENSION_INDEX_!=2
+      call check_index(j__,self%domain_size(2),routine,'j')
+#endif
+#if _FABM_DIMENSION_COUNT_>2&&_FABM_DEPTH_DIMENSION_INDEX_!=3
+      call check_index(k__,self%domain_size(3),routine,'k')
+#endif
+   end subroutine check_vertical_location
+
+   subroutine check_extents_1d(array,required_size1,routine,array_name,shape_description)
+      real(rk),        intent(in) :: array(:)
+      integer,         intent(in) :: required_size1
+      character(len=*),intent(in) :: routine,array_name,shape_description
+      character(len=8) :: actual,required
+      if (size(array,1)/=required_size1) then
+         write (actual,  '(i0)') size(array,1)
+         write (required,'(i0)') required_size1
+         call fatal_error(routine,'shape of argument '//trim(array_name)//' is ('//trim(actual)//') but should be ('//trim(required)//') = '//trim(shape_description))
+      end if
+   end subroutine check_extents_1d
+
+   subroutine check_extents_2d(array,required_size1,required_size2,routine,array_name,shape_description)
+      real(rk),        intent(in) :: array(:,:)
+      integer,         intent(in) :: required_size1,required_size2
+      character(len=*),intent(in) :: routine,array_name,shape_description
+      character(len=17) :: actual,required
+      if (size(array,1)/=required_size1.or.size(array,2)/=required_size2) then
+         write (actual,  '(i0,a,i0)') size(array,1),',',size(array,2)
+         write (required,'(i0,a,i0)') required_size1,',',required_size2
+         call fatal_error(routine,'shape of argument '//trim(array_name)//' is ('//trim(actual)//') but should be ('//trim(required)//') = '//trim(shape_description))
+      end if
+   end subroutine check_extents_2d
+
+   subroutine check_extents_3d(array,required_size1,required_size2,required_size3,routine,array_name,shape_description)
+      real(rk),        intent(in) :: array(:,:,:)
+      integer,         intent(in) :: required_size1,required_size2,required_size3
+      character(len=*),intent(in) :: routine,array_name,shape_description
+      character(len=26) :: actual,required
+      if (size(array,1)/=required_size1.or.size(array,2)/=required_size2.or.size(array,3)/=required_size3) then
+         write (actual,  '(i0,a,i0,a,i0)') size(array,1),',',size(array,2),',',size(array,3)
+         write (required,'(i0,a,i0,a,i0)') required_size1,',',required_size2,',',required_size3
+         call fatal_error(routine,'shape of argument '//trim(array_name)//' is ('//trim(actual)//') but should be ('//trim(required)//') = '//trim(shape_description))
+      end if
+   end subroutine check_extents_3d
+
+   subroutine check_loop(loop_start,loop_stop,loop_max,routine)
+      integer,         intent(in) :: loop_start,loop_stop,loop_max
+      character(len=*),intent(in) :: routine
+
+      character(len=8) :: str1,str2
+
+      if (loop_start<1) then
+         write (str1,'(i0)') loop_start
+         call fatal_error(routine,'Loop start index '//trim(str1)//' is non-positive.')
+      end if
+      if (loop_stop>loop_max) then
+         write (str1,'(i0)') loop_stop
+         write (str2,'(i0)') loop_max
+         call fatal_error(routine,'Loop stop index '//trim(str1)//' exceeds size of vectorized dimension ('//trim(str2)//').')
+      end if
+      if (loop_start>loop_stop) then
+         write (str1,'(i0)') loop_start
+         write (str2,'(i0)') loop_stop
+         call fatal_error(routine,'Loop start index '//trim(str1)//' exceeds stop index '//trim(str2)//'.')
+      end if
+   end subroutine check_loop
+
+   subroutine check_index(i,i_max,routine,name)
+      integer,         intent(in) :: i,i_max
+      character(len=*),intent(in) :: routine,name
+      character(len=8) :: str1,str2
+      if (i<1) then
+         write (str1,'(i0)') i
+         call fatal_error(routine,'Index '//name//' = '//trim(str1)//' is non-positive.')
+      end if
+      if (i>i_max) then
+         write (str1,'(i0)') i
+         write (str2,'(i0)') i_max
+         call fatal_error(routine,'Index '//name//' = '//trim(str1)//' exceeds size of associated dimension ('//trim(str2)//').')
+      end if
+   end subroutine check_index
 
 end module fabm
 
