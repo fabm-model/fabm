@@ -1,0 +1,15 @@
+output:
+   time_unit: dt
+   time_step: 6
+   variables:
+      - source: *
+#      - source: par
+#      - source: temp
+#      - source: salt
+#      - source: fasham_phy
+#      - source: fasham_zoo
+#      - source: fasham_bac
+#      - source: fasham_det
+#      - source: fasham_nit
+#      - source: fasham_amm
+#      - source: fasham_ldn
