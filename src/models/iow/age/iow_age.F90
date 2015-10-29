@@ -95,9 +95,9 @@
    ! Read the namelist
    if (configunit>0) read(configunit,nml=iow_age,err=99,end=100)
 
-   self%track_surface_age = track_surface_age
-   self%track_bottom_age  = track_bottom_age
-   self%external_tracer   = .false.
+   call self%get_parameter(self%track_surface_age,'track_surface_age','','track surface age',default=track_surface_age)
+   call self%get_parameter(self%track_bottom_age, 'track_bottom_age', '','track bottom age', default=track_bottom_age)
+   self%external_tracer = .false.
 
    ! Register state variables
 
