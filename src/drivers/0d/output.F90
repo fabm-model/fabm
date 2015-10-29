@@ -35,7 +35,7 @@
    integer, parameter :: NETCDF_FMT = 2
 
    character(len=PATH_MAX) :: output_file
-   integer :: output_format
+   integer, public :: output_format
    logical :: add_environment
    logical :: add_conserved_quantities
    logical :: add_diagnostic_variables

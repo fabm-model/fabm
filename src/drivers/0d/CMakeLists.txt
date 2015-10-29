@@ -17,6 +17,7 @@ find_path(GOTM_BASE
 # Make NetCDF usage a configurable option.
 option(FABM_USE_NetCDF "Enable NetCDF output" ON)
 if(FABM_USE_NetCDF)
+  add_definitions(-DREAL_4B=real\(4\))
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${GOTM_BASE}/src/cmake/Modules/")
   find_package(NetCDF REQUIRED)
   if (NetCDF_STATIC_MSVC_BUILD)
@@ -42,6 +43,7 @@ configure_file("${GOTM_BASE}/include/version.h.in" "${CMAKE_BINARY_DIR}/gotm/ver
 add_executable (fabm0d
                 main.F90
                 fabm0d.F90
+                register_all_variables.F90
                 shared.F90
                 output.F90
                 fabm_0d.h
@@ -49,7 +51,11 @@ add_executable (fabm0d
                 ${GOTM_BASE}/src/airsea/albedo_water.F90
                 ${GOTM_BASE}/src/airsea/short_wave_radiation.F90
                 ${GOTM_BASE}/src/input/input.F90
+                ${GOTM_BASE}/src/output/output_manager_core.F90
+                ${GOTM_BASE}/src/output/output_manager.F90
+                ${GOTM_BASE}/src/output/netcdf_output.F90
                 ${GOTM_BASE}/src/util/eqstate.F90
+                ${GOTM_BASE}/src/util/field_manager.F90
                 ${GOTM_BASE}/src/util/gridinterpol.F90
                 ${GOTM_BASE}/src/util/time.F90
                 )

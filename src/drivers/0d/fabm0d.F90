@@ -22,6 +22,9 @@
    use fabm_expressions
    use fabm_config
 
+   use register_all_variables, only: do_register_all_variables, fm
+   use output_manager_core, only:output_manager_host=>host, type_output_manager_host=>type_host
+   use output_manager
    use shared
    use output
 
@@ -75,6 +78,11 @@
       procedure :: log_message => custom_log_message
    end type
 
+   type,extends(type_output_manager_host) :: type_0d_host
+   contains
+      procedure :: julian_day => a0d_host_julian_day
+      procedure :: calendar_date => a0d_host_calendar_date
+   end type
 !EOP
 !-----------------------------------------------------------------------
 
@@ -381,9 +389,18 @@
    call get_rhs(.true.,size(cc,1),cc,rhs)
 
    ! Output variable values at initial time
-   LEVEL1 'init_output'
-   call init_output(start)
-   call do_output(0_timestepkind)
+   if (output_format .eq. 1) then
+      LEVEL1 'init_output'
+      call init_output(start)
+      call do_output(0_timestepkind)
+   else
+      LEVEL1 'field_manager'
+      call do_register_all_variables(latitude,longitude,par,temp,salt,model,cc)
+      LEVEL1 'output_manager'
+      allocate(type_0d_host::output_manager_host)
+      call output_manager_init(fm)
+      call output_manager_save(julianday,secondsofday,0)
+   endif
 
    STDERR LINE
 
@@ -673,7 +690,11 @@
             &but this should be used with caution. Try and decrease the time step (dt) first - and see if that helps.')
 
       ! Do output
-      call do_output(n)
+      if (output_format .eq. 1) then
+         call do_output(n)
+      else
+         call output_manager_save(julianday,secondsofday,int(n))
+      end if
    end do
    STDERR LINE
 
@@ -884,6 +905,21 @@
 
       write (*,*) trim(message)
    end subroutine
+
+   subroutine a0d_host_julian_day(self,yyyy,mm,dd,julian)
+      class (type_0d_host), intent(in) :: self
+      integer, intent(in)  :: yyyy,mm,dd
+      integer, intent(out) :: julian
+      call julian_day(yyyy,mm,dd,julian)
+   end subroutine
+
+   subroutine a0d_host_calendar_date(self,julian,yyyy,mm,dd)
+      class (type_0d_host), intent(in) :: self
+      integer, intent(in)  :: julian
+      integer, intent(out) :: yyyy,mm,dd
+      call calendar_date(julian,yyyy,mm,dd)
+   end subroutine
+
 
 !-----------------------------------------------------------------------
 
