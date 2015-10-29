@@ -862,7 +862,7 @@
 
    ! Add change in pelagic variables.
    call update_depth(CENTER)
-   call fabm_do(model,rhs)
+   call fabm_do(model,rhs(1:n))
 
    end subroutine get_rhs
 !EOC
