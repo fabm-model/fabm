@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.8)
 # List of contributing institutes that should be included in compilation.
 # When adding new institutes to the source tree, please add them here as well.
 # You can exclude institute directories from compilation by commenting them out.
-set(FABM_INSTITUTES
+set(DEFAULT_INSTITUTES
     au           # University of Aarhus, Denmark
     bb           # Bolding & Bruggeman - formerly Bolding & Burchard
     examples     # Examples supplied with FABM itself
@@ -25,6 +25,8 @@ set(FABM_INSTITUTES_OLD
     metu         # Middle East Technical University, Turkey
     msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
    )
+
+set(FABM_INSTITUTES ${DEFAULT_INSTITUTES} CACHE STRING "Institute directories to include during compilation.")
 
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
