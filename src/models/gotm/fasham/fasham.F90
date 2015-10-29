@@ -170,7 +170,7 @@
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_l)
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_pp,'pp','d-1','specific primary production',time_treatment=time_treatment_averaged)
+   call self%register_diagnostic_variable(self%id_pp,'pp','d-1','specific primary production',output=output_time_step_averaged)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
