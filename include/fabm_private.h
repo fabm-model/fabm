@@ -86,40 +86,47 @@
 #  define _INTERIOR_FIXED_LOCATION_ j__,k__
 #  define _GLOBAL_INTERIOR_(it) it,j__,k__
 #  if _FABM_DEPTH_DIMENSION_INDEX_==2
+#    define _HORIZONTAL_FIXED_LOCATION_ k__
 #    define _GLOBAL_HORIZONTAL_(it) it,k__
 #  elif _FABM_DEPTH_DIMENSION_INDEX_==3
+#    define _HORIZONTAL_FIXED_LOCATION_ j__
 #    define _GLOBAL_HORIZONTAL_(it) it,j__
 #  endif
 #elif _FABM_VECTORIZED_DIMENSION_INDEX_==2
 #  define _INTERIOR_FIXED_LOCATION_ i__,k__
 #  define _GLOBAL_INTERIOR_(it) i__,it,k__
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
+#    define _HORIZONTAL_FIXED_LOCATION_ k__
 #    define _GLOBAL_HORIZONTAL_(it) it,k__
 #  elif _FABM_DEPTH_DIMENSION_INDEX_==3
+#    define _HORIZONTAL_FIXED_LOCATION_ i__
 #    define _GLOBAL_HORIZONTAL_(it) i__,it
 #  endif
 #elif _FABM_VECTORIZED_DIMENSION_INDEX_==3
 #  define _INTERIOR_FIXED_LOCATION_ i__,j__
 #  define _GLOBAL_INTERIOR_(it) i__,j__,it
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
+#    define _HORIZONTAL_FIXED_LOCATION_ j__
 #    define _GLOBAL_HORIZONTAL_(it) j__,it
 #  elif _FABM_DEPTH_DIMENSION_INDEX_==2
+#    define _HORIZONTAL_FIXED_LOCATION_ i__
 #    define _GLOBAL_HORIZONTAL_(it) i__,it
 #  endif
 #endif
 
 #endif
 
-#if _FABM_VECTORIZED_DIMENSION_INDEX_==1
-#  define _ITERATOR_ i__
-#elif _FABM_VECTORIZED_DIMENSION_INDEX_==2
-#  define _ITERATOR_ j__
-#elif _FABM_VECTORIZED_DIMENSION_INDEX_==3
-#  define _ITERATOR_ k__
+#if _FABM_DEPTH_DIMENSION_INDEX_==1
+#  define _VERTICAL_ITERATOR_ i__
+#elif _FABM_DEPTH_DIMENSION_INDEX_==2
+#  define _VERTICAL_ITERATOR_ j__
+#elif _FABM_DEPTH_DIMENSION_INDEX_==3
+#  define _VERTICAL_ITERATOR_ k__
 #endif
 
 ! If there is no depth dimension, horizontal dimensions match full dimensions.
 #ifndef _FABM_DEPTH_DIMENSION_INDEX_
+#  define _HORIZONTAL_FIXED_LOCATION_ _INTERIOR_FIXED_LOCATION_
 #  define _HORIZONTAL_LOCATION_ _LOCATION_
 #  define _HORIZONTAL_LOCATION_DIMENSIONS_ _LOCATION_DIMENSIONS_
 #  define _HORIZONTAL_DIMENSION_COUNT_ _FABM_DIMENSION_COUNT_
@@ -202,13 +209,17 @@
 #if _HORIZONTAL_DIMENSION_COUNT_>0
 #  define _INDEX_HORIZONTAL_LOCATION_ (_HORIZONTAL_LOCATION_)
 #  define _DIMENSION_GLOBAL_HORIZONTAL_ ,dimension(_HORIZONTAL_LOCATION_DIMENSIONS_)
+#  define _ARGUMENTS_HORIZONTAL_LOCATION_ ,_HORIZONTAL_LOCATION_
 #  define _PREARG_HORIZONTAL_LOCATION_ _HORIZONTAL_LOCATION_,
 #  define _PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ _HORIZONTAL_LOCATION_DIMENSIONS_,
+#  define _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_ integer,intent(in) :: _HORIZONTAL_LOCATION_
 #else
 #  define _INDEX_HORIZONTAL_LOCATION_
 #  define _DIMENSION_GLOBAL_HORIZONTAL_
+#  define _ARGUMENTS_HORIZONTAL_LOCATION_
 #  define _PREARG_HORIZONTAL_LOCATION_
 #  define _PREARG_HORIZONTAL_LOCATION_DIMENSIONS_
+#  define _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_
 #endif
 
 ! ---------------------------------------------------------------------------------
@@ -275,7 +286,7 @@
 #  endif
 #  define _ARGUMENTS_INTERIOR_LENGTH_ ,_N_
 #  define _ARGUMENTS_INTERIOR_IN_ ,loop_start,loop_stop _ARG_INTERIOR_FIXED_LOCATION_
-#  define _DECLARE_ARGUMENTS_INTERIOR_IN_ integer,intent(in) :: loop_start,loop_stop _ARG_INTERIOR_FIXED_LOCATION_;integer :: _ITERATOR_
+#  define _DECLARE_ARGUMENTS_INTERIOR_IN_ integer,intent(in) :: loop_start,loop_stop _ARG_INTERIOR_FIXED_LOCATION_
 #else
 !  ---------------------------------------------------------------------------------
 !  INTERIOR procedures operate on one point at a time.
@@ -290,16 +301,22 @@
 !  HORIZONTAL procedures operate on a data slice over one spatial dimension.
 !  This will be the same dimension that INTERIOR procedures operate upon.
 !  ---------------------------------------------------------------------------------
+#  if (_FABM_DIMENSION_COUNT_>2||(_FABM_DIMENSION_COUNT_==2&&!defined(_FABM_DEPTH_DIMENSION_INDEX_)))
+#    define _ARG_HORIZONTAL_FIXED_LOCATION_ ,_HORIZONTAL_FIXED_LOCATION_
+#  else
+#    define _ARG_HORIZONTAL_FIXED_LOCATION_
+#  endif
 #  define _ARGUMENTS_HORIZONTAL_LENGTH_ _ARGUMENTS_INTERIOR_LENGTH_
-#  define _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_INTERIOR_IN_
-#  define _DECLARE_ARGUMENTS_HORIZONTAL_IN_ _DECLARE_ARGUMENTS_INTERIOR_IN_
+#  define _ARGUMENTS_HORIZONTAL_IN_ ,loop_start,loop_stop _ARG_HORIZONTAL_FIXED_LOCATION_
+#  define _DECLARE_ARGUMENTS_HORIZONTAL_IN_ integer,intent(in) :: loop_start,loop_stop _ARG_HORIZONTAL_FIXED_LOCATION_
+
 #else
 !  ---------------------------------------------------------------------------------
 !  HORIZONTAL procedures operate on one point at a time.
 !  ---------------------------------------------------------------------------------
 #  define _ARGUMENTS_HORIZONTAL_LENGTH_
-#  define _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_LOCATION_
-#  define _DECLARE_ARGUMENTS_HORIZONTAL_IN_ _DECLARE_ARGUMENTS_LOCATION_
+#  define _ARGUMENTS_HORIZONTAL_IN_ _ARGUMENTS_HORIZONTAL_LOCATION_
+#  define _DECLARE_ARGUMENTS_HORIZONTAL_IN_ _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_
 #endif
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
@@ -320,7 +337,7 @@
 #  endif
 #  define _ARGUMENTS_VERTICAL_LENGTH_ ,_N_
 #  define _ARGUMENTS_VERTICAL_IN_ ,loop_start,loop_stop _ARG_VERTICAL_FIXED_LOCATION_
-#  define _DECLARE_ARGUMENTS_VERTICAL_IN_ integer,intent(in) :: loop_start,loop_stop _ARG_VERTICAL_FIXED_LOCATION_;integer :: _VERTICAL_ITERATOR_
+#  define _DECLARE_ARGUMENTS_VERTICAL_IN_ integer,intent(in) :: loop_start,loop_stop _ARG_VERTICAL_FIXED_LOCATION_
 #else
 !  ---------------------------------------------------------------------------------
 !  VERTICAL procedures operate on one point at a time.

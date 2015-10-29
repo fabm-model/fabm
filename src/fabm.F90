@@ -61,10 +61,6 @@
    ! Set spatial mask
    public fabm_set_mask
 #endif
-#if _FABM_BOTTOM_INDEX_==-1
-   ! Provide vertical indices of bottommost cells
-   public fabm_set_bottom_indices
-#endif
 
    ! For backward compatibility only (use fabm_do_surface and fabm_do_bottom instead)
    public fabm_get_surface_exchange, fabm_do_benthos
@@ -248,19 +244,29 @@
       type (type_scalar_data_pointer),    allocatable :: data_scalar(:)
 
 #ifdef _HAS_MASK_
-#  ifdef _FABM_HORIZONTAL_MASK_
-      _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: mask => null()
-#  else
+#  ifndef _FABM_HORIZONTAL_MASK_
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
 #  endif
+      _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz => null()
 #endif
-#if _FABM_BOTTOM_INDEX_==-1
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  if _FABM_BOTTOM_INDEX_==0
+      integer :: bottom_index = -1
+#  elif _FABM_BOTTOM_INDEX_==-1
       integer,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_indices => null()
+#  endif
+      integer :: surface_index = -1
 #endif
 
       integer :: nscratch = -1
       integer :: nscratch_hz = -1
    contains
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      procedure :: set_bottom_index => fabm_set_bottom_index
+      procedure :: set_surface_index => fabm_set_surface_index
+#endif
+
       procedure :: link_bulk_data_by_variable => fabm_link_bulk_data_by_variable
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
       procedure :: link_bulk_data_by_sn   => fabm_link_bulk_data_by_sn
@@ -980,15 +986,18 @@
 ! !IROUTINE: Provide FABM with the spatial mask.
 !
 ! !INTERFACE:
-   subroutine fabm_set_mask(self, mask)
+#  ifdef _FABM_HORIZONTAL_MASK_
+   subroutine fabm_set_mask(self, mask_hz)
+#  else
+   subroutine fabm_set_mask(self, mask, mask_hz)
+#  endif
 !
 ! !INPUT PARAMETERS:
    class (type_model),target,intent(inout)                            :: self
-#ifdef _FABM_HORIZONTAL_MASK_
-   _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: mask
-#else
+#  ifndef _FABM_HORIZONTAL_MASK_
    _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_            :: mask
-#endif
+#  endif
+   _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz
 !
 ! !LOCAL VARIABLES:
    integer :: i
@@ -996,40 +1005,66 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifdef _FABM_HORIZONTAL_MASK_
-#if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
-   do i=1,size(self%horizontal_domain_size)
-      if (size(mask,i)/=self%horizontal_domain_size(i)) &
-         call fatal_error('fabm_set_mask','dimensions of FABM domain and provided mask do not match.')
-   end do
-#endif
-#else
-#if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
+#  ifndef _FABM_HORIZONTAL_MASK_
+#    if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
       if (size(mask,i)/=self%domain_size(i)) &
          call fatal_error('fabm_set_mask','dimensions of FABM domain and provided mask do not match.')
    end do
-#endif
-#endif
-
+#    endif
    self%mask => mask
+#  endif
+
+#  if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
+   do i=1,size(self%horizontal_domain_size)
+      if (size(mask_hz,i)/=self%horizontal_domain_size(i)) &
+         call fatal_error('fabm_set_mask','dimensions of FABM domain and provided horizontal mask do not match.')
+   end do
+#  endif
+   self%mask_hz => mask_hz
 
    end subroutine fabm_set_mask
 !EOC
 #endif
 
-#if _FABM_BOTTOM_INDEX_==-1
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  if _FABM_BOTTOM_INDEX_==-0
 !-----------------------------------------------------------------------
 !BOP
 !
 ! !IROUTINE: Provide FABM with the vertical indices of bottommost cells.
 !
 ! !INTERFACE:
-   subroutine fabm_set_bottom_indices(self, indices)
+   subroutine fabm_set_bottom_index(self, index)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,intent(inout)                   :: self
-   integer, target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: indices
+   class (type_model),target,intent(inout) :: self
+   integer,                  intent(in)    :: index
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   if (index<1) &
+      call fatal_error('set_bottom_index','provided index must equal or exceed 1.')
+   if (index>self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)) &
+      call fatal_error('set_bottom_index','provided index exceeds size of the depth dimension.')
+
+   self%bottom_index = index
+
+   end subroutine fabm_set_bottom_index
+!EOC
+#  elif _FABM_BOTTOM_INDEX_==-1
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with the vertical indices of bottommost cells.
+!
+! !INTERFACE:
+   subroutine fabm_set_bottom_index(self, indices)
+!
+! !INPUT PARAMETERS:
+   class (type_model),target,intent(inout)                            :: self
+   integer,           target,intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: indices
 !
 ! !LOCAL VARIABLES:
    integer :: i
@@ -1037,16 +1072,42 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
+#    if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(indices,i)/=self%horizontal_domain_size(i)) &
-         call fatal_error('fabm_set_bottom_indices','dimensions of FABM domain and provided index field do not match.')
+         call fatal_error('set_bottom_index','dimensions of FABM domain and provided index field do not match.')
    end do
-#endif
+#    endif
 
    self%bottom_indices => indices
 
-   end subroutine fabm_set_bottom_indices
+   end subroutine fabm_set_bottom_index
+!EOC
+#  endif
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with the vertical indices of bottommost cells.
+!
+! !INTERFACE:
+   subroutine fabm_set_surface_index(self, index)
+!
+! !INPUT PARAMETERS:
+   class (type_model),target,intent(inout) :: self
+   integer,                  intent(in)    :: index
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   if (index<1) &
+      call fatal_error('set_surface_index','provided index must equal or exceed 1.')
+   if (index>self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)) &
+      call fatal_error('set_surface_index','provided index exceeds size of the depth dimension.')
+
+   self%surface_index = index
+
+   end subroutine fabm_set_surface_index
 !EOC
 #endif
 
@@ -1071,8 +1132,32 @@
    ready = .true.
 
 #ifdef _HAS_MASK_
+#  ifndef _FABM_HORIZONTAL_MASK_
    if (.not.associated(self%mask)) then
-      call log_message('spatial mask has not been set.')
+      call log_message('spatial mask has not been set. Make sure to call fabm_set_mask.')
+      ready = .false.
+   end if
+#  endif
+   if (.not.associated(self%mask_hz)) then
+      call log_message('horizontal spatial mask has not been set. Make sure to call fabm_set_mask.')
+      ready = .false.
+   end if
+#endif
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  if _FABM_BOTTOM_INDEX_==0
+   if (self%bottom_index==-1) then
+      call log_message('bottom index has not been set. Make sure to call set_bottom_index.')
+      ready = .false.
+   end if
+#  elif _FABM_BOTTOM_INDEX_==-1
+   if (.not.associated(self%bottom_indices)) then
+      call log_message('bottom indices has not been set. Make sure to call set_bottom_index.')
+      ready = .false.
+   end if
+#  endif
+   if (self%surface_index==-1) then
+      call log_message('surface index has not been set. Make sure to call set_surface_index.')
       ready = .false.
    end if
 #endif
@@ -2092,7 +2177,7 @@ subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
    allocate(environment%mask(_N_))
    _DO_CONCURRENT_(_I_,1,_N_)
 #    ifdef _FABM_HORIZONTAL_MASK_
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_HORIZONTAL_(loop_start+_I_-1))
+      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start+_I_-1))
 #    else
       environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1))
 #    endif
@@ -2161,40 +2246,11 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
 #  ifdef _HAS_MASK_
    allocate(environment%mask(_N_))
    _DO_CONCURRENT_(_J_,1,_N_)
-#    ifdef _FABM_HORIZONTAL_MASK_
-      environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1))
-#    else
-      environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(loop_start+_J_-1))
-#    endif
+      environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1))
    end do
    _N_ = count(environment%mask)
 #  endif
 #endif
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%prefetch(_N_,size(self%data)))
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%prefetch(1,size(self%data)))
-#else
-   allocate(environment%prefetch(size(self%data)))
-#endif
-   do i=1,size(self%data)
-      if (associated(self%data(i)%p)) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-#  ifdef _HAS_MASK_
-         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),environment%mask)
-#  else
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1)
-         _HORIZONTAL_LOOP_END_
-#  endif
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-         environment%prefetch(1,i) = self%data(i)%p _INDEX_LOCATION_
-#else
-         environment%prefetch(i) = self%data(i)%p _INDEX_LOCATION_
-#endif
-      end if
-   end do
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
    allocate(environment%prefetch_hz(_N_,size(self%data_hz)))
@@ -2231,6 +2287,115 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
    end if
 end subroutine prefetch_horizontal
 
+subroutine prefetch_surface(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
+   type (type_model),               intent(inout) :: self
+   type (type_environment_settings),intent(in)    :: settings
+   type (type_environment),         intent(out)   :: environment
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+   _DECLARE_HORIZONTAL_INDICES_
+
+   integer :: i
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   integer :: _VERTICAL_ITERATOR_
+   _VERTICAL_ITERATOR_ = self%surface_index
+#endif
+
+   call prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(environment%prefetch(_N_,size(self%data)))
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(environment%prefetch(1,size(self%data)))
+#else
+   allocate(environment%prefetch(size(self%data)))
+#endif
+   do i=1,size(self%data)
+      if (associated(self%data(i)%p)) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+#  ifdef _HAS_MASK_
+         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),environment%mask)
+#  else
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1)
+         _HORIZONTAL_LOOP_END_
+#  endif
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+         environment%prefetch(1,i) = self%data(i)%p _INDEX_LOCATION_
+#else
+         environment%prefetch(i) = self%data(i)%p _INDEX_LOCATION_
+#endif
+      end if
+   end do
+end subroutine prefetch_surface
+   
+subroutine prefetch_bottom(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
+   type (type_model),               intent(inout) :: self
+   type (type_environment_settings),intent(in)    :: settings
+   type (type_environment),         intent(out)   :: environment
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+   _DECLARE_HORIZONTAL_INDICES_
+
+   integer :: i
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   integer :: _VERTICAL_ITERATOR_
+#endif
+#if _FABM_BOTTOM_INDEX_==-1
+   integer :: j
+#endif
+
+   call prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
+
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_BOTTOM_INDEX_==0
+   _VERTICAL_ITERATOR_ = self%bottom_index
+#endif
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(environment%prefetch(_N_,size(self%data)))
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(environment%prefetch(1,size(self%data)))
+#else
+   allocate(environment%prefetch(size(self%data)))
+#endif
+   do i=1,size(self%data)
+      if (associated(self%data(i)%p)) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+#  ifdef _HAS_MASK_
+#    if _FABM_BOTTOM_INDEX_==-1
+         j = 0
+         do _J_=1,loop_stop-loop_start+1
+            if (environment%mask(_J_)) then
+               _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1)
+               j = j + 1
+               environment%prefetch(j,i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_J_-1)
+            end if
+         end do
+#    else
+         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),environment%mask)
+#    endif
+#  else
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+#    if _FABM_BOTTOM_INDEX_==-1
+            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1)
+#    endif
+            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1)
+         _HORIZONTAL_LOOP_END_
+#  endif
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+#  if _FABM_BOTTOM_INDEX_==-1
+         _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#  endif
+         environment%prefetch(1,i) = self%data(i)%p _INDEX_LOCATION_
+#else
+#  if _FABM_BOTTOM_INDEX_==-1
+         _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#  endif
+         environment%prefetch(i) = self%data(i)%p _INDEX_LOCATION_
+#endif
+      end if
+   end do
+end subroutine prefetch_bottom
+
 subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
    type (type_model),               intent(inout) :: self
    type (type_environment_settings),intent(in)    :: settings
@@ -2246,7 +2411,7 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
    allocate(environment%mask(_N_))
    _DO_CONCURRENT_(_I_,1,_N_)
 #    ifdef _FABM_HORIZONTAL_MASK_
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_HORIZONTAL_LOCATION_)
+      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)
 #    else
       environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(loop_start+_I_-1))
 #    endif
@@ -2355,7 +2520,7 @@ subroutine deallocate_prefetch_horizontal(self,settings,environment _ARGUMENTS_H
 #ifdef _HAS_MASK_
    deallocate(environment%mask)
 #endif
-   deallocate(environment%prefetch)
+   if (allocated(environment%prefetch)) deallocate(environment%prefetch)
    deallocate(environment%prefetch_hz)
    deallocate(environment%prefetch_scalar)
    deallocate(environment%scratch_hz)
@@ -2469,7 +2634,7 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call prefetch_bottom(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    ! Initialize bottom variables
    do ivar=1,size(self%bottom_state_variables)
@@ -2518,7 +2683,7 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    ! Initialize surface variables
    do ivar=1,size(self%surface_state_variables)
@@ -2685,19 +2850,21 @@ end subroutine deallocate_prefetch_vertical
    type (type_model_list_node), pointer :: node
    real(rk)                             :: value,minimum,maximum
    character(len=256)                   :: err
+   logical                              :: set_interior
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    valid = .true.
+   set_interior = .false.
 
    call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
    node => self%models%first
    do while (associated(node) .and. valid)
-      call node%model%check_state(_ARGUMENTS_INTERIOR_,repair,valid)
+      call node%model%check_state(_ARGUMENTS_INTERIOR_,repair,valid,set_interior)
       if (.not. (valid .or. repair)) return
       node => node%next
    end do
@@ -2715,6 +2882,7 @@ end subroutine deallocate_prefetch_vertical
          if (value<minimum.or.value>maximum) valid = .false.
       _LOOP_END_
    end do
+
    if (.not.valid) then
 
    ! Check boundaries for pelagic state variables specified by the models.
@@ -2730,7 +2898,6 @@ end subroutine deallocate_prefetch_vertical
             value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
             environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = max(minimum,min(maximum,value))
          _LOOP_END_
-         _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
       else
          _LOOP_BEGIN_
             value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
@@ -2753,6 +2920,13 @@ end subroutine deallocate_prefetch_vertical
 
    end if
 
+   if (set_interior.or..not.valid) then
+      do ivar=1,size(self%state_variables)
+         read_index = self%state_variables(ivar)%globalid%read_index
+         _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+      end do
+   end if
+
    call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_check_state
@@ -2772,11 +2946,15 @@ end subroutine deallocate_prefetch_vertical
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    logical,                intent(in)    :: repair
    logical,                intent(out)   :: valid
+
+   type (type_environment) :: environment
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call internal_check_horizontal_state(self _ARGUMENTS_HORIZONTAL_IN_,2,self%bottom_state_variables,repair,valid)
+   call prefetch_bottom(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+
+   call internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTAL_IN_,2,self%bottom_state_variables,repair,valid)
 
    end subroutine fabm_check_bottom_state
 !EOC
@@ -2795,41 +2973,52 @@ end subroutine deallocate_prefetch_vertical
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    logical,                intent(in)    :: repair
    logical,                intent(out)   :: valid
+
+   type (type_environment) :: environment
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call internal_check_horizontal_state(self _ARGUMENTS_HORIZONTAL_IN_,1,self%info%surface_state_variables,repair,valid)
+   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+
+   call internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTAL_IN_,1,self%info%surface_state_variables,repair,valid)
 
    end subroutine fabm_check_surface_state
 !EOC
 
-subroutine internal_check_horizontal_state(self _ARGUMENTS_HORIZONTAL_IN_,flag,state_variables,repair,valid)
+subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTAL_IN_,flag,state_variables,repair,valid)
    class (type_model),                        intent(inout) :: self
+   type (type_environment),                   intent(inout) :: environment
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    integer,                                   intent(in)    :: flag
    type (type_horizontal_state_variable_info),intent(inout) :: state_variables(:)
    logical,                                   intent(in)    :: repair
    logical,                                   intent(out)   :: valid
 
-   type (type_environment)              :: environment
    type (type_model_list_node), pointer :: node
    integer                              :: ivar,read_index
    real(rk)                             :: value,minimum,maximum
    character(len=256)                   :: err
    _DECLARE_HORIZONTAL_INDICES_
-
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   logical                              :: set_horizontal,set_interior
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   integer :: _VERTICAL_ITERATOR_
+#endif
+#if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)&&defined(_HAS_MASK_)
+   integer :: j
+#endif
 
    valid = .true.
+   set_horizontal = .false.
+   set_interior = .false.
 
    ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
    node => self%models%first
    do while (associated(node) .and. valid)
       if (flag==1) then
-         call node%model%check_surface_state(_ARGUMENTS_HORIZONTAL_,repair,valid)
+         call node%model%check_surface_state(_ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior)
       else
-         call node%model%check_bottom_state(_ARGUMENTS_HORIZONTAL_,repair,valid)
+         call node%model%check_bottom_state(_ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior)
       end if
       if (.not. (valid .or. repair)) return
       node => node%next
@@ -2871,10 +3060,72 @@ subroutine internal_check_horizontal_state(self _ARGUMENTS_HORIZONTAL_IN_,flag,s
       _HORIZONTAL_LOOP_END_
    end do
 
-   do ivar=1,size(state_variables)
-      read_index = state_variables(ivar)%globalid%read_index
-      _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,state_variables(ivar)%missing_value)
-   end do
+   if (set_horizontal.or..not.valid) then
+      do ivar=1,size(state_variables)
+         read_index = state_variables(ivar)%globalid%read_index
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,state_variables(ivar)%missing_value)
+      end do
+   end if
+
+   if (set_interior) then
+      ! One or more models have provided new values for an interior state variable [at the interface]
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      if (flag==1) then
+         _VERTICAL_ITERATOR_ = self%surface_index
+      else
+#  if _FABM_BOTTOM_INDEX_==0
+        _VERTICAL_ITERATOR_ = self%bottom_index
+#  elif !defined(_HORIZONTAL_IS_VECTORIZED_)
+         _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#  endif
+      end if
+#endif
+
+      do ivar=1,size(self%state_variables)
+         read_index = self%state_variables(ivar)%globalid%read_index
+
+#if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
+      if (flag==1) then
+#endif
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+#  ifdef _HAS_MASK_
+         self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop) = unpack(environment%prefetch(:,read_index),environment%mask,self%state_variables(ivar)%missing_value)
+#  else
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1) = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+         _HORIZONTAL_LOOP_END_
+#  endif
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+         self%data(read_index)%p _INDEX_LOCATION_ = environment%prefetch(1,read_index)
+#else
+         self%data(read_index)%p _INDEX_LOCATION_ = environment%prefetch(read_index)
+#endif
+
+#if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
+      else
+         ! Special case for bottom if vertical index of bottom point is variable.
+#  ifdef _HAS_MASK_
+         j = 0
+         do _J_=1,loop_stop-loop_start+1
+            if (environment%mask(_J_)) then
+               _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1)
+               j = j + 1
+               self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_J_-1) = environment%prefetch(j,read_index)
+            end if
+         end do
+#  else
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1)
+            self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1) = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+         _HORIZONTAL_LOOP_END_
+#  endif
+   end if
+#endif
+
+      end do
+   end if
 
    call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
@@ -2907,7 +3158,7 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-      call prefetch_horizontal(self,self%do_surface_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+      call prefetch_surface(self,self%do_surface_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
       node => self%do_surface_environment%call_list%first
       do while (associated(node))
@@ -2982,7 +3233,7 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%do_bottom_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call prefetch_bottom(self,self%do_bottom_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    node => self%do_bottom_environment%call_list%first
    do while (associated(node))
@@ -3053,7 +3304,7 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%do_bottom_ppdd_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call prefetch_bottom(self,self%do_bottom_ppdd_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    node => self%models%first
    do while (associated(node))
@@ -3098,7 +3349,7 @@ end subroutine internal_check_horizontal_state
 ! !LOCAL PARAMETERS:
    type (type_environment)              :: environment
    type (type_model_list_node), pointer :: node
-   integer                              :: i,j,k
+   integer                              :: i,k
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -3251,7 +3502,7 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    drag = 1.0_rk
    node => self%models%first
@@ -3287,7 +3538,7 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    albedo = 0.0_rk
    node => self%models%first
@@ -3865,7 +4116,6 @@ subroutine classify_variables(self)
    type (type_conserved_quantity_info),            pointer :: consvar
    type (type_internal_variable),                  pointer :: object
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
-   class (type_base_model),                        pointer :: model
 
    type (type_aggregate_variable),    pointer :: aggregate_variable
    type (type_set) :: dependencies,dependencies_hz,dependencies_scalar

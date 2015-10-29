@@ -240,9 +240,9 @@
 #define _ARGUMENTS_GET_ALBEDO_ _ARGUMENTS_HORIZONTAL_,albedo
 #define _ARGUMENTS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_INTERIOR_,sums
 #define _ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_ _ARGUMENTS_HORIZONTAL_,sums
-#define _ARGUMENTS_CHECK_STATE_ _ARGUMENTS_INTERIOR_,repair,valid
-#define _ARGUMENTS_CHECK_SURFACE_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid
-#define _ARGUMENTS_CHECK_BOTTOM_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid
+#define _ARGUMENTS_CHECK_STATE_ _ARGUMENTS_INTERIOR_,repair,valid,set_interior
+#define _ARGUMENTS_CHECK_SURFACE_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior
+#define _ARGUMENTS_CHECK_BOTTOM_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior
 #define _ARGUMENTS_INITIALIZE_STATE_ _ARGUMENTS_INTERIOR_
 #define _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_HORIZONTAL_
 
@@ -258,9 +258,9 @@
 #define _DECLARE_ARGUMENTS_GET_ALBEDO_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: albedo
 #define _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_SLICE_PLUS_1_,intent(inout) :: sums
 #define _DECLARE_ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: sums
-#define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_INTERIOR_;logical,intent(in) :: repair;logical,intent(inout) :: valid
-#define _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid
-#define _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid
+#define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_INTERIOR_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_interior
+#define _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior
+#define _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior
 #define _DECLARE_ARGUMENTS_INITIALIZE_STATE_ _DECLARE_ARGUMENTS_INTERIOR_
 #define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_
 
@@ -296,9 +296,8 @@
 #define _GET_(variable,target) target = environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index)
 #define _GET_HORIZONTAL_(variable,target) target = environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index)
 #define _GET_GLOBAL_(variable,target) target = environment%prefetch_scalar(variable%global_index)
-#define _SET_(variable,value) environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index) = value
-#define _SET_HORIZONTAL_(variable,value) environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index) = value
-#define _SET_GLOBAL_(variable,value) environment%prefetch_scalar(variable%global_index) = value
+#define _SET_(variable,value) set_interior=.true.;environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index) = value
+#define _SET_HORIZONTAL_(variable,value) set_horizontal=.true.;environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index) = value
 #define _SET_DIAGNOSTIC_(variable,value) environment%scratch _INDEX_SLICE_PLUS_1_(variable%diag_index) = value
 #define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_diag_index) = value
 

@@ -626,9 +626,9 @@ SUBROUTINE aed_organic_matter_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 
    ! Set sedimentation flux (mmmol/m2) as calculated by organic matter.
    IF (self%use_sedmtn_model) THEN
-      _SET_STATE_BEN_(self%id_Psed_poc,Psed_poc)
-      _SET_STATE_BEN_(self%id_Psed_pon,Psed_pon)
-      _SET_STATE_BEN_(self%id_Psed_pop,Psed_pop)
+      !_SET_STATE_BEN_(self%id_Psed_poc,Psed_poc)
+      !_SET_STATE_BEN_(self%id_Psed_pon,Psed_pon)
+      !_SET_STATE_BEN_(self%id_Psed_pop,Psed_pop)
    ENDIF
 
    ! Set sink and source terms for the benthos (change per surface area per second)
