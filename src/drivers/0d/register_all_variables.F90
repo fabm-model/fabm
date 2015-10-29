@@ -60,7 +60,7 @@
 !EOP
 !-------------------------------------------------------------------------
 !BOC
-   LEVEL1 'register_all_variables()'
+   LEVEL2 'register_all_variables'
    call register_coordinate_variables(lat,lon)
    call register_environment_variables(par,temp,salt)
    call register_fabm_variables(model,cc)
@@ -89,7 +89,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   LEVEL2 'register_coordinate_variables()'
+   LEVEL3 'register_coordinate_variables'
 
 !  register - dimension
    call fm%register_dimension('lon',1,id=id_dim_lon)
@@ -122,7 +122,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   LEVEL2 'register_environment_variables()'
+   LEVEL3 'register_environment_variables'
    call fm%register('par','W/m^2','par',standard_name='downwelling_photosynthetic_radiative_flux',data0d=par)
    call fm%register('temp','Celsius','temperature',standard_name='sea_water_temperature',data0d=temp)
    call fm%register('salt','PSU','salinity',standard_name='sea_water_practical_salinity',data0d=salt)
@@ -152,7 +152,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   LEVEL2 'register_fabm_variables()'
+   LEVEL3 'register_fabm_variables'
 
    ! state variables
    do i=1,size(model%state_variables)
