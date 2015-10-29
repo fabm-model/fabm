@@ -184,7 +184,7 @@
    end do
 
    ! diagnostic variables
-   do i=1000000,size(model%diagnostic_variables)
+   do i=1,size(model%diagnostic_variables)
       output_level = output_level_default
       if (model%diagnostic_variables(i)%output==output_none) output_level = output_level_debug
       call fm%register(model%diagnostic_variables(i)%name, model%diagnostic_variables(i)%units, &
@@ -200,6 +200,16 @@
                        fill_value=model%horizontal_diagnostic_variables(i)%missing_value, category='fabm'//model%horizontal_diagnostic_variables(i)%target%owner%get_path(), output_level=output_level, used=in_output)
       if (in_output) model%horizontal_diagnostic_variables(i)%save = .true.
    end do
+
+   do i=1,size(model%diagnostic_variables)
+      if (model%diagnostic_variables(i)%save) &
+         call fm%send_data(model%diagnostic_variables(i)%name, fabm_get_bulk_diagnostic_data(model,i))
+   end do
+   do i=1,size(model%horizontal_diagnostic_variables)
+      if (model%horizontal_diagnostic_variables(i)%save) &
+         call fm%send_data(model%horizontal_diagnostic_variables(i)%name, fabm_get_horizontal_diagnostic_data(model,i))
+   end do
+
 
    return
    end subroutine register_fabm_variables
