@@ -631,16 +631,18 @@
    integer(timestepkind)     :: n
    logical                   :: valid_state
    character(len=10)         :: strstep
+   integer                   :: progress,k
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    LEVEL1 'time_loop'
 
+   progress = (MaxN-MinN+1)/10
+   k = 0
    do n=MinN,MaxN
-      if (mod(n-MinN+1,2000)==0) then
-         write (strstep,'(i0)') n
-         call write_time_string(julianday,secondsofday,timestr)
-         call log_message('     '//trim(timestr)//' (time step '//trim(strstep)//')')
+      if(mod(n,progress) .eq. 0 .or. n .eq. MinN) then
+         LEVEL0 k,'%'
+         k = k+10
       end if
 
       ! Update time and all time-dependent inputs.
