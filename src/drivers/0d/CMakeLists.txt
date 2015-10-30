@@ -23,6 +23,10 @@ if(FABM_USE_NetCDF)
   if (NetCDF_STATIC_MSVC_BUILD)
     add_compile_options("/libs:static")
   endif()
+  set (OUTPUT_MANAGER_CORE ${GOTM_BASE}/src/output/output_manager_core.F90)
+  set (OUTPUT_MANAGER ${GOTM_BASE}/src/output/output_manager.F90)
+  set (NETCDF_OUTPUT ${GOTM_BASE}/src/output/netcdf_output.F90)
+  set (FIELD_MANAGER ${GOTM_BASE}/src/util/field_manager.F90)
 endif(FABM_USE_NetCDF)
 
 # Specify additional compiler flags
@@ -51,11 +55,11 @@ add_executable (fabm0d
                 ${GOTM_BASE}/src/airsea/albedo_water.F90
                 ${GOTM_BASE}/src/airsea/short_wave_radiation.F90
                 ${GOTM_BASE}/src/input/input.F90
-                ${GOTM_BASE}/src/output/output_manager_core.F90
-                ${GOTM_BASE}/src/output/output_manager.F90
-                ${GOTM_BASE}/src/output/netcdf_output.F90
+		${OUTPUT_MANAGER_CORE}
+		${OUTPUT_MANAGER}
+		${NETCDF_OUTPUT}
                 ${GOTM_BASE}/src/util/eqstate.F90
-                ${GOTM_BASE}/src/util/field_manager.F90
+		${FIELD_MANAGER}
                 ${GOTM_BASE}/src/util/gridinterpol.F90
                 ${GOTM_BASE}/src/util/time.F90
                 )

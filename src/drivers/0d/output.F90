@@ -11,10 +11,6 @@
 ! !DESCRIPTION:
 ! TODO
 !
-#ifdef NETCDF4
-   use netcdf
-#endif
-
    ! From FABM
    use fabm
    use fabm_types
@@ -47,14 +43,6 @@
 
    real(rk), allocatable, dimension(:) :: totals,totals0,totals_hz
 
-#ifdef NETCDF4
-   integer                   :: ncid = -1
-   integer                   :: setn
-   integer                   :: time_id
-   integer                   :: par_id,temp_id,salt_id
-   integer, allocatable, dimension(:) :: statevar_ids,diagnostic_ids
-   integer, allocatable, dimension(:) :: conserved_ids,conserved_change_ids
-#endif
 !EOP
 !-----------------------------------------------------------------------
 
@@ -125,11 +113,6 @@
 ! !LOCAL PARAMETERS:
    integer                        :: i,iret
    type (type_input_data),pointer :: input_data,input_data2
-#ifdef NETCDF4
-   integer         :: lon_dim,lat_dim,time_dim
-   integer         :: lon_id,lat_id
-   integer         :: dims(3)
-#endif
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -185,108 +168,6 @@
          end if
          write(out_unit,*)
       case (NETCDF_FMT)
-#ifdef NETCDF4
-         setn=0
-         LEVEL3 'NetCDF version: ',trim(NF90_INQ_LIBVERS())
-         iret = nf90_create(output_file,NF90_CLOBBER,ncid)
-         call check_err(iret)
-!        define dimensions
-         iret = nf90_def_dim(ncid, 'lon', 1, lon_dim)
-         call check_err(iret)
-         iret = nf90_def_dim(ncid, 'lat', 1, lat_dim)
-         call check_err(iret)
-         iret = nf90_def_dim(ncid, 'time', NF90_UNLIMITED, time_dim)
-         call check_err(iret)
-         dims(1) = lon_dim; dims(2) = lat_dim; dims(3) = time_dim
-
-!        define coordinates
-         iret = nf90_def_var(ncid,'lon',NF90_REAL,lon_dim,lon_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'lat',NF90_REAL,lat_dim,lat_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'time',NF90_REAL,time_dim,time_id)
-         call check_err(iret)
-
-         iret = nf90_put_att(ncid,time_id,'units','seconds since '//trim(start))
-         call check_err(iret)
-
-!        define variables
-         input_data => first_input_data
-         do while (associated(input_data))
-            ! First check if an input variable of this name has already been added to NetCDF.
-            ! If so, this predefined one takes precedence, and we do nothing.
-            input_data2 => first_input_data
-            do while (.not.associated(input_data2,input_data))
-               if (input_data2%variable_name==input_data%variable_name) exit
-               input_data2 => input_data2%next
-            end do
-
-            if (associated(input_data2,input_data)) then
-               iret = nf90_def_var(ncid,get_safe_name(input_data%variable_name),NF90_REAL,dims,input_data%ncid)
-               call check_err(iret)
-            end if
-            input_data => input_data%next
-         end do
-         iret = nf90_def_var(ncid,'par',NF90_REAL,dims,par_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'temp',NF90_REAL,dims,temp_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'salt',NF90_REAL,dims,salt_id)
-         call check_err(iret)
-
-         allocate(statevar_ids(size(model%state_variables)+size(model%bottom_state_variables)+size(model%surface_state_variables)))
-         allocate(diagnostic_ids(size(model%diagnostic_variables)+size(model%horizontal_diagnostic_variables)))
-         allocate(conserved_ids(size(model%conserved_quantities)))
-         allocate(conserved_change_ids(size(model%conserved_quantities)))
-
-         do i=1,size(model%state_variables)
-            call create_variable(model%state_variables(i),statevar_ids(i))
-         end do
-         do i=1,size(model%bottom_state_variables)
-            call create_variable(model%bottom_state_variables(i),statevar_ids(i+size(model%state_variables)))
-         end do
-         do i=1,size(model%surface_state_variables)
-            call create_variable(model%surface_state_variables(i), &
-               statevar_ids(i+size(model%state_variables)+size(model%bottom_state_variables)))
-         end do
-
-         do i=1,size(model%diagnostic_variables)
-            call create_variable(model%diagnostic_variables(i),diagnostic_ids(i))
-         end do
-         do i=1,size(model%horizontal_diagnostic_variables)
-            call create_variable(model%horizontal_diagnostic_variables(i),diagnostic_ids(i+size(model%diagnostic_variables)))
-         end do
-
-         do i=1,size(model%conserved_quantities)
-            call create_variable(model%conserved_quantities(i),conserved_ids(i))
-            iret = nf90_def_var(ncid,'int_'//trim(model%conserved_quantities(i)%name)//'_change',NF90_REAL,dims, &
-               conserved_change_ids(i))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,conserved_change_ids(i),'long_name', &
-               'integrated change in '//trim(model%conserved_quantities(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,conserved_change_ids(i),'units',trim(model%conserved_quantities(i)%units))
-            call check_err(iret)
-         end do
-
-!        global attributes
-         iret = nf90_put_att(ncid,NF90_GLOBAL,'title',trim(title))
-!         history = 'Created by GOTM v. '//RELEASE
-!         iret = nf90_put_att(ncid,NF90_GLOBAL,'history',trim(history))
-         iret = nf90_put_att(ncid,NF90_GLOBAL,'Conventions','COARDS')
-         call check_err(iret)
-
-!        leave define mode
-         iret = nf90_enddef(ncid)
-         call check_err(iret)
-
-!        save latitude and logitude
-         iret = nf90_put_var(ncid,lon_id,longitude)
-         iret = nf90_put_var(ncid,lat_id,latitude)
-
-         iret = nf90_sync(ncid)
-         call check_err(iret)
-#endif
       case default
    end select
 
@@ -299,39 +180,6 @@
 96 FATAL 'I could not open ',trim(output_file)
    stop 'init_output'
 100 format (A, A, ' (', A, ')')
-
-#ifdef NETCDF4
-   contains
-
-   subroutine create_variable(variable,id)
-      class (type_external_variable),intent(in)  :: variable
-      integer,                       intent(out) :: id
-
-      class (type_property),pointer :: property
-
-      if (variable%output==output_none) then
-         id = -1
-         return
-      end if
-
-      iret = nf90_def_var(ncid,trim(variable%name),NF90_REAL,dims,id)
-      call check_err(iret)
-      iret = nf90_put_att(ncid,id,'long_name',trim(variable%long_name))
-      call check_err(iret)
-      iret = nf90_put_att(ncid,id,'units',trim(variable%units))
-      call check_err(iret)
-      property => variable%properties%first
-      do while (associated(property))
-         select type (property)
-         class is (type_real_property)
-            iret = nf90_put_att(ncid,id,trim(property%name),property%value)
-            call check_err(iret)
-         end select
-         property => property%next
-      end do
-
-   end subroutine
-#endif
 
    end subroutine init_output
 !EOC
@@ -403,80 +251,11 @@
          write (out_unit,*)
 
       case (NETCDF_FMT)
-#ifdef NETCDF4
-         setn = setn + 1
-         start(1) = setn
-
-         iret = nf90_put_var(ncid,time_id,n*timestep,start(1:1))
-
-         start(1) = 1; start(2) = 1; start(3) = setn
-
-         input_data => first_input_data
-         do while (associated(input_data))
-            if (input_data%ncid/=-1) then
-               iret = nf90_put_var(ncid,input_data%ncid,input_data%value,start)
-               call check_err(iret)
-            end if
-            input_data => input_data%next
-         end do
-         iret = nf90_put_var(ncid,par_id,par,start)
-         call check_err(iret)
-         iret = nf90_put_var(ncid,temp_id,temp,start)
-         call check_err(iret)
-         iret = nf90_put_var(ncid,salt_id,salt,start)
-         call check_err(iret)
-
-         do i=1,size(cc)
-            if (statevar_ids(i)==-1) cycle
-            iret = nf90_put_var(ncid,statevar_ids(i),cc(i),start)
-            call check_err(iret)
-         end do
-
-         do i=1,size(model%diagnostic_variables)
-            if (diagnostic_ids(i)==-1) cycle
-            iret = nf90_put_var(ncid,diagnostic_ids(i),fabm_get_bulk_diagnostic_data(model,i),start)
-            call check_err(iret)
-         end do
-
-         j = size(model%diagnostic_variables)
-         do i=1,size(model%horizontal_diagnostic_variables)
-            if (diagnostic_ids(i+j)==-1) cycle
-            iret = nf90_put_var(ncid,diagnostic_ids(i+j),fabm_get_horizontal_diagnostic_data(model,i),start)
-            call check_err(iret)
-         end do
-
-         call fabm_get_conserved_quantities(model,totals)
-         call fabm_get_horizontal_conserved_quantities(model,totals_hz)
-         totals = totals*column_depth + totals_hz
-         if (n==0_timestepkind) totals0 = totals
-         do i=1,size(model%conserved_quantities)
-            if (conserved_ids(i)/=-1) then
-               iret = nf90_put_var(ncid,conserved_ids(i),totals(i),start)
-               call check_err(iret)
-            end if
-            iret = nf90_put_var(ncid,conserved_change_ids(i),totals(i)-totals0(i),start)
-            call check_err(iret)
-         end do
-#endif
       case default
    end select
 
    end subroutine do_output
 !EOC
-
-#ifdef NETCDF4
-   subroutine check_err(iret)
-      use netcdf
-
-      integer :: iret
-
-      if (iret .ne. NF90_NOERR) then
-         print *, nf90_strerror(iret)
-         stop
-      endif
-
-   end subroutine
-#endif
 
 !-----------------------------------------------------------------------
 !BOP
@@ -502,12 +281,6 @@
 !BOC
 
    if (out_unit/=-1) close(out_unit)
-#ifdef NETCDF4
-   if (ncid/=-1) then
-      iret = nf90_close(ncid)
-      if (.not.ignore_errors) call check_err(iret)
-   end if
-#endif
 
    end subroutine clean_output
 !EOC
