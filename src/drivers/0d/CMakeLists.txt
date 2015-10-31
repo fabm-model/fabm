@@ -30,7 +30,9 @@ if(FABM_USE_NetCDF)
 endif(FABM_USE_NetCDF)
 
 # Specify additional compiler flags
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+  set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-line-length-none")
+elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
   if(WIN32)
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
   endif()
