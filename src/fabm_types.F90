@@ -1329,7 +1329,7 @@ end subroutine real_pointer_set_set_value
 
    subroutine register_source(self, id, sms_id)
       class (type_base_model),           intent(inout)        :: self
-      type (type_state_variable_id),     intent(inout),target :: id
+      class (type_variable_id),          intent(inout),target :: id
       type (type_aggregate_variable_id), intent(inout),target :: sms_id
 
       type (type_link),pointer :: link1,link2
@@ -1342,7 +1342,7 @@ end subroutine real_pointer_set_set_value
 
    subroutine register_surface_flux(self, id, surface_flux_id)
       class (type_base_model),                      intent(inout)        :: self
-      type (type_state_variable_id),                intent(inout),target :: id
+      class (type_variable_id),                     intent(inout),target :: id
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: surface_flux_id
 
       type (type_link),pointer :: link1,link2
@@ -1356,7 +1356,7 @@ end subroutine real_pointer_set_set_value
 
    subroutine register_bottom_flux(self, id, bottom_flux_id)
       class (type_base_model),                      intent(inout)        :: self
-      type (type_state_variable_id),                intent(inout),target :: id
+      class (type_variable_id),                     intent(inout),target :: id
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: bottom_flux_id
 
       type (type_link),pointer :: link1,link2
