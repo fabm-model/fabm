@@ -151,14 +151,25 @@
       type (type_link), pointer :: link => null()
    end type
 
+   type,extends(type_variable_id) :: type_aggregate_variable_id
+      integer  :: sum_index = -1
+   end type
+
+   type,extends(type_variable_id) :: type_horizontal_aggregate_variable_id
+      integer  :: horizontal_sum_index = -1
+   end type
+
    type,extends(type_variable_id) :: type_state_variable_id
       integer  :: index              = -1
       integer  :: state_index        = -1
-      integer  :: sms_index          = -1
-      integer  :: surface_flux_index = -1
-      integer  :: bottom_flux_index  = -1
+      !integer  :: sms_index          = -1
+      !integer  :: surface_flux_index = -1
+      !integer  :: bottom_flux_index  = -1
       integer  :: movement_index     = -1
       real(rk) :: background         = 0.0_rk
+      type (type_aggregate_variable_id) :: sms
+      type (type_horizontal_aggregate_variable_id) :: surface_flux
+      type (type_horizontal_aggregate_variable_id) :: bottom_flux
    end type
 
    type,extends(type_variable_id) :: type_bottom_state_variable_id
@@ -1292,6 +1303,8 @@ end subroutine real_pointer_set_set_value
       logical,                            intent(in),optional :: no_precipitation_dilution,no_river_dilution
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       integer,                            intent(in),optional :: presence
+
+      type (type_link),pointer :: link2,link_dum
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1304,12 +1317,56 @@ end subroutine real_pointer_set_set_value
                                   vertical_movement=vertical_movement, specific_light_extinction=specific_light_extinction, &
                                   no_precipitation_dilution=no_precipitation_dilution, no_river_dilution=no_river_dilution, &
                                   standard_variable=standard_variable, presence=presence, &
-                                  state_index=id%state_index, read_index=id%index, sms_index=id%sms_index, &
-                                  surface_flux_index=id%surface_flux_index, bottom_flux_index=id%bottom_flux_index, &
+                                  state_index=id%state_index, read_index=id%index, &
                                   movement_index=id%movement_index, background=id%background, link=id%link)
 
+      call register_source(self,id,id%sms)
+      call register_surface_flux(self,id,id%surface_flux)
+      call register_bottom_flux(self,id,id%bottom_flux)
+      
    end subroutine register_bulk_state_variable
 !EOC
+
+   subroutine register_source(self, id, sms_id)
+      class (type_base_model),           intent(inout)        :: self
+      type (type_state_variable_id),     intent(inout),target :: id
+      type (type_aggregate_variable_id), intent(inout),target :: sms_id
+
+      type (type_link),pointer :: link1,link2
+
+      if (.not.associated(sms_id%link)) &
+         call self%add_bulk_variable(trim(id%link%name)//'_sms', trim(id%link%target%units)//'/s', trim(id%link%target%long_name)//' sources-sinks', &
+                                     0.0_rk, output=output_none, write_index=sms_id%sum_index, link=link1)
+      link2 => id%link%target%sms_list%append(link1%target,link1%target%name)
+   end subroutine register_source
+
+   subroutine register_surface_flux(self, id, surface_flux_id)
+      class (type_base_model),                      intent(inout)        :: self
+      type (type_state_variable_id),                intent(inout),target :: id
+      type (type_horizontal_aggregate_variable_id), intent(inout),target :: surface_flux_id
+
+      type (type_link),pointer :: link1,link2
+
+      if (.not.associated(surface_flux_id%link)) &
+         call self%add_horizontal_variable(trim(id%link%name)//'_sfl', trim(id%link%target%units)//'*m/s', trim(id%link%target%long_name)//' surface flux', &
+                                           0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
+                                           domain=domain_surface, source=source_do_surface, link=link1)
+      link2 => id%link%target%surface_flux_list%append(link1%target,link1%target%name)
+   end subroutine register_surface_flux
+
+   subroutine register_bottom_flux(self, id, bottom_flux_id)
+      class (type_base_model),                      intent(inout)        :: self
+      type (type_state_variable_id),                intent(inout),target :: id
+      type (type_horizontal_aggregate_variable_id), intent(inout),target :: bottom_flux_id
+
+      type (type_link),pointer :: link1,link2
+
+      if (.not.associated(bottom_flux_id%link)) &
+         call self%add_horizontal_variable(trim(id%link%name)//'_bfl', trim(id%link%target%units)//'*m/s', trim(id%link%target%long_name)//' bottom flux', &
+                                           0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
+                                           domain=domain_bottom, source=source_do_bottom, link=link1)
+      link2 => id%link%target%bottom_flux_list%append(link1%target,link1%target%name)
+   end subroutine register_bottom_flux
 
 !-----------------------------------------------------------------------
 !BOP
@@ -1504,7 +1561,7 @@ end subroutine real_pointer_set_set_value
                                           background_value, vertical_movement, specific_light_extinction, &
                                           no_precipitation_dilution, no_river_dilution, standard_variable, presence, output, &
                                           time_treatment, act_as_state_variable, source, &
-                                          read_index, state_index, write_index, sms_index, surface_flux_index, bottom_flux_index, &
+                                          read_index, state_index, write_index, &
                                           movement_index, background, link)
 !
 ! !DESCRIPTION:
@@ -1523,7 +1580,7 @@ end subroutine real_pointer_set_set_value
       logical,                           intent(in),optional :: act_as_state_variable
 
       integer,                      target,optional :: read_index, state_index, write_index
-      integer,                      target,optional :: sms_index, surface_flux_index, bottom_flux_index, movement_index
+      integer,                      target,optional :: movement_index
       real(rk),                     target,optional :: background
 
       type (type_link),pointer,optional :: link
@@ -1554,23 +1611,6 @@ end subroutine real_pointer_set_set_value
                         initial_value, background_value, presence, output, time_treatment, &
                         act_as_state_variable, read_index, state_index, write_index, background, link_)
 
-      if (present(sms_index)) then
-         call self%add_bulk_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                     0.0_rk, output=output_none, write_index=sms_index, link=link2)
-         link_dum => variable%sms_list%append(link2%target,link2%target%name)
-      end if
-      if (present(surface_flux_index)) then
-         call self%add_horizontal_variable(trim(link_%name)//'_sfl', trim(units)//'*m/s', trim(long_name)//' surface flux', &
-                                     0.0_rk, output=output_none, write_index=surface_flux_index, link=link2, &
-                                     domain=domain_surface, source=source_do_surface)
-         link_dum => variable%surface_flux_list%append(link2%target,link2%target%name)
-      end if
-      if (present(bottom_flux_index)) then
-         call self%add_horizontal_variable(trim(link_%name)//'_bfl', trim(units)//'*m/s', trim(long_name)//' bottom flux', &
-                                     0.0_rk, output=output_none, write_index=bottom_flux_index, link=link2, &
-                                     domain=domain_bottom, source=source_do_bottom)
-         link_dum => variable%bottom_flux_list%append(link2%target,link2%target%name)
-      end if
       if (present(movement_index)) then
          call self%add_bulk_variable(trim(link_%name)//'_w', 'm/s', trim(long_name)//' vertical movement', &
                                      variable%vertical_movement, output=output_none, write_index=movement_index, link=link2, &

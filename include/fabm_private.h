@@ -6,6 +6,7 @@
 
 #define _LOCATION_
 #define _LOCATION_DIMENSIONS_
+#define _LOCATION_RANGE_
 
 #elif _FABM_DIMENSION_COUNT_==1
 
@@ -15,14 +16,21 @@
 
 #define _LOCATION_ i__
 #define _LOCATION_DIMENSIONS_ :
+#define _LOCATION_RANGE_ istart__,istop__
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  define _GLOBAL_VERTICAL_(it) it
+#else
+#  define _BEGIN_EXTERNAL_VERTICAL_LOOP_ do i__=istart__,istop__
+#  define _END_EXTERNAL_VERTICAL_LOOP_ end do
 #endif
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
 #  define _INTERIOR_FIXED_LOCATION_
 #  define _GLOBAL_INTERIOR_(it) it
+#else
+#  define _BEGIN_EXTERNAL_INTERIOR_LOOP_ do i__=istart__,istop__
+#  define _END_EXTERNAL_INTERIOR_LOOP_ end do
 #endif
 
 #elif _FABM_DIMENSION_COUNT_==2
@@ -33,16 +41,26 @@
 
 #define _LOCATION_ i__,j__
 #define _LOCATION_DIMENSIONS_ :,:
+#define _LOCATION_RANGE_ istart__,istop__,jstart__,jstop__
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
 #    define _HORIZONTAL_LOCATION_ j__
+#    define _HORIZONTAL_LOCATION_RANGE_ jstart__,jstop__
+#    define _BEGIN_EXTERNAL_VERTICAL_LOOP_ do j__=jstart__,jstop__
+#    define _END_EXTERNAL_VERTICAL_LOOP_ end do
 #    define _GLOBAL_VERTICAL_(it) it,j__
 #  elif _FABM_DEPTH_DIMENSION_INDEX_==2
 #    define _HORIZONTAL_LOCATION_ i__
+#    define _HORIZONTAL_LOCATION_RANGE_ istart__,istop__
+#    define _BEGIN_EXTERNAL_VERTICAL_LOOP_ do i__=istart__,istop__
+#    define _END_EXTERNAL_VERTICAL_LOOP_ end do
 #    define _GLOBAL_VERTICAL_(it) i__,it
 #  endif
 #  define _HORIZONTAL_LOCATION_DIMENSIONS_ :
+#else
+#  define _BEGIN_EXTERNAL_VERTICAL_LOOP_ do j__=jstart__,jstop__;i__=istart__,istop__
+#  define _END_EXTERNAL_VERTICAL_LOOP_ end do;end do
 #endif
 
 #if _FABM_VECTORIZED_DIMENSION_INDEX_==1
@@ -51,12 +69,19 @@
 #  if _FABM_DEPTH_DIMENSION_INDEX_==2
 #    define _GLOBAL_HORIZONTAL_(it) it
 #  endif
+#  define _BEGIN_EXTERNAL_INTERIOR_LOOP_ do j__=jstart__,jstop__
+#  define _END_EXTERNAL_INTERIOR_LOOP_ end do
 #elif _FABM_VECTORIZED_DIMENSION_INDEX_==2
 #  define _INTERIOR_FIXED_LOCATION_ i__
 #  define _GLOBAL_INTERIOR_(it) i__,it
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
 #    define _GLOBAL_HORIZONTAL_(it) it
 #  endif
+#  define _BEGIN_EXTERNAL_INTERIOR_LOOP_ do i__=istart__,istop__
+#  define _END_EXTERNAL_INTERIOR_LOOP_ end do
+#else
+#  define _BEGIN_EXTERNAL_INTERIOR_LOOP_ do j__=jstart__,jstop__;i__=istart__,istop__
+#  define _END_EXTERNAL_INTERIOR_LOOP_ end do;end do
 #endif
 
 #elif _FABM_DIMENSION_COUNT_==3
@@ -67,19 +92,32 @@
 
 #define _LOCATION_ i__,j__,k__
 #define _LOCATION_DIMENSIONS_ :,:,:
+#define _LOCATION_RANGE_ istart__,istop__,jstart__,jstop__,kstart__,kstop__
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
 #    define _HORIZONTAL_LOCATION_ j__,k__
+#    define _HORIZONTAL_LOCATION_RANGE_ jstart__,jstop__,kstart__,kstop__
+#    define _BEGIN_EXTERNAL_VERTICAL_LOOP_ do k__=kstart__,kstop__;do j__=jstart__,jstop__
+#    define _END_EXTERNAL_VERTICAL_LOOP_ end do;end do
 #    define _GLOBAL_VERTICAL_(it) it,j__,k__
 #  elif _FABM_DEPTH_DIMENSION_INDEX_==2
 #    define _HORIZONTAL_LOCATION_ i__,k__
+#    define _HORIZONTAL_LOCATION_RANGE_ istart__,istop__,kstart__,kstop__
+#    define _BEGIN_EXTERNAL_VERTICAL_LOOP_ do k__=kstart__,kstop__;do i__=istart__,istop__
+#    define _END_EXTERNAL_VERTICAL_LOOP_ end do;end do
 #    define _GLOBAL_VERTICAL_(it) i__,it,k__
 #  elif _FABM_DEPTH_DIMENSION_INDEX_==3
 #    define _HORIZONTAL_LOCATION_ i__,j__
+#    define _HORIZONTAL_LOCATION_RANGE_ istart__,istop__,jstart__,jstop__
+#    define _BEGIN_EXTERNAL_VERTICAL_LOOP_ do j__=jstart__,jstop__;do i__=istart__,istop__
+#    define _END_EXTERNAL_VERTICAL_LOOP_ end do;end do
 #    define _GLOBAL_VERTICAL_(it) i__,j__,it
 #  endif
 #  define _HORIZONTAL_LOCATION_DIMENSIONS_ :,:
+#else
+#  define _BEGIN_EXTERNAL_VERTICAL_LOOP_ do k__=kstart__,kstop__;do j__=jstart__,jstop__;i__=istart__,istop__
+#  define _END_EXTERNAL_VERTICAL_LOOP_ end do;end do;end do
 #endif
 
 #if _FABM_VECTORIZED_DIMENSION_INDEX_==1
@@ -88,30 +126,51 @@
 #  if _FABM_DEPTH_DIMENSION_INDEX_==2
 #    define _HORIZONTAL_FIXED_LOCATION_ k__
 #    define _GLOBAL_HORIZONTAL_(it) it,k__
+#    define _BEGIN_EXTERNAL_HORIZONTAL_LOOP_ do k__=kstart__,kstop__
+#    define _END_EXTERNAL_HORIZONTAL_LOOP_ end do
 #  elif _FABM_DEPTH_DIMENSION_INDEX_==3
 #    define _HORIZONTAL_FIXED_LOCATION_ j__
 #    define _GLOBAL_HORIZONTAL_(it) it,j__
+#    define _BEGIN_EXTERNAL_HORIZONTAL_LOOP_ do j__=jstart__,jstop__
+#    define _END_EXTERNAL_HORIZONTAL_LOOP_ end do
 #  endif
+#  define _BEGIN_EXTERNAL_INTERIOR_LOOP_ do k__=kstart__,kstop__;do j__=jstart__,jstop__
+#  define _END_EXTERNAL_INTERIOR_LOOP_ end do;end do
 #elif _FABM_VECTORIZED_DIMENSION_INDEX_==2
 #  define _INTERIOR_FIXED_LOCATION_ i__,k__
 #  define _GLOBAL_INTERIOR_(it) i__,it,k__
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
 #    define _HORIZONTAL_FIXED_LOCATION_ k__
 #    define _GLOBAL_HORIZONTAL_(it) it,k__
+#    define _BEGIN_EXTERNAL_HORIZONTAL_LOOP_ do k__=kstart__,kstop__
+#    define _END_EXTERNAL_HORIZONTAL_LOOP_ end do
 #  elif _FABM_DEPTH_DIMENSION_INDEX_==3
 #    define _HORIZONTAL_FIXED_LOCATION_ i__
 #    define _GLOBAL_HORIZONTAL_(it) i__,it
+#    define _BEGIN_EXTERNAL_HORIZONTAL_LOOP_ do i__=istart__,istop__
+#    define _END_EXTERNAL_HORIZONTAL_LOOP_ end do
 #  endif
+#  define _BEGIN_EXTERNAL_INTERIOR_LOOP_ do k__=kstart__,kstop__;do i__=istart__,istop__
+#  define _END_EXTERNAL_INTERIOR_LOOP_ end do;end do
 #elif _FABM_VECTORIZED_DIMENSION_INDEX_==3
 #  define _INTERIOR_FIXED_LOCATION_ i__,j__
 #  define _GLOBAL_INTERIOR_(it) i__,j__,it
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
 #    define _HORIZONTAL_FIXED_LOCATION_ j__
 #    define _GLOBAL_HORIZONTAL_(it) j__,it
+#    define _BEGIN_EXTERNAL_HORIZONTAL_LOOP_ do j__=jstart__,jstop__
+#    define _END_EXTERNAL_HORIZONTAL_LOOP_ end do
 #  elif _FABM_DEPTH_DIMENSION_INDEX_==2
 #    define _HORIZONTAL_FIXED_LOCATION_ i__
 #    define _GLOBAL_HORIZONTAL_(it) i__,it
+#    define _BEGIN_EXTERNAL_HORIZONTAL_LOOP_ do i__=istart__,istop__
+#    define _END_EXTERNAL_HORIZONTAL_LOOP_ end do
 #  endif
+#  define _BEGIN_EXTERNAL_INTERIOR_LOOP_ do j__=jstart__,jstop__;do i__=istart__,istop__
+#  define _END_EXTERNAL_INTERIOR_LOOP_ end do;end do
+#else
+#  define _BEGIN_EXTERNAL_INTERIOR_LOOP_ do k__=kstart__,kstop__;do j__=jstart__,jstop__;i__=istart__,istop__
+#  define _END_EXTERNAL_INTERIOR_LOOP_ end do;end do;end do
 #endif
 
 #endif
@@ -124,6 +183,17 @@
 #  define _VERTICAL_ITERATOR_ k__
 #endif
 
+#if _FABM_VECTORIZED_DIMENSION_INDEX_==1
+#  define _START_ istart__
+#  define _STOP_ istop__
+#elif _FABM_VECTORIZED_DIMENSION_INDEX_==2
+#  define _START_ jstart__
+#  define _STOP_ jstop__
+#elif _FABM_VECTORIZED_DIMENSION_INDEX_==3
+#  define _START_ kstart__
+#  define _STOP_ kstop__
+#endif
+
 ! If there is no depth dimension, horizontal dimensions match full dimensions.
 #ifndef _FABM_DEPTH_DIMENSION_INDEX_
 #  define _HORIZONTAL_FIXED_LOCATION_ _INTERIOR_FIXED_LOCATION_
@@ -132,6 +202,11 @@
 #  define _HORIZONTAL_DIMENSION_COUNT_ _FABM_DIMENSION_COUNT_
 #else
 #  define _HORIZONTAL_DIMENSION_COUNT_ _FABM_DIMENSION_COUNT_-1
+#endif
+
+#if (!defined(_FABM_DEPTH_DIMENSION_INDEX_)||_FABM_DEPTH_DIMENSION_INDEX_==_FABM_VECTORIZED_DIMENSION_INDEX_)
+#  define _BEGIN_EXTERNAL_HORIZONTAL_LOOP_ _BEGIN_EXTERNAL_INTERIOR_LOOP_
+#  define _END_EXTERNAL_HORIZONTAL_LOOP_ _END_EXTERNAL_INTERIOR_LOOP_
 #endif
 
 #if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&!defined(_FABM_DEPTH_DIMENSION_INDEX_)
@@ -198,6 +273,21 @@
 #  endif
 #endif
 
+#if _FABM_DIMENSION_COUNT_==0||(_FABM_DIMENSION_COUNT_==1&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_))
+#  define _BEGIN_EXTERNAL_INTERIOR_LOOP_
+#  define _END_EXTERNAL_INTERIOR_LOOP_
+#endif
+
+#ifndef _BEGIN_EXTERNAL_HORIZONTAL_LOOP_
+#  define _BEGIN_EXTERNAL_HORIZONTAL_LOOP_
+#  define _END_EXTERNAL_HORIZONTAL_LOOP_
+#endif
+
+#if _FABM_DIMENSION_COUNT_==0||(_FABM_DIMENSION_COUNT_==1&&defined(_FABM_DEPTH_DIMENSION_INDEX_))
+#  define _BEGIN_EXTERNAL_VERTICAL_LOOP_
+#  define _END_EXTERNAL_VERTICAL_LOOP_
+#endif
+
 ! =================================================================================
 ! Further preprocessor macros for specifying spatial dimensionality and position
 ! =================================================================================
@@ -210,16 +300,20 @@
 #  define _INDEX_HORIZONTAL_LOCATION_ (_HORIZONTAL_LOCATION_)
 #  define _DIMENSION_GLOBAL_HORIZONTAL_ ,dimension(_HORIZONTAL_LOCATION_DIMENSIONS_)
 #  define _ARGUMENTS_HORIZONTAL_LOCATION_ ,_HORIZONTAL_LOCATION_
+#  define _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_ ,_HORIZONTAL_LOCATION_RANGE_
 #  define _PREARG_HORIZONTAL_LOCATION_ _HORIZONTAL_LOCATION_,
 #  define _PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ _HORIZONTAL_LOCATION_DIMENSIONS_,
 #  define _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_ integer,intent(in) :: _HORIZONTAL_LOCATION_
+#  define _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_ integer,intent(in) :: _HORIZONTAL_LOCATION_RANGE_
 #else
 #  define _INDEX_HORIZONTAL_LOCATION_
 #  define _DIMENSION_GLOBAL_HORIZONTAL_
 #  define _ARGUMENTS_HORIZONTAL_LOCATION_
+#  define _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
 #  define _PREARG_HORIZONTAL_LOCATION_
 #  define _PREARG_HORIZONTAL_LOCATION_DIMENSIONS_
 #  define _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_
+#  define _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
 #endif
 
 ! ---------------------------------------------------------------------------------
@@ -230,16 +324,22 @@
 #  define _INDEX_LOCATION_ (_LOCATION_)
 #  define _DIMENSION_GLOBAL_ ,dimension(_LOCATION_DIMENSIONS_)
 #  define _ARGUMENTS_LOCATION_ ,_LOCATION_
+#  define _ARGUMENTS_LOCATION_RANGE_ ,_LOCATION_RANGE_
 #  define _PREARG_LOCATION_ _LOCATION_,
 #  define _PREARG_LOCATION_DIMENSIONS_ _LOCATION_DIMENSIONS_,
 #  define _DECLARE_ARGUMENTS_LOCATION_ integer,intent(in) :: _LOCATION_
+#  define _DECLARE_ARGUMENTS_LOCATION_RANGE_ integer,intent(in) :: _LOCATION_RANGE_
+#  define _DECLARE_LOCATION_ integer :: _LOCATION_
 #else
 #  define _INDEX_LOCATION_
 #  define _DIMENSION_GLOBAL_
 #  define _ARGUMENTS_LOCATION_
+#  define _ARGUMENTS_LOCATION_RANGE_
 #  define _PREARG_LOCATION_
 #  define _PREARG_LOCATION_DIMENSIONS_
 #  define _DECLARE_ARGUMENTS_LOCATION_
+#  define _DECLARE_ARGUMENTS_LOCATION_RANGE_
+#  define _DECLARE_LOCATION_
 #endif
 
 #define _DIMENSION_GLOBAL_PLUS_1_ ,dimension(_PREARG_LOCATION_DIMENSIONS_ :)
@@ -285,8 +385,8 @@
 #    define _ARG_INTERIOR_FIXED_LOCATION_
 #  endif
 #  define _ARGUMENTS_INTERIOR_LENGTH_ ,_N_
-#  define _ARGUMENTS_INTERIOR_IN_ ,loop_start,loop_stop _ARG_INTERIOR_FIXED_LOCATION_
-#  define _DECLARE_ARGUMENTS_INTERIOR_IN_ integer,intent(in) :: loop_start,loop_stop _ARG_INTERIOR_FIXED_LOCATION_
+#  define _ARGUMENTS_INTERIOR_IN_ ,_START_,_STOP_ _ARG_INTERIOR_FIXED_LOCATION_
+#  define _DECLARE_ARGUMENTS_INTERIOR_IN_ integer,intent(in) :: _START_,_STOP_ _ARG_INTERIOR_FIXED_LOCATION_
 #else
 !  ---------------------------------------------------------------------------------
 !  INTERIOR procedures operate on one point at a time.
@@ -307,8 +407,8 @@
 #    define _ARG_HORIZONTAL_FIXED_LOCATION_
 #  endif
 #  define _ARGUMENTS_HORIZONTAL_LENGTH_ _ARGUMENTS_INTERIOR_LENGTH_
-#  define _ARGUMENTS_HORIZONTAL_IN_ ,loop_start,loop_stop _ARG_HORIZONTAL_FIXED_LOCATION_
-#  define _DECLARE_ARGUMENTS_HORIZONTAL_IN_ integer,intent(in) :: loop_start,loop_stop _ARG_HORIZONTAL_FIXED_LOCATION_
+#  define _ARGUMENTS_HORIZONTAL_IN_ ,_START_,_STOP_ _ARG_HORIZONTAL_FIXED_LOCATION_
+#  define _DECLARE_ARGUMENTS_HORIZONTAL_IN_ integer,intent(in) :: _START_,_STOP_ _ARG_HORIZONTAL_FIXED_LOCATION_
 
 #else
 !  ---------------------------------------------------------------------------------
@@ -336,8 +436,8 @@
 #    define _ARG_VERTICAL_FIXED_LOCATION_ ,_HORIZONTAL_LOCATION_
 #  endif
 #  define _ARGUMENTS_VERTICAL_LENGTH_ ,_N_
-#  define _ARGUMENTS_VERTICAL_IN_ ,loop_start,loop_stop _ARG_VERTICAL_FIXED_LOCATION_
-#  define _DECLARE_ARGUMENTS_VERTICAL_IN_ integer,intent(in) :: loop_start,loop_stop _ARG_VERTICAL_FIXED_LOCATION_
+#  define _ARGUMENTS_VERTICAL_IN_ ,_START_,_STOP_ _ARG_VERTICAL_FIXED_LOCATION_
+#  define _DECLARE_ARGUMENTS_VERTICAL_IN_ integer,intent(in) :: _START_,_STOP_ _ARG_VERTICAL_FIXED_LOCATION_
 #else
 !  ---------------------------------------------------------------------------------
 !  VERTICAL procedures operate on one point at a time.
@@ -348,41 +448,41 @@
 #endif
 
 #ifdef _HAS_MASK_
-#  define _PACK_GLOBAL_(in,out,i,mask) out(:,i) = pack(in _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),mask)
-#  define _PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_INTERIOR_PLUS_1_(loop_start:loop_stop,i),mask)
+#  define _PACK_GLOBAL_(in,out,i,mask) out(:,i) = pack(in _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_),mask)
+#  define _PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_,i),mask)
 #  define _UNPACK_(in,i,out,mask,missing) out(:) = unpack(in(:,i),mask,missing)
 #  define _UNPACK_TO_PLUS_1_(in,i,out,j,mask,missing) out(:,j) = unpack(in(:,i),mask,missing)
 #  define _UNPACK_AND_ADD_TO_PLUS_1_(in,i,out,j,mask,missing) out(:,j) = out(:,j) + unpack(in(:,i),mask,missing)
-#  define _UNPACK_TO_GLOBAL_(in,i,out,mask,missing) out _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop) = unpack(in(:,i),mask,missing)
-#  define _UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_INTERIOR_PLUS_1_(loop_start:loop_stop,j) = unpack(in(:,i),mask,missing)
+#  define _UNPACK_TO_GLOBAL_(in,i,out,mask,missing) out _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_) = unpack(in(:,i),mask,missing)
+#  define _UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_,j) = unpack(in(:,i),mask,missing)
 #else
-#  define _PACK_GLOBAL_(in,out,i,mask) _CONCURRENT_LOOP_BEGIN_;out _INDEX_SLICE_PLUS_1_(i) = in _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1);_LOOP_END_
-#  define _PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) _CONCURRENT_LOOP_BEGIN_;out _INDEX_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_INTERIOR_PLUS_1_(loop_start+_I_-1,i);_LOOP_END_
+#  define _PACK_GLOBAL_(in,out,i,mask) _CONCURRENT_LOOP_BEGIN_;out _INDEX_SLICE_PLUS_1_(i) = in _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1);_LOOP_END_
+#  define _PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) _CONCURRENT_LOOP_BEGIN_;out _INDEX_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_+_I_-1,i);_LOOP_END_
 #  define _UNPACK_(in,i,out,mask,missing) _CONCURRENT_LOOP_BEGIN_;out _INDEX_EXT_SLICE_ = in _INDEX_SLICE_PLUS_1_(i);_LOOP_END_
 #  define _UNPACK_TO_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_LOOP_BEGIN_;out _INDEX_EXT_SLICE_PLUS_1_(j) = in _INDEX_SLICE_PLUS_1_(i);_LOOP_END_
 #  define _UNPACK_AND_ADD_TO_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_LOOP_BEGIN_;out _INDEX_EXT_SLICE_PLUS_1_(j) = out _INDEX_EXT_SLICE_PLUS_1_(j) + in _INDEX_SLICE_PLUS_1_(i);_LOOP_END_
-#  define _UNPACK_TO_GLOBAL_(in,i,out,mask,missing) _CONCURRENT_LOOP_BEGIN_;out _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1) = in _INDEX_SLICE_PLUS_1_(i);_LOOP_END_
-#  define _UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_LOOP_BEGIN_;out _INDEX_GLOBAL_INTERIOR_PLUS_1_(loop_start+_I_-1,j) = in _INDEX_SLICE_PLUS_1_(i);_LOOP_END_
+#  define _UNPACK_TO_GLOBAL_(in,i,out,mask,missing) _CONCURRENT_LOOP_BEGIN_;out _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = in _INDEX_SLICE_PLUS_1_(i);_LOOP_END_
+#  define _UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_LOOP_BEGIN_;out _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_+_I_-1,j) = in _INDEX_SLICE_PLUS_1_(i);_LOOP_END_
 #endif
 
 #if defined(_HORIZONTAL_IS_VECTORIZED_)&&defined(_HAS_MASK_)
-#  define _HORIZONTAL_PACK_GLOBAL_(in,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop),mask)
-#  define _HORIZONTAL_PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(loop_start:loop_stop,i),mask)
+#  define _HORIZONTAL_PACK_GLOBAL_(in,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_),mask)
+#  define _HORIZONTAL_PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,i),mask)
 #  define _HORIZONTAL_UNPACK_TO_PLUS_1_(in,i,out,j,mask,missing) out(:,j) = unpack(in(:,i),mask,missing)
 #  define _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(in,i,out,j,mask,missing) out(:,j) = out(:,j) + unpack(in(:,i),mask,missing)
-#  define _HORIZONTAL_UNPACK_TO_GLOBAL_(in,i,out,mask,missing) out _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop) = unpack(in(:,i),mask,missing)
-#  define _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(loop_start:loop_stop,j) = unpack(in(:,i),mask,missing)
+#  define _HORIZONTAL_UNPACK_TO_GLOBAL_(in,i,out,mask,missing) out _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_) = unpack(in(:,i),mask,missing)
+#  define _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,j) = unpack(in(:,i),mask,missing)
 #else
-#  define _HORIZONTAL_PACK_GLOBAL_(in,out,j,mask) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1);_HORIZONTAL_LOOP_END_
-#  define _HORIZONTAL_PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(loop_start+_I_-1,i);_HORIZONTAL_LOOP_END_
+#  define _HORIZONTAL_PACK_GLOBAL_(in,out,j,mask) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1);_HORIZONTAL_LOOP_END_
+#  define _HORIZONTAL_PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_+_I_-1,i);_HORIZONTAL_LOOP_END_
 #  define _HORIZONTAL_UNPACK_TO_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = in _INDEX_HORIZONTAL_SLICE_PLUS_1_(i);_HORIZONTAL_LOOP_END_
 #  define _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = out _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) + in _INDEX_HORIZONTAL_SLICE_PLUS_1_(i);_HORIZONTAL_LOOP_END_
-#  define _HORIZONTAL_UNPACK_TO_GLOBAL_(in,i,out,mask,missing) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1) = in _INDEX_HORIZONTAL_SLICE_PLUS_1_(i);_HORIZONTAL_LOOP_END_
-#  define _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(loop_start+_J_-1,j) = in _INDEX_HORIZONTAL_SLICE_PLUS_1_(i);_HORIZONTAL_LOOP_END_
+#  define _HORIZONTAL_UNPACK_TO_GLOBAL_(in,i,out,mask,missing) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1) = in _INDEX_HORIZONTAL_SLICE_PLUS_1_(i);_HORIZONTAL_LOOP_END_
+#  define _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_+_J_-1,j) = in _INDEX_HORIZONTAL_SLICE_PLUS_1_(i);_HORIZONTAL_LOOP_END_
 #endif
 
 #if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&defined(_HAS_MASK_)
-#  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_VERTICAL_PLUS_1_(loop_start:loop_stop,j) = unpack(in(:,i),mask,missing)
+#  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_VERTICAL_PLUS_1_(_START_:_STOP_,j) = unpack(in(:,i),mask,missing)
 #else
-#  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_VERTICAL_LOOP_BEGIN_;out _INDEX_GLOBAL_VERTICAL_PLUS_1_(loop_start+_I_-1,j) = in _INDEX_SLICE_PLUS_1_(i);_VERTICAL_LOOP_END_
+#  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_VERTICAL_LOOP_BEGIN_;out _INDEX_GLOBAL_VERTICAL_PLUS_1_(_START_+_I_-1,j) = in _INDEX_SLICE_PLUS_1_(i);_VERTICAL_LOOP_END_
 #endif

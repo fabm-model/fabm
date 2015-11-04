@@ -900,7 +900,19 @@ subroutine call_list_print(self)
 
    node => self%first
    do while (associated(node))
-      write (*,'(a,x,i0)') trim(node%model%get_path()),node%source
+      write (*,'(a,a)',advance='NO') trim(node%model%get_path()),':'
+      select case (node%source)
+      case (0); write (*,'(a)') 'unknown'
+      case (1); write (*,'(a)') 'do'
+      case (2); write (*,'(a)') 'do_column'
+      case (3); write (*,'(a)') 'do_bottom'
+      case (4); write (*,'(a)') 'do_surface'
+      case (5); write (*,'(a)') 'none'
+      case (6); write (*,'(a)') 'get_vertical_movement'
+      case (7); write (*,'(a)') 'do_horizontal'
+      case default
+         write (*,'(i0)') node%source
+      end select
       n = 0
       variable_list_node => node%written_variables%first
       do while (associated(variable_list_node))
@@ -963,12 +975,13 @@ subroutine variable_set_finalize(self)
    end do
 end subroutine variable_set_finalize
 
-recursive subroutine find_dependencies2(self,source,allowed_sources,list,forbidden,call_list_node)
+recursive subroutine find_dependencies2(self,source,allowed_sources,list,forbidden,dependencies_only,call_list_node)
    class (type_base_model),     intent(in),target   :: self
    integer,                     intent(in)          :: source
    integer,                     intent(in)          :: allowed_sources(:)
    type (type_call_list),       intent(inout)       :: list
    type (type_call_list),       intent(in),optional :: forbidden
+   logical,                     intent(in),optional :: dependencies_only
    type (type_call_list_node),  pointer,   optional :: call_list_node
 
    type (type_link),pointer           :: link
@@ -976,11 +989,15 @@ recursive subroutine find_dependencies2(self,source,allowed_sources,list,forbidd
    type (type_call_list_node),pointer :: node
    character(len=2048)                :: chain
    logical                            :: same_source
+   logical                            :: dependencies_only_
 
    if (present(call_list_node)) nullify(call_list_node)
 
    ! Do nothing if we are looking for constants.
    if (source==source_none) return
+
+   dependencies_only_ = .false.
+   if (present(dependencies_only)) dependencies_only_ = dependencies_only
 
    ! Check whether we are already processed this call.
    node => list%find(self,source)
@@ -1016,24 +1033,27 @@ recursive subroutine find_dependencies2(self,source,allowed_sources,list,forbidd
           .and.associated(link%original%read_index)) then                  ! ...and we do depend on its value
 
          if (contains_value(allowed_sources,link%target%source)) &
-            call find_variable_dependencies(link%target,allowed_sources,list,copy_to_prefetch=.true.,forbidden=forbidden_with_self)
+            call find_variable_dependencies(link%target,allowed_sources,list,copy_to_prefetch=.not.dependencies_only_,forbidden=forbidden_with_self,dependencies_only=dependencies_only_.and.link%target%source==source)
       end if
       link => link%next
    end do
 
    ! We're happy - add ourselves to the list of processed models.
-   node => list%append(self,source)
-   if (present(call_list_node)) call_list_node => node
+   if (.not.dependencies_only_) then
+      node => list%append(self,source)
+      if (present(call_list_node)) call_list_node => node
+   end if
 
    ! Clean up our temporary list.
    call forbidden_with_self%finalize()
 end subroutine find_dependencies2
 
-recursive subroutine find_variable_dependencies(variable,allowed_sources,list,copy_to_prefetch,forbidden)
+recursive subroutine find_variable_dependencies(variable,allowed_sources,list,copy_to_prefetch,dependencies_only,forbidden)
    type (type_internal_variable),intent(in)          :: variable
    integer,                      intent(in)          :: allowed_sources(:)
    type (type_call_list),        intent(inout)       :: list
    logical,                      intent(in)          :: copy_to_prefetch
+   logical,                      intent(in),optional :: dependencies_only
    type (type_call_list),        intent(in),optional :: forbidden
 
    type (type_call_list_node),pointer :: node
@@ -1050,7 +1070,7 @@ recursive subroutine find_variable_dependencies(variable,allowed_sources,list,co
          if (associated(node)) call node%computed_variables%add(variable)
       end if
    else
-      call find_dependencies2(variable%owner,variable%source,allowed_sources,list,forbidden,call_list_node=node)
+      call find_dependencies2(variable%owner,variable%source,allowed_sources,list,forbidden,dependencies_only=dependencies_only,call_list_node=node)
       if (copy_to_prefetch.and.associated(node)) call node%written_variables%add(variable)
       if (associated(node)) call node%computed_variables%add(variable)
    end if
