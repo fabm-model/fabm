@@ -110,7 +110,7 @@ def processFile(infile,outfile,subtract_background=False):
                   metadata = model.findParameter(path[1]+'/'+key,case_insensitive=True)
                   value = metadata.value
                elif path[-1]=='initialization':
-                  metadata = model.findStateVariable(path[1]+'_'+key)
+                  metadata = model.findStateVariable(path[1]+'/'+key)
                   value = metadata.value
                   if subtract_background: value -= metadata.background_value
                elif path[-1]=='coupling':
