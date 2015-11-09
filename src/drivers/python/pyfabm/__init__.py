@@ -53,6 +53,8 @@ fabm.variable_get_background_value.argtypes = [ctypes.c_void_p]
 fabm.variable_get_background_value.restype = ctypes.c_double
 fabm.variable_get_long_path.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_char_p]
 fabm.variable_get_long_path.restype = None
+fabm.variable_get_output_name.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_char_p]
+fabm.variable_get_output_name.restype = None
 fabm.variable_get_suitable_masters.argtypes = [ctypes.c_void_p]
 fabm.variable_get_suitable_masters.restype = ctypes.c_void_p
 
@@ -155,7 +157,17 @@ def printTree(root,stringmapper,indent=''):
             print '%s%s = %s' % (indent,name,stringmapper(item))
 
 class Variable(object):
-    def __init__(self,name,units=None,long_name=None,path=None):
+    def __init__(self,name=None,units=None,long_name=None,path=None,variable_pointer=None):
+        self.variable_pointer = variable_pointer
+        if variable_pointer:
+           strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+           strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+           strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+           fabm.variable_get_metadata(variable_pointer,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
+           name = strname.value
+           units = strunits.value
+           long_name = strlong_name.value
+
         self.name = name
         self.units = units
         if units is None:
@@ -166,9 +178,21 @@ class Variable(object):
         if path is None: path = name
         self.long_name = long_name
         self.path = path
+
     @property
     def long_path(self):
-        return self.long_name
+        if self.variable_pointer is None: return self.long_name
+        strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        fabm.variable_get_long_path(self.variable_pointer,ATTRIBUTE_LENGTH,strlong_name)
+        return strlong_name.value
+
+    @property
+    def output_name(self):
+        if self.variable_pointer is None: return self.name
+        stroutput_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        fabm.variable_get_output_name(self.variable_pointer,ATTRIBUTE_LENGTH,stroutput_name)
+        return stroutput_name.value
+
     def getOptions(self):
         pass
 
@@ -190,9 +214,8 @@ class Dependency(Variable):
     value = property(getValue, setValue)
 
 class StateVariable(Variable):
-    def __init__(self,variable_pointer,statearray,name,index,units=None,long_name=None,path=None):
-        Variable.__init__(self,name,units,long_name,path)
-        self.variable_pointer = variable_pointer
+    def __init__(self,variable_pointer,statearray,index):
+        Variable.__init__(self,variable_pointer=variable_pointer)
         self.index = index
         self.statearray = statearray
 
@@ -209,8 +232,8 @@ class StateVariable(Variable):
         return fabm.variable_get_background_value(self.variable_pointer)
 
 class DiagnosticVariable(Variable):
-    def __init__(self,name,index,horizontal,units=None,long_name=None,path=None):
-        Variable.__init__(self,name,units,long_name,path)
+    def __init__(self,variable_pointer,index,horizontal):
+        Variable.__init__(self,variable_pointer=variable_pointer)
         pdata = ctypes.POINTER(ctypes.c_double)()
         if horizontal:
             fabm.get_horizontal_diagnostic_data(index+1,ctypes.byref(pdata))
@@ -276,13 +299,7 @@ class Coupling(Variable):
         self.master = ctypes.c_void_p()
         self.slave = ctypes.c_void_p()
         fabm.get_coupling(index,ctypes.byref(self.slave),ctypes.byref(self.master))
-
-        strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-
-        fabm.variable_get_metadata(self.slave,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
-        Variable.__init__(self,strname.value,strunits.value,strlong_name.value)
+        Variable.__init__(self,variable_pointer=self.slave)
 
     def getValue(self):
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
@@ -382,25 +399,22 @@ class Model(object):
         self.dependencies = []
         for i in range(nstate_bulk.value):
             ptr = fabm.get_variable(BULK_STATE_VARIABLE,i+1)
-            fabm.get_variable_metadata(BULK_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.bulk_state_variables.append(StateVariable(ptr,self.state,strname.value,i,strunits.value,strlong_name.value,strpath.value))
+            self.bulk_state_variables.append(StateVariable(ptr,self.state,i))
         for i in range(nstate_surface.value):
             ptr = fabm.get_variable(SURFACE_STATE_VARIABLE,i+1)
-            fabm.get_variable_metadata(SURFACE_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.surface_state_variables.append(StateVariable(ptr,self.state,strname.value,nstate_bulk.value+i,strunits.value,strlong_name.value,strpath.value))
+            self.surface_state_variables.append(StateVariable(ptr,self.state,nstate_bulk.value+i))
         for i in range(nstate_bottom.value):
             ptr = fabm.get_variable(BOTTOM_STATE_VARIABLE,i+1)
-            fabm.get_variable_metadata(BOTTOM_STATE_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.bottom_state_variables.append(StateVariable(ptr,self.state,strname.value,nstate_bulk.value+nstate_surface.value+i,strunits.value,strlong_name.value,strpath.value))
+            self.bottom_state_variables.append(StateVariable(ptr,self.state,nstate_bulk.value+nstate_surface.value+i))
         for i in range(ndiag_bulk.value):
-            fabm.get_variable_metadata(BULK_DIAGNOSTIC_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.bulk_diagnostic_variables.append(DiagnosticVariable(strname.value,i,False,strunits.value,strlong_name.value,strpath.value))
+            ptr = fabm.get_variable(BULK_DIAGNOSTIC_VARIABLE,i+1)
+            self.bulk_diagnostic_variables.append(DiagnosticVariable(ptr,i,False))
         for i in range(ndiag_horizontal.value):
-            fabm.get_variable_metadata(HORIZONTAL_DIAGNOSTIC_VARIABLE,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.horizontal_diagnostic_variables.append(DiagnosticVariable(strname.value,i,True,strunits.value,strlong_name.value,strpath.value))
+            ptr = fabm.get_variable(HORIZONTAL_DIAGNOSTIC_VARIABLE,i+1)
+            self.horizontal_diagnostic_variables.append(DiagnosticVariable(ptr,i,True))
         for i in range(nconserved.value):
-            fabm.get_variable_metadata(CONSERVED_QUANTITY,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.conserved_quantities.append(Variable(strname.value,strunits.value,strlong_name.value,strpath.value))
+            ptr = fabm.get_variable(CONSERVED_QUANTITY,i+1)
+            self.conserved_quantities.append(Variable(variable_pointer=ptr))
         for i in range(nparameters.value):
             fabm.get_parameter_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,ctypes.byref(typecode),ctypes.byref(has_default))
             self.parameters.append(Parameter(strname.value,i,type=typecode.value,units=strunits.value,long_name=strlong_name.value,model=self,has_default=has_default.value!=0))
