@@ -35,7 +35,8 @@ module fabm_coupling
    type type_call_list_node
       class (type_base_model),          pointer :: model => null()
       integer                                   :: source = source_unknown
-      type (type_copy_command), allocatable     :: copy_commands(:)
+      type (type_copy_command), allocatable     :: copy_commands_int(:)
+      type (type_copy_command), allocatable     :: copy_commands_hz(:)
       type (type_variable_set)                  :: written_variables
       type (type_variable_set)                  :: computed_variables
       type (type_call_list_node), pointer :: next => null()
@@ -945,7 +946,8 @@ end function call_list_computes
 subroutine call_list_node_finalize(self)
    class (type_call_list_node), intent(inout) :: self
 
-   if (allocated(self%copy_commands)) deallocate(self%copy_commands)
+   if (allocated(self%copy_commands_int)) deallocate(self%copy_commands_int)
+   if (allocated(self%copy_commands_hz)) deallocate(self%copy_commands_hz)
    call self%written_variables%finalize()
    call self%computed_variables%finalize()
 end subroutine call_list_node_finalize
@@ -1115,8 +1117,6 @@ subroutine call_list_node_initialize(call_list_node)
 
    class (type_base_model),      pointer :: parent
    class (type_model_list_node), pointer :: model_list_node
-   type (type_variable_set_node), pointer :: node
-   integer :: i, n, maxwrite
 
    ! Make sure the pointer to the model has the highest class (and not a base class)
    ! This is needed because model classes that use inheritance and call base class methods
@@ -1135,31 +1135,47 @@ subroutine call_list_node_initialize(call_list_node)
       end do
    end if
 
-   n = 0
-   maxwrite = -1
-   node => call_list_node%written_variables%first
-   do while (associated(node))
-      n = n + 1
-      if (node%target%write_indices%is_empty()) call driver%fatal_error('call_list_node_initialize','target without write indices')
-      maxwrite = max(maxwrite,node%target%write_indices%value)
-      node => node%next
-   end do
+   call process_domain(call_list_node%copy_commands_int, domain_bulk)
+   call process_domain(call_list_node%copy_commands_hz,  domain_horizontal)
 
-   ! Create list of copy commands, sorted by write index
-   allocate(call_list_node%copy_commands(n))
-   n = 0
-   do i=1,maxwrite
+contains
+
+   subroutine process_domain(commands,domain)
+      type (type_copy_command), allocatable, intent(inout) :: commands(:)
+      integer,                               intent(in)    :: domain
+
+      type (type_variable_set_node), pointer :: node
+      integer :: i, n, maxwrite
+
+      n = 0
+      maxwrite = -1
       node => call_list_node%written_variables%first
       do while (associated(node))
-         if (node%target%write_indices%value==i) then
+         if (node%target%write_indices%is_empty()) call driver%fatal_error('call_list_node_initialize','BUG: target without write indices')
+         if (iand(node%target%domain,domain)/=0) then
             n = n + 1
-            call_list_node%copy_commands(n)%read_index = node%target%read_indices%value
-            call_list_node%copy_commands(n)%write_index = node%target%write_indices%value
-            exit
+            maxwrite = max(maxwrite,node%target%write_indices%value)
          end if
          node => node%next
       end do
-   end do
+
+      ! Create list of copy commands, sorted by write index
+      allocate(commands(n))
+      n = 0
+      do i=1,maxwrite
+         node => call_list_node%written_variables%first
+         do while (associated(node))
+            if (iand(node%target%domain,domain)/=0.and.node%target%write_indices%value==i) then
+               n = n + 1
+               commands(n)%read_index = node%target%read_indices%value
+               commands(n)%write_index = node%target%write_indices%value
+               exit
+            end if
+            node => node%next
+         end do
+      end do
+   end subroutine
+
 end subroutine
 
 end module

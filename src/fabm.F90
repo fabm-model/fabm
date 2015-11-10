@@ -2764,9 +2764,9 @@ end subroutine deallocate_prefetch_vertical
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-      _DO_CONCURRENT_(i,1,size(node%copy_commands))
-         j = node%copy_commands(i)%read_index
-         k = node%copy_commands(i)%write_index
+      _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
+         j = node%copy_commands_int(i)%read_index
+         k = node%copy_commands_int(i)%write_index
          _CONCURRENT_LOOP_BEGIN_
             environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
          _LOOP_END_
@@ -3213,9 +3213,9 @@ end subroutine internal_check_horizontal_state
          end if
 
          ! Copy newly written diagnostics to prefetch
-         _DO_CONCURRENT_(i,1,size(node%copy_commands))
-            j = node%copy_commands(i)%read_index
-            k = node%copy_commands(i)%write_index
+         _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
+            j = node%copy_commands_hz(i)%read_index
+            k = node%copy_commands_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
                environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _HORIZONTAL_LOOP_END_
@@ -3299,9 +3299,9 @@ end subroutine internal_check_horizontal_state
       end if
 
       ! Copy newly written diagnostics to prefetch
-      _DO_CONCURRENT_(i,1,size(node%copy_commands))
-         j = node%copy_commands(i)%read_index
-         k = node%copy_commands(i)%write_index
+      _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
+         j = node%copy_commands_hz(i)%read_index
+         k = node%copy_commands_hz(i)%write_index
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
             environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
          _HORIZONTAL_LOOP_END_
@@ -3481,9 +3481,9 @@ end subroutine internal_check_horizontal_state
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-      _DO_CONCURRENT_(i,1,size(node%copy_commands))
-         j = node%copy_commands(i)%read_index
-         k = node%copy_commands(i)%write_index
+      _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
+         j = node%copy_commands_int(i)%read_index
+         k = node%copy_commands_int(i)%write_index
          _CONCURRENT_LOOP_BEGIN_
             environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
          _LOOP_END_
@@ -3532,12 +3532,19 @@ end subroutine internal_check_horizontal_state
       call node%model%get_light(_ARGUMENTS_VERTICAL_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-      _DO_CONCURRENT_(i,1,size(node%copy_commands))
-         j = node%copy_commands(i)%read_index
-         k = node%copy_commands(i)%write_index
+      _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
+         j = node%copy_commands_int(i)%read_index
+         k = node%copy_commands_int(i)%write_index
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
             environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
          _VERTICAL_LOOP_END_
+      end do
+      _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
+         j = node%copy_commands_hz(i)%read_index
+         k = node%copy_commands_hz(i)%write_index
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+         _HORIZONTAL_LOOP_END_
       end do
 
       node => node%next
@@ -3673,9 +3680,9 @@ end subroutine internal_check_horizontal_state
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-      _DO_CONCURRENT_(i,1,size(node%copy_commands))
-         j = node%copy_commands(i)%read_index
-         k = node%copy_commands(i)%write_index
+      _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
+         j = node%copy_commands_int(i)%read_index
+         k = node%copy_commands_int(i)%write_index
          _CONCURRENT_LOOP_BEGIN_
             environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
          _LOOP_END_
@@ -3736,9 +3743,9 @@ end subroutine internal_check_horizontal_state
       end if
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-      _DO_CONCURRENT_(i,1,size(node%copy_commands))
-         j = node%copy_commands(i)%read_index
-         k = node%copy_commands(i)%write_index
+      _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
+         j = node%copy_commands_hz(i)%read_index
+         k = node%copy_commands_hz(i)%write_index
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
             environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
          _HORIZONTAL_LOOP_END_
