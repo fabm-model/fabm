@@ -3542,9 +3542,11 @@ end subroutine internal_check_horizontal_state
       _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
          j = node%copy_commands_hz(i)%read_index
          k = node%copy_commands_hz(i)%write_index
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-         _HORIZONTAL_LOOP_END_
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+         environment%prefetch_hz(1,j) = environment%scratch_hz(1,k)
+#else
+         environment%prefetch_hz(j) = environment%scratch_hz(k)
+#endif
       end do
 
       node => node%next
