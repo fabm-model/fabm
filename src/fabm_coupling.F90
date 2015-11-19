@@ -14,6 +14,11 @@ module fabm_coupling
 
    logical,parameter :: debug_coupling = .false.
 
+   integer,parameter :: couple_explicit                     = 0
+   integer,parameter :: couple_aggregate_standard_variables = 1
+   integer,parameter :: couple_flux_sums                    = 2
+   integer,parameter :: couple_final                        = 3
+
    type type_copy_command
       integer :: read_index
       integer :: write_index
@@ -88,13 +93,13 @@ contains
       call couple_standard_variables(self)
 
       ! Coupling stage 2: explicit - resolve user- or model-specified links between variables.
-      call process_coupling_tasks(self,0)
+      call process_coupling_tasks(self,couple_explicit)
 
-      ! Coupling stage 3: try to automatically fulfil remaining dependencies on
-      ! - aggregated sources-sinks of state variables (or of diagnostics acting as such)
-      ! - aggregate standard variables
+      ! Coupling stage 3: try to automatically fulfil remaining dependencies on aggregate standard variables
       ! This may create new child models to handle the necessary summations.
-      call process_coupling_tasks(self,1)
+      ! Note that these child models may also add source terms (if the sum is treated as state variable),
+      ! so any source term treatment should happen after this is complete!
+      call process_coupling_tasks(self,couple_aggregate_standard_variables)
 
       ! Create models for aggregate variables at root level, to be used to compute conserved quantities.
       ! After this step, the set of variables that contribute to aggregate quantities may not be modified.
@@ -102,9 +107,15 @@ contains
       call build_aggregate_variables(self)
       call create_aggregate_models(self)
 
-      ! Repeat coupling because new aggregate variables are now available.
-      call process_coupling_tasks(self,1)
-      call process_coupling_tasks(self,2)
+      ! Perform coupling for any new aggregate models.
+      ! This may append items to existing lists of source terms and bottom/surface fluxes,
+      ! so it has to proceed couple_flux_sums
+      call process_coupling_tasks(self,couple_explicit)
+
+      ! Create summations of source terms and surface/bottom fluxes where they are needed,
+      ! and then process the resulting coupling tasks.
+      call process_coupling_tasks(self,couple_flux_sums)
+      call process_coupling_tasks(self,couple_final)
 
       ! Allow inheriting models to perform additional tasks after coupling.
       call after_coupling(self)
@@ -270,8 +281,9 @@ end subroutine
       coupling => self%coupling_task_list%first
       do while (associated(coupling))
 
+         nullify(master)
          select case (stage)
-            case (0,2)
+            case (couple_explicit,couple_final)
                if (associated(coupling%master_standard_variable)) then
                   ! Coupling to a standard variable - first try to find the corresponding standard variable.
                   link => root%links%first
@@ -282,7 +294,7 @@ end subroutine
                      link => link%next
                   end do
 
-                  if (stage==2.and..not.associated(link)) then
+                  if (stage==couple_final.and..not.associated(link)) then
                      ! This is our last chance - create an appropriate variable at the root level.
                      select type (standard_variable=>coupling%master_standard_variable)
                      class is (type_bulk_standard_variable)
@@ -296,9 +308,6 @@ end subroutine
                                                       standard_variable=standard_variable, presence=presence_external_optional, link=link)
                      end select
                   end if
-
-                  ! If we found a link to the required master variable, save a pointer to the master.
-                  nullify(master)
                   if (associated(link)) master => link%target
                else
                   ! Try to find the master variable among the variables of the requesting model or its parents.
@@ -313,12 +322,10 @@ end subroutine
                         'Master and slave name are identical: "'//trim(coupling%master_name)//'". This is not valid at the root of the model tree.')
                   end if
                end if
-            case (1)
-               if (associated(coupling%master_standard_variable)) then
-                  master => generate_standard_master(root,coupling)
-               else
-                  master => generate_master(self,coupling%master_name)
-               end if
+            case (couple_aggregate_standard_variables)
+               if (associated(coupling%master_standard_variable)) master => generate_standard_master(root,coupling)
+            case (couple_flux_sums)
+               if (.not.associated(coupling%master_standard_variable)) master => generate_master(self,coupling%master_name)
          end select
 
          ! Save pointer to the next coupling task in advance, because current task may
@@ -331,7 +338,7 @@ end subroutine
 
             ! Remove coupling task from the list
             call self%coupling_task_list%remove(coupling)
-         elseif (stage==2) then
+         elseif (stage==couple_final) then
             call self%fatal_error('process_coupling_tasks', &
                'Coupling target "'//trim(coupling%master_name)//'" for "'//trim(coupling%slave%name)//'" was not found.')
          end if
