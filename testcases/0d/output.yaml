@@ -1,4 +1,5 @@
 output:
+   title: FABM 0d driver model simulation
    time_unit: dt
    time_step: 6
    variables:
