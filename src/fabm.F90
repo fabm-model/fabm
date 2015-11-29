@@ -284,6 +284,11 @@
       procedure :: link_scalar_by_name => fabm_link_scalar_by_name
       generic :: link_scalar => link_scalar_by_id,link_scalar_by_sn,link_scalar_by_name
 
+      procedure :: get_interior_data => fabm_get_interior_data
+      procedure :: get_horizontal_data => fabm_get_horizontal_data
+      procedure :: get_scalar_data => fabm_get_scalar_data
+      generic :: get_data => get_interior_data,get_horizontal_data,get_scalar_data
+
       procedure :: get_bulk_variable_id_by_name => fabm_get_bulk_variable_id_by_name
       procedure :: get_bulk_variable_id_sn => fabm_get_bulk_variable_id_sn
       generic :: get_bulk_variable_id => get_bulk_variable_id_by_name, get_bulk_variable_id_sn
@@ -2197,6 +2202,33 @@
 
    end function fabm_get_horizontal_diagnostic_data
 !EOC
+
+function fabm_get_interior_data(self,id) result(dat)
+   class (type_model),target,         intent(in) :: self
+   type(type_bulk_variable_id),       intent(in) :: id
+   real(rk) _DIMENSION_GLOBAL_,pointer           :: dat
+
+   nullify(dat)
+   if (id%read_index/=-1) dat => self%data(id%read_index)%p
+end function fabm_get_interior_data
+
+function fabm_get_horizontal_data(self,id) result(dat)
+   class (type_model),target,          intent(in) :: self
+   type(type_horizontal_variable_id),  intent(in) :: id
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,pointer :: dat
+
+   nullify(dat)
+   if (id%read_index/=-1) dat => self%data_hz(id%read_index)%p
+end function fabm_get_horizontal_data
+
+function fabm_get_scalar_data(self,id) result(dat)
+   class (type_model),target,          intent(in) :: self
+   type(type_scalar_variable_id),      intent(in) :: id
+   real(rk),pointer                               :: dat
+
+   nullify(dat)
+   if (id%read_index/=-1) dat => self%data_scalar(id%read_index)%p
+end function fabm_get_scalar_data
 
 subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
    type (type_model),               intent(inout) :: self
