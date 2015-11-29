@@ -1216,7 +1216,7 @@
    type (type_bulk_variable_id) :: id
 !
 ! !LOCAL VARIABLES:
-   type (type_link),       pointer :: link
+   type (type_link), pointer :: link
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1263,10 +1263,22 @@
 ! !RETURN VALUE:
    type (type_bulk_variable_id) :: id
 !
+! !LOCAL VARIABLES:
+   type (type_link), pointer :: link
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   id = create_external_bulk_id_for_standard_name(self,standard_variable)
+   link => self%root%links%first
+   do while (associated(link))
+      if (associated(link%target%standard_variable)) then
+         if (standard_variable%compare(link%target%standard_variable)) then
+            id = create_external_bulk_id(link%target)
+            return
+         end if
+      end if
+      link => link%next
+   end do
 
    end function fabm_get_bulk_variable_id_sn
 !EOC
@@ -1288,7 +1300,7 @@
    type (type_horizontal_variable_id) :: id
 !
 ! !LOCAL VARIABLES:
-   type (type_link),       pointer :: link
+   type (type_link), pointer :: link
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1336,10 +1348,22 @@
 ! !RETURN VALUE:
    type (type_horizontal_variable_id) :: id
 !
+! !LOCAL VARIABLES:
+   type (type_link), pointer :: link
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   id = create_external_horizontal_id_for_standard_name(self,standard_variable)
+   link => self%root%links%first
+   do while (associated(link))
+      if (associated(link%target%standard_variable)) then
+         if (standard_variable%compare(link%target%standard_variable)) then
+            id = create_external_horizontal_id(link%target)
+            return
+         end if
+      end if
+      link => link%next
+   end do
 
    end function fabm_get_horizontal_variable_id_sn
 !EOC
@@ -1363,7 +1387,7 @@
    type (type_scalar_variable_id) :: id
 !
 ! !LOCAL VARIABLES:
-   type (type_link),       pointer :: link
+   type (type_link), pointer :: link
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1410,10 +1434,22 @@
 ! !RETURN VALUE:
    type (type_scalar_variable_id) :: id
 !
+! !LOCAL VARIABLES:
+   type (type_link), pointer :: link
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   id = create_external_scalar_id_for_standard_name(self,standard_variable)
+   link => self%root%links%first
+   do while (associated(link))
+      if (associated(link%target%standard_variable)) then
+         if (standard_variable%compare(link%target%standard_variable)) then
+            id = create_external_scalar_id(link%target)
+            return
+         end if
+      end if
+      link => link%next
+   end do
 
    end function fabm_get_scalar_variable_id_sn
 !EOC
@@ -4013,63 +4049,6 @@ function create_external_scalar_id(variable) result(id)
    id%variable => variable
    if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
 end function create_external_scalar_id
-
-function create_external_bulk_id_for_standard_name(self,standard_variable) result(id)
-   class (type_model),                intent(in) :: self
-   type (type_bulk_standard_variable),intent(in) :: standard_variable
-   type (type_bulk_variable_id)                  :: id
-
-   type (type_link), pointer :: link
-
-   link => self%root%links%first
-   do while (associated(link))
-      if (associated(link%target%standard_variable)) then
-         if (standard_variable%compare(link%target%standard_variable)) then
-            id = create_external_bulk_id(link%target)
-            return
-         end if
-      end if
-      link => link%next
-   end do
-end function create_external_bulk_id_for_standard_name
-
-function create_external_horizontal_id_for_standard_name(self,standard_variable) result(id)
-   class (type_model),                      intent(in) :: self
-   type (type_horizontal_standard_variable),intent(in) :: standard_variable
-   type (type_horizontal_variable_id)                  :: id
-
-   type (type_link), pointer :: link
-
-   link => self%root%links%first
-   do while (associated(link))
-      if (associated(link%target%standard_variable)) then
-         if (standard_variable%compare(link%target%standard_variable)) then
-            id = create_external_horizontal_id(link%target)
-            return
-         end if
-      end if
-      link => link%next
-   end do
-end function create_external_horizontal_id_for_standard_name
-
-function create_external_scalar_id_for_standard_name(self,standard_variable) result(id)
-   class (type_model),                  intent(in) :: self
-   type (type_global_standard_variable),intent(in) :: standard_variable
-   type (type_scalar_variable_id)                  :: id
-
-   type (type_link), pointer :: link
-
-   link => self%root%links%first
-   do while (associated(link))
-      if (associated(link%target%standard_variable)) then
-         if (standard_variable%compare(link%target%standard_variable)) then
-            id = create_external_scalar_id(link%target)
-            return
-         end if
-      end if
-      link => link%next
-   end do
-end function create_external_scalar_id_for_standard_name
 
 recursive subroutine set_diagnostic_indices(self)
    class (type_base_model),intent(inout) :: self
