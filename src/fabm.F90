@@ -1893,7 +1893,7 @@
 !
 ! !INPUT PARAMETERS:
    class (type_model),                intent(inout) :: self
-   type(type_bulk_variable_id),       intent(inout) :: id
+   type(type_bulk_variable_id),       intent(in)    :: id
    real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
    integer,optional,                  intent(in)    :: source
 !
@@ -1997,7 +1997,7 @@
 !
 ! !INPUT PARAMETERS:
    class (type_model),                           intent(inout) :: self
-   type (type_internal_variable),                intent(inout) :: variable
+   type (type_internal_variable),                intent(in)    :: variable
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
    integer,optional,                             intent(in)    :: source
 !
@@ -2041,7 +2041,7 @@
 !
 ! !INPUT PARAMETERS:
    class (type_model),                           intent(inout) :: self
-   type (type_horizontal_variable_id),           intent(inout) :: id
+   type (type_horizontal_variable_id),           intent(in)    :: id
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
    integer,optional,                             intent(in)    :: source
 !
@@ -2145,7 +2145,7 @@
 !
 ! !INPUT PARAMETERS:
    class (type_model),            intent(inout) :: self
-   type (type_scalar_variable_id),intent(inout) :: id
+   type (type_scalar_variable_id),intent(in)    :: id
    real(rk),target,               intent(in)    :: dat
    integer,optional,              intent(in)    :: source
 !
