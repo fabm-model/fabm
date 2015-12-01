@@ -77,6 +77,17 @@
 !
 ! !PUBLIC TYPES:
 !
+   integer, parameter :: state_none             = 0
+   integer, parameter :: state_initialize_done  = 1
+   integer, parameter :: state_set_domain_done  = 2
+   integer, parameter :: state_check_ready_done = 3
+
+   integer, parameter :: data_source_none = 0
+   integer, parameter :: data_source_host = 1
+   integer, parameter :: data_source_fabm = 2
+   integer, parameter :: data_source_user = 3
+   integer, parameter :: data_source_default = data_source_host
+
    ! ====================================================================================================
    ! Variable identifiers used by host models.
    ! ====================================================================================================
@@ -186,7 +197,7 @@
       type (type_base_model)  :: root
       type (type_model_list)  :: models
 
-      logical :: initialized = .false.
+      integer :: state = state_none
 
       class (type_model),pointer :: info => null()  ! For backward compatibility (hosts pre 11/2013); always points to root.
 
@@ -242,6 +253,9 @@
       type (type_bulk_data_pointer),      allocatable :: data(:)
       type (type_horizontal_data_pointer),allocatable :: data_hz(:)
       type (type_scalar_data_pointer),    allocatable :: data_scalar(:)
+      integer, allocatable :: interior_data_sources(:)
+      integer, allocatable :: horizontal_data_sources(:)
+      integer, allocatable :: scalar_data_sources(:)
 
 #ifdef _HAS_MASK_
 #  ifndef _FABM_HORIZONTAL_MASK_
@@ -284,6 +298,9 @@
       procedure :: link_scalar_by_name => fabm_link_scalar_by_name
       generic :: link_scalar => link_scalar_by_id,link_scalar_by_sn,link_scalar_by_name
 
+      procedure :: require_interior_data => fabm_require_interior_data
+      generic :: require_data => require_interior_data
+
       procedure :: get_interior_data => fabm_get_interior_data
       procedure :: get_horizontal_data => fabm_get_horizontal_data
       procedure :: get_scalar_data => fabm_get_scalar_data
@@ -311,6 +328,15 @@
                                           horizontal_variable_needs_values, horizontal_variable_needs_values_sn, &
                                           scalar_variable_needs_values, scalar_variable_needs_values_sn
    end type type_model
+
+   type type_integer_list_node
+      integer :: value
+      type (type_integer_list_node),pointer :: next => null()
+   end type
+
+   type,extends(type_base_model) :: type_host_container
+      type (type_integer_list_node), pointer :: first => null()
+   end type
 
    type,extends(type_base_model) :: type_custom_extinction_calculator
       type (type_diagnostic_variable_id) :: id_output
@@ -558,6 +584,9 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+      if (self%state>=state_initialize_done) &
+         call fatal_error('fabm_initialize','fabm_initialize has already been called on this model object.')
+
       self%info => self ! For backward compatibility (pre 11/2013 hosts only)
 
       ! Make sure a variable for light extinction is created at the root level when calling freeze_model_info.
@@ -586,7 +615,7 @@
 
       call extinction_calculator%models%extend(self%models)
 
-      self%initialized = .true.
+      self%state = state_initialize_done
 
    end subroutine fabm_initialize
 !EOC
@@ -676,7 +705,7 @@
 !-----------------------------------------------------------------------
 !BOC
    nullify(self%info)
-   self%initialized = .false.
+   self%state = state_none
 
    ! Deallocate the list of models (this does not deallocate the models themselves!)
    call self%models%finalize()
@@ -708,6 +737,10 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if (self%state<state_initialize_done) call fatal_error('fabm_set_domain','fabm_initialize has not yet been called on this model object.')
+   if (self%state>=state_set_domain_done) call fatal_error('fabm_set_domain','fabm_set_domain has already been called on this model object.')
+   self%state = state_set_domain_done
+
 #if _FABM_DIMENSION_COUNT_>0
    self%domain_size = (/ _LOCATION_ /)
 #endif
@@ -844,7 +877,7 @@
       if (index>0) then
          self%diag_missing_value(index) = self%diagnostic_variables(ivar)%missing_value
          self%diag(_PREARG_LOCATION_DIMENSIONS_ index) = self%diagnostic_variables(ivar)%missing_value
-         call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%target, self%diag(_PREARG_LOCATION_DIMENSIONS_ index))
+         call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%target,self%diag(_PREARG_LOCATION_DIMENSIONS_ index),source=data_source_fabm)
       end if
    end do
    do ivar=1,size(self%horizontal_diagnostic_variables)
@@ -852,7 +885,7 @@
       if (index>0) then
          self%diag_hz_missing_value(index) = self%horizontal_diagnostic_variables(ivar)%missing_value
          self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
-         call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%target, self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ index))
+         call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%target,self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ index),source=data_source_fabm)
       end if
    end do
 
@@ -1010,6 +1043,9 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if (self%state<state_set_domain_done) &
+      call fatal_error('fabm_set_mask','fabm_set_domain has not yet been called on this model object.')
+
 #  ifndef _FABM_HORIZONTAL_MASK_
 #    if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
@@ -1049,6 +1085,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if (self%state<state_set_domain_done) &
+      call fatal_error('fabm_set_bottom_index','fabm_set_domain has not yet been called on this model object.')
    if (index<1) &
       call fatal_error('set_bottom_index','provided index must equal or exceed 1.')
    if (index>self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)) &
@@ -1077,6 +1115,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if (self%state<state_set_domain_done) &
+      call fatal_error('fabm_set_bottom_index','fabm_set_domain has not yet been called on this model object.')
 #    if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(indices,i)/=self%horizontal_domain_size(i)) &
@@ -1105,6 +1145,8 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if (self%state<state_set_domain_done) &
+      call fatal_error('set_surface_index','fabm_set_domain has not yet been called on this model object.')
    if (index<1) &
       call fatal_error('set_surface_index','provided index must equal or exceed 1.')
    if (index>self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)) &
@@ -1134,6 +1176,9 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if (self%state<state_set_domain_done) &
+      call fatal_error('fabm_check_ready','fabm_set_domain has not yet been called on this model object.')
+
    ready = .true.
 
 #ifdef _HAS_MASK_
@@ -1198,6 +1243,8 @@
 
    ! Host has sent all fields - disable all optional fields that were not provided in individual BGC models.
    call filter_readable_variable_registry(self)
+
+   self%state = state_check_ready_done
 
    end subroutine fabm_check_ready
 !EOC
@@ -1752,6 +1799,44 @@
    end function fabm_is_scalar_variable_used
 !EOC
 
+   function get_host_container_model(self) result(host)
+      class (type_model), intent(inout) :: self
+      class (type_host_container), pointer :: host
+
+      type (type_model_list_node),pointer :: node
+      class (type_base_model), pointer :: base_host
+
+      node => self%root%children%find('_host_')
+      if (associated(node)) then
+         base_host => node%model
+         select type (base_host)
+         class is (type_host_container)
+            host => base_host
+         end select
+      else
+         allocate(host)
+         call self%root%add_child(host,'_host_',configunit=-1)
+      end if
+   end function get_host_container_model
+
+   subroutine fabm_require_interior_data(self,standard_variable)
+      class (type_model),                intent(inout) :: self
+      type(type_bulk_standard_variable), intent(in)    :: standard_variable
+
+      class (type_host_container),  pointer :: host
+      type (type_integer_list_node),pointer :: node
+      type (type_link),             pointer :: link
+
+      if (self%state>=state_initialize_done) &
+         call fatal_error('fabm_require_interior_data','model%require_data cannot be called after model initialization.')
+      host => get_host_container_model(self)
+      allocate(node)
+      node%next => host%first
+      host%first => node
+      call host%add_bulk_variable(standard_variable%name,standard_variable%units,standard_variable%name,read_index=node%value,link=link)
+      call host%request_coupling(link,standard_variable)
+   end subroutine fabm_require_interior_data
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -1760,15 +1845,17 @@
 ! is identified by an internal variable object.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bulk_data_by_variable(self,variable,dat)
+   subroutine fabm_link_bulk_data_by_variable(self,variable,dat,source)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                intent(inout) :: self
    type(type_internal_variable),      intent(in)    :: variable
    real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
+   integer,optional,                  intent(in)    :: source
 !
 ! !LOCAL VARIABLES:
    integer :: i
+   integer :: source_
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1781,7 +1868,15 @@
    end do
 #endif
 
-   if (variable%read_indices%value/=-1) self%data(variable%read_indices%value)%p => dat
+   i = variable%read_indices%value
+   if (i/=-1) then
+      source_ = data_source_default
+      if (present(source)) source_ = source
+      if (source_>=self%interior_data_sources(i)) then
+         self%data(i)%p => dat
+         self%interior_data_sources(i) = source_
+      end if
+   end if
 
    end subroutine fabm_link_bulk_data_by_variable
 !EOC
@@ -1794,15 +1889,17 @@
 ! is identified by an external identifier.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bulk_data_by_id(self,id,dat)
+   subroutine fabm_link_bulk_data_by_id(self,id,dat,source)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                intent(inout) :: self
    type(type_bulk_variable_id),       intent(inout) :: id
    real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
+   integer,optional,                  intent(in)    :: source
 !
 ! !LOCAL VARIABLES:
-   integer                                                :: i
+   integer :: i
+   integer :: source_
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1815,7 +1912,15 @@
    end do
 #endif
 
-   if (id%read_index/=-1) self%data(id%read_index)%p => dat
+   i = id%read_index
+   if (i/=-1) then
+      source_ = data_source_default
+      if (present(source)) source_ = source
+      if (source_>=self%interior_data_sources(i)) then
+         self%data(i)%p => dat
+         self%interior_data_sources(i) = source_
+      end if
+   end if
 
    end subroutine fabm_link_bulk_data_by_id
 !EOC
@@ -1888,15 +1993,17 @@
 ! The variable is identified by an internal variable object.
 !
 ! !INTERFACE:
-   subroutine fabm_link_horizontal_data_by_variable(self,variable,dat)
+   subroutine fabm_link_horizontal_data_by_variable(self,variable,dat,source)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                           intent(inout) :: self
    type (type_internal_variable),                intent(inout) :: variable
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
+   integer,optional,                             intent(in)    :: source
 !
 ! !LOCAL VARIABLES:
-   integer                                                :: i
+   integer :: i
+   integer :: source_
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1909,7 +2016,15 @@
    end do
 #endif
 
-   if (variable%read_indices%value/=-1) self%data_hz(variable%read_indices%value)%p => dat
+   i = variable%read_indices%value
+   if (i/=-1) then
+      source_ = data_source_default
+      if (present(source)) source_ = source
+      if (source_>=self%horizontal_data_sources(i)) then
+         self%data_hz(i)%p => dat
+         self%horizontal_data_sources(i) = source_
+      end if
+   end if
 
    end subroutine fabm_link_horizontal_data_by_variable
 !EOC
@@ -1922,15 +2037,17 @@
 ! The variable is identified by an external identifier.
 !
 ! !INTERFACE:
-   subroutine fabm_link_horizontal_data_by_id(self,id,dat)
+   subroutine fabm_link_horizontal_data_by_id(self,id,dat,source)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                           intent(inout) :: self
    type (type_horizontal_variable_id),           intent(inout) :: id
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
+   integer,optional,                             intent(in)    :: source
 !
 ! !LOCAL VARIABLES:
-   integer                                                :: i
+   integer :: i
+   integer :: source_
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1943,7 +2060,15 @@
    end do
 #endif
 
-   if (id%read_index/=-1) self%data_hz(id%read_index)%p => dat
+   i = id%read_index
+   if (i/=-1) then
+      source_ = data_source_default
+      if (present(source)) source_ = source
+      if (source_>=self%horizontal_data_sources(i)) then
+         self%data_hz(i)%p => dat
+         self%horizontal_data_sources(i) = source_
+      end if
+   end if
 
    end subroutine fabm_link_horizontal_data_by_id
 !EOC
@@ -2016,17 +2141,30 @@
 ! external identifier.
 !
 ! !INTERFACE:
-   subroutine fabm_link_scalar_by_id(self,id,dat)
+   subroutine fabm_link_scalar_by_id(self,id,dat,source)
 !
 ! !INPUT PARAMETERS:
    class (type_model),            intent(inout) :: self
    type (type_scalar_variable_id),intent(inout) :: id
    real(rk),target,               intent(in)    :: dat
+   integer,optional,              intent(in)    :: source
+!
+! !LOCAL VARIABLES:
+   integer :: i
+   integer :: source_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   if (id%read_index/=-1) self%data_scalar(id%read_index)%p => dat
+   i = id%read_index
+   if (i/=-1) then
+      source_ = data_source_default
+      if (present(source)) source_ = source
+      if (source_>=self%scalar_data_sources(i)) then
+         self%data_scalar(i)%p => dat
+         self%scalar_data_sources(i) = source_
+      end if
+   end if
 
    end subroutine fabm_link_scalar_by_id
 !EOC
@@ -2107,7 +2245,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call fabm_link_bulk_data(self,self%state_variables(id)%globalid,dat)
+   call fabm_link_bulk_data(self,self%state_variables(id)%globalid,dat,source=data_source_fabm)
 
    end subroutine fabm_link_bulk_state_data
 !EOC
@@ -2129,7 +2267,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call fabm_link_horizontal_data(self,self%bottom_state_variables(id)%globalid,dat)
+   call fabm_link_horizontal_data(self,self%bottom_state_variables(id)%globalid,dat,source=data_source_fabm)
 
    end subroutine fabm_link_bottom_state_data
 !EOC
@@ -2151,7 +2289,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call fabm_link_horizontal_data(self,self%surface_state_variables(id)%globalid,dat)
+   call fabm_link_horizontal_data(self,self%surface_state_variables(id)%globalid,dat,source=data_source_fabm)
 
    end subroutine fabm_link_surface_state_data
 !EOC
@@ -4167,9 +4305,18 @@ subroutine create_readable_variable_registry(self)
       link => link%next
    end do
 
+   ! Allocate arrays with pointers to data.
    allocate(self%data       (nread))
    allocate(self%data_hz    (nread_hz))
    allocate(self%data_scalar(nread_scalar))
+
+   ! Allocate and initialize arrays that store the source (host, fabm, user) of all data.
+   allocate(self%interior_data_sources(nread))
+   allocate(self%horizontal_data_sources(nread_hz))
+   allocate(self%scalar_data_sources(nread_scalar))
+   self%interior_data_sources = data_source_none
+   self%horizontal_data_sources = data_source_none
+   self%scalar_data_sources = data_source_none
 end subroutine create_readable_variable_registry
 
 function variable_from_data_index(self,index,domain) result(variable)
