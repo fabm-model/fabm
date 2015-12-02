@@ -576,7 +576,7 @@ recursive subroutine build_aggregate_variables(self)
 end subroutine build_aggregate_variables
 
 recursive subroutine create_aggregate_models(self)
-   class (type_base_model),       intent(inout),target :: self
+   class (type_base_model),intent(inout),target :: self
 
    type (type_aggregate_variable),      pointer :: aggregate_variable
    class (type_weighted_sum),           pointer :: sum
@@ -623,7 +623,12 @@ recursive subroutine create_aggregate_models(self)
       if (associated(sum)) then
          sum%units = trim(aggregate_variable%standard_variable%units)
          sum%access = aggregate_variable%bulk_access
-         if (associated(self%parent)) sum%result_output = output_none
+         if (associated(self%parent)) then
+            sum%result_output = output_none
+         else
+            allocate(sum%standard_variable)
+            sum%standard_variable = aggregate_variable%standard_variable
+         end if
          if (.not.sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name))) deallocate(sum)
       end if
       if (associated(horizontal_sum)) then
