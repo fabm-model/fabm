@@ -174,7 +174,11 @@ module fabm_builtin_models
       if (present(create_for_one)) create_for_one_ = create_for_one
 
       sum_used = .false.
-      call parent%add_bulk_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0)
+      if (associated(self%standard_variable)) then
+         call parent%add_bulk_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0,standard_variable=self%standard_variable)
+      else
+         call parent%add_bulk_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0)
+      end if
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          call parent%request_coupling(link,'zero')
@@ -187,11 +191,7 @@ module fabm_builtin_models
          call parent%add_child(scaled_variable,trim(name)//'_calculator',configunit=-1)
          call scaled_variable%register_dependency(scaled_variable%id_source,'source',self%units,'source variable')
          call scaled_variable%request_coupling(scaled_variable%id_source,self%first%name)
-         if (associated(self%standard_variable)) then
-            call scaled_variable%register_diagnostic_variable(scaled_variable%id_result,'result',self%units,'result',output=self%result_output,act_as_state_variable=iand(self%access,access_set_source)/=0,standard_variable=self%standard_variable)
-         else
-            call scaled_variable%register_diagnostic_variable(scaled_variable%id_result,'result',self%units,'result',output=self%result_output,act_as_state_variable=iand(self%access,access_set_source)/=0)
-         end if
+         call scaled_variable%register_diagnostic_variable(scaled_variable%id_result,'result',self%units,'result',output=self%result_output,act_as_state_variable=iand(self%access,access_set_source)/=0)
          scaled_variable%weight = self%first%weight
          scaled_variable%include_background = self%first%include_background
          scaled_variable%offset = self%offset
@@ -232,11 +232,7 @@ module fabm_builtin_models
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      if (associated(self%standard_variable)) then
-         call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output,standard_variable=self%standard_variable) !,act_as_state_variable=iand(self%access,access_set_source)/=0)
-      else
-         call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output) !,act_as_state_variable=iand(self%access,access_set_source)/=0)
-      end if
+      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output) !,act_as_state_variable=iand(self%access,access_set_source)/=0)
 
       if (iand(self%access,access_set_source)/=0) then
          ! NB this does not function yet (hence the commented out act_as_state_variable above)

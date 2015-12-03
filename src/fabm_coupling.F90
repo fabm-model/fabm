@@ -693,10 +693,11 @@ recursive subroutine couple_variables(self,master,slave)
    end do
    call master%surface_flux_list%extend(slave%surface_flux_list)
    call master%bottom_flux_list%extend(slave%bottom_flux_list)
+   if (associated(slave%standard_variable)) allocate(master%standard_variable,source=slave%standard_variable)
 
    ! For vertical movement rates only keep the master, which all models will (over)write.
    ! NB if the slave has vertical movement but the master does not (e.g., if the master is
-   ! a fake state variable, the slaev variable can still be set, but won't be used).
+   ! a fake state variable, the slave variable can still be set, but won't be used).
    if (associated(slave%movement_diagnostic).and.associated(master%movement_diagnostic)) &
       call couple_variables(self,master%movement_diagnostic%target,slave%movement_diagnostic%target)
    if (master%presence==presence_external_optional.and.slave%presence/=presence_external_optional) &
