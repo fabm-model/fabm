@@ -182,38 +182,43 @@ end subroutine
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_link),pointer :: link,link2
-      type (type_set)          :: processed
+      type (type_link),pointer :: link,first_link
+      type (type_standard_variable_set) :: standard_variables
+      type (type_standard_variable_node), pointer :: node
 !
 !-----------------------------------------------------------------------
 !BOC
+      ! Build a list of all unique standard variables.
       link => model%links%first
       do while (associated(link))
-         if (associated(link%target%standard_variable)) then
-            if (.not.processed%contains(link%target%standard_variable%name)) then
-               call processed%add(link%target%standard_variable%name)
-               link2 => link%next
-               do while (associated(link2))
-                  if (associated(link2%target%standard_variable)) then
-                     if (link%target%standard_variable%compare(link2%target%standard_variable)) then
-                        if (link2%target%write_indices%is_empty().and..not.(link%target%presence/=presence_internal.and.link2%target%presence==presence_internal)) then
-                           ! Default coupling: early variable is master, later variable is slave.
-                           call couple_variables(model,link%target,link2%target)
-                        else
-                           ! Later variable is write-only and therefore can only be master. Try coupling with early variable as slave.
-                           call couple_variables(model,link2%target,link%target)
-                        end if
-                     end if
-                  end if
-                  link2 => link2%next
-               end do
-            end if ! if link%target%standard_variable%name not processed yet
-         end if ! if associated(link%target%standard_variable)
+         call standard_variables%update(link%target%standard_variables)
          link => link%next
       end do
 
-      call processed%finalize()
-
+      ! Looop over all unique standard variable and collect and couple associated model variables.
+      node => standard_variables%first
+      do while (associated(node))
+         first_link => null()
+         link => model%links%first
+         do while (associated(link))
+            if (link%target%standard_variables%contains(node%p)) then
+               if (associated(first_link)) then
+                  if (link%target%write_indices%is_empty().and..not.(first_link%target%presence/=presence_internal.and.link%target%presence==presence_internal)) then
+                     ! Default coupling: early variable (first_link) is master, later variable (link) is slave.
+                     call couple_variables(model,first_link%target,link%target)
+                  else
+                     ! Later variable (link) is write-only and therefore can only be master. Try coupling with early variable (first_link) as slave.
+                     call couple_variables(model,link%target,first_link%target)
+                  end if
+               else
+                  first_link => link
+               end if
+            end if
+            link => link%next
+         end do
+         node => node%next
+      end do
+      call standard_variables%finalize()
    end subroutine couple_standard_variables
 !EOC
 
@@ -288,9 +293,7 @@ end subroutine
                   ! Coupling to a standard variable - first try to find the corresponding standard variable.
                   link => root%links%first
                   do while (associated(link))
-                     if (associated(link%target%standard_variable)) then
-                        if (coupling%master_standard_variable%compare(link%target%standard_variable)) exit
-                     end if
+                     if (link%target%standard_variables%contains(coupling%master_standard_variable)) exit
                      link => link%next
                   end do
 
@@ -693,7 +696,8 @@ recursive subroutine couple_variables(self,master,slave)
    end do
    call master%surface_flux_list%extend(slave%surface_flux_list)
    call master%bottom_flux_list%extend(slave%bottom_flux_list)
-   if (associated(slave%standard_variable)) allocate(master%standard_variable,source=slave%standard_variable)
+
+   call master%standard_variables%update(slave%standard_variables)
 
    ! For vertical movement rates only keep the master, which all models will (over)write.
    ! NB if the slave has vertical movement but the master does not (e.g., if the master is

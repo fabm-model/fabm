@@ -20,7 +20,7 @@
 !
 ! !USES:
    use fabm_standard_variables,only: type_bulk_standard_variable, type_horizontal_standard_variable, &
-                                     type_global_standard_variable, initialize_standard_variables
+                                     type_global_standard_variable, initialize_standard_variables, type_standard_variable_node
    use fabm_types
    use fabm_library
    use fabm_expressions
@@ -1287,11 +1287,9 @@
    ! Name not found among variable names. Now try standard names that are in use.
    link => self%root%links%first
    do while (associated(link))
-      if (link%target%domain==domain_bulk.and.associated(link%target%standard_variable)) then
-         if (link%target%standard_variable%name==name) then
-            id = create_external_bulk_id(link%target)
-            return
-         end if
+      if (link%target%domain==domain_bulk.and.link%target%standard_variables%contains(name)) then
+         id = create_external_bulk_id(link%target)
+         return
       end if
       link => link%next
    end do
@@ -1323,11 +1321,9 @@
 !BOC
    link => self%root%links%first
    do while (associated(link))
-      if (associated(link%target%standard_variable)) then
-         if (standard_variable%compare(link%target%standard_variable)) then
-            id = create_external_bulk_id(link%target)
-            return
-         end if
+      if (link%target%standard_variables%contains(standard_variable)) then
+         id = create_external_bulk_id(link%target)
+         return
       end if
       link => link%next
    end do
@@ -1371,12 +1367,9 @@
    ! Name not found among variable names. Now try standard names that are in use.
    link => self%root%links%first
    do while (associated(link))
-      if ((link%target%domain==domain_horizontal.or.link%target%domain==domain_surface.or.link%target%domain==domain_bottom) &
-          .and.associated(link%target%standard_variable)) then
-         if (link%target%standard_variable%name==name) then
-            id = create_external_horizontal_id(link%target)
-            return
-         end if
+      if ((link%target%domain==domain_horizontal.or.link%target%domain==domain_surface.or.link%target%domain==domain_bottom).and.link%target%standard_variables%contains(name)) then
+         id = create_external_horizontal_id(link%target)
+         return
       end if
       link => link%next
    end do
@@ -1408,11 +1401,9 @@
 !BOC
    link => self%root%links%first
    do while (associated(link))
-      if (associated(link%target%standard_variable)) then
-         if (standard_variable%compare(link%target%standard_variable)) then
-            id = create_external_horizontal_id(link%target)
-            return
-         end if
+      if (link%target%standard_variables%contains(standard_variable)) then
+         id = create_external_horizontal_id(link%target)
+         return
       end if
       link => link%next
    end do
@@ -1458,11 +1449,9 @@
    ! Name not found among variable names. Now try standard names that are in use.
    link => self%root%links%first
    do while (associated(link))
-      if (link%target%domain==domain_scalar.and.associated(link%target%standard_variable)) then
-         if (link%target%standard_variable%name==name) then
-            id = create_external_scalar_id(link%target)
-            return
-         end if
+      if (link%target%domain==domain_scalar.and.link%target%standard_variables%contains(name)) then
+         id = create_external_scalar_id(link%target)
+         return
       end if
       link => link%next
    end do
@@ -1494,11 +1483,9 @@
 !BOC
    link => self%root%links%first
    do while (associated(link))
-      if (associated(link%target%standard_variable)) then
-         if (standard_variable%compare(link%target%standard_variable)) then
-            id = create_external_scalar_id(link%target)
-            return
-         end if
+      if (link%target%standard_variables%contains(standard_variable)) then
+         id = create_external_scalar_id(link%target)
+         return
       end if
       link => link%next
    end do
@@ -4385,9 +4372,10 @@ subroutine classify_variables(self)
    type (type_internal_variable),                  pointer :: object
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
 
-   type (type_aggregate_variable),    pointer :: aggregate_variable
-   type (type_set) :: dependencies,dependencies_hz,dependencies_scalar
-   type (type_model_list_node),   pointer :: model_node
+   type (type_aggregate_variable),     pointer :: aggregate_variable
+   type (type_set)                             :: dependencies,dependencies_hz,dependencies_scalar
+   type (type_model_list_node),        pointer :: model_node
+   type (type_standard_variable_node), pointer :: standard_variables_node
 
    ! Determine the order in which individual biogeochemical models should be called.
    call build_call_list(self%root,self%models)
@@ -4540,8 +4528,8 @@ subroutine classify_variables(self)
                ndiag = ndiag + 1
                diagvar => self%diagnostic_variables(ndiag)
                call copy_variable_metadata(object,diagvar)
-               if (associated(object%standard_variable)) then
-                  select type (standard_variable=>object%standard_variable)
+               if (associated(object%standard_variables%first)) then
+                  select type (standard_variable=>object%standard_variables%first%p)
                      type is (type_bulk_standard_variable)
                         diagvar%standard_variable = standard_variable
                   end select
@@ -4555,8 +4543,8 @@ subroutine classify_variables(self)
                statevar => self%state_variables(nstate)
                call copy_variable_metadata(object,statevar)
                statevar%globalid                  = create_external_bulk_id(object)
-               if (associated(object%standard_variable)) then
-                  select type (standard_variable=>object%standard_variable)
+               if (associated(object%standard_variables%first)) then
+                  select type (standard_variable=>object%standard_variables%first%p)
                      type is (type_bulk_standard_variable)
                         statevar%standard_variable = standard_variable
                   end select
@@ -4572,8 +4560,8 @@ subroutine classify_variables(self)
                ndiag_hz = ndiag_hz + 1
                hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
                call copy_variable_metadata(object,hz_diagvar)
-               if (associated(object%standard_variable)) then
-                  select type (standard_variable=>object%standard_variable)
+               if (associated(object%standard_variables%first)) then
+                  select type (standard_variable=>object%standard_variables%first%p)
                      type is (type_horizontal_standard_variable)
                         hz_diagvar%standard_variable = standard_variable
                   end select
@@ -4595,8 +4583,8 @@ subroutine classify_variables(self)
                end select
                call copy_variable_metadata(object,hz_statevar)
                hz_statevar%globalid          = create_external_horizontal_id(object)
-               if (associated(object%standard_variable)) then
-                  select type (standard_variable=>object%standard_variable)
+               if (associated(object%standard_variables%first)) then
+                  select type (standard_variable=>object%standard_variables%first%p)
                      type is (type_horizontal_standard_variable)
                         hz_statevar%standard_variable = standard_variable
                   end select
@@ -4620,15 +4608,18 @@ subroutine classify_variables(self)
             case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(link%name)
             case (domain_scalar);                                  call dependencies_scalar%add(link%name)
          end select
-         if (associated(object%standard_variable)) then
-            if (object%standard_variable%name/='') then
+
+         standard_variables_node => object%standard_variables%first
+         do while (associated(standard_variables_node))
+            if (standard_variables_node%p%name/='') then
                select case (object%domain)
-                  case (domain_bulk);                                    call dependencies%add(object%standard_variable%name)
-                  case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(object%standard_variable%name)
-                  case (domain_scalar);                                  call dependencies_scalar%add(object%standard_variable%name)
+                  case (domain_bulk);                                    call dependencies%add(standard_variables_node%p%name)
+                  case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(standard_variables_node%p%name)
+                  case (domain_scalar);                                  call dependencies_scalar%add(standard_variables_node%p%name)
                end select
             end if
-         end if
+            standard_variables_node => standard_variables_node%next
+         end do
       end if
       link => link%next
    end do
