@@ -17,6 +17,10 @@
 
 !  default: all is private.
    private
+!
+! !REVISION HISTORY:!
+!  Original author(s): Evgeniy Yakushev, Jorn Bruggeman
+!
 
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_brom_eqconst
@@ -178,7 +182,7 @@
 
       TK   = T + 273.15             ! tk
       TKR  = 1./TK                  ! invtk
-      TLOG = LOG(TK)                ! dlogtk 
+      TLOG = LOG(TK)                ! logtk 
       SQ   = SQRT(S)                !sqrts
       SLOG = LOG(1.0e0-0.001005e0*S)
       Cl   = S/1.80655
@@ -219,7 +223,7 @@
 
 ! (Millero p.664 (1995) using Mehrbach et al. data on seawater scale
      !      ak1(i,j,bi,bj)=10.**(-1. _d 0*(3670.7 _d 0*invtk -
-     !&          62.008 _d 0 + 9.7944 _d 0*dlogtk -
+     !&          62.008 _d 0 + 9.7944 _d 0*logtk -
      !&          0.0118 _d 0 * s + 0.000116 _d 0*s2))
      !      ak2(i,j,bi,bj)=10.**(-1. _d 0*(1394.7 _d 0*invtk+ 4.777 _d 0-
      !&          0.0184 _d 0*s + 0.000118 _d 0*s2))
@@ -312,9 +316,9 @@
 !C ks = [H+][SO4--]/[HSO4-]
 !C dickson (1990, J. chem. Thermodynamics 22, 113)
 !           aks(i,j,bi,bj)=exp(-4276.1 _d 0*invtk + 141.328 _d 0 -
-!     &          23.093 _d 0*dlogtk +
-!     &   (-13856. _d 0*invtk + 324.57 _d 0 - 47.986 _d 0*dlogtk)*sqrtis+
-!     &   (35474. _d 0*invtk - 771.54 _d 0 + 114.723 _d 0*dlogtk)*is -
+!     &          23.093 _d 0*logtk +
+!     &   (-13856. _d 0*invtk + 324.57 _d 0 - 47.986 _d 0*logtk)*sqrtis+
+!     &   (35474. _d 0*invtk - 771.54 _d 0 + 114.723 _d 0*logtk)*is -
 !     &          2698. _d 0*invtk*is**1.5 _d 0 + 1776. _d 0*invtk*is2 +
 !     &          log(1.0 _d 0 - 0.001005 _d 0*s))
 !C-------------------------------------------------------------------

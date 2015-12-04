@@ -18,6 +18,10 @@
 
 !  default: all is private.
    private
+!
+! !REVISION HISTORY:!
+!  Original author(s): Evgeniy Yakushev, Elizaveta Protsenko, Jorn Bruggeman
+!
 
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_brom_redox
@@ -898,34 +902,36 @@
    _DECLARE_ARGUMENTS_DO_SURFACE_
 !
 ! !LOCAL VARIABLES:
-    real(rk)                   :: pCO2w,xk,Ox,Q_pCO2,Q_DIC,Kc0
-    real(rk)                   :: temp,salt
+    real(rk)                   :: pCO2w, xk, Ox, Q_pCO2, Q_DIC
+    real(rk)                   :: temp, salt, TK, Kc0surface, windHt
 
       real(rk) ::   pCO2a=400.   
+      real(rk) ::   windspeed = 4.
+!      real(rk) ::   Kc0=4.7e-2         
     
    _HORIZONTAL_LOOP_BEGIN_
       _GET_(self%id_temp,temp)              ! temperature
       _GET_(self%id_salt,salt)              ! salinity
-      _GET_(self%id_Kc0,Kc0)
       _GET_(self%id_pCO2,pCO2w)
       
 !/*---------------------------------------------------CO2 exchange with air */       
+    windHt=5.
 
-!Ox=1150 
- Ox=1800.6-120.1*temp+3.7818*temp*temp-0.047608*temp*temp*temp !Ox=Sc, Shmidt number
+    Ox=1800.6-120.1*temp+3.7818*temp*temp-0.047608*temp*temp*temp !Ox=Sc, Shmidt number
       if (Ox>0) then 
-	       xk = 0.028*5.*5.*5.*sqrt(660/Ox)       !Pvel for the Baltic Sea by Schneider
+	       xk = 0.028*(windspeed**3.)*sqrt(660/Ox)       !Pvel for the Baltic Sea by Schneider
         else
            xk = 0.
       endif
+!  CO2 solubility in water. Kc0 - Henry's constant (Weiss, R. F., Marine Chemistry 2:203-215, 1974.
+      TK = temp + 273.15 
+      Kc0surface = exp(-60.2409+9345.17/TK+23.3585*log((TK)/100.) &
+          +salt*(0.023517-0.023656*TK/100.+0.0047036*((TK/100.)*(TK/100.))))
+!!!! co2_flux = xk * (pCO2ocean - pCO2atm) [mmol/m**2/s] upward positive
+    Q_pCO2 =   xk * ( pCO2a- max(0e0,pCO2w)) ! pCO2ocean >= 0 !  
+    Q_DIC=Q_pCO2*Kc0surface/windHt
 
-!!!! co2flx = xk * (pCO2ocean - pCO2atm) [mmol/m**2/s] upward positive
-!      co2flx =  xk * ( max(0e0,pCO2) - pCO2a ) ! pCO2ocean >= 0 !   
-!Q_pCO2 =   xk * ( max(0e0,pCO2w) - pCO2a ) ! pCO2ocean >= 0 ! 
-Q_pCO2 =   xk * (- max(0e0,pCO2w) + pCO2a ) ! pCO2ocean >= 0 !  
-Q_DIC=Q_pCO2*Kc0 !
-
- _SET_SURFACE_EXCHANGE_(self%id_DIC,Q_DIC )
+ _SET_SURFACE_EXCHANGE_(self%id_DIC,Q_DIC)
 
  !#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) = value/self%dt 
 _HORIZONTAL_LOOP_END_
@@ -950,7 +956,6 @@ _HORIZONTAL_LOOP_END_
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   :: oxy,t,pom,dom,bio,nut
    
    _HORIZONTAL_LOOP_BEGIN_
    _HORIZONTAL_LOOP_END_
