@@ -32,6 +32,7 @@
      type (type_state_variable_id)        :: id_DIC,id_H2S,id_Si,id_Sipart,id_Alk
      type (type_dependency_id)            :: id_temp,id_salt,id_par
      type (type_dependency_id)            :: id_Kp1,id_Kp2,id_Kp3,id_Knh4,id_KSi,id_Hplus      
+     type (type_horizontal_dependency_id) :: id_windspeed
     !type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
     type (type_diagnostic_variable_id)   :: id_MortHet,id_Grazing,id_RespHet,id_GrazBhae,id_GrazBhan,id_GrazBaae,id_GrazBaan
     type (type_diagnostic_variable_id)   :: id_GrazPhy,id_GrazPOP,id_GrazBact,id_MortPhy,id_ExcrPhy,id_LimNH4,id_LimN,id_GrowthPhy
@@ -217,6 +218,7 @@ call self%register_diagnostic_variable(self%id_LimLight,'LimLight','mmol/m**3', 
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_temp,standard_variables%temperature)
    call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
+   call self%register_dependency(self%id_windspeed,standard_variables%wind_speed)
 !-----------------------------------------------------------------------   
    call self%register_dependency(self%id_Hplus, 'Hplus', 'mmol/m**3','H+ hydrogen')
    ! Register dependencies on equilibrium constants for phosphoric acid, ammonia.
@@ -476,9 +478,9 @@ _LOOP_END_
       _GET_(self%id_O2,O2)
       _GET_(self%id_temp,temp)              ! temperature
       _GET_(self%id_salt,salt)              ! salinity
+      _GET_HORIZONTAL_(self%id_windspeed,windspeed)
       
 !/*---------------------------------------------------O2 exchange with air */
-      windspeed=5.
       windHt=5.
       Ox = 1953.4-128*temp+3.9918*temp*temp-0.050091*temp*temp*temp !(Wanninkoff, 1992)
       if (Ox>0) then 
