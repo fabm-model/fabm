@@ -103,6 +103,8 @@
 
    call self%register_dependency(self%id_pCO2w,'pCO2','ppm','partial pressure of CO2')
 
+   self%dt = 86400
+
    end subroutine initialize
 !EOC
 
