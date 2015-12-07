@@ -69,6 +69,7 @@ def processFile(infile,outfile,subtract_background=False):
       return newvariables
 
    def python2yaml(value):
+      if value is None: return ''
       if isinstance(value,bool):
          return 'true' if value else 'false'
       return str(value)
