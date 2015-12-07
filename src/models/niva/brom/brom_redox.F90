@@ -36,8 +36,8 @@
     type (type_state_variable_id)        :: id_DIC,id_Alk,id_CaCO3,id_FeS2
 
     type (type_dependency_id)            :: id_temp,id_salt
-    type (type_dependency_id)            :: id_Kp1,id_Kp2,id_Kp3,id_Knh4,id_Kh2s1,id_Hplus,id_KSi,id_Kc0
-    type (type_dependency_id)            :: id_Ca,id_CO3,id_Om_Ca,id_Om_Ar,id_pco2 !,!id_CaCO3_diss      
+    type (type_dependency_id)            :: id_Kp1,id_Kp2,id_Kp3,id_Knh4,id_Kh2s1,id_Hplus,id_KSi
+    type (type_dependency_id)            :: id_Ca,id_CO3,id_Om_Ca,id_Om_Ar !,!id_CaCO3_diss      
     !type (type_dependency_id)            :: id_par,id_temp,id_h
     !type (type_horizontal_dependency_id) :: id_I_0
 
@@ -235,7 +235,6 @@
    call self%register_dependency(self%id_Om_Ar,'Om_Ar','-','Omega CaCO3-Aragonite')
    call self%register_dependency(self%id_CO3,'CO3','mmol/m**3','CO3--')
    call self%register_dependency(self%id_Ca,'Ca','mmol/m**3','Ca++')
-   call self%register_dependency(self%id_pco2,'pCO2','ppm','pCO2')   
   !!   call self%register_dependency(self%id_Kh2s1,'Kh2s1','-', 'H2S <--> H+ + HS-')
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
@@ -372,7 +371,6 @@
    call self%register_dependency(self%id_Knh4, 'Knh4', '-', '[H+][NH3]/[NH4]')
    call self%register_dependency(self%id_Kh2s1,'Kh2s1','-', '[H+][HS-]/[H2S]')
    call self%register_dependency(self%id_KSi,  'KSi','-','[H+][H3SiO4-]/[Si(OH)4]')
-   call self%register_dependency(self%id_Kc0,  'Kc0','-','Henry''s constant')
 
    ! Specify that are rates computed in this module are per day (default: per second)
    self%dt = 86400.
@@ -405,7 +403,7 @@
    real(rk)                   :: NO2,NO3,NH4, PO4
    real(rk)                   :: S0,S2O3,SO4
    real(rk)                   :: Baae,Bhae,Baan,Bhan
-   real(rk)                   :: DIC,Alk,Hplus,CaCO3,Ca,CO3,Om_Ca,Om_Ar,pCO2
+   real(rk)                   :: DIC,Alk,Hplus,CaCO3,Ca,CO3,Om_Ca,Om_Ar
    real(rk)                   :: temp,salt
 
    real(rk) :: autolis,DcDM_O2,DcPM_O2, DcPM_NOX,DcDM_NOX
@@ -414,7 +412,7 @@
    real(rk) :: Nitrif1,Nitrif2,anammox,Denitr1_PM,Denitr1_DM,Denitr2_PM,Denitr2_DM,Denitr1,Denitr2
    real(rk) :: Disprop,hs_ox,s0_ox,s0_no3,s23_ox,s23_no3,sulfido,s4_rd_PM,s4_rd_DM,s23_rd_PM,s23_rd_DM,s4_rd,s23_rd,DcPM_SO4,DcDM_SO4
    real(rk) :: ChemBaae,MortBaae,MortBhae,ChemBaan,MortBaan,MortBhan,HetBhan,HetBhae
-   real(rk) :: Knh4,Kp1,Kp2,Kp3,Kh2s1,KSi,Kc0
+   real(rk) :: Knh4,Kp1,Kp2,Kp3,Kh2s1,KSi
    real(rk) :: dAlk, Dc_OM_total,CaCO3_prec,CaCO3_diss
 
    
@@ -465,7 +463,6 @@
    _GET_(self%id_Om_Ca,Om_Ca)
    _GET_(self%id_Om_Ar,Om_Ar)   
    _GET_(self%id_Ca,Ca)  
-   _GET_(self%id_pCO2,pCO2)    
 
    ! Get equilibrium constants
    _GET_(self%id_Kp1,  Kp1)
@@ -474,7 +471,6 @@
    _GET_(self%id_Kh2s1,Kh2s1)
    _GET_(self%id_Knh4, Knh4)
    _GET_(self%id_KSi, KSi)
-   _GET_(self%id_Kc0, Kc0) 
    _GET_(self%id_Si,Si)
    _GET_(self%id_Sipart,Sipart)   
 
