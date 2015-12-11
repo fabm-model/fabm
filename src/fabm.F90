@@ -4544,8 +4544,8 @@ subroutine classify_variables(self)
                call copy_variable_metadata(object,diagvar)
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable=>object%standard_variables%first%p)
-                     type is (type_bulk_standard_variable)
-                        diagvar%standard_variable = standard_variable
+                  class is (type_bulk_standard_variable)
+                     diagvar%standard_variable = standard_variable
                   end select
                end if
                diagvar%time_treatment    = output2time_treatment(diagvar%output)
@@ -4559,8 +4559,8 @@ subroutine classify_variables(self)
                statevar%globalid                  = create_external_bulk_id(object)
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable=>object%standard_variables%first%p)
-                     type is (type_bulk_standard_variable)
-                        statevar%standard_variable = standard_variable
+                  class is (type_bulk_standard_variable)
+                     statevar%standard_variable = standard_variable
                   end select
                end if
                statevar%initial_value             = object%initial_value
@@ -4576,8 +4576,8 @@ subroutine classify_variables(self)
                call copy_variable_metadata(object,hz_diagvar)
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable=>object%standard_variables%first%p)
-                     type is (type_horizontal_standard_variable)
-                        hz_diagvar%standard_variable = standard_variable
+                  class is (type_horizontal_standard_variable)
+                     hz_diagvar%standard_variable = standard_variable
                   end select
                end if
                hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
@@ -4599,8 +4599,8 @@ subroutine classify_variables(self)
                hz_statevar%globalid          = create_external_horizontal_id(object)
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable=>object%standard_variables%first%p)
-                     type is (type_horizontal_standard_variable)
-                        hz_statevar%standard_variable = standard_variable
+                  class is (type_horizontal_standard_variable)
+                     hz_statevar%standard_variable = standard_variable
                   end select
                end if
                hz_statevar%initial_value     = object%initial_value
