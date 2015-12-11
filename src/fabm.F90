@@ -593,7 +593,7 @@
       ! This variable is used from fabm_get_light_extinction.
       aggregate_variable => get_aggregate_variable(self%root, &
          standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
-      aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,access_read)
+      aggregate_variable%interior_access = ior(aggregate_variable%interior_access,access_read)
 
       ! Create placeholder variables for zero fields.
       ! Values for these fields will only be provided if actually used by one of the biogeochemical models.
@@ -785,7 +785,7 @@
    ! Assign write indices in scratch space to all interior diagnostic variables.
    ! Must be done after calls to merge_aggregating_diagnostics.
    self%nscratch = 0
-   call assign_write_indices(self%links_postcoupling,domain_bulk,self%nscratch)
+   call assign_write_indices(self%links_postcoupling,domain_interior,self%nscratch)
 
    ! Assign write indices in scratch space to all horizontal diagnostic variables.
    ! Must be done after calls to merge_aggregating_diagnostics.
@@ -810,17 +810,17 @@
    end do
 
    ! Flag all scratch variables that require zeroing before calling biogeochemical models
-   call initialize_prefill(self%do_interior_environment,self%nscratch,self%links_postcoupling,source_do,domain_bulk)
+   call initialize_prefill(self%do_interior_environment,self%nscratch,self%links_postcoupling,source_do,domain_interior)
    call initialize_prefill(self%do_surface_environment,self%nscratch_hz,self%links_postcoupling,source_do_surface,domain_horizontal)
    call initialize_prefill(self%do_bottom_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
-   call initialize_prefill(self%get_vertical_movement_environment,self%nscratch,self%links_postcoupling,source_get_vertical_movement,domain_bulk)
-   call initialize_prefill(self%get_conserved_quantities_environment,self%nscratch,self%links_postcoupling,source_do,domain_bulk)
+   call initialize_prefill(self%get_vertical_movement_environment,self%nscratch,self%links_postcoupling,source_get_vertical_movement,domain_interior)
+   call initialize_prefill(self%get_conserved_quantities_environment,self%nscratch,self%links_postcoupling,source_do,domain_interior)
    call initialize_prefill(self%get_horizontal_conserved_quantities_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
-   call initialize_prefill(self%get_light_extinction_environment,self%nscratch,self%links_postcoupling,source_do,domain_bulk)
+   call initialize_prefill(self%get_light_extinction_environment,self%nscratch,self%links_postcoupling,source_do,domain_interior)
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
-         case (domain_bulk)
+         case (domain_interior)
             call flag_write_indices(self%do_interior_environment, link%target%sms_list)
             call flag_write_indices(self%do_bottom_environment,   link%target%bottom_flux_list)
             call flag_write_indices(self%do_surface_environment,  link%target%surface_flux_list)
@@ -1216,7 +1216,7 @@
    do while (associated(link))
       if (.not.link%target%read_indices%is_empty().and..not.link%target%presence==presence_external_optional) then
          select case (link%target%domain)
-            case (domain_bulk)
+            case (domain_interior)
                if (.not.associated(self%data(link%target%read_indices%value)%p)) then
                   call log_message('data for dependency "'//trim(link%name)// &
                      & '", defined on the full model domain, have not been provided.')
@@ -1275,8 +1275,8 @@
 !BOC
    link => self%root%links%first
    do while (associated(link))
-      if (link%target%domain==domain_bulk) then
-         if (link%target%name==name.or.get_safe_name(link%target%name)==name) then
+      if (link%target%domain==domain_interior) then
+         if (link%name==name.or.get_safe_name(link%name)==name) then
             id = create_external_bulk_id(link%target)
             return
          end if
@@ -1287,7 +1287,7 @@
    ! Name not found among variable names. Now try standard names that are in use.
    link => self%root%links%first
    do while (associated(link))
-      if (link%target%domain==domain_bulk.and.link%target%standard_variables%contains(name)) then
+      if (link%target%domain==domain_interior.and.link%target%standard_variables%contains(name)) then
          id = create_external_bulk_id(link%target)
          return
       end if
@@ -1356,7 +1356,7 @@
    link => self%root%links%first
    do while (associated(link))
       if (link%target%domain==domain_horizontal.or.link%target%domain==domain_surface.or.link%target%domain==domain_bottom) then
-         if (link%target%name==name.or.get_safe_name(link%target%name)==name) then
+         if (link%name==name.or.get_safe_name(link%name)==name) then
             id = create_external_horizontal_id(link%target)
             return
          end if
@@ -1438,7 +1438,7 @@
    link => self%root%links%first
    do while (associated(link))
       if (link%target%domain==domain_scalar) then
-         if (link%target%name==name.or.get_safe_name(link%target%name)==name) then
+         if (link%name==name.or.get_safe_name(link%name)==name) then
             id = create_external_scalar_id(link%target)
             return
          end if
@@ -1806,22 +1806,36 @@
       end if
    end function get_host_container_model
 
-   subroutine fabm_require_interior_data(self,standard_variable)
+   subroutine fabm_require_interior_data(self,standard_variable,domain)
       class (type_model),                intent(inout) :: self
       type(type_bulk_standard_variable), intent(in)    :: standard_variable
+      integer,optional,                  intent(in)    :: domain
 
       class (type_host_container),  pointer :: host
       type (type_integer_list_node),pointer :: node
       type (type_link),             pointer :: link
+      integer                               :: domain_
 
       if (self%state>=state_initialize_done) &
          call fatal_error('fabm_require_interior_data','model%require_data cannot be called after model initialization.')
+
+      domain_ = domain_interior
+      if (present(domain)) domain_ = domain
+
       host => get_host_container_model(self)
+
       allocate(node)
       node%next => host%first
       host%first => node
-      call host%add_bulk_variable(standard_variable%name,standard_variable%units,standard_variable%name,read_index=node%value,link=link)
-      call host%request_coupling(link,standard_variable)
+      select case (domain_)
+      case (domain_interior)
+         call host%add_bulk_variable(standard_variable%name,standard_variable%units,standard_variable%name,read_index=node%value,link=link)
+      case (domain_horizontal,domain_surface,domain_bottom)
+         call host%add_horizontal_variable(standard_variable%name,standard_variable%units,standard_variable%name,read_index=node%value,domain=domain_,link=link)
+      case default
+         call fatal_error('fabm_require_interior_data','model%require_data called with unknown domain.')
+      end select
+      call host%request_coupling(link,standard_variable,domain=domain_)
    end subroutine fabm_require_interior_data
 
 !-----------------------------------------------------------------------
@@ -4184,7 +4198,7 @@ function create_external_bulk_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
    type (type_bulk_variable_id) :: id
 
-   if (variable%domain/=domain_bulk) call driver%fatal_error('create_external_bulk_id','BUG: called on non-bulk variable.')
+   if (variable%domain/=domain_interior) call driver%fatal_error('create_external_bulk_id','BUG: called on non-bulk variable.')
    id%variable => variable
    if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
 end function create_external_bulk_id
@@ -4221,7 +4235,7 @@ recursive subroutine set_diagnostic_indices(self)
       if (index(link%name,'/')==0.and.associated(link%original%write_index).and..not.link%target%read_indices%is_empty()) then
          ! Variable is a diagnostic written to by current model, and read by at least one model.
          select case (link%target%domain)
-            case (domain_bulk)
+            case (domain_interior)
                n = n + 1
             case (domain_horizontal,domain_surface,domain_bottom)
                n_hz = n_hz + 1
@@ -4240,7 +4254,7 @@ recursive subroutine set_diagnostic_indices(self)
       if (index(link%name,'/')==0.and.associated(link%original%write_index).and..not.link%target%read_indices%is_empty()) then
          ! Variable is written to by current model, and read by someone.
          select case (link%target%domain)
-            case (domain_bulk)
+            case (domain_interior)
                n = n + 1
                self%reused_diag(n)%source = link%target%source
                call link%target%write_indices%append(self%reused_diag(n)%write_index)
@@ -4275,7 +4289,7 @@ subroutine create_readable_variable_registry(self)
    do while (associated(link))
       if (.not.link%target%read_indices%is_empty()) then
          select case (link%target%domain)
-            case (domain_bulk)
+            case (domain_interior)
                ! Bulk variable read by one or more models
                nread = nread+1
                call link%target%read_indices%set_value(nread)
@@ -4339,7 +4353,7 @@ subroutine filter_readable_variable_registry(self)
    do while (associated(link))
       if (.not.link%target%read_indices%is_empty()) then
          select case (link%target%domain)
-            case (domain_bulk)
+            case (domain_interior)
                nread = nread+1
                if (link%target%presence==presence_external_optional &
                    .and..not.associated(self%data(nread)%p)) &
@@ -4456,7 +4470,7 @@ subroutine classify_variables(self)
    do while (associated(link))
       object => link%target
       select case (object%domain)
-         case (domain_bulk)
+         case (domain_interior)
             if (.not.object%write_indices%is_empty()) then
                ! Bulk diagnostic variable.
                ndiag = ndiag+1
@@ -4522,7 +4536,7 @@ subroutine classify_variables(self)
    do while (associated(link))
       object => link%target
       select case (link%target%domain)
-         case (domain_bulk)
+         case (domain_interior)
             if (.not.object%write_indices%is_empty()) then
                ! Bulk diagnostic variable
                ndiag = ndiag + 1
@@ -4604,7 +4618,7 @@ subroutine classify_variables(self)
       if (.not.object%read_indices%is_empty().and. &
           .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
          select case (object%domain)
-            case (domain_bulk);                                    call dependencies%add(link%name)
+            case (domain_interior);                                    call dependencies%add(link%name)
             case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(link%name)
             case (domain_scalar);                                  call dependencies_scalar%add(link%name)
          end select
@@ -4613,7 +4627,7 @@ subroutine classify_variables(self)
          do while (associated(standard_variables_node))
             if (standard_variables_node%p%name/='') then
                select case (object%domain)
-                  case (domain_bulk);                                    call dependencies%add(standard_variables_node%p%name)
+                  case (domain_interior);                                    call dependencies%add(standard_variables_node%p%name)
                   case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(standard_variables_node%p%name)
                   case (domain_scalar);                                  call dependencies_scalar%add(standard_variables_node%p%name)
                end select

@@ -67,7 +67,7 @@
 
    integer, parameter, public :: rk = _FABM_REAL_KIND_
 
-   integer, parameter, public :: domain_bulk = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
+   integer, parameter, public :: domain_interior = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
 
    integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5, source_get_vertical_movement = 6, source_do_horizontal = 7
 
@@ -128,7 +128,7 @@
       character(len=attribute_length)        :: master_name = ''
       class (type_standard_variable),pointer :: master_standard_variable => null()
       logical                                :: user_specified = .false.
-      integer                                :: domain = domain_bulk
+      integer                                :: domain = domain_interior
       class (type_coupling_task), pointer    :: previous    => null()
       class (type_coupling_task), pointer    :: next        => null()
    end type
@@ -230,7 +230,7 @@
       type (type_bulk_standard_variable)         :: standard_variable
       type (type_contributing_variable),pointer  :: first_contributing_variable => null()
       type (type_aggregate_variable),   pointer  :: next                        => null()
-      integer                                    :: bulk_access                 = access_none
+      integer                                    :: interior_access             = access_none
       integer                                    :: horizontal_access           = access_none
       integer                                    :: bottom_access               = access_none
    end type
@@ -260,7 +260,7 @@
       real(rk)                        :: initial_value  = 0.0_rk
       integer                         :: output         = output_instantaneous
       integer                         :: presence       = presence_internal
-      integer                         :: domain         = domain_bulk
+      integer                         :: domain         = domain_interior
       integer                         :: source         = source_unknown
       integer                         :: prefill        = prefill_none
       class (type_base_model),pointer :: owner          => null()
@@ -1537,7 +1537,7 @@ end subroutine real_pointer_set_set_value
 !-----------------------------------------------------------------------
 !BOC
       allocate(variable)
-      variable%domain = domain_bulk
+      variable%domain = domain_interior
 
       ! Fill fields specific to bulk variables.
       variable%source = source_do
@@ -2640,7 +2640,7 @@ function get_aggregate_variable(self,standard_variable,create) result(aggregate_
    ! Make sure that aggregate variables at the root level are computed.
    ! These are typically used by the host to check conservation.
    if (.not.associated(self%parent)) then !.and.standard_variable%conserved) then
-      aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,access_read)
+      aggregate_variable%interior_access = ior(aggregate_variable%interior_access,access_read)
       aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,access_read)
    end if
 

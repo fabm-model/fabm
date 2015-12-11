@@ -424,7 +424,7 @@ end subroutine
 
                ! Derived quantity does not exsit yet - create it.
                select case (originator%domain)
-               case (domain_bulk)
+               case (domain_interior)
                   select case (name(n-7:n))
                      case ('_sms_tot')
                         call create_sum(originator%owner,originator%sms_list,local_name)
@@ -458,8 +458,8 @@ end subroutine
             class is (type_bulk_standard_variable)
                aggregate_variable => get_aggregate_variable(self,aggregate_standard_variable)
                select case (task%domain)
-                  case (domain_bulk)
-                     aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,access_read)
+                  case (domain_interior)
+                     aggregate_variable%interior_access = ior(aggregate_variable%interior_access,access_read)
                      deallocate(task%master_standard_variable)
                      task%master_name = aggregate_variable%standard_variable%name
                   case (domain_bottom)
@@ -542,7 +542,7 @@ recursive subroutine build_aggregate_variables(self)
                if (.not.contributing_variable%link%original%state_indices%is_empty().or.contributing_variable%link%original%fake_state_variable) then
                   ! Contributing variable is a state variable
                   select case (contributing_variable%link%original%domain)
-                     case (domain_bulk)
+                     case (domain_interior)
                         call sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
                         call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sfl',contributing_variable%scale_factor)
                         call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_bfl',contributing_variable%scale_factor)
@@ -590,7 +590,7 @@ recursive subroutine create_aggregate_models(self)
    aggregate_variable => self%first_aggregate_variable
    do while (associated(aggregate_variable))
       nullify(sum,horizontal_sum,bottom_sum)
-      if (aggregate_variable%bulk_access/=access_none)       allocate(sum)
+      if (aggregate_variable%interior_access/=access_none)   allocate(sum)
       if (aggregate_variable%horizontal_access/=access_none) allocate(horizontal_sum)
       if (aggregate_variable%bottom_access/=access_none)     allocate(bottom_sum)
 
@@ -600,7 +600,7 @@ recursive subroutine create_aggregate_models(self)
              .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable)) then   ! Only include fake state variable for non-root models
             if (associated(sum)) then
                select case (contributing_variable%link%target%domain)
-                  case (domain_bulk)
+                  case (domain_interior)
                      call sum%add_component(trim(contributing_variable%link%name), &
                         weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
                end select
@@ -625,7 +625,7 @@ recursive subroutine create_aggregate_models(self)
 
       if (associated(sum)) then
          sum%units = trim(aggregate_variable%standard_variable%units)
-         sum%access = aggregate_variable%bulk_access
+         sum%access = aggregate_variable%interior_access
          if (associated(self%parent)) then
             sum%result_output = output_none
          else
@@ -1152,7 +1152,7 @@ subroutine call_list_node_initialize(call_list_node)
       end do
    end if
 
-   call process_domain(call_list_node%copy_commands_int, domain_bulk)
+   call process_domain(call_list_node%copy_commands_int, domain_interior)
    call process_domain(call_list_node%copy_commands_hz,  domain_horizontal)
 
 contains
