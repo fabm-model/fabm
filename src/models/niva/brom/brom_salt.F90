@@ -27,7 +27,7 @@
       type (type_state_variable_id)        :: id_Na,id_Cl,id_NaCl
       type (type_bottom_state_variable_id) :: id_NaCl_bot
       type (type_dependency_id)            :: id_temp
-            
+
       type (type_diagnostic_variable_id)            :: id_psu
       type (type_diagnostic_variable_id)            :: id_NaCl_sat
       type (type_horizontal_diagnostic_variable_id) :: id_h_bot
@@ -50,6 +50,8 @@
 
    type (type_bulk_standard_variable),parameter :: total_sodium   = type_bulk_standard_variable(name='total_sodium',  units='mmol/m**3', aggregate_variable=.true., conserved=.true.)
    type (type_bulk_standard_variable),parameter :: total_chloride = type_bulk_standard_variable(name='total_chloride',units='mmol/m**3', aggregate_variable=.true., conserved=.true.)
+   type (type_bulk_standard_variable),parameter :: mass_concentration_of_solute = type_bulk_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
+   type (type_bulk_standard_variable),parameter :: volume_fraction_of_particulates = type_bulk_standard_variable(name='volume_fraction_of_particulates',units='-', aggregate_variable=.true.)
 !EOP
 !-----------------------------------------------------------------------
 
@@ -98,6 +100,11 @@
    call self%add_to_aggregate_variable(total_chloride, self%id_Cl)
    call self%add_to_aggregate_variable(total_chloride, self%id_NaCl)
    call self%add_to_aggregate_variable(total_chloride, self%id_NaCl_bot)
+
+   ! Let Na and Cl ions contribute to salinity metric, and bottom-bound particulate NaCL to bottom thickness
+   call self%add_to_aggregate_variable(mass_concentration_of_solute, self%id_Na, scale_factor=u_Na*1e-6_rk)
+   call self%add_to_aggregate_variable(mass_concentration_of_solute, self%id_Cl, scale_factor=u_Cl*1e-6_rk)
+   call self%add_to_aggregate_variable(volume_fraction_of_particulates, self%id_NaCl_bot, scale_factor=(u_Na+u_Cl)/1000/NaCl_density/(1-self%porosity))
 
    call self%register_dependency(self%id_temp,standard_variables%temperature)
 
