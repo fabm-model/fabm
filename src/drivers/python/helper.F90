@@ -37,7 +37,7 @@
       do while (associated(link))
          if (.not.link%target%read_indices%is_empty().and.link%target%state_indices%is_empty()) then
             select case (link%target%domain)
-               case (domain_bulk)
+               case (domain_interior)
                   if (.not.associated(model%data(link%target%read_indices%pointers(1)%p)%p)) n = n+1
                case (domain_bottom,domain_surface,domain_horizontal)
                   if (.not.associated(model%data_hz(link%target%read_indices%pointers(1)%p)%p)) n = n+1
@@ -58,7 +58,7 @@
       do while (associated(link))
          if (.not.link%target%read_indices%is_empty().and.link%target%state_indices%is_empty()) then
             select case (link%target%domain)
-               case (domain_bulk)
+               case (domain_interior)
                   if (.not.associated(model%data(link%target%read_indices%pointers(1)%p)%p)) then
                      n = n + 1
                      if (.not.associated(link%target%standard_variables%first)) then
