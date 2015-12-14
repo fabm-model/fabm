@@ -132,6 +132,7 @@
 ! !LOCAL VARIABLES:
    real(rk) :: temp,Na,Cl,NaCl
    real(rk) :: Om_NaCl,NaCl_prec,NaCl_diss
+   real(rk),parameter :: precip_ramp_size = 1000._rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -151,7 +152,7 @@
 
    ! Precipitation/dissolution
    NaCl_prec=self%K_NaCl_form*max(0._rk,(Om_NaCl-1._rk))
-   NaCl_diss=self%K_NaCl_diss*max(0._rk,(1._rk-Om_NaCl))
+   NaCl_diss=self%K_NaCl_diss*max(0._rk,(1._rk-Om_NaCl))*min(NaCl/precip_ramp_size,1._rk)
 
    _SET_ODE_(self%id_Na,  -NaCl_prec+NaCl_diss)
    _SET_ODE_(self%id_Cl,  -NaCl_prec+NaCl_diss)
