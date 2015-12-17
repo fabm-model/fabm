@@ -175,9 +175,9 @@ module fabm_builtin_models
 
       sum_used = .false.
       if (associated(self%standard_variable)) then
-         call parent%add_bulk_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0,standard_variable=self%standard_variable)
+         call parent%add_interior_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0,standard_variable=self%standard_variable)
       else
-         call parent%add_bulk_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0)
+         call parent%add_interior_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0)
       end if
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.

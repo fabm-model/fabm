@@ -32,7 +32,7 @@ module fabm_standard_variables
 
    private
 
-   public type_standard_variable, type_bulk_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
+   public type_base_standard_variable, type_bulk_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
    public type_standard_variable_node, type_standard_variable_set
    public standard_variables, initialize_standard_variables
 
@@ -40,7 +40,7 @@ module fabm_standard_variables
    ! Data types that contain all metadata needed to describe standard variables.
    ! ====================================================================================================
 
-   type type_standard_variable
+   type type_base_standard_variable
       character(len=256) :: name  = ''    ! Name
       character(len=64)  :: units = ''    ! Units
       character(len=512) :: cf_names = '' ! Comma-separated list of standard names defined in the NetCDF CF convention
@@ -53,17 +53,17 @@ module fabm_standard_variables
       procedure :: compare => standard_variable_compare
    end type
 
-   type,extends(type_standard_variable) :: type_bulk_standard_variable
+   type,extends(type_base_standard_variable) :: type_bulk_standard_variable
    end type
 
-   type,extends(type_standard_variable) :: type_horizontal_standard_variable
+   type,extends(type_base_standard_variable) :: type_horizontal_standard_variable
    end type
 
-   type,extends(type_standard_variable) :: type_global_standard_variable
+   type,extends(type_base_standard_variable) :: type_global_standard_variable
    end type
 
    type type_standard_variable_node
-      class (type_standard_variable),     pointer :: p    => null()
+      class (type_base_standard_variable),pointer :: p    => null()
       type (type_standard_variable_node), pointer :: next => null()
    end type
 
@@ -92,12 +92,12 @@ contains
    end subroutine
 
    logical function standard_variable_is_null(variable)
-      class (type_standard_variable),intent(in) :: variable
+      class (type_base_standard_variable),intent(in) :: variable
       standard_variable_is_null = (variable%name==''.and. variable%units=='')
    end function
 
    logical function standard_variable_compare(variable1,variable2)
-      class (type_standard_variable),intent(in) :: variable1,variable2
+      class (type_base_standard_variable),intent(in) :: variable1,variable2
       standard_variable_compare = .false.
 
       ! First test whether the types match.
@@ -128,8 +128,8 @@ contains
    end function standard_variable_compare
 
    logical function standard_variable_set_contains_variable(self,standard_variable)
-      class (type_standard_variable_set),intent(in) :: self
-      class (type_standard_variable),    intent(in) :: standard_variable
+      class (type_standard_variable_set), intent(in) :: self
+      class (type_base_standard_variable),intent(in) :: standard_variable
 
       type (type_standard_variable_node), pointer :: node
 
@@ -158,8 +158,8 @@ contains
    end function standard_variable_set_contains_name
 
    subroutine standard_variable_set_add(self,standard_variable)
-      class (type_standard_variable_set),intent(inout) :: self
-      class (type_standard_variable),    intent(in)    :: standard_variable
+      class (type_standard_variable_set), intent(inout) :: self
+      class (type_base_standard_variable),intent(in)    :: standard_variable
 
       type (type_standard_variable_node), pointer :: node
 

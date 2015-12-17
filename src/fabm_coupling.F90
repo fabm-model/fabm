@@ -301,7 +301,7 @@ end subroutine
                      ! This is our last chance - create an appropriate variable at the root level.
                      select type (standard_variable=>coupling%master_standard_variable)
                      class is (type_bulk_standard_variable)
-                        call root%add_bulk_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
+                        call root%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
                                                     standard_variable=standard_variable, presence=presence_external_optional, link=link)
                      class is (type_horizontal_standard_variable)
                         call root%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, &

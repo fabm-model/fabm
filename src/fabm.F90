@@ -53,9 +53,12 @@
    ! Management of model variables: retrieve identifiers, get and set data.
    public fabm_get_bulk_variable_id,fabm_get_horizontal_variable_id,fabm_get_scalar_variable_id
    public fabm_get_variable_name, fabm_is_variable_used, fabm_variable_needs_values
-   public fabm_link_bulk_state_data, fabm_link_bottom_state_data, fabm_link_surface_state_data
-   public fabm_link_bulk_data, fabm_link_horizontal_data, fabm_link_scalar_data
-   public fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
+   public fabm_link_interior_state_data, fabm_link_bottom_state_data, fabm_link_surface_state_data
+   public fabm_link_interior_data, fabm_link_horizontal_data, fabm_link_scalar_data
+   public fabm_get_interior_diagnostic_data, fabm_get_horizontal_diagnostic_data
+
+   ! For backward compatibility (pre 11 Dec 2015)
+   public fabm_link_bulk_state_data, fabm_get_bulk_diagnostic_data, fabm_link_bulk_data
 
 #ifdef _HAS_MASK_
    ! Set spatial mask
@@ -171,7 +174,7 @@
       type (type_internal_variable),pointer         :: target_hz => null()
    end type type_conserved_quantity_info
 
-   type type_bulk_data_pointer
+   type type_interior_data_pointer
       real(rk),pointer _DIMENSION_GLOBAL_ :: p => null()
    end type
 
@@ -250,7 +253,7 @@
 
       ! Registry with pointers to global fields of readable variables.
       ! These pointers are accessed to fill the prefetch (see below).
-      type (type_bulk_data_pointer),      allocatable :: data(:)
+      type (type_interior_data_pointer),  allocatable :: data(:)
       type (type_horizontal_data_pointer),allocatable :: data_hz(:)
       type (type_scalar_data_pointer),    allocatable :: data_scalar(:)
       integer, allocatable :: interior_data_sources(:)
@@ -281,11 +284,11 @@
       procedure :: set_surface_index => fabm_set_surface_index
 #endif
 
-      procedure :: link_bulk_data_by_variable => fabm_link_bulk_data_by_variable
-      procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
-      procedure :: link_bulk_data_by_sn   => fabm_link_bulk_data_by_sn
-      procedure :: link_bulk_data_by_name => fabm_link_bulk_data_by_name
-      generic :: link_bulk_data => link_bulk_data_by_variable,link_bulk_data_by_id,link_bulk_data_by_sn,link_bulk_data_by_name
+      procedure :: link_interior_data_by_variable => fabm_link_interior_data_by_variable
+      procedure :: link_interior_data_by_id   => fabm_link_interior_data_by_id
+      procedure :: link_interior_data_by_sn   => fabm_link_interior_data_by_sn
+      procedure :: link_interior_data_by_name => fabm_link_interior_data_by_name
+      generic :: link_interior_data => link_interior_data_by_variable,link_interior_data_by_id,link_interior_data_by_sn,link_interior_data_by_name
 
       procedure :: link_horizontal_data_by_variable => fabm_link_horizontal_data_by_variable
       procedure :: link_horizontal_data_by_id       => fabm_link_horizontal_data_by_id
@@ -318,15 +321,28 @@
       procedure :: get_scalar_variable_id_sn => fabm_get_scalar_variable_id_sn
       generic :: get_scalar_variable_id => get_scalar_variable_id_by_name, get_scalar_variable_id_sn
 
-      procedure :: bulk_variable_needs_values => fabm_bulk_variable_needs_values
-      procedure :: bulk_variable_needs_values_sn => fabm_bulk_variable_needs_values_sn
+      procedure :: interior_variable_needs_values => fabm_interior_variable_needs_values
+      procedure :: interior_variable_needs_values_sn => fabm_interior_variable_needs_values_sn
       procedure :: horizontal_variable_needs_values => fabm_horizontal_variable_needs_values
       procedure :: horizontal_variable_needs_values_sn => fabm_horizontal_variable_needs_values_sn
       procedure :: scalar_variable_needs_values => fabm_scalar_variable_needs_values
       procedure :: scalar_variable_needs_values_sn => fabm_scalar_variable_needs_values_sn
-      generic :: variable_needs_values => bulk_variable_needs_values, bulk_variable_needs_values_sn, &
+      generic :: variable_needs_values => interior_variable_needs_values, interior_variable_needs_values_sn, &
                                           horizontal_variable_needs_values, horizontal_variable_needs_values_sn, &
                                           scalar_variable_needs_values, scalar_variable_needs_values_sn
+
+      ! -----------------------------------------------------------------------------
+      ! For backward compatibility (pre 11 Dec 2015)
+      procedure :: link_bulk_data_by_variable => fabm_link_interior_data_by_variable
+      procedure :: link_bulk_data_by_id   => fabm_link_interior_data_by_id
+      procedure :: link_bulk_data_by_sn   => fabm_link_interior_data_by_sn
+      procedure :: link_bulk_data_by_name => fabm_link_interior_data_by_name
+      generic :: link_bulk_data => link_interior_data_by_variable,link_interior_data_by_id,link_interior_data_by_sn,link_interior_data_by_name
+
+      procedure :: bulk_variable_needs_values => fabm_interior_variable_needs_values
+      procedure :: bulk_variable_needs_values_sn => fabm_interior_variable_needs_values_sn
+      ! -----------------------------------------------------------------------------
+
    end type type_model
 
    type type_integer_list_node
@@ -363,20 +379,20 @@
    end interface
 
    interface fabm_link_data
-      module procedure fabm_link_bulk_data_by_id
+      module procedure fabm_link_interior_data_by_id
       module procedure fabm_link_horizontal_data_by_id
       module procedure fabm_link_scalar_by_id
-      module procedure fabm_link_bulk_data_by_sn
+      module procedure fabm_link_interior_data_by_sn
       module procedure fabm_link_horizontal_data_by_sn
       module procedure fabm_link_scalar_by_sn
    end interface
 
    ! Subroutine for providing FABM with variable data on the full spatial domain.
-   interface fabm_link_bulk_data
-      module procedure fabm_link_bulk_data_by_variable
-      module procedure fabm_link_bulk_data_by_id
-      module procedure fabm_link_bulk_data_by_sn
-      module procedure fabm_link_bulk_data_by_name
+   interface fabm_link_interior_data
+      module procedure fabm_link_interior_data_by_variable
+      module procedure fabm_link_interior_data_by_id
+      module procedure fabm_link_interior_data_by_sn
+      module procedure fabm_link_interior_data_by_name
    end interface
 
    ! Subroutine for providing FABM with variable data on horizontal slices of the domain.
@@ -416,19 +432,19 @@
    end interface
 
    interface fabm_get_variable_name
-      module procedure fabm_get_bulk_variable_name
+      module procedure fabm_get_interior_variable_name
       module procedure fabm_get_horizontal_variable_name
       module procedure fabm_get_scalar_variable_name
    end interface
 
    interface fabm_is_variable_used
-      module procedure fabm_is_bulk_variable_used
+      module procedure fabm_is_interior_variable_used
       module procedure fabm_is_horizontal_variable_used
       module procedure fabm_is_scalar_variable_used
    end interface
 
    interface fabm_variable_needs_values
-      module procedure fabm_bulk_variable_needs_values
+      module procedure fabm_interior_variable_needs_values
       module procedure fabm_horizontal_variable_needs_values
    end interface
 
@@ -440,6 +456,21 @@
    interface fabm_get_surface_exchange
       module procedure fabm_do_surface
    end interface
+
+   ! Fr backward compatibility (pre 11 Dec 2015)
+   ! Subroutine for providing FABM with variable data on the full spatial domain.
+   interface fabm_link_bulk_data
+      module procedure fabm_link_interior_data_by_variable
+      module procedure fabm_link_interior_data_by_id
+      module procedure fabm_link_interior_data_by_sn
+      module procedure fabm_link_interior_data_by_name
+   end interface
+   interface fabm_link_bulk_state_data
+      module procedure fabm_link_interior_state_data
+   end interface fabm_link_bulk_state_data
+   interface fabm_get_bulk_diagnostic_data
+      module procedure fabm_get_interior_diagnostic_data
+   end interface fabm_get_bulk_diagnostic_data
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -597,7 +628,7 @@
 
       ! Create placeholder variables for zero fields.
       ! Values for these fields will only be provided if actually used by one of the biogeochemical models.
-      call self%root%add_bulk_variable('zero',act_as_state_variable=.true.,source=source_none)
+      call self%root%add_interior_variable('zero',act_as_state_variable=.true.,source=source_none)
       call self%root%add_horizontal_variable('zero_hz',act_as_state_variable=.true.,source=source_none)
 
       allocate(extinction_calculator)
@@ -750,7 +781,7 @@
 
    allocate(self%zero _INDEX_LOCATION_)
    self%zero = 0.0_rk
-   call self%link_bulk_data('zero',self%zero)
+   call self%link_interior_data('zero',self%zero)
 
    allocate(self%zero_hz _INDEX_HORIZONTAL_LOCATION_)
    self%zero_hz = 0.0_rk
@@ -832,7 +863,7 @@
       link => link%next
    end do
 
-   ! Allocate memory for full-domain storage of bulk diagnostics
+   ! Allocate memory for full-domain storage of interior diagnostics
    nsave = 0
    do ivar=1,size(self%diagnostic_variables)
       if (self%diagnostic_variables(ivar)%save.or.self%diagnostic_variables(ivar)%target%read_indices%value/=-1) then
@@ -877,7 +908,7 @@
       if (index>0) then
          self%diag_missing_value(index) = self%diagnostic_variables(ivar)%missing_value
          self%diag(_PREARG_LOCATION_DIMENSIONS_ index) = self%diagnostic_variables(ivar)%missing_value
-         call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%target,self%diag(_PREARG_LOCATION_DIMENSIONS_ index),source=data_source_fabm)
+         call fabm_link_interior_data(self,self%diagnostic_variables(ivar)%target,self%diag(_PREARG_LOCATION_DIMENSIONS_ index),source=data_source_fabm)
       end if
    end do
    do ivar=1,size(self%horizontal_diagnostic_variables)
@@ -897,7 +928,7 @@
                expression%period = expression%period/seconds_per_time_unit
                allocate(expression%history(_PREARG_LOCATION_ expression%n+3))
                expression%history = 0.0_rk
-               call fabm_link_bulk_data(self,expression%output_name, &
+               call fabm_link_interior_data(self,expression%output_name, &
                                         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
             class is (type_horizontal_temporal_mean)
                expression%period = expression%period/seconds_per_time_unit
@@ -1002,7 +1033,7 @@
       link => list%first
       do while (associated(link))
          if (link%target%read_indices%is_empty()) then
-            ! This diagnostic is only used as increment of source-sink terms, surface flux or bulk flux.
+            ! This diagnostic is only used to increment source-sink terms, surface fluxes or bottom fluxes.
             ! It can be merged.
             if (associated(free_target)) then
                ! We already found a previous variable that can be merged - merge current and previous.
@@ -1277,7 +1308,7 @@
    do while (associated(link))
       if (link%target%domain==domain_interior) then
          if (link%name==name.or.get_safe_name(link%name)==name) then
-            id = create_external_bulk_id(link%target)
+            id = create_external_interior_id(link%target)
             return
          end if
       end if
@@ -1288,7 +1319,7 @@
    link => self%root%links%first
    do while (associated(link))
       if (link%target%domain==domain_interior.and.link%target%standard_variables%contains(name)) then
-         id = create_external_bulk_id(link%target)
+         id = create_external_interior_id(link%target)
          return
       end if
       link => link%next
@@ -1322,7 +1353,7 @@
    link => self%root%links%first
    do while (associated(link))
       if (link%target%standard_variables%contains(standard_variable)) then
-         id = create_external_bulk_id(link%target)
+         id = create_external_interior_id(link%target)
          return
       end if
       link => link%next
@@ -1500,7 +1531,7 @@
 ! identifier.
 !
 ! !INTERFACE:
-   function fabm_get_bulk_variable_name(model,id) result(name)
+   function fabm_get_interior_variable_name(model,id) result(name)
 !
 ! !INPUT PARAMETERS:
    class (type_model),            intent(in)  :: model
@@ -1515,7 +1546,7 @@
    name = ''
    if (associated(id%variable)) name = get_safe_name(id%variable%name)
 
-   end function fabm_get_bulk_variable_name
+   end function fabm_get_interior_variable_name
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1571,10 +1602,12 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Determine whether a bulk variable is used [required] by biogeochemical models running in FABM.
+! !IROUTINE: Determine whether the specified interior variable is used [required]
+! by biogeochemical models running in FABM. This does NOT imply its values need
+! to be provided by the host; the values may be provided by a FABM module.
 !
 ! !INTERFACE:
-   function fabm_is_bulk_variable_used(id) result(used)
+   function fabm_is_interior_variable_used(id) result(used)
 !
 ! !INPUT PARAMETERS:
    type(type_bulk_variable_id),   intent(in)  :: id
@@ -1587,16 +1620,18 @@
 !BOC
    used = id%read_index/=-1
 
-   end function fabm_is_bulk_variable_used
+   end function fabm_is_interior_variable_used
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Determine whether values for a bulk variable are required (read but not provided yet).
+! !IROUTINE: Determine whether values for an interior variable are required.
+! That is, one or more FABM modules read the variable's value, but no existing module
+! provides the value. The variable is specified by its identifier.
 !
 ! !INTERFACE:
-   function fabm_bulk_variable_needs_values(self,id) result(required)
+   function fabm_interior_variable_needs_values(self,id) result(required)
 !
 ! !INPUT PARAMETERS:
    class (type_model),         intent(in) :: self
@@ -1611,15 +1646,18 @@
    required = id%read_index/=-1
    if (required) required = .not.associated(self%data(id%read_index)%p)
 
-   end function fabm_bulk_variable_needs_values
+   end function fabm_interior_variable_needs_values
 !EOC
 
 !BOP
 !
-! !IROUTINE: Determine whether values for a bulk standard variable are required (read but not provided yet).
+! !IROUTINE: Determine whether values for an interior variable are required.
+! That is, one or more FABM modules read the variable's value, but no existing module
+! provides the value. The variable is specified by its identity, a "standard
+! variable" object.
 !
 ! !INTERFACE:
-   function fabm_bulk_variable_needs_values_sn(self,standard_variable) result(required)
+   function fabm_interior_variable_needs_values_sn(self,standard_variable) result(required)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                intent(in) :: self
@@ -1637,13 +1675,15 @@
    id = self%get_bulk_variable_id(standard_variable)
    required = self%variable_needs_values(id)
 
-   end function fabm_bulk_variable_needs_values_sn
+   end function fabm_interior_variable_needs_values_sn
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Determine whether values for a horizontal variable are required (read but not provided yet).
+! !IROUTINE: Determine whether values for a horizontal variable are required.
+! That is, one or more FABM modules read the variable's value, but no existing module
+! provides the value. The variable is specified by its identifier
 !
 ! !INTERFACE:
    function fabm_horizontal_variable_needs_values(self,id) result(required)
@@ -1666,7 +1706,10 @@
 
 !BOP
 !
-! !IROUTINE: Determine whether values for a horizontal standard variable are required (read but not provided yet).
+! !IROUTINE: Determine whether values for a horizontal variable are required.
+! That is, one or more FABM modules read the variable's value, but no existing module
+! provides the value. The variable is specified by its identity, a "standard variable"
+! object.
 !
 ! !INTERFACE:
    function fabm_horizontal_variable_needs_values_sn(self,standard_variable) result(required)
@@ -1693,7 +1736,9 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Determine whether the value for a scalar is required (read but not provided yet).
+! !IROUTINE: Determine whether the value for a scalar variable is required.
+! That is, one or more FABM modules read the variable's value, but no existing module
+! provides the value. The variable is specified by its identifier.
 !
 ! !INTERFACE:
    function fabm_scalar_variable_needs_values(self,id) result(required)
@@ -1716,7 +1761,10 @@
 
 !BOP
 !
-! !IROUTINE: Determine whether the value for a standard scalar is required (read but not provided yet).
+! !IROUTINE: Determine whether the value for a scalar variable is required.
+! That is, one or more FABM modules read the variable's value, but no existing module
+! provides the value. The variable is specified by its identity, a "standard variable"
+! object.
 !
 ! !INTERFACE:
    function fabm_scalar_variable_needs_values_sn(self,standard_variable) result(required)
@@ -1829,7 +1877,7 @@
       host%first => node
       select case (domain_)
       case (domain_interior)
-         call host%add_bulk_variable(standard_variable%name,standard_variable%units,standard_variable%name,read_index=node%value,link=link)
+         call host%add_interior_variable(standard_variable%name,standard_variable%units,standard_variable%name,read_index=node%value,link=link)
       case (domain_horizontal,domain_surface,domain_bottom)
          call host%add_horizontal_variable(standard_variable%name,standard_variable%units,standard_variable%name,read_index=node%value,domain=domain_,link=link)
       case default
@@ -1846,7 +1894,7 @@
 ! is identified by an internal variable object.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bulk_data_by_variable(self,variable,dat,source)
+   subroutine fabm_link_interior_data_by_variable(self,variable,dat,source)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                intent(inout) :: self
@@ -1864,7 +1912,7 @@
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
       if (size(dat,i)/=self%domain_size(i)) then
-         call fatal_error('fabm_link_bulk_data_by_variable','dimensions of FABM domain and provided array do not match for variable '//trim(variable%name)//'.')
+         call fatal_error('fabm_link_interior_data_by_variable','dimensions of FABM domain and provided array do not match for variable '//trim(variable%name)//'.')
       end if
    end do
 #endif
@@ -1879,7 +1927,7 @@
       end if
    end if
 
-   end subroutine fabm_link_bulk_data_by_variable
+   end subroutine fabm_link_interior_data_by_variable
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1890,7 +1938,7 @@
 ! is identified by an external identifier.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bulk_data_by_id(self,id,dat,source)
+   subroutine fabm_link_interior_data_by_id(self,id,dat,source)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                intent(inout) :: self
@@ -1908,7 +1956,7 @@
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
       if (size(dat,i)/=self%domain_size(i)) then
-         call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match for variable '//trim(id%variable%name)//'.')
+         call fatal_error('fabm_link_interior_data','dimensions of FABM domain and provided array do not match for variable '//trim(id%variable%name)//'.')
       end if
    end do
 #endif
@@ -1923,18 +1971,18 @@
       end if
    end if
 
-   end subroutine fabm_link_bulk_data_by_id
+   end subroutine fabm_link_interior_data_by_id
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
 ! !IROUTINE: Provide FABM with (a pointer to) the array with data for
-! the specified variable, defined on the full spatial domain. The variable
-! is identified by its standard name.
+! the specified variable, defined on the interior of the spatial domain. The variable
+! is identified by its identity, a "standard variable" object.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bulk_data_by_sn(model,standard_variable,dat)
+   subroutine fabm_link_interior_data_by_sn(model,standard_variable,dat)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                intent(inout) :: model
@@ -1951,20 +1999,20 @@
    id = fabm_get_bulk_variable_id_sn(model,standard_variable)
 
    ! Only link the data if needed (if the variable identifier is valid).
-   if (fabm_is_variable_used(id)) call fabm_link_bulk_data(model,id,dat)
+   if (fabm_is_variable_used(id)) call fabm_link_interior_data(model,id,dat)
 
-   end subroutine fabm_link_bulk_data_by_sn
+   end subroutine fabm_link_interior_data_by_sn
 !EOC
 
 !-----------------------------------------------------------------------
 !BOP
 !
 ! !IROUTINE: Provide FABM with (a pointer to) the array with data for
-! the specified variable, defined on a horizontal slice of the spatial domain.
+! the specified variable, defined on the interior of the spatial domain.
 ! The variable is identified by its name.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bulk_data_by_name(model,name,dat)
+   subroutine fabm_link_interior_data_by_name(model,name,dat)
 !
 ! !INPUT PARAMETERS:
    class (type_model),target,         intent(inout) :: model
@@ -1972,7 +2020,7 @@
    real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
 !
 ! !LOCAL VARIABLES:
-   type (type_bulk_variable_id)                             :: id
+   type (type_bulk_variable_id) :: id
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1981,9 +2029,9 @@
    id = fabm_get_bulk_variable_id(model,name)
 
    ! Only link the data if needed (if the variable identifier is valid).
-   if (fabm_is_variable_used(id)) call fabm_link_bulk_data(model,id,dat)
+   if (fabm_is_variable_used(id)) call fabm_link_interior_data(model,id,dat)
 
-   end subroutine fabm_link_bulk_data_by_name
+   end subroutine fabm_link_interior_data_by_name
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2078,8 +2126,8 @@
 !BOP
 !
 ! !IROUTINE: Provide FABM with (a pointer to) the array with data for
-! the specified variable, defined on the full spatial domain. The variable
-! is identified by its standard name.
+! the specified variable, defined on a horizontal slice of the spatial domain.
+! The variable is identified by its identity, a "standard variable" object.
 !
 ! !INTERFACE:
    subroutine fabm_link_horizontal_data_by_sn(model,standard_variable,dat)
@@ -2175,7 +2223,7 @@
 !
 ! !IROUTINE: Provide FABM with (a pointer to) the array with data for
 ! the specified variable, defined on the full spatial domain. The variable
-! is identified by its standard name.
+! is identified by its identity, a "standard variable" object.
 !
 ! !INTERFACE:
    subroutine fabm_link_scalar_by_sn(model,standard_variable,dat)
@@ -2236,7 +2284,7 @@
 ! a single pelagic state variable.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bulk_state_data(self,id,dat)
+   subroutine fabm_link_interior_state_data(self,id,dat)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                intent(inout) :: self
@@ -2246,9 +2294,9 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call fabm_link_bulk_data(self,self%state_variables(id)%globalid,dat,source=data_source_fabm)
+   call fabm_link_interior_data(self,self%state_variables(id)%globalid,dat,source=data_source_fabm)
 
-   end subroutine fabm_link_bulk_state_data
+   end subroutine fabm_link_interior_state_data
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2302,7 +2350,7 @@
 ! a single diagnostic variable, defined on the full spatial domain.
 !
 ! !INTERFACE:
-   function fabm_get_bulk_diagnostic_data(self,id) result(dat)
+   function fabm_get_interior_diagnostic_data(self,id) result(dat)
 !
 ! !INPUT PARAMETERS:
    class (type_model),target,         intent(in) :: self
@@ -2315,7 +2363,7 @@
    ! Retrieve a pointer to the array holding the requested data.
    dat => self%diag(_PREARG_LOCATION_DIMENSIONS_ self%diagnostic_variables(id)%save_index)
 
-   end function fabm_get_bulk_diagnostic_data
+   end function fabm_get_interior_diagnostic_data
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2806,7 +2854,7 @@ end subroutine deallocate_prefetch_vertical
       _LOOP_END_
    end do
 
-   ! Allow biogeochemical models to initialize their bulk state.
+   ! Allow biogeochemical models to initialize their interior state.
    node => self%models%first
    do while (associated(node))
       call node%model%initialize_state(_ARGUMENTS_INTERIOR_)
@@ -3431,7 +3479,7 @@ end subroutine internal_check_horizontal_state
          node => node%next
       end do
 
-      ! Compose surface fluxes for each bulk state variable, combining model-specific contributions.
+      ! Compose surface fluxes for each interior state variable, combining model-specific contributions.
       flux_pel = 0.0_rk
       do i=1,size(self%state_variables)
          do j=1,size(self%state_variables(i)%surface_flux_indices)
@@ -3517,7 +3565,7 @@ end subroutine internal_check_horizontal_state
       node => node%next
    end do
 
-   ! Compose bottom fluxes for each bulk state variable, combining model-specific contributions.
+   ! Compose bottom fluxes for each interior state variable, combining model-specific contributions.
    do i=1,size(self%state_variables)
       do j=1,size(self%state_variables(i)%bottom_flux_indices)
          k = self%state_variables(i)%bottom_flux_indices(j)
@@ -4194,14 +4242,14 @@ subroutine flag_write_indices(self,source)
    end do
 end subroutine flag_write_indices
 
-function create_external_bulk_id(variable) result(id)
+function create_external_interior_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
    type (type_bulk_variable_id) :: id
 
-   if (variable%domain/=domain_interior) call driver%fatal_error('create_external_bulk_id','BUG: called on non-bulk variable.')
+   if (variable%domain/=domain_interior) call driver%fatal_error('create_external_interior_id','BUG: called on non-interior variable.')
    id%variable => variable
    if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
-end function create_external_bulk_id
+end function create_external_interior_id
 
 function create_external_horizontal_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
@@ -4290,7 +4338,7 @@ subroutine create_readable_variable_registry(self)
       if (.not.link%target%read_indices%is_empty()) then
          select case (link%target%domain)
             case (domain_interior)
-               ! Bulk variable read by one or more models
+               ! Interior variable read by one or more models
                nread = nread+1
                call link%target%read_indices%set_value(nread)
             case (domain_horizontal,domain_surface,domain_bottom)
@@ -4460,7 +4508,7 @@ subroutine classify_variables(self)
 
    call create_readable_variable_registry(self)
 
-   ! Count number of bulk variables in various categories.
+   ! Count number of interior variables in various categories.
    nstate = 0
    ndiag  = 0
    nstate_bot  = 0
@@ -4472,10 +4520,10 @@ subroutine classify_variables(self)
       select case (object%domain)
          case (domain_interior)
             if (.not.object%write_indices%is_empty()) then
-               ! Bulk diagnostic variable.
+               ! Interior diagnostic variable.
                ndiag = ndiag+1
             elseif (.not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
-               ! Bulk state variable.
+               ! Interior state variable.
                select case (object%presence)
                   case (presence_internal)
                      nstate = nstate+1
@@ -4538,7 +4586,7 @@ subroutine classify_variables(self)
       select case (link%target%domain)
          case (domain_interior)
             if (.not.object%write_indices%is_empty()) then
-               ! Bulk diagnostic variable
+               ! Interior diagnostic variable
                ndiag = ndiag + 1
                diagvar => self%diagnostic_variables(ndiag)
                call copy_variable_metadata(object,diagvar)
@@ -4552,11 +4600,11 @@ subroutine classify_variables(self)
                diagvar%save = diagvar%output/=output_none
                diagvar%source = object%source
             elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
-               ! Bulk state variable
+               ! Interior state variable
                nstate = nstate + 1
                statevar => self%state_variables(nstate)
                call copy_variable_metadata(object,statevar)
-               statevar%globalid                  = create_external_bulk_id(object)
+               statevar%globalid = create_external_interior_id(object)
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable=>object%standard_variables%first%p)
                      type is (type_bulk_standard_variable)
