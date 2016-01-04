@@ -1357,8 +1357,8 @@ end subroutine real_pointer_set_set_value
       type (type_link),pointer :: link1,link2
 
       if (.not.associated(sms_id%link)) &
-         call self%add_bulk_variable(trim(id%link%name)//'_sms', trim(id%link%target%units)//'/s', trim(id%link%target%long_name)//' sources-sinks', &
-                                     0.0_rk, output=output_none, write_index=sms_id%sum_index, link=link1)
+         call self%add_interior_variable(trim(id%link%name)//'_sms', trim(id%link%target%units)//'/s', trim(id%link%target%long_name)//' sources-sinks', &
+                                         0.0_rk, output=output_none, write_index=sms_id%sum_index, link=link1)
       link2 => id%link%target%sms_list%append(link1%target,link1%target%name)
    end subroutine register_source
 
