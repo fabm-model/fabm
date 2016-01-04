@@ -4031,9 +4031,9 @@ end subroutine internal_check_horizontal_state
 
       _DECLARE_LOCATION_
 
-      _BEGIN_EXTERNAL_INTERIOR_LOOP_
+      _BEGIN_OUTER_INTERIOR_LOOP_
          call fabm_process_interior_slice(self,settings _ARGUMENTS_INTERIOR_IN_)
-      _END_EXTERNAL_INTERIOR_LOOP_
+      _END_OUTER_INTERIOR_LOOP_
    end subroutine fabm_process_interior_all
 
    subroutine fabm_process_horizontal_all(self,settings _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
@@ -4043,9 +4043,9 @@ end subroutine internal_check_horizontal_state
 
       _DECLARE_LOCATION_
 
-      _BEGIN_EXTERNAL_HORIZONTAL_LOOP_
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
          call fabm_process_horizontal_slice(self,settings _ARGUMENTS_HORIZONTAL_IN_)
-      _END_EXTERNAL_HORIZONTAL_LOOP_
+      _END_OUTER_HORIZONTAL_LOOP_
    end subroutine fabm_process_horizontal_all
 
    subroutine fabm_process_vertical_all(self,settings _ARGUMENTS_LOCATION_RANGE_)
@@ -4055,9 +4055,9 @@ end subroutine internal_check_horizontal_state
 
       _DECLARE_LOCATION_
 
-      _BEGIN_EXTERNAL_VERTICAL_LOOP_
+      _BEGIN_OUTER_VERTICAL_LOOP_
          call fabm_process_vertical_slice(self,settings _ARGUMENTS_VERTICAL_IN_)
-      _END_EXTERNAL_VERTICAL_LOOP_
+      _END_OUTER_VERTICAL_LOOP_
    end subroutine fabm_process_vertical_all
 
    subroutine fabm_process_interior_slice(self,settings _ARGUMENTS_INTERIOR_IN_)
@@ -4077,9 +4077,9 @@ end subroutine internal_check_horizontal_state
          call node%model%do(_ARGUMENTS_INTERIOR_)
 
          ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-         _DO_CONCURRENT_(i,1,size(node%copy_commands))
-            j = node%copy_commands(i)%read_index
-            k = node%copy_commands(i)%write_index
+         _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
+            j = node%copy_commands_int(i)%read_index
+            k = node%copy_commands_int(i)%write_index
             _CONCURRENT_LOOP_BEGIN_
                environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
             _LOOP_END_
@@ -4110,9 +4110,9 @@ end subroutine internal_check_horizontal_state
          call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
 
          ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-         _DO_CONCURRENT_(i,1,size(node%copy_commands))
-            j = node%copy_commands(i)%read_index
-            k = node%copy_commands(i)%write_index
+         _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
+            j = node%copy_commands_hz(i)%read_index
+            k = node%copy_commands_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
                environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _HORIZONTAL_LOOP_END_
@@ -4142,12 +4142,21 @@ end subroutine internal_check_horizontal_state
          call node%model%get_light(_ARGUMENTS_VERTICAL_)
 
          ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-         _DO_CONCURRENT_(i,1,size(node%copy_commands))
-            j = node%copy_commands(i)%read_index
-            k = node%copy_commands(i)%write_index
+         _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
+            j = node%copy_commands_int(i)%read_index
+            k = node%copy_commands_int(i)%write_index
             _CONCURRENT_VERTICAL_LOOP_BEGIN_
                environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
             _VERTICAL_LOOP_END_
+         end do
+         _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
+            j = node%copy_commands_hz(i)%read_index
+            k = node%copy_commands_hz(i)%write_index
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+            environment%prefetch_hz(1,j) = environment%scratch_hz(1,k)
+#else
+            environment%prefetch_hz(j) = environment%scratch_hz(k)
+#endif
          end do
 
          node => node%next
@@ -4851,8 +4860,8 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    end do
 
    call external_variable%properties%update(internal_variable%properties)
-   end subroutine
-   
+end subroutine
+
    subroutine custom_extinction_calculator_initialize(self,configunit)
       class (type_custom_extinction_calculator), intent(inout), target :: self
       integer,                                   intent(in)            :: configunit
