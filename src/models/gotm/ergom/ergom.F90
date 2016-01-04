@@ -512,7 +512,7 @@ subroutine initialize(self,configunit)
             llsd=0.0_rk
          end if
 
-      _SET_ODE_BEN_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
+      _SET_BOTTOM_ODE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_de,-llds*deb+llsd*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_ni,self%s1*thomnp*llsa*fl)

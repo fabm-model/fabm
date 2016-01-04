@@ -484,7 +484,7 @@
 ! !IROUTINE: Saturation function squared
 !
 ! !INTERFACE:
-   REALTYPE function yy(a,x)
+   real(rk) function yy(a,x)
 !
 ! !DESCRIPTION:
 ! This is a squared Michaelis-Menten type of limiter:
@@ -492,11 +492,8 @@
 ! Y(x_w,x) = \frac{x^2}{x_w^2+x^2}.
 ! \end{equation}
 !
-! !USES:
-   IMPLICIT NONE
-!
 ! !IN2PUT PARAMETERS:
-   REALTYPE, intent(in)                :: a,x
+   real(rk), intent(in)                :: a,x
 !
 ! !REVISION HISTORY:
 !  Original author(s): Hans Burchard, Karsten Bolding
