@@ -1327,8 +1327,6 @@ end subroutine real_pointer_set_set_value
       logical,                            intent(in),optional :: no_precipitation_dilution,no_river_dilution
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       integer,                            intent(in),optional :: presence
-
-      type (type_link),pointer :: link2,link_dum
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1347,7 +1345,7 @@ end subroutine real_pointer_set_set_value
       call register_source(self,id,id%sms)
       call register_surface_flux(self,id,id%surface_flux)
       call register_bottom_flux(self,id,id%bottom_flux)
-      
+
    end subroutine register_interior_state_variable
 !EOC
 
@@ -1613,7 +1611,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !LOCAL VARIABLES:
       type (type_internal_variable), pointer :: variable
-      type (type_link),              pointer :: link_,link2,link_dum
+      type (type_link),              pointer :: link_,link2
 !
 !-----------------------------------------------------------------------
 !BOC
