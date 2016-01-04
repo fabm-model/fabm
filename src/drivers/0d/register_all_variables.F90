@@ -126,7 +126,7 @@
    LEVEL3 'register_environment_variables'
    call fm%register('par','W/m^2','par',standard_name='downwelling_photosynthetic_radiative_flux',data0d=par)
    call fm%register('temp','Celsius','temperature',standard_name='sea_water_temperature',data0d=temp)
-   call fm%register('salt','PSU','salinity',standard_name='sea_water_practical_salinity',data0d=salt)
+   call fm%register('salt','1e-3','salinity',standard_name='sea_water_practical_salinity',data0d=salt)
    return
    end subroutine register_environment_variables
 !EOC

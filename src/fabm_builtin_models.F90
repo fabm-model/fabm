@@ -38,6 +38,7 @@ module fabm_builtin_models
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
       integer                         :: access        = access_read
+      type (type_bulk_standard_variable),pointer :: standard_variable => null()
       type (type_diagnostic_variable_id) :: id_output
       type (type_component),pointer   :: first => null()
    contains
@@ -184,7 +185,11 @@ module fabm_builtin_models
       if (present(create_for_one)) create_for_one_ = create_for_one
 
       sum_used = .false.
-      call parent%add_bulk_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0)
+      if (associated(self%standard_variable)) then
+         call parent%add_interior_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0,standard_variable=self%standard_variable)
+      else
+         call parent%add_interior_variable(name,self%units,name,link=link,act_as_state_variable=iand(self%access,access_set_source)/=0)
+      end if
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          call parent%request_coupling(link,'zero')

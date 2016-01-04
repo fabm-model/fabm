@@ -170,11 +170,11 @@ module fabm_particle
          allocate(coupling%master_standard_variable,source=master_standard_variable)
          select type (slave_variable)
             class is (type_dependency_id)
-               coupling%domain = domain_bulk
+               coupling%domain = domain_interior
             class is (type_horizontal_dependency_id)
                coupling%domain = domain_horizontal
             class is (type_state_variable_id)
-               coupling%domain = domain_bulk
+               coupling%domain = domain_interior
                coupling%access = access_state
             class is (type_bottom_state_variable_id)
                coupling%domain = domain_bottom
@@ -270,7 +270,7 @@ module fabm_particle
       reference => self%first_model_reference
       do while (associated(reference))
          if (associated(reference%id)) then
-            call build_state_id_list(self,reference,domain_bulk)
+            call build_state_id_list(self,reference,domain_interior)
             call build_state_id_list(self,reference,domain_surface)
             call build_state_id_list(self,reference,domain_bottom)
          end if
@@ -293,8 +293,8 @@ module fabm_particle
                   aggregate_variable => get_aggregate_variable(model_coupling%model_reference%model,standard_variable)
                end select
                select case (coupling%domain)
-                  case (domain_bulk)
-                     aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,model_coupling%access)
+                  case (domain_interior)
+                     aggregate_variable%interior_access = ior(aggregate_variable%interior_access,model_coupling%access)
                      master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)
                   case (domain_horizontal)
                      aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,model_coupling%access)
@@ -330,7 +330,7 @@ module fabm_particle
 
       ! Allocate array to hold state variable identifiers.
       select case (domain)
-         case (domain_bulk)
+         case (domain_interior)
             allocate(reference%id%state(n))
          case (domain_bottom)
             allocate(reference%id%bottom_state(n))
@@ -347,7 +347,7 @@ module fabm_particle
             n = n + 1
             write (strindex,'(i0)') n
             select case (domain)
-               case (domain_bulk)
+               case (domain_interior)
                   call self%register_state_dependency(reference%id%state(n),trim(reference%name)//'_state'//trim(strindex), &
                      link%target%units,trim(reference%name)//' state variable '//trim(strindex))
                   call self%request_coupling_to_model(reference%id%state(n),reference%id,link%name)

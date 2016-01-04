@@ -1,0 +1,121 @@
+require_initialization: true
+instances:
+  niva_brom_eqconst: 
+  niva_brom_carb:
+    initialization:
+      Alk: 2300.0                      # Total Alkalinity (mmol/m**3)
+      DIC: 2200.0                      # Total Dissolved Inorganic Carbon (mmol/m**3)
+    coupling:
+      Kc0: niva_brom_eqconst/Kc0       # Henry's constant (-)
+      Kc1: niva_brom_eqconst/Kc1       # [H+][HCO3-]/[H2CO3] (-)
+      Kc2: niva_brom_eqconst/Kc2       # [H+][CO3--]/[HCO3-] (-)
+      Kw: niva_brom_eqconst/Kw         # [H+][OH-]/H2O (-)
+      Kb: niva_brom_eqconst/Kb         # [H+][B(OH)4-]/[B(OH)3] (-)
+      Kp1: niva_brom_eqconst/Kp1       # [H+][H2PO4-]/[H3PO4] (-)
+      Kp2: niva_brom_eqconst/Kp2       # [H][HPO4]/[H2PO4] (-)
+      Kp3: niva_brom_eqconst/Kp3       # [H][PO4]/[HPO4] (-)
+      KSi: niva_brom_eqconst/KSi       # [H+][H3SiO4-]/[Si(OH)4] (-)
+      Knh4: niva_brom_eqconst/Knh4     # [H+][NH3]/[NH4] (-)
+      Kh2s1: niva_brom_eqconst/Kh2s1   # H2S <--> H+ + HS- (-)
+      Kh2s2: niva_brom_eqconst/Kh2s2   # HS- <--> H+ + S2- (-)
+      PO4: niva_brom_bio/PO4           # phosphate (mmol/m**3)
+      Si: niva_brom_redox/Si           # silicate (mmol/m**3)
+      NH4: niva_brom_bio/NH4           # ammonium (mmol/m**3)
+      DON: niva_brom_bio/DON           # dissolved organic nitrogen (mmol/m**3)
+      H2S: niva_brom_redox/H2S         # hydrogen sulfide (mmol/m**3)
+      Mn3: niva_brom_redox/Mn3         # manganese III (mmol/m**3)
+      Mn4: niva_brom_redox/Mn4         # manganese IV (mmol/m**3)
+      Fe3: niva_brom_redox/Fe3         # iron III (mmol/m**3)
+  niva_brom_bio:
+    parameters:
+      KNF: 2.6                         # Maximum specific growth rate (1/d), default = 2.0
+      k_Erlov: 0.05                    # Extinction coefficient (1/m), default = 0.05
+      Io: 80.0                         # Surface irradiance (Watts/m**2/h), default = 80.0
+      Iopt: 25.0                       # Optimal irradiance (Watts/m**2/h), default = 25.0
+      bm: 0.12                         # Coefficient for growth dependence on t (1/gradC), default = 0.12
+      cm: 1.4                          # Coefficient for growth dependence on t (nd), default = 1.4
+      kc: 0.03                         # Attenuation constant for the self shading effect (m2/mmol N), default = 0.03
+      KFN: 0.05                        # Specific respiration rate (1/d), default = 0.04
+      KFP: 0.1                         # Specific rate of mortality (1/d), default = 0.1
+      KFD: 0.05                        # Specific rate of excretion (1/d), default = 0.01
+      LatLight: 50.0                   # Latitude (degree), default = 50.0
+      KFZ: 1.0                         # Max.spec. rate of grazing of Het on Phy (1/d), default = 1.0
+      KFY: 1.1                         # Half-sat.const.for grazing of Het on Phy for Phy/Het ratio (nd), default = 1.1
+      KPZ: 0.7                         # Max.spec.rate of grazing of Het on POP (mmol/m**3), default = 0.7
+      KPP: 0.2                         # Half-sat.const.for grazing of Het on POP for POP/Het  ratio (nd), default = 0.2
+      KZN: 0.02                        # Specific respiration rate (1/d), default = 0.02
+      KZP: 0.05                        # Maximum specific rate of mortality of Het (1/d), default = 0.05
+      Uz: 0.5                          # Food absorbency for Het (nd), default = 0.5
+      Hz: 0.5                          # Ratio betw. diss. and part. excretes of Het (nd), default = 0.5
+      limGrazBac: 2.0                  # Limiting parameter for bacteria grazing by Het (mmol/m**3), default = 2.0
+    initialization:
+      Phy: 0.01                        # Phy (mmol/m**3)
+      Het: 0.01                        # Het (mmol/m**3)
+      PON: 0.01                        # PON (mmol/m**3)
+      DON: 0.0                         # DON (mmol/m**3)
+      NO3: 5.0                         # NO3 (mmol/m**3)
+      PO4: 1.0                         # PO4 (mmol/m**3)
+      NH4: 0.0                         # NH4 (mmol/m**3)
+      O2: 200.0                        # O2 (mmol/m**3)
+    coupling:
+      H2S: niva_brom_redox/H2S         # H2S (mmol/m**3)
+      NO2: niva_brom_redox/NO2         # NO2 (mmol/m**3)
+      DIC: niva_brom_carb/DIC          # DIC (mmol/m**3)
+      Baae: niva_brom_redox/Baae       # aerobic autotrophic bacteria (mmol/m**3)
+      Bhae: niva_brom_redox/Bhae       # aerobic heterotrophic bacteria (mmol/m**3)
+      Baan: niva_brom_redox/Baan       # anaerobic aurotrophic bacteria (mmol/m**3)
+      Bhan: niva_brom_redox/Bhan       # anaerobic heterotrophic bacteria (mmol/m**3)
+      Si: niva_brom_redox/Si           # Si (mmol/m**3)
+      Sipart: niva_brom_redox/Sipart   # Si particulate (mmol/m**3)
+      Alk: niva_brom_carb/Alk          # Alk (mmol/m**3)
+      Hplus: niva_brom_carb/Hplus      # H+ hydrogen (mmol/m**3)
+      Kp1: niva_brom_eqconst/Kp1       # [H+][H2PO4-]/[H3PO4] (-)
+      Kp2: niva_brom_eqconst/Kp2       # [H][HPO4]/[H2PO4] (-)
+      Kp3: niva_brom_eqconst/Kp3       # [H][PO4]/[HPO4] (-)
+      Knh4: niva_brom_eqconst/Knh4     # [H+][NH3]/[NH4] (-)
+      KSi: niva_brom_eqconst/KSi       # [H+][H3SiO4-]/[Si(OH)4] (-)
+  niva_brom_redox:
+    initialization:
+      Mn2: 0.0                         # Mn(II) (mmol/m**3)
+      Mn3: 0.0                         # Mn(III) (mmol/m**3)
+      Mn4: 0.0                         # Mn(IV) (mmol/m**3)
+      MnS: 0.0                         # MnS (mmol/m**3)
+      MnCO3: 0.0                       # MnCO3 (mmol/m**3)
+      Fe2: 0.0                         # Fe(II) (mmol/m**3)
+      Fe3: 0.0                         # Fe(III) (mmol/m**3)
+      FeS: 0.0                         # FeS (mmol/m**3)
+      NO2: 0.0                         # NO2 (mmol/m**3)
+      Si: 0.0                          # Si (mmol/m**3)
+      Sipart: 0.0                      # Si Particulate (mmol/m**3)
+      H2S: 0.0                         # H2S (mmol/m**3)
+      S0: 0.0                          # S0 (mmol/m**3)
+      S2O3: 0.0                        # S2O3 (mmol/m**3)
+      SO4: 25000.0                     # SO4 (mmol/m**3)
+      Baae: 0.01                       # Aerobic Autotrophic Bacteria (mmol/m**3)
+      Bhae: 0.01                       # Aerobic Heterotrophic Bacteria (mmol/m**3)
+      Baan: 0.01                       # Anaerobic Autotrophic Bacteria (mmol/m**3)
+      Bhan: 0.01                       # Anaerobic Heterotrophic Bacteria (mmol/m**3)
+      CaCO3: 1000.0                    # CaCO3 (mmol/m**3)
+      FeS2: 0.0                        # FeS2 (mmol/m**3)
+    coupling:
+      Kc0: niva_brom_eqconst/Kc0
+      pCO2: niva_brom_carb/pCO2
+      Hplus: niva_brom_carb/Hplus      # H+ (mmol/m**3)
+      Om_Ca: niva_brom_carb/Om_Ca      # Omega CaCO3-Calcite (-)
+      Om_Ar: niva_brom_carb/Om_Ar      # Omega CaCO3-Aragonite (-)
+      CO3: niva_brom_carb/CO3          # CO3-- (mmol/m**3)
+      Ca: niva_brom_carb/Ca            # Ca++ (mmol/m**3)
+      DIC: niva_brom_carb/DIC          # total dissolved inorganic carbon (mmol/m**3)
+      Alk: niva_brom_carb/Alk          # total alkalinity (mmol/m**3)
+      PO4: niva_brom_bio/PO4           # phosphate (mmol/m**3)
+      O2: niva_brom_bio/O2             # dissolved oxygen (mmol/m**3)
+      NH4: niva_brom_bio/NH4           # ammonium (mmol/m**3)
+      NO3: niva_brom_bio/NO3           # nitrate (mmol/m**3)
+      PON: niva_brom_bio/PON           # particulate organic nitrogen (mmol/m**3)
+      DON: niva_brom_bio/DON           # dissolved organic nitrogen (mmol/m**3)
+      Kp1: niva_brom_eqconst/Kp1       # [H+][H2PO4-]/[H3PO4] (-)
+      Kp2: niva_brom_eqconst/Kp2       # [H][HPO4]/[H2PO4] (-)
+      Kp3: niva_brom_eqconst/Kp3       # [H][PO4]/[HPO4] (-)
+      Knh4: niva_brom_eqconst/Knh4     # [H+][NH3]/[NH4] (-)
+      Kh2s1: niva_brom_eqconst/Kh2s1   # [H+][HS-]/[H2S] (-)
+      KSi: niva_brom_eqconst/KSi       # [H+][H3SiO4-]/[Si(OH)4] (-)

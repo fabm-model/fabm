@@ -1,4 +1,6 @@
 #include "fabm_driver.h"
+
+#define _FABM_BGC_BACKWARD_COMPATIBILITY_
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -30,7 +32,7 @@
 
    ! Collection with standard variables (e.g., temperature, practical_salinity)
    public standard_variables
-   public type_standard_variable, type_bulk_standard_variable
+   public type_base_standard_variable, type_bulk_standard_variable
 
    ! Variable identifier types used by biogeochemical models
    public type_variable_id
@@ -42,7 +44,6 @@
    public type_dependency_id
    public type_horizontal_dependency_id
    public type_global_dependency_id
-   public type_conserved_quantity_id
 
    ! Data types and procedures for variable management - used by FABM internally only.
    public type_link, type_link_list
@@ -67,7 +68,7 @@
 
    integer, parameter, public :: rk = _FABM_REAL_KIND_
 
-   integer, parameter, public :: domain_bulk = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
+   integer, parameter, public :: domain_interior = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
 
    integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5, source_get_vertical_movement = 6, source_do_horizontal = 7
 
@@ -124,13 +125,13 @@
    end type
 
    type type_coupling_task
-      type (type_link), pointer              :: slave       => null()
-      character(len=attribute_length)        :: master_name = ''
-      class (type_standard_variable),pointer :: master_standard_variable => null()
-      logical                                :: user_specified = .false.
-      integer                                :: domain = domain_bulk
-      class (type_coupling_task), pointer    :: previous    => null()
-      class (type_coupling_task), pointer    :: next        => null()
+      type (type_link), pointer                   :: slave       => null()
+      character(len=attribute_length)             :: master_name = ''
+      class (type_base_standard_variable),pointer :: master_standard_variable => null()
+      logical                                     :: user_specified = .false.
+      integer                                     :: domain = domain_interior
+      class (type_coupling_task), pointer         :: previous    => null()
+      class (type_coupling_task), pointer         :: next        => null()
    end type
 
    type type_coupling_task_list
@@ -209,9 +210,11 @@
       real(rk) :: background   = 0.0_rk
    end type
 
-   type,extends(type_variable_id) :: type_conserved_quantity_id
+#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
+   type,extends(type_variable_id),public :: type_conserved_quantity_id
       integer :: cons_index = -1
    end type
+#endif
 
    ! ====================================================================================================
    ! Derived types used internally to register contributions of variables to aggregate variables.
@@ -241,7 +244,7 @@
       type (type_bulk_standard_variable)         :: standard_variable
       type (type_contributing_variable),pointer  :: first_contributing_variable => null()
       type (type_aggregate_variable),   pointer  :: next                        => null()
-      integer                                    :: bulk_access                 = access_none
+      integer                                    :: interior_access             = access_none
       integer                                    :: horizontal_access           = access_none
       integer                                    :: bottom_access               = access_none
    end type
@@ -271,18 +274,18 @@
       real(rk)                        :: initial_value  = 0.0_rk
       integer                         :: output         = output_instantaneous
       integer                         :: presence       = presence_internal
-      integer                         :: domain         = domain_bulk
+      integer                         :: domain         = domain_interior
       integer                         :: source         = source_unknown
       integer                         :: prefill        = prefill_none
       class (type_base_model),pointer :: owner          => null()
       type (type_contribution_list)   :: contributions
 
-      class (type_standard_variable), pointer :: standard_variable => null()
+      type (type_standard_variable_set) :: standard_variables
 
       logical :: fake_state_variable = .false.
       logical :: can_be_slave = .false.
 
-      ! Only used for bulk variables:
+      ! Only used for interior state variables:
       real(rk) :: vertical_movement         = 0.0_rk
       logical  :: no_precipitation_dilution = .false.
       logical  :: no_river_dilution         = .false.
@@ -315,7 +318,7 @@
    end type
 
    type,abstract,extends(type_expression) :: type_bulk_expression
-      !type (type_bulk_data_pointer),pointer :: out => null()
+      !type (type_interior_data_pointer),pointer :: out => null()
    end type
 
    type,abstract,extends(type_expression) :: type_horizontal_expression
@@ -389,7 +392,7 @@
       procedure :: add_child
 
       ! Procedures for adding variables [during initialization only]
-      procedure :: add_bulk_variable
+      procedure :: add_interior_variable
       procedure :: add_horizontal_variable
       procedure :: add_scalar_variable
       procedure :: add_object
@@ -423,44 +426,42 @@
       procedure :: add_to_aggregate_variable
 
       ! Procedures that may be used to register model variables and dependencies during initialization.
-      procedure :: register_bulk_state_variable
+      procedure :: register_interior_state_variable
       procedure :: register_bottom_state_variable
       procedure :: register_surface_state_variable
 
-      procedure :: register_bulk_diagnostic_variable
+      procedure :: register_interior_diagnostic_variable
       procedure :: register_horizontal_diagnostic_variable
 
-      procedure :: register_named_bulk_dependency
-      procedure :: register_standard_bulk_dependency
+      procedure :: register_named_interior_dependency
+      procedure :: register_standard_interior_dependency
       procedure :: register_named_horizontal_dependency
       procedure :: register_standard_horizontal_dependency
       procedure :: register_standard_interface_dependency
       procedure :: register_named_global_dependency
       procedure :: register_standard_global_dependency
-      procedure :: register_named_bulk_dependency_old
+      procedure :: register_named_interior_dependency_old
       procedure :: register_named_horizontal_dependency_old
       procedure :: register_named_global_dependency_old
 
-      generic :: register_bulk_dependency       => register_named_bulk_dependency, register_standard_bulk_dependency, &
-                                                   register_named_bulk_dependency_old
+      generic :: register_interior_dependency   => register_named_interior_dependency, register_standard_interior_dependency, &
+                                                   register_named_interior_dependency_old
       generic :: register_horizontal_dependency => register_named_horizontal_dependency, register_standard_horizontal_dependency, &
                                                    register_standard_interface_dependency, register_named_horizontal_dependency_old
       generic :: register_global_dependency     => register_named_global_dependency, register_standard_global_dependency, &
                                                    register_named_global_dependency_old
 
-      procedure :: register_standard_conserved_quantity
-      procedure :: register_custom_conserved_quantity
-      procedure :: register_bulk_state_dependency_ex
+      procedure :: register_interior_state_dependency_ex
       procedure :: register_bottom_state_dependency_ex
       procedure :: register_surface_state_dependency_ex
-      procedure :: register_standard_bulk_state_dependency
+      procedure :: register_standard_interior_state_dependency
       procedure :: register_standard_bottom_state_dependency
       procedure :: register_standard_surface_state_dependency
-      procedure :: register_bulk_state_dependency_old
+      procedure :: register_interior_state_dependency_old
       procedure :: register_bottom_state_dependency_old
       procedure :: register_surface_state_dependency_old
 
-      generic :: register_bulk_state_dependency => register_bulk_state_dependency_ex, register_bulk_state_dependency_old
+      generic :: register_interior_state_dependency => register_interior_state_dependency_ex, register_interior_state_dependency_old
       generic :: register_bottom_state_dependency => register_bottom_state_dependency_ex, register_bottom_state_dependency_old
       generic :: register_surface_state_dependency => register_surface_state_dependency_ex, register_surface_state_dependency_old
 
@@ -468,22 +469,21 @@
       procedure :: register_horizontal_expression_dependency
       generic :: register_expression_dependency => register_bulk_expression_dependency,register_horizontal_expression_dependency
 
-      generic :: register_state_variable      => register_bulk_state_variable,register_bottom_state_variable, &
+      generic :: register_state_variable      => register_interior_state_variable,register_bottom_state_variable, &
                                                  register_surface_state_variable
-      generic :: register_diagnostic_variable => register_bulk_diagnostic_variable,register_horizontal_diagnostic_variable
-      generic :: register_dependency          => register_named_bulk_dependency, register_standard_bulk_dependency, &
-                                                 register_named_bulk_dependency_old, &
+      generic :: register_diagnostic_variable => register_interior_diagnostic_variable,register_horizontal_diagnostic_variable
+      generic :: register_dependency          => register_named_interior_dependency, register_standard_interior_dependency, &
+                                                 register_named_interior_dependency_old, &
                                                  register_named_horizontal_dependency, register_standard_horizontal_dependency, &
                                                  register_standard_interface_dependency, register_named_horizontal_dependency_old, &
                                                  register_named_global_dependency, register_standard_global_dependency, &
                                                  register_named_global_dependency_old, &
                                                  register_bulk_expression_dependency, register_horizontal_expression_dependency
-      generic :: register_state_dependency    => register_bulk_state_dependency_ex,register_bottom_state_dependency_ex, &
-                                                 register_surface_state_dependency_ex,register_bulk_state_dependency_old, &
+      generic :: register_state_dependency    => register_interior_state_dependency_ex,register_bottom_state_dependency_ex, &
+                                                 register_surface_state_dependency_ex,register_interior_state_dependency_old, &
                                                  register_bottom_state_dependency_old,register_surface_state_dependency_old, &
-                                                 register_standard_bulk_state_dependency,register_standard_bottom_state_dependency, &
+                                                 register_standard_interior_state_dependency,register_standard_bottom_state_dependency, &
                                                  register_standard_surface_state_dependency
-      generic :: register_conserved_quantity  => register_standard_conserved_quantity, register_custom_conserved_quantity
 
       ! ----------------------------------------------------------------------------------------------------
       ! Procedures below may be overridden by biogeochemical models to provide custom data or functionality.
@@ -511,8 +511,6 @@
       procedure :: get_light                => base_get_light
 
       ! Bookkeeping: calculate total of conserved quantities, check and repair model state.
-      procedure :: get_conserved_quantities => base_get_conserved_quantities
-      procedure :: get_horizontal_conserved_quantities => base_get_horizontal_conserved_quantities
       procedure :: check_state              => base_check_state
       procedure :: check_surface_state      => base_check_surface_state
       procedure :: check_bottom_state       => base_check_bottom_state
@@ -520,14 +518,33 @@
       procedure :: log_message              => base_log_message
       procedure :: get_path                 => base_get_path
 
-      ! For backward compatibility only - do not use these in new models!
-      procedure :: do_benthos               => base_do_benthos           ! superceded by do_bottom
-      procedure :: do_benthos_ppdd          => base_do_benthos_ppdd      ! superceded by do_bottom_ppdd
-      procedure :: get_surface_exchange     => base_get_surface_exchange ! superceded by do_surface
-
       ! Hooks called by FABM - usable by inheriting models
       procedure :: before_coupling => base_before_coupling
       procedure :: after_coupling  => base_after_coupling
+
+#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
+      ! Pre 11 Dec 2015:
+      procedure :: register_bulk_state_variable => register_interior_state_variable
+      procedure :: register_bulk_diagnostic_variable => register_interior_diagnostic_variable
+      procedure :: register_standard_bulk_state_dependency => register_standard_interior_state_dependency
+      procedure :: register_bulk_state_dependency_old => register_interior_state_dependency_old
+      procedure :: add_bulk_variable => add_interior_variable
+      procedure :: register_named_bulk_dependency_old => register_named_interior_dependency_old
+      generic :: register_bulk_dependency => register_named_interior_dependency, register_standard_interior_dependency, &
+                                             register_named_interior_dependency_old
+
+      procedure :: register_standard_conserved_quantity
+      procedure :: register_custom_conserved_quantity
+      generic :: register_conserved_quantity  => register_standard_conserved_quantity, register_custom_conserved_quantity
+
+      procedure :: get_conserved_quantities => base_get_conserved_quantities
+      procedure :: get_horizontal_conserved_quantities => base_get_horizontal_conserved_quantities
+
+      ! For backward compatibility only - do not use these in new models!
+      procedure :: do_benthos               => base_do_benthos           ! superseded by do_bottom
+      procedure :: do_benthos_ppdd          => base_do_benthos_ppdd      ! superseded by do_bottom_ppdd
+      procedure :: get_surface_exchange     => base_get_surface_exchange ! superseded by do_surface
+#endif
    end type type_base_model
 
    ! ====================================================================================================
@@ -612,19 +629,25 @@
    subroutine base_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
       class (type_base_model),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
+#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
       call self%do_benthos(_ARGUMENTS_DO_BOTTOM_)
+#endif
    end subroutine
 
    subroutine base_do_bottom_ppdd(self,_ARGUMENTS_DO_BOTTOM_PPDD_)
       class (type_base_model),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_
+#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
       call self%do_benthos_ppdd(_ARGUMENTS_DO_BOTTOM_PPDD_)
+#endif
    end subroutine
 
    subroutine base_do_surface(self,_ARGUMENTS_DO_SURFACE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
+#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
       call self%get_surface_exchange(_ARGUMENTS_DO_SURFACE_)
+#endif
    end subroutine
 
    subroutine base_do_horizontal(self,_ARGUMENTS_HORIZONTAL_)
@@ -656,17 +679,6 @@
    subroutine base_get_light(self,_ARGUMENTS_VERTICAL_)
       class (type_base_model),intent(in) :: self
       _DECLARE_ARGUMENTS_VERTICAL_
-   end subroutine
-
-   ! Bookkeeping
-   subroutine base_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
-      class (type_base_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
-   end subroutine
-
-   subroutine base_get_horizontal_conserved_quantities(self,_ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_)
-      class (type_base_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_
    end subroutine
 
    subroutine base_check_state(self,_ARGUMENTS_CHECK_STATE_)
@@ -718,6 +730,15 @@
       end if
    end subroutine
 
+   subroutine base_before_coupling(self)
+      class (type_base_model), intent(inout) :: self
+   end subroutine
+
+   subroutine base_after_coupling(self)
+      class (type_base_model), intent(inout) :: self
+   end subroutine
+
+#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
    subroutine base_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
       class (type_base_model),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
@@ -733,13 +754,16 @@
       _DECLARE_ARGUMENTS_DO_SURFACE_
    end subroutine
 
-   subroutine base_before_coupling(self)
-      class (type_base_model), intent(inout) :: self
+   subroutine base_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
+      class (type_base_model), intent(in) :: self
+      _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
    end subroutine
 
-   subroutine base_after_coupling(self)
-      class (type_base_model), intent(inout) :: self
+   subroutine base_get_horizontal_conserved_quantities(self,_ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_)
+      class (type_base_model), intent(in) :: self
+      _DECLARE_ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_
    end subroutine
+#endif
 
 !-----------------------------------------------------------------------
 !BOP
@@ -1131,10 +1155,10 @@ subroutine request_coupling_for_id(self,id,master)
 end subroutine request_coupling_for_id
 
 subroutine request_standard_coupling_for_link(self,link,master,domain)
-   class (type_base_model),       intent(inout) :: self
-   type (type_link),target,       intent(inout) :: link
-   class (type_standard_variable),intent(in)    :: master
-   integer,optional,              intent(in)    :: domain
+   class (type_base_model),            intent(inout) :: self
+   type (type_link),target,            intent(inout) :: link
+   class (type_base_standard_variable),intent(in)    :: master
+   integer,optional,                   intent(in)    :: domain
 
    class (type_coupling_task),pointer :: task
 
@@ -1145,10 +1169,10 @@ subroutine request_standard_coupling_for_link(self,link,master,domain)
 end subroutine request_standard_coupling_for_link
 
 subroutine request_standard_coupling_for_id(self,id,master,domain)
-   class (type_base_model),       intent(inout) :: self
-   class (type_variable_id),      intent(inout) :: id
-   class (type_standard_variable),intent(in)    :: master
-   integer,optional,              intent(in)    :: domain
+   class (type_base_model),            intent(inout) :: self
+   class (type_variable_id),           intent(inout) :: id
+   class (type_base_standard_variable),intent(in)    :: master
+   integer,optional,                   intent(in)    :: domain
 
    call self%request_standard_coupling_for_link(id%link,master,domain)
 end subroutine request_standard_coupling_for_id
@@ -1282,11 +1306,11 @@ end subroutine real_pointer_set_set_value
 ! !IROUTINE: Registers a new state variable
 !
 ! !INTERFACE:
-   subroutine register_bulk_state_variable(self, id, name, units, long_name, &
-                                           initial_value, vertical_movement, specific_light_extinction, &
-                                           minimum, maximum, missing_value, &
-                                           no_precipitation_dilution, no_river_dilution, &
-                                           standard_variable, presence, background_value)
+   subroutine register_interior_state_variable(self, id, name, units, long_name, &
+                                               initial_value, vertical_movement, specific_light_extinction, &
+                                               minimum, maximum, missing_value, &
+                                               no_precipitation_dilution, no_river_dilution, &
+                                               standard_variable, presence, background_value)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical state variable in the global model database.
@@ -1309,10 +1333,10 @@ end subroutine real_pointer_set_set_value
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-      if (associated(id%link)) call self%fatal_error('register_bulk_state_variable', &
+      if (associated(id%link)) call self%fatal_error('register_interior_state_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      call self%add_bulk_variable(name, units, long_name, missing_value, minimum, maximum, &
+      call self%add_interior_variable(name, units, long_name, missing_value, minimum, maximum, &
                                   initial_value=initial_value, background_value=background_value, &
                                   vertical_movement=vertical_movement, specific_light_extinction=specific_light_extinction, &
                                   no_precipitation_dilution=no_precipitation_dilution, no_river_dilution=no_river_dilution, &
@@ -1324,7 +1348,7 @@ end subroutine real_pointer_set_set_value
       call register_surface_flux(self,id,id%surface_flux)
       call register_bottom_flux(self,id,id%bottom_flux)
       
-   end subroutine register_bulk_state_variable
+   end subroutine register_interior_state_variable
 !EOC
 
    subroutine register_source(self, id, sms_id)
@@ -1449,7 +1473,7 @@ end subroutine real_pointer_set_set_value
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Adds a generic variable (bulk, horizontal or scalar) to the model and returns the link to it.
+! !IROUTINE: Adds a generic variable (interior, horizontal or scalar) to the model and returns the link to it.
 !
 ! !INTERFACE:
    subroutine add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
@@ -1554,10 +1578,10 @@ end subroutine real_pointer_set_set_value
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Adds a bulk variable to the model and returns the link to it.
+! !IROUTINE: Adds an interior variable to the model and returns the link to it.
 !
 ! !INTERFACE:
-   recursive subroutine add_bulk_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
+   recursive subroutine add_interior_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
                                           background_value, vertical_movement, specific_light_extinction, &
                                           no_precipitation_dilution, no_river_dilution, standard_variable, presence, output, &
                                           time_treatment, act_as_state_variable, source, &
@@ -1565,7 +1589,7 @@ end subroutine real_pointer_set_set_value
                                           movement_index, background, link)
 !
 ! !DESCRIPTION:
-!  This function registers a new bulk variable. It is not predefined to be a state variable, diagnostic variable or dependency.
+!  This function registers a new interior variable. It is not predefined to be a state variable, diagnostic variable or dependency.
 !  This is set implicitly by providing (or omitting) target variables state_index, write_index, data, background.
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -1594,15 +1618,15 @@ end subroutine real_pointer_set_set_value
 !-----------------------------------------------------------------------
 !BOC
       allocate(variable)
-      variable%domain = domain_bulk
+      variable%domain = domain_interior
 
-      ! Fill fields specific to bulk variables.
+      ! Fill fields specific to interior variables.
       variable%source = source_do
       if (present(source))                    variable%source                    = source
       if (present(vertical_movement))         variable%vertical_movement         = vertical_movement
       if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
       if (present(no_river_dilution))         variable%no_river_dilution         = no_river_dilution
-      if (present(standard_variable))         allocate(variable%standard_variable,source=standard_variable)
+      if (present(standard_variable))         call variable%standard_variables%add(standard_variable)
       if (present(specific_light_extinction)) call variable%contributions%add( &
          standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,scale_factor=specific_light_extinction)
 
@@ -1612,7 +1636,7 @@ end subroutine real_pointer_set_set_value
                         act_as_state_variable, read_index, state_index, write_index, background, link_)
 
       if (present(movement_index)) then
-         call self%add_bulk_variable(trim(link_%name)//'_w', 'm/s', trim(long_name)//' vertical movement', &
+         call self%add_interior_variable(trim(link_%name)//'_w', 'm/s', trim(long_name)//' vertical movement', &
                                      variable%vertical_movement, output=output_none, write_index=movement_index, link=link2, &
                                      source=source_get_vertical_movement)
          link2%target%can_be_slave = .true.
@@ -1621,7 +1645,7 @@ end subroutine real_pointer_set_set_value
       end if
 
       if (present(link)) link => link_
-   end subroutine add_bulk_variable
+   end subroutine add_interior_variable
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1669,7 +1693,7 @@ end subroutine real_pointer_set_set_value
 
       ! Fill fields specific to horizontal variables.
       if (present(domain))            variable%domain = domain
-      if (present(standard_variable)) allocate(variable%standard_variable,source=standard_variable)
+      if (present(standard_variable)) call variable%standard_variables%add(standard_variable)
       if (present(source))            variable%source = source
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
@@ -1728,7 +1752,7 @@ end subroutine real_pointer_set_set_value
       variable%domain = domain_scalar
 
       ! Fill fields specific to scalar variables.
-      if (present(standard_variable)) allocate(variable%standard_variable,source=standard_variable)
+      if (present(standard_variable)) call variable%standard_variables%add(standard_variable)
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
@@ -1786,7 +1810,7 @@ end subroutine real_pointer_set_set_value
 ! !IROUTINE: Registers a new diagnostic variable
 !
 ! !INTERFACE:
-   subroutine register_bulk_diagnostic_variable(self, id, name, units, long_name, &
+   subroutine register_interior_diagnostic_variable(self, id, name, units, long_name, &
                                                 time_treatment, missing_value, standard_variable, output, source, &
                                                 act_as_state_variable)
 !
@@ -1808,14 +1832,14 @@ end subroutine real_pointer_set_set_value
 !
 !-----------------------------------------------------------------------
 !BOC
-      if (associated(id%link)) call self%fatal_error('register_bulk_diagnostic_variable', &
+      if (associated(id%link)) call self%fatal_error('register_interior_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      call self%add_bulk_variable(name, units, long_name, missing_value, &
+      call self%add_interior_variable(name, units, long_name, missing_value, &
                                   standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
                                   source=source, write_index=id%diag_index, link=id%link, act_as_state_variable=act_as_state_variable)
 
-   end subroutine register_bulk_diagnostic_variable
+   end subroutine register_interior_diagnostic_variable
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1856,6 +1880,7 @@ end subroutine real_pointer_set_set_value
    end subroutine register_horizontal_diagnostic_variable
 !EOC
 
+#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -1912,6 +1937,7 @@ end subroutine real_pointer_set_set_value
 
    end subroutine register_custom_conserved_quantity
 !EOC
+#endif
 
 !-----------------------------------------------------------------------
 !BOP
@@ -1919,7 +1945,7 @@ end subroutine real_pointer_set_set_value
 ! !IROUTINE: Registers a dependency on an external state variable
 !
 ! !INTERFACE:
-   subroutine register_bulk_state_dependency_ex(self,id,name,units,long_name,required,standard_variable)
+   subroutine register_interior_state_dependency_ex(self,id,name,units,long_name,required,standard_variable)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -1943,9 +1969,9 @@ end subroutine real_pointer_set_set_value
       if (present(required)) then
          if (.not.required) presence = presence_external_optional
       end if
-      call register_bulk_state_variable(self, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
+      call register_interior_state_variable(self, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
 
-   end subroutine register_bulk_state_dependency_ex
+   end subroutine register_interior_state_dependency_ex
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2018,15 +2044,15 @@ end subroutine real_pointer_set_set_value
    end subroutine register_surface_state_dependency_ex
 !EOC
 
-   subroutine register_standard_bulk_state_dependency(self,id,standard_variable,required)
+   subroutine register_standard_interior_state_dependency(self,id,standard_variable,required)
       class (type_base_model),             intent(inout) :: self
       type (type_state_variable_id),target,intent(inout) :: id
       type (type_bulk_standard_variable),  intent(in)    :: standard_variable
       logical,optional,                    intent(in)    :: required
 
-      call register_bulk_state_dependency_ex(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
+      call register_interior_state_dependency_ex(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
          required=required, standard_variable=standard_variable)
-   end subroutine register_standard_bulk_state_dependency
+   end subroutine register_standard_interior_state_dependency
 
    subroutine register_standard_bottom_state_dependency(self,id,standard_variable,required)
       class (type_base_model),                    intent(inout) :: self
@@ -2048,12 +2074,12 @@ end subroutine real_pointer_set_set_value
          required=required, standard_variable=standard_variable)
    end subroutine register_standard_surface_state_dependency
 
-   subroutine register_bulk_state_dependency_old(self,id,name)
+   subroutine register_interior_state_dependency_old(self,id,name)
       class (type_base_model),      intent(inout)        :: self
       type (type_state_variable_id),intent(inout),target :: id
       character(len=*),             intent(in)           :: name
 
-      call self%register_bulk_state_dependency(id, name, '', name)
+      call self%register_interior_state_dependency(id, name, '', name)
       call self%request_coupling(id,name)
    end subroutine
 
@@ -2075,13 +2101,13 @@ end subroutine real_pointer_set_set_value
       call self%request_coupling(id,name)
    end subroutine
 
-   subroutine register_standard_bulk_dependency(model,id,standard_variable,required)
+   subroutine register_standard_interior_dependency(model,id,standard_variable,required)
       class (type_base_model),           intent(inout)        :: model
       type (type_dependency_id),         intent(inout),target :: id
       type (type_bulk_standard_variable),intent(in)           :: standard_variable
       logical,optional,                  intent(in)           :: required
 
-      call register_named_bulk_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+      call register_named_interior_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
                                           standard_variable=standard_variable,required=required)
    end subroutine
 
@@ -2129,7 +2155,7 @@ end subroutine real_pointer_set_set_value
 ! the full model domain.
 !
 ! !INTERFACE:
-   subroutine register_named_bulk_dependency(self,id,name,units,long_name,standard_variable,required)
+   subroutine register_named_interior_dependency(self,id,name,units,long_name,standard_variable,required)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -2153,7 +2179,7 @@ end subroutine real_pointer_set_set_value
 !
 !-----------------------------------------------------------------------
 !BOC
-      if (associated(id%link)) call self%fatal_error('register_named_bulk_dependency', &
+      if (associated(id%link)) call self%fatal_error('register_named_interior_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
       ! Dependencies MUST be fulfilled, unless explicitly specified that this is not so (required=.false.)
@@ -2162,10 +2188,10 @@ end subroutine real_pointer_set_set_value
          if (.not.required) presence = presence_external_optional
       end if
 
-      call self%add_bulk_variable(name, units, long_name, presence=presence, &
+      call self%add_interior_variable(name, units, long_name, presence=presence, &
                                   read_index=id%index, background=id%background, link=id%link)
       if (present(standard_variable)) call self%request_coupling(id,standard_variable)
-   end subroutine register_named_bulk_dependency
+   end subroutine register_named_interior_dependency
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2260,7 +2286,7 @@ end subroutine real_pointer_set_set_value
    end subroutine register_named_global_dependency
 !EOC
 
-   subroutine register_named_bulk_dependency_old(self,id,name)
+   subroutine register_named_interior_dependency_old(self,id,name)
       class (type_base_model),  intent(inout)        :: self
       type (type_dependency_id),intent(inout),target :: id
       character(len=*),         intent(in)           :: name
@@ -2269,7 +2295,7 @@ end subroutine real_pointer_set_set_value
 &                            units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
       call self%register_dependency(id,name, '', name)
       if (associated(self%parent)) call self%request_coupling(id,name)
-   end subroutine register_named_bulk_dependency_old
+   end subroutine register_named_interior_dependency_old
 
    subroutine register_named_horizontal_dependency_old(self,id,name)
       class (type_base_model),             intent(inout)        :: self
@@ -2680,7 +2706,7 @@ function get_aggregate_variable(self,standard_variable,create) result(aggregate_
    ! Make sure that aggregate variables at the root level are computed.
    ! These are typically used by the host to check conservation.
    if (.not.associated(self%parent)) then !.and.standard_variable%conserved) then
-      aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,access_read)
+      aggregate_variable%interior_access = ior(aggregate_variable%interior_access,access_read)
       aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,access_read)
    end if
 

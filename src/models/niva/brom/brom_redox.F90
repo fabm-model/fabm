@@ -13,11 +13,15 @@
 !
 ! !USES:
    use fabm_types
-    
+
    implicit none
 
 !  default: all is private.
    private
+!
+! !REVISION HISTORY:!
+!  Original author(s): Evgeniy Yakushev, Elizaveta Protsenko, Jorn Bruggeman
+!
 
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_brom_redox
@@ -30,13 +34,13 @@
     type (type_state_variable_id)        :: id_O2,id_NO3,id_NH4
     type (type_state_variable_id)        :: id_PON,id_DON,id_PO4,id_Si,id_Sipart
     type (type_state_variable_id)        :: id_DIC,id_Alk,id_CaCO3,id_FeS2
-      
+
     type (type_dependency_id)            :: id_temp,id_salt
-    type (type_dependency_id)            :: id_Kp1,id_Kp2,id_Kp3,id_Knh4,id_Kh2s1,id_Hplus,id_KSi,id_Kc0
-    type (type_dependency_id)            :: id_Ca,id_CO3,id_Om_Ca,id_Om_Ar,id_pco2 !,!id_CaCO3_diss      
+    type (type_dependency_id)            :: id_Kp1,id_Kp2,id_Kp3,id_Knh4,id_Kh2s1,id_Hplus,id_KSi
+    type (type_dependency_id)            :: id_Ca,id_CO3,id_Om_Ca,id_Om_Ar !,!id_CaCO3_diss      
     !type (type_dependency_id)            :: id_par,id_temp,id_h
     !type (type_horizontal_dependency_id) :: id_I_0
-    
+
     type (type_diagnostic_variable_id)  :: id_DcPM_O2,id_DcDM_O2,id_DcPM_NOX, id_DcDM_NOX,id_DcPM_SO4, id_DcDM_SO4
     type (type_diagnostic_variable_id)  ::  id_DcDM_Fe,id_DcPM_Fe,id_DcDM_Mn,id_DcPM_Mn
     type (type_diagnostic_variable_id)  :: id_ChemBaae, id_ChemBaan,  id_HetBhan,id_HetBhae,id_MortBaan,id_MortBhan,id_MortBaae,id_MortBhae
@@ -45,7 +49,7 @@
     type (type_diagnostic_variable_id)  :: id_Nitrif1, id_Nitrif2, id_fe_rd,id_Denitr1_PM,id_Disprop,id_hs_ox,id_sulfido,id_s4_rd,id_s23_rd
     type (type_diagnostic_variable_id)  :: id_Denitr1_DM,id_Denitr2_PM,id_Denitr2_DM,id_Denitr1, id_Denitr2
     type (type_diagnostic_variable_id)  :: id_mn_ox2,id_mn_ox,id_mn_rd,id_mn_rd2,id_mns_diss,id_mns_prec,id_mnco3_diss,id_mnco3_prec
- 
+
 !     Model parameters
       real(rk) :: Wsed= 5. !1Rate of sinking of detritus (POP, PON)d-1 !!  Wdetr=1.5 (Savchuk, Wulff,1996),!Wdetr= 3.5; 20. (Gregoire,2000)
       real(rk) :: Wbact=0.4 !Rate of sinking of bacteria (Bhae,Baae,Bhan,Baan) d-1
@@ -129,12 +133,12 @@
       real(rk) ::  k_Baae_mrt = 0.005    !  Baae specific rate of mortality (1/day)
       real(rk) ::  k_Baae_mrt_h2s = 0.899    !  Baae increased specific rate of mortality due to H2S (1/day)
       real(rk) ::  limBaae=2.   ! Limiting parameter for nutrient consumprion by Baae 
-      
+
       real(rk) ::  k_Bhae_gro = 0.5    !  Bhae maximum specific growth rate (1/day)
       real(rk) ::  k_Bhae_mrt = 0.02    !  Bhae specific rate of mortality (1/day)
       real(rk) ::  k_Bhae_mrt_h2s = 0.799    !  Bhae increased specific rate of mortality due to H2S (1/day)      
       real(rk) ::  limBhae=5.   ! Limiting parameter for OM consumprion by Bhae 
-    
+
       real(rk) ::  k_Baan_gro = 0.012 !0.060 !B= 0.012 !0.011 !0.017    !  Baan maximum specific growth rate (1/day)
       real(rk) ::  k_Baan_mrt = 0.012 !0.012 !B= 0.012    !  Baan specific rate of mortality (1/day)
       
@@ -145,8 +149,6 @@
       real(rk) ::  k_Bhan_mrt_o2 = 0.899    !  Bhan increased specific rate of mortality due to O2 (1/day)
       real(rk) ::  limBhan=2.   ! Limiting parameter for OM consumprion by Bhan 
 
-      
-       
       !===========================================================================!
       !---- Stoichiometric coefficients ----!
       real(rk) ::   Sp=0.001     !P[uM]/BIOMASS [mg/m3]
@@ -163,13 +165,10 @@
       real(rk) ::   FekN=26.5    !Fe[uM]/N[uM] (Boudreau, 1996) 424/16
       real(rk) ::   MnkN=13.25   !Mn[uM]/N[uM] (Boudreau, 1996) 212/16
       real(rk) ::   f=0.66       ! conversion factor relating solid and dissolved species concentrations [-]
-      
 
    contains
       procedure :: initialize
       procedure :: do
-      procedure :: do_surface
-      procedure :: do_bottom
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -220,32 +219,29 @@
    call self%register_state_variable(self%id_SO4, 'SO4', 'mmol/m**3','SO4', minimum=0.0_rk)
    call self%register_state_variable(self%id_Si, 'Si', 'mmol/m**3','Si', minimum=0.0_rk)
    call self%register_state_variable(self%id_Sipart, 'Sipart', 'mmol/m**3','Si Particulate', minimum=0.0_rk,vertical_movement=-self%Wsed/86400._rk)
-   
+
    call self%register_state_variable(self%id_Baae, 'Baae', 'mmol/m**3','Aerobic Autotrophic Bacteria', minimum=0.0_rk,vertical_movement=-self%Wbact/86400._rk)
    call self%register_state_variable(self%id_Bhae, 'Bhae', 'mmol/m**3','Aerobic Heterotrophic Bacteria', minimum=0.0_rk,vertical_movement=-self%Wbact/86400._rk)
    call self%register_state_variable(self%id_Baan, 'Baan', 'mmol/m**3','Anaerobic Autotrophic Bacteria', minimum=0.0_rk,vertical_movement=-self%Wbact/86400._rk)
    call self%register_state_variable(self%id_Bhan, 'Bhan', 'mmol/m**3','Anaerobic Heterotrophic Bacteria', minimum=0.0_rk,vertical_movement=-self%Wbact/86400._rk)
-      
+
    call self%register_state_variable(self%id_CaCO3, 'CaCO3', 'mmol/m**3','CaCO3', minimum=0.0_rk,vertical_movement=-self%Wsed/86400._rk)
    call self%register_state_variable(self%id_FeS2, 'FeS2', 'mmol/m**3','FeS2', minimum=0.0_rk, vertical_movement=-self%Wsed/86400._rk)
    ! Register the contribution of all state variables to total nitrogen
    !call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_bio)
-   
+
    call self%register_dependency(self%id_Hplus, 'Hplus', 'mmol/m**3','H+')
    call self%register_dependency(self%id_Om_Ca,'Om_Ca','-','Omega CaCO3-Calcite')
    call self%register_dependency(self%id_Om_Ar,'Om_Ar','-','Omega CaCO3-Aragonite')
    call self%register_dependency(self%id_CO3,'CO3','mmol/m**3','CO3--')
    call self%register_dependency(self%id_Ca,'Ca','mmol/m**3','Ca++')
-   call self%register_dependency(self%id_pco2,'pCO2','ppm','pCO2')   
   !!   call self%register_dependency(self%id_Kh2s1,'Kh2s1','-', 'H2S <--> H+ + HS-')
- 
-
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    call self%register_state_dependency(self%id_DIC,'DIC','mmol/m**3','total dissolved inorganic carbon',required=.false.)
    call self%register_state_dependency(self%id_Alk,'Alk','mmol/m**3','total alkalinity',required=.false.)
    call self%register_state_dependency(self%id_po4,'PO4','mmol/m**3','phosphate',required=.false.)
-   
+
    call self%register_state_dependency(self%id_O2, 'O2', 'mmol/m**3','dissolved oxygen')
    call self%register_state_dependency(self%id_NH4,'NH4','mmol/m**3','ammonium')
    call self%register_state_dependency(self%id_NO3,'NO3','mmol/m**3','nitrate')
@@ -255,10 +251,10 @@
    call self%register_state_dependency(self%id_DON,'DON','mmol/m**3','dissolved organic nitrogen')
 
        !!!! Register diagnostic variables
-   
+
    !call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
    !                  output=output_time_step_integrated)
-   
+
     call self%register_diagnostic_variable(self%id_DcPM_O2,'DcPM_O2','mmol/m**3',  'POM with O2 mineralization',           &
                 output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_DcDM_O2,'DcDM_O2','mmol/m**3',  'DOM with O2 mineralization',           &
@@ -364,8 +360,6 @@
     call self%register_diagnostic_variable(self%id_s4_rd_DM,'s4_rd_DM','mmol/m**3',  'DOM sulfatereduction 1st stage',           &
                 output=output_time_step_integrated) 
 
-
- 
    ! Register environmental dependencies
    call self%register_dependency(self%id_temp,standard_variables%temperature)
    call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
@@ -377,8 +371,7 @@
    call self%register_dependency(self%id_Knh4, 'Knh4', '-', '[H+][NH3]/[NH4]')
    call self%register_dependency(self%id_Kh2s1,'Kh2s1','-', '[H+][HS-]/[H2S]')
    call self%register_dependency(self%id_KSi,  'KSi','-','[H+][H3SiO4-]/[Si(OH)4]')
-   call self%register_dependency(self%id_Kc0,  'Kc0','-','Henry''s constant')
-   
+
    ! Specify that are rates computed in this module are per day (default: per second)
    self%dt = 86400.
 
@@ -410,7 +403,7 @@
    real(rk)                   :: NO2,NO3,NH4, PO4
    real(rk)                   :: S0,S2O3,SO4
    real(rk)                   :: Baae,Bhae,Baan,Bhan
-   real(rk)                   :: DIC,Alk,Hplus,CaCO3,Ca,CO3,Om_Ca,Om_Ar,pCO2
+   real(rk)                   :: DIC,Alk,Hplus,CaCO3,Ca,CO3,Om_Ca,Om_Ar
    real(rk)                   :: temp,salt
 
    real(rk) :: autolis,DcDM_O2,DcPM_O2, DcPM_NOX,DcDM_NOX
@@ -419,7 +412,7 @@
    real(rk) :: Nitrif1,Nitrif2,anammox,Denitr1_PM,Denitr1_DM,Denitr2_PM,Denitr2_DM,Denitr1,Denitr2
    real(rk) :: Disprop,hs_ox,s0_ox,s0_no3,s23_ox,s23_no3,sulfido,s4_rd_PM,s4_rd_DM,s23_rd_PM,s23_rd_DM,s4_rd,s23_rd,DcPM_SO4,DcDM_SO4
    real(rk) :: ChemBaae,MortBaae,MortBhae,ChemBaan,MortBaan,MortBhan,HetBhan,HetBhae
-   real(rk) :: Knh4,Kp1,Kp2,Kp3,Kh2s1,KSi,Kc0
+   real(rk) :: Knh4,Kp1,Kp2,Kp3,Kh2s1,KSi
    real(rk) :: dAlk, Dc_OM_total,CaCO3_prec,CaCO3_diss
 
    
@@ -446,7 +439,7 @@
    _GET_(self%id_Fe3,Fe3)
    _GET_(self%id_FeS,FeS)
    _GET_(self%id_FeS2,FeS2)
-   
+
    _GET_(self%id_PO4,PO4)
 
    _GET_(self%id_NH4,NH4)
@@ -456,7 +449,7 @@
    _GET_(self%id_S0,  S0)
    _GET_(self%id_S2O3,S2O3)
    _GET_(self%id_SO4, SO4)
-   
+
    _GET_(self%id_Baae,Baae)
    _GET_(self%id_Bhae,Bhae)
    _GET_(self%id_Baan,Baan)
@@ -470,8 +463,7 @@
    _GET_(self%id_Om_Ca,Om_Ca)
    _GET_(self%id_Om_Ar,Om_Ar)   
    _GET_(self%id_Ca,Ca)  
-   _GET_(self%id_pCO2,pCO2)    
-   
+
    ! Get equilibrium constants
    _GET_(self%id_Kp1,  Kp1)
    _GET_(self%id_Kp2,  Kp2)
@@ -479,7 +471,6 @@
    _GET_(self%id_Kh2s1,Kh2s1)
    _GET_(self%id_Knh4, Knh4)
    _GET_(self%id_KSi, KSi)
-   _GET_(self%id_Kc0, Kc0) 
    _GET_(self%id_Si,Si)
    _GET_(self%id_Sipart,Sipart)   
 
@@ -542,7 +533,7 @@
      DcPM_Mn=max(0._rk,self%K_PON_Mn*PON &
                         *Mn4/(Mn4 +0.5) &
                         *(1.-0.5*(1+tanh(o2-self%O2s_dn)))   )    
-           
+
 !%!-------------------------------------------------------------------------
 !%!========Fe===============================================================
 !%!-------------------------------------------------------------------------
@@ -552,8 +543,7 @@
     fe_ox2=0.5*(1.+tanh(Fe2-self%s_feox_fe2))*self%K_fe_ox2*Mn4*Fe2 
 !% Fe3 reduction:  2Fe(OH)3+HS-+5H+ ->  2Fe2++S0+6H2O  
     fe_rd=0.5*(1.+tanh(Fe3-self%s_ferd_fe3))*self%K_fe_rd*Fe3 *h2s/(h2s+self%k_ferdHS) !*Kh2s1/(Kh2s1+Hplus)?
-    
-     
+
 !FeS formation/dissollution (Bektursunova, 11)
           Om_FeS=H2S*Fe2/(self%K_FeS*Hplus*1000000.) 
 !% FeS formation Fe2+ + HS- -> FeS + H+ (Bektursunova, 11)
@@ -562,14 +552,14 @@
     fes_diss=self%K_FeS_diss*FeS*max(0._rk,(1._rk-Om_FeS))     
 !% FeS oxidation: FeS + 2.25O2 +2.5H2O -> Fe (OH)3 + 2H+ +SO42- (Soetaert,07) or FeS + 2O2 -> Fe2+ + SO42-(Bektursunova, 11) :
     fes_ox=self%K_FeS_ox*FeS*O2
- 
+
 ! Pyrite formation by FeS oxidation by H2S 
 ! FeS + H2S -> FeS2 + H2     (Rickard,97)
       fes2_form=self%K_FeS2_form*H2S*FeS   
  !Pyrite oxidation by O2
  !  FeS2 + 3.5 O2 + H2O = Fe2+ + 2SO42- + 2H+  (Wijsman,02). 
       fes2_ox=self%K_FeS2_ox*FeS2*o2
-  
+
 !% (CH2O)106(NH3)16H3PO4 + 424Fe(OH)3 + 742CO2 -> 848HCO3-+ 424Fe2+ +318 H2O +16NH3 +H3PO4  (Boudreau, 1996)  Fe units
      DcDM_Fe=self%K_DON_Fe*DON &
                         *Fe3 /(Fe3 +self%k_omno_no3) &
@@ -652,12 +642,12 @@
      s4_rd_DM      =(1.-0.5*(1.+tanh(o2-self%s_omso_o2)))  &
                      *(1.-0.5*(1.+tanh(NO3-self%s_omso_no)))  &
                       *self%K_s4_rd*SO4*DON
-     
+
             if (o2.gt.10.) then
                         s4_rd_PM=0.  
                         s4_rd_DM=0. 
             endif
-     
+
 !%! POM sulfatereduction (2d stage): 
      s23_rd_PM     =(1.-0.5*(1.+tanh(o2-self%s_omso_o2)))  &
                      *(1.-0.5*(1.+tanh(NO3-self%s_omso_no)))  &
@@ -671,7 +661,7 @@
                         s23_rd_PM=0.  
                         s23_rd_DM=0. 
            endif
-     
+
      s4_rd         =s4_rd_PM  + s4_rd_DM  ! in S units
      s23_rd        =s23_rd_PM + s23_rd_DM
 
@@ -726,17 +716,17 @@
           _SET_ODE_(self%id_Mn4, mn_ox2-mn_rd-0.5*fe_ox2+mnco3_ox-(DcDM_Mn+DcPM_Mn)*self%MnkN)
           _SET_ODE_(self%id_MnS, mns_prec-mns_diss)
           _SET_ODE_(self%id_MnCO3, mnco3_prec-mnco3_diss-mnco3_ox)
-          
+
           _SET_ODE_(self%id_Fe2,-fe_ox-fe_ox2+fe_rd-fes_prec+fes_diss+(DcDM_Fe+DcPM_Fe)*4.*self%FekN+feS2_ox)
           _SET_ODE_(self%id_Fe3,fe_ox+fe_ox2-fe_rd+fes_ox-(DcDM_Fe+DcPM_Fe)*4.*self%FekN)
           _SET_ODE_(self%id_FeS,fes_prec-fes_diss-fes_ox-feS2_form)
           _SET_ODE_(self%id_FeS2,feS2_form-feS2_ox)
- 
+
           _SET_ODE_(self%id_H2S,-0.5*mn_rd-0.5*mn_rd2-0.5*fe_rd -hs_ox-fes_prec-mns_prec+mns_diss +0.5*Disprop-sulfido+s23_rd+fes_diss-feS2_form)
           _SET_ODE_(self%id_S0, hs_ox+0.5*mn_rd+0.5*mn_rd2+0.5*fe_rd -s0_ox -Disprop-s0_no3)
           _SET_ODE_(self%id_S2O3,0.5*s0_ox-s23_ox+0.25*Disprop +0.5*s4_rd-0.5*s23_rd-s23_no3)
           _SET_ODE_(self%id_SO4,sulfido-s4_rd+0.5*s23_ox+s0_no3+2.*s23_no3+fes_ox+2.*feS2_ox)
-          
+
           _SET_ODE_(self%id_O2,(-DcDM_O2-DcPM_O2)*self%OkN -0.25*mn_ox-0.25*mn_ox2-0.25*fe_ox -0.5*hs_ox-0.5*s0_ox-0.5*s23_ox -1.5*Nitrif1-0.5*Nitrif2-2.25*fes_ox-3.5*feS2_ox-0.5*mnco3_ox )
           _SET_ODE_(self%id_DON,(autolis-DcDM_O2-DcDM_NOX-DcDM_SO4 -DcDM_Mn -DcDM_Fe -HetBhae-HetBhan))
           _SET_ODE_(self%id_PON,(-autolis-DcPM_O2-DcPM_NOX-DcPM_SO4 -DcPM_Mn -DcPM_Fe+MortBaae+MortBaan+MortBhae+MortBhan))
@@ -755,7 +745,7 @@
           _SET_ODE_(self%id_Bhae,HetBhae-MortBhae)
           _SET_ODE_(self%id_Bhan,HetBhan-MortBhan)
           _SET_ODE_(self%id_CaCO3,CaCO3_prec-CaCO3_diss)
-          
+
   !Here CaCO3=F(omega. etc.   CaCO3_prec -CaCO3_diss     
   ! CaCO3_prec = 0.5*(1.-tanh(Om_Ca-1.))*k_caco3_prec*co3*Ca
   ! CaCO3_diss = 0.5*(1.+tanh(Om_Ca-1.))*k_caco3_diss*CaCO3* (1.-Om_Ca)     !Jourabachi et al., 2005  
@@ -819,8 +809,6 @@
                     )
     _SET_ODE_(self%id_Alk,dAlk)
 
-         
-         
     _SET_DIAGNOSTIC_(self%id_DcPM_O2,DcPM_O2)  
     _SET_DIAGNOSTIC_(self%id_DcDM_O2,DcDM_O2)        
     _SET_DIAGNOSTIC_(self%id_DcPM_NOX,DcPM_NOX)
@@ -877,86 +865,11 @@
     !_SET_DIAGNOSTIC_(self%id_CaCO3_diss,CaCO3_diss) 
     _SET_DIAGNOSTIC_(self%id_mnco3_diss,mnco3_diss)    
     _SET_DIAGNOSTIC_(self%id_mnco3_prec,mnco3_prec)    
-    
+
     _LOOP_END_
 
    end subroutine do
 !EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: 
-!
-! !INTERFACE:
-   subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
-!
-! !DESCRIPTION:
-! 
-! !INPUT PARAMETERS:
-   class (type_niva_brom_redox),intent(in) :: self
-   _DECLARE_ARGUMENTS_DO_SURFACE_
-!
-! !LOCAL VARIABLES:
-    real(rk)                   :: pCO2w,xk,Ox,Q_pCO2,Q_DIC,Kc0
-    real(rk)                   :: temp,salt
-
-      real(rk) ::   pCO2a=400.   
-    
-   _HORIZONTAL_LOOP_BEGIN_
-      _GET_(self%id_temp,temp)              ! temperature
-      _GET_(self%id_salt,salt)              ! salinity
-      _GET_(self%id_Kc0,Kc0)
-      _GET_(self%id_pCO2,pCO2w)
-      
-!/*---------------------------------------------------CO2 exchange with air */       
-
-!Ox=1150 
- Ox=1800.6-120.1*temp+3.7818*temp*temp-0.047608*temp*temp*temp !Ox=Sc, Shmidt number
-      if (Ox>0) then 
-	       xk = 0.028*5.*5.*5.*sqrt(660/Ox)       !Pvel for the Baltic Sea by Schneider
-        else
-           xk = 0.
-      endif
-
-!!!! co2flx = xk * (pCO2ocean - pCO2atm) [mmol/m**2/s] upward positive
-!      co2flx =  xk * ( max(0e0,pCO2) - pCO2a ) ! pCO2ocean >= 0 !   
-!Q_pCO2 =   xk * ( max(0e0,pCO2w) - pCO2a ) ! pCO2ocean >= 0 ! 
-Q_pCO2 =   xk * (- max(0e0,pCO2w) + pCO2a ) ! pCO2ocean >= 0 !  
-Q_DIC=Q_pCO2*Kc0 !
-
- _SET_SURFACE_EXCHANGE_(self%id_DIC,Q_DIC )
-
- !#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) = value/self%dt 
-_HORIZONTAL_LOOP_END_
-   
-   end subroutine 
-!-----------------------------------------------------------------------
-
-   
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: 
-!
-! !INTERFACE:
-   subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
-!
-! !DESCRIPTION:
-! 
-
-! !INPUT PARAMETERS:
-   class (type_niva_brom_redox),intent(in) :: self
-   _DECLARE_ARGUMENTS_DO_BOTTOM_
-!
-! !LOCAL VARIABLES:
-   real(rk)                   :: oxy,t,pom,dom,bio,nut
-   
-   _HORIZONTAL_LOOP_BEGIN_
-   _HORIZONTAL_LOOP_END_
-   
-   end subroutine 
-!-----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
 !BOP

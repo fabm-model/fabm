@@ -18,6 +18,8 @@
 
 !  default: all is private.
    private
+! !REVISION HISTORY:!
+!  Original author(s): Evgeniy Yakushev, Jorn Bruggeman
 
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_brom_salt
@@ -25,7 +27,7 @@
       type (type_state_variable_id)        :: id_Na,id_Cl,id_NaCl
       type (type_bottom_state_variable_id) :: id_NaCl_bot
       type (type_dependency_id)            :: id_temp
-            
+
       type (type_diagnostic_variable_id)            :: id_psu
       type (type_diagnostic_variable_id)            :: id_NaCl_sat
       type (type_horizontal_diagnostic_variable_id) :: id_h_bot
@@ -48,6 +50,8 @@
 
    type (type_bulk_standard_variable),parameter :: total_sodium   = type_bulk_standard_variable(name='total_sodium',  units='mmol/m**3', aggregate_variable=.true., conserved=.true.)
    type (type_bulk_standard_variable),parameter :: total_chloride = type_bulk_standard_variable(name='total_chloride',units='mmol/m**3', aggregate_variable=.true., conserved=.true.)
+   type (type_bulk_standard_variable),parameter :: mass_concentration_of_solute = type_bulk_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
+   type (type_bulk_standard_variable),parameter :: volume_fraction_of_particulates = type_bulk_standard_variable(name='volume_fraction_of_particulates',units='-', aggregate_variable=.true.)
 !EOP
 !-----------------------------------------------------------------------
 
@@ -97,6 +101,11 @@
    call self%add_to_aggregate_variable(total_chloride, self%id_NaCl)
    call self%add_to_aggregate_variable(total_chloride, self%id_NaCl_bot)
 
+   ! Let Na and Cl ions contribute to salinity metric, and bottom-bound particulate NaCL to bottom thickness
+   call self%add_to_aggregate_variable(mass_concentration_of_solute, self%id_Na, scale_factor=u_Na*1e-6_rk)
+   call self%add_to_aggregate_variable(mass_concentration_of_solute, self%id_Cl, scale_factor=u_Cl*1e-6_rk)
+   call self%add_to_aggregate_variable(volume_fraction_of_particulates, self%id_NaCl_bot, scale_factor=(u_Na+u_Cl)/1000/NaCl_density/(1-self%porosity))
+
    call self%register_dependency(self%id_temp,standard_variables%temperature)
 
    end subroutine initialize
@@ -123,6 +132,7 @@
 ! !LOCAL VARIABLES:
    real(rk) :: temp,Na,Cl,NaCl
    real(rk) :: Om_NaCl,NaCl_prec,NaCl_diss
+   real(rk),parameter :: precip_ramp_size = 1000._rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -142,7 +152,7 @@
 
    ! Precipitation/dissolution
    NaCl_prec=self%K_NaCl_form*max(0._rk,(Om_NaCl-1._rk))
-   NaCl_diss=self%K_NaCl_diss*max(0._rk,(1._rk-Om_NaCl))
+   NaCl_diss=self%K_NaCl_diss*max(0._rk,(1._rk-Om_NaCl))*min(NaCl/precip_ramp_size,1._rk)
 
    _SET_ODE_(self%id_Na,  -NaCl_prec+NaCl_diss)
    _SET_ODE_(self%id_Cl,  -NaCl_prec+NaCl_diss)

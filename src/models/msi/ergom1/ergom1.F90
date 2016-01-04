@@ -543,9 +543,9 @@
    oxlim = max (0.0_rk,oxb) * max (0.0_rk,oxb) / (0.01_rk + max(0.0_rk,oxb) * max(0.0_rk,oxb))
 
    ! Sediment resuspension, detritus settling, bio-resuspension, mineralization and burial
-   _SET_ODE_BEN_(self%id_fl,-llsd * fl + llds * ddb - biores * fl - recs * fl - fl * self%fl_burialrate * fl/self%maxsed)
+   _SET_BOTTOM_ODE_(self%id_fl,-llsd * fl + llds * ddb - biores * fl - recs * fl - fl * self%fl_burialrate * fl/self%maxsed)
    ! P-Fe resuspension, sedimentation, bio-resuspension, liberation, retention and burial
-   _SET_ODE_BEN_(self%id_pb,-bpsd * pb + bpds * pwb -biores * pb -plib * pb + self%rfr * recs * fl * pret * oxlim - pbr * self%pburialrate * fl/self%maxsed)
+   _SET_BOTTOM_ODE_(self%id_pb,-bpsd * pb + bpds * pwb -biores * pb -plib * pb + self%rfr * recs * fl * pret * oxlim - pbr * self%pburialrate * fl/self%maxsed)
 
    ! Denitrification in sediments
    _SET_BOTTOM_EXCHANGE_(self%id_nn,-ldn_N * recs * fl)

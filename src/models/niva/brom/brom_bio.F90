@@ -17,6 +17,10 @@
 
 !  default: all is private.
    private
+!
+! !REVISION HISTORY:!
+!  Original author(s): Evgeniy Yakushev, Elizaveta Protsenko, Jorn Bruggeman
+!
 
 ! !PUBLIC DERIVED TYPES:
      type,extends(type_base_model),public :: type_niva_brom_bio
@@ -28,6 +32,7 @@
      type (type_state_variable_id)        :: id_DIC,id_H2S,id_Si,id_Sipart,id_Alk
      type (type_dependency_id)            :: id_temp,id_salt,id_par
      type (type_dependency_id)            :: id_Kp1,id_Kp2,id_Kp3,id_Knh4,id_KSi,id_Hplus      
+     type (type_horizontal_dependency_id) :: id_windspeed
     !type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
     type (type_diagnostic_variable_id)   :: id_MortHet,id_Grazing,id_RespHet,id_GrazBhae,id_GrazBhan,id_GrazBaae,id_GrazBaan
     type (type_diagnostic_variable_id)   :: id_GrazPhy,id_GrazPOP,id_GrazBact,id_MortPhy,id_ExcrPhy,id_LimNH4,id_LimN,id_GrowthPhy
@@ -213,6 +218,7 @@ call self%register_diagnostic_variable(self%id_LimLight,'LimLight','mmol/m**3', 
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_temp,standard_variables%temperature)
    call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
+   call self%register_dependency(self%id_windspeed,standard_variables%wind_speed)
 !-----------------------------------------------------------------------   
    call self%register_dependency(self%id_Hplus, 'Hplus', 'mmol/m**3','H+ hydrogen')
    ! Register dependencies on equilibrium constants for phosphoric acid, ammonia.
@@ -465,22 +471,21 @@ _LOOP_END_
    _DECLARE_ARGUMENTS_DO_SURFACE_
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   :: O2, temp,salt 
-   real(rk)                   :: Ox,Oa,TempT,Obe, Q_O2
+   real(rk)                   :: O2, temp, salt, windHt, windspeed 
+   real(rk)                   :: Ox, Oa, TempT, Obe, Q_O2
    integer(2) rer 
    _HORIZONTAL_LOOP_BEGIN_
       _GET_(self%id_O2,O2)
       _GET_(self%id_temp,temp)              ! temperature
       _GET_(self%id_salt,salt)              ! salinity
+      _GET_HORIZONTAL_(self%id_windspeed,windspeed)
       
-      
-   
 !/*---------------------------------------------------O2 exchange with air */
-  Ox = 1800.6-120.1*temp+3.7818*temp*temp &
-                 -0.047608*temp*temp*temp !Ox=Sc, Shmidt number
+      windHt=5.
+      Ox = 1953.4-128*temp+3.9918*temp*temp-0.050091*temp*temp*temp !(Wanninkoff, 1992)
       if (Ox>0) then 
     !    Oa = 0.028*7.6*7.6*7.6*sqrt(660/Ox)   ! Pvel for the Baltic Sea by Schneider
-	        Oa = 0.028*6.*6.*6.*sqrt(660/Ox)       ! Pvel for the Black Sea
+	        Oa = 0.028*(windspeed**3.)*sqrt(400/Ox)   ! 
         else
             Oa = 0.
       endif
@@ -489,15 +494,9 @@ _LOOP_END_
   Obe = exp(-173.4292+249.6339/TempT+143.3483*log(TempT)-21.8492*TempT+salt*(-0.033096+0.014259*TempT-0.0017*TempT*TempT)) !Osat
   Obe = Obe*1000./22.4  ! - in uM
 
-  Q_O2 = 1000.*Oa*(Obe-O2)*0.24 ! 0,24 perehod ot [cm/h] k [m/day]  (iz razmernosti koef. skorosti vetra ), DH - shag setki
+  Q_O2 = Oa*(Obe-O2)*0.24/windHt! 0.24 is to convert from [cm/h] to [m/day]  
 
-!_SET_SURFACE_EXCHANGE_(self%id_O2,self%pvel*(self%a0*(self%a1-self%a2*max(0.0_rk,temp))-O2)/86400.)
- !     _SET_SURFACE_EXCHANGE_(self%id_O2,self%pvel*(self%a0*(self%a1-self%a2*max(0.0_rk,temp))-O2)*86400.)
  _SET_SURFACE_EXCHANGE_(self%id_O2,Q_O2)
-!/*---------------------------------------------------CO2 exchange with air */            
-!      pCO2  = Ct*H_ /((K1*K2/H_+K1+H_)*K0)
-!!!! co2flx = xk * (pCO2ocean - pCO2atm) [mmol/m**2/s] upward positive
-!      co2flx =  xk * ( max(0e0,pCO2) - pCO2a ) ! pCO2ocean >= 0 !                 
 
 _HORIZONTAL_LOOP_END_
    

@@ -42,7 +42,6 @@
       type (type_dependency_id)            :: id_par
       type (type_horizontal_dependency_id) :: id_I_0
       type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
-      type (type_conserved_quantity_id)    :: id_totN
 
 !     Model parameters
       real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd

@@ -17,18 +17,24 @@
 
 !  default: all is private.
    private
+!
+! !REVISION HISTORY:!
+!  Original author(s): Evgeniy Yakushev, Jorn Bruggeman
+!
 
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_brom_carb
 !     Variable identifiers
       type (type_state_variable_id)        :: id_DIC,id_Alk
       type (type_diagnostic_variable_id)   :: id_pH,id_pCO2,id_Hplus,id_Om_Ca,id_Om_Ar,id_CO3,id_Ca
-      type (type_dependency_id)            :: id_temp,id_salt,id_pres
+      type (type_dependency_id)            :: id_temp,id_salt,id_pres,id_pCO2w
       type (type_dependency_id)            :: id_PO4,id_Si,id_NH4,id_DON,id_H2S,id_Mn3,id_Mn4,id_Fe3
       type (type_dependency_id)            :: id_Kc1,id_Kc2,id_Kw,id_Kb,id_Kp1,id_Kp2,id_Kp3,id_Kc0,id_KSi,id_Knh4,id_Kh2s1,id_Kh2s2
+      type (type_horizontal_dependency_id) :: id_windspeed, id_pCO2a
    contains
       procedure :: initialize
       procedure :: do
+      procedure :: do_surface
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -62,6 +68,8 @@
    call self%register_dependency(self%id_temp,standard_variables%temperature)
    call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
    call self%register_dependency(self%id_pres,standard_variables%pressure)
+   call self%register_dependency(self%id_pco2a,standard_variables%mole_fraction_of_carbon_dioxide_in_air)
+   call self%register_dependency(self%id_windspeed,standard_variables%wind_speed)
 
    call self%register_dependency(self%id_Kc0,'Kc0','-','Henry''s constant')
    call self%register_dependency(self%id_Kc1,'Kc1','-','[H+][HCO3-]/[H2CO3]')
@@ -75,7 +83,7 @@
    call self%register_dependency(self%id_Knh4,'Knh4','-','[H+][NH3]/[NH4]')
    call self%register_dependency(self%id_Kh2s1,'Kh2s1','-','H2S <--> H+ + HS-')
    call self%register_dependency(self%id_Kh2s2,'Kh2s2','-','HS- <--> H+ + S2-')
-   
+
    call self%register_dependency(self%id_po4,'PO4','mmol/m**3','phosphate')
    call self%register_dependency(self%id_Si, 'Si', 'mmol/m**3','silicate')
    call self%register_dependency(self%id_NH4,'NH4','mmol/m**3','ammonium')
@@ -84,7 +92,7 @@
    call self%register_dependency(self%id_Mn3,'Mn3','mmol/m**3','manganese III')
    call self%register_dependency(self%id_Mn4,'Mn4','mmol/m**3','manganese IV')
    call self%register_dependency(self%id_Fe3,'Fe3','mmol/m**3','iron III')
-   
+
    call self%register_diagnostic_variable(self%id_pH,'pH','-','pH')
    call self%register_diagnostic_variable(self%id_pCO2,'pCO2','ppm','partial pressure of CO2')
    call self%register_diagnostic_variable(self%id_Hplus, 'Hplus', 'mmol/m**3','H+ Hydrogen')
@@ -92,6 +100,10 @@
    call self%register_diagnostic_variable(self%id_Om_Ar,'Om_Ar','-','CaCO3-Aragonite saturation')
    call self%register_diagnostic_variable(self%id_CO3,'CO3','mmol/m**3','CO3--')
    call self%register_diagnostic_variable(self%id_Ca,'Ca','mmol/m**3','Ca++')
+
+   call self%register_dependency(self%id_pCO2w,'pCO2','ppm','partial pressure of CO2')
+
+   self%dt = 86400
 
    end subroutine initialize
 !EOC
@@ -166,13 +178,13 @@
              H2S,Mn3,Mn4,Fe3, &
              Kc1,Kc2,Kw,Kb,Kp1,Kp2,Kp3,Kc0,KSi,Knh4,Kh2s1,Kh2s2, &
              H_,pH)             
-      
+
 ! calculate all the others as a function of pH1(k), alk1(k), tic1(k) and constants
       call CARFIN(temp,salt,0.1_rk*pres,Kc0,Kc1,Kc2, &
              DIC,H_, &
              co2,pCO2,hco3,co3, &
              Ca,Om_Ca,Om_Ar) 
-   
+
    _SET_DIAGNOSTIC_(self%id_pH,pH)
    _SET_DIAGNOSTIC_(self%id_pCO2,pCO2)
    _SET_DIAGNOSTIC_(self%id_Hplus,H_)
@@ -180,12 +192,62 @@
    _SET_DIAGNOSTIC_(self%id_Om_Ar,Om_Ar)
    _SET_DIAGNOSTIC_(self%id_CO3,co3)   
    _SET_DIAGNOSTIC_(self%id_Ca,Ca)   
-   
+
 ! Leave spatial loops (if any)
    _LOOP_END_
 
    end subroutine do
 !EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: 
+!
+! !INTERFACE:
+   subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
+!
+! !DESCRIPTION:
+! 
+! !INPUT PARAMETERS:
+   class (type_niva_brom_carb),intent(in) :: self
+   _DECLARE_ARGUMENTS_DO_SURFACE_
+!
+! !LOCAL VARIABLES:
+   real(rk) :: pCO2w, xk, Ox, Q_pCO2, Q_DIC
+   real(rk) :: temp, Kc0surface, windHt
+
+   real(rk) :: pCO2a
+   real(rk) :: windspeed
+
+   _HORIZONTAL_LOOP_BEGIN_
+      _GET_(self%id_temp,temp)              ! temperature
+      _GET_(self%id_pCO2w,pCO2w)
+      _GET_HORIZONTAL_(self%id_windspeed,windspeed)
+      _GET_HORIZONTAL_(self%id_pCO2a,pCO2a)
+      _GET_(self%id_Kc0,Kc0surface)
+
+!/*---------------------------------------------------CO2 exchange with air */       
+      windHt=5.
+
+      Ox=1800.6-120.1*temp+3.7818*temp*temp-0.047608*temp*temp*temp !Ox=Sc, Schmidt number
+      if (Ox>0) then 
+         xk = 0.028*(windspeed**3.)*sqrt(660/Ox)       !Pvel for the Baltic Sea by Schneider
+      else
+         xk = 0.
+      endif
+
+      !!!! co2_flux = xk * (pCO2ocean - pCO2atm) [mmol/m**2/s] upward positive
+      Q_pCO2 =   xk * ( pCO2a- max(0e0,pCO2w)) ! pCO2ocean >= 0 !  
+      Q_DIC=Q_pCO2*Kc0surface/windHt
+
+      _SET_SURFACE_EXCHANGE_(self%id_DIC,Q_DIC)
+
+    !#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) = value/self%dt 
+   _HORIZONTAL_LOOP_END_
+
+   end subroutine do_surface
+!-----------------------------------------------------------------------
 
 !============================================================ 
 !-----------------------------------------------------------

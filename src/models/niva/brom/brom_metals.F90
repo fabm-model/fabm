@@ -18,6 +18,10 @@
 
 !  default: all is private.
    private
+!
+! !REVISION HISTORY:!
+!  Original author(s): Evgeniy Yakushev, Svetlana Pakhomova, Jorn Bruggeman
+!
 
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_brom_metals
