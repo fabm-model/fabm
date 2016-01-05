@@ -2664,14 +2664,14 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
    integer :: i
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   _N_ = _STOP_-_START_+1
+   _N_ = _VERTICAL_STOP_-_VERTICAL_START_+1
 #  ifdef _HAS_MASK_
    allocate(environment%mask(_N_))
    _DO_CONCURRENT_(_I_,1,_N_)
 #    ifdef _FABM_HORIZONTAL_MASK_
       environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)
 #    else
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(_START_+_I_-1))
+      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1))
 #    endif
    end do
    _N_ = count(environment%mask)
@@ -2692,10 +2692,10 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
       if (associated(self%data(i)%p)) then
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  ifdef _HAS_MASK_
-         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(_START_:_STOP_),environment%mask)
+         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_:_VERTICAL_STOP_),environment%mask)
 #  else
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
-            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(_START_+_I_-1)
+            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
          _VERTICAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
@@ -4990,7 +4990,7 @@ end subroutine
       character(len=*), intent(in) :: routine
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      call check_loop(_START_,_STOP_,self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_),routine)
+      call check_loop(_VERTICAL_START_,_VERTICAL_STOP_,self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_),routine)
 #endif
 #if _FABM_DIMENSION_COUNT_>0&&_FABM_DEPTH_DIMENSION_INDEX_!=1
       call check_index(i__,self%domain_size(1),routine,'i')

@@ -175,14 +175,6 @@
 
 #endif
 
-#if _FABM_DEPTH_DIMENSION_INDEX_==1
-#  define _VERTICAL_ITERATOR_ i__
-#elif _FABM_DEPTH_DIMENSION_INDEX_==2
-#  define _VERTICAL_ITERATOR_ j__
-#elif _FABM_DEPTH_DIMENSION_INDEX_==3
-#  define _VERTICAL_ITERATOR_ k__
-#endif
-
 #if _FABM_VECTORIZED_DIMENSION_INDEX_==1
 #  define _START_ istart__
 #  define _STOP_ istop__
@@ -425,10 +417,16 @@
 !  ---------------------------------------------------------------------------------
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
 #    define _VERTICAL_ITERATOR_ i__
+#    define _VERTICAL_START_ istart__
+#    define _VERTICAL_STOP_ istop__
 #  elif _FABM_DEPTH_DIMENSION_INDEX_==2
 #    define _VERTICAL_ITERATOR_ j__
+#    define _VERTICAL_START_ jstart__
+#    define _VERTICAL_STOP_ jstop__
 #  else
 #    define _VERTICAL_ITERATOR_ k__
+#    define _VERTICAL_START_ kstart__
+#    define _VERTICAL_STOP_ kstop__
 #  endif
 #  if _FABM_DIMENSION_COUNT_==1
 #    define _ARG_VERTICAL_FIXED_LOCATION_
@@ -436,8 +434,8 @@
 #    define _ARG_VERTICAL_FIXED_LOCATION_ ,_HORIZONTAL_LOCATION_
 #  endif
 #  define _ARGUMENTS_VERTICAL_LENGTH_ ,_N_
-#  define _ARGUMENTS_VERTICAL_IN_ ,_START_,_STOP_ _ARG_VERTICAL_FIXED_LOCATION_
-#  define _DECLARE_ARGUMENTS_VERTICAL_IN_ integer,intent(in) :: _START_,_STOP_ _ARG_VERTICAL_FIXED_LOCATION_
+#  define _ARGUMENTS_VERTICAL_IN_ ,_VERTICAL_START_,_VERTICAL_STOP_ _ARG_VERTICAL_FIXED_LOCATION_
+#  define _DECLARE_ARGUMENTS_VERTICAL_IN_ integer,intent(in) :: _VERTICAL_START_,_VERTICAL_STOP_ _ARG_VERTICAL_FIXED_LOCATION_
 #else
 !  ---------------------------------------------------------------------------------
 !  VERTICAL procedures operate on one point at a time.
@@ -482,7 +480,7 @@
 #endif
 
 #if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&defined(_HAS_MASK_)
-#  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_VERTICAL_PLUS_1_(_START_:_STOP_,j) = unpack(in(:,i),mask,missing)
+#  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_VERTICAL_PLUS_1_(_VERTICAL_START_:_VERTICAL_STOP_,j) = unpack(in(:,i),mask,missing)
 #else
-#  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_VERTICAL_LOOP_BEGIN_;out _INDEX_GLOBAL_VERTICAL_PLUS_1_(_START_+_I_-1,j) = in _INDEX_SLICE_PLUS_1_(i);_VERTICAL_LOOP_END_
+#  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_VERTICAL_LOOP_BEGIN_;out _INDEX_GLOBAL_VERTICAL_PLUS_1_(_VERTICAL_START_+_I_-1,j) = in _INDEX_SLICE_PLUS_1_(i);_VERTICAL_LOOP_END_
 #endif
