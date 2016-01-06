@@ -59,7 +59,7 @@
 #  endif
 #  define _HORIZONTAL_LOCATION_DIMENSIONS_ :
 #else
-#  define _BEGIN_OUTER_VERTICAL_LOOP_ do j__=jstart__,jstop__;i__=istart__,istop__
+#  define _BEGIN_OUTER_VERTICAL_LOOP_ do j__=jstart__,jstop__;do i__=istart__,istop__
 #  define _END_OUTER_VERTICAL_LOOP_ end do;end do
 #endif
 
@@ -80,7 +80,7 @@
 #  define _BEGIN_OUTER_INTERIOR_LOOP_ do i__=istart__,istop__
 #  define _END_OUTER_INTERIOR_LOOP_ end do
 #else
-#  define _BEGIN_OUTER_INTERIOR_LOOP_ do j__=jstart__,jstop__;i__=istart__,istop__
+#  define _BEGIN_OUTER_INTERIOR_LOOP_ do j__=jstart__,jstop__;do i__=istart__,istop__
 #  define _END_OUTER_INTERIOR_LOOP_ end do;end do
 #endif
 
@@ -116,7 +116,7 @@
 #  endif
 #  define _HORIZONTAL_LOCATION_DIMENSIONS_ :,:
 #else
-#  define _BEGIN_OUTER_VERTICAL_LOOP_ do k__=kstart__,kstop__;do j__=jstart__,jstop__;i__=istart__,istop__
+#  define _BEGIN_OUTER_VERTICAL_LOOP_ do k__=kstart__,kstop__;do j__=jstart__,jstop__;do i__=istart__,istop__
 #  define _END_OUTER_VERTICAL_LOOP_ end do;end do;end do
 #endif
 
@@ -169,7 +169,7 @@
 #  define _BEGIN_OUTER_INTERIOR_LOOP_ do j__=jstart__,jstop__;do i__=istart__,istop__
 #  define _END_OUTER_INTERIOR_LOOP_ end do;end do
 #else
-#  define _BEGIN_OUTER_INTERIOR_LOOP_ do k__=kstart__,kstop__;do j__=jstart__,jstop__;i__=istart__,istop__
+#  define _BEGIN_OUTER_INTERIOR_LOOP_ do k__=kstart__,kstop__;do j__=jstart__,jstop__;do i__=istart__,istop__
 #  define _END_OUTER_INTERIOR_LOOP_ end do;end do;end do
 #endif
 
@@ -190,6 +190,7 @@
 #ifndef _FABM_DEPTH_DIMENSION_INDEX_
 #  define _HORIZONTAL_FIXED_LOCATION_ _INTERIOR_FIXED_LOCATION_
 #  define _HORIZONTAL_LOCATION_ _LOCATION_
+#  define _HORIZONTAL_LOCATION_RANGE_ _LOCATION_RANGE_
 #  define _HORIZONTAL_LOCATION_DIMENSIONS_ _LOCATION_DIMENSIONS_
 #  define _HORIZONTAL_DIMENSION_COUNT_ _FABM_DIMENSION_COUNT_
 #else
