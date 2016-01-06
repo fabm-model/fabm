@@ -77,19 +77,21 @@
    public type_horizontal_variable_id
    public type_scalar_variable_id
    public type_external_variable,type_horizontal_state_variable_info
-!
-! !PUBLIC TYPES:
-!
+
    integer, parameter :: state_none             = 0
    integer, parameter :: state_initialize_done  = 1
    integer, parameter :: state_set_domain_done  = 2
    integer, parameter :: state_check_ready_done = 3
 
-   integer, parameter :: data_source_none = 0
-   integer, parameter :: data_source_host = 1
-   integer, parameter :: data_source_fabm = 2
-   integer, parameter :: data_source_user = 3
-   integer, parameter :: data_source_default = data_source_host
+   integer, parameter, public :: data_source_none = 0
+   integer, parameter, public :: data_source_host = 1
+   integer, parameter, public :: data_source_fabm = 2
+   integer, parameter, public :: data_source_user = 3
+   integer, parameter, public :: data_source_default = data_source_host
+
+!
+! !PUBLIC TYPES:
+!
 
    ! ====================================================================================================
    ! Variable identifiers used by host models.
