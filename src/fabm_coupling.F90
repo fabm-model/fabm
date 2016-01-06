@@ -455,20 +455,22 @@ end subroutine
       if (task%master_standard_variable%aggregate_variable) then
          ! Make sure that an aggregate variable will be created on the fly
          select type (aggregate_standard_variable=>task%master_standard_variable)
-            class is (type_bulk_standard_variable)
-               aggregate_variable => get_aggregate_variable(self,aggregate_standard_variable)
-               select case (task%domain)
-                  case (domain_interior)
-                     aggregate_variable%interior_access = ior(aggregate_variable%interior_access,access_read)
-                     deallocate(task%master_standard_variable)
-                     task%master_name = aggregate_variable%standard_variable%name
-                  case (domain_bottom)
-                     aggregate_variable%bottom_access = ior(aggregate_variable%bottom_access,access_read)
-                     deallocate(task%master_standard_variable)
-                     task%master_name = trim(aggregate_variable%standard_variable%name)//'_at_bottom'
-                  case default
-                     call self%fatal_error('generate_standard_master','BUG: unknown type of standard variable with aggregate_variable set.')
-               end select
+         class is (type_bulk_standard_variable)
+            aggregate_variable => get_aggregate_variable(self,aggregate_standard_variable)
+            select case (task%domain)
+            case (domain_interior)
+               aggregate_variable%interior_access = ior(aggregate_variable%interior_access,access_read)
+               task%master_name = aggregate_variable%standard_variable%name
+            case (domain_bottom)
+               aggregate_variable%bottom_access = ior(aggregate_variable%bottom_access,access_read)
+               task%master_name = trim(aggregate_variable%standard_variable%name)//'_at_bottom'
+            case (domain_surface)
+               aggregate_variable%surface_access = ior(aggregate_variable%surface_access,access_read)
+               task%master_name = trim(aggregate_variable%standard_variable%name)//'_at_surface'
+            case default
+               call self%fatal_error('generate_standard_master','BUG: unknown type of standard variable with aggregate_variable set.')
+            end select
+            deallocate(task%master_standard_variable)
          end select
       end if
    end function generate_standard_master
@@ -583,7 +585,7 @@ recursive subroutine create_aggregate_models(self)
 
    type (type_aggregate_variable),      pointer :: aggregate_variable
    class (type_weighted_sum),           pointer :: sum
-   class (type_horizontal_weighted_sum),pointer :: horizontal_sum,bottom_sum
+   class (type_horizontal_weighted_sum),pointer :: horizontal_sum,bottom_sum,surface_sum
    type (type_contributing_variable),   pointer :: contributing_variable
    type (type_model_list_node),         pointer :: child
 
@@ -593,6 +595,7 @@ recursive subroutine create_aggregate_models(self)
       if (aggregate_variable%interior_access/=access_none)   allocate(sum)
       if (aggregate_variable%horizontal_access/=access_none) allocate(horizontal_sum)
       if (aggregate_variable%bottom_access/=access_none)     allocate(bottom_sum)
+      if (aggregate_variable%surface_access/=access_none)    allocate(surface_sum)
 
       contributing_variable => aggregate_variable%first_contributing_variable
       do while (associated(contributing_variable))
@@ -600,23 +603,30 @@ recursive subroutine create_aggregate_models(self)
              .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable)) then   ! Only include fake state variable for non-root models
             if (associated(sum)) then
                select case (contributing_variable%link%target%domain)
-                  case (domain_interior)
-                     call sum%add_component(trim(contributing_variable%link%name), &
-                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+               case (domain_interior)
+                  call sum%add_component(trim(contributing_variable%link%name), &
+                     weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
                end select
             end if
             if (associated(bottom_sum)) then
                select case (contributing_variable%link%target%domain)
-                  case (domain_bottom)
-                     call bottom_sum%add_component(trim(contributing_variable%link%name), &
-                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+               case (domain_bottom)
+                  call bottom_sum%add_component(trim(contributing_variable%link%name), &
+                     weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+               end select
+            end if
+            if (associated(surface_sum)) then
+               select case (contributing_variable%link%target%domain)
+               case (domain_surface)
+                  call surface_sum%add_component(trim(contributing_variable%link%name), &
+                     weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
                end select
             end if
             if (associated(horizontal_sum)) then
                select case (contributing_variable%link%target%domain)
-                  case (domain_horizontal,domain_surface,domain_bottom)
-                     call horizontal_sum%add_component(trim(contributing_variable%link%name), &
-                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+               case (domain_horizontal,domain_surface,domain_bottom)
+                  call horizontal_sum%add_component(trim(contributing_variable%link%name), &
+                     weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
                end select
             end if
          end if
@@ -645,6 +655,12 @@ recursive subroutine create_aggregate_models(self)
          bottom_sum%access = aggregate_variable%bottom_access
          if (associated(self%parent)) bottom_sum%result_output = output_none
          if (.not.bottom_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_bottom')) deallocate(bottom_sum)
+      end if
+      if (associated(surface_sum)) then
+         surface_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
+         surface_sum%access = aggregate_variable%surface_access
+         if (associated(self%parent)) surface_sum%result_output = output_none
+         if (.not.surface_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_surface')) deallocate(surface_sum)
       end if
       aggregate_variable => aggregate_variable%next
    end do

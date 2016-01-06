@@ -179,9 +179,12 @@ module fabm_particle
             class is (type_bottom_state_variable_id)
                coupling%domain = domain_bottom
                coupling%access = access_state
+            class is (type_surface_state_variable_id)
+               coupling%domain = domain_surface
+               coupling%access = access_state
             class default
                call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of ones of the following types: &
-                  &type type_dependency_id, type_horizontal_dependency_id, type_state_variable_id, type_bottom_state_variable_id.')
+                  &type type_dependency_id, type_horizontal_dependency_id, type_state_variable_id, type_bottom_state_variable_id, type_surface_state_variable_id.')
          end select
       end if
       if (present(master_model)) then
@@ -302,6 +305,9 @@ module fabm_particle
                   case (domain_bottom)
                      aggregate_variable%bottom_access = ior(aggregate_variable%bottom_access,model_coupling%access)
                      master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_bottom'
+                  case (domain_surface)
+                     aggregate_variable%surface_access = ior(aggregate_variable%surface_access,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_surface'
                end select
             end if
             call self%request_coupling(coupling%slave,master_name)

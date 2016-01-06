@@ -236,6 +236,7 @@
       integer                                    :: interior_access             = access_none
       integer                                    :: horizontal_access           = access_none
       integer                                    :: bottom_access               = access_none
+      integer                                    :: surface_access              = access_none
    end type
 
    type type_link_list
