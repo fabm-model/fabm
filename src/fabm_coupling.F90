@@ -591,7 +591,7 @@ recursive subroutine create_aggregate_models(self)
 
    aggregate_variable => self%first_aggregate_variable
    do while (associated(aggregate_variable))
-      nullify(sum,horizontal_sum,bottom_sum)
+      nullify(sum,horizontal_sum,bottom_sum,surface_sum)
       if (aggregate_variable%interior_access/=access_none)   allocate(sum)
       if (aggregate_variable%horizontal_access/=access_none) allocate(horizontal_sum)
       if (aggregate_variable%bottom_access/=access_none)     allocate(bottom_sum)
