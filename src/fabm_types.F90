@@ -2333,13 +2333,13 @@ recursive subroutine register_expression(self,expression)
    if (associated(self%parent)) call register_expression(self%parent,expression)
 end subroutine
 
-subroutine get_real_parameter(self,value,name,units,long_name,default,scale_factor)
+subroutine get_real_parameter(self,value,name,units,long_name,default,scale_factor,minimum,maximum)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target  :: self
    real(rk),                intent(inout)          :: value
    character(len=*),        intent(in)             :: name
    character(len=*),        intent(in),   optional :: units,long_name
-   real(rk),                intent(in),   optional :: default,scale_factor
+   real(rk),                intent(in),   optional :: default,scale_factor,minimum,maximum
 !
 !EOP
 !
@@ -2347,6 +2347,7 @@ subroutine get_real_parameter(self,value,name,units,long_name,default,scale_fact
    class (type_property),    pointer :: property
    logical                           :: success
    type (type_real_property)         :: current_parameter
+   character(len=13)                 :: text1,text2
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -2365,6 +2366,23 @@ subroutine get_real_parameter(self,value,name,units,long_name,default,scale_fact
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a real number.')
    elseif (.not.present(default)) then
       call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
+   end if
+
+   if (present(minimum)) then
+      if (value<minimum) then
+         write (text1,'(G13.6)') value
+         write (text2,'(G13.6)') minimum
+         call self%fatal_error('get_real_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
+            //'" is less than prescribed minimum of '//trim(adjustl(text2))//'.')
+      end if
+   end if
+   if (present(maximum)) then
+      if (value>maximum) then
+         write (text1,'(G13.6)') value
+         write (text2,'(G13.6)') maximum
+         call self%fatal_error('get_real_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
+            //'" exceeds prescribed maximum of '//trim(adjustl(text2))//'.')
+      end if
    end if
 
    ! Store parameter settings
@@ -2393,13 +2411,13 @@ subroutine set_parameter(self,parameter,name,units,long_name)
 end subroutine set_parameter
 !EOC
 
-subroutine get_integer_parameter(self,value,name,units,long_name,default)
+subroutine get_integer_parameter(self,value,name,units,long_name,default,minimum,maximum)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
    integer,                 intent(inout)         :: value
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
-   integer,                 intent(in),optional   :: default
+   integer,                 intent(in),optional   :: default,minimum,maximum
 !
 !EOP
 !
@@ -2407,6 +2425,7 @@ subroutine get_integer_parameter(self,value,name,units,long_name,default)
    class (type_property),       pointer :: property
    type (type_integer_property)         :: current_parameter
    logical                              :: success
+   character(len=8)                     :: text1,text2
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -2425,6 +2444,23 @@ subroutine get_integer_parameter(self,value,name,units,long_name,default)
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an integer number.')
    elseif (.not.present(default)) then
       call self%fatal_error('get_integer_parameter','No value provided for parameter "'//trim(name)//'".')
+   end if
+
+   if (present(minimum)) then
+      if (value<minimum) then
+         write (text1,'(I0)') value
+         write (text2,'(I0)') minimum
+         call self%fatal_error('get_integer_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
+            //'" is less than prescribed minimum of '//trim(adjustl(text2))//'.')
+      end if
+   end if
+   if (present(maximum)) then
+      if (value>maximum) then
+         write (text1,'(I0)') value
+         write (text2,'(I0)') maximum
+         call self%fatal_error('get_integer_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
+            //'" exceeds prescribed maximum of '//trim(adjustl(text2))//'.')
+      end if
    end if
 
    ! Store parameter settings
