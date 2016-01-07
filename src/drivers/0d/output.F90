@@ -14,6 +14,7 @@
    ! From FABM
    use fabm
    use fabm_types
+   use fabm_driver
    use fabm_properties
 
    ! From GOTM
@@ -81,15 +82,11 @@
 
    read(namlst,nml=output,err=93)
 
-   if (output_file=='') then
-      FATAL 'run.nml: "output_file" must be set to a valid file path in "output" namelist.'
-      stop 'configure_output'
-   end if
+   if (output_file=='') call driver%fatal_error('configure_output','run.nml: "output_file" must be set to a valid file path in "output" namelist.')
 
    return
 
-93 FATAL 'run.nml: I could not read the "output" namelist.'
-   stop 'configure_output'
+93 call driver%fatal_error('configure_output','run.nml: I could not read the "output" namelist.')
 
    end subroutine configure_output
 !EOC
@@ -177,8 +174,8 @@
    allocate(totals_hz(size(model%conserved_quantities)))  ! at current time, on top/bottom interfaces only
 
    return
-96 FATAL 'I could not open ',trim(output_file)
-   stop 'init_output'
+96 call driver%fatal_error('init_output','I could not open '//trim(output_file))
+
 100 format (A, A, ' (', A, ')')
 
    end subroutine init_output

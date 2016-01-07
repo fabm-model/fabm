@@ -914,7 +914,8 @@
       class (type_0d_driver), intent(inout) :: self
       character(len=*),       intent(in)    :: location,message
 
-      FATAL trim(location)//': '//trim(message)
+      write (stderr,'(A)') 'FATAL ERROR: '//trim(location)
+      write (stderr,'(A)') trim(message)
       call clean_up(ignore_errors=.true.)
       stop 1
    end subroutine
@@ -923,7 +924,7 @@
       class (type_0d_driver), intent(inout) :: self
       character(len=*),       intent(in)    :: message
 
-      write (*,*) trim(message)
+      write (stdout,'(A)') trim(message)
    end subroutine
 
 #ifdef NETCDF4

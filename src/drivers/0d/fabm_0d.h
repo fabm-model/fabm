@@ -12,6 +12,5 @@
 #define LEVEL2 STDERR '       ',
 #define LEVEL3 STDERR '           ',
 #define LEVEL4 STDERR '               ',
-#define FATAL  STDERR 'FATAL ERROR: ',
 
 #define LINE "------------------------------------------------------------------------"
