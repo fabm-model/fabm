@@ -841,8 +841,7 @@
          call self%fatal_error('add_to_aggregate_variable','variable added to '//trim(target%name)//' has not been registered')
 
       call variable_id%link%target%contributions%add(target,scale_factor,include_background)
-
-   end subroutine
+   end subroutine add_to_aggregate_variable
 
    subroutine contribution_list_add(self,target,scale_factor,include_background)
       class (type_contribution_list),    intent(inout) :: self
@@ -852,34 +851,26 @@
 
       type (type_contribution),pointer :: contribution
 
+      ! If the scale factor is 0, no need to register any contribution.
       if (present(scale_factor)) then
          if (scale_factor==0.0_rk) return
       end if
 
-      if (.not.associated(self%first)) then
-         ! Add first contribution
-         allocate(self%first)
-         contribution => self%first
-      else
-         ! First determine whether a contribution of this target variable already exists.
-         contribution => self%first
-         do while (associated(contribution))
-            if (target%compare(contribution%target)) exit
-            contribution => contribution%next
-         end do
-         if (.not.associated(contribution)) then
-            ! First find tail of existing linked list.
-            contribution => self%first
-            do while (associated(contribution%next))
-               contribution => contribution%next
-            end do
+      ! First look for existing contribution to this aggregate variable.
+      contribution => self%first
+      do while (associated(contribution))
+         if (target%compare(contribution%target)) exit
+         contribution => contribution%next
+      end do
 
-            ! Append contribution to end of list.
-            allocate(contribution%next)
-            contribution => contribution%next
-         end if
+      if (.not.associated(contribution)) then
+         ! No contribution to this aggregate variable exists - prepend it to the list.
+         allocate(contribution)
+         contribution%next => self%first
+         self%first => contribution
       end if
 
+      ! Store contribution attributes
       contribution%target = target
       if (present(scale_factor)) contribution%scale_factor = scale_factor
       if (present(include_background)) contribution%include_background = include_background
