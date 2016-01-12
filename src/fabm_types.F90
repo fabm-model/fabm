@@ -405,7 +405,16 @@
       procedure :: set_variable_property_logical
       generic   :: set_variable_property => set_variable_property_real,set_variable_property_integer,set_variable_property_logical
 
-      procedure :: add_to_aggregate_variable
+      procedure :: add_interior_state_variable_to_aggregate_variable
+      procedure :: add_bottom_state_variable_to_aggregate_variable
+      procedure :: add_surface_state_variable_to_aggregate_variable
+      procedure :: add_interior_diagnostic_variable_to_aggregate_variable
+      procedure :: add_horizontal_diagnostic_variable_to_aggregate_variable
+      generic :: add_to_aggregate_variable => add_interior_state_variable_to_aggregate_variable, &
+                                              add_bottom_state_variable_to_aggregate_variable, &
+                                              add_surface_state_variable_to_aggregate_variable, &
+                                              add_interior_diagnostic_variable_to_aggregate_variable, &
+                                              add_horizontal_diagnostic_variable_to_aggregate_variable
 
       ! Procedures that may be used to register model variables and dependencies during initialization.
       procedure :: register_interior_state_variable
@@ -830,18 +839,63 @@
       call variable%link%target%properties%set_logical(name,value)
    end subroutine
 
-   subroutine add_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
+   subroutine add_interior_state_variable_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
       class (type_base_model),           intent(inout) :: self
       type (type_bulk_standard_variable),intent(in)    :: target
-      class (type_variable_id),          intent(inout) :: variable_id
+      class (type_state_variable_id),    intent(inout) :: variable_id
       real(rk),optional,                 intent(in)    :: scale_factor
       logical,optional,                  intent(in)    :: include_background
 
       if (.not.associated(variable_id%link)) &
-         call self%fatal_error('add_to_aggregate_variable','variable added to '//trim(target%name)//' has not been registered')
-
+         call self%fatal_error('add_to_aggregate_variable','interior state variable added to '//trim(target%name)//' has not been registered')
       call variable_id%link%target%contributions%add(target,scale_factor,include_background)
-   end subroutine add_to_aggregate_variable
+   end subroutine add_interior_state_variable_to_aggregate_variable
+
+   subroutine add_bottom_state_variable_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
+      class (type_base_model),              intent(inout) :: self
+      type (type_bulk_standard_variable),   intent(in)    :: target
+      class (type_bottom_state_variable_id),intent(inout) :: variable_id
+      real(rk),optional,                    intent(in)    :: scale_factor
+      logical,optional,                     intent(in)    :: include_background
+
+      if (.not.associated(variable_id%link)) &
+         call self%fatal_error('add_to_aggregate_variable','bottom state variable added to '//trim(target%name)//' has not been registered')
+      call variable_id%link%target%contributions%add(target,scale_factor,include_background)
+   end subroutine add_bottom_state_variable_to_aggregate_variable
+
+   subroutine add_surface_state_variable_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
+      class (type_base_model),               intent(inout) :: self
+      type (type_bulk_standard_variable),    intent(in)    :: target
+      class (type_surface_state_variable_id),intent(inout) :: variable_id
+      real(rk),optional,                     intent(in)    :: scale_factor
+      logical,optional,                      intent(in)    :: include_background
+
+      if (.not.associated(variable_id%link)) &
+         call self%fatal_error('add_to_aggregate_variable','bottom state variable added to '//trim(target%name)//' has not been registered')
+      call variable_id%link%target%contributions%add(target,scale_factor,include_background)
+   end subroutine add_surface_state_variable_to_aggregate_variable
+
+   subroutine add_interior_diagnostic_variable_to_aggregate_variable(self,target,variable_id,scale_factor)
+      class (type_base_model),            intent(inout) :: self
+      type (type_bulk_standard_variable), intent(in)    :: target
+      class (type_diagnostic_variable_id),intent(inout) :: variable_id
+      real(rk),optional,                  intent(in)    :: scale_factor
+
+      if (.not.associated(variable_id%link)) &
+         call self%fatal_error('add_to_aggregate_variable','interior diagnostic variable added to '//trim(target%name)//' has not been registered')
+      call variable_id%link%target%contributions%add(target,scale_factor)
+   end subroutine add_interior_diagnostic_variable_to_aggregate_variable
+
+   subroutine add_horizontal_diagnostic_variable_to_aggregate_variable(self,target,variable_id,scale_factor)
+      class (type_base_model),                       intent(inout) :: self
+      type (type_bulk_standard_variable),            intent(in)    :: target
+      class (type_horizontal_diagnostic_variable_id),intent(inout) :: variable_id
+      real(rk),optional,                             intent(in)    :: scale_factor
+
+      if (.not.associated(variable_id%link)) &
+         call self%fatal_error('add_to_aggregate_variable','horizontal diagnostic variable added to '//trim(target%name)//' has not been registered')
+      call variable_id%link%target%contributions%add(target,scale_factor)
+   end subroutine add_horizontal_diagnostic_variable_to_aggregate_variable
 
    subroutine contribution_list_add(self,target,scale_factor,include_background)
       class (type_contribution_list),    intent(inout) :: self
