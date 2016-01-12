@@ -147,11 +147,11 @@ module fabm_particle
    end function add_model_reference
 
    subroutine request_coupling_to_model_generic(self,slave_variable,master_model,master_model_name,master_name,master_standard_variable)
-      class (type_particle_model),intent(inout)               :: self
-      class (type_variable_id),   intent(in)                  :: slave_variable
-      class (type_model_id),      intent(inout),     optional :: master_model
-      character(len=*),           intent(in),        optional :: master_name, master_model_name
-      type (type_bulk_standard_variable),intent(in), optional :: master_standard_variable
+      class (type_particle_model),       intent(inout)          :: self
+      class (type_variable_id),          intent(in)             :: slave_variable
+      class (type_model_id),             intent(inout),optional :: master_model
+      character(len=*),                  intent(in),   optional :: master_name, master_model_name
+      type (type_bulk_standard_variable),intent(in),   optional :: master_standard_variable
 
       type (type_coupling_from_model), pointer :: coupling
       class (type_coupling_task),      pointer :: base_coupling
