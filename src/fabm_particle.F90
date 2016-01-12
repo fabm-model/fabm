@@ -154,9 +154,7 @@ module fabm_particle
       type (type_bulk_standard_variable),intent(in), optional :: master_standard_variable
 
       type (type_coupling_from_model), pointer :: coupling
-      class (type_coupling_task), pointer      :: base_coupling
-      logical                                  :: used
-      type (type_model_reference),    pointer  :: reference
+      class (type_coupling_task),      pointer :: base_coupling
 
       if (.not.associated(slave_variable%link)) &
          call self%fatal_error('request_coupling_to_model_generic','slave variable must be registered before it is coupled.')
@@ -169,22 +167,22 @@ module fabm_particle
       if (present(master_standard_variable)) then
          allocate(coupling%master_standard_variable,source=master_standard_variable)
          select type (slave_variable)
-            class is (type_dependency_id)
-               coupling%domain = domain_interior
-            class is (type_horizontal_dependency_id)
-               coupling%domain = domain_horizontal
-            class is (type_state_variable_id)
-               coupling%domain = domain_interior
-               coupling%access = access_state
-            class is (type_bottom_state_variable_id)
-               coupling%domain = domain_bottom
-               coupling%access = access_state
-            class is (type_surface_state_variable_id)
-               coupling%domain = domain_surface
-               coupling%access = access_state
-            class default
-               call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of ones of the following types: &
-                  &type type_dependency_id, type_horizontal_dependency_id, type_state_variable_id, type_bottom_state_variable_id, type_surface_state_variable_id.')
+         class is (type_dependency_id)
+            coupling%domain = domain_interior
+         class is (type_horizontal_dependency_id)
+            coupling%domain = domain_horizontal
+         class is (type_state_variable_id)
+            coupling%domain = domain_interior
+            coupling%access = access_state
+         class is (type_bottom_state_variable_id)
+            coupling%domain = domain_bottom
+            coupling%access = access_state
+         class is (type_surface_state_variable_id)
+            coupling%domain = domain_surface
+            coupling%access = access_state
+         class default
+            call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of ones of the following types: &
+               &type type_dependency_id, type_horizontal_dependency_id, type_state_variable_id, type_bottom_state_variable_id, type_surface_state_variable_id.')
          end select
       end if
       if (present(master_model)) then
