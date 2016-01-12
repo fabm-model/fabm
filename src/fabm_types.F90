@@ -57,7 +57,7 @@
 
    public type_expression, type_bulk_expression, type_horizontal_expression
 
-   public get_aggregate_variable, type_aggregate_variable, type_contributing_variable, type_contribution
+   public get_aggregate_variable_access, type_aggregate_variable_access, type_contribution
    public time_treatment2output,output2time_treatment
 
    public type_coupling_task
@@ -222,21 +222,13 @@
       procedure :: add => contribution_list_add
    end type
 
-   type type_contributing_variable
-      type (type_link),                 pointer :: link => null()
-      real(rk)                                  :: scale_factor = 1.0_rk
-      logical                                   :: include_background = .false.
-      type (type_contributing_variable),pointer :: next => null()
-   end type
-
-   type type_aggregate_variable
-      type (type_bulk_standard_variable)         :: standard_variable
-      type (type_contributing_variable),pointer  :: first_contributing_variable => null()
-      type (type_aggregate_variable),   pointer  :: next                        => null()
-      integer                                    :: interior_access             = access_none
-      integer                                    :: horizontal_access           = access_none
-      integer                                    :: bottom_access               = access_none
-      integer                                    :: surface_access              = access_none
+   type type_aggregate_variable_access
+      type (type_bulk_standard_variable)             :: standard_variable
+      integer                                        :: interior   = access_none
+      integer                                        :: horizontal = access_none
+      integer                                        :: bottom     = access_none
+      integer                                        :: surface    = access_none
+      type (type_aggregate_variable_access), pointer :: next       => null()
    end type
 
    type type_link_list
@@ -362,7 +354,7 @@
 
       ! Models constituents: links to variables, coupling requests, parameters, expressions
       type (type_link_list) :: links
-      type (type_aggregate_variable),pointer :: first_aggregate_variable => null()
+      type (type_aggregate_variable_access),pointer :: first_aggregate_variable_access => null()
 
       type (type_hierarchical_dictionary) :: couplings
       type (type_hierarchical_dictionary) :: parameters
@@ -2662,52 +2654,25 @@ end subroutine get_string_parameter
    end function find_model
 !EOC
 
-function get_aggregate_variable(self,standard_variable,create) result(aggregate_variable)
+function get_aggregate_variable_access(self,standard_variable) result(aggregate_variable_access)
    class (type_base_model),           intent(inout) :: self
    type (type_bulk_standard_variable),intent(in)    :: standard_variable
-   logical,optional,                  intent(in)    :: create
 
-   logical                                :: create_eff
-   type (type_aggregate_variable),pointer :: aggregate_variable
+   type (type_aggregate_variable_access),pointer :: aggregate_variable_access
 
-   create_eff = .true.
-   if (present(create)) create_eff = create
+   ! First try to locate existing requests object for the speicifed standard variable.
+   aggregate_variable_access => self%first_aggregate_variable_access
+   do while (associated(aggregate_variable_access))
+      if (aggregate_variable_access%standard_variable%compare(standard_variable)) return
+      aggregate_variable_access => aggregate_variable_access%next
+   end do
 
-   nullify(aggregate_variable)
-   if (.not.associated(self%first_aggregate_variable)) then
-      ! No aggregate variables yet. Create one for the target variable.
-      if (.not.create_eff) return
-      allocate(self%first_aggregate_variable)
-      aggregate_variable => self%first_aggregate_variable
-   else
-      ! First check whether we have already created the desired aggregate variable.
-      aggregate_variable => self%first_aggregate_variable
-      do while (associated(aggregate_variable))
-         if (aggregate_variable%standard_variable%compare(standard_variable)) return
-         aggregate_variable => aggregate_variable%next
-      end do
-      if (.not.create_eff) return
-
-      ! Aggregate variable does not exist yet. Create it.
-      aggregate_variable => self%first_aggregate_variable
-      do while (associated(aggregate_variable%next))
-         aggregate_variable => aggregate_variable%next
-      end do
-      allocate(aggregate_variable%next)
-      aggregate_variable => aggregate_variable%next
-   end if
-
-   ! Associate the newly created aggregate variable with the requested standard variable.
-   aggregate_variable%standard_variable = standard_variable
-
-   ! Make sure that aggregate variables at the root level are computed.
-   ! These are typically used by the host to check conservation.
-   if (.not.associated(self%parent)) then !.and.standard_variable%conserved) then
-      aggregate_variable%interior_access = ior(aggregate_variable%interior_access,access_read)
-      aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,access_read)
-   end if
-
-end function get_aggregate_variable
+   ! Not found - create a new requests object.
+   allocate(aggregate_variable_access)
+   aggregate_variable_access%standard_variable = standard_variable
+   aggregate_variable_access%next => self%first_aggregate_variable_access
+   self%first_aggregate_variable_access => aggregate_variable_access
+end function get_aggregate_variable_access
 
 function get_free_unit() result(unit)
    integer :: unit

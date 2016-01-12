@@ -236,11 +236,11 @@ module fabm_particle
    subroutine before_coupling(self)
       class (type_particle_model),intent(inout) :: self
 
-      type (type_model_reference),    pointer :: reference,reference2
-      class (type_property),          pointer :: model_master_name
-      type (type_aggregate_variable), pointer :: aggregate_variable
-      class (type_coupling_task),     pointer :: coupling, next_coupling
-      character(len=attribute_length) :: master_name
+      type (type_model_reference),           pointer :: reference,reference2
+      class (type_property),                 pointer :: model_master_name
+      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
+      class (type_coupling_task),            pointer :: coupling, next_coupling
+      character(len=attribute_length)                :: master_name
 
       reference => self%first_model_reference
       do while (associated(reference))
@@ -293,21 +293,21 @@ module fabm_particle
                ! Coupling to a standard [aggregate] variable
                select type (standard_variable=>coupling%master_standard_variable)
                class is (type_bulk_standard_variable)
-                  aggregate_variable => get_aggregate_variable(model_coupling%model_reference%model,standard_variable)
-               end select
-               select case (coupling%domain)
+                  aggregate_variable_access => get_aggregate_variable_access(model_coupling%model_reference%model,standard_variable)
+                  select case (coupling%domain)
                   case (domain_interior)
-                     aggregate_variable%interior_access = ior(aggregate_variable%interior_access,model_coupling%access)
-                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)
+                     aggregate_variable_access%interior = ior(aggregate_variable_access%interior,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(standard_variable%name)
                   case (domain_horizontal)
-                     aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,model_coupling%access)
-                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces'
+                     aggregate_variable_access%horizontal = ior(aggregate_variable_access%horizontal,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(standard_variable%name)//'_at_interfaces'
                   case (domain_bottom)
-                     aggregate_variable%bottom_access = ior(aggregate_variable%bottom_access,model_coupling%access)
-                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_bottom'
+                     aggregate_variable_access%bottom = ior(aggregate_variable_access%bottom,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(standard_variable%name)//'_at_bottom'
                   case (domain_surface)
-                     aggregate_variable%surface_access = ior(aggregate_variable%surface_access,model_coupling%access)
-                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_surface'
+                     aggregate_variable_access%surface = ior(aggregate_variable_access%surface,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(standard_variable%name)//'_at_surface'
+                  end select
                end select
             end if
             call self%request_coupling(coupling%slave,master_name)

@@ -169,11 +169,10 @@
 
 !  Derived type describing a conserved quantity
    type,extends(type_external_variable) :: type_conserved_quantity_info
-      type (type_bulk_standard_variable)            :: standard_variable
-      type (type_aggregate_variable),pointer        :: aggregate_variable
-      integer                                       :: index              = -1
-      integer                                       :: horizontal_index   = -1
-      type (type_internal_variable),pointer         :: target_hz => null()
+      type (type_bulk_standard_variable)    :: standard_variable
+      integer                               :: index              = -1
+      integer                               :: horizontal_index   = -1
+      type (type_internal_variable),pointer :: target_hz => null()
    end type type_conserved_quantity_info
 
    type type_interior_data_pointer
@@ -611,7 +610,7 @@
       class (type_model),target,intent(inout) :: self
 !
 ! !LOCAL VARIABLES:
-      type (type_aggregate_variable),pointer :: aggregate_variable
+      type (type_aggregate_variable_access),    pointer :: aggregate_variable_access
       class (type_custom_extinction_calculator),pointer :: extinction_calculator
 !
 !EOP
@@ -624,9 +623,9 @@
 
       ! Make sure a variable for light extinction is created at the root level when calling freeze_model_info.
       ! This variable is used from fabm_get_light_extinction.
-      aggregate_variable => get_aggregate_variable(self%root, &
+      aggregate_variable_access => get_aggregate_variable_access(self%root, &
          standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
-      aggregate_variable%interior_access = ior(aggregate_variable%interior_access,access_read)
+      aggregate_variable_access%interior = ior(aggregate_variable_access%interior,access_read)
 
       ! Create placeholder variables for zero fields.
       ! Values for these fields will only be provided if actually used by one of the biogeochemical models.
@@ -4436,6 +4435,7 @@ subroutine classify_variables(self)
    type (type_internal_variable),                  pointer :: object
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
 
+   type (type_aggregate_variable_list)         :: aggregate_variable_list
    type (type_aggregate_variable),     pointer :: aggregate_variable
    type (type_set)                             :: dependencies,dependencies_hz,dependencies_scalar
    type (type_model_list_node),        pointer :: model_node
@@ -4461,8 +4461,9 @@ subroutine classify_variables(self)
    end do
 
    ! Count number of conserved quantities and allocate associated array.
+   aggregate_variable_list = collect_aggregate_variables(self%root)
    ncons = 0
-   aggregate_variable => self%root%first_aggregate_variable
+   aggregate_variable => aggregate_variable_list%first
    do while (associated(aggregate_variable))
       if (aggregate_variable%standard_variable%conserved) ncons = ncons + 1
       aggregate_variable => aggregate_variable%next
@@ -4474,7 +4475,7 @@ subroutine classify_variables(self)
    ! as the calls to append_data_pointer affect the global identifier of diagnostic variables
    ! by adding another pointer that must be set.
    ncons = 0
-   aggregate_variable => self%root%first_aggregate_variable
+   aggregate_variable => aggregate_variable_list%first
    do while (associated(aggregate_variable))
       if (aggregate_variable%standard_variable%conserved) then
          ncons = ncons + 1
@@ -4484,7 +4485,6 @@ subroutine classify_variables(self)
          consvar%units = trim(consvar%standard_variable%units)
          consvar%long_name = trim(consvar%standard_variable%name)
          consvar%path = trim(consvar%standard_variable%name)
-         consvar%aggregate_variable => aggregate_variable
          consvar%target => self%root%find_object(trim(aggregate_variable%standard_variable%name))
          if (.not.associated(consvar%target)) call driver%fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
