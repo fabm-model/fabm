@@ -148,7 +148,7 @@ module fabm_particle
 
    subroutine request_coupling_to_model_generic(self,slave_variable,master_model,master_model_name,master_name,master_standard_variable)
       class (type_particle_model),intent(inout)               :: self
-      class (type_variable_id),   intent(inout)               :: slave_variable
+      class (type_variable_id),   intent(in)                  :: slave_variable
       class (type_model_id),      intent(inout),     optional :: master_model
       character(len=*),           intent(in),        optional :: master_name, master_model_name
       type (type_bulk_standard_variable),intent(in), optional :: master_standard_variable
@@ -186,7 +186,6 @@ module fabm_particle
                call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of ones of the following types: &
                   &type type_dependency_id, type_horizontal_dependency_id, type_state_variable_id, type_bottom_state_variable_id, type_surface_state_variable_id.')
          end select
-         call self%add_to_aggregate_variable(master_standard_variable,slave_variable)
       end if
       if (present(master_model)) then
          coupling%model_reference => master_model%reference
@@ -200,7 +199,7 @@ module fabm_particle
 
    subroutine request_named_coupling_to_model(self,slave_variable,master_model,master_variable)
       class (type_particle_model),intent(inout) :: self
-      class (type_variable_id),   intent(inout) :: slave_variable
+      class (type_variable_id),   intent(in)    :: slave_variable
       class (type_model_id),      intent(inout) :: master_model
       character(len=*),           intent(in)    :: master_variable
 
@@ -209,7 +208,7 @@ module fabm_particle
 
    subroutine request_standard_coupling_to_model(self,slave_variable,master_model,master_variable)
       class (type_particle_model),       intent(inout) :: self
-      class (type_variable_id),          intent(inout) :: slave_variable
+      class (type_variable_id),          intent(in)    :: slave_variable
       class (type_model_id),             intent(inout) :: master_model
       type (type_bulk_standard_variable),intent(in)    :: master_variable
 
@@ -218,7 +217,7 @@ module fabm_particle
 
    subroutine request_named_coupling_to_named_model(self,slave_variable,master_model,master_variable)
       class (type_particle_model),intent(inout) :: self
-      class (type_variable_id),   intent(inout) :: slave_variable
+      class (type_variable_id),   intent(in)    :: slave_variable
       character(len=*),           intent(in)    :: master_model
       character(len=*),           intent(in)    :: master_variable
 
@@ -227,7 +226,7 @@ module fabm_particle
 
    subroutine request_standard_coupling_to_named_model(self,slave_variable,master_model,master_variable)
       class (type_particle_model),       intent(inout) :: self
-      class (type_variable_id),          intent(inout) :: slave_variable
+      class (type_variable_id),          intent(in)    :: slave_variable
       character(len=*),                  intent(in)    :: master_model
       type (type_bulk_standard_variable),intent(in)    :: master_variable
 
