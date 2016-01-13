@@ -2099,52 +2099,52 @@ end subroutine real_pointer_set_set_value
       call self%request_coupling(id,name)
    end subroutine
 
-   subroutine register_standard_interior_dependency(model,id,standard_variable,required)
-      class (type_base_model),           intent(inout)        :: model
+   subroutine register_standard_interior_dependency(self,id,standard_variable,required)
+      class (type_base_model),           intent(inout)        :: self
       type (type_dependency_id),         intent(inout),target :: id
       type (type_bulk_standard_variable),intent(in)           :: standard_variable
       logical,optional,                  intent(in)           :: required
 
-      call register_named_interior_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
-                                          standard_variable=standard_variable,required=required)
-   end subroutine
+      call register_named_interior_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+                                              required=required)
+      call self%request_coupling(id,standard_variable)
+   end subroutine register_standard_interior_dependency
 
-   subroutine register_standard_horizontal_dependency(model,id,standard_variable,required)
-      class (type_base_model),                 intent(inout)        :: model
+   subroutine register_standard_horizontal_dependency(self,id,standard_variable,required)
+      class (type_base_model),                 intent(inout)        :: self
       type (type_horizontal_dependency_id),    intent(inout),target :: id
       type (type_horizontal_standard_variable),intent(in)           :: standard_variable
       logical,optional,                        intent(in)           :: required
 
-      call register_named_horizontal_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
-                                                standard_variable=standard_variable,required=required)
-   end subroutine
-
-   subroutine register_standard_interface_dependency(model,id,standard_variable,domain,required)
-      class (type_base_model),                 intent(inout)        :: model
-      type (type_horizontal_dependency_id),    intent(inout),target :: id
-      type (type_bulk_standard_variable),      intent(in)           :: standard_variable
-      integer,                                 intent(in)           :: domain
-      logical,optional,                        intent(in)           :: required
-
-      select case (domain)
-         case (domain_surface,domain_bottom)
-         case default
-            call model%fatal_error('register_standard_interface_dependency','Specified domain must be domain_surface or domain_bottom.')
-      end select
-      call register_named_horizontal_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+      call register_named_horizontal_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
                                                 required=required)
-      call model%request_coupling(id,standard_variable,domain=domain)
-   end subroutine
+      call self%request_coupling(id,standard_variable)
+   end subroutine register_standard_horizontal_dependency
 
-   subroutine register_standard_global_dependency(model,id,standard_variable,required)
-      class (type_base_model),             intent(inout)        :: model
+   subroutine register_standard_interface_dependency(self,id,standard_variable,domain,required)
+      class (type_base_model),             intent(inout)        :: self
+      type (type_horizontal_dependency_id),intent(inout),target :: id
+      type (type_bulk_standard_variable),  intent(in)           :: standard_variable
+      integer,                             intent(in)           :: domain
+      logical,optional,                    intent(in)           :: required
+
+      if (domain/=domain_surface .and. domain/=domain_bottom) &
+         call self%fatal_error('register_standard_interface_dependency','Specified domain must be domain_surface or domain_bottom.')
+      call register_named_horizontal_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+                                                required=required)
+      call self%request_coupling(id,standard_variable,domain=domain)
+   end subroutine register_standard_interface_dependency
+
+   subroutine register_standard_global_dependency(self,id,standard_variable,required)
+      class (type_base_model),             intent(inout)        :: self
       type (type_global_dependency_id),    intent(inout),target :: id
       type (type_global_standard_variable),intent(in)           :: standard_variable
       logical,optional,                    intent(in)           :: required
 
-      call register_named_global_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
-                                            standard_variable=standard_variable,required=required)
-   end subroutine
+      call register_named_global_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+                                            required=required)
+      call self%request_coupling(id,standard_variable)
+   end subroutine register_standard_global_dependency
 
 !-----------------------------------------------------------------------
 !BOP
@@ -2187,7 +2187,7 @@ end subroutine real_pointer_set_set_value
       end if
 
       call self%add_interior_variable(name, units, long_name, presence=presence, &
-                                  read_index=id%index, background=id%background, link=id%link)
+                                      read_index=id%index, background=id%background, link=id%link)
       if (present(standard_variable)) call self%request_coupling(id,standard_variable)
    end subroutine register_named_interior_dependency
 !EOC
@@ -2289,8 +2289,8 @@ end subroutine real_pointer_set_set_value
       type (type_dependency_id),intent(inout),target :: id
       character(len=*),         intent(in)           :: name
 
-      call self%log_message('Deprecated syntax for register_bulk_dependency; please call it with a local name, &
-&                            units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+      call self%log_message('Deprecated syntax for register_interior_dependency; please call it with a local name, &
+                            &units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
       call self%register_dependency(id,name, '', name)
       if (associated(self%parent)) call self%request_coupling(id,name)
    end subroutine register_named_interior_dependency_old
@@ -2301,7 +2301,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                    intent(in)           :: name
 
       call self%log_message('Deprecated syntax for register_horizontal_dependency; please call it with a local name, &
-&                            units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+                            &units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
       call self%register_dependency(id,name, '', name)
       if (associated(self%parent)) call self%request_coupling(id,name)
    end subroutine register_named_horizontal_dependency_old
@@ -2312,7 +2312,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                intent(in)           :: name
 
       call self%log_message('Deprecated syntax for register_global_dependency; please call it with a local name, &
-&                            units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+                            &units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
       call self%register_dependency(id,name, '', name)
       if (associated(self%parent)) call self%request_coupling(id,name)
    end subroutine register_named_global_dependency_old
