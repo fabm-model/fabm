@@ -302,6 +302,13 @@
       procedure :: link_scalar_by_name => fabm_link_scalar_by_name
       generic :: link_scalar => link_scalar_by_id,link_scalar_by_sn,link_scalar_by_name
 
+      procedure :: link_interior_state_data => fabm_link_interior_state_data
+      procedure :: link_bottom_state_data   => fabm_link_bottom_state_data
+      procedure :: link_surface_state_data  => fabm_link_surface_state_data
+      procedure :: link_all_interior_state_data => fabm_link_all_interior_state_data
+      procedure :: link_all_bottom_state_data   => fabm_link_all_bottom_state_data
+      procedure :: link_all_surface_state_data  => fabm_link_all_surface_state_data
+
       procedure :: require_interior_data => fabm_require_interior_data
       generic :: require_data => require_interior_data
 
@@ -2392,6 +2399,90 @@
    call fabm_link_horizontal_data(self,self%surface_state_variables(id)%globalid,dat,source=data_source_fabm)
 
    end subroutine fabm_link_surface_state_data
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with data for all pelagic state variables.
+!
+! !INTERFACE:
+   subroutine fabm_link_all_interior_state_data(self,dat)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                       intent(inout) :: self
+   real(rk) _DIMENSION_GLOBAL_PLUS_1_,target,intent(in)    :: dat
+
+   integer :: i
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#ifndef NDEBUG
+   if (size(dat,_FABM_DIMENSION_COUNT_+1)/=size(self%state_variables)) &
+      call fatal_error('fabm_link_all_interior_state_data','length of last dimension of provided array must match number of interior state variables.')
+#endif
+   do i=1,size(self%state_variables)
+      call fabm_link_interior_state_data(self,i,dat(_PREARG_LOCATION_DIMENSIONS_ i))
+   end do
+
+   end subroutine fabm_link_all_interior_state_data
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with data for all bottom state variables.
+!
+! !INTERFACE:
+   subroutine fabm_link_all_bottom_state_data(self,dat)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                                  intent(inout) :: self
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_,target,intent(in)    :: dat
+
+   integer :: i
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#ifndef NDEBUG
+   if (size(dat,_HORIZONTAL_DIMENSION_COUNT_+1)/=size(self%bottom_state_variables)) &
+      call fatal_error('fabm_link_all_bottom_state_data','length of last dimension of provided array must match number of bottom state variables.')
+#endif
+   do i=1,size(self%bottom_state_variables)
+      call fabm_link_bottom_state_data(self,i,dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
+   end do
+
+   end subroutine fabm_link_all_bottom_state_data
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with data for all surface state variables.
+!
+! !INTERFACE:
+   subroutine fabm_link_all_surface_state_data(self,dat)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                                  intent(inout) :: self
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_,target,intent(in)    :: dat
+
+   integer :: i
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#ifndef NDEBUG
+   if (size(dat,_HORIZONTAL_DIMENSION_COUNT_+1)/=size(self%surface_state_variables)) &
+      call fatal_error('fabm_link_all_surface_state_data','length of last dimension of provided array must match number of surface state variables.')
+#endif
+   do i=1,size(self%surface_state_variables)
+      call fabm_link_surface_state_data(self,i,dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
+   end do
+
+   end subroutine fabm_link_all_surface_state_data
 !EOC
 
 !-----------------------------------------------------------------------
