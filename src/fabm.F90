@@ -1248,24 +1248,12 @@
    do while (associated(link))
       if (.not.link%target%read_indices%is_empty().and..not.link%target%presence==presence_external_optional) then
          select case (link%target%domain)
-            case (domain_interior)
-               if (.not.associated(self%data(link%target%read_indices%value)%p)) then
-                  call log_message('data for dependency "'//trim(link%name)// &
-                     & '", defined on the full model domain, have not been provided.')
-                  ready = .false.
-               end if
-            case (domain_horizontal,domain_surface,domain_bottom)
-               if (.not.associated(self%data_hz(link%target%read_indices%value)%p)) then
-                  call log_message('data for dependency "'//trim(link%name)// &
-                     &  '", defined on a horizontal slice of the model domain, have not been provided.')
-                  ready = .false.
-               end if
-            case (domain_scalar)
-               if (.not.associated(self%data_scalar(link%target%read_indices%value)%p)) then
-                  call log_message('data for dependency "'//trim(link%name)// &
-                     &  '", defined as global scalar quantity, have not been provided.')
-                  ready = .false.
-               end if
+         case (domain_interior)
+            if (.not.associated(self%data(link%target%read_indices%value)%p)) call report_unfulfilled_dependency(link%target)
+         case (domain_horizontal,domain_surface,domain_bottom)
+            if (.not.associated(self%data_hz(link%target%read_indices%value)%p)) call report_unfulfilled_dependency(link%target)
+         case (domain_scalar)
+            if (.not.associated(self%data_scalar(link%target%read_indices%value)%p)) call report_unfulfilled_dependency(link%target)
          end select
       end if
       link => link%next
@@ -1277,6 +1265,64 @@
    call filter_readable_variable_registry(self)
 
    self%state = state_check_ready_done
+
+   contains
+
+      subroutine report_unfulfilled_dependency(variable)
+         type (type_internal_variable),target :: variable
+
+         type type_model_reference
+            class (type_base_model),     pointer :: p    => null()
+            type (type_model_reference), pointer :: next => null()
+         end type
+
+         type (type_model_reference),pointer :: first,current,next
+         type (type_link),           pointer :: link
+
+         call log_message('UNFULFILLED DEPENDENCY: '//trim(variable%name))
+         select case (variable%domain)
+         case (domain_interior)
+            call log_message('  Data for this interior field have not been provided. It is needed by:')
+         case (domain_horizontal,domain_surface,domain_bottom)
+            call log_message('  Data for this horizontal-only field have not been provided. It is needed by:')
+         case (domain_scalar)
+            call log_message('  Data for this scalar field have not been provided. It is needed by:')
+         end select
+
+         first => null()
+         link => self%root%links%first
+         do while (associated(link))
+            if (     associated(link%target,variable)           &                   ! This link points to the target variable,
+                .and.associated(link%original%owner%parent)     &                   ! it is not owned by the root model [which has copies of all unfilled dependencies],
+                .and..not.link%original%read_indices%is_empty() &                   ! it requests read access,
+                .and..not.link%original%presence==presence_external_optional) then  ! and this access is required, not optional
+               current => first
+               do while (associated(current))
+                  if (associated(current%p,link%original%owner)) exit
+                  current => current%next
+               end do
+               if (.not.associated(current)) then
+                  ! This model has not been reported before. Do so now and remember that we have done so.
+                  allocate(current)
+                  current%p => link%original%owner
+                  current%next => first
+                  first => current
+                  call log_message('    '//trim(current%p%get_path()))
+               end if
+            end if
+            link => link%next
+         end do
+
+         ! Clean up model list
+         current => first
+         do while (associated(current))
+            next => current%next
+            deallocate(current)
+            current => next
+         end do
+
+         ready = .false.
+      end subroutine
 
    end subroutine fabm_check_ready
 !EOC
@@ -4668,7 +4714,7 @@ subroutine classify_variables(self)
       if (.not.object%read_indices%is_empty().and. &
           .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
          select case (object%domain)
-            case (domain_interior);                                    call dependencies%add(link%name)
+            case (domain_interior);                                call dependencies%add(link%name)
             case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(link%name)
             case (domain_scalar);                                  call dependencies_scalar%add(link%name)
          end select
@@ -4677,7 +4723,7 @@ subroutine classify_variables(self)
          do while (associated(standard_variables_node))
             if (standard_variables_node%p%name/='') then
                select case (object%domain)
-                  case (domain_interior);                                    call dependencies%add(standard_variables_node%p%name)
+                  case (domain_interior);                                call dependencies%add(standard_variables_node%p%name)
                   case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(standard_variables_node%p%name)
                   case (domain_scalar);                                  call dependencies_scalar%add(standard_variables_node%p%name)
                end select
