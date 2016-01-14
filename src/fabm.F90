@@ -1283,12 +1283,14 @@
          call log_message('UNFULFILLED DEPENDENCY: '//trim(variable%name))
          select case (variable%domain)
          case (domain_interior)
-            call log_message('  Data for this interior field have not been provided. It is needed by:')
+            call log_message('  This is an interior field.')
          case (domain_horizontal,domain_surface,domain_bottom)
-            call log_message('  Data for this horizontal-only field have not been provided. It is needed by:')
+            call log_message('  This is a horizontal-only field.')
          case (domain_scalar)
-            call log_message('  Data for this scalar field have not been provided. It is needed by:')
+            call log_message('  This is a scalar field (single value valid across the entire domain).')
          end select
+         if (variable%units/='') call log_message('  It has units '//trim(variable%units))
+         call log_message('  It is needed by the following model instances:')
 
          first => null()
          link => self%root%links%first
