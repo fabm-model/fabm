@@ -1278,6 +1278,7 @@
 
          type (type_model_reference),pointer :: first,current,next
          type (type_link),           pointer :: link
+         character(len=attribute_length)     :: path
 
          call log_message('UNFULFILLED DEPENDENCY: '//trim(variable%name))
          select case (variable%domain)
@@ -1307,7 +1308,8 @@
                   current%p => link%original%owner
                   current%next => first
                   first => current
-                  call log_message('    '//trim(current%p%get_path()))
+                  path = current%p%get_path()
+                  call log_message('    '//trim(path(2:)))
                end if
             end if
             link => link%next
