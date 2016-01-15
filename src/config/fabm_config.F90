@@ -94,14 +94,18 @@ contains
       node => mapping%get('instances')
       if (.not.associated(node)) &
          call fatal_error('create_model_tree_from_dictionary', 'No "instances" dictionary found at root level.')
+      nullify(pair)
       select type (node)
-         class is (type_dictionary)
-            pair => node%first
-         class is (type_node)
-            nullify(pair)
-            call fatal_error('create_model_tree_from_dictionary',trim(node%path)// &
-               ' must be a dictionary with (model name : information) pairs, not a single value.')
+      class is (type_dictionary)
+         pair => node%first
+      class is (type_null)
+      class is (type_node)
+         call fatal_error('create_model_tree_from_dictionary',trim(node%path)// &
+            ' must be a dictionary with (model name : information) pairs, not a single value.')
       end select
+
+      if (.not.associated(pair)) &
+         call log_message('WARNING: no model instances specified. FABM is effectively disabled.')
 
       ! Iterate over all models (key:value pairs below "instances" node at root level) and
       ! create corresponding objects.
