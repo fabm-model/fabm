@@ -147,16 +147,14 @@ module fabm_particle
    end function add_model_reference
 
    subroutine request_coupling_to_model_generic(self,slave_variable,master_model,master_model_name,master_name,master_standard_variable)
-      class (type_particle_model),intent(inout)               :: self
-      class (type_variable_id),   intent(in)                  :: slave_variable
-      class (type_model_id),      intent(inout),     optional :: master_model
-      character(len=*),           intent(in),        optional :: master_name, master_model_name
-      type (type_bulk_standard_variable),intent(in), optional :: master_standard_variable
+      class (type_particle_model),       intent(inout)          :: self
+      class (type_variable_id),          intent(in)             :: slave_variable
+      class (type_model_id),             intent(inout),optional :: master_model
+      character(len=*),                  intent(in),   optional :: master_name, master_model_name
+      type (type_bulk_standard_variable),intent(in),   optional :: master_standard_variable
 
       type (type_coupling_from_model), pointer :: coupling
-      class (type_coupling_task), pointer      :: base_coupling
-      logical                                  :: used
-      type (type_model_reference),    pointer  :: reference
+      class (type_coupling_task),      pointer :: base_coupling
 
       if (.not.associated(slave_variable%link)) &
          call self%fatal_error('request_coupling_to_model_generic','slave variable must be registered before it is coupled.')
@@ -169,19 +167,22 @@ module fabm_particle
       if (present(master_standard_variable)) then
          allocate(coupling%master_standard_variable,source=master_standard_variable)
          select type (slave_variable)
-            class is (type_dependency_id)
-               coupling%domain = domain_interior
-            class is (type_horizontal_dependency_id)
-               coupling%domain = domain_horizontal
-            class is (type_state_variable_id)
-               coupling%domain = domain_interior
-               coupling%access = access_state
-            class is (type_bottom_state_variable_id)
-               coupling%domain = domain_bottom
-               coupling%access = access_state
-            class default
-               call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of ones of the following types: &
-                  &type type_dependency_id, type_horizontal_dependency_id, type_state_variable_id, type_bottom_state_variable_id.')
+         class is (type_dependency_id)
+            coupling%domain = domain_interior
+         class is (type_horizontal_dependency_id)
+            coupling%domain = domain_horizontal
+         class is (type_state_variable_id)
+            coupling%domain = domain_interior
+            coupling%access = access_state
+         class is (type_bottom_state_variable_id)
+            coupling%domain = domain_bottom
+            coupling%access = access_state
+         class is (type_surface_state_variable_id)
+            coupling%domain = domain_surface
+            coupling%access = access_state
+         class default
+            call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of ones of the following types: &
+               &type type_dependency_id, type_horizontal_dependency_id, type_state_variable_id, type_bottom_state_variable_id, type_surface_state_variable_id.')
          end select
       end if
       if (present(master_model)) then
@@ -233,11 +234,11 @@ module fabm_particle
    subroutine before_coupling(self)
       class (type_particle_model),intent(inout) :: self
 
-      type (type_model_reference),    pointer :: reference,reference2
-      class (type_property),          pointer :: model_master_name
-      type (type_aggregate_variable), pointer :: aggregate_variable
-      class (type_coupling_task),     pointer :: coupling, next_coupling
-      character(len=attribute_length) :: master_name
+      type (type_model_reference),           pointer :: reference,reference2
+      class (type_property),                 pointer :: model_master_name
+      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
+      class (type_coupling_task),            pointer :: coupling, next_coupling
+      character(len=attribute_length)                :: master_name
 
       reference => self%first_model_reference
       do while (associated(reference))
@@ -290,18 +291,21 @@ module fabm_particle
                ! Coupling to a standard [aggregate] variable
                select type (standard_variable=>coupling%master_standard_variable)
                class is (type_bulk_standard_variable)
-                  aggregate_variable => get_aggregate_variable(model_coupling%model_reference%model,standard_variable)
-               end select
-               select case (coupling%domain)
+                  aggregate_variable_access => get_aggregate_variable_access(model_coupling%model_reference%model,standard_variable)
+                  select case (coupling%domain)
                   case (domain_interior)
-                     aggregate_variable%interior_access = ior(aggregate_variable%interior_access,model_coupling%access)
-                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)
+                     aggregate_variable_access%interior = ior(aggregate_variable_access%interior,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(standard_variable%name)
                   case (domain_horizontal)
-                     aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,model_coupling%access)
-                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces'
+                     aggregate_variable_access%horizontal = ior(aggregate_variable_access%horizontal,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(standard_variable%name)//'_at_interfaces'
                   case (domain_bottom)
-                     aggregate_variable%bottom_access = ior(aggregate_variable%bottom_access,model_coupling%access)
-                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_bottom'
+                     aggregate_variable_access%bottom = ior(aggregate_variable_access%bottom,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(standard_variable%name)//'_at_bottom'
+                  case (domain_surface)
+                     aggregate_variable_access%surface = ior(aggregate_variable_access%surface,model_coupling%access)
+                     master_name = trim(model_coupling%model_reference%model%get_path())//'/'//trim(standard_variable%name)//'_at_surface'
+                  end select
                end select
             end if
             call self%request_coupling(coupling%slave,master_name)

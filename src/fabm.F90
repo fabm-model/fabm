@@ -77,19 +77,21 @@
    public type_horizontal_variable_id
    public type_scalar_variable_id
    public type_external_variable,type_horizontal_state_variable_info
-!
-! !PUBLIC TYPES:
-!
+
    integer, parameter :: state_none             = 0
    integer, parameter :: state_initialize_done  = 1
    integer, parameter :: state_set_domain_done  = 2
    integer, parameter :: state_check_ready_done = 3
 
-   integer, parameter :: data_source_none = 0
-   integer, parameter :: data_source_host = 1
-   integer, parameter :: data_source_fabm = 2
-   integer, parameter :: data_source_user = 3
-   integer, parameter :: data_source_default = data_source_host
+   integer, parameter, public :: data_source_none = 0
+   integer, parameter, public :: data_source_host = 1
+   integer, parameter, public :: data_source_fabm = 2
+   integer, parameter, public :: data_source_user = 3
+   integer, parameter, public :: data_source_default = data_source_host
+
+!
+! !PUBLIC TYPES:
+!
 
    ! ====================================================================================================
    ! Variable identifiers used by host models.
@@ -167,11 +169,10 @@
 
 !  Derived type describing a conserved quantity
    type,extends(type_external_variable) :: type_conserved_quantity_info
-      type (type_bulk_standard_variable)            :: standard_variable
-      type (type_aggregate_variable),pointer        :: aggregate_variable
-      integer                                       :: index              = -1
-      integer                                       :: horizontal_index   = -1
-      type (type_internal_variable),pointer         :: target_hz => null()
+      type (type_bulk_standard_variable)    :: standard_variable
+      integer                               :: index              = -1
+      integer                               :: horizontal_index   = -1
+      type (type_internal_variable),pointer :: target_hz => null()
    end type type_conserved_quantity_info
 
    type type_interior_data_pointer
@@ -301,6 +302,13 @@
       procedure :: link_scalar_by_sn   => fabm_link_scalar_by_sn
       procedure :: link_scalar_by_name => fabm_link_scalar_by_name
       generic :: link_scalar => link_scalar_by_id,link_scalar_by_sn,link_scalar_by_name
+
+      procedure :: link_interior_state_data => fabm_link_interior_state_data
+      procedure :: link_bottom_state_data   => fabm_link_bottom_state_data
+      procedure :: link_surface_state_data  => fabm_link_surface_state_data
+      procedure :: link_all_interior_state_data => fabm_link_all_interior_state_data
+      procedure :: link_all_bottom_state_data   => fabm_link_all_bottom_state_data
+      procedure :: link_all_surface_state_data  => fabm_link_all_surface_state_data
 
       procedure :: require_interior_data => fabm_require_interior_data
       generic :: require_data => require_interior_data
@@ -610,7 +618,7 @@
       class (type_model),target,intent(inout) :: self
 !
 ! !LOCAL VARIABLES:
-      type (type_aggregate_variable),pointer :: aggregate_variable
+      type (type_aggregate_variable_access),    pointer :: aggregate_variable_access
       class (type_custom_extinction_calculator),pointer :: extinction_calculator
 !
 !EOP
@@ -623,9 +631,9 @@
 
       ! Make sure a variable for light extinction is created at the root level when calling freeze_model_info.
       ! This variable is used from fabm_get_light_extinction.
-      aggregate_variable => get_aggregate_variable(self%root, &
+      aggregate_variable_access => get_aggregate_variable_access(self%root, &
          standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
-      aggregate_variable%interior_access = ior(aggregate_variable%interior_access,access_read)
+      aggregate_variable_access%interior = ior(aggregate_variable_access%interior,access_read)
 
       ! Create placeholder variables for zero fields.
       ! Values for these fields will only be provided if actually used by one of the biogeochemical models.
@@ -1250,24 +1258,12 @@
    do while (associated(link))
       if (.not.link%target%read_indices%is_empty().and..not.link%target%presence==presence_external_optional) then
          select case (link%target%domain)
-            case (domain_interior)
-               if (.not.associated(self%data(link%target%read_indices%value)%p)) then
-                  call log_message('data for dependency "'//trim(link%name)// &
-                     & '", defined on the full model domain, have not been provided.')
-                  ready = .false.
-               end if
-            case (domain_horizontal,domain_surface,domain_bottom)
-               if (.not.associated(self%data_hz(link%target%read_indices%value)%p)) then
-                  call log_message('data for dependency "'//trim(link%name)// &
-                     &  '", defined on a horizontal slice of the model domain, have not been provided.')
-                  ready = .false.
-               end if
-            case (domain_scalar)
-               if (.not.associated(self%data_scalar(link%target%read_indices%value)%p)) then
-                  call log_message('data for dependency "'//trim(link%name)// &
-                     &  '", defined as global scalar quantity, have not been provided.')
-                  ready = .false.
-               end if
+         case (domain_interior)
+            if (.not.associated(self%data(link%target%read_indices%value)%p)) call report_unfulfilled_dependency(link%target)
+         case (domain_horizontal,domain_surface,domain_bottom)
+            if (.not.associated(self%data_hz(link%target%read_indices%value)%p)) call report_unfulfilled_dependency(link%target)
+         case (domain_scalar)
+            if (.not.associated(self%data_scalar(link%target%read_indices%value)%p)) call report_unfulfilled_dependency(link%target)
          end select
       end if
       link => link%next
@@ -1279,6 +1275,68 @@
    call filter_readable_variable_registry(self)
 
    self%state = state_check_ready_done
+
+   contains
+
+      subroutine report_unfulfilled_dependency(variable)
+         type (type_internal_variable),target :: variable
+
+         type type_model_reference
+            class (type_base_model),     pointer :: p    => null()
+            type (type_model_reference), pointer :: next => null()
+         end type
+
+         type (type_model_reference),pointer :: first,current,next
+         type (type_link),           pointer :: link
+         character(len=attribute_length)     :: path
+
+         call log_message('UNFULFILLED DEPENDENCY: '//trim(variable%name))
+         select case (variable%domain)
+         case (domain_interior)
+            call log_message('  This is an interior field.')
+         case (domain_horizontal,domain_surface,domain_bottom)
+            call log_message('  This is a horizontal-only field.')
+         case (domain_scalar)
+            call log_message('  This is a scalar field (single value valid across the entire domain).')
+         end select
+         if (variable%units/='') call log_message('  It has units '//trim(variable%units))
+         call log_message('  It is needed by the following model instances:')
+
+         first => null()
+         link => self%root%links%first
+         do while (associated(link))
+            if (     associated(link%target,variable)           &                   ! This link points to the target variable,
+                .and.associated(link%original%owner%parent)     &                   ! it is not owned by the root model [which has copies of all unfilled dependencies],
+                .and..not.link%original%read_indices%is_empty() &                   ! it requests read access,
+                .and..not.link%original%presence==presence_external_optional) then  ! and this access is required, not optional
+               current => first
+               do while (associated(current))
+                  if (associated(current%p,link%original%owner)) exit
+                  current => current%next
+               end do
+               if (.not.associated(current)) then
+                  ! This model has not been reported before. Do so now and remember that we have done so.
+                  allocate(current)
+                  current%p => link%original%owner
+                  current%next => first
+                  first => current
+                  path = current%p%get_path()
+                  call log_message('    '//trim(path(2:)))
+               end if
+            end if
+            link => link%next
+         end do
+
+         ! Clean up model list
+         current => first
+         do while (associated(current))
+            next => current%next
+            deallocate(current)
+            current => next
+         end do
+
+         ready = .false.
+      end subroutine
 
    end subroutine fabm_check_ready
 !EOC
@@ -2344,6 +2402,90 @@
    call fabm_link_horizontal_data(self,self%surface_state_variables(id)%globalid,dat,source=data_source_fabm)
 
    end subroutine fabm_link_surface_state_data
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with data for all pelagic state variables.
+!
+! !INTERFACE:
+   subroutine fabm_link_all_interior_state_data(self,dat)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                       intent(inout) :: self
+   real(rk) _DIMENSION_GLOBAL_PLUS_1_,target,intent(in)    :: dat
+
+   integer :: i
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#ifndef NDEBUG
+   if (size(dat,_FABM_DIMENSION_COUNT_+1)/=size(self%state_variables)) &
+      call fatal_error('fabm_link_all_interior_state_data','length of last dimension of provided array must match number of interior state variables.')
+#endif
+   do i=1,size(self%state_variables)
+      call fabm_link_interior_state_data(self,i,dat(_PREARG_LOCATION_DIMENSIONS_ i))
+   end do
+
+   end subroutine fabm_link_all_interior_state_data
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with data for all bottom state variables.
+!
+! !INTERFACE:
+   subroutine fabm_link_all_bottom_state_data(self,dat)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                                  intent(inout) :: self
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_,target,intent(in)    :: dat
+
+   integer :: i
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#ifndef NDEBUG
+   if (size(dat,_HORIZONTAL_DIMENSION_COUNT_+1)/=size(self%bottom_state_variables)) &
+      call fatal_error('fabm_link_all_bottom_state_data','length of last dimension of provided array must match number of bottom state variables.')
+#endif
+   do i=1,size(self%bottom_state_variables)
+      call fabm_link_bottom_state_data(self,i,dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
+   end do
+
+   end subroutine fabm_link_all_bottom_state_data
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with data for all surface state variables.
+!
+! !INTERFACE:
+   subroutine fabm_link_all_surface_state_data(self,dat)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                                  intent(inout) :: self
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_,target,intent(in)    :: dat
+
+   integer :: i
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#ifndef NDEBUG
+   if (size(dat,_HORIZONTAL_DIMENSION_COUNT_+1)/=size(self%surface_state_variables)) &
+      call fatal_error('fabm_link_all_surface_state_data','length of last dimension of provided array must match number of surface state variables.')
+#endif
+   do i=1,size(self%surface_state_variables)
+      call fabm_link_surface_state_data(self,i,dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
+   end do
+
+   end subroutine fabm_link_all_surface_state_data
 !EOC
 
 !-----------------------------------------------------------------------
@@ -4580,6 +4722,7 @@ subroutine classify_variables(self)
    type (type_internal_variable),                  pointer :: object
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
 
+   type (type_aggregate_variable_list)         :: aggregate_variable_list
    type (type_aggregate_variable),     pointer :: aggregate_variable
    type (type_set)                             :: dependencies,dependencies_hz,dependencies_scalar
    type (type_model_list_node),        pointer :: model_node
@@ -4605,8 +4748,9 @@ subroutine classify_variables(self)
    end do
 
    ! Count number of conserved quantities and allocate associated array.
+   aggregate_variable_list = collect_aggregate_variables(self%root)
    ncons = 0
-   aggregate_variable => self%root%first_aggregate_variable
+   aggregate_variable => aggregate_variable_list%first
    do while (associated(aggregate_variable))
       if (aggregate_variable%standard_variable%conserved) ncons = ncons + 1
       aggregate_variable => aggregate_variable%next
@@ -4618,7 +4762,7 @@ subroutine classify_variables(self)
    ! as the calls to append_data_pointer affect the global identifier of diagnostic variables
    ! by adding another pointer that must be set.
    ncons = 0
-   aggregate_variable => self%root%first_aggregate_variable
+   aggregate_variable => aggregate_variable_list%first
    do while (associated(aggregate_variable))
       if (aggregate_variable%standard_variable%conserved) then
          ncons = ncons + 1
@@ -4628,7 +4772,6 @@ subroutine classify_variables(self)
          consvar%units = trim(consvar%standard_variable%units)
          consvar%long_name = trim(consvar%standard_variable%name)
          consvar%path = trim(consvar%standard_variable%name)
-         consvar%aggregate_variable => aggregate_variable
          consvar%target => self%root%find_object(trim(aggregate_variable%standard_variable%name))
          if (.not.associated(consvar%target)) call driver%fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
@@ -4812,7 +4955,7 @@ subroutine classify_variables(self)
       if (.not.object%read_indices%is_empty().and. &
           .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
          select case (object%domain)
-            case (domain_interior);                                    call dependencies%add(link%name)
+            case (domain_interior);                                call dependencies%add(link%name)
             case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(link%name)
             case (domain_scalar);                                  call dependencies_scalar%add(link%name)
          end select
@@ -4821,7 +4964,7 @@ subroutine classify_variables(self)
          do while (associated(standard_variables_node))
             if (standard_variables_node%p%name/='') then
                select case (object%domain)
-                  case (domain_interior);                                    call dependencies%add(standard_variables_node%p%name)
+                  case (domain_interior);                                call dependencies%add(standard_variables_node%p%name)
                   case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(standard_variables_node%p%name)
                   case (domain_scalar);                                  call dependencies_scalar%add(standard_variables_node%p%name)
                end select

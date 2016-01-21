@@ -57,7 +57,7 @@
 
    public type_expression, type_bulk_expression, type_horizontal_expression
 
-   public get_aggregate_variable, type_aggregate_variable, type_contributing_variable, type_contribution
+   public get_aggregate_variable_access, type_aggregate_variable_access, type_contribution
    public time_treatment2output,output2time_treatment
 
    public type_coupling_task
@@ -233,20 +233,13 @@
       procedure :: add => contribution_list_add
    end type
 
-   type type_contributing_variable
-      type (type_link),                 pointer :: link => null()
-      real(rk)                                  :: scale_factor = 1.0_rk
-      logical                                   :: include_background = .false.
-      type (type_contributing_variable),pointer :: next => null()
-   end type
-
-   type type_aggregate_variable
-      type (type_bulk_standard_variable)         :: standard_variable
-      type (type_contributing_variable),pointer  :: first_contributing_variable => null()
-      type (type_aggregate_variable),   pointer  :: next                        => null()
-      integer                                    :: interior_access             = access_none
-      integer                                    :: horizontal_access           = access_none
-      integer                                    :: bottom_access               = access_none
+   type type_aggregate_variable_access
+      type (type_bulk_standard_variable)             :: standard_variable
+      integer                                        :: interior   = access_none
+      integer                                        :: horizontal = access_none
+      integer                                        :: bottom     = access_none
+      integer                                        :: surface    = access_none
+      type (type_aggregate_variable_access), pointer :: next       => null()
    end type
 
    type type_link_list
@@ -372,7 +365,7 @@
 
       ! Models constituents: links to variables, coupling requests, parameters, expressions
       type (type_link_list) :: links
-      type (type_aggregate_variable),pointer :: first_aggregate_variable => null()
+      type (type_aggregate_variable_access),pointer :: first_aggregate_variable_access => null()
 
       type (type_hierarchical_dictionary) :: couplings
       type (type_hierarchical_dictionary) :: parameters
@@ -423,7 +416,16 @@
       procedure :: set_variable_property_logical
       generic   :: set_variable_property => set_variable_property_real,set_variable_property_integer,set_variable_property_logical
 
-      procedure :: add_to_aggregate_variable
+      procedure :: add_interior_state_variable_to_aggregate_variable
+      procedure :: add_bottom_state_variable_to_aggregate_variable
+      procedure :: add_surface_state_variable_to_aggregate_variable
+      procedure :: add_interior_diagnostic_variable_to_aggregate_variable
+      procedure :: add_horizontal_diagnostic_variable_to_aggregate_variable
+      generic :: add_to_aggregate_variable => add_interior_state_variable_to_aggregate_variable, &
+                                              add_bottom_state_variable_to_aggregate_variable, &
+                                              add_surface_state_variable_to_aggregate_variable, &
+                                              add_interior_diagnostic_variable_to_aggregate_variable, &
+                                              add_horizontal_diagnostic_variable_to_aggregate_variable
 
       ! Procedures that may be used to register model variables and dependencies during initialization.
       procedure :: register_interior_state_variable
@@ -848,19 +850,63 @@
       call variable%link%target%properties%set_logical(name,value)
    end subroutine
 
-   subroutine add_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
+   subroutine add_interior_state_variable_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
       class (type_base_model),           intent(inout) :: self
       type (type_bulk_standard_variable),intent(in)    :: target
-      class (type_variable_id),          intent(inout) :: variable_id
+      class (type_state_variable_id),    intent(inout) :: variable_id
       real(rk),optional,                 intent(in)    :: scale_factor
       logical,optional,                  intent(in)    :: include_background
 
       if (.not.associated(variable_id%link)) &
-         call self%fatal_error('add_to_aggregate_variable','variable added to '//trim(target%name)//' has not been registered')
-
+         call self%fatal_error('add_to_aggregate_variable','interior state variable added to '//trim(target%name)//' has not been registered')
       call variable_id%link%target%contributions%add(target,scale_factor,include_background)
+   end subroutine add_interior_state_variable_to_aggregate_variable
 
-   end subroutine
+   subroutine add_bottom_state_variable_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
+      class (type_base_model),              intent(inout) :: self
+      type (type_bulk_standard_variable),   intent(in)    :: target
+      class (type_bottom_state_variable_id),intent(inout) :: variable_id
+      real(rk),optional,                    intent(in)    :: scale_factor
+      logical,optional,                     intent(in)    :: include_background
+
+      if (.not.associated(variable_id%link)) &
+         call self%fatal_error('add_to_aggregate_variable','bottom state variable added to '//trim(target%name)//' has not been registered')
+      call variable_id%link%target%contributions%add(target,scale_factor,include_background)
+   end subroutine add_bottom_state_variable_to_aggregate_variable
+
+   subroutine add_surface_state_variable_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
+      class (type_base_model),               intent(inout) :: self
+      type (type_bulk_standard_variable),    intent(in)    :: target
+      class (type_surface_state_variable_id),intent(inout) :: variable_id
+      real(rk),optional,                     intent(in)    :: scale_factor
+      logical,optional,                      intent(in)    :: include_background
+
+      if (.not.associated(variable_id%link)) &
+         call self%fatal_error('add_to_aggregate_variable','bottom state variable added to '//trim(target%name)//' has not been registered')
+      call variable_id%link%target%contributions%add(target,scale_factor,include_background)
+   end subroutine add_surface_state_variable_to_aggregate_variable
+
+   subroutine add_interior_diagnostic_variable_to_aggregate_variable(self,target,variable_id,scale_factor)
+      class (type_base_model),            intent(inout) :: self
+      type (type_bulk_standard_variable), intent(in)    :: target
+      class (type_diagnostic_variable_id),intent(inout) :: variable_id
+      real(rk),optional,                  intent(in)    :: scale_factor
+
+      if (.not.associated(variable_id%link)) &
+         call self%fatal_error('add_to_aggregate_variable','interior diagnostic variable added to '//trim(target%name)//' has not been registered')
+      call variable_id%link%target%contributions%add(target,scale_factor)
+   end subroutine add_interior_diagnostic_variable_to_aggregate_variable
+
+   subroutine add_horizontal_diagnostic_variable_to_aggregate_variable(self,target,variable_id,scale_factor)
+      class (type_base_model),                       intent(inout) :: self
+      type (type_bulk_standard_variable),            intent(in)    :: target
+      class (type_horizontal_diagnostic_variable_id),intent(inout) :: variable_id
+      real(rk),optional,                             intent(in)    :: scale_factor
+
+      if (.not.associated(variable_id%link)) &
+         call self%fatal_error('add_to_aggregate_variable','horizontal diagnostic variable added to '//trim(target%name)//' has not been registered')
+      call variable_id%link%target%contributions%add(target,scale_factor)
+   end subroutine add_horizontal_diagnostic_variable_to_aggregate_variable
 
    subroutine contribution_list_add(self,target,scale_factor,include_background)
       class (type_contribution_list),    intent(inout) :: self
@@ -870,34 +916,26 @@
 
       type (type_contribution),pointer :: contribution
 
+      ! If the scale factor is 0, no need to register any contribution.
       if (present(scale_factor)) then
          if (scale_factor==0.0_rk) return
       end if
 
-      if (.not.associated(self%first)) then
-         ! Add first contribution
-         allocate(self%first)
-         contribution => self%first
-      else
-         ! First determine whether a contribution of this target variable already exists.
-         contribution => self%first
-         do while (associated(contribution))
-            if (target%compare(contribution%target)) exit
-            contribution => contribution%next
-         end do
-         if (.not.associated(contribution)) then
-            ! First find tail of existing linked list.
-            contribution => self%first
-            do while (associated(contribution%next))
-               contribution => contribution%next
-            end do
+      ! First look for existing contribution to this aggregate variable.
+      contribution => self%first
+      do while (associated(contribution))
+         if (target%compare(contribution%target)) exit
+         contribution => contribution%next
+      end do
 
-            ! Append contribution to end of list.
-            allocate(contribution%next)
-            contribution => contribution%next
-         end if
+      if (.not.associated(contribution)) then
+         ! No contribution to this aggregate variable exists - prepend it to the list.
+         allocate(contribution)
+         contribution%next => self%first
+         self%first => contribution
       end if
 
+      ! Store contribution attributes
       contribution%target = target
       if (present(scale_factor)) contribution%scale_factor = scale_factor
       if (present(include_background)) contribution%include_background = include_background
@@ -2099,52 +2137,52 @@ end subroutine real_pointer_set_set_value
       call self%request_coupling(id,name)
    end subroutine
 
-   subroutine register_standard_interior_dependency(model,id,standard_variable,required)
-      class (type_base_model),           intent(inout)        :: model
+   subroutine register_standard_interior_dependency(self,id,standard_variable,required)
+      class (type_base_model),           intent(inout)        :: self
       type (type_dependency_id),         intent(inout),target :: id
       type (type_bulk_standard_variable),intent(in)           :: standard_variable
       logical,optional,                  intent(in)           :: required
 
-      call register_named_interior_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
-                                          standard_variable=standard_variable,required=required)
-   end subroutine
+      call register_named_interior_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+                                              required=required)
+      call self%request_coupling(id,standard_variable)
+   end subroutine register_standard_interior_dependency
 
-   subroutine register_standard_horizontal_dependency(model,id,standard_variable,required)
-      class (type_base_model),                 intent(inout)        :: model
+   subroutine register_standard_horizontal_dependency(self,id,standard_variable,required)
+      class (type_base_model),                 intent(inout)        :: self
       type (type_horizontal_dependency_id),    intent(inout),target :: id
       type (type_horizontal_standard_variable),intent(in)           :: standard_variable
       logical,optional,                        intent(in)           :: required
 
-      call register_named_horizontal_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
-                                                standard_variable=standard_variable,required=required)
-   end subroutine
-
-   subroutine register_standard_interface_dependency(model,id,standard_variable,domain,required)
-      class (type_base_model),                 intent(inout)        :: model
-      type (type_horizontal_dependency_id),    intent(inout),target :: id
-      type (type_bulk_standard_variable),      intent(in)           :: standard_variable
-      integer,                                 intent(in)           :: domain
-      logical,optional,                        intent(in)           :: required
-
-      select case (domain)
-         case (domain_surface,domain_bottom)
-         case default
-            call model%fatal_error('register_standard_interface_dependency','Specified domain must be domain_surface or domain_bottom.')
-      end select
-      call register_named_horizontal_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+      call register_named_horizontal_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
                                                 required=required)
-      call model%request_coupling(id,standard_variable,domain=domain)
-   end subroutine
+      call self%request_coupling(id,standard_variable)
+   end subroutine register_standard_horizontal_dependency
 
-   subroutine register_standard_global_dependency(model,id,standard_variable,required)
-      class (type_base_model),             intent(inout)        :: model
+   subroutine register_standard_interface_dependency(self,id,standard_variable,domain,required)
+      class (type_base_model),             intent(inout)        :: self
+      type (type_horizontal_dependency_id),intent(inout),target :: id
+      type (type_bulk_standard_variable),  intent(in)           :: standard_variable
+      integer,                             intent(in)           :: domain
+      logical,optional,                    intent(in)           :: required
+
+      if (domain/=domain_surface .and. domain/=domain_bottom) &
+         call self%fatal_error('register_standard_interface_dependency','Specified domain must be domain_surface or domain_bottom.')
+      call register_named_horizontal_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+                                                required=required)
+      call self%request_coupling(id,standard_variable,domain=domain)
+   end subroutine register_standard_interface_dependency
+
+   subroutine register_standard_global_dependency(self,id,standard_variable,required)
+      class (type_base_model),             intent(inout)        :: self
       type (type_global_dependency_id),    intent(inout),target :: id
       type (type_global_standard_variable),intent(in)           :: standard_variable
       logical,optional,                    intent(in)           :: required
 
-      call register_named_global_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable%name, &
-                                            standard_variable=standard_variable,required=required)
-   end subroutine
+      call register_named_global_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+                                            required=required)
+      call self%request_coupling(id,standard_variable)
+   end subroutine register_standard_global_dependency
 
 !-----------------------------------------------------------------------
 !BOP
@@ -2187,7 +2225,7 @@ end subroutine real_pointer_set_set_value
       end if
 
       call self%add_interior_variable(name, units, long_name, presence=presence, &
-                                  read_index=id%index, background=id%background, link=id%link)
+                                      read_index=id%index, background=id%background, link=id%link)
       if (present(standard_variable)) call self%request_coupling(id,standard_variable)
    end subroutine register_named_interior_dependency
 !EOC
@@ -2289,8 +2327,8 @@ end subroutine real_pointer_set_set_value
       type (type_dependency_id),intent(inout),target :: id
       character(len=*),         intent(in)           :: name
 
-      call self%log_message('Deprecated syntax for register_bulk_dependency; please call it with a local name, &
-&                            units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+      call self%log_message('Deprecated syntax for register_interior_dependency; please call it with a local name, &
+                            &units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
       call self%register_dependency(id,name, '', name)
       if (associated(self%parent)) call self%request_coupling(id,name)
    end subroutine register_named_interior_dependency_old
@@ -2301,7 +2339,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                    intent(in)           :: name
 
       call self%log_message('Deprecated syntax for register_horizontal_dependency; please call it with a local name, &
-&                            units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+                            &units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
       call self%register_dependency(id,name, '', name)
       if (associated(self%parent)) call self%request_coupling(id,name)
    end subroutine register_named_horizontal_dependency_old
@@ -2312,7 +2350,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                intent(in)           :: name
 
       call self%log_message('Deprecated syntax for register_global_dependency; please call it with a local name, &
-&                            units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
+                            &units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
       call self%register_dependency(id,name, '', name)
       if (associated(self%parent)) call self%request_coupling(id,name)
    end subroutine register_named_global_dependency_old
@@ -2370,13 +2408,13 @@ recursive subroutine register_expression(self,expression)
    if (associated(self%parent)) call register_expression(self%parent,expression)
 end subroutine
 
-subroutine get_real_parameter(self,value,name,units,long_name,default,scale_factor)
+subroutine get_real_parameter(self,value,name,units,long_name,default,scale_factor,minimum,maximum)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target  :: self
    real(rk),                intent(inout)          :: value
    character(len=*),        intent(in)             :: name
    character(len=*),        intent(in),   optional :: units,long_name
-   real(rk),                intent(in),   optional :: default,scale_factor
+   real(rk),                intent(in),   optional :: default,scale_factor,minimum,maximum
 !
 !EOP
 !
@@ -2384,6 +2422,7 @@ subroutine get_real_parameter(self,value,name,units,long_name,default,scale_fact
    class (type_property),    pointer :: property
    logical                           :: success
    type (type_real_property)         :: current_parameter
+   character(len=13)                 :: text1,text2
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -2402,6 +2441,23 @@ subroutine get_real_parameter(self,value,name,units,long_name,default,scale_fact
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a real number.')
    elseif (.not.present(default)) then
       call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
+   end if
+
+   if (present(minimum)) then
+      if (value<minimum) then
+         write (text1,'(G13.6)') value
+         write (text2,'(G13.6)') minimum
+         call self%fatal_error('get_real_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
+            //'" is less than prescribed minimum of '//trim(adjustl(text2))//'.')
+      end if
+   end if
+   if (present(maximum)) then
+      if (value>maximum) then
+         write (text1,'(G13.6)') value
+         write (text2,'(G13.6)') maximum
+         call self%fatal_error('get_real_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
+            //'" exceeds prescribed maximum of '//trim(adjustl(text2))//'.')
+      end if
    end if
 
    ! Store parameter settings
@@ -2430,13 +2486,13 @@ subroutine set_parameter(self,parameter,name,units,long_name)
 end subroutine set_parameter
 !EOC
 
-subroutine get_integer_parameter(self,value,name,units,long_name,default)
+subroutine get_integer_parameter(self,value,name,units,long_name,default,minimum,maximum)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
    integer,                 intent(inout)         :: value
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
-   integer,                 intent(in),optional   :: default
+   integer,                 intent(in),optional   :: default,minimum,maximum
 !
 !EOP
 !
@@ -2444,6 +2500,7 @@ subroutine get_integer_parameter(self,value,name,units,long_name,default)
    class (type_property),       pointer :: property
    type (type_integer_property)         :: current_parameter
    logical                              :: success
+   character(len=8)                     :: text1,text2
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -2462,6 +2519,23 @@ subroutine get_integer_parameter(self,value,name,units,long_name,default)
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an integer number.')
    elseif (.not.present(default)) then
       call self%fatal_error('get_integer_parameter','No value provided for parameter "'//trim(name)//'".')
+   end if
+
+   if (present(minimum)) then
+      if (value<minimum) then
+         write (text1,'(I0)') value
+         write (text2,'(I0)') minimum
+         call self%fatal_error('get_integer_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
+            //'" is less than prescribed minimum of '//trim(adjustl(text2))//'.')
+      end if
+   end if
+   if (present(maximum)) then
+      if (value>maximum) then
+         write (text1,'(I0)') value
+         write (text2,'(I0)') maximum
+         call self%fatal_error('get_integer_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
+            //'" exceeds prescribed maximum of '//trim(adjustl(text2))//'.')
+      end if
    end if
 
    ! Store parameter settings
@@ -2663,52 +2737,25 @@ end subroutine get_string_parameter
    end function find_model
 !EOC
 
-function get_aggregate_variable(self,standard_variable,create) result(aggregate_variable)
+function get_aggregate_variable_access(self,standard_variable) result(aggregate_variable_access)
    class (type_base_model),           intent(inout) :: self
    type (type_bulk_standard_variable),intent(in)    :: standard_variable
-   logical,optional,                  intent(in)    :: create
 
-   logical                                :: create_eff
-   type (type_aggregate_variable),pointer :: aggregate_variable
+   type (type_aggregate_variable_access),pointer :: aggregate_variable_access
 
-   create_eff = .true.
-   if (present(create)) create_eff = create
+   ! First try to locate existing requests object for the speicifed standard variable.
+   aggregate_variable_access => self%first_aggregate_variable_access
+   do while (associated(aggregate_variable_access))
+      if (aggregate_variable_access%standard_variable%compare(standard_variable)) return
+      aggregate_variable_access => aggregate_variable_access%next
+   end do
 
-   nullify(aggregate_variable)
-   if (.not.associated(self%first_aggregate_variable)) then
-      ! No aggregate variables yet. Create one for the target variable.
-      if (.not.create_eff) return
-      allocate(self%first_aggregate_variable)
-      aggregate_variable => self%first_aggregate_variable
-   else
-      ! First check whether we have already created the desired aggregate variable.
-      aggregate_variable => self%first_aggregate_variable
-      do while (associated(aggregate_variable))
-         if (aggregate_variable%standard_variable%compare(standard_variable)) return
-         aggregate_variable => aggregate_variable%next
-      end do
-      if (.not.create_eff) return
-
-      ! Aggregate variable does not exist yet. Create it.
-      aggregate_variable => self%first_aggregate_variable
-      do while (associated(aggregate_variable%next))
-         aggregate_variable => aggregate_variable%next
-      end do
-      allocate(aggregate_variable%next)
-      aggregate_variable => aggregate_variable%next
-   end if
-
-   ! Associate the newly created aggregate variable with the requested standard variable.
-   aggregate_variable%standard_variable = standard_variable
-
-   ! Make sure that aggregate variables at the root level are computed.
-   ! These are typically used by the host to check conservation.
-   if (.not.associated(self%parent)) then !.and.standard_variable%conserved) then
-      aggregate_variable%interior_access = ior(aggregate_variable%interior_access,access_read)
-      aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,access_read)
-   end if
-
-end function get_aggregate_variable
+   ! Not found - create a new requests object.
+   allocate(aggregate_variable_access)
+   aggregate_variable_access%standard_variable = standard_variable
+   aggregate_variable_access%next => self%first_aggregate_variable_access
+   self%first_aggregate_variable_access => aggregate_variable_access
+end function get_aggregate_variable_access
 
 function get_free_unit() result(unit)
    integer :: unit

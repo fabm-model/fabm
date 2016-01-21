@@ -345,6 +345,7 @@ contains
          select type (node)
             class is (type_null)
                allocate(dictionary)
+               dictionary%path = node%path
             class is (type_dictionary)
                dictionary => node
             class default

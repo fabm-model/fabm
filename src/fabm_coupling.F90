@@ -10,6 +10,7 @@ module fabm_coupling
    private
 
    public freeze_model_info, find_dependencies
+   public collect_aggregate_variables, type_aggregate_variable_list, type_aggregate_variable
    public type_call_list_node, type_call_list, find_variable_dependencies
 
    logical,parameter :: debug_coupling = .false.
@@ -62,6 +63,26 @@ module fabm_coupling
       procedure :: computes   => call_list_computes
    end type
 
+   type type_contributing_variable
+      type (type_link),                 pointer :: link               => null()
+      real(rk)                                  :: scale_factor       = 1.0_rk
+      logical                                   :: include_background = .false.
+      type (type_contributing_variable),pointer :: next               => null()
+   end type
+
+   type type_aggregate_variable
+      type (type_bulk_standard_variable), pointer :: standard_variable           => null()
+      type (type_contributing_variable),  pointer :: first_contributing_variable => null()
+      type (type_aggregate_variable),     pointer :: next                        => null()
+   end type
+
+   type type_aggregate_variable_list
+      type (type_aggregate_variable), pointer :: first => null()
+   contains
+      procedure :: get   => aggregate_variable_list_get
+      procedure :: print => aggregate_variable_list_print
+   end type
+
 contains
 
 !-----------------------------------------------------------------------
@@ -104,13 +125,17 @@ contains
       ! Create models for aggregate variables at root level, to be used to compute conserved quantities.
       ! After this step, the set of variables that contribute to aggregate quantities may not be modified.
       ! That is, no new such variables may be added, and no such variables may be coupled.
-      call build_aggregate_variables(self)
       call create_aggregate_models(self)
 
       ! Perform coupling for any new aggregate models.
       ! This may append items to existing lists of source terms and bottom/surface fluxes,
       ! so it has to proceed couple_flux_sums
       call process_coupling_tasks(self,couple_explicit)
+
+      ! Now that coupling for non-rate variables is complete, contributions to aggregate quantities
+      ! (including ones of slave variables) are final.
+      ! Create conservation checks where needed.
+      call create_conservation_checks(self)
 
       ! Create summations of source terms and surface/bottom fluxes where they are needed,
       ! and then process the resulting coupling tasks.
@@ -449,39 +474,40 @@ end subroutine
       class (type_coupling_task),intent(inout)        :: task
       type (type_internal_variable),pointer :: master
 
-      type (type_aggregate_variable),   pointer :: aggregate_variable
+      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
 
       nullify(master)
       if (task%master_standard_variable%aggregate_variable) then
          ! Make sure that an aggregate variable will be created on the fly
          select type (aggregate_standard_variable=>task%master_standard_variable)
-            class is (type_bulk_standard_variable)
-               aggregate_variable => get_aggregate_variable(self,aggregate_standard_variable)
-               select case (task%domain)
-                  case (domain_interior)
-                     aggregate_variable%interior_access = ior(aggregate_variable%interior_access,access_read)
-                     deallocate(task%master_standard_variable)
-                     task%master_name = aggregate_variable%standard_variable%name
-                  case (domain_bottom)
-                     aggregate_variable%bottom_access = ior(aggregate_variable%bottom_access,access_read)
-                     deallocate(task%master_standard_variable)
-                     task%master_name = trim(aggregate_variable%standard_variable%name)//'_at_bottom'
-                  case default
-                     call self%fatal_error('generate_standard_master','BUG: unknown type of standard variable with aggregate_variable set.')
-               end select
+         class is (type_bulk_standard_variable)
+            aggregate_variable_access => get_aggregate_variable_access(self,aggregate_standard_variable)
+            select case (task%domain)
+            case (domain_interior)
+               aggregate_variable_access%interior = ior(aggregate_variable_access%interior,access_read)
+               task%master_name = aggregate_standard_variable%name
+            case (domain_bottom)
+               aggregate_variable_access%bottom = ior(aggregate_variable_access%bottom,access_read)
+               task%master_name = trim(aggregate_standard_variable%name)//'_at_bottom'
+            case (domain_surface)
+               aggregate_variable_access%surface = ior(aggregate_variable_access%surface,access_read)
+               task%master_name = trim(aggregate_standard_variable%name)//'_at_surface'
+            case default
+               call self%fatal_error('generate_standard_master','BUG: unknown type of standard variable with aggregate_variable set.')
+            end select
+            deallocate(task%master_standard_variable)
          end select
       end if
    end function generate_standard_master
 
-subroutine print_aggregate_variable_contributions(self)
-   class (type_base_model),intent(inout),target :: self
+subroutine aggregate_variable_list_print(self)
+   class (type_aggregate_variable_list),intent(in) :: self
 
    type (type_aggregate_variable),   pointer :: aggregate_variable
    type (type_contributing_variable),pointer :: contributing_variable
 
-   aggregate_variable => self%first_aggregate_variable
+   aggregate_variable => self%first
    do while (associated(aggregate_variable))
-      call log_message('Model '//trim(self%name)//' contributions to '//trim(aggregate_variable%standard_variable%name))
       contributing_variable => aggregate_variable%first_contributing_variable
       do while (associated(contributing_variable))
          if (associated(contributing_variable%link%target,contributing_variable%link%original)) then
@@ -493,31 +519,41 @@ subroutine print_aggregate_variable_contributions(self)
       end do
       aggregate_variable => aggregate_variable%next
    end do
-end subroutine print_aggregate_variable_contributions
+end subroutine aggregate_variable_list_print
 
-recursive subroutine build_aggregate_variables(self)
-   class (type_base_model),intent(inout),target :: self
+function aggregate_variable_list_get(self,standard_variable) result(aggregate_variable)
+   class (type_aggregate_variable_list), intent(inout)      :: self
+   type (type_bulk_standard_variable),   intent(in), target :: standard_variable
 
-   type (type_aggregate_variable),pointer :: aggregate_variable
-   type (type_model_list_node),   pointer :: child
-   type (type_link),              pointer :: link
-   type (type_contribution),      pointer :: contribution
+   type (type_aggregate_variable), pointer :: aggregate_variable
+
+   aggregate_variable => self%first
+   do while (associated(aggregate_variable))
+      if (aggregate_variable%standard_variable%compare(standard_variable)) return
+      aggregate_variable => aggregate_variable%next
+   end do
+   allocate(aggregate_variable)
+   aggregate_variable%standard_variable => standard_variable
+   aggregate_variable%next => self%first
+   self%first => aggregate_variable
+end function
+
+function collect_aggregate_variables(self) result(list)
+   class (type_base_model),intent(in),target :: self
+   type (type_aggregate_variable_list)       :: list
+
+   type (type_link),                 pointer :: link
+   type (type_contribution),         pointer :: contribution
    type (type_contributing_variable),pointer :: contributing_variable
+   type (type_aggregate_variable),   pointer :: aggregate_variable
 
-   class (type_weighted_sum),           pointer :: sum
-   class (type_horizontal_weighted_sum),pointer :: surface_sum,bottom_sum
-
-   ! This routine takes the variable->aggregate variable mappings, and creates corresponding
-   ! aggregate variable->variable mappings.
-
-   ! Enumerate all model variables, and process their contributions to aggregate variables.
    link => self%links%first
    do while (associated(link))
       ! Enumerate the contributions of this variable to aggregate variables, and register these with
       ! aggregate variable objects on the model level.
       contribution => link%target%contributions%first
       do while (associated(contribution))
-         aggregate_variable => get_aggregate_variable(self,contribution%target)
+         aggregate_variable => list%get(contribution%target)
          allocate(contributing_variable)
          contributing_variable%link => link
          contributing_variable%scale_factor = contribution%scale_factor
@@ -528,9 +564,132 @@ recursive subroutine build_aggregate_variables(self)
       end do
       link => link%next
    end do
+end function collect_aggregate_variables
+
+recursive subroutine create_aggregate_models(self)
+   class (type_base_model),intent(inout),target :: self
+
+   type (type_aggregate_variable_access), pointer :: aggregate_variable_access
+   type (type_aggregate_variable),        pointer :: aggregate_variable
+   class (type_weighted_sum),             pointer :: sum
+   class (type_horizontal_weighted_sum),  pointer :: horizontal_sum,bottom_sum,surface_sum
+   type (type_contributing_variable),     pointer :: contributing_variable
+   type (type_aggregate_variable_list)              :: list
+   type (type_model_list_node),           pointer :: child
+
+   ! Get a list of all aggregate
+   list = collect_aggregate_variables(self)
+
+   ! Make sure that readable fields for all aggregate variables are created at the root level.
+   if (.not.associated(self%parent)) then
+      aggregate_variable => list%first
+      do while (associated(aggregate_variable))
+         aggregate_variable_access => get_aggregate_variable_access(self,aggregate_variable%standard_variable)
+         aggregate_variable_access%interior = ior(aggregate_variable_access%interior,access_read)
+         aggregate_variable_access%horizontal = ior(aggregate_variable_access%horizontal,access_read)
+         aggregate_variable => aggregate_variable%next
+      end do
+   end if
+
+   aggregate_variable_access => self%first_aggregate_variable_access
+   do while (associated(aggregate_variable_access))
+      nullify(sum,horizontal_sum,bottom_sum,surface_sum)
+      if (aggregate_variable_access%interior  /=access_none) allocate(sum)
+      if (aggregate_variable_access%horizontal/=access_none) allocate(horizontal_sum)
+      if (aggregate_variable_access%bottom    /=access_none) allocate(bottom_sum)
+      if (aggregate_variable_access%surface   /=access_none) allocate(surface_sum)
+
+      aggregate_variable => list%get(aggregate_variable_access%standard_variable)
+      contributing_variable => aggregate_variable%first_contributing_variable
+      do while (associated(contributing_variable))
+         if (associated(contributing_variable%link%target,contributing_variable%link%original) &                  ! Variable must not be coupled
+             .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable)) then   ! Only include fake state variable for non-root models
+            if (associated(sum)) then
+               select case (contributing_variable%link%target%domain)
+               case (domain_interior)
+                  call sum%add_component(trim(contributing_variable%link%name), &
+                     weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+               end select
+            end if
+            if (associated(bottom_sum)) then
+               select case (contributing_variable%link%target%domain)
+               case (domain_bottom)
+                  call bottom_sum%add_component(trim(contributing_variable%link%name), &
+                     weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+               end select
+            end if
+            if (associated(surface_sum)) then
+               select case (contributing_variable%link%target%domain)
+               case (domain_surface)
+                  call surface_sum%add_component(trim(contributing_variable%link%name), &
+                     weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+               end select
+            end if
+            if (associated(horizontal_sum)) then
+               select case (contributing_variable%link%target%domain)
+               case (domain_horizontal,domain_surface,domain_bottom)
+                  call horizontal_sum%add_component(trim(contributing_variable%link%name), &
+                     weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+               end select
+            end if
+         end if
+         contributing_variable => contributing_variable%next
+      end do
+
+      if (associated(sum)) then
+         sum%units = trim(aggregate_variable%standard_variable%units)
+         sum%access = aggregate_variable_access%interior
+         if (associated(self%parent)) then
+            sum%result_output = output_none
+         else
+            allocate(sum%standard_variable)
+            sum%standard_variable = aggregate_variable%standard_variable
+         end if
+         if (.not.sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name))) deallocate(sum)
+      end if
+      if (associated(horizontal_sum)) then
+         horizontal_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
+         horizontal_sum%access = aggregate_variable_access%horizontal
+         if (associated(self%parent)) horizontal_sum%result_output = output_none
+         if (.not.horizontal_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_interfaces')) deallocate(horizontal_sum)
+      end if
+      if (associated(bottom_sum)) then
+         bottom_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
+         bottom_sum%access = aggregate_variable_access%bottom
+         if (associated(self%parent)) bottom_sum%result_output = output_none
+         if (.not.bottom_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_bottom')) deallocate(bottom_sum)
+      end if
+      if (associated(surface_sum)) then
+         surface_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
+         surface_sum%access = aggregate_variable_access%surface
+         if (associated(self%parent)) surface_sum%result_output = output_none
+         if (.not.surface_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_surface')) deallocate(surface_sum)
+      end if
+      aggregate_variable_access => aggregate_variable_access%next
+   end do
+
+   ! Process child models
+   child => self%children%first
+   do while (associated(child))
+      call create_aggregate_models(child%model)
+      child => child%next
+   end do
+end subroutine create_aggregate_models
+
+recursive subroutine create_conservation_checks(self)
+   class (type_base_model),intent(inout),target :: self
+
+   type (type_aggregate_variable_list)          :: aggregate_variable_list
+   type (type_aggregate_variable),      pointer :: aggregate_variable
+   class (type_weighted_sum),           pointer :: sum
+   class (type_horizontal_weighted_sum),pointer :: surface_sum,bottom_sum
+   type (type_contributing_variable),   pointer :: contributing_variable
+   type (type_model_list_node),         pointer :: child
 
    if (self%check_conservation) then
-      aggregate_variable => self%first_aggregate_variable
+      aggregate_variable_list = collect_aggregate_variables(self)
+
+      aggregate_variable => aggregate_variable_list%first
       do while (associated(aggregate_variable))
          if (aggregate_variable%standard_variable%conserved) then
             ! Allocate objects that will do the summation across the different domains.
@@ -570,99 +729,17 @@ recursive subroutine build_aggregate_variables(self)
    ! Process child models
    child => self%children%first
    do while (associated(child))
-      call build_aggregate_variables(child%model)
+      call create_conservation_checks(child%model)
       child => child%next
    end do
 
-   ! call print_aggregate_variable_contributions(self)
-
-end subroutine build_aggregate_variables
-
-recursive subroutine create_aggregate_models(self)
-   class (type_base_model),intent(inout),target :: self
-
-   type (type_aggregate_variable),      pointer :: aggregate_variable
-   class (type_weighted_sum),           pointer :: sum
-   class (type_horizontal_weighted_sum),pointer :: horizontal_sum,bottom_sum
-   type (type_contributing_variable),   pointer :: contributing_variable
-   type (type_model_list_node),         pointer :: child
-
-   aggregate_variable => self%first_aggregate_variable
-   do while (associated(aggregate_variable))
-      nullify(sum,horizontal_sum,bottom_sum)
-      if (aggregate_variable%interior_access/=access_none)   allocate(sum)
-      if (aggregate_variable%horizontal_access/=access_none) allocate(horizontal_sum)
-      if (aggregate_variable%bottom_access/=access_none)     allocate(bottom_sum)
-
-      contributing_variable => aggregate_variable%first_contributing_variable
-      do while (associated(contributing_variable))
-         if (associated(contributing_variable%link%target,contributing_variable%link%original) &                  ! Variable must not be coupled
-             .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable)) then   ! Only include fake state variable for non-root models
-            if (associated(sum)) then
-               select case (contributing_variable%link%target%domain)
-                  case (domain_interior)
-                     call sum%add_component(trim(contributing_variable%link%name), &
-                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
-               end select
-            end if
-            if (associated(bottom_sum)) then
-               select case (contributing_variable%link%target%domain)
-                  case (domain_bottom)
-                     call bottom_sum%add_component(trim(contributing_variable%link%name), &
-                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
-               end select
-            end if
-            if (associated(horizontal_sum)) then
-               select case (contributing_variable%link%target%domain)
-                  case (domain_horizontal,domain_surface,domain_bottom)
-                     call horizontal_sum%add_component(trim(contributing_variable%link%name), &
-                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
-               end select
-            end if
-         end if
-         contributing_variable => contributing_variable%next
-      end do
-
-      if (associated(sum)) then
-         sum%units = trim(aggregate_variable%standard_variable%units)
-         sum%access = aggregate_variable%interior_access
-         if (associated(self%parent)) then
-            sum%result_output = output_none
-         else
-            allocate(sum%standard_variable)
-            sum%standard_variable = aggregate_variable%standard_variable
-         end if
-         if (.not.sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name))) deallocate(sum)
-      end if
-      if (associated(horizontal_sum)) then
-         horizontal_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
-         horizontal_sum%access = aggregate_variable%horizontal_access
-         if (associated(self%parent)) horizontal_sum%result_output = output_none
-         if (.not.horizontal_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_interfaces')) deallocate(horizontal_sum)
-      end if
-      if (associated(bottom_sum)) then
-         bottom_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
-         bottom_sum%access = aggregate_variable%bottom_access
-         if (associated(self%parent)) bottom_sum%result_output = output_none
-         if (.not.bottom_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_bottom')) deallocate(bottom_sum)
-      end if
-      aggregate_variable => aggregate_variable%next
-   end do
-
-   ! Process child models
-   child => self%children%first
-   do while (associated(child))
-      call create_aggregate_models(child%model)
-      child => child%next
-   end do
-end subroutine create_aggregate_models
+end subroutine create_conservation_checks
 
 recursive subroutine couple_variables(self,master,slave)
    class (type_base_model),     intent(inout),target :: self
    type (type_internal_variable),pointer             :: master,slave
 
    type (type_internal_variable),pointer :: pslave
-   type (type_contribution),     pointer :: contribution
 
    ! If slave and master are the same, we are done - return.
    if (associated(slave,master)) return
@@ -689,11 +766,6 @@ recursive subroutine couple_variables(self,master,slave)
    call master%sms_list%extend(slave%sms_list)
    call master%background_values%extend(slave%background_values)
    call master%properties%update(slave%properties,overwrite=.false.)
-   contribution => slave%contributions%first
-   do while (associated(contribution))
-      call master%contributions%add(contribution%target,contribution%scale_factor)
-      contribution => contribution%next
-   end do
    call master%surface_flux_list%extend(slave%surface_flux_list)
    call master%bottom_flux_list%extend(slave%bottom_flux_list)
 
