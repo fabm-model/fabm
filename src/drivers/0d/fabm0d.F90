@@ -408,7 +408,7 @@
       call do_register_all_variables(latitude,longitude,par,temp,salt,model,cc)
       LEVEL1 'output_manager'
       allocate(type_0d_host::output_manager_host)
-      call output_manager_init(fm)
+      call output_manager_init(fm,title)
       call output_manager_save(julianday,secondsofday,0)
 #endif
    endif
