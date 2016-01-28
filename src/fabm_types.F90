@@ -48,7 +48,7 @@
    ! Data types and procedures for variable management - used by FABM internally only.
    public type_link, type_link_list
    public type_internal_variable
-   public type_environment
+   public type_cache
 
    public type_model_list,type_model_list_node
 
@@ -550,26 +550,27 @@
    end type type_base_model
 
    ! ====================================================================================================
-   ! Derived type for holding global data needed by biogeochemical model tree.
+   ! Derived type for cache for all input/output during model calls.
    ! ====================================================================================================
 
-   type type_environment
+   type type_cache
+      ! Length of a single cache line [first dimension of any spatially explicit caches below]
       integer :: n = 1
 
-      ! Prefetch arrays that will hold readable data for a single domain slice.
-      ! Biogeochemical models use only these to read data.
-      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_            :: prefetch
-      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: prefetch_hz
-      real(rk),allocatable,dimension(:)                        :: prefetch_scalar
+      ! Read cache (separate interior, horizontal, scalar fields).
+      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_            :: read
+      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: read_hz
+      real(rk),allocatable,dimension(:)                        :: read_scalar
 
-      ! Scratch arrays for writing data associated with for a single domain slice.
-      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_            :: scratch
-      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: scratch_hz
+      ! Write cache (separate interior, horizontal fields).
+      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_            :: write
+      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
 
 #ifdef _FABM_MASK_TYPE_
+      ! Mask used to transfer data between persistent store and cache [pack/unpack]
       logical,allocatable _DIMENSION_SLICE_ :: mask
 #endif
-   end type type_environment
+   end type type_cache
 
    ! ====================================================================================================
    ! Base type for a model object factory (generates a model object from a model name)

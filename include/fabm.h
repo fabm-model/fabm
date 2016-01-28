@@ -48,7 +48,7 @@
 
 #define _I_ l__
 #define _J_ m__
-#define _N_ environment%n
+#define _N_ cache%n
 
 #ifdef _INTERIOR_IS_VECTORIZED_
 !  Interior fields are 1D
@@ -106,8 +106,8 @@
 #  define _DIMENSION_HORIZONTAL_SLICE_AUTOMATIC_
 #endif
 
-#define _ARGUMENTS_SHARED_ environment
-#define _DECLARE_ARGUMENTS_SHARED_ type (type_environment),intent(inout) :: environment
+#define _ARGUMENTS_SHARED_ cache
+#define _DECLARE_ARGUMENTS_SHARED_ type (type_cache),intent(inout) :: cache
 
 ! Preprocessor symbols for procedures operating on an INTERIOR slice
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
@@ -265,23 +265,23 @@
 #define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_
 
 ! For BGC models: Expressions for setting space-dependent FABM variables defined on the full spatial domain.
-#define _SET_ODE_(variable,value) environment%scratch _INDEX_SLICE_PLUS_1_(variable%sms%sum_index) = environment%scratch _INDEX_SLICE_PLUS_1_(variable%sms%sum_index) + (value)/self%dt
-#define _SET_BOTTOM_ODE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_sms_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_sms_index) + (value)/self%dt
-#define _SET_SURFACE_ODE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_sms_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_sms_index) + (value)/self%dt
-#define _SET_BOTTOM_EXCHANGE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_flux%horizontal_sum_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_flux%horizontal_sum_index) + (value)/self%dt
-#define _SET_SURFACE_EXCHANGE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux%horizontal_sum_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux%horizontal_sum_index) + (value)/self%dt
+#define _SET_ODE_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%sms%sum_index) = cache%write _INDEX_SLICE_PLUS_1_(variable%sms%sum_index) + (value)/self%dt
+#define _SET_BOTTOM_ODE_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_sms_index) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_sms_index) + (value)/self%dt
+#define _SET_SURFACE_ODE_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_sms_index) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_sms_index) + (value)/self%dt
+#define _SET_BOTTOM_EXCHANGE_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_flux%horizontal_sum_index) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_flux%horizontal_sum_index) + (value)/self%dt
+#define _SET_SURFACE_EXCHANGE_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux%horizontal_sum_index) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux%horizontal_sum_index) + (value)/self%dt
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = dd _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
 #define _SET_PP_(variable1,variable2,value) pp _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = pp _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
 #define _SET_EXTINCTION_(value) extinction _INDEX_SLICE_ = extinction _INDEX_SLICE_ + (value)
 #define _SCALE_DRAG_(value) drag _INDEX_HORIZONTAL_SLICE_ = drag _INDEX_HORIZONTAL_SLICE_ * (value)
 #define _SET_ALBEDO_(value) albedo _INDEX_HORIZONTAL_SLICE_ = albedo _INDEX_HORIZONTAL_SLICE_ + (value)
 #define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_SLICE_PLUS_1_(variable%cons_index) = sums _INDEX_SLICE_PLUS_1_(variable%cons_index) + (value)
-#define _SET_VERTICAL_MOVEMENT_(variable,value) environment%scratch _INDEX_SLICE_PLUS_1_(variable%movement_index) = value/self%dt
+#define _SET_VERTICAL_MOVEMENT_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%movement_index) = value/self%dt
 #define _INVALIDATE_STATE_ valid = .false.
 #define _REPAIR_STATE_ repair
 
-#define _GET_WITH_BACKGROUND_(variable,target) target = environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index)+variable%background
-#define _GET_HORIZONTAL_WITH_BACKGROUND_(variable,target) target = environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index)+variable%background
+#define _GET_WITH_BACKGROUND_(variable,target) target = cache%read _INDEX_SLICE_PLUS_1_(variable%index)+variable%background
+#define _GET_HORIZONTAL_WITH_BACKGROUND_(variable,target) target = cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index)+variable%background
 
 ! For BGC models: quick expressions for setting a single element in both the destruction and production matrix.
 #define _SET_DD_SYM_(variable1,variable2,value) _SET_DD_(variable1,variable2,value);_SET_PP_(variable2,variable1,value)
@@ -293,13 +293,13 @@
 #define _AVAILABLE_HORIZONTAL_(variable) variable%horizontal_index/=-1
 
 ! For BGC models: read/write variable access.
-#define _GET_(variable,target) target = environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index)
-#define _GET_HORIZONTAL_(variable,target) target = environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index)
-#define _GET_GLOBAL_(variable,target) target = environment%prefetch_scalar(variable%global_index)
-#define _SET_(variable,value) set_interior=.true.;environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index) = value
-#define _SET_HORIZONTAL_(variable,value) set_horizontal=.true.;environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index) = value
-#define _SET_DIAGNOSTIC_(variable,value) environment%scratch _INDEX_SLICE_PLUS_1_(variable%diag_index) = value
-#define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_diag_index) = value
+#define _GET_(variable,target) target = cache%read _INDEX_SLICE_PLUS_1_(variable%index)
+#define _GET_HORIZONTAL_(variable,target) target = cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index)
+#define _GET_GLOBAL_(variable,target) target = cache%read_scalar(variable%global_index)
+#define _SET_(variable,value) set_interior=.true.;cache%read _INDEX_SLICE_PLUS_1_(variable%index) = value
+#define _SET_HORIZONTAL_(variable,value) set_horizontal=.true.;cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index) = value
+#define _SET_DIAGNOSTIC_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%diag_index) = value
+#define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_diag_index) = value
 
 ! ==============================
 ! Backward compatibility

@@ -28,6 +28,7 @@
    use fabm_properties
    use fabm_builtin_models
    use fabm_coupling
+   use fabm_job
 !
 
    implicit none
@@ -187,15 +188,6 @@
       real(rk),pointer :: p => null()
    end type
 
-   type type_environment_settings
-      type (type_call_list) :: call_list
-      integer,allocatable :: prefill_type(:)
-      real(rk),allocatable :: prefill_values(:)
-      integer,allocatable :: prefill_index(:)
-      integer,allocatable :: save_sources(:)
-      integer,allocatable :: save_sources_hz(:)
-   end type
-
    ! Derived type for a single generic biogeochemical model
    type type_model
       type (type_base_model)  :: root
@@ -240,21 +232,21 @@
       integer                                                   :: domain_size(_FABM_DIMENSION_COUNT_)
       integer                                                   :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
 
-      type (type_environment_settings)                          :: generic_environment
-      type (type_environment_settings)                          :: do_interior_environment
-      type (type_environment_settings)                          :: do_interior_ppdd_environment
-      type (type_environment_settings)                          :: do_bottom_environment
-      type (type_environment_settings)                          :: do_bottom_ppdd_environment
-      type (type_environment_settings)                          :: do_surface_environment
-      type (type_environment_settings)                          :: get_light_environment
-      type (type_environment_settings)                          :: get_vertical_movement_environment
-      type (type_environment_settings)                          :: get_conserved_quantities_environment
-      type (type_environment_settings)                          :: get_horizontal_conserved_quantities_environment
-      type (type_environment_settings)                          :: get_light_extinction_environment
-      type (type_environment_settings)                          :: prepare_environment
+      type (type_job) :: generic_job
+      type (type_job) :: do_interior_job
+      type (type_job) :: do_interior_ppdd_job
+      type (type_job) :: do_bottom_job
+      type (type_job) :: do_bottom_ppdd_job
+      type (type_job) :: do_surface_job
+      type (type_job) :: get_light_job
+      type (type_job) :: get_vertical_movement_job
+      type (type_job) :: get_conserved_quantities_job
+      type (type_job) :: get_horizontal_conserved_quantities_job
+      type (type_job) :: get_light_extinction_job
+      type (type_job) :: prepare_job
 
       ! Registry with pointers to global fields of readable variables.
-      ! These pointers are accessed to fill the prefetch (see below).
+      ! These pointers are accessed to fill the read cache just before individual model instances are called.
       type (type_interior_data_pointer),  allocatable :: data(:)
       type (type_horizontal_data_pointer),allocatable :: data_hz(:)
       type (type_scalar_data_pointer),    allocatable :: data_scalar(:)
@@ -796,23 +788,31 @@
    self%zero_hz = 0.0_rk
    call self%link_horizontal_data('zero_hz',self%zero_hz)
 
-   call append_to_call_list(self%do_interior_environment,self%links_postcoupling,source_do,(/source_do/))
-   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_do_surface,(/source_do_surface,source_unknown,source_do_horizontal/))
-   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_unknown,(/source_do_surface,source_unknown,source_do_horizontal/))
-   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_do_horizontal,(/source_do_surface,source_unknown,source_do_horizontal/))
-   call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_do_bottom,(/source_do_bottom,source_unknown,source_do_horizontal/))
-   call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_unknown,(/source_do_bottom,source_unknown,source_do_horizontal/))
-   call append_to_call_list(self%get_light_environment,self%links_postcoupling,source_do_column,(/source_do_column/))
-   call append_to_call_list(self%get_light_extinction_environment,self%links_postcoupling,source_do_column,(/source_do_column,source_do/))
-   call self%get_light_extinction_environment%call_list%filter(source_do_column)
-   call append_to_call_list(self%prepare_environment,self%links_postcoupling,source_do_bottom,(/source_do_column,source_do,source_do_horizontal/),.true.)
-   call append_to_call_list(self%prepare_environment,self%links_postcoupling,source_do,(/source_do_column,source_do,source_do_horizontal/),.true.)
-   call self%prepare_environment%call_list%print()
-   do ivar=1,size(self%conserved_quantities)
-      call append_variable_to_call_list(self%get_conserved_quantities_environment,self%conserved_quantities(ivar)%target,source_do,(/source_do/))
-      call append_variable_to_call_list(self%get_horizontal_conserved_quantities_environment,self%conserved_quantities(ivar)%target_hz,source_do_horizontal,(/source_do_bottom,source_unknown,source_do_horizontal/))
-   end do
-   call append_variable_to_call_list(self%get_light_extinction_environment,self%extinction_target,source_do,(/source_do/))
+   self%do_bottom_job%domain   = domain_bottom
+   self%do_surface_job%domain  = domain_surface
+   self%do_interior_job%domain = domain_interior
+   call require_flux_computation(self%do_bottom_job,self%links_postcoupling)
+   call set_next_job(self%do_bottom_job,self%do_surface_job)
+   call require_flux_computation(self%do_surface_job,self%links_postcoupling)
+   call set_next_job(self%do_surface_job,self%do_interior_job)
+   call require_flux_computation(self%do_interior_job,self%links_postcoupling)
+   !call append_to_call_list(self%do_interior_job,self%links_postcoupling,source_do,(/source_do/))
+   !call append_to_call_list(self%do_surface_job,self%links_postcoupling,source_do_surface,(/source_do_surface,source_unknown,source_do_horizontal/))
+   !call append_to_call_list(self%do_surface_job,self%links_postcoupling,source_unknown,(/source_do_surface,source_unknown,source_do_horizontal/))
+   !call append_to_call_list(self%do_surface_job,self%links_postcoupling,source_do_horizontal,(/source_do_surface,source_unknown,source_do_horizontal/))
+   !call append_to_call_list(self%do_bottom_job,self%links_postcoupling,source_do_bottom,(/source_do_bottom,source_unknown,source_do_horizontal/))
+   !call append_to_call_list(self%do_bottom_job,self%links_postcoupling,source_unknown,(/source_do_bottom,source_unknown,source_do_horizontal/))
+   !call append_to_call_list(self%get_light_job,self%links_postcoupling,source_do_column,(/source_do_column/))
+   !call append_to_call_list(self%get_light_extinction_job,self%links_postcoupling,source_do_column,(/source_do_column,source_do/))
+   !call self%get_light_extinction_job%calls%filter(source_do_column)
+   !call append_to_call_list(self%prepare_job,self%links_postcoupling,source_do_bottom,(/source_do_column,source_do,source_do_horizontal/),.true.)
+   !call append_to_call_list(self%prepare_job,self%links_postcoupling,source_do,(/source_do_column,source_do,source_do_horizontal/),.true.)
+   !call self%prepare_job%calls%print()
+   !do ivar=1,size(self%conserved_quantities)
+   !   call append_variable_to_call_list(self%get_conserved_quantities_job,self%conserved_quantities(ivar)%target,source_do,(/source_do/))
+   !   call append_variable_to_call_list(self%get_horizontal_conserved_quantities_job,self%conserved_quantities(ivar)%target_hz,source_do_horizontal,(/source_do_bottom,source_unknown,source_do_horizontal/))
+   !end do
+   !call append_variable_to_call_list(self%get_light_extinction_job,self%extinction_target,source_do,(/source_do/))
 
    ! Merge diagnostic variables that contribute to the same sink/source terms,
    ! surface fluxes, bottom fluxes, provided no other variables depend on them.
@@ -824,17 +824,17 @@
       link => link%next
    end do
 
-   ! Assign write indices in scratch space to all interior diagnostic variables.
+   ! Assign write cache indices to all interior diagnostic variables.
    ! Must be done after calls to merge_aggregating_diagnostics.
    self%nscratch = 0
    call assign_write_indices(self%links_postcoupling,domain_interior,self%nscratch)
 
-   ! Assign write indices in scratch space to all horizontal diagnostic variables.
+   ! Assign write cache indices to all horizontal diagnostic variables.
    ! Must be done after calls to merge_aggregating_diagnostics.
    self%nscratch_hz = 0
-   call assign_write_indices(self%links_postcoupling,domain_surface,self%nscratch_hz)
+   call assign_write_indices(self%links_postcoupling,domain_surface,   self%nscratch_hz)
    call assign_write_indices(self%links_postcoupling,domain_horizontal,self%nscratch_hz)
-   call assign_write_indices(self%links_postcoupling,domain_bottom,self%nscratch_hz)
+   call assign_write_indices(self%links_postcoupling,domain_bottom,    self%nscratch_hz)
 
    ! Create arrays with diagnostic indices contributing to sink/source terms,
    ! surface fluxes, bottom fluxes. Must be done after calls to merge_aggregating_diagnostics.
@@ -851,25 +851,27 @@
       call copy_write_indices(self%bottom_state_variables(ivar)%target%sms_list, self%bottom_state_variables(ivar)%sms_indices)
    end do
 
-   ! Flag all scratch variables that require zeroing before calling biogeochemical models
-   call initialize_prefill(self%do_interior_environment,self%nscratch,self%links_postcoupling,source_do,domain_interior)
-   call initialize_prefill(self%do_surface_environment,self%nscratch_hz,self%links_postcoupling,source_do_surface,domain_horizontal)
-   call initialize_prefill(self%do_bottom_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
-   call initialize_prefill(self%get_vertical_movement_environment,self%nscratch,self%links_postcoupling,source_get_vertical_movement,domain_interior)
-   call initialize_prefill(self%get_conserved_quantities_environment,self%nscratch,self%links_postcoupling,source_do,domain_interior)
-   call initialize_prefill(self%get_horizontal_conserved_quantities_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
-   call initialize_prefill(self%get_light_extinction_environment,self%nscratch,self%links_postcoupling,source_do,domain_interior)
+   ! Initialize prefill settings of all writeable variables with their defaults.
+   call initialize_prefill(self%do_interior_job,self%nscratch,self%links_postcoupling,source_do,domain_interior)
+   call initialize_prefill(self%do_surface_job,self%nscratch_hz,self%links_postcoupling,source_do_surface,domain_horizontal)
+   call initialize_prefill(self%do_bottom_job,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
+   call initialize_prefill(self%get_vertical_movement_job,self%nscratch,self%links_postcoupling,source_get_vertical_movement,domain_interior)
+   call initialize_prefill(self%get_conserved_quantities_job,self%nscratch,self%links_postcoupling,source_do,domain_interior)
+   call initialize_prefill(self%get_horizontal_conserved_quantities_job,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
+   call initialize_prefill(self%get_light_extinction_job,self%nscratch,self%links_postcoupling,source_do,domain_interior)
+
+   ! Flag all variables in the write cache that require zeroing.
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
          case (domain_interior)
-            call flag_write_indices(self%do_interior_environment, link%target%sms_list)
-            call flag_write_indices(self%do_bottom_environment,   link%target%bottom_flux_list)
-            call flag_write_indices(self%do_surface_environment,  link%target%surface_flux_list)
+            call flag_write_indices(self%do_interior_job, link%target%sms_list)
+            call flag_write_indices(self%do_bottom_job,   link%target%bottom_flux_list)
+            call flag_write_indices(self%do_surface_job,  link%target%surface_flux_list)
          case (domain_bottom)
-            call flag_write_indices(self%do_bottom_environment, link%target%sms_list)
+            call flag_write_indices(self%do_bottom_job, link%target%sms_list)
          case (domain_surface)
-            call flag_write_indices(self%do_surface_environment, link%target%sms_list)
+            call flag_write_indices(self%do_surface_job, link%target%sms_list)
       end select
       link => link%next
    end do
@@ -885,7 +887,7 @@
 
          ! Store index at which data will be saved, so we can access it when prefilling.
          index = self%diagnostic_variables(ivar)%target%write_indices%value
-         self%do_interior_environment%prefill_index(index) = nsave
+         self%do_interior_job%prefill_index(index) = nsave
       end if
    end do
    allocate(self%diag(_PREARG_LOCATION_ 0:nsave))
@@ -902,8 +904,8 @@
 
          ! Store index at which data will be saved, so we can access it when prefilling.
          index = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
-         self%do_bottom_environment%prefill_index (index) = nsave_hz
-         self%do_surface_environment%prefill_index(index) = nsave_hz
+         self%do_bottom_job%prefill_index (index) = nsave_hz
+         self%do_surface_job%prefill_index(index) = nsave_hz
       end if
    end do
    allocate(self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ 0:nsave_hz))
@@ -952,30 +954,32 @@
       end do
    end if
 
-   call initialize_settings(self%do_interior_environment)
-   call initialize_settings(self%do_surface_environment)
-   call initialize_settings(self%do_bottom_environment)
-   call initialize_settings(self%get_conserved_quantities_environment)
-   call initialize_settings(self%get_horizontal_conserved_quantities_environment)
-   call initialize_settings(self%get_light_extinction_environment)
-   call initialize_settings(self%get_light_environment)
-   call initialize_settings(self%get_vertical_movement_environment)
+   call initialize_settings(self%do_interior_job)
+   call initialize_settings(self%do_surface_job)
+   call initialize_settings(self%do_bottom_job)
+   call initialize_settings(self%get_conserved_quantities_job)
+   call initialize_settings(self%get_horizontal_conserved_quantities_job)
+   call initialize_settings(self%get_light_extinction_job)
+   call initialize_settings(self%get_light_job)
+   call initialize_settings(self%get_vertical_movement_job)
 
-   !call describe_environment_settings(self%get_light_environment)
+   call self%do_interior_job%calls%print()
 
-   if (allocated(self%do_interior_environment%save_sources)) then
-      allocate(self%do_interior_ppdd_environment%save_sources(nsave))
-      self%do_interior_ppdd_environment%save_sources(:) = self%do_interior_environment%save_sources
+   !call describe_environment_settings(self%get_light_job)
+
+   if (allocated(self%do_interior_job%save_sources)) then
+      allocate(self%do_interior_ppdd_job%save_sources(nsave))
+      self%do_interior_ppdd_job%save_sources(:) = self%do_interior_job%save_sources
    end if
-   if (allocated(self%do_bottom_environment%save_sources_hz)) then
-      allocate(self%do_bottom_ppdd_environment%save_sources_hz(nsave_hz))
-      self%do_bottom_ppdd_environment%save_sources_hz(:) = self%do_bottom_environment%save_sources_hz
+   if (allocated(self%do_bottom_job%save_sources_hz)) then
+      allocate(self%do_bottom_ppdd_job%save_sources_hz(nsave_hz))
+      self%do_bottom_ppdd_job%save_sources_hz(:) = self%do_bottom_job%save_sources_hz
    end if
 
    contains
 
    subroutine describe_environment_settings(settings)
-      type (type_environment_settings), intent(in) :: settings
+      type (type_job), intent(in) :: settings
 
       integer :: isave,ivar
 
@@ -1004,7 +1008,7 @@
    end subroutine describe_environment_settings
 
    subroutine initialize_settings(settings)
-      type (type_environment_settings), intent(inout) :: settings
+      type (type_job), intent(inout) :: settings
 
       integer :: ivar
 
@@ -1012,7 +1016,7 @@
       settings%save_sources = -1
       do ivar=1,size(self%diagnostic_variables)
          if (self%diagnostic_variables(ivar)%save_index>0) then
-            if (settings%call_list%computes(self%diagnostic_variables(ivar)%target)) &
+            if (settings%calls%computes(self%diagnostic_variables(ivar)%target)) &
                settings%save_sources(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%target%write_indices%value
          end if
       end do
@@ -1022,13 +1026,13 @@
       settings%save_sources_hz = -1
       do ivar=1,size(self%horizontal_diagnostic_variables)
          if (self%horizontal_diagnostic_variables(ivar)%save_index>0) then
-            if (settings%call_list%computes(self%horizontal_diagnostic_variables(ivar)%target)) &
+            if (settings%calls%computes(self%horizontal_diagnostic_variables(ivar)%target)) &
                settings%save_sources_hz(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
          end if
       end do
       if (all(settings%save_sources_hz==-1)) deallocate(settings%save_sources_hz)
 
-      call settings%call_list%initialize()
+      call settings%calls%initialize()
    end subroutine initialize_settings
 
    end subroutine fabm_set_domain
@@ -2562,10 +2566,10 @@ function fabm_get_scalar_data(self,id) result(dat)
    if (id%read_index/=-1) dat => self%data_scalar(id%read_index)%p
 end function fabm_get_scalar_data
 
-subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
-   type (type_model),               intent(inout) :: self
-   type (type_environment_settings),intent(in)    :: settings
-   type (type_environment),         intent(out)   :: environment
+subroutine start_interior_job(self,job,cache _ARGUMENTS_INTERIOR_IN_)
+   type (type_model),intent(inout) :: self
+   type (type_job),  intent(in)    :: job
+   type (type_cache),intent(out)   :: cache
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    _DECLARE_INTERIOR_INDICES_
 
@@ -2574,68 +2578,68 @@ subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
    _N_ = _STOP_-_START_+1
 #  ifdef _HAS_MASK_
-   allocate(environment%mask(_N_))
+   allocate(cache%mask(_N_))
    _DO_CONCURRENT_(_I_,1,_N_)
 #    ifdef _FABM_HORIZONTAL_MASK_
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_+_I_-1))
+      cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_+_I_-1))
 #    else
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1))
+      cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1))
 #    endif
    end do
-   _N_ = count(environment%mask)
+   _N_ = count(cache%mask)
 #  endif
 #endif
    
 #if defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%prefetch(_N_,size(self%data)))
+   allocate(cache%read(_N_,size(self%data)))
 #else
-   allocate(environment%prefetch(size(self%data)))
+   allocate(cache%read(size(self%data)))
 #endif
    do i=1,size(self%data)
       if (associated(self%data(i)%p)) then
-         _PACK_GLOBAL_(self%data(i)%p,environment%prefetch,i,environment%mask)
+         _PACK_GLOBAL_(self%data(i)%p,cache%read,i,cache%mask)
       end if
    end do
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%prefetch_hz(_N_,size(self%data_hz)))
+   allocate(cache%read_hz(_N_,size(self%data_hz)))
 #else
-   allocate(environment%prefetch_hz(size(self%data_hz)))
+   allocate(cache%read_hz(size(self%data_hz)))
 #endif
    do i=1,size(self%data_hz)
       if (associated(self%data_hz(i)%p)) then
-         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(i)%p,environment%prefetch_hz,i,environment%mask)
+         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(i)%p,cache%read_hz,i,cache%mask)
       end if
    end do
 
-   ! Prefetch global scalars
-   allocate(environment%prefetch_scalar(size(self%data_scalar)))
+   ! Copy global scalars to read cache
+   allocate(cache%read_scalar(size(self%data_scalar)))
    do i=1,size(self%data_scalar)
-      if (associated(self%data_scalar(i)%p)) environment%prefetch_scalar(i) = self%data_scalar(i)%p
+      if (associated(self%data_scalar(i)%p)) cache%read_scalar(i) = self%data_scalar(i)%p
    end do
 
 #if defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%scratch(_N_,self%nscratch))
+   allocate(cache%write(_N_,self%nscratch))
 #else
-   allocate(environment%scratch(self%nscratch))
+   allocate(cache%write(self%nscratch))
 #endif
-   if (allocated(settings%prefill_type)) then
+   if (allocated(job%prefill_type)) then
       do i=1,self%nscratch
-         if (settings%prefill_type(i)==prefill_missing_value) then
+         if (job%prefill_type(i)==prefill_missing_value) then
             _CONCURRENT_LOOP_BEGIN_
-               environment%scratch _INDEX_SLICE_PLUS_1_(i) = settings%prefill_values(i)
+               cache%write _INDEX_SLICE_PLUS_1_(i) = job%prefill_values(i)
             _LOOP_END_
-         elseif (settings%prefill_type(i)==prefill_previous_value) then
-            _PACK_GLOBAL_PLUS_1_(self%diag,settings%prefill_index(i),environment%scratch,i,environment%mask)
+         elseif (job%prefill_type(i)==prefill_previous_value) then
+            _PACK_GLOBAL_PLUS_1_(self%diag,job%prefill_index(i),cache%write,i,cache%mask)
          end if
       end do
    end if
-end subroutine prefetch_interior
+end subroutine start_interior_job
 
-subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_model),               intent(inout) :: self
-   type (type_environment_settings),intent(in)    :: settings
-   type (type_environment),         intent(out)   :: environment
+subroutine start_horizontal_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
+   type (type_model),intent(inout) :: self
+   type (type_job),  intent(in)    :: job
+   type (type_cache),intent(out)   :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
@@ -2644,53 +2648,53 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
 #ifdef _HORIZONTAL_IS_VECTORIZED_
    _N_ = _STOP_-_START_+1
 #  ifdef _HAS_MASK_
-   allocate(environment%mask(_N_))
+   allocate(cache%mask(_N_))
    _DO_CONCURRENT_(_J_,1,_N_)
-      environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1))
+      cache%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1))
    end do
-   _N_ = count(environment%mask)
+   _N_ = count(cache%mask)
 #  endif
 #endif
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%prefetch_hz(_N_,size(self%data_hz)))
+   allocate(cache%read_hz(_N_,size(self%data_hz)))
 #else
-   allocate(environment%prefetch_hz(size(self%data_hz)))
+   allocate(cache%read_hz(size(self%data_hz)))
 #endif
    do i=1,size(self%data_hz)
       if (associated(self%data_hz(i)%p)) then
-         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(i)%p,environment%prefetch_hz,i,environment%mask)
+         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(i)%p,cache%read_hz,i,cache%mask)
       end if
    end do
 
-   ! Prefetch global scalars
-   allocate(environment%prefetch_scalar(size(self%data_scalar)))
+   ! Copy global scalars to read cache
+   allocate(cache%read_scalar(size(self%data_scalar)))
    do i=1,size(self%data_scalar)
-      if (associated(self%data_scalar(i)%p)) environment%prefetch_scalar(i) = self%data_scalar(i)%p
+      if (associated(self%data_scalar(i)%p)) cache%read_scalar(i) = self%data_scalar(i)%p
    end do
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%scratch_hz(_N_,self%nscratch_hz))
+   allocate(cache%write_hz(_N_,self%nscratch_hz))
 #else
-   allocate(environment%scratch_hz(self%nscratch_hz))
+   allocate(cache%write_hz(self%nscratch_hz))
 #endif
-   if (allocated(settings%prefill_type)) then
+   if (allocated(job%prefill_type)) then
       do i=1,self%nscratch_hz
-         if (settings%prefill_type(i)==prefill_missing_value) then
+         if (job%prefill_type(i)==prefill_missing_value) then
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-               environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = settings%prefill_values(i)
+               cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = job%prefill_values(i)
             _HORIZONTAL_LOOP_END_
-         elseif (settings%prefill_type(i)==prefill_previous_value) then
-            _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,settings%prefill_index(i),environment%scratch_hz,i,environment%mask)
+         elseif (job%prefill_type(i)==prefill_previous_value) then
+            _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,job%prefill_index(i),cache%write_hz,i,cache%mask)
          end if
       end do
    end if
-end subroutine prefetch_horizontal
+end subroutine start_horizontal_job
 
-subroutine prefetch_surface(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_model),               intent(inout) :: self
-   type (type_environment_settings),intent(in)    :: settings
-   type (type_environment),         intent(out)   :: environment
+subroutine start_surface_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
+   type (type_model),intent(inout) :: self
+   type (type_job),  intent(in)    :: job
+   type (type_cache),intent(out)   :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
@@ -2701,38 +2705,38 @@ subroutine prefetch_surface(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
    _VERTICAL_ITERATOR_ = self%surface_index
 #endif
 
-   call prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call start_horizontal_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%prefetch(_N_,size(self%data)))
+   allocate(cache%read(_N_,size(self%data)))
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%prefetch(1,size(self%data)))
+   allocate(cache%read(1,size(self%data)))
 #else
-   allocate(environment%prefetch(size(self%data)))
+   allocate(cache%read(size(self%data)))
 #endif
    do i=1,size(self%data)
       if (associated(self%data(i)%p)) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_),environment%mask)
+         cache%read(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_),cache%mask)
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
          _HORIZONTAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         environment%prefetch(1,i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(1,i) = self%data(i)%p _INDEX_LOCATION_
 #else
-         environment%prefetch(i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(i) = self%data(i)%p _INDEX_LOCATION_
 #endif
       end if
    end do
-end subroutine prefetch_surface
+end subroutine start_surface_job
    
-subroutine prefetch_bottom(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_model),               intent(inout) :: self
-   type (type_environment_settings),intent(in)    :: settings
-   type (type_environment),         intent(out)   :: environment
+subroutine start_bottom_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
+   type (type_model),intent(inout) :: self
+   type (type_job),  intent(in)    :: job
+   type (type_cache),intent(out)   :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
@@ -2744,18 +2748,18 @@ subroutine prefetch_bottom(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
    integer :: j
 #endif
 
-   call prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call start_horizontal_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
 #if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_BOTTOM_INDEX_==0
    _VERTICAL_ITERATOR_ = self%bottom_index
 #endif
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%prefetch(_N_,size(self%data)))
+   allocate(cache%read(_N_,size(self%data)))
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%prefetch(1,size(self%data)))
+   allocate(cache%read(1,size(self%data)))
 #else
-   allocate(environment%prefetch(size(self%data)))
+   allocate(cache%read(size(self%data)))
 #endif
    do i=1,size(self%data)
       if (associated(self%data(i)%p)) then
@@ -2764,42 +2768,42 @@ subroutine prefetch_bottom(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
 #    if _FABM_BOTTOM_INDEX_==-1
          j = 0
          do _J_=1,_STOP_-_START_+1
-            if (environment%mask(_J_)) then
+            if (cache%mask(_J_)) then
                _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
                j = j + 1
-               environment%prefetch(j,i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_+_J_-1)
+               cache%read(j,i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_+_J_-1)
             end if
          end do
 #    else
-         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_),environment%mask)
+         cache%read(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_),cache%mask)
 #    endif
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
 #    if _FABM_BOTTOM_INDEX_==-1
             _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
 #    endif
-            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
          _HORIZONTAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
 #  if _FABM_BOTTOM_INDEX_==-1
          _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #  endif
-         environment%prefetch(1,i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(1,i) = self%data(i)%p _INDEX_LOCATION_
 #else
 #  if _FABM_BOTTOM_INDEX_==-1
          _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #  endif
-         environment%prefetch(i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(i) = self%data(i)%p _INDEX_LOCATION_
 #endif
       end if
    end do
-end subroutine prefetch_bottom
+end subroutine start_bottom_job
 
-subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
-   type (type_model),               intent(inout) :: self
-   type (type_environment_settings),intent(in)    :: settings
-   type (type_environment),         intent(out)   :: environment
+subroutine start_vertical_job(self,job,cache _ARGUMENTS_VERTICAL_IN_)
+   type (type_model),intent(inout) :: self
+   type (type_job),  intent(in)    :: job
+   type (type_cache),intent(out)   :: cache
    _DECLARE_ARGUMENTS_VERTICAL_IN_
    _DECLARE_VERTICAL_INDICES_
 
@@ -2808,162 +2812,162 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
    _N_ = _VERTICAL_STOP_-_VERTICAL_START_+1
 #  ifdef _HAS_MASK_
-   allocate(environment%mask(_N_))
+   allocate(cache%mask(_N_))
    _DO_CONCURRENT_(_I_,1,_N_)
 #    ifdef _FABM_HORIZONTAL_MASK_
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)
+      cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)
 #    else
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1))
+      cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1))
 #    endif
    end do
-   _N_ = count(environment%mask)
+   _N_ = count(cache%mask)
 #  endif
 #endif
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   allocate(environment%scratch(_N_,self%nscratch))
-   allocate(environment%prefetch(_N_,size(self%data)))
+   allocate(cache%write(_N_,self%nscratch))
+   allocate(cache%read(_N_,size(self%data)))
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%scratch(1,self%nscratch))
-   allocate(environment%prefetch(1,size(self%data)))
+   allocate(cache%write(1,self%nscratch))
+   allocate(cache%read(1,size(self%data)))
 #else
-   allocate(environment%scratch(self%nscratch))
-   allocate(environment%prefetch(size(self%data)))
+   allocate(cache%write(self%nscratch))
+   allocate(cache%read(size(self%data)))
 #endif
    do i=1,size(self%data)
       if (associated(self%data(i)%p)) then
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  ifdef _HAS_MASK_
-         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_:_VERTICAL_STOP_),environment%mask)
+         cache%read(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_:_VERTICAL_STOP_),cache%mask)
 #  else
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
-            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
          _VERTICAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         environment%prefetch(1,i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(1,i) = self%data(i)%p _INDEX_LOCATION_
 #else
-         environment%prefetch(i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(i) = self%data(i)%p _INDEX_LOCATION_
 #endif
       end if
    end do
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%scratch_hz(1,self%nscratch_hz))
-   allocate(environment%prefetch_hz(1,size(self%data_hz)))
+   allocate(cache%write_hz(1,self%nscratch_hz))
+   allocate(cache%read_hz(1,size(self%data_hz)))
 #else
-   allocate(environment%scratch_hz(self%nscratch_hz))
-   allocate(environment%prefetch_hz(size(self%data_hz)))
+   allocate(cache%write_hz(self%nscratch_hz))
+   allocate(cache%read_hz(size(self%data_hz)))
 #endif
    do i=1,size(self%data_hz)
       if (associated(self%data_hz(i)%p)) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-            environment%prefetch_hz(1,i) = self%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
+            cache%read_hz(1,i) = self%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
 #else
-            environment%prefetch_hz(i) = self%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
+            cache%read_hz(i) = self%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
 #endif
       end if
    end do
 
-   ! Prefetch global scalars
-   allocate(environment%prefetch_scalar(size(self%data_scalar)))
+   ! Copy global scalars to read cache
+   allocate(cache%read_scalar(size(self%data_scalar)))
    do i=1,size(self%data_scalar)
-      if (associated(self%data_scalar(i)%p)) environment%prefetch_scalar(i) = self%data_scalar(i)%p
+      if (associated(self%data_scalar(i)%p)) cache%read_scalar(i) = self%data_scalar(i)%p
    end do
-end subroutine prefetch_vertical
+end subroutine start_vertical_job
 
-subroutine deallocate_prefetch(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
-   type (type_model),               intent(inout) :: self
-   type (type_environment_settings),intent(in)    :: settings
-   type (type_environment),         intent(inout) :: environment
+subroutine end_interior_job(self,job,cache _ARGUMENTS_INTERIOR_IN_)
+   type (type_model),intent(inout) :: self
+   type (type_job),  intent(in)    :: job
+   type (type_cache),intent(inout) :: cache
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    _DECLARE_INTERIOR_INDICES_
 
    integer :: i
 
    ! Copy newly written diagnostics that need to be saved to global store.
-   if (allocated(settings%save_sources)) then
-      do i=1,size(settings%save_sources)
-         if (settings%save_sources(i)/=-1) then
-            _UNPACK_TO_GLOBAL_PLUS_1_(environment%scratch,settings%save_sources(i),self%diag,i,environment%mask,self%diag_missing_value(i))
+   if (allocated(job%save_sources)) then
+      do i=1,size(job%save_sources)
+         if (job%save_sources(i)/=-1) then
+            _UNPACK_TO_GLOBAL_PLUS_1_(cache%write,job%save_sources(i),self%diag,i,cache%mask,self%diag_missing_value(i))
          end if
       end do
    end if
 
 #ifdef _HAS_MASK_
-   deallocate(environment%mask)
+   deallocate(cache%mask)
 #endif
-   deallocate(environment%prefetch)
-   deallocate(environment%prefetch_hz)
-   deallocate(environment%prefetch_scalar)
-   deallocate(environment%scratch)
-end subroutine deallocate_prefetch
+   deallocate(cache%read)
+   deallocate(cache%read_hz)
+   deallocate(cache%read_scalar)
+   deallocate(cache%write)
+end subroutine end_interior_job
 
-subroutine deallocate_prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_model),               intent(inout) :: self
-   type (type_environment_settings),intent(in)    :: settings
-   type (type_environment),         intent(inout) :: environment
+subroutine end_horizontal_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
+   type (type_model),intent(inout) :: self
+   type (type_job),  intent(in)    :: job
+   type (type_cache),intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
    integer :: i
 
    ! Copy newly written horizontal diagnostics that need to be saved to global store.
-   if (allocated(settings%save_sources_hz)) then
-      do i=1,size(settings%save_sources_hz)
-         if (settings%save_sources_hz(i)/=-1) then
-            _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(environment%scratch_hz,settings%save_sources_hz(i),self%diag_hz,i,environment%mask,self%diag_hz_missing_value(i))
+   if (allocated(job%save_sources_hz)) then
+      do i=1,size(job%save_sources_hz)
+         if (job%save_sources_hz(i)/=-1) then
+            _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write_hz,job%save_sources_hz(i),self%diag_hz,i,cache%mask,self%diag_hz_missing_value(i))
          end if
       end do
    end if
 
 #ifdef _HAS_MASK_
-   deallocate(environment%mask)
+   deallocate(cache%mask)
 #endif
-   if (allocated(environment%prefetch)) deallocate(environment%prefetch)
-   deallocate(environment%prefetch_hz)
-   deallocate(environment%prefetch_scalar)
-   deallocate(environment%scratch_hz)
-end subroutine deallocate_prefetch_horizontal
+   if (allocated(cache%read)) deallocate(cache%read)
+   deallocate(cache%read_hz)
+   deallocate(cache%read_scalar)
+   deallocate(cache%write_hz)
+end subroutine end_horizontal_job
 
-subroutine deallocate_prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
-   type (type_model),               intent(inout) :: self
-   type (type_environment_settings),intent(in)    :: settings
-   type (type_environment),         intent(inout) :: environment
+subroutine end_vertical_job(self,job,cache _ARGUMENTS_VERTICAL_IN_)
+   type (type_model),intent(inout) :: self
+   type (type_job),  intent(in)    :: job
+   type (type_cache),intent(inout) :: cache
    _DECLARE_ARGUMENTS_VERTICAL_IN_
    _DECLARE_VERTICAL_INDICES_
 
    integer :: i
 
    ! Copy diagnostics that need to be saved to global store.
-   if (allocated(settings%save_sources)) then
-      do i=1,size(settings%save_sources)
-         if (settings%save_sources(i)/=-1) then
-            _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(environment%scratch,settings%save_sources(i),self%diag,i,environment%mask,self%diag_missing_value(i))
+   if (allocated(job%save_sources)) then
+      do i=1,size(job%save_sources)
+         if (job%save_sources(i)/=-1) then
+            _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write,job%save_sources(i),self%diag,i,cache%mask,self%diag_missing_value(i))
          end if
       end do
    end if
-   if (allocated(settings%save_sources_hz)) then
-      do i=1,size(settings%save_sources_hz)
-         if (settings%save_sources_hz(i)/=-1) then
+   if (allocated(job%save_sources_hz)) then
+      do i=1,size(job%save_sources_hz)
+         if (job%save_sources_hz(i)/=-1) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-            self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = environment%scratch_hz(1,settings%save_sources_hz(i))
+            self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(1,job%save_sources_hz(i))
 #else
-            self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = environment%scratch_hz(settings%save_sources_hz(i))
+            self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(job%save_sources_hz(i))
 #endif
          end if
       end do
    end if
 
 #ifdef _HAS_MASK_
-   deallocate(environment%mask)
+   deallocate(cache%mask)
 #endif
-   deallocate(environment%prefetch)
-   deallocate(environment%prefetch_hz)
-   deallocate(environment%prefetch_scalar)
-   deallocate(environment%scratch)
-   deallocate(environment%scratch_hz)
-end subroutine deallocate_prefetch_vertical
+   deallocate(cache%read)
+   deallocate(cache%read_hz)
+   deallocate(cache%read_scalar)
+   deallocate(cache%write)
+   deallocate(cache%write_hz)
+end subroutine end_vertical_job
 
 !-----------------------------------------------------------------------
 !BOP
@@ -2978,9 +2982,9 @@ end subroutine deallocate_prefetch_vertical
    _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)               :: environment
-   integer                               :: ivar,read_index
-   type (type_model_list_node), pointer  :: node
+   type (type_cache)                    :: cache
+   integer                              :: ivar,read_index
+   type (type_model_list_node), pointer :: node
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -2990,12 +2994,12 @@ end subroutine deallocate_prefetch_vertical
    call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_initialize_state')
 #endif
 
-   call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call start_interior_job(self,self%generic_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    do ivar=1,size(self%state_variables)
       read_index = self%state_variables(ivar)%globalid%read_index
       _CONCURRENT_LOOP_BEGIN_
-         environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = self%state_variables(ivar)%initial_value
+         cache%read _INDEX_SLICE_PLUS_1_(read_index) = self%state_variables(ivar)%initial_value
       _LOOP_END_
    end do
 
@@ -3006,13 +3010,13 @@ end subroutine deallocate_prefetch_vertical
       node => node%next
    end do
 
-   ! Copy from prefetch back to global data store.
+   ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
    do ivar=1,size(self%state_variables)
       read_index = self%state_variables(ivar)%globalid%read_index
-      _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+      _UNPACK_TO_GLOBAL_(cache%read,read_index,self%data(read_index)%p,cache%mask,self%state_variables(ivar)%missing_value)
    end do
 
-   call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_job(self,self%generic_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_initialize_state
 !EOC
@@ -3030,9 +3034,9 @@ end subroutine deallocate_prefetch_vertical
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)               :: environment
-   integer                               :: ivar,read_index
-   type (type_model_list_node), pointer  :: node
+   type (type_cache)                    :: cache
+   integer                              :: ivar,read_index
+   type (type_model_list_node), pointer :: node
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -3042,13 +3046,13 @@ end subroutine deallocate_prefetch_vertical
    call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_initialize_bottom_state')
 #endif
 
-   call prefetch_bottom(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call start_bottom_job(self,self%generic_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    ! Initialize bottom variables
    do ivar=1,size(self%bottom_state_variables)
       read_index = self%bottom_state_variables(ivar)%globalid%read_index
       _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-         environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%bottom_state_variables(ivar)%initial_value
+         cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%bottom_state_variables(ivar)%initial_value
       _HORIZONTAL_LOOP_END_
    end do
 
@@ -3059,13 +3063,13 @@ end subroutine deallocate_prefetch_vertical
       node => node%next
    end do
 
-   ! Copy from prefetch back to global data store.
+   ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
    do ivar=1,size(self%bottom_state_variables)
       read_index = self%bottom_state_variables(ivar)%globalid%read_index
-      _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,self%bottom_state_variables(ivar)%missing_value)
+      _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,self%bottom_state_variables(ivar)%missing_value)
    end do
 
-   call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_job(self,self%generic_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_initialize_bottom_state
 !EOC
@@ -3083,9 +3087,9 @@ end subroutine deallocate_prefetch_vertical
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)               :: environment
-   integer                               :: ivar,read_index
-   type (type_model_list_node), pointer  :: node
+   type (type_cache)                    :: cache
+   integer                              :: ivar,read_index
+   type (type_model_list_node), pointer :: node
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -3095,13 +3099,13 @@ end subroutine deallocate_prefetch_vertical
    call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_initialize_surface_state')
 #endif
 
-   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call start_surface_job(self,self%generic_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    ! Initialize surface variables
    do ivar=1,size(self%surface_state_variables)
       read_index = self%surface_state_variables(ivar)%globalid%read_index
       _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-         environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%surface_state_variables(ivar)%initial_value
+         cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%surface_state_variables(ivar)%initial_value
       _HORIZONTAL_LOOP_END_
    end do
 
@@ -3112,13 +3116,13 @@ end subroutine deallocate_prefetch_vertical
       node => node%next
    end do
 
-   ! Copy from prefetch back to global data store.
+   ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
    do ivar=1,size(self%surface_state_variables)
       read_index = self%surface_state_variables(ivar)%globalid%read_index
-      _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,self%surface_state_variables(ivar)%missing_value)
+      _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,self%surface_state_variables(ivar)%missing_value)
    end do
 
-   call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_job(self,self%generic_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_initialize_surface_state
 !EOC
@@ -3133,16 +3137,16 @@ end subroutine deallocate_prefetch_vertical
    subroutine fabm_do_rhs(self _ARGUMENTS_INTERIOR_IN_,dy)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),           intent(inout) :: self
+   class (type_model),                    intent(inout) :: self
    _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
    real(rk) _DIMENSION_EXT_SLICE_PLUS_1_, intent(inout) :: dy
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)             :: environment
-   type (type_call_list_node), pointer :: node
-   integer                             :: i,j,k
+   type (type_cache)         :: cache
+   type (type_call), pointer :: node
+   integer                   :: i,j,k
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -3157,18 +3161,18 @@ end subroutine deallocate_prefetch_vertical
 #  endif
 #endif
 
-   call prefetch_interior(self,self%do_interior_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call start_interior_job(self,self%do_interior_job,cache _ARGUMENTS_INTERIOR_IN_)
 
-   node => self%do_interior_environment%call_list%first
+   node => self%do_interior_job%calls%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
-      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
          j = node%copy_commands_int(i)%read_index
          k = node%copy_commands_int(i)%write_index
          _CONCURRENT_LOOP_BEGIN_
-            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+            cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
          _LOOP_END_
       end do
 
@@ -3180,11 +3184,11 @@ end subroutine deallocate_prefetch_vertical
    do i=1,size(self%state_variables)
       do j=1,size(self%state_variables(i)%sms_indices)
          k = self%state_variables(i)%sms_indices(j)
-         _UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch,k,dy,i,environment%mask,0.0_rk)
+         _UNPACK_AND_ADD_TO_PLUS_1_(cache%write,k,dy,i,cache%mask,0.0_rk)
       end do
    end do
 
-   call deallocate_prefetch(self,self%do_interior_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_job(self,self%do_interior_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_do_rhs
 !EOC
@@ -3199,14 +3203,14 @@ end subroutine deallocate_prefetch_vertical
    subroutine fabm_do_ppdd(self _ARGUMENTS_INTERIOR_IN_,pp,dd)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),          intent(inout) :: self
+   class (type_model),                   intent(inout) :: self
   _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
    real(rk) _DIMENSION_EXT_SLICE_PLUS_2_,intent(inout) :: pp,dd
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
+   type (type_cache)                    :: cache
    type (type_model_list_node), pointer :: node
    integer                              :: i,j,k
    _DECLARE_INTERIOR_INDICES_
@@ -3225,19 +3229,19 @@ end subroutine deallocate_prefetch_vertical
 #  endif
 #endif
 
-   call prefetch_interior(self,self%do_interior_ppdd_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call start_interior_job(self,self%do_interior_ppdd_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    node => self%models%first
    do while (associated(node))
       call node%model%do_ppdd(_ARGUMENTS_INTERIOR_,pp,dd)
 
-      ! Copy newly written diagnostics to prefetch
+      ! Copy outputs of interest to read cache so consecutive models can use it.
       do i=1,size(node%model%reused_diag)
          if (node%model%reused_diag(i)%source==source_do) then
             j = node%model%reused_diag(i)%read_index
             k = node%model%reused_diag(i)%write_index
             _CONCURRENT_LOOP_BEGIN_
-               environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+               cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
             _LOOP_END_
          end if
       end do
@@ -3245,7 +3249,7 @@ end subroutine deallocate_prefetch_vertical
       node => node%next
    end do
 
-   call deallocate_prefetch(self,self%do_interior_ppdd_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_job(self,self%do_interior_ppdd_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_do_ppdd
 !EOC
@@ -3266,7 +3270,7 @@ end subroutine deallocate_prefetch_vertical
    logical,                intent(out)   :: valid
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
+   type (type_cache)                    :: cache
    integer                              :: ivar, read_index
    type (type_model_list_node), pointer :: node
    real(rk)                             :: value,minimum,maximum
@@ -3284,7 +3288,7 @@ end subroutine deallocate_prefetch_vertical
    valid = .true.
    set_interior = .false.
 
-   call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call start_interior_job(self,self%generic_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
    node => self%models%first
@@ -3303,7 +3307,7 @@ end subroutine deallocate_prefetch_vertical
       minimum = self%state_variables(ivar)%minimum
       maximum = self%state_variables(ivar)%maximum
       _LOOP_BEGIN_
-         value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+         value = cache%read _INDEX_SLICE_PLUS_1_(read_index)
          if (value<minimum.or.value>maximum) valid = .false.
       _LOOP_END_
    end do
@@ -3320,12 +3324,12 @@ end subroutine deallocate_prefetch_vertical
 
       if (repair) then
          _CONCURRENT_LOOP_BEGIN_
-            value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
-            environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = max(minimum,min(maximum,value))
+            value = cache%read _INDEX_SLICE_PLUS_1_(read_index)
+            cache%read _INDEX_SLICE_PLUS_1_(read_index) = max(minimum,min(maximum,value))
          _LOOP_END_
       else
          _LOOP_BEGIN_
-            value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+            value = cache%read _INDEX_SLICE_PLUS_1_(read_index)
             if (value<minimum) then
                ! State variable value lies below prescribed minimum.
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
@@ -3348,11 +3352,11 @@ end subroutine deallocate_prefetch_vertical
    if (set_interior.or..not.valid) then
       do ivar=1,size(self%state_variables)
          read_index = self%state_variables(ivar)%globalid%read_index
-         _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+         _UNPACK_TO_GLOBAL_(cache%read,read_index,self%data(read_index)%p,cache%mask,self%state_variables(ivar)%missing_value)
       end do
    end if
 
-   call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_job(self,self%generic_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_check_state
 !EOC
@@ -3372,7 +3376,7 @@ end subroutine deallocate_prefetch_vertical
    logical,                intent(in)    :: repair
    logical,                intent(out)   :: valid
 
-   type (type_environment) :: environment
+   type (type_cache) :: cache
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -3381,9 +3385,9 @@ end subroutine deallocate_prefetch_vertical
    call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_check_bottom_state')
 #endif
 
-   call prefetch_bottom(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call start_bottom_job(self,self%generic_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-   call internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTAL_IN_,2,self%bottom_state_variables,repair,valid)
+   call internal_check_horizontal_state(self,cache _ARGUMENTS_HORIZONTAL_IN_,2,self%bottom_state_variables,repair,valid)
 
    end subroutine fabm_check_bottom_state
 !EOC
@@ -3403,7 +3407,7 @@ end subroutine deallocate_prefetch_vertical
    logical,                intent(in)    :: repair
    logical,                intent(out)   :: valid
 
-   type (type_environment) :: environment
+   type (type_cache) :: cache
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -3412,16 +3416,16 @@ end subroutine deallocate_prefetch_vertical
    call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_check_surface_state')
 #endif
 
-   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call start_surface_job(self,self%generic_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-   call internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTAL_IN_,1,self%info%surface_state_variables,repair,valid)
+   call internal_check_horizontal_state(self,cache _ARGUMENTS_HORIZONTAL_IN_,1,self%info%surface_state_variables,repair,valid)
 
    end subroutine fabm_check_surface_state
 !EOC
 
-subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTAL_IN_,flag,state_variables,repair,valid)
+subroutine internal_check_horizontal_state(self,cache _ARGUMENTS_HORIZONTAL_IN_,flag,state_variables,repair,valid)
    class (type_model),                        intent(inout) :: self
-   type (type_environment),                   intent(inout) :: environment
+   type (type_cache),                         intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    integer,                                   intent(in)    :: flag
    type (type_horizontal_state_variable_info),intent(inout) :: state_variables(:)
@@ -3466,7 +3470,7 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
       maximum = state_variables(ivar)%maximum
 
       _HORIZONTAL_LOOP_BEGIN_
-         value = environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index)
+         value = cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index)
          if (value<minimum) then
             ! State variable value lies below prescribed minimum.
             valid = .false.
@@ -3477,7 +3481,7 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
                call log_message(err)
                return
             end if
-            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = minimum
+            cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = minimum
          elseif (value>maximum) then
             ! State variable value exceeds prescribed maximum.
             valid = .false.
@@ -3488,7 +3492,7 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
                call log_message(err)
                return
             end if
-            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = maximum
+            cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = maximum
          end if
       _HORIZONTAL_LOOP_END_
    end do
@@ -3496,7 +3500,7 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
    if (set_horizontal.or..not.valid) then
       do ivar=1,size(state_variables)
          read_index = state_variables(ivar)%globalid%read_index
-         _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,state_variables(ivar)%missing_value)
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,state_variables(ivar)%missing_value)
       end do
    end if
 
@@ -3524,16 +3528,16 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-         self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_) = unpack(environment%prefetch(:,read_index),environment%mask,self%state_variables(ivar)%missing_value)
+         self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_) = unpack(cache%read(:,read_index),cache%mask,self%state_variables(ivar)%missing_value)
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+            self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = cache%read _INDEX_SLICE_PLUS_1_(read_index)
          _HORIZONTAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         self%data(read_index)%p _INDEX_LOCATION_ = environment%prefetch(1,read_index)
+         self%data(read_index)%p _INDEX_LOCATION_ = cache%read(1,read_index)
 #else
-         self%data(read_index)%p _INDEX_LOCATION_ = environment%prefetch(read_index)
+         self%data(read_index)%p _INDEX_LOCATION_ = cache%read(read_index)
 #endif
 
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
@@ -3542,16 +3546,16 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
 #  ifdef _HAS_MASK_
          j = 0
          do _J_=1,_STOP_-_START_+1
-            if (environment%mask(_J_)) then
+            if (cache%mask(_J_)) then
                _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
                j = j + 1
-               self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_J_-1) = environment%prefetch(j,read_index)
+               self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_J_-1) = cache%read(j,read_index)
             end if
          end do
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
             _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
-            self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+            self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = cache%read _INDEX_SLICE_PLUS_1_(read_index)
          _HORIZONTAL_LOOP_END_
 #  endif
    end if
@@ -3560,7 +3564,7 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
       end do
    end if
 
-   call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_job(self,self%generic_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
 end subroutine internal_check_horizontal_state
 
@@ -3583,9 +3587,9 @@ end subroutine internal_check_horizontal_state
       real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out),optional :: flux_sf
 !
 ! !LOCAL PARAMETERS:
-      type (type_environment)             :: environment
-      type (type_call_list_node), pointer :: node
-      integer                             :: i,j,k
+      type (type_cache)         :: cache
+      type (type_call), pointer :: node
+      integer                   :: i,j,k
       _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -3602,9 +3606,9 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-      call prefetch_surface(self,self%do_surface_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+      call start_surface_job(self,self%do_surface_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-      node => self%do_surface_environment%call_list%first
+      node => self%do_surface_job%calls%first
       do while (associated(node))
          if (node%source==source_do_horizontal) then
             call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
@@ -3612,12 +3616,12 @@ end subroutine internal_check_horizontal_state
             call node%model%do_surface(_ARGUMENTS_HORIZONTAL_)
          end if
 
-         ! Copy newly written diagnostics to prefetch
+         ! Copy outputs of interest to read cache so consecutive models can use it.
          _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
             j = node%copy_commands_hz(i)%read_index
             k = node%copy_commands_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-               environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+               cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _HORIZONTAL_LOOP_END_
          end do
 
@@ -3629,7 +3633,7 @@ end subroutine internal_check_horizontal_state
       do i=1,size(self%state_variables)
          do j=1,size(self%state_variables(i)%surface_flux_indices)
             k = self%state_variables(i)%surface_flux_indices(j)
-            _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_pel,i,environment%mask,0.0_rk)
+            _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_pel,i,cache%mask,0.0_rk)
          end do
       end do
 
@@ -3639,12 +3643,12 @@ end subroutine internal_check_horizontal_state
          do i=1,size(self%surface_state_variables)
             do j=1,size(self%surface_state_variables(i)%sms_indices)
                k = self%surface_state_variables(i)%sms_indices(j)
-               _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_sf,i,environment%mask,0.0_rk)
+               _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_sf,i,cache%mask,0.0_rk)
             end do
          end do
       end if
 
-      call deallocate_prefetch_horizontal(self,self%do_surface_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+      call end_horizontal_job(self,self%do_surface_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_do_surface
 !EOC
@@ -3669,9 +3673,9 @@ end subroutine internal_check_horizontal_state
    real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_ben
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)             :: environment
-   type (type_call_list_node), pointer :: node
-   integer                             :: i,j,k
+   type (type_cache)         :: cache
+   type (type_call), pointer :: node
+   integer                   :: i,j,k
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -3688,9 +3692,9 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call prefetch_bottom(self,self%do_bottom_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call start_bottom_job(self,self%do_bottom_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-   node => self%do_bottom_environment%call_list%first
+   node => self%do_bottom_job%calls%first
    do while (associated(node))
       if (node%source==source_do_horizontal) then
          call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
@@ -3698,12 +3702,12 @@ end subroutine internal_check_horizontal_state
          call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
       end if
 
-      ! Copy newly written diagnostics to prefetch
+      ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
          j = node%copy_commands_hz(i)%read_index
          k = node%copy_commands_hz(i)%write_index
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+            cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
          _HORIZONTAL_LOOP_END_
       end do
 
@@ -3714,7 +3718,7 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%state_variables)
       do j=1,size(self%state_variables(i)%bottom_flux_indices)
          k = self%state_variables(i)%bottom_flux_indices(j)
-         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_pel,i,environment%mask,0.0_rk)
+         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_pel,i,cache%mask,0.0_rk)
       end do
    end do
 
@@ -3722,11 +3726,11 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%bottom_state_variables)
       do j=1,size(self%bottom_state_variables(i)%sms_indices)
          k = self%bottom_state_variables(i)%sms_indices(j)
-         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_ben,i,environment%mask,0.0_rk)
+         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_ben,i,cache%mask,0.0_rk)
       end do
    end do
 
-   call deallocate_prefetch_horizontal(self,self%do_bottom_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_job(self,self%do_bottom_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_do_bottom_rhs
 !EOC
@@ -3743,15 +3747,15 @@ end subroutine internal_check_horizontal_state
    subroutine fabm_do_bottom_ppdd(self _ARGUMENTS_HORIZONTAL_IN_,pp,dd,benthos_offset)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),        intent(inout) :: self
+   class (type_model),                          intent(inout) :: self
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   integer,                   intent(in)    :: benthos_offset
+   integer,                                     intent(in)    :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:
    real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
+   type (type_cache)                    :: cache
    type (type_model_list_node), pointer :: node
    integer                              :: i,j,k
    _DECLARE_HORIZONTAL_INDICES_
@@ -3763,19 +3767,19 @@ end subroutine internal_check_horizontal_state
    call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_bottom_ppdd')
 #endif
 
-   call prefetch_bottom(self,self%do_bottom_ppdd_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call start_bottom_job(self,self%do_bottom_ppdd_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    node => self%models%first
    do while (associated(node))
       call node%model%do_bottom_ppdd(_ARGUMENTS_HORIZONTAL_,pp,dd,benthos_offset)
 
-      ! Copy newly written diagnostics to prefetch
+      ! Copy outputs of interest to read cache so consecutive models can use it.
       do i=1,size(node%model%reused_diag_hz)
          if (node%model%reused_diag_hz(i)%source==source_do_bottom.or.node%model%reused_diag_hz(i)%source==source_unknown) then
             j = node%model%reused_diag_hz(i)%read_index
             k = node%model%reused_diag_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-               environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+               cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _HORIZONTAL_LOOP_END_
          end if
       end do
@@ -3783,7 +3787,7 @@ end subroutine internal_check_horizontal_state
       node => node%next
    end do
 
-   call deallocate_prefetch_horizontal(self,self%do_bottom_ppdd_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_job(self,self%do_bottom_ppdd_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_do_bottom_ppdd
 !EOC
@@ -3799,14 +3803,14 @@ end subroutine internal_check_horizontal_state
    subroutine fabm_get_vertical_movement(self _ARGUMENTS_INTERIOR_IN_,velocity)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),               intent(inout) :: self
+   class (type_model),                   intent(inout) :: self
    _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out) :: velocity
+   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out)   :: velocity
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
+   type (type_cache)                    :: cache
    type (type_model_list_node), pointer :: node
    integer                              :: i,k
    _DECLARE_INTERIOR_INDICES_
@@ -3823,7 +3827,7 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call prefetch_interior(self,self%get_vertical_movement_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call start_interior_job(self,self%get_vertical_movement_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    ! Now allow models to overwrite with spatially-varying sinking rates - if any.
    node => self%models%first
@@ -3835,10 +3839,10 @@ end subroutine internal_check_horizontal_state
    ! Compose total sources-sinks for each state variable, combining model-specific contributions.
    do i=1,size(self%state_variables)
       k = self%state_variables(i)%movement_index
-      _UNPACK_TO_PLUS_1_(environment%scratch,k,velocity,i,environment%mask,0.0_rk)
+      _UNPACK_TO_PLUS_1_(cache%write,k,velocity,i,cache%mask,0.0_rk)
    end do
 
-   call deallocate_prefetch(self,self%get_vertical_movement_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_job(self,self%get_vertical_movement_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_vertical_movement
 !EOC
@@ -3858,9 +3862,9 @@ end subroutine internal_check_horizontal_state
    real(rk) _DIMENSION_EXT_SLICE_,intent(out)   :: extinction
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)             :: environment
-   type (type_call_list_node), pointer :: node
-   integer                             :: i,j,k
+   type (type_cache)         :: cache
+   type (type_call), pointer :: node
+   integer                   :: i,j,k
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -3873,19 +3877,19 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call prefetch_interior(self,self%get_light_extinction_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call start_interior_job(self,self%get_light_extinction_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    ! Call all models that calculate extinction components to make sure the extinction diagnostic is up to date.
-   node => self%get_light_extinction_environment%call_list%first
+   node => self%get_light_extinction_job%calls%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
-      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
          j = node%copy_commands_int(i)%read_index
          k = node%copy_commands_int(i)%write_index
          _CONCURRENT_LOOP_BEGIN_
-            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+            cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
          _LOOP_END_
       end do
 
@@ -3893,9 +3897,10 @@ end subroutine internal_check_horizontal_state
       node => node%next
    end do
 
-   _UNPACK_(environment%prefetch,self%extinction_index,extinction,environment%mask,0.0_rk)
+   ! NB the extinction value is taken from the *read* cache.
+   _UNPACK_(cache%read,self%extinction_index,extinction,cache%mask,0.0_rk)
 
-   call deallocate_prefetch(self,self%get_light_extinction_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_job(self,self%get_light_extinction_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_light_extinction
 !EOC
@@ -3913,10 +3918,10 @@ end subroutine internal_check_horizontal_state
    _DECLARE_ARGUMENTS_VERTICAL_IN_
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)             :: environment
-   type (type_call_list_node), pointer :: node
+   type (type_cache)         :: cache
+   type (type_call), pointer :: node
+   integer                   :: i,j,k
    _DECLARE_VERTICAL_INDICES_
-   integer :: i,j,k
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -3925,34 +3930,34 @@ end subroutine internal_check_horizontal_state
    call check_vertical_location(self _ARGUMENTS_VERTICAL_IN_,'fabm_get_light')
 #endif
 
-   call prefetch_vertical(self,self%get_light_environment,environment _ARGUMENTS_VERTICAL_IN_)
+   call start_vertical_job(self,self%get_light_job,cache _ARGUMENTS_VERTICAL_IN_)
 
-   node => self%get_light_environment%call_list%first
+   node => self%get_light_job%calls%first
    do while (associated(node))
       call node%model%get_light(_ARGUMENTS_VERTICAL_)
 
-      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
          j = node%copy_commands_int(i)%read_index
          k = node%copy_commands_int(i)%write_index
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
-            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+            cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
          _VERTICAL_LOOP_END_
       end do
       _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
          j = node%copy_commands_hz(i)%read_index
          k = node%copy_commands_hz(i)%write_index
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-         environment%prefetch_hz(1,j) = environment%scratch_hz(1,k)
+         cache%read_hz(1,j) = cache%write_hz(1,k)
 #else
-         environment%prefetch_hz(j) = environment%scratch_hz(k)
+         cache%read_hz(j) = cache%write_hz(k)
 #endif
       end do
 
       node => node%next
    end do
 
-   call deallocate_prefetch_vertical(self,self%get_light_environment,environment _ARGUMENTS_VERTICAL_IN_)
+   call end_vertical_job(self,self%get_light_job,cache _ARGUMENTS_VERTICAL_IN_)
 
    end subroutine fabm_get_light
 !EOC
@@ -3973,7 +3978,7 @@ end subroutine internal_check_horizontal_state
    real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: drag
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
+   type (type_cache)                    :: cache
    type (type_model_list_node), pointer :: node
    _DECLARE_HORIZONTAL_INDICES_
 !
@@ -3987,7 +3992,7 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call start_surface_job(self,self%generic_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    drag = 1.0_rk
    node => self%models%first
@@ -3996,7 +4001,7 @@ end subroutine internal_check_horizontal_state
       node => node%next
    end do
 
-   call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_job(self,self%generic_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_get_drag
 !EOC
@@ -4016,7 +4021,7 @@ end subroutine internal_check_horizontal_state
    real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: albedo
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
+   type (type_cache)                    :: cache
    type (type_model_list_node), pointer :: node
    _DECLARE_HORIZONTAL_INDICES_
 !
@@ -4030,7 +4035,7 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call start_surface_job(self,self%generic_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    albedo = 0.0_rk
    node => self%models%first
@@ -4039,7 +4044,7 @@ end subroutine internal_check_horizontal_state
       node => node%next
    end do
 
-   call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_job(self,self%generic_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_get_albedo
 !EOC
@@ -4058,9 +4063,9 @@ end subroutine internal_check_horizontal_state
    real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out)   :: sums
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)             :: environment
-   type (type_call_list_node), pointer :: node
-   integer :: i,j,k
+   type (type_cache)         :: cache
+   type (type_call), pointer :: node
+   integer                   :: i,j,k
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -4075,18 +4080,18 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call prefetch_interior(self,self%get_conserved_quantities_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call start_interior_job(self,self%get_conserved_quantities_job,cache _ARGUMENTS_INTERIOR_IN_)
 
-   node => self%get_conserved_quantities_environment%call_list%first
+   node => self%get_conserved_quantities_job%calls%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
-      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
          j = node%copy_commands_int(i)%read_index
          k = node%copy_commands_int(i)%write_index
          _CONCURRENT_LOOP_BEGIN_
-            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+            cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
          _LOOP_END_
       end do
 
@@ -4095,10 +4100,10 @@ end subroutine internal_check_horizontal_state
    end do
 
    do i=1,size(self%conserved_quantities)
-      _UNPACK_TO_PLUS_1_(environment%prefetch,self%conserved_quantities(i)%index,sums,i,environment%mask,0.0_rk)
+      _UNPACK_TO_PLUS_1_(cache%read,self%conserved_quantities(i)%index,sums,i,cache%mask,0.0_rk)
    end do
 
-   call deallocate_prefetch(self,self%get_conserved_quantities_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_job(self,self%get_conserved_quantities_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_conserved_quantities
 !EOC
@@ -4117,9 +4122,9 @@ end subroutine internal_check_horizontal_state
    real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: sums
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)             :: environment
-   integer                             :: i,j,k
-   type (type_call_list_node), pointer :: node
+   type (type_cache)         :: cache
+   type (type_call), pointer :: node
+   integer                   :: i,j,k
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -4134,9 +4139,9 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call prefetch_horizontal(self,self%get_horizontal_conserved_quantities_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call start_horizontal_job(self,self%get_horizontal_conserved_quantities_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-   node => self%get_horizontal_conserved_quantities_environment%call_list%first
+   node => self%get_horizontal_conserved_quantities_job%calls%first
    do while (associated(node))
       if (node%source==source_do_horizontal) then
          call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
@@ -4144,12 +4149,12 @@ end subroutine internal_check_horizontal_state
          call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
       end if
 
-      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
          j = node%copy_commands_hz(i)%read_index
          k = node%copy_commands_hz(i)%write_index
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+            cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
          _HORIZONTAL_LOOP_END_
       end do
 
@@ -4158,72 +4163,72 @@ end subroutine internal_check_horizontal_state
    end do
 
    do i=1,size(self%conserved_quantities)
-      _HORIZONTAL_UNPACK_TO_PLUS_1_(environment%prefetch_hz,self%conserved_quantities(i)%horizontal_index,sums,i,environment%mask,0.0_rk)
+      _HORIZONTAL_UNPACK_TO_PLUS_1_(cache%read_hz,self%conserved_quantities(i)%horizontal_index,sums,i,cache%mask,0.0_rk)
    end do
 
-   call deallocate_prefetch_horizontal(self,self%get_horizontal_conserved_quantities_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_job(self,self%get_horizontal_conserved_quantities_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_get_horizontal_conserved_quantities
 !EOC
 
-   subroutine fabm_process_interior_all(self,settings _ARGUMENTS_LOCATION_RANGE_)
-      class (type_model),              intent(inout), target :: self
-      type (type_environment_settings),intent(in)            :: settings
+   subroutine fabm_process_interior_all(self,job _ARGUMENTS_LOCATION_RANGE_)
+      class (type_model),intent(inout), target :: self
+      type (type_job),   intent(in)            :: job
       _DECLARE_ARGUMENTS_LOCATION_RANGE_
 
       _DECLARE_LOCATION_
 
       _BEGIN_OUTER_INTERIOR_LOOP_
-         call fabm_process_interior_slice(self,settings _ARGUMENTS_INTERIOR_IN_)
+         call fabm_process_interior_slice(self,job _ARGUMENTS_INTERIOR_IN_)
       _END_OUTER_INTERIOR_LOOP_
    end subroutine fabm_process_interior_all
 
-   subroutine fabm_process_horizontal_all(self,settings _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
-      class (type_model),              intent(inout), target :: self
-      type (type_environment_settings),intent(in)            :: settings
+   subroutine fabm_process_horizontal_all(self,job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
+      class (type_model),intent(inout), target :: self
+      type (type_job),   intent(in)            :: job
       _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
 
       _DECLARE_LOCATION_
 
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_process_horizontal_slice(self,settings _ARGUMENTS_HORIZONTAL_IN_)
+         call fabm_process_horizontal_slice(self,job _ARGUMENTS_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
    end subroutine fabm_process_horizontal_all
 
-   subroutine fabm_process_vertical_all(self,settings _ARGUMENTS_LOCATION_RANGE_)
-      class (type_model),              intent(inout), target :: self
-      type (type_environment_settings),intent(in)            :: settings
+   subroutine fabm_process_vertical_all(self,job _ARGUMENTS_LOCATION_RANGE_)
+      class (type_model),intent(inout), target :: self
+      type (type_job),   intent(in)            :: job
       _DECLARE_ARGUMENTS_LOCATION_RANGE_
 
       _DECLARE_LOCATION_
 
       _BEGIN_OUTER_VERTICAL_LOOP_
-         call fabm_process_vertical_slice(self,settings _ARGUMENTS_VERTICAL_IN_)
+         call fabm_process_vertical_slice(self,job _ARGUMENTS_VERTICAL_IN_)
       _END_OUTER_VERTICAL_LOOP_
    end subroutine fabm_process_vertical_all
 
-   subroutine fabm_process_interior_slice(self,settings _ARGUMENTS_INTERIOR_IN_)
-      class (type_model),              intent(inout), target :: self
-      type (type_environment_settings),intent(in)            :: settings
+   subroutine fabm_process_interior_slice(self,job _ARGUMENTS_INTERIOR_IN_)
+      class (type_model),intent(inout), target :: self
+      type (type_job),   intent(in)            :: job
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
-      type (type_environment)             :: environment
-      type (type_call_list_node), pointer :: node
+      type (type_cache)         :: cache
+      type (type_call), pointer :: node
+      integer                   :: i,j,k
       _DECLARE_INTERIOR_INDICES_
-      integer :: i,j,k
 
-      call prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
+      call start_interior_job(self,job,cache _ARGUMENTS_INTERIOR_IN_)
 
-      node => settings%call_list%first
+      node => job%calls%first
       do while (associated(node))
          call node%model%do(_ARGUMENTS_INTERIOR_)
 
-         ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+         ! Copy outputs of interest to read cache so consecutive models can use it.
          _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
             j = node%copy_commands_int(i)%read_index
             k = node%copy_commands_int(i)%write_index
             _CONCURRENT_LOOP_BEGIN_
-               environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+               cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
             _LOOP_END_
          end do
 
@@ -4231,80 +4236,80 @@ end subroutine internal_check_horizontal_state
          node => node%next
       end do
 
-      call deallocate_prefetch(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
+      call end_interior_job(self,job,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_process_interior_slice
 
-   subroutine fabm_process_horizontal_slice(self,settings _ARGUMENTS_HORIZONTAL_IN_)
-      class (type_model),              intent(inout) :: self
-      type (type_environment_settings),intent(in)    :: settings
+   subroutine fabm_process_horizontal_slice(self,job _ARGUMENTS_HORIZONTAL_IN_)
+      class (type_model),intent(inout) :: self
+      type (type_job),   intent(in)    :: job
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
-      type (type_environment)             :: environment
-      type (type_call_list_node), pointer :: node
+      type (type_cache)         :: cache
+      type (type_call), pointer :: node
+      integer                   :: i,j,k
       _DECLARE_HORIZONTAL_INDICES_
-      integer :: i,j,k
 
-      call prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
+      call start_horizontal_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-      node => settings%call_list%first
+      node => job%calls%first
       do while (associated(node))
          call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
 
-         ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+         ! Copy outputs of interest to read cache so consecutive models can use it.
          _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
             j = node%copy_commands_hz(i)%read_index
             k = node%copy_commands_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-               environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+               cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _HORIZONTAL_LOOP_END_
          end do
 
          node => node%next
       end do
 
-      call deallocate_prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
+      call end_horizontal_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_process_horizontal_slice
 
-   subroutine fabm_process_vertical_slice(self,settings _ARGUMENTS_VERTICAL_IN_)
-      class (type_model),              intent(inout) :: self
-      type (type_environment_settings),intent(in)    :: settings
+   subroutine fabm_process_vertical_slice(self,job _ARGUMENTS_VERTICAL_IN_)
+      class (type_model),intent(inout) :: self
+      type (type_job),   intent(in)    :: job
       _DECLARE_ARGUMENTS_VERTICAL_IN_
 
-      type (type_environment)             :: environment
-      type (type_call_list_node), pointer :: node
+      type (type_cache)         :: cache
+      type (type_call), pointer :: node
+      integer                   :: i,j,k
       _DECLARE_VERTICAL_INDICES_
-      integer :: i,j,k
 
-      call prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
+      call start_vertical_job(self,job,cache _ARGUMENTS_VERTICAL_IN_)
 
-      node => settings%call_list%first
+      node => job%calls%first
       do while (associated(node))
          call node%model%get_light(_ARGUMENTS_VERTICAL_)
 
-         ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+         ! Copy outputs of interest to read cache so consecutive models can use it.
          _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
             j = node%copy_commands_int(i)%read_index
             k = node%copy_commands_int(i)%write_index
             _CONCURRENT_VERTICAL_LOOP_BEGIN_
-               environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+               cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
             _VERTICAL_LOOP_END_
          end do
          _DO_CONCURRENT_(i,1,size(node%copy_commands_hz))
             j = node%copy_commands_hz(i)%read_index
             k = node%copy_commands_hz(i)%write_index
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-            environment%prefetch_hz(1,j) = environment%scratch_hz(1,k)
+            cache%read_hz(1,j) = cache%write_hz(1,k)
 #else
-            environment%prefetch_hz(j) = environment%scratch_hz(k)
+            cache%read_hz(j) = cache%write_hz(k)
 #endif
          end do
 
          node => node%next
       end do
 
-      call deallocate_prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
+      call end_vertical_job(self,job,cache _ARGUMENTS_VERTICAL_IN_)
 
    end subroutine fabm_process_vertical_slice
 
@@ -4486,10 +4491,10 @@ subroutine copy_write_indices(source,target)
 end subroutine copy_write_indices
 
 subroutine initialize_prefill(self,n,link_list,source,domain)
-   type (type_environment_settings),intent(inout) :: self
-   integer,                         intent(in)    :: n
-   type (type_link_list),           intent(in)    :: link_list
-   integer,                         intent(in)    :: source,domain
+   type (type_job),      intent(inout) :: self
+   integer,              intent(in)    :: n
+   type (type_link_list),intent(in)    :: link_list
+   integer,              intent(in)    :: source,domain
 
    type (type_link),pointer :: link
 
@@ -4515,8 +4520,8 @@ subroutine initialize_prefill(self,n,link_list,source,domain)
 end subroutine initialize_prefill
 
 subroutine flag_write_indices(self,source)
-   type (type_environment_settings),intent(inout) :: self
-   type (type_link_list),           intent(in)    :: source
+   type (type_job),      intent(inout) :: self
+   type (type_link_list),intent(in)    :: source
 
    type (type_link),pointer :: link
 
@@ -5037,17 +5042,6 @@ end subroutine
       _LOOP_END_
    end subroutine
 
-   subroutine add_to_model_call_list(self,variable_name,list)
-      class (type_model),     intent(inout),target :: self
-      character(len=*),       intent(in)           :: variable_name
-      type (type_model_list), intent(inout)        :: list
-
-      type (type_internal_variable),pointer :: object
-
-      object => self%root%find_object(variable_name)
-      if (.not.object%write_indices%is_empty()) call find_dependencies(object%owner,list)
-   end subroutine add_to_model_call_list
-
    recursive subroutine build_call_list(self,list)
       class (type_base_model),intent(in),target   :: self
       type (type_model_list), intent(inout)       :: list
@@ -5062,32 +5056,77 @@ end subroutine
       end do
    end subroutine build_call_list
 
-   subroutine append_to_call_list(self,link_list,routine_source,variable_sources,dependencies_only)
-      type (type_environment_settings), intent(inout) :: self
+   subroutine append_to_call_list(self,link_list,routine_source,not_stale)
+      type (type_job), intent(inout) :: self
       type (type_link_list),            intent(in)    :: link_list
       integer,                          intent(in)    :: routine_source
-      integer,                          intent(in)    :: variable_sources(:)
-      logical,optional,                 intent(in)    :: dependencies_only
+      logical,optional,                 intent(in)    :: not_stale
 
       type (type_link), pointer :: link
 
       link => link_list%first
       do while (associated(link))
          if (link%target%source==routine_source .and. .not. link%target%write_indices%is_empty()) &
-            call find_variable_dependencies(link%target,variable_sources,self%call_list,copy_to_prefetch=.false.,dependencies_only=dependencies_only)
+            call find_variable_dependencies(link%target,self%calls,force_copy_to_prefetch=.false.,not_stale=not_stale)
          link => link%next
       end do
    end subroutine append_to_call_list
 
-   subroutine append_variable_to_call_list(self,variable,routine_source,variable_sources)
-      type (type_environment_settings), intent(inout) :: self
+   subroutine append_variable_to_call_list(self,variable,copy_to_prefetch,not_stale)
+      type (type_job), intent(inout) :: self
       type (type_internal_variable),    intent(in)    :: variable
-      integer,                          intent(in)    :: routine_source
-      integer,                          intent(in)    :: variable_sources(:)
+      logical,                          intent(in)    :: copy_to_prefetch
+      logical,                          intent(in)    :: not_stale
 
-      if (variable%source==routine_source .and. .not. variable%write_indices%is_empty()) &
-         call find_variable_dependencies(variable,variable_sources,self%call_list,copy_to_prefetch=.true.)
+      if (.not. variable%write_indices%is_empty()) call find_variable_dependencies(variable,self%calls,copy_to_prefetch,not_stale=not_stale)
    end subroutine append_variable_to_call_list
+
+   subroutine require_flux_computation(self,link_list)
+      type (type_job),      intent(inout) :: self
+      type (type_link_list),intent(in)    :: link_list
+
+      type (type_link), pointer :: link
+
+      link => link_list%first
+      do while (associated(link))
+         select case (self%domain)
+         case (domain_interior)
+            if (link%target%domain==domain_interior) call add_list_items(link%target%sms_list)
+         case (domain_bottom)
+            if (link%target%domain==domain_bottom) then
+               call add_list_items(link%target%sms_list)
+            elseif (link%target%domain==domain_interior) then
+               call add_list_items(link%target%bottom_flux_list)
+            end if
+         case (domain_surface)
+            if (link%target%domain==domain_surface) then
+               call add_list_items(link%target%sms_list)
+            elseif (link%target%domain==domain_interior) then
+               call add_list_items(link%target%surface_flux_list)
+            end if
+         end select
+         link => link%next
+      end do
+   contains
+      subroutine add_list_items(link_list)
+         type (type_link_list), intent(in) :: link_list
+
+         type (type_link), pointer :: link
+
+         link => link_list%first
+         do while (associated(link))
+            call append_variable_to_call_list(self,link%target,copy_to_prefetch=.false.,not_stale=.true.)
+            link => link%next
+         end do
+      end subroutine add_list_items
+   end subroutine require_flux_computation
+
+   subroutine set_next_job(self,next)
+      type (type_job), intent(inout), target :: self
+      type (type_job), intent(inout)         :: next
+      if (associated(next%calls%prior)) call fatal_error('register_prior_job','Prior calls for job already registered')
+      next%calls%prior => self%calls
+   end subroutine set_next_job
 
    subroutine check_interior_location(self _ARGUMENTS_INTERIOR_IN_,routine)
       class (type_model),intent(in) :: self
