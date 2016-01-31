@@ -285,6 +285,7 @@
 
       integer,pointer :: read_index  => null()
       integer,pointer :: write_index => null()
+      integer         :: store_index = 0
 
       ! Collections to collect information from all coupled variables.
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
@@ -377,8 +378,6 @@
       real(rk) :: dt = 1.0_rk
 
       logical :: check_conservation = .false.
-
-      type (type_reused_diagnostic),dimension(:),allocatable :: reused_diag,reused_diag_hz
    contains
 
       ! Procedure for adding child models [during initialization only]
@@ -1398,6 +1397,7 @@ end subroutine real_pointer_set_set_value
       if (.not.associated(sms_id%link)) &
          call self%add_interior_variable(trim(id%link%name)//'_sms', trim(id%link%target%units)//'/s', trim(id%link%target%long_name)//' sources-sinks', &
                                          0.0_rk, output=output_none, write_index=sms_id%sum_index, link=link1)
+      link1%target%prefill = prefill_missing_value
       link2 => id%link%target%sms_list%append(link1%target,link1%target%name)
    end subroutine register_source
 
@@ -1412,6 +1412,7 @@ end subroutine real_pointer_set_set_value
          call self%add_horizontal_variable(trim(id%link%name)//'_sfl', trim(id%link%target%units)//'*m/s', trim(id%link%target%long_name)//' surface flux', &
                                            0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
                                            domain=domain_surface, source=source_do_surface, link=link1)
+      link1%target%prefill = prefill_missing_value
       link2 => id%link%target%surface_flux_list%append(link1%target,link1%target%name)
    end subroutine register_surface_flux
 
@@ -1426,6 +1427,7 @@ end subroutine real_pointer_set_set_value
          call self%add_horizontal_variable(trim(id%link%name)//'_bfl', trim(id%link%target%units)//'*m/s', trim(id%link%target%long_name)//' bottom flux', &
                                            0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
                                            domain=domain_bottom, source=source_do_bottom, link=link1)
+      link1%target%prefill = prefill_missing_value
       link2 => id%link%target%bottom_flux_list%append(link1%target,link1%target%name)
    end subroutine register_bottom_flux
 
@@ -1464,7 +1466,6 @@ end subroutine real_pointer_set_set_value
                                         standard_variable=standard_variable, presence=presence, domain=domain_bottom, &
                                         state_index=id%bottom_state_index, read_index=id%horizontal_index, &
                                         sms_index=id%bottom_sms_index, background=id%background, link=id%link)
-
    end subroutine register_bottom_state_variable
 !EOC
 
@@ -1733,6 +1734,8 @@ end subroutine real_pointer_set_set_value
       if (present(standard_variable)) call variable%standard_variables%add(standard_variable)
       if (present(source))            variable%source = source
 
+      if (variable%source==source_unknown) variable%prefill = prefill_previous_value
+
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, &
@@ -1744,6 +1747,7 @@ end subroutine real_pointer_set_set_value
          call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
                                            0.0_rk, output=output_none, write_index=sms_index, link=link2, &
                                            domain=variable%domain, source=sms_source)
+         link2%target%prefill = prefill_missing_value
          link_dum => variable%sms_list%append(link2%target,link2%target%name)
       end if
 
