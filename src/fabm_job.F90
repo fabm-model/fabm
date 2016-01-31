@@ -75,10 +75,8 @@ module fabm_job
       type (type_call_list),pointer :: prior => null()
    contains
       procedure :: find        => call_list_find
-      procedure :: append_node => call_list_append_node
-      procedure :: append_call => call_list_append_call
+      procedure :: append      => call_list_append
       procedure :: remove      => call_list_remove
-      generic :: append => append_node,append_call
       procedure :: print       => call_list_print
       procedure :: initialize  => call_list_initialize
       procedure :: request_variable  => call_list_request_variable
@@ -374,7 +372,7 @@ recursive function call_list_find(self,model,source,not_stale) result(node)
    if (.not.not_stale_.and.associated(self%prior)) node => self%prior%find(model,source,not_stale)
 end function call_list_find
 
-subroutine call_list_append_node(self,node)
+subroutine call_list_append(self,node)
    class (type_call_list), intent(inout) :: self
    type (type_call),pointer              :: node
 
@@ -390,7 +388,7 @@ subroutine call_list_append_node(self,node)
       self%last => node
    end if
    node%next => null()
-end subroutine call_list_append_node
+end subroutine call_list_append
 
 subroutine call_list_remove(self,node)
    class (type_call_list), intent(inout) :: self
@@ -420,19 +418,6 @@ subroutine call_list_remove(self,node)
       self%last => node%previous
    end if
 end subroutine call_list_remove
-
-function call_list_append_call(self,model,source) result(node)
-   class (type_call_list), intent(inout)     :: self
-   class (type_base_model),intent(in),target :: model
-   integer,                intent(in)        :: source
-
-   type (type_call),pointer :: node
-
-   allocate(node)
-   node%model => model
-   node%source = source
-   call self%append(node)
-end function call_list_append_call
 
 subroutine call_list_print(self)
    class (type_call_list), intent(in) :: self
