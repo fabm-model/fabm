@@ -62,7 +62,8 @@ module fabm_job
       type (type_cache_copy_command), allocatable :: copy_commands_hz(:)  ! horizontal variables to copy from write to read cache after call completes
       type (type_input_variable_set)              :: inputs               ! input variables
       type (type_output_variable_set)             :: outputs              ! output variables that a later called model requires
-      type (type_call), pointer                   :: next => null()
+      type (type_call), pointer                   :: next     => null()
+      type (type_call), pointer                   :: previous => null()
    contains
       procedure :: initialize => call_initialize
       procedure :: finalize   => call_finalize
@@ -70,13 +71,14 @@ module fabm_job
 
    type type_call_list
       type (type_call),     pointer :: first => null()
+      type (type_call),     pointer :: last  => null()
       type (type_call_list),pointer :: prior => null()
    contains
       procedure :: find        => call_list_find
       procedure :: append_node => call_list_append_node
       procedure :: append_call => call_list_append_call
+      procedure :: remove      => call_list_remove
       generic :: append => append_node,append_call
-      procedure :: extend      => call_list_extend
       procedure :: print       => call_list_print
       procedure :: initialize  => call_list_initialize
       procedure :: request_variable  => call_list_request_variable
@@ -372,56 +374,52 @@ recursive function call_list_find(self,model,source,not_stale) result(node)
    if (.not.not_stale_.and.associated(self%prior)) node => self%prior%find(model,source,not_stale)
 end function call_list_find
 
-subroutine call_list_extend(self,other)
-   class (type_call_list), intent(inout) :: self
-   class (type_call_list), intent(in)    :: other
-
-   type (type_call),pointer :: last, node2
-
-   ! Find tail of the list [if any]
-   last => self%first
-   if (associated(last)) then
-      do while (associated(last%next))
-         last => last%next
-      end do
-   end if
-
-   node2 => other%first
-   do while (associated(node2))
-      if (associated(last)) then
-         ! List contains one or more items - append to tail.
-         allocate(last%next)
-         last => last%next
-      else
-         ! List is empty - create first node.
-         allocate(self%first)
-         last => self%first
-      end if
-      last%model => node2%model
-      last%source = node2%source
-      node2 => node2%next
-   end do
-end subroutine call_list_extend
-
 subroutine call_list_append_node(self,node)
    class (type_call_list), intent(inout) :: self
-   type (type_call),pointer    :: node
-
-   type (type_call),pointer :: previous_node
+   type (type_call),pointer              :: node
 
    if (associated(self%first)) then
       ! List contains one or more items - append to tail.
-      previous_node => self%first
-      do while (associated(previous_node%next))
-         previous_node => previous_node%next
-      end do
-      previous_node%next => node
+      node%previous => self%last
+      if (associated(self%last)) self%last%next => node
+      self%last => node
    else
-      ! List is empty - new node becomes head.
+      ! List is empty - new node becomes both head and tail.
+      node%previous => null()
       self%first => node
+      self%last => node
    end if
    node%next => null()
 end subroutine call_list_append_node
+
+subroutine call_list_remove(self,node)
+   class (type_call_list), intent(inout) :: self
+   type (type_call),pointer              :: node
+
+   type (type_call),pointer :: current
+
+   ! Make sure the supplied node occurs in our call list to begin with.
+   current => self%first
+   do while (associated(current))
+      if (associated(current,node)) exit
+      current => current%next
+   end do
+   if (.not.associated(current)) call driver%fatal_error('call_list_remove','call list does not contain supplied node.')
+
+   if (associated(node%previous)) then
+      node%previous%next => node%next
+      node%previous => null()
+   else
+      self%first => node%next
+   end if
+
+   if (associated(node%next)) then
+      node%next%previous => node%previous
+      node%next => null()
+   else
+      self%last => node%previous
+   end if
+end subroutine call_list_remove
 
 function call_list_append_call(self,model,source) result(node)
    class (type_call_list), intent(inout)     :: self
@@ -497,6 +495,7 @@ subroutine call_list_finalize(self)
       node => next
    end do
    nullify(self%first)
+   nullify(self%last)
 end subroutine call_list_finalize
 
 subroutine call_initialize(self)
@@ -601,16 +600,15 @@ contains
 end subroutine call_initialize
 
 recursive subroutine find_dependencies2(self,source,list,node,not_stale,forbidden)
-   class (type_base_model),     intent(in),target   :: self
-   integer,                     intent(in)          :: source
-   class (type_call_list),      intent(inout)       :: list
-   type (type_call),  pointer                       :: node
-   logical,                     intent(in)          :: not_stale
-   type (type_call_list),       intent(in),optional :: forbidden
+   class (type_base_model),     intent(in),target :: self
+   integer,                     intent(in)        :: source
+   class (type_call_list),      intent(inout)     :: list
+   type (type_call),  pointer                     :: node
+   logical,                     intent(in)        :: not_stale
+   type (type_call_list),target,intent(inout)     :: forbidden
 
    type (type_link),          pointer :: link
    type (type_input_variable),pointer :: input_variable
-   type (type_call_list)              :: forbidden_with_self
    character(len=2048)                :: chain
    logical                            :: same_source
 
@@ -620,30 +618,30 @@ recursive subroutine find_dependencies2(self,source,list,node,not_stale,forbidde
 
    ! Check the list of forbidden model (i.e., models that indirectly request the current model)
    ! If the current model is on this list, there is a circular dependency between models.
-   if (present(forbidden)) then
-      node => forbidden%find(self,source)
-      if (associated(node)) then
-         ! Circular dependency found - report as fatal error.
-         chain = ''
-         do while (associated(node))
-            chain = trim(chain)//' '//trim(node%model%get_path())//' ->'
-            node => node%next
-         end do
-         call fatal_error('find_dependencies','circular dependency found: '//trim(chain(2:))//' '//trim(self%get_path()))
-      end if
-      call forbidden_with_self%extend(forbidden)
+   node => forbidden%find(self,source)
+   if (associated(node)) then
+      ! Circular dependency found - report as fatal error.
+      chain = ''
+      do while (associated(node))
+         chain = trim(chain)//' '//trim(node%model%get_path())//' ->'
+         node => node%next
+      end do
+      call fatal_error('find_dependencies','circular dependency found: '//trim(chain(2:))//' '//trim(self%get_path()))
    end if
-   node => forbidden_with_self%append(self,source)
 
    ! Create object to represent this call
    allocate(node)
    node%model => self
    node%source = source
 
+   ! First add this call to the list of requesting calls [a list of all calls higher on the call stack]
+   ! This forbids any indirect dependency on this call, as such would be a circular dependency.
+   call forbidden%append(node)
+
    ! Collect all input variabes.
    link => self%links%first
    do while (associated(link))
-      if (index(link%name,'/')==0 .and.associated(link%original%read_index)) call node%inputs%add(link%target)
+      if (index(link%name,'/')==0.and.associated(link%original%read_index)) call node%inputs%add(link%target)
       link => link%next
    end do
 
@@ -653,42 +651,54 @@ recursive subroutine find_dependencies2(self,source,list,node,not_stale,forbidde
       same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
       if (.not.input_variable%target%write_indices%is_empty() &                       ! it is a variable that is written by a module...
           .and..not.(associated(input_variable%target%owner,self).and.same_source)) & ! ...and not ourselves
-         call list%request_variable(input_variable%target,forbidden=forbidden_with_self,requester=node)
+         call list%request_variable(input_variable%target,forbidden=forbidden,requester=node)
       input_variable => input_variable%next
    end do
+
+   ! Clean up the list with forbidden calls (which would imply a circular dependency)
+   call forbidden%remove(node)
 
    ! We're happy - add ourselves to the call list.
    call list%append(node)
 
-   ! Clean up our temporary list.
-   call forbidden_with_self%finalize()
-
 end subroutine find_dependencies2
 
 recursive subroutine call_list_request_variable(self,variable,copy_to_cache,copy_to_store,not_stale,forbidden,requester)
-   class (type_call_list),       intent(inout)       :: self
-   type (type_internal_variable),intent(in)          :: variable
-   logical,                      intent(in),optional :: copy_to_cache
-   logical,                      intent(in),optional :: copy_to_store
-   logical,                      intent(in),optional :: not_stale
-   type (type_call_list),        intent(in),optional :: forbidden
-   type (type_call),target,                 optional :: requester
+   class (type_call_list),       intent(inout)          :: self
+   type (type_internal_variable),intent(in)             :: variable
+   logical,                      intent(in),   optional :: copy_to_cache
+   logical,                      intent(in),   optional :: copy_to_store
+   logical,                      intent(in),   optional :: not_stale
+   type (type_call_list),target, intent(inout),optional :: forbidden
+   type (type_call),target,                    optional :: requester
 
    type (type_call),pointer :: node
+   type (type_call_list),pointer :: forbidden_
+
+   if (present(forbidden)) then
+      forbidden_ => forbidden
+   else
+      allocate(forbidden_)
+   end if
 
    ! If this variable is not written [but a field provided by the host or a state variable], return immediately.
    if (variable%write_indices%is_empty()) return
 
    if (variable%source==source_unknown) then
       ! This variable is either written by do_surface or do_bottom - which one of these two APIs is unknown.
-      call find_dependencies2(variable%owner,source_do_surface,self,node,not_stale,forbidden)
+      call find_dependencies2(variable%owner,source_do_surface,self,node,not_stale,forbidden_)
       call register_dependencies()
-      call find_dependencies2(variable%owner,source_do_bottom,self,node,not_stale,forbidden)
+      call find_dependencies2(variable%owner,source_do_bottom,self,node,not_stale,forbidden_)
       call register_dependencies()
    elseif (variable%source/=source_none) then
       ! This variable is written by a known BGC API [is is not a constant indicated by source_none]
-      call find_dependencies2(variable%owner,variable%source,self,node,not_stale,forbidden)
+      call find_dependencies2(variable%owner,variable%source,self,node,not_stale,forbidden_)
       call register_dependencies()
+   end if
+
+   if (.not.present(forbidden)) then
+      call forbidden_%finalize()
+      deallocate(forbidden_)
    end if
 
    contains
