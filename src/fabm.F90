@@ -764,6 +764,7 @@
   class (type_expression),pointer      :: expression
   type (type_link),pointer             :: link
   integer                              :: nsave,nsave_hz
+  type (type_superjob)                 :: superjob
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -791,13 +792,16 @@
    self%do_surface_job%domain  = domain_surface
    self%do_interior_job%domain = domain_interior
    call require_flux_computation(self%do_bottom_job,self%links_postcoupling)
-   call set_next_job(self%do_bottom_job,self%do_surface_job)
+   call self%do_bottom_job%set_next(self%do_surface_job)
    call require_flux_computation(self%do_surface_job,self%links_postcoupling)
-   call set_next_job(self%do_surface_job,self%do_interior_job)
+   call self%do_surface_job%set_next(self%do_interior_job)
    call require_flux_computation(self%do_interior_job,self%links_postcoupling)
 
+   call self%do_bottom_job%print()
+   superjob = self%do_bottom_job%create_superjob()
+
    ! Create job that ensures all diagnostics required by the user are computed.
-   call set_next_job(self%do_interior_job,self%get_diagnostics_job)
+   call self%do_interior_job%set_next(self%get_diagnostics_job)
    do ivar=1,size(self%diagnostic_variables)
       if (self%diagnostic_variables(ivar)%save) &
          call self%get_diagnostics_job%calls%request_variable(self%diagnostic_variables(ivar)%target,copy_to_store=.true.)
@@ -4872,13 +4876,6 @@ end subroutine
          link => link%next
       end do
    end subroutine require_flux_computation
-
-   subroutine set_next_job(self,next)
-      type (type_job), intent(inout), target :: self
-      type (type_job), intent(inout)         :: next
-      if (associated(next%calls%prior)) call fatal_error('register_prior_job','Prior calls for job already registered')
-      next%calls%prior => self%calls
-   end subroutine set_next_job
 
    subroutine check_interior_location(self _ARGUMENTS_INTERIOR_IN_,routine)
       class (type_model),intent(in) :: self

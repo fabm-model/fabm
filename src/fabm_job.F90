@@ -15,7 +15,7 @@ module fabm_job
 
    private
 
-   public type_job, type_call
+   public type_job, type_call, type_superjob
    public find_dependencies
 
    type type_cache_copy_command
@@ -70,9 +70,10 @@ module fabm_job
    end type type_call
 
    type type_call_list
-      type (type_call),     pointer :: first => null()
-      type (type_call),     pointer :: last  => null()
-      type (type_call_list),pointer :: prior => null()
+      type (type_call),     pointer :: first    => null()
+      type (type_call),     pointer :: last     => null()
+      type (type_call_list),pointer :: previous => null()
+      type (type_call_list),pointer :: next     => null()
    contains
       procedure :: find        => call_list_find
       procedure :: append      => call_list_append
@@ -98,9 +99,16 @@ module fabm_job
       logical, allocatable :: load(:)
       logical, allocatable :: load_hz(:)
       logical, allocatable :: load_scalar(:)
+      type (type_job), pointer :: next => null()
    contains
       procedure :: initialize => job_initialize
+      procedure :: set_next   => job_set_next
       procedure :: print      => job_print
+      procedure :: create_superjob => job_create_superjob
+   end type
+
+   type type_superjob
+      type (type_job),pointer :: first => null()
    end type
 
    contains
@@ -326,6 +334,8 @@ subroutine input_variable_set_add(self,variable)
    ! Create a new variable object and prepend it to the list.
    allocate(node)
    node%target => variable
+   node%next => self%first
+   self%first => node
 end subroutine input_variable_set_add
 
 subroutine input_variable_set_finalize(self)
@@ -369,7 +379,7 @@ recursive function call_list_find(self,model,source,not_stale) result(node)
    end do
    not_stale_ = .false.
    if (present(not_stale)) not_stale_ = not_stale
-   if (.not.not_stale_.and.associated(self%prior)) node => self%prior%find(model,source,not_stale)
+   if (.not.not_stale_.and.associated(self%previous)) node => self%previous%find(model,source,not_stale)
 end function call_list_find
 
 subroutine call_list_append(self,node)
@@ -406,17 +416,18 @@ subroutine call_list_remove(self,node)
 
    if (associated(node%previous)) then
       node%previous%next => node%next
-      node%previous => null()
    else
       self%first => node%next
    end if
 
    if (associated(node%next)) then
       node%next%previous => node%previous
-      node%next => null()
    else
       self%last => node%previous
    end if
+
+   node%previous => null()
+   node%next => null()
 end subroutine call_list_remove
 
 subroutine call_list_print(self)
@@ -601,7 +612,7 @@ recursive subroutine find_dependencies2(self,source,list,node,not_stale,forbidde
    node => list%find(self,source,not_stale)
    if (associated(node)) return
 
-   ! Check the list of forbidden model (i.e., models that indirectly request the current model)
+   ! Check the list of forbidden models (i.e., models that indirectly request the current model)
    ! If the current model is on this list, there is a circular dependency between models.
    node => forbidden%find(self,source)
    if (associated(node)) then
@@ -633,7 +644,7 @@ recursive subroutine find_dependencies2(self,source,list,node,not_stale,forbidde
    ! Loop over all input variables, and if they are written by another model call, make sure that model call is done first.
    input_variable => node%inputs%first
    do while (associated(input_variable))
-      same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
+      same_source = input_variable%target%source==source .or. (input_variable%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
       if (.not.input_variable%target%write_indices%is_empty() &                       ! it is a variable that is written by a module...
           .and..not.(associated(input_variable%target%owner,self).and.same_source)) & ! ...and not ourselves
          call list%request_variable(input_variable%target,forbidden=forbidden,requester=node)
@@ -775,24 +786,36 @@ recursive subroutine find_dependencies(self,list,forbidden)
    call forbidden_with_self%finalize()
 end subroutine find_dependencies
 
-subroutine partition_calls(self)
-   class (type_call_list),intent(inout) :: self
+function job_create_superjob(self) result(superjob)
+   class (type_job),intent(inout) :: self
+   type (type_superjob)           :: superjob
 
-   type (type_call_list), pointer :: current_call_list
-   type (type_call),      pointer :: call_node
-   integer                        :: source
+   type (type_job), pointer :: current_job
+   type (type_call),pointer :: call_node, next_call_node
+   integer                  :: source
+
+   allocate(superjob%first)
+   current_job => superjob%first
 
    source = source_unknown
-   call_node => self%first
+   call_node => self%calls%first
    do while (associated(call_node))
+      next_call_node => call_node%next
+
       if (.not.is_source_compatible(source,call_node%source)) then
          ! New call list needed
-         allocate(current_call_list)
+         write (*,*) 'creating new job'
+         allocate(current_job%next)
+         call current_job%set_next(current_job%next)
+         current_job => current_job%next
       end if
+
       ! Add to current call list
-      call_node => call_node%next
+      call self%calls%remove(call_node)
+      call current_job%calls%append(call_node)
+      call_node => next_call_node
    end do
-end subroutine partition_calls
+end function job_create_superjob
 
 logical function is_source_compatible(current_source,new_source)
    integer,intent(inout) :: current_source
@@ -804,6 +827,7 @@ logical function is_source_compatible(current_source,new_source)
    if (real_new_source==source_get_vertical_movement) real_new_source = source_do
 
    if (current_source==source_unknown) then
+      is_source_compatible = .true.
       current_source = real_new_source
       return
    end if
@@ -820,9 +844,20 @@ logical function is_source_compatible(current_source,new_source)
    case (source_do_horizontal)
       is_source_compatible = current_source==source_do_horizontal.or.current_source==source_do_surface.or.current_source==source_do_bottom
    case default
-      call driver%fatal_error('source2operator','unknown source')
+      call driver%fatal_error('is_source_compatible','unknown source')
    end select
 end function is_source_compatible
+
+subroutine job_set_next(self,next)
+   class (type_job), intent(inout), target :: self
+   type (type_job),  intent(inout), target :: next
+
+   if (associated(next%calls%previous)) &
+      call fatal_error('job_set_next','A previous call list for job has already been registered.')
+
+   next%calls%previous => self%calls
+   self%calls%next     => next%calls
+end subroutine job_set_next
 
 end module fabm_job
 
