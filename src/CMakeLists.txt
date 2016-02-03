@@ -97,6 +97,8 @@ else()
 endif()
 
 # Use host-prescribed real kind if set.
+set(FABM_REAL_KIND "selected_real_kind(13)" CACHE STRING "Fortran kind to use for real data type.")
+mark_as_advanced(FABM_REAL_KIND)
 if(FABM_REAL_KIND)
   add_definitions(-D_FABM_REAL_KIND_=${FABM_REAL_KIND})
 endif()
