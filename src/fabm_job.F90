@@ -69,11 +69,12 @@ module fabm_job
       procedure :: finalize   => call_finalize
    end type type_call
 
-   type type_call_list
-      type (type_call),     pointer :: first    => null()
-      type (type_call),     pointer :: last     => null()
-      type (type_call_list),pointer :: previous => null()
-      type (type_call_list),pointer :: next     => null()
+   type type_call_sequence
+      type (type_call),         pointer :: first    => null()
+      type (type_call),         pointer :: last     => null()
+      type (type_call_sequence),pointer :: previous => null()
+      type (type_call_sequence),pointer :: next     => null()
+      integer                           :: source   = source_unknown
    contains
       procedure :: find        => call_list_find
       procedure :: append      => call_list_append
@@ -83,11 +84,11 @@ module fabm_job
       procedure :: request_variable  => call_list_request_variable
       procedure :: request_variables => call_list_request_variables
       procedure :: finalize    => call_list_finalize
-   end type type_call_list
+   end type type_call_sequence
 
    type type_job
       integer :: domain = -1
-      type (type_call_list) :: calls
+      type (type_call_sequence) :: calls
       integer, allocatable :: prefill_type(:)
       real(rk),allocatable :: prefill_values(:)
       integer, allocatable :: prefill_index(:)
@@ -352,7 +353,7 @@ subroutine input_variable_set_finalize(self)
 end subroutine input_variable_set_finalize
 
 subroutine call_list_initialize(call_list)
-   class (type_call_list),intent(inout) :: call_list
+   class (type_call_sequence),intent(inout) :: call_list
 
    type (type_call),pointer :: node
 
@@ -364,10 +365,10 @@ subroutine call_list_initialize(call_list)
 end subroutine call_list_initialize
 
 recursive function call_list_find(self,model,source,not_stale) result(node)
-   class (type_call_list), intent(in)        :: self
-   class (type_base_model),intent(in),target :: model
-   integer,                intent(in)        :: source
-   logical,optional,       intent(in)        :: not_stale
+   class (type_call_sequence),intent(in)        :: self
+   class (type_base_model),   intent(in),target :: model
+   integer,                   intent(in)        :: source
+   logical,optional,          intent(in)        :: not_stale
 
    type (type_call),pointer :: node
    logical                            :: not_stale_
@@ -383,8 +384,8 @@ recursive function call_list_find(self,model,source,not_stale) result(node)
 end function call_list_find
 
 subroutine call_list_append(self,node)
-   class (type_call_list), intent(inout) :: self
-   type (type_call),pointer              :: node
+   class (type_call_sequence), intent(inout) :: self
+   type (type_call),pointer                  :: node
 
    if (associated(self%first)) then
       ! List contains one or more items - append to tail.
@@ -401,8 +402,8 @@ subroutine call_list_append(self,node)
 end subroutine call_list_append
 
 subroutine call_list_remove(self,node)
-   class (type_call_list), intent(inout) :: self
-   type (type_call),pointer              :: node
+   class (type_call_sequence), intent(inout) :: self
+   type (type_call),pointer                  :: node
 
    type (type_call),pointer :: current
 
@@ -431,7 +432,7 @@ subroutine call_list_remove(self,node)
 end subroutine call_list_remove
 
 subroutine call_list_print(self)
-   class (type_call_list), intent(in) :: self
+   class (type_call_sequence), intent(in) :: self
 
    type (type_call),           pointer :: node
    type (type_output_variable),pointer :: variable
@@ -458,28 +459,26 @@ subroutine call_list_print(self)
       node => node%next
    end do
 
-   contains
-
-      character(len=32) function source2string(source)
-         integer, intent(in) :: source
-         select case (source)
-         case (source_unknown);               source2string = 'unknown'
-         case (source_do);                    source2string = 'do'
-         case (source_do_column);             source2string = 'do_column'
-         case (source_do_bottom);             source2string = 'do_bottom'
-         case (source_do_surface);            source2string = 'do_surface'
-         case (source_none);                  source2string = 'none'
-         case (source_get_vertical_movement); source2string = 'get_vertical_movement'
-         case (source_do_horizontal);         source2string = 'do_horizontal'
-         case default
-            write (source2string,'(i0)') node%source
-         end select
-      end function source2string
-
 end subroutine call_list_print
 
+character(len=32) function source2string(source)
+   integer, intent(in) :: source
+   select case (source)
+   case (source_unknown);               source2string = 'unknown'
+   case (source_do);                    source2string = 'do'
+   case (source_do_column);             source2string = 'do_column'
+   case (source_do_bottom);             source2string = 'do_bottom'
+   case (source_do_surface);            source2string = 'do_surface'
+   case (source_none);                  source2string = 'none'
+   case (source_get_vertical_movement); source2string = 'get_vertical_movement'
+   case (source_do_horizontal);         source2string = 'do_horizontal'
+   case default
+      write (source2string,'(i0)') source
+   end select
+end function source2string
+
 subroutine call_list_finalize(self)
-   class (type_call_list), intent(inout) :: self
+   class (type_call_sequence), intent(inout) :: self
 
    type (type_call),pointer :: node,next
 
@@ -596,17 +595,24 @@ contains
 end subroutine call_initialize
 
 recursive subroutine find_dependencies2(self,source,list,node,not_stale,forbidden)
-   class (type_base_model),     intent(in),target :: self
-   integer,                     intent(in)        :: source
-   class (type_call_list),      intent(inout)     :: list
-   type (type_call),  pointer                     :: node
-   logical,                     intent(in)        :: not_stale
-   type (type_call_list),target,intent(inout)     :: forbidden
+   class (type_base_model),   target,intent(in)    :: self
+   integer,                          intent(in)    :: source
+   class (type_call_sequence),target,intent(inout) :: list
+   type (type_call),  pointer                      :: node
+   logical,                          intent(in)    :: not_stale
+   type (type_call_sequence), target,intent(inout) :: forbidden
 
    type (type_link),          pointer :: link
    type (type_input_variable),pointer :: input_variable
    character(len=2048)                :: chain
    logical                            :: same_source
+
+   ! Determine which call list to add this variable to. Default to current,
+   ! but if that list require a particular source that we are not compatible with,
+   ! then add the call to the previous [earlier called] call list instead.
+   if (list%source/=source_unknown) then
+      if (.not.is_source_compatible(list%source,source)) call find_dependencies2(self,source,list%previous,node,not_stale,forbidden)
+   end if
 
    ! Check whether we are already processed this call.
    node => list%find(self,source,not_stale)
@@ -660,16 +666,16 @@ recursive subroutine find_dependencies2(self,source,list,node,not_stale,forbidde
 end subroutine find_dependencies2
 
 recursive subroutine call_list_request_variable(self,variable,copy_to_cache,copy_to_store,not_stale,forbidden,requester)
-   class (type_call_list),       intent(inout)          :: self
-   type (type_internal_variable),intent(in)             :: variable
-   logical,                      intent(in),   optional :: copy_to_cache
-   logical,                      intent(in),   optional :: copy_to_store
-   logical,                      intent(in),   optional :: not_stale
-   type (type_call_list),target, intent(inout),optional :: forbidden
-   type (type_call),target,                    optional :: requester
+   class (type_call_sequence),target,intent(inout)          :: self
+   type (type_internal_variable),    intent(in)             :: variable
+   logical,                          intent(in),   optional :: copy_to_cache
+   logical,                          intent(in),   optional :: copy_to_store
+   logical,                          intent(in),   optional :: not_stale
+   type (type_call_sequence),target, intent(inout),optional :: forbidden
+   type (type_call),target,                        optional :: requester
 
-   type (type_call),pointer :: node
-   type (type_call_list),pointer :: forbidden_
+   type (type_call),         pointer :: node
+   type (type_call_sequence),pointer :: forbidden_
 
    if (present(forbidden)) then
       forbidden_ => forbidden
@@ -724,11 +730,11 @@ recursive subroutine call_list_request_variable(self,variable,copy_to_cache,copy
 end subroutine call_list_request_variable
 
 subroutine call_list_request_variables(self,link_list,copy_to_cache,copy_to_store,not_stale)
-   class (type_call_list),intent(inout)       :: self
-   type (type_link_list), intent(in)          :: link_list
-   logical,               intent(in),optional :: copy_to_cache
-   logical,               intent(in),optional :: copy_to_store
-   logical,               intent(in),optional :: not_stale
+   class (type_call_sequence),intent(inout)       :: self
+   type (type_link_list),     intent(in)          :: link_list
+   logical,                   intent(in),optional :: copy_to_cache
+   logical,                   intent(in),optional :: copy_to_store
+   logical,                   intent(in),optional :: not_stale
 
    type (type_link), pointer :: link
 
@@ -800,11 +806,13 @@ function job_create_superjob(self) result(superjob)
    source = source_unknown
    call_node => self%calls%first
    do while (associated(call_node))
+      write (*,*) 'processing call '//trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))
       next_call_node => call_node%next
 
       if (.not.is_source_compatible(source,call_node%source)) then
          ! New call list needed
-         write (*,*) 'creating new job'
+         write (*,*) '  creating new job - old list source = '//trim(source2string(source))
+         source = call_node%source
          allocate(current_job%next)
          call current_job%set_next(current_job%next)
          current_job => current_job%next

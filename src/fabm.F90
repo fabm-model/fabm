@@ -231,6 +231,7 @@
       integer                                                   :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
 
       type (type_job) :: generic_job
+      type (type_job) :: prepare_do_bottom_job
       type (type_job) :: do_interior_job
       type (type_job) :: do_interior_ppdd_job
       type (type_job) :: do_bottom_job
@@ -788,7 +789,9 @@
    self%zero_hz = 0.0_rk
    call self%link_horizontal_data('zero_hz',self%zero_hz)
 
+   call self%prepare_do_bottom_job%set_next(self%do_bottom_job)
    self%do_bottom_job%domain   = domain_bottom
+   self%do_bottom_job%calls%source = source_do_bottom
    self%do_surface_job%domain  = domain_surface
    self%do_interior_job%domain = domain_interior
    call require_flux_computation(self%do_bottom_job,self%links_postcoupling)
@@ -798,7 +801,7 @@
    call require_flux_computation(self%do_interior_job,self%links_postcoupling)
 
    call self%do_bottom_job%print()
-   superjob = self%do_bottom_job%create_superjob()
+   superjob = self%prepare_do_bottom_job%create_superjob()
 
    ! Create job that ensures all diagnostics required by the user are computed.
    call self%do_interior_job%set_next(self%get_diagnostics_job)
