@@ -61,6 +61,7 @@
    character(len=64)         :: units
    real(rk), parameter       :: days_per_second = 1.0_rk/86400.0_rk
    logical                   :: conserved
+   character(len=attribute_length) :: standard_name
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -77,7 +78,11 @@
                     vertical_movement=vertical_velocity, &
                     specific_light_extinction=specific_light_attenuation)
 
-   if (conserved) call self%add_to_aggregate_variable(type_bulk_standard_variable(name=get_safe_name(trim(self%get_path())//'_total'),units=units,aggregate_variable=.true.,conserved=.true.),self%id_tracer)
+   if (conserved) then
+      standard_name = get_safe_name(trim(self%get_path())//'_total')
+      call self%add_to_aggregate_variable(type_bulk_standard_variable(name=standard_name(2:),units=units,aggregate_variable=.true.,conserved=.true.),self%id_tracer)
+   end if
+
    end subroutine initialize
 !EOC
 
