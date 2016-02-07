@@ -86,6 +86,7 @@ endif()
 
 if(FABM_FORCED_HOST)
   # FABM_HOST was specified by a higher level CMakeLists.txt
+  unset(FABM_HOST CACHE)
   set(FABM_HOST ${FABM_FORCED_HOST})
 else()
   # FABM_HOST is user-configurable.
@@ -97,9 +98,16 @@ else()
 endif()
 
 # Use host-prescribed real kind if set.
-if(FABM_REAL_KIND)
-  add_definitions(-D_FABM_REAL_KIND_=${FABM_REAL_KIND})
+if(FABM_FORCED_REAL_KIND)
+  # FABM_REAL_KIND was specified by a higher level CMakeLists.txt
+  unset(FABM_REAL_KIND CACHE)
+  set(FABM_REAL_KIND ${FABM_FORCED_REAL_KIND})
+else()
+  # FABM_REAL_KIND is user-configurable [as advanced variable]
+  set(FABM_REAL_KIND "selected_real_kind(13)" CACHE STRING "Fortran kind to use for real data type.")
+  mark_as_advanced(FABM_REAL_KIND)
 endif()
+add_definitions(-D_FABM_REAL_KIND_=${FABM_REAL_KIND})
 
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
 if(BUILD_SHARED_LIBS)

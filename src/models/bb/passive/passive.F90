@@ -60,6 +60,8 @@
    real(rk)                  :: specific_light_attenuation
    character(len=64)         :: units
    real(rk), parameter       :: days_per_second = 1.0_rk/86400.0_rk
+   logical                   :: conserved
+   character(len=attribute_length) :: standard_name
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -67,6 +69,7 @@
    call self%get_parameter(vertical_velocity,'vertical_velocity','m d-1','vertical velocity (negative for settling, positive for rising)',default=0.0_rk,scale_factor=days_per_second)
    call self%get_parameter(specific_light_attenuation,'specific_light_attenuation','m-1 ('//trim(units)//')-1','specific light attenuation',default=0.0_rk)
    call self%get_parameter(self%surface_flux,'surface_flux',trim(units)//' m d-1','surface flux (positive for into the water)',default=0.0_rk,scale_factor=days_per_second)
+   call self%get_parameter(conserved,'conserved','','whether this is a conserved quantity (activates budget tracking in host)',default=.false.)
 
    ! Register state variables
    call self%register_state_variable(self%id_tracer, &
@@ -74,6 +77,11 @@
                     1.0_rk,minimum=0.0_rk, &
                     vertical_movement=vertical_velocity, &
                     specific_light_extinction=specific_light_attenuation)
+
+   if (conserved) then
+      standard_name = get_safe_name(trim(self%get_path())//'_total')
+      call self%add_to_aggregate_variable(type_bulk_standard_variable(name=standard_name(2:),units=units,aggregate_variable=.true.,conserved=.true.),self%id_tracer)
+   end if
 
    end subroutine initialize
 !EOC
