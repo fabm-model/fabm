@@ -41,7 +41,7 @@
 ! !ROUTINE: do_register_all_variables
 !
 ! !INTERFACE:
-   subroutine do_register_all_variables(lat,lon,par,temp,salt,model,cc)
+   subroutine do_register_all_variables(lat,lon,par,temp,salt,model)
 !
 ! !USES:
    IMPLICIT NONE
@@ -52,7 +52,6 @@
    real(rk), intent(in)                :: lat,lon
    real(rk)                            :: par,temp,salt
    class (type_model), intent(inout)   :: model
-   real(rk), intent(in)                :: cc(:)
 !
 ! !REVISION HISTORY:
 !  Original author(s): Karsten Bolding & Jorn Bruggeman
@@ -64,7 +63,7 @@
    LEVEL2 'register_all_variables'
    call register_coordinate_variables(lat,lon)
    call register_environment_variables(par,temp,salt)
-   call register_fabm_variables(model,cc)
+   call register_fabm_variables(model)
 !KB   call fm%list
 !   LEVEL2 'registrated ',N,'variables'
    return
@@ -136,7 +135,7 @@
 ! !IROUTINE: airsea variable registration 
 !
 ! !INTERFACE:
-   subroutine register_fabm_variables(model,cc)
+   subroutine register_fabm_variables(model)
 !
 ! !DESCRIPTION:
 !
@@ -145,11 +144,11 @@
 !
 ! !INPUT PARAMETERS:
    class (type_model), intent(inout)   :: model
-   real(rk), intent(in)                :: cc(:)
 !
 ! !LOCAL VARIABLES:
-   integer         :: i,output_level
-   logical         :: in_output
+   integer          :: i,output_level
+   logical          :: in_output
+   real(rk),pointer :: pdata
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -160,8 +159,9 @@
       output_level = output_level_default
       if (model%state_variables(i)%output==output_none) output_level = output_level_debug
       call fm%register(model%state_variables(i)%name, model%state_variables(i)%units, &
-                       model%state_variables(i)%long_name, minimum=model%state_variables(i)%minimum, maximum=model%state_variables(i)%maximum, &
-                       fill_value=model%state_variables(i)%missing_value, data0d = cc(i), category='fabm'//model%state_variables(i)%target%owner%get_path(), output_level=output_level)
+                       model%state_variables(i)%long_name, minimum=model%state_variables(i)%minimum, &
+                       maximum=model%state_variables(i)%maximum, fill_value=model%state_variables(i)%missing_value, &
+                       category='fabm'//model%state_variables(i)%target%owner%get_path(), output_level=output_level)
    end do
 
    ! bottom state variables
@@ -171,7 +171,7 @@
       call fm%register(model%bottom_state_variables(i)%name, model%bottom_state_variables(i)%units, &
                        model%bottom_state_variables(i)%long_name, minimum=model%bottom_state_variables(i)%minimum, &
                        maximum=model%bottom_state_variables(i)%maximum, fill_value=model%bottom_state_variables(i)%missing_value, &
-                       data0d=cc(size(model%state_variables)+i), category='fabm'//model%bottom_state_variables(i)%target%owner%get_path(), output_level=output_level)
+                       category='fabm'//model%bottom_state_variables(i)%target%owner%get_path(), output_level=output_level)
    end do
 
    ! surface state variables
@@ -181,7 +181,7 @@
       call fm%register(model%surface_state_variables(i)%name, model%surface_state_variables(i)%units, &
                        model%surface_state_variables(i)%long_name, minimum=model%surface_state_variables(i)%minimum, &
                        maximum=model%surface_state_variables(i)%maximum, fill_value=model%surface_state_variables(i)%missing_value, &
-                       data0d=cc(size(model%state_variables)+size(model%bottom_state_variables)+i), category='fabm'//model%surface_state_variables(i)%target%owner%get_path(), output_level=output_level)
+                       category='fabm'//model%surface_state_variables(i)%target%owner%get_path(), output_level=output_level)
    end do
 
    ! diagnostic variables
@@ -200,6 +200,19 @@
                        model%horizontal_diagnostic_variables(i)%long_name, minimum=model%horizontal_diagnostic_variables(i)%minimum, maximum=model%horizontal_diagnostic_variables(i)%maximum, &
                        fill_value=model%horizontal_diagnostic_variables(i)%missing_value, category='fabm'//model%horizontal_diagnostic_variables(i)%target%owner%get_path(), output_level=output_level, used=in_output)
       if (in_output) model%horizontal_diagnostic_variables(i)%save = .true.
+   end do
+
+   do i=1,size(model%state_variables)
+      pdata => model%get_data(model%state_variables(i)%globalid)
+      call fm%send_data(model%state_variables(i)%name, pdata)
+   end do
+   do i=1,size(model%bottom_state_variables)
+      pdata => model%get_data(model%bottom_state_variables(i)%globalid)
+      call fm%send_data(model%bottom_state_variables(i)%name, pdata)
+   end do
+   do i=1,size(model%surface_state_variables)
+      pdata => model%get_data(model%surface_state_variables(i)%globalid)
+      call fm%send_data(model%surface_state_variables(i)%name, pdata)
    end do
 
    do i=1,size(model%diagnostic_variables)

@@ -190,7 +190,7 @@
    real(rk)                  :: depth
    real(rk),parameter        :: invalid_latitude = -100._rk,invalid_longitude = -400.0_rk
    logical                   :: file_exists
-   real(rk),allocatable      :: rhs(:,:)
+   real(rk),allocatable      :: rhs(:)
 
    namelist /model_setup/ title,start,stop,dt,ode_method,repair_state
    namelist /environment/ env_file,swr_method,albedo_correction, &
@@ -388,8 +388,11 @@
    call start_time_step(0_timestepkind)
 
    ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
-   allocate(rhs(size(cc,1),0:1))
-   call get_rhs(.true.,size(cc,1),cc,rhs)
+   allocate(rhs(size(cc)))
+   call get_rhs(.true.,size(cc),cc,rhs)
+   call model%link_all_interior_state_data(cc(1:size(model%state_variables)))
+   call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
+   call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
 
    ! Output variable values at initial time
 #ifndef NETCDF4
@@ -405,7 +408,7 @@
    else
 #ifdef NETCDF4
       LEVEL1 'field_manager'
-      call do_register_all_variables(latitude,longitude,par,temp,salt,model,cc)
+      call do_register_all_variables(latitude,longitude,par,temp,salt,model)
       LEVEL1 'output_manager'
       allocate(type_0d_host::output_manager_host)
       call output_manager_init(fm,title)
@@ -683,15 +686,9 @@
 
       ! ODE solver may have redirected the current state with to an array with intermediate values.
       ! Reset to global array.
-      do i=1,size(model%state_variables)
-         call fabm_link_bulk_state_data(model,i,cc(i))
-      end do
-      do i=1,size(model%bottom_state_variables)
-         call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i))
-      end do
-      do i=1,size(model%surface_state_variables)
-         call fabm_link_surface_state_data(model,i,cc(size(model%state_variables)+size(model%bottom_state_variables)+i))
-      end do
+      call model%link_all_interior_state_data(cc(1:size(model%state_variables)))
+      call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
+      call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
 
       ! Verify whether the model state is still valid (clip if needed and allowed)
       call fabm_check_state(model,repair_state,valid_state)
@@ -818,15 +815,9 @@
 
    ! Send current state to FABM
    ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
-   do n=1,size(model%state_variables)
-      call fabm_link_bulk_state_data(model,n,cc(n))
-   end do
-   do n=1,size(model%bottom_state_variables)
-      call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n))
-   end do
-   do n=1,size(model%surface_state_variables)
-      call fabm_link_surface_state_data(model,n,cc(size(model%state_variables)+size(model%bottom_state_variables)+n))
-   end do
+   call model%link_all_interior_state_data(cc(1:size(model%state_variables)))
+   call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
+   call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
 
    ! Shortcut to the number of pelagic state variables.
    n = size(model%state_variables)
@@ -879,15 +870,9 @@
 
    ! Send current state to FABM
    ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
-   do n=1,size(model%state_variables)
-      call fabm_link_bulk_state_data(model,n,cc(n))
-   end do
-   do n=1,size(model%bottom_state_variables)
-      call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n))
-   end do
-   do n=1,size(model%surface_state_variables)
-      call fabm_link_surface_state_data(model,n,cc(size(model%state_variables)+size(model%bottom_state_variables)+n))
-   end do
+   call model%link_all_interior_state_data(cc(1:size(model%state_variables)))
+   call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
+   call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
 
    ! Shortcut to the number of pelagic state variables.
    n = size(model%state_variables)
