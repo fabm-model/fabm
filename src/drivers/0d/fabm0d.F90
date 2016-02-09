@@ -571,11 +571,11 @@
 
       ! Link forced data to target variable.
       if (fabm_is_variable_used(bulk_id)) then
-         call fabm_link_bulk_data(model,bulk_id,input_data%value)
+         call fabm_link_bulk_data(model,bulk_id,input_data%value,source=data_source_user)
       elseif (fabm_is_variable_used(horizontal_id)) then
-         call fabm_link_horizontal_data(model,horizontal_id,input_data%value)
+         call fabm_link_horizontal_data(model,horizontal_id,input_data%value,source=data_source_user)
       else
-         call fabm_link_scalar_data(model,scalar_id,input_data%value)
+         call fabm_link_scalar_data(model,scalar_id,input_data%value,source=data_source_user)
       end if
 
    end subroutine parse_input_variable
