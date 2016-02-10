@@ -217,16 +217,15 @@
          end if
          do i=1,size(model%state_variables)
             if (model%state_variables(i)%output/=output_none) &
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(i)
+               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,model%get_data(model%state_variables(i)%globalid)
          end do
          do i=1,size(model%bottom_state_variables)
             if (model%bottom_state_variables(i)%output/=output_none) &
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(size(model%state_variables)+i)
+               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,model%get_data(model%bottom_state_variables(i)%globalid)
          end do
          do i=1,size(model%surface_state_variables)
             if (model%surface_state_variables(i)%output/=output_none) &
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator, &
-                  cc(size(model%state_variables)+size(model%bottom_state_variables)+i)
+               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,model%get_data(model%surface_state_variables(i)%globalid)
          end do
          if (add_diagnostic_variables) then
             do i=1,size(model%diagnostic_variables)
