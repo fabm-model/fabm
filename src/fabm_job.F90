@@ -1304,8 +1304,8 @@ function order_node_has_graph_node(self,graph_node) result(found)
    type (type_node),             target, intent(in) :: graph_node
    logical                                          :: found
 
-   type (type_task_order_node), pointer :: task
-   type (type_node_list_member),pointer :: pnode
+   class (type_task_order_node), pointer :: task
+   type (type_node_list_member), pointer :: pnode
 
    found = .true.
    task => self
@@ -1453,8 +1453,6 @@ recursive subroutine task_order_add(self,task,graph_node,options,try_append,next
       return
    end if
 
-   !write (*,*) trim(self%as_string())//' insufficient.'
-
    ! Whether the original ordering option ("self") has already been used.
    ! If that is the case, any further possibilities will require cloning of the original.
    used_original_option = .false.
@@ -1552,7 +1550,7 @@ contains
    recursive subroutine process_dependencies(order,task,next_graph_node)
       class (type_task_order), target,intent(inout) :: order
       type (type_task_order_node), pointer          :: task
-      type (type_node_list_member), target, optional :: next_graph_node
+      type (type_node_list_member), target          :: next_graph_node
 
       type (type_node_set_member), pointer :: dependency
 
