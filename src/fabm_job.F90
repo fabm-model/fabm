@@ -1419,7 +1419,7 @@ recursive subroutine task_order_add(self,task,graph_node,options,try_append,next
    type (type_node_list_member),target, optional     :: next_graph_node
    logical,                            intent(in)    :: try_append
 
-   type (type_task_order),      pointer :: prepend_order, forward_order, integrate_order, append_order
+   class (type_task_order),     pointer :: prepend_order, forward_order, integrate_order, append_order
    type (type_task_order_node), pointer :: prepend_task, forward_task, integrate_task, append_task, new_task
    type (type_node_list_member),pointer :: integrate_next_graph_node
    integer                              :: new_source
@@ -1526,7 +1526,7 @@ recursive subroutine task_order_add(self,task,graph_node,options,try_append,next
 contains
 
    subroutine get_option(new_order,new_task,new_next_graph_node)
-      type (type_task_order),      pointer :: new_order
+      class (type_task_order),     pointer :: new_order
       type (type_task_order_node), pointer :: new_task
       type (type_node_list_member),pointer, optional :: new_next_graph_node
 
