@@ -737,7 +737,7 @@ module fabm_job
 
    type type_task_order
       type (type_task_order_node),pointer :: last_node => null()
-      type (type_task_order),     pointer :: next      => null()
+      class (type_task_order),    pointer :: next      => null()
       logical                             :: valid     = .true.
    contains
       procedure :: clone     => task_order_clone
@@ -746,7 +746,7 @@ module fabm_job
    end type
    
    type type_task_order_set
-      type (type_task_order), pointer :: first => null()
+      class (type_task_order), pointer :: first => null()
    end type
 
    type type_job
@@ -1720,7 +1720,7 @@ subroutine superjob_select_order(self)
    class (type_superjob), intent(inout) :: self
 
    type (type_task_order_set)             :: options
-   type (type_task_order),        pointer :: order,best_order
+   class (type_task_order),       pointer :: order,best_order
    type (type_task_order_node),   pointer :: order_node
    type (type_node_set_member),pointer :: endpoint
    logical                                :: dummy
