@@ -54,6 +54,7 @@
 
    public get_free_unit
    public get_safe_name
+   public source2string
 
    public type_expression, type_bulk_expression, type_horizontal_expression
 
@@ -2949,6 +2950,22 @@ end subroutine abstract_model_factory_create
       if (.not.used) deallocate(task)
 
    end function coupling_task_list_add
+
+   character(len=32) function source2string(source)
+      integer, intent(in) :: source
+      select case (source)
+      case (source_unknown);               source2string = 'unknown'
+      case (source_do);                    source2string = 'do'
+      case (source_do_column);             source2string = 'do_column'
+      case (source_do_bottom);             source2string = 'do_bottom'
+      case (source_do_surface);            source2string = 'do_surface'
+      case (source_none);                  source2string = 'none'
+      case (source_get_vertical_movement); source2string = 'get_vertical_movement'
+      case (source_do_horizontal);         source2string = 'do_horizontal'
+      case default
+         write (source2string,'(i0)') source
+      end select
+   end function source2string
 
    end module fabm_types
 

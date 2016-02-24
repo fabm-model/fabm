@@ -41,6 +41,8 @@
    public fabm_initialize, fabm_finalize, fabm_set_domain, fabm_check_ready, fabm_update_time
    public fabm_initialize_state, fabm_initialize_surface_state, fabm_initialize_bottom_state
 
+   public fabm_process_superjob
+
    ! Process rates and diagnostics for pelagic, surface, bottom.
    public fabm_do, fabm_do_surface, fabm_do_bottom
 
@@ -231,19 +233,23 @@
       integer                                                   :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
 
       type (type_job) :: generic_job
-      type (type_job) :: prepare_do_bottom_job
-      type (type_job) :: do_interior_job
-      type (type_job) :: do_interior_ppdd_job
-      type (type_job) :: do_bottom_job
-      type (type_job) :: do_bottom_ppdd_job
-      type (type_job) :: do_surface_job
+      type (type_superjob) :: interior_job
+      type (type_job)      :: do_interior_job
+      !type (type_superjob) :: do_interior_ppdd_job
+      type (type_superjob) :: bottom_job
+      type (type_job)      :: do_bottom_job
+      !type (type_superjob) :: do_bottom_ppdd_job
+      type (type_superjob) :: surface_job
+      type (type_job)      :: do_surface_job
       type (type_job) :: get_light_job
       type (type_job) :: get_vertical_movement_job
       type (type_job) :: get_conserved_quantities_job
       type (type_job) :: get_horizontal_conserved_quantities_job
       type (type_job) :: get_light_extinction_job
       type (type_job) :: prepare_job
-      type (type_job) :: get_diagnostics_job
+      type (type_superjob) :: get_diagnostics_job
+
+      type (type_superjob) :: prepare_do_bottom_superjob
 
       ! Registry with pointers to global fields of readable variables.
       ! These pointers are accessed to fill the read cache just before individual model instances are called.
@@ -765,7 +771,6 @@
   class (type_expression),pointer      :: expression
   type (type_link),pointer             :: link
   integer                              :: nsave,nsave_hz
-  type (type_superjob)                 :: superjob
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -789,29 +794,27 @@
    self%zero_hz = 0.0_rk
    call self%link_horizontal_data('zero_hz',self%zero_hz)
 
-   call self%prepare_do_bottom_job%set_next(self%do_bottom_job)
-   self%do_bottom_job%domain   = domain_bottom
-   self%do_bottom_job%calls%source = source_do_bottom
-   self%do_surface_job%domain  = domain_surface
-   self%do_interior_job%domain = domain_interior
-   call require_flux_computation(self%do_bottom_job,self%links_postcoupling)
-   call self%do_bottom_job%set_next(self%do_surface_job)
-   call require_flux_computation(self%do_surface_job,self%links_postcoupling)
-   call self%do_surface_job%set_next(self%do_interior_job)
-   call require_flux_computation(self%do_interior_job,self%links_postcoupling)
+   call require_flux_computation(self%bottom_job,self%links_postcoupling,domain_bottom)
+   call self%bottom_job%set_next(self%surface_job)
+   call require_flux_computation(self%surface_job,self%links_postcoupling,domain_surface)
+   call self%surface_job%set_next(self%interior_job)
+   call require_flux_computation(self%interior_job,self%links_postcoupling,domain_interior)
 
-   call self%do_bottom_job%print()
-   superjob = self%prepare_do_bottom_job%create_superjob()
+   call self%bottom_job%print()
+   call self%bottom_job%initialize()
+   write (*,*) '***self%prepare_do_bottom_job***'
+   call self%bottom_job%print()
+   !self%prepare_do_bottom_superjob = prepare_do_bottom_job%create_superjob()
 
    ! Create job that ensures all diagnostics required by the user are computed.
-   call self%do_interior_job%set_next(self%get_diagnostics_job)
+   call self%interior_job%set_next(self%get_diagnostics_job)
    do ivar=1,size(self%diagnostic_variables)
       if (self%diagnostic_variables(ivar)%save) &
-         call self%get_diagnostics_job%calls%request_variable(self%diagnostic_variables(ivar)%target,copy_to_store=.true.)
+         call self%get_diagnostics_job%request_variable(self%diagnostic_variables(ivar)%target,copy_to_store=.true.)
    end do
    do ivar=1,size(self%horizontal_diagnostic_variables)
       if (self%horizontal_diagnostic_variables(ivar)%save) &
-         call self%get_diagnostics_job%calls%request_variable(self%horizontal_diagnostic_variables(ivar)%target,copy_to_store=.true.)
+         call self%get_diagnostics_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target,copy_to_store=.true.)
    end do
 
    !call append_to_call_list(self%get_light_job,self%links_postcoupling,source_do_column,(/source_do_column/))
@@ -1181,13 +1184,14 @@
    call self%do_interior_job%initialize()
    call self%do_surface_job%initialize()
    call self%do_bottom_job%initialize()
+   call self%prepare_do_bottom_superjob%initialize()
    call self%get_conserved_quantities_job%initialize()
    call self%get_horizontal_conserved_quantities_job%initialize()
    call self%get_light_extinction_job%initialize()
    call self%get_light_job%initialize()
    call self%get_vertical_movement_job%initialize()
 
-   call self%do_interior_job%calls%print()
+   call self%interior_job%print()
 
    self%state = state_check_ready_done
 
@@ -1220,10 +1224,9 @@
          first => null()
          link => self%root%links%first
          do while (associated(link))
-            if (     associated(link%target,variable)           &                   ! This link points to the target variable,
-                .and.associated(link%original%owner%parent)     &                   ! it is not owned by the root model [which has copies of all unfilled dependencies],
-                .and..not.link%original%read_indices%is_empty() &                   ! it requests read access,
-                .and..not.link%original%presence==presence_external_optional) then  ! and this access is required, not optional
+            if (     associated(link%target,variable)     &                   ! This link points to the target variable,
+                .and.associated(link%original%read_index) &                   ! the model that owns the link requests read access for it,
+                .and.link%original%presence/=presence_external_optional) then ! and this access is required, not optional
                current => first
                do while (associated(current))
                   if (associated(current%p,link%original%owner)) exit
@@ -3140,7 +3143,7 @@ end subroutine end_vertical_job
 #  endif
 #endif
 
-   call start_interior_job(self,self%do_interior_ppdd_job,cache _ARGUMENTS_INTERIOR_IN_)
+   !call start_interior_job(self,self%do_interior_ppdd_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    node => self%models%first
    do while (associated(node))
@@ -3160,7 +3163,7 @@ end subroutine end_vertical_job
       node => node%next
    end do
 
-   call end_interior_job(self,self%do_interior_ppdd_job,cache _ARGUMENTS_INTERIOR_IN_)
+   !call end_interior_job(self,self%do_interior_ppdd_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_do_ppdd
 !EOC
@@ -3678,7 +3681,7 @@ end subroutine internal_check_horizontal_state
    call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_bottom_ppdd')
 #endif
 
-   call start_bottom_job(self,self%do_bottom_ppdd_job,cache _ARGUMENTS_HORIZONTAL_IN_)
+!   call start_bottom_job(self,self%do_bottom_ppdd_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    node => self%models%first
    do while (associated(node))
@@ -3698,7 +3701,7 @@ end subroutine internal_check_horizontal_state
       node => node%next
    end do
 
-   call end_horizontal_job(self,self%do_bottom_ppdd_job,cache _ARGUMENTS_HORIZONTAL_IN_)
+   !call end_horizontal_job(self,self%do_bottom_ppdd_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_do_bottom_ppdd
 !EOC
@@ -4081,6 +4084,38 @@ end subroutine internal_check_horizontal_state
 
    end subroutine fabm_get_horizontal_conserved_quantities
 !EOC
+
+   subroutine fabm_process_superjob(self,superjob _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
+      class (type_model),  intent(inout), target :: self
+      type (type_superjob),intent(in)            :: superjob
+      _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
+
+      type (type_job),pointer :: job
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      ! Superjobs must be applied across the entire depth range (if any),
+      ! so we set vertical strt and stop indices here.
+      integer :: _VERTICAL_START_,_VERTICAL_STOP_
+      _VERTICAL_START_ = 1
+      _VERTICAL_STOP_ = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
+#endif
+
+      if (.not.associated(superjob%first%calls%first)) return
+
+      job => superjob%first
+      do while (associated(job))
+         select case (job%calls%first%source)
+         case (source_do)
+            call fabm_process_interior_all(self,job _ARGUMENTS_LOCATION_RANGE_)
+         case (source_do_column)
+            call fabm_process_vertical_all(self,job _ARGUMENTS_LOCATION_RANGE_)
+         case (source_do_bottom)
+         case (source_do_surface)
+         case (source_do_horizontal)
+         end select
+         job => job%next
+      end do
+   end subroutine fabm_process_superjob
 
    subroutine fabm_process_interior_all(self,job _ARGUMENTS_LOCATION_RANGE_)
       class (type_model),intent(inout), target :: self
@@ -4852,28 +4887,29 @@ end subroutine
       end do
    end subroutine build_call_list
 
-   subroutine require_flux_computation(self,link_list)
-      type (type_job),      intent(inout) :: self
+   subroutine require_flux_computation(self,link_list,domain)
+      type (type_superjob), intent(inout) :: self
       type (type_link_list),intent(in)    :: link_list
+      integer,              intent(in)    :: domain
 
       type (type_link), pointer :: link
 
       link => link_list%first
       do while (associated(link))
-         select case (self%domain)
+         select case (domain)
          case (domain_interior)
-            if (link%target%domain==domain_interior) call self%calls%request_variables(link%target%sms_list,not_stale=.true.)
+            if (link%target%domain==domain_interior) call self%request_variables(link%target%sms_list,not_stale=.true.)
          case (domain_bottom)
             if (link%target%domain==domain_bottom) then
-               call self%calls%request_variables(link%target%sms_list,not_stale=.true.)
+               call self%request_variables(link%target%sms_list,not_stale=.true.)
             elseif (link%target%domain==domain_interior) then
-               call self%calls%request_variables(link%target%bottom_flux_list,not_stale=.true.)
+               call self%request_variables(link%target%bottom_flux_list,not_stale=.true.)
             end if
          case (domain_surface)
             if (link%target%domain==domain_surface) then
-               call self%calls%request_variables(link%target%sms_list,not_stale=.true.)
+               call self%request_variables(link%target%sms_list,not_stale=.true.)
             elseif (link%target%domain==domain_interior) then
-               call self%calls%request_variables(link%target%surface_flux_list,not_stale=.true.)
+               call self%request_variables(link%target%surface_flux_list,not_stale=.true.)
             end if
          end select
          link => link%next
