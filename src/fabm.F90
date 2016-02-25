@@ -232,24 +232,24 @@
       integer                                                   :: domain_size(_FABM_DIMENSION_COUNT_)
       integer                                                   :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
 
-      type (type_job) :: generic_job
-      type (type_superjob) :: interior_job
-      type (type_job)      :: do_interior_job
-      !type (type_superjob) :: do_interior_ppdd_job
-      type (type_superjob) :: bottom_job
-      type (type_job)      :: do_bottom_job
-      !type (type_superjob) :: do_bottom_ppdd_job
-      type (type_superjob) :: surface_job
-      type (type_job)      :: do_surface_job
-      type (type_job) :: get_light_job
-      type (type_job) :: get_vertical_movement_job
-      type (type_job) :: get_conserved_quantities_job
-      type (type_job) :: get_horizontal_conserved_quantities_job
-      type (type_job) :: get_light_extinction_job
-      type (type_job) :: prepare_job
-      type (type_superjob) :: get_diagnostics_job
+      type (type_task) :: generic_job
+      type (type_job)  :: interior_job
+      type (type_task) :: do_interior_job
+      !type (type_job)  :: do_interior_ppdd_job
+      type (type_job)  :: bottom_job
+      type (type_task) :: do_bottom_job
+      !type (type_job)  :: do_bottom_ppdd_job
+      type (type_job)  :: surface_job
+      type (type_task) :: do_surface_job
+      type (type_task) :: get_light_job
+      type (type_task) :: get_vertical_movement_job
+      type (type_task) :: get_conserved_quantities_job
+      type (type_task) :: get_horizontal_conserved_quantities_job
+      type (type_task) :: get_light_extinction_job
+      type (type_task) :: prepare_job
+      type (type_job)  :: get_diagnostics_job
 
-      type (type_superjob) :: prepare_do_bottom_superjob
+      type (type_job)  :: prepare_do_bottom_superjob
 
       ! Registry with pointers to global fields of readable variables.
       ! These pointers are accessed to fill the read cache just before individual model instances are called.
@@ -819,10 +819,10 @@
 
    !call append_to_call_list(self%get_light_job,self%links_postcoupling,source_do_column,(/source_do_column/))
    !call append_to_call_list(self%get_light_extinction_job,self%links_postcoupling,source_do_column,(/source_do_column,source_do/))
-   !call self%get_light_extinction_job%calls%filter(source_do_column)
+   !call self%get_light_extinction_job%filter(source_do_column)
    !call append_to_call_list(self%prepare_job,self%links_postcoupling,source_do_bottom,(/source_do_column,source_do,source_do_horizontal/),.true.)
    !call append_to_call_list(self%prepare_job,self%links_postcoupling,source_do,(/source_do_column,source_do,source_do_horizontal/),.true.)
-   !call self%prepare_job%calls%print()
+   !call self%prepare_job%print()
    !do ivar=1,size(self%conserved_quantities)
    !   call append_variable_to_call_list(self%get_conserved_quantities_job,self%conserved_quantities(ivar)%target,source_do,(/source_do/))
    !   call append_variable_to_call_list(self%get_horizontal_conserved_quantities_job,self%conserved_quantities(ivar)%target_hz,source_do_horizontal,(/source_do_bottom,source_unknown,source_do_horizontal/))
@@ -2482,7 +2482,7 @@ end function fabm_get_scalar_data
 
 subroutine start_interior_job(self,job,cache _ARGUMENTS_INTERIOR_IN_)
    type (type_model),intent(inout) :: self
-   type (type_job),  intent(in)    :: job
+   type (type_task), intent(in)    :: job
    type (type_cache),intent(out)   :: cache
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    _DECLARE_INTERIOR_INDICES_
@@ -2552,7 +2552,7 @@ end subroutine start_interior_job
 
 subroutine start_horizontal_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
    type (type_model),intent(inout) :: self
-   type (type_job),  intent(in)    :: job
+   type (type_task), intent(in)    :: job
    type (type_cache),intent(out)   :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
@@ -2607,7 +2607,7 @@ end subroutine start_horizontal_job
 
 subroutine start_surface_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
    type (type_model),intent(inout) :: self
-   type (type_job),  intent(in)    :: job
+   type (type_task), intent(in)    :: job
    type (type_cache),intent(out)   :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
@@ -2649,7 +2649,7 @@ end subroutine start_surface_job
    
 subroutine start_bottom_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
    type (type_model),intent(inout) :: self
-   type (type_job),  intent(in)    :: job
+   type (type_task), intent(in)    :: job
    type (type_cache),intent(out)   :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
@@ -2716,7 +2716,7 @@ end subroutine start_bottom_job
 
 subroutine start_vertical_job(self,job,cache _ARGUMENTS_VERTICAL_IN_)
    type (type_model),intent(inout) :: self
-   type (type_job),  intent(in)    :: job
+   type (type_task), intent(in)    :: job
    type (type_cache),intent(out)   :: cache
    _DECLARE_ARGUMENTS_VERTICAL_IN_
    _DECLARE_VERTICAL_INDICES_
@@ -2792,7 +2792,7 @@ end subroutine start_vertical_job
 
 subroutine end_interior_job(self,job,cache _ARGUMENTS_INTERIOR_IN_)
    type (type_model),intent(inout) :: self
-   type (type_job),  intent(in)    :: job
+   type (type_task), intent(in)    :: job
    type (type_cache),intent(inout) :: cache
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    _DECLARE_INTERIOR_INDICES_
@@ -2819,7 +2819,7 @@ end subroutine end_interior_job
 
 subroutine end_horizontal_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
    type (type_model),intent(inout) :: self
-   type (type_job),  intent(in)    :: job
+   type (type_task), intent(in)    :: job
    type (type_cache),intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
@@ -2846,7 +2846,7 @@ end subroutine end_horizontal_job
 
 subroutine end_vertical_job(self,job,cache _ARGUMENTS_VERTICAL_IN_)
    type (type_model),intent(inout) :: self
-   type (type_job),  intent(in)    :: job
+   type (type_task), intent(in)    :: job
    type (type_cache),intent(inout) :: cache
    _DECLARE_ARGUMENTS_VERTICAL_IN_
    _DECLARE_VERTICAL_INDICES_
@@ -3077,7 +3077,7 @@ end subroutine end_vertical_job
 
    call start_interior_job(self,self%do_interior_job,cache _ARGUMENTS_INTERIOR_IN_)
 
-   node => self%do_interior_job%calls%first
+   node => self%do_interior_job%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
@@ -3522,7 +3522,7 @@ end subroutine internal_check_horizontal_state
 
       call start_surface_job(self,self%do_surface_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-      node => self%do_surface_job%calls%first
+      node => self%do_surface_job%first
       do while (associated(node))
          if (node%source==source_do_horizontal) then
             call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
@@ -3608,7 +3608,7 @@ end subroutine internal_check_horizontal_state
 
    call start_bottom_job(self,self%do_bottom_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-   node => self%do_bottom_job%calls%first
+   node => self%do_bottom_job%first
    do while (associated(node))
       if (node%source==source_do_horizontal) then
          call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
@@ -3794,7 +3794,7 @@ end subroutine internal_check_horizontal_state
    call start_interior_job(self,self%get_light_extinction_job,cache _ARGUMENTS_INTERIOR_IN_)
 
    ! Call all models that calculate extinction components to make sure the extinction diagnostic is up to date.
-   node => self%get_light_extinction_job%calls%first
+   node => self%get_light_extinction_job%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
@@ -3846,7 +3846,7 @@ end subroutine internal_check_horizontal_state
 
    call start_vertical_job(self,self%get_light_job,cache _ARGUMENTS_VERTICAL_IN_)
 
-   node => self%get_light_job%calls%first
+   node => self%get_light_job%first
    do while (associated(node))
       call node%model%get_light(_ARGUMENTS_VERTICAL_)
 
@@ -3996,7 +3996,7 @@ end subroutine internal_check_horizontal_state
 
    call start_interior_job(self,self%get_conserved_quantities_job,cache _ARGUMENTS_INTERIOR_IN_)
 
-   node => self%get_conserved_quantities_job%calls%first
+   node => self%get_conserved_quantities_job%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
@@ -4055,7 +4055,7 @@ end subroutine internal_check_horizontal_state
 
    call start_horizontal_job(self,self%get_horizontal_conserved_quantities_job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-   node => self%get_horizontal_conserved_quantities_job%calls%first
+   node => self%get_horizontal_conserved_quantities_job%first
    do while (associated(node))
       if (node%source==source_do_horizontal) then
          call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
@@ -4086,11 +4086,11 @@ end subroutine internal_check_horizontal_state
 !EOC
 
    subroutine fabm_process_superjob(self,superjob _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
-      class (type_model),  intent(inout), target :: self
-      type (type_superjob),intent(in)            :: superjob
+      class (type_model), intent(inout), target :: self
+      type (type_job),    intent(in)            :: superjob
       _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
 
-      type (type_job),pointer :: job
+      type (type_task),pointer :: job
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
       ! Superjobs must be applied across the entire depth range (if any),
@@ -4100,11 +4100,11 @@ end subroutine internal_check_horizontal_state
       _VERTICAL_STOP_ = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
 
-      if (.not.associated(superjob%first%calls%first)) return
+      if (.not.associated(superjob%first%first)) return
 
       job => superjob%first
       do while (associated(job))
-         select case (job%calls%first%source)
+         select case (job%first%source)
          case (source_do)
             call fabm_process_interior_all(self,job _ARGUMENTS_LOCATION_RANGE_)
          case (source_do_column)
@@ -4119,7 +4119,7 @@ end subroutine internal_check_horizontal_state
 
    subroutine fabm_process_interior_all(self,job _ARGUMENTS_LOCATION_RANGE_)
       class (type_model),intent(inout), target :: self
-      type (type_job),   intent(in)            :: job
+      type (type_task),  intent(in)            :: job
       _DECLARE_ARGUMENTS_LOCATION_RANGE_
 
       _DECLARE_LOCATION_
@@ -4131,7 +4131,7 @@ end subroutine internal_check_horizontal_state
 
    subroutine fabm_process_horizontal_all(self,job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
       class (type_model),intent(inout), target :: self
-      type (type_job),   intent(in)            :: job
+      type (type_task),  intent(in)            :: job
       _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
 
       _DECLARE_LOCATION_
@@ -4143,7 +4143,7 @@ end subroutine internal_check_horizontal_state
 
    subroutine fabm_process_vertical_all(self,job _ARGUMENTS_LOCATION_RANGE_)
       class (type_model),intent(inout), target :: self
-      type (type_job),   intent(in)            :: job
+      type (type_task),  intent(in)            :: job
       _DECLARE_ARGUMENTS_LOCATION_RANGE_
 
       _DECLARE_LOCATION_
@@ -4155,7 +4155,7 @@ end subroutine internal_check_horizontal_state
 
    subroutine fabm_process_interior_slice(self,job _ARGUMENTS_INTERIOR_IN_)
       class (type_model),intent(inout), target :: self
-      type (type_job),   intent(in)            :: job
+      type (type_task),  intent(in)            :: job
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
       type (type_cache)         :: cache
@@ -4165,7 +4165,7 @@ end subroutine internal_check_horizontal_state
 
       call start_interior_job(self,job,cache _ARGUMENTS_INTERIOR_IN_)
 
-      node => job%calls%first
+      node => job%first
       do while (associated(node))
          call node%model%do(_ARGUMENTS_INTERIOR_)
 
@@ -4188,7 +4188,7 @@ end subroutine internal_check_horizontal_state
 
    subroutine fabm_process_horizontal_slice(self,job _ARGUMENTS_HORIZONTAL_IN_)
       class (type_model),intent(inout) :: self
-      type (type_job),   intent(in)    :: job
+      type (type_task),  intent(in)    :: job
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
       type (type_cache)         :: cache
@@ -4198,7 +4198,7 @@ end subroutine internal_check_horizontal_state
 
       call start_horizontal_job(self,job,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-      node => job%calls%first
+      node => job%first
       do while (associated(node))
          call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
 
@@ -4220,7 +4220,7 @@ end subroutine internal_check_horizontal_state
 
    subroutine fabm_process_vertical_slice(self,job _ARGUMENTS_VERTICAL_IN_)
       class (type_model),intent(inout) :: self
-      type (type_job),   intent(in)    :: job
+      type (type_task),  intent(in)    :: job
       _DECLARE_ARGUMENTS_VERTICAL_IN_
 
       type (type_cache)         :: cache
@@ -4230,7 +4230,7 @@ end subroutine internal_check_horizontal_state
 
       call start_vertical_job(self,job,cache _ARGUMENTS_VERTICAL_IN_)
 
-      node => job%calls%first
+      node => job%first
       do while (associated(node))
          call node%model%get_light(_ARGUMENTS_VERTICAL_)
 
@@ -4888,7 +4888,7 @@ end subroutine
    end subroutine build_call_list
 
    subroutine require_flux_computation(self,link_list,domain)
-      type (type_superjob), intent(inout) :: self
+      type (type_job),      intent(inout) :: self
       type (type_link_list),intent(in)    :: link_list
       integer,              intent(in)    :: domain
 
