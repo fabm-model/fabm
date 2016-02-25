@@ -1379,10 +1379,10 @@ end subroutine find_dependencies
 subroutine job_select_order(self)
    class (type_job), intent(inout) :: self
 
-   type (type_graph_subset_node_set)  :: subset
-   type (type_task_tree_node)         :: root
-   type (type_task_tree_node),pointer :: leaf
-   integer                            :: ntasks
+   type (type_graph_subset_node_set)   :: subset
+   type (type_task_tree_node)          :: root
+   class (type_task_tree_node),pointer :: leaf
+   integer                             :: ntasks
 
    call create_graph_subset_node_set(self%graph,subset)
    call subset%branch(root)
