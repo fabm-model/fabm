@@ -1342,7 +1342,7 @@ subroutine job_initialize(self)
    write (*,'(a,i0,a)') 'Best task order contains ',ntasks,' tasks.'
    leaf => root%get_leaf_at_depth(ntasks+1)
    write (*,'(a,a)') 'Best task order: ',trim(leaf%to_string())
-   if (ntasks>0) call create_tasks(leaf)
+   call create_tasks(leaf)
    if (associated(subset%first)) call driver%fatal_error('job_select_order','BUG: graph subset should be empty after create_tasks.')
 
    ! Initialize tasks
@@ -1364,13 +1364,19 @@ contains
       type (type_call),                     pointer :: call_node, previous_call_node
 
       ! Start at the root of the tree.
-      if (associated(tree_node%parent%parent)) call create_tasks(tree_node%parent%parent)
+      if (associated(tree_node%parent)) call create_tasks(tree_node%parent)
 
+      ! Collect all nodes that can be processed with the currently selected source.
+      call subset%collect(tree_node%source,removed)
+      if (.not.associated(removed%first)) return
+
+      ! Create the task and preprend it to the list.
       allocate(task)
       task%next => self%first
       self%first => task
       task%source = tree_node%source
-      call subset%collect(tree_node%source,removed)
+
+      ! Collect all calls for this task.
       previous_call_node => null()
       pnode => removed%first
       do while (associated(pnode))
@@ -1386,6 +1392,8 @@ contains
          previous_call_node => call_node
          pnode => pnode%next
       end do
+
+      ! Clean-up array with processed calls.
       call removed%finalize()
    end subroutine create_tasks
 
