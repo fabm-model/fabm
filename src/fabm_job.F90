@@ -91,8 +91,7 @@ module fabm_graph
       type (type_node_set)             :: all_dependencies     ! direct and indirect dependencies
       type (type_output_variable_set)  :: outputs              ! output variables that a later called model requires
    contains
-      procedure :: as_string               => node_as_string
-      procedure :: get_maximum_path_length => node_get_maximum_path_length
+      procedure :: as_string => node_as_string
    end type
 
    type,extends(type_node_list) :: type_graph
@@ -103,7 +102,6 @@ module fabm_graph
       procedure :: add_variable => graph_add_variable
       procedure :: print        => graph_print
       procedure :: save_as_dot  => graph_save_as_dot
-      procedure :: get_longest_path => graph_get_longest_path
    end type
 
 contains
@@ -570,65 +568,6 @@ function node_as_string(node) result(string)
    string = trim(node%model%get_path())//':'//trim(source2string(node%source))
 end function node_as_string
 
-subroutine graph_get_longest_path(self)
-   class (type_graph),intent(in) :: self
-
-   integer                                 :: maxlength
-   type (type_node_set_member), pointer :: pnode
-   type (type_node_list)             :: path
-
-   maxlength = 0
-   pnode => self%endpoints%first
-   do while (associated(pnode))
-      maxlength = max(maxlength,pnode%p%get_maximum_path_length())
-      pnode => pnode%next
-   end do
-
-   pnode => self%endpoints%first
-   do while (associated(pnode))
-      call find_path_of_length(pnode%p,maxlength,path)
-      pnode => pnode%next
-   end do
-
-contains
-
-   recursive subroutine find_path_of_length(node,length,path)
-      type (type_node),     intent(in) :: node
-      integer,                    intent(in) :: length
-      type (type_node_list),intent(inout) :: path
-
-      type (type_node_set_member),pointer :: pnode
-      type (type_node),        pointer :: path_node
-
-      call path%append(node)
-      if (length==0) then
-         if (.not.associated(node%dependencies%first)) write (*,'(A)') trim(path%as_string())
-      else
-         pnode => node%dependencies%first
-         do while (associated(pnode))
-            call find_path_of_length(pnode%p,length-1,path)
-            pnode => pnode%next
-         end do
-      end if
-      path_node => path%pop()
-   end subroutine find_path_of_length
-
-end subroutine graph_get_longest_path
-
-recursive function node_get_maximum_path_length(node) result(length)
-   class (type_node), intent(in) :: node
-   integer :: length
-
-   type (type_node_set_member), pointer :: pnode
-
-   length = 0
-   pnode => node%dependencies%first
-   do while (associated(pnode))
-      length = max(length,1+pnode%p%get_maximum_path_length())
-      pnode => pnode%next
-   end do
-end function node_get_maximum_path_length
-
 function node_list_as_string(self) result(string)
    class (type_node_list),intent(in) :: self
    character(len=attribute_length) :: string
@@ -656,7 +595,7 @@ module fabm_job
 
    private
 
-   public type_task, type_call, type_job
+   public type_job, type_task, type_call
    public find_dependencies
 
    type type_graph_subset_node_pointer
@@ -679,23 +618,36 @@ module fabm_job
       type (type_graph_subset_node_set) :: incoming
    end type
 
+   type type_task_tree_node
+      integer                             :: source = source_unknown
+      type (type_task_tree_node), pointer :: next_sibling => null()
+      type (type_task_tree_node), pointer :: first_child  => null()
+      type (type_task_tree_node), pointer :: parent       => null()
+   contains
+      procedure :: to_string         => task_tree_node_to_string
+      procedure :: get_minimum_depth => task_tree_node_get_minimum_depth
+      procedure :: get_leaf_at_depth => task_tree_node_get_leaf_at_depth
+   end type
+
    type type_cache_copy_command
       integer :: read_index
       integer :: write_index
    end type
 
+   ! A call specifies the combinaion of a model object and its procedure ("source") to call.
    type type_call
       class (type_base_model), pointer            :: model => null()
       integer                                     :: source = source_unknown
+      type (type_node), pointer                   :: node => null()
       type (type_cache_copy_command), allocatable :: copy_commands_int(:) ! interior variables to copy from write to read cache after call completes
       type (type_cache_copy_command), allocatable :: copy_commands_hz(:)  ! horizontal variables to copy from write to read cache after call completes
-      type (type_node), pointer                   :: node => null()
       type (type_call), pointer                   :: next => null()
    contains
       procedure :: initialize => call_initialize
       procedure :: finalize   => call_finalize
    end type type_call
 
+   ! A task contains one or more model calls that all use the same domain operator ("source")
    type type_task
       integer                   :: source = source_unknown
       type (type_call), pointer :: first  => null()
@@ -718,6 +670,7 @@ module fabm_job
       procedure :: print      => task_print
    end type
 
+   ! A job contains one or more tasks, each using their own specific domain operator ("source")
    type type_job
       type (type_task),pointer :: first => null()
       type (type_graph)        :: graph
@@ -727,17 +680,6 @@ module fabm_job
       procedure :: request_variables => job_request_variables
       procedure :: set_next          => job_set_next
       procedure :: print             => job_print
-   end type
-
-   type type_task_tree_node
-      integer                             :: source = source_unknown
-      type (type_task_tree_node), pointer :: next_sibling => null()
-      type (type_task_tree_node), pointer :: first_child  => null()
-      type (type_task_tree_node), pointer :: parent       => null()
-   contains
-      procedure :: to_string         => task_tree_node_to_string
-      procedure :: get_minimum_depth => task_tree_node_get_minimum_depth
-      procedure :: get_leaf_at_depth => task_tree_node_get_leaf_at_depth
    end type
 
    contains
@@ -1376,63 +1318,77 @@ recursive subroutine find_dependencies(self,list,forbidden)
    call forbidden_with_self%finalize()
 end subroutine find_dependencies
 
-subroutine job_select_order(self)
+subroutine job_initialize(self)
    class (type_job), intent(inout) :: self
 
    type (type_graph_subset_node_set)   :: subset
    type (type_task_tree_node)          :: root
    class (type_task_tree_node),pointer :: leaf
    integer                             :: ntasks
+   type (type_task),           pointer :: task
+   integer                             :: unit,ios
 
+   ! Save graph
+   !open(newunit=unit,file='graph.gv',action='write',status='replace',iostat=ios)
+   !call self%graph%save_as_dot(unit)
+   !close(unit)
+
+   ! Create tree that describes all possible task orders (root is at the right of the call list, i.e., at the end of the very last call)
    call create_graph_subset_node_set(self%graph,subset)
    call subset%branch(root)
+
+   ! Determine optimum task order and use it to create the task objects.
    ntasks = root%get_minimum_depth()-1
    write (*,'(a,i0,a)') 'Best task order contains ',ntasks,' tasks.'
    leaf => root%get_leaf_at_depth(ntasks+1)
    write (*,'(a,a)') 'Best task order: ',trim(leaf%to_string())
-   call describe_task_order(leaf)
-   if (associated(subset%first)) call driver%fatal_error('job_select_order','BUG: graph subset should be empty after describe_task_order.')
+   if (ntasks>0) call create_tasks(leaf)
+   if (associated(subset%first)) call driver%fatal_error('job_select_order','BUG: graph subset should be empty after create_tasks.')
 
-contains
-
-   recursive subroutine describe_task_order(tree_node)
-      type (type_task_tree_node),target,intent(in) :: tree_node
-
-      type (type_graph_subset_node_set)              :: removed
-      type (type_graph_subset_node_pointer), pointer :: pnode
-
-      if (associated(tree_node%parent)) call describe_task_order(tree_node%parent)
-      call subset%collect(tree_node%source,removed)
-      write (*,'(a,i0)') 'SOURCE = ',tree_node%source
-      pnode => removed%first
-      do while (associated(pnode))
-         write (*,'("   ",a)') trim(pnode%p%graph_node%as_string())
-         pnode => pnode%next
-      end do
-      call removed%finalize()
-   end subroutine describe_task_order
-
-end subroutine job_select_order
-
-subroutine job_initialize(self)
-   class (type_job), intent(inout) :: self
-
-   type (type_task), pointer :: task
-   integer :: unit,ios
-
-   open(newunit=unit,file='graph.gv',action='write',status='replace',iostat=ios)
-   call self%graph%save_as_dot(unit)
-   close(unit)
-
-   call self%graph%get_longest_path()
-
-   call job_select_order(self)
-
+   ! Initialize tasks
    task => self%first
    do while (associated(task))
       call task%initialize()
       task => task%next
    end do
+
+contains
+
+   recursive subroutine create_tasks(tree_node)
+      type (type_task_tree_node),target,intent(in) :: tree_node
+
+      type (type_graph_subset_node_set)             :: removed
+      type (type_graph_subset_node_pointer),pointer :: pnode
+
+      type (type_task),                     pointer :: task
+      type (type_call),                     pointer :: call_node, previous_call_node
+
+      ! Start at the root of the tree.
+      if (associated(tree_node%parent%parent)) call create_tasks(tree_node%parent%parent)
+
+      allocate(task)
+      task%next => self%first
+      self%first => task
+      task%source = tree_node%source
+      call subset%collect(tree_node%source,removed)
+      previous_call_node => null()
+      pnode => removed%first
+      do while (associated(pnode))
+         allocate(call_node)
+         call_node%node   => pnode%p%graph_node
+         call_node%model  => pnode%p%graph_node%model
+         call_node%source =  pnode%p%graph_node%source
+         if (associated(previous_call_node)) then
+            previous_call_node%next => call_node
+         else
+            task%first => call_node
+         end if
+         previous_call_node => call_node
+         pnode => pnode%next
+      end do
+      call removed%finalize()
+   end subroutine create_tasks
+
 end subroutine job_initialize
 
 logical function is_source_compatible(current_source,new_source)
