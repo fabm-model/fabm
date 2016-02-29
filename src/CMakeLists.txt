@@ -161,6 +161,7 @@ add_library(fabm
             ${MODEL_OBJECTS}
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
             fabm_job.F90
+            fabm_graph.F90
             fabm_coupling.F90
             fabm.F90
             config/fabm_config_types.F90

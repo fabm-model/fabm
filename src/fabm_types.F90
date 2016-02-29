@@ -69,15 +69,42 @@
 
    integer, parameter, public :: rk = _FABM_REAL_KIND_
 
-   integer, parameter, public :: domain_interior = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
+   integer, parameter, public :: domain_interior   = 4, &
+                                 domain_horizontal = 8, &
+                                 domain_scalar     = 16, &
+                                 domain_bottom     = 9, &
+                                 domain_surface    = 10
 
-   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5, source_get_vertical_movement = 6, source_do_horizontal = 7
+   integer, parameter, public :: source_unknown                  =  0, &
+                                 source_do                       =  1, &
+                                 source_do_column                =  2, &
+                                 source_do_horizontal            =  3, &
+                                 source_do_bottom                =  4, &
+                                 source_do_surface               =  5, &
+                                 source_none                     =  6, &
+                                 source_get_vertical_movement    =  7, &
+                                 source_initialize_state         =  8, &
+                                 source_initialize_surface_state =  9, &
+                                 source_initialize_bottom_state  = 10, &
+                                 source_check_state              = 11, &
+                                 source_check_surface_state      = 12, &
+                                 source_check_bottom_state       = 13, &
+                                 source_get_light_extinction     = 14, &
+                                 source_get_drag                 = 15, &
+                                 source_get_albedo               = 16
 
-   integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
+   integer, parameter, public :: presence_internal          = 1, &
+                                 presence_external_required = 2, &
+                                 presence_external_optional = 6
 
-   integer, parameter, public :: prefill_none = 0, prefill_missing_value = 1, prefill_previous_value = 2
+   integer, parameter, public :: prefill_none           = 0, &
+                                 prefill_missing_value  = 1, &
+                                 prefill_previous_value = 2
 
-   integer, parameter, public :: access_none = 0, access_read = 1, access_set_source = 2, access_state = ior(access_read,access_set_source)
+   integer, parameter, public :: access_none       = 0, &
+                                 access_read       = 1, &
+                                 access_set_source = 2, &
+                                 access_state      = ior(access_read,access_set_source)
 !
 ! !PUBLIC TYPES:
 !
