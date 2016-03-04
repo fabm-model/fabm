@@ -81,6 +81,7 @@ module fabm_graph
    type type_node
       class (type_base_model), pointer :: model => null()
       integer                          :: source = source_unknown
+      logical                          :: not_stale = .false.
       type (type_input_variable_set)   :: inputs               ! input variables (irrespective of their source - can be constants, state variables, host-provided, or diagnostics computed by another node)
       type (type_node_set)             :: dependencies         ! direct dependencies
       type (type_output_variable_set)  :: outputs              ! output variables that a later called model requires
@@ -277,13 +278,13 @@ recursive function graph_add_call(self,model,source,outer_calls,not_stale,ignore
 end function graph_add_call
 
 recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,copy_to_store,not_stale,caller)
-   class (type_graph),                intent(inout) :: self
-   type (type_internal_variable),     intent(in)    :: variable
-   type (type_node_list),target,intent(inout) :: outer_calls
-   logical,optional,                  intent(in)    :: copy_to_cache
-   logical,optional,                  intent(in)    :: copy_to_store
-   logical,optional,                  intent(in)    :: not_stale
-   type (type_node),target,optional      :: caller
+   class (type_graph),              intent(inout) :: self
+   type (type_internal_variable),   intent(in)    :: variable
+   type (type_node_list),    target,intent(inout) :: outer_calls
+   logical,         optional,       intent(in)    :: copy_to_cache
+   logical,         optional,       intent(in)    :: copy_to_store
+   logical,         optional,       intent(in)    :: not_stale
+   type (type_node),optional,target,intent(inout) :: caller
 
    ! If this variable is not an output of some model (e.g., a state variable or external dependency), no call is needed.
    if (variable%write_indices%is_empty()) return
@@ -309,6 +310,7 @@ contains
       variable_node => node%outputs%add(variable)
       if (present(copy_to_cache)) variable_node%copy_to_cache = variable_node%copy_to_cache .or. copy_to_cache
       if (present(copy_to_store)) variable_node%copy_to_store = variable_node%copy_to_store .or. copy_to_store
+      if (present(not_stale)) node%not_stale = not_stale
       if (present(caller)) then
          call caller%dependencies%add(node)
          call variable_node%dependent_nodes%add(caller)

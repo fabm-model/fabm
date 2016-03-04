@@ -96,7 +96,6 @@ module fabm_job
       type (type_task),pointer :: first_task => null()
       type (type_task),pointer :: final_task  => null()
       type (type_graph)        :: graph
-      integer                  :: final_operation = source_unknown
    contains
       procedure :: initialize        => job_initialize
       procedure :: request_variable  => job_request_variable
@@ -520,10 +519,14 @@ module fabm_job
 
       task => self%first_task
       do while (associated(task))
-         write (*,'(a,i0)') 'TASK WITH OPERATION = ',task%operation
+         write (*,'(a,a)') 'TASK WITH OPERATION = ',trim(source2string(task%operation))
          call task%print()
          task => task%next
       end do
+      if (associated(self%final_task)) then
+         write (*,'(a,a)') 'FINAL TASK WITH OPERATION = ',trim(source2string(self%final_task%operation))
+         call self%final_task%print()
+      end if
    end subroutine job_print
 
 subroutine call_finalize(self)
@@ -773,8 +776,9 @@ recursive subroutine find_dependencies(self,list,forbidden)
    call forbidden_with_self%finalize()
 end subroutine find_dependencies
 
-subroutine job_initialize(self)
-   class (type_job), intent(inout) :: self
+subroutine job_initialize(self,final_operation)
+   class (type_job),intent(inout) :: self
+   integer,optional,intent(in)    :: final_operation
 
    type (type_graph_subset_node_set)   :: subset
    type (type_task_tree_node)          :: root
@@ -782,6 +786,7 @@ subroutine job_initialize(self)
    integer                             :: ntasks
    type (type_task),           pointer :: task
    integer                             :: unit,ios
+   type (type_call),           pointer :: call_node, new_call_node
 
    ! Save graph
    !open(newunit=unit,file='graph.gv',action='write',status='replace',iostat=ios)
@@ -790,8 +795,8 @@ subroutine job_initialize(self)
 
    ! Create tree that describes all possible task orders (root is at the right of the call list, i.e., at the end of the very last call)
    call create_graph_subset_node_set(self%graph,subset)
-   if (self%final_operation/=source_unknown) then
-      root%operation = self%final_operation
+   if (present(final_operation)) then
+      root%operation = final_operation
       call subset%collect_and_branch(root)
    else
       call subset%branch(root)
@@ -805,8 +810,6 @@ subroutine job_initialize(self)
    call create_tasks(leaf)
    if (associated(subset%first)) call driver%fatal_error('job_select_order','BUG: graph subset should be empty after create_tasks.')
 
-   call self%print()
-
    ! Initialize tasks
    task => self%first_task
    do while (associated(task))
@@ -814,7 +817,7 @@ subroutine job_initialize(self)
       task => task%next
    end do
 
-   if (self%final_operation/=source_unknown) then
+   if (present(final_operation)) then
       ! Separate the last task (remove from main task list)
       task => null()
       self%final_task => self%first_task
@@ -827,6 +830,25 @@ subroutine job_initialize(self)
       else
          self%first_task => null()
       end if
+
+      ! For any calls that MUST be processed as part of the last task, but currently are allocated to one of the earlier tasks,
+      ! create a separate call in the final task. Note that this implies the call will be made twice!
+      task => self%first_task
+      do while (associated(task))
+         call_node => task%first_call
+         do while (associated(call_node))
+            if (call_node%node%not_stale.and.is_source_compatible(self%final_task%operation,call_node%node%source)) then
+               allocate(new_call_node)
+               new_call_node%node   => call_node%node
+               new_call_node%model  => call_node%model
+               new_call_node%source =  call_node%source
+               new_call_node%next => self%final_task%first_call
+               self%final_task%first_call => new_call_node
+            end if
+            call_node => call_node%next
+         end do
+         task => task%next
+      end do
    end if
 
 contains

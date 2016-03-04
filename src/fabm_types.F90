@@ -2981,14 +2981,23 @@ end subroutine abstract_model_factory_create
    character(len=32) function source2string(source)
       integer, intent(in) :: source
       select case (source)
-      case (source_unknown);               source2string = 'unknown'
-      case (source_do);                    source2string = 'do'
-      case (source_do_column);             source2string = 'do_column'
-      case (source_do_bottom);             source2string = 'do_bottom'
-      case (source_do_surface);            source2string = 'do_surface'
-      case (source_none);                  source2string = 'none'
-      case (source_get_vertical_movement); source2string = 'get_vertical_movement'
-      case (source_do_horizontal);         source2string = 'do_horizontal'
+      case (source_unknown);                  source2string = 'unknown'
+      case (source_do);                       source2string = 'do'
+      case (source_do_column);                source2string = 'do_column'
+      case (source_do_horizontal);            source2string = 'do_horizontal'
+      case (source_do_bottom);                source2string = 'do_bottom'
+      case (source_do_surface);               source2string = 'do_surface'
+      case (source_none);                     source2string = 'none'
+      case (source_get_vertical_movement);    source2string = 'get_vertical_movement'
+      case (source_check_state);              source2string = 'check_state'
+      case (source_check_bottom_state);       source2string = 'check_bottom_state'
+      case (source_check_surface_state);      source2string = 'check_surface_state'
+      case (source_initialize_state);         source2string = 'initialize_state'
+      case (source_initialize_bottom_state);  source2string = 'initialize_bottom_state'
+      case (source_initialize_surface_state); source2string = 'initialize_surface_state'
+      case (source_get_light_extinction);     source2string = 'get_light_extinction'
+      case (source_get_drag);                 source2string = 'get_drag'
+      case (source_get_albedo);               source2string = 'get_albedo'
       case default
          write (source2string,'(i0)') source
       end select

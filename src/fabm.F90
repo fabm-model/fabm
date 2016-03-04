@@ -792,43 +792,54 @@
    self%zero_hz = 0.0_rk
    call self%link_horizontal_data('zero_hz',self%zero_hz)
 
-   self%do_bottom_job%final_operation = source_do_bottom
    call require_flux_computation(self%do_bottom_job,self%links_postcoupling,domain_bottom)
    call self%do_bottom_job%set_next(self%do_surface_job)
-   self%do_surface_job%final_operation = source_do_surface
    call require_flux_computation(self%do_surface_job,self%links_postcoupling,domain_surface)
    call self%do_surface_job%set_next(self%do_interior_job)
-   self%do_interior_job%final_operation = source_do
    call require_flux_computation(self%do_interior_job,self%links_postcoupling,domain_interior)
 
-   !call self%bottom_job%print()
-   !call self%do_bottom_job%initialize()
-   !write (*,*) '***self%prepare_do_bottom_job***'
-   !call self%do_bottom_job%print()
-   !self%prepare_do_bottom_superjob = prepare_do_bottom_job%create_superjob()
+   call require_call_all_with_state(self%get_vertical_movement_job,self%root%links,domain_interior,source_get_vertical_movement,ignore_dependencies=.true.)
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      if (associated(link%target%movement_diagnostic)) call self%get_vertical_movement_job%request_variable(link%target%movement_diagnostic%target)
+      link => link%next
+   end do
+
+   call require_call_all_with_state(self%initialize_state_job,self%root%links,domain_interior,source_initialize_state,ignore_dependencies=.true.)
+   call require_call_all_with_state(self%initialize_bottom_state_job,self%root%links,domain_bottom,source_initialize_bottom_state,ignore_dependencies=.true.)
+   call require_call_all_with_state(self%initialize_surface_state_job,self%root%links,domain_surface,source_initialize_surface_state,ignore_dependencies=.true.)
+   call require_call_all_with_state(self%check_state_job,self%root%links,domain_interior,source_check_state,ignore_dependencies=.true.)
+   call require_call_all_with_state(self%check_bottom_state_job,self%root%links,domain_bottom,source_check_bottom_state,ignore_dependencies=.true.)
+   call require_call_all_with_state(self%check_surface_state_job,self%root%links,domain_surface,source_check_surface_state,ignore_dependencies=.true.)
+   call require_call_all(self%get_albedo_job,self%root,source_get_albedo,ignore_dependencies=.true.)
+   call require_call_all(self%get_drag_job,self%root,source_get_drag,ignore_dependencies=.true.)
 
    ! Create job that ensures all diagnostics required by the user are computed.
    call self%do_interior_job%set_next(self%get_diagnostics_job)
    do ivar=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(ivar)%save) &
-         call self%get_diagnostics_job%request_variable(self%diagnostic_variables(ivar)%target,copy_to_store=.true.)
+      if (self%diagnostic_variables(ivar)%save) then
+         select case (self%diagnostic_variables(ivar)%target%source)
+         case (source_check_state)
+            call self%check_state_job%request_variable(self%diagnostic_variables(ivar)%target,copy_to_store=.true.)
+         case (source_get_vertical_movement)
+            call self%get_vertical_movement_job%request_variable(self%diagnostic_variables(ivar)%target,copy_to_store=.true.)
+         case default
+            call self%get_diagnostics_job%request_variable(self%diagnostic_variables(ivar)%target,copy_to_store=.true.)
+         end select
+      end if
    end do
    do ivar=1,size(self%horizontal_diagnostic_variables)
       if (self%horizontal_diagnostic_variables(ivar)%save) &
          call self%get_diagnostics_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target,copy_to_store=.true.)
    end do
 
-   !call append_to_call_list(self%get_light_job,self%links_postcoupling,source_do_column,(/source_do_column/))
-   !call append_to_call_list(self%get_light_extinction_job,self%links_postcoupling,source_do_column,(/source_do_column,source_do/))
-   !call self%get_light_extinction_job%filter(source_do_column)
-   !call append_to_call_list(self%prepare_job,self%links_postcoupling,source_do_bottom,(/source_do_column,source_do,source_do_horizontal/),.true.)
-   !call append_to_call_list(self%prepare_job,self%links_postcoupling,source_do,(/source_do_column,source_do,source_do_horizontal/),.true.)
-   !call self%prepare_job%print()
-   !do ivar=1,size(self%conserved_quantities)
-   !   call append_variable_to_call_list(self%get_conserved_quantities_job,self%conserved_quantities(ivar)%target,source_do,(/source_do/))
-   !   call append_variable_to_call_list(self%get_horizontal_conserved_quantities_job,self%conserved_quantities(ivar)%target_hz,source_do_horizontal,(/source_do_bottom,source_unknown,source_do_horizontal/))
-   !end do
-   !call append_variable_to_call_list(self%get_light_extinction_job,self%extinction_target,source_do,(/source_do/))
+   ! Note: aggregate variables below are copied to read cache, just in case they are not diagnostics
+   ! (they may be equal to a state variable, or to zero)
+   do ivar=1,size(self%conserved_quantities)
+      call self%get_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target,copy_to_cache=.true.)
+      call self%get_horizontal_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target_hz,copy_to_cache=.true.)
+   end do
+   call self%get_light_extinction_job%request_variable(self%extinction_target,copy_to_cache=.true.)
 
    ! Merge diagnostic variables that contribute to the same sink/source terms,
    ! surface fluxes, bottom fluxes, provided no other variables depend on them.
@@ -1181,23 +1192,23 @@
    call filter_readable_variable_registry(self)
 
    ! Initialize all jobs - must be done after the call to filter_readable_variable_registry because that
-   ! finalizes the set of variables for which inout data is available.
-   call self%do_interior_job%initialize()
-   call self%do_bottom_job%initialize()
-   call self%do_surface_job%initialize()
-   call self%get_vertical_movement_job%initialize()
-   call self%get_conserved_quantities_job%initialize()
-   call self%get_horizontal_conserved_quantities_job%initialize()
-   call self%get_light_extinction_job%initialize()
-   call self%get_drag_job%initialize()
-   call self%get_albedo_job%initialize()
+   ! finalizes the set of variables for which input data is available.
+   call self%do_interior_job%initialize(final_operation=source_do)
+   call self%do_surface_job%initialize(final_operation=source_do_surface)
+   call self%do_bottom_job%initialize(final_operation=source_do_bottom)
+   call self%get_vertical_movement_job%initialize(final_operation=source_do)
+   call self%get_conserved_quantities_job%initialize(final_operation=source_do)
+   call self%get_horizontal_conserved_quantities_job%initialize(final_operation=source_do_horizontal)
+   call self%get_light_extinction_job%initialize(final_operation=source_do)
+   call self%get_drag_job%initialize(final_operation=source_do_surface)
+   call self%get_albedo_job%initialize(final_operation=source_do_surface)
    call self%get_diagnostics_job%initialize()
-   call self%check_state_job%initialize()
-   call self%check_bottom_state_job%initialize()
-   call self%check_surface_state_job%initialize()
-   call self%initialize_state_job%initialize()
-   call self%initialize_bottom_state_job%initialize()
-   call self%initialize_surface_state_job%initialize()
+   call self%check_state_job%initialize(final_operation=source_do)
+   call self%check_bottom_state_job%initialize(final_operation=source_do_bottom)
+   call self%check_surface_state_job%initialize(final_operation=source_do_surface)
+   call self%initialize_state_job%initialize(final_operation=source_do)
+   call self%initialize_bottom_state_job%initialize(final_operation=source_do_bottom)
+   call self%initialize_surface_state_job%initialize(final_operation=source_do_surface)
 
    call self%do_interior_job%print()
 
@@ -2623,7 +2634,7 @@ end subroutine begin_horizontal_task
 subroutine load_surface_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    type (type_model),intent(inout) :: self
    type (type_task), intent(in)    :: task
-   type (type_cache),intent(out)   :: cache
+   type (type_cache),intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
@@ -2663,7 +2674,7 @@ end subroutine load_surface_data
 subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    type (type_model),intent(inout) :: self
    type (type_task), intent(in)    :: task
-   type (type_cache),intent(out)   :: cache
+   type (type_cache),intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
@@ -4885,20 +4896,6 @@ end subroutine
       end do
    end subroutine build_call_list
 
-   recursive subroutine require_call_all(self,model,source)
-      type (type_job),        intent(inout) :: self
-      class (type_base_model),intent(in)    :: model
-      integer,                intent(in)    :: source
-
-      type (type_model_list_node),pointer :: node
-
-      node => model%children%first
-      do while (associated(node))
-         call require_call_all(self,node%model,source)
-         node => node%next
-      end do
-   end subroutine require_call_all
-
    subroutine require_flux_computation(self,link_list,domain)
       type (type_job),      intent(inout) :: self
       type (type_link_list),intent(in)    :: link_list
@@ -4927,6 +4924,39 @@ end subroutine
          link => link%next
       end do
    end subroutine require_flux_computation
+
+   recursive subroutine require_call_all(self,model,source,ignore_dependencies)
+      type (type_job),        intent(inout) :: self
+      class (type_base_model),intent(in)    :: model
+      integer,                intent(in)    :: source
+      logical,optional,       intent(in)    :: ignore_dependencies
+
+      type (type_model_list_node),pointer :: node
+
+      node => model%children%first
+      do while (associated(node))
+         call require_call_all(self,node%model,source,ignore_dependencies)
+         call self%request_call(node%model,source,ignore_dependencies)
+         node => node%next
+      end do
+   end subroutine require_call_all
+
+   subroutine require_call_all_with_state(self,link_list,domain,source,ignore_dependencies)
+      type (type_job),      intent(inout) :: self
+      type (type_link_list),intent(in)    :: link_list
+      integer,              intent(in)    :: domain
+      integer,              intent(in)    :: source
+      logical,optional,     intent(in)    :: ignore_dependencies
+
+      type (type_link), pointer :: link
+
+      link => link_list%first
+      do while (associated(link))
+         if (link%target%domain==domain.and..not.link%original%state_indices%is_empty().and..not.link%target%fake_state_variable) &
+            call self%request_call(link%original%owner,source,ignore_dependencies)
+         link => link%next
+      end do
+   end subroutine require_call_all_with_state
 
    subroutine check_interior_location(self _ARGUMENTS_INTERIOR_IN_,routine)
       class (type_model),intent(in) :: self
