@@ -798,6 +798,8 @@
    call self%do_surface_job%set_next(self%do_interior_job)
    call require_flux_computation(self%do_interior_job,self%links_postcoupling,domain_interior)
 
+   ! For vertical movement rates, call all models that access interior state variables,
+   ! and explicitly express interest in the movement diagnostics so they will be properly prefilled.
    call require_call_all_with_state(self%get_vertical_movement_job,self%root%links,domain_interior,source_get_vertical_movement,ignore_dependencies=.true.)
    link => self%links_postcoupling%first
    do while (associated(link))
@@ -810,7 +812,9 @@
    call require_call_all_with_state(self%initialize_surface_state_job,self%root%links,domain_surface,source_initialize_surface_state,ignore_dependencies=.true.)
    call require_call_all_with_state(self%check_state_job,self%root%links,domain_interior,source_check_state,ignore_dependencies=.true.)
    call require_call_all_with_state(self%check_bottom_state_job,self%root%links,domain_bottom,source_check_bottom_state,ignore_dependencies=.true.)
+   call require_call_all_with_state(self%check_bottom_state_job,self%root%links,domain_interior,source_check_bottom_state,ignore_dependencies=.true.)
    call require_call_all_with_state(self%check_surface_state_job,self%root%links,domain_surface,source_check_surface_state,ignore_dependencies=.true.)
+   call require_call_all_with_state(self%check_surface_state_job,self%root%links,domain_interior,source_check_surface_state,ignore_dependencies=.true.)
    call require_call_all(self%get_albedo_job,self%root,source_get_albedo,ignore_dependencies=.true.)
    call require_call_all(self%get_drag_job,self%root,source_get_drag,ignore_dependencies=.true.)
 
@@ -1202,7 +1206,7 @@
    call self%get_light_extinction_job%initialize(final_operation=source_do)
    call self%get_drag_job%initialize(final_operation=source_do_surface)
    call self%get_albedo_job%initialize(final_operation=source_do_surface)
-   call self%get_diagnostics_job%initialize()
+   call self%get_diagnostics_job%initialize(outsource_tasks=.true.)
    call self%check_state_job%initialize(final_operation=source_do)
    call self%check_bottom_state_job%initialize(final_operation=source_do_bottom)
    call self%check_surface_state_job%initialize(final_operation=source_do_surface)
@@ -1210,7 +1214,7 @@
    call self%initialize_bottom_state_job%initialize(final_operation=source_do_bottom)
    call self%initialize_surface_state_job%initialize(final_operation=source_do_surface)
 
-   call self%do_interior_job%print()
+   !call self%do_bottom_job%print()
 
    self%state = state_check_ready_done
 

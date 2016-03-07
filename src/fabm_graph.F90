@@ -16,7 +16,7 @@ module fabm_graph
    implicit none
 
    public type_graph, type_node, type_node_set_member, type_node_list, type_node_list_member
-   public type_output_variable, type_input_variable
+   public type_output_variable, type_input_variable, type_input_variable_set
 
    private
 
