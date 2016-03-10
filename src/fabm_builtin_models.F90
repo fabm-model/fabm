@@ -149,11 +149,13 @@ module fabm_builtin_models
       class (type_base_model),pointer :: model
 
       select case (name)
-         case ('bulk_constant');       allocate(type_bulk_constant::model)
-         case ('horizontal_constant'); allocate(type_horizontal_constant::model)
-         case ('surface_flux');        allocate(type_constant_surface_flux::model)
-         case ('constant_surface_flux');allocate(type_constant_surface_flux::model)
-         case ('external_surface_flux');allocate(type_external_surface_flux::model)
+         case ('bulk_constant');          allocate(type_bulk_constant::model)
+         case ('horizontal_constant');    allocate(type_horizontal_constant::model)
+         case ('surface_flux');           allocate(type_constant_surface_flux::model)
+         case ('constant_surface_flux');  allocate(type_constant_surface_flux::model)
+         case ('external_surface_flux');  allocate(type_external_surface_flux::model)
+         case ('weighted_sum');           allocate(type_weighted_sum::model)
+         case ('horizontal_weighted_sum');allocate(type_horizontal_weighted_sum::model)
          ! Add new examples models here
       end select
 
@@ -219,17 +221,24 @@ module fabm_builtin_models
       integer,                  intent(in)           :: configunit
 
       type (type_component),pointer :: component
-      integer           :: ncomponents
+      integer           :: ncomponents, i
       character(len=10) :: temp
+      real(rk)          :: weight
       class (type_weighted_sum_sms_distributor), pointer :: sms_distributor
+
+      call self%get_parameter(ncomponents,'n','','number of terms in summation',default=0,minimum=0)
+      do i=1,ncomponents
+         call self%add_component('')
+      end do
 
       ncomponents = 0
       component => self%first
       do while (associated(component))
          ncomponents = ncomponents + 1
          write (temp,'(i0)') ncomponents
+         call self%get_parameter(component%weight,'weight'//trim(temp),'-','weight for term '//trim(temp),default=component%weight)
          call self%register_dependency(component%id,'term'//trim(temp),self%units,'term '//trim(temp))
-         call self%request_coupling(component%id,trim(component%name))
+         if (component%name/='') call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
       call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output) !,act_as_state_variable=iand(self%access,access_set_source)/=0)
@@ -402,14 +411,21 @@ module fabm_builtin_models
       integer,                             intent(in)           :: configunit
 
       type (type_horizontal_component),pointer :: component
-      integer           :: i
+      integer           :: i,n
       character(len=10) :: temp
+      real(rk)          :: weight
+
+      call self%get_parameter(n,'n','','number of terms in summation',default=0,minimum=0)
+      do i=1,n
+         call self%add_component('')
+      end do
 
       i = 0
       component => self%first
       do while (associated(component))
          i = i + 1
          write (temp,'(i0)') i
+         call self%get_parameter(component%weight,'weight'//trim(temp),'-','weight for term '//trim(temp),default=component%weight)
          call self%register_dependency(component%id,'term'//trim(temp),self%units,'term '//trim(temp))
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
