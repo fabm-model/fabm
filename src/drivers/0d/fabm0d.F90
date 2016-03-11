@@ -692,6 +692,8 @@
 
       ! Verify whether the model state is still valid (clip if needed and allowed)
       call fabm_check_state(model,repair_state,valid_state)
+      if (valid_state .or. repair_state) call fabm_check_bottom_state(model,repair_state,valid_state)
+      if (valid_state .or. repair_state) call fabm_check_surface_state(model,repair_state,valid_state)
       if (.not. (valid_state .or. repair_state)) &
          call fatal_error('time_loop','State variable values are invalid and repair is not allowed. &
             &This may be fixed by setting repair_state=.true. (clip state to nearest valid value), &
