@@ -14,6 +14,8 @@
    use field_manager
    use fabm
    use fabm_types, only: rk,output_none
+   use fabm_properties
+
    IMPLICIT NONE
 !
 !  default: all is private.
@@ -146,7 +148,7 @@
    class (type_model), intent(inout)   :: model
 !
 ! !LOCAL VARIABLES:
-   integer          :: i,output_level
+   integer          :: i
    logical          :: in_output
    real(rk),pointer :: pdata
 !EOP
@@ -156,49 +158,22 @@
 
    ! state variables
    do i=1,size(model%state_variables)
-      output_level = output_level_default
-      if (model%state_variables(i)%output==output_none) output_level = output_level_debug
-      call fm%register(model%state_variables(i)%name, model%state_variables(i)%units, &
-                       model%state_variables(i)%long_name, minimum=model%state_variables(i)%minimum, &
-                       maximum=model%state_variables(i)%maximum, fill_value=model%state_variables(i)%missing_value, &
-                       category='fabm'//model%state_variables(i)%target%owner%get_path(), output_level=output_level)
+      in_output = register(model%state_variables(i))
    end do
-
-   ! bottom state variables
    do i=1,size(model%bottom_state_variables)
-      output_level = output_level_default
-      if (model%bottom_state_variables(i)%output==output_none) output_level = output_level_debug
-      call fm%register(model%bottom_state_variables(i)%name, model%bottom_state_variables(i)%units, &
-                       model%bottom_state_variables(i)%long_name, minimum=model%bottom_state_variables(i)%minimum, &
-                       maximum=model%bottom_state_variables(i)%maximum, fill_value=model%bottom_state_variables(i)%missing_value, &
-                       category='fabm'//model%bottom_state_variables(i)%target%owner%get_path(), output_level=output_level)
+      in_output = register(model%bottom_state_variables(i))
    end do
-
-   ! surface state variables
    do i=1,size(model%surface_state_variables)
-      output_level = output_level_default
-      if (model%surface_state_variables(i)%output==output_none) output_level = output_level_debug
-      call fm%register(model%surface_state_variables(i)%name, model%surface_state_variables(i)%units, &
-                       model%surface_state_variables(i)%long_name, minimum=model%surface_state_variables(i)%minimum, &
-                       maximum=model%surface_state_variables(i)%maximum, fill_value=model%surface_state_variables(i)%missing_value, &
-                       category='fabm'//model%surface_state_variables(i)%target%owner%get_path(), output_level=output_level)
+      in_output = register(model%surface_state_variables(i))
    end do
 
    ! diagnostic variables
    do i=1,size(model%diagnostic_variables)
-      output_level = output_level_default
-      if (model%diagnostic_variables(i)%output==output_none) output_level = output_level_debug
-      call fm%register(model%diagnostic_variables(i)%name, model%diagnostic_variables(i)%units, &
-                       model%diagnostic_variables(i)%long_name, minimum=model%diagnostic_variables(i)%minimum, maximum=model%diagnostic_variables(i)%maximum, &
-                       fill_value=model%diagnostic_variables(i)%missing_value, category='fabm'//model%diagnostic_variables(i)%target%owner%get_path(), output_level=output_level, used=in_output)
+      in_output = register(model%diagnostic_variables(i))
       if (in_output) model%diagnostic_variables(i)%save = .true.
    end do
    do i=1,size(model%horizontal_diagnostic_variables)
-      output_level = output_level_default
-      if (model%horizontal_diagnostic_variables(i)%output==output_none) output_level = output_level_debug
-      call fm%register(model%horizontal_diagnostic_variables(i)%name, model%horizontal_diagnostic_variables(i)%units, &
-                       model%horizontal_diagnostic_variables(i)%long_name, minimum=model%horizontal_diagnostic_variables(i)%minimum, maximum=model%horizontal_diagnostic_variables(i)%maximum, &
-                       fill_value=model%horizontal_diagnostic_variables(i)%missing_value, category='fabm'//model%horizontal_diagnostic_variables(i)%target%owner%get_path(), output_level=output_level, used=in_output)
+      in_output = register(model%horizontal_diagnostic_variables(i))
       if (in_output) model%horizontal_diagnostic_variables(i)%save = .true.
    end do
 
@@ -224,8 +199,30 @@
          call fm%send_data(model%horizontal_diagnostic_variables(i)%name, fabm_get_horizontal_diagnostic_data(model,i))
    end do
 
+   contains
 
-   return
+   function register(variable) result(used)
+      class (type_external_variable),intent(in) :: variable
+      logical                                   :: used
+
+      integer                        :: output_level
+      type (type_field),     pointer :: field
+      class (type_property), pointer :: property
+
+      output_level = output_level_default
+      if (variable%output==output_none) output_level = output_level_debug
+      call fm%register(variable%name, variable%units, variable%long_name, &
+                       minimum=variable%minimum, maximum=variable%maximum, fill_value=variable%missing_value, &
+                       category='fabm'//variable%target%owner%get_path(), output_level=output_level, used=used, field=field)
+      property => variable%properties%first
+      do while (associated(property))
+         select type (property)
+         class is (type_real_property); call field%set_attribute(property%name,property%value)
+         end select
+         property => property%next
+      end do
+   end function register
+
    end subroutine register_fabm_variables
 !EOC
 
