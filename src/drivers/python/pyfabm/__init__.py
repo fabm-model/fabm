@@ -102,6 +102,9 @@ fabm.get_bulk_diagnostic_data.restype = None
 fabm.get_horizontal_diagnostic_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
 fabm.get_horizontal_diagnostic_data.restype = None
 
+fabm.check_ready.argtypes = []
+fabm.check_ready.restype = None
+
 # Routine for retrieving source-sink terms for the interior domain.
 fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS')]
 fabm.get_rates.restype = None
@@ -510,6 +513,7 @@ class Model(object):
              print 'Value for dependency %s is not set.' % dependency.name
              ready = False
        assert ready or not stop,'Not all dependencies have been fulfilled.'
+       fabm.check_ready()
        return ready
 
     def printInformation(self):

@@ -161,7 +161,7 @@
       call get_couplings(model,coupling_link_list)
    end subroutine reinitialize
 
-   subroutine check_ready()
+   subroutine check_ready() bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: check_ready
       call fabm_check_ready(model)
    end subroutine check_ready
@@ -378,7 +378,9 @@
       call c_f_pointer(c_loc(pelagic_rates_),pelagic_rates, &
         (/size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)/))
       pelagic_rates = 0.0_rk
-      call fabm_do(model,pelagic_rates)
+      call fabm_do_bottom(model,pelagic_rates(1:size(model%state_variables)),pelagic_rates(size(model%state_variables)+size(model%surface_state_variables)+1:))
+      call fabm_do_surface(model,pelagic_rates(1:size(model%state_variables)),pelagic_rates(size(model%state_variables)+1:size(model%state_variables)+size(model%surface_state_variables)))
+      call fabm_do(model,pelagic_rates(1:size(model%state_variables)))
 
       ! Compute rate of change in conserved quantities
       !call fabm_state_to_conserved_quantities(model,pelagic_rates,conserved_rates)
