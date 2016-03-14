@@ -602,11 +602,6 @@
       ! Update environment (i.e., read from input files)
       call do_input(julianday,secondsofday)
 
-      ! Calculate light extinction
-      extinction = 0.0_rk
-      if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
-      extinction = extinction + par_background_extinction
-
       ! Calculate photosynthetically active radiation at surface, if it is not provided in the input file.
       if (swr_method==0) then
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
@@ -625,6 +620,11 @@
 
       ! Apply light attentuation with depth, unless local light is provided in the input file.
       if (swr_method/=2) then
+         ! Calculate light extinction
+         extinction = 0.0_rk
+         if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
+         extinction = extinction + par_background_extinction
+
          ! Either we calculate surface PAR, or surface PAR is provided.
          ! Calculate the local PAR at the given depth from par fraction, extinction coefficient, and depth.
          par_ct = par_sf*exp(-0.5_rk*column_depth*extinction)
@@ -634,8 +634,6 @@
          par_bt = par_sf
       end if
       call update_depth(CENTER)
-
-      call fabm_get_light(model)
 
       ! Compute density from temperature and salinity, if required by biogeochemistry.
       if (compute_density) dens = rho_feistel(salt,temp,5._rk*column_depth,.true.)

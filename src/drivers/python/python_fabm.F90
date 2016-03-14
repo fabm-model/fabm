@@ -371,10 +371,7 @@
       real(c_double),target,intent(in) :: pelagic_rates_(*)
 
       real(c_double),pointer :: pelagic_rates(:)
-      real(rk)               :: ext
 
-      call fabm_get_light_extinction(model,ext)
-      call fabm_get_light(model)
       call c_f_pointer(c_loc(pelagic_rates_),pelagic_rates, &
         (/size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)/))
       pelagic_rates = 0.0_rk
