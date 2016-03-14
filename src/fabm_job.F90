@@ -508,7 +508,8 @@ module fabm_job
          ilast = 0
          input_variable => inputs%first
          do while (associated(input_variable))
-            if (iand(input_variable%target%domain,domain)/=0) ilast = max(ilast,input_variable%target%read_indices%value)
+            if (iand(input_variable%target%domain,domain)/=0 .and. input_variable%target%read_indices%value/=-1) &
+               ilast = max(ilast,input_variable%target%read_indices%value)
             input_variable => input_variable%next
          end do
 
@@ -517,7 +518,8 @@ module fabm_job
 
          input_variable => inputs%first
          do while (associated(input_variable))
-            if (iand(input_variable%target%domain,domain)/=0) load(input_variable%target%read_indices%value) = .true.
+            if (iand(input_variable%target%domain,domain)/=0 .and. input_variable%target%read_indices%value/=-1) &
+               load(input_variable%target%read_indices%value) = .true.
             input_variable => input_variable%next
          end do
       end subroutine create_load_commands
