@@ -705,7 +705,9 @@ subroutine job_request_variable(self,variable,copy_to_cache,copy_to_store,not_st
 
    ! If this variable is not written [but a field provided by the host or a state variable], return immediately.
    if (variable%write_indices%is_empty().or.variable%source==source_none) then
-      if (copy_to_cache) call self%required_cache_loads%add(variable)
+      if (present(copy_to_cache)) then
+         if (copy_to_cache) call self%required_cache_loads%add(variable)
+      end if
       return
    end if
 
