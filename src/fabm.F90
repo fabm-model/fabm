@@ -4144,6 +4144,12 @@ end subroutine internal_check_horizontal_state
       ! Jobs must be applied across the entire depth range (if any),
       ! so we set vertical start and stop indices here.
       integer :: _VERTICAL_START_,_VERTICAL_STOP_
+#  if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
+      integer :: _ITERATOR_
+#  endif
+#  if _FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
+      integer :: _VERTICAL_ITERATOR_
+#  endif
       _VERTICAL_START_ = 1
       _VERTICAL_STOP_ = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
@@ -4152,11 +4158,23 @@ end subroutine internal_check_horizontal_state
       do while (associated(task))
          select case (task%operation)
          case (source_do)
-            call fabm_process_interior_slice(self,task _ARGUMENTS_INTERIOR_IN_)
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
+            do _VERTICAL_ITERATOR_=_VERTICAL_START_,_VERTICAL_STOP_
+#endif
+               call fabm_process_interior_slice(self,task _ARGUMENTS_INTERIOR_IN_)
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
+            end do
+#endif
          case (source_do_surface,source_do_bottom,source_do_horizontal)
             call fabm_process_horizontal_slice(self,task _ARGUMENTS_HORIZONTAL_IN_)
          case (source_do_column)
-            call fabm_process_vertical_slice(self,task _ARGUMENTS_VERTICAL_IN_)
+#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
+            do _ITERATOR_=_START_,_STOP_
+#endif
+               call fabm_process_vertical_slice(self,task _ARGUMENTS_VERTICAL_IN_)
+#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
+            end do
+#endif
          end select
          task => task%next
       end do

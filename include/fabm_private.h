@@ -176,12 +176,15 @@
 #endif
 
 #if _FABM_VECTORIZED_DIMENSION_INDEX_==1
+#  define _ITERATOR_ i__
 #  define _START_ istart__
 #  define _STOP_ istop__
 #elif _FABM_VECTORIZED_DIMENSION_INDEX_==2
+#  define _ITERATOR_ j__
 #  define _START_ jstart__
 #  define _STOP_ jstop__
 #elif _FABM_VECTORIZED_DIMENSION_INDEX_==3
+#  define _ITERATOR_ k__
 #  define _START_ kstart__
 #  define _STOP_ kstop__
 #endif
