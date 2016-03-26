@@ -1,0 +1,4 @@
+module fabm_version
+   character(len=*),parameter :: git_commit_id = "@GIT_COMMIT_ID@"
+   character(len=*),parameter :: git_branch_name = "@GIT_BRANCH_NAME@"
+end module

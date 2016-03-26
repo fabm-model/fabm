@@ -131,6 +131,22 @@ include_directories("${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}"
                     "${CMAKE_CURRENT_BINARY_DIR}/modules"
                    )
 
+set(GIT_COMMIT_ID unknown)
+set(GIT_BRANCH_NAME unknown)
+configure_file(${PROJECT_SOURCE_DIR}/fabm_version.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90)
+option(FABM_EMBED_VERSION "Embed FABM version information" OFF)
+if(FABM_EMBED_VERSION)
+  set(GET_GIT_INFO_SCRIPT "${PROJECT_SOURCE_DIR}/cmake/Modules/GetGitInfo.cmake")
+  add_custom_target(fabm_version
+     ${CMAKE_COMMAND} -DINFILE=${PROJECT_SOURCE_DIR}/fabm_version.F90.in -DOUTFILE=${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90 -P ${GET_GIT_INFO_SCRIPT}
+     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+     COMMENT "Retrieving description of last FABM commit..." 
+     SOURCES ${PROJECT_SOURCE_DIR}/fabm_version.F90.in ${GET_GIT_INFO_SCRIPT}
+     VERBATIM
+  )
+  set_property(TARGET fabm_version PROPERTY FOLDER fabm)
+endif()
+
 add_library(fabm_base OBJECT
             fabm_driver.F90
             fabm_standard_variables.F90
@@ -160,6 +176,7 @@ add_library(fabm
             $<TARGET_OBJECTS:fabm_base>
             ${MODEL_OBJECTS}
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
+            ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
             fabm_coupling.F90
             fabm.F90
             config/fabm_config_types.F90
@@ -169,6 +186,10 @@ add_library(fabm
 
 # Group config source files in a folder in IDEs that support this.
 source_group(config REGULAR_EXPRESSION config/)
+
+if(FABM_EMBED_VERSION)
+  add_dependencies(fabm fabm_version)
+endif()
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
 set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
