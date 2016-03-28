@@ -42,9 +42,6 @@ endif()
 set(FABM_FORCED_HOST 0d)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
 
-# generate GOTM's version.h
-configure_file("${GOTM_BASE}/include/version.h.in" "${CMAKE_BINARY_DIR}/gotm/version.h")
-
 # Build 0d executable.
 add_executable (fabm0d
                 main.F90
@@ -89,7 +86,6 @@ set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_
 set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/fabm/modules")
 
 # Set include directories with header files (*.h) for GOTM - version.h, cppdefs.h, ode_solver_template.F90.
-set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/gotm")
 set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTM_BASE}/include")
 set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES "${GOTM_BASE}/src/util")
 
