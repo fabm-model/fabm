@@ -31,7 +31,9 @@
    call CPU_Time(t1)
    call Date_And_Time(datestr,timestr)
    STDERR LINE
-   STDERR '0D FABM driver (using GOTM infrastructure): Started on  ',datestr,' ',timestr
+   STDERR '0D FABM driver (using GOTM infrastructure)'
+   STDERR 'FABM version: ',git_commit_id,' (',git_branch_name,' branch)'
+   STDERR 'Started on  ',datestr,' ',timestr
    STDERR LINE
 
    call init_run()
@@ -41,11 +43,7 @@
    call CPU_Time(t2)
    call Date_And_Time(datestr,timestr)
    STDERR LINE
-   STDERR
-   STDERR LINE
-   STDERR 'FABM version: ',git_commit_id,' (',git_branch_name,' branch)'
-   STDERR LINE
-   STDERR '0D FABM driver: Finished on ',datestr,' ',timestr
+   STDERR 'Finished on ',datestr,' ',timestr
    STDERR 'CPU-time was in loop:  ',t2-t1,' seconds'
    STDERR 'Sim-time/CPU-time:     ',simtime/(t2-t1)
    STDERR LINE
