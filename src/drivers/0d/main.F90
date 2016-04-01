@@ -14,6 +14,9 @@
    use time
    use fabm_0d
    use fabm_version
+#ifdef NETCDF4
+   use netcdf
+#endif
 !
    IMPLICIT NONE
 !
@@ -32,7 +35,10 @@
    call Date_And_Time(datestr,timestr)
    STDERR LINE
    STDERR '0D FABM driver (using GOTM infrastructure)'
-   STDERR 'FABM version: ',git_commit_id,' (',git_branch_name,' branch)'
+   STDERR 'FABM version:   ',git_commit_id,' (',git_branch_name,' branch)'
+#ifdef NETCDF4
+   LEVEL0 'NetCDF version: ',trim(NF90_INQ_LIBVERS())
+#endif
    STDERR 'Started on  ',datestr,' ',timestr
    STDERR LINE
 
