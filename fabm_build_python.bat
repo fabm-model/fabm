@@ -1,10 +1,9 @@
 @rem Script to build the fabm0d executable uing CMake
 
 @set old=%cd%
-@rem echo %old%
 
 @echo Build directory:
-@if "%build_dir%"=="" ( @set build_dir=%UserProfile%\build\fabm ) else ( @echo build_dir is set )
+@if "%build_dir%"=="" ( @set build_dir=%TEMP%\build\fabm ) else ( @echo build_dir is set )
 @echo %build_dir%
 @chdir "%build_dir%"
 
@@ -12,12 +11,12 @@
 @set compiler=ifort
 
 @set host=python
-@chdir "%host%\%compiler%"
+@chdir "%host%"
 @echo Ready to build/compile:
 @rem cmake --build . --clean-first --config Release --target INSTALL
 cmake --build . --config Release --target INSTALL
 
 @pause
 
-@chdir ..\..
+@chdir ..\
 @chdir %old%
