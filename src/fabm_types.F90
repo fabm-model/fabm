@@ -579,9 +579,10 @@
       type (type_base_model_factory_node),pointer :: first_child => null()
       logical                                     :: initialized = .false.
    contains
-      procedure :: initialize => abstract_model_factory_initialize
-      procedure :: add        => abstract_model_factory_add
-      procedure :: create     => abstract_model_factory_create
+      procedure :: initialize       => abstract_model_factory_initialize
+      procedure :: add              => abstract_model_factory_add
+      procedure :: create           => abstract_model_factory_create
+      procedure :: register_version => abstract_model_factory_register_version
    end type
 
    class (type_base_model_factory),pointer,save,public :: factory => null()
@@ -2811,6 +2812,11 @@ recursive subroutine abstract_model_factory_create(self,name,model)
       child => child%next
    end do
 end subroutine abstract_model_factory_create
+
+recursive subroutine abstract_model_factory_register_version(self,name,version)
+   class (type_base_model_factory),intent(in) :: self
+   character(len=*),               intent(in) :: name,version
+end subroutine abstract_model_factory_register_version
 
    function time_treatment2output(time_treatment) result(output)
       integer, intent(in) :: time_treatment
