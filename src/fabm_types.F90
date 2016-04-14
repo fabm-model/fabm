@@ -569,6 +569,13 @@
    ! in the FABM core.
    ! ====================================================================================================
 
+   type,public :: type_version
+      character(len=attribute_length) :: module_name    = ''
+      character(len=attribute_length) :: version_string = ''
+      type (type_version), pointer    :: next           => null()
+   end type
+   type (type_version),pointer,save,public :: first_module_version => null()
+
    type type_base_model_factory_node
       character(len=attribute_length)             :: prefix  = ''
       class (type_base_model_factory),    pointer :: factory => null()
@@ -2813,9 +2820,25 @@ recursive subroutine abstract_model_factory_create(self,name,model)
    end do
 end subroutine abstract_model_factory_create
 
-recursive subroutine abstract_model_factory_register_version(self,name,version)
+recursive subroutine abstract_model_factory_register_version(self,name,version_string)
    class (type_base_model_factory),intent(in) :: self
-   character(len=*),               intent(in) :: name,version
+   character(len=*),               intent(in) :: name,version_string
+
+   type (type_version),pointer :: version
+
+   if (associated(first_module_version)) then
+      version => first_module_version
+      do while (associated(version%next))
+         version => version%next
+      end do
+      allocate(version%next)
+      version => version%next
+   else
+      allocate(first_module_version)
+      version => first_module_version
+   end if
+   version%module_name = name
+   version%version_string = version_string
 end subroutine abstract_model_factory_register_version
 
    function time_treatment2output(time_treatment) result(output)
