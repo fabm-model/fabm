@@ -13,6 +13,8 @@
 ! !USES:
    use time
    use fabm_0d
+   use fabm, only: fabm_initialize_library
+   use fabm_types, only: type_version,first_module_version
    use fabm_version
 #ifdef NETCDF4
    use netcdf
@@ -28,16 +30,22 @@
 ! !LOCAL VARIABLES:
    character(LEN=8)          :: datestr
    real                      :: t1=-1,t2=-1
-!
+   type (type_version),pointer :: version
 !-----------------------------------------------------------------------
 !BOC
    call CPU_Time(t1)
    call Date_And_Time(datestr,timestr)
    STDERR LINE
    STDERR '0D FABM driver (using GOTM infrastructure)'
-   STDERR 'FABM version:   ',git_commit_id,' (',git_branch_name,' branch)'
+   STDERR 'FABM version:    ',git_commit_id,' (',git_branch_name,' branch)'
+   call fabm_initialize_library()
+   version => first_module_version
+   do while (associated(version))
+      LEVEL0 trim(version%module_name)//' version:   ',trim(version%version_string)
+      version => version%next
+   end do
 #ifdef NETCDF4
-   LEVEL0 'NetCDF version: ',trim(NF90_INQ_LIBVERS())
+   LEVEL0 'NetCDF version:  ',trim(NF90_INQ_LIBVERS())
 #endif
    STDERR 'Started on  ',datestr,' ',timestr
    STDERR LINE
