@@ -698,7 +698,7 @@ recursive subroutine create_conservation_checks(self)
             ! Enumerate contributions to aggregate variable.
             contributing_variable => aggregate_variable%first_contributing_variable
             do while (associated(contributing_variable))
-               if (.not.contributing_variable%link%original%state_indices%is_empty().or.contributing_variable%link%original%fake_state_variable) then
+               if ((.not.contributing_variable%link%original%state_indices%is_empty().or.contributing_variable%link%original%fake_state_variable).and.index(contributing_variable%link%name,'/')==0) then
                   ! Contributing variable is a state variable
                   select case (contributing_variable%link%original%domain)
                      case (domain_interior)
