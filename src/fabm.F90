@@ -619,6 +619,8 @@
 ! !LOCAL VARIABLES:
       type (type_aggregate_variable_access),    pointer :: aggregate_variable_access
       class (type_custom_extinction_calculator),pointer :: extinction_calculator
+      class (type_property),                    pointer :: property => null()
+      integer                                           :: islash
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -648,6 +650,16 @@
 
       ! This will resolve all FABM dependencies and generate final authorative lists of variables of different types.
       call freeze_model_info(self%root)
+
+      ! Raise error for unused coupling commands.
+      property => self%root%couplings%first
+      do while (associated(property))
+         if (.not.self%root%couplings%retrieved%contains(trim(property%name))) then
+            islash = index(property%name,'/',.true.)
+            call fatal_error('fabm_initialize','model '//property%name(1:islash-1)//' does not contain variable "'//trim(property%name(islash+1:))//'" mentioned in coupling section.')
+         end if
+         property => property%next
+      end do
 
       ! Build final authorative arrays with variable metadata .
       call classify_variables(self)
