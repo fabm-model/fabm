@@ -656,14 +656,16 @@ recursive subroutine create_aggregate_models(self)
       if (associated(bottom_sum)) then
          bottom_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
          bottom_sum%access = aggregate_variable_access%bottom
+         bottom_sum%domain = domain_bottom
          if (associated(self%parent)) bottom_sum%result_output = output_none
-         if (.not.bottom_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_bottom')) deallocate(bottom_sum)
+         if (.not.bottom_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_bottom',aggregate_variable=aggregate_variable%standard_variable)) deallocate(bottom_sum)
       end if
       if (associated(surface_sum)) then
          surface_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
          surface_sum%access = aggregate_variable_access%surface
+         surface_sum%domain = domain_surface
          if (associated(self%parent)) surface_sum%result_output = output_none
-         if (.not.surface_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_surface')) deallocate(surface_sum)
+         if (.not.surface_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_surface',aggregate_variable=aggregate_variable%standard_variable)) deallocate(surface_sum)
       end if
       aggregate_variable_access => aggregate_variable_access%next
    end do
