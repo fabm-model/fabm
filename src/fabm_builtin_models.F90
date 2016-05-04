@@ -8,7 +8,8 @@ module fabm_builtin_models
 
    private
 
-   public type_weighted_sum,type_horizontal_weighted_sum,type_depth_integral,copy_fluxes
+   public type_weighted_sum,type_horizontal_weighted_sum,type_depth_integral,copy_fluxes,copy_horizontal_fluxes
+   public type_horizontal_flux_copier
 
    type,extends(type_base_model_factory) :: type_factory
       contains
@@ -158,6 +159,7 @@ module fabm_builtin_models
       type (type_horizontal_dependency_id)  :: id_sms
       real(rk)                              :: scale_factor = 1.0_rk
    contains
+      procedure :: initialize => horizontal_flux_copier_initialize
       procedure :: do_surface => horizontal_flux_copier_do_surface
    end type
 
@@ -711,8 +713,6 @@ module fabm_builtin_models
       allocate(copier)
       if (present(scale_factor)) copier%scale_factor = scale_factor
       call source_model%add_child(copier,'redirect_'//trim(source_variable%link%name)//'_fluxes',configunit=-1)
-      call copier%register_state_dependency(copier%id_target,'target','','target variable')
-      call copier%register_dependency(copier%id_sms,'sms','','sources minus sinks')
       call copier%request_coupling(copier%id_target,target_variable)
       call copier%request_coupling(copier%id_sms,trim(source_variable%link%target%name)//'_sms_tot')
    end subroutine
@@ -752,6 +752,14 @@ module fabm_builtin_models
          _SET_BOTTOM_EXCHANGE_(self%id_target,flux)
       _HORIZONTAL_LOOP_END_
    end subroutine flux_copier_do_bottom
+
+   subroutine horizontal_flux_copier_initialize(self,configunit)
+      class (type_horizontal_flux_copier), intent(inout), target :: self
+      integer,                             intent(in)            :: configunit
+
+      call self%register_state_dependency(self%id_target,'target','','target variable')
+      call self%register_dependency(self%id_sms,'sms','','sources minus sinks')
+   end subroutine horizontal_flux_copier_initialize
 
    subroutine horizontal_flux_copier_do_surface(self,_ARGUMENTS_DO_SURFACE_)
       class (type_horizontal_flux_copier), intent(in) :: self
