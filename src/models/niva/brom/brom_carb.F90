@@ -28,14 +28,17 @@
       type (type_state_variable_id)        :: id_DIC,id_Alk
       type (type_diagnostic_variable_id)   :: id_pH,id_pCO2,id_Hplus,id_Om_Ca,id_Om_Ar,id_CO3,id_Ca
       type (type_dependency_id)            :: id_temp,id_salt,id_pres,id_pCO2w
-      type (type_dependency_id)            :: id_PO4,id_Si,id_NH4,id_DON,id_H2S,id_Mn3,id_Mn4,id_Fe3
+      type (type_dependency_id)            :: id_PO4,id_Si,id_NH4,id_DON,id_H2S,id_Mn3,id_Mn4,id_Fe3,id_SO4
       type (type_dependency_id)            :: id_Kc1,id_Kc2,id_Kw,id_Kb,id_Kp1,id_Kp2,id_Kp3,id_Kc0,id_KSi,id_Knh4,id_Kh2s1,id_Kh2s2
       type (type_horizontal_dependency_id) :: id_windspeed, id_pCO2a
+!     Parameters
+      integer :: pHsolver
    contains
       procedure :: initialize
       procedure :: do
       procedure :: do_surface
    end type
+
 !EOP
 !-----------------------------------------------------------------------
 
@@ -62,8 +65,11 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call self%register_state_variable(self%id_DIC, 'DIC', 'mmol/m**3','Total Dissolved Inorganic Carbon', minimum=0.0_rk)
-   call self%register_state_variable(self%id_Alk, 'Alk', 'mmol/m**3','Total Alkalinity', minimum=0.0_rk)
+
+   call self%get_parameter(self%pHsolver,'pHsolver','','choice of pH solution method (0: Munhoven (2013) approach (default), 1: Iterate from first guess (old))')  
+
+   call self%register_state_variable(self%id_DIC, 'DIC', 'mmol/m**3','DIC', minimum=0.0_rk)
+   call self%register_state_variable(self%id_Alk, 'Alk', 'mmol/m**3','Alk', minimum=0.0_rk)
 
    call self%register_dependency(self%id_temp,standard_variables%temperature)
    call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
@@ -92,6 +98,7 @@
    call self%register_dependency(self%id_Mn3,'Mn3','mmol/m**3','manganese III')
    call self%register_dependency(self%id_Mn4,'Mn4','mmol/m**3','manganese IV')
    call self%register_dependency(self%id_Fe3,'Fe3','mmol/m**3','iron III')
+   call self%register_dependency(self%id_SO4,'SO4','mmol/m**3','sulphate')
 
    call self%register_diagnostic_variable(self%id_pH,'pH','-','pH')
    call self%register_diagnostic_variable(self%id_pCO2,'pCO2','ppm','partial pressure of CO2')
@@ -102,8 +109,6 @@
    call self%register_diagnostic_variable(self%id_Ca,'Ca','mmol/m**3','Ca++')
 
    call self%register_dependency(self%id_pCO2w,'pCO2','ppm','partial pressure of CO2')
-
-   self%dt = 86400
 
    end subroutine initialize
 !EOC
@@ -116,6 +121,8 @@
 ! !INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
 !
+   use MOD_PHSOLVERS
+
 ! !DESCRIPTION:
 ! 
 !
@@ -128,11 +135,12 @@
 !
 ! !LOCAL VARIABLES:
    real(rk) :: temp,salt,pres
-   real(rk) :: DIC,Alk,PO4,Si,NH4,DON,H2S,Mn3,Mn4,Fe3
+   real(rk) :: DIC,Alk,PO4,Si,NH4,DON,H2S,Mn3,Mn4,Fe3,SO4
    real(rk) :: Kc1,Kc2,Kw,Kb,Kp1,Kp2,Kp3,Kc0,KSi,Knh4,Kh2s1,Kh2s2
    
    real(rk) :: H_,pH,Om_Ca,Om_Ar
    real(rk) :: co2,pCO2,hco3,co3,Ca
+   real(rk) :: Bt
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -157,6 +165,7 @@
    _GET_(self%id_Mn3,Mn3)
    _GET_(self%id_Mn4,Mn4)
    _GET_(self%id_Fe3,Fe3)
+   _GET_(self%id_SO4,SO4)
 
    ! Equilibrium constants
    _GET_(self%id_Kc1,  Kc1)
@@ -173,14 +182,24 @@
    _GET_(self%id_Kh2s2,Kh2s2)
 
 ! calculate pH(tot) as a function of TIC and total ALK
-      call pHiter (salt,Alk,DIC, &
+   if (self%pHsolver==0) then
+      !Munhoven (2013) approach:   
+      Bt = salt * 1.188e-5_rk 
+      H_ = SOLVE_AT_GENERAL(Alk, DIC, Bt,     &
+                          PO4, Si, NH4, H2S,&
+                          SO4, 0._rk)
+      pH = -LOG10(H_)
+   elseif (self%pHsolver==1) then
+      !Iterate from first guess (old):    
+      call pHiter(salt,Alk,DIC, &
              PO4,Si,NH4,DON, &
              H2S,Mn3,Mn4,Fe3, &
              Kc1,Kc2,Kw,Kb,Kp1,Kp2,Kp3,Kc0,KSi,Knh4,Kh2s1,Kh2s2, &
-             H_,pH)             
+             H_,pH)
+   end if
 
 ! calculate all the others as a function of pH1(k), alk1(k), tic1(k) and constants
-      call CARFIN(temp,salt,0.1_rk*pres,Kc0,Kc1,Kc2, &
+   call CARFIN(temp,salt,0.1_rk*pres,Kc0,Kc1,Kc2, &
              DIC,H_, &
              co2,pCO2,hco3,co3, &
              Ca,Om_Ca,Om_Ar) 
@@ -215,35 +234,37 @@
 !
 ! !LOCAL VARIABLES:
    real(rk) :: pCO2w, xk, Ox, Q_pCO2, Q_DIC
-   real(rk) :: temp, Kc0surface, windHt
+   real(rk) :: temp, Kc0, salt
 
    real(rk) :: pCO2a
    real(rk) :: windspeed
 
    _HORIZONTAL_LOOP_BEGIN_
       _GET_(self%id_temp,temp)              ! temperature
+      _GET_(self%id_salt,salt)              ! salinity
       _GET_(self%id_pCO2w,pCO2w)
       _GET_HORIZONTAL_(self%id_windspeed,windspeed)
       _GET_HORIZONTAL_(self%id_pCO2a,pCO2a)
-      _GET_(self%id_Kc0,Kc0surface)
 
 !/*---------------------------------------------------CO2 exchange with air */       
-      windHt=5.
+!  Kc0 - Henry's constant !% Weiss, R. F., Marine Chemistry 2:203-215, 1974.
+      Kc0 = EXP(-60.2409+9345.17/(temp + 273.15)+23.3585*log((temp + 273.15)/100.) &
+          +salt*(0.023517-0.023656*(temp + 273.15)/100.+0.0047036*(((temp + 273.15)/100.)*((temp + 273.15)/100.))))
 
       Ox=1800.6-120.1*temp+3.7818*temp*temp-0.047608*temp*temp*temp !Ox=Sc, Schmidt number
+
       if (Ox>0) then 
-         xk = 0.028*(windspeed**3.)*sqrt(660/Ox)       !Pvel for the Baltic Sea by Schneider
+         xk = 0.028*(windspeed**3.)*sqrt(660/Ox)       !Pvel from Schneider
       else
          xk = 0.
       endif
 
       !!!! co2_flux = xk * (pCO2ocean - pCO2atm) [mmol/m**2/s] upward positive
       Q_pCO2 =   xk * ( pCO2a- max(0e0,pCO2w)) ! pCO2ocean >= 0 !  
-      Q_DIC=Q_pCO2*Kc0surface/windHt
+      Q_DIC = Q_pCO2*Kc0*1000./86400.
 
       _SET_SURFACE_EXCHANGE_(self%id_DIC,Q_DIC)
 
-    !#define _SET_SURFACE_EXCHANGE_(variable,value) flux _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%state_index) = value/self%dt 
    _HORIZONTAL_LOOP_END_
 
    end subroutine do_surface
@@ -256,34 +277,22 @@
 !
 !-----------------------------------------------------------
 
-  subroutine pHiter (S,Alk,Ct,Pt,Sit_,NHt,DOC,H2St,Mn3,Mn4,Fe3,  &
+  subroutine pHiter (S,Alk,Ct,Pt,Sit,NHt,DOC,H2St,Mn3,Mn4,Fe3,  &
              Kc1,Kc2,Kw,Kb,Kp1,Kp2,Kp3,Kc0,KSi,Knh4,Kh2s1,Kh2s2,H_,ph )
 !-----------------------------------------------------------
  implicit none
 !
- real(rk),intent(in) :: S,Alk,Ct,Pt,Sit_,NHt,DOC,H2St,Mn3,Mn4,Fe3
+ real(rk),intent(in) :: S,Alk,Ct,Pt,Sit,NHt,DOC,H2St,Mn3,Mn4,Fe3
  real(rk),intent(in) :: Kc1,Kc2,Kw,Kb,Kp1,Kp2,Kp3,Kc0,KSi,Knh4,Kh2s1,Kh2s2
  real(rk), intent(out) :: H_,ph
 
- real(rk) :: Bt,T1,T2,T12,K12p,K123p,HKR123P,AH,ADH,DH,TK,T,Sit
+ real(rk) :: Bt,T1,T2,T12,K12p,K123p,HKR123P,AH,ADH,DH,TK,T,Alk_nWinf
  integer  iter, oldcolor
 !=======================================================================
 ! TOTAL BORON after Uppstrom, 1974, Deep sea Res., 21, p. 161ff.
 ! see Dickson, Goyet, Handbook, SOP 3
         Bt  = S * 1.188e-5 ! 1.188e-5*35 = 4.16e-4 
-        Sit = 0. ! Sit_
- 		!alk1(k)=	Cc(k,i_Alk) &                    ! Total alkalinity     
-  !                  - Cc(k,i_DON)*0.10 &  ! OM alkalinity 
-  !                  - Cc(k,i_NH4)*Knh4/(Knh4+H_) &   ! ammonia alkalinity 
-  !  !                - Cc(k,i_NO2) &
-  !                  - Cc(k,i_PO4)*((K12p-H_*H_)*H_+2e0*K123p)*HKR123p & ! Phosphate alkalinity    
-  !                  - Cc(k,i_Si)*KSi/(KSi+H_) & ! Silicic alkalinity ! ksilocal / (ksilocal + hguess)
-  !                  + Cc(k,i_Mn3) &  ! Mn(III) alkalinity    
-  !                  + 2.*Cc(k,i_Mn4) &  ! Mn(IV) alkalinity                      
-  !                  + Cc(k,i_Fe3) &  ! Fe(III) alkalinity  
-  !                  - Cc(k,i_H2S)*Kh2s1/(Kh2s1+H_) &  ! HS alkalinity 
-  !                  - 2.*(Cc(k,i_H2S)*Kh2s1/(Kh2s1+H_))*Kh2s2/(Kh2s2+H_) !S2 alkalinity        
-  
+
 !-----------------------------------------------------------  
 !-----NEWTON-RAPHSON METHOD
 !-----------------------------------------------------------
@@ -319,30 +328,23 @@
 !
 ! run [H+] iteration as outer loop to allow vectorisation of inner loop
 ! 
-!   H_ = 1.e-8      ! first guess
+
    H_ = 0.5e-7     ! first guess
-!C-------------------------------------------------------------------
 
 !C-------------------------------------------------------------------
    do iter=1,100
     
-! write (*,*) iter,H_,Ct,Alk,ph
 !c set some common combinations of parameters used in
 !c the iterative [H+] solvers
 
       T1  = H_/Kc1
       T2  = H_/Kc2
       T12 = (1e0+T2+T1*T2)
-!# if defined co2_phosphate
+
       K12p  = Kp1*Kp2
       K123p = Kp1*Kp2*Kp3
       HKR123p = 1e0/(((H_+Kp1)*H_+K12p)*H_+K123p)
       
-      !AH = Ct*(2.+T2)/T12     &
-      !     + Bt*Kb/(Kb+H_)    &       
-      !     + Kw/H_ - H_ - Alk &
-      !     + Pt*((K12p-H_*H_)*H_+2e0*K123p)*HKR123p     
-!WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW in normal notation:
 !   "Alk" =  [HCO3-] + 2[CO3--]  i.e.= ([H]/Kc2+2.)*Ct/(1 + [H]/Kc2 +[H]*[H]/(Kc1*Kc2)) !Carbonate alkalinity
      AH = Ct*(2.+H_/Kc2)/(1.+H_/Kc2+H_/Kc1*H_/Kc2)     &
 !           [B(OH)4-]       i.e.= Btot*Kb/(Kb+[H+])       ! boric alkalinity     
@@ -353,7 +355,7 @@
            - H_ &
 !           Alk_tot 
            - Alk &
-!            [H2PO4-] +  2.*[HPO4--] + 3.*[PO4---]  i.e.  ! phosphoric alkalinity          
+!           [HPO4--] + 2.*[PO4---] - [H3PO4-]   i.e.  ! phosphoric alkalinity          
            + Pt*((Kp1*Kp2-H_*H_)*H_+2e0*Kp1*Kp2*Kp3) &
                  /(((H_+Kp1)*H_+Kp1*Kp2)*H_+Kp1*Kp2*Kp3)  &
 !            [H3SiO4-] i.e.=Sit*KSi/(KSi+[H+])! silicate alkalinity
@@ -369,30 +371,22 @@
             - Bt*Kb/(Kb+H_)**2.          &
             - Kw/H_**2. - 1.                      &
             - Pt*((((Kp1*H_+4e0*K12p)*H_ &
-            - Sit*KSi/(KSi+H_)**2. &
             + Kp1*K12p+9e0*K123p)*H_ &
              + 4e0*Kp1*K123p)*H_+K12p*K123p)*HKR123p*HKR123p &    
+            - Sit*KSi/(KSi+H_)**2. &
             - H2St*Kh2s1/(Kh2s1+H_)**2.   &
             - NHt*Knh4/(Knh4+H_)**2.   
-!# else
-!      ADH = Ct*(T2-4e0*T1-T12)/(Kc2*T12*T12)    &
-!            - Bt*Kb/(Kb+H_)**2          &
-!            - Kw/H_**2 - 1e0
-!# endif
+
       dh = 0.1*AH/ADH
       H_ = H_ - dh   
-      !if (dh<0.000000000001)  then
-      !    goto 1 
-      !endif 
-      !
-       !oldcolor = SETTEXTCOLORRGB(Z'000000FF')
-       ! ph = -LOG10(H_)
-       ! write(*,*) iter,pH
-       ! 
-   enddo !iter
+      if (dh/H_<0.005e-2)  then
+          goto 1 
+      endif 
+
+   enddo 
 
 1      ph = -LOG10(H_)
-!pause 123
+
         return 
 !-----------------------------------------------------------
              END SUBROUTINE pHiter
