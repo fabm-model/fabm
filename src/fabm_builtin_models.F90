@@ -8,7 +8,8 @@ module fabm_builtin_models
 
    private
 
-   public type_weighted_sum,type_horizontal_weighted_sum,type_depth_integral,copy_fluxes
+   public type_weighted_sum,type_horizontal_weighted_sum,type_depth_integral,copy_fluxes,copy_horizontal_fluxes
+   public type_horizontal_flux_copier
 
    type,extends(type_base_model_factory) :: type_factory
       contains
@@ -81,6 +82,7 @@ module fabm_builtin_models
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
       integer                         :: access        = access_read
+      integer                         :: domain        = domain_horizontal
       type (type_horizontal_diagnostic_variable_id) :: id_output
       type (type_horizontal_component),pointer   :: first => null()
    contains
@@ -89,6 +91,17 @@ module fabm_builtin_models
       procedure :: do_horizontal       => horizontal_weighted_sum_do_horizontal
       procedure :: after_coupling      => horizontal_weighted_sum_after_coupling
       procedure :: add_to_parent       => horizontal_weighted_sum_add_to_parent
+   end type
+
+   type,extends(type_base_model) :: type_scaled_horizontal_variable
+      type (type_horizontal_dependency_id)          :: id_source
+      type (type_horizontal_diagnostic_variable_id) :: id_result
+      real(rk)                                      :: weight = 1.0_rk
+      real(rk)                                      :: offset = 0.0_rk
+      logical                                       :: include_background = .false.
+   contains
+      procedure :: do_horizontal  => scaled_horizontal_variable_do_horizontal
+      procedure :: after_coupling => scaled_horizontal_variable_after_coupling
    end type
 
    type,extends(type_base_model) :: type_depth_integral
@@ -150,6 +163,15 @@ module fabm_builtin_models
       type (type_horizontal_dependency_id) :: id_flux
    contains
       procedure :: do_surface  => surface_flux_copier_do_surface
+   end type
+
+   type,extends(type_base_model) :: type_horizontal_flux_copier
+      type (type_surface_state_variable_id) :: id_target
+      type (type_horizontal_dependency_id)  :: id_sms
+      real(rk)                              :: scale_factor = 1.0_rk
+   contains
+      procedure :: initialize => horizontal_flux_copier_initialize
+      procedure :: do_surface => horizontal_flux_copier_do_surface
    end type
 
    contains
@@ -388,14 +410,38 @@ module fabm_builtin_models
       end if
    end subroutine scaled_interior_variable_after_coupling
 
-   function horizontal_weighted_sum_add_to_parent(self,parent,name,create_for_one) result(sum_used)
+   subroutine scaled_horizontal_variable_do_horizontal(self,_ARGUMENTS_HORIZONTAL_)
+      class (type_scaled_horizontal_variable),intent(in) :: self
+      _DECLARE_ARGUMENTS_HORIZONTAL_
+
+      real(rk) :: value
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _GET_HORIZONTAL_(self%id_source,value)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_result,self%offset + self%weight*value)
+      _HORIZONTAL_LOOP_END_
+   end subroutine scaled_horizontal_variable_do_horizontal
+
+   subroutine scaled_horizontal_variable_after_coupling(self)
+      class (type_scaled_horizontal_variable),intent(inout) :: self
+
+      if (self%include_background) then
+         self%offset = self%offset + self%weight*self%id_source%background
+      else
+         call self%id_result%link%target%background_values%set_value(self%weight*self%id_source%background)
+      end if
+   end subroutine scaled_horizontal_variable_after_coupling
+
+   function horizontal_weighted_sum_add_to_parent(self,parent,name,create_for_one,aggregate_variable) result(sum_used)
       class (type_horizontal_weighted_sum),intent(inout),target :: self
       class (type_base_model),             intent(inout),target :: parent
       character(len=*),                    intent(in)           :: name
       logical,optional,                    intent(in)           :: create_for_one
+      type (type_bulk_standard_variable),optional,intent(in)    :: aggregate_variable
 
       logical :: sum_used,create_for_one_
       type (type_link),pointer :: link
+      class (type_scaled_horizontal_variable),pointer :: scaled_variable
 
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
@@ -409,6 +455,21 @@ module fabm_builtin_models
          ! One component with scale factor 1 - add link to component to parent.
          call parent%request_coupling(link,self%first%name)
          sum_used = .false.
+      elseif (.not.associated(self%first%next)) then
+         ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
+         allocate(scaled_variable)
+         call parent%add_child(scaled_variable,trim(name)//'_calculator',configunit=-1)
+         call scaled_variable%register_dependency(scaled_variable%id_source,'source',self%units,'source variable')
+         call scaled_variable%request_coupling(scaled_variable%id_source,self%first%name)
+         call scaled_variable%register_diagnostic_variable(scaled_variable%id_result,'result',self%units,'result',output=self%result_output,act_as_state_variable=iand(self%access,access_set_source)/=0,source=source_do_horizontal,domain=self%domain)
+         scaled_variable%weight = self%first%weight
+         scaled_variable%include_background = self%first%include_background
+         scaled_variable%offset = self%offset
+         call parent%request_coupling(link,trim(name)//'_calculator/result')
+         if (iand(self%access,access_set_source)/=0) then
+            call copy_horizontal_fluxes(scaled_variable,scaled_variable%id_result,self%first%name,scale_factor=1/scaled_variable%weight)
+            if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable,scaled_variable%id_result)
+         end if
       else
          ! One component with scale factor unequal to 1, or multiple components. Create the sum.
          call parent%add_child(self,trim(name)//'_calculator',configunit=-1)
@@ -665,6 +726,21 @@ module fabm_builtin_models
       call sfl_copier%request_coupling(sfl_copier%id_flux,trim(source_variable%link%target%name)//'_sfl_tot')
    end subroutine
 
+   subroutine copy_horizontal_fluxes(source_model,source_variable,target_variable,scale_factor)
+      class (type_base_model),                      intent(inout), target :: source_model
+      type (type_horizontal_diagnostic_variable_id),intent(in)            :: source_variable
+      character(len=*),                             intent(in)            :: target_variable
+      real(rk),optional,                            intent(in)            :: scale_factor
+
+      class (type_horizontal_flux_copier),pointer :: copier
+
+      allocate(copier)
+      if (present(scale_factor)) copier%scale_factor = scale_factor
+      call source_model%add_child(copier,'redirect_'//trim(source_variable%link%name)//'_fluxes',configunit=-1)
+      call copier%request_coupling(copier%id_target,target_variable)
+      call copier%request_coupling(copier%id_sms,trim(source_variable%link%target%name)//'_sms_tot')
+   end subroutine
+
    subroutine source_copier_do(self,_ARGUMENTS_DO_)
       class (type_source_copier), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
@@ -700,5 +776,25 @@ module fabm_builtin_models
          _SET_BOTTOM_EXCHANGE_(self%id_target,flux)
       _HORIZONTAL_LOOP_END_
    end subroutine bottom_flux_copier_do_bottom
+
+   subroutine horizontal_flux_copier_initialize(self,configunit)
+      class (type_horizontal_flux_copier), intent(inout), target :: self
+      integer,                             intent(in)            :: configunit
+
+      call self%register_state_dependency(self%id_target,'target','','target variable')
+      call self%register_dependency(self%id_sms,'sms','','sources minus sinks')
+   end subroutine horizontal_flux_copier_initialize
+
+   subroutine horizontal_flux_copier_do_surface(self,_ARGUMENTS_DO_SURFACE_)
+      class (type_horizontal_flux_copier), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_SURFACE_
+
+      real(rk) :: sms
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _GET_HORIZONTAL_(self%id_sms,sms)
+         _SET_SURFACE_ODE_(self%id_target,sms*self%scale_factor)
+      _HORIZONTAL_LOOP_END_
+   end subroutine horizontal_flux_copier_do_surface
 
 end module fabm_builtin_models

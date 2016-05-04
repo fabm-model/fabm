@@ -26,7 +26,9 @@
    type,extends(type_base_model),public :: type_niva_brom_eqconst
 !     Variable identifiers
       type (type_diagnostic_variable_id)   :: id_Kc1,id_Kc2,id_Kw,id_Kb,id_Kp1,id_Kp2,id_Kp3,id_Kc0,id_KSi,id_Knh4,id_Kh2s1,id_Kh2s2
-      type (type_dependency_id)            :: id_temp,id_salt
+      type (type_dependency_id)            :: id_temp,id_salt, id_pres
+!     Parameters
+      integer :: pHsolver
    contains
       procedure :: initialize
       procedure :: do
@@ -57,8 +59,11 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   call self%get_parameter(self%pHsolver,'pHsolver','','choice of pH solution method (0: Munhoven (2013) approach (default), 1: Iterate from first guess (old))')
+
    call self%register_dependency(self%id_temp,standard_variables%temperature)
    call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
+   call self%register_dependency(self%id_pres,standard_variables%pressure)
 
    ! CO2 solubility
    call self%register_diagnostic_variable(self%id_Kc0,'Kc0','-','Henry''s constant')
@@ -99,6 +104,8 @@
 ! !INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
 !
+   use MOD_CHEMCONST
+
 ! !DESCRIPTION:
 ! 
 !
@@ -110,7 +117,7 @@
 !  Original author(s): 
 !
 ! !LOCAL VARIABLES:
-   real(rk) :: temp,salt
+   real(rk) :: temp,salt,pres
    real(rk) :: Kc1,Kc2,Kw,Kb,Kp1,Kp2,Kp3,Kc0,KSi,Knh4,Kh2s1,Kh2s2
 !EOP
 !-----------------------------------------------------------------------
@@ -119,10 +126,20 @@
    _LOOP_BEGIN_
 
    _GET_(self%id_temp,temp)              ! temperature
-   _GET_(self%id_salt,salt)              ! salinity   
+   _GET_(self%id_salt,salt)              ! salinity
+   _GET_(self%id_pres,pres)              ! pressure in dbar
 
-   ! calculate constants needed for the alkalinity components
-    call EQCONST(temp,salt,Kc1,Kc2,Kw,Kb,Kp1,Kp2,Kp3,Kc0,KSi,Knh4,Kh2s1,Kh2s2)
+   ! Calculate constants needed for the alkalinity components
+   if (self%pHsolver==0) then
+!      Munhoven (2013) approach
+      call SETUP_API4PHTOT(temp + 273.15_rk, salt, pres/10._rk, &
+                         kc1, kc2, kb, kp1, kp2, kp3, ksi, & 
+                         knh4, kh2s1, kw, kc0)
+      Kh2s2=0.
+   elseif (self%pHsolver==1) then
+!      Iterate from first guess (old):
+      call EQCONST(temp,salt,Kc1,Kc2,Kw,Kb,Kp1,Kp2,Kp3,Kc0,KSi,Knh4,Kh2s1,Kh2s2)
+   end if
 
    ! Transfer all computed equilibrium constants to FABM.
    _SET_DIAGNOSTIC_(self%id_Kc1,  Kc1)

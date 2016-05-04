@@ -612,14 +612,16 @@ recursive subroutine create_aggregate_models(self)
       if (associated(bottom_sum)) then
          bottom_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
          bottom_sum%access = aggregate_variable_access%bottom
+         bottom_sum%domain = domain_bottom
          if (associated(self%parent)) bottom_sum%result_output = output_none
-         if (.not.bottom_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_bottom')) deallocate(bottom_sum)
+         if (.not.bottom_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_bottom',aggregate_variable=aggregate_variable%standard_variable)) deallocate(bottom_sum)
       end if
       if (associated(surface_sum)) then
          surface_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
          surface_sum%access = aggregate_variable_access%surface
+         surface_sum%domain = domain_surface
          if (associated(self%parent)) surface_sum%result_output = output_none
-         if (.not.surface_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_surface')) deallocate(surface_sum)
+         if (.not.surface_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_surface',aggregate_variable=aggregate_variable%standard_variable)) deallocate(surface_sum)
       end if
       aggregate_variable_access => aggregate_variable_access%next
    end do
@@ -654,7 +656,7 @@ recursive subroutine create_conservation_checks(self)
             ! Enumerate contributions to aggregate variable.
             contributing_variable => aggregate_variable%first_contributing_variable
             do while (associated(contributing_variable))
-               if (.not.contributing_variable%link%original%state_indices%is_empty().or.contributing_variable%link%original%fake_state_variable) then
+               if ((.not.contributing_variable%link%original%state_indices%is_empty().or.contributing_variable%link%original%fake_state_variable).and.index(contributing_variable%link%name,'/')==0) then
                   ! Contributing variable is a state variable
                   select case (contributing_variable%link%original%domain)
                      case (domain_interior)

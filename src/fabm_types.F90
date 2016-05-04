@@ -1225,6 +1225,7 @@ subroutine request_coupling_for_id(self,id,master)
    class (type_variable_id),intent(inout) :: id
    character(len=*),        intent(in)    :: master
 
+   if (.not.associated(id%link)) call self%fatal_error('request_coupling_for_id','The provided variable identifier has not been registered yet.')
    call self%request_coupling(id%link,master)
 end subroutine request_coupling_for_id
 
@@ -1248,6 +1249,7 @@ subroutine request_standard_coupling_for_id(self,id,master,domain)
    class (type_base_standard_variable),intent(in)    :: master
    integer,optional,                   intent(in)    :: domain
 
+   if (.not.associated(id%link)) call self%fatal_error('request_standard_coupling_for_id','The provided variable identifier has not been registered yet.')
    call self%request_standard_coupling_for_link(id%link,master,domain)
 end subroutine request_standard_coupling_for_id
 
@@ -2690,14 +2692,22 @@ end subroutine get_string_parameter
       logical                         :: recursive_eff,exact_eff
       class (type_base_model),pointer :: current
 
+      link => null()
+
       if (name(1:1)=='/') then
-         link => find_link(self,name(2:),recursive,exact)
+         link => find_link(self,name(2:),recursive,exact=.true.)
+         return
+      elseif (name(1:2)=='./') then
+         link => find_link(self,name(3:),recursive,exact=.true.)
+         return
+      elseif (name(1:3)=='../') then
+         if (.not.associated(self%parent)) return
+         link => find_link(self%parent,name(4:),recursive,exact=.true.)
          return
       end if
 
       recursive_eff = .false.
       if (present(recursive)) recursive_eff = recursive
-      nullify(link)
 
       ! First search self and ancestors (if allowed) based on exact name provided.
       current => self
