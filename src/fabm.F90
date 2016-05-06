@@ -3361,14 +3361,14 @@ end subroutine deallocate_prefetch_vertical
    subroutine fabm_report_state_errors(self _ARGUMENTS_INTERIOR_IN_)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),     intent(inout) :: self
+   class (type_model),intent(inout) :: self
    _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
-   integer                              :: ivar, read_index
-   real(rk)                             :: value,minimum,maximum
-   character(len=256)                   :: err
+   type (type_environment) :: environment
+   integer                 :: ivar, read_index
+   real(rk)                :: value,minimum,maximum
+   character(len=256)      :: message
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -3392,16 +3392,16 @@ end subroutine deallocate_prefetch_vertical
          value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
          if (value<minimum) then
             ! State variable value lies below prescribed minimum.
-            write (unit=err,fmt='(a,g0.8,a,a,a,g0.8,a,*(:,",",I0))') &
-               'Value ',value,' of variable ',trim(self%state_variables(ivar)%name),' below minimum value ',minimum, &
+            write (unit=message,fmt='(a,g0.8,a,a,a,g0.8,a,*(:,",",I0))') &
+               'Value ',value,' of variable ',trim(self%state_variables(ivar)%name),' below prescribed minimum value ',minimum, &
                ' at ',_CURRENT_INTERIOR_LOCATION_
-            call log_message(err)
+            call log_message(message)
          elseif (value>maximum) then
             ! State variable value exceeds prescribed maximum.
-            write (unit=err,fmt='(a,g0.8,a,a,a,g0.8,a,*(:,",",I0))') &
-               'Value ',value,' of variable ',trim(self%state_variables(ivar)%name),' above maximum value ',maximum, &
+            write (unit=message,fmt='(a,g0.8,a,a,a,g0.8,a,*(:,",",I0))') &
+               'Value ',value,' of variable ',trim(self%state_variables(ivar)%name),' above prescribed maximum value ',maximum, &
                ' at ',_CURRENT_INTERIOR_LOCATION_
-            call log_message(err)
+            call log_message(message)
          end if
       _LOOP_END_
    end do
