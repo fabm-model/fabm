@@ -3319,38 +3319,23 @@ end subroutine deallocate_prefetch_vertical
 
    if (.not.valid) then
 
+   call fabm_report_state_errors(self _ARGUMENTS_INTERIOR_IN_)
+
    ! Check boundaries for pelagic state variables specified by the models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
-   do ivar=1,size(self%state_variables)
-      ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
-      read_index = self%state_variables(ivar)%globalid%read_index
-      minimum = self%state_variables(ivar)%minimum
-      maximum = self%state_variables(ivar)%maximum
+   if (repair) then
+      do ivar=1,size(self%state_variables)
+         ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
+         read_index = self%state_variables(ivar)%globalid%read_index
+         minimum = self%state_variables(ivar)%minimum
+         maximum = self%state_variables(ivar)%maximum
 
-      if (repair) then
          _CONCURRENT_LOOP_BEGIN_
             value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
             environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = max(minimum,min(maximum,value))
          _LOOP_END_
-      else
-         _LOOP_BEGIN_
-            value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
-            if (value<minimum) then
-               ! State variable value lies below prescribed minimum.
-               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
-                                                          & ' below minimum value ',minimum
-               call log_message(err)
-               return
-            elseif (value>maximum) then
-               ! State variable value exceeds prescribed maximum.
-               write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
-                                                          & ' above maximum value ',maximum
-               call log_message(err)
-               return
-            end if
-         _LOOP_END_
-      end if
-   end do
+      end do
+   end if
 
    end if
 
@@ -3365,6 +3350,65 @@ end subroutine deallocate_prefetch_vertical
 
    end subroutine fabm_check_state
 !EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Checks whether the current state is valid, and repairs [clips]
+! invalid state variables if requested and possible.
+!
+! !INTERFACE:
+   subroutine fabm_report_state_errors(self _ARGUMENTS_INTERIOR_IN_)
+!
+! !INPUT PARAMETERS:
+   class (type_model),     intent(inout) :: self
+   _DECLARE_ARGUMENTS_INTERIOR_IN_
+!
+! !LOCAL PARAMETERS:
+   type (type_environment)              :: environment
+   integer                              :: ivar, read_index
+   real(rk)                             :: value,minimum,maximum
+   character(len=256)                   :: err
+   _DECLARE_INTERIOR_INDICES_
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_report_state_errors')
+#endif
+
+   call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+
+   ! Check boundaries for pelagic state variables specified by the models.
+   ! If repair is permitted, this clips invalid values to the closest boundary.
+   do ivar=1,size(self%state_variables)
+      ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
+      read_index = self%state_variables(ivar)%globalid%read_index
+      minimum = self%state_variables(ivar)%minimum
+      maximum = self%state_variables(ivar)%maximum
+
+      _LOOP_BEGIN_
+         value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+         if (value<minimum) then
+            ! State variable value lies below prescribed minimum.
+            write (unit=err,fmt='(a,g0.8,a,a,a,g0.8,a,*(:,",",I0))') &
+               'Value ',value,' of variable ',trim(self%state_variables(ivar)%name),' below minimum value ',minimum, &
+               ' at ',_CURRENT_INTERIOR_LOCATION_
+            call log_message(err)
+         elseif (value>maximum) then
+            ! State variable value exceeds prescribed maximum.
+            write (unit=err,fmt='(a,g0.8,a,a,a,g0.8,a,*(:,",",I0))') &
+               'Value ',value,' of variable ',trim(self%state_variables(ivar)%name),' above maximum value ',maximum, &
+               ' at ',_CURRENT_INTERIOR_LOCATION_
+            call log_message(err)
+         end if
+      _LOOP_END_
+   end do
+
+   call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+
+   end subroutine fabm_report_state_errors
 
 !-----------------------------------------------------------------------
 !BOP
@@ -5083,6 +5127,59 @@ end subroutine
          call fatal_error(routine,'Index '//name//' = '//trim(str1)//' exceeds size of associated dimension ('//trim(str2)//').')
       end if
    end subroutine check_index
+
+#if _FABM_VECTORIZED_DIMENSION_INDEX_
+   function get_interior_location(environment _ARGUMENTS_INTERIOR_IN_,_I_) result(location)
+      integer,intent(in) :: _I_
+#  ifdef _HAS_MASK_
+      integer :: i
+#  endif
+#else
+   function get_interior_location(environment _ARGUMENTS_INTERIOR_IN_) result(location)
+#endif
+      type (type_environment), intent(in) :: environment
+      _DECLARE_ARGUMENTS_INTERIOR_IN_
+      integer :: location(_FABM_DIMENSION_COUNT_)
+
+#if (_FABM_DIMENSION_COUNT_>=1)
+#  if (_FABM_VECTORIZED_DIMENSION_INDEX_==1)
+      location(1) = _I_
+#  else
+      location(1) = i__
+#  endif
+#endif
+#if (_FABM_DIMENSION_COUNT_>=2)
+#  if (_FABM_VECTORIZED_DIMENSION_INDEX_==2)
+      location(2) = _I_
+#  else
+      location(2) = j__
+#  endif
+#endif
+#if (_FABM_DIMENSION_COUNT_>=3)
+#  if (_FABM_VECTORIZED_DIMENSION_INDEX_==3)
+      location(3) = _I_
+#  else
+      location(3) = k__
+#  endif
+#endif
+
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+#  ifdef _HAS_MASK_
+   ! Account for masking
+   do i=1,loop_stop-loop_start+1
+      if (environment%mask(i)) then
+         location(_FABM_VECTORIZED_DIMENSION_INDEX_) = location(_FABM_VECTORIZED_DIMENSION_INDEX_) - 1
+         if (location(_FABM_VECTORIZED_DIMENSION_INDEX_)==0) then
+            location(_FABM_VECTORIZED_DIMENSION_INDEX_) = i
+            exit
+         end if
+      end if
+   end do
+#  endif
+   ! Account for loop_start>1
+   location(_FABM_VECTORIZED_DIMENSION_INDEX_) = location(_FABM_VECTORIZED_DIMENSION_INDEX_) + loop_start - 1
+#endif
+   end function get_interior_location
 
 end module fabm
 

@@ -386,3 +386,9 @@
 #else
 #  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_VERTICAL_LOOP_BEGIN_;out _INDEX_GLOBAL_VERTICAL_PLUS_1_(loop_start+_I_-1,j) = in _INDEX_SLICE_PLUS_1_(i);_VERTICAL_LOOP_END_
 #endif
+
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+#  define _CURRENT_INTERIOR_LOCATION_ get_interior_location(environment _ARGUMENTS_INTERIOR_IN_, _I_)
+#else
+#  define _CURRENT_INTERIOR_LOCATION_ get_interior_location(environment _ARGUMENTS_INTERIOR_IN_)
+#endif
