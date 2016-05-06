@@ -2689,21 +2689,31 @@ end subroutine get_string_parameter
       logical,         optional,intent(in)        :: recursive,exact
       type (type_link),pointer                    :: link
 
+      integer                         :: n
       logical                         :: recursive_eff,exact_eff
       class (type_base_model),pointer :: current
 
       link => null()
 
-      if (name(1:1)=='/') then
-         link => find_link(self,name(2:),recursive,exact=.true.)
-         return
-      elseif (name(1:2)=='./') then
-         link => find_link(self,name(3:),recursive,exact=.true.)
-         return
-      elseif (name(1:3)=='../') then
-         if (.not.associated(self%parent)) return
-         link => find_link(self%parent,name(4:),recursive,exact=.true.)
-         return
+      n = len_trim(name)
+      if (n>=1) then
+         if (name(1:1)=='/') then
+            link => find_link(self,name(2:),recursive,exact=.true.)
+            return
+         end if
+         if (n>=2) then
+            if (name(1:2)=='./') then
+               link => find_link(self,name(3:),recursive,exact=.true.)
+               return
+            end if
+            if (n>=3) then
+               if (name(1:3)=='../') then
+                  if (.not.associated(self%parent)) return
+                  link => find_link(self%parent,name(4:),recursive,exact=.true.)
+                  return
+               end if
+            end if
+         end if
       end if
 
       recursive_eff = .false.
