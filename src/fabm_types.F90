@@ -1770,7 +1770,11 @@ end subroutine real_pointer_set_set_value
       ! Fill fields specific to horizontal variables.
       if (present(domain))            variable%domain = domain
       if (present(standard_variable)) call variable%standard_variables%add(standard_variable)
-      if (present(source))            variable%source = source
+      if (present(source)) then
+         variable%source = source
+      elseif (present(write_index)) then
+         call self%log_message('WARNING: "source" argument not provided when registering variable '//trim(name)//'. In the future this argument will be required for horizontal diagnostic variables.')
+      end if
 
       if (variable%source==source_unknown) variable%prefill = prefill_previous_value
 
