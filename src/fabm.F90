@@ -3392,15 +3392,15 @@ end subroutine deallocate_prefetch_vertical
          value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
          if (value<minimum) then
             ! State variable value lies below prescribed minimum.
-            write (unit=message,fmt='(a,g0.8,a,a,a,g0.8,a,*(i0,:,","))') &
+            write (unit=message,fmt='(a,g0.8,a,a,a,g0.8,a,a)') &
                'Value ',value,' of variable ',trim(self%state_variables(ivar)%name),' below prescribed minimum value ',minimum, &
-               ' at ',_CURRENT_INTERIOR_LOCATION_
+               ' at ',trim(driver%describe_location(_CURRENT_INTERIOR_LOCATION_))
             call log_message(message)
          elseif (value>maximum) then
             ! State variable value exceeds prescribed maximum.
-            write (unit=message,fmt='(a,g0.8,a,a,a,g0.8,a,*(i0,:,","))') &
+            write (unit=message,fmt='(a,g0.8,a,a,a,g0.8,a,a)') &
                'Value ',value,' of variable ',trim(self%state_variables(ivar)%name),' above prescribed maximum value ',maximum, &
-               ' at ',_CURRENT_INTERIOR_LOCATION_
+               ' at ',trim(driver%describe_location(_CURRENT_INTERIOR_LOCATION_))
             call log_message(message)
          end if
       _LOOP_END_

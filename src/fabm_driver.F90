@@ -1,3 +1,5 @@
+#include "fabm_driver.h"
+   
 module fabm_driver
 
    implicit none
@@ -18,8 +20,9 @@ module fabm_driver
 
    type :: type_base_driver
    contains
-      procedure :: fatal_error => base_driver_fatal_error
-      procedure :: log_message => base_driver_log_message
+      procedure :: fatal_error       => base_driver_fatal_error
+      procedure :: log_message       => base_driver_log_message
+      procedure :: describe_location => base_driver_describe_location
    end type
 
    class (type_base_driver),pointer,save :: driver => null()
@@ -40,6 +43,23 @@ contains
 
       write (*,*) trim(message)
    end subroutine
+
+   function base_driver_describe_location(self,location) result(string)
+      class (type_base_driver), intent(in) :: self
+      integer,                  intent(in) :: location(_FABM_DIMENSION_COUNT_)
+
+      character(len=256) :: string
+
+#if _FABM_DIMENSION_COUNT_==0
+      string = ''
+#elif _FABM_DIMENSION_COUNT_==1
+      write (string,'(i0)') location
+#elif _FABM_DIMENSION_COUNT_==2
+      write (string,'(i0,",",i0)') location
+#elif _FABM_DIMENSION_COUNT_==3
+      write (string,'(i0,",",i0,",",i0)') location
+#endif
+   end function
 
    subroutine fatal_error(location,message)
       character(len=*),intent(in) :: location,message
