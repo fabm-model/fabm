@@ -229,6 +229,11 @@ endif()
 
 add_custom_target(test_all COMMENT "building tests - nothing yet :-)")
 
+add_executable(test_host EXCLUDE_FROM_ALL
+               test/host.F90
+              )
+target_link_libraries(test_host fabm)
+
 add_executable(test_yaml EXCLUDE_FROM_ALL
                config/test_yaml.F90
                config/fabm_config_types.F90
