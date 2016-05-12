@@ -40,3 +40,15 @@ This directory include:
 !*      Dennis Trolle: trolle@bios.au.dk                                                        *
 !*      Karsten Bolding: bolding@bios.au.dk                                                     *
 !*----------------------------------------------------------------------------------------------*
+Important notes:
+This version is the benchmark version that produce the same model results as the original excel verison;
+Few things has to be specified: 
+*the Marsh module in the original PCLake model turned off
+*resuspension function is not shear-stress related but kepth the original imperical function.
+* water column burial correction is removed since this will be handled by hydrodynamic models
+*dredging and fish harvesting is not included
+
+*This version is static, served as reference implementation of PCLake, the further developed is located 
+under au/pclake
+* If you want to refer and run latest FABM-PCLake model, please use the code under au/pclake
+
