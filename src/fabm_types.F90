@@ -782,8 +782,9 @@
       character(len=*),optional,     intent(in)    :: long_name
       integer,                       intent(in)    :: configunit
 !
-      integer :: islash
-      class (type_base_model),pointer :: parent
+      integer                             :: islash
+      class (type_base_model),    pointer :: parent
+      type (type_model_list_node),pointer :: child
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -805,6 +806,13 @@
          'Cannot add child model "'//trim(name)//'" because its name is not valid. &
          &Model names should not be empty, and can contain letters, digits and underscores only.')
       if (len_trim(name)>len(model%name)) call fatal_error('add_child','Model name "'//trim(name)//'" exceeds maximum length.')
+
+      ! Make sure a child with this name does not exist yet.
+      child => self%children%first
+      do while (associated(child))
+         if (child%model%name==name) call self%fatal_error('add_child','A child model with name "'//trim(name)//'" already exists.')
+         child => child%next
+      end do
 
       model%name = name
       if (present(long_name)) then
@@ -2713,10 +2721,14 @@ end subroutine get_string_parameter
          do while (associated(found_model).and.istart<=len(name))
             length = index(name(istart:),'/')-1
             if (length==-1) length = len(name) - istart + 1
-            node => found_model%children%find(name(istart:istart+length-1))
+            if (length==2.and.name(istart:istart+1)=='..') then
+               found_model => found_model%parent
+            elseif (.not.(length==1.and.name(istart:istart)=='.')) then
+               node => found_model%children%find(name(istart:istart+length-1))
+               nullify(found_model)
+               if (associated(node)) found_model => node%model
+            end if
             istart = istart+length+1
-            nullify(found_model)
-            if (associated(node)) found_model => node%model
          end do
 
          ! Only continue if we have not found the model and are allowed to try parent model.
