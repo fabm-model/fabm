@@ -4,8 +4,9 @@ add_library(fabm_models_au OBJECT
             pclake/abiotic_sediment.F90
             pclake/abiotic_water.F90
             pclake/auxilary.F90
-            pclake/foodweb_sediment.F90
-            pclake/foodweb_water.F90
+            pclake/zoobenthos.F90
+            pclake/zooplankton.F90
+            pclake/fish.F90
             pclake/macrophytes.F90
             pclake/phytoplankton_sediment.F90
             pclake/phytoplankton_water.F90

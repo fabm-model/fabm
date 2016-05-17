@@ -7,7 +7,7 @@
 !
 ! !DESCRIPTION:
 !
-!  The au_pclake_abiotic_water module describes the state variables which are related to abiotic 
+!  The au_pclake_abiotic_water module describes the state variables which are related to abiotic
 !  processes in water column, including: inorganic matter(IM), organic matters(detritus),
 !  dissolved nutirents(ammonia, nitrate,phosphate and dissolved sicica dioxide), immobilized phosphrus
 !  (absorbed phosphrus), dissolved oxygen. Each state variable and its related processes are listed as
@@ -19,7 +19,8 @@
 !  Dissolved nutrients: sPO4W,processes: mineralisation,phosphrus absorption
 !  Dissolved nutrients: sSiO2W, processes: mineralisation
 !  Dissolved oxygen: sO2W,processes reaeration,mineralisation oxygen consumption, nitrification oxygen consumption
-!  Absorbed_P: sPAIMW, processes:phosphrus absorption 
+!  Absorbed_P: sPAIMW, processes:phosphrus absorption
+!  feh: April 13th, major change: added all the modular fluxes as diagostic variables.
 ! !USES:
    use fabm_types
    use fabm_standard_variables
@@ -47,15 +48,20 @@
       type (type_state_variable_id)   :: id_sDIMW,id_sDDetW,id_sNDetW,id_sPDetW,id_sSiDetW
       type (type_state_variable_id)   :: id_sPO4W,id_sPAIMW,id_sNH4W,id_sNO3W
       type (type_state_variable_id)   :: id_sSiO2W,id_sO2W
-     
+
 !     diagnostic variables for local output
 !     rPDDetW: P/D ratio of detritus
 !     rNDDetW: N/D ratio of detritus
 !     wO2AbioW: abiotic water column oxygen consumption
 !     tO2Aer: O2 reaeration rate at the water surface
-      type (type_diagnostic_variable_id)           :: id_rPDDetW,id_rNDDetW,id_wO2AbioW
+      type (type_diagnostic_variable_id)           :: id_rPDDetW,id_rNDDetW
       type (type_diagnostic_variable_id)           :: id_extIM,id_extDet
-      type (type_horizontal_diagnostic_variable_id):: id_tO2Aer,id_wind
+      type (type_horizontal_diagnostic_variable_id):: id_wind
+!     diagostic variables for the total fluexes for state variables from abiotic_module
+      type (type_diagnostic_variable_id):: id_wDAbioIMW,id_wDAbioDetW,id_wPAbioDetW,id_wNAbioDetW
+      type (type_diagnostic_variable_id):: id_wSiAbioDetW,id_wPAbioPO4W,id_wPAbioAIMW,id_wNAbioNH4W
+      type (type_diagnostic_variable_id):: id_wNAbioNO3W,id_wSiAbioSiO2W,id_wO2AbioW
+      type (type_horizontal_diagnostic_variable_id):: id_tO2Aer
 !     environmental dependencies
       type (type_dependency_id)                :: id_uTm
       type (type_horizontal_dependency_id)     :: id_uVWind
@@ -70,7 +76,7 @@
       real(rk)                   :: cVSetIM,cVSetDet
 !     parameter for specific light attenuation coefficient
       real(rk)                   :: cExtSpIM,cExtSpDet
-      
+
    contains
 !     Model procedures
       procedure :: initialize
@@ -84,11 +90,11 @@
 !  private data memebers
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero = 0.000000000000000000000000000000001_rk
-!  ratio of mol.weights, = 32/12 [gO2/gC], 
+!  ratio of mol.weights, = 32/12 [gO2/gC],
    real(rk),parameter :: molO2molC = 2.6667_rk
-!  ratio of mol.weights,32/14 [gO2/gN], 
+!  ratio of mol.weights,32/14 [gO2/gN],
    real(rk),parameter :: molO2molN = 2.2857_rk
-!  ratio of mol.weights,14/12 [gN/gC], 
+!  ratio of mol.weights,14/12 [gN/gC],
    real(rk),parameter :: molNmolC = 1.1667_rk
 !
 !EOP
@@ -106,10 +112,10 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  Here, the au_pclake_abiotic_water namelist is read and the variables 
-!   are registered with FABM.They should be initialised as 
+!  Here, the au_pclake_abiotic_water namelist is read and the variables
+!   are registered with FABM.They should be initialised as
 !  concentrations.The detritus P and N variables are initialized according
-!  to the initial P/D and N/D ratios. Adsorbed P, usually a minor component 
+!  to the initial P/D and N/D ratios. Adsorbed P, usually a minor component
 !  in the water column,is initialised at 0 gP/m**3.
 !  Adsorption is calculated, however, during the run.
 !
@@ -148,45 +154,55 @@
    call self%get_parameter(self%NO3PerC,   'NO3PerC',   'molNO3', 'denitrified per mol C mineralised',                        default=0.8_rk)
    call self%get_parameter(self%O2PerNH4,  'O2PerNH4',  'molO2',  'used per mol NH4+ nitrified',                              default=2.0_rk)
 
-   
- 
+
+
 !  Register local state variable
-!  particles, including inorganic matter(sDIM) and organic matter(sDDetW,sNDetW,sPDetW,sSiDetW) have 
+!  particles, including inorganic matter(sDIM) and organic matter(sDDetW,sNDetW,sPDetW,sSiDetW) have
 !  vertical movement, usually settling(negative values)
    call self%register_state_variable(self%id_sDIMW,'sDIMW','g m-3','Inorg. matter in water',           &
-                                    initial_value=5.0_rk,  minimum=_ZERO_, vertical_movement= self%cVSetIM,no_river_dilution=.FALSE.) 
+                                    initial_value=5.0_rk,  minimum=_ZERO_, vertical_movement= self%cVSetIM,no_river_dilution=.TRUE.)
 !  detritus
    call self%register_state_variable(self%id_sDDetW,'sDDetW','g m-3','detritus dry-weight in water',    &
-                                    initial_value=2.0_rk,  minimum=_ZERO_, vertical_movement= self%cVSetDet,no_river_dilution=.FALSE.)
+                                    initial_value=2.0_rk,  minimum=_ZERO_, vertical_movement= self%cVSetDet,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sPDetW,'sPDetW','g m-3','detritus phosphrus in water',     &
                                     initial_value=0.005_rk,minimum=_ZERO_,vertical_movement= self%cVSetDet,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sNDetW,'sNDetW','g m-3','detritus nitrogen in water',      &
                                     initial_value=0.05_rk ,minimum=_ZERO_,vertical_movement=self%cVSetDet,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sSiDetW,'sSiDetW','g m-3','detritus silica in water',      &
-                                    initial_value=0.02_rk, minimum=_ZERO_,vertical_movement= self%cVSetDet,no_river_dilution=.FALSE.)
+                                    initial_value=0.02_rk, minimum=_ZERO_,vertical_movement= self%cVSetDet,no_river_dilution=.TRUE.)
 !  dissolved nutrients
    call self%register_state_variable(self%id_sPO4W,  'sPO4W',   'g m-3','Phosphate in water',     &
                                     initial_value=0.01_rk, minimum=_ZERO_,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sPAIMW,'sPAIMW','g m-3','Absorbed_P in water',     &
-                                    initial_value=0.0_rk,minimum=_ZERO_,vertical_movement= self%cVSetIM,no_river_dilution=.FALSE.)
+                                    initial_value=0.0_rk,minimum=_ZERO_,vertical_movement= self%cVSetIM,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sNH4W,'sNH4W','g m-3','Amonia in water',     &
-                                    initial_value=0.1_rk,minimum=_ZERO_,no_river_dilution=.TRUE.)
+                                    initial_value=0.1_rk,minimum=_ZERO_,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sNO3W,'sNO3W','g m-3','Nitrates in water',     &
-                                    initial_value=0.1_rk,minimum=_ZERO_,no_river_dilution=.TRUE.)
+                                    initial_value=0.1_rk,minimum=_ZERO_,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sSiO2W,'sSiO2W','g m-3','Silica dioxide in water',     &
-                                    initial_value=3.0_rk,minimum=_ZERO_,no_river_dilution=.FALSE.)
+                                    initial_value=3.0_rk,minimum=_ZERO_,no_river_dilution=.TRUE.)
 !  oxygen
    call self%register_state_variable(self%id_sO2W,'sO2W','g m-3','oxygen in water',     &
-                                    initial_value=10.0_rk,minimum=_ZERO_,no_river_dilution=.FALSE.)
+                                    initial_value=10.0_rk,minimum=_ZERO_,no_river_dilution=.TRUE.)
 !  Register diagnostic variables for dependencies in other modules
-   call self%register_diagnostic_variable(self%id_wO2AbioW,'wO2AbioW',  'g m-3 s-1','abiotic_water_O2_change',   output=output_none)
-   call self%register_diagnostic_variable(self%id_tO2Aer,  'tO2Aer',    'g m-2 s-1','O2_reareation',             output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_rPDDetW, 'rPDDetW',   '[-]',       'detritus_P/D_ratio_wat',   output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_rNDDetW, 'rNDDetW',   '[-]',       'detritus_N/D_ratio_wat',   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wind,    'wind',      'm/s',       'windspeed',                output=output_none)
+   call self%register_diagnostic_variable(self%id_wind,    'wind',      'm/s',       'windspeed',                output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_extIM,   'extIM',     '[-]',       'extIM',                    output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_extDet,  'extDet',    '[-]',       'extDet',                   output=output_instantaneous)
-
+!  Register diagnostic variables for modular fluexes for state variables
+   call self%register_diagnostic_variable(self%id_wDAbioIMW,'wDAbioIMW',  'g m-3 s-1','abiotic_water_IMW_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wDAbioDetW,'wDAbioDetW',  'g m-3 s-1','abiotic_water_DDetW_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPAbioDetW,'wPAbioDetW',  'g m-3 s-1','abiotic_water_PDetW_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNAbioDetW,'wNAbioDetW',  'g m-3 s-1','abiotic_water_NDetW_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wSiAbioDetW,'wSiAbioDetW',  'g m-3 s-1','abiotic_water_SiDetW_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPAbioPO4W,'wPAbioPO4W','g m-3 s-1','abiotic_water_PO4W_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPAbioAIMW,'wPAbioAIMW',  'g m-3 s-1','abiotic_water_PAIMW_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNAbioNH4W,'wNAbioNH4W',  'g m-3 s-1','abiotic_water_NH4W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNAbioNO3W,'wNAbioNO3W',  'g m-3 s-1','abiotic_water_NO3W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wSiAbioSiO2W,'wSiAbioSiO2W',  'g m-3 s-1','abiotic_water_SiO2_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wO2AbioW,'wO2AbioW',  'g m-3 s-1','abiotic_water_O2_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tO2Aer,  'tO2Aer',    'g m-2 s-1','O2_reareation',             output=output_instantaneous)
 
 !  Register contribution of state to global aggregate variables
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,              self%id_sNDetW)
@@ -215,12 +231,12 @@
 
 
    end subroutine initialize
-   
+
 !EOC
 !-----------------------------------------------------------------------
 !BOP
 
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
@@ -264,7 +280,7 @@
 !  Retrieve current (local) state variable values.
    _GET_(self%id_sDIMW,sDIMW)
    _GET_(self%id_sDDetW,sDDetW)
-   _GET_(self%id_sPDetW,sPDetW)	
+   _GET_(self%id_sPDetW,sPDetW)
    _GET_(self%id_sNDetW,sNDetW)
    _GET_(self%id_sSiDetW,sSiDetW)
    _GET_(self%id_sPO4W,sPO4W)
@@ -276,7 +292,7 @@
 
 !  retrieve current environmental dependencies
    _GET_(self%id_uTm,uTm)
-   
+
 !  Nutrients ratio of detritus
   rPDDetW=sPDetW/(sDDetW+NearZero)
   rNDDetW= sNDetW/(sDDetW+NearZero)
@@ -297,7 +313,7 @@
 !  Si_mineralisation_constant_in_water
    kSiMinDetW = self%kDMinDetW
 !  decomposition
-   wDMinDetW = self%kDMinDetW * uFunTmMinW * sDDetW
+   wDMinDetW = self%kDMinDetW *2.0*uFunTmMinW * sDDetW
 !  detrital_P mineralization
    wPMinDetW = kPMinDetW * uFunTmMinW * sPDetW
 !  detrital_N mineralization
@@ -364,7 +380,7 @@
 !  total_abiotic/microbial_N_NH4_flux_in_water
    wNAbioNH4W = wNMinDetW-wNNitrW
 !  total_abiotic/microbial_N_NO3_flux_in_water
-   wNAbioNO3W = wNNitrW - wNDenitW
+   wNAbioNO3W = wNNitrW - wNDenitW*10.0_rk
 !  total_abiotic/microbial_Si_SiO2_flux_in_water
    wSiAbioSiO2W=wSiMinDetW
 !  total_abiotic/microbial_O2_flux_in_water
@@ -387,10 +403,20 @@
 !-----------------------------------------------------------------------
 !  Output local diagnostic variables
 !-----------------------------------------------------------------------
-   _SET_DIAGNOSTIC_(self%id_wO2AbioW,wO2AbioW)
    _SET_DIAGNOSTIC_(self%id_rPDDetW,rPDDetW)
    _SET_DIAGNOSTIC_(self%id_rNDDetW,rNDDetW)
-
+!  output diagostic variable for modular fluexes
+   _SET_DIAGNOSTIC_(self%id_wDAbioIMW,wDAbioIMW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wDAbioDetW,wDAbioDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPAbioDetW,wPAbioDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNAbioDetW,wNAbioDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wSiAbioDetW,wSiAbioDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPAbioPO4W,wPAbioPO4W*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPAbioAIMW,wPAbioAIMW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNAbioNH4W,wNAbioNH4W*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNAbioNO3W,wNAbioNO3W*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wSiAbioSiO2W,wSiAbioSiO2W*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wO2AbioW,wO2AbioW*86400.0_rk)
 
    _LOOP_END_
 !-----------------------------------------------------------------------
@@ -413,7 +439,7 @@
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
-!  Original author(s): 
+!  Original author(s):
 ! !LOCAL VARIABLES:
    real(rk) :: sDIMW,sDDetW
    real(rk) :: extIM,extDet
@@ -427,13 +453,13 @@
    ! Retrieve current (local) state variable values.
    _GET_(self%id_sDIMW,sDIMW)
    _GET_(self%id_sDDetW,sDDetW)
-   
+
    extIM=self%cExtSpIM*sDIMW
    extDet=self%cExtSpDet*sDDetW
 
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(extIM+extDet)
-   
+
    _SET_DIAGNOSTIC_(self%id_extIM,extIM)
    _SET_DIAGNOSTIC_(self%id_extDet,extDet)
 
@@ -471,7 +497,7 @@
 !  oxygen_saturation_concentration
    uO2Sat = 14.652_rk - 0.41022 * uTm + 0.007991_rk * uTm*uTm - 0.000077774_rk * uTm*uTm*uTm
 !  reaeration_coefficient
-  
+
    kAer=(0.727_rk*((uVWind)**(0.5_rk))-0.371_rk*uVWind+0.0376_rk*uVWind*uVWind)
 !  duckweed_function_of_reaeration
    aFunLemnAer = 1.0_rk
@@ -483,14 +509,14 @@
 !  for PCLake Benchmark
 !  convert daily rates to sedonds
 
-   
-!  keep this, t is in day
+
+!  keep this, time unit is in day
    _SET_SURFACE_EXCHANGE_(self%id_sO2W,tO2Aer/secs_pr_day)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tO2Aer,tO2Aer/secs_pr_day)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tO2Aer,tO2Aer)
 !   gotm output for 0d input
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_wind,uVWind)
    _HORIZONTAL_LOOP_END_
- 
+
    end subroutine do_surface
 !EOC
 

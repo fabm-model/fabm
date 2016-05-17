@@ -8,7 +8,7 @@
 ! !DESCRIPTION:
 ! Module description
 !  The pclake_abiotic_water module describes the processes related to settled phytoplankton in the sediment.
-!  Three groups of phytoplankton are described here: Diatom, green algae and 
+!  Three groups of phytoplankton are described here: Diatom, green algae and
 !  cyanobacteria(blue algae). Each group is described in three elements, dry-weight
 !  nitrogen and phosphrus. Silica contration in diatom is not a state variables here
 !  but a diagnostic instead, since model assumes diatom have fixed Si/D ration,i.e. 0.1
@@ -17,7 +17,7 @@
 !                             sDGrenS, sNGrenS, sPGrenS(grenn algae concentration in DW, N and P element)
 !                             sDBlueS, sNBlueS, sPBlueS(cyanobacteria concentration in DW, N and P element)
 !  units( for all the groups):gDW/m**2, gN/m**2, gP/m**2 in three elements respectively,
-!  involved processes( for all the groups): 
+!  involved processes( for all the groups):
 !  respiration(only for sDDiatW,sDGrenW,sDBlueW), excretion(only for sNDiatW,sNGrenW,sNBlueW,
 !  sPDiatW,sPGrenW,sPBlueW), mortality(for all state variables)
 !  This module also discribes the processes which influence the state variables registered in
@@ -30,7 +30,7 @@
    use fabm_types
    use au_pclake_utility, ONLY:uFunTmBio
 
-   
+
    implicit none
 
 !  default: all is private.
@@ -52,14 +52,23 @@
 !     id_rNDPhytS, N/D rartio of settled phytoplankton
       type (type_horizontal_diagnostic_variable_id)       :: id_oSiDiatS
       type (type_horizontal_diagnostic_variable_id)       :: id_rPDPhytS,id_rNDPhytS
-!     diagnostic variables for dependencies(without output)
+!     diagnostic variables used by external dependencies
       type (type_horizontal_diagnostic_variable_id)       :: id_tDPrimDetS
+!     diagnostic variables for modular fluxes
+      type (type_horizontal_diagnostic_variable_id)       :: id_tDPrimDiatS,id_tNPrimDiatS,id_tPPrimDiatS
+      type (type_horizontal_diagnostic_variable_id)       :: id_tDPrimGrenS,id_tNPrimGrenS,id_tPPrimGrenS
+      type (type_horizontal_diagnostic_variable_id)       :: id_tDPrimBlueS,id_tNPrimBlueS,id_tPPrimBlueS
+      type (type_horizontal_diagnostic_variable_id)       :: id_tPPrimPO4S,id_tNPrimNO3S,id_tNPrimNH4S
+      type (type_horizontal_diagnostic_variable_id)       :: id_tNPrimDetS,id_tPPrimDetS,id_tSiPrimDetS,id_tSiExcrDiatS
+!     deitrus fluxes will be named differently due to they are used by 
+!     external dependencies
+      type (type_horizontal_diagnostic_variable_id)       :: id_tDPrimDetSflux
 !     state dependencies identifers
      type (type_bottom_state_variable_id) :: id_PO4poolS,id_NO3poolS,id_NH4poolS
      type (type_bottom_state_variable_id) :: id_DDetpoolS,id_NDetpoolS,id_PDetpoolS,id_SiDetpoolS
      type (type_state_variable_id) :: id_SiO2poolW
 !     environmental dependencies
-      type (type_dependency_id)                :: id_uTm
+      type (type_dependency_id)                :: id_uTm,id_dz
 !     Model parameters
 !     temperature parameters
       real(rk)   :: cSigTmDiat,cTmOptDiat
@@ -71,15 +80,15 @@
       real(rk)   :: cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax
 !     exchange process related parameters
       real(rk)   :: fDissMortPhyt,cSiDDiat
-      
-      
+
+
    contains
 
      procedure initialize
      procedure do_bottom
-     
-     
-     
+
+
+
       end type type_au_pclake_phytoplankton_sediment
 
 
@@ -96,7 +105,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine initialize(self,configunit)
@@ -112,12 +121,12 @@
 !  Store parameter values in our own derived type
 !  NB: all rates must be provided in values per day,
 !  and are converted here to values per second.
-   call self%get_parameter(self%cSigTmDiat,   'cSigTmDiat',   '°C',       'temperature constant diatoms (sigma in Gaussian curve)',    default=20.0_rk)
-   call self%get_parameter(self%cTmOptDiat,   'cTmOptDiat',   '°C',       'optimum temp. diatoms',                                     default=18.0_rk)
-   call self%get_parameter(self%cSigTmBlue,   'cSigTmBlue',   '°C',       'temperature constant blue-greens (sigma in Gaussian curve)',default=12.0_rk)
-   call self%get_parameter(self%cTmOptBlue,   'cTmOptBlue',   '°C',       'optimum temp. blue-greens',                                 default=25.0_rk)
-   call self%get_parameter(self%cSigTmGren,   'cSigTmGren',   '°C',       'temperature constant greens (sigma in Gaussian curve)',     default=15.0_rk)
-   call self%get_parameter(self%cTmOptGren,   'cTmOptGren',   '°C',       'optimum temp. of greens',                                   default=25.0_rk)
+   call self%get_parameter(self%cSigTmDiat,   'cSigTmDiat',   'ï¿½C',       'temperature constant diatoms (sigma in Gaussian curve)',    default=20.0_rk)
+   call self%get_parameter(self%cTmOptDiat,   'cTmOptDiat',   'ï¿½C',       'optimum temp. diatoms',                                     default=18.0_rk)
+   call self%get_parameter(self%cSigTmBlue,   'cSigTmBlue',   'ï¿½C',       'temperature constant blue-greens (sigma in Gaussian curve)',default=12.0_rk)
+   call self%get_parameter(self%cTmOptBlue,   'cTmOptBlue',   'ï¿½C',       'optimum temp. blue-greens',                                 default=25.0_rk)
+   call self%get_parameter(self%cSigTmGren,   'cSigTmGren',   'ï¿½C',       'temperature constant greens (sigma in Gaussian curve)',     default=15.0_rk)
+   call self%get_parameter(self%cTmOptGren,   'cTmOptGren',   'ï¿½C',       'optimum temp. of greens',                                   default=25.0_rk)
    call self%get_parameter(self%kMortDiatS,   'kMortDiatS',   'd-1',      'mortality constant of sed. Diatoms',                        default=0.05_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%kDRespDiat,   'kDRespDiat',   'd-1',      'maintenance respiration constant diatoms',                  default=0.1_rk,  scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%cNDDiatMin,   'cNDDiatMin',   'mgN/mgDW', 'minimum N/day ratio Diatoms',                               default=0.01_rk)
@@ -141,28 +150,49 @@
 
 !  Register local state variable
    call self%register_state_variable(self%id_sDDiatS,'sDDiatS','g m-2','diatom_D in sediment',     &
-                                    initial_value=0.001_rk,minimum= PhyZeroS)
+                                    initial_value=0.001_rk,minimum= NearZero)
    call self%register_state_variable(self%id_sPDiatS,'sPDiatS','g m-2','diatom_P in sediment',     &
-                                    initial_value=0.00001_rk,minimum= PhyZeroS)
+                                    initial_value=0.00001_rk,minimum= NearZero)
    call self%register_state_variable(self%id_sNDiatS,'sNDiatS','g m-2','diatom_N in sediment',     &
-                                    initial_value=0.0001_rk,minimum= PhyZeroS)
+                                    initial_value=0.0001_rk,minimum= NearZero)
    call self%register_state_variable(self%id_sDGrenS,'sDGrenS','g m-2','green_D in sediment',     &
-                                    initial_value=0.001_rk,minimum= PhyZeroS)
+                                    initial_value=0.001_rk,minimum= NearZero)
    call self%register_state_variable(self%id_sPGrenS,'sPGrenS','g m-2','green_P in sediment',     &
-                                    initial_value=0.00001_rk,minimum= PhyZeroS)
+                                    initial_value=0.00001_rk,minimum= NearZero)
    call self%register_state_variable(self%id_sNGrenS,'sNGrenS','g m-2','green_N in sediment',     &
-                                    initial_value=0.0001_rk,minimum=PhyZeroS)
+                                    initial_value=0.0001_rk,minimum=NearZero)
    call self%register_state_variable(self%id_sDBlueS,'sDBlueS','g m-2','blue_D in sediment',     &
-                                    initial_value=0.001_rk,minimum=PhyZeroS)
+                                    initial_value=0.001_rk,minimum=NearZero)
    call self%register_state_variable(self%id_sPBlueS,'sPBlueS','g m-2','blue_P in sediment',     &
-                                    initial_value=0.00001_rk,minimum=PhyZeroS)
+                                    initial_value=0.00001_rk,minimum=NearZero)
    call self%register_state_variable(self%id_sNBlueS,'sNBlueS','g m-2','blue_N in sediment',     &
-                                    initial_value=0.0001_rk,minimum=PhyZeroS)
+                                    initial_value=0.0001_rk,minimum=NearZero)
 !  register diagnostic variables
    call self%register_diagnostic_variable(self%id_oSiDiatS,  'oSiDiatS',  'g m-2 s-1','oSiDiatS',  output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_rPDPhytS,  'rPDPhytS',  '[-]',      'rPDPhytS',  output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_rNDPhytS,  'rNDPhytS',  '[-]',      'rNDPhytS',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDPrimDetS,'tDPrimDetS','g m-2 s-1','tDPrimDetS',output=output_none)
+!  register diagnostic variable for external usage
+   call self%register_diagnostic_variable(self%id_tDPrimDetS,'tDPrimDetS','g m-2 s-1', 'detritus change in phytoplankton sediment',  output=output_none)
+!  register diagnostic variables for modular fluxes
+!  fluxes for local state variables
+   call self%register_diagnostic_variable(self%id_tDPrimDiatS,'tDPrimDiatS','g m-2 s-1', 'phytoplankton_sediment_DDiat_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNPrimDiatS,'tNPrimDiatS','g m-2 s-1', 'phytoplankton_sediment_NDiat_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPPrimDiatS,'tPPrimDiatS','g m-2 s-1', 'phytoplankton_sediment_PDiat_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDPrimGrenS,'tDPrimGrenS','g m-2 s-1', 'phytoplankton_sediment_DGren_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNPrimGrenS,'tNPrimGrenS','g m-2 s-1', 'phytoplankton_sediment_NGren_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPPrimGrenS,'tPPrimGrenS','g m-2 s-1', 'phytoplankton_sediment_PGren_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDPrimBlueS,'tDPrimBlueS','g m-2 s-1', 'phytoplankton_sediment_DBlue_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNPrimBlueS,'tNPrimBlueS','g m-2 s-1', 'phytoplankton_sediment_NBlue_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPPrimBlueS,'tPPrimBlueS','g m-2 s-1', 'phytoplankton_sediment_PBlue_change',  output=output_instantaneous)
+!  fluxes for other modules, mainly abiotic sediment
+   call self%register_diagnostic_variable(self%id_tPPrimPO4S,'tPPrimPO4S','g m-2 s-1', 'phytoplankton_sediment_PO4S_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNPrimNO3S,'tNPrimNO3S','g m-2 s-1', 'phytoplankton_sediment_NO3S_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNPrimNH4S,'tNPrimNH4S','g m-2 s-1', 'phytoplankton_sediment_NH4S_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDPrimDetSflux,'tDPrimDetSflux','g m-2 s-1', 'phytoplankton_sediment_DDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNPrimDetS,'tNPrimDetS','g m-2 s-1', 'phytoplankton_sediment_NDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPPrimDetS,'tPPrimDetS','g m-2 s-1', 'phytoplankton_sediment_PDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tSiPrimDetS,'tSiPrimDetS','g m-2 s-1', 'phytoplankton_sediment_SiDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tSiExcrDiatS,'tSiExcrDiatS','g m-2 s-1', 'phytoplankton_sediment_SiO2_change',  output=output_instantaneous)
 !  Register contribution of state to global aggregate variables
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNDiatS)
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNGrenS)
@@ -170,8 +200,8 @@
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPDiatS)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPGrenS)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPBlueS)
-   call self%add_to_aggregate_variable(standard_variables%total_silicate,  self%id_oSiDiatS)
-   
+!   call self%add_to_aggregate_variable(standard_variables%total_silicate,  self%id_oSiDiatS)
+
 !  regirster state variables dependencies
    call self%register_state_dependency(self%id_PO4poolS,  'sPO4_pool_sediment',       'g m-2', 'sPO4_pool_sediment')
    call self%register_state_dependency(self%id_NO3poolS,  'sNO3_pool_sediment',       'g m-2', 'sNO3_pool_sediment')
@@ -184,7 +214,7 @@
 
 
    call self%register_dependency(self%id_uTm,standard_variables%temperature)
-
+   call self%register_dependency(self%id_dz,standard_variables%cell_thickness)
       return
 
    end subroutine initialize
@@ -192,7 +222,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
@@ -207,11 +237,11 @@
    real(rk)                   :: sDBlueS,sPBlueS,sNBlueS
    real(rk)                   :: oSiDiatS,rPDPhytS,rNDPhytS
 !  environmental dependencies carrier
-   real(rk)                   :: uTm
+   real(rk)                   :: uTm,dz
 !  external links value carrier
    real(rk)                  :: sPO4S,sNO3S,sNH4S,sSiO2W
    real(rk)                  :: sDDetS,sNDetS,sPDetS,sSiDetS
-   
+
 !  Nutrients rations
    real(rk)   :: rPDDiatS,rNDDiatS
    real(rk)   :: rPDGrenS,rNDGrenS
@@ -246,7 +276,7 @@
    real(rk)   :: tSiPrimDetS,tSiMortDiatS
    real(rk)   :: tSiExcrDiatS
 
-   
+
 !  Enter spatial loops (if any)
    _FABM_HORIZONTAL_LOOP_BEGIN_
 !-----------------------------------------------------------------------
@@ -275,6 +305,7 @@
    _GET_(self%id_SiO2poolW,sSiO2W)
 !  retrieve environmental dependencies
    _GET_(self%id_uTm,uTm)
+   _GET_(self%id_dz,dz)
 !-----------------------------------------------------------------------
 !  Current local nutrients ratios(check the curent state)
 !-----------------------------------------------------------------------
@@ -366,7 +397,7 @@
 !  P_mortality_of_algae_in_sediment
    tPMortGrenS = self%kMortGrenS * sPGrenS
 !  total_flux_from_PRIM_module_to_sediment_Algae
-   tPPrimGrenS = - tPMortGrenS - tPExcrGrenS 
+   tPPrimGrenS = - tPMortGrenS - tPExcrGrenS
 !-----------------------------------------------------------------------
 !  Dry-weight change of blue algae in sediment
 !-----------------------------------------------------------------------
@@ -441,14 +472,14 @@
 !  detrital_N_flux_from_died_Algae
    tNMortPhytDetS = tNMortPhytS - tNMortPhytNH4S
 !  Sediment_detritus
-   tNPrimDetS = tNMortPhytDetS 
+   tNPrimDetS = tNMortPhytDetS
 !-----------------------------------------------------------------------
 !  sPDetS exhange
 !-----------------------------------------------------------------------
 !  detrital_P_flux_from_died_Algae
    tPMortPhytDetS = tPMortPhytS - tPMortPhytPO4S
 !  Sediment_detritus
-   tPPrimDetS = tPMortPhytDetS 
+   tPPrimDetS = tPMortPhytDetS
 !-----------------------------------------------------------------------
 !  sSiDetS exhange
 !-----------------------------------------------------------------------
@@ -491,10 +522,28 @@
 !-----------------------------------------------------------------------
 !  Output denpendent diagnostic variables for other modules
 !-----------------------------------------------------------------------
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDPrimDetS,tDPrimDetS)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_oSiDiatS,oSiDiatS)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_rPDPhytS,rPDPhytS)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_rNDPhytS,rNDPhytS)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDPrimDetS,tDPrimDetS)
+!  output diagostic variables for modular fluxes
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDPrimDiatS,tDPrimDiatS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNPrimDiatS,tNPrimDiatS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPPrimDiatS,tPPrimDiatS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDPrimGrenS,tDPrimGrenS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNPrimGrenS,tNPrimGrenS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPPrimGrenS,tPPrimGrenS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDPrimBlueS,tDPrimBlueS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNPrimBlueS,tNPrimBlueS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPPrimBlueS,tPPrimBlueS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPPrimPO4S,tPPrimPO4S*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNPrimNO3S,tNPrimNO3S*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNPrimNH4S,tNPrimNH4S*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDPrimDetSflux,tDPrimDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNPrimDetS,tNPrimDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPPrimDetS,tPPrimDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiPrimDetS,tSiPrimDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiExcrDiatS,tSiExcrDiatS/dz*86400.0_rk)
 
    _FABM_HORIZONTAL_LOOP_END_
 
