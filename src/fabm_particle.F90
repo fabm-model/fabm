@@ -227,15 +227,17 @@ module fabm_particle
       call request_coupling_to_model_generic(self,slave_variable%link,master_model_name=master_model,master_standard_variable=master_variable)
    end subroutine request_standard_coupling_to_named_model
 
-   recursive function resolve_model_reference(self,reference) result(model)
+   recursive function resolve_model_reference(self,reference,require_internal_variables) result(model)
       class (type_particle_model),intent(inout),target :: self
       type (type_model_reference),intent(inout)        :: reference
+      logical,optional,           intent(in)           :: require_internal_variables
       class (type_base_model), pointer :: model
 
       type (type_model_reference), pointer :: reference2
       class (type_property),       pointer :: model_master_name
       integer                              :: istart
       class (type_particle_model), pointer :: source_model
+      logical                              :: require_internal_variables_
 
       select case (reference%state)
       case (busy)
@@ -291,21 +293,30 @@ module fabm_particle
 
       reference%state = done
       model => reference%model
+
+      require_internal_variables_ = .false.
+      if (present(require_internal_variables)) require_internal_variables_ = require_internal_variables
+      if (require_internal_variables_) then
+         select type (model)
+         class is (type_particle_model)
+            call complete_internal_variables_if_needed(model)
+         end select
+      end if
    end function resolve_model_reference
 
-   recursive subroutine require_internal_variables(self)
+   recursive subroutine complete_internal_variables_if_needed(self)
       class (type_particle_model),intent(inout) :: self
 
       select case (self%internal_variable_state)
       case (done)
          return
       case (busy)
-         call self%fatal_error('require_internal_variables','Circular dependency')
+         call self%fatal_error('complete_internal_variables_if_needed','Circular dependency')
       end select
       self%internal_variable_state = busy
       call self%complete_internal_variables()
       self%internal_variable_state = done
-   end subroutine require_internal_variables
+   end subroutine complete_internal_variables_if_needed
 
    recursive subroutine complete_internal_variables(self)
       class (type_particle_model),intent(inout) :: self
@@ -316,23 +327,14 @@ module fabm_particle
 
       type (type_model_reference),           pointer :: reference
       class (type_base_model),               pointer :: model
-      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
       class (type_coupling_task),            pointer :: coupling, next_coupling
+      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
       character(len=attribute_length)                :: master_name
 
       reference => self%first_model_reference
       do while (associated(reference))
-         model => resolve_model_reference(self,reference)
-         reference => reference%next
-      end do
-
-      reference => self%first_model_reference
-      do while (associated(reference))
+         model => resolve_model_reference(self,reference,require_internal_variables=associated(reference%id))
          if (associated(reference%id)) then
-            select type (source_model=>reference%model)
-            class is (type_particle_model)
-               call require_internal_variables(source_model)
-            end select
             call build_state_id_list(self,reference,domain_interior)
             call build_state_id_list(self,reference,domain_surface)
             call build_state_id_list(self,reference,domain_bottom)
@@ -375,7 +377,7 @@ module fabm_particle
          coupling => next_coupling
       end do
 
-      call require_internal_variables(self)
+      call complete_internal_variables_if_needed(self)
    end subroutine before_coupling
 
    subroutine build_state_id_list(self,reference,domain)
