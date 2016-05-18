@@ -155,7 +155,7 @@ module fabm_particle
 
    subroutine request_coupling_to_model_generic(self,slave,master_model,master_model_name,master_name,master_standard_variable)
       class (type_particle_model),       intent(inout)          :: self
-      class (type_link),target                                  :: slave
+      type (type_link),target                                   :: slave
       class (type_model_id),             intent(inout),optional :: master_model
       character(len=*),                  intent(in),   optional :: master_name, master_model_name
       type (type_bulk_standard_variable),intent(in),   optional :: master_standard_variable
@@ -385,9 +385,9 @@ module fabm_particle
       type (type_model_reference),intent(inout) :: reference
       integer,                    intent(in)    :: domain
 
-      type (type_link),           pointer :: link
-      integer                             :: n
-      character(len=10)                   :: strindex
+      type (type_link),pointer :: link
+      integer                  :: n
+      character(len=10)        :: strindex
 
       ! Count number of state variables in target model.
       n = 0
