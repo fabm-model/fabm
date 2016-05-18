@@ -180,7 +180,7 @@ module fabm_particle
          coupling%model_reference => add_model_reference(self,master_model_name,require_empty_id=.false.)
       end if
       base_coupling => coupling
-      if (.not.self%coupling_task_list%add(base_coupling,.false.)) deallocate(coupling)
+      if (.not.self%coupling_task_list%add_object(base_coupling,.false.)) deallocate(coupling)
    end subroutine request_coupling_to_model_generic
 
    subroutine request_named_coupling_to_model(self,slave_variable,master_model,master_variable)

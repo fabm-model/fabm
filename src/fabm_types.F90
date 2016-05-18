@@ -139,9 +139,8 @@
       logical                            :: includes_custom = .false.
    contains
       procedure :: remove => coupling_task_list_remove
-      procedure :: add_for_link => coupling_task_list_add
+      procedure :: add => coupling_task_list_add
       procedure :: add_object => coupling_task_list_add_object
-      generic :: add => add_for_link, add_object
    end type
 
    ! ====================================================================================================
@@ -1149,7 +1148,7 @@ function create_coupling_task(self,link) result(task)
       &not inherited ones such as the current '//trim(link%name)//'.')
 
    ! Create a coupling task (reuse existing one if available, and not user-specified)
-   task => self%coupling_task_list%add(link,.false.)
+   call self%coupling_task_list%add(link,.false.,task)
 end function create_coupling_task
 
 subroutine request_coupling_for_link(self,link,master)
@@ -2952,7 +2951,7 @@ end subroutine abstract_model_factory_register_version
       nullify(task%next)
    end function coupling_task_list_add_object
 
-   function coupling_task_list_add(self,link,always_create) result(task)
+   subroutine coupling_task_list_add(self,link,always_create,task)
       class (type_coupling_task_list),intent(inout)         :: self
       type (type_link),               intent(inout), target :: link
       logical,                        intent(in)            :: always_create
@@ -2963,10 +2962,10 @@ end subroutine abstract_model_factory_register_version
       allocate(task)
       task%slave => link
       task%domain = link%target%domain
-      used = self%add(task,always_create)
+      used = self%add_object(task,always_create)
       if (.not.used) deallocate(task)
 
-   end function coupling_task_list_add
+   end subroutine coupling_task_list_add
 
    end module fabm_types
 
