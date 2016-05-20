@@ -504,15 +504,26 @@ allocate(sms_bt(size(model%bottom_state_variables)))
       real(rk),                             intent(in) :: required_masked_value,required_value
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_interior_slice(dat(:,ivar),required_masked_value,required_value)
+      call check_interior_slice(dat(:,ivar),required_masked_value,required_value _ARGUMENTS_INTERIOR_IN_)
 #else
-      call check_interior_slice(dat(ivar),required_masked_value,required_value)
+      call check_interior_slice(dat(ivar),required_masked_value,required_value _ARGUMENTS_INTERIOR_IN_)
 #endif
    end subroutine
 
-   subroutine check_interior_slice(dat,required_masked_value,required_value)
-      real(rk) _DIMENSION_EXT_SLICE_,intent(in) :: dat
+   subroutine check_interior_slice(slice_data,required_masked_value,required_value _ARGUMENTS_INTERIOR_IN_)
+      real(rk) _DIMENSION_EXT_SLICE_,intent(in) :: slice_data
       real(rk),                      intent(in) :: required_masked_value,required_value
+      _DECLARE_ARGUMENTS_INTERIOR_IN_
+
+#ifdef _FABM_HORIZONTAL_MASK_
+#else
+      if (any(slice_data/=required_masked_value.and..not._IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop)))) then
+         call driver%fatal_error('check_interior_slice','one or more masked cells do not have the value required.')
+      end if
+      if (any(slice_data/=required_value.and._IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop)))) then
+         call driver%fatal_error('check_interior_slice','one or more non-masked cells do not have the value required.')
+      end if
+#endif
    end subroutine
 
 #ifdef _HAS_MASK_
