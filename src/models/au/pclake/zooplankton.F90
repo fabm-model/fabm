@@ -13,7 +13,7 @@
 !  element respectively)
 !  units: gDW/m**3, gP/m**3,gP/m**3
 !  local processes:assimilation,respiration(only for sDZoo),excretion(only for sNZoo,sPZoo),
-!  This module also discribes the processes which influence the state variables registered in
+!  This module also describes the processes which influence the state variables registered in
 !  other modules, including: (aPhytW stands for all groups of phytoplankton)
 !  Zooplankton grazing on phytoplankton in water column: aDPhytW==>aDZoo,
 !  aNPhytW==>aNZoo,aPPhytW==>aPZoo
@@ -34,7 +34,7 @@
 !
 ! !PUBLIC DERIVED TYPES:
    type, extends(type_base_model),public :: type_au_pclake_zooplankton
-!     local state variable identifers
+!     local state variable identifiers
 !     id_sDZoo,zooplankton concentration in dry-weight, gDW/m**3
 !     id_sPZoo,zooplankton concentration in nitrogen element, gN/m**3
 !     id_sNZoo,zooplankton concentration in phosphorus element, gP/m**3
@@ -47,7 +47,7 @@
       type (type_diagnostic_variable_id)       :: id_wDZooDiatW,id_wNZooDiatW,id_wPZooDiatW
       type (type_diagnostic_variable_id)       :: id_wDZooGrenW,id_wNZooGrenW,id_wPZooGrenW
       type (type_diagnostic_variable_id)       :: id_wDZooBlueW,id_wNZooBlueW,id_wPZooBlueW
-!     state dependencies identifers
+!     state dependencies identifiers
       type (type_state_variable_id)            :: id_DfoodDiat,id_DfoodGren,id_DfoodBlue,id_DDetpoolW
       type (type_state_variable_id)            :: id_NfoodDiat,id_NfoodGren,id_NfoodBlue,id_NDetpoolW
       type (type_state_variable_id)            :: id_PfoodDiat,id_PfoodGren,id_PfoodBlue,id_PDetpoolW,id_SiDetpoolW
@@ -80,7 +80,7 @@
 
    end type type_au_pclake_zooplankton
 
-!  private data memebers(API0.92)
+!  private data members(API0.92)
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero = 0.000000000000000000000000000000001_rk
    real(rk)           :: Pi=3.14159265358979_rk
@@ -153,42 +153,42 @@
 !  Register contribution of state to global aggregate variables
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNZoo)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPZoo)
-!  regirster state variables dependencies
-   call self%register_state_dependency(self%id_DfoodDiat, 'diatom_as_food_DW',     'g m-3', 'diatom_as_food_DW')
-   call self%register_state_dependency(self%id_DfoodGren, 'green_as_food_DW',      'g m-3', 'green_as_food_DW')
-   call self%register_state_dependency(self%id_DfoodBlue, 'blue_as_food_DW',       'g m-3', 'blue_as_food_DW')
-   call self%register_state_dependency(self%id_NfoodDiat, 'diatom_as_food_N',      'g m-3', 'diatom_as_food_N')
-   call self%register_state_dependency(self%id_NfoodGren, 'green_as_food_N',       'g m-3', 'green_as_food_N')
-   call self%register_state_dependency(self%id_NfoodBlue, 'blue_as_food_N',        'g m-3', 'blue_as_food_N')
-   call self%register_state_dependency(self%id_PfoodDiat, 'diatom_as_food_P',      'g m-3', 'diatom_as_food_P')
-   call self%register_state_dependency(self%id_PfoodGren, 'green_as_food_P',       'g m-3', 'green_as_food_P')
-   call self%register_state_dependency(self%id_PfoodBlue, 'blue_as_food_P',        'g m-3', 'blue_as_food_P')
-   call self%register_state_dependency(self%id_DDetpoolW, 'detritus_DW_pool_water','g m-3', 'detritus_DW_pool_water')
-   call self%register_state_dependency(self%id_NDetpoolW, 'detritus_N_pool_water', 'g m-3', 'detritus_N_pool_water')
-   call self%register_state_dependency(self%id_PDetpoolW, 'detritus_P_pool_water', 'g m-3', 'detritus_P_pool_water')
-   call self%register_state_dependency(self%id_SiDetpoolW,'detritus_Si_pool_water','g m-3', 'detritus_Si_pool_water')
-   call self%register_state_dependency(self%id_NH4poolW,  'NH4_pool_water',        'g m-3', 'NH4_pool_water')
-   call self%register_state_dependency(self%id_NO3poolW,  'NO3_pool_water',        'g m-3', 'NO3_pool_water')
-   call self%register_state_dependency(self%id_PO4poolW,  'PO4_pool_water',        'g m-3', 'PO4_pool_water')
+!  register state variables dependencies
+   call self%register_state_dependency(self%id_DfoodDiat,     'diatom_as_food_DW',      'g m-3', 'diatom_as_food_DW')
+   call self%register_state_dependency(self%id_DfoodGren,     'green_as_food_DW',       'g m-3', 'green_as_food_DW')
+   call self%register_state_dependency(self%id_DfoodBlue,     'blue_as_food_DW',        'g m-3', 'blue_as_food_DW')
+   call self%register_state_dependency(self%id_NfoodDiat,     'diatom_as_food_N',       'g m-3', 'diatom_as_food_N')
+   call self%register_state_dependency(self%id_NfoodGren,     'green_as_food_N',        'g m-3', 'green_as_food_N')
+   call self%register_state_dependency(self%id_NfoodBlue,     'blue_as_food_N',         'g m-3', 'blue_as_food_N')
+   call self%register_state_dependency(self%id_PfoodDiat,     'diatom_as_food_P',       'g m-3', 'diatom_as_food_P')
+   call self%register_state_dependency(self%id_PfoodGren,     'green_as_food_P',        'g m-3', 'green_as_food_P')
+   call self%register_state_dependency(self%id_PfoodBlue,     'blue_as_food_P',         'g m-3', 'blue_as_food_P')
+   call self%register_state_dependency(self%id_DDetpoolW,     'detritus_DW_pool_water', 'g m-3', 'detritus_DW_pool_water')
+   call self%register_state_dependency(self%id_NDetpoolW,     'detritus_N_pool_water',  'g m-3', 'detritus_N_pool_water')
+   call self%register_state_dependency(self%id_PDetpoolW,     'detritus_P_pool_water',  'g m-3', 'detritus_P_pool_water')
+   call self%register_state_dependency(self%id_SiDetpoolW,    'detritus_Si_pool_water', 'g m-3', 'detritus_Si_pool_water')
+   call self%register_state_dependency(self%id_NH4poolW,      'NH4_pool_water',         'g m-3', 'NH4_pool_water')
+   call self%register_state_dependency(self%id_NO3poolW,      'NO3_pool_water',         'g m-3', 'NO3_pool_water')
+   call self%register_state_dependency(self%id_PO4poolW,      'PO4_pool_water',         'g m-3', 'PO4_pool_water')
 !  register diagnostic variables for modular fluxes
-   call self%register_diagnostic_variable(self%id_wDZoo,'wDZoo',     'g m-3 s-1', 'zooplankton_DZoo_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNZoo,'wNZoo',     'g m-3 s-1', 'zooplankton_NZoo_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wPZoo,'wPZoo',     'g m-3 s-1', 'zooplankton_PZoo_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNZooNO3W,'wNZooNO3W',     'g m-3 s-1', 'zooplankton_NO3W_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wPZooPO4W,'wPZooPO4W',     'g m-3 s-1', 'zooplankton_PO4W_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wDZooDetW,'wDZooDetW',     'g m-3 s-1', 'zooplankton_DDetW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNZooDetW,'wNZooDetW',     'g m-3 s-1', 'zooplankton_NDetW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wPZooDetW,'wPZooDetW',     'g m-3 s-1', 'zooplankton_PDetW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wSiZooDetW,'wSiZooDetW',     'g m-3 s-1', 'zooplankton_SiDetW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wDZooDiatW,'wDZooDiatW',     'g m-3 s-1', 'zooplankton_DDiat_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNZooDiatW,'wNZooDiatW',     'g m-3 s-1', 'zooplankton_NDiat_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wPZooDiatW,'wPZooDiatW',     'g m-3 s-1', 'zooplankton_PDiat_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wDZooGrenW,'wDZooGrenW',     'g m-3 s-1', 'zooplankton_DGren_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNZooGrenW,'wNZooGrenW',     'g m-3 s-1', 'zooplankton_NGren_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wPZooGrenW,'wPZooGrenW',     'g m-3 s-1', 'zooplankton_PGren_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wDZooBlueW,'wDZooBlueW',     'g m-3 s-1', 'zooplankton_DBlue_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNZooBlueW,'wNZooBlueW',     'g m-3 s-1', 'zooplankton_NBlue_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wPZooBlueW,'wPZooBlueW',     'g m-3 s-1', 'zooplankton_PBlue_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wDZoo,      'wDZoo',                   'g m-3 s-1', 'zooplankton_DZoo_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNZoo,      'wNZoo',                   'g m-3 s-1', 'zooplankton_NZoo_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPZoo,      'wPZoo',                   'g m-3 s-1', 'zooplankton_PZoo_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNZooNO3W,  'wNZooNO3W',               'g m-3 s-1', 'zooplankton_NO3W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPZooPO4W,  'wPZooPO4W',               'g m-3 s-1', 'zooplankton_PO4W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wDZooDetW,  'wDZooDetW',               'g m-3 s-1', 'zooplankton_DDetW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNZooDetW,  'wNZooDetW',               'g m-3 s-1', 'zooplankton_NDetW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPZooDetW,  'wPZooDetW',               'g m-3 s-1', 'zooplankton_PDetW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wSiZooDetW, 'wSiZooDetW',              'g m-3 s-1', 'zooplankton_SiDetW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wDZooDiatW, 'wDZooDiatW',              'g m-3 s-1', 'zooplankton_DDiat_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNZooDiatW, 'wNZooDiatW',              'g m-3 s-1', 'zooplankton_NDiat_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPZooDiatW, 'wPZooDiatW',              'g m-3 s-1', 'zooplankton_PDiat_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wDZooGrenW, 'wDZooGrenW',              'g m-3 s-1', 'zooplankton_DGren_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNZooGrenW, 'wNZooGrenW',              'g m-3 s-1', 'zooplankton_NGren_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPZooGrenW, 'wPZooGrenW',              'g m-3 s-1', 'zooplankton_PGren_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wDZooBlueW, 'wDZooBlueW',              'g m-3 s-1', 'zooplankton_DBlue_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNZooBlueW, 'wNZooBlueW',              'g m-3 s-1', 'zooplankton_NBlue_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPZooBlueW, 'wPZooBlueW',              'g m-3 s-1', 'zooplankton_PBlue_change',  output=output_instantaneous)
 
 !  register environmental dependencies
    call self%register_dependency(self%id_uTm,    standard_variables%temperature)
@@ -280,9 +280,9 @@
    _GET_(self%id_sNZoo,sNZoo)
    _GET_(self%id_sPZoo,sPZoo)
 !-----------------------------------------------------------------------
-!  Retrieve dependencis value
+!  Retrieve dependencies  value
 !-----------------------------------------------------------------------
-!  Retrieve state dependencie value
+!  Retrieve state dependencies value
    _GET_(self%id_DfoodDiat,sDDiatW)
    _GET_(self%id_DfoodGren,sDGrenW)
    _GET_(self%id_DfoodBlue,sDBlueW)
@@ -301,7 +301,7 @@
    _GET_(self%id_dz,dz)
    _GET_HORIZONTAL_(self%id_sDepthW,sDepthW)
 !-------------------------------------------------------------------------
-!  Current local nutrients ratios in zooplankton(check the curent state)
+!  Current local nutrients ratios in zooplankton(check the current state)
 !-------------------------------------------------------------------------
 !  P/C_ratio of food
    rPDDiatW=sPDiatW/(sDDiatw+NearZero)
@@ -579,43 +579,43 @@
 !  Update external state variables
 !-----------------------------------------------------------------------
 !  update abiotic variables in water
-   _SET_ODE_(self%id_NH4poolW,wNZooNH4W)
-   _SET_ODE_(self%id_NO3poolW,wNZooNO3W)
-   _SET_ODE_(self%id_PO4poolW,wPZooPO4W)
-   _SET_ODE_(self%id_DDetpoolW,wDZooDetW)
-   _SET_ODE_(self%id_NDetpoolW,wNZooDetW)
-   _SET_ODE_(self%id_PDetpoolW,wPZooDetW)
-   _SET_ODE_(self%id_SiDetpoolW,wSiZooDetW)
+   _SET_ODE_(self%id_NH4poolW,   wNZooNH4W)
+   _SET_ODE_(self%id_NO3poolW,   wNZooNO3W)
+   _SET_ODE_(self%id_PO4poolW,   wPZooPO4W)
+   _SET_ODE_(self%id_DDetpoolW,  wDZooDetW)
+   _SET_ODE_(self%id_NDetpoolW,  wNZooDetW)
+   _SET_ODE_(self%id_PDetpoolW,  wPZooDetW)
+   _SET_ODE_(self%id_SiDetpoolW, wSiZooDetW)
 !  update phytoplankton in water
-   _SET_ODE_(self%id_DfoodDiat,wDZooDiatW)
-   _SET_ODE_(self%id_NfoodDiat,wNZooDiatW)
-   _SET_ODE_(self%id_PfoodDiat,wPZooDiatW)
-   _SET_ODE_(self%id_DfoodGren,wDZooGrenW)
-   _SET_ODE_(self%id_NfoodGren,wNZooGrenW)
-   _SET_ODE_(self%id_PfoodGren,wPZooGrenW)
-   _SET_ODE_(self%id_DfoodBlue,wDZooBlueW)
-   _SET_ODE_(self%id_NfoodBlue,wNZooBlueW)
-   _SET_ODE_(self%id_PfoodBlue,wPZooBlueW)
+   _SET_ODE_(self%id_DfoodDiat,  wDZooDiatW)
+   _SET_ODE_(self%id_NfoodDiat,  wNZooDiatW)
+   _SET_ODE_(self%id_PfoodDiat,  wPZooDiatW)
+   _SET_ODE_(self%id_DfoodGren,  wDZooGrenW)
+   _SET_ODE_(self%id_NfoodGren,  wNZooGrenW)
+   _SET_ODE_(self%id_PfoodGren,  wPZooGrenW)
+   _SET_ODE_(self%id_DfoodBlue,  wDZooBlueW)
+   _SET_ODE_(self%id_NfoodBlue,  wNZooBlueW)
+   _SET_ODE_(self%id_PfoodBlue,  wPZooBlueW)
 !  output diagnostic variables for modular fluxes
-   _SET_DIAGNOSTIC_(self%id_wDZoo,wDZoo*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNZoo,wNZoo*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wPZoo,wPZoo*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNZooNO3W,wNZooNO3W*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wPZooPO4W,wPZooPO4W*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wDZooDetW,wDZooDetW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNZooDetW,wNZooDetW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wPZooDetW,wPZooDetW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wSiZooDetW,wSiZooDetW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wDZooDiatW,wDZooDiatW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNZooDiatW,wNZooDiatW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wPZooDiatW,wPZooDiatW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wDZooGrenW,wDZooGrenW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNZooGrenW,wNZooGrenW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wPZooGrenW,wPZooGrenW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wDZooBlueW,wDZooBlueW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNZooBlueW,wNZooBlueW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wPZooBlueW,wPZooBlueW*86400.0_rk)
-   
+   _SET_DIAGNOSTIC_(self%id_wDZoo,      wDZoo*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNZoo,      wNZoo*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPZoo,      wPZoo*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNZooNO3W,  wNZooNO3W*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPZooPO4W,  wPZooPO4W*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wDZooDetW,  wDZooDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNZooDetW,  wNZooDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPZooDetW,  wPZooDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wSiZooDetW, wSiZooDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wDZooDiatW, wDZooDiatW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNZooDiatW, wNZooDiatW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPZooDiatW, wPZooDiatW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wDZooGrenW, wDZooGrenW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNZooGrenW, wNZooGrenW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPZooGrenW, wPZooGrenW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wDZooBlueW, wDZooBlueW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNZooBlueW, wNZooBlueW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPZooBlueW, wPZooBlueW*86400.0_rk)
+
 
 
    _LOOP_END_

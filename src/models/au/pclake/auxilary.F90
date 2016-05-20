@@ -12,8 +12,8 @@
 !  resuspension and sedimentation involve: sDIMW<==>sDIMS,sD/N/PDetW<==>sD/N/PDetS,sPAIMW<==>sPAIMS
 !  aD/N/PPhytW<==>aD/N/PPhytS,sDDiatW<==>sDDiatS,sNH4S==>sNH4W,sNO3S==>sNO3W,sPO4S==>sPO4W
 !  Burial process involve: sDIMS==>,sD/N/PDetS==>,sPAIMS==>
-!  feh: Sep.8
-!  Diatom Si sedimentation and resuspension can't ben handled here, since SiDiat is not state variable both
+!  feh: Sep.8,2015
+!  Diatom Si sedimentation and resuspension can't be handled here, since SiDiat is not state variable both
 !  in water column and sediment. Something could be further considered.
 ! !USES:
    use fabm_types
@@ -27,15 +27,15 @@
 !
 ! !PUBLIC DERIVED TYPES:
    type, extends(type_base_model),public :: type_au_pclake_auxilary
-!     local state variable identifers
+!     local state variable identifiers
 
 !     diagnostic variables for local output(should be discussed and added later???)
-!     state dependencies identifers
+!     state dependencies identifiers
 !     SW:Sediment to Water
 !     dependencies to pclake_abiotic_water state variables
       type (type_state_variable_id)            :: id_SWNH4,id_SWNO3,id_SWPO4,id_SWPAIM,id_SWO2,id_SWSiO2
       type (type_state_variable_id)            :: id_SWDIM,id_SWDDet,id_SWNDet,id_SWPDet,id_SWSiDet
-!     dependencies to phy_wat state variables
+!     dependencies to phytoplankton_water state variables
       type (type_state_variable_id)            :: id_SWDBlue,id_SWNBlue,id_SWPBlue
       type (type_state_variable_id)            :: id_SWDDiat,id_SWNDiat,id_SWPDiat  !,id_SWSiDiat
       type (type_state_variable_id)            :: id_SWDGren,id_SWNGren,id_SWPGren
@@ -44,7 +44,7 @@
       type (type_bottom_state_variable_id)     :: id_WSPO4,id_WSPAIM,id_WSNH4,id_WSNO3
       type (type_bottom_state_variable_id)     :: id_WSDIM,id_WSDDet,id_WSNDet,id_WSPDet,id_WSSiDet
       type (type_bottom_state_variable_id)     :: id_WSDHum,id_WSNHum,id_WSPHum
-!     dependencies to phy_sed state variables
+!     dependencies to phytoplankton_sediment state variables
       type (type_bottom_state_variable_id)     :: id_WSDBlue,id_WSNBlue,id_WSPBlue
       type (type_bottom_state_variable_id)     :: id_WSDDiat,id_WSNDiat,id_WSPDiat  !,id_WSSiDiat
       type (type_bottom_state_variable_id)     :: id_WSDGren,id_WSNGren,id_WSPGren
@@ -116,7 +116,7 @@
       PROCEDURE ::  do_surface
  ! FH 18082015     procedure :: do
    end type type_au_pclake_auxilary
-!  private data memebers(API0.92)
+!  private data members(API0.92)
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero = 0.000000000000000000000000000000001_rk
    real(rk),parameter :: Pi=3.14159265358979_rk
@@ -148,7 +148,7 @@
    call self%get_parameter(self%cThetaSet,    'cThetaSet',    '1/e^oC',            'temp. parameter of sedimentation',                       default=1.01_rk)
    call self%get_parameter(self%kVegResus,    'kVegResus',    'm2/gDW',            'rel. resuspension reduction per g vegetation',           default=0.01_rk)
    call self%get_parameter(self%kTurbFish,    'kTurbFish',    'g/gfish/d',         'relative resuspension by adult fish browsing',           default=1.0_rk)
-!  don't convert here,due to PCLake imperical function. kTurbFish
+!  don't convert here,due to PCLake empirical function. kTurbFish
    call self%get_parameter(self%cSuspRef,     'cSuspRef',     '[-]',               'reference suspended matter function [-]',                default=0.0_rk)
    call self%get_parameter(self%cSuspMin,     'cSuspMin',     '[-]',               'minimum value of logistic function',                     default=6.1_rk)
    call self%get_parameter(self%cSuspMax,     'cSuspMax',     '[-]',               'maximum value of logistic function',                     default=25.2_rk)
@@ -186,73 +186,73 @@
    call self%get_parameter(self%cPDBlueMax,   'cPDBlueMax',   'mgP/mgDW',          'max. P/day ratio blue-greens',                           default=0.025_rk)
    call self%get_parameter(self%cPDDiatMax,   'cPDDiatMax',   'mgP/mgDW',          'max. P/day ratio Diatoms',                               default=0.005_rk)
    call self%get_parameter(self%cPDGrenMax,   'cPDGrenMax',   'mgP/mgDW',          'max. P/day ratio greens',                                default=0.015_rk)
-!  resuspension ralted to shear stress
-   call self%get_parameter(self%crt_shear,    'crt_shear',    'N m-2',              'critical shear stress',                                  default=0.005_rk)
-   call self%get_parameter(self%ref_shear,    'ref_shear',    'N m-2',              'reference shear stress',                                 default=1.0_rk)
-   call self%get_parameter(self%alpha,        'alpha',        'g m-2 d-1',          'gross rate of sediment erosion((9000-9900g m-2/d',       default=9000.0_rk, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%eta,          'eta',          '[-]',                'shear stress correction factor',default=1.0_rk)
-   call self%get_parameter(self%cVSetMain,    'cVSetMain',    'm d-1',              'depth averaged settling velocity, between 0.5-1.5m/d)',  default=0.5_rk,    scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%resusp_meth,  'resusp_meth',  '[-]',                '1=original PCLake resuspension function',                default=2)
-   call self%get_parameter(self%tDDepoIM,  'tDDepoIM',  'g m-2 d-1',                'inorganic matter deposition',                default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%tDDepoDet,  'tDDepoDet',  'g m-2 d-1',                'organic matter deposition,dry weight',                default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%tNDepoDet,  'tNDepoDet',  'g m-2 d-1',                'organic matter deposition,nitrogen',                default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%tPDepoDet,  'tPDepoDet',  'g m-2 d-1',                'organic matter deposition,phosphorus',                default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%tPDepoPO4,  'tPDepoPO4',  'g m-2 d-1',                'phosphate deposition',                default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%tNDepoNH4,  'tNDepoNH4',  'g m-2 d-1',                'ammonium deposition',                default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%tNDepoNO3,  'tNDepoNO3',  'g m-2 d-1',                'nitrate deposition',                default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
+!  resuspension related to shear stress
+   call self%get_parameter(self%crt_shear,    'crt_shear',    'N m-2',             'critical shear stress',                                  default=0.005_rk)
+   call self%get_parameter(self%ref_shear,    'ref_shear',    'N m-2',             'reference shear stress',                                 default=1.0_rk)
+   call self%get_parameter(self%alpha,        'alpha',        'g m-2 d-1',         'gross rate of sediment erosion((9000-9900g m-2/d',       default=9000.0_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%eta,          'eta',          '[-]',               'shear stress correction factor',                         default=1.0_rk)
+   call self%get_parameter(self%cVSetMain,    'cVSetMain',    'm d-1',             'depth averaged settling velocity, between 0.5-1.5m/d)',  default=0.5_rk,    scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%resusp_meth,  'resusp_meth',  '[-]',               '1=original PCLake resuspension function',                default=2)
+   call self%get_parameter(self%tDDepoIM,  'tDDepoIM',  'g m-2 d-1',               'inorganic matter deposition',                            default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%tDDepoDet,  'tDDepoDet',  'g m-2 d-1',             'organic matter deposition,dry weight',                   default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%tNDepoDet,  'tNDepoDet',  'g m-2 d-1',             'organic matter deposition,nitrogen',                     default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%tPDepoDet,  'tPDepoDet',  'g m-2 d-1',             'organic matter deposition,phosphorus',                   default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%tPDepoPO4,  'tPDepoPO4',  'g m-2 d-1',             'phosphate deposition',                                   default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%tNDepoNH4,  'tNDepoNH4',  'g m-2 d-1',             'ammonium deposition',                                    default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%tNDepoNO3,  'tNDepoNO3',  'g m-2 d-1',             'nitrate deposition',                                     default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
 
 !  Register dependencies to abiotic water module
-   call self%register_state_dependency(self%id_SWNH4,   'ammonia_pool_in_water',          'g m-3',  'ammonia_pool_in_water')
-   call self%register_state_dependency(self%id_SWNO3,   'nitrate_pool_in_water',        'g m-3',  'nitrate_pool_in_water')
-   call self%register_state_dependency(self%id_SWPO4,   'Phosphate_pool_in_water',       'g m-3',  'Phosphate_pool_in_water')
-   call self%register_state_dependency(self%id_SWPAIM,  'Absorbed_phosphrus_in_water'   ,'g m-3',  'Absorbed_phosphrus_in_water')
-   call self%register_state_dependency(self%id_SWO2,    'Oxygen_pool_in_water',          'g m-3',  'Oxygen_pool_in_water')
-   call self%register_state_dependency(self%id_SWDIM,   'Inorg_pool_in_water',           'g m-3',  'Inorg_pool_in_water')
-   call self%register_state_dependency(self%id_SWDDet,  'Detritus_DW_in_water',          'g m-3',  'Detritus_DW_in_water')
-   call self%register_state_dependency(self%id_SWNDet,  'Detritus_N_in_water',           'g m-3',  'Detritus_N_in_water')
-   call self%register_state_dependency(self%id_SWPDet,  'Detritus_P_in_water',           'g m-3',  'Detritus_P_in_water')
-   call self%register_state_dependency(self%id_SWSiDet, 'Detritus_Si_in_water',          'g m-3',  'Detritus_Si_in_water')
-   call self%register_state_dependency(self%id_SWSiO2,  'SiO2_pool_water',               'g m-3',  'SiO2_pool_water')
+   call self%register_state_dependency(self%id_SWNH4,   'Ammonium_pool_in_water',          'g m-3',  'Ammonium_pool_in_water')
+   call self%register_state_dependency(self%id_SWNO3,   'nitrate_pool_in_water',          'g m-3',  'nitrate_pool_in_water')
+   call self%register_state_dependency(self%id_SWPO4,   'Phosphate_pool_in_water',        'g m-3',  'Phosphate_pool_in_water')
+   call self%register_state_dependency(self%id_SWPAIM,  'adsorbed_phosphorus_in_water'   , 'g m-3',  'adsorbed_phosphorus_in_water')
+   call self%register_state_dependency(self%id_SWO2,    'Oxygen_pool_in_water',           'g m-3',  'Oxygen_pool_in_water')
+   call self%register_state_dependency(self%id_SWDIM,   'Inorg_pool_in_water',            'g m-3',  'Inorg_pool_in_water')
+   call self%register_state_dependency(self%id_SWDDet,  'Detritus_DW_in_water',           'g m-3',  'Detritus_DW_in_water')
+   call self%register_state_dependency(self%id_SWNDet,  'Detritus_N_in_water',            'g m-3',  'Detritus_N_in_water')
+   call self%register_state_dependency(self%id_SWPDet,  'Detritus_P_in_water',            'g m-3',  'Detritus_P_in_water')
+   call self%register_state_dependency(self%id_SWSiDet, 'Detritus_Si_in_water',           'g m-3',  'Detritus_Si_in_water')
+   call self%register_state_dependency(self%id_SWSiO2,  'SiO2_pool_water',                'g m-3',  'SiO2_pool_water')
 !  Register dependencies to abiotic sediment module
-   call self%register_state_dependency(self%id_WSNH4,   'Ammonia_pool_in_sediment',       'g m-2', 'Ammonia_pool_in_sediment')
-   call self%register_state_dependency(self%id_WSNO3,   'Nitrate_pool_in_sediment',     'g m-2', 'Nitrate_pool_in_sediment')
-   call self%register_state_dependency(self%id_WSPO4,   'Phosphate_pool_in_sediment',    'g m-2', 'Phosphate_pool_in_sediment')
-   call self%register_state_dependency(self%id_WSPAIM,  'Absorbed_phosphrus_in_sediment','g m-2', 'Absorbed_phosphrus_in_sediment')
-   call self%register_state_dependency(self%id_WSDIM,   'Inorg_pool_in_sediment',        'g m-2', 'Inorg_pool_in_sediment')
-   call self%register_state_dependency(self%id_WSDDet,  'Detritus_DW_in_sediment',       'g m-2', 'Detritus_DW_in_sediment')
-   call self%register_state_dependency(self%id_WSNDet,  'Detritus_N_in_sediment',        'g m-2', 'Detritus_N_in_sediment')
-   call self%register_state_dependency(self%id_WSPDet,  'Detritus_P_in_sediment',        'g m-2', 'Detritus_P_in_sediment')
-   call self%register_state_dependency(self%id_WSSiDet, 'Detritus_Si_in_sediment',       'g m-2', 'Detritus_Si_in_sediment')
-   call self%register_state_dependency(self%id_WSDHum,  'Humus_DW_in_sediment',          'g m-2', 'Humus_DW_in_sediment')
-   call self%register_state_dependency(self%id_WSNHum,  'Humus_N_in_sediment',           'g m-2', 'Humus_N_in_sediment')
-   call self%register_state_dependency(self%id_WSPHum,  'Humus_P_in_sediment',           'g m-2', 'Humus_P_in_sediment')
+   call self%register_state_dependency(self%id_WSNH4,   'Ammonium_pool_in_sediment',       'g m-2', 'Ammonium_pool_in_sediment')
+   call self%register_state_dependency(self%id_WSNO3,   'Nitrate_pool_in_sediment',       'g m-2', 'Nitrate_pool_in_sediment')
+   call self%register_state_dependency(self%id_WSPO4,   'Phosphate_pool_in_sediment',     'g m-2', 'Phosphate_pool_in_sediment')
+   call self%register_state_dependency(self%id_WSPAIM,  'adsorbed_phosphorus_in_sediment', 'g m-2', 'adsorbed_phosphorus_in_sediment')
+   call self%register_state_dependency(self%id_WSDIM,   'Inorg_pool_in_sediment',         'g m-2', 'Inorg_pool_in_sediment')
+   call self%register_state_dependency(self%id_WSDDet,  'Detritus_DW_in_sediment',        'g m-2', 'Detritus_DW_in_sediment')
+   call self%register_state_dependency(self%id_WSNDet,  'Detritus_N_in_sediment',         'g m-2', 'Detritus_N_in_sediment')
+   call self%register_state_dependency(self%id_WSPDet,  'Detritus_P_in_sediment',         'g m-2', 'Detritus_P_in_sediment')
+   call self%register_state_dependency(self%id_WSSiDet, 'Detritus_Si_in_sediment',        'g m-2', 'Detritus_Si_in_sediment')
+   call self%register_state_dependency(self%id_WSDHum,  'Humus_DW_in_sediment',           'g m-2', 'Humus_DW_in_sediment')
+   call self%register_state_dependency(self%id_WSNHum,  'Humus_N_in_sediment',            'g m-2', 'Humus_N_in_sediment')
+   call self%register_state_dependency(self%id_WSPHum,  'Humus_P_in_sediment',            'g m-2', 'Humus_P_in_sediment')
 !  Register dependencies to phytoplankton in water column
-   call self%register_state_dependency(self%id_SWDDiat, 'Diatom_DW_in_water',            'g m-3', 'Diatom_DW_in_water')
-   call self%register_state_dependency(self%id_SWDGren, 'Green_DW_in_water',             'g m-3', 'Green_DW_in_water')
-   call self%register_state_dependency(self%id_SWDBlue, 'Blue_DW_in_water',              'g m-3', 'Blue_DW_in_water')
-   call self%register_state_dependency(self%id_SWNDiat, 'Diatom_N_in_water',             'g m-3', 'Diatom_N_in_water')
-   call self%register_state_dependency(self%id_SWNGren, 'Green_N_in_water',              'g m-3', 'Green_N_in_water')
-   call self%register_state_dependency(self%id_SWNBlue, 'Blue_N_in_water',               'g m-3', 'Blue_N_in_water')
-   call self%register_state_dependency(self%id_SWPDiat, 'Diatom_P_in_water',             'g m-3', 'Diatom_P_in_water')
-   call self%register_state_dependency(self%id_SWPGren, 'Green_P_in_water',              'g m-3', 'Green_P_in_water')
-   call self%register_state_dependency(self%id_SWPBlue, 'Blue_P_in_water',               'g m-3', 'Blue_P_in_water')
+   call self%register_state_dependency(self%id_SWDDiat, 'Diatom_DW_in_water',             'g m-3', 'Diatom_DW_in_water')
+   call self%register_state_dependency(self%id_SWDGren, 'Green_DW_in_water',              'g m-3', 'Green_DW_in_water')
+   call self%register_state_dependency(self%id_SWDBlue, 'Blue_DW_in_water',               'g m-3', 'Blue_DW_in_water')
+   call self%register_state_dependency(self%id_SWNDiat, 'Diatom_N_in_water',              'g m-3', 'Diatom_N_in_water')
+   call self%register_state_dependency(self%id_SWNGren, 'Green_N_in_water',               'g m-3', 'Green_N_in_water')
+   call self%register_state_dependency(self%id_SWNBlue, 'Blue_N_in_water',                'g m-3', 'Blue_N_in_water')
+   call self%register_state_dependency(self%id_SWPDiat, 'Diatom_P_in_water',              'g m-3', 'Diatom_P_in_water')
+   call self%register_state_dependency(self%id_SWPGren, 'Green_P_in_water',               'g m-3', 'Green_P_in_water')
+   call self%register_state_dependency(self%id_SWPBlue, 'Blue_P_in_water',                'g m-3', 'Blue_P_in_water')
 !  Register dependencies to phytoplankton in sediment
-   call self%register_state_dependency(self%id_WSDDiat, 'Diatom_DW_in_sediment',         'g m-2', 'Diatom_DW_in_sediment')
-   call self%register_state_dependency(self%id_WSDGren, 'Green_DW_in_sediment',          'g m-2', 'Green_DW_in_sediment')
-   call self%register_state_dependency(self%id_WSDBlue, 'Blue_DW_in_sediment',           'g m-2', 'Blue_DW_in_sediment')
-   call self%register_state_dependency(self%id_WSNDiat, 'Diatom_N_in_sediment',          'g m-2', 'Diatom_N_in_sediment')
-   call self%register_state_dependency(self%id_WSNGren, 'Green_N_in_sediment',           'g m-2', 'Green_N_in_sediment')
-   call self%register_state_dependency(self%id_WSNBlue, 'Blue_N_in_sediment',            'g m-2', 'Blue_N_in_sediment')
-   call self%register_state_dependency(self%id_WSPDiat, 'Diatom_P_in_sediment',          'g m-2', 'Diatom_P_in_sediment')
-   call self%register_state_dependency(self%id_WSPGren, 'Green_P_in_sediment',           'g m-2', 'Green_P_in_sediment')
-   call self%register_state_dependency(self%id_WSPBlue, 'Blue_P_in_sediment',            'g m-2', 'Blue_P_in_sediment')
+   call self%register_state_dependency(self%id_WSDDiat, 'Diatom_DW_in_sediment',          'g m-2', 'Diatom_DW_in_sediment')
+   call self%register_state_dependency(self%id_WSDGren, 'Green_DW_in_sediment',           'g m-2', 'Green_DW_in_sediment')
+   call self%register_state_dependency(self%id_WSDBlue, 'Blue_DW_in_sediment',            'g m-2', 'Blue_DW_in_sediment')
+   call self%register_state_dependency(self%id_WSNDiat, 'Diatom_N_in_sediment',           'g m-2', 'Diatom_N_in_sediment')
+   call self%register_state_dependency(self%id_WSNGren, 'Green_N_in_sediment',            'g m-2', 'Green_N_in_sediment')
+   call self%register_state_dependency(self%id_WSNBlue, 'Blue_N_in_sediment',             'g m-2', 'Blue_N_in_sediment')
+   call self%register_state_dependency(self%id_WSPDiat, 'Diatom_P_in_sediment',           'g m-2', 'Diatom_P_in_sediment')
+   call self%register_state_dependency(self%id_WSPGren, 'Green_P_in_sediment',            'g m-2', 'Green_P_in_sediment')
+   call self%register_state_dependency(self%id_WSPBlue, 'Blue_P_in_sediment',             'g m-2', 'Blue_P_in_sediment')
 !  register vegetation and fish for resuspension dependency
-   call self%register_state_dependency(self%id_DragVeg, 'vegetation_DW',                 'g m-2', 'vegetation_DW')
-   call self%register_state_dependency(self%id_TurbFish,'adult_fish_DW',                 'g m-3', 'adult_fish_DW')
+   call self%register_state_dependency(self%id_DragVeg, 'vegetation_DW',                  'g m-2', 'vegetation_DW')
+   call self%register_state_dependency(self%id_TurbFish,'adult_fish_DW',                  'g m-3', 'adult_fish_DW')
 !  register zooplankton for transport purpose
-   call self%register_state_dependency(self%id_DTranZoo,'Zooplankton_DW',                'g m-3', 'Zooplankton_DW')
-   call self%register_state_dependency(self%id_PTranZoo,'Zooplankton_P',                 'g m-3', 'Zooplankton_P')
-   call self%register_state_dependency(self%id_NTranZoo,'Zooplankton_N',                 'g m-3', 'Zooplankton_N')
+   call self%register_state_dependency(self%id_DTranZoo,'Zooplankton_DW',                 'g m-3', 'Zooplankton_DW')
+   call self%register_state_dependency(self%id_PTranZoo,'Zooplankton_P',                  'g m-3', 'Zooplankton_P')
+   call self%register_state_dependency(self%id_NTranZoo,'Zooplankton_N',                  'g m-3', 'Zooplankton_N')
 !  register environmental dependencies
    call self%register_dependency(self%id_uTm,    standard_variables%temperature)
    call self%register_dependency(self%id_dz,standard_variables%cell_thickness)
@@ -265,52 +265,52 @@
    call self%register_dependency(self%id_tDPrimDetS, 'Detritus_from_algae',     '[-]',       'Detritus_from_algae')
    call self%register_dependency(self%id_tDWebDetS,  'Detritus_from_foodweb',   '[-]',       'Detritus_from_foodweb')
    call self%register_dependency(self%id_tDBedDetS,  'Detritus_from_vegetation','[-]',       'Detritus_from_vegetation')
-!  Regirster diagnostic variables
-   call self%register_diagnostic_variable(self%id_tDBurIM,     'tDBurIM',     'g m-2 s-1','tDBurIM',     output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_shearstress, 'shearstress', 'N/m**2',   'shearstress', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_aFunDimSusp, 'aFunDimSusp', '[-]',      'aFunDimSusp', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDResusDead, 'tDResusDead', '[-]',      'tDResusDead', output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_aFunTauSet,  'aFunTauSet',  '[-]',      'basic settling rate',  output=output_time_step_integrated)
-!  Regirster diagnostic variables for resuspension fluxes
-   call self%register_diagnostic_variable(self%id_tAuxDIMW,     'tAuxDIMW',     'g m-2 s-1','auxilary_DIMW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxDetW,     'tDAuxDetW',     'g m-2 s-1','auxilary_DDetW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxDetW,     'tNAuxDetW',     'g m-2 s-1','auxilary_NDetW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxDetW,     'tPAuxDetW',     'g m-2 s-1','auxilary_PDetW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tSiAuxDetW,     'tSiAuxDetW',     'g m-2 s-1','auxilary_SiDetW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tAuxPAIMW,     'tAuxPAIMW',     'g m-2 s-1','auxilary_PAIMW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxNH4W,     'tNAuxNH4W',     'g m-2 s-1','auxilary_NH4W_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxNO3W,     'tNAuxNO3W',     'g m-2 s-1','auxilary_NO3W_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxPO4W,     'tPAuxPO4W',     'g m-2 s-1','auxilary_PO4W_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAxuDiatW,     'tDAxuDiatW',     'g m-2 s-1','auxilary_DDiatW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxDiatW,     'tNAuxDiatW',     'g m-2 s-1','auxilary_NDiatW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxDiatW,     'tPAuxDiatW',     'g m-2 s-1','auxilary_PDiatW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxGrenW,     'tDAuxGrenW',     'g m-2 s-1','auxilary_DGrenW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxGrenW,     'tNAuxGrenW',     'g m-2 s-1','auxilary_NGrenW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxGrenW,     'tPAuxGrenW',     'g m-2 s-1','auxilary_PGrenW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxBlueW,     'tDAuxBlueW',     'g m-2 s-1','auxilary_DBlueW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxBlueW,     'tNAuxBlueW',     'g m-2 s-1','auxilary_NBlueW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxBlueW,     'tPAuxBlueW',     'g m-2 s-1','auxilary_PBlueW_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tAuxDIMS,     'tAuxDIMS',     'g m-2 s-1','auxilary_DIMS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxDetS,     'tDAuxDetS',     'g m-2 s-1','auxilary_DDetS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxDetS,     'tNAuxDetS',     'g m-2 s-1','auxilary_NDetS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxDetS,     'tPAuxDetS',     'g m-2 s-1','auxilary_PDetS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tSiAuxDetS,     'tSiAuxDetS',     'g m-2 s-1','auxilary_SiDetS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxPO4S,     'tPAuxPO4S',     'g m-2 s-1','auxilary_PO4S_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tAuxPAIMS,     'tAuxPAIMS',     'g m-2 s-1','auxilary_PAIMS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxNH4S,     'tNAuxNH4S',     'g m-2 s-1','auxilary_NH4S_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxNO3S,     'tNAuxNO3S',     'g m-2 s-1','auxilary_NO3S_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxHumS,     'tDAuxHumS',     'g m-2 s-1','auxilary_DHumS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxHumS,     'tPAuxHumS',     'g m-2 s-1','auxilary_PHumS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxHumS,     'tNAuxHumS',     'g m-2 s-1','auxilary_NHumS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAxuDiatS,     'tDAxuDiatS',     'g m-2 s-1','auxilary_DDiatS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxDiatS,     'tNAuxDiatS',     'g m-2 s-1','auxilary_NDiatS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxDiatS,     'tPAuxDiatS',     'g m-2 s-1','auxilary_PDiatS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxGrenS,     'tDAuxGrenS',     'g m-2 s-1','auxilary_DGrenS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxGrenS,     'tNAuxGrenS',     'g m-2 s-1','auxilary_NGrenS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxGrenS,     'tPAuxGrenS',     'g m-2 s-1','auxilary_PGrenS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxBlueS,     'tDAuxBlueS',     'g m-2 s-1','auxilary_DBlueS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxBlueS,     'tNAuxBlueS',     'g m-2 s-1','auxilary_NBlueS_change',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxBlueS,     'tPAuxBlueS',     'g m-2 s-1','auxilary_PBlueS_change',     output=output_instantaneous)
+!  register diagnostic variables
+   call self%register_diagnostic_variable(self%id_tDBurIM,     'tDBurIM',     'g m-2 s-1','tDBurIM',                output=output_time_step_integrated)
+   call self%register_diagnostic_variable(self%id_shearstress, 'shearstress', 'N/m**2',   'shearstress',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_aFunDimSusp, 'aFunDimSusp', '[-]',      'aFunDimSusp',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDResusDead, 'tDResusDead', '[-]',      'tDResusDead',            output=output_time_step_integrated)
+   call self%register_diagnostic_variable(self%id_aFunTauSet,  'aFunTauSet',  '[-]',      'basic settling rate',    output=output_time_step_integrated)
+!  register diagnostic variables for resuspension fluxes
+   call self%register_diagnostic_variable(self%id_tAuxDIMW,    'tAuxDIMW',    'g m-2 s-1','auxilary_DIMW_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxDetW,   'tDAuxDetW',   'g m-2 s-1','auxilary_DDetW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxDetW,   'tNAuxDetW',   'g m-2 s-1','auxilary_NDetW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxDetW,   'tPAuxDetW',   'g m-2 s-1','auxilary_PDetW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tSiAuxDetW,  'tSiAuxDetW',  'g m-2 s-1','auxilary_SiDetW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tAuxPAIMW,   'tAuxPAIMW',   'g m-2 s-1','auxilary_PAIMW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxNH4W,   'tNAuxNH4W',   'g m-2 s-1','auxilary_NH4W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxNO3W,   'tNAuxNO3W',   'g m-2 s-1','auxilary_NO3W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxPO4W,   'tPAuxPO4W',   'g m-2 s-1','auxilary_PO4W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAxuDiatW,  'tDAxuDiatW',  'g m-2 s-1','auxilary_DDiatW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxDiatW,  'tNAuxDiatW',  'g m-2 s-1','auxilary_NDiatW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxDiatW,  'tPAuxDiatW',  'g m-2 s-1','auxilary_PDiatW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxGrenW,  'tDAuxGrenW',  'g m-2 s-1','auxilary_DGrenW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxGrenW,  'tNAuxGrenW',  'g m-2 s-1','auxilary_NGrenW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxGrenW,  'tPAuxGrenW',  'g m-2 s-1','auxilary_PGrenW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxBlueW,  'tDAuxBlueW',  'g m-2 s-1','auxilary_DBlueW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxBlueW,  'tNAuxBlueW',  'g m-2 s-1','auxilary_NBlueW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxBlueW,  'tPAuxBlueW',  'g m-2 s-1','auxilary_PBlueW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tAuxDIMS,    'tAuxDIMS',    'g m-2 s-1','auxilary_DIMS_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxDetS,   'tDAuxDetS',   'g m-2 s-1','auxilary_DDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxDetS,   'tNAuxDetS',   'g m-2 s-1','auxilary_NDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxDetS,   'tPAuxDetS',   'g m-2 s-1','auxilary_PDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tSiAuxDetS,  'tSiAuxDetS',  'g m-2 s-1','auxilary_SiDetS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxPO4S,   'tPAuxPO4S',   'g m-2 s-1','auxilary_PO4S_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tAuxPAIMS,   'tAuxPAIMS',   'g m-2 s-1','auxilary_PAIMS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxNH4S,   'tNAuxNH4S',   'g m-2 s-1','auxilary_NH4S_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxNO3S,   'tNAuxNO3S',   'g m-2 s-1','auxilary_NO3S_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxHumS,   'tDAuxHumS',   'g m-2 s-1','auxilary_DHumS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxHumS,   'tPAuxHumS',   'g m-2 s-1','auxilary_PHumS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxHumS,   'tNAuxHumS',   'g m-2 s-1','auxilary_NHumS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAxuDiatS,  'tDAxuDiatS',  'g m-2 s-1','auxilary_DDiatS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxDiatS,  'tNAuxDiatS',  'g m-2 s-1','auxilary_NDiatS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxDiatS,  'tPAuxDiatS',  'g m-2 s-1','auxilary_PDiatS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxGrenS,  'tDAuxGrenS',  'g m-2 s-1','auxilary_DGrenS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxGrenS,  'tNAuxGrenS',  'g m-2 s-1','auxilary_NGrenS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxGrenS,  'tPAuxGrenS',  'g m-2 s-1','auxilary_PGrenS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxBlueS,  'tDAuxBlueS',  'g m-2 s-1','auxilary_DBlueS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxBlueS,  'tNAuxBlueS',  'g m-2 s-1','auxilary_NBlueS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxBlueS,  'tPAuxBlueS',  'g m-2 s-1','auxilary_PBlueS_change', output=output_instantaneous)
 
 
 
@@ -409,9 +409,9 @@
 !  Spatial loop
    _FABM_HORIZONTAL_LOOP_BEGIN_
 !-----------------------------------------------------------------------
-!  Retrieve dependencis value
+!  Retrieve dependencies  value
 !-----------------------------------------------------------------------
-! !Retrieve state dependencie value
+! !Retrieve state dependencies value
 !  from abiotic water column
    _GET_(self%id_SWNH4,sNH4W)
    _GET_(self%id_SWNO3,sNO3W)
@@ -467,14 +467,14 @@
    _GET_HORIZONTAL_(self%id_sDepthW,sDepthW)
 !  fish biomass converted to g/m^2
    sDFiAd=sDFiAd*sDepthW
-!  retrieve diagnostic denpendency
+!  retrieve diagnostic dependency
    _GET_HORIZONTAL_(self%id_tDAbioDetS,tDAbioDetS)
    _GET_HORIZONTAL_(self%id_tDPrimDetS,tDPrimDetS)
    _GET_HORIZONTAL_(self%id_tDWebDetS,tDWebDetS)
    _GET_HORIZONTAL_(self%id_tDBedDetS,tDBedDetS)
    _GET_HORIZONTAL_(self%id_tDAbioHumS,tDAbioHumS)
 !-----------------------------------------------------------------------
-!  Current nutrients ratios(check the curent state)
+!  Current nutrients ratios(check the current state)
 !-----------------------------------------------------------------------
    rPDDetS=sPDetS/(sDDetS+NearZero)
    rNDDetS=sNDetS/(sDDetS+NearZero)
@@ -555,7 +555,7 @@
    tSiResusDet=rSiDDetS*tDResusDet
 !  resuspension_nutrient_P
    tPResusPO4=sPO4S/sDDetS*tDResusDet
-!  resuspension_absorbed_PAIM
+!  resuspension_adsorbed_PAIM
    tPResusAIM=sPAIMS/sDIMS*tDResusIM
 !  resuspension_nutrient_NO3
    tNResusNO3=sNO3S/sDDetS*tDResusDet
@@ -671,11 +671,11 @@
    vDeltaS = (tDIMS / self%cRhoIM + (tDHumS + tDDetS) / self%cRhoOM)/(1.0_rk - self%bPorS)
 !  burial_flux_of_DW_in_inorganic_matter_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tDBurIM = ((tDHumS + tDDetS) +(self%cRhoOM / self%cRhoIM) * tDIMS) / ((sDHumS + sDDetS) /sDIMS &
-   & + self%cRhoOM / self%cRhoIM)
+      tDBurIM = ((tDHumS + tDDetS) +(self%cRhoOM / self%cRhoIM) * tDIMS) / ((sDHumS + sDDetS) /sDIMS &
+      & + self%cRhoOM / self%cRhoIM)
    else
-   tDBurIM = ( (tDHumS + tDDetS) +(self%cRhoOM / self%cRhoIM) * tDIMS) / (self%fDOrgSoil &
-   &/(1.0_rk - self%fDOrgSoil) + self%cRhoOM / self%cRhoIM)
+      tDBurIM = ( (tDHumS + tDDetS) +(self%cRhoOM / self%cRhoIM) * tDIMS) / (self%fDOrgSoil &
+      &/(1.0_rk - self%fDOrgSoil) + self%cRhoOM / self%cRhoIM)
    endif
 
 !  burial_flux_of_DW_in_organic_matter_in_lake
@@ -689,57 +689,57 @@
    if (vDeltaS >= 0.0) then
       tDBurDet = sDDetS /(sDHumS + sDDetS) * tDBurOM
    else
-      tDBurDet = 0.0
+      tDBurDet = 0.0_rk
    endif
 
 !  burial_flux_of_P_in_detritus_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tPBurDet = rPDDetS * tDBurDet
+      tPBurDet = rPDDetS * tDBurDet
    else
-   tPBurDet = 0.0_rk
+      tPBurDet = 0.0_rk
    endif
 
-!  burial_flux_of_P_absorbed_onto_inorganic_matter_in_lake
+!  burial_flux_of_P_adsorbed_onto_inorganic_matter_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tPBurAIM = sPAIMS / sDIMS * tDBurIM
+      tPBurAIM = sPAIMS / sDIMS * tDBurIM
    else
-   tPBurAIM = 0.0_rk
+      tPBurAIM = 0.0_rk
    endif
 
 !  burial_flux_of_dissolved_P_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tPBurPO4 = sPO4S *(vDeltaS / self%cDepthS)
+      tPBurPO4 = sPO4S *(vDeltaS / self%cDepthS)
    else
-   tPBurPO4 = self%cPO4Ground *(self%bPorS * vDeltaS)
+      tPBurPO4 = self%cPO4Ground *(self%bPorS * vDeltaS)
    endif
 
 !  burial_flux_of_N_in_detritus_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tNBurDet =rNDDetS * tDBurDet
+      tNBurDet =rNDDetS * tDBurDet
    else
-   tNBurDet = 0.0_rk
+      tNBurDet = 0.0_rk
    endif
 
 
 !  burial_flux_of_dissolved_NH4_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tNBurNH4 = sNH4S *(vDeltaS /self%cDepthS)
+      tNBurNH4 = sNH4S *(vDeltaS /self%cDepthS)
    else
-   tNBurNH4 = self%cNH4Ground *(self%bPorS * vDeltaS)
+      tNBurNH4 = self%cNH4Ground *(self%bPorS * vDeltaS)
    endif
 
 !  burial_flux_of_dissolved_NO3_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tNBurNO3 = sNO3S *(vDeltaS / self%cDepthS)
+      tNBurNO3 = sNO3S *(vDeltaS / self%cDepthS)
    else
-   tNBurNO3 = self%cNO3Ground *(self%bPorS * vDeltaS)
+      tNBurNO3 = self%cNO3Ground *(self%bPorS * vDeltaS)
    endif
 
 !  burial_flux_of_Si_in_detritus_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tSiBurDet = rSiDDetS * tDBurDet
+      tSiBurDet = rSiDDetS * tDBurDet
    else
-   tSiBurDet = 0.0_rk
+      tSiBurDet = 0.0_rk
    endif
 ! Humus burial fluxes
 !  burial_flux_of_DW_in_humus_in_lake
@@ -766,16 +766,16 @@
 !  Update external state variables
 !-----------------------------------------------------------------------
 !  update inorganic and organic matters in water column
-   _SET_BOTTOM_EXCHANGE_(self%id_SWDIM,tDResusIM-tDSetIM)  !uDErosIMW+
-   _SET_BOTTOM_EXCHANGE_(self%id_SWDDet,tDResusDet-tDSetDet)
-   _SET_BOTTOM_EXCHANGE_(self%id_SWNDet,tNResusDet-tNSetDet)
-   _SET_BOTTOM_EXCHANGE_(self%id_SWPDet,tPResusDet-tPSetDet)
+   _SET_BOTTOM_EXCHANGE_(self%id_SWDIM,  tDResusIM-tDSetIM)
+   _SET_BOTTOM_EXCHANGE_(self%id_SWDDet, tDResusDet-tDSetDet)
+   _SET_BOTTOM_EXCHANGE_(self%id_SWNDet, tNResusDet-tNSetDet)
+   _SET_BOTTOM_EXCHANGE_(self%id_SWPDet, tPResusDet-tPSetDet)
    _SET_BOTTOM_EXCHANGE_(self%id_SWSiDet,tSiResusDet-tSiSetDet)
-!  update dissoved nutrients in water column
-   _SET_BOTTOM_EXCHANGE_(self%id_SWNH4,tNResusNH4)
-   _SET_BOTTOM_EXCHANGE_(self%id_SWNO3,tNResusNO3)
-   _SET_BOTTOM_EXCHANGE_(self%id_SWPO4,tPResusPO4)
-   _SET_BOTTOM_EXCHANGE_(self%id_SWPAIM,tPResusAIM-tPSetAIM)
+!  update dissolved nutrients in water column
+   _SET_BOTTOM_EXCHANGE_(self%id_SWNH4,  tNResusNH4)
+   _SET_BOTTOM_EXCHANGE_(self%id_SWNO3,  tNResusNO3)
+   _SET_BOTTOM_EXCHANGE_(self%id_SWPO4,  tPResusPO4)
+   _SET_BOTTOM_EXCHANGE_(self%id_SWPAIM, tPResusAIM-tPSetAIM)
 !  update phytoplankton in water column
    _SET_BOTTOM_EXCHANGE_(self%id_SWDDiat,tDResusDiat-tDSetDiat)
    _SET_BOTTOM_EXCHANGE_(self%id_SWNDiat,tNResusDiat-tNSetDiat)
@@ -788,78 +788,78 @@
    _SET_BOTTOM_EXCHANGE_(self%id_SWNBlue,tNResusBlue-tNSetBlue)
    _SET_BOTTOM_EXCHANGE_(self%id_SWPBlue,tPResusBlue-tPSetBlue)
 !  update abiotic variables in sediment
-   _SET_ODE_BEN_(self%id_WSDIM,tDSetIM-tDResusIM-tDBurIM)  !uDErosIMS+
-   _SET_ODE_BEN_(self%id_WSDDet,tDSetDet-tDResusDet-tDBurDet)
-   _SET_ODE_BEN_(self%id_WSPDet,tPSetDet-tPResusDet-tPBurDet)
-   _SET_ODE_BEN_(self%id_WSNDet,tNSetDet-tNResusDet-tNBurDet)
+   _SET_ODE_BEN_(self%id_WSDIM,  tDSetIM-tDResusIM-tDBurIM)
+   _SET_ODE_BEN_(self%id_WSDDet, tDSetDet-tDResusDet-tDBurDet)
+   _SET_ODE_BEN_(self%id_WSPDet, tPSetDet-tPResusDet-tPBurDet)
+   _SET_ODE_BEN_(self%id_WSNDet, tNSetDet-tNResusDet-tNBurDet)
    _SET_ODE_BEN_(self%id_WSSiDet,tSiSetDet-tSiResusDet-tSiBurDet)
-   _SET_ODE_BEN_(self%id_WSPO4,-tPResusPO4-tPBurPO4)
-   _SET_ODE_BEN_(self%id_WSPAIM,tPSetAIM-tPResusAIM-tPBurAIM)
-   _SET_ODE_BEN_(self%id_WSNH4,-tNResusNH4-tNBurNH4)
-   _SET_ODE_BEN_(self%id_WSNO3,-tNResusNO3-tNBurNO3)
-   _SET_ODE_BEN_(self%id_WSDHum,tDBurHum)    ! uDErosOM-
-   _SET_ODE_BEN_(self%id_WSPHum,tPBurHum)    ! uPErosOM-
-   _SET_ODE_BEN_(self%id_WSNHum,tNBurHum)    ! uNErosOM-
+   _SET_ODE_BEN_(self%id_WSPO4,  -tPResusPO4-tPBurPO4)
+   _SET_ODE_BEN_(self%id_WSPAIM, tPSetAIM-tPResusAIM-tPBurAIM)
+   _SET_ODE_BEN_(self%id_WSNH4,  -tNResusNH4-tNBurNH4)
+   _SET_ODE_BEN_(self%id_WSNO3,  -tNResusNO3-tNBurNO3)
+   _SET_ODE_BEN_(self%id_WSDHum, tDBurHum)
+   _SET_ODE_BEN_(self%id_WSPHum, tPBurHum)
+   _SET_ODE_BEN_(self%id_WSNHum, tNBurHum)
 !  update settled phytoplankton
-   _SET_ODE_BEN_(self%id_WSDDiat,tDSetDiat-tDResusDiat)
-   _SET_ODE_BEN_(self%id_WSNDiat,tNSetDiat-tNResusDiat)
-   _SET_ODE_BEN_(self%id_WSPDiat,tPSetDiat-tPResusDiat)
-   _SET_ODE_BEN_(self%id_WSDGren,tDSetGren-tDResusGren)
-   _SET_ODE_BEN_(self%id_WSNGren,tNSetGren-tNResusGren)
-   _SET_ODE_BEN_(self%id_WSPGren,tPSetGren-tPResusGren)
-   _SET_ODE_BEN_(self%id_WSDBlue,tDSetBlue-tDResusBlue)
-   _SET_ODE_BEN_(self%id_WSNBlue,tNSetBlue-tNResusBlue)
-   _SET_ODE_BEN_(self%id_WSPBlue,tPSetBlue-tPResusBlue)
+   _SET_ODE_BEN_(self%id_WSDDiat, tDSetDiat-tDResusDiat)
+   _SET_ODE_BEN_(self%id_WSNDiat, tNSetDiat-tNResusDiat)
+   _SET_ODE_BEN_(self%id_WSPDiat, tPSetDiat-tPResusDiat)
+   _SET_ODE_BEN_(self%id_WSDGren, tDSetGren-tDResusGren)
+   _SET_ODE_BEN_(self%id_WSNGren, tNSetGren-tNResusGren)
+   _SET_ODE_BEN_(self%id_WSPGren, tPSetGren-tPResusGren)
+   _SET_ODE_BEN_(self%id_WSDBlue, tDSetBlue-tDResusBlue)
+   _SET_ODE_BEN_(self%id_WSNBlue, tNSetBlue-tNResusBlue)
+   _SET_ODE_BEN_(self%id_WSPBlue, tPSetBlue-tPResusBlue)
 !  update diagnostic variables
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBurIM,tDBurIM)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_shearstress,shear)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aFunDimSusp,aFunDimSusp)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDResusDead,tDResusDead)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aFunTauSet,aFunTauSet)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBurIM,     tDBurIM)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_shearstress, shear)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aFunDimSusp, aFunDimSusp)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDResusDead, tDResusDead)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aFunTauSet,  aFunTauSet)
 !  output diagonostic variable for resuspension fluxes
 !  fluxes for abiotic water state variables
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxDIMW,(tDResusIM-tDSetIM)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxDetW,(tDResusDet-tDSetDet)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDetW,(tNResusDet-tNSetDet)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDetW,(tPResusDet-tPSetDet)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiAuxDetW,(tSiResusDet-tSiSetDet)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxPAIMW,(tPResusAIM-tPSetAIM)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNH4W,tNResusNH4/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNO3W,tNResusNO3/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxPO4W,tPResusPO4/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxDIMW,   (tDResusIM-tDSetIM)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxDetW,  (tDResusDet-tDSetDet)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDetW,  (tNResusDet-tNSetDet)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDetW,  (tPResusDet-tPSetDet)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiAuxDetW, (tSiResusDet-tSiSetDet)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxPAIMW,  (tPResusAIM-tPSetAIM)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNH4W,  tNResusNH4/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNO3W,  tNResusNO3/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxPO4W,  tPResusPO4/dz*86400.0_rk)
 !  fluxes for phytoplankton water state variables
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAxuDiatW,(tDResusDiat-tDSetDiat)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDiatW,(tNResusDiat-tNSetDiat)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDiatW,(tPResusDiat-tPSetDiat)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxGrenW,(tDResusGren-tDSetGren)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxGrenW,(tNResusGren-tNSetGren)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxGrenW,(tPResusGren-tPSetGren)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxBlueW,(tDResusBlue-tDSetBlue)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxBlueW,(tNResusBlue-tNSetBlue)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxBlueW,(tPResusBlue-tPSetBlue)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAxuDiatW, (tDResusDiat-tDSetDiat)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDiatW, (tNResusDiat-tNSetDiat)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDiatW, (tPResusDiat-tPSetDiat)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxGrenW, (tDResusGren-tDSetGren)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxGrenW, (tNResusGren-tNSetGren)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxGrenW, (tPResusGren-tPSetGren)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxBlueW, (tDResusBlue-tDSetBlue)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxBlueW, (tNResusBlue-tNSetBlue)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxBlueW, (tPResusBlue-tPSetBlue)/dz*86400.0_rk)
 !  fluxes for abiotic sediment state variables
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxDIMS,(tDSetIM-tDResusIM-tDBurIM) *86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxDetS,(tDSetDet-tDResusDet-tDBurDet)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDetS,(tPSetDet-tPResusDet-tPBurDet)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDetS,(tNSetDet-tNResusDet-tNBurDet)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiAuxDetS,(tSiSetDet-tSiResusDet-tSiBurDet)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxPO4S,(-tPResusPO4-tPBurPO4)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxPAIMS,(tPSetAIM-tPResusAIM-tPBurAIM)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNH4S,(-tNResusNH4-tNBurNH4)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNO3S,(-tNResusNO3-tNBurNO3)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxHumS,tDBurHum*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxHumS,tPBurHum*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxHumS,tNBurHum*86400.0_rk)
-!  fluxes for phytoplankton sediment state variables   
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAxuDiatS,(tDSetDiat-tDResusDiat)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDiatS,(tNSetDiat-tNResusDiat)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDiatS,(tPSetDiat-tPResusDiat)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxGrenS,(tDSetGren-tDResusGren)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxGrenS,(tNSetGren-tNResusGren)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxGrenS,(tPSetGren-tPResusGren)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxBlueS,(tDSetBlue-tDResusBlue)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxBlueS,(tNSetBlue-tNResusBlue)*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxBlueS,(tPSetBlue-tPResusBlue)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxDIMS,   (tDSetIM-tDResusIM-tDBurIM) *86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxDetS,  (tDSetDet-tDResusDet-tDBurDet)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDetS,  (tPSetDet-tPResusDet-tPBurDet)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDetS,  (tNSetDet-tNResusDet-tNBurDet)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiAuxDetS, (tSiSetDet-tSiResusDet-tSiBurDet)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxPO4S,  (-tPResusPO4-tPBurPO4)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxPAIMS,  (tPSetAIM-tPResusAIM-tPBurAIM)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNH4S,  (-tNResusNH4-tNBurNH4)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNO3S,  (-tNResusNO3-tNBurNO3)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxHumS,  tDBurHum*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxHumS,  tPBurHum*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxHumS,  tNBurHum*86400.0_rk)
+!  fluxes for phytoplankton sediment state variables
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAxuDiatS, (tDSetDiat-tDResusDiat)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDiatS, (tNSetDiat-tNResusDiat)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDiatS, (tPSetDiat-tPResusDiat)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxGrenS, (tDSetGren-tDResusGren)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxGrenS, (tNSetGren-tNResusGren)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxGrenS, (tPSetGren-tPResusGren)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxBlueS, (tDSetBlue-tDResusBlue)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxBlueS, (tNSetBlue-tNResusBlue)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxBlueS, (tPSetBlue-tPResusBlue)*86400.0_rk)
 
 
 
@@ -872,9 +872,9 @@
 !-----------------------------------------------------------------------
 !BOP
 
-! !IROUTINE: this subrouting deal with the atmospheric depositions
+! !IROUTINE: this subroutine deal with the atmospheric depositions
 !!                    including detrital nitrogen, ammonium, nitrate, phosphate,
-! !                   ditrital phophorus
+! !                   detrital phosphorus
  subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
    class (type_au_pclake_auxilary),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
@@ -887,13 +887,13 @@
    _HORIZONTAL_LOOP_BEGIN_
 
 
-   _SET_SURFACE_EXCHANGE_(self%id_SWDIM,self%tDDepoIM)
-   _SET_SURFACE_EXCHANGE_(self%id_SWDDet,self%tDDepoDet)
-   _SET_SURFACE_EXCHANGE_(self%id_SWNDet,self%tNDepoDet)
-   _SET_SURFACE_EXCHANGE_(self%id_SWPDet,self%tPDepoDet)
-   _SET_SURFACE_EXCHANGE_(self%id_SWNH4,self%tNDepoNH4)
-   _SET_SURFACE_EXCHANGE_(self%id_SWNO3,self%tNDepoNO3)
-   _SET_SURFACE_EXCHANGE_(self%id_SWPO4,self%tPDepoPO4)
+   _SET_SURFACE_EXCHANGE_(self%id_SWDIM,  self%tDDepoIM)
+   _SET_SURFACE_EXCHANGE_(self%id_SWDDet, self%tDDepoDet)
+   _SET_SURFACE_EXCHANGE_(self%id_SWNDet, self%tNDepoDet)
+   _SET_SURFACE_EXCHANGE_(self%id_SWPDet, self%tPDepoDet)
+   _SET_SURFACE_EXCHANGE_(self%id_SWNH4,  self%tNDepoNH4)
+   _SET_SURFACE_EXCHANGE_(self%id_SWNO3,  self%tNDepoNO3)
+   _SET_SURFACE_EXCHANGE_(self%id_SWPO4,  self%tPDepoPO4)
 
 
    _HORIZONTAL_LOOP_END_

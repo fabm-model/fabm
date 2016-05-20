@@ -7,7 +7,7 @@
 !
 ! !DESCRIPTION:
 !  The pclake_foodweb_water module describes the state variables regarding zooplanktons
-!  white fish(juvenile and adult)and piscivorous fish. 
+!  white fish(juvenile and adult)and piscivorous fish.
 !  Therefore, the state variables and their related its local processes are:
 !  sDZoo,sPZoo,sNZoo,(zooplankton in dry-weight, nitrogen element and phosphorus element respectively)
 !  units: gDW/m**3, gP/m**3,gP/m**3
@@ -22,7 +22,7 @@
 !  units:gDW/m**3, gP/m**3,gP/m**3
 !  local processes: migration,reproduction(-,part of adult fish became young fish),respiration(only for
 !  sDFiAd),exretion(only for sPFiAd and sNFiAd),mortality, consumption by piscivorous fish ,harvest
-!  and aging(+,part of young fish become adult fish).(!! Notice the assimilation of adult fish is in the 
+!  and aging(+,part of young fish become adult fish).(!! Notice the assimilation of adult fish is in the
 !   benthic module, where adult fish predating the zoobenthos.)
 !  sDPisc,gDW/m**3)(piscivorous fish will have fixed N/D and P/D ratio,so the other two will be diagnostic variables)
 !  local processes: migration,assimilation,respiration,mortality and harvest
@@ -101,7 +101,7 @@
       real(rk)   :: cNDDiatMin,cPDDiatMin,cNDGrenMin,cPDGrenMin,cNDBlueMin,cPDBlueMin
       real(rk)   :: cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax
    contains
-   
+
 !     Model procedures
       procedure :: initialize
       procedure :: do
@@ -109,7 +109,7 @@
       procedure :: get_light_extinction
 
    end type type_pclake_foodweb_water
-   
+
 !  private data memebers(API0.92)
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero = 0.000000000000000000000000000000001_rk
@@ -124,7 +124,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
 
@@ -136,9 +136,9 @@
    class (type_pclake_foodweb_water), intent(inout), target :: self
    integer,                     intent(in)            :: configunit
 
-!EOP                             
+!EOP
 !-----------------------------------------------------------------------
-!BOC                             
+!BOC
 
 !  Store parameter values in our own derived type
 !  NB: all rates must be provided in values per day,
@@ -237,7 +237,7 @@
                                     initial_value=0.044_rk,minimum=WebZero,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sNFiAd,'sNFiAd','g m-3','adult fish N in water',     &
                                     initial_value=0.2_rk,minimum=WebZero,no_river_dilution=.TRUE.)
-!  piscivorous fish								
+!  piscivorous fish
    call self%register_state_variable(self%id_sDPisc,'sDPisc','g m-3','piscivorous fish DW in water', &
                                     initial_value=0.01_rk,minimum=WebZero,no_river_dilution=.TRUE.)
 !  Register diagnostic variables for dependencies in other modules
@@ -291,7 +291,7 @@
 !-----------------------------------------------------------------------
 !BOP
 
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
@@ -373,7 +373,7 @@
    real(rk)     :: wPWebFiAd
 !  PCLake_Osis, /m^2
    real(rk)     :: tPWebFiAd,tPMigrFiAd,tPExcrFiAd,tPMortFiAd
-   real(rk)     :: tPConsFiAdPisc 
+   real(rk)     :: tPConsFiAdPisc
 !  assimilation
 !  variables for adult fish flux_N
    real(rk)     :: wNWebFiAd
@@ -381,7 +381,7 @@
    real(rk)     :: tNWebFiAd,tNMigrFiAd,tNExcrFiAd,tNMortFiAd
    real(rk)     :: tNConsFiAdPisc
 !  variables for piscivorous fish ,DW process
-   real(rk)      :: wDWebPisc 
+   real(rk)      :: wDWebPisc
 !  PCLake_Osis, /m^2
    real(rk)     :: tDConsPisc,tDAssPisc,aDSatPisc,aFunVegPisc
    real(rk)     :: tDEnvPisc,akDIncrPisc,aDCarrPisc
@@ -430,8 +430,8 @@
 !  adult fish assimilation
    real(rk)     :: ukDIncrFiAd
 
-   
-   
+
+
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -485,8 +485,8 @@
 !  The orders for the processes. We try to orgnize the order
 !  from zooplankton, then young fish, then adult fish, at last piscivorous
 !  fish. And each group finish all their process before going to the next
-!  groups. But there a special sections on zooplankton comsumption by 
-!  young fish, due to the variables dependent on each other.Young fish 
+!  groups. But there a special sections on zooplankton comsumption by
+!  young fish, due to the variables dependent on each other.Young fish
 !  starts with assimilation of DW after whole zooplankton group is finished
 !  to provide wDAssFiJv for young fish's predation of zooplankton(DW,N,P).
 !  The later process(predation) provide variable wDConsFiJv for fish
@@ -512,7 +512,7 @@
    else
        rPDDiatW=rPDDiatW
    endif
-   
+
    if ( rPDBlueW .GT. self%cPDBlueMax)  then
        rPDBlueW=self%cPDBlueMax
    elseif (rPDBlueW .LT. self%cPDBlueMin)  then
@@ -536,7 +536,7 @@
    else
        rNDBlueW =rNDBlueW
    endif
-   
+
    if ( rNDDiatW .GT. self%cNDDiatMax)  then
        rNDDiatW=self%cNDDiatMax
    elseif (rNDDiatW .LT. self%cNDDiatMin)  then
@@ -544,8 +544,8 @@
    else
        rNDDiatW=rNDDiatW
    endif
-   
-   
+
+
    if ( rNDGrenW .GT. self%cNDGrenMax)  then
        rNDGrenW=self%cNDGrenMax
    elseif (rNDGrenW .LT. self%cNDGrenMin)  then
@@ -566,7 +566,7 @@
 !  N/D_ratio_of_adult_fish
    rNDFiAd = sNFiAd /(sDFiAd+NearZero)
 !-----------------------------------------------------------------------
-!  status auxilaries---auxilaries for describing the current status, 
+!  status auxilaries---auxilaries for describing the current status,
 !  usually derivitives of state variables
 !-----------------------------------------------------------------------
 !  total_fish_biomass
@@ -702,7 +702,7 @@
 !  environmental_correction_of_fish
    tDEnvFiJv = max(0.0_rk,ukDIncrFiJv /(self%cDCarrFish - sDFiAd) * sDFiJv*sDFiJv)
 !  assimilation_of_fish
-!  PCLake_Osis: 
+!  PCLake_Osis:
    tDAssFiJv = aDSatFiJv *(self%kDAssFiJv * uFunTmFish * sDFiJv - tDEnvFiJv)
 !-----------------------------------------------------------------------
 !  zooplankton predated by fish
@@ -711,7 +711,7 @@
 !  PCLake_osis:sDFiJv,in g/m^2
     tDConsFiJv = tDAssFiJv / self%fDAssFiJv
 !  (zooplankton)_P_consumption_by_FiJv
-!  PCLake_osis:sPFiJv,in g/m^2 
+!  PCLake_osis:sPFiJv,in g/m^2
    tPConsFiJv = rPDZoo * tDConsFiJv
 !  (zooplankton)_N_consumption_by_FiJv
 !  PCLake_osis:sNFiJv,in g/m^2
@@ -749,7 +749,7 @@
 !-----------------------------------------------------------------------
 !  migration_flux of adult fish,DW
 !  PCLake_osis:sDFiAd,in g/m^2
-   tDMigrFiAd = self%kMigrFish *(self%cDFiAdIn - sDFiAd)  
+   tDMigrFiAd = self%kMigrFish *(self%cDFiAdIn - sDFiAd)
 !  net_migration_flux of adult fish, P
 !  PCLake_osis:sPFiAd,in g/m^2
    tPMigrFiAd = self%kMigrFish *(self%cPDFishRef * self%cDFiAdIn - sPFiAd)
@@ -980,9 +980,9 @@
 !  temperal solution, vertial averaged
    wDWebFiAd= tDWebFiAd/ sDepthW
 !  total_foodweb_flux_of_P_in_Adult_fish
-   tPWebFiAd = tPMigrFiAd  - tPExcrFiAd - tPMortFiAd - tPReprFish - tPConsFiAdPisc + tPAgeFish 
+   tPWebFiAd = tPMigrFiAd  - tPExcrFiAd - tPMortFiAd - tPReprFish - tPConsFiAdPisc + tPAgeFish
 !  temperal solution, vertial averaged
-   wPWebFiAd= tPWebFiAd/ sDepthW 
+   wPWebFiAd= tPWebFiAd/ sDepthW
 !  total_foodweb_flux_of_N_in_Adult_fish
    tNWebFiAd = tNMigrFiAd - tNExcrFiAd - tNMortFiAd - tNReprFish - tNConsFiAdPisc + tNAgeFish
 !  temperal solution, vertial averaged
@@ -1019,7 +1019,7 @@
    tNMortPiscNH4 = self%fDissMortPisc *(tNMortPisc - tNMortPiscBot)
 !  total_foodweb_flux_of_N_in_ammonium_in_water_in_lake_water
    wNWebNH4W = wNExcrZoo + wNEgesZooNH4 + wNMortZooNH4 +(tNExcrFiJv + tNExcrFiAd + &
-   &tNEgesFiJvNH4 + tNMortFishNH4 + tNExcrPisc + tNEgesPiscNH4 + tNMortPiscNH4)/sDepthW 
+   &tNEgesFiJvNH4 + tNMortFishNH4 + tNExcrPisc + tNEgesPiscNH4 + tNMortPiscNH4)/sDepthW
 !-----------------------------------------------------------------------
 !  Update NO3 in water   (no NO3????)
 !-----------------------------------------------------------------------
@@ -1120,7 +1120,7 @@
 !  total_foodweb_flux_of_N_in_Diatoms_in_lake_water
    wNWebDiatW = - wNConsDiatZoo
 !  total_foodweb_flux_of_P_in_Diatoms_in_lake_water
-   wPWebDiatW = - wPConsDiatZoo 
+   wPWebDiatW = - wPConsDiatZoo
 !-----------------------------------------------------------------------
 !  Update green algae state variables
 !-----------------------------------------------------------------------
@@ -1180,7 +1180,7 @@
    _SET_DIAGNOSTIC_(self%id_aNPisc,aNPisc)
    _SET_DIAGNOSTIC_(self%id_aPPisc,aPPisc)
 
-   
+
    _LOOP_END_
 ! Spatial loop end
 !
@@ -1199,7 +1199,7 @@
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
-!  Original author(s): 
+!  Original author(s):
 !
 ! !LOCAL VARIABLES:
 

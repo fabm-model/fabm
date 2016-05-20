@@ -21,7 +21,7 @@
 !  Sediment detritus change, tDWebDetS, used by module:auxilary
 !  environmental_correction_of_fish_correction,tDEnvFiAd,used by module: foodweb_water
 !  food_limitation_function_of_adult_fish,aDSatFiAd,used by module: foodweb_water
-!  adult fish egestion to detritus and nutrients in the water column(through sediment top, due to 
+!  adult fish egestion to detritus and nutrients in the water column(through sediment top, due to
 !  adult fish is predating zoobenthos on the bottom): sDFiAd==>sDDetW,sNFiAd==>sNDetW&sNH4W,sPFiAd==>sPDetW&sPO4W
 ! !USES:
    use fabm_types
@@ -87,9 +87,9 @@
 
 
 
-!EOP                             
+!EOP
 !-----------------------------------------------------------------------
-!BOC                             
+!BOC
 !  Store parameter values in our own derived type
 !  NB: all rates must be provided in values per day,
 !  and are converted here to values per second.
@@ -144,11 +144,11 @@
    call self%register_diagnostic_variable(self%id_tDWebDetS,'tDWebDetS','g m-2 s-1','tDWebDetS', output=output_none)
    call self%register_diagnostic_variable(self%id_tDEnvFiAd,'tDEnvFiAd','g m-2',    'tDEnvFiAd', output=output_none)
    call self%register_diagnostic_variable(self%id_aDSatFiAd,'aDSatFiAd','g m-2',    'aDSatFiAd', output=output_none)
-   
+
 !  Register contribution of state to global aggregate variables
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNBent)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPBent)
-!  regirster state variables dependencies 
+!  regirster state variables dependencies
    call self%register_state_dependency(self%id_DfoodDiatS, 'diatom_as_food_DW',        'g m-2', 'diatom_as_food_DW')
    call self%register_state_dependency(self%id_DfoodGrenS, 'green_as_food_DW',         'g m-2', 'green_as_food_DW')
    call self%register_state_dependency(self%id_DfoodBlueS, 'blue_as_food_DW',          'g m-2', 'blue_as_food_DW')
@@ -179,7 +179,7 @@
 !  register environmental dependencies
    call self%register_dependency(self%id_uTm,    standard_variables%temperature)
    call self%register_dependency(self%id_sDepthW,standard_variables%bottom_depth)
-   
+
    return
 
    end subroutine initialize
@@ -187,7 +187,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
- !IROUTINE: 
+ !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
@@ -282,7 +282,7 @@
    _GET_(self%id_DAdFish,sDFiAd)
    _GET_(self%id_DJvFish,sDFiJv)
 
-   
+
 !  retrieve environmental dependencies
    _GET_(self%id_uTm,uTm)
 ! !retrieve diagnostic denpendency
@@ -311,7 +311,7 @@
    else
        rPDDiatS=rPDDiatS
    endif
-   
+
    if ( rPDBlueS .GT. self%cPDBlueMax)  then
        rPDBlueS=self%cPDBlueMax
    elseif (rPDBlueS .LT. self%cPDBlueMin)  then
@@ -335,7 +335,7 @@
    else
        rNDBlueS =rNDBlueS
    endif
-   
+
    if ( rNDDiatS .GT. self%cNDDiatMax)  then
        rNDDiatS=self%cNDDiatMax
    elseif (rNDDiatS .LT. self%cNDDiatMin)  then
@@ -343,8 +343,8 @@
    else
        rNDDiatS=rNDDiatS
    endif
-   
-   
+
+
    if ( rNDGrenS .GT. self%cNDGrenMax)  then
        rNDGrenS=self%cNDGrenMax
    elseif (rNDGrenS .LT. self%cNDGrenMin)  then
@@ -585,7 +585,7 @@
 !  total_foodweb_flux_of_N_in_sediment_diatoms_in_lake
    tNWebDiatS = - tNConsDiatBent
 !  total_foodweb_flux_of_P_in_sediment_diatoms_in_lake
-   tPWebDiatS = - tPConsDiatBent 
+   tPWebDiatS = - tPConsDiatBent
 !-----------------------------------------------------------------------
 !  Update green algae in sediment(DW,N,P)
 !-----------------------------------------------------------------------
@@ -599,9 +599,9 @@
 !  Update blue algae in sediment(DW,N,P)
 !-----------------------------------------------------------------------
 !  total_foodweb_flux_of_DW_in_sediment_blue-greens_in_lake
-   tDWebBlueS = - tDConsBlueBent 
+   tDWebBlueS = - tDConsBlueBent
 !  total_foodweb_flux_of_N_in_sediment_blue-greens_in_lake
-   tNWebBlueS = - tNConsBlueBent 
+   tNWebBlueS = - tNConsBlueBent
 !  total_foodweb_flux_of_P_in_sediment_blue-greens_in_lake
    tPWebBlueS = - tPConsBlueBent
 !-----------------------------------------------------------------------
@@ -648,7 +648,7 @@
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDWebDetS,tDWebDetS)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDEnvFiAd,tDEnvFiAd)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aDSatFiAd,aDSatFiAd)
-   
+
 
 
       _FABM_HORIZONTAL_LOOP_END_

@@ -7,7 +7,7 @@
 !
 ! !DESCRIPTION:
 !
-!  The pclake_abiotic_water module describes the state variables which are related to abiotic 
+!  The pclake_abiotic_water module describes the state variables which are related to abiotic
 !  processes in water column, including: inorganic matter(IM), organic matters(detritus),
 !  dissolved nutirents(ammonia, nitrate,phosphate and dissolved sicica dioxide), immobilized phosphrus
 !  (absorbed phosphrus), dissolved oxygen. Each state variable and its related processes are listed as
@@ -19,7 +19,7 @@
 !  Dissolved nutrients: sPO4W,processes: mineralisation,phosphrus absorption
 !  Dissolved nutrients: sSiO2W, processes: mineralisation
 !  Dissolved oxygen: sO2W,processes reaeration,mineralisation oxygen consumption, nitrification oxygen consumption
-!  Absorbed_P: sPAIMW, processes:phosphrus absorption 
+!  Absorbed_P: sPAIMW, processes:phosphrus absorption
 ! !USES:
    use fabm_types
    use fabm_standard_variables
@@ -47,7 +47,7 @@
       type (type_state_variable_id)   :: id_sDIMW,id_sDDetW,id_sNDetW,id_sPDetW,id_sSiDetW
       type (type_state_variable_id)   :: id_sPO4W,id_sPAIMW,id_sNH4W,id_sNO3W
       type (type_state_variable_id)   :: id_sSiO2W,id_sO2W
-     
+
 !     diagnostic variables for local output
 !     rPDDetW: P/D ratio of detritus
 !     rNDDetW: N/D ratio of detritus
@@ -70,7 +70,7 @@
       real(rk)                   :: cVSetIM,cVSetDet
 !     parameter for specific light attenuation coefficient
       real(rk)                   :: cExtSpIM,cExtSpDet
-      
+
    contains
 !     Model procedures
       procedure :: initialize
@@ -84,11 +84,11 @@
 !  private data memebers
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero = 0.000000000000000000000000000000001_rk
-!  ratio of mol.weights, = 32/12 [gO2/gC], 
+!  ratio of mol.weights, = 32/12 [gO2/gC],
    real(rk),parameter :: molO2molC = 2.6667_rk
-!  ratio of mol.weights,32/14 [gO2/gN], 
+!  ratio of mol.weights,32/14 [gO2/gN],
    real(rk),parameter :: molO2molN = 2.2857_rk
-!  ratio of mol.weights,14/12 [gN/gC], 
+!  ratio of mol.weights,14/12 [gN/gC],
    real(rk),parameter :: molNmolC = 1.1667_rk
 !
 !EOP
@@ -106,10 +106,10 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  Here, the pclake_abiotic_water namelist is read and the variables 
-!   are registered with FABM.They should be initialised as 
+!  Here, the pclake_abiotic_water namelist is read and the variables
+!   are registered with FABM.They should be initialised as
 !  concentrations.The detritus P and N variables are initialized according
-!  to the initial P/D and N/D ratios. Adsorbed P, usually a minor component 
+!  to the initial P/D and N/D ratios. Adsorbed P, usually a minor component
 !  in the water column,is initialised at 0 gP/m**3.
 !  Adsorption is calculated, however, during the run.
 !
@@ -148,13 +148,13 @@
    call self%get_parameter(self%NO3PerC,   'NO3PerC',   'molNO3', 'denitrified per mol C mineralised',                        default=0.8_rk)
    call self%get_parameter(self%O2PerNH4,  'O2PerNH4',  'molO2',  'used per mol NH4+ nitrified',                              default=2.0_rk)
 
-   
- 
+
+
 !  Register local state variable
-!  particles, including inorganic matter(sDIM) and organic matter(sDDetW,sNDetW,sPDetW,sSiDetW) have 
+!  particles, including inorganic matter(sDIM) and organic matter(sDDetW,sNDetW,sPDetW,sSiDetW) have
 !  vertical movement, usually settling(negative values)
    call self%register_state_variable(self%id_sDIMW,'sDIMW','g m-3','Inorg. matter in water',           &
-                                    initial_value=5.0_rk,  minimum=_ZERO_, vertical_movement= self%cVSetIM,no_river_dilution=.FALSE.) 
+                                    initial_value=5.0_rk,  minimum=_ZERO_, vertical_movement= self%cVSetIM,no_river_dilution=.FALSE.)
 !  detritus
    call self%register_state_variable(self%id_sDDetW,'sDDetW','g m-3','detritus dry-weight in water',    &
                                     initial_value=2.0_rk,  minimum=_ZERO_, vertical_movement= self%cVSetDet,no_river_dilution=.FALSE.)
@@ -215,12 +215,12 @@
 
 
    end subroutine initialize
-   
+
 !EOC
 !-----------------------------------------------------------------------
 !BOP
 
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
@@ -264,7 +264,7 @@
 !  Retrieve current (local) state variable values.
    _GET_(self%id_sDIMW,sDIMW)
    _GET_(self%id_sDDetW,sDDetW)
-   _GET_(self%id_sPDetW,sPDetW)	
+   _GET_(self%id_sPDetW,sPDetW)
    _GET_(self%id_sNDetW,sNDetW)
    _GET_(self%id_sSiDetW,sSiDetW)
    _GET_(self%id_sPO4W,sPO4W)
@@ -276,7 +276,7 @@
 
 !  retrieve current environmental dependencies
    _GET_(self%id_uTm,uTm)
-   
+
 !  Nutrients ratio of detritus
   rPDDetW=sPDetW/(sDDetW+NearZero)
   rNDDetW= sNDetW/(sDDetW+NearZero)
@@ -413,7 +413,7 @@
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
 ! !REVISION HISTORY:
-!  Original author(s): 
+!  Original author(s):
 ! !LOCAL VARIABLES:
    real(rk) :: sDIMW,sDDetW
    real(rk) :: extIM,extDet
@@ -427,13 +427,13 @@
    ! Retrieve current (local) state variable values.
    _GET_(self%id_sDIMW,sDIMW)
    _GET_(self%id_sDDetW,sDDetW)
-   
+
    extIM=self%cExtSpIM*sDIMW
    extDet=self%cExtSpDet*sDDetW
 
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(extIM+extDet)
-   
+
    _SET_DIAGNOSTIC_(self%id_extIM,extIM)
    _SET_DIAGNOSTIC_(self%id_extDet,extDet)
 
@@ -471,7 +471,7 @@
 !  oxygen_saturation_concentration
    uO2Sat = 14.652_rk - 0.41022 * uTm + 0.007991_rk * uTm*uTm - 0.000077774_rk * uTm*uTm*uTm
 !  reaeration_coefficient
-  
+
    kAer=(0.727_rk*((uVWind)**(0.5_rk))-0.371_rk*uVWind+0.0376_rk*uVWind*uVWind)
 !  duckweed_function_of_reaeration
    aFunLemnAer = 1.0_rk
@@ -483,14 +483,14 @@
 !  for PCLake Benchmark
 !  convert daily rates to sedonds
 
-   
+
 !  keep this, t is in day
    _SET_SURFACE_EXCHANGE_(self%id_sO2W,tO2Aer/secs_pr_day)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tO2Aer,tO2Aer/secs_pr_day)
 !   gotm output for 0d input
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_wind,uVWind)
    _HORIZONTAL_LOOP_END_
- 
+
    end subroutine do_surface
 !EOC
 

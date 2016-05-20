@@ -11,7 +11,7 @@
 !  The zoobenthos module describes the state variables regarding zoobenthos, thus
 !  sDBen,sPBen,sNBen.local processes include consumption,migration, assimilation
 !  respiration(only for sDBen), excretion(only for sNBen and sPBen) and mortality.
-!  This module also discribes the processes which influence the state variables registered in
+!  This module also describes the processes which influence the state variables registered in
 !  other modules, including:(aPhytS stands for all groups of settled phytoplankton)
 !  Settled phytoplankton grazed by zoobenthos: aDPhytS==>sDBent,aNPhytS==>sNBent,aPPhytS==>sPBent
 !  Detritus in the sediment grazed by zoobenthos: sDDetS==>sDBent,sNDetS==>sNBent,sPDetS==>sPBent
@@ -32,7 +32,7 @@
    private
 ! !PUBLIC DERIVED TYPES:
    type, extends(type_base_model),public :: type_au_pclake_zoobenthos
-!     local state variable identifers
+!     local state variable identifiers
 !     id_sDBent,zoobenthos concentration in dry-weight, gDW/m**2
 !     id_sPBent,zoobenthos concentration in nitrogen element, gN/m**2
 !     id_sNBent,zoobenthos concentration in phosphorus element, gP/m**2
@@ -50,8 +50,8 @@
       type (type_horizontal_diagnostic_variable_id)       :: id_tPBenBlueS,id_tDAssFiAd,id_tNAssFiAd
       type (type_horizontal_diagnostic_variable_id)       :: id_tPAssFiAd,id_tNBenNH4W,id_tPBenPO4W
       type (type_horizontal_diagnostic_variable_id)       :: id_tDBenDetW,id_tNBenDetW,id_tPBenDetW
-      
-!     state dependencies identifers
+
+!     state dependencies identifiers
       type (type_bottom_state_variable_id)            :: id_DfoodDiatS,id_DfoodGrenS,id_DfoodBlueS,id_DDetpoolS
       type (type_bottom_state_variable_id)            :: id_NfoodDiatS,id_NfoodGrenS,id_NfoodBlueS,id_NDetpoolS
       type (type_bottom_state_variable_id)            :: id_PfoodDiatS,id_PfoodGrenS,id_PfoodBlueS,id_PDetpoolS
@@ -77,7 +77,7 @@
       procedure :: initialize
       procedure :: do_bottom
       end type type_au_pclake_zoobenthos
-!  private data memebers(API0.92)
+!  private data members(API0.92)
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero=0.000000000000000000000000000000001_rk
 !   Lowest state variable value for zoobenthos module
@@ -125,7 +125,7 @@
    call self%get_parameter(self%fDissEgesFish,'fDissEgesFish','[-]',      'soluble nutrient fraction of by fish egested food',          default=0.25_rk)
    call self%get_parameter(self%cTmOptFish,   'cTmOptFish',   '�C',       'optimum temp. of fish',                                      default=25.0_rk)
    call self%get_parameter(self%cSigTmFish,   'cSigTmFish',   '�C',       'temperature constant of fish(sigma in Gaussian curve)',      default=10.0_rk)
-   call self%get_parameter(self%cRelVegFish,  'cRelVegFish',  '[-]',      'decrease of fish feeding per vegetation cover(max. 0.01)', default=0.009_rk)
+   call self%get_parameter(self%cRelVegFish,  'cRelVegFish',  '[-]',      'decrease of fish feeding per vegetation cover(max. 0.01)',   default=0.009_rk)
    call self%get_parameter(self%kDAssFiAd,    'kDAssFiAd',    'd-1',      'maximum assimilation rate of adult fish',                    default=0.06_rk,   scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%hDBentFiAd,   'hDBentFiAd',   'g m-2',    'half-saturating zoobenthos biomass for adult fish predation',default=2.5_rk)
    call self%get_parameter(self%kDRespFiAd,   'kDRespFiAd',   'd-1',      'maintenance respiration constant of adult fish',             default=0.004_rk,  scale_factor=1.0_rk/secs_pr_day)
@@ -152,43 +152,43 @@
    call self%register_state_variable(self%id_sNBent,'sNBent','g m-2','zoobenthos_N',     &
                                     initial_value=0.01_rk,minimum=NearZero)
 !  Register diagnostic variables for dependencies in other modules
-   call self%register_diagnostic_variable(self%id_tDBenDetS,'tDBenDetS','g m-2 s-1','tDBenDetS', output=output_none)
-   call self%register_diagnostic_variable(self%id_tDEnvFiAd,'tDEnvFiAd','g m-2',    'tDEnvFiAd', output=output_none)
-   call self%register_diagnostic_variable(self%id_aDSatFiAd,'aDSatFiAd','g m-2',    'aDSatFiAd', output=output_none)
+   call self%register_diagnostic_variable(self%id_tDBenDetS,     'tDBenDetS',    'g m-2 s-1', 'tDBenDetS',                output=output_none)
+   call self%register_diagnostic_variable(self%id_tDEnvFiAd,     'tDEnvFiAd',    'g m-2',     'tDEnvFiAd',                output=output_none)
+   call self%register_diagnostic_variable(self%id_aDSatFiAd,     'aDSatFiAd',    'g m-2',     'aDSatFiAd',                output=output_none)
 !  Register diagnostic variables for modular fluxes
-   call self%register_diagnostic_variable(self%id_tDBenBent,'tDBenBent','g m-2',    'zoobenthos_DBent_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPBenBent,'tPBenBent','g m-2',    'zoobenthos_PBent_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNBenBent,'tNBenBent','g m-2',    'zoobenthos_NBent_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNBenNH4S,'tNBenNH4S','g m-2',    'zoobenthos_NH4S_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNBenNO3S,'tNBenNO3S','g m-2',    'zoobenthos_NO3S_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPBenPO4S,'tPBenPO4S','g m-2',    'zoobenthos_PO4S_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDBenDetSflux,'tDBenDetSflux','g m-2',    'zoobenthos_DDetS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNBenDetS,'tNBenDetS','g m-2',    'zoobenthos_NDetS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPBenDetS,'tPBenDetS','g m-2',    'zoobenthos_PDetS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tSiBenDetS,'tSiBenDetS','g m-2',    'zoobenthos_SiDetS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDBenDiatS,'tDBenDiatS','g m-2',    'zoobenthos_DDiatS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNBenDiatS,'tNBenDiatS','g m-2',    'zoobenthos_NDiatS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPBenDiatS,'tPBenDiatS','g m-2',    'zoobenthos_PDiatS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDBenGrenS,'tDBenGrenS','g m-2',    'zoobenthos_DGrenS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNBenGrenS,'tNBenGrenS','g m-2',    'zoobenthos_NGrenS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPBenGrenS,'tPBenGrenS','g m-2',    'zoobenthos_PGrenS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDBenBlueS,'tDBenBlueS','g m-2',    'zoobenthos_DBlueS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNBenBlueS,'tNBenBlueS','g m-2',    'zoobenthos_NBlueS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPBenBlueS,'tPBenBlueS','g m-2',    'zoobenthos_PBlueS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAssFiAd,'tDAssFiAd','g m-2',    'zoobenthos_DFiAd_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAssFiAd,'tNAssFiAd','g m-2',    'zoobenthos_NFiAd_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAssFiAd,'tPAssFiAd','g m-2',    'zoobenthos_PFiAd_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNBenNH4W,'tNBenNH4W','g m-2',    'zoobenthos_NH4W_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPBenPO4W,'tPBenPO4W','g m-2',    'zoobenthos_PO4W_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDBenDetW,'tDBenDetW','g m-2',    'zoobenthos_DDetW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNBenDetW,'tNBenDetW','g m-2',    'zoobenthos_NDetw_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPBenDetW,'tPBenDetW','g m-2',    'zoobenthos_PDetw_change', output=output_instantaneous)
-   
-   
+   call self%register_diagnostic_variable(self%id_tDBenBent,     'tDBenBent',     'g m-2',    'zoobenthos_DBent_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPBenBent,     'tPBenBent',     'g m-2',    'zoobenthos_PBent_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNBenBent,     'tNBenBent',     'g m-2',    'zoobenthos_NBent_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNBenNH4S,     'tNBenNH4S',     'g m-2',    'zoobenthos_NH4S_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNBenNO3S,     'tNBenNO3S',     'g m-2',    'zoobenthos_NO3S_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPBenPO4S,     'tPBenPO4S',     'g m-2',    'zoobenthos_PO4S_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDBenDetSflux, 'tDBenDetSflux', 'g m-2',    'zoobenthos_DDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNBenDetS,     'tNBenDetS',     'g m-2',    'zoobenthos_NDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPBenDetS,     'tPBenDetS',     'g m-2',    'zoobenthos_PDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tSiBenDetS,    'tSiBenDetS',    'g m-2',    'zoobenthos_SiDetS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDBenDiatS,    'tDBenDiatS',    'g m-2',    'zoobenthos_DDiatS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNBenDiatS,    'tNBenDiatS',    'g m-2',    'zoobenthos_NDiatS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPBenDiatS,    'tPBenDiatS',    'g m-2',    'zoobenthos_PDiatS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDBenGrenS,    'tDBenGrenS',    'g m-2',    'zoobenthos_DGrenS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNBenGrenS,    'tNBenGrenS',    'g m-2',    'zoobenthos_NGrenS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPBenGrenS,    'tPBenGrenS',    'g m-2',    'zoobenthos_PGrenS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDBenBlueS,    'tDBenBlueS',    'g m-2',    'zoobenthos_DBlueS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNBenBlueS,    'tNBenBlueS',    'g m-2',    'zoobenthos_NBlueS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPBenBlueS,    'tPBenBlueS',    'g m-2',    'zoobenthos_PBlueS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAssFiAd,     'tDAssFiAd',     'g m-2',    'zoobenthos_DFiAd_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAssFiAd,     'tNAssFiAd',     'g m-2',    'zoobenthos_NFiAd_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAssFiAd,     'tPAssFiAd',     'g m-2',    'zoobenthos_PFiAd_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNBenNH4W,     'tNBenNH4W',     'g m-2',    'zoobenthos_NH4W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPBenPO4W,     'tPBenPO4W',     'g m-2',    'zoobenthos_PO4W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDBenDetW,     'tDBenDetW',     'g m-2',    'zoobenthos_DDetW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNBenDetW,     'tNBenDetW',     'g m-2',    'zoobenthos_NDetw_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPBenDetW,     'tPBenDetW',     'g m-2',    'zoobenthos_PDetw_change',  output=output_instantaneous)
+
+
 !  Register contribution of state to global aggregate variables
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNBent)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPBent)
-!  regirster state variables dependencies
+!  register state variables dependencies
    call self%register_state_dependency(self%id_DfoodDiatS, 'diatom_as_food_DW',        'g m-2', 'diatom_as_food_DW')
    call self%register_state_dependency(self%id_DfoodGrenS, 'green_as_food_DW',         'g m-2', 'green_as_food_DW')
    call self%register_state_dependency(self%id_DfoodBlueS, 'blue_as_food_DW',          'g m-2', 'blue_as_food_DW')
@@ -207,7 +207,7 @@
    call self%register_state_dependency(self%id_PO4poolS,   'PO4_pool_sediment',        'g m-2', 'PO4_pool_sediment')
    call self%register_state_dependency(self%id_DAdFish,    'adult_fish_biomass',       'g m-3', 'adult_fish_biomass')
    call self%register_state_dependency(self%id_NAdFish,    'adult_fish_nitrogen',      'g m-3', 'adult_fish_nitrogen')
-   call self%register_state_dependency(self%id_PAdFish,    'adult_fish_phosphrus',     'g m-3', 'adult_fish_phosphrus')
+   call self%register_state_dependency(self%id_PAdFish,    'adult_fish_phosphorus',     'g m-3', 'adult_fish_phosphorus')
    call self%register_state_dependency(self%id_NH4poolW,   'NH4_pool_water',           'g m-3', 'NH4_pool_water')
    call self%register_state_dependency(self%id_PO4poolW,   'PO4_pool_water',           'g m-3', 'PO4_pool_water')
    call self%register_state_dependency(self%id_DDetpoolW, 'DDet_pool_water',           'g m-3', 'DDet_pool_water')
@@ -304,7 +304,7 @@
    _GET_HORIZONTAL_(self%id_sPBent,sPBent)
    _GET_HORIZONTAL_(self%id_sNBent,sNBent)
 !-----------------------------------------------------------------------
-!  Retrieve dependencis value
+!  Retrieve dependencies  value
 !-----------------------------------------------------------------------
 !  Retrieve state dependencie value
    _GET_HORIZONTAL_(self%id_DDetpoolS,sDDetS)
@@ -333,7 +333,7 @@
    sDFiAd=sDFiAd*sDepthW
    sDFiJv=sDFiJv*sDepthW
 !----------------------------------------------------------------------
-!  Current local nutrients ratios in zoobenthos(check the curent state)
+!  Current local nutrients ratios in zoobenthos(check the current state)
 !----------------------------------------------------------------------
    rPDBent=sPBent/(sDBent+NearZero)
    rNDBent=sNBent/(sDBent+NearZero)
@@ -345,7 +345,7 @@
    rNDDiatS=sNBlueS/(sDBlueS+NearZero)
    rNDGrenS=sNGrenS/(sDGrenS+NearZero)
    rNDBlueS=sNDiatS/(sDDiatS+NearZero)
-!    check for phosphrus nutrient ratios
+!    check for phosphorus nutrient ratios
    if ( rPDDiatS .GT. self%cPDDiatMax)  then
        rPDDiatS=self%cPDDiatMax
    elseif (rPDDiatS .LT. self%cPDDiatMin)  then
@@ -657,32 +657,32 @@
 !  Update external links
 !-----------------------------------------------------------------------
 !  update abiotic variables in sediment
-   _SET_ODE_BEN_(self%id_NH4poolS,tNBenNH4S)
-   _SET_ODE_BEN_(self%id_NO3poolS,tNBenNO3S)
-   _SET_ODE_BEN_(self%id_PO4poolS,tPBenPO4S)
-   _SET_ODE_BEN_(self%id_DDetpoolS,tDBenDetS)
-   _SET_ODE_BEN_(self%id_NDetpoolS,tNBenDetS)
-   _SET_ODE_BEN_(self%id_PDetpoolS,tPBenDetS)
-   _SET_ODE_BEN_(self%id_SiDetpoolS,tSiBenDetS)
+   _SET_ODE_BEN_(self%id_NH4poolS,   tNBenNH4S)
+   _SET_ODE_BEN_(self%id_NO3poolS,   tNBenNO3S)
+   _SET_ODE_BEN_(self%id_PO4poolS,   tPBenPO4S)
+   _SET_ODE_BEN_(self%id_DDetpoolS,  tDBenDetS)
+   _SET_ODE_BEN_(self%id_NDetpoolS,  tNBenDetS)
+   _SET_ODE_BEN_(self%id_PDetpoolS,  tPBenDetS)
+   _SET_ODE_BEN_(self%id_SiDetpoolS, tSiBenDetS)
 !  update phytoplanktons in sediment
-   _SET_ODE_BEN_(self%id_DfoodDiatS,tDBenDiatS)
-   _SET_ODE_BEN_(self%id_NfoodDiatS,tNBenDiatS)
-   _SET_ODE_BEN_(self%id_PfoodDiatS,tPBenDiatS)
-   _SET_ODE_BEN_(self%id_DfoodGrenS,tDBenGrenS)
-   _SET_ODE_BEN_(self%id_NfoodGrenS,tNBenGrenS)
-   _SET_ODE_BEN_(self%id_PfoodGrenS,tPBenGrenS)
-   _SET_ODE_BEN_(self%id_DfoodBlueS,tDBenBlueS)
-   _SET_ODE_BEN_(self%id_NfoodBlueS,tNBenBlueS)
-   _SET_ODE_BEN_(self%id_PfoodBlueS,tPBenBlueS)
+   _SET_ODE_BEN_(self%id_DfoodDiatS, tDBenDiatS)
+   _SET_ODE_BEN_(self%id_NfoodDiatS, tNBenDiatS)
+   _SET_ODE_BEN_(self%id_PfoodDiatS, tPBenDiatS)
+   _SET_ODE_BEN_(self%id_DfoodGrenS, tDBenGrenS)
+   _SET_ODE_BEN_(self%id_NfoodGrenS, tNBenGrenS)
+   _SET_ODE_BEN_(self%id_PfoodGrenS, tPBenGrenS)
+   _SET_ODE_BEN_(self%id_DfoodBlueS, tDBenBlueS)
+   _SET_ODE_BEN_(self%id_NfoodBlueS, tNBenBlueS)
+   _SET_ODE_BEN_(self%id_PfoodBlueS, tPBenBlueS)
 !  update abiotic water section variable
-   _SET_BOTTOM_EXCHANGE_(self%id_DAdFish,tDAssFiAd)
-   _SET_BOTTOM_EXCHANGE_(self%id_NAdFish,tNAssFiAd)
-   _SET_BOTTOM_EXCHANGE_(self%id_PAdFish,tPAssFiAd)
-   _SET_BOTTOM_EXCHANGE_(self%id_NH4poolW,tNEgesFiAdNH4)
-   _SET_BOTTOM_EXCHANGE_(self%id_PO4poolW,tPEgesFiAdPO4)
-   _SET_BOTTOM_EXCHANGE_(self%id_DDetpoolW,tDEgesFiAd)
-   _SET_BOTTOM_EXCHANGE_(self%id_NDetpoolW,tNEgesFiAdDet)
-   _SET_BOTTOM_EXCHANGE_(self%id_PDetpoolW,tPEgesFiAdDet)
+   _SET_BOTTOM_EXCHANGE_(self%id_DAdFish,   tDAssFiAd)
+   _SET_BOTTOM_EXCHANGE_(self%id_NAdFish,   tNAssFiAd)
+   _SET_BOTTOM_EXCHANGE_(self%id_PAdFish,   tPAssFiAd)
+   _SET_BOTTOM_EXCHANGE_(self%id_NH4poolW,  tNEgesFiAdNH4)
+   _SET_BOTTOM_EXCHANGE_(self%id_PO4poolW,  tPEgesFiAdPO4)
+   _SET_BOTTOM_EXCHANGE_(self%id_DDetpoolW, tDEgesFiAd)
+   _SET_BOTTOM_EXCHANGE_(self%id_NDetpoolW, tNEgesFiAdDet)
+   _SET_BOTTOM_EXCHANGE_(self%id_PDetpoolW, tPEgesFiAdDet)
 !-----------------------------------------------------------------------
 !  output diagnostic variables for external links
 !-----------------------------------------------------------------------
@@ -692,33 +692,33 @@
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aDSatFiAd,aDSatFiAd)
 
 !  update modular fluxes diagnostic variables
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenBent,tDBenBent*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenBent,tPBenBent*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenBent,tNBenBent*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenNH4S,tNBenNH4S*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenNO3S,tNBenNO3S*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenPO4S,tPBenPO4S*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenDetSflux,tDBenDetS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenDetS,tNBenDetS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenDetS,tPBenDetS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiBenDetS,tSiBenDetS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenDiatS,tDBenDiatS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenDiatS,tNBenDiatS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenDiatS,tPBenDiatS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenGrenS,tDBenGrenS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenGrenS,tNBenGrenS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenGrenS,tPBenGrenS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenBlueS,tDBenBlueS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenBlueS,tNBenBlueS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenBlueS,tPBenBlueS*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAssFiAd,tDAssFiAd/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAssFiAd,tNAssFiAd/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAssFiAd,tPAssFiAd/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenNH4W,tNEgesFiAdNH4/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenPO4W,tPEgesFiAdPO4/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenDetW,tDEgesFiAd/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenDetW,tNEgesFiAdDet/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenDetW,tPEgesFiAdDet/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenBent,     tDBenBent*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenBent,     tPBenBent*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenBent,     tNBenBent*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenNH4S,     tNBenNH4S*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenNO3S,     tNBenNO3S*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenPO4S,     tPBenPO4S*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenDetSflux, tDBenDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenDetS,     tNBenDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenDetS,     tPBenDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiBenDetS,    tSiBenDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenDiatS,    tDBenDiatS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenDiatS,    tNBenDiatS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenDiatS,    tPBenDiatS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenGrenS,    tDBenGrenS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenGrenS,    tNBenGrenS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenGrenS,    tPBenGrenS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenBlueS,    tDBenBlueS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenBlueS,    tNBenBlueS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenBlueS,    tPBenBlueS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAssFiAd,     tDAssFiAd/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAssFiAd,     tNAssFiAd/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAssFiAd,     tPAssFiAd/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenNH4W,     tNEgesFiAdNH4/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenPO4W,     tPEgesFiAdPO4/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBenDetW,     tDEgesFiAd/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBenDetW,     tNEgesFiAdDet/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBenDetW,     tPEgesFiAdDet/dz*86400.0_rk)
 
       _FABM_HORIZONTAL_LOOP_END_
    end subroutine do_bottom
