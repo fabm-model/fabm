@@ -1,0 +1,145 @@
+#include "fabm_driver.h"
+
+module test_models
+
+use fabm_types
+
+implicit none
+
+integer, parameter :: interior_state_offset = 0
+integer, parameter :: surface_state_offset  = 1000
+integer, parameter :: bottom_state_offset   = 2000
+
+integer, parameter :: interior_dependency_offset = 3000
+integer, parameter :: horizontal_dependency_offset = 4000
+
+real(rk), parameter :: epsilon = 1e-14_rk
+
+type,extends(type_base_model) :: type_test_model
+   type (type_state_variable_id),        allocatable :: id_state(:)
+   type (type_surface_state_variable_id),allocatable :: id_surface_state(:)
+   type (type_bottom_state_variable_id), allocatable :: id_bottom_state(:)
+
+   type (type_dependency_id)            :: id_dep
+   type (type_dependency_id)            :: id_depth
+   type (type_horizontal_dependency_id) :: id_hz_dep
+
+   integer :: nstate         = 12
+   integer :: nsurface_state = 11
+   integer :: nbottom_state  = 10
+contains
+   procedure :: initialize
+   procedure :: do_surface
+   procedure :: do_bottom
+end type
+
+   contains
+
+subroutine initialize(self,configunit)
+   class (type_test_model), intent(inout), target :: self
+   integer,                 intent(in)            :: configunit
+
+   integer          :: i
+   character(len=8) :: strindex
+
+   allocate(self%id_state(self%nstate))
+   do i=1,self%nstate
+      write (strindex,'(i0)') i
+      call self%register_state_variable(self%id_state(i),'state'//trim(strindex),'','state variable #'//trim(strindex))
+   end do
+   allocate(self%id_surface_state(self%nsurface_state))
+   do i=1,self%nsurface_state
+      write (strindex,'(i0)') i
+      call self%register_state_variable(self%id_surface_state(i),'surface_state'//trim(strindex),'','surface state variable #'//trim(strindex))
+   end do
+   allocate(self%id_bottom_state(self%nbottom_state))
+   do i=1,self%nbottom_state
+      write (strindex,'(i0)') i
+      call self%register_state_variable(self%id_bottom_state(i),'bottom_state'//trim(strindex),'','bottom state variable #'//trim(strindex))
+   end do
+   call self%register_dependency(self%id_dep,standard_variables%temperature)
+   call self%register_dependency(self%id_depth,standard_variables%depth)
+   call self%register_dependency(self%id_hz_dep,standard_variables%wind_speed)
+end subroutine initialize
+
+subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
+   class (type_test_model),intent(in) :: self
+   _DECLARE_ARGUMENTS_DO_SURFACE_
+
+   integer  :: i
+   real(rk) :: value
+
+   _HORIZONTAL_LOOP_BEGIN_
+      do i=1,self%nstate
+         _GET_(self%id_state(i),value)
+         if (value/=i+interior_state_offset) call self%fatal_error('do_surface','invalid value of interior state variable.')
+         _SET_SURFACE_EXCHANGE_(self%id_state(i),-value)
+      end do
+
+      do i=1,self%nsurface_state
+         _GET_HORIZONTAL_(self%id_surface_state(i),value)
+         if (value/=i+surface_state_offset) call self%fatal_error('do_surface','invalid value of surface state variable.')
+         _SET_SURFACE_ODE_(self%id_surface_state(i),-value)
+      end do
+
+      do i=1,self%nbottom_state
+         _GET_HORIZONTAL_(self%id_bottom_state(i),value)
+         if (value/=i+bottom_state_offset) call self%fatal_error('do_surface','invalid value of bottom state variable.')
+      end do
+
+      _GET_(self%id_depth,value)
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+       if (abs(value)>epsilon) call self%fatal_error('do_surface','depth should be 0.')
+#else
+       if (abs(value-2)>epsilon) call self%fatal_error('do_surface','depth should be 2.')
+#endif
+
+      _GET_(self%id_dep,value)
+      if (value/=1+interior_dependency_offset) call self%fatal_error('do_surface','invalid value of interior dependency #1.')
+      _GET_HORIZONTAL_(self%id_hz_dep,value)
+      if (value/=1+horizontal_dependency_offset) call self%fatal_error('do_surface','invalid value of horizontal dependency #1.')
+
+   _HORIZONTAL_LOOP_END_
+end subroutine do_surface
+
+subroutine do_bottom(self,_ARGUMENTS_DO_SURFACE_)
+   class (type_test_model),intent(in) :: self
+   _DECLARE_ARGUMENTS_DO_SURFACE_
+
+   integer  :: i
+   real(rk) :: value
+
+   _HORIZONTAL_LOOP_BEGIN_
+      do i=1,self%nstate
+         _GET_(self%id_state(i),value)
+         if (value/=i+interior_state_offset) call self%fatal_error('do_bottom','invalid value of interior state variable.')
+         _SET_BOTTOM_EXCHANGE_(self%id_state(i),-value)
+      end do
+
+      do i=1,self%nsurface_state
+         _GET_HORIZONTAL_(self%id_surface_state(i),value)
+         if (value/=i+surface_state_offset) call self%fatal_error('do_bottom','invalid value of surface state variable.')
+      end do
+
+      do i=1,self%nbottom_state
+         _GET_HORIZONTAL_(self%id_bottom_state(i),value)
+         if (value/=i+bottom_state_offset) call self%fatal_error('do_bottom','invalid value of bottom state variable.')
+         _SET_BOTTOM_ODE_(self%id_bottom_state(i),-value)
+      end do
+
+      _GET_(self%id_depth,value)
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+       if (abs(value-1)>epsilon) call self%fatal_error('do_bottom','depth should be 1.')
+#else
+       if (abs(value-2)>epsilon) call self%fatal_error('do_bottom','depth should be 2.')
+#endif
+
+      _GET_(self%id_dep,value)
+      if (value/=1+interior_dependency_offset) call self%fatal_error('do_bottom','invalid value of interior dependency #1.')
+      _GET_HORIZONTAL_(self%id_hz_dep,value)
+      if (value/=1+horizontal_dependency_offset) call self%fatal_error('do_bottom','invalid value of horizontal dependency #1.')
+
+   _HORIZONTAL_LOOP_END_
+end subroutine do_bottom
+
+end module
