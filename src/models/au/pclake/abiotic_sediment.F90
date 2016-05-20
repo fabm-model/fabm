@@ -7,8 +7,8 @@
 !
 ! !DESCRIPTION:
 !
-!  The au_pclake_abiotic_sediment module describes all the state variables 
-!  which are related to abiotic processes in the sediment, including: 
+!  The au_pclake_abiotic_sediment module describes all the state variables
+!  which are related to abiotic processes in the sediment, including:
 !  inorganic matter(IM), organic matters(detritus),dissolved nutirents
 !  (ammonia, nitrate,phosphate) immobilized phosphrus(absorbed phosphrus).
 !  Each state variable and its related its local processes are:
@@ -18,23 +18,24 @@
 !                       diffusion to water column
 !  Dissolved nutrients:sNO3W,processes: nitrification,denitrification,
 !                      diffusion to water column
-!  Dissolved nutrients: sPO4S,processes: mineralisation,phosphrus 
+!  Dissolved nutrients: sPO4S,processes: mineralisation,phosphrus
 !                       absorption,difusion to water column
 !  Absorbed_P: sPAIMW, processes:phosphrus absorption
-!  This module also discribes the processes which influence the state 
+!  This module also discribes the processes which influence the state
 !  variables registered in other modules, including:
-!  Diffusion, influences ammonia,nitrate,phosphate in water column, 
+!  Diffusion, influences ammonia,nitrate,phosphate in water column,
 !  sNH4S<==>sNH4W, sNO3S<==>sNO3W,sPO4S<==>sPO4W
 !  Sediment oxygen consumption, influences oxygen in water column,
 !   ==>sO2W
-!  Organic silica mineralization, influences silica dioxide in water 
+!  Organic silica mineralization, influences silica dioxide in water
 !  column, ==>sSiO2W
-!  This module also provide important diagnostic variable will be used 
+!  This module also provide important diagnostic variable will be used
 !  in other modules, including:
-!  Sediment aerobic layer fraction, afOxySed, used by module: 
+!  Sediment aerobic layer fraction, afOxySed, used by module:
 !                                              macrophytes module
 !  Sediment detritus change, tDAbioDetS, used bymodule:auxilary
 !
+!  feh: April 13th, major change: added all the modular fluxes as diagostic variables.
 ! !USES:
    use fabm_types
    use au_pclake_utility, ONLY: uFunTmAbio
@@ -61,22 +62,32 @@
 !     diagnostic variables for local output
 !     rPDDetS: P/D ratio of detritus
 !     rNDDetS: N/D ratio of detritus
-!     tDAbioO2S: abiotic sediment oxygen consumption
 !     aPEqIMS: equilibrium absorped phosphrus concentration
       type (type_horizontal_diagnostic_variable_id) :: id_rPDDetS,id_rNDDetS
-      type (type_horizontal_diagnostic_variable_id) :: id_tDAbioO2S
-      type (type_horizontal_diagnostic_variable_id) :: id_aPEqIMS
-      
+      type (type_horizontal_diagnostic_variable_id) :: id_aPEqIMS,id_afOxySed
+!     diagnostic variable for external dependencies: 
+      type (type_horizontal_diagnostic_variable_id) :: id_tDAbioHumS,id_tDAbioDetS
+!   diagnostic variables for modular fluxes for each module
+      type (type_horizontal_diagnostic_variable_id) :: id_tDAbioIMS,id_tPAbioDetS
+      type (type_horizontal_diagnostic_variable_id) :: id_tNAbioDetS,id_tSiAbioDetS,id_tNAbioNH4S
+      type (type_horizontal_diagnostic_variable_id) :: id_tNAbioNO3S,id_tPAbioPO4S,id_tPAbioAIMS
+      type (type_horizontal_diagnostic_variable_id) :: id_tPAbioHumS,id_tNAbioHumS
+      type (type_horizontal_diagnostic_variable_id) :: id_tNdifNH4,id_tNdifNO3,id_tPdifPO4
+      type (type_horizontal_diagnostic_variable_id) :: id_tSiAbioSiO2S,id_tDAbioO2S
+!     deitrus and humus fluxes will be named differently due to they are used by 
+!     external dependencies
+      type (type_horizontal_diagnostic_variable_id) :: id_tDAbioHumSflux,id_tDAbioDetSflux
+
 !     state dependencies identifers
 !     MinSiO2Sed: Mineralization generated SiO2 from sediment
 !     O2ConsumpSed: O2 consumption in sediment
 !     diff+nut: diffusion fluxes of nutrients between water and sediment
       type (type_state_variable_id) :: id_MinSiO2Sed ,id_O2ConsumpSed
       type (type_state_variable_id) :: id_diffNH4,id_diffNO3,id_diffPO4
-!     diagnostic variables for dependencies(without output)
-      type (type_horizontal_diagnostic_variable_id) :: id_tDAbioDetS,id_afOxySed,id_tDAbioHumS
 !     environmental dependencies
-      type (type_dependency_id)                :: id_uTm
+!     April 15th,2016, added dz, cell_thickness(feh) 
+      type (type_dependency_id)                :: id_uTm,id_dz
+      type (type_horizontal_dependency_id)     :: id_depth
 !     Model parameters
 !     Model scale parameters
       real(rk)                   :: cDepthS,cCPerDW,O2PerNH4
@@ -132,7 +143,7 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  Here, the au_pclake_abiotic_sediment namelist is read and the variables 
+!  Here, the au_pclake_abiotic_sediment namelist is read and the variables
 !  are registered with FABM.
 !
 ! !INPUT PARAMETERS:
@@ -174,16 +185,16 @@
    call self%get_parameter(self%kO2Dif,     'kO2Dif',      'm2/day',               'mol. O2 diffusion constant',                               default=0.000026_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%cTurbDifO2, 'cTurbDifO2',  '[-]',                  'bioturbation factor for diffusion',                        default=5.0_rk)
    call self%get_parameter(self%kDMinHum,   'kDMinHum',    'd-1',                  'maximum_decomposition_constant_of_humic_material_(1D-5)',  default=0.00001_rk , scale_factor=1.0_rk/secs_pr_day)
-  
+
 !  Register local state variable
 !  Inorganic matter
    call self%register_state_variable(self%id_sDIMS,  'sDIMS',  'g m-2','sediment inorg.Matter',  initial_value=39611.3_rk, minimum=_ZERO_)
-!  Detritus                                                                                      
+!  Detritus
    call self%register_state_variable(self%id_sDDetS, 'sDDetS', 'g m-2','sediment detritus DW',   initial_value=181.7_rk,   minimum=_ZERO_)
    call self%register_state_variable(self%id_sNDetS, 'sNDetS', 'g m-2','sediment detritus N',    initial_value=4.54_rk,    minimum=_ZERO_)
    call self%register_state_variable(self%id_sPDetS, 'sPDetS', 'g m-2','sediment detritus P',    initial_value=0.454_rk,   minimum=_ZERO_)
    call self%register_state_variable(self%id_sSiDetS,'sSiDetS','g m-2','sediment detritus Si',   initial_value=1.82_rk,    minimum=_ZERO_)
-!  Dissolved nutrients                                                                           
+!  Dissolved nutrients
    call self%register_state_variable(self%id_sPO4S,  'sPO4S',   'g m-2','Sediment Phosphate',    initial_value=0.182_rk,   minimum=_ZERO_)
    call self%register_state_variable(self%id_sPAIMS, 'sPAIMS',  'g m-2','SED_Absorbed Phosphate',initial_value=17.99_rk,   minimum=_ZERO_)
    call self%register_state_variable(self%id_sNH4S,  'sNH4S',   'g m-2','Sediment Amonia',       initial_value=0.02_rk,    minimum=_ZERO_)
@@ -201,7 +212,7 @@
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPDetS)
    call self%add_to_aggregate_variable(standard_variables%total_silicate,  self%id_sSiDetS)
 !---------------------------------------------------------------------------------------------------------------
-!  regirster state variables dependencies (2 steps) 
+!  regirster state variables dependencies (2 steps)
 !---------------------------------------------------------------------------------------------------------------
 !   Register dependencies on external state variables
    call self%register_state_dependency(self%id_O2ConsumpSed, 'oxygen_pool_water',               'g m-3', 'oxygen_pool_water')
@@ -211,19 +222,40 @@
    call self%register_state_dependency(self%id_diffPO4,      'PO4_diffusion_flux',              'g m-3', 'PO4_diffusion_flux')
 !  Register diagnostic variables
    call self%register_diagnostic_variable(self%id_afOxySed,  'afOxySed',  '[-]',       'fraction of aerobic sediment',output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAbioDetS,'tDAbioDetS','g m-2 s-1', 'abiotic_sediment_DDet_change',output=output_none)
-   call self%register_diagnostic_variable(self%id_tDAbioHumS,'tDAbioHumS','g m-2 s-1','abiotic_sediment_DHum_change',output=output_none)
-   call self%register_diagnostic_variable(self%id_tDAbioO2S, 'tDAbioO2S', 'g m-2 s-1','sediment oxygen consumption', output=output_time_step_integrated)
    call self%register_diagnostic_variable(self%id_rPDDetS,   'rPDDetS',   '[-]',       'detritus_P/D_ration_sed',     output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_rNDDetS,   'rNDDetS',   '[-]',       'detritus_N/D_ration_sed',     output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_aPEqIMS,   'aPEqIMS',   '[-]',       'equilibrium_absorbed_PO4',    output=output_instantaneous)
-
+!  Register diagostic variables for modular fluxes
+!  Total fluxes to local state variables
+   call self%register_diagnostic_variable(self%id_tDAbioIMS,'tDAbioIMS','g m-2 s-1', 'abiotic_sediment_DIMS_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAbioDetSflux,'tDAbioDetSflux','g m-2 s-1', 'abiotic_sediment_DDetS_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAbioDetS,'tNAbioDetS','g m-2 s-1', 'abiotic_sediment_NDetS_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAbioDetS,'tPAbioDetS','g m-2 s-1', 'abiotic_sediment_PDetS_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tSiAbioDetS,'tSiAbioDetS','g m-2 s-1', 'abiotic_sediment_SiDetS_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAbioPO4S,'tPAbioPO4S','g m-2 s-1',  'abiotic_sediment_PAIMS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAbioNH4S,'tNAbioNH4S','g m-2 s-1', 'abiotic_sediment_NH4S_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAbioNO3S,'tNAbioNO3S','g m-2 s-1', 'abiotic_sediment_NO3S_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAbioAIMS,'tPAbioAIMS','g m-2 s-1',  'abiotic_sediment_PAIMS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAbioHumSflux,'tDAbioHumSflux','g m-2 s-1','abiotic_sediment_DHumS_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAbioHumS,'tNAbioHumS','g m-2 s-1','abiotic_sediment_NHumS_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAbioHumS,'tPAbioHumS','g m-2 s-1','abiotic_sediment_NHumS_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPdifPO4,   'tPdifPO4','g m-2 s-1',  'abiotic_sediment_PO4W_diffusion',    output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNdifNH4,   'tNdifNH4','g m-2 s-1',  'abiotic_sediment_NH4W_diffusion',    output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNdifNO3,   'tNdifNO3','g m-2 s-1',  'abiotic_sediment_NO3W_diffusion',    output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tSiAbioSiO2S,'tSiAbioSiO2S','g m-2 s-1','abiotic_sediment_SiO2_change',output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAbioO2S, 'tDAbioO2S', 'g m-2 s-1','abiotic_sediment_O2_consumption', output=output_instantaneous)
+!  Register diagnostic vairble for external dependencies
+   call self%register_diagnostic_variable(self%id_tDAbioDetS,'tDAbioDetS','g m-2 s-1', 'Detritus change in abiotic sediment',output=output_none)
+   call self%register_diagnostic_variable(self%id_tDAbioHumS,'tDAbioHumS','g m-2 s-1','Humus change in abiotic sediment',output=output_none)
 !  register environmental dependencies
    call self%register_dependency(self%id_uTm,standard_variables%temperature)
-   
+   call self%register_dependency(self%id_depth,standard_variables%bottom_depth)
+   call self%register_dependency(self%id_dz,standard_variables%cell_thickness)
+
+
    return
 
-   
+
    end subroutine initialize
 !EOC
 !-----------------------------------------------------------------------
@@ -246,7 +278,7 @@
 !  nutrients ratios
    real(rk)                   :: rPDDetS,rNDDetS
 !  carriers for environmental dependencies
-   real(rk)                   :: uTm
+   real(rk)                   :: uTm,depth,dz
 !  carriers for diagnostic dependencies
 !  in abiotic water column module
    real(rk)                   :: sO2W,sNH4W,sNO3W,sPO4W
@@ -272,6 +304,17 @@
    real(rk)    :: tDMinHumS,tNMinHumS,tPMinHumS
    real(rk)    :: tDAbioHumS,tNAbioHumS,tPAbioHumS
 !
+!KB, feh
+!  n for total step counter, t for time step counter, i for output
+!  for dataframe indext !  j is day counter
+!  n start with 0 since first output is at the surface, loop should
+!  started from the bottom(36.9-->0.5)
+!  nlev= 36, so n should mod 36 == 0
+!  only update indext i when it's output step, and rewrite i to 0 when
+!  it's not outputed, i is python index, so should start with 0
+!  index j for dataframe work structure
+
+integer, save :: n=0,t=0,i=0,j=-1
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -288,7 +331,7 @@
    _GET_HORIZONTAL_(self%id_sPAIMS,sPAIMS)
    _GET_HORIZONTAL_(self%id_sNH4S,sNH4S)
    _GET_HORIZONTAL_(self%id_sNO3S,sNO3S)
-   
+
 !  Humus
    _GET_HORIZONTAL_(self%id_sDHumS,sDHumS)
    _GET_HORIZONTAL_(self%id_sNHumS,sNHumS)
@@ -301,6 +344,9 @@
    _GET_(self%id_diffPO4,sPO4W)
 !  retrieve environmental dependencies
    _GET_(self%id_uTm,uTm)
+   _GET_HORIZONTAL_(self%id_depth,depth)
+   _GET_(self%id_dz,dz)
+   
 !-----------------------------------------------------------------------
 !  Current local nutrients ratios(check the curent state)
 !-----------------------------------------------------------------------
@@ -448,25 +494,46 @@
    _SET_ODE_BEN_(self%id_sPHumS,tPAbioHumS)
    _SET_ODE_BEN_(self%id_sNHumS,tNAbioHumS)
 !-----------------------------------------------------------------------
-!  Update external state variables
+!  Update external state variableswrite(*,*) n,k
 !-----------------------------------------------------------------------
    _SET_BOTTOM_EXCHANGE_(self%id_MinSiO2Sed,(1.0_rk-self%fRefrDetS)*tSiMinDetS)
-   _SET_BOTTOM_EXCHANGE_(self%id_diffNH4,tNdifNH4)
+   _SET_BOTTOM_EXCHANGE_(self%id_diffNH4, tNdifNH4)
    _SET_BOTTOM_EXCHANGE_(self%id_diffNO3,tNdifNO3)
    _SET_BOTTOM_EXCHANGE_(self%id_diffPO4,tPdifPO4)
-!  update O2 in water column
    _SET_BOTTOM_EXCHANGE_(self%id_O2ConsumpSed,-tO2MinDetS - tO2NitrS)
 !-----------------------------------------------------------------------
 !  Output denpendent diagnostic variables for other modules
 !-----------------------------------------------------------------------
+!  output local diagnostic variables
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_afOxySed,afOxySed)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAbioDetS,tDAbioDetS)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAbioO2S,-tO2MinDetS - tO2NitrS)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_rPDDetS,rPDDetS)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_rNDDetS,rNDDetS)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAbioHumS,tDAbioHumS)
-   
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aPEqIMS,aPEqIMS)
+!  output diagnostic values for external usage
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAbioDetS,tDAbioDetS)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAbioHumS,tDAbioHumS)
+
+!  output diagostic variables for modular fluxes
+!  total fluxes for local sediment state variables
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAbioIMS,tDAbioIMS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAbioDetSflux,tDAbioDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAbioDetS,tNAbioDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAbioDetS,tPAbioDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiAbioDetS,tSiAbioDetS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAbioAIMS,tPAbioAIMS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAbioHumSflux,tDAbioHumS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAbioHumS,tNAbioHumS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAbioHumS,tPAbioHumS*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAbioNH4S,tNAbioNH4S*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAbioNO3S,tNAbioNO3S*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAbioPO4S,tPAbioPO4S*86400.0_rk)
+!  total fluxes for abiotic water state variables
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPdifPO4,tPdifPO4/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNdifNH4,tNdifNH4/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNdifNO3,tNdifNO3/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAbioO2S,(-tO2MinDetS - tO2NitrS)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiAbioSiO2S,(1.0_rk-self%fRefrDetS)*tSiMinDetS*86400.0_rk)
+
 
    _FABM_HORIZONTAL_LOOP_END_
 !-----------------------------------------------------------------------

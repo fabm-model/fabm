@@ -139,9 +139,8 @@
       logical                            :: includes_custom = .false.
    contains
       procedure :: remove => coupling_task_list_remove
-      procedure :: add_for_link => coupling_task_list_add
+      procedure :: add => coupling_task_list_add
       procedure :: add_object => coupling_task_list_add_object
-      generic :: add => add_for_link, add_object
    end type
 
    ! ====================================================================================================
@@ -782,8 +781,9 @@
       character(len=*),optional,     intent(in)    :: long_name
       integer,                       intent(in)    :: configunit
 !
-      integer :: islash
-      class (type_base_model),pointer :: parent
+      integer                             :: islash
+      class (type_base_model),    pointer :: parent
+      type (type_model_list_node),pointer :: child
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -805,6 +805,13 @@
          'Cannot add child model "'//trim(name)//'" because its name is not valid. &
          &Model names should not be empty, and can contain letters, digits and underscores only.')
       if (len_trim(name)>len(model%name)) call fatal_error('add_child','Model name "'//trim(name)//'" exceeds maximum length.')
+
+      ! Make sure a child with this name does not exist yet.
+      child => self%children%first
+      do while (associated(child))
+         if (child%model%name==name) call self%fatal_error('add_child','A child model with name "'//trim(name)//'" already exists.')
+         child => child%next
+      end do
 
       model%name = name
       if (present(long_name)) then
@@ -1141,7 +1148,7 @@ function create_coupling_task(self,link) result(task)
       &not inherited ones such as the current '//trim(link%name)//'.')
 
    ! Create a coupling task (reuse existing one if available, and not user-specified)
-   task => self%coupling_task_list%add(link,.false.)
+   call self%coupling_task_list%add(link,.false.,task)
 end function create_coupling_task
 
 subroutine request_coupling_for_link(self,link,master)
@@ -2713,10 +2720,14 @@ end subroutine get_string_parameter
          do while (associated(found_model).and.istart<=len(name))
             length = index(name(istart:),'/')-1
             if (length==-1) length = len(name) - istart + 1
-            node => found_model%children%find(name(istart:istart+length-1))
+            if (length==2.and.name(istart:istart+1)=='..') then
+               found_model => found_model%parent
+            elseif (.not.(length==1.and.name(istart:istart)=='.')) then
+               node => found_model%children%find(name(istart:istart+length-1))
+               nullify(found_model)
+               if (associated(node)) found_model => node%model
+            end if
             istart = istart+length+1
-            nullify(found_model)
-            if (associated(node)) found_model => node%model
          end do
 
          ! Only continue if we have not found the model and are allowed to try parent model.
@@ -2940,7 +2951,7 @@ end subroutine abstract_model_factory_register_version
       nullify(task%next)
    end function coupling_task_list_add_object
 
-   function coupling_task_list_add(self,link,always_create) result(task)
+   subroutine coupling_task_list_add(self,link,always_create,task)
       class (type_coupling_task_list),intent(inout)         :: self
       type (type_link),               intent(inout), target :: link
       logical,                        intent(in)            :: always_create
@@ -2951,10 +2962,10 @@ end subroutine abstract_model_factory_register_version
       allocate(task)
       task%slave => link
       task%domain = link%target%domain
-      used = self%add(task,always_create)
+      used = self%add_object(task,always_create)
       if (.not.used) deallocate(task)
 
-   end function coupling_task_list_add
+   end subroutine coupling_task_list_add
 
    end module fabm_types
 

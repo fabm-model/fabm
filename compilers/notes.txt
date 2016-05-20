@@ -15,12 +15,16 @@ Intel Fortran 12.1
   Solution: do not use allocate(...,source=...) for complex objects.
   NB sourced allocated seems ok if y directly contains an allocatable component.
 
-Cray 8.1/8.2
+Cray
 
-- within "class default" guard, the type of the associate name is unknown (while it should be equal
+- [8.1,8.2,8.4] within "class default" guard, the type of the associate name is unknown (while it should be equal
   to the type of the original selector). This causes compile time errors if the code within the
-  class default guard accesses components ofthe selector. Solution: use "class is (TYPE_OF_SELECTOR)"
-  instead of "class default".
-- "select type" is not seen as executable statement, which means it cannot be the first statement on
+  class default guard accesses components of the selector. Workaround: use "class is (TYPE_OF_SELECTOR)"
+  instead of "class default". Alternative is to use "select type (associate_name=>selector)", and use "selector"
+  within the "class default" guard, and "associate_name" elsewhere.
+- [8.1,8.2] "select type" is not seen as executable statement, which means it cannot be the first statement on
   a labeled line (e.g., a line jumped to when errors are encountered in IO statements). Workaround is
   to use a continue statement on the labeled line, and use the select type below that.
+- [8.4] generic type-bound procedures that mix functions with different return values appear to confuse
+  the compiler if one of those functions returns a class pointer. Workaround is not to mix functions
+  with such different return values.
