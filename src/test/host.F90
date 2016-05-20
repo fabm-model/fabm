@@ -361,12 +361,16 @@ allocate(sms_bt(size(model%bottom_state_variables)))
       ! Model has depth dimension: make sure depth varies from 0 at the surface till 1 at the bottom
       _BEGIN_GLOBAL_LOOP_
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         depth _INDEX_GLOBAL_VERTICAL_(_VERTICAL_ITERATOR_) = real(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-_VERTICAL_ITERATOR_,rk)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-1)
+         depth _INDEX_LOCATION_ = real(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-_VERTICAL_ITERATOR_,rk)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-1)
 #  else
 #    if _FABM_BOTTOM_INDEX_==-1
-         depth _INDEX_GLOBAL_VERTICAL_(_VERTICAL_ITERATOR_) = real(_VERTICAL_ITERATOR_-1,rk)/(bottom_index _INDEX_HORIZONTAL_LOCATION_-1)
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_==1) then
+            depth _INDEX_LOCATION_ = 2
+         else
+            depth _INDEX_LOCATION_ = real(_VERTICAL_ITERATOR_-1,rk)/(bottom_index _INDEX_HORIZONTAL_LOCATION_-1)
+         end if
 #    else
-         depth _INDEX_GLOBAL_VERTICAL_(_VERTICAL_ITERATOR_) = real(_VERTICAL_ITERATOR_-1,rk)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-1)
+         depth _INDEX_LOCATION_ = real(_VERTICAL_ITERATOR_-1,rk)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-1)
 #    endif
 #  endif
       _END_GLOBAL_LOOP_
@@ -407,6 +411,12 @@ allocate(sms_bt(size(model%bottom_state_variables)))
       ! Retrieve surface fluxes of interior state variables, source terms of surface-associated state variables.
       ! ======================================================================
 
+#if _FABM_BOTTOM_INDEX_==-1
+      _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_==1) depth _INDEX_GLOBAL_VERTICAL_(1) = 0
+      _END_GLOBAL_HORIZONTAL_LOOP_
+#endif
+
       call start_test('fabm_do_surface')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          flux = 0
@@ -424,6 +434,12 @@ allocate(sms_bt(size(model%bottom_state_variables)))
       ! ======================================================================
       ! Retrieve bottom fluxes of interior state variables, source terms of bottom-associated state variables.
       ! ======================================================================
+
+#if _FABM_BOTTOM_INDEX_==-1
+      _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_==1) depth _INDEX_GLOBAL_VERTICAL_(1) = 1
+      _END_GLOBAL_HORIZONTAL_LOOP_
+#endif
 
       call start_test('fabm_do_bottom')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
