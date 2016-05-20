@@ -48,7 +48,18 @@ integer,parameter :: ntest = 1
 integer :: _LOCATION_
 #endif
 
-#if _FABM_DIMENSION_COUNT_==2
+#if _FABM_DIMENSION_COUNT_==1
+#  define _BEGIN_GLOBAL_LOOP_ do i__=1,domain_extent(1)
+#  if _FABM_DEPTH_DIMENSION_INDEX_==1
+#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+#    define _BEGIN_OUTER_HORIZONTAL_LOOP_
+#    define _BEGIN_OUTER_INTERIOR_LOOP_
+#  endif
+#  define _END_GLOBAL_LOOP_ end do;i__=domain_extent(1)
+#  define _END_GLOBAL_HORIZONTAL_LOOP_
+#  define _END_OUTER_HORIZONTAL_LOOP_
+#  define _END_OUTER_INTERIOR_LOOP_
+#elif _FABM_DIMENSION_COUNT_==2
 #  define _BEGIN_GLOBAL_LOOP_ do j__=1,domain_extent(2);do i__=1,domain_extent(1)
 #  if _FABM_DEPTH_DIMENSION_INDEX_==2
 #    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ do i__=1,domain_extent(1)
@@ -482,20 +493,24 @@ allocate(sms_bt(size(model%bottom_state_variables)))
    subroutine apply_mask_3d(dat,missing_value)
       real(rk) _DIMENSION_GLOBAL_,intent(inout) :: dat
       real(rk),                   intent(in)    :: missing_value
-#ifdef _FABM_HORIZONTAL_MASK_
+#ifdef _HAS_MASK_
+#  ifdef _FABM_HORIZONTAL_MASK_
       integer :: j__
       _BEGIN_GLOBAL_HORIZONTAL_LOOP_
          if (.not._IS_UNMASKED_(mask_hz _INDEX_HORIZONTAL_LOCATION_)) dat _INDEX_GLOBAL_VERTICAL_(:) = missing_value
       _END_GLOBAL_HORIZONTAL_LOOP_
-#else
+#  else
       where (.not._IS_UNMASKED_(mask)) dat = missing_value
+#  endif
 #endif
    end subroutine
 
    subroutine apply_mask_2d(dat,missing_value)
       real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,intent(inout) :: dat
       real(rk),                              intent(in)    :: missing_value
+#ifdef _HAS_MASK_
       where (.not._IS_UNMASKED_(mask_hz)) dat = missing_value
+#endif
    end subroutine
 
    subroutine check_interior_slice_plus_1(dat,index,required_masked_value,required_value _ARGUMENTS_INTERIOR_IN_)
@@ -515,42 +530,58 @@ allocate(sms_bt(size(model%bottom_state_variables)))
       real(rk),                      intent(in) :: required_masked_value,required_value
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
-#ifdef _FABM_HORIZONTAL_MASK_
-#else
+#ifdef _HAS_MASK_
+#  ifdef _FABM_HORIZONTAL_MASK_
+#  else
       if (any(slice_data/=required_masked_value.and..not._IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop)))) then
          call driver%fatal_error('check_interior_slice','one or more masked cells do not have the value required.')
       end if
       if (any(slice_data/=required_value.and._IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop)))) then
          call driver%fatal_error('check_interior_slice','one or more non-masked cells do not have the value required.')
       end if
+#  endif
+#else
+      if (any(slice_data/=required_value)) then
+         call driver%fatal_error('check_interior_slice','one or more cells do not have the value required.')
+      end if
 #endif
    end subroutine
 
-#ifdef _HAS_MASK_
    subroutine check_horizontal_slice_plus_1(dat,index,required_masked_value,required_value _ARGUMENTS_HORIZONTAL_IN_)
       real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(in) :: dat
       integer,                                      intent(in) :: index
       real(rk),                                     intent(in) :: required_masked_value,required_value
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_horizontal_slice(dat(:,ivar),mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop),required_masked_value,required_value)
+      call check_horizontal_slice(dat(:,ivar),required_masked_value,required_value _ARGUMENTS_HORIZONTAL_IN_)
 #else
-      call check_horizontal_slice(dat(ivar),mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop),required_masked_value,required_value)
+      call check_horizontal_slice(dat(ivar),required_masked_value,required_value _ARGUMENTS_HORIZONTAL_IN_)
 #endif
    end subroutine check_horizontal_slice_plus_1
 
-   subroutine check_horizontal_slice(slice_data,slice_mask,required_masked_value,required_value)
-      real(rk) _DIMENSION_HORIZONTAL_SLICE_,        intent(in) :: slice_data
-      _FABM_MASK_TYPE_ _DIMENSION_HORIZONTAL_SLICE_,intent(in) :: slice_mask
-      real(rk),                                     intent(in) :: required_masked_value,required_value
+   subroutine check_horizontal_slice(slice_data,required_masked_value,required_value _ARGUMENTS_HORIZONTAL_IN_)
+      real(rk) _DIMENSION_HORIZONTAL_SLICE_, intent(in) :: slice_data
+      real(rk),                              intent(in) :: required_masked_value,required_value
+      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
-      if (any(slice_data/=required_masked_value.and..not._IS_UNMASKED_(slice_mask))) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+#  ifdef _HAS_MASK_
+      if (any(slice_data/=required_masked_value.and..not._IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop)))) then
          call driver%fatal_error('check_horizontal_slice','one or more masked cells do not have the value required.')
       end if
-      if (any(slice_data/=required_value.and._IS_UNMASKED_(slice_mask))) then
+      if (any(slice_data/=required_value.and._IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop)))) then
          call driver%fatal_error('check_horizontal_slice','one or more non-masked cells do not have the value required.')
       end if
-   end subroutine check_horizontal_slice
+#  else
+      if (any(slice_data/=required_value)) then
+         call driver%fatal_error('check_horizontal_slice','one or more cells do not have the value required.')
+      end if
+#  endif
+#else
+      if (slice_data/=required_value) then
+         call driver%fatal_error('check_horizontal_slice','returned scalar does not have the value required.')
+      end if
 #endif
+   end subroutine check_horizontal_slice
 
 end program
