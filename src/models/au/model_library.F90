@@ -26,7 +26,7 @@ contains
       call self%add(pclake_factory,'pclake')
       ! Add additional model factories here
 
-      ! Go through default initializaton steps. 
+      ! Go through default initializaton steps.
       ! This also allows new added child model factories to initialize.
       call self%type_base_model_factory%initialize()
    end subroutine initialize

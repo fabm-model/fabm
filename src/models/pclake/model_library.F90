@@ -25,7 +25,7 @@
 module pclake_model_library
 
    use fabm_types, only: type_base_model_factory,type_base_model
- 
+
    use pclake_abiotic_water
    use pclake_abiotic_sediment
    use pclake_phytoplankton_water
@@ -53,9 +53,9 @@ contains
       character(*),        intent(in) :: name
       class (type_base_model),pointer :: model
 
-   
+
     !NULLIFY(model)
-    
+
       select case (name)
          case ('abiotic_water');          allocate(type_pclake_abiotic_water::model);
          case ('abiotic_sediment');       allocate(type_pclake_abiotic_sediment::model);

@@ -7,11 +7,11 @@
 !  The pclake_abiotic_water module describes the processes related to phytoplankton in water column.
 !  Three groups of phytoplankton are described here: Diatom, green algae and
 !  cyanobacteria(blue algae). Each group is described in three elements, dry-weight
-!  nitrogen and phosphrus. Silica contration in diatom is not a state variables here
+!  nitrogen and phosphorus. Silica contration in diatom is not a state variables here
 !  but a diagnostic instead, since model assumes diatom have fixed Si/D ration,i.e. 0.1
 !  The state variables and their involved processes are:
 !  State variables:           sDDiatW, sNDiatW, sPDiatW(diatom concentration in DW, N and P element)
-!                             sDGrenW, sNGrenW, sPGrenW(grenn algae concentration in DW, N and P element)
+!                             sDGrenW, sNGrenW, sPGrenW(green algae concentration in DW, N and P element)
 !                             sDBlueW, sNBlueW, sPBlueW(cyanobacteria concentration in DW, N and P element)
 !  units( for all the groups):gDW m-3, gN m-3, gP m-3 in three elements respectively,
 !  involved processes( for all the groups):
@@ -19,7 +19,7 @@
 !  sNDiatW,sNGrenW,sNBlueW,sPDiatW,sPGrenW,sPBlueW), respiration(only for sDDiatW,sDGrenW,sDBlueW)
 !  excretion(only for sNDiatW,sNGrenW,sNBlueW,sPDiatW,sPGrenW,sPBlueW), mortality(for all state
 !  variables)
-!  This module also discribes the processes which influence the state variables registered in
+!  This module also describes the processes which influence the state variables registered in
 !  other modules, including: (aPhytW stands for all groups of phytoplankton)
 !  nutrients uptaken and excreted by phytoplankton in water column sNH4W<==>aNPhytW,sPO4<==>aPPhytW
 !                           sNO3==>aPhytW(only take up),SiO2W<==sSiDiatW(only excretion)
@@ -41,7 +41,7 @@
 !
 ! !PUBLIC DERIVED TYPES:
    type, extends(type_base_model),public :: type_au_pclake_phytoplankton_water
-!     local state variable identifers
+!     local state variable identifiers
 !     id_sDDiatW,id_sDGrenW,id_sDBlueW: phytoplankton concentration in dry-weight, gDW m-**3
 !     id_sPDiatW,id_sPGrenW,id_sPBlueW: phytoplankton concentration in nitrogen element, gN m-**3
 !     id_sNDiatW,id_sNGrenW,id_sNBlueW: phytoplankton concentration in phosphorus element, gP m-**3
@@ -66,21 +66,21 @@
       type (type_diagnostic_variable_id)       :: id_phypar,id_phytoextinction
       type (type_diagnostic_variable_id)       :: id_aLLimDiat,id_aLLimGren,id_aLLimBlue
       type (type_diagnostic_variable_id)       :: id_aNutLimDiat,id_aNutLimBlue,id_aNutLimGren
-!     diagostic variables for modular fluxes
+!     diagnostic variables for modular fluxes
       type (type_diagnostic_variable_id)       :: id_wSiPrimSiO2W,id_wPPrimPO4W,id_wNPrimNO3W
       type (type_diagnostic_variable_id)       :: id_wNPrimNH4W,id_wO2PrimW,id_wDPrimDetW
       type (type_diagnostic_variable_id)       :: id_wNPrimDetW,id_wPPrimDetW,id_wSiPrimDetW
       type (type_diagnostic_variable_id)       :: id_wDPrimDiatW,id_wPPrimDiatW,id_wNPrimDiatW
       type (type_diagnostic_variable_id)       :: id_wDPrimGrenW,id_wPPrimGrenW,id_wNPrimGrenW
       type (type_diagnostic_variable_id)       :: id_wDPrimBlueW,id_wPPrimBlueW,id_wNPrimBlueW
-!     state dependencies identifers
+!     state dependencies identifiers
       type (type_state_variable_id)            :: id_SiO2poolW,id_PO4poolW,id_NO3poolW,id_NH4poolW  ! dissolved nutrient for uptaking
       type (type_state_variable_id)            :: id_O2poolW,id_DDetpoolW,id_NDetpoolW,id_PDetpoolW,id_SiDetpoolW
 !     environmental dependencies
       type (type_global_dependency_id)         :: id_Day
       type (type_dependency_id)                :: id_uTm,id_dz
       type (type_dependency_id)                :: id_par,id_meanpar,id_extc
-!     diagnostic deppendency
+!     diagnostic dependency
       type (type_horizontal_dependency_id)     :: id_afCovSurfVeg
 !     Model parameters
 !     temperature parameters
@@ -126,7 +126,7 @@
       procedure :: get_light_extinction
    end type type_au_pclake_phytoplankton_water
 
-!  private data memebers(API0.92)
+!  private data members(API0.92)
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: Pi=3.14159265358979_rk
    real(rk),parameter :: NearZero = 0.000000000000000000000000000000001_rk
@@ -273,25 +273,25 @@
    call self%register_diagnostic_variable(self%id_aNutLimBlue,    'aNutLimBlue',    '[-]',      'green blue algae nutrients limitation factor', output=output_instantaneous)
 !  diagnostic variables for modular fluexes
 !  modular fluxes regarding other modules, mainly abiotic water module
-   call self%register_diagnostic_variable(self%id_wSiPrimSiO2W,     'wSiPrimSiO2W',     'g m-3 s-1', 'phytoplankton_water_SiO2_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wPPrimPO4W,     'wNPrimPO4W',     'g m-3 s-1', 'phytoplankton_water_PO4W_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNPrimNH4W,     'wNPrimNH4W',     'g m-3 s-1', 'phytoplankton_water_NH4W_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNPrimNO3W,     'wNPrimNO3W',     'g m-3 s-1', 'phytoplankton_water_NO3W_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wO2PrimW,     'wO2PrimW',     'g m-3 s-1', 'phytoplankton_water_O2_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wDPrimDetW,     'wDPrimDetW',     'g m-3 s-1', 'phytoplankton_water_DDetW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNPrimDetW,     'wNPrimDetW',     'g m-3 s-1', 'phytoplankton_water_NDetW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wPPrimDetW,     'wPPrimDetW',     'g m-3 s-1', 'phytoplankton_water_PDetW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wSiPrimDetW,     'wSiPrimDetW',     'g m-3 s-1', 'phytoplankton_water_SiDetW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wSiPrimSiO2W,   'wSiPrimSiO2W',   'g m-3 s-1', 'phytoplankton_water_SiO2_change',             output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPPrimPO4W,     'wNPrimPO4W',     'g m-3 s-1', 'phytoplankton_water_PO4W_change',             output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNPrimNH4W,     'wNPrimNH4W',     'g m-3 s-1', 'phytoplankton_water_NH4W_change',             output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNPrimNO3W,     'wNPrimNO3W',     'g m-3 s-1', 'phytoplankton_water_NO3W_change',             output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wO2PrimW,       'wO2PrimW',       'g m-3 s-1', 'phytoplankton_water_O2_change',               output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wDPrimDetW,     'wDPrimDetW',     'g m-3 s-1', 'phytoplankton_water_DDetW_change',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNPrimDetW,     'wNPrimDetW',     'g m-3 s-1', 'phytoplankton_water_NDetW_change',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPPrimDetW,     'wPPrimDetW',     'g m-3 s-1', 'phytoplankton_water_PDetW_change',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wSiPrimDetW,    'wSiPrimDetW',    'g m-3 s-1', 'phytoplankton_water_SiDetW_change',           output=output_instantaneous)
 !  modular fluxes regarding local state variables(algal concentration change)
-   call self%register_diagnostic_variable(self%id_wDPrimDiatW,     'wDPrimDiatW',     'g m-3 s-1', 'phytoplankton_water_DDiat_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNPrimDiatW,     'wNPrimDiatW',     'g m-3 s-1', 'phytoplankton_water_NDiat_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wPPrimDiatW,     'wPPrimDiatW',     'g m-3 s-1', 'phytoplankton_water_PDiat_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wDPrimGrenW,     'wDPrimGrenW',     'g m-3 s-1', 'phytoplankton_water_DGren_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNPrimGrenW,     'wNPrimGrenW',     'g m-3 s-1', 'phytoplankton_water_NGren_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wPPrimGrenW,     'wPPrimGrenW',     'g m-3 s-1', 'phytoplankton_water_PGren_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wDPrimBlueW,     'wDPrimBlueW',     'g m-3 s-1', 'phytoplankton_water_DBlue_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wNPrimBlueW,     'wNPrimBlueW',     'g m-3 s-1', 'phytoplankton_water_NBlue_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_wPPrimBlueW,     'wPPrimBlueW',     'g m-3 s-1', 'phytoplankton_water_PBlue_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wDPrimDiatW,    'wDPrimDiatW',    'g m-3 s-1', 'phytoplankton_water_DDiat_change',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNPrimDiatW,    'wNPrimDiatW',    'g m-3 s-1', 'phytoplankton_water_NDiat_change',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPPrimDiatW,    'wPPrimDiatW',    'g m-3 s-1', 'phytoplankton_water_PDiat_change',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wDPrimGrenW,    'wDPrimGrenW',    'g m-3 s-1', 'phytoplankton_water_DGren_change',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNPrimGrenW,    'wNPrimGrenW',    'g m-3 s-1', 'phytoplankton_water_NGren_change',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPPrimGrenW,    'wPPrimGrenW',    'g m-3 s-1', 'phytoplankton_water_PGren_change',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wDPrimBlueW,    'wDPrimBlueW',    'g m-3 s-1', 'phytoplankton_water_DBlue_change',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wNPrimBlueW,    'wNPrimBlueW',    'g m-3 s-1', 'phytoplankton_water_NBlue_change',            output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_wPPrimBlueW,    'wPPrimBlueW',    'g m-3 s-1', 'phytoplankton_water_PBlue_change',            output=output_instantaneous)
 
 
 !  Register contribution of state to global aggregate variables
@@ -350,7 +350,7 @@
    class (type_au_pclake_phytoplankton_water), intent(in)    :: self
    _DECLARE_ARGUMENTS_DO_
 ! !LOCAL VARIABLES:
-!  enviromental dependency variables
+!  environmental dependency variables
    real(rk)   :: uTm,dz,extc,Day,meanpar
 !  diagnostic dependency
    real(rk)   :: aCorO2BOD,afCovSurfVeg
@@ -407,7 +407,7 @@
 !  excretion variables
    real(rk)   :: wPExcrDiatW,wPExcrGrenW,wPExcrBlueW
    real(rk)   :: wNExcrDiatW,wNExcrGrenW,wNExcrBlueW
-!  varaibales related to exchanging to other modules
+!  variables related to exchanging to other modules
    real(rk)   :: wNPrimNH4W,wNPrimNO3W,wPPrimPO4W,wSiPrimSiO2W,wO2PrimW
    real(rk)   :: wDPrimDetW,wNPrimDetW,wPPrimDetW,wSiPrimDetW
    real(rk)   :: wNUptNH4Diat,wNUptNH4Gren,wNUptNH4Blue
@@ -444,7 +444,7 @@
    _GET_(self%id_sPBlueW,sPBlueW)
    _GET_(self%id_sNBlueW,sNBlueW)
 !-----------------------------------------------------------------------
-!  Retrieve dependencis value
+!  Retrieve dependencies  value
 !-----------------------------------------------------------------------
 !  Retrieve state dependencie value
    _GET_(self%id_SiO2poolW,sSiO2W)
@@ -468,7 +468,7 @@
 !-----------------------------------------------------------------------
    oSiDiatW=self%cSiDDiat*sDDiatW
 !-----------------------------------------------------------------------
-!   Current local nutrients ratios(check the curent state)
+!   Current local nutrients ratios(check the current state)
 !-----------------------------------------------------------------------
 !  Local status
 !   P/D_ratio_of_Diatom
@@ -518,7 +518,7 @@
    select case(self%UseLightMethodGren)
 !  case 1, without photoinhibition,Chalker (1980) model
    case(1)
-!      half-satuation light intensity at current temperature
+!      half-saturation light intensity at current temperature
        uhLGren=self%hLRefGren*uFunTmGren
 !      light limitation function for green algae, no photo-inhibition
        aLLimGren= 1.0_rk /(extc * dz) * log((1.0_rk + uLPARSurf / uhLGren) / (1.0_rk + aLPARBot /uhLGren))
@@ -531,7 +531,7 @@
    select case(self%UseLightMethodBlue)
 !  case 1, without photoinhibition,Chalker (1980) model
       case(1)
-!      half-satuation light intensity at current temperature
+!      half-saturation light intensity at current temperature
        uhLBlue=self%hLRefGren*uFunTmGren
 !      light limitation function for green algae, no photo-inhibition
        aLLimBlue= 1.0_rk /(extc * dz) * log((1.0_rk + uLPARSurf / uhLBlue) / (1.0_rk + aLPARBot /uhLBlue))
@@ -544,7 +544,7 @@
    select case(self%UseLightMethodDiat)
 !  case 1, without photoinhibition,Chalker (1980) model
       case(1)
-!      half-satuation light intensity at current temperature
+!      half-saturation light intensity at current temperature
        uhLDiat=self%hLRefDiat*uFunTmDiat
 !      light limitation function for green algae, no photo-inhibition
        aLLimDiat= 1.0_rk /(extc * dz) * log((1.0_rk + uLPARSurf / uhLDiat) / (1.0_rk + aLPARBot /uhLDiat))
@@ -609,7 +609,7 @@
 !  assimilation_blue_Algae
    wDAssBlue = aMuBlue*sDBlueW
 !  total_algal_growth
-   wDAssPhyt = wDAssDiat + wDAssGren + wDAssBlue    ! used in O2 exhange part
+   wDAssPhyt = wDAssDiat + wDAssGren + wDAssBlue    ! used in O2 exchange part
 !-----------------------------------------------------------------------
 !  Algae respiration_DW
 !-----------------------------------------------------------------------
@@ -655,7 +655,7 @@
 !  mortality_Algae_in_water
    wNMortBlueW = self%kMortBlueW * sNBlueW
 !  total_algal_mortality_in_water
-   wDMortPhytW = wDMortDiatW + wDMortGrenW + wDMortBlueW   ! used in detritues exhange
+   wDMortPhytW = wDMortDiatW + wDMortGrenW + wDMortBlueW   ! used in detritues exchange
 !-------------------------------------------------------------------------------------------------------------
 !  Algae uptake_P
 !-------------------------------------------------------------------------------------------------------------
@@ -895,77 +895,77 @@
 !  Update local state variables
 !-----------------------------------------------------------------------
 !  set out diatom variables
-   _SET_ODE_(self%id_sDDiatW,wDPrimDiatW)
-   _SET_ODE_(self%id_sPDiatW,wPPrimDiatW)
-   _SET_ODE_(self%id_sNDiatW,wNPrimDiatW)
+   _SET_ODE_(self%id_sDDiatW, wDPrimDiatW)
+   _SET_ODE_(self%id_sPDiatW, wPPrimDiatW)
+   _SET_ODE_(self%id_sNDiatW, wNPrimDiatW)
 !   set out green algae variables
    _SET_ODE_(self%id_sDGrenW, wDPrimGrenW)
-   _SET_ODE_(self%id_sPGrenW,wPPrimGrenW)
-   _SET_ODE_(self%id_sNGrenW,wNPrimGrenW)
+   _SET_ODE_(self%id_sPGrenW, wPPrimGrenW)
+   _SET_ODE_(self%id_sNGrenW, wNPrimGrenW)
 !set out blue algae variables
-   _SET_ODE_(self%id_sDBlueW,wDPrimBlueW)
-   _SET_ODE_(self%id_sPBlueW,wPPrimBlueW)
-   _SET_ODE_(self%id_sNBlueW,wNPrimBlueW)
+   _SET_ODE_(self%id_sDBlueW, wDPrimBlueW)
+   _SET_ODE_(self%id_sPBlueW, wPPrimBlueW)
+   _SET_ODE_(self%id_sNBlueW, wNPrimBlueW)
 !-----------------------------------------------------------------------
 !  Output local diagnostic variables
 !-----------------------------------------------------------------------
-   _SET_DIAGNOSTIC_(self%id_oSiDiatW,oSiDiatW)
+   _SET_DIAGNOSTIC_(self%id_oSiDiatW, oSiDiatW)
 !-----------------------------------------------------------------------
 !  Update external state variables
 !-----------------------------------------------------------------------
-   _SET_ODE_(self%id_SiO2poolW,wSiPrimSiO2W)
-   _SET_ODE_(self%id_PO4poolW,wPPrimPO4W)
-   _SET_ODE_(self%id_NO3poolW,wNPrimNO3W)
-   _SET_ODE_(self%id_NH4poolW,wNPrimNH4W)
-   _SET_ODE_(self%id_O2poolW,wO2PrimW)
-   _SET_ODE_(self%id_DDetpoolW,wDPrimDetW)
-   _SET_ODE_(self%id_NDetpoolW,wNPrimDetW)
-   _SET_ODE_(self%id_PDetpoolW,wPPrimDetW)
-   _SET_ODE_(self%id_SiDetpoolW,wSiPrimDetW)
+   _SET_ODE_(self%id_SiO2poolW,  wSiPrimSiO2W)
+   _SET_ODE_(self%id_PO4poolW,   wPPrimPO4W)
+   _SET_ODE_(self%id_NO3poolW,   wNPrimNO3W)
+   _SET_ODE_(self%id_NH4poolW,   wNPrimNH4W)
+   _SET_ODE_(self%id_O2poolW,    wO2PrimW)
+   _SET_ODE_(self%id_DDetpoolW,  wDPrimDetW)
+   _SET_ODE_(self%id_NDetpoolW,  wNPrimDetW)
+   _SET_ODE_(self%id_PDetpoolW,  wPPrimDetW)
+   _SET_ODE_(self%id_SiDetpoolW, wSiPrimDetW)
 !-----------------------------------------------------------------------
-!  Output denpendent diagnostic variables for other modules
+!  Output dependent diagnostic variables for other modules
 !-----------------------------------------------------------------------
-   _SET_DIAGNOSTIC_(self%id_oChlaDiat,oChlaDiat)
-   _SET_DIAGNOSTIC_(self%id_oChlaGren,oChlaGren)
-   _SET_DIAGNOSTIC_(self%id_oChlaBlue,oChlaBlue)
-   _SET_DIAGNOSTIC_(self%id_rPDDiatW,rPDDiatW)
-   _SET_DIAGNOSTIC_(self%id_rPDGrenW,rPDGrenW)
-   _SET_DIAGNOSTIC_(self%id_rPDBlueW,rPDBlueW)
-   _SET_DIAGNOSTIC_(self%id_rNDDiatW,rNDDiatW)
-   _SET_DIAGNOSTIC_(self%id_rNDGrenW,rNDGrenW)
-   _SET_DIAGNOSTIC_(self%id_rNDBlueW,rNDBlueW)
-   _SET_DIAGNOSTIC_(self%id_rPDPhytW,rPDPhytW)
+   _SET_DIAGNOSTIC_(self%id_oChlaDiat,   oChlaDiat)
+   _SET_DIAGNOSTIC_(self%id_oChlaGren,   oChlaGren)
+   _SET_DIAGNOSTIC_(self%id_oChlaBlue,   oChlaBlue)
+   _SET_DIAGNOSTIC_(self%id_rPDDiatW,    rPDDiatW)
+   _SET_DIAGNOSTIC_(self%id_rPDGrenW,    rPDGrenW)
+   _SET_DIAGNOSTIC_(self%id_rPDBlueW,    rPDBlueW)
+   _SET_DIAGNOSTIC_(self%id_rNDDiatW,    rNDDiatW)
+   _SET_DIAGNOSTIC_(self%id_rNDGrenW,    rNDGrenW)
+   _SET_DIAGNOSTIC_(self%id_rNDBlueW,    rNDBlueW)
+   _SET_DIAGNOSTIC_(self%id_rPDPhytW,    rPDPhytW)
 
-   _SET_DIAGNOSTIC_(self%id_aLLimDiat,aLLimDiat)
-   _SET_DIAGNOSTIC_(self%id_aLLimGren,aLLimGren)
-   _SET_DIAGNOSTIC_(self%id_aLLimBlue,aLLimBlue)
-   _SET_DIAGNOSTIC_(self%id_aNutLimDiat,aNutLimDiat)
-   _SET_DIAGNOSTIC_(self%id_aNutLimGren,aNutLimGren)
-   _SET_DIAGNOSTIC_(self%id_aNutLimBlue,aNutLimBlue)
-   _SET_DIAGNOSTIC_(self%id_phypar,meanpar)
-   _SET_DIAGNOSTIC_(self%id_phytoextinction,extc)
+   _SET_DIAGNOSTIC_(self%id_aLLimDiat,   aLLimDiat)
+   _SET_DIAGNOSTIC_(self%id_aLLimGren,   aLLimGren)
+   _SET_DIAGNOSTIC_(self%id_aLLimBlue,   aLLimBlue)
+   _SET_DIAGNOSTIC_(self%id_aNutLimDiat, aNutLimDiat)
+   _SET_DIAGNOSTIC_(self%id_aNutLimGren, aNutLimGren)
+   _SET_DIAGNOSTIC_(self%id_aNutLimBlue, aNutLimBlue)
+   _SET_DIAGNOSTIC_(self%id_phypar,      meanpar)
+   _SET_DIAGNOSTIC_(self%id_phytoextinction, extc)
 
 !  output diagnostic variables for modular fluxes
 !  fluxes for other modules, mainly abiotic water module
    _SET_DIAGNOSTIC_(self%id_wSiPrimSiO2W,wSiPrimSiO2W*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wPPrimPO4W,wPPrimPO4W*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNPrimNH4W,wNPrimNH4W*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNPrimNO3W,wNPrimNO3W*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wO2PrimW,wO2PrimW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wDPrimDetW,wDPrimDetW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNPrimDetW,wNPrimDetW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wPPrimDetW,wPPrimDetW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wSiPrimDetW,wSiPrimDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPPrimPO4W,  wPPrimPO4W*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNPrimNH4W,  wNPrimNH4W*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNPrimNO3W,  wNPrimNO3W*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wO2PrimW,    wO2PrimW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wDPrimDetW,  wDPrimDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNPrimDetW,  wNPrimDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPPrimDetW,  wPPrimDetW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wSiPrimDetW, wSiPrimDetW*86400.0_rk)
 !  fluxes for local state variables
-   _SET_DIAGNOSTIC_(self%id_wDPrimDiatW,wDPrimDiatW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNPrimDiatW,wNPrimDiatW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wPPrimDiatW,wPPrimDiatW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wDPrimGrenW,wDPrimGrenW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNPrimGrenW,wNPrimGrenW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wPPrimGrenW,wPPrimGrenW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wDPrimBlueW,wDPrimBlueW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wNPrimBlueW,wNPrimBlueW*86400.0_rk)
-   _SET_DIAGNOSTIC_(self%id_wPPrimBlueW,wPPrimBlueW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wDPrimDiatW, wDPrimDiatW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNPrimDiatW, wNPrimDiatW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPPrimDiatW, wPPrimDiatW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wDPrimGrenW, wDPrimGrenW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNPrimGrenW, wNPrimGrenW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPPrimGrenW, wPPrimGrenW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wDPrimBlueW, wDPrimBlueW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wNPrimBlueW, wNPrimBlueW*86400.0_rk)
+   _SET_DIAGNOSTIC_(self%id_wPPrimBlueW, wPPrimBlueW*86400.0_rk)
 
    _LOOP_END_
 

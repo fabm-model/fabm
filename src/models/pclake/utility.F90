@@ -24,19 +24,19 @@
 ! !USES:
    use fabm_types
    use fabm_expressions
-   
-   
+
+
    implicit none
 
 !  default: all is private.
       private
-      
+
       PUBLIC uFunTmAbio
       PUBLIC uFunTmBio
       PUBLIC uFunTmVeg
 
    contains
-   
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -49,7 +49,7 @@
 !    The temperature function of abiotic processes is defined here
 !    This function is applied for mineralization both in water and sediment
 !    nitrification both in water and sediment, diffusion and sedimentation
-!   
+!
 !    !INPUT PARAMETERS:
 
       real(rk),                         intent(in) :: uTm,cTheta
@@ -77,11 +77,11 @@
 !    The temperature function of biotic processes is defined here
 !    This funcition is applied for all groups of phytoplankton both in water and sediment
 !    zooplankton in water column, fish and zoobenthos
-!   
+!
 !    !INPUT PARAMETERS:
       real(rk),                         intent(in) :: uTm,cSigTm,cTmOpt
       !real(rk)              :: cTmRef=20.0_rk
-!   
+!
 !    !REVISION HISTORY:
 !     Original author(s): Fenjuan Hu
 !
@@ -103,12 +103,12 @@
 !
 !    !DESCRIPTION:
 !    The temperature function of vegetation processes is defined here
-!    This function is applied for macrophytes 
-!   
+!    This function is applied for macrophytes
+!
 !    !INPUT PARAMETERS:
       real(rk),                         intent(in) :: uTm,cQ10Veg
       !real(rk)              :: cTmRef=20.0_rk
-!   
+!
 !    !REVISION HISTORY:
 !     Original author(s): Fenjuan Hu
 !

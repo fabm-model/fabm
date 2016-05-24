@@ -10,7 +10,7 @@
 !  Jacob-Monod model(J_M): it is mainly about the nutrients being taken
 !  up by the phytoplankton, bacteria and so on.
 !  The use of this model is to describe a continuous-flow growth device,
-!  such as a chemostat, where there is continuous removal of nutrient 
+!  such as a chemostat, where there is continuous removal of nutrient
 !  and feeders and a continuous supply of fresh nutirent.
 !
 !  USES:

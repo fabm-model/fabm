@@ -216,7 +216,7 @@ end subroutine
          if (index(link%name,'/')==0) then
             master_name => self%couplings%find_in_tree(link%name)
             if (associated(master_name)) then
-               task => self%coupling_task_list%add(link,.true.)
+               call self%coupling_task_list%add(link,.true.,task)
                task%user_specified = .true.
                select type (master_name)
                   class is (type_string_property)

@@ -7,13 +7,13 @@
 !
 ! !DESCRIPTION:
 !  pclake_auxilary is created for the purpose of computing resuspension and sedimentation,
-!  sediment burial processes. 
+!  sediment burial processes.
 !  No local state variable is registed here.
 !  resuspension and sedimentation involve: sDIMW<==>sDIMS,sD/N/PDetW<==>sD/N/PDetS,sPAIMW<==>sPAIMS
 !  aD/N/PPhytW<==>aD/N/PPhytS,sDDiatW<==>sDDiatS,sNH4S==>sNH4W,sNO3S==>sNO3W,sPO4S==>sPO4W
 !  Burial process involve: sDIMS==>,sD/N/PDetS==>,sPAIMS==>
 !  feh: Sep.8
-!  Diatom Si sedimentation and resuspension can't ben handled here, since SiDiat is not state variable both 
+!  Diatom Si sedimentation and resuspension can't ben handled here, since SiDiat is not state variable both
 !  in water column and sediment. Something could be further considered.
 ! !USES:
    use fabm_types
@@ -90,9 +90,9 @@
 !     nutrient ratios parameter
       real(rk)   :: cNDDiatMin,cPDDiatMin,cNDGrenMin,cPDGrenMin,cNDBlueMin,cPDBlueMin
       real(rk)   :: cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax
-      
+
    contains
-   
+
 !     Model procedures
       procedure :: initialize
       procedure :: do_bottom
@@ -111,7 +111,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
 
@@ -131,7 +131,7 @@
    call self%get_parameter(self%kVegResus,    'kVegResus',    'm2/gDW',            'rel. resuspension reduction per g vegetation',           default=0.01_rk)
    call self%get_parameter(self%kTurbFish,    'kTurbFish',    'g/gfish/d',         'relative resuspension by adult fish browsing',           default=1.0_rk)
 !  don't convert here,due to PCLake imperical function. kTurbFish
-   call self%get_parameter(self%cSuspRef,     'cSuspRef',     '[-]',               'reference suspended matter function [-]',                default=0.0_rk) 
+   call self%get_parameter(self%cSuspRef,     'cSuspRef',     '[-]',               'reference suspended matter function [-]',                default=0.0_rk)
    call self%get_parameter(self%cSuspMin,     'cSuspMin',     '[-]',               'minimum value of logistic function',                     default=6.1_rk)
    call self%get_parameter(self%cSuspMax,     'cSuspMax',     '[-]',               'maximum value of logistic function',                     default=25.2_rk)
    call self%get_parameter(self%cSuspSlope,   'cSuspSlope',   '[-]',               'slope of logistic function',                             default=2.1_rk)
@@ -198,7 +198,7 @@
    call self%register_state_dependency(self%id_SWPDiat, 'Diatom_P_in_water',             'g m-3', 'Diatom_P_in_water')
    call self%register_state_dependency(self%id_SWPGren, 'Green_P_in_water',              'g m-3', 'Green_P_in_water')
    call self%register_state_dependency(self%id_SWPBlue, 'Blue_P_in_water',               'g m-3', 'Blue_P_in_water')
-!  Register dependencies to phytoplankton in sediment                                             
+!  Register dependencies to phytoplankton in sediment
    call self%register_state_dependency(self%id_WSDDiat, 'Diatom_DW_in_sediment',         'g m-2', 'Diatom_DW_in_sediment')
    call self%register_state_dependency(self%id_WSDGren, 'Green_DW_in_sediment',          'g m-2', 'Green_DW_in_sediment')
    call self%register_state_dependency(self%id_WSDBlue, 'Blue_DW_in_sediment',           'g m-2', 'Blue_DW_in_sediment')
@@ -208,10 +208,10 @@
    call self%register_state_dependency(self%id_WSPDiat, 'Diatom_P_in_sediment',          'g m-2', 'Diatom_P_in_sediment')
    call self%register_state_dependency(self%id_WSPGren, 'Green_P_in_sediment',           'g m-2', 'Green_P_in_sediment')
    call self%register_state_dependency(self%id_WSPBlue, 'Blue_P_in_sediment',            'g m-2', 'Blue_P_in_sediment')
-!  register vegetation and fish for resuspension dependency                                       
+!  register vegetation and fish for resuspension dependency
    call self%register_state_dependency(self%id_DragVeg, 'vegetation_DW',                 'g m-2', 'vegetation_DW')
    call self%register_state_dependency(self%id_TurbFish,'adult_fish_DW',                 'g m-3', 'adult_fish_DW')
-!  register zooplankton for transport purpose                                                     
+!  register zooplankton for transport purpose
    call self%register_state_dependency(self%id_DTranZoo,'Zooplankton_DW',                'g m-3', 'Zooplankton_DW')
    call self%register_state_dependency(self%id_PTranZoo,'Zooplankton_P',                 'g m-3', 'Zooplankton_P')
    call self%register_state_dependency(self%id_NTranZoo,'Zooplankton_N',                 'g m-3', 'Zooplankton_N')
@@ -225,7 +225,7 @@
    call self%register_dependency(self%id_tDAbioHumS, 'Humus_abiotic_update',    'g m-2 s-1', 'Humus_abiotic_update')
    call self%register_dependency(self%id_tDPrimDetS, 'Detritus_from_algae',     '[-]',       'Detritus_from_algae')
    call self%register_dependency(self%id_tDWebDetS,  'Detritus_from_foodweb',   '[-]',       'Detritus_from_foodweb')
-   call self%register_dependency(self%id_tDBedDetS,  'Detritus_from_vegetation','[-]',       'Detritus_from_vegetation') 
+   call self%register_dependency(self%id_tDBedDetS,  'Detritus_from_vegetation','[-]',       'Detritus_from_vegetation')
 !  Regirster diagnostic variables
    call self%register_diagnostic_variable(self%id_tDBurIM,     'tDBurIM',     'g m-2 s-1','tDBurIM',     output=output_time_step_integrated)
    call self%register_diagnostic_variable(self%id_shearstress, 'shearstress', 'N/m**2',   'shearstress', output=output_instantaneous)
@@ -241,7 +241,7 @@
 
 !-----------------------------------------------------------------------
 !BOP
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
@@ -592,90 +592,90 @@
    & + self%cRhoOM / self%cRhoIM)
    else
    tDBurIM = ( (tDHumS + tDDetS) +(self%cRhoOM / self%cRhoIM) * tDIMS) / (self%fDOrgSoil &
-   &/(1.0_rk - self%fDOrgSoil) + self%cRhoOM / self%cRhoIM) 
+   &/(1.0_rk - self%fDOrgSoil) + self%cRhoOM / self%cRhoIM)
    endif
-   
+
 !  burial_flux_of_DW_in_organic_matter_in_lake
    if (vDeltaS >= 0.0) then
-      tDBurOM = (sDHumS + sDDetS) / sDIMS * tDBurIM 
+      tDBurOM = (sDHumS + sDDetS) / sDIMS * tDBurIM
    else
-      tDBurOM = self%fDOrgSoil /(1.0 - self%fDOrgSoil) * tDBurIM 
+      tDBurOM = self%fDOrgSoil /(1.0 - self%fDOrgSoil) * tDBurIM
    endif
-   
+
 !  burial_flux_of_DW_in_detritus_in_lake
    if (vDeltaS >= 0.0) then
-      tDBurDet = sDDetS /(sDHumS + sDDetS) * tDBurOM 
+      tDBurDet = sDDetS /(sDHumS + sDDetS) * tDBurOM
    else
-      tDBurDet = 0.0 
+      tDBurDet = 0.0
    endif
 
 !  burial_flux_of_P_in_detritus_in_lake
    if (vDeltaS >= 0.0_rk) then
    tPBurDet = rPDDetS * tDBurDet
    else
-   tPBurDet = 0.0_rk 
+   tPBurDet = 0.0_rk
    endif
-  
+
 !  burial_flux_of_P_absorbed_onto_inorganic_matter_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tPBurAIM = sPAIMS / sDIMS * tDBurIM 
+   tPBurAIM = sPAIMS / sDIMS * tDBurIM
    else
    tPBurAIM = 0.0_rk
    endif
-  
+
 !  burial_flux_of_dissolved_P_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tPBurPO4 = sPO4S *(vDeltaS / self%cDepthS) 
+   tPBurPO4 = sPO4S *(vDeltaS / self%cDepthS)
    else
-   tPBurPO4 = self%cPO4Ground *(self%bPorS * vDeltaS) 
+   tPBurPO4 = self%cPO4Ground *(self%bPorS * vDeltaS)
    endif
-  
+
 !  burial_flux_of_N_in_detritus_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tNBurDet =rNDDetS * tDBurDet 
+   tNBurDet =rNDDetS * tDBurDet
    else
    tNBurDet = 0.0_rk
    endif
-  
-   
+
+
 !  burial_flux_of_dissolved_NH4_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tNBurNH4 = sNH4S *(vDeltaS /self%cDepthS) 
+   tNBurNH4 = sNH4S *(vDeltaS /self%cDepthS)
    else
-   tNBurNH4 = self%cNH4Ground *(self%bPorS * vDeltaS) 
+   tNBurNH4 = self%cNH4Ground *(self%bPorS * vDeltaS)
    endif
-  
+
 !  burial_flux_of_dissolved_NO3_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tNBurNO3 = sNO3S *(vDeltaS / self%cDepthS) 
+   tNBurNO3 = sNO3S *(vDeltaS / self%cDepthS)
    else
-   tNBurNO3 = self%cNO3Ground *(self%bPorS * vDeltaS) 
+   tNBurNO3 = self%cNO3Ground *(self%bPorS * vDeltaS)
    endif
-  
+
 !  burial_flux_of_Si_in_detritus_in_lake
    if (vDeltaS >= 0.0_rk) then
-   tSiBurDet = rSiDDetS * tDBurDet 
+   tSiBurDet = rSiDDetS * tDBurDet
    else
    tSiBurDet = 0.0_rk
    endif
 ! Humus burial fluxes
 !  burial_flux_of_DW_in_humus_in_lake
    if (vDeltaS >= 0.0) then
-     tDBurHum = tDBurOM - tDBurDet 
+     tDBurHum = tDBurOM - tDBurDet
    else
-     tDBurHum = tDBurOM 
+     tDBurHum = tDBurOM
    endif
 
 !  burial_flux_of_P_in_humus_in_lake
    if (vDeltaS >= 0.0) then
-      tPBurHum = rPDHumS * tDBurHum 
+      tPBurHum = rPDHumS * tDBurHum
    else
       tPBurHum = 0.001_rk * tDBurHum   ! cPDSoilOM=0.001
    endif
-   
+
 !  burial_flux_of_N_in_humus_in_lake
    if (vDeltaS >= 0.0) then
-      tNBurHum = rNDHumS * tDBurHum 
+      tNBurHum = rNDHumS * tDBurHum
    else
       tNBurHum = 0.01_rk * tDBurHum   !cNDSoilOM =0.01
    endif
@@ -733,8 +733,8 @@
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aFunDimSusp,aFunDimSusp)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDResusDead,tDResusDead)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aFunTauSet,aFunTauSet)
-   
-   
+
+
 
    _FABM_HORIZONTAL_LOOP_END_
 ! Spatial loop end
@@ -743,7 +743,7 @@
 !-----------------------------------------------------------------------
 !BOP
 
-! !IROUTINE: !feh temperal solution for loading and dilution of NH4, NO3, 
+! !IROUTINE: !feh temperal solution for loading and dilution of NH4, NO3,
 !
 ! !INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
@@ -820,7 +820,7 @@
    uNLoadNO3=self%cLoadNO3
    uQEv = 0.0_rk
 !  dilution_rate_of_substances
-   uQDil=self%uQIn-uQEv 
+   uQDil=self%uQIn-uQEv
 !  currently ignore algal loadings.
 !  dilution_rate_of_substances
    ukDil = uQDil / mmPerm/sDepthW
@@ -871,9 +871,9 @@
 !  transport_flux_of_P_in_AIM
    wPTranAIMW =   - wPDilAIM
 !  transport_flux_of_P_in_detritus
-   wPTranDetW =  - wPDilDet 
+   wPTranDetW =  - wPDilDet
 !  transport_flux_of_N_in_NH4
-   wNTranNH4W =  - wNDilNH4 
+   wNTranNH4W =  - wNDilNH4
 !  transport_flux_of_N_in_NO3
    wNTranNO3W = uNLoadNO3/sDepthW - wNDilNO3
 !  transport_flux_of_N_in_detritus
@@ -945,7 +945,7 @@
    _SET_ODE_(self%id_PTranZoo,wPTranZoo)
    _SET_ODE_(self%id_NTranZoo,wNTranZoo)
 
-   
+
 
    _LOOP_END_
 !-----------------------------------------------------------------------

@@ -8,7 +8,7 @@
 ! !DESCRIPTION:
 ! Module description
 !  The pclake_abiotic_water module describes the processes related to settled phytoplankton in the sediment.
-!  Three groups of phytoplankton are described here: Diatom, green algae and 
+!  Three groups of phytoplankton are described here: Diatom, green algae and
 !  cyanobacteria(blue algae). Each group is described in three elements, dry-weight
 !  nitrogen and phosphrus. Silica contration in diatom is not a state variables here
 !  but a diagnostic instead, since model assumes diatom have fixed Si/D ration,i.e. 0.1
@@ -17,7 +17,7 @@
 !                             sDGrenS, sNGrenS, sPGrenS(grenn algae concentration in DW, N and P element)
 !                             sDBlueS, sNBlueS, sPBlueS(cyanobacteria concentration in DW, N and P element)
 !  units( for all the groups):gDW/m**2, gN/m**2, gP/m**2 in three elements respectively,
-!  involved processes( for all the groups): 
+!  involved processes( for all the groups):
 !  respiration(only for sDDiatW,sDGrenW,sDBlueW), excretion(only for sNDiatW,sNGrenW,sNBlueW,
 !  sPDiatW,sPGrenW,sPBlueW), mortality(for all state variables)
 !  This module also discribes the processes which influence the state variables registered in
@@ -30,7 +30,7 @@
    use fabm_types
    use pclake_utility, ONLY:uFunTmBio
 
-   
+
    implicit none
 
 !  default: all is private.
@@ -71,15 +71,15 @@
       real(rk)   :: cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax
 !     exchange process related parameters
       real(rk)   :: fDissMortPhyt,cSiDDiat
-      
-      
+
+
    contains
 
      procedure initialize
      procedure do_bottom
-     
-     
-     
+
+
+
       end type type_pclake_phytoplankton_sediment
 
 
@@ -96,7 +96,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine initialize(self,configunit)
@@ -171,7 +171,7 @@
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPGrenS)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPBlueS)
    call self%add_to_aggregate_variable(standard_variables%total_silicate,  self%id_oSiDiatS)
-   
+
 !  regirster state variables dependencies
    call self%register_state_dependency(self%id_PO4poolS,  'sPO4_pool_sediment',       'g m-2', 'sPO4_pool_sediment')
    call self%register_state_dependency(self%id_NO3poolS,  'sNO3_pool_sediment',       'g m-2', 'sNO3_pool_sediment')
@@ -192,7 +192,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
@@ -211,7 +211,7 @@
 !  external links value carrier
    real(rk)                  :: sPO4S,sNO3S,sNH4S,sSiO2W
    real(rk)                  :: sDDetS,sNDetS,sPDetS,sSiDetS
-   
+
 !  Nutrients rations
    real(rk)   :: rPDDiatS,rNDDiatS
    real(rk)   :: rPDGrenS,rNDGrenS
@@ -246,7 +246,7 @@
    real(rk)   :: tSiPrimDetS,tSiMortDiatS
    real(rk)   :: tSiExcrDiatS
 
-   
+
 !  Enter spatial loops (if any)
    _FABM_HORIZONTAL_LOOP_BEGIN_
 !-----------------------------------------------------------------------
@@ -366,7 +366,7 @@
 !  P_mortality_of_algae_in_sediment
    tPMortGrenS = self%kMortGrenS * sPGrenS
 !  total_flux_from_PRIM_module_to_sediment_Algae
-   tPPrimGrenS = - tPMortGrenS - tPExcrGrenS 
+   tPPrimGrenS = - tPMortGrenS - tPExcrGrenS
 !-----------------------------------------------------------------------
 !  Dry-weight change of blue algae in sediment
 !-----------------------------------------------------------------------
@@ -441,14 +441,14 @@
 !  detrital_N_flux_from_died_Algae
    tNMortPhytDetS = tNMortPhytS - tNMortPhytNH4S
 !  Sediment_detritus
-   tNPrimDetS = tNMortPhytDetS 
+   tNPrimDetS = tNMortPhytDetS
 !-----------------------------------------------------------------------
 !  sPDetS exhange
 !-----------------------------------------------------------------------
 !  detrital_P_flux_from_died_Algae
    tPMortPhytDetS = tPMortPhytS - tPMortPhytPO4S
 !  Sediment_detritus
-   tPPrimDetS = tPMortPhytDetS 
+   tPPrimDetS = tPMortPhytDetS
 !-----------------------------------------------------------------------
 !  sSiDetS exhange
 !-----------------------------------------------------------------------
