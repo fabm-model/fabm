@@ -145,22 +145,22 @@ module fabm_builtin_models
    end type
 
    type,extends(type_base_model) :: type_source_copier
-      type (type_state_variable_id)        :: id_target
-      type (type_dependency_id)            :: id_sms
+      type (type_dependency_id)         :: id_sms
+      type (type_aggregate_variable_id) :: id_target_sms
    contains
-      procedure :: do         => source_copier_do
+      procedure :: do => source_copier_do
    end type
 
    type,extends(type_base_model) :: type_bottom_flux_copier
-      type (type_state_variable_id)        :: id_target
-      type (type_horizontal_dependency_id) :: id_flux
+      type (type_horizontal_aggregate_variable_id) :: id_target_flux
+      type (type_horizontal_dependency_id)         :: id_flux
    contains
       procedure :: do_bottom  => bottom_flux_copier_do_bottom
    end type
 
    type,extends(type_base_model) :: type_surface_flux_copier
-      type (type_state_variable_id)        :: id_target
-      type (type_horizontal_dependency_id) :: id_flux
+      type (type_horizontal_aggregate_variable_id) :: id_target_flux
+      type (type_horizontal_dependency_id)         :: id_flux
    contains
       procedure :: do_surface  => surface_flux_copier_do_surface
    end type
@@ -702,26 +702,30 @@ module fabm_builtin_models
       class (type_source_copier),      pointer :: copier
       class (type_bottom_flux_copier), pointer :: bfl_copier
       class (type_surface_flux_copier),pointer :: sfl_copier
+      type (type_link),pointer :: link
 
       allocate(copier)
       call source_model%add_child(copier,'redirect_'//trim(target_variable%link%name)//'_sources',configunit=-1)
-      call copier%register_state_dependency(copier%id_target,'target','','target variable')
+      call copier%add_interior_variable('target','','target variable',link=link)
+      call copier%register_source(link,copier%id_target_sms)
       call copier%register_dependency(copier%id_sms,'sms','','sources minus sinks')
-      call copier%request_coupling(copier%id_target,target_variable%link%target%name)
+      call copier%request_coupling(link,target_variable%link%target%name)
       call copier%request_coupling(copier%id_sms,trim(source_variable%link%target%name)//'_sms_tot')
 
       allocate(bfl_copier)
       call source_model%add_child(bfl_copier,'redirect_'//trim(target_variable%link%name)//'_bottom_flux',configunit=-1)
-      call bfl_copier%register_state_dependency(bfl_copier%id_target,'target','','target variable')
+      call bfl_copier%add_interior_variable('target','','target variable',link=link)
+      call bfl_copier%register_bottom_flux(link,bfl_copier%id_target_flux)
       call bfl_copier%register_dependency(bfl_copier%id_flux,'bottom_flux','','bottom flux')
-      call bfl_copier%request_coupling(bfl_copier%id_target,target_variable%link%target%name)
+      call bfl_copier%request_coupling(link,target_variable%link%target%name)
       call bfl_copier%request_coupling(bfl_copier%id_flux,trim(source_variable%link%target%name)//'_bfl_tot')
 
       allocate(sfl_copier)
       call source_model%add_child(sfl_copier,'redirect_'//trim(target_variable%link%name)//'_surface_flux',configunit=-1)
-      call sfl_copier%register_state_dependency(sfl_copier%id_target,'target','','target variable')
+      call sfl_copier%add_interior_variable('target','','target variable',link=link)
+      call sfl_copier%register_bottom_flux(link,sfl_copier%id_target_flux)
       call sfl_copier%register_dependency(sfl_copier%id_flux,'surface_flux','','surface flux')
-      call sfl_copier%request_coupling(sfl_copier%id_target,target_variable%link%target%name)
+      call sfl_copier%request_coupling(link,target_variable%link%target%name)
       call sfl_copier%request_coupling(sfl_copier%id_flux,trim(source_variable%link%target%name)//'_sfl_tot')
    end subroutine
 
@@ -748,7 +752,7 @@ module fabm_builtin_models
 
       _LOOP_BEGIN_
          _GET_(self%id_sms,sms)
-         _SET_ODE_(self%id_target,sms)
+         _ADD_(self%id_target_sms,sms)
       _LOOP_END_
    end subroutine source_copier_do
 
@@ -760,7 +764,7 @@ module fabm_builtin_models
 
       _HORIZONTAL_LOOP_BEGIN_
          _GET_HORIZONTAL_(self%id_flux,flux)
-         _SET_SURFACE_EXCHANGE_(self%id_target,flux)
+         _ADD_HORIZONTAL_(self%id_target_flux,flux)
       _HORIZONTAL_LOOP_END_
    end subroutine surface_flux_copier_do_surface
 
@@ -772,7 +776,7 @@ module fabm_builtin_models
 
       _HORIZONTAL_LOOP_BEGIN_
          _GET_HORIZONTAL_(self%id_flux,flux)
-         _SET_BOTTOM_EXCHANGE_(self%id_target,flux)
+         _ADD_HORIZONTAL_(self%id_target_flux,flux)
       _HORIZONTAL_LOOP_END_
    end subroutine bottom_flux_copier_do_bottom
 
