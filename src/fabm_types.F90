@@ -44,6 +44,7 @@
    public type_dependency_id
    public type_horizontal_dependency_id
    public type_global_dependency_id
+   public type_aggregate_variable_id, type_horizontal_aggregate_variable_id
 
    ! Data types and procedures for variable management - used by FABM internally only.
    public type_link, type_link_list
@@ -454,6 +455,10 @@
                                               add_horizontal_diagnostic_variable_to_aggregate_variable
 
       ! Procedures that may be used to register model variables and dependencies during initialization.
+      procedure :: register_source
+      procedure :: register_surface_flux
+      procedure :: register_bottom_flux
+
       procedure :: register_interior_state_variable
       procedure :: register_bottom_state_variable
       procedure :: register_surface_state_variable
@@ -1425,55 +1430,55 @@ end subroutine real_pointer_set_set_value
                                   state_index=id%state_index, read_index=id%index, &
                                   movement_index=id%movement_index, background=id%background, link=id%link)
 
-      call register_source(self,id,id%sms)
-      call register_surface_flux(self,id,id%surface_flux)
-      call register_bottom_flux(self,id,id%bottom_flux)
+      call register_source(self,id%link,id%sms)
+      call register_surface_flux(self,id%link,id%surface_flux)
+      call register_bottom_flux(self,id%link,id%bottom_flux)
 
    end subroutine register_interior_state_variable
 !EOC
 
-   subroutine register_source(self, id, sms_id)
+   subroutine register_source(self, link, sms_id)
       class (type_base_model),           intent(inout)        :: self
-      class (type_variable_id),          intent(inout),target :: id
+      type (type_link),                  intent(in)           :: link
       type (type_aggregate_variable_id), intent(inout),target :: sms_id
 
       type (type_link),pointer :: link1,link2
 
       if (.not.associated(sms_id%link)) &
-         call self%add_interior_variable(trim(id%link%name)//'_sms', trim(id%link%target%units)//'/s', trim(id%link%target%long_name)//' sources-sinks', &
+         call self%add_interior_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
                                          0.0_rk, output=output_none, write_index=sms_id%sum_index, link=link1)
       link1%target%prefill = prefill_missing_value
-      link2 => id%link%target%sms_list%append(link1%target,link1%target%name)
+      link2 => link%target%sms_list%append(link1%target,link1%target%name)
    end subroutine register_source
 
-   subroutine register_surface_flux(self, id, surface_flux_id)
+   subroutine register_surface_flux(self, link, surface_flux_id)
       class (type_base_model),                      intent(inout)        :: self
-      class (type_variable_id),                     intent(inout),target :: id
+      type (type_link),                             intent(in)           :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: surface_flux_id
 
       type (type_link),pointer :: link1,link2
 
       if (.not.associated(surface_flux_id%link)) &
-         call self%add_horizontal_variable(trim(id%link%name)//'_sfl', trim(id%link%target%units)//'*m/s', trim(id%link%target%long_name)//' surface flux', &
+         call self%add_horizontal_variable(trim(link%name)//'_sfl', trim(link%target%units)//'*m/s', trim(link%target%long_name)//' surface flux', &
                                            0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
                                            domain=domain_surface, source=source_do_surface, link=link1)
       link1%target%prefill = prefill_missing_value
-      link2 => id%link%target%surface_flux_list%append(link1%target,link1%target%name)
+      link2 => link%target%surface_flux_list%append(link1%target,link1%target%name)
    end subroutine register_surface_flux
 
-   subroutine register_bottom_flux(self, id, bottom_flux_id)
+   subroutine register_bottom_flux(self, link, bottom_flux_id)
       class (type_base_model),                      intent(inout)        :: self
-      class (type_variable_id),                     intent(inout),target :: id
+      type (type_link),                             intent(in)           :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: bottom_flux_id
 
       type (type_link),pointer :: link1,link2
 
       if (.not.associated(bottom_flux_id%link)) &
-         call self%add_horizontal_variable(trim(id%link%name)//'_bfl', trim(id%link%target%units)//'*m/s', trim(id%link%target%long_name)//' bottom flux', &
+         call self%add_horizontal_variable(trim(link%name)//'_bfl', trim(link%target%units)//'*m/s', trim(link%target%long_name)//' bottom flux', &
                                            0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
                                            domain=domain_bottom, source=source_do_bottom, link=link1)
       link1%target%prefill = prefill_missing_value
-      link2 => id%link%target%bottom_flux_list%append(link1%target,link1%target%name)
+      link2 => link%target%bottom_flux_list%append(link1%target,link1%target%name)
    end subroutine register_bottom_flux
 
 !-----------------------------------------------------------------------

@@ -264,6 +264,9 @@
 #define _DECLARE_ARGUMENTS_INITIALIZE_STATE_ _DECLARE_ARGUMENTS_INTERIOR_
 #define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_
 
+#define _ADD_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%sum_index) = cache%write _INDEX_SLICE_PLUS_1_(variable%sum_index) + (value)
+#define _ADD_HORIZONTAL_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_sum_index) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_sum_index) + (value)
+
 ! For BGC models: Expressions for setting space-dependent FABM variables defined on the full spatial domain.
 #define _SET_ODE_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%sms%sum_index) = cache%write _INDEX_SLICE_PLUS_1_(variable%sms%sum_index) + (value)/self%dt
 #define _SET_BOTTOM_ODE_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_sms_index) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_sms_index) + (value)/self%dt
