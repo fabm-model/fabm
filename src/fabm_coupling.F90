@@ -476,7 +476,7 @@ end subroutine
 
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access
 
-      nullify(master)
+      master => null()
       if (task%master_standard_variable%aggregate_variable) then
          ! Make sure that an aggregate variable will be created on the fly
          select type (aggregate_standard_variable=>task%master_standard_variable)

@@ -342,12 +342,12 @@ contains
          error%message = trim(self%path)//' does not contain key "'//trim(key)//'".'
       end if
       if (associated(node)) then
-         select type (node)
+         select type (typed_node=>node)
             class is (type_null)
                allocate(dictionary)
                dictionary%path = node%path
             class is (type_dictionary)
-               dictionary => node
+               dictionary => typed_node
             class default
                allocate(error)
                error%message = trim(node%path)//' must be a dictionary.'
@@ -372,11 +372,11 @@ contains
          error%message = trim(self%path)//' does not contain key "'//trim(key)//'".'
       end if
       if (associated(node)) then
-         select type (node)
+         select type (typed_node=>node)
             class is (type_null)
                allocate(list)
             class is (type_list)
-               list => node
+               list => typed_node
             class default
                allocate(error)
                error%message = trim(node%path)//' must be a list.'
