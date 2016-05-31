@@ -346,7 +346,7 @@ function node_set_contains(self,node) result(found)
 
    type (type_node_set_member), pointer :: member
 
-   ! First determine if the graph node is already part of the set. If so, we are done: return.
+   ! Determine if the graph node is already part of the set.
    found = .true.
    member => self%first
    do while (associated(member))

@@ -15,7 +15,7 @@ module fabm_job
 
    private
 
-   public type_job, type_task, type_call
+   public type_job_manager, type_job, type_task, type_call
    public find_dependencies
 
    type type_graph_subset_node_pointer
@@ -49,6 +49,21 @@ module fabm_job
       procedure :: get_leaf_at_depth => task_tree_node_get_leaf_at_depth
    end type
 
+   type type_variable_request
+      type (type_internal_variable),pointer :: variable      => null()
+      logical                               :: copy_to_cache = .false.
+      logical                               :: copy_to_store = .false.
+      logical                               :: not_stale     = .false.
+      type (type_variable_request),pointer  :: next          => null()
+   end type
+
+   type type_call_request
+      class (type_base_model),pointer  :: model               => null()
+      integer                          :: source              = source_unknown
+      logical                          :: ignore_dependencies = .false.
+      type (type_call_request),pointer :: next                => null()
+   end type
+
    type type_cache_copy_command
       integer :: read_index
       integer :: write_index
@@ -58,7 +73,7 @@ module fabm_job
    type type_call
       class (type_base_model), pointer            :: model => null()
       integer                                     :: source = source_unknown
-      type (type_node), pointer                   :: node => null()
+      type (type_node), pointer                   :: graph_node => null()
       type (type_cache_copy_command), allocatable :: copy_commands_int(:) ! interior variables to copy from write to read cache after call completes
       type (type_cache_copy_command), allocatable :: copy_commands_hz(:)  ! horizontal variables to copy from write to read cache after call completes
       type (type_call), pointer                   :: next => null()
@@ -91,12 +106,21 @@ module fabm_job
       procedure :: print      => task_print
    end type
 
+   integer,parameter :: job_state_none = 0, job_state_created = 1, job_state_initializing = 2, job_state_initialized = 3
+
    ! A job contains one or more tasks, each using their own specific operation over the domain.
    type type_job
+      character(len=attribute_length) :: name = ''
+      integer                   :: state = job_state_none
+      logical                   :: outsource_tasks = .false.
+      integer                   :: final_operation = source_unknown
+
       type (type_task), pointer :: first_task => null()
-      type (type_task), pointer :: final_task  => null()
+      type (type_task), pointer :: final_task => null()
       type (type_graph)         :: graph
       type (type_input_variable_set) :: required_cache_loads
+      type (type_variable_request), pointer :: first_variable_request => null()
+      type (type_call_request),     pointer :: first_call_request     => null()
       class (type_job), pointer :: previous => null()
    contains
       procedure :: initialize        => job_initialize
@@ -105,6 +129,18 @@ module fabm_job
       procedure :: request_call      => job_request_call
       procedure :: set_next          => job_set_next
       procedure :: print             => job_print
+   end type
+
+   type type_job_manager_item
+      type (type_job),             pointer :: job  => null()
+      type (type_job_manager_item),pointer :: next => null()
+   end type
+
+   type type_job_manager
+      type (type_job_manager_item),pointer :: first => null()
+   contains
+      procedure :: create     => job_manager_create
+      procedure :: initialize => job_manager_initialize
    end type
 
    contains
@@ -246,7 +282,7 @@ module fabm_job
       ! Now process end points with other sources.
       call self%branch(tree_node)
 
-      ! Restore removed nodes
+      ! Restore removed nodes: add each removed node back to the set, and increment edge count for all nodes that connect to it.
       pnode => removed%first
       do while (associated(pnode))
          pnode_next => pnode%next
@@ -370,7 +406,7 @@ module fabm_job
       call_node => self%first_call
       do while (associated(call_node))
          call call_node%initialize()
-         input_variable => call_node%node%inputs%first
+         input_variable => call_node%graph_node%inputs%first
          do while (associated(input_variable))
             call inputs%add(input_variable%target)
             input_variable => input_variable%next
@@ -410,7 +446,7 @@ module fabm_job
          ilast = 0
          call_node => self%first_call
          do while (associated(call_node))
-            variable_node => call_node%node%outputs%first
+            variable_node => call_node%graph_node%outputs%first
             do while (associated(variable_node))
                if (variable_node%target%prefill/=prefill_none.and.iand(variable_node%target%domain,domain)/=0) then
                   if (variable_node%target%write_indices%value<=0) &
@@ -436,7 +472,7 @@ module fabm_job
 
          call_node => self%first_call
          do while (associated(call_node))
-            variable_node => call_node%node%outputs%first
+            variable_node => call_node%graph_node%outputs%first
             do while (associated(variable_node))
                if (variable_node%target%prefill/=prefill_none.and.iand(variable_node%target%domain,domain)/=0) then
                   ilast = variable_node%target%write_indices%value
@@ -462,7 +498,7 @@ module fabm_job
          ilast = 0
          call_node => self%first_call
          do while (associated(call_node))
-            variable_node => call_node%node%outputs%first
+            variable_node => call_node%graph_node%outputs%first
             do while (associated(variable_node))
                if (variable_node%copy_to_store.and.iand(variable_node%target%domain,domain)/=0) then
                   if (variable_node%target%write_indices%value<=0) &
@@ -488,7 +524,7 @@ module fabm_job
          ! Associate indices in persistent storage with the index in the write cache at which the source variable will be found.
          call_node => self%first_call
          do while (associated(call_node))
-            variable_node => call_node%node%outputs%first
+            variable_node => call_node%graph_node%outputs%first
             do while (associated(variable_node))
                if (variable_node%copy_to_store.and.iand(variable_node%target%domain,domain)/=0) &
                   commands(variable_node%target%store_index) = variable_node%target%write_indices%value
@@ -548,7 +584,7 @@ subroutine call_finalize(self)
 
    if (allocated(self%copy_commands_int)) deallocate(self%copy_commands_int)
    if (allocated(self%copy_commands_hz))  deallocate(self%copy_commands_hz)
-   self%node => null()
+   self%graph_node => null()
 end subroutine call_finalize
 
 subroutine task_print(self)
@@ -561,7 +597,7 @@ subroutine task_print(self)
    call_node => self%first_call
    do while (associated(call_node))
       write (*,'(a,": ",a)') trim(call_node%model%get_path()),trim(source2string(call_node%source))
-      variable => call_node%node%outputs%first
+      variable => call_node%graph_node%outputs%first
       do while (associated(variable))
          write (*,'("   ",a,",write@",i0)',advance='no') trim(variable%target%name),variable%target%write_indices%value
          if (variable%copy_to_cache) write (*,'(",cache@",i0)',advance='no') variable%target%read_indices%value
@@ -624,7 +660,7 @@ subroutine call_initialize(self)
    ! For all output variables that other models are interested in, decide whether to copy their value
    ! from the write to read cache [if the other model will be called as part of the same task],
    ! of to save it to the persistent data store.
-   variable_node => self%node%outputs%first
+   variable_node => self%graph_node%outputs%first
    do while (associated(variable_node))
       ! For this output variable, loop over all calls that depend on it.
       dependent_call => variable_node%dependent_nodes%first
@@ -632,7 +668,7 @@ subroutine call_initialize(self)
          ! For this dependent call, establish whether it is part of the same task, or of another task.
          later_call => self%next
          do while (associated(later_call))
-            if (associated(later_call%node,dependent_call%p)) exit
+            if (associated(later_call%graph_node,dependent_call%p)) exit
             later_call => later_call%next
          end do
          if (associated(later_call)) then
@@ -661,7 +697,7 @@ contains
 
       n = 0
       maxorder = -1
-      variable => self%node%outputs%first
+      variable => self%graph_node%outputs%first
       do while (associated(variable))
          if (variable%copy_to_cache.and.iand(variable%target%domain,domain)/=0) then
             if (variable%target%write_indices%is_empty()) &
@@ -681,7 +717,7 @@ contains
       allocate(commands(n))
       n = 0
       do iorder=1,maxorder
-         variable => self%node%outputs%first
+         variable => self%graph_node%outputs%first
          do while (associated(variable))
             if (variable%copy_to_cache.and.iand(variable%target%domain,domain)/=0.and.variable%target%read_indices%value==iorder) then
                n = n + 1
@@ -698,12 +734,15 @@ end subroutine call_initialize
 
 subroutine job_request_variable(self,variable,copy_to_cache,copy_to_store,not_stale)
    class (type_job),target,      intent(inout) :: self
-   type (type_internal_variable),intent(in)    :: variable
+   type (type_internal_variable),intent(in),target :: variable
    logical,optional,             intent(in)    :: copy_to_cache
    logical,optional,             intent(in)    :: copy_to_store
    logical,optional,             intent(in)    :: not_stale
 
-   type (type_node_list) :: outer_calls
+   type (type_variable_request), pointer :: variable_request
+
+   if (self%state<job_state_created) call driver%fatal_error('job_request_variable','Job has not been created yet.')
+   if (self%state>job_state_created) call driver%fatal_error('job_request_variable','Job "'//trim(self%name)//'" has already begun initialization; variables can no longer be requested.')
 
    ! If this variable is not written [but a field provided by the host or a state variable], return immediately.
    if (variable%write_indices%is_empty().or.variable%source==source_none) then
@@ -713,9 +752,13 @@ subroutine job_request_variable(self,variable,copy_to_cache,copy_to_store,not_st
       return
    end if
 
-   call self%graph%add_variable(variable,outer_calls,copy_to_cache,copy_to_store,not_stale)
-
-   call outer_calls%finalize()
+   allocate(variable_request)
+   variable_request%variable => variable
+   if (present(copy_to_cache)) variable_request%copy_to_cache = copy_to_cache
+   if (present(copy_to_store)) variable_request%copy_to_store = copy_to_store
+   if (present(not_stale))     variable_request%not_stale = not_stale
+   variable_request%next => self%first_variable_request
+   self%first_variable_request => variable_request
 end subroutine job_request_variable
 
 subroutine job_request_variables(self,link_list,copy_to_cache,copy_to_store,not_stale)
@@ -736,16 +779,21 @@ end subroutine job_request_variables
 
 subroutine job_request_call(self,model,source,ignore_dependencies)
    class (type_job),target,intent(inout) :: self
-   class (type_base_model),intent(in)    :: model
+   class (type_base_model),intent(in),target :: model
    integer,                intent(in)    :: source
    logical,optional,       intent(in)    :: ignore_dependencies
 
-   type (type_node_list)    :: outer_calls
-   type (type_node),pointer :: graph_node
+   type (type_call_request), pointer :: call_request
 
-   graph_node => self%graph%add_call(model,source,outer_calls,ignore_dependencies=ignore_dependencies)
+   if (self%state<job_state_created) call driver%fatal_error('job_request_call','Job has not been created yet.')
+   if (self%state>job_state_created) call driver%fatal_error('job_request_call','Job "'//trim(self%name)//'" has already begun initialization; calls can no longer be requested.')
 
-   call outer_calls%finalize()
+   allocate(call_request)
+   call_request%model => model
+   call_request%source = source
+   if (present(ignore_dependencies)) call_request%ignore_dependencies = ignore_dependencies
+   call_request%next => self%first_call_request
+   self%first_call_request => call_request
 end subroutine job_request_call
 
 recursive subroutine find_dependencies(self,list,forbidden)
@@ -796,22 +844,53 @@ recursive subroutine find_dependencies(self,list,forbidden)
    call forbidden_with_self%finalize()
 end subroutine find_dependencies
 
-subroutine job_initialize(self,final_operation,outsource_tasks)
+recursive subroutine job_initialize(self)
    class (type_job),target,intent(inout) :: self
-   integer,optional,       intent(in)    :: final_operation
-   logical,optional,       intent(in)    :: outsource_tasks
 
-   type (type_graph_subset_node_set)   :: subset
-   type (type_task_tree_node)          :: root
-   class (type_task_tree_node),pointer :: leaf
-   integer                             :: ntasks
-   type (type_task),           pointer :: task
-   integer                             :: unit,ios
-   type (type_call),           pointer :: call_node, next_call_node, new_call_node
-   logical                             :: outsource_tasks_
+   type (type_node_list)                :: outer_calls
+   type (type_variable_request),pointer :: variable_request, next_variable_request
+   type (type_call_request),    pointer :: call_request, next_call_request
+   type (type_node),            pointer :: graph_node
+   type (type_graph_subset_node_set)    :: subset
+   type (type_task_tree_node)           :: root
+   class (type_task_tree_node), pointer :: leaf
+   integer                              :: ntasks
+   type (type_task),            pointer :: task
+   integer                              :: unit,ios
+   type (type_call),            pointer :: call_node, next_call_node, new_call_node
 
-   outsource_tasks_ = .false.
-   if (present(outsource_tasks)) outsource_tasks_ = outsource_tasks
+   ! Return immediately if the job has already initialized.
+   if (self%state>=job_state_initialized) return
+
+   if (self%state<job_state_created) call driver%fatal_error('job_initialize','This job has not been created yet.')
+   if (self%state==job_state_initializing) call driver%fatal_error('job_initialize','Circular call order specified: job '//trim(self%name)//' is already initializing.')
+   self%state = job_state_initializing
+
+   ! If we are linked to an earlier called job, make sure it has initialized already, and connect the underlying graphs.
+   if (associated(self%previous)) then
+      call self%previous%initialize()
+      self%graph%previous => self%previous%graph
+   end if
+   
+   ! Construct the dependency graph by adding explicitly requested variables and calls.
+   ! We clean up [deallocate] the variable and call requests at the same time.
+   variable_request => self%first_variable_request
+   do while (associated(variable_request))
+      next_variable_request => variable_request%next
+      call self%graph%add_variable(variable_request%variable,outer_calls,variable_request%copy_to_cache,variable_request%copy_to_store,variable_request%not_stale)
+      deallocate(variable_request)
+      variable_request => next_variable_request
+   end do
+   self%first_variable_request => null()
+   call_request => self%first_call_request
+   do while (associated(call_request))
+      next_call_request => call_request%next
+      graph_node => self%graph%add_call(call_request%model,call_request%source,outer_calls,ignore_dependencies=call_request%ignore_dependencies)
+      deallocate(call_request)
+      call_request => next_call_request
+   end do
+   self%first_call_request => null()
+   call outer_calls%finalize()
 
    ! Save graph
    !open(newunit=unit,file='graph.gv',action='write',status='replace',iostat=ios)
@@ -820,8 +899,8 @@ subroutine job_initialize(self,final_operation,outsource_tasks)
 
    ! Create tree that describes all possible task orders (root is at the right of the call list, i.e., at the end of the very last call)
    call create_graph_subset_node_set(self%graph,subset)
-   if (present(final_operation)) then
-      root%operation = final_operation
+   root%operation = self%final_operation
+   if (root%operation/=source_unknown) then
       call subset%collect_and_branch(root)
    else
       call subset%branch(root)
@@ -835,7 +914,7 @@ subroutine job_initialize(self,final_operation,outsource_tasks)
    call create_tasks(leaf)
    if (associated(subset%first)) call driver%fatal_error('job_select_order','BUG: graph subset should be empty after create_tasks.')
 
-   if (outsource_tasks_) then
+   if (self%outsource_tasks) then
       task => self%first_task
       do while (associated(task))
          call_node => task%first_call
@@ -848,7 +927,7 @@ subroutine job_initialize(self,final_operation,outsource_tasks)
       end do
    end if
 
-   if (present(final_operation)) then
+   if (self%final_operation/=source_unknown) then
       ! Separate the last task (remove from main task list)
       task => null()
       self%final_task => self%first_task
@@ -868,12 +947,12 @@ subroutine job_initialize(self,final_operation,outsource_tasks)
       do while (associated(task))
          call_node => task%first_call
          do while (associated(call_node))
-            if (call_node%node%not_stale.and.is_source_compatible(self%final_task%operation,call_node%node%source)) then
+            if (call_node%graph_node%not_stale.and.is_source_compatible(self%final_task%operation,call_node%graph_node%source)) then
                allocate(new_call_node)
-               new_call_node%node   => call_node%node
-               new_call_node%model  => call_node%model
-               new_call_node%source =  call_node%source
-               new_call_node%next => self%final_task%first_call
+               new_call_node%graph_node => call_node%graph_node
+               new_call_node%model      => call_node%model
+               new_call_node%source     =  call_node%source
+               new_call_node%next       => self%final_task%first_call
                self%final_task%first_call => new_call_node
             end if
             call_node => call_node%next
@@ -889,6 +968,8 @@ subroutine job_initialize(self,final_operation,outsource_tasks)
       task => task%next
    end do
    if (associated(self%final_task)) call self%final_task%initialize(extra_inputs=self%required_cache_loads)
+
+   self%state = job_state_initialized
 
 contains
 
@@ -923,9 +1004,9 @@ contains
       pnode => removed%first
       do while (associated(pnode))
          allocate(call_node)
-         call_node%node   => pnode%p%graph_node
-         call_node%model  => pnode%p%graph_node%model
-         call_node%source =  pnode%p%graph_node%source
+         call_node%graph_node => pnode%p%graph_node
+         call_node%model      => pnode%p%graph_node%model
+         call_node%source     =  pnode%p%graph_node%source
          if (associated(previous_call_node)) then
             previous_call_node%next => call_node
          else
@@ -950,7 +1031,7 @@ contains
       integer :: operation_after_merge
       logical :: compatible
 
-      write (*,*) 'moving '//trim(call_node%node%as_string())
+      write (*,*) 'moving '//trim(call_node%graph_node%as_string())
       current_job => job
       current_task => task
       target_task => null()
@@ -1004,10 +1085,10 @@ contains
       ! (we cannot if it also handles one or more of our dependencies)
       call_node => task%first_call
       do while (associated(call_node))
-         dependency => travelling_call%node%dependencies%first
+         dependency => travelling_call%graph_node%dependencies%first
          do while (associated(dependency))
-            if (associated(dependency%p,call_node%node)) then
-               write (*,*) '  cannot move past '//trim(call_node%node%as_string())
+            if (associated(dependency%p,call_node%graph_node)) then
+               write (*,*) '  cannot move past '//trim(call_node%graph_node%as_string())
                return
             end if
             dependency => dependency%next
@@ -1054,15 +1135,50 @@ contains
 
 end subroutine job_initialize
 
+subroutine job_manager_create(self,job,name,final_operation,outsource_tasks)
+   class (type_job_manager), intent(inout) :: self
+   type (type_job),target,   intent(inout) :: job
+   character(len=*),         intent(in)    :: name
+   integer,optional,         intent(in)    :: final_operation
+   logical,optional,         intent(in)    :: outsource_tasks
+
+   type (type_job_manager_item),pointer :: node
+
+   if (job%state>=job_state_created) call driver%fatal_error('job_manager_create','This job has already been created with name '//trim(job%name)//'.')
+   job%state = job_state_created
+
+   job%name = name
+   if (present(final_operation)) job%final_operation = final_operation
+   if (present(outsource_tasks)) job%outsource_tasks = outsource_tasks
+
+   allocate(node)
+   node%job => job
+   node%next => self%first
+   self%first => node
+end subroutine job_manager_create
+
+subroutine job_manager_initialize(self)
+   class (type_job_manager), intent(in) :: self
+
+   type (type_job_manager_item),pointer :: node
+
+   node => self%first
+   do while (associated(node))
+      call node%job%initialize()
+      node => node%next
+   end do
+end subroutine job_manager_initialize
+
 subroutine job_set_next(self,next)
    class (type_job), intent(inout), target :: self
    type (type_job),  intent(inout), target :: next
 
-   if (associated(next%graph%previous)) &
+   if (self%state>job_state_created) &
+      call driver%fatal_error('job_set_next','This job ('//trim(self%name)//') has already started initialization; it is too late to specify its place in the call order.')
+   if (associated(next%previous)) &
       call driver%fatal_error('job_set_next','This job has already been connected to a subsequent one.')
 
    next%previous => self
-   next%graph%previous => self%graph
 end subroutine job_set_next
 
 function source2operation(source) result(operation)

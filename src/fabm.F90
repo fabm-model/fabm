@@ -232,6 +232,8 @@
       integer                                                   :: domain_size(_FABM_DIMENSION_COUNT_)
       integer                                                   :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
 
+      type (type_job_manager) :: job_manager
+
       type (type_job) :: do_interior_job
       type (type_job) :: do_bottom_job
       type (type_job) :: do_surface_job
@@ -804,6 +806,23 @@
    self%zero_hz = 0.0_rk
    call self%link_horizontal_data('zero_hz',self%zero_hz)
 
+   call self%job_manager%create(self%do_interior_job,'do_interior',final_operation=source_do)
+   call self%job_manager%create(self%do_surface_job,'do_surface',final_operation=source_do_surface)
+   call self%job_manager%create(self%do_bottom_job,'do_bottom',final_operation=source_do_bottom)
+   call self%job_manager%create(self%get_vertical_movement_job,'get_vertical_movement',final_operation=source_do)
+   call self%job_manager%create(self%get_conserved_quantities_job,'get_conserved_quantities',final_operation=source_do)
+   call self%job_manager%create(self%get_horizontal_conserved_quantities_job,'get_horizontal_conserved_quantities',final_operation=source_do_horizontal)
+   call self%job_manager%create(self%get_light_extinction_job,'get_light_extinction',final_operation=source_do)
+   call self%job_manager%create(self%get_drag_job,'get_drag',final_operation=source_do_surface)
+   call self%job_manager%create(self%get_albedo_job,'get_albedo',final_operation=source_do_surface)
+   call self%job_manager%create(self%get_diagnostics_job,'get_diagnostics_job',outsource_tasks=.true.)
+   call self%job_manager%create(self%check_state_job,'check_state',final_operation=source_do)
+   call self%job_manager%create(self%check_bottom_state_job,'check_bottom_state',final_operation=source_do_bottom)
+   call self%job_manager%create(self%check_surface_state_job,'check_surface_state',final_operation=source_do_surface)
+   call self%job_manager%create(self%initialize_state_job,'initialize_state',final_operation=source_do)
+   call self%job_manager%create(self%initialize_bottom_state_job,'initialize_bottom_state',final_operation=source_do_bottom)
+   call self%job_manager%create(self%initialize_surface_state_job,'initialize_surface_state',final_operation=source_do_surface)
+
    call require_flux_computation(self%do_bottom_job,self%links_postcoupling,domain_bottom)
    call self%do_bottom_job%set_next(self%do_surface_job)
    call require_flux_computation(self%do_surface_job,self%links_postcoupling,domain_surface)
@@ -1209,22 +1228,7 @@
 
    ! Initialize all jobs - must be done after the call to filter_readable_variable_registry because that
    ! finalizes the set of variables for which input data is available.
-   call self%do_interior_job%initialize(final_operation=source_do)
-   call self%do_surface_job%initialize(final_operation=source_do_surface)
-   call self%do_bottom_job%initialize(final_operation=source_do_bottom)
-   call self%get_vertical_movement_job%initialize(final_operation=source_do)
-   call self%get_conserved_quantities_job%initialize(final_operation=source_do)
-   call self%get_horizontal_conserved_quantities_job%initialize(final_operation=source_do_horizontal)
-   call self%get_light_extinction_job%initialize(final_operation=source_do)
-   call self%get_drag_job%initialize(final_operation=source_do_surface)
-   call self%get_albedo_job%initialize(final_operation=source_do_surface)
-   call self%get_diagnostics_job%initialize(outsource_tasks=.true.)
-   call self%check_state_job%initialize(final_operation=source_do)
-   call self%check_bottom_state_job%initialize(final_operation=source_do_bottom)
-   call self%check_surface_state_job%initialize(final_operation=source_do_surface)
-   call self%initialize_state_job%initialize(final_operation=source_do)
-   call self%initialize_bottom_state_job%initialize(final_operation=source_do_bottom)
-   call self%initialize_surface_state_job%initialize(final_operation=source_do_surface)
+   call self%job_manager%initialize()
 
    !call self%do_bottom_job%print()
 
