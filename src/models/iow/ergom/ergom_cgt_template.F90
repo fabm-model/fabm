@@ -591,12 +591,12 @@ subroutine initialize(self,configunit)
    <tracers vertLoc=WAT; hasTimeTendenciesVertLoc=SED>
       _SET_BOTTOM_EXCHANGE_(self%id_<name>,0.0 <noNewLine>
       <timeTendencies vertLoc=SED>
-                    <timeTendency2d>/(1000.0*cgt_density*secs_pr_day) <noNewLine>
+                    <timeTendency2d>/(cgt_density*secs_pr_day) <noNewLine>
       </timeTendencies>
                            )
    </tracers>
 
-    if (_AVAILABLE_(self%id_t_dic)) _SET_BOTTOM_EXCHANGE_(self%id_t_dic, rfr_c*lr_sed_rec/(1000.0_rk*cgt_density*secs_pr_day))
+    if (_AVAILABLE_(self%id_t_dic)) _SET_BOTTOM_EXCHANGE_(self%id_t_dic, rfr_c*lr_sed_rec/(cgt_density*secs_pr_day))
 
 
    ! Leave spatial loops over the horizontal domain (if any).
@@ -723,7 +723,7 @@ subroutine initialize(self,configunit)
    <tracers vertLoc=WAT; hasTimeTendenciesVertLoc=SUR>
       _SET_SURFACE_EXCHANGE_(self%id_<name>,0.0 <noNewLine>
       <timeTendencies vertLoc=SUR>
-                    <timeTendency2d>/(1000.0*cgt_density*secs_pr_day) <noNewLine>
+                    <timeTendency2d>/(cgt_density*secs_pr_day) <noNewLine>
       </timeTendencies>
                            )
    </tracers>
