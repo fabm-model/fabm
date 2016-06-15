@@ -559,8 +559,9 @@ recursive subroutine create_aggregate_models(self)
       contributing_variable => aggregate_variable%first_contributing_variable
       do while (associated(contributing_variable))
          if (associated(contributing_variable%link%target,contributing_variable%link%original) &                  ! Variable must not be coupled
-             .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable)) then   ! Only include fake state variable for non-root models
-            if (associated(sum)) then
+             .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable) &       ! Only include fake state variable for non-root models
+             .and.(index(contributing_variable%link%name,'/')==0.or..not.associated(self%parent))) then           ! Variable must be owned by the model itself unless we are aggregating at root level
+             if (associated(sum)) then
                select case (contributing_variable%link%target%domain)
                case (domain_interior)
                   call sum%add_component(trim(contributing_variable%link%name), &
