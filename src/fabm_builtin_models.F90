@@ -154,22 +154,22 @@ module fabm_builtin_models
       procedure :: do_bottom  => flux_copier_do_bottom
    end type
 
-   type,extends(type_base_model) :: type_surface_flux_copier
+   type,extends(type_base_model) :: type_surface_source_copier
       type (type_surface_state_variable_id) :: id_target
       type (type_horizontal_dependency_id)  :: id_sms
       real(rk)                              :: scale_factor = 1.0_rk
    contains
-      procedure :: initialize => surface_flux_copier_initialize
-      procedure :: do_surface => surface_flux_copier_do_surface
+      procedure :: initialize => surface_source_copier_initialize
+      procedure :: do_surface => surface_source_copier_do_surface
    end type
 
-   type,extends(type_base_model) :: type_bottom_flux_copier
+   type,extends(type_base_model) :: type_bottom_source_copier
       type (type_bottom_state_variable_id) :: id_target
       type (type_horizontal_dependency_id) :: id_sms
       real(rk)                             :: scale_factor = 1.0_rk
    contains
-      procedure :: initialize => bottom_flux_copier_initialize
-      procedure :: do_bottom  => bottom_flux_copier_do_bottom
+      procedure :: initialize => bottom_source_copier_initialize
+      procedure :: do_bottom  => bottom_source_copier_do_bottom
    end type
 
    contains
@@ -716,8 +716,8 @@ module fabm_builtin_models
       character(len=*),                             intent(in)            :: target_variable
       real(rk),optional,                            intent(in)            :: scale_factor
 
-      class (type_bottom_flux_copier), pointer :: bottom_copier
-      class (type_surface_flux_copier),pointer :: surface_copier
+      class (type_bottom_source_copier), pointer :: bottom_copier
+      class (type_surface_source_copier),pointer :: surface_copier
 
       select case (source_variable%link%target%domain)
       case (domain_bottom)
@@ -773,16 +773,16 @@ module fabm_builtin_models
       _HORIZONTAL_LOOP_END_
    end subroutine flux_copier_do_bottom
 
-   subroutine surface_flux_copier_initialize(self,configunit)
-      class (type_surface_flux_copier), intent(inout), target :: self
-      integer,                             intent(in)            :: configunit
+   subroutine surface_source_copier_initialize(self,configunit)
+      class (type_surface_source_copier), intent(inout), target :: self
+      integer,                            intent(in)            :: configunit
 
       call self%register_state_dependency(self%id_target,'target','','target variable')
       call self%register_dependency(self%id_sms,'sms','','sources minus sinks')
-   end subroutine surface_flux_copier_initialize
+   end subroutine surface_source_copier_initialize
 
-   subroutine surface_flux_copier_do_surface(self,_ARGUMENTS_DO_SURFACE_)
-      class (type_surface_flux_copier), intent(in) :: self
+   subroutine surface_source_copier_do_surface(self,_ARGUMENTS_DO_SURFACE_)
+      class (type_surface_source_copier), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
 
       real(rk) :: sms
@@ -791,18 +791,18 @@ module fabm_builtin_models
          _GET_HORIZONTAL_(self%id_sms,sms)
          _SET_SURFACE_ODE_(self%id_target,sms*self%scale_factor)
       _HORIZONTAL_LOOP_END_
-   end subroutine surface_flux_copier_do_surface
+   end subroutine surface_source_copier_do_surface
 
-   subroutine bottom_flux_copier_initialize(self,configunit)
-      class (type_bottom_flux_copier), intent(inout), target :: self
-      integer,                         intent(in)            :: configunit
+   subroutine bottom_source_copier_initialize(self,configunit)
+      class (type_bottom_source_copier), intent(inout), target :: self
+      integer,                           intent(in)            :: configunit
 
       call self%register_state_dependency(self%id_target,'target','','target variable')
       call self%register_dependency(self%id_sms,'sms','','sources minus sinks')
-   end subroutine bottom_flux_copier_initialize
+   end subroutine bottom_source_copier_initialize
 
-   subroutine bottom_flux_copier_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
-      class (type_bottom_flux_copier), intent(in) :: self
+   subroutine bottom_source_copier_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
+      class (type_bottom_source_copier), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
 
       real(rk) :: sms
@@ -811,6 +811,6 @@ module fabm_builtin_models
          _GET_HORIZONTAL_(self%id_sms,sms)
          _SET_BOTTOM_ODE_(self%id_target,sms*self%scale_factor)
       _HORIZONTAL_LOOP_END_
-   end subroutine bottom_flux_copier_do_bottom
+   end subroutine bottom_source_copier_do_bottom
 
 end module fabm_builtin_models
