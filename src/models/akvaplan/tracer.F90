@@ -58,8 +58,8 @@ contains
       call self%register_dependency(self%id_T,standard_variables%temperature)
 
       ! Density hook based on specific volume and density of the tracer.
-      call self%get_parameter(sp_vol,  'sp_vol', 'm3 quantity-1', 'specific volume', default=0.0_rk)
-      call self%get_parameter(sp_dens, 'sp_dens','kg m-3', 'density (tracer mass/tracer volume)', default=0.0_rk)
+      call self%get_parameter(sp_vol,  'specific_volume', 'm3 quantity-1', 'specific volume', default=0.0_rk)
+      call self%get_parameter(sp_dens, 'density','kg m-3', 'density (tracer mass/tracer volume)', default=0.0_rk)
       call self%add_to_aggregate_variable(non_water_volume_fraction,self%id_c,scale_factor=sp_vol)
       call self%add_to_aggregate_variable(non_water_density,        self%id_c,scale_factor=sp_vol*sp_dens) ! converting from kg tracer/tracer_volume to kg tracer/total_volume
 
