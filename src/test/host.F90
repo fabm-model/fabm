@@ -48,39 +48,68 @@ integer,parameter :: ntest = 1
 integer :: _LOCATION_
 #endif
 
-#if _FABM_DIMENSION_COUNT_==1
-#  define _BEGIN_GLOBAL_LOOP_ do i__=1,domain_extent(1)
+#define _BEGIN1_ do i__=1,domain_extent(1)
+#define _END1_ end do;i__=domain_extent(1)
+#define _BEGIN2_ do j__=1,domain_extent(2)
+#define _END2_ end do;j__=domain_extent(2)
+#define _BEGIN3_ do k__=1,domain_extent(3)
+#define _END3_ end do;k__=domain_extent(3)
+
+#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&_FABM_VECTORIZED_DIMENSION_INDEX_!=1
+#  error unsupported value for _FABM_VECTORIZED_DIMENSION_INDEX_
+#endif
+
+#if _FABM_DIMENSION_COUNT_==0
+#  define _BEGIN_GLOBAL_LOOP_
+#  define _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+#  define _END_GLOBAL_LOOP_
+#  define _END_GLOBAL_HORIZONTAL_LOOP_
+#elif _FABM_DIMENSION_COUNT_==1
+#  define _BEGIN_GLOBAL_LOOP_ _BEGIN1_
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
 #    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_
 #    define _BEGIN_OUTER_HORIZONTAL_LOOP_
 #    define _BEGIN_OUTER_INTERIOR_LOOP_
+#  else
+#    error unsupported value for _FABM_DEPTH_DIMENSION_INDEX_
 #  endif
-#  define _END_GLOBAL_LOOP_ end do;i__=domain_extent(1)
+#  define _END_GLOBAL_LOOP_ _END1_
 #  define _END_GLOBAL_HORIZONTAL_LOOP_
 #  define _END_OUTER_HORIZONTAL_LOOP_
 #  define _END_OUTER_INTERIOR_LOOP_
 #elif _FABM_DIMENSION_COUNT_==2
-#  define _BEGIN_GLOBAL_LOOP_ do j__=1,domain_extent(2);do i__=1,domain_extent(1)
+#  define _BEGIN_GLOBAL_LOOP_ _BEGIN2_;_BEGIN1_
 #  if _FABM_DEPTH_DIMENSION_INDEX_==2
-#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ do i__=1,domain_extent(1)
+#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ _BEGIN1_
 #    define _BEGIN_OUTER_HORIZONTAL_LOOP_
-#    define _BEGIN_OUTER_INTERIOR_LOOP_ do j__=1,domain_extent(2)
+#    define _BEGIN_OUTER_INTERIOR_LOOP_ _BEGIN2_
+#  else
+#    error unsupported value for _FABM_DEPTH_DIMENSION_INDEX_
 #  endif
-#  define _END_GLOBAL_LOOP_ end do;end do;i__=domain_extent(1);j__=domain_extent(2)
-#  define _END_GLOBAL_HORIZONTAL_LOOP_ end do;i__=domain_extent(1)
+#  define _END_GLOBAL_LOOP_ _END1_;_END2_
+#  define _END_GLOBAL_HORIZONTAL_LOOP_ _END1_
 #  define _END_OUTER_HORIZONTAL_LOOP_
-#  define _END_OUTER_INTERIOR_LOOP_ end do;j__=domain_extent(2)
+#  define _END_OUTER_INTERIOR_LOOP_ _END2_
 #elif _FABM_DIMENSION_COUNT_==3
-#  define _BEGIN_GLOBAL_LOOP_ do k__=1,domain_extent(3);do j__=1,domain_extent(2);do i__=1,domain_extent(1)
+#  define _BEGIN_GLOBAL_LOOP_ _BEGIN3_;_BEGIN2_;_BEGIN1_
 #  if _FABM_DEPTH_DIMENSION_INDEX_==3
-#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ do j__=1,domain_extent(2);do i__=1,domain_extent(1)
-#    define _BEGIN_OUTER_HORIZONTAL_LOOP_ do j__=1,domain_extent(2)
-#    define _BEGIN_OUTER_INTERIOR_LOOP_ do k__=1,domain_extent(3);do j__=1,domain_extent(2)
+#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ _BEGIN2_;_BEGIN1_
+#    define _BEGIN_OUTER_HORIZONTAL_LOOP_ _BEGIN2_
+#    define _BEGIN_OUTER_INTERIOR_LOOP_ _BEGIN3_;_BEGIN2_
+#  else
+#    error unsupported value for _FABM_DEPTH_DIMENSION_INDEX_
 #  endif
-#  define _END_GLOBAL_LOOP_ end do;end do;end do;i__=domain_extent(1);j__=domain_extent(2);k__=domain_extent(3)
-#  define _END_GLOBAL_HORIZONTAL_LOOP_ end do;end do;i__=domain_extent(1);j__=domain_extent(2)
-#  define _END_OUTER_HORIZONTAL_LOOP_ end do;j__=domain_extent(2)
-#  define _END_OUTER_INTERIOR_LOOP_ end do;end do;j__=domain_extent(2);k__=domain_extent(3)
+#  define _END_GLOBAL_LOOP_ _END1_;_END2_;_END3_
+#  define _END_GLOBAL_HORIZONTAL_LOOP_ _END1_;_END2_
+#  define _END_OUTER_HORIZONTAL_LOOP_ _END2_
+#  define _END_OUTER_INTERIOR_LOOP_ _END2_;_END3_
+#endif
+
+#ifndef _FABM_VECTORIZED_DIMENSION_INDEX_
+#  define _BEGIN_OUTER_HORIZONTAL_LOOP_ _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+#  define _BEGIN_OUTER_INTERIOR_LOOP_ _BEGIN_GLOBAL_LOOP_
+#  define _END_OUTER_HORIZONTAL_LOOP_ _END_GLOBAL_HORIZONTAL_LOOP_
+#  define _END_OUTER_INTERIOR_LOOP_ _END_GLOBAL_LOOP_
 #endif
 
 #ifdef _INTERIOR_IS_VECTORIZED_
@@ -139,7 +168,7 @@ k__=12
 domain_extent = (/ _LOCATION_ /)
 #endif
 
-#ifdef _INTERIOR_IS_VECTORIZED_
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_ 
 loop_start = 1
 loop_stop = domain_extent(_FABM_VECTORIZED_DIMENSION_INDEX_)
 #endif
@@ -200,12 +229,12 @@ call model%set_surface_index(1)
 call report_test_result()
 
 call start_test('set_bottom_index')
-#if _FABM_BOTTOM_INDEX_==-1
+#    if _FABM_BOTTOM_INDEX_==-1
 allocate(bottom_index _INDEX_HORIZONTAL_LOCATION_)
 call model%set_bottom_index(bottom_index)
-#else
+#    else
 call model%set_bottom_index(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_))
-#endif
+#    endif
 call report_test_result()
 #  endif
 #endif
@@ -270,7 +299,7 @@ allocate(dy(size(model%state_variables)))
 allocate(w(size(model%state_variables)))
 #endif
 
-#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&(_FABM_DEPTH_DIMENSION_INDEX_!=_FABM_VECTORIZED_DIMENSION_INDEX_)
+#ifdef _HORIZONTAL_IS_VECTORIZED_
 allocate(flux(loop_start:loop_stop,size(model%state_variables)))
 allocate(sms_sf(loop_start:loop_stop,size(model%surface_state_variables)))
 allocate(sms_bt(loop_start:loop_stop,size(model%bottom_state_variables)))
@@ -530,19 +559,25 @@ allocate(sms_bt(size(model%bottom_state_variables)))
       real(rk),                      intent(in) :: required_masked_value,required_value
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
-#ifdef _HAS_MASK_
-#  ifdef _FABM_HORIZONTAL_MASK_
-#  else
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+#  ifdef _HAS_MASK_
+#    ifdef _FABM_HORIZONTAL_MASK_
+#    else
       if (any(slice_data/=required_masked_value.and..not._IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop)))) then
          call driver%fatal_error('check_interior_slice','one or more masked cells do not have the value required.')
       end if
       if (any(slice_data/=required_value.and._IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop)))) then
          call driver%fatal_error('check_interior_slice','one or more non-masked cells do not have the value required.')
       end if
-#  endif
-#else
+#    endif
+#  else
       if (any(slice_data/=required_value)) then
          call driver%fatal_error('check_interior_slice','one or more cells do not have the value required.')
+      end if
+#  endif
+#else
+      if (slice_data/=required_value) then
+         call driver%fatal_error('check_interior_slice','returned scalar does not have the value required.')
       end if
 #endif
    end subroutine
@@ -578,9 +613,21 @@ allocate(sms_bt(size(model%bottom_state_variables)))
       end if
 #  endif
 #else
+#  ifdef _HAS_MASK_
+      if (_IS_UNMASKED_(mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
+         if (slice_data/=required_value) then
+            call driver%fatal_error('check_horizontal_slice','returned scalar does not have the value required.')
+         end if
+      else
+         if (slice_data/=required_masked_value) then
+            call driver%fatal_error('check_horizontal_slice','returned masked scalar does not have the value required.')
+         end if
+      end if
+#  else
       if (slice_data/=required_value) then
          call driver%fatal_error('check_horizontal_slice','returned scalar does not have the value required.')
       end if
+#  endif
 #endif
    end subroutine check_horizontal_slice
 

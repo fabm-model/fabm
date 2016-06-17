@@ -1,4 +1,5 @@
 #define _FABM_DIMENSION_COUNT_ 3
+#define _FABM_DEPTH_DIMENSION_INDEX_ 3
 
 ! Variable name and dimension specifyer for full bio fields
 #define _LOCATION_ ii,jj,kk
