@@ -505,7 +505,7 @@
         !Pressure correction
         zt_degc     = t_k - t_k_zerodegc
         zrt         = gasconst_bar_cm3_o_mol_k * t_k
-        zdvi        = -14.51_rk + zt_degc*(0.1211_rk + zt_degc*-0.321E-03_rk)
+        zdvi        = -14.51_rk + zt_degc*(0.1211_rk + zt_degc*(-0.321E-03_rk))
         zdki        = (-2.67_rk + zt_degc*0.0427_rk)*1.0E-03_rk
         ln_kp1_pp   = (-zdvi + zdki*p_bar/2._rk)*p_bar/zrt
 
@@ -558,7 +558,7 @@
         !Pressure correction
         zt_degc     = t_k - t_k_zerodegc
         zrt         = gasconst_bar_cm3_o_mol_k * t_k
-        zdvi        = -23.12_rk + zt_degc*(0.1758_rk + zt_degc*-2.647E-03_rk)
+        zdvi        = -23.12_rk + zt_degc*(0.1758_rk + zt_degc*(-2.647E-03_rk))
         zdki        = (-5.15_rk + zt_degc*0.09_rk)*1.0E-03_rk
         ln_kp2_pp   = (-zdvi + zdki*p_bar/2._rk)*p_bar/zrt
 
@@ -611,7 +611,7 @@
         !Pressure correction
         zt_degc     = t_k - t_k_zerodegc
         zrt         = gasconst_bar_cm3_o_mol_k * t_k
-        zdvi        = -26.57_rk + zt_degc*(0.2020_rk + zt_degc*-3.042E-03_rk)
+        zdvi        = -26.57_rk + zt_degc*(0.2020_rk + zt_degc*(-3.042E-03_rk))
         zdki        = (-4.08_rk + zt_degc*0.0714_rk)*1.0E-03_rk
         ln_kp3_pp   = (-zdvi + zdki*p_bar/2._rk)*p_bar/zrt
 
