@@ -77,45 +77,53 @@ for variable_name in ranges.keys():
 
 import numpy
 
+ndone = 0
+
 def check():
     rates = model.getRates()
     assert len(rates)==len(model.state_variables)
     valid = numpy.isfinite(rates)
+    global ndone
+    ndone += 1
     if not valid.all():
+       print 'Test %i FAILED!' % ndone
        for variable,value in zip(model.state_variables,rates):
           if not numpy.isfinite(value):
              print 'Change in %s has invalid value %s' % (variable.name,value)
+       values = {}
        print 'MODEL STATE:'
        for variable in model.state_variables:
            print '- %s = %s' % (variable.name,variable.value)
+           values[variable.name] = variable.value
        print 'ENVIRONMENT:'
        for variable in model.dependencies:
            print '- %s = %s' % (variable.name,variable.value)
+           values[variable.name] = variable.value
+       with open('last_error.yaml','w') as f: yaml.dump(values,f,default_flow_style=False)
+       print 'This model state and environment has been saved in last_error.yaml.'
+       print 'To retest with these exact inputs (e.g., after introducing model fixes),'
+       print 'specify this file as the "ranges" argument.'
        sys.exit(1)
 
 def testRandomized():
     # Perpetual random test:
     # for each model input, pick a value from its valid range [minimum,maximum]
-    n = 0
     while 1:
        random_values = numpy.random.rand(len(vary))
        for (variable,(minimum,maximum)),random_value in zip(vary,random_values):
           variable.value = minimum + (maximum-minimum)*random_value
        check()
-       n += 1
-       if n%1000==0: print 'Test %i completed.' % n
+       if ndone%1000==0: print 'Test %i completed.' % ndone
 
 def testRandomizedExtremes():
     # Perpetual random test:
     # for each model input, pick either its minimum or its maximum value.
-    n = 0
     while 1:
        pick_maxs = numpy.random.rand(len(vary))>0.5
        for (variable,(minimum,maximum)),pick_max in zip(vary,pick_maxs):
           variable.value = maximum if pick_max else minimum
        check()
-       n += 1
-       if n%1000==0: print 'Test %i completed.' % n
+       if ndone%1000==0: print 'Test %i completed.' % ndone
 
 def testExtremes():
     # Finite deterministic test:
@@ -130,14 +138,11 @@ def testExtremes():
        check()
        variable.value = oldvalue
 
-ndone = 0
 def testExtremesRecursive(vary):
     # Finite deterministic test:
     # test all possible combinations of minimum and maximm for each model input.
     if len(vary)==0:
-       global ndone
        check()
-       ndone += 1
        if ndone%1000==0: print 'Completed %i of %i tests' % (ndone,2**nvary)
        return
     variable,(minimum,maximum) = vary[0]
@@ -147,12 +152,15 @@ def testExtremesRecursive(vary):
     variable.value = maximum
     testExtremesRecursive(vary[1:])
 
-for test in args.test:
-   if test=='extremes_per_variable':
-      testExtremes()
-   elif test=='extremes_randomized':
-      testRandomizedExtremes()
-   elif test=='extremes_all':
-      testExtremesRecursive(vary)
-   elif test=='randomized':
-      testRandomized()
+if args.test is None:
+    check()
+else:
+    for test in args.test:
+       if test=='extremes_per_variable':
+          testExtremes()
+       elif test=='extremes_randomized':
+          testRandomizedExtremes()
+       elif test=='extremes_all':
+          testExtremesRecursive(vary)
+       elif test=='randomized':
+          testRandomized()
