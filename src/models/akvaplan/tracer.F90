@@ -41,7 +41,9 @@ contains
       class (type_tracer),intent(inout),target :: self
       integer,            intent(in)           :: configunit
 
-      real(rk) :: sp_vol, sp_dens
+      real(rk)                        :: sp_vol, sp_dens
+      logical                         :: conserved
+      character(len=attribute_length) :: standard_name
 
       ! Obtain parameter values (convert all rate constants to s-1 to match FABM's internal time unit)
       call self%get_parameter(self%w, 'w', 'm d-1', 'sinking velocity',                default=0.0_rk, scale_factor=1.0_rk/86400)
@@ -62,6 +64,14 @@ contains
       call self%get_parameter(sp_dens, 'density','kg m-3', 'density (tracer mass/tracer volume)', default=0.0_rk)
       call self%add_to_aggregate_variable(non_water_volume_fraction,self%id_c,scale_factor=sp_vol)
       call self%add_to_aggregate_variable(non_water_density,        self%id_c,scale_factor=sp_vol*sp_dens) ! converting from kg tracer/tracer_volume to kg tracer/total_volume
+
+      ! Optionally register the tracer as a "conserved quantity". This will prompt the hydrodynamic model to compute budgets across the entire domain.
+      ! The name of the conserved quantity will be the short name of the model itself, with "_total" appended.
+      call self%get_parameter(conserved,'conserved','','whether this is a conserved quantity (activates budget tracking in host)',default=.false.)
+      if (conserved) then
+         standard_name = get_safe_name(trim(self%get_path())//'_total')
+         call self%add_to_aggregate_variable(type_bulk_standard_variable(name=standard_name(2:),units='quantity m-3',aggregate_variable=.true.,conserved=.true.),self%id_c)
+      end if
 
    end subroutine initialize
 
