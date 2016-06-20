@@ -5,7 +5,7 @@ import argparse
 import yaml
 
 parser = argparse.ArgumentParser(description='This script verifies that a biogeochemical model returns valid derivatives under a wide variety of inputs (state variables, environmental dependencies). Different tests can be run, using either random values or extremes for inputs, and running randomized or exhaustive tests.')
-parser.add_argument('model_path',help='Path to a YAML file with the model configuration file (typically fabm.yaml)')
+parser.add_argument('model_path',help='Path to a YAML file with the model configuration (typically fabm.yaml)')
 parser.add_argument('ranges_path',help='Path to a YAML file with ranges for all model inputs (state variables, environmental dependencies)')
 parser.add_argument('--test',type=str,choices=('randomized','extremes_per_variable','extremes_randomized','extremes_all'),action='append',help='Path to a YAML file with ranges for all model inputs (state variables, environmental dependencies)')
 parser.add_argument('--write-ranges',action='store_true',help='Write ranges file with default variable ranges',default=False)
