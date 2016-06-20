@@ -452,7 +452,8 @@ _LOOP_END_
 ! Calculation of O2 saturation Obe according to UNESCO, 1986
   TempT = (temp+273.15)/100.
   Obe = exp(-173.4292+249.6339/TempT+143.3483*log(TempT)-21.8492*TempT+salt*(-0.033096+0.014259*TempT-0.0017*TempT*TempT)) !Osat
-  Obe = Obe*1000./22.4  ! - in uM
+  Obe = Obe*1000./22.4  ! convert from ml/l into uM
+
 
 !  Q_O2 = Oa*(Obe-O2)*0.24 ! 0.24 is to convert from [cm/h] to [m/day]  
   Q_O2 = windspeed*(Obe-O2) !After (Burchard et al., 2005)

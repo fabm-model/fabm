@@ -36,7 +36,7 @@
     type (type_state_variable_id)        :: id_DIC,id_Alk,id_CaCO3,id_FeS2,id_FeCO3,id_CH4
 
     type (type_dependency_id)            :: id_temp,id_salt
-    type (type_dependency_id)            :: id_Kp1,id_Kp2,id_Kp3,id_Knh4,id_Kh2s1,id_Hplus,id_KSi,id_Kc0
+    type (type_dependency_id)            :: id_Kp1,id_Kp2,id_Kp3,id_Knh4,id_Kh2s,id_Hplus,id_KSi,id_Kc0
     type (type_dependency_id)            :: id_Ca,id_CO3,id_Om_Ca,id_Om_Ar,id_pco2
 
     type (type_diagnostic_variable_id)  :: id_DcPM_O2,id_DcDM_O2,id_DcPM_NOX, id_DcDM_NOX,id_DcPM_SO4, id_DcDM_SO4
@@ -48,7 +48,7 @@
     type (type_diagnostic_variable_id)  :: id_fe_p_compl,id_mn_p_compl,id_fe_si_compl
     type (type_diagnostic_variable_id)  :: id_Denitr1_DM,id_Denitr2_PM,id_Denitr2_DM,id_Denitr1, id_Denitr2
     type (type_diagnostic_variable_id)  :: id_mn_ox2,id_mn_ox1,id_mn_rd1,id_mn_rd2,id_mns_diss,id_mns_form,id_mnco3_diss,id_mnco3_form
-    type (type_diagnostic_variable_id)  :: id_DcPM_CH4,id_DcDM_CH4,id_ch4_o2
+    type (type_diagnostic_variable_id)  :: id_DcPM_CH4,id_DcDM_CH4,id_ch4_o2,id_ch4_so4
 
 !     Model parameters
        real(rk) :: Wsed, Wbact, Wm
@@ -70,7 +70,7 @@
        !---- O2--------! 
       real(rk) ::  O2s_nf, O2s_dn, s_omox_o2, s_omno_o2, s_omso_o2, s_omso_no3, K_mnox_o2 
        !---- C--------! 
-      real(rk) ::  K_caco3_diss, K_caco3_form, K_DON_ch4, K_PON_ch4, K_ch4_o2, s_omch_so4
+      real(rk) ::  K_caco3_diss, K_caco3_form, K_DON_ch4, K_PON_ch4, K_ch4_o2, K_ch4_so4, s_omch_so4
        !---- Si-------! 
       real(rk) ::  K_sipart_diss
        !---- Bacteria-! 
@@ -199,6 +199,7 @@
    call self%get_parameter(self%K_DON_ch4, 'K_DON_ch4', '[1/day]','Specific rate of methane production from DON',default=0.00014_rk)
    call self%get_parameter(self%K_PON_ch4, 'K_PON_ch4', '[1/day]','Specific rate of methane production from PON',default=0.00014_rk)
    call self%get_parameter(self%K_ch4_o2, 'K_ch4_o2', '[1/day]','Specific rate of oxidation of CH4 with O2',default=0.14_rk)
+   call self%get_parameter(self%K_ch4_so4, 'K_ch4_so4', '[1/day]','Specific rate of anoxic oxidation of CH4 with SO4',default=0.0000274_rk)   
    call self%get_parameter(self%s_omch_so4, 's_omch_so4', '[uM S]','threshold of SO4 for methane production from OM',default=15000.0_rk)   
   !---- Si-------! 
    call self%get_parameter(self%K_sipart_diss, 'K_sipart_diss', '[1/day]','Si dissollution rate constant',default=0.10_rk)
@@ -405,6 +406,8 @@
                 output=output_time_step_integrated) 
     call self%register_diagnostic_variable(self%id_ch4_o2,'ch4_o2','mmol/m**3',  'CH4 with O2 oxidation',           &
                 output=output_time_step_integrated)
+    call self%register_diagnostic_variable(self%id_ch4_so4,'ch4_so4','mmol/m**3',  'CH4 with SO4 oxidation',           &
+                output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_fe_p_compl,'fe_p_compl','mmol/m**3',  'complexation of P with Fe(III)',  &
                 output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_mn_p_compl,'mn_p_compl','mmol/m**3',  'complexation of P with Mn(III)',  &
@@ -420,7 +423,7 @@
    call self%register_dependency(self%id_Kp2,  'Kp2',  '-', '[H][HPO4]/[H2PO4]')
    call self%register_dependency(self%id_Kp3,  'Kp3',  '-', '[H][PO4]/[HPO4]')
    call self%register_dependency(self%id_Knh4, 'Knh4', '-', '[H+][NH3]/[NH4]')
-   call self%register_dependency(self%id_Kh2s1,'Kh2s1','-', '[H+][HS-]/[H2S]')
+   call self%register_dependency(self%id_Kh2s,'Kh2s','-', '[H+][HS-]/[H2S]')
    call self%register_dependency(self%id_KSi,  'KSi','-','[H+][H3SiO4-]/[Si(OH)4]')
    call self%register_dependency(self%id_Kc0,  'Kc0','-','Henry''s constant')
 
@@ -465,8 +468,8 @@
    real(rk) :: s0_disp,hs_ox,s0_ox,s0_no3,s2o3_ox,s2o3_no3,hs_no3,so4_rd_PM,so4_rd_DM,s2o3_rd_PM,s2o3_rd_DM,so4_rd,s2o3_rd,DcPM_SO4,DcDM_SO4
    real(rk) :: fe_p_compl,mn_p_compl,fe_si_compl
    real(rk) :: ChemBaae,MortBaae,MortBhae,ChemBaan,MortBaan,MortBhan,HetBhan,HetBhae
-   real(rk) :: Knh4,Kp1,Kp2,Kp3,Kh2s1,KSi,Kc0
-   real(rk) :: dAlk, Dc_OM_total,caco3_form,caco3_diss,DcDM_CH4,DcPM_CH4,ch4_o2
+   real(rk) :: Knh4,Kp1,Kp2,Kp3,Kh2s,KSi,Kc0
+   real(rk) :: dAlk, Dc_OM_total,caco3_form,caco3_diss,DcDM_CH4,DcPM_CH4,ch4_o2,ch4_so4
 
 !-----------------------------------------------------------------------
 !BOC
@@ -522,7 +525,7 @@
    _GET_(self%id_Kp1,  Kp1)
    _GET_(self%id_Kp2,  Kp2)
    _GET_(self%id_Kp3,  Kp3)
-   _GET_(self%id_Kh2s1,Kh2s1)
+   _GET_(self%id_Kh2s,Kh2s)
    _GET_(self%id_Knh4, Knh4)
    _GET_(self%id_KSi, KSi)
    _GET_(self%id_Kc0, Kc0) 
@@ -766,7 +769,9 @@
 !%! CH4  oxidation with O2      
 !% CH4 + 2 O2 = CO2 + 2 H2O     
      ch4_o2= self%K_ch4_o2*CH4*O2
-
+!%! CH4 anoxic oxidation with SO4 
+!% CH4 +  SO42- + 2 H+  =  CO2 + H2S + 2 H2O
+     ch4_so4= self%K_ch4_so4*CH4*SO4
 !%!---------------------------------------------------------------------------
 !%!========B=a=c=t(ci)============================================================
 !%!---------------------------------------------------------------------------
@@ -822,7 +827,7 @@
           _SET_ODE_(self%id_H2S,-0.5*mn_rd1-0.5*mn_rd2-0.5*fe_rd -hs_ox-fes_form-mns_form+mns_diss +0.5*s0_disp -hs_no3+s2o3_rd+fes_diss-feS2_form)
           _SET_ODE_(self%id_S0, hs_ox+0.5*mn_rd1+0.5*mn_rd2+0.5*fe_rd -s0_ox -s0_disp-s0_no3)
           _SET_ODE_(self%id_S2O3,0.5*s0_ox-s2o3_ox+0.25*s0_disp +0.5*so4_rd-0.5*s2o3_rd-s2o3_no3)
-          _SET_ODE_(self%id_SO4,hs_no3-so4_rd+0.5*s2o3_ox+s0_no3+2.*s2o3_no3+fes_ox+2.*feS2_ox)
+          _SET_ODE_(self%id_SO4,hs_no3-so4_rd+0.5*s2o3_ox+s0_no3+2.*s2o3_no3+fes_ox+2.*feS2_ox-ch4_so4)
 
           _SET_ODE_(self%id_O2,(-DcDM_O2-DcPM_O2)*self%r_o_n -0.25*mn_ox1-0.25*mn_ox2-0.25*fe_ox1 -0.5*hs_ox-0.5*s0_ox-0.5*s2o3_ox -1.5*Nitrif1-0.5*Nitrif2-2.25*fes_ox-3.5*feS2_ox-0.5*mnco3_ox+feco3_ox-2.*ch4_o2)
           _SET_ODE_(self%id_DON,(Autolysis-DcDM_O2-DcDM_NOX-DcDM_SO4 -DcDM_Mn -DcDM_Fe -HetBhae-HetBhan))
@@ -839,7 +844,7 @@
           _SET_ODE_(self%id_Bhae,HetBhae-MortBhae)
           _SET_ODE_(self%id_Bhan,HetBhan-MortBhan)
           _SET_ODE_(self%id_caco3,caco3_form-caco3_diss)
-          _SET_ODE_(self%id_CH4,0.5*(DcDM_CH4+DcPM_CH4)-ch4_o2)
+          _SET_ODE_(self%id_CH4,0.5*(DcDM_CH4+DcPM_CH4)-ch4_o2-ch4_so4)
 
   !! Alkalinity changes due to redox reactions:
 
