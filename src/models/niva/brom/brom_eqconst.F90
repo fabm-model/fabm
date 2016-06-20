@@ -114,8 +114,6 @@
 !
 ! !INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
-!
-   use MOD_CHEMCONST
 
 ! !DESCRIPTION:
 ! 
