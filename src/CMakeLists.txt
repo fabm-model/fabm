@@ -180,13 +180,13 @@ add_library(fabm
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
             fabm_coupling.F90
             fabm.F90
-            config/fabm_config_types.F90
-            config/fabm_yaml.F90
-            config/fabm_config.F90
+            yaml/yaml_types.F90
+            yaml/yaml.F90
+            fabm_config.F90
            )
 
 # Group config source files in a folder in IDEs that support this.
-source_group(config REGULAR_EXPRESSION config/)
+source_group(yaml REGULAR_EXPRESSION yaml/)
 
 if(FABM_EMBED_VERSION)
   add_dependencies(fabm fabm_version)
@@ -231,9 +231,9 @@ endif()
 add_custom_target(test_all COMMENT "building tests - nothing yet :-)")
 
 add_executable(test_yaml EXCLUDE_FROM_ALL
-               config/test_yaml.F90
-               config/fabm_config_types.F90
-               config/fabm_yaml.F90
+               yaml/test_yaml.F90
+               yaml/yaml_types.F90
+               yaml/yaml.F90
               )
 
 # End of testing section
