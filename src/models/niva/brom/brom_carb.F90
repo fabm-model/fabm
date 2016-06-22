@@ -1,9 +1,22 @@
+!-----------------------------------------------------------------------
+! BROM is free software: you can redistribute it and/or modify it under
+! the terms of the GNU General Public License as published by the Free
+! Software Foundation (https://www.gnu.org/licenses/gpl.html).
+! It is distributed in the hope that it will be useful, but WITHOUT ANY
+! WARRANTY; without even the implied warranty of MERCHANTABILITY or
+! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
+! the COPYING file at the root of the FABM distribution.
+!-----------------------------------------------------------------------
+! Original author(s): Evgeniy Yakushev, Shamil Yakubov,
+!                     Jorn Bruggeman
+!-----------------------------------------------------------------------
+
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: 
+! !MODULE:
 !
 ! !INTERFACE:
    module fabm_niva_brom_carb
@@ -17,10 +30,6 @@
 
 !  default: all is private.
    private
-!
-! !REVISION HISTORY:!
-!  Original author(s): Evgeniy Yakushev, Shamil Yakubov, Jorn Bruggeman
-!
 
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_brom_carb
@@ -30,7 +39,7 @@
       type (type_dependency_id)            :: id_temp,id_salt,id_pres,id_pCO2w
       type (type_dependency_id)            :: id_PO4,id_Si,id_NH4,id_DON,id_H2S,id_Mn3,id_Mn4,id_Fe3,id_SO4
       type (type_dependency_id)            :: id_Kc1,id_Kc2,id_Kw,id_Kb,id_Kp1,id_Kp2,id_Kp3,id_Kc0,id_KSi,id_Knh4,id_Kh2s, &
-          id_kso4, id_kflu, id_tot_free      
+          id_kso4, id_kflu, id_tot_free
       type (type_horizontal_dependency_id) :: id_windspeed, id_pCO2a
 
    contains
@@ -53,14 +62,14 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-! 
+!
 !
 ! !INPUT PARAMETERS:
    class (type_niva_brom_carb), intent(inout), target :: self
    integer,                     intent(in)            :: configunit
 !
 ! !REVISION HISTORY:
-!  Original author(s): 
+!  Original author(s):
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -118,7 +127,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
@@ -126,21 +135,21 @@
 !   use MOD_PHSOLVERS
 
 ! !DESCRIPTION:
-! 
+!
 !
 ! !INPUT PARAMETERS:
    class (type_niva_brom_carb),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
-!  Original author(s): 
+!  Original author(s):
 !
 ! !LOCAL VARIABLES:
    real(rk) :: temp,salt,pres
    real(rk) :: DIC,Alk,PO4,Si,NH4,DON,H2S,Mn3,Mn4,Fe3,SO4
    real(rk) :: Kc1,Kc2,Kw,Kb,Kp1,Kp2,Kp3,Kc0,KSi,Knh4,Kh2s, &
           kso4, kflu, tot_free
-   
+
    real(rk) :: H_,pH,Om_Ca,Om_Ar
    real(rk) :: co2,pCO2,hco3,co3,Ca
    real(rk) :: Bt, flutot
@@ -153,7 +162,7 @@
 
    ! Environment
    _GET_(self%id_temp,temp)              ! temperature
-   _GET_(self%id_salt,salt)              ! salinity   
+   _GET_(self%id_salt,salt)              ! salinity
    _GET_(self%id_pres,pres)              ! pressure in dbar
 
    ! Our own state variables
@@ -184,11 +193,11 @@
    _GET_(self%id_Knh4, Knh4)
    !_GET_(self%id_Kh2s1,Kh2s1)
    !_GET_(self%id_Kh2s2,Kh2s2)
-   _GET_(self%id_Kh2s, Kh2s)   
+   _GET_(self%id_Kh2s, Kh2s)
    _GET_(self%id_kso4, kso4)
    _GET_(self%id_kflu, kflu)
    _GET_(self%id_tot_free, tot_free)
- 
+
    !returns total borate concentration in mol/kg-SW
    !References: Uppstrom (1974), cited by  Dickson et al. (2007, chapter 5, p 10)
    !            Millero (1982) cited in Millero (1995)
@@ -215,15 +224,15 @@
    call CARFIN(temp,salt,0.1_rk*pres,Kc0,Kc1,Kc2, &
              DIC,H_, &
              co2,pCO2,hco3,co3, &
-             Ca,Om_Ca,Om_Ar) 
+             Ca,Om_Ca,Om_Ar)
 
    _SET_DIAGNOSTIC_(self%id_pH,pH)
    _SET_DIAGNOSTIC_(self%id_pCO2,pCO2)
    _SET_DIAGNOSTIC_(self%id_Hplus,H_)
    _SET_DIAGNOSTIC_(self%id_Om_Ca,Om_Ca)
    _SET_DIAGNOSTIC_(self%id_Om_Ar,Om_Ar)
-   _SET_DIAGNOSTIC_(self%id_CO3,co3)   
-   _SET_DIAGNOSTIC_(self%id_Ca,Ca)   
+   _SET_DIAGNOSTIC_(self%id_CO3,co3)
+   _SET_DIAGNOSTIC_(self%id_Ca,Ca)
 
 ! Leave spatial loops (if any)
    _LOOP_END_
@@ -234,13 +243,13 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
 !
 ! !DESCRIPTION:
-! Sea water CO2 exchange.   
+! Sea water CO2 exchange.
 !  adapted from PML's ERSEM  code
 
 ! !INPUT PARAMETERS:
@@ -261,9 +270,9 @@
       _GET_HORIZONTAL_(self%id_windspeed,windspeed)
       _GET_HORIZONTAL_(self%id_pCO2a,pCO2a)
 
-      
+
       TK=(temp + 273.15)
-!/*---------------------------------------------------CO2 exchange with air */       
+!/*---------------------------------------------------CO2 exchange with air */
 !  Kc0 - Henry's constant !% Weiss, R. F., Marine Chemistry 2:203-215, 1974.
       Kc0 = EXP(-60.2409+9345.17/TK+23.3585*log(TK/100.) &
           +salt*(0.023517-0.023656*TK/100.+0.0047036*((TK/100.)*(TK/100.))))
@@ -275,22 +284,22 @@
 
 ! flux depends on the difference in partial pressures, wind and henry
 ! here it is rescaled to mmol/m2/d
-!          flux = fwind * HENRY * ( PCO2A - PCO2W ) * dcf      
-      
-      
+!          flux = fwind * HENRY * ( PCO2A - PCO2W ) * dcf
+
+
       Q_pCO2= fwind * ( pCO2a- max(0e0,pCO2w))
       Q_DIC = Q_pCO2*Kc0/86400.
-! /PML      
+! /PML
       !!!!!
       !!!!!Ox=1800.6-120.1*temp+3.7818*temp*temp-0.047608*temp*temp*temp !Ox=Sc, Schmidt number
-      !!!!!if (Ox>0) then 
+      !!!!!if (Ox>0) then
       !!!!!   xk = 0.028*(windspeed**3.)*sqrt(660/Ox)       !Pvel from Schneider
       !!!!!else
       !!!!!   xk = 0.
       !!!!!endif
       !!!!!
       !!!!!!!!! co2_flux = xk * (pCO2ocean - pCO2atm) [mmol/m**2/s] upward positive
-      !!!!!Q_pCO2 =   xk * ( pCO2a- max(0e0,pCO2w)) ! pCO2ocean >= 0 !  
+      !!!!!Q_pCO2 =   xk * ( pCO2a- max(0e0,pCO2w)) ! pCO2ocean >= 0 !
       !!!!!Q_DIC = Q_pCO2*Kc0*1000./86400.
 
       _SET_SURFACE_EXCHANGE_(self%id_DIC,Q_DIC)
@@ -350,7 +359,7 @@
 !    % '       this is .010285.*Sali./35
     Ca      = 0.02128/40.087*(salt/1.80655)    ! in mol/kg-SW
     tempK   = temp + 273.15
-    
+
     !     CalciteSolubility:
 !           Mucci, Alphonso, Amer. J. of Science 283:781-799, 1983.
     logKCal =     -171.9065 - 0.077993*tempK + 2839.319/tempK &
@@ -387,12 +396,12 @@
     lnKArafac  = (-deltaVKAra + 0.5*KappaKAra*Pbar)*Pbar/(RGasConstant*tempK)
     KAra       = KAra*exp(lnKArafac)
 
-        return 
+        return
 !-----------------------------------------------------------
         END SUBROUTINE CaCO3solub
 !-----------------------------------------------------------
-             
-!=========================================================================== 
+
+!===========================================================================
 !---------------------------------------------------------------------------
 !
 !               C A R F I N       !  for pH-TOTAL !  EYA 2010-08-17
@@ -402,24 +411,24 @@
 !---------------------------------------------------------------------------
 ! input: temp, salt, Pbar,Kc0,Kc1,Kc2,tic,H_,
 ! output: co2,pco2,hco3,co3,Ca,KsatCal,KsatAra
- 
+
 implicit none
         real(rk),intent(in)  :: temp,salt,Pbar,Kc0,Kc1,Kc2,tic,H_
         real(rk),intent(out) :: co2,pco2,hco3,co3
         real(rk),intent(out) :: Ca,KsatCal,KsatAra
         real(rk) K_Cal,K_Ara
-     
+
            hco3 = tic/(1.+H_/Kc1+Kc2/H_)       !these are in [uM]
            co3  = tic/(1.+H_/Kc2+H_*H_/Kc1/Kc2)
-           co2  = tic/(1.+Kc1/H_+Kc1*Kc2/H_/H_)  
-           pco2 = co2/Kc0               !  [uatm]  
+           co2  = tic/(1.+Kc1/H_+Kc1*Kc2/H_/H_)
+           pco2 = co2/Kc0               !  [uatm]
            call CaCO3solub(temp, salt, Pbar, Ca, K_Cal, K_Ara)
-           KsatCal=(co3/1000000.)*Ca/K_Cal  !000.  !Saturation (Omega) for calcite 
-           KsatAra=(co3/1000000.)*Ca/K_Ara  !000.  !Saturation (Omega) for aragonite 
-       return 
+           KsatCal=(co3/1000000.)*Ca/K_Cal  !000.  !Saturation (Omega) for calcite
+           KsatAra=(co3/1000000.)*Ca/K_Ara  !000.  !Saturation (Omega) for aragonite
+       return
 !-----------------------------------------------------------
  END SUBROUTINE CARFIN
-!=========================================================================== 
+!===========================================================================
 !---------------------------------------------------------------------------
 !
 !               pH_solver       !  Shamil Yakubov 20.05.2016
@@ -432,10 +441,10 @@ implicit none
             kso4, kflu, kw, ph_scale) result(ans)
     !adopted from:
     !Munhoven, G.: Mathematics of the total alkalinity-pH equation
-    ! – pathway to robust and universal solution algorithms:
-    ! the SolveSAPHE package v1.0.1, Geosci. Model Dev., 6, 1367–
+    ! pathway to robust and universal solution algorithms:
+    ! the SolveSAPHE package v1.0.1, Geosci. Model Dev., 6, 1367
     ! 1388, doi:10.5194/gmd-6-1367-2013, 2013.
-    
+
         real(rk), intent(in):: alktot !total alkalinity
         real(rk), intent(in):: dictot !total dissolved
                                       !inorganic carbon
@@ -557,14 +566,14 @@ implicit none
             end if
 
             absmin = min(abs(r), absmin)
-            exitnow = (abs(h_fac) < 1.e-8_rk) 
+            exitnow = (abs(h_fac) < 1.e-8_rk)
             if (exitnow) exit
         end do
 
         ans = h
 
     end function ph_solver
-!=========================================================================== 
+!===========================================================================
 !---------------------------------------------------------------------------
 !
 !               initial_h_do       !   Shamil Yakubov 20.05.2016
@@ -574,8 +583,8 @@ implicit none
             kc1, kc2, kb, initial_h)
     !adopted from:
     !Munhoven, G.: Mathematics of the total alkalinity-pH equation
-    ! – pathway to robust and universal solution algorithms:
-    ! the SolveSAPHE package v1.0.1, Geosci. Model Dev., 6, 1367–
+    ! pathway to robust and universal solution algorithms:
+    ! the SolveSAPHE package v1.0.1, Geosci. Model Dev., 6, 1367
     ! 1388, doi:10.5194/gmd-6-1367-2013, 2013.
     !calculates initial value for [H+]
 
@@ -637,12 +646,12 @@ implicit none
             kso4, kflu, kw, ph_scale, r, dr)
     !adopted from:
     !Munhoven, G.: Mathematics of the total alkalinity-pH equation
-    ! – pathway to robust and universal solution algorithms:
-    ! the SolveSAPHE package v1.0.1, Geosci. Model Dev., 6, 1367–
+    ! pathway to robust and universal solution algorithms:
+    ! the SolveSAPHE package v1.0.1, Geosci. Model Dev., 6, 1367
     ! 1388, doi:10.5194/gmd-6-1367-2013, 2013.
     !return value of main equation for given [H+]
     !and value of its derivative
-    
+
         real(rk), intent(in):: h ![H+]
         real(rk), intent(in):: alktot !total alkalinity
         real(rk), intent(in):: dictot !total dissolved
@@ -658,7 +667,7 @@ implicit none
         real(rk), intent(in):: kc1 !1st of carbonic acid
         real(rk), intent(in):: kc2 !2nd of carbonic acid
         real(rk), intent(in):: kb  !boric acid
-        real(rk), intent(in):: kp1, kp2, kp3 !phosphoric acid 
+        real(rk), intent(in):: kp1, kp2, kp3 !phosphoric acid
         real(rk), intent(in):: ksi !silicic acid
         real(rk), intent(in):: kn  !Ammonia
         real(rk), intent(in):: khs !Hydrogen sulfide
@@ -669,7 +678,7 @@ implicit none
         real(rk), intent(in):: ph_scale
         !output variables
         real(rk), intent(out):: r, dr
-    
+
         real(rk):: dic1, dic2, dic, dddic, ddic
         real(rk):: bor1, bor2, bor, ddbor, dbor
         real(rk):: po4_1, po4_2, po4, ddpo4, dpo4
@@ -679,7 +688,7 @@ implicit none
         real(rk):: so4_1, so4_2, so4, ddso4,dso4
         real(rk):: flu_1, flu_2, flu, ddflu, dflu
         real(rk):: wat
-    
+
         !H2CO3 - HCO3 - CO3
         dic1 = 2._rk*kc2 + h*       kc1
         dic2 =       kc2 + h*(      kc1 + h)
@@ -714,11 +723,11 @@ implicit none
         flu   = flutot * (flu_1/flu_2 - 1._rk)
         !H2O - OH
         wat   = kw/h - h/ph_scale
-    
+
         r = dic + bor + po4 + sil &
           + nh4 + h2s + so4 + flu &
           + wat - alktot
-    
+
         !H2CO3 - HCO3 - CO3
         dddic = kc1*kc2 + h*(4._rk*kc2+h*kc1)
         ddic  = -dictot*(dddic/dic2**2)
@@ -746,11 +755,11 @@ implicit none
         !HF - F
         ddflu = kflu
         dflu  = -flutot * (ddflu/flu_2**2)
-    
+
         dr = ddic + dbor + dpo4 + dsil &
            + dnh4 + dh2s + dso4 + dflu &
            - kw/h**2 - 1._rk/ph_scale
-    
+
     end subroutine r_calc
 
     subroutine r_calc_old(H_, Alk, Ct, Bt, Pt, &
@@ -759,7 +768,7 @@ implicit none
             kw, r, dr)
     !return value of main equation for given [H+]
     !and value of its derivative
-    
+
         real(rk), intent(in):: H_ ![H+]
         real(rk), intent(in):: Alk !total alkalinity
         real(rk), intent(in):: Ct !total dissolved
@@ -773,16 +782,16 @@ implicit none
         real(rk), intent(in):: kc1 !1st of carbonic acid
         real(rk), intent(in):: kc2 !2nd of carbonic acid
         real(rk), intent(in):: kb  !boric acid
-        real(rk), intent(in):: kp1, kp2, kp3 !phosphoric acid 
+        real(rk), intent(in):: kp1, kp2, kp3 !phosphoric acid
         real(rk), intent(in):: ksi !silicic acid
         real(rk), intent(in):: Knh4  !Ammonia
         real(rk), intent(in):: Kh2s !Hydrogen sulfide
         real(rk), intent(in):: kw  !water
         !output variables
         real(rk), intent(out):: r, dr
-    
+
         real(rk):: T1, T2, T12, K12p, K123p, HKR123p
-        
+
         T1  = H_/Kc1
         T2  = H_/Kc2
         T12 = (1e0+T2+T1*T2)
@@ -790,39 +799,39 @@ implicit none
         K12p  = Kp1*Kp2
         K123p = Kp1*Kp2*Kp3
         HKR123p = 1e0/(((H_+Kp1)*H_+K12p)*H_+K123p)
-      
+
         !"Alk"=[HCO3-]+2[CO3--]
         !i.e.=([H]/Kc2+2.)*Ct/(1+[H]/Kc2+[H]*[H]/(Kc1*Kc2)) carbonate alkalinity
         r = Ct*(2.+H_/Kc2)/(1.+H_/Kc2+H_/Kc1*H_/Kc2) &
-        ![B(OH)4-] i.e.= Btot*Kb/(Kb+[H+]) boric alkalinity     
+        ![B(OH)4-] i.e.= Btot*Kb/(Kb+[H+]) boric alkalinity
         + Bt*Kb/(Kb+H_) &
         ![OH-] i.e.= Kw/[H+]
         + Kw/H_ &
         ![H+]
         - H_ &
-        !Alk_tot 
+        !Alk_tot
         - Alk &
-        ![HPO4--]+2.*[PO4---]-[H3PO4-] i.e. phosphoric alkalinity          
+        ![HPO4--]+2.*[PO4---]-[H3PO4-] i.e. phosphoric alkalinity
         + Pt*((Kp1*Kp2-H_*H_)*H_+2e0*Kp1*Kp2*Kp3) &
         / (((H_+Kp1)*H_+Kp1*Kp2)*H_+Kp1*Kp2*Kp3) &
         ![H3SiO4-] i.e.=Sit*KSi/(KSi+[H+])! silicate alkalinity
-        + Sit*KSi/(KSi+H_) &      
-        ![HS-] i.e.=[H2St]*Kh2s1/(Kh2s1+[H+]) hydrogen sulfide alkalinity          
-        + H2St*Kh2s/(Kh2s+H_) &        
+        + Sit*KSi/(KSi+H_) &
+        ![HS-] i.e.=[H2St]*Kh2s1/(Kh2s1+[H+]) hydrogen sulfide alkalinity
+        + H2St*Kh2s/(Kh2s+H_) &
         ![NH3] i.e.=NHt*Knh4/(Knh4+[H+]) ammonia alkalinity
         + NHt*Knh4/(Knh4+H_)
-    
+
         !d(AH)/d[H+]
         dr = Ct*(T2-4e0*T1-T12)/(Kc2*T12*T12) &
         - Bt*Kb/(Kb+H_)**2. &
         - Kw/H_**2.-1. &
         - Pt*((((Kp1*H_+4e0*K12p)*H_ &
         + Kp1*K12p+9e0*K123p)*H_ &
-        + 4e0*Kp1*K123p)*H_+K12p*K123p)*HKR123p*HKR123p &    
+        + 4e0*Kp1*K123p)*H_+K12p*K123p)*HKR123p*HKR123p &
         - Sit*KSi/(KSi+H_)**2. &
         - H2St*Kh2s/(Kh2s+H_)**2. &
-        - NHt*Knh4/(Knh4+H_)**2.  
-      
+        - NHt*Knh4/(Knh4+H_)**2.
+
     end subroutine r_calc_old
 
 end module
