@@ -173,27 +173,27 @@ foreach(institute ${ACTIVE_INSTITUTES})
   list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
 endforeach(institute) 
 
+# Add YAML parsing library
+add_subdirectory(yaml)
+set_property(TARGET yaml test_yaml PROPERTY FOLDER fabm/yaml)
+
 add_library(fabm
             $<TARGET_OBJECTS:fabm_base>
+            $<TARGET_OBJECTS:yaml>
             ${MODEL_OBJECTS}
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
             fabm_coupling.F90
             fabm.F90
-            yaml/yaml_types.F90
-            yaml/yaml.F90
             fabm_config.F90
            )
-
-# Group config source files in a folder in IDEs that support this.
-source_group(yaml REGULAR_EXPRESSION yaml/)
 
 if(FABM_EMBED_VERSION)
   add_dependencies(fabm fabm_version)
 endif()
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
-set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
+set_property(TARGET fabm_base fabm yaml PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
 foreach(institute ${ACTIVE_INSTITUTES})
@@ -229,12 +229,6 @@ endif()
 # Begin testing section
 
 add_custom_target(test_all COMMENT "building tests - nothing yet :-)")
-
-add_executable(test_yaml EXCLUDE_FROM_ALL
-               yaml/test_yaml.F90
-               yaml/yaml_types.F90
-               yaml/yaml.F90
-              )
 
 # End of testing section
 
