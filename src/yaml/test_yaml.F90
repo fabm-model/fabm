@@ -1,7 +1,7 @@
 program test_yaml
 
-   use fabm_config_types
-   use fabm_yaml
+   use yaml_types
+   use yaml
    use, intrinsic :: iso_fortran_env
 
    character(error_length) :: error

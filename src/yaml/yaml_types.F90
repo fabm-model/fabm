@@ -1,4 +1,4 @@
-module fabm_config_types
+module yaml_types
 
    implicit none
 
@@ -539,4 +539,4 @@ contains
       end do
    end subroutine list_set_path
 
-end module fabm_config_types
+end module yaml_types

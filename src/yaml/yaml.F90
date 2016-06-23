@@ -1,4 +1,4 @@
-module fabm_yaml
+module yaml
 
 ! This module parses a subset of YAML: http://yaml.org/
 ! Only block mappings are supported; flow mappings are not, nor are
@@ -27,7 +27,7 @@ module fabm_yaml
 !
 ! Original author(s): Jorn Bruggeman
 
-   use fabm_config_types
+   use yaml_types
 
    implicit none
 
@@ -328,4 +328,4 @@ contains
       file%has_error = .true.
    end subroutine
 
-end module fabm_yaml
+end module yaml
