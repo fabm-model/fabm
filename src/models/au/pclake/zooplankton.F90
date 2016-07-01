@@ -70,6 +70,8 @@
       real(rk)   :: cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax
 !     Fish manipulation parameters, switch for turned on/off fish manipulation
       logical    :: Manipulate_FiAd, Manipulate_FiJv, Manipulate_Pisc
+!     minimum state variable values
+      real(rk)   :: cDZooMin
    contains
 
 !     Model procedures
@@ -84,8 +86,7 @@
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero = 0.000000000000000000000000000000001_rk
    real(rk)           :: Pi=3.14159265358979_rk
-!   Lowest state variable value for zooplakton module
-   real(rk),parameter :: ZooZero=0.00001_rk
+
 !EOP
 !-----------------------------------------------------------------------
 
@@ -142,14 +143,18 @@
    call self%get_parameter(self%cPDBlueMax,    'cPDBlueMax',    'mgP/mgDW',  'max. P/day ratio blue-greens',                                                   default=0.025_rk)
    call self%get_parameter(self%cPDDiatMax,    'cPDDiatMax',    'mgP/mgDW',  'max. P/day ratio Diatoms',                                                       default=0.005_rk)
    call self%get_parameter(self%cPDGrenMax,    'cPDGrenMax',    'mgP/mgDW',  'max. P/day ratio greens',                                                        default=0.015_rk)
+!  the user defined minumun value for state variables
+   call self%get_parameter(self%cDZooMin,      'cDZooMin',      'gDW/m3',    'minimun zooplankton biomass in system',                                          default=0.00001_rk)
+   
+   
 !  Register local state variable
 !  zooplankton
    call self%register_state_variable(self%id_sDZoo,'sDZoo','g m-3','zooplankton biomass',     &
-                                    initial_value=0.05_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value=0.05_rk,minimum=self%cDZooMin,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sPZoo,'sPZoo','g m-3','zooplankton phosphorus content',     &
-                                    initial_value=0.0005_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value=0.0005_rk,minimum=self%cDZooMin * self%cPDZooRef,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sNZoo,'sNZoo','g m-3','zooplankton nitrogen content',     &
-                                    initial_value=0.0035_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value=0.0035_rk,minimum=self%cDZooMin * self%cNDZooRef,no_river_dilution=.TRUE.)
 !  Register contribution of state to global aggregate variables
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNZoo)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPZoo)

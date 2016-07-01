@@ -88,6 +88,8 @@
      real(rk)   :: cExtSpVeg  !,host
 !    plant height
      real(rk)   :: cHeightVeg
+!    minimun state variable vaules
+     real(rk)   :: cDVegMin, cNVegMin,cPVegMin
    contains
 
 !     Model procedure
@@ -174,15 +176,14 @@
    call self%get_parameter(self%cHeightVeg,    'cHeightVeg',     'm',                   'vegetation height',                                                                                       default=1.0_rk)
    call self%get_parameter(self%cExtSpVeg,     'cExtSpVeg',      'm2/gDW',              'specific extinction',                                                                                     default=0.01_rk)
 !  the user defined minumun value for state variables
-
-
+   call self%get_parameter(self%cDVegMin,      'cDVegMin',        'gDW/m2',             'minimun dry-weight macrophytes in system',                                                                default=0.00001_rk)
 !  Register local state variable
    call self%register_state_variable(self%id_sDVeg,'sDVeg','g m-2','vegetation_dry_weight',    &
-                                    initial_value=1.0_rk,minimum=NearZero)
+                                    initial_value=1.0_rk,minimum=self%cDVegMin)
    call self%register_state_variable(self%id_sNVeg,'sNVeg','g m-2','vegetation_Nitrogen',     &
-                                    initial_value=0.02_rk,minimum=NearZero)
+                                    initial_value=0.02_rk,minimum=self%cDVegMin * self%cNDVegMin)
    call self%register_state_variable(self%id_sPVeg,'sPVeg','g m-2','vegetation_phosphorus',     &
-                                    initial_value=0.002_rk,minimum=NearZero)
+                                    initial_value=0.002_rk,minimum=self%cDVegMin * self%cPDVegMin)
 !  register diagnostic variables
    call self%register_diagnostic_variable(self%id_aDSubVeg,       'aDSubVeg',       'g m-2',      'aDSubVeg',                         output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_aCovVeg,        'aCovVeg',        '%',          'aCovVeg',                          output=output_instantaneous)

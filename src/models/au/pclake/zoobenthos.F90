@@ -71,7 +71,8 @@
 !     nutrient ratios parameter
       real(rk)   :: cNDDiatMin,cPDDiatMin,cNDGrenMin,cPDGrenMin,cNDBlueMin,cPDBlueMin
       real(rk)   :: cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax
-
+!     minimum state variable values
+      real(rk)   :: cDBentMin
    contains
 !     Module procedures
       procedure :: initialize
@@ -80,8 +81,7 @@
 !  private data members(API0.92)
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero=0.000000000000000000000000000000001_rk
-!   Lowest state variable value for zoobenthos module
-   real(rk),parameter :: BenZero=0.0001_rk
+
 !EOP
 !-----------------------------------------------------------------------
    contains
@@ -143,14 +143,16 @@
    call self%get_parameter(self%cPDBlueMax,   'cPDBlueMax',   'mgP/mgDW', 'max. P/day ratio blue-greens',                               default=0.025_rk)
    call self%get_parameter(self%cPDDiatMax,   'cPDDiatMax',   'mgP/mgDW', 'max. P/day ratio Diatoms',                                   default=0.05_rk)
    call self%get_parameter(self%cPDGrenMax,   'cPDGrenMax',   'mgP/mgDW', 'max. P/day ratio greens',                                    default=0.015_rk)
+!  the user defined minumun value for state variables
+   call self%get_parameter(self%cDBentMin,    'cDBentMin',    'gDW/m2',   'minimun zoobenthos biomass in system',                    default=0.00001_rk)
 
 !  Register local state variable
    call self%register_state_variable(self%id_sDBent,'sDBent','g m-2','zoobenthos_DW',     &
-                                    initial_value=1.0_rk,minimum=NearZero)
+                                    initial_value=1.0_rk,minimum=self%cDBentMin)
    call self%register_state_variable(self%id_sPBent,'sPBent','g m-2','zoobenthos_P',     &
-                                    initial_value=0.1_rk,minimum=NearZero)
+                                    initial_value=0.1_rk,minimum=self%cDBentMin * self%cPDBentRef)
    call self%register_state_variable(self%id_sNBent,'sNBent','g m-2','zoobenthos_N',     &
-                                    initial_value=0.01_rk,minimum=NearZero)
+                                    initial_value=0.01_rk,minimum=self%cDBentMin * self%cNDBentRef)
 !  Register diagnostic variables for dependencies in other modules
    call self%register_diagnostic_variable(self%id_tDBenDetS,     'tDBenDetS',    'g m-2 s-1', 'tDBenDetS',                output=output_none)
    call self%register_diagnostic_variable(self%id_tDEnvFiAd,     'tDEnvFiAd',    'g m-2',     'tDEnvFiAd',                output=output_none)

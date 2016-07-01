@@ -163,7 +163,6 @@ instances:
       cVPUptMaxDiat: 0.01  # mgP/mgDW/day ; maximum P uptake capacity of Diatoms
       cVPUptMaxGren: 0.01  # mgP/mgDW/day ; maximum P uptake capacity of greens
       fDissMortPhyt: 0.2   # [-], soluble_nutrient_fraction_of_died_Algae6
-
       hO2BOD: 1.0          # mgO2/l ; half-sat. oxygen conc. for BOD
       hSiAssBlue: 0.0      # mgSi/l ; half-sat. Si conc. for growth of blue-greens: 0
       hSiAssDiat: 0.09     # mgSi/l ; half-sat. Si for diatoms
@@ -174,8 +173,11 @@ instances:
       kMortBlueW: 0.01     # day-1 ; mortality constant of blue-greens in water
       kMortDiatW: 0.01     # day-1 ; mortality constant of Diatoms in water
       kMortGrenW: 0.01     # day-1 ; mortality constant of Diatoms in water
-      
-# sinking
+#     minimun value for state variables
+      cDBlueMinW: 0.0001
+      cDGrenMinW: 0.0001
+      cDDiatMinW: 0.0001
+# sinkcPDiatWing
       cVSetDiat: -1.0     # m/day ; sedimentation velocity Diatoms
       cVSetGren: -0.2     # m/day ; sedimentation velocity of greens
       cVSetBlue: -0.06    # m/day ; sedimentation velocity Blue-greens
@@ -230,6 +232,10 @@ instances:
       kMortBlueS: 0.2      # day-1 ; mortality constant Bluegreens
       kMortDiatS: 0.05     # day-1 ; mortality constant of sed. Diatoms
       kMortGrenS: 0.05     # day-1 ; mortality constant greens
+#     minimun value for state variables
+      cDBlueMinS: 0.00001
+      cDGrenMinS: 0.00001
+      cDDiatMinS: 0.00001
     coupling:
       sPO4_pool_sediment: abiotic_sediment/sPO4S
       sNH4_pool_sediment: abiotic_sediment/sNH4S
@@ -289,6 +295,8 @@ instances:
       kMortVegSum: 0.005     # day-1 ; vegetation mortality rate in Spring and Summer (low)
       UseEmpUpt: 0           # false_=_do_not_use_this_empirical_relation
       cHeightVeg: 1.0
+#     minimun values for state variables
+      cDVegMin: 0.0001
     coupling:
       Ammonium_pool_water: abiotic_water/sNH4W
       nitrate_pool_water: abiotic_water/sNO3W
@@ -338,6 +346,8 @@ instances:
       cPDBlueMax: 0.025                                         # max. P/day ratio blue-greens (mgP/mgDW), default = 0.025
       cPDDiatMax: 0.005                                         # max. P/day ratio Diatoms (mgP/mgDW), default = 0.005
       cPDGrenMax: 0.015                                         # max. P/day ratio greens (mgP/mgDW), default = 0.01
+#     minimun value for state variables
+      cDZooMin: 0.00001
     initialization:
       sDZoo: 0.199642                                             # zooplankton DW in water (g m-3)
       sPZoo: 0.00989778                                             # zooplankton P in water (g m-3)
@@ -411,6 +421,10 @@ instances:
       Manipulate_FiAd : .false.                                 # Turned on/off external fish manipulation rate, + values,remove the fish;- values, add fish
       Manipulate_FiJv : .false.                                 # Turned on/off external fish manipulation rate, + values,remove the fish;- values, add fish
       Manipulate_Pisc : .false.                                 # Turned on/off external fish manipulation rate, + values,remove the fish;- values, add fish
+#     minimun value for state variables
+      cDFiJvMin: 0.00001
+      cDFiAdMin: 0.00001
+      cDPiscMin: 0.00001
     initialization:
       sDFiJv: 0.1767455                                              # juvenile fish DW in water (g m-3)
       sPFiJv: 0.00370361                                             # juvenile fish P in water (g m-3)
@@ -478,6 +492,8 @@ instances:
       cPDDiatMin: 0.005   # mgP/mgDW ; minimum P/day ratio Diatoms
       cPDGrenMax: 0.015    # mgP/mgDW ; max. P/day ratio greens
       cPDGrenMin: 0.0015   # mgP/mgDW ; minimum P/day ratio greens
+#     minimun value for state variables
+      cDBentMin: 0.00001
     coupling:
       diatom_as_food_DW: phytoplankton_sediment/sDDiatS
       green_as_food_DW: phytoplankton_sediment/sDGrenS
