@@ -3,10 +3,10 @@
 !BOP
 !
 ! !INTERFACE:
-   module au_pclake_auxilary
+   module au_pclake_auxiliary
 !
 ! !DESCRIPTION:
-!  au_pclake_auxilary is created for the purpose of computing resuspension and sedimentation,
+!  au_pclake_auxiliary is created for the purpose of computing resuspension and sedimentation,
 !  sediment burial processes.
 !  No local state variable is registed here.
 !  resuspension and sedimentation involve: sDIMW<==>sDIMS,sD/N/PDetW<==>sD/N/PDetS,sPAIMW<==>sPAIMS
@@ -26,7 +26,7 @@
       private
 !
 ! !PUBLIC DERIVED TYPES:
-   type, extends(type_base_model),public :: type_au_pclake_auxilary
+   type, extends(type_base_model),public :: type_au_pclake_auxiliary
 !     local state variable identifiers
 
 !     diagnostic variables for local output(should be discussed and added later???)
@@ -115,7 +115,7 @@
       procedure ::  do_bottom
       PROCEDURE ::  do_surface
  ! FH 18082015     procedure :: do
-   end type type_au_pclake_auxilary
+   end type type_au_pclake_auxiliary
 !  private data members(API0.92)
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero = 0.000000000000000000000000000000001_rk
@@ -138,7 +138,7 @@
 ! !   DESCRIPTION:
 !
 ! !INPUT PARAMETERS:
-   class (type_au_pclake_auxilary), intent(inout), target :: self
+   class (type_au_pclake_auxiliary), intent(inout), target :: self
    integer,                     intent(in)            :: configunit
 
 !  Store parameter values in our own derived type
@@ -272,45 +272,45 @@
    call self%register_diagnostic_variable(self%id_tDResusDead, 'tDResusDead', '[-]',      'tDResusDead',            output=output_time_step_integrated)
    call self%register_diagnostic_variable(self%id_aFunTauSet,  'aFunTauSet',  '[-]',      'basic settling rate',    output=output_time_step_integrated)
 !  register diagnostic variables for resuspension fluxes
-   call self%register_diagnostic_variable(self%id_tAuxDIMW,    'tAuxDIMW',    'g m-2 s-1','auxilary_DIMW_change',   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxDetW,   'tDAuxDetW',   'g m-2 s-1','auxilary_DDetW_change',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxDetW,   'tNAuxDetW',   'g m-2 s-1','auxilary_NDetW_change',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxDetW,   'tPAuxDetW',   'g m-2 s-1','auxilary_PDetW_change',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tSiAuxDetW,  'tSiAuxDetW',  'g m-2 s-1','auxilary_SiDetW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tAuxPAIMW,   'tAuxPAIMW',   'g m-2 s-1','auxilary_PAIMW_change',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxNH4W,   'tNAuxNH4W',   'g m-2 s-1','auxilary_NH4W_change',   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxNO3W,   'tNAuxNO3W',   'g m-2 s-1','auxilary_NO3W_change',   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxPO4W,   'tPAuxPO4W',   'g m-2 s-1','auxilary_PO4W_change',   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAxuDiatW,  'tDAxuDiatW',  'g m-2 s-1','auxilary_DDiatW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxDiatW,  'tNAuxDiatW',  'g m-2 s-1','auxilary_NDiatW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxDiatW,  'tPAuxDiatW',  'g m-2 s-1','auxilary_PDiatW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxGrenW,  'tDAuxGrenW',  'g m-2 s-1','auxilary_DGrenW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxGrenW,  'tNAuxGrenW',  'g m-2 s-1','auxilary_NGrenW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxGrenW,  'tPAuxGrenW',  'g m-2 s-1','auxilary_PGrenW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxBlueW,  'tDAuxBlueW',  'g m-2 s-1','auxilary_DBlueW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxBlueW,  'tNAuxBlueW',  'g m-2 s-1','auxilary_NBlueW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxBlueW,  'tPAuxBlueW',  'g m-2 s-1','auxilary_PBlueW_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tAuxDIMS,    'tAuxDIMS',    'g m-2 s-1','auxilary_DIMS_change',   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxDetS,   'tDAuxDetS',   'g m-2 s-1','auxilary_DDetS_change',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxDetS,   'tNAuxDetS',   'g m-2 s-1','auxilary_NDetS_change',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxDetS,   'tPAuxDetS',   'g m-2 s-1','auxilary_PDetS_change',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tSiAuxDetS,  'tSiAuxDetS',  'g m-2 s-1','auxilary_SiDetS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxPO4S,   'tPAuxPO4S',   'g m-2 s-1','auxilary_PO4S_change',   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tAuxPAIMS,   'tAuxPAIMS',   'g m-2 s-1','auxilary_PAIMS_change',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxNH4S,   'tNAuxNH4S',   'g m-2 s-1','auxilary_NH4S_change',   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxNO3S,   'tNAuxNO3S',   'g m-2 s-1','auxilary_NO3S_change',   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxHumS,   'tDAuxHumS',   'g m-2 s-1','auxilary_DHumS_change',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxHumS,   'tPAuxHumS',   'g m-2 s-1','auxilary_PHumS_change',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxHumS,   'tNAuxHumS',   'g m-2 s-1','auxilary_NHumS_change',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAxuDiatS,  'tDAxuDiatS',  'g m-2 s-1','auxilary_DDiatS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxDiatS,  'tNAuxDiatS',  'g m-2 s-1','auxilary_NDiatS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxDiatS,  'tPAuxDiatS',  'g m-2 s-1','auxilary_PDiatS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxGrenS,  'tDAuxGrenS',  'g m-2 s-1','auxilary_DGrenS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxGrenS,  'tNAuxGrenS',  'g m-2 s-1','auxilary_NGrenS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxGrenS,  'tPAuxGrenS',  'g m-2 s-1','auxilary_PGrenS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tDAuxBlueS,  'tDAuxBlueS',  'g m-2 s-1','auxilary_DBlueS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tNAuxBlueS,  'tNAuxBlueS',  'g m-2 s-1','auxilary_NBlueS_change', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tPAuxBlueS,  'tPAuxBlueS',  'g m-2 s-1','auxilary_PBlueS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tAuxDIMW,    'tAuxDIMW',    'g m-2 s-1','auxiliary_DIMW_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxDetW,   'tDAuxDetW',   'g m-2 s-1','auxiliary_DDetW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxDetW,   'tNAuxDetW',   'g m-2 s-1','auxiliary_NDetW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxDetW,   'tPAuxDetW',   'g m-2 s-1','auxiliary_PDetW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tSiAuxDetW,  'tSiAuxDetW',  'g m-2 s-1','auxiliary_SiDetW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tAuxPAIMW,   'tAuxPAIMW',   'g m-2 s-1','auxiliary_PAIMW_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxNH4W,   'tNAuxNH4W',   'g m-2 s-1','auxiliary_NH4W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxNO3W,   'tNAuxNO3W',   'g m-2 s-1','auxiliary_NO3W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxPO4W,   'tPAuxPO4W',   'g m-2 s-1','auxiliary_PO4W_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAxuDiatW,  'tDAxuDiatW',  'g m-2 s-1','auxiliary_DDiatW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxDiatW,  'tNAuxDiatW',  'g m-2 s-1','auxiliary_NDiatW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxDiatW,  'tPAuxDiatW',  'g m-2 s-1','auxiliary_PDiatW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxGrenW,  'tDAuxGrenW',  'g m-2 s-1','auxiliary_DGrenW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxGrenW,  'tNAuxGrenW',  'g m-2 s-1','auxiliary_NGrenW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxGrenW,  'tPAuxGrenW',  'g m-2 s-1','auxiliary_PGrenW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxBlueW,  'tDAuxBlueW',  'g m-2 s-1','auxiliary_DBlueW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxBlueW,  'tNAuxBlueW',  'g m-2 s-1','auxiliary_NBlueW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxBlueW,  'tPAuxBlueW',  'g m-2 s-1','auxiliary_PBlueW_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tAuxDIMS,    'tAuxDIMS',    'g m-2 s-1','auxiliary_DIMS_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxDetS,   'tDAuxDetS',   'g m-2 s-1','auxiliary_DDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxDetS,   'tNAuxDetS',   'g m-2 s-1','auxiliary_NDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxDetS,   'tPAuxDetS',   'g m-2 s-1','auxiliary_PDetS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tSiAuxDetS,  'tSiAuxDetS',  'g m-2 s-1','auxiliary_SiDetS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxPO4S,   'tPAuxPO4S',   'g m-2 s-1','auxiliary_PO4S_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tAuxPAIMS,   'tAuxPAIMS',   'g m-2 s-1','auxiliary_PAIMS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxNH4S,   'tNAuxNH4S',   'g m-2 s-1','auxiliary_NH4S_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxNO3S,   'tNAuxNO3S',   'g m-2 s-1','auxiliary_NO3S_change',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxHumS,   'tDAuxHumS',   'g m-2 s-1','auxiliary_DHumS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxHumS,   'tPAuxHumS',   'g m-2 s-1','auxiliary_PHumS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxHumS,   'tNAuxHumS',   'g m-2 s-1','auxiliary_NHumS_change',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAxuDiatS,  'tDAxuDiatS',  'g m-2 s-1','auxiliary_DDiatS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxDiatS,  'tNAuxDiatS',  'g m-2 s-1','auxiliary_NDiatS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxDiatS,  'tPAuxDiatS',  'g m-2 s-1','auxiliary_PDiatS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxGrenS,  'tDAuxGrenS',  'g m-2 s-1','auxiliary_DGrenS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxGrenS,  'tNAuxGrenS',  'g m-2 s-1','auxiliary_NGrenS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxGrenS,  'tPAuxGrenS',  'g m-2 s-1','auxiliary_PGrenS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tDAuxBlueS,  'tDAuxBlueS',  'g m-2 s-1','auxiliary_DBlueS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tNAuxBlueS,  'tNAuxBlueS',  'g m-2 s-1','auxiliary_NBlueS_change', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_tPAuxBlueS,  'tPAuxBlueS',  'g m-2 s-1','auxiliary_PBlueS_change', output=output_instantaneous)
 
 
 
@@ -328,7 +328,7 @@
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !INPUT PARAMETERS:
-   class (type_au_pclake_auxilary), intent(in)    :: self
+   class (type_au_pclake_auxiliary), intent(in)    :: self
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 ! !LOCAL VARIABLES:
 ! !carriers for state dependencies in different modules
@@ -876,7 +876,7 @@
 !!                    including detrital nitrogen, ammonium, nitrate, phosphate,
 ! !                   detrital phosphorus
  subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
-   class (type_au_pclake_auxilary),intent(in) :: self
+   class (type_au_pclake_auxiliary),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
 
 !  local variables
@@ -902,7 +902,7 @@
 !EOC
 
 !------------------------------------------------------------------------------
-   end module au_pclake_auxilary
+   end module au_pclake_auxiliary
 !------------------------------------------------------------------------------
 ! Copyright by the FABM_PCLake-team under the GNU Public License - www.gnu.org
 !------------------------------------------------------------------------------
