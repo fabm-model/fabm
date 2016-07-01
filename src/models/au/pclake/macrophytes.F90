@@ -106,8 +106,6 @@
    real(rk),parameter ::O2PerNO3 = 1.5_rk
 !  ratio of mol.weights,32/14 [gO2/gN],
    real(rk),parameter :: molO2molN = 2.2857_rk
-!   lowest state variable value
-    real(rk),parameter :: VegZero=0.0001_rk
 !EOP
 !-----------------------------------------------------------------------
 
@@ -175,6 +173,8 @@
    call self%get_parameter(self%hO2BOD,        'hO2BOD',         'mgO2/l',              'half-sat. oxygen conc. for BOD',                                                                          default=1.0_rk)
    call self%get_parameter(self%cHeightVeg,    'cHeightVeg',     'm',                   'vegetation height',                                                                                       default=1.0_rk)
    call self%get_parameter(self%cExtSpVeg,     'cExtSpVeg',      'm2/gDW',              'specific extinction',                                                                                     default=0.01_rk)
+!  the user defined minumun value for state variables
+
 
 !  Register local state variable
    call self%register_state_variable(self%id_sDVeg,'sDVeg','g m-2','vegetation_dry_weight',    &
@@ -470,8 +470,13 @@
    par_bott= meanpar
    aLPAR2Veg = par_bott*exp(- extc *dz/2.0_rk)
    aLPAR1Veg = aLPAR2Veg / exp(- extc * self%cHeightVeg)
+!  feh: July 1st, 2016
+!  replace sDepthW with plant height, currently the best solution
+!   aLLimShootVeg = self%fEmergVeg + self%fFloatVeg * (1.0 - afCovEmergVeg) + bfSubVeg * (1.0 &
+!   &- afCovSurfVeg) * 1.0 / (extc * sDepthW) * log( (1.0 + aLPAR1Veg / uhLVeg) /&
+!   & (1.0 + aLPAR2Veg / uhLVeg))
    aLLimShootVeg = self%fEmergVeg + self%fFloatVeg * (1.0 - afCovEmergVeg) + bfSubVeg * (1.0 &
-   &- afCovSurfVeg) * 1.0 / (extc * sDepthW) * log( (1.0 + aLPAR1Veg / uhLVeg) /&
+   &- afCovSurfVeg) * 1.0 / (extc * self%cHeightVeg) * log( (1.0 + aLPAR1Veg / uhLVeg) /&
    & (1.0 + aLPAR2Veg / uhLVeg))
 !=======================================================================
    ufDay = 0.5_rk - 0.2_rk * cos(2.0_rk*Pi*Day / 365.0_rk)
