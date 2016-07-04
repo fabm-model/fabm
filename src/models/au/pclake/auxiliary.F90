@@ -193,7 +193,7 @@
    call self%get_parameter(self%eta,          'eta',          '[-]',               'shear stress correction factor',                         default=1.0_rk)
    call self%get_parameter(self%cVSetMain,    'cVSetMain',    'm d-1',             'depth averaged settling velocity, between 0.5-1.5m/d)',  default=0.5_rk,    scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%resusp_meth,  'resusp_meth',  '[-]',               '1=original PCLake resuspension function',                default=2)
-   call self%get_parameter(self%tDDepoIM,  'tDDepoIM',  'g m-2 d-1',               'inorganic matter deposition',                            default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%tDDepoIM,   'tDDepoIM',  'g m-2 d-1',               'inorganic matter deposition',                            default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%tDDepoDet,  'tDDepoDet',  'g m-2 d-1',             'organic matter deposition,dry weight',                   default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%tNDepoDet,  'tNDepoDet',  'g m-2 d-1',             'organic matter deposition,nitrogen',                     default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%tPDepoDet,  'tPDepoDet',  'g m-2 d-1',             'organic matter deposition,phosphorus',                   default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
@@ -202,10 +202,10 @@
    call self%get_parameter(self%tNDepoNO3,  'tNDepoNO3',  'g m-2 d-1',             'nitrate deposition',                                     default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
 
 !  Register dependencies to abiotic water module
-   call self%register_state_dependency(self%id_SWNH4,   'Ammonium_pool_in_water',          'g m-3',  'Ammonium_pool_in_water')
-   call self%register_state_dependency(self%id_SWNO3,   'nitrate_pool_in_water',          'g m-3',  'nitrate_pool_in_water')
+   call self%register_state_dependency(self%id_SWNH4,   'Ammonium_pool_in_water',         'g m-3',  'Ammonium_pool_in_water')
+   call self%register_state_dependency(self%id_SWNO3,   'Nitrate_pool_in_water',          'g m-3',  'Nitrate_pool_in_water')
    call self%register_state_dependency(self%id_SWPO4,   'Phosphate_pool_in_water',        'g m-3',  'Phosphate_pool_in_water')
-   call self%register_state_dependency(self%id_SWPAIM,  'adsorbed_phosphorus_in_water'   , 'g m-3',  'adsorbed_phosphorus_in_water')
+   call self%register_state_dependency(self%id_SWPAIM,  'Adsorbed_phosphorus_in_water',   'g m-3',  'Adsorbed_phosphorus_in_water')
    call self%register_state_dependency(self%id_SWO2,    'Oxygen_pool_in_water',           'g m-3',  'Oxygen_pool_in_water')
    call self%register_state_dependency(self%id_SWDIM,   'Inorg_pool_in_water',            'g m-3',  'Inorg_pool_in_water')
    call self%register_state_dependency(self%id_SWDDet,  'Detritus_DW_in_water',           'g m-3',  'Detritus_DW_in_water')
@@ -214,10 +214,10 @@
    call self%register_state_dependency(self%id_SWSiDet, 'Detritus_Si_in_water',           'g m-3',  'Detritus_Si_in_water')
    call self%register_state_dependency(self%id_SWSiO2,  'SiO2_pool_water',                'g m-3',  'SiO2_pool_water')
 !  Register dependencies to abiotic sediment module
-   call self%register_state_dependency(self%id_WSNH4,   'Ammonium_pool_in_sediment',       'g m-2', 'Ammonium_pool_in_sediment')
+   call self%register_state_dependency(self%id_WSNH4,   'Ammonium_pool_in_sediment',      'g m-2', 'Ammonium_pool_in_sediment')
    call self%register_state_dependency(self%id_WSNO3,   'Nitrate_pool_in_sediment',       'g m-2', 'Nitrate_pool_in_sediment')
    call self%register_state_dependency(self%id_WSPO4,   'Phosphate_pool_in_sediment',     'g m-2', 'Phosphate_pool_in_sediment')
-   call self%register_state_dependency(self%id_WSPAIM,  'adsorbed_phosphorus_in_sediment', 'g m-2', 'adsorbed_phosphorus_in_sediment')
+   call self%register_state_dependency(self%id_WSPAIM,  'Adsorbed_phosphorus_in_sediment','g m-2', 'Adsorbed_phosphorus_in_sediment')
    call self%register_state_dependency(self%id_WSDIM,   'Inorg_pool_in_sediment',         'g m-2', 'Inorg_pool_in_sediment')
    call self%register_state_dependency(self%id_WSDDet,  'Detritus_DW_in_sediment',        'g m-2', 'Detritus_DW_in_sediment')
    call self%register_state_dependency(self%id_WSNDet,  'Detritus_N_in_sediment',         'g m-2', 'Detritus_N_in_sediment')
@@ -247,8 +247,8 @@
    call self%register_state_dependency(self%id_WSPGren, 'Green_P_in_sediment',            'g m-2', 'Green_P_in_sediment')
    call self%register_state_dependency(self%id_WSPBlue, 'Blue_P_in_sediment',             'g m-2', 'Blue_P_in_sediment')
 !  register vegetation and fish for resuspension dependency
-   call self%register_state_dependency(self%id_DragVeg, 'vegetation_DW',                  'g m-2', 'vegetation_DW')
-   call self%register_state_dependency(self%id_TurbFish,'adult_fish_DW',                  'g m-3', 'adult_fish_DW')
+   call self%register_state_dependency(self%id_DragVeg, 'Vegetation_DW',                  'g m-2', 'Vegetation_DW')
+   call self%register_state_dependency(self%id_TurbFish,'Adult_fish_DW',                  'g m-3', 'Adult_fish_DW')
 !  register zooplankton for transport purpose
    call self%register_state_dependency(self%id_DTranZoo,'Zooplankton_DW',                 'g m-3', 'Zooplankton_DW')
    call self%register_state_dependency(self%id_PTranZoo,'Zooplankton_P',                  'g m-3', 'Zooplankton_P')

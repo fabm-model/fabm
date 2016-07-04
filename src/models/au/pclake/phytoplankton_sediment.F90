@@ -209,13 +209,13 @@
 !   call self%add_to_aggregate_variable(standard_variables%total_silicate,  self%id_oSiDiatS)
 
 !  register state variables dependencies
-   call self%register_state_dependency(self%id_PO4poolS,  'sPO4_pool_sediment',       'g m-2', 'sPO4_pool_sediment')
-   call self%register_state_dependency(self%id_NO3poolS,  'sNO3_pool_sediment',       'g m-2', 'sNO3_pool_sediment')
-   call self%register_state_dependency(self%id_NH4poolS,  'sNH4_pool_sediment',       'g m-2', 'sNH4_pool_sediment')
-   call self%register_state_dependency(self%id_DDetpoolS, 'detritus_DW_pool_sediment','g m-2', 'detritus_DW_pool_sediment')
-   call self%register_state_dependency(self%id_NDetpoolS, 'detritus_N_pool_sediment', 'g m-2', 'detritus_N_pool_sediment')
-   call self%register_state_dependency(self%id_PDetpoolS, 'detritus_P_pool_sediment', 'g m-2', 'detritus_P_pool_sediment')
-   call self%register_state_dependency(self%id_SiDetpoolS,'detritus_Si_pool_sediment','g m-2', 'detritus_Si_pool_sediment')
+   call self%register_state_dependency(self%id_PO4poolS,  'PO4_pool_sediment',        'g m-2', 'PO4_pool_sediment')
+   call self%register_state_dependency(self%id_NO3poolS,  'NO3_pool_sediment',        'g m-2', 'NO3_pool_sediment')
+   call self%register_state_dependency(self%id_NH4poolS,  'NH4_pool_sediment',        'g m-2', 'NH4_pool_sediment')
+   call self%register_state_dependency(self%id_DDetpoolS, 'Detritus_DW_pool_sediment','g m-2', 'detritus_DW_pool_sediment')
+   call self%register_state_dependency(self%id_NDetpoolS, 'Detritus_N_pool_sediment', 'g m-2', 'detritus_N_pool_sediment')
+   call self%register_state_dependency(self%id_PDetpoolS, 'Detritus_P_pool_sediment', 'g m-2', 'detritus_P_pool_sediment')
+   call self%register_state_dependency(self%id_SiDetpoolS,'Detritus_Si_pool_sediment','g m-2', 'detritus_Si_pool_sediment')
    call self%register_state_dependency(self%id_SiO2poolW, 'SiO2_pool_water',          'g m-3', 'SiO2_pool_water')
 
 

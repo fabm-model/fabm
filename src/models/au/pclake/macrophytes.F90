@@ -219,18 +219,18 @@
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPVeg)
 !  register state variables dependencies
    call self%register_state_dependency(self%id_NH4poolW,  'Ammonium_pool_water',       'g m-3', 'Ammonium pool for nutrient uptake')
-   call self%register_state_dependency(self%id_NO3poolW,  'nitrate_pool_water',       'g m-3', 'Nitrate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_PO4poolW,  'phosphate_pool_water',     'g m-3', 'Phosphate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_O2poolW,   'oxygen_pool_water',        'g m-3', 'oxygen pool in water')
-   call self%register_state_dependency(self%id_DDetpoolW, 'detritus_DW_pool_water',   'g m-3', 'detritus_DW_pool_water')
-   call self%register_state_dependency(self%id_DNetpoolW, 'detritus_N_pool_water',    'g m-3', 'detritus_N_pool_water')
-   call self%register_state_dependency(self%id_DPetpoolW, 'detritus_P_pool_water',    'g m-3', 'detritus_P_pool_water')
+   call self%register_state_dependency(self%id_NO3poolW,  'Nitrate_pool_water',       'g m-3', 'Nitrate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_PO4poolW,  'Phosphate_pool_water',     'g m-3', 'Phosphate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_O2poolW,   'Oxygen_pool_water',        'g m-3', 'oxygen pool in water')
+   call self%register_state_dependency(self%id_DDetpoolW, 'Detritus_DW_pool_water',   'g m-3', 'detritus_DW_pool_water')
+   call self%register_state_dependency(self%id_DNetpoolW, 'Detritus_N_pool_water',    'g m-3', 'detritus_N_pool_water')
+   call self%register_state_dependency(self%id_DPetpoolW, 'Detritus_P_pool_water',    'g m-3', 'detritus_P_pool_water')
    call self%register_state_dependency(self%id_NH4poolS,  'Ammonium_pool_sediment',    'g m-2', 'Ammonium pool for nutrient uptake')
-   call self%register_state_dependency(self%id_NO3poolS,  'nitrate_pool_sediment',    'g m-2', 'Nitrate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_PO4poolS,  'phosphate_pool_sediment',  'g m-2', 'Phosphate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_DDetpoolS, 'detritus_DW_pool_sediment','g m-2', 'detritus_DW_pool_sediment')
-   call self%register_state_dependency(self%id_DNetpoolS, 'detritus_N_pool_sediment', 'g m-2', 'detritus_N_pool_sediment')
-   call self%register_state_dependency(self%id_DPetpoolS, 'detritus_P_pool_sediment', 'g m-2', 'detritus_P_pool_sediment')
+   call self%register_state_dependency(self%id_NO3poolS,  'Nitrate_pool_sediment',    'g m-2', 'Nitrate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_PO4poolS,  'Phosphate_pool_sediment',  'g m-2', 'Phosphate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_DDetpoolS, 'Detritus_DW_pool_sediment','g m-2', 'detritus_DW_pool_sediment')
+   call self%register_state_dependency(self%id_DNetpoolS, 'Detritus_N_pool_sediment', 'g m-2', 'detritus_N_pool_sediment')
+   call self%register_state_dependency(self%id_DPetpoolS, 'Detritus_P_pool_sediment', 'g m-2', 'detritus_P_pool_sediment')
 !------------------------------------------------------------------------------------------------------------
 !  register environmental dependencies
 !------------------------------------------------------------------------------------------------------------
@@ -245,7 +245,7 @@
 !  register diagnostic dependencies
 !------------------------------------------------------------------------------------------------------------
 !  step1, Register dependencies on external diagnostic variables
-   call self%register_dependency(self%id_afOxySed, 'oxic_layer_value','[-]','oxic_layer_value')
+   call self%register_dependency(self%id_afOxySed, 'Oxic_layer_value','[-]','Oxic_layer_value')
 
    return
 
