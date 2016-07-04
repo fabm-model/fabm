@@ -107,6 +107,13 @@
 !     variables for atmospheric depostions
       real(rk)                   :: tDDepoIM,tDDepoDet,tNDepoDet,tPDepoPO4
       REAL(rk)                   :: tPDepoDet,tNDepoNH4,tNDepoNO3
+!!    variables need to be removed after compiled to 1d to 3d physical drivers
+!     parameters for loadings
+      real(rk)                   :: cLoadIM, cDLoadDet,cPLoadDet,cNLoadDet, cLoadPO4
+      real(rk)                   :: cLoadPAIM,cLoadNH4,cLoadNO3,uQIn
+!     bank erosion par
+      real(rk)                   :: cDErosTot,fSedErosIM      
+
 
    contains
 
@@ -114,7 +121,7 @@
       procedure ::  initialize
       procedure ::  do_bottom
       PROCEDURE ::  do_surface
- ! FH 18082015     procedure :: do
+      procedure ::  do
    end type type_au_pclake_auxiliary
 !  private data members(API0.92)
    real(rk),parameter :: secs_pr_day=86400.0_rk
@@ -200,7 +207,14 @@
    call self%get_parameter(self%tPDepoPO4,  'tPDepoPO4',  'g m-2 d-1',             'phosphate deposition',                                   default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%tNDepoNH4,  'tNDepoNH4',  'g m-2 d-1',             'ammonium deposition',                                    default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%tNDepoNO3,  'tNDepoNO3',  'g m-2 d-1',             'nitrate deposition',                                     default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
-
+!  loadings
+   call self%get_parameter(self%cLoadPO4,     'cLoadPO4',     'gP m-2 d-1',         'constant, different from cLoadIM',                       default=0.005_rk,  scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%cLoadNO3,     'cLoadNO3',     'gN m-2 d-1',         'constant',                                               default=0.05_rk,   scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%uQIn,         'uQIn',         'mm d-1',             'net water load rate, constant',                          default=20.0_rk,   scale_factor=1.0_rk/secs_pr_day)
+!  erosion parameter
+   call self%get_parameter(self%fSedErosIM,   'fSedErosIM',   '[-]',                'instantly_sedimentating_fraction_of_IM',                 default=0.95_rk)
+   call self%get_parameter(self%cDErosTot,    'cDErosTot',    'g m-2 d-1',          'erosion input(tentative)',                               default=0.1_rk,    scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%crt_shear,    'crt_shear',    'N m-2',              'critical shear stress',                                  default=0.005_rk)
 !  Register dependencies to abiotic water module
    call self%register_state_dependency(self%id_SWNH4,   'Ammonium_pool_in_water',         'g m-3',  'Ammonium_pool_in_water')
    call self%register_state_dependency(self%id_SWNO3,   'Nitrate_pool_in_water',          'g m-3',  'Nitrate_pool_in_water')
@@ -401,6 +415,9 @@
 !  and sediment as well as humus change(organic matter) in the sediment
 !  variables of new resuspension method
    real(rk)                   :: shear
+!  erosion variables
+   real(rk)                   :: uDErosIM,uDErosIMW,uDErosIMS
+   real(rk)                   :: uDErosOM,uPErosOM,uNErosOM
 !feh, July 4th, 2016
 !  n for total step counter, t for time step counter, i for output
 !  for dataframe indext !  j is day counter
@@ -663,7 +680,19 @@
 !   tSiSetDiat = self%cSiDDiat * tDSetDiat
 !-----------------------------------------------------------------------
 !  Burial of sediment
-!-----------------------------------------------------------------------
+!----------------------------------------------------------------------
+!  IM_input_from_banks
+   uDErosIM = (1.0 - self%fDOrgSoil) * self%cDErosTot
+!  IM_input_to_sediment_from_banks
+   uDErosIMS = self%fSedErosIM * uDErosIM
+!  IM_input_to_water_column_from_banks
+   uDErosIMW = uDErosIM - uDErosIMS
+!  organic_matter_input_from_banks
+   uDErosOM = self%fDOrgSoil * self%cDErosTot
+!  organic_P_input_from_banks
+   uPErosOM = 0.001_rk * uDErosOM  ! cPDSoilOM=0.001
+!  organic_N_input_from_banks
+   uNErosOM = 0.01_rk * uDErosOM  ! cNDSoilOM=0.01
 !  increase_in_inorganic_matter_in_sediment
    ! original form looks like
    !tDIMS = tDAbioIMS
@@ -778,7 +807,7 @@
 !  Update external state variables
 !-----------------------------------------------------------------------
 !  update inorganic and organic matters in water column
-   _SET_BOTTOM_EXCHANGE_(self%id_SWDIM,  tDResusIM-tDSetIM)
+   _SET_BOTTOM_EXCHANGE_(self%id_SWDIM,  uDErosIMW+tDResusIM-tDSetIM)
    _SET_BOTTOM_EXCHANGE_(self%id_SWDDet, tDResusDet-tDSetDet)
    _SET_BOTTOM_EXCHANGE_(self%id_SWNDet, tNResusDet-tNSetDet)
    _SET_BOTTOM_EXCHANGE_(self%id_SWPDet, tPResusDet-tPSetDet)
@@ -800,7 +829,7 @@
    _SET_BOTTOM_EXCHANGE_(self%id_SWNBlue,tNResusBlue-tNSetBlue)
    _SET_BOTTOM_EXCHANGE_(self%id_SWPBlue,tPResusBlue-tPSetBlue)
 !  update abiotic variables in sediment
-   _SET_ODE_BEN_(self%id_WSDIM,  tDSetIM-tDResusIM-tDBurIM)
+   _SET_ODE_BEN_(self%id_WSDIM,  uDErosIMS+tDSetIM-tDResusIM -tDBurIM)
    _SET_ODE_BEN_(self%id_WSDDet, tDSetDet-tDResusDet-tDBurDet)
    _SET_ODE_BEN_(self%id_WSPDet, tPSetDet-tPResusDet-tPBurDet)
    _SET_ODE_BEN_(self%id_WSNDet, tNSetDet-tNResusDet-tNBurDet)
@@ -809,9 +838,9 @@
    _SET_ODE_BEN_(self%id_WSPAIM, tPSetAIM-tPResusAIM-tPBurAIM)
    _SET_ODE_BEN_(self%id_WSNH4,  -tNResusNH4-tNBurNH4)
    _SET_ODE_BEN_(self%id_WSNO3,  -tNResusNO3-tNBurNO3)
-   _SET_ODE_BEN_(self%id_WSDHum, tDBurHum)
-   _SET_ODE_BEN_(self%id_WSPHum, tPBurHum)
-   _SET_ODE_BEN_(self%id_WSNHum, tNBurHum)
+   _SET_ODE_BEN_(self%id_WSDHum, uDErosOM-tDBurHum)
+   _SET_ODE_BEN_(self%id_WSPHum, uPErosOM-tPBurHum)
+   _SET_ODE_BEN_(self%id_WSNHum, uNErosOM-tNBurHum)
 !  update settled phytoplankton
    _SET_ODE_BEN_(self%id_WSDDiat, tDSetDiat-tDResusDiat)
    _SET_ODE_BEN_(self%id_WSNDiat, tNSetDiat-tNResusDiat)
@@ -917,6 +946,220 @@
 ! Spatial loop end
    end subroutine do_bottom
 !EOC
+
+
+! !IROUTINE: !feh temperal solution for loading and dilution of NH4, NO3, 
+!
+! !INTERFACE:
+   subroutine do(self,_ARGUMENTS_DO_)
+!
+! !INPUT PARAMETERS:
+   class (type_au_pclake_auxiliary), intent(in)    :: self
+   _DECLARE_ARGUMENTS_DO_
+! !LOCAL VARIABLES:
+!  carriers for state variable values
+   real(rk)    :: sDIMW,sDDetW,sPDetW,sNDetW,sSiDetW,sSiO2W
+   real(rk)    :: sNH4W,sNO3W,sPO4W,sPAIMW,sO2W
+   real(rk)    :: sDDiatW,sNDiatW,sPDiatW
+   real(rk)    :: sDGrenW,sNGrenW,sPGrenW
+   real(rk)    :: sDBlueW,sNBlueW,sPBlueW
+   real(rk)    :: sDZoo,sPZoo,sNZoo
+!  environmental dependency carrier
+   real(rk)   :: sDepthW,Day
+!  loading variables
+   real(rk)    :: uPLoadPO4,uNLoadNO3,uDLoadIM,uSiLoadSiO2
+!  dilution variables
+   real(rk)    :: ukDil,uQEv,uQDil,ukDilWat
+   real(rk)    :: wDDilIM,wDDilDet,wPDilDet,wNDilDet,wSiDilDet
+   real(rk)    :: wNDilNH4,wNDilNO3,wPDilPO4,wPDilAIM
+!  transport flux variables
+   real(rk)    :: wDTranIMW,wDTranDetW,wPTranDetW,wNTranDetW,wSiTranDetW
+   real(rk)    :: wNTranNH4W,wNTranNO3W,wPTranPO4W,wPTranAIMW
+   real(rk)    :: wDTranDiat,wNTranDiat,wPTranDiat
+   real(rk)    :: wDTranGren,wNTranGren,wPTranGren
+   real(rk)    :: wDTranBlue,wNTranBlue,wPTranBlue
+   real(rk)    :: wDDilDiat,wNDilDiat,wPDilDiat
+   real(rk)    :: wDDilGren,wNDilGren,wPDilGren
+   real(rk)    :: wDDilBlue,wNDilBlue,wPDilBlue
+   real(rk)    :: wO2TranW,wO2Inflow ,wO2Outfl
+   real(rk)    :: wDTranZoo,wNTranZoo,wPTranZoo
+   real(rk)    :: wSiDilSiO2,wSiTranSiO2
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+!  Spatial loop
+   _LOOP_BEGIN_
+! !Retrieve state dependencie value
+!  from abiotic water column
+   _GET_(self%id_SWNH4,sNH4W)
+   _GET_(self%id_SWNO3,sNO3W)
+   _GET_(self%id_SWPO4,sPO4W)
+   _GET_(self%id_SWO2,sO2W)
+   _GET_(self%id_SWSiO2,sSiO2W)
+   _GET_(self%id_SWPAIM,sPAIMW)
+   _GET_(self%id_SWDIM,sDIMW)
+   _GET_(self%id_SWDDet,sDDetW)
+   _GET_(self%id_SWNDet,sNDetW)
+   _GET_(self%id_SWPDet,sPDetW)
+   _GET_(self%id_SWSiDet,sSiDetW)
+!  from phytoplankton in water column
+   _GET_(self%id_SWDDiat,sDDiatW)
+   _GET_(self%id_SWDGren,sDGrenW)
+   _GET_(self%id_SWDBlue,sDBlueW)
+   _GET_(self%id_SWNDiat,sNDiatW)
+   _GET_(self%id_SWNGren,sNGrenW)
+   _GET_(self%id_SWNBlue,sNBlueW)
+   _GET_(self%id_SWPDiat,sPDiatW)
+   _GET_(self%id_SWPGren,sPGrenW)
+   _GET_(self%id_SWPBlue,sPBlueW)
+!  from zooplankton
+   _GET_(self%id_DTranZoo,sDZoo)
+   _GET_(self%id_PTranZoo,sPZoo)
+   _GET_(self%id_NTranZoo,sNZoo)
+!  retrieve environmental dependencies
+   _GET_HORIZONTAL_(self%id_sDepthW,sDepthW)
+   _GET_GLOBAL_(self%id_Day,Day)
+!  P_load_PO4
+   uPLoadPO4=self%cLoadPO4
+!  N_load_NO3
+   uNLoadNO3=self%cLoadNO3
+   uQEv = 0.0_rk
+!  dilution_rate_of_substances
+   uQDil=self%uQIn-uQEv 
+!  currently ignore algal loadings.
+!  dilution_rate_of_substances
+   ukDil = uQDil / mmPerm/sDepthW
+!  loading_of_DW_of_inorg_matter
+   uDLoadIM = 5.0_rk * self%uQIn / mmPerm  ! cDIMIn=5
+!  dilution_of_DW_IM
+   wDDilIM = ukDil * sDIMW
+!  dilllution_of_detritus
+   wDDilDet = ukDil * sDDetW
+!  dilution_of_SRP
+   wPDilPO4 = ukDil * sPO4W
+!  dilution_of_detritus
+   wPDilDet = ukDil*sPDetW
+!  dilution_of_IM-ads._P
+   wPDilAIM = ukDil * sPAIMW
+!  dilution_of_ammonium
+   wNDilNH4 = ukDil * sNH4W
+!  dilution_of_nitrate
+   wNDilNO3 = ukDil * sNO3W
+!  dilution_of_detritus
+   wNDilDet = ukDil * sNDetW
+!  dilution_of_det_Si
+   wSiDilDet= ukDil * sSiDetW
+!  dilution_of_Diat
+   wDDilDiat = ukDil * sDDiatW
+!  dilution_of_Diat
+   wPDilDiat = ukDil * sPDiatW
+!  dilution_of_Diat
+   wNDilDiat = ukDil * sNDiatW
+!  dilution_of_Gren
+   wDDilGren = ukDil * sDGrenW
+!  dilution_of_Gren
+   wPDilGren = ukDil * sPGrenW
+!  dilution_of_Gren
+   wNDilGren = ukDil * sNGrenW
+!  dilution_of_Blue
+   wDDilBlue = ukDil * sDBlueW
+!  dilution_of_Blue
+   wPDilBlue = ukDil * sPBlueW
+!  dilution_of_Blue
+   wNDilBlue = ukDil * sNBlueW
+!  transport_flux_DW_in_IM
+   wDTranIMW = uDLoadIM/sDepthW- wDDilIM
+!  transport_flux_DW_in_detritus
+   wDTranDetW =  - wDDilDet
+!  transport_flux_of_P_in_PO4
+   wPTranPO4W = uPLoadPO4/sDepthW  - wPDilPO4
+!  transport_flux_of_P_in_AIM
+   wPTranAIMW =   - wPDilAIM
+!  transport_flux_of_P_in_detritus
+   wPTranDetW =  - wPDilDet 
+!  transport_flux_of_N_in_NH4
+   wNTranNH4W =  - wNDilNH4 
+!  transport_flux_of_N_in_NO3
+   wNTranNO3W = uNLoadNO3/sDepthW - wNDilNO3
+!  transport_flux_of_N_in_detritus
+   wNTranDetW = - wNDilDet
+!  transport_flux_of_Si_in_detritus
+   wSiTranDetW = - wSiDilDet
+!  transport_flux_of_D_in_Diat
+   wDTranDiat=-wDDilDiat
+!  transport_flux_of_N_in_Diat
+   wNTranDiat=-wNDilDiat
+!  transport_flux_of_P_in_Diat
+   wPTranDiat=-wPDilDiat
+!  transport_flux_of_D_in_Gren
+   wDTranGren=-wDDilGren
+!  transport_flux_of_N_in_Gren
+   wNTranGren=-wNDilGren
+!  transport_flux_of_P_in_Gren
+   wPTranGren=-wPDilGren
+!  transport_flux_of_D_in_Blue
+   wDTranBlue=-wDDilBlue
+!  transport_flux_of_N_in_Blue
+   wNTranBlue=-wNDilBlue
+!  transport_flux_of_P_in_Blue
+   wPTranBlue=-wPDilBlue
+!  dilution_rate_of_water
+   ukDilWat = self%uQIn / mmPerm / sDepthW
+!  oxygen_inflow
+   wO2Inflow = ukDilWat * 5.0_rk
+!  oxygen_outflow
+   wO2Outfl = ukDil * sO2W
+!  transport_flux_O2
+   wO2TranW = wO2Inflow - wO2Outfl
+!  net_migration_flux_of_D_in_Zoo
+   wDTranZoo =( ukDilWat * 0.1_rk - ukDil*sDZoo)  ! cDZooIn= 0.1
+!  net_migration_flux_of_P_in_ZOO
+   wPTranZoo =(ukDilWat *0.01_rk*0.1_rk  - ukDil*sPZoo)  ! cPDZooRef=0.01
+!  net_migration_flux_of_N_in_Zoo
+   wNTranZoo =(ukDilWat * 0.1_rk*0.07_rk - ukDil * sNZoo) !cNDZooRef=0.07
+!  total_transport_flux_of_Si_in_SiO2
+   uSiLoadSiO2 = 3.0_rk * self%uQIn / mmPerm   !cSiO2In=3.0
+!  Dilution_of_Si_in_SiO2
+   wSiDilSiO2 = ukDil * sSiO2W
+!  transport_flux_of_Si_in_SIO2
+   wSiTranSiO2 = uSiLoadSiO2 / sDepthW - wSiDilSiO2
+!  update transported state variables
+   _SET_ODE_(self%id_SWDIM,wDTranIMW)
+   _SET_ODE_(self%id_SWDDet,wDTranDetW)
+   _SET_ODE_(self%id_SWNDet,wNTranDetW)
+   _SET_ODE_(self%id_SWPDet,wPTranDetW)
+   _SET_ODE_(self%id_SWSiDet,wSiTranDetW)
+   _SET_ODE_(self%id_SWNH4,wNTranNH4W)
+   _SET_ODE_(self%id_SWNO3,wNTranNO3W)
+   _SET_ODE_(self%id_SWPO4,wPTranPO4W)
+   _SET_ODE_(self%id_SWPAIM,wPTranAIMW)
+   _SET_ODE_(self%id_SWO2,wO2TranW)
+   _SET_ODE_(self%id_SWSiO2,wSiTranSiO2)
+!  update phytoplankton in water column
+   _SET_ODE_(self%id_SWDDiat,wDTranDiat)
+   _SET_ODE_(self%id_SWNDiat,wNTranDiat)
+   _SET_ODE_(self%id_SWPDiat,wPTranDiat)
+   _SET_ODE_(self%id_SWDGren,wDTranGren)
+   _SET_ODE_(self%id_SWNGren,wNTranGren)
+   _SET_ODE_(self%id_SWPGren,wPTranGren)
+   _SET_ODE_(self%id_SWDBlue,wDTranBlue)
+   _SET_ODE_(self%id_SWNBlue,wNTranBlue)
+   _SET_ODE_(self%id_SWPBlue,wPTranBlue)
+!  update zooplankton group
+   _SET_ODE_(self%id_DTranZoo,wDTranZoo)
+   _SET_ODE_(self%id_PTranZoo,wPTranZoo)
+   _SET_ODE_(self%id_NTranZoo,wNTranZoo)
+
+   
+
+   _LOOP_END_
+!-----------------------------------------------------------------------
+!  Spatial loop end
+!-----------------------------------------------------------------------
+   end subroutine do
+
+!EOC
+
 ! !IROUTINE: !feh temperal solution for loading and dilution of NH4, NO3,
 ! ! FH: aug 18th, 2015,remove this subroutine due to lake branch is up running, due to lake branch is running
 !-----------------------------------------------------------------------
