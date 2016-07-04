@@ -244,7 +244,7 @@ contains
          baseindent = file%indent
          call file%next_line()
          if (file%has_error) return
-         if (file%eof .or. file%indent<=baseindent) then
+         if (file%eof .or. file%indent<baseindent .or. (file%indent==baseindent .and. file%line(1:2)/='- ')) then
             ! Indentation equal to, or below, that of label (or file ends after label).
             ! That implies the value of the key-value pair is null.
             ! See YAML specification, section 7.2. Empty Nodes.
