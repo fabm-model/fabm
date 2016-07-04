@@ -401,6 +401,18 @@
 !  and sediment as well as humus change(organic matter) in the sediment
 !  variables of new resuspension method
    real(rk)                   :: shear
+!feh, July 4th, 2016
+!  n for total step counter, t for time step counter, i for output
+!  for dataframe indext !  j is day counter
+!  n start with 0 since first output is at the surface, loop should 
+!  started from the bottom
+!  only update indext i when it's output step, and rewrite i to 0 when
+!  it's not outputed, i is python index, so should start with 0
+!  index j for dataframe work structure
+!  variable for TN, TP fluxes
+   real(rk)                   :: TN_aux, TP_aux
+   integer, save :: n=0,t=0,i=0,j=-1
+   integer :: nlev
 
 !EOP
 !-----------------------------------------------------------------------
@@ -860,9 +872,47 @@
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxBlueS, (tDSetBlue-tDResusBlue)*86400.0_rk)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxBlueS, (tNSetBlue-tNResusBlue)*86400.0_rk)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxBlueS, (tPSetBlue-tPResusBlue)*86400.0_rk)
+!-----------------------------------------------------------------------
+!  Section for write out benthic diagnostic variables
+!-----------------------------------------------------------------------
+   TN_aux = tNResusDet-tNSetDet + tNResusNH4 + tNResusNO3 + tNResusDiat &
+            & - tNSetDiat + tNResusGren - tNSetGren + tNResusBlue - tNSetBlue
+   TP_aux = tPResusDet-tPSetDet + tPResusPO4 + tPResusAIM - tPSetAIM + &
+            & tPResusDiat - tPSetDiat + tPResusGren-tPSetGren + tPResusBlue - tPSetBlue
 
 
-
+   nlev= anint(sDepthW/dz)
+   if (n .eq. 1) then
+      open(unit=9999,file='auxtot.dat',status = 'REPLACE',ACTION='write')
+   else
+      open(unit=9999,file='auxtot.dat',Access = 'append',Status='old')
+   endif
+   
+!  feh update time step count
+   if (mod(n-1,nlev) .eq. 0) then
+      t=t+1
+   endif
+!  update depth count
+   if (mod(t,144*4) .eq. 0) then
+      i=i+1
+   else 
+!  i should start with 0, so i initialized as -1
+      i=-1
+   endif
+!  j should start with 0
+   if (mod(n-1,144*nlev*4) .eq. 0) then
+      j=j+1
+   endif
+   if (mod(t,144*4) .eq. 0) then
+! feh only write out the scaler that I wanted to plot
+      write(9999,*), j,i, TN_aux,TP_aux
+   endif
+   close(9999)
+!  feh update total step count
+   n=n+1
+!-----------------------------------------------------------------------
+!  feh end of temperal solution for output benthic diagnostic variables
+!-----------------------------------------------------------------------
    _FABM_HORIZONTAL_LOOP_END_
 ! Spatial loop end
    end subroutine do_bottom
