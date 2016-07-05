@@ -854,36 +854,36 @@ integer :: nlev
 !-----------------------------------------------------------------------
 !  feh temperal solution for print out light limitation factor scaler
 !  open the output file
-   nlev= anint(sDepthW/dz)
-   if (n .eq. 1) then
-      open(unit=8888,file='flim.dat',status = 'REPLACE',ACTION='write')
-   else
-      open(unit=8888,file='flim.dat',Access = 'append',Status='old')
-   endif
-   
-!  feh update time step count
-   if (mod(n-1,nlev) .eq. 0) then
-      t=t+1
-   endif
-!  update depth count
-   if (mod(t,24*4) .eq. 0) then
-      i=i+1
-   else 
-!  i should start with 0, so i initialized as -1
-      i=-1
-   endif
-!  j should start with 0
-   if (mod(n-1,24*nlev*4) .eq. 0) then
-      j=j+1
-   endif
-   if (mod(t,24*4) .eq. 0) then
-! feh only write out the scaler that I wanted to plot
-      write(8888,*), j,i, aLLimShootVeg,aNutLimVeg
-!      write(6666,*), afOxySed
-   endif
-   close(8888)
-!  feh update total step count
-   n=n+1
+!   nlev= anint(sDepthW/dz)
+!   if (n .eq. 1) then
+!      open(unit=8888,file='flim.dat',status = 'REPLACE',ACTION='write')
+!   else
+!      open(unit=8888,file='flim.dat',Access = 'append',Status='old')
+!   endif
+!   
+!!  feh update time step count
+!   if (mod(n-1,nlev) .eq. 0) then
+!      t=t+1
+!   endif
+!!  update depth count
+!   if (mod(t,24*4) .eq. 0) then
+!      i=i+1
+!   else 
+!!  i should start with 0, so i initialized as -1
+!      i=-1
+!   endif
+!!  j should start with 0
+!   if (mod(n-1,24*nlev*4) .eq. 0) then
+!      j=j+1
+!   endif
+!   if (mod(t,24*4) .eq. 0) then
+!! feh only write out the scaler that I wanted to plot
+!      write(8888,*), j,i, aLLimShootVeg,aNutLimVeg
+!!      write(6666,*), afOxySed
+!   endif
+!   close(8888)
+!!  feh update total step count
+!   n=n+1
 !-----------------------------------------------------------------------
 !  feh end of temperal solution for output benthic diagnostic variables
 !-----------------------------------------------------------------------
