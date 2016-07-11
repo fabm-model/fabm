@@ -699,17 +699,26 @@ recursive subroutine couple_variables(self,master,slave)
    type (type_internal_variable),pointer             :: master,slave
 
    type (type_internal_variable),pointer :: pslave
+   logical                               :: slave_is_state_variable
+   logical                               :: master_is_state_variable
 
    ! If slave and master are the same, we are done - return.
    if (associated(slave,master)) return
+
+   slave_is_state_variable  = slave%fake_state_variable.or..not.slave%state_indices%is_empty()
+   master_is_state_variable = master%fake_state_variable.or..not.master%state_indices%is_empty()
 
    if (associated(self%parent)) call self%fatal_error('couple_variables','BUG: must be called on root node.')
    if (.not.slave%can_be_slave) &
       call fatal_error('couple_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
-   if ((slave%fake_state_variable.or..not.slave%state_indices%is_empty()).and.(master%state_indices%is_empty().and..not.master%fake_state_variable)) &
-      call fatal_error('couple_variables','Attempt to couple state variable ' &
+   if (slave_is_state_variable) then
+      ! Extra checks when coupling state variables
+      if (.not.master_is_state_variable) call fatal_error('couple_variables','Attempt to couple state variable ' &
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
+      if ((slave%domain==domain_bottom.and.master%domain==domain_surface).or.(slave%domain==domain_surface.and.master%domain==domain_bottom)) &
+         call fatal_error('couple_variables', 'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because their domains are incompatible.')
+   end if
    !if (slave%domain/=master%domain.and..not.(slave%domain==domain_horizontal.and. &
    !   (master%domain==domain_surface.or.master%domain==domain_bottom))) call fatal_error('couple_variables', &
    !   'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because their domains are incompatible.')

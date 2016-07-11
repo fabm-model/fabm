@@ -427,8 +427,8 @@
 !EOC
 
    subroutine init_yaml()
-      use fabm_config_types
-      use fabm_yaml,yaml_parse=>parse,yaml_error_length=>error_length
+      use yaml_types
+      use yaml,yaml_parse=>parse,yaml_error_length=>error_length
 
       logical                            :: exists
       character(len=yaml_error_length)   :: yaml_error
@@ -454,7 +454,7 @@
    end subroutine init_yaml
 
    subroutine init_yaml_input(mapping)
-      use fabm_config_types
+      use yaml_types
 
       class (type_dictionary),intent(in)  :: mapping
 
@@ -477,7 +477,7 @@
    end subroutine init_yaml_input
 
    subroutine parse_input_variable(variable_name,mapping)
-      use fabm_config_types
+      use yaml_types
 
       character(len=*),      intent(in) :: variable_name
       type (type_dictionary),intent(in) :: mapping

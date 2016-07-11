@@ -1,9 +1,22 @@
+!-----------------------------------------------------------------------
+! BROM is free software: you can redistribute it and/or modify it under
+! the terms of the GNU General Public License as published by the Free
+! Software Foundation (https://www.gnu.org/licenses/gpl.html).
+! It is distributed in the hope that it will be useful, but WITHOUT ANY
+! WARRANTY; without even the implied warranty of MERCHANTABILITY or
+! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
+! the COPYING file at the root of the FABM distribution.
+!-----------------------------------------------------------------------
+! Original author(s): Evgeniy Yakushev, Elizaveta Protsenko,
+!                     Jorn Bruggeman
+!-----------------------------------------------------------------------
+
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: 
+! !MODULE:
 !
 ! !INTERFACE:
    module fabm_niva_brom_bio
@@ -17,22 +30,18 @@
 
 !  default: all is private.
    private
-!
-! !REVISION HISTORY:!
-!  Original author(s): Evgeniy Yakushev, Elizaveta Protsenko, Jorn Bruggeman
-!
 
 ! !PUBLIC DERIVED TYPES:
-     type,extends(type_base_model),public :: type_niva_brom_bio
-!     Variable identifiers
-     type (type_state_variable_id)        :: id_Phy,id_Het
-     type (type_state_variable_id)        :: id_O2,id_NO2,id_NO3,id_NH4,id_PO4
-     type (type_state_variable_id)        :: id_PON,id_DON
-     type (type_state_variable_id)        :: id_Baae,id_Baan,id_Bhae,id_Bhan
-     type (type_state_variable_id)        :: id_DIC,id_H2S,id_Si,id_Sipart,id_Alk
-     type (type_dependency_id)            :: id_temp,id_salt,id_par
-     type (type_dependency_id)            :: id_Hplus   !   id_Kp1,id_Kp2,id_Kp3,id_Knh4,id_KSi,
-     type (type_horizontal_dependency_id) :: id_windspeed
+    type,extends(type_base_model),public :: type_niva_brom_bio
+!   Variable identifiers
+    type (type_state_variable_id)        :: id_Phy,id_Het
+    type (type_state_variable_id)        :: id_O2,id_NO2,id_NO3,id_NH4,id_PO4
+    type (type_state_variable_id)        :: id_PON,id_DON
+    type (type_state_variable_id)        :: id_Baae,id_Baan,id_Bhae,id_Bhan
+    type (type_state_variable_id)        :: id_DIC,id_H2S,id_Si,id_Sipart,id_Alk
+    type (type_dependency_id)            :: id_temp,id_salt,id_par
+    type (type_dependency_id)            :: id_Hplus   !   id_Kp1,id_Kp2,id_Kp3,id_Knh4,id_KSi,
+    type (type_horizontal_dependency_id) :: id_windspeed
     !type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
     type (type_diagnostic_variable_id)   :: id_MortHet,id_Grazing,id_RespHet,id_GrazBhae,id_GrazBhan,id_GrazBaae,id_GrazBaan
     type (type_diagnostic_variable_id)   :: id_GrazPhy,id_GrazPOP,id_GrazBact,id_MortPhy,id_ExcrPhy,id_LimNH4,id_LimN,id_GrowthPhy
@@ -41,12 +50,12 @@
       !     Model parameters
       !-------------------------------------------------------------------------
       ! specific rates of biogeochemical processes
- 
+
        !----Phy  ----------!
       real(rk) :: K_phy_gro,k_Erlov,kc,Io,Iopt,bm,cm,K_phy_mrt,K_phy_exc,LatLight
        !----Het -----------!
-      real(rk) :: K_het_phy_gro,K_het_phy_lim,K_het_pom_gro,K_het_pom_lim,K_het_res,K_het_mrt,Uz,Hz,limGrazBac       
-       !---- O2--------! 
+      real(rk) :: K_het_phy_gro,K_het_phy_lim,K_het_pom_gro,K_het_pom_lim,K_het_res,K_het_mrt,Uz,Hz,limGrazBac
+       !---- O2--------!
        ! Upper boundary	 ! for oxygen flux calculations
        real(rk) :: pvel          = 5.       ! wind speed  			      	     [m/s]
        real(rk) :: a0            = 31.25    !oxygen saturation Parameter         	      [uM]
@@ -54,12 +63,12 @@
        real(rk) :: a2            = 0.4025   !oxygen saturation Parameter         	  [1/degC]
        !---- N, P, Si--!
       real(rk) :: K_nox_lim,K_nh4_lim,K_psi, K_nfix,K_po4_lim,K_si_lim
-       !---- Sinking---!      
+       !---- Sinking---!
       real(rk) :: Wsed,Wphy,Whet
        !---- Stoichiometric coefficients ----!
       real(rk) :: r_n_p, r_o_n, r_c_n, r_si_n
-!!===========================================================================!   
-      
+!!===========================================================================!
+
    contains
       procedure :: initialize
       procedure :: do
@@ -80,7 +89,7 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-! 
+!
 !
 ! !INPUT PARAMETERS:
    class (type_niva_brom_bio), intent(inout), target :: self
@@ -93,11 +102,11 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Store parameter values in our own derived type
-!-----------------------------------------------------------------------   
-! Parameters, i.e. rate constants    
+!-----------------------------------------------------------------------
+! Parameters, i.e. rate constants
        !----Phy  ----------!
     !   call self%get_parameter(self%Wsed,'Wsed','m/d',' Rate of sinking of detritus (POP, PON)',default=5.0_rk)
-   call self%get_parameter(self%K_phy_gro,     'K_phy_gro',     '1/d',         'Maximum specific growth rate',                    default=2.0_rk)  
+   call self%get_parameter(self%K_phy_gro,     'K_phy_gro',     '1/d',         'Maximum specific growth rate',                    default=2.0_rk)
    call self%get_parameter(self%k_Erlov, 'k_Erlov', '1/m',         'Extinction coefficient',                          default=0.05_rk)
    call self%get_parameter(self%Io,      'Io',      'Watts/m**2/h','Surface irradiance',                              default=80.0_rk)
    call self%get_parameter(self%Iopt,    'Iopt',    'Watts/m**2/h','Optimal irradiance',                              default=25.0_rk)
@@ -107,7 +116,7 @@
    call self%get_parameter(self%K_phy_mrt,     'K_phy_mrt',     '1/d',         'Specific rate of mortality',                      default=0.10_rk)
    call self%get_parameter(self%K_phy_exc,     'K_phy_exc',     '1/d',         'Specific rate of excretion',                      default=0.01_rk)
    call self%get_parameter(self%LatLight,'LatLight','degree',      'Latitude',                                        default=50.0_rk)
-   
+
        !----Het  ----------!
     call self%get_parameter(self%K_het_phy_gro,'K_het_phy_gro','1/d','Max.spec. rate of grazing of Het on Phy',default=1.0_rk)
     call self%get_parameter(self%K_het_phy_lim,'K_het_phy_lim','nd','Half-sat.const.for grazing of Het on Phy for Phy/Het ratio',default=1.1_rk)
@@ -116,26 +125,26 @@
     call self%get_parameter(self%K_het_res,'K_het_res','1/d','Specific respiration rate',default=0.02_rk)
     call self%get_parameter(self%K_het_mrt,'K_het_mrt','1/d','Maximum specific rate of mortality of Het',default=0.05_rk)
     call self%get_parameter(self%Uz,'Uz','nd','Food absorbency for Het',default=0.5_rk)
-    call self%get_parameter(self%Hz,'Hz','nd','Ratio betw. diss. and part. excretes of Het ',default=0.5_rk)  
-    call self%get_parameter(self%limGrazBac,'limGrazBac','mmol/m**3','Limiting parameter for bacteria grazing by Het ',default=2._rk)  
+    call self%get_parameter(self%Hz,'Hz','nd','Ratio betw. diss. and part. excretes of Het ',default=0.5_rk)
+    call self%get_parameter(self%limGrazBac,'limGrazBac','mmol/m**3','Limiting parameter for bacteria grazing by Het ',default=2._rk)
       !---- N---------------
-    call self%get_parameter(self%K_psi, 'K_psi', '[nd]',    'Strength of NH4 inhibition of NO3 uptake constant', default=1.46_rk)    
+    call self%get_parameter(self%K_psi, 'K_psi', '[nd]',    'Strength of NH4 inhibition of NO3 uptake constant', default=1.46_rk)
     call self%get_parameter(self%K_nox_lim,  'K_nox_lim', '[mmol/m**3]',    'Half-sat.const.for uptake of NO3+NO2',        default=0.15_rk)
     call self%get_parameter(self%K_nh4_lim,  'K_nh4_lim', '[mmol/m**3]',    'Half-sat.const.for uptake of NH4',            default=0.02_rk)
     call self%get_parameter(self%K_nfix,  'K_nfix', '[1/d]',      'Max. specific rate of mitrogen fixation',     default=10._rk)
     !---- P---------------
     call self%get_parameter(self%K_po4_lim,  'K_po4_lim', '[mmol/m**3]',    'Half-sat. constant for uptake of PO4 by Phy', default=0.02_rk)
       !---- Si---------------
-    call self%get_parameter(self%K_si_lim, 'K_si_lim','[mmol/m**3]', 'Half-sat. constant for uptake of Si by Phy', default=0.02_rk)    
+    call self%get_parameter(self%K_si_lim, 'K_si_lim','[mmol/m**3]', 'Half-sat. constant for uptake of Si by Phy', default=0.02_rk)
       !---- Sinking---------
-    call self%get_parameter(self%Wsed,  'Wsed', '[1/day]',  'Rate of sinking of detritus (POP, PON)',           default=5.00_rk)     
-    call self%get_parameter(self%Wphy,  'Wphy', '[m/day]',  'Rate of sinking of Phy',                           default=0.10_rk)    
-    call self%get_parameter(self%Whet,  'Whet', '[m/day]',  'Rate of sinking of Het',                           default=1.00_rk)   
+    call self%get_parameter(self%Wsed,  'Wsed', '[1/day]',  'Rate of sinking of detritus (POP, PON)',           default=5.00_rk)
+    call self%get_parameter(self%Wphy,  'Wphy', '[m/day]',  'Rate of sinking of Phy',                           default=0.10_rk)
+    call self%get_parameter(self%Whet,  'Whet', '[m/day]',  'Rate of sinking of Het',                           default=1.00_rk)
       !---- Stoichiometric coefficients ----!
     call self%get_parameter(self%r_n_p,   'r_n_p',  '[-]',      'N[uM]/P[uM]',                  default=16.0_rk)
-    call self%get_parameter(self%r_o_n,   'r_o_n',  '[-]',      'O[uM]/N[uM]',                  default=6.625_rk) 
-    call self%get_parameter(self%r_c_n,   'r_c_n',  '[-]',      'C[uM]/N[uM]',                  default=8.0_rk)    
-    call self%get_parameter(self%r_si_n,  'r_si_n', '[-]',      'Si[uM]/N[uM]',                 default=2.0_rk) 
+    call self%get_parameter(self%r_o_n,   'r_o_n',  '[-]',      'O[uM]/N[uM]',                  default=6.625_rk)
+    call self%get_parameter(self%r_c_n,   'r_c_n',  '[-]',      'C[uM]/N[uM]',                  default=8.0_rk)
+    call self%get_parameter(self%r_si_n,  'r_si_n', '[-]',      'Si[uM]/N[uM]',                 default=2.0_rk)
 
 !-----------------------------------------------------------------------
 ! Register state variables
@@ -163,7 +172,7 @@
    call self%register_state_dependency(self%id_Si,   'Si', 'mmol/m**3', 'Si')
    call self%register_state_dependency(self%id_Sipart,   'Sipart', 'mmol/m**3', 'Si particulate')
    call self%register_state_dependency(self%id_Alk,  'Alk','mmol/m**3','Alk')
-!-----------------------------------------------------------------------   
+!-----------------------------------------------------------------------
    ! Register diagnostic variables
    !call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
    !                  output=output_time_step_integrated)
@@ -172,7 +181,7 @@ call self%register_diagnostic_variable(self%id_MortHet,'MortHet','mmol/m**3',  '
 call self%register_diagnostic_variable(self%id_Grazing,'Grazing','mmol/m**3',  'Grazing of Het',           &
                     output=output_time_step_integrated)
 call self%register_diagnostic_variable(self%id_RespHet,'RespHet','mmol/m**3',  'Respiration rate of Het',     &
-                output=output_time_step_integrated)   
+                output=output_time_step_integrated)
 call self%register_diagnostic_variable(self%id_GrazBhae,'GrazBhae','mmol/m**3',  'GrazBhae',           &
             output=output_time_step_integrated)
 call self%register_diagnostic_variable(self%id_GrazBhan,'GrazBhan','mmol/m**3',  'GrazBhan',           &
@@ -216,7 +225,7 @@ call self%register_diagnostic_variable(self%id_N_fixation,'N_fixation','mmol/m**
    call self%register_dependency(self%id_temp,standard_variables%temperature)
    call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
    call self%register_dependency(self%id_windspeed,standard_variables%wind_speed)
-!-----------------------------------------------------------------------   
+!-----------------------------------------------------------------------
    call self%register_dependency(self%id_Hplus, 'Hplus', 'mmol/m**3','H+ hydrogen')
 
    ! Specify that are rates computed in this module are per day (default: per second)
@@ -228,13 +237,13 @@ call self%register_diagnostic_variable(self%id_N_fixation,'N_fixation','mmol/m**
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
-! 
+!
 !
 ! !INPUT PARAMETERS:
    class (type_niva_brom_bio),intent(in) :: self
@@ -274,16 +283,16 @@ call self%register_diagnostic_variable(self%id_N_fixation,'N_fixation','mmol/m**
    _GET_(self%id_Sipart,Sipart)
    _GET_(self%id_Alk,Alk)
    _GET_(self%id_Hplus,Hplus)
-   
+
    ! Retrieve current environmental conditions.
    _GET_(self%id_par,Iz)              ! local photosynthetically active radiation
    _GET_(self%id_temp,temp)           ! temperature
-   
+
 !%%
 !%!---------------------------------------------------------------------------
 !%!========P=H=Y==============================================================
 !%!---------------------------------------------------------------------------
- 
+
      LimLight    = Iz/self%Iopt*exp(1-Iz/self%Iopt)        ! Influence of the Irradiance on photosynthesis
 
      LimT        = exp(self%bm*temp-self%cm)  ! 0.2+0.22*(exp(bm*t(ci))-cm)/(cm+0.28*exp(bm*t(ci))) !exp(bm*t(ci)-cm)  ! Influence of Temperature on photosynthesis
@@ -316,16 +325,16 @@ call self%register_diagnostic_variable(self%id_N_fixation,'N_fixation','mmol/m**
 !%!========H=e=t==============================================================
 !%!---------------------------------------------------------------------------
 !%! Grazing of Het on phy
-     GrazPhy = self%K_het_phy_gro*Het*yy(self%K_het_phy_lim,Phy/(Het+0.0001)) 
-     
-!%! Grazing of Het on detritus 
-     GrazPOP = self%K_het_pom_gro*Het*yy(self%K_het_pom_lim,PON/(Het+0.0001)) 
+     GrazPhy = self%K_het_phy_gro*Het*yy(self%K_het_phy_lim,Phy/(Het+0.0001))
+
+!%! Grazing of Het on detritus
+     GrazPOP = self%K_het_pom_gro*Het*yy(self%K_het_pom_lim,PON/(Het+0.0001))
 
 !%! Grazing of Het on  bacteria
-     GrazBaae = 1.0*self%K_het_pom_gro*Het*yy(self%limGrazBac,Baae/(Het+0.0001)) 
-     GrazBaan = 0.5*self%K_het_pom_gro*Het*yy(self%limGrazBac,Baan/(Het+0.0001)) 
-     GrazBhae = 1.0*self%K_het_pom_gro*Het*yy(self%limGrazBac, Bhae/(Het+0.0001)) 
-     GrazBhan = 1.3*self%K_het_pom_gro*Het*yy(self%limGrazBac, Bhan/(Het+0.0001)) 
+     GrazBaae = 1.0*self%K_het_pom_gro*Het*yy(self%limGrazBac,Baae/(Het+0.0001))
+     GrazBaan = 0.5*self%K_het_pom_gro*Het*yy(self%limGrazBac,Baan/(Het+0.0001))
+     GrazBhae = 1.0*self%K_het_pom_gro*Het*yy(self%limGrazBac, Bhae/(Het+0.0001))
+     GrazBhan = 1.3*self%K_het_pom_gro*Het*yy(self%limGrazBac, Bhan/(Het+0.0001))
 
      GrazBact =GrazBaae+GrazBaan+GrazBhae+GrazBhan
 
@@ -341,8 +350,8 @@ call self%register_diagnostic_variable(self%id_N_fixation,'N_fixation','mmol/m**
      N_fixation =  self%K_nfix*LimP*1./(1.+((NO3+NO2+NH4)/PO4*16.)**4.)*GrowthPhy
 
 !%! Changes in alkalinity
-     dAlk =   & !  the ‘nutrient-H+-compensation principle’. Formulated by Wolf-Gladrow et al., 2007 :
-!        " (i) an increase of alkalinity by 1 mole when nitrate or nitrite is the N source, 
+     dAlk =   & !  the nutrient-H+-compensation principle. Formulated by Wolf-Gladrow et al., 2007 :
+!        " (i) an increase of alkalinity by 1 mole when nitrate or nitrite is the N source,
                     + 1.*GrowthPhy*(LimNO3/LimN)  & ! decrease of H+ to compensate NO3 consumption
 !        (ii) and a decrease of alkalinity by 1 mole when ammonia is used"
                     - 1.*GrowthPhy*(LimNH4/LimN) + N_fixation
@@ -353,21 +362,21 @@ call self%register_diagnostic_variable(self%id_N_fixation,'N_fixation','mmol/m**
           _SET_ODE_(self%id_Het,(self%Uz*Grazing-MortHet-RespHet))
           _SET_ODE_(self%id_O2,(GrowthPhy-RespHet)*self%r_o_n)
           _SET_ODE_(self%id_DON,+ExcrPhy+Grazing*(1.-self%Uz)*self%Hz)
-          _SET_ODE_(self%id_PON,MortPhy+MortHet+Grazing*(1.-self%Uz)*(1.-self%Hz)-GrazPOP) 
-          _SET_ODE_(self%id_NH4,+RespHet-GrowthPhy*(LimNH4/LimN)+N_fixation) 
-          _SET_ODE_(self%id_NO2,-GrowthPhy*(LimNO3/LimN)*(NO2/(0.00001+NO2+NO3))) 
-          _SET_ODE_(self%id_NO3,-GrowthPhy*(LimNO3/LimN)*((NO3+0.00001)/(0.00001+NO2+NO3))) 
+          _SET_ODE_(self%id_PON,MortPhy+MortHet+Grazing*(1.-self%Uz)*(1.-self%Hz)-GrazPOP)
+          _SET_ODE_(self%id_NH4,+RespHet-GrowthPhy*(LimNH4/LimN)+N_fixation)
+          _SET_ODE_(self%id_NO2,-GrowthPhy*(LimNO3/LimN)*(NO2/(0.00001+NO2+NO3)))
+          _SET_ODE_(self%id_NO3,-GrowthPhy*(LimNO3/LimN)*((NO3+0.00001)/(0.00001+NO2+NO3)))
           _SET_ODE_(self%id_DIC,(-GrowthPhy+RespHet)*self%r_c_n)
-          _SET_ODE_(self%id_PO4,(-GrowthPhy+RespHet)/self%r_n_p) 
-          _SET_ODE_(self%id_Si,(-GrowthPhy+ExcrPhy)*self%r_si_n)    
-          _SET_ODE_(self%id_Sipart,(MortPhy+GrazPhy)*self%r_si_n)  
-          _SET_ODE_(self%id_Alk,dAlk)          
+          _SET_ODE_(self%id_PO4,(-GrowthPhy+RespHet)/self%r_n_p)
+          _SET_ODE_(self%id_Si,(-GrowthPhy+ExcrPhy)*self%r_si_n)
+          _SET_ODE_(self%id_Sipart,(MortPhy+GrazPhy)*self%r_si_n)
+          _SET_ODE_(self%id_Alk,dAlk)
           _SET_ODE_(self%id_Baae,-GrazBaae)
           _SET_ODE_(self%id_Baan,-GrazBaan)
           _SET_ODE_(self%id_Bhae,-GrazBhae)
-          _SET_ODE_(self%id_Bhan,-GrazBhan)   
+          _SET_ODE_(self%id_Bhan,-GrazBhan)
 !%!----------------------------------------
-          
+
 _SET_DIAGNOSTIC_(self%id_MortHet,MortHet)
 _SET_DIAGNOSTIC_(self%id_Grazing,Grazing)
 _SET_DIAGNOSTIC_(self%id_RespHet,RespHet)
@@ -399,39 +408,39 @@ _LOOP_END_
 !-----------------------------------------------------------------------
 !!BOP
 !!
-!! !IROUTINE: 
+!! !IROUTINE:
 !!
 !! !INTERFACE:
 !   subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
 !!
 !! !DESCRIPTION:
-!! 
+!!
 !! !INPUT PARAMETERS:
 !   class (type_niva_brom_bio),intent(in) :: self
 !   _DECLARE_ARGUMENTS_DO_SURFACE_
 !!
 !! !LOCAL VARIABLES:
-! 
+!
 !   _HORIZONTAL_LOOP_BEGIN_
 !   _HORIZONTAL_LOOP_END_
-!   
-!   end subroutine 
+!
+!   end subroutine
 
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
 !
 ! !DESCRIPTION:
-! 
+!
 ! !INPUT PARAMETERS:
    class (type_niva_brom_bio),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   :: O2, temp, salt, windspeed 
+   real(rk)                   :: O2, temp, salt, windspeed
    real(rk)                   :: Ox, Oa, TempT, Obe, Q_O2
 
    _HORIZONTAL_LOOP_BEGIN_
@@ -439,63 +448,64 @@ _LOOP_END_
       _GET_(self%id_temp,temp)              ! temperature
       _GET_(self%id_salt,salt)              ! salinity
       _GET_HORIZONTAL_(self%id_windspeed,windspeed)
-      
+
 !/*---------------------------------------------------O2 exchange with air */
 
       Ox = 1953.4-128*temp+3.9918*temp*temp-0.050091*temp*temp*temp !(Wanninkoff, 1992)
-      if (Ox>0) then 
+      if (Ox>0) then
     !    Oa = 0.028*7.6*7.6*7.6*sqrt(660/Ox)   ! Pvel for the Baltic Sea by Schneider
-	        Oa = 0.028*(windspeed**3.)*sqrt(400/Ox)   ! 
+	        Oa = 0.028*(windspeed**3.)*sqrt(400/Ox)   !
         else
             Oa = 0.
       endif
 ! Calculation of O2 saturation Obe according to UNESCO, 1986
   TempT = (temp+273.15)/100.
   Obe = exp(-173.4292+249.6339/TempT+143.3483*log(TempT)-21.8492*TempT+salt*(-0.033096+0.014259*TempT-0.0017*TempT*TempT)) !Osat
-  Obe = Obe*1000./22.4  ! - in uM
+  Obe = Obe*1000./22.4  ! convert from ml/l into uM
 
-!  Q_O2 = Oa*(Obe-O2)*0.24 ! 0.24 is to convert from [cm/h] to [m/day]  
+
+!  Q_O2 = Oa*(Obe-O2)*0.24 ! 0.24 is to convert from [cm/h] to [m/day]
   Q_O2 = windspeed*(Obe-O2) !After (Burchard et al., 2005)
 
  _SET_SURFACE_EXCHANGE_(self%id_O2,Q_O2)
 
 _HORIZONTAL_LOOP_END_
-   
-   end subroutine 
+
+   end subroutine
 !-----------------------------------------------------------------------
 
-   
+
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
-! 
+!
 
 ! !INPUT PARAMETERS:
    class (type_niva_brom_bio),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !LOCAL VARIABLES:
-   
+
    _HORIZONTAL_LOOP_BEGIN_
    _HORIZONTAL_LOOP_END_
-   
-   end subroutine 
+
+   end subroutine
 !-----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
 !BOP
-!---------------------------------------------------------------------- 
-! SUBROUTINE: Saturation function squared 
+!----------------------------------------------------------------------
+! SUBROUTINE: Saturation function squared
 !-----------------------------------------------------------------------
 !
 ! !INTERFACE:
-real(rk) function yy(a,x)
+  real(rk) function yy(a,x)
 !
 ! !DESCRIPTION:
 ! This is a squared Michaelis-Menten type of limiter:
@@ -504,7 +514,7 @@ real(rk) function yy(a,x)
 ! \end{equation}
 !
 ! !INPUT PARAMETERS:
-!  REALTYPE, intent(in) 
+!  REALTYPE, intent(in)
 !  real :: a
    real(rk)  :: a,x
 !
@@ -516,11 +526,7 @@ real(rk) function yy(a,x)
 !BOC
    yy=x**2/(a**2+x**2)
 
-   end function yy
+  end function yy
 !EOC
 
    end module fabm_niva_brom_bio
-
-!-----------------------------------------------------------------------
-! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
-!-----------------------------------------------------------------------
