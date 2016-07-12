@@ -530,9 +530,11 @@
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAbioNO3S,tNAbioNO3S*86400.0_rk)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAbioPO4S,tPAbioPO4S*86400.0_rk)
 !  total fluxes for abiotic water state variables
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPdifPO4,tPdifPO4/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNdifNH4,tNdifNH4/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNdifNO3,tNdifNO3/dz*86400.0_rk)
+!  feh: July 11th, 2016: in principle, /dz is not correct. But temperal solution for comparing
+!  different sources of rates
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPdifPO4,tPdifPO4*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNdifNH4,tNdifNH4*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNdifNO3,tNdifNO3*86400.0_rk)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAbioO2S,(-tO2MinDetS - tO2NitrS)*86400.0_rk)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiAbioSiO2S,(1.0_rk-self%fRefrDetS)*tSiMinDetS*86400.0_rk)
 

@@ -72,6 +72,9 @@
       type (type_horizontal_diagnostic_variable_id)  :: id_tDAxuDiatS,id_tNAuxDiatS,id_tPAuxDiatS
       type (type_horizontal_diagnostic_variable_id)  :: id_tDAuxGrenS,id_tNAuxGrenS,id_tPAuxGrenS
       type (type_horizontal_diagnostic_variable_id)  :: id_tDAuxBlueS,id_tNAuxBlueS,id_tPAuxBlueS
+! feh, July 8th, 2016
+      type (type_horizontal_diagnostic_variable_id)  :: id_SWTNaux,id_SWTPaux,id_TNbur, id_TPbur      
+    
 !     diagnostic dependencies,due to burial process
       type ( type_horizontal_dependency_id)             :: id_tDAbioHumS
       type ( type_horizontal_dependency_id)             :: id_tDAbioDetS,id_tDPrimDetS,id_tDWebDetS,id_tDBedDetS
@@ -108,11 +111,15 @@
       real(rk)                   :: tDDepoIM,tDDepoDet,tNDepoDet,tPDepoPO4
       REAL(rk)                   :: tPDepoDet,tNDepoNH4,tNDepoNO3
 !!    variables need to be removed after compiled to 1d to 3d physical drivers
+!  feh, July 11th, 2016: remove mannual loadings
 !     parameters for loadings
-      real(rk)                   :: cLoadIM, cDLoadDet,cPLoadDet,cNLoadDet, cLoadPO4
-      real(rk)                   :: cLoadPAIM,cLoadNH4,cLoadNO3,uQIn
+!      real(rk)                   :: cLoadIM, cDLoadDet,cPLoadDet,cNLoadDet, cLoadPO4
+!      real(rk)                   :: cLoadPAIM,cLoadNH4,cLoadNO3,uQIn
+!     temperal solution for dilution
+      real(rk)                   :: uQIn
+!     feh, July11th, 2016: remvoed erosion part!
 !     bank erosion par
-      real(rk)                   :: cDErosTot,fSedErosIM      
+!      real(rk)                   :: cDErosTot,fSedErosIM      
 
 
    contains
@@ -207,14 +214,15 @@
    call self%get_parameter(self%tPDepoPO4,  'tPDepoPO4',  'g m-2 d-1',             'phosphate deposition',                                   default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%tNDepoNH4,  'tNDepoNH4',  'g m-2 d-1',             'ammonium deposition',                                    default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%tNDepoNO3,  'tNDepoNO3',  'g m-2 d-1',             'nitrate deposition',                                     default=0.0_rk, scale_factor=1.0_rk/secs_pr_day)
-!  loadings
-   call self%get_parameter(self%cLoadPO4,     'cLoadPO4',     'gP m-2 d-1',         'constant, different from cLoadIM',                       default=0.005_rk,  scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%cLoadNO3,     'cLoadNO3',     'gN m-2 d-1',         'constant',                                               default=0.05_rk,   scale_factor=1.0_rk/secs_pr_day)
+!  feh, July 11th, 2016: remove mannual loadings
+!   call self%get_parameter(self%cLoadPO4,     'cLoadPO4',     'gP m-2 d-1',         'constant, different from cLoadIM',                       default=0.005_rk,  scale_factor=1.0_rk/secs_pr_day)
+!   call self%get_parameter(self%cLoadNO3,     'cLoadNO3',     'gN m-2 d-1',         'constant',                                               default=0.05_rk,   scale_factor=1.0_rk/secs_pr_day)
+!  temperal soultion for dilution
    call self%get_parameter(self%uQIn,         'uQIn',         'mm d-1',             'net water load rate, constant',                          default=20.0_rk,   scale_factor=1.0_rk/secs_pr_day)
+!     feh, July11th, 2016: remvoed erosion part!
 !  erosion parameter
-   call self%get_parameter(self%fSedErosIM,   'fSedErosIM',   '[-]',                'instantly_sedimentating_fraction_of_IM',                 default=0.95_rk)
-   call self%get_parameter(self%cDErosTot,    'cDErosTot',    'g m-2 d-1',          'erosion input(tentative)',                               default=0.1_rk,    scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%crt_shear,    'crt_shear',    'N m-2',              'critical shear stress',                                  default=0.005_rk)
+!   call self%get_parameter(self%fSedErosIM,   'fSedErosIM',   '[-]',                'instantly_sedimentating_fraction_of_IM',                 default=0.95_rk)
+!   call self%get_parameter(self%cDErosTot,    'cDErosTot',    'g m-2 d-1',          'erosion input(tentative)',                               default=0.1_rk,    scale_factor=1.0_rk/secs_pr_day)
 !  Register dependencies to abiotic water module
    call self%register_state_dependency(self%id_SWNH4,   'Ammonium_pool_in_water',         'g m-3',  'Ammonium_pool_in_water')
    call self%register_state_dependency(self%id_SWNO3,   'Nitrate_pool_in_water',          'g m-3',  'Nitrate_pool_in_water')
@@ -325,7 +333,11 @@
    call self%register_diagnostic_variable(self%id_tDAuxBlueS,  'tDAuxBlueS',  'g m-2 s-1','auxiliary_DBlueS_change', output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_tNAuxBlueS,  'tNAuxBlueS',  'g m-2 s-1','auxiliary_NBlueS_change', output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_tPAuxBlueS,  'tPAuxBlueS',  'g m-2 s-1','auxiliary_PBlueS_change', output=output_instantaneous)
-
+!  feh: July 8th, 2016, TN,TP fluexes, between sediment-water interface, and burial TN,TP
+   call self%register_diagnostic_variable(self%id_SWTNaux,    'SWTNaux',      'g m-2 s-1','TN sediment_water exchange', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_SWTPaux,    'SWTPaux',      'g m-2 s-1','TP sediment_water exchange', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_TNbur,      'TNbur',        'g m-2 s-1','Burial TN',                  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_TPbur,      'TPbur',        'g m-2 s-1','Burial TP',                  output=output_instantaneous)
 
 
    return
@@ -415,9 +427,10 @@
 !  and sediment as well as humus change(organic matter) in the sediment
 !  variables of new resuspension method
    real(rk)                   :: shear
+!     feh, July11th, 2016: remvoed erosion part!
 !  erosion variables
-   real(rk)                   :: uDErosIM,uDErosIMW,uDErosIMS
-   real(rk)                   :: uDErosOM,uPErosOM,uNErosOM
+!   real(rk)                   :: uDErosIM,uDErosIMW,uDErosIMS
+!   real(rk)                   :: uDErosOM,uPErosOM,uNErosOM
 !feh, July 4th, 2016
 !  n for total step counter, t for time step counter, i for output
 !  for dataframe indext !  j is day counter
@@ -427,7 +440,8 @@
 !  it's not outputed, i is python index, so should start with 0
 !  index j for dataframe work structure
 !  variable for TN, TP fluxes
-   real(rk)                   :: TN_aux, TP_aux
+   real(rk)                   :: SWTN_aux, SWTP_aux
+   real(rk)                   :: TN_bur, TP_bur
    integer, save :: n=0,t=0,i=0,j=-1
    integer :: nlev
 
@@ -681,18 +695,19 @@
 !-----------------------------------------------------------------------
 !  Burial of sediment
 !----------------------------------------------------------------------
+!     feh, July11th, 2016: remvoed erosion part!
 !  IM_input_from_banks
-   uDErosIM = (1.0 - self%fDOrgSoil) * self%cDErosTot
+!   uDErosIM = (1.0 - self%fDOrgSoil) * self%cDErosTot
 !  IM_input_to_sediment_from_banks
-   uDErosIMS = self%fSedErosIM * uDErosIM
+!   uDErosIMS = self%fSedErosIM * uDErosIM
 !  IM_input_to_water_column_from_banks
-   uDErosIMW = uDErosIM - uDErosIMS
+!   uDErosIMW = uDErosIM - uDErosIMS
 !  organic_matter_input_from_banks
-   uDErosOM = self%fDOrgSoil * self%cDErosTot
+!   uDErosOM = self%fDOrgSoil * self%cDErosTot
 !  organic_P_input_from_banks
-   uPErosOM = 0.001_rk * uDErosOM  ! cPDSoilOM=0.001
+!   uPErosOM = 0.001_rk * uDErosOM  ! cPDSoilOM=0.001
 !  organic_N_input_from_banks
-   uNErosOM = 0.01_rk * uDErosOM  ! cNDSoilOM=0.01
+!   uNErosOM = 0.01_rk * uDErosOM  ! cNDSoilOM=0.01
 !  increase_in_inorganic_matter_in_sediment
    ! original form looks like
    !tDIMS = tDAbioIMS
@@ -807,7 +822,9 @@
 !  Update external state variables
 !-----------------------------------------------------------------------
 !  update inorganic and organic matters in water column
-   _SET_BOTTOM_EXCHANGE_(self%id_SWDIM,  uDErosIMW+tDResusIM-tDSetIM)
+!     feh, July11th, 2016: remvoed erosion part!
+!   _SET_BOTTOM_EXCHANGE_(self%id_SWDIM,  uDErosIMW+tDResusIM-tDSetIM)
+   _SET_BOTTOM_EXCHANGE_(self%id_SWDIM,   tDResusIM-tDSetIM)
    _SET_BOTTOM_EXCHANGE_(self%id_SWDDet, tDResusDet-tDSetDet)
    _SET_BOTTOM_EXCHANGE_(self%id_SWNDet, tNResusDet-tNSetDet)
    _SET_BOTTOM_EXCHANGE_(self%id_SWPDet, tPResusDet-tPSetDet)
@@ -829,7 +846,9 @@
    _SET_BOTTOM_EXCHANGE_(self%id_SWNBlue,tNResusBlue-tNSetBlue)
    _SET_BOTTOM_EXCHANGE_(self%id_SWPBlue,tPResusBlue-tPSetBlue)
 !  update abiotic variables in sediment
-   _SET_ODE_BEN_(self%id_WSDIM,  uDErosIMS+tDSetIM-tDResusIM -tDBurIM)
+!     feh, July11th, 2016: remvoed erosion part!
+!   _SET_ODE_BEN_(self%id_WSDIM,  uDErosIMS+tDSetIM-tDResusIM -tDBurIM)
+   _SET_ODE_BEN_(self%id_WSDIM,  tDSetIM-tDResusIM -tDBurIM)
    _SET_ODE_BEN_(self%id_WSDDet, tDSetDet-tDResusDet-tDBurDet)
    _SET_ODE_BEN_(self%id_WSPDet, tPSetDet-tPResusDet-tPBurDet)
    _SET_ODE_BEN_(self%id_WSNDet, tNSetDet-tNResusDet-tNBurDet)
@@ -838,9 +857,13 @@
    _SET_ODE_BEN_(self%id_WSPAIM, tPSetAIM-tPResusAIM-tPBurAIM)
    _SET_ODE_BEN_(self%id_WSNH4,  -tNResusNH4-tNBurNH4)
    _SET_ODE_BEN_(self%id_WSNO3,  -tNResusNO3-tNBurNO3)
-   _SET_ODE_BEN_(self%id_WSDHum, uDErosOM-tDBurHum)
-   _SET_ODE_BEN_(self%id_WSPHum, uPErosOM-tPBurHum)
-   _SET_ODE_BEN_(self%id_WSNHum, uNErosOM-tNBurHum)
+!     feh, July11th, 2016: remvoed erosion part!
+!   _SET_ODE_BEN_(self%id_WSDHum, uDErosOM-tDBurHum)
+!   _SET_ODE_BEN_(self%id_WSPHum, uPErosOM-tPBurHum)
+!   _SET_ODE_BEN_(self%id_WSNHum, uNErosOM-tNBurHum)
+   _SET_ODE_BEN_(self%id_WSDHum, -tDBurHum)
+   _SET_ODE_BEN_(self%id_WSPHum, -tPBurHum)
+   _SET_ODE_BEN_(self%id_WSNHum, -tNBurHum)
 !  update settled phytoplankton
    _SET_ODE_BEN_(self%id_WSDDiat, tDSetDiat-tDResusDiat)
    _SET_ODE_BEN_(self%id_WSNDiat, tNSetDiat-tNResusDiat)
@@ -859,25 +882,25 @@
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aFunTauSet,  aFunTauSet)
 !  output diagonostic variable for resuspension fluxes
 !  fluxes for abiotic water state variables
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxDIMW,   (tDResusIM-tDSetIM)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxDetW,  (tDResusDet-tDSetDet)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDetW,  (tNResusDet-tNSetDet)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDetW,  (tPResusDet-tPSetDet)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiAuxDetW, (tSiResusDet-tSiSetDet)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxPAIMW,  (tPResusAIM-tPSetAIM)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNH4W,  tNResusNH4/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNO3W,  tNResusNO3/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxPO4W,  tPResusPO4/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxDIMW,   (tDResusIM-tDSetIM)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxDetW,  (tDResusDet-tDSetDet)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDetW,  (tNResusDet-tNSetDet)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDetW,  (tPResusDet-tPSetDet)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiAuxDetW, (tSiResusDet-tSiSetDet)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxPAIMW,  (tPResusAIM-tPSetAIM)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNH4W,  tNResusNH4*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxNO3W,  tNResusNO3*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxPO4W,  tPResusPO4*86400.0_rk)
 !  fluxes for phytoplankton water state variables
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAxuDiatW, (tDResusDiat-tDSetDiat)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDiatW, (tNResusDiat-tNSetDiat)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDiatW, (tPResusDiat-tPSetDiat)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxGrenW, (tDResusGren-tDSetGren)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxGrenW, (tNResusGren-tNSetGren)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxGrenW, (tPResusGren-tPSetGren)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxBlueW, (tDResusBlue-tDSetBlue)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxBlueW, (tNResusBlue-tNSetBlue)/dz*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxBlueW, (tPResusBlue-tPSetBlue)/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAxuDiatW, (tDResusDiat-tDSetDiat)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxDiatW, (tNResusDiat-tNSetDiat)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxDiatW, (tPResusDiat-tPSetDiat)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxGrenW, (tDResusGren-tDSetGren)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxGrenW, (tNResusGren-tNSetGren)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxGrenW, (tPResusGren-tPSetGren)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxBlueW, (tDResusBlue-tDSetBlue)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAuxBlueW, (tNResusBlue-tNSetBlue)*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAuxBlueW, (tPResusBlue-tPSetBlue)*86400.0_rk)
 !  fluxes for abiotic sediment state variables
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tAuxDIMS,   (tDSetIM-tDResusIM-tDBurIM) *86400.0_rk)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAuxDetS,  (tDSetDet-tDResusDet-tDBurDet)*86400.0_rk)
@@ -904,41 +927,47 @@
 !-----------------------------------------------------------------------
 !  Section for write out benthic diagnostic variables
 !-----------------------------------------------------------------------
-   TN_aux = tNResusDet-tNSetDet + tNResusNH4 + tNResusNO3 + tNResusDiat &
+   SWTN_aux = tNResusDet-tNSetDet + tNResusNH4 + tNResusNO3 + tNResusDiat &
             & - tNSetDiat + tNResusGren - tNSetGren + tNResusBlue - tNSetBlue
-   TP_aux = tPResusDet-tPSetDet + tPResusPO4 + tPResusAIM - tPSetAIM + &
+   SWTP_aux = tPResusDet-tPSetDet + tPResusPO4 + tPResusAIM - tPSetAIM + &
             & tPResusDiat - tPSetDiat + tPResusGren-tPSetGren + tPResusBlue - tPSetBlue
+   TN_bur   = tNBurDet + tNBurNH4 + tNBurNO3 + tNBurHum
+   TP_bur   = tPBurDet + tPBurPO4 + tPBurAIM + tPBurHum 
 
-
-   nlev= anint(sDepthW/dz)
-   if (n .eq. 1) then
-      open(unit=9999,file='auxtot.dat',status = 'REPLACE',ACTION='write')
-   else
-      open(unit=9999,file='auxtot.dat',Access = 'append',Status='old')
-   endif
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_SWTNaux, SWTN_aux*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_SWTPaux, SWTP_aux*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_TNbur, TN_bur*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_TPbur, TP_bur*86400.0_rk)
    
-!  feh update time step count
-   if (mod(n-1,nlev) .eq. 0) then
-      t=t+1
-   endif
-!  update depth count
-   if (mod(t,144*4) .eq. 0) then
-      i=i+1
-   else 
-!  i should start with 0, so i initialized as -1
-      i=-1
-   endif
-!  j should start with 0
-   if (mod(n-1,144*nlev*4) .eq. 0) then
-      j=j+1
-   endif
-   if (mod(t,144*4) .eq. 0) then
-! feh only write out the scaler that I wanted to plot
-      write(9999,*), j,i, TN_aux,TP_aux
-   endif
-   close(9999)
-!  feh update total step count
-   n=n+1
+!   nlev= anint(sDepthW/dz)
+!   if (n .eq. 1) then
+!      open(unit=9999,file='auxtot.dat',status = 'REPLACE',ACTION='write')
+!   else
+!      open(unit=9999,file='auxtot.dat',Access = 'append',Status='old')
+!   endif
+!   
+!!  feh update time step count
+!   if (mod(n-1,nlev) .eq. 0) then
+!      t=t+1
+!   endif
+!!  update depth count
+!   if (mod(t,144*4) .eq. 0) then
+!      i=i+1
+!   else 
+!!  i should start with 0, so i initialized as -1
+!      i=-1
+!   endif
+!!  j should start with 0
+!   if (mod(n-1,144*nlev*4) .eq. 0) then
+!      j=j+1
+!   endif
+!   if (mod(t,144*4) .eq. 0) then
+!! feh only write out the scaler that I wanted to plot
+!      write(9999,*), j,i, TN_aux,TP_aux
+!   endif
+!   close(9999)
+!!  feh update total step count
+!   n=n+1
 !-----------------------------------------------------------------------
 !  feh end of temperal solution for output benthic diagnostic variables
 !-----------------------------------------------------------------------
@@ -956,6 +985,40 @@
 ! !INPUT PARAMETERS:
    class (type_au_pclake_auxiliary), intent(in)    :: self
    _DECLARE_ARGUMENTS_DO_
+
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+!  Spatial loop
+   _LOOP_BEGIN_
+! !Retrieve state dependencie value
+
+
+   
+
+   _LOOP_END_
+!-----------------------------------------------------------------------
+!  Spatial loop end
+!-----------------------------------------------------------------------
+   end subroutine do
+
+!EOC
+
+! !IROUTINE: !feh temperal solution for loading and dilution of NH4, NO3,
+! ! FH: aug 18th, 2015,remove this subroutine due to lake branch is up running, due to lake branch is running
+!-----------------------------------------------------------------------
+!BOP
+!  feh, July11th, 2016: subroutine kept specifically for MS2, for comparison purpose
+!  Due to 0D and 1D can not handle dilution effects(inflow, outflow in lake), 
+!  so kept this subroutine for replacement of dilution(turned off inflows, 
+!  outflows in lake branch)
+! !IROUTINE: this subroutine deal with the atmospheric depositions
+!!                    including detrital nitrogen, ammonium, nitrate, phosphate,
+! !                   detrital phosphorus
+ subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
+   class (type_au_pclake_auxiliary),intent(in) :: self
+   _DECLARE_ARGUMENTS_DO_SURFACE_
+
 ! !LOCAL VARIABLES:
 !  carriers for state variable values
    real(rk)    :: sDIMW,sDDetW,sPDetW,sNDetW,sSiDetW,sSiO2W
@@ -967,7 +1030,8 @@
 !  environmental dependency carrier
    real(rk)   :: sDepthW,Day
 !  loading variables
-   real(rk)    :: uPLoadPO4,uNLoadNO3,uDLoadIM,uSiLoadSiO2
+!  feh, July 11th, 2016: remove mannual loadings
+!   real(rk)    :: uPLoadPO4,uNLoadNO3,uDLoadIM,uSiLoadSiO2
 !  dilution variables
    real(rk)    :: ukDil,uQEv,uQDil,ukDilWat
    real(rk)    :: wDDilIM,wDDilDet,wPDilDet,wNDilDet,wSiDilDet
@@ -987,9 +1051,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-!  Spatial loop
-   _LOOP_BEGIN_
-! !Retrieve state dependencie value
+   _HORIZONTAL_LOOP_BEGIN_
 !  from abiotic water column
    _GET_(self%id_SWNH4,sNH4W)
    _GET_(self%id_SWNO3,sNO3W)
@@ -1017,12 +1079,13 @@
    _GET_(self%id_PTranZoo,sPZoo)
    _GET_(self%id_NTranZoo,sNZoo)
 !  retrieve environmental dependencies
-   _GET_HORIZONTAL_(self%id_sDepthW,sDepthW)
+   _GET_(self%id_dz,sDepthW)
    _GET_GLOBAL_(self%id_Day,Day)
-!  P_load_PO4
-   uPLoadPO4=self%cLoadPO4
-!  N_load_NO3
-   uNLoadNO3=self%cLoadNO3
+!  feh, July 11th, 2016: remove mannual loadings
+!!  P_load_PO4
+!   uPLoadPO4=self%cLoadPO4
+!!  N_load_NO3
+!   uNLoadNO3=self%cLoadNO3
    uQEv = 0.0_rk
 !  dilution_rate_of_substances
    uQDil=self%uQIn-uQEv 
@@ -1030,7 +1093,9 @@
 !  dilution_rate_of_substances
    ukDil = uQDil / mmPerm/sDepthW
 !  loading_of_DW_of_inorg_matter
-   uDLoadIM = 5.0_rk * self%uQIn / mmPerm  ! cDIMIn=5
+!  feh: July 11th, 2016: residual code for benchmark test
+!  to ensure the exact same load of everything
+!   uDLoadIM = 5.0_rk * self%uQIn / mmPerm  ! cDIMIn=5
 !  dilution_of_DW_IM
    wDDilIM = ukDil * sDIMW
 !  dilllution_of_detritus
@@ -1068,11 +1133,11 @@
 !  dilution_of_Blue
    wNDilBlue = ukDil * sNBlueW
 !  transport_flux_DW_in_IM
-   wDTranIMW = uDLoadIM/sDepthW- wDDilIM
+   wDTranIMW = - wDDilIM
 !  transport_flux_DW_in_detritus
    wDTranDetW =  - wDDilDet
 !  transport_flux_of_P_in_PO4
-   wPTranPO4W = uPLoadPO4/sDepthW  - wPDilPO4
+   wPTranPO4W =  - wPDilPO4
 !  transport_flux_of_P_in_AIM
    wPTranAIMW =   - wPDilAIM
 !  transport_flux_of_P_in_detritus
@@ -1080,7 +1145,7 @@
 !  transport_flux_of_N_in_NH4
    wNTranNH4W =  - wNDilNH4 
 !  transport_flux_of_N_in_NO3
-   wNTranNO3W = uNLoadNO3/sDepthW - wNDilNO3
+   wNTranNO3W = - wNDilNO3
 !  transport_flux_of_N_in_detritus
    wNTranDetW = - wNDilDet
 !  transport_flux_of_Si_in_detritus
@@ -1103,10 +1168,13 @@
    wNTranBlue=-wNDilBlue
 !  transport_flux_of_P_in_Blue
    wPTranBlue=-wPDilBlue
+!---beginning of residual code---------
+!  feh: July 11th, 2016: residual code for benchmark test
+!  to ensure the exact same load of everything
 !  dilution_rate_of_water
    ukDilWat = self%uQIn / mmPerm / sDepthW
 !  oxygen_inflow
-   wO2Inflow = ukDilWat * 5.0_rk
+   wO2Inflow = ukDilWat * sO2W
 !  oxygen_outflow
    wO2Outfl = ukDil * sO2W
 !  transport_flux_O2
@@ -1117,68 +1185,56 @@
    wPTranZoo =(ukDilWat *0.01_rk*0.1_rk  - ukDil*sPZoo)  ! cPDZooRef=0.01
 !  net_migration_flux_of_N_in_Zoo
    wNTranZoo =(ukDilWat * 0.1_rk*0.07_rk - ukDil * sNZoo) !cNDZooRef=0.07
+!  feh, July 11th, 2016: remove mannual loadings
 !  total_transport_flux_of_Si_in_SiO2
-   uSiLoadSiO2 = 3.0_rk * self%uQIn / mmPerm   !cSiO2In=3.0
+!   uSiLoadSiO2 = 3.0_rk * self%uQIn / mmPerm   !cSiO2In=3.0
 !  Dilution_of_Si_in_SiO2
    wSiDilSiO2 = ukDil * sSiO2W
 !  transport_flux_of_Si_in_SIO2
-   wSiTranSiO2 = uSiLoadSiO2 / sDepthW - wSiDilSiO2
+   wSiTranSiO2 =  - wSiDilSiO2
+!-----end of residual code---------
+!-----Temperal dilution solution-----
+!  oxygen_outflow
+   wO2Outfl = ukDil * sO2W
+!  transport_flux_O2
+   wO2TranW =  - wO2Outfl
+!  net_migration_flux_of_D_in_Zoo
+   wDTranZoo = -ukDil*sDZoo 
+!  net_migration_flux_of_P_in_ZOO
+   wPTranZoo = - ukDil*sPZoo
+!  net_migration_flux_of_N_in_Zoo
+   wNTranZoo = - ukDil * sNZoo
+!  Dilution_of_Si_in_SiO2
+   wSiDilSiO2 = - ukDil * sSiO2W
+!  transport_flux_of_Si_in_SIO2
+   wSiTranSiO2 = - wSiDilSiO2
+!---end of temperal dilution solution------------  
 !  update transported state variables
-   _SET_ODE_(self%id_SWDIM,wDTranIMW)
-   _SET_ODE_(self%id_SWDDet,wDTranDetW)
-   _SET_ODE_(self%id_SWNDet,wNTranDetW)
-   _SET_ODE_(self%id_SWPDet,wPTranDetW)
-   _SET_ODE_(self%id_SWSiDet,wSiTranDetW)
-   _SET_ODE_(self%id_SWNH4,wNTranNH4W)
-   _SET_ODE_(self%id_SWNO3,wNTranNO3W)
-   _SET_ODE_(self%id_SWPO4,wPTranPO4W)
-   _SET_ODE_(self%id_SWPAIM,wPTranAIMW)
-   _SET_ODE_(self%id_SWO2,wO2TranW)
-   _SET_ODE_(self%id_SWSiO2,wSiTranSiO2)
+   _SET_SURFACE_EXCHANGE_(self%id_SWDIM,wDTranIMW)
+   _SET_SURFACE_EXCHANGE_(self%id_SWDDet,wDTranDetW)
+   _SET_SURFACE_EXCHANGE_(self%id_SWNDet,wNTranDetW)
+   _SET_SURFACE_EXCHANGE_(self%id_SWPDet,wPTranDetW)
+   _SET_SURFACE_EXCHANGE_(self%id_SWSiDet,wSiTranDetW)
+   _SET_SURFACE_EXCHANGE_(self%id_SWNH4,wNTranNH4W)
+   _SET_SURFACE_EXCHANGE_(self%id_SWNO3,wNTranNO3W)
+   _SET_SURFACE_EXCHANGE_(self%id_SWPO4,wPTranPO4W)
+   _SET_SURFACE_EXCHANGE_(self%id_SWPAIM,wPTranAIMW)
+   _SET_SURFACE_EXCHANGE_(self%id_SWO2,wO2TranW)
+   _SET_SURFACE_EXCHANGE_(self%id_SWSiO2,wSiTranSiO2)
 !  update phytoplankton in water column
-   _SET_ODE_(self%id_SWDDiat,wDTranDiat)
-   _SET_ODE_(self%id_SWNDiat,wNTranDiat)
-   _SET_ODE_(self%id_SWPDiat,wPTranDiat)
-   _SET_ODE_(self%id_SWDGren,wDTranGren)
-   _SET_ODE_(self%id_SWNGren,wNTranGren)
-   _SET_ODE_(self%id_SWPGren,wPTranGren)
-   _SET_ODE_(self%id_SWDBlue,wDTranBlue)
-   _SET_ODE_(self%id_SWNBlue,wNTranBlue)
-   _SET_ODE_(self%id_SWPBlue,wPTranBlue)
+   _SET_SURFACE_EXCHANGE_(self%id_SWDDiat,wDTranDiat)
+   _SET_SURFACE_EXCHANGE_(self%id_SWNDiat,wNTranDiat)
+   _SET_SURFACE_EXCHANGE_(self%id_SWPDiat,wPTranDiat)
+   _SET_SURFACE_EXCHANGE_(self%id_SWDGren,wDTranGren)
+   _SET_SURFACE_EXCHANGE_(self%id_SWNGren,wNTranGren)
+   _SET_SURFACE_EXCHANGE_(self%id_SWPGren,wPTranGren)
+   _SET_SURFACE_EXCHANGE_(self%id_SWDBlue,wDTranBlue)
+   _SET_SURFACE_EXCHANGE_(self%id_SWNBlue,wNTranBlue)
+   _SET_SURFACE_EXCHANGE_(self%id_SWPBlue,wPTranBlue)
 !  update zooplankton group
-   _SET_ODE_(self%id_DTranZoo,wDTranZoo)
-   _SET_ODE_(self%id_PTranZoo,wPTranZoo)
-   _SET_ODE_(self%id_NTranZoo,wNTranZoo)
-
-   
-
-   _LOOP_END_
-!-----------------------------------------------------------------------
-!  Spatial loop end
-!-----------------------------------------------------------------------
-   end subroutine do
-
-!EOC
-
-! !IROUTINE: !feh temperal solution for loading and dilution of NH4, NO3,
-! ! FH: aug 18th, 2015,remove this subroutine due to lake branch is up running, due to lake branch is running
-!-----------------------------------------------------------------------
-!BOP
-
-! !IROUTINE: this subroutine deal with the atmospheric depositions
-!!                    including detrital nitrogen, ammonium, nitrate, phosphate,
-! !                   detrital phosphorus
- subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
-   class (type_au_pclake_auxiliary),intent(in) :: self
-   _DECLARE_ARGUMENTS_DO_SURFACE_
-
-!  local variables
-
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   _HORIZONTAL_LOOP_BEGIN_
-
+   _SET_SURFACE_EXCHANGE_(self%id_DTranZoo,wDTranZoo)
+   _SET_SURFACE_EXCHANGE_(self%id_PTranZoo,wPTranZoo)
+   _SET_SURFACE_EXCHANGE_(self%id_NTranZoo,wNTranZoo)
 
    _SET_SURFACE_EXCHANGE_(self%id_SWDIM,  self%tDDepoIM)
    _SET_SURFACE_EXCHANGE_(self%id_SWDDet, self%tDDepoDet)
