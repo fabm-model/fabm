@@ -142,15 +142,17 @@
       logical                            :: no_precipitation_dilution = .false.
       logical                            :: no_river_dilution         = .false.
       type (type_bulk_variable_id)       :: globalid
-      integer,allocatable, dimension(:)  :: sms_indices, surface_flux_indices, bottom_flux_indices
-      integer                            :: movement_index
+      integer                            :: sms_index          = -1
+      integer                            :: surface_flux_index = -1
+      integer                            :: bottom_flux_index  = -1
+      integer                            :: movement_index     = -1
    end type type_state_variable_info
 
    type,extends(type_external_variable) :: type_horizontal_state_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
       real(rk)                                 :: initial_value = 0.0_rk
       type (type_horizontal_variable_id)       :: globalid
-      integer,allocatable, dimension(:)        :: sms_indices
+      integer                                  :: sms_index = -1
    end type type_horizontal_state_variable_info
 
 !  Derived type describing a diagnostic variable
@@ -797,6 +799,16 @@
 #if _HORIZONTAL_DIMENSION_COUNT_>0
    self%horizontal_domain_size = (/ _HORIZONTAL_LOCATION_ /)
 #endif
+   ! Flag user-requested diagnostics so that merge_indices is aware.
+   do ivar=1,size(self%diagnostic_variables)
+      if (self%diagnostic_variables(ivar)%save) self%diagnostic_variables(ivar)%target%store_index = store_index_requested
+   end do
+   do ivar=1,size(self%horizontal_diagnostic_variables)
+      if (self%horizontal_diagnostic_variables(ivar)%save) self%horizontal_diagnostic_variables(ivar)%target%store_index = store_index_requested
+   end do
+
+   ! Merge write indices when operations can be done in place
+   !call merge_indices(self%root)
 
    allocate(self%zero _INDEX_LOCATION_)
    self%zero = 0.0_rk
@@ -876,16 +888,6 @@
    end do
    call self%get_light_extinction_job%request_variable(self%extinction_target,copy_to_cache=.true.)
 
-   ! Merge diagnostic variables that contribute to the same sink/source terms,
-   ! surface fluxes, bottom fluxes, provided no other variables depend on them.
-   link => self%links_postcoupling%first
-   do while (associated(link))
-      call merge_aggregating_diagnostics(link%target%sms_list)
-      call merge_aggregating_diagnostics(link%target%surface_flux_list)
-      call merge_aggregating_diagnostics(link%target%bottom_flux_list)
-      link => link%next
-   end do
-
    ! Assign write cache indices to all interior diagnostic variables.
    ! Must be done after calls to merge_aggregating_diagnostics.
    self%nscratch = 0
@@ -898,22 +900,16 @@
    call assign_write_indices(self%links_postcoupling,domain_horizontal,self%nscratch_hz)
    call assign_write_indices(self%links_postcoupling,domain_bottom,    self%nscratch_hz)
 
-   ! Create arrays with diagnostic indices contributing to sink/source terms,
-   ! surface fluxes, bottom fluxes. Must be done after calls to merge_aggregating_diagnostics.
-   do ivar=1,size(self%state_variables)
-      call copy_write_indices(self%state_variables(ivar)%target%sms_list,         self%state_variables(ivar)%sms_indices)
-      call copy_write_indices(self%state_variables(ivar)%target%surface_flux_list,self%state_variables(ivar)%surface_flux_indices)
-      call copy_write_indices(self%state_variables(ivar)%target%bottom_flux_list, self%state_variables(ivar)%bottom_flux_indices)
-      self%state_variables(ivar)%movement_index = self%state_variables(ivar)%target%movement_diagnostic%target%write_indices%value
-   end do
-   do ivar=1,size(self%surface_state_variables)
-      call copy_write_indices(self%surface_state_variables(ivar)%target%sms_list, self%surface_state_variables(ivar)%sms_indices)
-   end do
-   do ivar=1,size(self%bottom_state_variables)
-      call copy_write_indices(self%bottom_state_variables(ivar)%target%sms_list, self%bottom_state_variables(ivar)%sms_indices)
-   end do
+   if (any(self%state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more interior state variables.')
+   if (any(self%state_variables(:)%surface_flux_index<=0)) call fatal_error('fabm_set_domain','BUG: surface_flux_index invalid for one or more interior state variables.')
+   if (any(self%state_variables(:)%bottom_flux_index<=0)) call fatal_error('fabm_set_domain','BUG: bottom_flux_index invalid for one or more interior state variables.')
+   if (any(self%state_variables(:)%movement_index<=0)) call fatal_error('fabm_set_domain','BUG: movement_index invalid for one or more interior state variables.')
+   if (any(self%surface_state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more surface state variables.')
+   if (any(self%bottom_state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more bottom state variables.')
 
    ! Allocate memory for full-domain storage of interior diagnostics
+   ! NB the memmory is initialized to zero specifically for element at index=0 (a dummy field)
+   ! For all actual diagsntoics, a missing value is written immediately below.
    nsave = 0
    do ivar=1,size(self%diagnostic_variables)
       if (self%diagnostic_variables(ivar)%save.or.self%diagnostic_variables(ivar)%target%read_indices%value/=-1) then
@@ -927,6 +923,8 @@
    self%diag = 0.0_rk
 
    ! Allocate memory for full-domain storage of horizontal diagnostics
+   ! NB the memmory is initialized to zero specifically for element at index=0 (a dummy field)
+   ! For all actual diagsntoics, a missing value is written immediately below.
    nsave_hz = 0
    do ivar=1,size(self%horizontal_diagnostic_variables)
       if (self%horizontal_diagnostic_variables(ivar)%save.or.self%horizontal_diagnostic_variables(ivar)%target%read_indices%value/=-1) then
@@ -985,31 +983,23 @@
    end subroutine fabm_set_domain
 !EOC
 
-   subroutine merge_aggregating_diagnostics(list)
-      type (type_link_list),intent(inout) :: list
+   recursive subroutine merge_indices(model)
+      class (type_base_model), intent(inout) :: model
 
-      type (type_link),             pointer :: link
-      type (type_internal_variable),pointer :: free_target
+      type (type_model_list_node), pointer :: child
 
-      nullify(free_target)
-      link => list%first
-      do while (associated(link))
-         if (link%target%read_indices%is_empty()) then
-            ! This diagnostic is only used to increment source-sink terms, surface fluxes or bottom fluxes.
-            ! It can be merged.
-            if (associated(free_target)) then
-               ! We already found a previous variable that can be merged - merge current and previous.
-               call free_target%write_indices%extend(link%target%write_indices)
-               call free_target%write_indices%append(link%target%write_indices%value)
-               call link%target%write_indices%clear()
-            else
-               ! This is the first variable that can be merged. Record it as such and move on.
-               free_target => link%target
-            end if
-         end if
-         link => link%next
+      select type (model)
+      class is (type_weighted_sum)
+         call model%reindex()
+      end select
+
+      ! Process children
+      child => model%children%first
+      do while (associated(child))
+         call merge_indices(child%model)
+         child => child%next
       end do
-   end subroutine merge_aggregating_diagnostics
+   end subroutine merge_indices
 
 #ifdef _HAS_MASK_
 !-----------------------------------------------------------------------
@@ -2841,13 +2831,11 @@ subroutine end_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
    integer :: i
 
    ! Copy newly written diagnostics that need to be saved to global store.
-   if (allocated(task%save_sources)) then
-      do i=1,size(task%save_sources)
-         if (task%save_sources(i)/=-1) then
-            _UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%diag,i,cache%mask,self%diag_missing_value(i))
-         end if
-      end do
-   end if
+   do i=1,size(task%save_sources)
+      if (task%save_sources(i)/=-1) then
+         _UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%diag,i,cache%mask,self%diag_missing_value(i))
+      end if
+   end do
 
 #ifdef _HAS_MASK_
    deallocate(cache%mask)
@@ -2868,13 +2856,11 @@ subroutine end_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    integer :: i
 
    ! Copy newly written horizontal diagnostics that need to be saved to global store.
-   if (allocated(task%save_sources_hz)) then
-      do i=1,size(task%save_sources_hz)
-         if (task%save_sources_hz(i)/=-1) then
-            _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write_hz,task%save_sources_hz(i),self%diag_hz,i,cache%mask,self%diag_hz_missing_value(i))
-         end if
-      end do
-   end if
+   do i=1,size(task%save_sources_hz)
+      if (task%save_sources_hz(i)/=-1) then
+         _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write_hz,task%save_sources_hz(i),self%diag_hz,i,cache%mask,self%diag_hz_missing_value(i))
+      end if
+   end do
 
 #ifdef _HAS_MASK_
    deallocate(cache%mask)
@@ -2895,24 +2881,20 @@ subroutine end_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
    integer :: i
 
    ! Copy diagnostics that need to be saved to global store.
-   if (allocated(task%save_sources)) then
-      do i=1,size(task%save_sources)
-         if (task%save_sources(i)/=-1) then
-            _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%diag,i,cache%mask,self%diag_missing_value(i))
-         end if
-      end do
-   end if
-   if (allocated(task%save_sources_hz)) then
-      do i=1,size(task%save_sources_hz)
-         if (task%save_sources_hz(i)/=-1) then
+   do i=1,size(task%save_sources)
+      if (task%save_sources(i)/=-1) then
+         _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%diag,i,cache%mask,self%diag_missing_value(i))
+      end if
+   end do
+   do i=1,size(task%save_sources_hz)
+      if (task%save_sources_hz(i)/=-1) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-            self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(1,task%save_sources_hz(i))
+         self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(1,task%save_sources_hz(i))
 #else
-            self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(task%save_sources_hz(i))
+         self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(task%save_sources_hz(i))
 #endif
-         end if
-      end do
-   end if
+      end if
+   end do
 
 #ifdef _HAS_MASK_
    deallocate(cache%mask)
@@ -3137,10 +3119,8 @@ end subroutine end_vertical_task
 
    ! Compose total sources-sinks for each state variable, combining model-specific contributions.
    do i=1,size(self%state_variables)
-      do j=1,size(self%state_variables(i)%sms_indices)
-         k = self%state_variables(i)%sms_indices(j)
-         _UNPACK_AND_ADD_TO_PLUS_1_(cache%write,k,dy,i,cache%mask,0.0_rk)
-      end do
+      k = self%state_variables(i)%sms_index
+      _UNPACK_AND_ADD_TO_PLUS_1_(cache%write,k,dy,i,cache%mask,0.0_rk)
    end do
 
    call end_interior_task(self,self%do_interior_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
@@ -3580,20 +3560,16 @@ end subroutine internal_check_horizontal_state
       ! Compose surface fluxes for each interior state variable, combining model-specific contributions.
       flux_pel = 0.0_rk
       do i=1,size(self%state_variables)
-         do j=1,size(self%state_variables(i)%surface_flux_indices)
-            k = self%state_variables(i)%surface_flux_indices(j)
-            _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_pel,i,cache%mask,0.0_rk)
-         end do
+         k = self%state_variables(i)%surface_flux_index
+         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_pel,i,cache%mask,0.0_rk)
       end do
 
       ! Compose total sources-sinks for each surface-bound state variable, combining model-specific contributions.
       if (present(flux_sf)) then
          flux_sf = 0.0_rk
          do i=1,size(self%surface_state_variables)
-            do j=1,size(self%surface_state_variables(i)%sms_indices)
-               k = self%surface_state_variables(i)%sms_indices(j)
-               _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_sf,i,cache%mask,0.0_rk)
-            end do
+            k = self%state_variables(i)%sms_index
+            _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_sf,i,cache%mask,0.0_rk)
          end do
       end if
 
@@ -3667,18 +3643,14 @@ end subroutine internal_check_horizontal_state
 
    ! Compose bottom fluxes for each interior state variable, combining model-specific contributions.
    do i=1,size(self%state_variables)
-      do j=1,size(self%state_variables(i)%bottom_flux_indices)
-         k = self%state_variables(i)%bottom_flux_indices(j)
-         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_pel,i,cache%mask,0.0_rk)
-      end do
+      k = self%state_variables(i)%bottom_flux_index
+      _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_pel,i,cache%mask,0.0_rk)
    end do
 
    ! Compose total sources-sinks for each bottom-bound state variable, combining model-specific contributions.
    do i=1,size(self%bottom_state_variables)
-      do j=1,size(self%bottom_state_variables(i)%sms_indices)
-         k = self%bottom_state_variables(i)%sms_indices(j)
-         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_ben,i,cache%mask,0.0_rk)
-      end do
+      k = self%bottom_state_variables(i)%sms_index
+      _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_ben,i,cache%mask,0.0_rk)
    end do
 
    call end_horizontal_task(self,self%do_bottom_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
@@ -4445,44 +4417,6 @@ subroutine assign_write_indices(link_list,domain,count)
    end do
 end subroutine assign_write_indices
 
-subroutine copy_write_indices(source,target)
-   type (type_link_list),intent(in) :: source
-   integer,allocatable              :: target(:)
-
-   integer                  :: n,nold
-   type (type_link),pointer :: link
-   integer,allocatable      :: old(:)
-
-   n = 0
-   link => source%first
-   do while (associated(link))
-      if (.not.link%target%write_indices%is_empty()) n = n + 1
-      link => link%next
-   end do
-
-   if (allocated(target)) then
-      nold = size(target)
-      allocate(old(nold))
-      old(:) = target
-      deallocate(target)
-   else
-      nold = 0
-   end if
-
-   allocate(target(nold+n))
-   if (allocated(old)) target(1:nold) = old
-
-   n = nold
-   link => source%first
-   do while (associated(link))
-      if (.not.link%target%write_indices%is_empty()) then
-         n = n + 1
-         call link%target%write_indices%append(target(n))
-      end if
-      link => link%next
-   end do
-end subroutine copy_write_indices
-
 function create_external_interior_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
    type (type_bulk_variable_id) :: id
@@ -4787,6 +4721,10 @@ subroutine classify_variables(self)
                statevar%vertical_movement         = object%vertical_movement
                statevar%no_precipitation_dilution = object%no_precipitation_dilution
                statevar%no_river_dilution         = object%no_river_dilution
+               if (.not.object%sms_sum%target%write_indices%is_empty()) call object%sms_sum%target%write_indices%append(statevar%sms_index)
+               if (.not.object%surface_flux_sum%target%write_indices%is_empty()) call object%surface_flux_sum%target%write_indices%append(statevar%surface_flux_index)
+               if (.not.object%bottom_flux_sum%target%write_indices%is_empty()) call object%bottom_flux_sum%target%write_indices%append(statevar%bottom_flux_index)
+               if (.not.object%movement_diagnostic%target%write_indices%is_empty()) call object%movement_diagnostic%target%write_indices%append(statevar%movement_index)
             end if
          case (domain_horizontal,domain_surface,domain_bottom)
             if (.not.object%write_indices%is_empty()) then
@@ -4824,6 +4762,7 @@ subroutine classify_variables(self)
                   end select
                end if
                hz_statevar%initial_value     = object%initial_value
+               if (.not.object%sms_sum%target%write_indices%is_empty()) call object%sms_sum%target%write_indices%append(hz_statevar%sms_index)
             end if
       end select
       link => link%next
@@ -4945,18 +4884,19 @@ end subroutine
       do while (associated(link))
          select case (domain)
          case (domain_interior)
-            if (link%target%domain==domain_interior) call self%request_variables(link%target%sms_list,not_stale=.true.)
+            if (link%target%domain==domain_interior.and.associated(link%target%sms_sum)) &
+               call self%request_variable(link%target%sms_sum%target)
          case (domain_bottom)
-            if (link%target%domain==domain_bottom) then
-               call self%request_variables(link%target%sms_list,not_stale=.true.)
-            elseif (link%target%domain==domain_interior) then
-               call self%request_variables(link%target%bottom_flux_list,not_stale=.true.)
+            if (link%target%domain==domain_bottom.and.associated(link%target%sms_sum)) then
+               call self%request_variable(link%target%sms_sum%target)
+            elseif (link%target%domain==domain_interior.and.associated(link%target%bottom_flux_sum)) then
+               call self%request_variable(link%target%bottom_flux_sum%target)
             end if
          case (domain_surface)
-            if (link%target%domain==domain_surface) then
-               call self%request_variables(link%target%sms_list,not_stale=.true.)
-            elseif (link%target%domain==domain_interior) then
-               call self%request_variables(link%target%surface_flux_list,not_stale=.true.)
+            if (link%target%domain==domain_surface.and.associated(link%target%sms_sum)) then
+               call self%request_variable(link%target%sms_sum%target)
+            elseif (link%target%domain==domain_interior.and.associated(link%target%surface_flux_sum)) then
+               call self%request_variable(link%target%surface_flux_sum%target)
             end if
          end select
          link => link%next

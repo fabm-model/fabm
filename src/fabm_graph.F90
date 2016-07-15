@@ -81,7 +81,6 @@ module fabm_graph
    type type_node
       class (type_base_model), pointer :: model => null()
       integer                          :: source = source_unknown
-      logical                          :: not_stale = .false.
       type (type_input_variable_set)   :: inputs               ! input variables (irrespective of their source - can be constants, state variables, host-provided, or diagnostics computed by another node)
       type (type_node_set)             :: dependencies         ! direct dependencies
       type (type_output_variable_set)  :: outputs              ! output variables that a later called model requires
@@ -199,16 +198,14 @@ subroutine graph_print(self)
 
 end subroutine graph_print
 
-recursive function graph_add_call(self,model,source,outer_calls,not_stale,ignore_dependencies) result(node)
+recursive function graph_add_call(self,model,source,outer_calls,ignore_dependencies) result(node)
    class (type_graph),            intent(inout) :: self
    class (type_base_model),target,intent(in)    :: model
    integer,                       intent(in)    :: source
    type (type_node_list),  target,intent(inout) :: outer_calls
-   logical,optional,              intent(in)    :: not_stale
    logical,optional,              intent(in)    :: ignore_dependencies
    type (type_node), pointer :: node
 
-   logical                               :: not_stale_
    type (type_graph),            pointer :: previous_graph
    type (type_node_list_member), pointer :: pnode
    character(len=2048)                   :: chain
@@ -219,23 +216,19 @@ recursive function graph_add_call(self,model,source,outer_calls,not_stale,ignore
    ! Provide optional arguments with default value.
    ignore_dependencies_ = .false.
    if (present(ignore_dependencies)) ignore_dependencies_ = ignore_dependencies
-   not_stale_ = .false.
-   if (present(not_stale)) not_stale_ = not_stale
 
    ! First see if this node is already in the graph. If so, we are done: return.
    node => self%find(model,source)
    if (associated(node)) return
 
-   ! Now check any preceding graphs (provided not_stale is not active).
+   ! Now check any preceding graphs.
    ! If the call is found in a preceding graph, we are done: return.
-   if (.not.not_stale_) then
-      previous_graph => self%previous
-      do while (associated(previous_graph))
-         node => previous_graph%find(model,source)
-         if (associated(node)) return
-         previous_graph => previous_graph%previous
-      end do
-   end if
+   previous_graph => self%previous
+   do while (associated(previous_graph))
+      node => previous_graph%find(model,source)
+      if (associated(node)) return
+      previous_graph => previous_graph%previous
+   end do
 
    ! Add current call to the list of outer calls.
    allocate(node)
@@ -277,17 +270,16 @@ recursive function graph_add_call(self,model,source,outer_calls,not_stale,ignore
    call self%append(node)
 end function graph_add_call
 
-recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,copy_to_store,not_stale,caller)
+recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,copy_to_store,caller)
    class (type_graph),              intent(inout) :: self
    type (type_internal_variable),   intent(in)    :: variable
    type (type_node_list),    target,intent(inout) :: outer_calls
    logical,         optional,       intent(in)    :: copy_to_cache
    logical,         optional,       intent(in)    :: copy_to_store
-   logical,         optional,       intent(in)    :: not_stale
    type (type_node),optional,target,intent(inout) :: caller
 
    ! If this variable is not an output of some model (e.g., a state variable or external dependency), no call is needed.
-   if (variable%write_indices%is_empty()) return
+   if (variable%write_indices%value==-1) return
 
    if (variable%source==source_unknown) then
       ! This variable is either written by do_surface or do_bottom - which one of these two APIs is unknown.
@@ -306,11 +298,10 @@ contains
       type (type_node),           pointer :: node
       type (type_output_variable),pointer :: variable_node
 
-      node => self%add_call(variable%owner,source,outer_calls,not_stale)
+      node => self%add_call(variable%owner,source,outer_calls)
       variable_node => node%outputs%add(variable)
       if (present(copy_to_cache)) variable_node%copy_to_cache = variable_node%copy_to_cache .or. copy_to_cache
       if (present(copy_to_store)) variable_node%copy_to_store = variable_node%copy_to_store .or. copy_to_store
-      if (present(not_stale)) node%not_stale = not_stale
       if (present(caller)) then
          call caller%dependencies%add(node)
          call variable_node%dependent_nodes%add(caller)

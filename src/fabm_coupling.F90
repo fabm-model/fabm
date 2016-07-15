@@ -16,7 +16,6 @@ module fabm_coupling
 
    integer,parameter :: couple_explicit                     = 0
    integer,parameter :: couple_aggregate_standard_variables = 1
-   integer,parameter :: couple_flux_sums                    = 2
    integer,parameter :: couple_final                        = 3
 
    type type_contributing_variable
@@ -85,7 +84,7 @@ contains
 
       ! Perform coupling for any new aggregate models.
       ! This may append items to existing lists of source terms and bottom/surface fluxes,
-      ! so it has to proceed couple_flux_sums
+      ! so it has to proceed the call to create_flux_sums.
       call process_coupling_tasks(self,couple_explicit)
 
       ! Now that coupling for non-rate variables is complete, contributions to aggregate quantities
@@ -93,9 +92,10 @@ contains
       ! Create conservation checks where needed.
       call create_conservation_checks(self)
 
-      ! Create summations of source terms and surface/bottom fluxes where they are needed,
-      ! and then process the resulting coupling tasks.
-      call process_coupling_tasks(self,couple_flux_sums)
+      ! Create summations of source terms and surface/bottom fluxes.
+      call create_flux_sums(self)
+
+      ! Process the any remaining coupling tasks.
       call process_coupling_tasks(self,couple_final)
 
       ! Allow inheriting models to perform additional tasks after coupling.
@@ -308,8 +308,6 @@ end subroutine
                end if
             case (couple_aggregate_standard_variables)
                if (associated(coupling%master_standard_variable)) master => generate_standard_master(root,coupling)
-            case (couple_flux_sums)
-               if (.not.associated(coupling%master_standard_variable)) master => generate_master(self,coupling%master_name)
          end select
 
          ! Save pointer to the next coupling task in advance, because current task may
@@ -341,13 +339,13 @@ end subroutine
    end subroutine process_coupling_tasks
 !EOC
 
-   subroutine create_sum(parent,link_list,name)
+   function create_sum(parent,link_list,name) result(link)
       class (type_base_model),intent(inout),target :: parent
       type (type_link_list),  intent(in)           :: link_list
       character(len=*),       intent(in)           :: name
+      type (type_link), pointer                    :: link
 
       type (type_weighted_sum),pointer :: sum
-      type (type_link),        pointer :: link
 
       allocate(sum)
       sum%result_output = output_none
@@ -356,16 +354,16 @@ end subroutine
          call sum%add_component(link%target%name)
          link => link%next
       end do
-      if (.not.sum%add_to_parent(parent,name)) deallocate(sum)
-   end subroutine create_sum
+      if (.not.sum%add_to_parent(parent,name,link=link)) deallocate(sum)
+   end function create_sum
 
-   subroutine create_horizontal_sum(parent,link_list,name)
+   function create_horizontal_sum(parent,link_list,name) result(link)
       class (type_base_model),intent(inout),target :: parent
       type (type_link_list),  intent(in)           :: link_list
       character(len=*),       intent(in)           :: name
+      type (type_link), pointer                    :: link
 
       type (type_horizontal_weighted_sum),pointer :: sum
-      type (type_link),                   pointer :: link
 
       allocate(sum)
       sum%result_output = output_none
@@ -374,56 +372,54 @@ end subroutine
          call sum%add_component(link%target%name)
          link => link%next
       end do
-      if (.not.sum%add_to_parent(parent,name)) deallocate(sum)
-   end subroutine create_horizontal_sum
+      if (.not.sum%add_to_parent(parent,name,link=link)) deallocate(sum)
+   end function create_horizontal_sum
 
-   function generate_master(self,name) result(master)
-      class (type_base_model),intent(inout),target :: self
-      character(len=*),       intent(in)           :: name
-      type (type_internal_variable),pointer :: master
+recursive subroutine create_flux_sums(self)
+   class (type_base_model),intent(inout),target :: self
 
-      type (type_internal_variable),pointer :: originator
-      character(len=attribute_length)       :: local_name
-      integer :: n
+   type (type_link),           pointer :: link, link1
+   type (type_model_list_node),pointer :: child
 
-      nullify(master)
-      n = len_trim(name)
-      if (n<8) return
-      if (name(n-7:n)=='_sms_tot'.or.name(n-7:n)=='_sfl_tot'.or.name(n-7:n)=='_bfl_tot') then
-         ! This is can be a link to the sources-sinks, surface flux, or bottom flux of a state variable.
-         ! First locate the related variable (same name but without the postfix), then create the necessary summation.
-         originator => self%find_object(name(:n-8),recursive=.true.,exact=.false.)
-         if (associated(originator)) then
-            if (.not.originator%state_indices%is_empty().or.originator%fake_state_variable) then
-               ! Related variable without the postfix is indeed a state variable (or acts like one)
-               local_name = trim(originator%name(index(originator%name,'/',.true.)+1:))//name(n-7:n)
-
-               ! Now we know the full path of the target variable - try to resolve it.
-               ! (needed in case the derived quantity was requested for a slave)
-               master => originator%owner%find_object(local_name,recursive=.false.,exact=.false.)
-               if (associated(master)) return
-
-               ! Derived quantity does not exsit yet - create it.
-               select case (originator%domain)
-               case (domain_interior)
-                  select case (name(n-7:n))
-                     case ('_sms_tot')
-                        call create_sum(originator%owner,originator%sms_list,local_name)
-                     case ('_sfl_tot')
-                        call create_horizontal_sum(originator%owner,originator%surface_flux_list,local_name)
-                     case ('_bfl_tot')
-                        call create_horizontal_sum(originator%owner,originator%bottom_flux_list,local_name)
-                  end select
-               case (domain_horizontal,domain_surface,domain_bottom)
-                  call create_horizontal_sum(originator%owner,originator%sms_list,local_name)
-               end select
-
-               ! Get pointer to newly created derived quantity
-               master => originator%owner%find_object(local_name,recursive=.false.,exact=.false.)
-            end if
+   link => self%links%first
+   do while (associated(link))
+      if (index(link%name,'/')==0.and.(.not.link%original%state_indices%is_empty().or.link%original%fake_state_variable)) then
+         if (associated(link%target,link%original)) then
+            ! We own this state variable. Create summations for sources-sinks and surface/bottom fluxes.
+            select case (link%target%domain)
+            case (domain_interior)
+               link%target%sms_sum          => create_sum(self,link%target%sms_list,                    trim(link%name)//'_sms_tot')
+               link%target%surface_flux_sum => create_horizontal_sum(self,link%target%surface_flux_list,trim(link%name)//'_sfl_tot')
+               link%target%bottom_flux_sum  => create_horizontal_sum(self,link%target%bottom_flux_list, trim(link%name)//'_bfl_tot')
+            case (domain_horizontal,domain_surface,domain_bottom)
+               link%target%sms_sum          => create_horizontal_sum(self,link%target%sms_list,         trim(link%name)//'_sms_tot')
+            end select
+         else
+            ! We do not own this variable. Link to summations for sources-sinks and surface/bottom fluxes.
+            select case (link%target%domain)
+            case (domain_interior)
+               call self%add_interior_variable(trim(link%name)//'_sms_tot', link=link1)
+               call self%request_coupling(link1,trim(link%target%name)//'_sms_tot')
+               call self%add_horizontal_variable(trim(link%name)//'_sfl_tot', link=link1)
+               call self%request_coupling(link1,trim(link%target%name)//'_sfl_tot')
+               call self%add_horizontal_variable(trim(link%name)//'_bfl_tot', link=link1)
+               call self%request_coupling(link1,trim(link%target%name)//'_bfl_tot')
+            case (domain_horizontal,domain_surface,domain_bottom)
+               call self%add_horizontal_variable(trim(link%name)//'_sms_tot', link=link1)
+               call self%request_coupling(link1,trim(link%target%name)//'_sms_tot')
+            end select
          end if
       end if
-   end function generate_master
+      link => link%next
+   end do
+
+   ! Process child models
+   child => self%children%first
+   do while (associated(child))
+      call create_flux_sums(child%model)
+      child => child%next
+   end do
+end subroutine create_flux_sums
 
    function generate_standard_master(self,task) result(master)
       class (type_base_model),   intent(inout),target :: self

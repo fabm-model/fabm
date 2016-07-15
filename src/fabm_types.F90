@@ -106,6 +106,12 @@
                                  access_read       = 1, &
                                  access_set_source = 2, &
                                  access_state      = ior(access_read,access_set_source)
+
+   integer, parameter, public :: store_index_none      = 0
+   integer, parameter, public :: store_index_requested = 1
+
+   integer, parameter, public :: write_action_set       = 0, &
+                                 write_action_increment = 1
 !
 ! !PUBLIC TYPES:
 !
@@ -149,8 +155,8 @@
       procedure :: extend      => integer_pointer_set_extend
       procedure :: set_value   => integer_pointer_set_set_value
       procedure :: is_empty    => integer_pointer_set_is_empty
-      procedure :: copy_values => integer_pointer_copy_values
-      procedure :: clear       => integer_pointer_clear
+      procedure :: copy_values => integer_pointer_set_copy_values
+      procedure :: clear       => integer_pointer_set_clear
    end type
 
    type type_coupling_task
@@ -298,6 +304,7 @@
       integer                         :: domain         = domain_interior
       integer                         :: source         = source_unknown
       integer                         :: prefill        = prefill_none
+      integer                         :: write_action   = write_action_set
       class (type_base_model),pointer :: owner          => null()
       type (type_contribution_list)   :: contributions
 
@@ -313,12 +320,13 @@
 
       integer,pointer :: read_index  => null()
       integer,pointer :: write_index => null()
-      integer         :: store_index = 0
+      integer         :: store_index = store_index_none
 
       ! Collections to collect information from all coupled variables.
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
       type (type_real_pointer_set)    :: background_values
       type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list
+      type (type_link),pointer        :: sms_sum => null(), surface_flux_sum => null(), bottom_flux_sum => null()
       type (type_link),pointer        :: movement_diagnostic => null()
    end type
 
@@ -1300,12 +1308,12 @@ subroutine integer_pointer_set_extend(self,other)
    end if
 end subroutine integer_pointer_set_extend
 
-subroutine integer_pointer_clear(self)
+subroutine integer_pointer_set_clear(self)
    class (type_integer_pointer_set),intent(inout) :: self
 
    if (allocated(self%pointers)) deallocate(self%pointers)
    self%value = -1
-end subroutine integer_pointer_clear
+end subroutine integer_pointer_set_clear
 
 subroutine integer_pointer_set_set_value(self,value)
    class (type_integer_pointer_set),intent(inout) :: self
@@ -1324,7 +1332,7 @@ logical function integer_pointer_set_is_empty(self)
    integer_pointer_set_is_empty = .not.allocated(self%pointers)
 end function integer_pointer_set_is_empty
 
-subroutine integer_pointer_copy_values(self,target)
+subroutine integer_pointer_set_copy_values(self,target)
    class (type_integer_pointer_set),intent(in) :: self
    integer,allocatable                         :: target(:)
 
@@ -1338,7 +1346,7 @@ subroutine integer_pointer_copy_values(self,target)
          target(i) = self%pointers(i)%p
       end do
    end if
-end subroutine
+end subroutine integer_pointer_set_copy_values
 
 subroutine real_pointer_set_append(self,value)
    class (type_real_pointer_set),intent(inout) :: self
@@ -1448,6 +1456,7 @@ end subroutine real_pointer_set_set_value
          call self%add_interior_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
                                          0.0_rk, output=output_none, write_index=sms_id%sum_index, link=link1)
       link1%target%prefill = prefill_missing_value
+      link1%target%write_action = write_action_increment
       link2 => link%target%sms_list%append(link1%target,link1%target%name)
    end subroutine register_source
 
@@ -1463,6 +1472,7 @@ end subroutine real_pointer_set_set_value
                                            0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
                                            domain=domain_surface, source=source_do_surface, link=link1)
       link1%target%prefill = prefill_missing_value
+      link1%target%write_action = write_action_increment
       link2 => link%target%surface_flux_list%append(link1%target,link1%target%name)
    end subroutine register_surface_flux
 
@@ -1478,6 +1488,7 @@ end subroutine real_pointer_set_set_value
                                            0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
                                            domain=domain_bottom, source=source_do_bottom, link=link1)
       link1%target%prefill = prefill_missing_value
+      link1%target%write_action = write_action_increment
       link2 => link%target%bottom_flux_list%append(link1%target,link1%target%name)
    end subroutine register_bottom_flux
 

@@ -53,7 +53,6 @@ module fabm_job
       type (type_internal_variable),pointer :: variable      => null()
       logical                               :: copy_to_cache = .false.
       logical                               :: copy_to_store = .false.
-      logical                               :: not_stale     = .false.
       type (type_variable_request),pointer  :: next          => null()
    end type
 
@@ -106,7 +105,7 @@ module fabm_job
       procedure :: print      => task_print
    end type
 
-   integer,parameter :: job_state_none = 0, job_state_created = 1, job_state_initializing = 2, job_state_initialized = 3
+   integer,parameter :: job_state_none = 0, job_state_created = 1, job_state_creating_graph = 2, job_state_graph_created = 3, job_state_initialized = 4
 
    ! A job contains one or more tasks, each using their own specific operation over the domain.
    type type_job
@@ -123,6 +122,7 @@ module fabm_job
       type (type_call_request),     pointer :: first_call_request     => null()
       class (type_job), pointer :: previous => null()
    contains
+      procedure :: create_graph      => job_create_graph
       procedure :: initialize        => job_initialize
       procedure :: request_variable  => job_request_variable
       procedure :: request_variables => job_request_variables
@@ -452,7 +452,7 @@ module fabm_job
                   if (variable_node%target%write_indices%value<=0) &
                      call driver%fatal_error('create_prefill_commands','Variable '//trim(variable_node%target%name) &
                         //' has prefilling set, but it does not have a write cache index.')
-                  if (variable_node%target%prefill==prefill_previous_value.and.variable_node%target%store_index<=0) &
+                  if (variable_node%target%prefill==prefill_previous_value.and.variable_node%target%store_index==store_index_none) &
                      call driver%fatal_error('create_prefill_commands','Variable '//trim(variable_node%target%name) &
                         //' has prefill==previous value, but it does not have a persistent storage index.')
                   ilast = max(ilast,variable_node%target%write_indices%value)
@@ -504,7 +504,7 @@ module fabm_job
                   if (variable_node%target%write_indices%value<=0) &
                      call driver%fatal_error('create_prefill_commands','Variable '//trim(variable_node%target%name) &
                         //' has copy_to_store set, but it does not have a write cache index.')
-                  if (variable_node%target%store_index<=0) &
+                  if (variable_node%target%store_index==store_index_none) &
                      call driver%fatal_error('create_persistent_store_commands','Variable '//trim(variable_node%target%name) &
                         //' has copy_to_store set, but it does not have a persistent storage index.')
                   ilast = max(ilast,variable_node%target%store_index)
@@ -513,9 +513,6 @@ module fabm_job
             end do
             call_node => call_node%next
          end do
-
-         ! If no writes to persistent storage are needed, do not allocate the commands array.
-         if (ilast==0) return
 
          ! Allocate the commands array (go up to the last written-to index in persistent storage only)
          allocate(commands(ilast))
@@ -599,11 +596,11 @@ subroutine task_print(self)
       write (*,'(a,": ",a)') trim(call_node%model%get_path()),trim(source2string(call_node%source))
       variable => call_node%graph_node%outputs%first
       do while (associated(variable))
-         write (*,'("   ",a,",write@",i0)',advance='no') trim(variable%target%name),variable%target%write_indices%value
-         if (variable%copy_to_cache) write (*,'(",cache@",i0)',advance='no') variable%target%read_indices%value
-         if (variable%copy_to_store) write (*,'(",store@",i0)',advance='no') variable%target%store_index
-         if (variable%target%prefill==prefill_missing_value) write (*,'(",prefill=",g0.6)',advance='no') variable%target%missing_value
-         if (variable%target%prefill==prefill_previous_value) write (*,'(",prefill=previous")',advance='no')
+         write (*,'("   ",a,", write@",i0)',advance='no') trim(variable%target%name),variable%target%write_indices%value
+         if (variable%copy_to_cache) write (*,'(", cache@",i0)',advance='no') variable%target%read_indices%value
+         if (variable%copy_to_store) write (*,'(", store@",i0)',advance='no') variable%target%store_index
+         if (variable%target%prefill==prefill_missing_value) write (*,'(", prefill=",g0.6)',advance='no') variable%target%missing_value
+         if (variable%target%prefill==prefill_previous_value) write (*,'(", prefill=previous")',advance='no')
          write (*,*)
          pnode => variable%dependent_nodes%first
          do while (associated(pnode))
@@ -673,7 +670,8 @@ subroutine call_initialize(self)
          end do
          if (associated(later_call)) then
             ! The dependent call is part of the same task. Therefore the output needs to be copied to the read cache.
-            variable_node%copy_to_cache = .true.
+            ! But only do this is the variable is not already writing to a shared (aggregate) diagnostic.
+            if (.not.variable_node%target%write_indices%is_empty()) variable_node%copy_to_cache = .true.
          else
             ! The dependent call is part of another task. Therefore the output needs to be copied to the persistent store.
             variable_node%copy_to_store = .true.
@@ -700,10 +698,10 @@ contains
       variable => self%graph_node%outputs%first
       do while (associated(variable))
          if (variable%copy_to_cache.and.iand(variable%target%domain,domain)/=0) then
-            if (variable%target%write_indices%is_empty()) &
+            if (variable%target%write_indices%value<=0) &
                call driver%fatal_error('call_list_node_initialize::create_cache_copy_commands', &
                   'BUG: '//trim(variable%target%name)//' cannot be copied from write to read cache because it lacks a write cache index.')
-            if (variable%target%read_indices%is_empty()) &
+            if (variable%target%read_indices%value<=0) &
                call driver%fatal_error('call_list_node_initialize::create_cache_copy_commands', &
                   'BUG: '//trim(variable%target%name)//' cannot be copied from write to read cache because it lacks a read cache index.')
             n = n + 1
@@ -732,12 +730,11 @@ contains
 
 end subroutine call_initialize
 
-subroutine job_request_variable(self,variable,copy_to_cache,copy_to_store,not_stale)
+subroutine job_request_variable(self,variable,copy_to_cache,copy_to_store)
    class (type_job),target,      intent(inout) :: self
    type (type_internal_variable),intent(in),target :: variable
    logical,optional,             intent(in)    :: copy_to_cache
    logical,optional,             intent(in)    :: copy_to_store
-   logical,optional,             intent(in)    :: not_stale
 
    type (type_variable_request), pointer :: variable_request
 
@@ -756,23 +753,21 @@ subroutine job_request_variable(self,variable,copy_to_cache,copy_to_store,not_st
    variable_request%variable => variable
    if (present(copy_to_cache)) variable_request%copy_to_cache = copy_to_cache
    if (present(copy_to_store)) variable_request%copy_to_store = copy_to_store
-   if (present(not_stale))     variable_request%not_stale = not_stale
    variable_request%next => self%first_variable_request
    self%first_variable_request => variable_request
 end subroutine job_request_variable
 
-subroutine job_request_variables(self,link_list,copy_to_cache,copy_to_store,not_stale)
+subroutine job_request_variables(self,link_list,copy_to_cache,copy_to_store)
    class (type_job),     intent(inout) :: self
    type (type_link_list),intent(in)    :: link_list
    logical,optional,     intent(in)    :: copy_to_cache
    logical,optional,     intent(in)    :: copy_to_store
-   logical,optional,     intent(in)    :: not_stale
 
    type (type_link), pointer :: link
 
    link => link_list%first
    do while (associated(link))
-      call self%request_variable(link%target,copy_to_cache,copy_to_store,not_stale)
+      call self%request_variable(link%target,copy_to_cache,copy_to_store)
       link => link%next
    end do
 end subroutine job_request_variables
@@ -844,40 +839,33 @@ recursive subroutine find_dependencies(self,list,forbidden)
    call forbidden_with_self%finalize()
 end subroutine find_dependencies
 
-recursive subroutine job_initialize(self)
+recursive subroutine job_create_graph(self)
    class (type_job),target,intent(inout) :: self
 
    type (type_node_list)                :: outer_calls
    type (type_variable_request),pointer :: variable_request, next_variable_request
    type (type_call_request),    pointer :: call_request, next_call_request
    type (type_node),            pointer :: graph_node
-   type (type_graph_subset_node_set)    :: subset
-   type (type_task_tree_node)           :: root
-   class (type_task_tree_node), pointer :: leaf
-   integer                              :: ntasks
-   type (type_task),            pointer :: task
-   integer                              :: unit,ios
-   type (type_call),            pointer :: call_node, next_call_node, new_call_node
 
-   ! Return immediately if the job has already initialized.
-   if (self%state>=job_state_initialized) return
+   ! Return immediately if the graph for this job has already been created.
+   if (self%state>=job_state_graph_created) return
 
-   if (self%state<job_state_created) call driver%fatal_error('job_initialize','This job has not been created yet.')
-   if (self%state==job_state_initializing) call driver%fatal_error('job_initialize','Circular call order specified: job '//trim(self%name)//' is already initializing.')
-   self%state = job_state_initializing
+   if (self%state<job_state_created) call driver%fatal_error('job_create_graphs','This job has not been created yet.')
+   if (self%state==job_state_creating_graph) call driver%fatal_error('job_create_graphs','Circular dependency between jobs: graphs for job '//trim(self%name)//' already being created.')
+   self%state = job_state_creating_graph
 
-   ! If we are linked to an earlier called job, make sure it has initialized already, and connect the underlying graphs.
+   ! If we are linked to an earlier called job, make sure its graph has been created already.
    if (associated(self%previous)) then
-      call self%previous%initialize()
+      call self%previous%create_graph()
       self%graph%previous => self%previous%graph
    end if
-   
+
    ! Construct the dependency graph by adding explicitly requested variables and calls.
    ! We clean up [deallocate] the variable and call requests at the same time.
    variable_request => self%first_variable_request
    do while (associated(variable_request))
       next_variable_request => variable_request%next
-      call self%graph%add_variable(variable_request%variable,outer_calls,variable_request%copy_to_cache,variable_request%copy_to_store,variable_request%not_stale)
+      call self%graph%add_variable(variable_request%variable,outer_calls,variable_request%copy_to_cache,variable_request%copy_to_store)
       deallocate(variable_request)
       variable_request => next_variable_request
    end do
@@ -891,6 +879,23 @@ recursive subroutine job_initialize(self)
    end do
    self%first_call_request => null()
    call outer_calls%finalize()
+
+   self%state = job_state_graph_created
+end subroutine job_create_graph
+
+subroutine job_initialize(self)
+   class (type_job),target,intent(inout) :: self
+
+   type (type_graph_subset_node_set)    :: subset
+   type (type_task_tree_node)           :: root
+   class (type_task_tree_node), pointer :: leaf
+   integer                              :: ntasks
+   type (type_task),            pointer :: task
+   integer                              :: unit,ios
+   type (type_call),            pointer :: call_node, next_call_node
+
+   if (self%state>=job_state_initialized) call driver%fatal_error('job_initialize','This job has already been initialized.')
+   if (self%state<job_state_graph_created) call driver%fatal_error('job_initialize','The graph for this job has not been created yet.')
 
    ! Save graph
    !open(newunit=unit,file='graph.gv',action='write',status='replace',iostat=ios)
@@ -940,25 +945,6 @@ recursive subroutine job_initialize(self)
       else
          self%first_task => null()
       end if
-
-      ! For any calls that MUST be processed as part of the last task, but currently are allocated to one of the earlier tasks,
-      ! prepend a separate call to the final task. Note that this implies the call will be made twice!
-      task => self%first_task
-      do while (associated(task))
-         call_node => task%first_call
-         do while (associated(call_node))
-            if (call_node%graph_node%not_stale.and.is_source_compatible(self%final_task%operation,call_node%graph_node%source)) then
-               allocate(new_call_node)
-               new_call_node%graph_node => call_node%graph_node
-               new_call_node%model      => call_node%model
-               new_call_node%source     =  call_node%source
-               new_call_node%next       => self%final_task%first_call
-               self%final_task%first_call => new_call_node
-            end if
-            call_node => call_node%next
-         end do
-         task => task%next
-      end do
    end if
 
    ! Initialize tasks
@@ -1162,6 +1148,15 @@ subroutine job_manager_initialize(self)
 
    type (type_job_manager_item),pointer :: node
 
+   ! First create all graphs
+   ! NB: a job can add to graphs owned by other jobs, so *all* graphs have to be created before initializing [based on graph].
+   node => self%first
+   do while (associated(node))
+      call node%job%create_graph()
+      node => node%next
+   end do
+
+   ! Initialize jobs
    node => self%first
    do while (associated(node))
       call node%job%initialize()
