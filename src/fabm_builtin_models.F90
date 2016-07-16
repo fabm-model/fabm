@@ -9,7 +9,7 @@ module fabm_builtin_models
    private
 
    public type_weighted_sum,type_horizontal_weighted_sum,type_depth_integral,copy_fluxes,copy_horizontal_fluxes
-   !public type_horizontal_flux_copier, type_horizontal_flux_copier
+   public type_surface_source_copier
 
    type,extends(type_base_model_factory) :: type_factory
       contains
@@ -48,7 +48,7 @@ module fabm_builtin_models
       procedure :: do             => weighted_sum_do
       procedure :: after_coupling => weighted_sum_after_coupling
       procedure :: add_to_parent  => weighted_sum_add_to_parent
-      procedure :: reindex => weighted_sum_reindex
+      procedure :: reindex        => weighted_sum_reindex
    end type
 
    type,extends(type_base_model) :: type_weighted_sum_sms_distributor
@@ -84,14 +84,15 @@ module fabm_builtin_models
       real(rk)                        :: offset        = 0.0_rk
       integer                         :: access        = access_read
       integer                         :: domain        = domain_horizontal
-      type (type_horizontal_diagnostic_variable_id) :: id_output
+      type (type_horizontal_aggregate_variable_id) :: id_output
       type (type_horizontal_component),pointer   :: first => null()
    contains
-      procedure :: add_component       => horizontal_weighted_sum_add_component
-      procedure :: initialize          => horizontal_weighted_sum_initialize
-      procedure :: do_horizontal       => horizontal_weighted_sum_do_horizontal
-      procedure :: after_coupling      => horizontal_weighted_sum_after_coupling
-      procedure :: add_to_parent       => horizontal_weighted_sum_add_to_parent
+      procedure :: add_component  => horizontal_weighted_sum_add_component
+      procedure :: initialize     => horizontal_weighted_sum_initialize
+      procedure :: do_horizontal  => horizontal_weighted_sum_do_horizontal
+      procedure :: after_coupling => horizontal_weighted_sum_after_coupling
+      procedure :: add_to_parent  => horizontal_weighted_sum_add_to_parent
+      procedure :: reindex        => horizontal_weighted_sum_reindex
    end type
 
    type,extends(type_base_model) :: type_scaled_horizontal_variable
@@ -368,11 +369,56 @@ module fabm_builtin_models
       class (type_weighted_sum),intent(inout) :: self
 
       type (type_internal_variable),pointer :: component_variable, sum_variable
-      type (type_component),pointer :: component, component_next, component_previous
+      type (type_component),        pointer :: component, component_next, component_previous
       integer :: n_kept, n_removed
 
-      ! At this stage, the background values for all variables (if any) are fixed. We can therefore
-      ! compute background contributions already, and add those to the space- and time-invariant offset.
+      sum_variable => self%id_output%link%target
+      write (*,*) 'Reindexing '//trim(sum_variable%name)
+      component_previous => null()
+      n_kept = 0
+      n_removed = 0
+      component => self%first
+      do while (associated(component))
+         component_variable => component%id%link%target
+         component_next => component%next
+         if (component_variable%write_operator==operator_add &             ! This component will increment its target diagnostic in place
+             .and. component%weight==1.0_rk                          &     ! It does not require scaling
+             .and. size(component_variable%read_indices%pointers)==1 &     ! It is read by no-one but us
+             .and. component_variable%store_index==store_index_none) then  ! And the user has not asked for it to be stored separately
+
+            ! This component can increment the sum result directly (it does not need a separate diagnostic)
+            sum_variable%store_index = store_index_requested
+            call sum_variable%write_indices%extend(component_variable%write_indices)
+            call sum_variable%write_indices%append(component_variable%write_indices%value)
+            component_variable%write_owner => sum_variable
+            call sum_variable%cowriters%add(component_variable)
+            call component_variable%read_indices%set_value(-1)
+            call component_variable%read_indices%clear()
+
+            ! Remove component from the summation
+            if (associated(component_previous)) then
+               component_previous%next => component_next
+            else
+               self%first => component_next
+            end if
+            n_removed = n_removed + 1
+            write (*,*) '- merged '//trim(component_variable%name)
+         else
+            component_previous => component
+            n_kept = n_kept + 1
+            write (*,*) '- kept '//trim(component_variable%name)
+         end if
+         component => component_next
+      end do
+   end subroutine weighted_sum_reindex
+
+   subroutine horizontal_weighted_sum_reindex(self)
+      class (type_horizontal_weighted_sum),intent(inout) :: self
+
+      type (type_internal_variable),   pointer :: component_variable, sum_variable
+      type (type_horizontal_component),pointer :: component, component_next, component_previous
+      integer :: n_kept, n_removed
+
       sum_variable => self%id_output%link%target
       component_previous => null()
       n_kept = 0
@@ -381,15 +427,17 @@ module fabm_builtin_models
       do while (associated(component))
          component_variable => component%id%link%target
          component_next => component%next
-         if (component_variable%write_action==write_action_increment &     ! This component will increment its target diagnostic in place
+         if (component_variable%write_operator==operator_add &             ! This component will increment its target diagnostic in place
              .and. component%weight==1.0_rk                          &     ! It does not require scaling
              .and. size(component_variable%read_indices%pointers)==1 &     ! It is read by no-one but us
              .and. component_variable%store_index==store_index_none) then  ! And the user has not asked for it to be stored separately
 
             ! This component can increment the sum result directly (it does not need a separate diagnostic)
+            sum_variable%store_index = store_index_requested
             call sum_variable%write_indices%extend(component_variable%write_indices)
             call sum_variable%write_indices%append(component_variable%write_indices%value)
-            call component_variable%write_indices%clear()
+            component_variable%write_owner => sum_variable
+            call sum_variable%cowriters%add(component_variable)
             call component_variable%read_indices%set_value(-1)
             call component_variable%read_indices%clear()
 
@@ -406,7 +454,7 @@ module fabm_builtin_models
          end if
          component => component_next
       end do
-   end subroutine weighted_sum_reindex
+   end subroutine horizontal_weighted_sum_reindex
 
    subroutine weighted_sum_do(self,_ARGUMENTS_DO_)
       class (type_weighted_sum),intent(in) :: self
@@ -562,7 +610,9 @@ module fabm_builtin_models
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output,source=source_do_horizontal)
+      !call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output,source=source_do_horizontal)
+      call self%add_horizontal_variable('result', self%units, 'result', 0.0_rk, output=self%result_output, write_index=self%id_output%horizontal_sum_index, link=self%id_output%link, source=source_do_horizontal)
+      self%id_output%link%target%prefill = prefill_missing_value
    end subroutine
 
    subroutine horizontal_weighted_sum_after_coupling(self)
@@ -633,7 +683,7 @@ module fabm_builtin_models
       end do
 
       _HORIZONTAL_LOOP_BEGIN_
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,sum _INDEX_HORIZONTAL_SLICE_)
+         _ADD_HORIZONTAL_(self%id_output,sum _INDEX_HORIZONTAL_SLICE_)
       _HORIZONTAL_LOOP_END_
    end subroutine horizontal_weighted_sum_do_horizontal
 

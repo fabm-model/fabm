@@ -47,7 +47,7 @@
    public type_aggregate_variable_id, type_horizontal_aggregate_variable_id
 
    ! Data types and procedures for variable management - used by FABM internally only.
-   public type_link, type_link_list
+   public type_link, type_link_list, type_variable_set_member, type_variable_set, type_variable_list
    public type_internal_variable
    public type_cache
 
@@ -110,8 +110,8 @@
    integer, parameter, public :: store_index_none      = 0
    integer, parameter, public :: store_index_requested = 1
 
-   integer, parameter, public :: write_action_set       = 0, &
-                                 write_action_increment = 1
+   integer, parameter, public :: operator_assign = 0, &
+                                 operator_add    = 1
 !
 ! !PUBLIC TYPES:
 !
@@ -286,6 +286,28 @@
       procedure :: extend   => link_list_extend
    end type
 
+   type type_variable_set_member
+      type (type_internal_variable),  pointer :: target => null()
+      type (type_variable_set_member),pointer :: next   => null()
+   end type
+
+   type type_variable_set
+      type (type_variable_set_member), pointer :: first => null()
+   contains
+      procedure :: add      => variable_set_add
+      procedure :: update   => variable_set_update
+      procedure :: remove   => variable_set_remove
+      procedure :: contains => variable_set_contains
+      procedure :: finalize => variable_set_finalize
+   end type
+
+   type type_variable_list
+      type (type_variable_set_member), pointer :: first => null()
+      integer                                  :: count = 0
+   contains
+      procedure :: append => variable_list_append
+   end type
+
    ! ====================================================================================================
    ! Derived types used internally to store information on model variables and model references.
    ! ====================================================================================================
@@ -304,7 +326,7 @@
       integer                         :: domain         = domain_interior
       integer                         :: source         = source_unknown
       integer                         :: prefill        = prefill_none
-      integer                         :: write_action   = write_action_set
+      integer                         :: write_operator = operator_assign
       class (type_base_model),pointer :: owner          => null()
       type (type_contribution_list)   :: contributions
 
@@ -328,6 +350,8 @@
       type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list
       type (type_link),pointer        :: sms_sum => null(), surface_flux_sum => null(), bottom_flux_sum => null()
       type (type_link),pointer        :: movement_diagnostic => null()
+      type (type_internal_variable),pointer :: write_owner => null()
+      type (type_variable_set)        :: cowriters
    end type
 
    type type_link
@@ -1456,7 +1480,7 @@ end subroutine real_pointer_set_set_value
          call self%add_interior_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
                                          0.0_rk, output=output_none, write_index=sms_id%sum_index, link=link1)
       link1%target%prefill = prefill_missing_value
-      link1%target%write_action = write_action_increment
+      link1%target%write_operator = operator_add
       link2 => link%target%sms_list%append(link1%target,link1%target%name)
    end subroutine register_source
 
@@ -1472,7 +1496,7 @@ end subroutine real_pointer_set_set_value
                                            0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
                                            domain=domain_surface, source=source_do_surface, link=link1)
       link1%target%prefill = prefill_missing_value
-      link1%target%write_action = write_action_increment
+      link1%target%write_operator = operator_add
       link2 => link%target%surface_flux_list%append(link1%target,link1%target%name)
    end subroutine register_surface_flux
 
@@ -1488,7 +1512,7 @@ end subroutine real_pointer_set_set_value
                                            0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
                                            domain=domain_bottom, source=source_do_bottom, link=link1)
       link1%target%prefill = prefill_missing_value
-      link1%target%write_action = write_action_increment
+      link1%target%write_operator = operator_add
       link2 => link%target%bottom_flux_list%append(link1%target,link1%target%name)
    end subroutine register_bottom_flux
 
@@ -3082,6 +3106,115 @@ end subroutine abstract_model_factory_register_version
          write (source2string,'(i0)') source
       end select
    end function source2string
+
+   subroutine variable_set_add(self,variable)
+      class (type_variable_set),intent(inout) :: self
+      type (type_internal_variable),target    :: variable
+
+      type (type_variable_set_member), pointer :: node
+
+      ! Check if this variable already exists.
+      node => self%first
+      do while (associated(node))
+         if (associated(node%target,variable)) return
+         node => node%next
+      end do
+
+      ! Create a new variable object and prepend it to the list.
+      allocate(node)
+      node%target => variable
+      node%next => self%first
+      self%first => node
+   end subroutine variable_set_add
+
+   subroutine variable_set_remove(self,variable)
+      class (type_variable_set),intent(inout) :: self
+      type (type_internal_variable),target    :: variable
+
+      type (type_variable_set_member), pointer :: node, previous
+
+      ! Check if this variable already exists.
+      previous => null()
+      node => self%first
+      do while (associated(node))
+         if (associated(node%target,variable)) then
+            if (associated(previous)) then
+               previous%next => node%next
+            else
+               self%first => node%next
+            end if
+            deallocate(node)
+            return
+         end if
+         previous => node
+         node => node%next
+      end do
+      call fatal_error('variable_set_remove','Variable "'//trim(variable%name)//'" not found in set.')
+   end subroutine variable_set_remove
+
+   logical function variable_set_contains(self,variable)
+      class (type_variable_set),intent(in) :: self
+      type (type_internal_variable),target :: variable
+
+      type (type_variable_set_member), pointer :: node
+
+      variable_set_contains = .true.
+      node => self%first
+      do while (associated(node))
+         if (associated(node%target,variable)) return
+         node => node%next
+      end do
+      variable_set_contains = .false.
+   end function variable_set_contains
+
+   subroutine variable_set_update(self,other)
+      class (type_variable_set),intent(inout) :: self
+      class (type_variable_set),intent(in)    :: other
+
+      type (type_variable_set_member), pointer :: node
+
+      node => other%first
+      do while (associated(node))
+         call self%add(node%target)
+         node => node%next
+      end do
+   end subroutine variable_set_update
+
+   subroutine variable_set_finalize(self)
+      class (type_variable_set), intent(inout) :: self
+
+      type (type_variable_set_member),pointer :: node, next
+
+      node => self%first
+      do while (associated(node))
+         next => node%next
+         deallocate(node)
+         node => next
+      end do
+      self%first => null()
+   end subroutine variable_set_finalize
+
+   subroutine variable_list_append(self,variable,index)
+      class (type_variable_list),intent(inout) :: self
+      type (type_internal_variable), target    :: variable
+      integer,optional,          intent(out)   :: index
+
+      type (type_variable_set_member), pointer :: last
+
+      if (associated(self%first)) then
+         last => self%first
+         do while (associated(last%next))
+            last => last%next
+         end do
+         allocate(last%next)
+         last%next%target => variable
+      else
+         allocate(self%first)
+         self%first%target => variable
+      end if
+      self%count = self%count + 1
+      if (present(index)) index = self%count
+   end subroutine variable_list_append
 
    end module fabm_types
 

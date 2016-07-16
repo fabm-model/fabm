@@ -799,16 +799,6 @@
 #if _HORIZONTAL_DIMENSION_COUNT_>0
    self%horizontal_domain_size = (/ _HORIZONTAL_LOCATION_ /)
 #endif
-   ! Flag user-requested diagnostics so that merge_indices is aware.
-   do ivar=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(ivar)%save) self%diagnostic_variables(ivar)%target%store_index = store_index_requested
-   end do
-   do ivar=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(ivar)%save) self%horizontal_diagnostic_variables(ivar)%target%store_index = store_index_requested
-   end do
-
-   ! Merge write indices when operations can be done in place
-   !call merge_indices(self%root)
 
    allocate(self%zero _INDEX_LOCATION_)
    self%zero = 0.0_rk
@@ -880,6 +870,11 @@
          call self%get_diagnostics_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target,copy_to_store=.true.)
    end do
 
+   ! Merge write indices when operations can be done in place
+   ! This must be done after all variables are requested from the different jobs, so we know which variables
+   ! will be retrieved (such variables cannot be merged)
+   call merge_indices(self%root)
+
    ! Note: aggregate variables below are copied to read cache, just in case they are not diagnostics
    ! (they may be equal to a state variable, or to zero)
    do ivar=1,size(self%conserved_quantities)
@@ -907,31 +902,35 @@
    if (any(self%surface_state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more surface state variables.')
    if (any(self%bottom_state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more bottom state variables.')
 
+   ! Request global storage for all written variables that are read by another model.
+   do ivar=1,size(self%diagnostic_variables)
+      if (self%diagnostic_variables(ivar)%save .or. self%diagnostic_variables(ivar)%target%read_indices%value/=-1) self%diagnostic_variables(ivar)%target%store_index = store_index_requested
+   end do
+   do ivar=1,size(self%horizontal_diagnostic_variables)
+      if (self%horizontal_diagnostic_variables(ivar)%save .or. self%horizontal_diagnostic_variables(ivar)%target%read_indices%value/=-1) self%horizontal_diagnostic_variables(ivar)%target%store_index = store_index_requested
+   end do
+
    ! Allocate memory for full-domain storage of interior diagnostics
-   ! NB the memmory is initialized to zero specifically for element at index=0 (a dummy field)
-   ! For all actual diagsntoics, a missing value is written immediately below.
+   ! NB the memory is initialized to zero specifically for element at index=0 (a dummy field)
+   ! For all actual diagnostics, a missing value is written immediately below.
    nsave = 0
    do ivar=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(ivar)%save.or.self%diagnostic_variables(ivar)%target%read_indices%value/=-1) then
-         ! This diagnostic must be saved for any of the following reasons:
-         ! (1) the user requested it, (2) another model needs it.
+      if (self%diagnostic_variables(ivar)%target%store_index==store_index_requested) then
          nsave = nsave + 1
-         self%diagnostic_variables(ivar)%target%store_index = nsave
+         call set_store_index(self%diagnostic_variables(ivar)%target,nsave)
       end if
    end do
    allocate(self%diag(_PREARG_LOCATION_ 0:nsave))
    self%diag = 0.0_rk
 
    ! Allocate memory for full-domain storage of horizontal diagnostics
-   ! NB the memmory is initialized to zero specifically for element at index=0 (a dummy field)
+   ! NB the memory is initialized to zero specifically for element at index=0 (a dummy field)
    ! For all actual diagsntoics, a missing value is written immediately below.
    nsave_hz = 0
    do ivar=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(ivar)%save.or.self%horizontal_diagnostic_variables(ivar)%target%read_indices%value/=-1) then
-         ! This diagnostic must be saved for any of the following reasons:
-         ! (1) the user requested it, (2) another model needs it.
+      if (self%horizontal_diagnostic_variables(ivar)%target%store_index==store_index_requested) then
          nsave_hz = nsave_hz + 1
-         self%horizontal_diagnostic_variables(ivar)%target%store_index = nsave_hz
+         call set_store_index(self%horizontal_diagnostic_variables(ivar)%target,nsave_hz)
       end if
    end do
    allocate(self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ 0:nsave_hz))
@@ -983,6 +982,20 @@
    end subroutine fabm_set_domain
 !EOC
 
+   subroutine set_store_index(variable,index)
+      type (type_internal_variable),intent(inout) :: variable
+      integer,                      intent(in)    :: index
+
+      type (type_variable_set_member), pointer :: variable_set_member
+
+      variable%store_index = index
+      variable_set_member => variable%cowriters%first
+      do while (associated(variable_set_member))
+         variable_set_member%target%store_index = index
+         variable_set_member => variable_set_member%next
+      end do
+   end subroutine set_store_index
+
    recursive subroutine merge_indices(model)
       class (type_base_model), intent(inout) :: model
 
@@ -990,6 +1003,8 @@
 
       select type (model)
       class is (type_weighted_sum)
+         call model%reindex()
+      class is (type_horizontal_weighted_sum)
          call model%reindex()
       end select
 
@@ -1156,6 +1171,7 @@
 ! !LOCAL VARIABLES:
   type (type_link),pointer :: link
   logical                  :: ready
+  type (type_store_metadata) :: store_metadata
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1218,7 +1234,7 @@
 
    ! Initialize all jobs - must be done after the call to filter_readable_variable_registry because that
    ! finalizes the set of variables for which input data is available.
-   call self%job_manager%initialize()
+   call self%job_manager%initialize(store_metadata)
 
    !call self%do_bottom_job%print()
 
@@ -4408,7 +4424,7 @@ subroutine assign_write_indices(link_list,domain,count)
    link => link_list%first
    do while (associated(link))
       if (link%target%domain==domain) then
-         if (.not.link%target%write_indices%is_empty().and.link%target%write_indices%value==-1) then
+         if (.not.link%target%write_indices%is_empty().and.link%target%write_indices%value==-1.and..not.associated(link%target%write_owner)) then
             count = count + 1
             call link%target%write_indices%set_value(count)
          end if

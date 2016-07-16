@@ -16,7 +16,7 @@ module fabm_graph
    implicit none
 
    public type_graph, type_node, type_node_set_member, type_node_list, type_node_list_member
-   public type_output_variable, type_input_variable, type_input_variable_set
+   public type_output_variable
 
    private
 
@@ -66,22 +66,10 @@ module fabm_graph
       procedure :: finalize => output_variable_set_finalize
    end type
 
-   type type_input_variable
-      type (type_internal_variable), pointer :: target => null()
-      type (type_input_variable),    pointer :: next   => null()
-   end type
-
-   type type_input_variable_set
-      type (type_input_variable), pointer :: first => null()
-   contains
-      procedure :: add      => input_variable_set_add
-      procedure :: finalize => input_variable_set_finalize
-   end type
-
    type type_node
       class (type_base_model), pointer :: model => null()
       integer                          :: source = source_unknown
-      type (type_input_variable_set)   :: inputs               ! input variables (irrespective of their source - can be constants, state variables, host-provided, or diagnostics computed by another node)
+      type (type_variable_set)         :: inputs               ! input variables (irrespective of their source - can be constants, state variables, host-provided, or diagnostics computed by another node)
       type (type_node_set)             :: dependencies         ! direct dependencies
       type (type_output_variable_set)  :: outputs              ! output variables that a later called model requires
    contains
@@ -133,40 +121,6 @@ subroutine output_variable_set_finalize(self)
    end do
    self%first => null()
 end subroutine output_variable_set_finalize
-
-subroutine input_variable_set_add(self,variable)
-   class (type_input_variable_set),intent(inout) :: self
-   type (type_internal_variable),target          :: variable
-
-   type (type_input_variable), pointer :: node
-
-   ! Check if this variable already exists.
-   node => self%first
-   do while (associated(node))
-      if (associated(node%target,variable)) return
-      node => node%next
-   end do
-
-   ! Create a new variable object and prepend it to the list.
-   allocate(node)
-   node%target => variable
-   node%next => self%first
-   self%first => node
-end subroutine input_variable_set_add
-
-subroutine input_variable_set_finalize(self)
-   class (type_input_variable_set), intent(inout) :: self
-
-   type (type_input_variable),pointer :: node, next
-
-   node => self%first
-   do while (associated(node))
-      next => node%next
-      deallocate(node)
-      node => next
-   end do
-   self%first => null()
-end subroutine input_variable_set_finalize
 
 subroutine graph_print(self)
    class (type_graph), intent(in) :: self

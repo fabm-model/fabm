@@ -16,6 +16,7 @@ module fabm_job
    private
 
    public type_job_manager, type_job, type_task, type_call
+   public type_store_metadata
    public find_dependencies
 
    type type_graph_subset_node_pointer
@@ -105,7 +106,7 @@ module fabm_job
       procedure :: print      => task_print
    end type
 
-   integer,parameter :: job_state_none = 0, job_state_created = 1, job_state_creating_graph = 2, job_state_graph_created = 3, job_state_initialized = 4
+   integer,parameter :: job_state_none = 0, job_state_created = 1, job_state_graph_created = 2, job_state_tasks_created = 3, job_state_finalized_prefill_settings = 4, job_state_initialized = 5
 
    ! A job contains one or more tasks, each using their own specific operation over the domain.
    type type_job
@@ -117,13 +118,11 @@ module fabm_job
       type (type_task), pointer :: first_task => null()
       type (type_task), pointer :: final_task => null()
       type (type_graph)         :: graph
-      type (type_input_variable_set) :: required_cache_loads
+      type (type_variable_set) :: required_cache_loads
       type (type_variable_request), pointer :: first_variable_request => null()
       type (type_call_request),     pointer :: first_call_request     => null()
       class (type_job), pointer :: previous => null()
    contains
-      procedure :: create_graph      => job_create_graph
-      procedure :: initialize        => job_initialize
       procedure :: request_variable  => job_request_variable
       procedure :: request_variables => job_request_variables
       procedure :: request_call      => job_request_call
@@ -141,6 +140,13 @@ module fabm_job
    contains
       procedure :: create     => job_manager_create
       procedure :: initialize => job_manager_initialize
+   end type
+
+   type type_store_metadata
+      type (type_variable_list) :: interior_variables
+      type (type_variable_list) :: horizontal_variables
+   contains
+      procedure :: add => store_metadata_add
    end type
 
    contains
@@ -386,13 +392,14 @@ module fabm_job
       end do
    end subroutine graph_subset_node_set_branch
 
-   subroutine task_initialize(self,extra_inputs)
-      class (type_task),                      intent(inout) :: self
-      type (type_input_variable_set),optional,intent(in)    :: extra_inputs
+   subroutine task_initialize(self,store_metadata,extra_inputs)
+      class (type_task),                intent(inout) :: self
+      type (type_store_metadata),       intent(inout) :: store_metadata
+      type (type_variable_set),optional,intent(in)    :: extra_inputs
 
-      type (type_call),          pointer :: call_node
-      type (type_input_variable_set)     :: inputs
-      type (type_input_variable),pointer :: input_variable
+      type (type_call),               pointer :: call_node
+      type (type_variable_set)                :: inputs
+      type (type_variable_set_member),pointer :: input_variable
 
       if (present(extra_inputs)) then
          input_variable => extra_inputs%first
@@ -535,8 +542,8 @@ module fabm_job
          logical,allocatable,intent(out) :: load(:)
          integer,            intent(in)  :: domain
 
-         integer                            :: ilast
-         type (type_input_variable),pointer :: input_variable
+         integer                                 :: ilast
+         type (type_variable_set_member),pointer :: input_variable
 
          ilast = 0
          input_variable => inputs%first
@@ -671,7 +678,7 @@ subroutine call_initialize(self)
          if (associated(later_call)) then
             ! The dependent call is part of the same task. Therefore the output needs to be copied to the read cache.
             ! But only do this is the variable is not already writing to a shared (aggregate) diagnostic.
-            if (.not.variable_node%target%write_indices%is_empty()) variable_node%copy_to_cache = .true.
+            if (.not.associated(variable_node%target%write_owner)) variable_node%copy_to_cache = .true.
          else
             ! The dependent call is part of another task. Therefore the output needs to be copied to the persistent store.
             variable_node%copy_to_store = .true.
@@ -732,7 +739,7 @@ end subroutine call_initialize
 
 subroutine job_request_variable(self,variable,copy_to_cache,copy_to_store)
    class (type_job),target,      intent(inout) :: self
-   type (type_internal_variable),intent(in),target :: variable
+   type (type_internal_variable),intent(inout),target :: variable
    logical,optional,             intent(in)    :: copy_to_cache
    logical,optional,             intent(in)    :: copy_to_store
 
@@ -740,6 +747,9 @@ subroutine job_request_variable(self,variable,copy_to_cache,copy_to_store)
 
    if (self%state<job_state_created) call driver%fatal_error('job_request_variable','Job has not been created yet.')
    if (self%state>job_state_created) call driver%fatal_error('job_request_variable','Job "'//trim(self%name)//'" has already begun initialization; variables can no longer be requested.')
+
+   ! Make sure this variable will not be merged
+   variable%write_operator = operator_assign
 
    ! If this variable is not written [but a field provided by the host or a state variable], return immediately.
    if (variable%write_indices%is_empty().or.variable%source==source_none) then
@@ -839,7 +849,7 @@ recursive subroutine find_dependencies(self,list,forbidden)
    call forbidden_with_self%finalize()
 end subroutine find_dependencies
 
-recursive subroutine job_create_graph(self)
+subroutine job_create_graph(self)
    class (type_job),target,intent(inout) :: self
 
    type (type_node_list)                :: outer_calls
@@ -847,17 +857,13 @@ recursive subroutine job_create_graph(self)
    type (type_call_request),    pointer :: call_request, next_call_request
    type (type_node),            pointer :: graph_node
 
-   ! Return immediately if the graph for this job has already been created.
-   if (self%state>=job_state_graph_created) return
-
    if (self%state<job_state_created) call driver%fatal_error('job_create_graphs','This job has not been created yet.')
-   if (self%state==job_state_creating_graph) call driver%fatal_error('job_create_graphs','Circular dependency between jobs: graphs for job '//trim(self%name)//' already being created.')
-   self%state = job_state_creating_graph
+   if (self%state>=job_state_graph_created) call driver%fatal_error('job_create_graphs','Graph for this job has already been created.')
 
    ! If we are linked to an earlier called job, make sure its graph has been created already.
+   ! This is essential because we can skip calls if they appear already in the previous job - we determine this by exploring its graph.
    if (associated(self%previous)) then
-      call self%previous%create_graph()
-      self%graph%previous => self%previous%graph
+      if (self%previous%state<job_state_graph_created) call driver%fatal_error('job_create_graphs','Graph for previous job has not been created yet.')
    end if
 
    ! Construct the dependency graph by adding explicitly requested variables and calls.
@@ -880,10 +886,15 @@ recursive subroutine job_create_graph(self)
    self%first_call_request => null()
    call outer_calls%finalize()
 
+   ! Save graph
+   !open(newunit=unit,file='graph.gv',action='write',status='replace',iostat=ios)
+   !call self%graph%save_as_dot(unit)
+   !close(unit)
+
    self%state = job_state_graph_created
 end subroutine job_create_graph
 
-subroutine job_initialize(self)
+subroutine job_create_tasks(self)
    class (type_job),target,intent(inout) :: self
 
    type (type_graph_subset_node_set)    :: subset
@@ -894,13 +905,14 @@ subroutine job_initialize(self)
    integer                              :: unit,ios
    type (type_call),            pointer :: call_node, next_call_node
 
-   if (self%state>=job_state_initialized) call driver%fatal_error('job_initialize','This job has already been initialized.')
-   if (self%state<job_state_graph_created) call driver%fatal_error('job_initialize','The graph for this job has not been created yet.')
+   if (self%state>=job_state_tasks_created) call driver%fatal_error('job_create_tasks','Tasks for this job have already been created.')
+   if (self%state<job_state_graph_created) call driver%fatal_error('job_create_tasks','The graph for this job have not been created yet.')
 
-   ! Save graph
-   !open(newunit=unit,file='graph.gv',action='write',status='replace',iostat=ios)
-   !call self%graph%save_as_dot(unit)
-   !close(unit)
+   ! If we are linked to an earlier called job, make sure its task list has already been created.
+   ! This is essential if we will try to outsource our own calls to previous tasks/jobs.
+   if (associated(self%previous)) then
+      if (self%previous%state<job_state_tasks_created) call driver%fatal_error('job_create_tasks','Tasks for previous job have not been created yet.')
+   end if
 
    ! Create tree that describes all possible task orders (root is at the right of the call list, i.e., at the end of the very last call)
    call create_graph_subset_node_set(self%graph,subset)
@@ -947,15 +959,7 @@ subroutine job_initialize(self)
       end if
    end if
 
-   ! Initialize tasks
-   task => self%first_task
-   do while (associated(task))
-      call task%initialize()
-      task => task%next
-   end do
-   if (associated(self%final_task)) call self%final_task%initialize(extra_inputs=self%required_cache_loads)
-
-   self%state = job_state_initialized
+   self%state = job_state_tasks_created
 
 contains
 
@@ -1051,7 +1055,7 @@ contains
          current_call%next => call_node
          call_node%next => null()
 
-         call target_task%initialize()
+         !call target_task%initialize()
       end if
    end subroutine move_call_backwards
 
@@ -1063,7 +1067,6 @@ contains
 
       type (type_call),pointer             :: call_node
       type (type_node_set_member), pointer :: dependency
-      type (type_task),pointer             :: old_task
 
       moved = .false.
 
@@ -1082,42 +1085,141 @@ contains
          call_node => call_node%next
       end do
 
-      if (associated(job%first_task,task).or.(.not.associated(job%first_task).and.associated(job%final_task,task))) then
-         ! We are the first task in the job - move to previous job (and its last task)
-         write (*,*) '  moving to previous job'
-         job => job%previous
-         do while (associated(job))
-            if (associated(job%first_task).or.associated(job%final_task)) exit
-            job => job%previous
-         end do
-         if (.not.associated(job)) return
-         task => job%final_task
-         if (.not.associated(task)) then
-            task => job%first_task
-            do while (associated(task%next))
-               task => task%next
-            end do
-         end if
-      else
-         ! We are NOT the first task in the job - find the previous task
-         write (*,*) '  moving to previous task'
-         if (associated(job%final_task,task)) then
-            ! We are the final task - move to last task in the list of preparatory tasks
-            task => job%first_task
-            do while (associated(task%next))
-               task => task%next
-            end do
-         else
-            ! We are one of the preparatory tasks - move to the preceding one.
-            old_task => task
-            task => job%first_task
-            do while (.not.associated(task%next,old_task))
-               task => task%next
-            end do
-         end if
-      end if
+      ! Move to previous task (if any)
+      call get_previous_task(job,task)
+      if (.not.associated(task)) return
+
       moved = .true.
    end function move_one_step_backwards
+
+end subroutine job_create_tasks
+
+function get_last_task(job) result(task)
+   class (type_job),intent(in) :: job
+   type (type_task),pointer :: task
+
+   task => job%final_task
+   if (associated(task)) return
+
+   task => job%first_task
+   do while (associated(task%next))
+      task => task%next
+   end do
+end function get_last_task
+
+subroutine get_previous_task(job,task)
+   class (type_job),pointer :: job
+   type (type_task),pointer :: task
+
+   type (type_task),pointer :: old_task
+
+   if (associated(job%first_task,task).or.(.not.associated(job%first_task).and.associated(job%final_task,task))) then
+      ! We are the first task in the job - move to previous job (and its last task)
+      task => null()
+      job => job%previous
+      do while (associated(job))
+         if (associated(job%first_task).or.associated(job%final_task)) exit
+         job => job%previous
+      end do
+      if (associated(job)) task => get_last_task(job)
+   else
+      ! We are NOT the first task in the job - find the previous task
+      old_task => task
+      task => job%first_task
+      do while (associated(task%next).and..not.associated(task%next,old_task))
+         task => task%next
+      end do
+   end if
+end subroutine get_previous_task
+
+subroutine job_finalize_prefill_settings(self)
+   class (type_job),target,intent(inout) :: self
+
+   type (type_node_list_member),pointer :: graph_node
+   type (type_output_variable), pointer :: variable_node, variable_node1
+   type (type_variable_set)             :: remaining_cowriters, found_cowriters
+   type (type_task),            pointer :: task
+   class (type_job),            pointer :: current_job
+   type (type_call),            pointer :: call_node
+   type (type_variable_set_member), pointer :: variable_set_member
+
+   if (self%state>=job_state_finalized_prefill_settings) call driver%fatal_error('job_finalize_prefill_settings','This job has already been initialized.')
+   if (self%state<job_state_tasks_created) call driver%fatal_error('job_finalize_prefill_settings','Tasks for this job have not been created yet.')
+
+   ! Loop over all graph nodes, for each, enumerate outputs.
+   ! For outputs that are jointly written, find all tasks that contribute to the variable value (in current and previous jobs)
+   ! The very first task will can keep its default prefill setting (typically prefill to zero for summations), but all
+   ! subsequent tasks need to prefill with the previous value.
+   graph_node => self%graph%first
+   do while (associated(graph_node))
+      variable_node => graph_node%p%outputs%first
+      do while (associated(variable_node))
+         if (associated(variable_node%target%cowriters%first)) then
+            call remaining_cowriters%update(variable_node%target%cowriters)
+            call remaining_cowriters%add(variable_node%target)
+
+            ! We have a set with all written variables that contribute to the current output.
+            ! Now move from task to task, and for all but the earlier writer, prefill with the previous value from the store.
+            current_job => self
+            task => get_last_task(self)
+            do while (associated(task))
+               ! Look over all calls in this task
+               call_node => task%first_call
+               do while (associated(call_node))
+                  ! Loop over all outputs of this call
+                  variable_node1 => call_node%graph_node%outputs%first
+                  do while (associated(variable_node1))
+                     if (remaining_cowriters%contains(variable_node1%target)) then
+                        ! This output is co-written to the target variable we are interested in.
+                        call found_cowriters%add(variable_node1%target)
+                        call remaining_cowriters%remove(variable_node1%target)
+                     end if
+                     variable_node1 => variable_node1%next
+                  end do
+                  call_node => call_node%next
+               end do
+               if (associated(remaining_cowriters%first)) then
+                  ! Some variable contributions are remaining and are therefore handled by earlier tasks.
+                  ! Any contributions in the current task must therefore prefill with the previous value.
+                  variable_set_member => found_cowriters%first
+                  do while (associated(variable_set_member))
+                     variable_set_member%target%prefill = prefill_previous_value
+                     variable_set_member => variable_set_member%next
+                  end do
+               end if
+               call found_cowriters%finalize()
+               if (.not.associated(remaining_cowriters%first)) exit
+               call get_previous_task(current_job,task)
+            end do
+            if (associated(remaining_cowriters%first)) call fatal_error('job_finalize_prefill_settings','BUG: not all sources of cowritten variable were found.')
+         end if
+         variable_node => variable_node%next
+      end do
+      graph_node => graph_node%next
+   end do
+
+   self%state = job_state_finalized_prefill_settings
+
+end subroutine job_finalize_prefill_settings
+
+subroutine job_initialize(self,store_metadata)
+   class (type_job),target,   intent(inout) :: self
+   type (type_store_metadata),intent(inout) :: store_metadata
+
+   type (type_task), pointer :: task
+
+   if (self%state>=job_state_initialized) call driver%fatal_error('job_initialize','This job has already been initialized.')
+   if (self%state<job_state_finalized_prefill_settings) call driver%fatal_error('job_initialize','Prefill settings for this job have not been finalized yet.')
+
+   ! Initialize tasks
+   task => self%first_task
+   do while (associated(task))
+      call task%initialize(store_metadata)
+      task => task%next
+   end do
+   if (associated(self%final_task)) call self%final_task%initialize(store_metadata,extra_inputs=self%required_cache_loads)
+
+   self%state = job_state_initialized
 
 end subroutine job_initialize
 
@@ -1143,25 +1245,85 @@ subroutine job_manager_create(self,job,name,final_operation,outsource_tasks)
    self%first => node
 end subroutine job_manager_create
 
-subroutine job_manager_initialize(self)
-   class (type_job_manager), intent(in) :: self
+subroutine job_manager_initialize(self,store_metadata)
+   class (type_job_manager),  intent(inout) :: self
+   type (type_store_metadata),intent(inout) :: store_metadata
 
-   type (type_job_manager_item),pointer :: node
+   type (type_job_manager_item),pointer :: node, node_next, first_ordered
 
-   ! First create all graphs
-   ! NB: a job can add to graphs owned by other jobs, so *all* graphs have to be created before initializing [based on graph].
+   ! Order jobs according to call order.
+   ! This ensures that jobs that are scheduled to run earlier are also initialized earlier.
+   ! During initialization, a job can therefore expect any preceding jobs to have initialized completely.
+   first_ordered => null()
    node => self%first
    do while (associated(node))
-      call node%job%create_graph()
+      node_next => node%next
+      call add_to_order(node%job)
+      deallocate(node)
+      node => node_next
+   end do
+   self%first => first_ordered
+
+   ! Create all graphs. This must be done across all jobs before other operations that use graphs,
+   ! since a job can add to graphs owned by other jobs.
+   node => self%first
+   do while (associated(node))
+      call job_create_graph(node%job)
       node => node%next
    end do
 
-   ! Initialize jobs
+   ! Create tasks. This must be done for all jobs before job_finalize_prefill_settings is called, as this API operates across all jobs.
    node => self%first
    do while (associated(node))
-      call node%job%initialize()
+      call job_create_tasks(node%job)
       node => node%next
    end do
+
+   ! Finalize prefill settings (this has cross-job implications, so must be done for all jobs before they initialize (initialization uses prefill settings)
+   node => self%first
+   do while (associated(node))
+      call job_finalize_prefill_settings(node%job)
+      node => node%next
+   end do
+
+   ! Initialize all jobs
+   node => self%first
+   do while (associated(node))
+      call job_initialize(node%job,store_metadata)
+      node => node%next
+   end do
+
+contains
+
+   recursive subroutine add_to_order(job)
+      type (type_job), target :: job
+
+      type (type_job_manager_item),pointer :: node
+
+      ! Make sure job is not yet in list
+      node => first_ordered
+      do while (associated(node))
+         if (associated(node%job,job)) return
+         node => node%next
+      end do
+
+      ! If this job has a previous job, append that first.
+      if (associated(job%previous)) call add_to_order(job%previous)
+
+      ! Append to list
+      if (associated(first_ordered)) then
+         node => first_ordered
+         do while (associated(node%next))
+            node => node%next
+         end do
+         allocate(node%next)
+         node%next%job => job
+      else
+         allocate(first_ordered)
+         first_ordered%job => job
+      end if
+   end subroutine add_to_order
+
 end subroutine job_manager_initialize
 
 subroutine job_set_next(self,next)
@@ -1174,6 +1336,7 @@ subroutine job_set_next(self,next)
       call driver%fatal_error('job_set_next','This job has already been connected to a subsequent one.')
 
    next%previous => self
+   next%graph%previous => self%graph
 end subroutine job_set_next
 
 function source2operation(source) result(operation)
@@ -1220,6 +1383,35 @@ logical function is_source_compatible(operation,new_source)
       is_source_compatible = operation==new_operation
    end select
 end function is_source_compatible
+
+recursive subroutine store_metadata_add(self,variable)
+   class (type_store_metadata),intent(inout) :: self
+   type (type_internal_variable), target     :: variable
+
+   integer :: i
+   type (type_variable_set_member), pointer :: variable_set_member
+
+   if (variable%store_index/=store_index_none) return
+
+   if (associated(variable%write_owner)) then
+      call self%add(variable%write_owner)
+      if (variable%store_index==store_index_none) call fatal_error('store_metadata_add','BUG: store index not set after calling "add" on write owner.')
+   end if
+   
+   select case (variable%domain)
+   case (domain_interior)
+      call self%interior_variables%append(variable,index=i)
+   case (domain_horizontal,domain_surface,domain_bottom)
+      call self%horizontal_variables%append(variable,index=i)
+   end select
+
+   variable%store_index = i
+   variable_set_member => variable%cowriters%first
+   do while (associated(variable_set_member))
+      variable_set_member%target%store_index = i
+      variable_set_member => variable_set_member%next
+   end do
+end subroutine store_metadata_add
 
 end module fabm_job
 
