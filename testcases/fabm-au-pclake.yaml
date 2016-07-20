@@ -121,12 +121,12 @@ instances:
       UseLightMethodGren: 1  # light method, 1 without photoinhibition,Chalker (1980) model, 2 with photoinhibition, Klepper et al. (1988) / Ebenhoh et al. (1997) model.
       UseLightMethodBlue: 2  # light method, 1 without photoinhibition,Chalker (1980) model, 2 with photoinhibition, Klepper et al. (1988) / Ebenhoh et al. (1997) model.
       UseLightMethodDiat: 2  # light method, 1 without photoinhibition,Chalker (1980) model, 2 with photoinhibition, Klepper et al. (1988) / Ebenhoh et al. (1997) model.
-      cLOptRefBlue: 200    # 13.6W/m2 ; optimum PAR for blue-greens at 20 oC (Steele function)
-      cLOptRefDiat: 60   # 54.0W/m2 ; optimum PAR for Diatoms at 20 oC (Steele function)
-      cLOptRefGren: 200       # W/m2 ; optimum PAR for green at 20 oC (Steele function)
-      hLRefDiat: 6.5         # W/m2 ; half-sat. PAR for diatoms at 20 oC (Lehmann function)
+      cLOptRefBlue: 13.6    # 13.6W/m2 ; optimum PAR for blue-greens at 20 oC (Steele function)
+      cLOptRefDiat: 54      # 54.0W/m2 ; optimum PAR for Diatoms at 20 oC (Steele function)
+      cLOptRefGren: 54       # W/m2 ; optimum PAR for green at 20 oC (Steele function)
+      hLRefDiat: 6.5         # W/m2 ; half-sat. PAR for diatoms at 20 oC (Lehmann function)(not used with methods2)
       hLRefBlue: 34          # W/m2 ; half-sat. PAR for blue algea at 20 oC (Lehmann function)
-      hLRefGren: 17      # 17.0W/m2 ; half-sat. PAR for green algae at 20 oC (Lehmann function),used when UseLightMethodGren=1
+      hLRefGren: 17.0      # 17.0W/m2 ; half-sat. PAR for green algae at 20 oC (Lehmann function),used when UseLightMethodGren=1
       cMuMaxBlue: 0.6      # day-1                  maximum_growth_rate_Bluegreens'
       cMuMaxDiat: 2.0      # day-1                  maximum_growth_rate_Diatoms
       cMuMaxGren: 1.5      # day-1                  maximum_growth_rate_greens
@@ -171,7 +171,7 @@ instances:
       cDGrenMinW: 0.0001
       cDDiatMinW: 0.0001
 # sinking
-      cVSetDiat: -1.0     # m/day ; sedimentation velocity Diatoms
+      cVSetDiat: -0.5     # m/day ; sedimentation velocity Diatoms
       cVSetGren: -0.2     # m/day ; sedimentation velocity of greens
       cVSetBlue: -0.06    # m/day ; sedimentation velocity Blue-greens
     initialization:
@@ -329,7 +329,7 @@ instances:
       kDRespZoo: 0.15                                           # maintenance respiration constant herb.zooplankton (d-1), default = 0.15
       cPrefDiat: 0.75                                           # selection factor for Diatoms ([-]), default = 0.75
       cPrefGren: 0.75                                           # selection factor for Greens ([-]), default = 0.75
-      cPrefBlue: 0.125                                          # selection factor for Bluegreens Cal. ([-]), default = 0.125
+      cPrefBlue: 0.50                                          # selection factor for Bluegreens Cal. ([-]), default = 0.125
       cPrefDet: 0.25                                            # selection factor for detritus ([-]), default = 0.25
       hFilt: 1.0                                                # half-sat. food conc. for filtering (gDW m-3), default = 1.0
       fDAssZoo: 0.35                                            # DW-assimilation efficiency of herb. zooplankton ([-]), default = 0.35
@@ -355,8 +355,8 @@ instances:
       cDZooMin: 0.00001
     initialization:
       sDZoo: 0.199642                                             # zooplankton DW in water (g m-3)
-      sPZoo: 0.00989778                                             # zooplankton P in water (g m-3)
-      sNZoo: 0.00137144                                             # zooplankton N in water (g m-3)
+      sNZoo: 0.00989778                                             # zooplankton N in water (g m-3)
+      sPZoo: 0.00137144                                             # zooplankton P in water (g m-3)
     coupling:
       Diatom_as_food_DW: phytoplankton_water/sDDiatW            # diatom_as_food_DW (g m-3)
       Green_as_food_DW: phytoplankton_water/sDGrenW             # green_as_food_DW (g m-3)
@@ -431,13 +431,13 @@ instances:
       cDFiAdMin: 0.00001
       cDPiscMin: 0.00001
     initialization:
-      sDFiJv: 0.1767455                                              # juvenile fish DW in water (g m-3)
-      sPFiJv: 0.00370361                                             # juvenile fish P in water (g m-3)
-      sNFiJv: 0.0179063                                              # juvenile fish N in water (g m-3)
-      sDFiAd: 1.443465                                               # adult fish DW in water (g m-3)
-      sPFiAd: 0.02826425                                             # adult fish P in water (g m-3)
-      sNFiAd: 0.1479335                                              # adult fish N in water (g m-3)
-      sDPisc: 0.03776645                                             # piscivorous fish DW in water (g m-3)
+      sDFiJv: 0.35349                                            # juvenile fish DW in water (g m-3)
+      sPFiJv: 0.00741                                     # juvenile fish P in water (g m-3)
+      sNFiJv: 0.03581                            # juvenile fish N in water (g m-3)
+      sDFiAd: 2.88693                                    # adult fish DW in water (g m-3)
+      sPFiAd: 0.05653                                            # adult fish P in water (g m-3)
+      sNFiAd: 0.29587                                            # adult fish N in water (g m-3)
+      sDPisc: 0.07553                                            # piscivorous fish DW in water (g m-3)
     coupling:
       Detritus_DW_pool_water: abiotic_water/sDDetW              # detritus_DW_pool_water (g m-3)
       Detritus_N_pool_water: abiotic_water/sNDetW               # detritus_N_pool_water (g m-3)
@@ -498,8 +498,8 @@ instances:
       cDBentMin: 0.00001
     initialization:
       sDBent: 2.4032
-      sPBent: 0.108189
-      sNBent: 0.0178026
+      sNBent: 0.108189
+      sPBent: 0.0178026
     coupling:
       Diatom_as_food_DW: phytoplankton_sediment/sDDiatS
       Green_as_food_DW: phytoplankton_sediment/sDGrenS
@@ -536,7 +536,7 @@ instances:
       cThetaSet: 1.01         # 1/e^oC ; temp. parameter of sedimentation
       kVegResus: 0.01         # m2/gDW ; rel. resuspension reduction per g vegetation
       kTurbFish: 1.0          # g/g fish/day ; relative resuspension by adult fish browsing
-      cSuspRef: 0.0           # ??reference?ˉ suspended matter function [-]
+      cSuspRef: 0.5           # ??reference?ˉ suspended matter function [-]
       cSuspMin: 6.1           # minimum value of logistic function
       cSuspMax: 25.2          # maximum value of logistic function
       cSuspSlope: 2.1         # slope of logistic function
@@ -550,7 +550,7 @@ instances:
       cResusPhytExp: -0.379   # (gDW/m2/day)-1 ,exp._par._for_phytopl._resuspension
       cVSetIM: 1.0            # m/day ; max. sedimentation velocity of inert org. matter
       cVSetDet: 0.25          # m/day ; max. sedimentation velocity of detritus
-      cVSetDiat: 1.0          # m/day ; sedimentation velocity Diatoms
+      cVSetDiat: 0.5          # m/day ; sedimentation velocity Diatoms
       cVSetGren: 0.2          # m/day ; sedimentation velocity of greens
       cVSetBlue: 0.06         # m/day ; sedimentation velocity Blue-greens
       cRhoIM: 2500000.0       # g/m3 solid ; density of sediment IM
@@ -585,11 +585,11 @@ instances:
       tDDepoDet: 0.0                                            # organic matter deposition,dry weight (g m-2 d-1), default = 0.0
       tNDepoDet: 0.0                                            # organic matter deposition,nitrogen (g m-2 d-1), default = 0.0
       tPDepoDet: 0.0                                            # organic matter deposition,phosphorus (g m-2 d-1), default = 0.0
-      tPDepoPO4: 0.0005                                           # phosphate deposition (g m-2 d-1), default = 0.0
+      tPDepoPO4: 0.001                                         # phosphate deposition (g m-2 d-1), default = 0.0
       tNDepoNH4: 0.0                                            # ammonium deposition (g m-2 d-1), default = 0.0
-      tNDepoNO3: 0.005                                            # nitrate deposition (g m-2 d-1), default = 0.0
+      tNDepoNO3: 0.01                               # nitrate deposition (g m-2 d-1), default = 0.0
 #     dilution factor section
-      uQIn: 20.0             # mm/day, net water load rate, constant  
+      uQIn: 20.0             # mm/day, net water load rate, constant     
     coupling:      
       Ammonium_pool_in_water: abiotic_water/sNH4W
       Nitrate_pool_in_water: abiotic_water/sNO3W

@@ -1086,12 +1086,14 @@
 !   uPLoadPO4=self%cLoadPO4
 !!  N_load_NO3
 !   uNLoadNO3=self%cLoadNO3
-   uQEv = 0.0_rk
-!  dilution_rate_of_substances
-   uQDil=self%uQIn-uQEv 
-!  currently ignore algal loadings.
-!  dilution_rate_of_substances
-   ukDil = uQDil / mmPerm/sDepthW
+! feh: July 19th, correct the surface layer dilution methods
+!   uQEv = 0.0_rk
+!!  dilution_rate_of_substances
+!   uQDil=self%uQIn-uQEv 
+!!  currently ignore algal loadings.
+!!  dilution_rate_of_substances
+!   ukDil = uQDil / mmPerm/sDepthW
+   ukDil = self%uQIn / mmPerm
 !  loading_of_DW_of_inorg_matter
 !  feh: July 11th, 2016: residual code for benchmark test
 !  to ensure the exact same load of everything
@@ -1168,36 +1170,16 @@
    wNTranBlue=-wNDilBlue
 !  transport_flux_of_P_in_Blue
    wPTranBlue=-wPDilBlue
-!---beginning of residual code---------
-!  feh: July 11th, 2016: residual code for benchmark test
-!  to ensure the exact same load of everything
-!  dilution_rate_of_water
-   ukDilWat = self%uQIn / mmPerm / sDepthW
+!-----Temperal dilution solution-----
+! feh: July 19th, correct the surface layer dilution methods
+!   ukDilWat = self%uQIn / mmPerm / sDepthW
+   ukDilWat = self%uQIn / mmPerm
 !  oxygen_inflow
    wO2Inflow = ukDilWat * sO2W
 !  oxygen_outflow
    wO2Outfl = ukDil * sO2W
 !  transport_flux_O2
    wO2TranW = wO2Inflow - wO2Outfl
-!  net_migration_flux_of_D_in_Zoo
-   wDTranZoo =( ukDilWat * 0.1_rk - ukDil*sDZoo)  ! cDZooIn= 0.1
-!  net_migration_flux_of_P_in_ZOO
-   wPTranZoo =(ukDilWat *0.01_rk*0.1_rk  - ukDil*sPZoo)  ! cPDZooRef=0.01
-!  net_migration_flux_of_N_in_Zoo
-   wNTranZoo =(ukDilWat * 0.1_rk*0.07_rk - ukDil * sNZoo) !cNDZooRef=0.07
-!  feh, July 11th, 2016: remove mannual loadings
-!  total_transport_flux_of_Si_in_SiO2
-!   uSiLoadSiO2 = 3.0_rk * self%uQIn / mmPerm   !cSiO2In=3.0
-!  Dilution_of_Si_in_SiO2
-   wSiDilSiO2 = ukDil * sSiO2W
-!  transport_flux_of_Si_in_SIO2
-   wSiTranSiO2 =  - wSiDilSiO2
-!-----end of residual code---------
-!-----Temperal dilution solution-----
-!  oxygen_outflow
-   wO2Outfl = ukDil * sO2W
-!  transport_flux_O2
-   wO2TranW =  - wO2Outfl
 !  net_migration_flux_of_D_in_Zoo
    wDTranZoo = -ukDil*sDZoo 
 !  net_migration_flux_of_P_in_ZOO
