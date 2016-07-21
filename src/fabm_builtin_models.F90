@@ -118,10 +118,10 @@ module fabm_builtin_models
       procedure :: get_light  => depth_integral_do_column
    end type
 
-   type,extends(type_base_model) :: type_bulk_constant
+   type,extends(type_base_model) :: type_interior_constant
       type (type_diagnostic_variable_id) :: id_constant
    contains
-      procedure :: initialize => bulk_constant_initialize
+      procedure :: initialize => interior_constant_initialize
    end type
 
    type,extends(type_base_model) :: type_horizontal_constant
@@ -144,6 +144,14 @@ module fabm_builtin_models
    contains
       procedure :: initialize => external_surface_flux_initialize
       procedure :: do_surface => external_surface_flux_do_surface
+   end type
+
+   type,extends(type_base_model) :: type_interior_source
+      type (type_state_variable_id) :: id_target
+      type (type_dependency_id)     :: id_source
+   contains
+      procedure :: initialize => interior_source_initialize
+      procedure :: do         => interior_source_do
    end type
 
    type,extends(type_base_model) :: type_source_copier
@@ -193,11 +201,13 @@ module fabm_builtin_models
       class (type_base_model),pointer :: model
 
       select case (name)
-         case ('bulk_constant');          allocate(type_bulk_constant::model)
+         case ('bulk_constant');          allocate(type_interior_constant::model)
+         case ('interior_constant');      allocate(type_interior_constant::model)
          case ('horizontal_constant');    allocate(type_horizontal_constant::model)
          case ('surface_flux');           allocate(type_constant_surface_flux::model)
          case ('constant_surface_flux');  allocate(type_constant_surface_flux::model)
          case ('external_surface_flux');  allocate(type_external_surface_flux::model)
+         case ('interior_source');        allocate(type_interior_source::model)
          case ('weighted_sum');           allocate(type_weighted_sum::model)
          case ('horizontal_weighted_sum');allocate(type_horizontal_weighted_sum::model)
          ! Add new examples models here
@@ -290,7 +300,7 @@ module fabm_builtin_models
 
       !call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output) !,act_as_state_variable=iand(self%access,access_set_source)/=0)
       call self%add_interior_variable('result', self%units, 'result', 0.0_rk, output=self%result_output, write_index=self%id_output%sum_index, link=self%id_output%link)
-      self%id_output%link%target%prefill = prefill_missing_value
+      self%id_output%link%target%prefill = prefill_constant
 
       if (iand(self%access,access_set_source)/=0) then
          ! NB this does not function yet (hence the commented out act_as_state_variable above)
@@ -612,7 +622,7 @@ module fabm_builtin_models
       end do
       !call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output,source=source_do_horizontal)
       call self%add_horizontal_variable('result', self%units, 'result', 0.0_rk, output=self%result_output, write_index=self%id_output%horizontal_sum_index, link=self%id_output%link, source=source_do_horizontal)
-      self%id_output%link%target%prefill = prefill_missing_value
+      self%id_output%link%target%prefill = prefill_constant
    end subroutine
 
    subroutine horizontal_weighted_sum_after_coupling(self)
@@ -732,9 +742,9 @@ module fabm_builtin_models
       endif
    end subroutine depth_integral_do_column
 
-   subroutine bulk_constant_initialize(self,configunit)
-      class (type_bulk_constant),intent(inout),target :: self
-      integer,                   intent(in)           :: configunit
+   subroutine interior_constant_initialize(self,configunit)
+      class (type_interior_constant),intent(inout),target :: self
+      integer,                       intent(in)           :: configunit
 
       character(len=attribute_length) :: standard_name
       real(rk)                        :: value
@@ -748,7 +758,7 @@ module fabm_builtin_models
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
             output=output_none, source=source_none)
       end if
-   end subroutine bulk_constant_initialize
+   end subroutine interior_constant_initialize
 
    subroutine horizontal_constant_initialize(self,configunit)
       class (type_horizontal_constant),intent(inout),target :: self
@@ -787,7 +797,7 @@ module fabm_builtin_models
 
    subroutine external_surface_flux_initialize(self,configunit)
       class (type_external_surface_flux),intent(inout),target :: self
-      integer,                  intent(in)           :: configunit
+      integer,                           intent(in)           :: configunit
 
       call self%register_state_dependency(self%id_target,'target','UNITS m-3','target variable')
       call self%register_dependency(self%id_flux,'flux','UNITS m-2 s-1','surface flux')
@@ -804,6 +814,26 @@ module fabm_builtin_models
          _SET_SURFACE_EXCHANGE_(self%id_target,flux)
       _HORIZONTAL_LOOP_END_
    end subroutine external_surface_flux_do_surface
+
+   subroutine interior_source_initialize(self,configunit)
+      class (type_interior_source),intent(inout),target :: self
+      integer,                     intent(in)           :: configunit
+
+      call self%register_state_dependency(self%id_target,'target','UNITS m-3','target variable')
+      call self%register_dependency(self%id_source,'source','UNITS m-3 s-1','source')
+   end subroutine interior_source_initialize
+
+   subroutine interior_source_do(self,_ARGUMENTS_DO_)
+      class (type_interior_source), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_
+
+      real(rk) :: source
+
+      _LOOP_BEGIN_
+         _GET_(self%id_source,source)
+         _SET_ODE_(self%id_target,source)
+      _LOOP_END_
+   end subroutine interior_source_do
 
    subroutine copy_fluxes(source_model,source_variable,target_variable)
       class (type_base_model),           intent(inout), target :: source_model

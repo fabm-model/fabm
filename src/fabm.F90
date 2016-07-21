@@ -2584,7 +2584,7 @@ subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
 #endif
    if (allocated(task%prefill_type)) then
       do i=1,size(task%prefill_type)
-         if (task%prefill_type(i)==prefill_missing_value) then
+         if (task%prefill_type(i)==prefill_constant) then
             _CONCURRENT_LOOP_BEGIN_
                cache%write _INDEX_SLICE_PLUS_1_(i) = task%prefill_values(i)
             _LOOP_END_
@@ -2639,7 +2639,7 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 #endif
    if (allocated(task%prefill_type_hz)) then
       do i=1,size(task%prefill_type_hz)
-         if (task%prefill_type_hz(i)==prefill_missing_value) then
+         if (task%prefill_type_hz(i)==prefill_constant) then
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
                cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = task%prefill_values_hz(i)
             _HORIZONTAL_LOOP_END_
@@ -2786,13 +2786,10 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 #endif
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   allocate(cache%write(_N_,self%nscratch))
    allocate(cache%read(_N_,size(self%data)))
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(cache%write(1,self%nscratch))
    allocate(cache%read(1,size(self%data)))
 #else
-   allocate(cache%write(self%nscratch))
    allocate(cache%read(size(self%data)))
 #endif
    do i=1,size(task%load)
@@ -2814,10 +2811,8 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
    end do
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(cache%write_hz(1,self%nscratch_hz))
    allocate(cache%read_hz(1,size(self%data_hz)))
 #else
-   allocate(cache%write_hz(self%nscratch_hz))
    allocate(cache%read_hz(size(self%data_hz)))
 #endif
    do i=1,size(task%load_hz)
@@ -2835,6 +2830,31 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
    do i=1,size(task%load_scalar)
       if (task%load_scalar(i)) cache%read_scalar(i) = self%data_scalar(i)%p
    end do
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   allocate(cache%write(_N_,self%nscratch))
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(cache%write(1,self%nscratch))
+#else
+   allocate(cache%write(self%nscratch))
+#endif
+   if (allocated(settings%prefill_type)) then
+      do i=1,self%nscratch
+         if (settings%prefill_type(i)==prefill_constant) then
+#if defined(_INTERIOR_IS_VECTORIZED_)
+            cache%write(:,i) = settings%prefill_values(i)
+#else
+            cache%write(i) = settings%prefill_values(i)
+#endif
+         end if
+      end do
+   end if
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(cache%write_hz(1,self%nscratch_hz))
+#else
+   allocate(cache%write_hz(self%nscratch_hz))
+#endif
 end subroutine begin_vertical_task
 
 subroutine end_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
