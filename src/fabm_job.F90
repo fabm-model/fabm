@@ -485,7 +485,7 @@ module fabm_job
                   ilast = variable_node%target%write_indices%value
                   prefill(ilast) = variable_node%target%prefill
                   indices(ilast) = variable_node%target%store_index
-                  values (ilast) = variable_node%target%missing_value
+                  values (ilast) = variable_node%target%prefill_value
                end if
                variable_node => variable_node%next
             end do
@@ -606,7 +606,7 @@ subroutine task_print(self)
          write (*,'("   ",a,", write@",i0)',advance='no') trim(variable%target%name),variable%target%write_indices%value
          if (variable%copy_to_cache) write (*,'(", cache@",i0)',advance='no') variable%target%read_indices%value
          if (variable%copy_to_store) write (*,'(", store@",i0)',advance='no') variable%target%store_index
-         if (variable%target%prefill==prefill_missing_value) write (*,'(", prefill=",g0.6)',advance='no') variable%target%missing_value
+         if (variable%target%prefill==prefill_constant) write (*,'(", prefill=",g0.6)',advance='no') variable%target%prefill_value
          if (variable%target%prefill==prefill_previous_value) write (*,'(", prefill=previous")',advance='no')
          write (*,*)
          pnode => variable%dependent_nodes%first
