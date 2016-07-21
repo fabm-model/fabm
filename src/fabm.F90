@@ -2631,7 +2631,7 @@ subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
 #endif
    if (allocated(settings%prefill_type)) then
       do i=1,self%nscratch
-         if (settings%prefill_type(i)==prefill_missing_value) then
+         if (settings%prefill_type(i)==prefill_constant) then
             _CONCURRENT_LOOP_BEGIN_
                environment%scratch _INDEX_SLICE_PLUS_1_(i) = settings%prefill_values(i)
             _LOOP_END_
@@ -2686,7 +2686,7 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
 #endif
    if (allocated(settings%prefill_type)) then
       do i=1,self%nscratch_hz
-         if (settings%prefill_type(i)==prefill_missing_value) then
+         if (settings%prefill_type(i)==prefill_constant) then
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
                environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = settings%prefill_values(i)
             _HORIZONTAL_LOOP_END_
@@ -2885,7 +2885,7 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
 #endif
    if (allocated(settings%prefill_type)) then
       do i=1,self%nscratch
-         if (settings%prefill_type(i)==prefill_missing_value) then
+         if (settings%prefill_type(i)==prefill_constant) then
 #if defined(_INTERIOR_IS_VECTORIZED_)
             environment%scratch(:,i) = settings%prefill_values(i)
 #else
@@ -4395,7 +4395,7 @@ subroutine initialize_prefill(self,n,link_list,source,domain)
             ! To avoid saving uninitialized data, prefill the target field with the previous value before any such calls.
             self%prefill_type(link%target%write_indices%value) = prefill_previous_value
          end if
-         self%prefill_values(link%target%write_indices%value) = link%target%missing_value
+         self%prefill_values(link%target%write_indices%value) = link%target%prefill_value
       end if
       link => link%next
    end do
@@ -4410,7 +4410,7 @@ subroutine flag_write_indices(self,source)
    link => source%first
    do while (associated(link))
       if (.not.link%target%write_indices%is_empty()) then
-         self%prefill_type(link%target%write_indices%value) = prefill_missing_value
+         self%prefill_type(link%target%write_indices%value) = prefill_constant
          self%prefill_values(link%target%write_indices%value) = 0
       end if
       link => link%next
