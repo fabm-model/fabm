@@ -6,6 +6,7 @@ module akvaplan_model_library
    use fabm_types, only: type_base_model_factory,type_base_model
 
    use akvaplan_tracer
+   use akvaplan_plume_injection
 
    implicit none
 
@@ -26,7 +27,8 @@ contains
       class (type_base_model),pointer :: model
 
       select case (name)
-         case ('tracer'); allocate(type_tracer::model)
+         case ('tracer');          allocate(type_tracer::model)
+         case ('plume_injection'); allocate(type_plume_injection::model)
          ! Add new models here
          case default
             call self%type_base_model_factory%create(name,model)
