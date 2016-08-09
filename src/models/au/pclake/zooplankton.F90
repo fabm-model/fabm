@@ -70,6 +70,8 @@
       real(rk)   :: cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax
 !     Fish manipulation parameters, switch for turned on/off fish manipulation
       logical    :: Manipulate_FiAd, Manipulate_FiJv, Manipulate_Pisc
+!     minimum state variable values
+      real(rk)   :: cDZooMin
    contains
 
 !     Model procedures
@@ -84,8 +86,7 @@
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero = 0.000000000000000000000000000000001_rk
    real(rk)           :: Pi=3.14159265358979_rk
-!   Lowest state variable value for zooplakton module
-   real(rk),parameter :: ZooZero=0.00001_rk
+
 !EOP
 !-----------------------------------------------------------------------
 
@@ -142,31 +143,35 @@
    call self%get_parameter(self%cPDBlueMax,    'cPDBlueMax',    'mgP/mgDW',  'max. P/day ratio blue-greens',                                                   default=0.025_rk)
    call self%get_parameter(self%cPDDiatMax,    'cPDDiatMax',    'mgP/mgDW',  'max. P/day ratio Diatoms',                                                       default=0.005_rk)
    call self%get_parameter(self%cPDGrenMax,    'cPDGrenMax',    'mgP/mgDW',  'max. P/day ratio greens',                                                        default=0.015_rk)
+!  the user defined minumun value for state variables
+   call self%get_parameter(self%cDZooMin,      'cDZooMin',      'gDW/m3',    'minimun zooplankton biomass in system',                                          default=0.00001_rk)
+   
+   
 !  Register local state variable
 !  zooplankton
    call self%register_state_variable(self%id_sDZoo,'sDZoo','g m-3','zooplankton biomass',     &
-                                    initial_value=0.05_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value=0.05_rk,minimum=self%cDZooMin,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sPZoo,'sPZoo','g m-3','zooplankton phosphorus content',     &
-                                    initial_value=0.0005_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value=0.0005_rk,minimum=self%cDZooMin * self%cPDZooRef,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sNZoo,'sNZoo','g m-3','zooplankton nitrogen content',     &
-                                    initial_value=0.0035_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value=0.0035_rk,minimum=self%cDZooMin * self%cNDZooRef,no_river_dilution=.TRUE.)
 !  Register contribution of state to global aggregate variables
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNZoo)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPZoo)
 !  register state variables dependencies
-   call self%register_state_dependency(self%id_DfoodDiat,     'diatom_as_food_DW',      'g m-3', 'diatom_as_food_DW')
-   call self%register_state_dependency(self%id_DfoodGren,     'green_as_food_DW',       'g m-3', 'green_as_food_DW')
-   call self%register_state_dependency(self%id_DfoodBlue,     'blue_as_food_DW',        'g m-3', 'blue_as_food_DW')
-   call self%register_state_dependency(self%id_NfoodDiat,     'diatom_as_food_N',       'g m-3', 'diatom_as_food_N')
-   call self%register_state_dependency(self%id_NfoodGren,     'green_as_food_N',        'g m-3', 'green_as_food_N')
-   call self%register_state_dependency(self%id_NfoodBlue,     'blue_as_food_N',         'g m-3', 'blue_as_food_N')
-   call self%register_state_dependency(self%id_PfoodDiat,     'diatom_as_food_P',       'g m-3', 'diatom_as_food_P')
-   call self%register_state_dependency(self%id_PfoodGren,     'green_as_food_P',        'g m-3', 'green_as_food_P')
-   call self%register_state_dependency(self%id_PfoodBlue,     'blue_as_food_P',         'g m-3', 'blue_as_food_P')
-   call self%register_state_dependency(self%id_DDetpoolW,     'detritus_DW_pool_water', 'g m-3', 'detritus_DW_pool_water')
-   call self%register_state_dependency(self%id_NDetpoolW,     'detritus_N_pool_water',  'g m-3', 'detritus_N_pool_water')
-   call self%register_state_dependency(self%id_PDetpoolW,     'detritus_P_pool_water',  'g m-3', 'detritus_P_pool_water')
-   call self%register_state_dependency(self%id_SiDetpoolW,    'detritus_Si_pool_water', 'g m-3', 'detritus_Si_pool_water')
+   call self%register_state_dependency(self%id_DfoodDiat,     'Diatom_as_food_DW',      'g m-3', 'Diatom_as_food_DW')
+   call self%register_state_dependency(self%id_DfoodGren,     'Green_as_food_DW',       'g m-3', 'Green_as_food_DW')
+   call self%register_state_dependency(self%id_DfoodBlue,     'Blue_as_food_DW',        'g m-3', 'Blue_as_food_DW')
+   call self%register_state_dependency(self%id_NfoodDiat,     'Diatom_as_food_N',       'g m-3', 'Diatom_as_food_N')
+   call self%register_state_dependency(self%id_NfoodGren,     'Green_as_food_N',        'g m-3', 'Green_as_food_N')
+   call self%register_state_dependency(self%id_NfoodBlue,     'Blue_as_food_N',         'g m-3', 'Blue_as_food_N')
+   call self%register_state_dependency(self%id_PfoodDiat,     'Diatom_as_food_P',       'g m-3', 'Diatom_as_food_P')
+   call self%register_state_dependency(self%id_PfoodGren,     'Green_as_food_P',        'g m-3', 'Green_as_food_P')
+   call self%register_state_dependency(self%id_PfoodBlue,     'Blue_as_food_P',         'g m-3', 'Blue_as_food_P')
+   call self%register_state_dependency(self%id_DDetpoolW,     'Detritus_DW_pool_water', 'g m-3', 'Detritus_DW_pool_water')
+   call self%register_state_dependency(self%id_NDetpoolW,     'Detritus_N_pool_water',  'g m-3', 'Detritus_N_pool_water')
+   call self%register_state_dependency(self%id_PDetpoolW,     'Detritus_P_pool_water',  'g m-3', 'Detritus_P_pool_water')
+   call self%register_state_dependency(self%id_SiDetpoolW,    'Detritus_Si_pool_water', 'g m-3', 'Detritus_Si_pool_water')
    call self%register_state_dependency(self%id_NH4poolW,      'NH4_pool_water',         'g m-3', 'NH4_pool_water')
    call self%register_state_dependency(self%id_NO3poolW,      'NO3_pool_water',         'g m-3', 'NO3_pool_water')
    call self%register_state_dependency(self%id_PO4poolW,      'PO4_pool_water',         'g m-3', 'PO4_pool_water')

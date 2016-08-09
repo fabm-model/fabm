@@ -71,7 +71,8 @@
 !     nutrient ratios parameter
       real(rk)   :: cNDDiatMin,cPDDiatMin,cNDGrenMin,cPDGrenMin,cNDBlueMin,cPDBlueMin
       real(rk)   :: cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax
-
+!     minimum state variable values
+      real(rk)   :: cDBentMin
    contains
 !     Module procedures
       procedure :: initialize
@@ -80,8 +81,7 @@
 !  private data members(API0.92)
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero=0.000000000000000000000000000000001_rk
-!   Lowest state variable value for zoobenthos module
-   real(rk),parameter :: BenZero=0.0001_rk
+
 !EOP
 !-----------------------------------------------------------------------
    contains
@@ -143,14 +143,16 @@
    call self%get_parameter(self%cPDBlueMax,   'cPDBlueMax',   'mgP/mgDW', 'max. P/day ratio blue-greens',                               default=0.025_rk)
    call self%get_parameter(self%cPDDiatMax,   'cPDDiatMax',   'mgP/mgDW', 'max. P/day ratio Diatoms',                                   default=0.05_rk)
    call self%get_parameter(self%cPDGrenMax,   'cPDGrenMax',   'mgP/mgDW', 'max. P/day ratio greens',                                    default=0.015_rk)
+!  the user defined minumun value for state variables
+   call self%get_parameter(self%cDBentMin,    'cDBentMin',    'gDW/m2',   'minimun zoobenthos biomass in system',                    default=0.00001_rk)
 
 !  Register local state variable
    call self%register_state_variable(self%id_sDBent,'sDBent','g m-2','zoobenthos_DW',     &
-                                    initial_value=1.0_rk,minimum=NearZero)
+                                    initial_value=1.0_rk,minimum=self%cDBentMin)
    call self%register_state_variable(self%id_sPBent,'sPBent','g m-2','zoobenthos_P',     &
-                                    initial_value=0.1_rk,minimum=NearZero)
+                                    initial_value=0.1_rk,minimum=self%cDBentMin * self%cPDBentRef)
    call self%register_state_variable(self%id_sNBent,'sNBent','g m-2','zoobenthos_N',     &
-                                    initial_value=0.01_rk,minimum=NearZero)
+                                    initial_value=0.01_rk,minimum=self%cDBentMin * self%cNDBentRef)
 !  Register diagnostic variables for dependencies in other modules
    call self%register_diagnostic_variable(self%id_tDBenDetS,     'tDBenDetS',    'g m-2 s-1', 'tDBenDetS',                output=output_none)
    call self%register_diagnostic_variable(self%id_tDEnvFiAd,     'tDEnvFiAd',    'g m-2',     'tDEnvFiAd',                output=output_none)
@@ -189,33 +191,33 @@
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_sNBent)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPBent)
 !  register state variables dependencies
-   call self%register_state_dependency(self%id_DfoodDiatS, 'diatom_as_food_DW',        'g m-2', 'diatom_as_food_DW')
-   call self%register_state_dependency(self%id_DfoodGrenS, 'green_as_food_DW',         'g m-2', 'green_as_food_DW')
-   call self%register_state_dependency(self%id_DfoodBlueS, 'blue_as_food_DW',          'g m-2', 'blue_as_food_DW')
-   call self%register_state_dependency(self%id_NfoodDiatS, 'diatom_as_food_N',         'g m-2', 'diatom_as_food_N')
-   call self%register_state_dependency(self%id_NfoodGrenS, 'green_as_food_N',          'g m-2', 'green_as_food_N')
-   call self%register_state_dependency(self%id_NfoodBlueS, 'blue_as_food_N',           'g m-2', 'blue_as_food_N')
-   call self%register_state_dependency(self%id_PfoodDiatS, 'diatom_as_food_P',         'g m-2', 'diatom_as_food_P')
-   call self%register_state_dependency(self%id_PfoodGrenS, 'green_as_food_P',          'g m-2', 'green_as_food_P')
-   call self%register_state_dependency(self%id_PfoodBlueS, 'blue_as_food_P',           'g m-2', 'blue_as_food_P')
-   call self%register_state_dependency(self%id_DDetpoolS,  'detritus_DW_pool_sediment','g m-2', 'detritus_DW_pool_sediment')
-   call self%register_state_dependency(self%id_PDetpoolS,  'detritus_P_pool_sediment', 'g m-2', 'detritus_P_pool_sediment')
-   call self%register_state_dependency(self%id_NDetpoolS,  'detritus_N_pool_sediment', 'g m-2', 'detritus_N_pool_sediment')
-   call self%register_state_dependency(self%id_SiDetpoolS, 'detritus_Si_pool_sediment','g m-2', 'detritus_Si_pool_sediment')
+   call self%register_state_dependency(self%id_DfoodDiatS, 'Diatom_as_food_DW',        'g m-2', 'Diatom_as_food_DW')
+   call self%register_state_dependency(self%id_DfoodGrenS, 'Green_as_food_DW',         'g m-2', 'Green_as_food_DW')
+   call self%register_state_dependency(self%id_DfoodBlueS, 'Blue_as_food_DW',          'g m-2', 'Blue_as_food_DW')
+   call self%register_state_dependency(self%id_NfoodDiatS, 'Diatom_as_food_N',         'g m-2', 'Diatom_as_food_N')
+   call self%register_state_dependency(self%id_NfoodGrenS, 'Green_as_food_N',          'g m-2', 'Green_as_food_N')
+   call self%register_state_dependency(self%id_NfoodBlueS, 'Blue_as_food_N',           'g m-2', 'Blue_as_food_N')
+   call self%register_state_dependency(self%id_PfoodDiatS, 'Diatom_as_food_P',         'g m-2', 'Diatom_as_food_P')
+   call self%register_state_dependency(self%id_PfoodGrenS, 'Green_as_food_P',          'g m-2', 'Green_as_food_P')
+   call self%register_state_dependency(self%id_PfoodBlueS, 'Blue_as_food_P',           'g m-2', 'Blue_as_food_P')
+   call self%register_state_dependency(self%id_DDetpoolS,  'Detritus_DW_pool_sediment','g m-2', 'Detritus_DW_pool_sediment')
+   call self%register_state_dependency(self%id_PDetpoolS,  'Detritus_P_pool_sediment', 'g m-2', 'Detritus_P_pool_sediment')
+   call self%register_state_dependency(self%id_NDetpoolS,  'Detritus_N_pool_sediment', 'g m-2', 'Detritus_N_pool_sediment')
+   call self%register_state_dependency(self%id_SiDetpoolS, 'Detritus_Si_pool_sediment','g m-2', 'Detritus_Si_pool_sediment')
    call self%register_state_dependency(self%id_NH4poolS,   'NH4_pool_sediment',        'g m-2', 'NH4_pool_sediment')
    call self%register_state_dependency(self%id_NO3poolS,   'NO3_pool_sediment',        'g m-2', 'NO3_pool_sediment')
    call self%register_state_dependency(self%id_PO4poolS,   'PO4_pool_sediment',        'g m-2', 'PO4_pool_sediment')
-   call self%register_state_dependency(self%id_DAdFish,    'adult_fish_biomass',       'g m-3', 'adult_fish_biomass')
-   call self%register_state_dependency(self%id_NAdFish,    'adult_fish_nitrogen',      'g m-3', 'adult_fish_nitrogen')
-   call self%register_state_dependency(self%id_PAdFish,    'adult_fish_phosphorus',     'g m-3', 'adult_fish_phosphorus')
+   call self%register_state_dependency(self%id_DAdFish,    'Adult_fish_biomass',       'g m-3', 'Adult_fish_biomass')
+   call self%register_state_dependency(self%id_NAdFish,    'Adult_fish_nitrogen',      'g m-3', 'Adult_fish_nitrogen')
+   call self%register_state_dependency(self%id_PAdFish,    'Adult_fish_phosphorus',    'g m-3', 'Adult_fish_phosphorus')
    call self%register_state_dependency(self%id_NH4poolW,   'NH4_pool_water',           'g m-3', 'NH4_pool_water')
    call self%register_state_dependency(self%id_PO4poolW,   'PO4_pool_water',           'g m-3', 'PO4_pool_water')
-   call self%register_state_dependency(self%id_DDetpoolW, 'DDet_pool_water',           'g m-3', 'DDet_pool_water')
-   call self%register_state_dependency(self%id_NDetpoolW, 'NDet_pool_water',           'g m-3', 'NDet_pool_water')
-   call self%register_state_dependency(self%id_PDetpoolW, 'PDet_pool_water',           'g m-3', 'PDet_pool_water')
-   call self%register_state_dependency(self%id_DJvFish,   'young_fish_biomass',        'g m-3', 'young_fish_biomass')
+   call self%register_state_dependency(self%id_DDetpoolW,  'DDet_pool_water',          'g m-3', 'DDet_pool_water')
+   call self%register_state_dependency(self%id_NDetpoolW,  'NDet_pool_water',          'g m-3', 'NDet_pool_water')
+   call self%register_state_dependency(self%id_PDetpoolW,  'PDet_pool_water',          'g m-3', 'PDet_pool_water')
+   call self%register_state_dependency(self%id_DJvFish,    'Young_fish_biomass',       'g m-3', 'Young_fish_biomass')
 !  register diagnostic dependencies
-   call self%register_dependency(self%id_aCovVeg, 'vegetation_coverage','[-]','vegetation_coverage')
+   call self%register_dependency(self%id_aCovVeg,          'Vegetation_coverage',       '[-]',  'Vegetation_coverage')
 !  register environmental dependencies
    call self%register_dependency(self%id_uTm,    standard_variables%temperature)
    call self%register_dependency(self%id_sDepthW,standard_variables%bottom_depth)
