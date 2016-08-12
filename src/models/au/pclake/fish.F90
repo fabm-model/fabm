@@ -262,9 +262,9 @@
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPFiAd)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_aPPisc)
 !  register state variables dependencies
-   call self%register_state_dependency(self%id_DDetpoolW, 'Detritus_DW_pool_water','g m-3', 'detritus_DW_pool_water')
-   call self%register_state_dependency(self%id_NDetpoolW, 'Detritus_N_pool_water', 'g m-3', 'detritus_N_pool_water')
-   call self%register_state_dependency(self%id_PDetpoolW, 'Detritus_P_pool_water', 'g m-3', 'detritus_P_pool_water')
+   call self%register_state_dependency(self%id_DDetpoolW, 'Detritus_DW_pool_water','g m-3', 'Detritus_DW_pool_water')
+   call self%register_state_dependency(self%id_NDetpoolW, 'Detritus_N_pool_water', 'g m-3', 'Detritus_N_pool_water')
+   call self%register_state_dependency(self%id_PDetpoolW, 'Detritus_P_pool_water', 'g m-3', 'Detritus_P_pool_water')
    call self%register_state_dependency(self%id_NH4poolW,  'NH4_pool_water',        'g m-3', 'NH4_pool_water')
    call self%register_state_dependency(self%id_PO4poolW,  'PO4_pool_water',        'g m-3', 'PO4_pool_water')
    call self%register_state_dependency(self%id_DFoodZoo,  'Zooplankton_D_Food',    'g m-3', 'Zooplankton_D_Food')
@@ -276,9 +276,9 @@
    call self%register_dependency(self%id_dz,     standard_variables%cell_thickness)
    call self%register_dependency(self%id_sDepthW,standard_variables%bottom_depth)
 !  register diagnostic dependencies
-   call self%register_dependency(self%id_tDEnvFiAd, 'Env_correction_adfish',     '[-]',  'env_correction_adfish')
-   call self%register_dependency(self%id_aDSubVeg,  'Submerged_vegetation',      'g m-2','submerged_vegetation')
-   call self%register_dependency(self%id_aDSatFiAd, 'Food_limit_function_adfish','[-]',  'food_limit_function_adfish')
+   call self%register_dependency(self%id_tDEnvFiAd, 'Env_correction_adfish',     '[-]',  'Env_correction_adfish')
+   call self%register_dependency(self%id_aDSubVeg,  'Submerged_vegetation',      'g m-2','Submerged_vegetation')
+   call self%register_dependency(self%id_aDSatFiAd, 'Food_limit_function_adfish','[-]',  'Food_limit_function_adfish')
 
 
    return

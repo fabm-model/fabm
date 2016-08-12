@@ -218,19 +218,24 @@
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNVeg)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPVeg)
 !  register state variables dependencies
-   call self%register_state_dependency(self%id_NH4poolW,  'Ammonium_pool_water',       'g m-3', 'Ammonium pool for nutrient uptake')
+   call self%register_state_dependency(self%id_NH4poolW,  'Ammonium_pool_water',      'g m-3', 'Ammonium pool for nutrient uptake')
    call self%register_state_dependency(self%id_NO3poolW,  'Nitrate_pool_water',       'g m-3', 'Nitrate pool for nutrient uptake')
    call self%register_state_dependency(self%id_PO4poolW,  'Phosphate_pool_water',     'g m-3', 'Phosphate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_O2poolW,   'Oxygen_pool_water',        'g m-3', 'oxygen pool in water')
-   call self%register_state_dependency(self%id_DDetpoolW, 'Detritus_DW_pool_water',   'g m-3', 'detritus_DW_pool_water')
-   call self%register_state_dependency(self%id_DNetpoolW, 'Detritus_N_pool_water',    'g m-3', 'detritus_N_pool_water')
-   call self%register_state_dependency(self%id_DPetpoolW, 'Detritus_P_pool_water',    'g m-3', 'detritus_P_pool_water')
-   call self%register_state_dependency(self%id_NH4poolS,  'Ammonium_pool_sediment',    'g m-2', 'Ammonium pool for nutrient uptake')
+   call self%register_state_dependency(self%id_O2poolW,   'Oxygen_pool_water',        'g m-3', 'Oxygen pool in water')
+   call self%register_state_dependency(self%id_DDetpoolW, 'Detritus_DW_pool_water',   'g m-3', 'Detritus_DW_pool_water')
+   call self%register_state_dependency(self%id_DNetpoolW, 'Detritus_N_pool_water',    'g m-3', 'Detritus_N_pool_water')
+   call self%register_state_dependency(self%id_DPetpoolW, 'Detritus_P_pool_water',    'g m-3', 'Detritus_P_pool_water')
+   call self%register_state_dependency(self%id_NH4poolS,  'Ammonium_pool_sediment',   'g m-2', 'Ammonium pool for nutrient uptake')
    call self%register_state_dependency(self%id_NO3poolS,  'Nitrate_pool_sediment',    'g m-2', 'Nitrate pool for nutrient uptake')
    call self%register_state_dependency(self%id_PO4poolS,  'Phosphate_pool_sediment',  'g m-2', 'Phosphate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_DDetpoolS, 'Detritus_DW_pool_sediment','g m-2', 'detritus_DW_pool_sediment')
-   call self%register_state_dependency(self%id_DNetpoolS, 'Detritus_N_pool_sediment', 'g m-2', 'detritus_N_pool_sediment')
-   call self%register_state_dependency(self%id_DPetpoolS, 'Detritus_P_pool_sediment', 'g m-2', 'detritus_P_pool_sediment')
+   call self%register_state_dependency(self%id_DDetpoolS, 'Detritus_DW_pool_sediment','g m-2', 'Detritus_DW_pool_sediment')
+   call self%register_state_dependency(self%id_DNetpoolS, 'Detritus_N_pool_sediment', 'g m-2', 'Detritus_N_pool_sediment')
+   call self%register_state_dependency(self%id_DPetpoolS, 'Detritus_P_pool_sediment', 'g m-2', 'Detritus_P_pool_sediment')
+!------------------------------------------------------------------------------------------------------------
+!  register diagnostic dependencies
+!------------------------------------------------------------------------------------------------------------
+!  step1, Register dependencies on external diagnostic variables
+   call self%register_dependency(self%id_afOxySed,        'Oxic_layer_value',          '[-]',  'Oxic_layer_value')
 !------------------------------------------------------------------------------------------------------------
 !  register environmental dependencies
 !------------------------------------------------------------------------------------------------------------
@@ -241,11 +246,7 @@
    call self%register_dependency(self%id_dz,     standard_variables%cell_thickness)
    call self%register_dependency(self%id_par,    standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_meanpar,temporal_mean(self%id_par,period=86400._rk,resolution=3600._rk))
-!------------------------------------------------------------------------------------------------------------
-!  register diagnostic dependencies
-!------------------------------------------------------------------------------------------------------------
-!  step1, Register dependencies on external diagnostic variables
-   call self%register_dependency(self%id_afOxySed, 'Oxic_layer_value','[-]','Oxic_layer_value')
+
 
    return
 
@@ -331,17 +332,7 @@
    real(rk)   :: tDBedDetS,tDMortVegS
    real(rk)   :: tNBedDetS,tNMortVegS,tNMortVegDetS
    real(rk)   :: tPBedDetS,tPMortVegS,tPMortVegDetS
-!feh, July 4th, 2016
-!  n for total step counter, t for time step counter, i for output
-!  for dataframe indext !  j is day counter
-!  n start with 0 since first output is at the surface, loop should 
-!  started from the bottom
-!  only update indext i when it's output step, and rewrite i to 0 when
-!  it's not outputed, i is python index, so should start with 0
-!  index j for dataframe work structure
 
-integer, save :: n=0,t=0,i=0,j=-1
-integer :: nlev
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -849,44 +840,6 @@ integer :: nlev
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNBedDetS,tNBedDetS*86400.0_rk)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPBedDetS,tPBedDetS*86400.0_rk)
 
-!-----------------------------------------------------------------------
-!  Section for write out benthic diagnostic variables
-!-----------------------------------------------------------------------
-!  feh temperal solution for print out light limitation factor scaler
-!  open the output file
-!   nlev= anint(sDepthW/dz)
-!   if (n .eq. 1) then
-!      open(unit=8888,file='flim.dat',status = 'REPLACE',ACTION='write')
-!   else
-!      open(unit=8888,file='flim.dat',Access = 'append',Status='old')
-!   endif
-!   
-!!  feh update time step count
-!   if (mod(n-1,nlev) .eq. 0) then
-!      t=t+1
-!   endif
-!!  update depth count
-!   if (mod(t,24*4) .eq. 0) then
-!      i=i+1
-!   else 
-!!  i should start with 0, so i initialized as -1
-!      i=-1
-!   endif
-!!  j should start with 0
-!   if (mod(n-1,24*nlev*4) .eq. 0) then
-!      j=j+1
-!   endif
-!   if (mod(t,24*4) .eq. 0) then
-!! feh only write out the scaler that I wanted to plot
-!      write(8888,*), j,i, aLLimShootVeg,aNutLimVeg
-!!      write(6666,*), afOxySed
-!   endif
-!   close(8888)
-!!  feh update total step count
-!   n=n+1
-!-----------------------------------------------------------------------
-!  feh end of temperal solution for output benthic diagnostic variables
-!-----------------------------------------------------------------------
 
    _FABM_HORIZONTAL_LOOP_END_
 !

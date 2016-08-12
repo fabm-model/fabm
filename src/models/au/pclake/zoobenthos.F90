@@ -217,7 +217,7 @@
    call self%register_state_dependency(self%id_PDetpoolW,  'PDet_pool_water',          'g m-3', 'PDet_pool_water')
    call self%register_state_dependency(self%id_DJvFish,    'Young_fish_biomass',       'g m-3', 'Young_fish_biomass')
 !  register diagnostic dependencies
-   call self%register_dependency(self%id_aCovVeg, 'Vegetation_coverage','[-]','Vegetation_coverage')
+   call self%register_dependency(self%id_aCovVeg,          'Vegetation_coverage',       '[-]',  'Vegetation_coverage')
 !  register environmental dependencies
    call self%register_dependency(self%id_uTm,    standard_variables%temperature)
    call self%register_dependency(self%id_sDepthW,standard_variables%bottom_depth)

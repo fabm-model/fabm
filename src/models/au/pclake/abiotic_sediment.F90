@@ -217,7 +217,7 @@
 !  register state variables dependencies (2 steps)
 !---------------------------------------------------------------------------------------------------------------
 !   Register dependencies on external state variables
-   call self%register_state_dependency(self%id_O2ConsumpSed, 'Oxygen_pool_water',               'g m-3', 'oxygen_pool_water')
+   call self%register_state_dependency(self%id_O2ConsumpSed, 'Oxygen_pool_water',               'g m-3', 'Oxygen_pool_water')
    call self%register_state_dependency(self%id_MinSiO2Sed,   'SiO2_generated_by_mineralization','g m-3', 'SiO2_generated_by_mineralization')
    call self%register_state_dependency(self%id_diffNH4,      'NH4_diffusion_flux',              'g m-3', 'NH4_diffusion_flux')
    call self%register_state_dependency(self%id_diffNO3,      'NO3_diffusion_flux',              'g m-3', 'NO3_diffusion_flux')
@@ -305,18 +305,6 @@
 !  Variables for humus
    real(rk)    :: tDMinHumS,tNMinHumS,tPMinHumS
    real(rk)    :: tDAbioHumS,tNAbioHumS,tPAbioHumS
-!feh: July 4th, 2016
-!  n for total step counter, t for time step counter, i for output
-!  for dataframe indext !  j is day counter
-!  n start with 0 since first output is at the surface, loop should 
-!  started from the bottom(36.9-->0.5)
-!  nlev= 36, so n should mod 36 == 0
-!  only update indext i when it's output step, and rewrite i to 0 when
-!  it's not outputed, i is python index, so should start with 0
-!  index j for dataframe work structure
-
-   integer, save :: n=0,t=0,i=0,j=-1
-   integer :: nlev
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -530,56 +518,11 @@
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNAbioNO3S,tNAbioNO3S*86400.0_rk)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPAbioPO4S,tPAbioPO4S*86400.0_rk)
 !  total fluxes for abiotic water state variables
-!  feh: July 11th, 2016: in principle, /dz is not correct. But temperal solution for comparing
-!  different sources of rates
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPdifPO4,tPdifPO4*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNdifNH4,tNdifNH4*86400.0_rk)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNdifNO3,tNdifNO3*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tPdifPO4,tPdifPO4/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNdifNH4,tNdifNH4/dz*86400.0_rk)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tNdifNO3,tNdifNO3/dz*86400.0_rk)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDAbioO2S,(-tO2MinDetS - tO2NitrS)*86400.0_rk)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tSiAbioSiO2S,(1.0_rk-self%fRefrDetS)*tSiMinDetS*86400.0_rk)
-
-!-----------------------------------------------------------------------
-!  Section for write out benthic diagnostic variables
-!-----------------------------------------------------------------------
-!!!  feh temperal solution for print out afOxySed scaler
-!   nlev= anint(depth/dz)
-!!  open the output file
-!   if (n .eq. 1) then
-!      open(unit=6666,file='afOxySed.dat',status = 'REPLACE',ACTION='write')
-!   else
-!      open(unit=6666,file='afOxySed.dat',Access = 'append',Status='old')
-!   endif
-!   
-!!  feh update time step count
-!   if (mod(n-1,nlev) .eq. 0) then
-!      t=t+1
-!   endif
-!!  update depth count
-!   if (mod(t,24*4) .eq. 0) then
-!      i=i+1
-!   else 
-!!  i should start with 0, so i initialized as -1
-!      i=-1
-!   endif
-!!  j should start with 0
-!   if (mod(n-1,24*nlev*4) .eq. 0) then
-!      j=j+1
-!   endif
-!   if (mod(t,24*4) .eq. 0) then
-!!  feh this is for code purpose, so output everything
-!!      write(8888,*), 'afOxySed=', afOxySed,'depth=', depth, 'n=',n,'t=',t,'i=',i
-!! feh only write out the scaler that I wanted to plot
-!      write(6666,*), j,i, afOxySed,tPSorpIMS
-!!      write(6666,*), afOxySed
-!   endif
-!   close(6666)
-!!  feh update total step count
-!   n=n+1
-!-----------------------------------------------------------------------
-!  feh end of temperal solution for output benthic diagnostic variables
-!-----------------------------------------------------------------------
-
-
 
 
    _FABM_HORIZONTAL_LOOP_END_
