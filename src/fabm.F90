@@ -3011,6 +3011,7 @@ end subroutine deallocate_prefetch_vertical
    type (type_environment)               :: environment
    integer                               :: ivar,read_index
    type (type_model_list_node), pointer  :: node
+   logical                               :: set_interior
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -3030,9 +3031,10 @@ end subroutine deallocate_prefetch_vertical
    end do
 
    ! Allow biogeochemical models to initialize their interior state.
+   set_interior = .false.
    node => self%models%first
    do while (associated(node))
-      call node%model%initialize_state(_ARGUMENTS_INTERIOR_)
+      call node%model%initialize_state(_ARGUMENTS_INTERIOR_,set_interior)
       node => node%next
    end do
 
@@ -3063,6 +3065,7 @@ end subroutine deallocate_prefetch_vertical
    type (type_environment)               :: environment
    integer                               :: ivar,read_index
    type (type_model_list_node), pointer  :: node
+   logical                               :: set_horizontal
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -3083,9 +3086,10 @@ end subroutine deallocate_prefetch_vertical
    end do
 
    ! Allow biogeochemical models to initialize their bottom state.
+   set_horizontal = .false.
    node => self%models%first
    do while (associated(node))
-      call node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_)
+      call node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       node => node%next
    end do
 
@@ -3116,6 +3120,7 @@ end subroutine deallocate_prefetch_vertical
    type (type_environment)               :: environment
    integer                               :: ivar,read_index
    type (type_model_list_node), pointer  :: node
+   logical                               :: set_horizontal
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -3136,9 +3141,10 @@ end subroutine deallocate_prefetch_vertical
    end do
 
    ! Allow biogeochemical models to initialize their surface state.
+   set_horizontal = .false.
    node => self%models%first
    do while (associated(node))
-      call node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_)
+      call node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       node => node%next
    end do
 
