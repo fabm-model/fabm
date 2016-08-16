@@ -392,17 +392,17 @@ class Model(object):
         strpath = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         typecode = ctypes.c_int()
         has_default = ctypes.c_int()
-        self.bulk_state_variables = []
+        self.interior_state_variables = []
         self.surface_state_variables = []
         self.bottom_state_variables = []
-        self.bulk_diagnostic_variables = []
+        self.interior_diagnostic_variables = []
         self.horizontal_diagnostic_variables = []
         self.conserved_quantities = []
         self.parameters = []
         self.dependencies = []
         for i in range(nstate_bulk.value):
             ptr = fabm.get_variable(BULK_STATE_VARIABLE,i+1)
-            self.bulk_state_variables.append(StateVariable(ptr,self.state,i))
+            self.interior_state_variables.append(StateVariable(ptr,self.state,i))
         for i in range(nstate_surface.value):
             ptr = fabm.get_variable(SURFACE_STATE_VARIABLE,i+1)
             self.surface_state_variables.append(StateVariable(ptr,self.state,nstate_bulk.value+i))
@@ -411,7 +411,7 @@ class Model(object):
             self.bottom_state_variables.append(StateVariable(ptr,self.state,nstate_bulk.value+nstate_surface.value+i))
         for i in range(ndiag_bulk.value):
             ptr = fabm.get_variable(BULK_DIAGNOSTIC_VARIABLE,i+1)
-            self.bulk_diagnostic_variables.append(DiagnosticVariable(ptr,i,False))
+            self.interior_diagnostic_variables.append(DiagnosticVariable(ptr,i,False))
         for i in range(ndiag_horizontal.value):
             ptr = fabm.get_variable(HORIZONTAL_DIAGNOSTIC_VARIABLE,i+1)
             self.horizontal_diagnostic_variables.append(DiagnosticVariable(ptr,i,True))
@@ -428,10 +428,14 @@ class Model(object):
         self.couplings = [Coupling(i+1) for i in range(ncouplings.value)]
 
         # Arrays that combine variables from pelagic and boundary domains.
-        self.state_variables = self.bulk_state_variables + self.surface_state_variables + self.bottom_state_variables
-        self.diagnostic_variables = self.bulk_diagnostic_variables + self.horizontal_diagnostic_variables
+        self.state_variables = self.interior_state_variables + self.surface_state_variables + self.bottom_state_variables
+        self.diagnostic_variables = self.interior_diagnostic_variables + self.horizontal_diagnostic_variables
 
         if settings is not None: self.restoreSettings(settings)
+
+        # For backward compatibility
+        self.bulk_state_variables = self.interior_state_variables
+        self.bulk_diagnostic_variables = self.interior_diagnostic_variables
 
     def getRates(self):
         """Returns the local rate of change in state variables,
@@ -524,10 +528,10 @@ class Model(object):
             for variable in array: print '    %s = %s %s' % (variable.name,variable.value,variable.units)
 
         print 'FABM model contains the following:'
-        printArray('bulk state variables',self.bulk_state_variables)
+        printArray('interior state variables',self.interior_state_variables)
         printArray('bottom state variables',self.bottom_state_variables)
         printArray('surface state variables',self.surface_state_variables)
-        printArray('bulk diagnostic variables',self.bulk_diagnostic_variables)
+        printArray('interior diagnostic variables',self.interior_diagnostic_variables)
         printArray('horizontal diagnostic variables',self.horizontal_diagnostic_variables)
         printArray('external variables',self.dependencies)
         print ' %i parameters:' % len(self.parameters)
