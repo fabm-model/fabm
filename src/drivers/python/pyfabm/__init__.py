@@ -57,6 +57,8 @@ fabm.variable_get_output_name.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_
 fabm.variable_get_output_name.restype = None
 fabm.variable_get_suitable_masters.argtypes = [ctypes.c_void_p]
 fabm.variable_get_suitable_masters.restype = ctypes.c_void_p
+fabm.variable_get_output.argtypes = [ctypes.c_void_p]
+fabm.variable_get_output.restype = ctypes.c_int
 
 # Read/write/reset access to parameters.
 fabm.get_real_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
@@ -238,6 +240,10 @@ class StateVariable(Variable):
     def background_value(self):
         return fabm.variable_get_background_value(self.variable_pointer)
 
+    @property
+    def output(self):
+        return fabm.variable_get_output(self.variable_pointer)!=0
+
 class DiagnosticVariable(Variable):
     def __init__(self,variable_pointer,index,horizontal):
         Variable.__init__(self,variable_pointer=variable_pointer)
@@ -250,6 +256,10 @@ class DiagnosticVariable(Variable):
 
     def getValue(self):
         return self.data.value
+
+    @property
+    def output(self):
+        return fabm.variable_get_output(self.variable_pointer)!=0
 
     value = property(getValue)
 
@@ -420,8 +430,8 @@ class Model(object):
             ptr = fabm.get_variable(HORIZONTAL_DIAGNOSTIC_VARIABLE,i+1)
             self.horizontal_diagnostic_variables.append(DiagnosticVariable(ptr,i,True))
         for i in range(nconserved.value):
-            ptr = fabm.get_variable(CONSERVED_QUANTITY,i+1)
-            self.conserved_quantities.append(Variable(variable_pointer=ptr))
+            fabm.get_variable_metadata(CONSERVED_QUANTITY,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
+            self.conserved_quantities.append(Variable(strname.value,strunits.value,strlong_name.value,strpath.value))
         for i in range(nparameters.value):
             fabm.get_parameter_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,ctypes.byref(typecode),ctypes.byref(has_default))
             self.parameters.append(Parameter(strname.value,i,type=typecode.value,units=strunits.value,long_name=strlong_name.value,model=self,has_default=has_default.value!=0))

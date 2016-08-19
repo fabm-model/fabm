@@ -70,4 +70,15 @@ contains
       if (size(variable%background_values%pointers)>0) value = variable%background_values%pointers(1)%p
    end function variable_get_background_value
 
+   function variable_get_output(pvariable) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_output
+      type (c_ptr), value, intent(in) :: pvariable
+      real(kind=c_int)                :: value
+
+      type (type_internal_variable),pointer :: variable
+
+      call c_f_pointer(pvariable, variable)
+      value = logical2int(variable%output/=output_none)
+   end function variable_get_output
+
 end module fabm_c_variable
