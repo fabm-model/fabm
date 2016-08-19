@@ -53,6 +53,18 @@
 
    contains
 
+   subroutine get_version(length,version_string) bind(c)
+!DIR$ ATTRIBUTES DLLEXPORT :: get_version
+      use fabm_version, only: fabm_commit_id=>git_commit_id, &
+                              fabm_branch_name=>git_branch_name
+
+      integer(c_int),value,intent(in) :: length
+      character(kind=c_char)          :: version_string(length)
+
+      call copy_to_c_string(fabm_commit_id//' ('//fabm_branch_name//' branch)', version_string)
+   end subroutine get_version
+
+
 !-----------------------------------------------------------------------
 !BOP
 !

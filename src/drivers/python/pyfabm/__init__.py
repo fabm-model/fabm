@@ -109,6 +109,10 @@ fabm.check_ready.restype = None
 fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS')]
 fabm.get_rates.restype = None
 
+# Routine for getting git repository version information.
+fabm.get_version.argtypes = (ctypes.c_int,ctypes.c_char_p)
+fabm.get_version.restype = None
+
 BULK_STATE_VARIABLE            = 1
 SURFACE_STATE_VARIABLE         = 2
 BOTTOM_STATE_VARIABLE          = 3
@@ -536,3 +540,10 @@ class Model(object):
         printArray('external variables',self.dependencies)
         print ' %i parameters:' % len(self.parameters)
         printTree(self.getParameterTree(),lambda x:'%s %s' % (x.value,x.units),'    ')
+
+def get_version():
+    version_length = 256
+    strversion = ctypes.create_string_buffer(version_length)
+    fabm.get_version(version_length,strversion)
+    return strversion.value
+
