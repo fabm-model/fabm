@@ -98,7 +98,7 @@
    call self%get_parameter(self%env_type, 'env_type', 'Define environment type, either fresh or marine', default='marine') 
    call self%get_parameter(self%calc_dic, 'calc_dic', 'Deside whether to calculate DIC', default=.false.)
    call self%get_parameter(self%dic_variable, 'dic_variable', 'Define DIC variable')
-   call self%get_parameter(wdz,     'wdz',   'm/d',  'Detritus      sinking velocity', default=4.5_rk)
+   call self%get_parameter(wdz,     'wdz',   'm/d',  'Detritus      sinking velocity', default=-4.5_rk)
    call self%get_parameter(wpz,     'wpz',   'm/d',  'Diatoms       sinking velocity', default=-0.5_rk)
    call self%get_parameter(wfz,     'wfz',   'm/d',  'Zooplankton   sinking velocity', default=0.0_rk)
    call self%get_parameter(wbz,     'wbz',   'm/d',  'Cyanobacteria sinking velocity (positive)', default=0.1_rk)
