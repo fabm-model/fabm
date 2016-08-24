@@ -701,8 +701,8 @@ recursive subroutine create_conservation_checks(self)
             ! Enumerate contributions to aggregate variable.
             contributing_variable => aggregate_variable%first_contributing_variable
             do while (associated(contributing_variable))
-               if ((.not.contributing_variable%link%original%state_indices%is_empty().or.contributing_variable%link%original%fake_state_variable).and.index(contributing_variable%link%name,'/')==0) then
-                  ! Contributing variable is a state variable
+               if (.not.contributing_variable%link%original%state_indices%is_empty().and.index(contributing_variable%link%name,'/')==0) then
+                  ! Contributing variable was originally registered as a state variable (or state dependency)
                   select case (contributing_variable%link%original%domain)
                      case (domain_interior)
                         call sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
