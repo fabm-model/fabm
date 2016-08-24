@@ -280,6 +280,9 @@
       type (type_real_pointer_set)    :: background_values
       type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list
       type (type_link),pointer        :: movement_diagnostic => null()
+      type (type_link),pointer        :: sms                 => null()
+      type (type_link),pointer        :: surface_flux        => null()
+      type (type_link),pointer        :: bottom_flux         => null()
    end type
 
    type type_link
@@ -1613,7 +1616,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !LOCAL VARIABLES:
       type (type_internal_variable), pointer :: variable
-      type (type_link),              pointer :: link_,link2,link_dum
+      type (type_link),              pointer :: link_,link_dum
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1637,28 +1640,27 @@ end subroutine real_pointer_set_set_value
 
       if (present(sms_index)) then
          call self%add_interior_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                     0.0_rk, output=output_none, write_index=sms_index, link=link2)
-         link_dum => variable%sms_list%append(link2%target,link2%target%name)
+                                     0.0_rk, output=output_none, write_index=sms_index, link=variable%sms)
+         link_dum => variable%sms_list%append(variable%sms%target,variable%sms%target%name)
       end if
       if (present(surface_flux_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_sfl', trim(units)//'*m/s', trim(long_name)//' surface flux', &
-                                     0.0_rk, output=output_none, write_index=surface_flux_index, link=link2, &
+                                     0.0_rk, output=output_none, write_index=surface_flux_index, link=variable%surface_flux, &
                                      domain=domain_surface, source=source_do_surface)
-         link_dum => variable%surface_flux_list%append(link2%target,link2%target%name)
+         link_dum => variable%surface_flux_list%append(variable%surface_flux%target,variable%surface_flux%target%name)
       end if
       if (present(bottom_flux_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_bfl', trim(units)//'*m/s', trim(long_name)//' bottom flux', &
-                                     0.0_rk, output=output_none, write_index=bottom_flux_index, link=link2, &
+                                     0.0_rk, output=output_none, write_index=bottom_flux_index, link=variable%bottom_flux, &
                                      domain=domain_bottom, source=source_do_bottom)
-         link_dum => variable%bottom_flux_list%append(link2%target,link2%target%name)
+         link_dum => variable%bottom_flux_list%append(variable%bottom_flux%target,variable%bottom_flux%target%name)
       end if
       if (present(movement_index)) then
          call self%add_interior_variable(trim(link_%name)//'_w', 'm/s', trim(long_name)//' vertical movement', &
-                                     variable%vertical_movement, output=output_none, write_index=movement_index, link=link2, &
+                                     variable%vertical_movement, output=output_none, write_index=movement_index, link=variable%movement_diagnostic, &
                                      source=source_get_vertical_movement)
-         link2%target%can_be_slave = .true.
-         link2%target%prefill = prefill_constant
-         variable%movement_diagnostic => link2
+         variable%movement_diagnostic%target%can_be_slave = .true.
+         variable%movement_diagnostic%target%prefill = prefill_constant
       end if
 
       if (present(link)) link => link_
@@ -1699,7 +1701,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !LOCAL VARIABLES:
       type (type_internal_variable),pointer :: variable
-      type (type_link),             pointer :: link_,link2,link_dum
+      type (type_link),             pointer :: link_,link_dum
       integer                               :: sms_source
 !
 !-----------------------------------------------------------------------
@@ -1722,9 +1724,9 @@ end subroutine real_pointer_set_set_value
          sms_source = source_do_bottom
          if (variable%domain==domain_surface) sms_source = source_do_surface
          call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                           0.0_rk, output=output_none, write_index=sms_index, link=link2, &
+                                           0.0_rk, output=output_none, write_index=sms_index, link=variable%sms, &
                                            domain=variable%domain, source=sms_source)
-         link_dum => variable%sms_list%append(link2%target,link2%target%name)
+         link_dum => variable%sms_list%append(variable%sms%target,variable%sms%target%name)
       end if
 
       if (present(link)) link => link_

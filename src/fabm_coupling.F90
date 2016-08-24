@@ -705,13 +705,13 @@ recursive subroutine create_conservation_checks(self)
                   ! Contributing variable was originally registered as a state variable (or state dependency)
                   select case (contributing_variable%link%original%domain)
                      case (domain_interior)
-                        call sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
-                        call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sfl',contributing_variable%scale_factor)
-                        call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_bfl',contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%sms))          call sum%add_component        (contributing_variable%link%original%sms%name,         contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%surface_flux)) call surface_sum%add_component(contributing_variable%link%original%surface_flux%name,contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%bottom_flux))  call bottom_sum%add_component (contributing_variable%link%original%bottom_flux%name, contributing_variable%scale_factor)
                      case (domain_surface)
-                        call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%sms)) call surface_sum%add_component(contributing_variable%link%original%sms%name,contributing_variable%scale_factor)
                      case (domain_bottom)
-                        call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%sms)) call bottom_sum%add_component(contributing_variable%link%original%sms%name,contributing_variable%scale_factor)
                   end select
                end if   
                contributing_variable => contributing_variable%next
