@@ -425,6 +425,7 @@ module fabm_job
             if (associated(input_variable%target%write_owner)) call fatal_error('task_initialize','BUG: write contribution among inputs')
             call self%cache_preload%add(input_variable%target)
             call variable_register%add_read(input_variable%target)
+            if (input_variable%target%source==source_none) call variable_register%add_store(input_variable%target)
             input_variable => input_variable%next
          end do
          call_node => call_node%next
