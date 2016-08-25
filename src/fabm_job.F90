@@ -60,7 +60,6 @@ module fabm_job
    type type_call_request
       class (type_base_model),pointer  :: model               => null()
       integer                          :: source              = source_unknown
-      logical                          :: ignore_dependencies = .false.
       type (type_call_request),pointer :: next                => null()
    end type
 
@@ -114,8 +113,9 @@ module fabm_job
    type type_job
       character(len=attribute_length) :: name = ''
       integer                   :: state = job_state_none
-      logical                   :: outsource_tasks = .false.
-      integer                   :: final_operation = source_unknown
+      logical                   :: ignore_dependencies = .false.
+      logical                   :: outsource_tasks     = .false.
+      integer                   :: final_operation     = source_unknown
 
       type (type_task), pointer :: first_task => null()
       type (type_task), pointer :: final_task => null()
@@ -127,7 +127,7 @@ module fabm_job
    contains
       procedure :: request_variable  => job_request_variable
       procedure :: request_call      => job_request_call
-      procedure :: set_next          => job_set_next
+      procedure :: set_previous      => job_set_previous
       procedure :: print             => job_print
    end type
 
@@ -818,11 +818,10 @@ subroutine job_request_variable(self,variable,copy_to_cache,copy_to_store)
    self%first_variable_request => variable_request
 end subroutine job_request_variable
 
-subroutine job_request_call(self,model,source,ignore_dependencies)
+subroutine job_request_call(self,model,source)
    class (type_job),target,intent(inout) :: self
    class (type_base_model),intent(in),target :: model
    integer,                intent(in)    :: source
-   logical,optional,       intent(in)    :: ignore_dependencies
 
    type (type_call_request), pointer :: call_request
 
@@ -832,7 +831,6 @@ subroutine job_request_call(self,model,source,ignore_dependencies)
    allocate(call_request)
    call_request%model => model
    call_request%source = source
-   if (present(ignore_dependencies)) call_request%ignore_dependencies = ignore_dependencies
    call_request%next => self%first_call_request
    self%first_call_request => call_request
 end subroutine job_request_call
@@ -899,7 +897,11 @@ subroutine job_create_graph(self)
    ! If we are linked to an earlier called job, make sure its graph has been created already.
    ! This is essential because we can skip calls if they appear already in the previous job - we determine this by exploring its graph.
    if (associated(self%previous)) then
-      if (self%previous%state<job_state_graph_created) call driver%fatal_error('job_create_graphs','Graph for previous job has not been created yet.')
+      if (self%ignore_dependencies) then
+         if (self%previous%state>=job_state_graph_created) call driver%fatal_error('job_create_graphs',trim(self%name)//': graph for dependency handling job ('//trim(self%previous%name)//') has already been created.')
+      else
+         if (self%previous%state<job_state_graph_created) call driver%fatal_error('job_create_graphs',trim(self%name)//': graph for previous job ('//trim(self%previous%name)//') has not been created yet.')
+      end if
    end if
 
    ! Construct the dependency graph by adding explicitly requested variables and calls.
@@ -915,12 +917,14 @@ subroutine job_create_graph(self)
    call_request => self%first_call_request
    do while (associated(call_request))
       next_call_request => call_request%next
-      graph_node => self%graph%add_call(call_request%model,call_request%source,outer_calls,ignore_dependencies=call_request%ignore_dependencies)
+      graph_node => self%graph%add_call(call_request%model,call_request%source,outer_calls,ignore_dependencies=self%ignore_dependencies)
       deallocate(call_request)
       call_request => next_call_request
    end do
    self%first_call_request => null()
    call outer_calls%finalize()
+
+   self%graph%frozen = .true.
 
    ! Save graph
    !open(newunit=unit,file='graph.gv',action='write',status='replace',iostat=ios)
@@ -941,13 +945,13 @@ subroutine job_create_tasks(self)
    integer                              :: unit,ios
    type (type_call),            pointer :: call_node, next_call_node
 
-   if (self%state>=job_state_tasks_created) call driver%fatal_error('job_create_tasks','Tasks for this job have already been created.')
-   if (self%state<job_state_graph_created) call driver%fatal_error('job_create_tasks','The graph for this job have not been created yet.')
+   if (self%state>=job_state_tasks_created) call driver%fatal_error('job_create_tasks',trim(self%name)//': tasks for this job have already been created.')
+   if (self%state<job_state_graph_created) call driver%fatal_error('job_create_tasks',trim(self%name)//': the graph for this job have not been created yet.')
 
    ! If we are linked to an earlier called job, make sure its task list has already been created.
    ! This is essential if we will try to outsource our own calls to previous tasks/jobs.
-   if (associated(self%previous)) then
-      if (self%previous%state<job_state_tasks_created) call driver%fatal_error('job_create_tasks','Tasks for previous job have not been created yet.')
+   if (associated(self%previous).and..not.self%ignore_dependencies) then
+      if (self%previous%state<job_state_tasks_created) call driver%fatal_error('job_create_tasks',trim(self%name)//': tasks for previous job '//trim(self%previous%name)//' have not been created yet.')
    end if
 
    ! Create tree that describes all possible task orders (root is at the right of the call list, i.e., at the end of the very last call)
@@ -1284,12 +1288,13 @@ subroutine job_process_indices(self,unfulfilled_dependencies)
    if (associated(self%final_task)) call task_process_indices(self%final_task,unfulfilled_dependencies)
 end subroutine job_process_indices
 
-subroutine job_manager_create(self,job,name,final_operation,outsource_tasks)
+subroutine job_manager_create(self,job,name,final_operation,outsource_tasks,dependency_handler)
    class (type_job_manager), intent(inout) :: self
    type (type_job),target,   intent(inout) :: job
    character(len=*),         intent(in)    :: name
    integer,optional,         intent(in)    :: final_operation
    logical,optional,         intent(in)    :: outsource_tasks
+   type (type_job),target,optional         :: dependency_handler
 
    type (type_job_manager_item),pointer :: node
 
@@ -1304,24 +1309,28 @@ subroutine job_manager_create(self,job,name,final_operation,outsource_tasks)
    node%job => job
    node%next => self%first
    self%first => node
+
+   if (present(dependency_handler)) then
+      call job%set_previous(dependency_handler)
+      job%ignore_dependencies = .true.
+   end if
 end subroutine job_manager_create
 
 subroutine job_manager_initialize(self,variable_register)
    class (type_job_manager),     intent(inout) :: self
    type (type_variable_register),intent(inout) :: variable_register
 
-   type (type_job_manager_item),pointer :: node, node_next, first_ordered
+   type (type_job_manager_item),pointer :: node, first_ordered
 
    ! Order jobs according to call order.
    ! This ensures that jobs that are scheduled to run earlier are also initialized earlier.
    ! During initialization, a job can therefore expect any preceding jobs to have initialized completely.
    first_ordered => null()
-   node => self%first
-   do while (associated(node))
-      node_next => node%next
+   do while (associated(self%first))
+      node => self%first
+      self%first => self%first%next
       call add_to_order(node%job)
       deallocate(node)
-      node => node_next
    end do
    self%first => first_ordered
 
@@ -1369,7 +1378,20 @@ contains
       end do
 
       ! If this job has a previous job, append that first.
-      if (associated(job%previous)) call add_to_order(job%previous)
+      if (associated(job%previous)) then
+         if (.not.job%ignore_dependencies) then
+            call add_to_order(job%previous)
+         elseif (associated(job%previous%previous)) then
+            call add_to_order(job%previous%previous)
+         end if
+      end if
+
+      ! Add any other jobs that use the current one as their dependency handler
+      node => self%first
+      do while (associated(node))
+         if (node%job%ignore_dependencies .and. associated(node%job%previous,job)) call add_to_order(node%job)
+         node => node%next
+      end do
 
       ! Append to list
       if (associated(first_ordered)) then
@@ -1400,18 +1422,18 @@ subroutine job_manager_process_indices(self,unfulfilled_dependencies)
    end do
 end subroutine job_manager_process_indices
 
-subroutine job_set_next(self,next)
+subroutine job_set_previous(self,previous)
    class (type_job), intent(inout), target :: self
-   type (type_job),  intent(inout), target :: next
+   type (type_job),  intent(inout), target :: previous
 
    if (self%state>job_state_created) &
-      call driver%fatal_error('job_set_next','This job ('//trim(self%name)//') has already started initialization; it is too late to specify its place in the call order.')
-   if (associated(next%previous)) &
-      call driver%fatal_error('job_set_next','This job has already been connected to a subsequent one.')
+      call driver%fatal_error('job_set_previous','This job ('//trim(self%name)//') has already started initialization; it is too late to specify its place in the call order.')
+   if (associated(self%previous)) &
+      call driver%fatal_error('job_set_previous','This job has already been connected to a subsequent one.')
 
-   next%previous => self
-   next%graph%previous => self%graph
-end subroutine job_set_next
+   self%previous => previous
+   self%graph%previous => previous%graph
+end subroutine job_set_previous
 
 function source2operation(source) result(operation)
    integer,intent(in) :: source

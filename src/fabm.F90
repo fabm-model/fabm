@@ -669,19 +669,19 @@
       call self%job_manager%create(self%do_interior_job,'do_interior',final_operation=source_do)
       call self%job_manager%create(self%do_surface_job,'do_surface',final_operation=source_do_surface)
       call self%job_manager%create(self%do_bottom_job,'do_bottom',final_operation=source_do_bottom)
-      call self%job_manager%create(self%get_vertical_movement_job,'get_vertical_movement',final_operation=source_do)
+      call self%job_manager%create(self%get_vertical_movement_job,'get_vertical_movement',final_operation=source_do,dependency_handler=self%get_diagnostics_job)
       call self%job_manager%create(self%get_conserved_quantities_job,'get_conserved_quantities',final_operation=source_do)
       call self%job_manager%create(self%get_horizontal_conserved_quantities_job,'get_horizontal_conserved_quantities',final_operation=source_do_horizontal)
       call self%job_manager%create(self%get_light_extinction_job,'get_light_extinction',final_operation=source_do)
-      call self%job_manager%create(self%get_drag_job,'get_drag',final_operation=source_do_surface)
-      call self%job_manager%create(self%get_albedo_job,'get_albedo',final_operation=source_do_surface)
       call self%job_manager%create(self%get_diagnostics_job,'get_diagnostics_job',outsource_tasks=.true.)
-      call self%job_manager%create(self%check_state_job,'check_state',final_operation=source_do)
-      call self%job_manager%create(self%check_bottom_state_job,'check_bottom_state',final_operation=source_do_bottom)
-      call self%job_manager%create(self%check_surface_state_job,'check_surface_state',final_operation=source_do_surface)
-      call self%job_manager%create(self%initialize_state_job,'initialize_state',final_operation=source_do)
-      call self%job_manager%create(self%initialize_bottom_state_job,'initialize_bottom_state',final_operation=source_do_bottom)
-      call self%job_manager%create(self%initialize_surface_state_job,'initialize_surface_state',final_operation=source_do_surface)
+      call self%job_manager%create(self%initialize_state_job,'initialize_state',final_operation=source_do,dependency_handler=self%get_diagnostics_job)
+      call self%job_manager%create(self%initialize_bottom_state_job,'initialize_bottom_state',final_operation=source_do_bottom,dependency_handler=self%get_diagnostics_job)
+      call self%job_manager%create(self%initialize_surface_state_job,'initialize_surface_state',final_operation=source_do_surface,dependency_handler=self%get_diagnostics_job)
+      call self%job_manager%create(self%check_state_job,'check_state',final_operation=source_do,dependency_handler=self%get_diagnostics_job)
+      call self%job_manager%create(self%check_bottom_state_job,'check_bottom_state',final_operation=source_do_bottom,dependency_handler=self%get_diagnostics_job)
+      call self%job_manager%create(self%check_surface_state_job,'check_surface_state',final_operation=source_do_surface,dependency_handler=self%get_diagnostics_job)
+      call self%job_manager%create(self%get_albedo_job,'get_albedo',final_operation=source_do_surface,dependency_handler=self%get_diagnostics_job)
+      call self%job_manager%create(self%get_drag_job,'get_drag',final_operation=source_do_surface,dependency_handler=self%get_diagnostics_job)
 
       call require_flux_computation(self%do_bottom_job,self%links_postcoupling,domain_bottom)
       call require_flux_computation(self%do_surface_job,self%links_postcoupling,domain_surface)
@@ -689,23 +689,23 @@
 
       ! For vertical movement rates, call all models that access interior state variables,
       ! and explicitly express interest in the movement diagnostics so they will be properly prefilled.
-      call require_call_all_with_state(self%get_vertical_movement_job,self%root%links,domain_interior,source_get_vertical_movement,ignore_dependencies=.true.)
+      call require_call_all_with_state(self%get_vertical_movement_job,self%root%links,domain_interior,source_get_vertical_movement)
       link => self%links_postcoupling%first
       do while (associated(link))
          if (associated(link%target%movement_diagnostic)) call self%get_vertical_movement_job%request_variable(link%target%movement_diagnostic%target)
          link => link%next
       end do
 
-      call require_call_all_with_state(self%initialize_state_job,self%root%links,domain_interior,source_initialize_state,ignore_dependencies=.true.)
-      call require_call_all_with_state(self%initialize_bottom_state_job,self%root%links,domain_bottom,source_initialize_bottom_state,ignore_dependencies=.true.)
-      call require_call_all_with_state(self%initialize_surface_state_job,self%root%links,domain_surface,source_initialize_surface_state,ignore_dependencies=.true.)
-      call require_call_all_with_state(self%check_state_job,self%root%links,domain_interior,source_check_state,ignore_dependencies=.true.)
-      call require_call_all_with_state(self%check_bottom_state_job,self%root%links,domain_bottom,source_check_bottom_state,ignore_dependencies=.true.)
-      call require_call_all_with_state(self%check_bottom_state_job,self%root%links,domain_interior,source_check_bottom_state,ignore_dependencies=.true.)
-      call require_call_all_with_state(self%check_surface_state_job,self%root%links,domain_surface,source_check_surface_state,ignore_dependencies=.true.)
-      call require_call_all_with_state(self%check_surface_state_job,self%root%links,domain_interior,source_check_surface_state,ignore_dependencies=.true.)
-      call require_call_all(self%get_albedo_job,self%root,source_get_albedo,ignore_dependencies=.true.)
-      call require_call_all(self%get_drag_job,self%root,source_get_drag,ignore_dependencies=.true.)
+      call require_call_all_with_state(self%initialize_state_job,self%root%links,domain_interior,source_initialize_state)
+      call require_call_all_with_state(self%initialize_bottom_state_job,self%root%links,domain_bottom,source_initialize_bottom_state)
+      call require_call_all_with_state(self%initialize_surface_state_job,self%root%links,domain_surface,source_initialize_surface_state)
+      call require_call_all_with_state(self%check_state_job,self%root%links,domain_interior,source_check_state)
+      call require_call_all_with_state(self%check_bottom_state_job,self%root%links,domain_bottom,source_check_bottom_state)
+      call require_call_all_with_state(self%check_bottom_state_job,self%root%links,domain_interior,source_check_bottom_state)
+      call require_call_all_with_state(self%check_surface_state_job,self%root%links,domain_surface,source_check_surface_state)
+      call require_call_all_with_state(self%check_surface_state_job,self%root%links,domain_interior,source_check_surface_state)
+      call require_call_all(self%get_albedo_job,self%root,source_get_albedo)
+      call require_call_all(self%get_drag_job,self%root,source_get_drag)
 
       self%state = state_initialize_done
 
@@ -848,11 +848,11 @@
    call self%link_horizontal_data('zero_hz',self%zero_hz)
 
    ! Default chaining (temporary; should be done explicitly by host if true)
-   call self%do_bottom_job%set_next(self%do_surface_job)
-   call self%do_surface_job%set_next(self%do_interior_job)
+   call self%do_surface_job%set_previous(self%do_bottom_job)
+   call self%do_interior_job%set_previous(self%do_surface_job)
 
    ! Create job that ensures all diagnostics required by the user are computed.
-   call self%do_interior_job%set_next(self%get_diagnostics_job)
+   call self%get_diagnostics_job%set_previous(self%do_interior_job)
    do ivar=1,size(self%diagnostic_variables)
       if (self%diagnostic_variables(ivar)%save) then
          select case (self%diagnostic_variables(ivar)%target%source)
@@ -4836,35 +4836,33 @@ end subroutine
       end do
    end subroutine require_flux_computation
 
-   recursive subroutine require_call_all(self,model,source,ignore_dependencies)
+   recursive subroutine require_call_all(self,model,source)
       type (type_job),        intent(inout) :: self
       class (type_base_model),intent(in)    :: model
       integer,                intent(in)    :: source
-      logical,optional,       intent(in)    :: ignore_dependencies
 
       type (type_model_list_node),pointer :: node
 
       node => model%children%first
       do while (associated(node))
-         call require_call_all(self,node%model,source,ignore_dependencies)
-         call self%request_call(node%model,source,ignore_dependencies)
+         call require_call_all(self,node%model,source)
+         call self%request_call(node%model,source)
          node => node%next
       end do
    end subroutine require_call_all
 
-   subroutine require_call_all_with_state(self,link_list,domain,source,ignore_dependencies)
+   subroutine require_call_all_with_state(self,link_list,domain,source)
       type (type_job),      intent(inout) :: self
       type (type_link_list),intent(in)    :: link_list
       integer,              intent(in)    :: domain
       integer,              intent(in)    :: source
-      logical,optional,     intent(in)    :: ignore_dependencies
 
       type (type_link), pointer :: link
 
       link => link_list%first
       do while (associated(link))
          if (link%target%domain==domain.and..not.link%original%state_indices%is_empty().and..not.link%target%fake_state_variable) &
-            call self%request_call(link%original%owner,source,ignore_dependencies)
+            call self%request_call(link%original%owner,source)
          link => link%next
       end do
    end subroutine require_call_all_with_state

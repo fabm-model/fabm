@@ -78,6 +78,7 @@ module fabm_graph
 
    type,extends(type_node_list) :: type_graph
       type (type_graph),pointer :: previous => null()
+      logical                   :: frozen = .false.
    contains
       procedure :: add_call     => graph_add_call
       procedure :: add_variable => graph_add_variable
@@ -167,6 +168,8 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
    logical                               :: ignore_dependencies_
    logical                               :: same_source
 
+   if (self%frozen) call driver%fatal_error('graph_add_call','Graph is frozen; no calls can be added.')
+
    ! Provide optional arguments with default value.
    ignore_dependencies_ = .false.
    if (present(ignore_dependencies)) ignore_dependencies_ = ignore_dependencies
@@ -211,9 +214,13 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
       if (index(link%name,'/')==0.and.associated(link%original%read_index)) then
          ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
          call node%inputs%add(link%target)
-         if (.not.ignore_dependencies_) then
-            same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
-            if (.not.(associated(link%target%owner,model).and.same_source)) call self%add_variable(link%target,outer_calls,caller=node)
+         same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
+         if (.not.(associated(link%target%owner,model).and.same_source)) then
+            if (.not.ignore_dependencies_) then
+               call self%add_variable(link%target,outer_calls,caller=node)
+            else
+               call self%previous%add_variable(link%target,outer_calls,caller=node)
+            end if
          end if
       end if
       link => link%next
@@ -233,6 +240,8 @@ recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,
    type (type_node),optional,target,intent(inout) :: caller
 
    type (type_variable_node), pointer :: variable_node
+
+   if (self%frozen) call driver%fatal_error('graph_add_variable','Graph is frozen; no variables can be added.')
 
    ! If this variable is not an output of some model (e.g., a state variable or external dependency), no call is needed.
    if (variable%write_indices%value==-1) return
