@@ -47,7 +47,7 @@
    public type_aggregate_variable_id, type_horizontal_aggregate_variable_id
 
    ! Data types and procedures for variable management - used by FABM internally only.
-   public type_link, type_link_list, type_variable_set_member, type_variable_set, type_variable_list
+   public type_link, type_link_list, type_variable_node, type_variable_set, type_variable_list
    public type_internal_variable
    public type_cache
 
@@ -286,13 +286,13 @@
       procedure :: extend   => link_list_extend
    end type
 
-   type type_variable_set_member
-      type (type_internal_variable),  pointer :: target => null()
-      type (type_variable_set_member),pointer :: next   => null()
+   type type_variable_node
+      type (type_internal_variable), pointer :: target => null()
+      type (type_variable_node),     pointer :: next   => null()
    end type
 
    type type_variable_set
-      type (type_variable_set_member), pointer :: first => null()
+      type (type_variable_node), pointer :: first => null()
    contains
       procedure :: add      => variable_set_add
       procedure :: update   => variable_set_update
@@ -302,8 +302,8 @@
    end type
 
    type type_variable_list
-      type (type_variable_set_member), pointer :: first => null()
-      integer                                  :: count = 0
+      type (type_variable_node), pointer :: first => null()
+      integer                            :: count = 0
    contains
       procedure :: append => variable_list_append
    end type
@@ -344,6 +344,7 @@
       integer,pointer :: read_index  => null()
       integer,pointer :: write_index => null()
       integer         :: store_index = store_index_none
+      logical         :: in_read_registry = .false.
 
       ! Collections to collect information from all coupled variables.
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
@@ -1346,9 +1347,11 @@ subroutine integer_pointer_set_set_value(self,value)
 
    integer :: i
 
-   do i=1,size(self%pointers)
-      self%pointers(i)%p = value
-   end do
+   if (allocated(self%pointers)) then
+      do i=1,size(self%pointers)
+         self%pointers(i)%p = value
+      end do
+   end if
    self%value = value
 end subroutine integer_pointer_set_set_value
 
@@ -3116,7 +3119,7 @@ end subroutine abstract_model_factory_register_version
       class (type_variable_set),intent(inout) :: self
       type (type_internal_variable),target    :: variable
 
-      type (type_variable_set_member), pointer :: node
+      type (type_variable_node), pointer :: node
 
       ! Check if this variable already exists.
       node => self%first
@@ -3132,11 +3135,13 @@ end subroutine abstract_model_factory_register_version
       self%first => node
    end subroutine variable_set_add
 
-   subroutine variable_set_remove(self,variable)
+   subroutine variable_set_remove(self,variable,discard)
       class (type_variable_set),intent(inout) :: self
       type (type_internal_variable),target    :: variable
+      logical,optional,         intent(in)    :: discard
 
-      type (type_variable_set_member), pointer :: node, previous
+      type (type_variable_node), pointer :: node, previous
+      logical                            :: discard_
 
       ! Check if this variable already exists.
       previous => null()
@@ -3154,14 +3159,16 @@ end subroutine abstract_model_factory_register_version
          previous => node
          node => node%next
       end do
-      call fatal_error('variable_set_remove','Variable "'//trim(variable%name)//'" not found in set.')
+      discard_ = .false.
+      if (present(discard)) discard_ = discard
+      if (.not.discard_) call fatal_error('variable_set_remove','Variable "'//trim(variable%name)//'" not found in set.')
    end subroutine variable_set_remove
 
    logical function variable_set_contains(self,variable)
       class (type_variable_set),intent(in) :: self
       type (type_internal_variable),target :: variable
 
-      type (type_variable_set_member), pointer :: node
+      type (type_variable_node), pointer :: node
 
       variable_set_contains = .true.
       node => self%first
@@ -3176,7 +3183,7 @@ end subroutine abstract_model_factory_register_version
       class (type_variable_set),intent(inout) :: self
       class (type_variable_set),intent(in)    :: other
 
-      type (type_variable_set_member), pointer :: node
+      type (type_variable_node), pointer :: node
 
       node => other%first
       do while (associated(node))
@@ -3188,7 +3195,7 @@ end subroutine abstract_model_factory_register_version
    subroutine variable_set_finalize(self)
       class (type_variable_set), intent(inout) :: self
 
-      type (type_variable_set_member),pointer :: node, next
+      type (type_variable_node),pointer :: node, next
 
       node => self%first
       do while (associated(node))
@@ -3204,7 +3211,7 @@ end subroutine abstract_model_factory_register_version
       type (type_internal_variable), target    :: variable
       integer,optional,          intent(out)   :: index
 
-      type (type_variable_set_member), pointer :: last
+      type (type_variable_node), pointer :: last
 
       if (associated(self%first)) then
          last => self%first

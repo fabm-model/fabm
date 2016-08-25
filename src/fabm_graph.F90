@@ -232,6 +232,8 @@ recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,
    logical,         optional,       intent(in)    :: copy_to_store
    type (type_node),optional,target,intent(inout) :: caller
 
+   type (type_variable_node), pointer :: variable_node
+
    ! If this variable is not an output of some model (e.g., a state variable or external dependency), no call is needed.
    if (variable%write_indices%value==-1) return
 
@@ -243,6 +245,13 @@ recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,
       ! This variable is written by a known BGC API [is is not a constant indicated by source_none]
       call add_call(variable%source)
    end if
+
+   ! Automatically request additional value contributions (for reduction operators that accept in-place modification of the variable value)
+   variable_node => variable%cowriters%first
+   do while (associated(variable_node))
+      call self%add_variable(variable_node%target,outer_calls,caller=caller)
+      variable_node => variable_node%next
+   end do
 
 contains
    

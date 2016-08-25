@@ -393,17 +393,16 @@ module fabm_builtin_models
          component_next => component%next
          if (component_variable%write_operator==operator_add &             ! This component will increment its target diagnostic in place
              .and. component%weight==1.0_rk                          &     ! It does not require scaling
-             .and. size(component_variable%read_indices%pointers)==1 &     ! It is read by no-one but us
-             .and. component_variable%store_index==store_index_none) then  ! And the user has not asked for it to be stored separately
+             .and. size(component_variable%read_indices%pointers)==1) then ! And the user has not asked for it to be stored separately
 
             ! This component can increment the sum result directly (it does not need a separate diagnostic)
-            sum_variable%store_index = store_index_requested
             call sum_variable%write_indices%extend(component_variable%write_indices)
             call sum_variable%write_indices%append(component_variable%write_indices%value)
             component_variable%write_owner => sum_variable
             call sum_variable%cowriters%add(component_variable)
             call component_variable%read_indices%set_value(-1)
             call component_variable%read_indices%clear()
+            component%id%link%original%read_index => null()
 
             ! Remove component from the summation
             if (associated(component_previous)) then
@@ -439,17 +438,16 @@ module fabm_builtin_models
          component_next => component%next
          if (component_variable%write_operator==operator_add &             ! This component will increment its target diagnostic in place
              .and. component%weight==1.0_rk                          &     ! It does not require scaling
-             .and. size(component_variable%read_indices%pointers)==1 &     ! It is read by no-one but us
-             .and. component_variable%store_index==store_index_none) then  ! And the user has not asked for it to be stored separately
+             .and. size(component_variable%read_indices%pointers)==1) then ! And the user has not asked for it to be stored separately
 
             ! This component can increment the sum result directly (it does not need a separate diagnostic)
-            sum_variable%store_index = store_index_requested
             call sum_variable%write_indices%extend(component_variable%write_indices)
             call sum_variable%write_indices%append(component_variable%write_indices%value)
             component_variable%write_owner => sum_variable
             call sum_variable%cowriters%add(component_variable)
             call component_variable%read_indices%set_value(-1)
             call component_variable%read_indices%clear()
+            component%id%link%original%read_index => null()
 
             ! Remove component from the summation
             if (associated(component_previous)) then
