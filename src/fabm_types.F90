@@ -1478,14 +1478,14 @@ end subroutine real_pointer_set_set_value
       type (type_link),                  intent(in)           :: link
       type (type_aggregate_variable_id), intent(inout),target :: sms_id
 
-      type (type_link),pointer :: link1,link2
+      type (type_link),pointer :: link2
 
       if (.not.associated(sms_id%link)) &
          call self%add_interior_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
-                                         0.0_rk, output=output_none, write_index=sms_id%sum_index, link=link1)
-      link1%target%prefill = prefill_constant
-      link1%target%write_operator = operator_add
-      link2 => link%target%sms_list%append(link1%target,link1%target%name)
+                                         0.0_rk, output=output_none, write_index=sms_id%sum_index, link=sms_id%link)
+      sms_id%link%target%prefill = prefill_constant
+      sms_id%link%target%write_operator = operator_add
+      link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
    end subroutine register_source
 
    subroutine register_surface_flux(self, link, surface_flux_id)
@@ -1493,15 +1493,15 @@ end subroutine real_pointer_set_set_value
       type (type_link),                             intent(in)           :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: surface_flux_id
 
-      type (type_link),pointer :: link1,link2
+      type (type_link),pointer :: link2
 
       if (.not.associated(surface_flux_id%link)) &
          call self%add_horizontal_variable(trim(link%name)//'_sfl', trim(link%target%units)//'*m/s', trim(link%target%long_name)//' surface flux', &
                                            0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
-                                           domain=domain_surface, source=source_do_surface, link=link1)
-      link1%target%prefill = prefill_constant
-      link1%target%write_operator = operator_add
-      link2 => link%target%surface_flux_list%append(link1%target,link1%target%name)
+                                           domain=domain_surface, source=source_do_surface, link=surface_flux_id%link)
+      surface_flux_id%link%target%prefill = prefill_constant
+      surface_flux_id%link%target%write_operator = operator_add
+      link2 => link%target%surface_flux_list%append(surface_flux_id%link%target,surface_flux_id%link%target%name)
    end subroutine register_surface_flux
 
    subroutine register_bottom_flux(self, link, bottom_flux_id)
@@ -1509,15 +1509,15 @@ end subroutine real_pointer_set_set_value
       type (type_link),                             intent(in)           :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: bottom_flux_id
 
-      type (type_link),pointer :: link1,link2
+      type (type_link),pointer :: link2
 
       if (.not.associated(bottom_flux_id%link)) &
          call self%add_horizontal_variable(trim(link%name)//'_bfl', trim(link%target%units)//'*m/s', trim(link%target%long_name)//' bottom flux', &
                                            0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
-                                           domain=domain_bottom, source=source_do_bottom, link=link1)
-      link1%target%prefill = prefill_constant
-      link1%target%write_operator = operator_add
-      link2 => link%target%bottom_flux_list%append(link1%target,link1%target%name)
+                                           domain=domain_bottom, source=source_do_bottom, link=bottom_flux_id%link)
+      bottom_flux_id%link%target%prefill = prefill_constant
+      bottom_flux_id%link%target%write_operator = operator_add
+      link2 => link%target%bottom_flux_list%append(bottom_flux_id%link%target,bottom_flux_id%link%target%name)
    end subroutine register_bottom_flux
 
 !-----------------------------------------------------------------------
