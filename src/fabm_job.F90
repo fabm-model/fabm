@@ -142,6 +142,7 @@ module fabm_job
       procedure :: create          => job_manager_create
       procedure :: initialize      => job_manager_initialize
       procedure :: process_indices => job_manager_process_indices
+      procedure :: print           => job_manager_print
    end type
 
    type type_variable_register
@@ -425,7 +426,7 @@ module fabm_job
             if (associated(input_variable%target%write_owner)) call fatal_error('task_initialize','BUG: write contribution among inputs')
             call self%cache_preload%add(input_variable%target)
             call variable_register%add_read(input_variable%target)
-            if (input_variable%target%source==source_none) call variable_register%add_store(input_variable%target)
+            if (input_variable%target%source==source_none.and..not.input_variable%target%write_indices%is_empty()) call variable_register%add_store(input_variable%target)
             input_variable => input_variable%next
          end do
          call_node => call_node%next
@@ -616,15 +617,16 @@ module fabm_job
 
       type (type_task), pointer :: task
 
+      write (*,'(a,a)') 'Job: ',trim(self%name)
       task => self%first_task
       do while (associated(task))
-         write (*,'(a,a)') 'TASK WITH OPERATION = ',trim(source2string(task%operation))
-         call task%print()
+         write (*,'(a,a)') '- TASK WITH OPERATION = ',trim(source2string(task%operation))
+         call task%print(indent=2)
          task => task%next
       end do
       if (associated(self%final_task)) then
-         write (*,'(a,a)') 'FINAL TASK WITH OPERATION = ',trim(source2string(self%final_task%operation))
-         call self%final_task%print()
+         write (*,'(a,a)') '- FINAL TASK WITH OPERATION = ',trim(source2string(self%final_task%operation))
+         call self%final_task%print(indent=2)
       end if
    end subroutine job_print
 
@@ -636,30 +638,42 @@ subroutine call_finalize(self)
    self%graph_node => null()
 end subroutine call_finalize
 
-subroutine task_print(self)
+subroutine task_print(self,indent)
    class (type_task), intent(in) :: self
+   integer,optional,  intent(in) :: indent
 
+   integer                             :: indent_
    type (type_call),           pointer :: call_node
-   type (type_output_variable),pointer :: variable
+   type (type_output_variable),pointer :: output_variable
+   type (type_variable_node),  pointer :: input_variable
    type (type_node_set_member),pointer :: pnode
+
+   indent_ = 0
+   if (present(indent)) indent_ = indent
 
    call_node => self%first_call
    do while (associated(call_node))
-      write (*,'(a,": ",a)') trim(call_node%model%get_path()),trim(source2string(call_node%source))
-      variable => call_node%graph_node%outputs%first
-      do while (associated(variable))
-         write (*,'("   ",a,", write@",i0)',advance='no') trim(variable%target%name),variable%target%write_indices%value
-         if (variable%copy_to_cache) write (*,'(", cache@",i0)',advance='no') variable%target%read_indices%value
-         if (variable%copy_to_store) write (*,'(", store@",i0)',advance='no') variable%target%store_index
-         if (variable%target%prefill==prefill_constant) write (*,'(", prefill=",g0.6)',advance='no') variable%target%prefill_value
-         if (variable%target%prefill==prefill_previous_value) write (*,'(", prefill=previous")',advance='no')
+      write (*,'(a,a,": ",a)') repeat(' ',indent_),trim(call_node%model%get_path()),trim(source2string(call_node%source))
+      output_variable => call_node%graph_node%outputs%first
+      do while (associated(output_variable))
+         write (*,'(a,"   ",a,", write@",i0)',advance='no') repeat(' ',indent_),trim(output_variable%target%name),output_variable%target%write_indices%value
+         if (output_variable%copy_to_cache) write (*,'(", cache@",i0)',advance='no') output_variable%target%read_indices%value
+         if (output_variable%copy_to_store) write (*,'(", store@",i0)',advance='no') output_variable%target%store_index
+         if (output_variable%target%prefill==prefill_constant) write (*,'(", prefill=",g0.6)',advance='no') output_variable%target%prefill_value
+         if (output_variable%target%prefill==prefill_previous_value) write (*,'(", prefill=previous")',advance='no')
          write (*,*)
-         pnode => variable%dependent_nodes%first
+         pnode => output_variable%dependent_nodes%first
          do while (associated(pnode))
-            write (*,'("     <- ",a,": ",a)') trim(pnode%p%model%get_path()),trim(source2string(pnode%p%source))
+            write (*,'(a,"     <- ",a,": ",a)') repeat(' ',indent_),trim(pnode%p%model%get_path()),trim(source2string(pnode%p%source))
             pnode => pnode%next
          end do
-         variable => variable%next
+         output_variable => output_variable%next
+      end do
+      write (*,'(a,"   ",a)') repeat(' ',indent_),'inputs:'
+      input_variable => call_node%graph_node%inputs%first
+      do while (associated(input_variable))
+         write (*,'(a,"   - ",a,", read@",i0)') repeat(' ',indent_),trim(input_variable%target%name),input_variable%target%read_indices%value
+         input_variable => input_variable%next
       end do
       call_node => call_node%next
    end do
@@ -1411,8 +1425,8 @@ contains
 end subroutine job_manager_initialize
 
 subroutine job_manager_process_indices(self,unfulfilled_dependencies)
-   class (type_job_manager),intent(inout) :: self
-  type (type_variable_set), intent(out)   :: unfulfilled_dependencies
+   class (type_job_manager), intent(inout) :: self
+   type (type_variable_set), intent(out)   :: unfulfilled_dependencies
 
    type (type_job_manager_item),pointer :: node
 
@@ -1422,6 +1436,18 @@ subroutine job_manager_process_indices(self,unfulfilled_dependencies)
       node => node%next
    end do
 end subroutine job_manager_process_indices
+
+subroutine job_manager_print(self)
+   class (type_job_manager), intent(inout) :: self
+
+   type (type_job_manager_item),pointer :: node
+
+   node => self%first
+   do while (associated(node))
+      call node%job%print()
+      node => node%next
+   end do
+end subroutine job_manager_print
 
 subroutine job_set_previous(self,previous)
    class (type_job), intent(inout), target :: self
