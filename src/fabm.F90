@@ -100,16 +100,17 @@
    ! Variable identifiers used by host models.
    ! ====================================================================================================
 
-   type type_bulk_variable_id
+   type type_external_variable_id
       type (type_internal_variable),pointer :: variable => null()
    end type
 
-   type type_horizontal_variable_id
-      type (type_internal_variable),pointer :: variable => null()
+   type,extends(type_external_variable_id) :: type_bulk_variable_id
    end type
 
-   type type_scalar_variable_id
-      type (type_internal_variable),pointer :: variable => null()
+   type,extends(type_external_variable_id) :: type_horizontal_variable_id
+   end type
+
+   type,extends(type_external_variable_id) :: type_scalar_variable_id
    end type
 
    ! ====================================================================================================
@@ -434,18 +435,6 @@
    interface fabm_get_scalar_variable_id
       module procedure fabm_get_scalar_variable_id_by_name
       module procedure fabm_get_scalar_variable_id_sn
-   end interface
-
-   interface fabm_get_variable_name
-      module procedure fabm_get_interior_variable_name
-      module procedure fabm_get_horizontal_variable_name
-      module procedure fabm_get_scalar_variable_name
-   end interface
-
-   interface fabm_is_variable_used
-      module procedure fabm_is_interior_variable_used
-      module procedure fabm_is_horizontal_variable_used
-      module procedure fabm_is_scalar_variable_used
    end interface
 
    interface fabm_variable_needs_values
@@ -839,14 +828,6 @@
    self%horizontal_domain_size = (/ _HORIZONTAL_LOCATION_ /)
 #endif
 
-   allocate(self%zero _INDEX_LOCATION_)
-   self%zero = 0.0_rk
-   call self%link_interior_data('zero',self%zero)
-
-   allocate(self%zero_hz _INDEX_HORIZONTAL_LOCATION_)
-   self%zero_hz = 0.0_rk
-   call self%link_horizontal_data('zero_hz',self%zero_hz)
-
    ! Default chaining (temporary; should be done explicitly by host if true)
    call self%do_surface_job%set_previous(self%do_bottom_job)
    call self%do_interior_job%set_previous(self%do_surface_job)
@@ -906,6 +887,8 @@
    ! finalizes the set of variables for which input data is available.
    call self%job_manager%initialize(self%variable_register)
 
+   !call self%job_manager%print()
+
    ! Allocate arrays with pointers to data.
    allocate(self%data       (self%variable_register%interior_read%count))
    allocate(self%data_hz    (self%variable_register%horizontal_read%count))
@@ -918,6 +901,16 @@
    self%interior_data_sources   = data_source_none
    self%horizontal_data_sources = data_source_none
    self%scalar_data_sources     = data_source_none
+
+   ! Provide fields with zeros.
+   ! This must be done after read indices are assigned (self%job_manager%initialize), otherwise link_*_data will not store the value!
+   allocate(self%zero _INDEX_LOCATION_)
+   self%zero = 0.0_rk
+   call self%link_interior_data('zero',self%zero)
+
+   allocate(self%zero_hz _INDEX_HORIZONTAL_LOCATION_)
+   self%zero_hz = 0.0_rk
+   call self%link_horizontal_data('zero_hz',self%zero_hz)
 
    allocate(self%diag(self%domain_size(1),0:self%variable_register%interior_store%count))
    self%diag = 0.0_rk
@@ -1297,7 +1290,7 @@
    do while (associated(link))
       if (link%target%domain==domain_interior) then
          if (link%name==name.or.get_safe_name(link%name)==name) then
-            id = create_external_interior_id(link%target)
+            id%variable => link%target
             return
          end if
       end if
@@ -1308,7 +1301,7 @@
    link => self%root%links%first
    do while (associated(link))
       if (link%target%domain==domain_interior.and.link%target%standard_variables%contains(name)) then
-         id = create_external_interior_id(link%target)
+         id%variable => link%target
          return
       end if
       link => link%next
@@ -1342,7 +1335,7 @@
    link => self%root%links%first
    do while (associated(link))
       if (link%target%standard_variables%contains(standard_variable)) then
-         id = create_external_interior_id(link%target)
+         id%variable => link%target
          return
       end if
       link => link%next
@@ -1377,7 +1370,7 @@
    do while (associated(link))
       if (link%target%domain==domain_horizontal.or.link%target%domain==domain_surface.or.link%target%domain==domain_bottom) then
          if (link%name==name.or.get_safe_name(link%name)==name) then
-            id = create_external_horizontal_id(link%target)
+            id%variable => link%target
             return
          end if
       end if
@@ -1388,7 +1381,7 @@
    link => self%root%links%first
    do while (associated(link))
       if ((link%target%domain==domain_horizontal.or.link%target%domain==domain_surface.or.link%target%domain==domain_bottom).and.link%target%standard_variables%contains(name)) then
-         id = create_external_horizontal_id(link%target)
+         id%variable => link%target
          return
       end if
       link => link%next
@@ -1422,7 +1415,7 @@
    link => self%root%links%first
    do while (associated(link))
       if (link%target%standard_variables%contains(standard_variable)) then
-         id = create_external_horizontal_id(link%target)
+         id%variable => link%target
          return
       end if
       link => link%next
@@ -1459,7 +1452,7 @@
    do while (associated(link))
       if (link%target%domain==domain_scalar) then
          if (link%name==name.or.get_safe_name(link%name)==name) then
-            id = create_external_scalar_id(link%target)
+            id%variable => link%target
             return
          end if
       end if
@@ -1470,7 +1463,7 @@
    link => self%root%links%first
    do while (associated(link))
       if (link%target%domain==domain_scalar.and.link%target%standard_variables%contains(name)) then
-         id = create_external_scalar_id(link%target)
+         id%variable => link%target
          return
       end if
       link => link%next
@@ -1504,7 +1497,7 @@
    link => self%root%links%first
    do while (associated(link))
       if (link%target%standard_variables%contains(standard_variable)) then
-         id = create_external_scalar_id(link%target)
+         id%variable => link%target
          return
       end if
       link => link%next
@@ -1520,14 +1513,14 @@
 ! identifier.
 !
 ! !INTERFACE:
-   function fabm_get_interior_variable_name(model,id) result(name)
+   function fabm_get_variable_name(model,id) result(name)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),            intent(in)  :: model
-   type(type_bulk_variable_id),   intent(in)  :: id
+   class (type_model),              intent(in) :: model
+   class(type_external_variable_id),intent(in) :: id
 !
 ! !RETURN VALUE:
-   character(len=attribute_length)            :: name
+   character(len=attribute_length)             :: name
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1535,57 +1528,7 @@
    name = ''
    if (associated(id%variable)) name = get_safe_name(id%variable%name)
 
-   end function fabm_get_interior_variable_name
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Obtain the integer variable name for the given variable
-! identifier.
-!
-! !INTERFACE:
-   function fabm_get_horizontal_variable_name(model,id) result(name)
-!
-! !INPUT PARAMETERS:
-   class (type_model),               intent(in) :: model
-   type(type_horizontal_variable_id),intent(in) :: id
-!
-! !RETURN VALUE:
-   character(len=attribute_length)              :: name
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   name = ''
-   if (associated(id%variable)) name = get_safe_name(id%variable%name)
-
-   end function fabm_get_horizontal_variable_name
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Obtain the integer variable name for the given variable
-! identifier.
-!
-! !INTERFACE:
-   function fabm_get_scalar_variable_name(model,id) result(name)
-!
-! !INPUT PARAMETERS:
-   class (type_model),            intent(in) :: model
-   type(type_scalar_variable_id), intent(in) :: id
-!
-! !RETURN VALUE:
-   character(len=attribute_length)           :: name
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   name = ''
-   if (associated(id%variable)) name = get_safe_name(id%variable%name)
-
-   end function fabm_get_scalar_variable_name
+   end function fabm_get_variable_name
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1596,13 +1539,13 @@
 ! to be provided by the host; the values may be provided by a FABM module.
 !
 ! !INTERFACE:
-   function fabm_is_interior_variable_used(id) result(used)
+   function fabm_is_variable_used(id) result(used)
 !
 ! !INPUT PARAMETERS:
-   type(type_bulk_variable_id),   intent(in)  :: id
+   class(type_external_variable_id), intent(in) :: id
 !
 ! !RETURN VALUE:
-   logical                                    :: used
+   logical                                      :: used
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1610,7 +1553,7 @@
    used = associated(id%variable)
    if (used) used = id%variable%read_indices%value/=-1
 
-   end function fabm_is_interior_variable_used
+   end function fabm_is_variable_used
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1779,54 +1722,6 @@
    required = self%variable_needs_values(id)
 
    end function fabm_scalar_variable_needs_values_sn
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Obtain the integer variable name for the given variable
-! identifier.
-!
-! !INTERFACE:
-   function fabm_is_horizontal_variable_used(id) result(used)
-!
-! !INPUT PARAMETERS:
-   type(type_horizontal_variable_id),intent(in):: id
-!
-! !RETURN VALUE:
-   logical                                     :: used
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   used = associated(id%variable)
-   if (used) used = id%variable%read_indices%value/=-1
-
-   end function fabm_is_horizontal_variable_used
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Obtain the integer variable name for the given variable
-! identifier.
-!
-! !INTERFACE:
-   function fabm_is_scalar_variable_used(id) result(used)
-!
-! !INPUT PARAMETERS:
-   type(type_scalar_variable_id), intent(in)  :: id
-!
-! !RETURN VALUE:
-   logical                                    :: used
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   used = associated(id%variable)
-   if (used) used = id%variable%read_indices%value/=-1
-
-   end function fabm_is_scalar_variable_used
 !EOC
 
    function get_host_container_model(self) result(host)
@@ -4392,48 +4287,6 @@ subroutine assign_write_indices(link_list,domain,count)
       link => link%next
    end do
 end subroutine assign_write_indices
-
-function create_external_interior_id(variable) result(id)
-   type (type_internal_variable),intent(inout),target :: variable
-   type (type_bulk_variable_id) :: id
-
-   if (variable%domain/=domain_interior) call driver%fatal_error('create_external_interior_id','BUG: called on non-interior variable.')
-   id%variable => variable
-end function create_external_interior_id
-
-function create_external_horizontal_id(variable) result(id)
-   type (type_internal_variable),intent(inout),target :: variable
-   type (type_horizontal_variable_id) :: id
-
-   if (variable%domain/=domain_horizontal.and.variable%domain/=domain_surface.and.variable%domain/=domain_bottom) &
-      call driver%fatal_error('create_external_horizontal_id','BUG: called on non-horizontal variable.')
-   id%variable => variable
-end function create_external_horizontal_id
-
-function create_external_scalar_id(variable) result(id)
-   type (type_internal_variable),intent(inout),target :: variable
-   type (type_scalar_variable_id) :: id
-   if (variable%domain/=domain_scalar) call driver%fatal_error('create_external_scalar_id','BUG: called on non-scalar variable.')
-   id%variable => variable
-end function create_external_scalar_id
-
-function variable_from_data_index(self,index,domain) result(variable)
-   class (type_model),intent(inout),target :: self
-   integer,           intent(in)           :: index,domain
-   type (type_internal_variable),pointer   :: variable
-
-   type (type_link), pointer :: link
-
-   nullify(variable)
-   link => self%links_postcoupling%first
-   do while (associated(link))
-      if (link%target%read_indices%value==index .and. iand(link%target%domain,domain)/=0) then
-         variable => link%target
-         return
-      end if   
-      link => link%next
-   end do
-end function variable_from_data_index
 
 subroutine filter_readable_variable_registry(self)
    class (type_model),intent(inout),target :: self
