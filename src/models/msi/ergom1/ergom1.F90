@@ -69,7 +69,7 @@
       logical  :: calc_dic=.false.
       character(len=16) :: env_type ! identifier for setting the environment to "marine" or "fresh" (freshwater/lake) 
       character(len=64) :: dic_variable      
-      logical  :: nitrogen_fixation=.false. ! identifier for whether or not to allow n-fixation for cyanos "true" to use n-fix or "false" to allow n-limitation function
+      logical  :: nitrogen_fixation=.true. ! identifier for whether or not to allow n-fixation for cyanos "true" to use n-fix or "false" to allow n-limitation function
    contains
       procedure :: initialize
       procedure :: do
@@ -102,7 +102,7 @@
    call self%get_parameter(self%env_type, 'env_type', 'Define environment type, either fresh or marine', default='marine') 
    call self%get_parameter(self%calc_dic, 'calc_dic', 'Deside whether to calculate DIC', default=.false.)
    call self%get_parameter(self%dic_variable, 'dic_variable', 'Define DIC variable')
-   call self%get_parameter(self%nitrogen_fixation, 'nitrogen_fixation', 'Nitrogen fixation of cyanos', default=.false.)
+   call self%get_parameter(self%nitrogen_fixation, 'nitrogen_fixation', 'Nitrogen fixation of cyanos', default=.true.)
    call self%get_parameter(wdz,     'wdz',   'm/d',  'Detritus      sinking velocity', default=-4.5_rk)
    call self%get_parameter(wpz,     'wpz',   'm/d',  'Diatoms       sinking velocity', default=-0.5_rk)
    call self%get_parameter(wfz,     'wfz',   'm/d',  'Zooplankton   sinking velocity', default=0.0_rk)
