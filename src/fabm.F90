@@ -4585,8 +4585,7 @@ subroutine classify_variables(self)
    call dependencies%to_array(self%dependencies)
    call dependencies_hz%to_array(self%dependencies_hz)
    call dependencies_scalar%to_array(self%dependencies_scalar)
-end subroutine classify_variables
-
+contains
 subroutine copy_variable_metadata(internal_variable,external_variable)
    class (type_external_variable),intent(inout) :: external_variable
    type (type_internal_variable),intent(in),target :: internal_variable
@@ -4612,6 +4611,7 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
 
    call external_variable%properties%update(internal_variable%properties)
 end subroutine
+end subroutine classify_variables
 
    subroutine custom_extinction_calculator_initialize(self,configunit)
       class (type_custom_extinction_calculator), intent(inout), target :: self
