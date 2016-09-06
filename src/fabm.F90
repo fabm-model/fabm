@@ -2793,6 +2793,7 @@ end subroutine end_vertical_task
    type (type_cache)         :: cache
    integer                   :: ivar,read_index
    type (type_call), pointer :: call_node
+   logical                   :: set_interior
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -2812,16 +2813,19 @@ end subroutine end_vertical_task
    end do
 
    ! Allow biogeochemical models to initialize their interior state.
+   set_interior = .false.
    call_node => self%initialize_state_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%initialize_state(_ARGUMENTS_INTERIOR_)
+      call call_node%model%initialize_state(_ARGUMENTS_INTERIOR_,set_interior)
       call_node => call_node%next
    end do
 
    ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
    do ivar=1,size(self%state_variables)
       read_index = self%state_variables(ivar)%target%read_indices%value
-      _UNPACK_TO_GLOBAL_(cache%read,read_index,self%data(read_index)%p,cache%mask,self%state_variables(ivar)%missing_value)
+      if (self%interior_data_sources(read_index)==data_source_fabm) then
+         _UNPACK_TO_GLOBAL_(cache%read,read_index,self%data(read_index)%p,cache%mask,self%state_variables(ivar)%missing_value)
+      end if
    end do
 
    call end_interior_task(self,self%initialize_state_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
@@ -2845,6 +2849,7 @@ end subroutine end_vertical_task
    type (type_cache)         :: cache
    integer                   :: ivar,read_index
    type (type_call), pointer :: call_node
+   logical                   :: set_horizontal
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -2865,16 +2870,19 @@ end subroutine end_vertical_task
    end do
 
    ! Allow biogeochemical models to initialize their bottom state.
+   set_horizontal = .false.
    call_node => self%initialize_bottom_state_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_)
+      call call_node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       call_node => call_node%next
    end do
 
    ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
    do ivar=1,size(self%bottom_state_variables)
       read_index = self%bottom_state_variables(ivar)%target%read_indices%value
-      _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,self%bottom_state_variables(ivar)%missing_value)
+      if (self%horizontal_data_sources(read_index)==data_source_fabm) then
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,self%bottom_state_variables(ivar)%missing_value)
+      end if
    end do
 
    call end_horizontal_task(self,self%initialize_bottom_state_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
@@ -2898,6 +2906,7 @@ end subroutine end_vertical_task
    type (type_cache)         :: cache
    integer                   :: ivar,read_index
    type (type_call), pointer :: call_node
+   logical                   :: set_horizontal
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -2918,16 +2927,19 @@ end subroutine end_vertical_task
    end do
 
    ! Allow biogeochemical models to initialize their surface state.
+   set_horizontal = .false.
    call_node => self%initialize_surface_state_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_)
+      call call_node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       call_node => call_node%next
    end do
 
    ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
    do ivar=1,size(self%surface_state_variables)
       read_index = self%surface_state_variables(ivar)%target%read_indices%value
-      _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,self%surface_state_variables(ivar)%missing_value)
+      if (self%horizontal_data_sources(read_index)==data_source_fabm) then
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,self%surface_state_variables(ivar)%missing_value)
+      end if
    end do
 
    call end_horizontal_task(self,self%initialize_surface_state_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
@@ -3156,7 +3168,9 @@ end subroutine end_vertical_task
    if (set_interior.or..not.valid) then
       do ivar=1,size(self%state_variables)
          read_index = self%state_variables(ivar)%target%read_indices%value
-         _UNPACK_TO_GLOBAL_(cache%read,read_index,self%data(read_index)%p,cache%mask,self%state_variables(ivar)%missing_value)
+         if (self%interior_data_sources(read_index)==data_source_fabm) then
+            _UNPACK_TO_GLOBAL_(cache%read,read_index,self%data(read_index)%p,cache%mask,self%state_variables(ivar)%missing_value)
+         end if
       end do
    end if
 
@@ -3299,7 +3313,9 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
    if (set_horizontal.or..not.valid) then
       do ivar=1,size(state_variables)
          read_index = state_variables(ivar)%target%read_indices%value
-         _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,state_variables(ivar)%missing_value)
+         if (self%horizontal_data_sources(read_index)==data_source_fabm) then
+            _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,state_variables(ivar)%missing_value)
+         end if
       end do
    end if
 
@@ -3320,7 +3336,7 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
 
       do ivar=1,size(self%state_variables)
          read_index = self%state_variables(ivar)%target%read_indices%value
-
+         if (self%interior_data_sources(read_index)==data_source_fabm) then
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
       if (flag==1) then
 #endif
@@ -3359,7 +3375,7 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
 #  endif
       end if
 #endif
-
+         end if
       end do
    end if
 

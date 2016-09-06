@@ -80,6 +80,8 @@
       real(rk)   :: cNDDiatMax,cPDDiatMax,cNDGrenMax,cPDGrenMax,cNDBlueMax,cPDBlueMax
 !     exchange process related parameters
       real(rk)   :: fDissMortPhyt,cSiDDiat
+!     minimum state variable values
+      real(rk)   :: cDBlueMinS,cDGrenMinS,cDDiatMinS
 
 
    contains
@@ -147,26 +149,30 @@
    call self%get_parameter(self%cPDBlueMax,   'cPDBlueMax',   'mgP/mgDW', 'max. P/day ratio blue-greens',                              default=0.025_rk)
    call self%get_parameter(self%cPDDiatMax,   'cPDDiatMax',   'mgP/mgDW', 'max. P/day ratio Diatoms',                                  default=0.005_rk)
    call self%get_parameter(self%cPDGrenMax,   'cPDGrenMax',   'mgP/mgDW', 'max. P/day ratio greens',                                   default=0.015_rk)
+!  the user defined minumun value for state variables
+   call self%get_parameter(self%cDBlueMinS,   'cDBlueMinS',   'gDW/m2',   'minimun blue-green algae biomass in system',                default=0.00001_rk)
+   call self%get_parameter(self%cDGrenMinS,   'cDGrenMinS',   'gDW/m2',   'minimun green algae biomass in system',                     default=0.00001_rk)
+   call self%get_parameter(self%cDDiatMinS,   'cDDiatMinS',   'gDW/m2',   'minimun diatom biomass in system',                          default=0.00001_rk)
 
 !  Register local state variable
    call self%register_state_variable(self%id_sDDiatS,'sDDiatS','g m-2','diatom_D in sediment',     &
-                                    initial_value=0.001_rk,minimum= NearZero)
+                                    initial_value=0.001_rk,minimum= self%cDDiatMinS)
    call self%register_state_variable(self%id_sPDiatS,'sPDiatS','g m-2','diatom_P in sediment',     &
-                                    initial_value=0.00001_rk,minimum= NearZero)
+                                    initial_value=0.00001_rk,minimum= self%cDDiatMinS * self%cPDDiatMin)
    call self%register_state_variable(self%id_sNDiatS,'sNDiatS','g m-2','diatom_N in sediment',     &
-                                    initial_value=0.0001_rk,minimum= NearZero)
+                                    initial_value=0.0001_rk,minimum= self%cDDiatMinS * self%cNDDiatMin)
    call self%register_state_variable(self%id_sDGrenS,'sDGrenS','g m-2','green_D in sediment',     &
-                                    initial_value=0.001_rk,minimum= NearZero)
+                                    initial_value=0.001_rk,minimum= self%cDGrenMinS)
    call self%register_state_variable(self%id_sPGrenS,'sPGrenS','g m-2','green_P in sediment',     &
-                                    initial_value=0.00001_rk,minimum= NearZero)
+                                    initial_value=0.00001_rk,minimum= self%cDGrenMinS * self%cPDGrenMin)
    call self%register_state_variable(self%id_sNGrenS,'sNGrenS','g m-2','green_N in sediment',     &
-                                    initial_value=0.0001_rk,minimum=NearZero)
+                                    initial_value=0.0001_rk,minimum=self%cDGrenMinS * self%cNDGrenMin)
    call self%register_state_variable(self%id_sDBlueS,'sDBlueS','g m-2','blue_D in sediment',     &
-                                    initial_value=0.001_rk,minimum=NearZero)
+                                    initial_value=0.001_rk,minimum=self%cDBlueMinS)
    call self%register_state_variable(self%id_sPBlueS,'sPBlueS','g m-2','blue_P in sediment',     &
-                                    initial_value=0.00001_rk,minimum=NearZero)
+                                    initial_value=0.00001_rk,minimum=self%cDBlueMinS * self%cPDBlueMin)
    call self%register_state_variable(self%id_sNBlueS,'sNBlueS','g m-2','blue_N in sediment',     &
-                                    initial_value=0.0001_rk,minimum=NearZero)
+                                    initial_value=0.0001_rk,minimum=self%cDBlueMinS * self%cNDBlueMin)
 !  register diagnostic variables
    call self%register_diagnostic_variable(self%id_oSiDiatS,  'oSiDiatS',  'g m-2 s-1','oSiDiatS',  output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_rPDPhytS,  'rPDPhytS',  '[-]',      'rPDPhytS',  output=output_instantaneous)
@@ -203,13 +209,13 @@
 !   call self%add_to_aggregate_variable(standard_variables%total_silicate,  self%id_oSiDiatS)
 
 !  register state variables dependencies
-   call self%register_state_dependency(self%id_PO4poolS,  'sPO4_pool_sediment',       'g m-2', 'sPO4_pool_sediment')
-   call self%register_state_dependency(self%id_NO3poolS,  'sNO3_pool_sediment',       'g m-2', 'sNO3_pool_sediment')
-   call self%register_state_dependency(self%id_NH4poolS,  'sNH4_pool_sediment',       'g m-2', 'sNH4_pool_sediment')
-   call self%register_state_dependency(self%id_DDetpoolS, 'detritus_DW_pool_sediment','g m-2', 'detritus_DW_pool_sediment')
-   call self%register_state_dependency(self%id_NDetpoolS, 'detritus_N_pool_sediment', 'g m-2', 'detritus_N_pool_sediment')
-   call self%register_state_dependency(self%id_PDetpoolS, 'detritus_P_pool_sediment', 'g m-2', 'detritus_P_pool_sediment')
-   call self%register_state_dependency(self%id_SiDetpoolS,'detritus_Si_pool_sediment','g m-2', 'detritus_Si_pool_sediment')
+   call self%register_state_dependency(self%id_PO4poolS,  'PO4_pool_sediment',        'g m-2', 'PO4_pool_sediment')
+   call self%register_state_dependency(self%id_NO3poolS,  'NO3_pool_sediment',        'g m-2', 'NO3_pool_sediment')
+   call self%register_state_dependency(self%id_NH4poolS,  'NH4_pool_sediment',        'g m-2', 'NH4_pool_sediment')
+   call self%register_state_dependency(self%id_DDetpoolS, 'Detritus_DW_pool_sediment','g m-2', 'Detritus_DW_pool_sediment')
+   call self%register_state_dependency(self%id_NDetpoolS, 'Detritus_N_pool_sediment', 'g m-2', 'Detritus_N_pool_sediment')
+   call self%register_state_dependency(self%id_PDetpoolS, 'Detritus_P_pool_sediment', 'g m-2', 'Detritus_P_pool_sediment')
+   call self%register_state_dependency(self%id_SiDetpoolS,'Detritus_Si_pool_sediment','g m-2', 'Detritus_Si_pool_sediment')
    call self%register_state_dependency(self%id_SiO2poolW, 'SiO2_pool_water',          'g m-3', 'SiO2_pool_water')
 
 

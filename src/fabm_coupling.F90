@@ -653,17 +653,16 @@ recursive subroutine create_conservation_checks(self)
             ! Enumerate contributions to aggregate variable.
             contributing_variable => aggregate_variable%first_contributing_variable
             do while (associated(contributing_variable))
-               if ((.not.contributing_variable%link%original%state_indices%is_empty().or.contributing_variable%link%original%fake_state_variable).and.index(contributing_variable%link%name,'/')==0) then
-                  ! Contributing variable is a state variable
+               if (index(contributing_variable%link%name,'/')==0) then
                   select case (contributing_variable%link%original%domain)
                      case (domain_interior)
-                        call sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
-                        call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sfl',contributing_variable%scale_factor)
-                        call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_bfl',contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%sms))          call sum%add_component        (contributing_variable%link%original%sms%name,         contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%surface_flux)) call surface_sum%add_component(contributing_variable%link%original%surface_flux%name,contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%bottom_flux))  call bottom_sum%add_component (contributing_variable%link%original%bottom_flux%name, contributing_variable%scale_factor)
                      case (domain_surface)
-                        call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%sms)) call surface_sum%add_component(contributing_variable%link%original%sms%name,contributing_variable%scale_factor)
                      case (domain_bottom)
-                        call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%sms)) call bottom_sum%add_component(contributing_variable%link%original%sms%name,contributing_variable%scale_factor)
                   end select
                end if   
                contributing_variable => contributing_variable%next

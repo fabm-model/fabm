@@ -88,6 +88,8 @@
      real(rk)   :: cExtSpVeg  !,host
 !    plant height
      real(rk)   :: cHeightVeg
+!    minimun state variable vaules
+     real(rk)   :: cDVegMin, cNVegMin,cPVegMin
    contains
 
 !     Model procedure
@@ -106,8 +108,6 @@
    real(rk),parameter ::O2PerNO3 = 1.5_rk
 !  ratio of mol.weights,32/14 [gO2/gN],
    real(rk),parameter :: molO2molN = 2.2857_rk
-!   lowest state variable value
-    real(rk),parameter :: VegZero=0.0001_rk
 !EOP
 !-----------------------------------------------------------------------
 
@@ -175,14 +175,15 @@
    call self%get_parameter(self%hO2BOD,        'hO2BOD',         'mgO2/l',              'half-sat. oxygen conc. for BOD',                                                                          default=1.0_rk)
    call self%get_parameter(self%cHeightVeg,    'cHeightVeg',     'm',                   'vegetation height',                                                                                       default=1.0_rk)
    call self%get_parameter(self%cExtSpVeg,     'cExtSpVeg',      'm2/gDW',              'specific extinction',                                                                                     default=0.01_rk)
-
+!  the user defined minumun value for state variables
+   call self%get_parameter(self%cDVegMin,      'cDVegMin',        'gDW/m2',             'minimun dry-weight macrophytes in system',                                                                default=0.00001_rk)
 !  Register local state variable
    call self%register_state_variable(self%id_sDVeg,'sDVeg','g m-2','vegetation_dry_weight',    &
-                                    initial_value=1.0_rk,minimum=NearZero)
+                                    initial_value=1.0_rk,minimum=self%cDVegMin)
    call self%register_state_variable(self%id_sNVeg,'sNVeg','g m-2','vegetation_Nitrogen',     &
-                                    initial_value=0.02_rk,minimum=NearZero)
+                                    initial_value=0.02_rk,minimum=self%cDVegMin * self%cNDVegMin)
    call self%register_state_variable(self%id_sPVeg,'sPVeg','g m-2','vegetation_phosphorus',     &
-                                    initial_value=0.002_rk,minimum=NearZero)
+                                    initial_value=0.002_rk,minimum=self%cDVegMin * self%cPDVegMin)
 !  register diagnostic variables
    call self%register_diagnostic_variable(self%id_aDSubVeg,       'aDSubVeg',       'g m-2',      'aDSubVeg',                         output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_aCovVeg,        'aCovVeg',        '%',          'aCovVeg',                          output=output_instantaneous)
@@ -217,19 +218,24 @@
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNVeg)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPVeg)
 !  register state variables dependencies
-   call self%register_state_dependency(self%id_NH4poolW,  'Ammonium_pool_water',       'g m-3', 'Ammonium pool for nutrient uptake')
-   call self%register_state_dependency(self%id_NO3poolW,  'nitrate_pool_water',       'g m-3', 'Nitrate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_PO4poolW,  'phosphate_pool_water',     'g m-3', 'Phosphate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_O2poolW,   'oxygen_pool_water',        'g m-3', 'oxygen pool in water')
-   call self%register_state_dependency(self%id_DDetpoolW, 'detritus_DW_pool_water',   'g m-3', 'detritus_DW_pool_water')
-   call self%register_state_dependency(self%id_DNetpoolW, 'detritus_N_pool_water',    'g m-3', 'detritus_N_pool_water')
-   call self%register_state_dependency(self%id_DPetpoolW, 'detritus_P_pool_water',    'g m-3', 'detritus_P_pool_water')
-   call self%register_state_dependency(self%id_NH4poolS,  'Ammonium_pool_sediment',    'g m-2', 'Ammonium pool for nutrient uptake')
-   call self%register_state_dependency(self%id_NO3poolS,  'nitrate_pool_sediment',    'g m-2', 'Nitrate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_PO4poolS,  'phosphate_pool_sediment',  'g m-2', 'Phosphate pool for nutrient uptake')
-   call self%register_state_dependency(self%id_DDetpoolS, 'detritus_DW_pool_sediment','g m-2', 'detritus_DW_pool_sediment')
-   call self%register_state_dependency(self%id_DNetpoolS, 'detritus_N_pool_sediment', 'g m-2', 'detritus_N_pool_sediment')
-   call self%register_state_dependency(self%id_DPetpoolS, 'detritus_P_pool_sediment', 'g m-2', 'detritus_P_pool_sediment')
+   call self%register_state_dependency(self%id_NH4poolW,  'Ammonium_pool_water',      'g m-3', 'Ammonium pool for nutrient uptake')
+   call self%register_state_dependency(self%id_NO3poolW,  'Nitrate_pool_water',       'g m-3', 'Nitrate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_PO4poolW,  'Phosphate_pool_water',     'g m-3', 'Phosphate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_O2poolW,   'Oxygen_pool_water',        'g m-3', 'Oxygen pool in water')
+   call self%register_state_dependency(self%id_DDetpoolW, 'Detritus_DW_pool_water',   'g m-3', 'Detritus_DW_pool_water')
+   call self%register_state_dependency(self%id_DNetpoolW, 'Detritus_N_pool_water',    'g m-3', 'Detritus_N_pool_water')
+   call self%register_state_dependency(self%id_DPetpoolW, 'Detritus_P_pool_water',    'g m-3', 'Detritus_P_pool_water')
+   call self%register_state_dependency(self%id_NH4poolS,  'Ammonium_pool_sediment',   'g m-2', 'Ammonium pool for nutrient uptake')
+   call self%register_state_dependency(self%id_NO3poolS,  'Nitrate_pool_sediment',    'g m-2', 'Nitrate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_PO4poolS,  'Phosphate_pool_sediment',  'g m-2', 'Phosphate pool for nutrient uptake')
+   call self%register_state_dependency(self%id_DDetpoolS, 'Detritus_DW_pool_sediment','g m-2', 'Detritus_DW_pool_sediment')
+   call self%register_state_dependency(self%id_DNetpoolS, 'Detritus_N_pool_sediment', 'g m-2', 'Detritus_N_pool_sediment')
+   call self%register_state_dependency(self%id_DPetpoolS, 'Detritus_P_pool_sediment', 'g m-2', 'Detritus_P_pool_sediment')
+!------------------------------------------------------------------------------------------------------------
+!  register diagnostic dependencies
+!------------------------------------------------------------------------------------------------------------
+!  step1, Register dependencies on external diagnostic variables
+   call self%register_dependency(self%id_afOxySed,        'Oxic_layer_value',          '[-]',  'Oxic_layer_value')
 !------------------------------------------------------------------------------------------------------------
 !  register environmental dependencies
 !------------------------------------------------------------------------------------------------------------
@@ -240,11 +246,7 @@
    call self%register_dependency(self%id_dz,     standard_variables%cell_thickness)
    call self%register_dependency(self%id_par,    standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_meanpar,temporal_mean(self%id_par,period=86400._rk,resolution=3600._rk))
-!------------------------------------------------------------------------------------------------------------
-!  register diagnostic dependencies
-!------------------------------------------------------------------------------------------------------------
-!  step1, Register dependencies on external diagnostic variables
-   call self%register_dependency(self%id_afOxySed, 'oxic_layer_value','[-]','oxic_layer_value')
+
 
    return
 
@@ -470,8 +472,13 @@
    par_bott= meanpar
    aLPAR2Veg = par_bott*exp(- extc *dz/2.0_rk)
    aLPAR1Veg = aLPAR2Veg / exp(- extc * self%cHeightVeg)
+!  feh: July 1st, 2016
+!  replace sDepthW with plant height, currently the best solution
+!   aLLimShootVeg = self%fEmergVeg + self%fFloatVeg * (1.0 - afCovEmergVeg) + bfSubVeg * (1.0 &
+!   &- afCovSurfVeg) * 1.0 / (extc * sDepthW) * log( (1.0 + aLPAR1Veg / uhLVeg) /&
+!   & (1.0 + aLPAR2Veg / uhLVeg))
    aLLimShootVeg = self%fEmergVeg + self%fFloatVeg * (1.0 - afCovEmergVeg) + bfSubVeg * (1.0 &
-   &- afCovSurfVeg) * 1.0 / (extc * sDepthW) * log( (1.0 + aLPAR1Veg / uhLVeg) /&
+   &- afCovSurfVeg) * 1.0 / (extc * self%cHeightVeg) * log( (1.0 + aLPAR1Veg / uhLVeg) /&
    & (1.0 + aLPAR2Veg / uhLVeg))
 !=======================================================================
    ufDay = 0.5_rk - 0.2_rk * cos(2.0_rk*Pi*Day / 365.0_rk)

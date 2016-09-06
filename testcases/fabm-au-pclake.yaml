@@ -1,6 +1,6 @@
 instances:
   abiotic_water:
-    long_name: abiotic_process_in_water
+    long_name: nutrient_dynamic_in_water
     model: au/pclake/abiotic_water
     parameters:
       cCPerDW: 0.4                                               # C content of organic matter (gC/gDW), default = 0.4
@@ -20,29 +20,29 @@ instances:
       fRedMax: 0.9                                               # max. reduction factor of P adsorption affinity ([-]), default = 0.9
       hNO3Denit: 2.0                                             # quadratic half-sat. NO3 conc. for denitrification (mgN/l), default = 2.0
       hO2BOD: 1.0                                                # half-sat. oxygen conc. for BOD (mgO2/l), default = 1.0
-      hO2Nitr: 0.5                                               # half sat.oxygen conc. for for nitrogen (mgO2/l), default = 2.0
+      hO2Nitr: 2.0                                               # half sat.oxygen conc. for for nitrogen (mgO2/l), default = 2.0
       kDMinDetW: 0.01                                            # decomposition constant of detritus (day-1), default = 0.01
-      kNitrW: 0.01                                               # nitrification rate constant in water (day-1), default = 0.1
+      kNitrW: 0.1                                                # nitrification rate constant in water (day-1), default = 0.1
       kPSorp: 0.05                                               # P adsorption rate constant not too high -> model speed day (day-1), default = 0.05
       NO3PerC: 0.8                                               # denitrified per mol C mineralised (molNO3), default = 0.8
       O2PerNH4: 2.0                                              # used per mol NH4+ nitrified (molO2), default = 2.0
     initialization:
-      sNH4W: 0.05                                                # Ammonium in water (g m-3)
-      sNO3W: 0.42                                                # Nitrates in water (g m-3)
-      sPO4W: 0.25                                                # Phosphate in water (g m-3)
-      sPAIMW: 0.0                                                # Absorbed_P in water (g m-3)
-      sSiO2W: 1.2                                                # Silica dioxide in water (g m-3)
-      sO2W: 10.6                                                 # oxygen in water (g m-3)
-      sDIMW: 5.0                                                 # Inorg. matter in water (g m-3)
-      sDDetW: 2.5                                                # detritus dry-weight in water (g m-3)
-      sPDetW: 0.00625                                            # detritus phosphorus in water (g m-3)
-      sNDetW: 0.0625                                             # detritus nitrogen in water (g m-3)
-      sSiDetW: 0.025                                             # detritus silica in water (g m-3)
+      sNH4W: 0.0781417                                           # Ammonium in water (g m-3)
+      sNO3W: 0.139291                                            # Nitrates in water (g m-3)
+      sPO4W: 0.0668054                                           # Phosphate in water (g m-3)
+      sPAIMW: 0.000238167                                        # Absorbed_P in water (g m-3)
+      sSiO2W: 3.72024                                            # Silica dioxide in water (g m-3)
+      sO2W: 12.9174                                              # oxygen in water (g m-3)
+      sDIMW: 3.84865                                             # Inorg. matter in water (g m-3)
+      sDDetW: 3.16455                                            # detritus dry-weight in water (g m-3)
+      sPDetW: 0.00878401                                         # detritus phosphorus in water (g m-3)
+      sNDetW: 0.0596219                                          # detritus nitrogen in water (g m-3)
+      sSiDetW: 0.147208                                          # detritus silica in water (g m-3)
   abiotic_sediment:
-    long_name: abiotic_process_in_sediment
+    long_name: nutrient_dynamic_in_sediment
     model: au/pclake/abiotic_sediment
     parameters:
-      cDepthS: 0.3                                               # sediment depth (m), default = 0.1
+      cDepthS: 0.1                                               # sediment depth (m), default = 0.1
       fRefrDetS: 0.15                                            # nutrient diffusion distance as fraction of sediment depth ([-]), default = 0.15
       kDMinDetS: 0.002                                           # decomposition constant of sediment detritus (d-1), default = 0.002
       cThetaMinS: 1.07                                           # expon. temp. constant of sediment mineralization ([-]), default = 1.07
@@ -55,39 +55,39 @@ instances:
       kPSorp: 0.05                                               # P sorption rate constant not too high -> model speed (d-1), default = 0.05
       cRelPAdsD: 3e-05                                           # max. P adsorption per g DW (gP/gD), default = 3e-05
       cRelPAdsFe: 0.065                                          # max. P adsorption per g Fe (gP/gFe), default = 0.065
-      fFeDIM: 0.2                                                # Fe content of inorg. matter (gFe/gD), default = 0.01
+      fFeDIM: 0.01                                               # Fe content of inorg. matter (gFe/gD), default = 0.01
       cRelPAdsAl: 0.134                                          # max. P adsorption per g Al (gP/gAl), default = 0.134
       fAlDIM: 0.01                                               # Al content of inorg. matter (gAl/gD), default = 0.01
-      fRedMax: 1.0                                               # max. reduction factor of P adsorption affinity ([-]), default = 0.9
-      cKPAdsOx: 0.9                                              # P adsorption affinity at oxidized conditions (m3/gP), default = 0.6
-      kPChemPO4: 0.3                                             # chem. PO4 loss rate (d-1), default = 0.03
-      coPO4Max: 0.5                                              # max. SRP conc. in pore water (mgP/l), default = 1.0
-      bPorS: 0.918222                                            # sediment porosity (m3 water m-3 sediment), default = 0.847947
+      fRedMax: 0.9                                               # max. reduction factor of P adsorption affinity ([-]), default = 0.9
+      cKPAdsOx: 0.6                                              # P adsorption affinity at oxidized conditions (m3/gP), default = 0.6
+      kPChemPO4: 0.03                                            # chem. PO4 loss rate (d-1), default = 0.03
+      coPO4Max: 1.0                                              # max. SRP conc. in pore water (mgP/l), default = 1.0
+      bPorS: 0.847947                                            # sediment porosity (m3 water m-3 sediment), default = 0.847947
       cThetaDif: 1.02                                            # temperature coefficient for diffusion ([-]), default = 1.02
-      fDepthDifS: 0.1                                            # utrient diffusion distance as fraction of sediment depth ([-]), default = 0.5
+      fDepthDifS: 0.5                                            # utrient diffusion distance as fraction of sediment depth ([-]), default = 0.5
       kNDifNH4: 0.000112                                         # mol. NH4 diffusion constant (m2/day), default = 0.000112
-      cTurbDifNut: 10.0                                          # bioturbation factor for diffusion ([-]), default = 5.0
-      bPorCorS: 0.849748                                         # sediment porosity, corrected for tortuosity (m3 water m-3 sediment), default = 0.737275
+      cTurbDifNut: 5.0                                           # bioturbation factor for diffusion ([-]), default = 5.0
+      bPorCorS: 0.737275                                         # sediment porosity, corrected for tortuosity (m3 water m-3 sediment), default = 0.737275
       kNDifNO3: 8.6e-05                                          # mol. NO3 diffusion constant (m2/day), default = 8.6e-05
-      kPDifPO4: 0.0072                                           # mol. PO4 diffusion constant (m2/day), default = 7.2e-05
+      kPDifPO4: 7.2e-05                                          # mol. PO4 diffusion constant (m2/day), default = 7.2e-05
       kO2Dif: 2.6e-05                                            # mol. O2 diffusion constant (m2/day), default = 2.6e-05
       cTurbDifO2: 5.0                                            # bioturbation factor for diffusion ([-]), default = 5.0
       kDMinHum: 1e-05                                            # maximum_decomposition_constant_of_humic_material_(1D-5) (d-1), default = 1e-05
     initialization:
-      sNH4S: 0.06                                                # Sediment Amonia (g m-2)
-      sNO3S: 0.006                                               # Sediment Nitrates (g m-2)
-      sPO4S: 0.3008735                                           # Sediment Phosphate (g m-2)
-      sPAIMS: 29.7864787                                         # SED_Absorbed Phosphate (g m-2)
-      sDIMS: 52047.5                                             # sediment inorg.Matter (g m-2)
-      sDDetS: 406.36                                             # sediment detritus DW (g m-2)
-      sNDetS: 10.159                                             # sediment detritus N (g m-2)
-      sPDetS: 1.0159                                             # sediment detritus P (g m-2)
-      sSiDetS: 4.0636                                            # sediment detritus Si (g m-2)
-      sDHumS: 7720.846                                           # sediment Humus DW (g m-2)
-      sNHumS: 386.0423                                           # sediment Humus N (g m-2)
-      sPHumS: 38.60423                                           # sediment Humus P (g m-2)
+      sNH4S: 0.0378029                                           # Sediment Amonia (g m-2)
+      sNO3S: 0.0255708                                           # Sediment Nitrates (g m-2)
+      sPO4S: 0.0199575                                           # Sediment Phosphate (g m-2)
+      sPAIMS: 2.02023                                            # SED_Absorbed Phosphate (g m-2)
+      sDIMS: 31706.9                                             # sediment inorg.Matter (g m-2)
+      sDDetS: 474.522                                            # sediment detritus DW (g m-2)
+      sNDetS: 6.05322                                            # sediment detritus N (g m-2)
+      sPDetS: 0.997002                                           # sediment detritus P (g m-2)
+      sSiDetS: 14.4451                                           # sediment detritus Si (g m-2)
+      sDHumS: 3719.32                                            # sediment Humus DW (g m-2)
+      sNHumS: 166.104                                            # sediment Humus N (g m-2)
+      sPHumS: 16.9661                                            # sediment Humus P (g m-2)
     coupling:
-      oxygen_pool_water: abiotic_water/sO2W                      # oxygen_pool_water (g m-3)
+      Oxygen_pool_water: abiotic_water/sO2W                      # Oxygen_pool_water (g m-3)
       SiO2_generated_by_mineralization: abiotic_water/sSiO2W     # SiO2_generated_by_mineralization (g m-3)
       NH4_diffusion_flux: abiotic_water/sNH4W                    # NH4_diffusion_flux (g m-3)
       NO3_diffusion_flux: abiotic_water/sNO3W                    # NO3_diffusion_flux (g m-3)
@@ -118,11 +118,11 @@ instances:
       cNDBlueMax: 0.15                                           # max. N/day ratio Bluegreens (mgN/mgDW), default = 0.15
       hSiAssBlue: 0.0                                            # half-sat. Si conc. for growth of blue-greens (mgSi/l), default = 0.0
       hLRefGren: 17.0                                            # half-sat. PAR for green algae at 20 �C (Lehmann function) (W m-2), default = 17.0
-      cLOptRefBlue: 13.6                                         # optimum PAR for blue-greens at 20 �C (Steele function) (W m-2), default = 13.6
-      cLOptRefDiat: 54.0                                         # optimum PAR for Diatoms at 20 �C (Steele function) (W m-2), default = 54.0
+      cLOptRefBlue: 200.0                                        # optimum PAR for blue-greens at 20 �C (Steele function) (W m-2), default = 13.6
+      cLOptRefDiat: 60.0                                         # optimum PAR for Diatoms at 20 �C (Steele function) (W m-2), default = 54.0
       cMuMaxBlue: 0.6                                            # maximum_growth_rate_Bluegreens (d-1), default = 0.6
       cMuMaxGren: 1.5                                            # maximum_growth_rate_greens (d-1), default = 1.5
-      cMuMaxDiat: 1.8                                            # maximum_growth_rate_Diatoms (d-1), default = 2.0
+      cMuMaxDiat: 2.0                                            # maximum_growth_rate_Diatoms (d-1), default = 2.0
       kDRespDiat: 0.1                                            # maintenance respiration constant diatoms (d-1), default = 0.1
       kDRespGren: 0.075                                          # maintenance respiration constant greens (d-1), default = 0.075
       kDRespBlue: 0.03                                           # maintenance respiration constant blue-greens (d-1), default = 0.03
@@ -151,39 +151,42 @@ instances:
       cChDGrenMax: 0.02                                          #  max._chlorophyll/C_ratio_greens (mgChl/mgDW), default = 0.02
       cChDBlueMin: 0.005                                         #  min._chlorophyll/C_ratio_Bluegreens (mgChl/mgDW), default = 0.005
       cChDBlueMax: 0.015                                         #  max._chlorophyll/C_ratio_Bluegreens (mgChl/mgDW), default = 0.015
-      cVSetDiat: -0.5                                            # sedimentation velocity Diatoms (m/d), default = -0.5
+      cVSetDiat: -1.0                                            # sedimentation velocity Diatoms (m/d), default = -0.5
       cVSetGren: -0.2                                            # sedimentation velocity of greens (m/d), default = -0.2
       cVSetBlue: -0.06                                           # sedimentation velocity Blue-greens (m/d), default = -0.06
       cExtSpDiat: 0.25                                           # specific_extinction_Diatoms" (m2/gDW), default = 0.25
       cExtSpGren: 0.25                                           # specific_extinction_greens" (m2/gDW), default = 0.25
       cExtSpBlue: 0.35                                           # specific_extinction_Bluegreens" (m2/gDW), default = 0.35
-      hLRefDiat: 15.0                                            # half-sat. PAR for diatoms at 20 �C (Lehmann function) (W m-2), default = 6.5
+      hLRefDiat: 6.5                                             # half-sat. PAR for diatoms at 20 �C (Lehmann function) (W m-2), default = 6.5
       hLRefBlue: 34.0                                            # half-sat. PAR for blue algea at 20 �C (Lehmann function) (W m-2), default = 34.0
-      cLOptRefGren: 13.6                                         # optimum PAR for diatoms at 20 �C (Steele function) (W m-2), default = 30.0
-      UseLightMethodGren: 2                                      # lightmethod,1without photoinhibition,Chalker(1980)model,2with photoinhibition,Klepperetal.(1988)/Ebenhohetal.(1997)model. ([-]), default = 1
+      cLOptRefGren: 200.0                                        # optimum PAR for diatoms at 20 �C (Steele function) (W m-2), default = 30.0
+      UseLightMethodGren: 1                                      # lightmethod,1without photoinhibition,Chalker(1980)model,2with photoinhibition,Klepperetal.(1988)/Ebenhohetal.(1997)model. ([-]), default = 1
       UseLightMethodBlue: 2                                      # lightmethod,1without photoinhibition,Chalker(1980)model,2with photoinhibition,Klepperetal.(1988)/Ebenhohetal.(1997)model. ([-]), default = 2
       UseLightMethodDiat: 2                                      # lightmethod,1without photoinhibition,Chalker(1980)model,2with photoinhibition,Klepperetal.(1988)/Ebenhohetal.(1997)model. ([-]), default = 2
+      cDBlueMinW: 0.0001                                         # minimun blue-green algae biomass in system (gDW/m3), default = 1e-05
+      cDGrenMinW: 0.0001                                         # minimun green algae biomass in system (gDW/m3), default = 1e-05
+      cDDiatMinW: 0.0001                                         # minimun diatom biomass in system (gDW/m3), default = 1e-05
     initialization:
-      sDDiatW: 0.5                                               # diatom_D in water (g m-3)
-      sPDiatW: 0.005                                             # diatom_P in water (g m-3)
-      sNDiatW: 0.05                                              # diatom_N in water (g m-3)
-      sDGrenW: 0.5                                               # green_D in water (g m-3)
-      sPGrenW: 0.005                                             # green_P in water (g m-3)
-      sNGrenW: 0.05                                              # green_N in water (g m-3)
-      sDBlueW: 3.0                                               # blue_D in water (g m-3)
-      sPBlueW: 0.03                                              # blue_P in water (g m-3)
-      sNBlueW: 0.3                                               # blue_N in water (g m-3)
+      sDDiatW: 0.414496                                          # diatom_D in water (g m-3)
+      sPDiatW: 0.00183624                                        # diatom_P in water (g m-3)
+      sNDiatW: 0.0175416                                         # diatom_N in water (g m-3)
+      sDGrenW: 0.0113223                                         # green_D in water (g m-3)
+      sPGrenW: 0.000127791                                       # green_P in water (g m-3)
+      sNGrenW: 0.000875793                                       # green_N in water (g m-3)
+      sDBlueW: 0.0280964                                         # blue_D in water (g m-3)
+      sPBlueW: 0.000663414                                       # blue_P in water (g m-3)
+      sNBlueW: 0.00356158                                        # blue_N in water (g m-3)
     coupling:
       SiO2_pool_water: abiotic_water/sSiO2W                      # SiO2_pool_water (g m-3)
-      sPO4_pool_water: abiotic_water/sPO4W                       # sPO4_pool_water (g m-3)
-      sNH4_pool_water: abiotic_water/sNH4W                       # sNH4_pool_water (g m-3)
-      sNO3_pool_water: abiotic_water/sNO3W                       # sNO3_pool_water (g m-3)
-      oxygen_pool_water: abiotic_water/sO2W                      # oxygen_pool_water) (g m-3)
-      detritus_DW_pool_water: abiotic_water/sDDetW               # detritus_DW_pool_water (g m-3)
-      detritus_N_pool_water: abiotic_water/sNDetW                # detritus_N_pool_water (g m-3)
-      detritus_P_pool_water: abiotic_water/sPDetW                # detritus_P_pool_water (g m-3)
-      detritus_Si_pool_water: abiotic_water/sSiDetW              # detritus_Si_pool_water (g m-3)
-      surface_vegetation_coverage: macrophytes/afCovSurfVeg      # surface_vegetation_coverage ([-])
+      PO4_pool_water: abiotic_water/sPO4W                        # PO4_pool_water (g m-3)
+      NH4_pool_water: abiotic_water/sNH4W                        # NH4_pool_water (g m-3)
+      NO3_pool_water: abiotic_water/sNO3W                        # NO3_pool_water (g m-3)
+      Oxygen_pool_water: abiotic_water/sO2W                      # Oxygen_pool_water) (g m-3)
+      Detritus_DW_pool_water: abiotic_water/sDDetW               # Detritus_DW_pool_water (g m-3)
+      Detritus_N_pool_water: abiotic_water/sNDetW                # Detritus_N_pool_water (g m-3)
+      Detritus_P_pool_water: abiotic_water/sPDetW                # Detritus_P_pool_water (g m-3)
+      Detritus_Si_pool_water: abiotic_water/sSiDetW              # Detritus_Si_pool_water (g m-3)
+      Surface_vegetation_coverage: macrophytes/afCovSurfVeg      # Surface_vegetation_coverage ([-])
   phytoplankton_sediment:
     long_name: phytoplankton_in_sediment
     model: au/pclake/phytoplankton_sediment
@@ -214,24 +217,27 @@ instances:
       cPDBlueMax: 0.025                                          # max. P/day ratio blue-greens (mgP/mgDW), default = 0.025
       cPDDiatMax: 0.005                                          # max. P/day ratio Diatoms (mgP/mgDW), default = 0.005
       cPDGrenMax: 0.015                                          # max. P/day ratio greens (mgP/mgDW), default = 0.015
+      cDBlueMinS: 1e-05                                          # minimun blue-green algae biomass in system (gDW/m2), default = 1e-05
+      cDGrenMinS: 1e-05                                          # minimun green algae biomass in system (gDW/m2), default = 1e-05
+      cDDiatMinS: 1e-05                                          # minimun diatom biomass in system (gDW/m2), default = 1e-05
     initialization:
-      sDDiatS: 0.003                                             # diatom_D in sediment (g m-2)
-      sPDiatS: 3e-05                                             # diatom_P in sediment (g m-2)
-      sNDiatS: 0.0003                                            # diatom_N in sediment (g m-2)
-      sDGrenS: 0.003                                             # green_D in sediment (g m-2)
-      sPGrenS: 3e-05                                             # green_P in sediment (g m-2)
-      sNGrenS: 0.0003                                            # green_N in sediment (g m-2)
-      sDBlueS: 0.003                                             # blue_D in sediment (g m-2)
-      sPBlueS: 3e-05                                             # blue_P in sediment (g m-2)
-      sNBlueS: 0.0003                                            # blue_N in sediment (g m-2)
+      sDDiatS: 0.204502                                          # diatom_D in sediment (g m-2)
+      sPDiatS: 0.000933588                                       # diatom_P in sediment (g m-2)
+      sNDiatS: 0.00914177                                        # diatom_N in sediment (g m-2)
+      sDGrenS: 0.00308052                                        # green_D in sediment (g m-2)
+      sPGrenS: 3.54802e-05                                       # green_P in sediment (g m-2)
+      sNGrenS: 0.000245786                                       # green_N in sediment (g m-2)
+      sDBlueS: 0.00148975                                        # blue_D in sediment (g m-2)
+      sPBlueS: 3.52081e-05                                       # blue_P in sediment (g m-2)
+      sNBlueS: 0.000188868                                       # blue_N in sediment (g m-2)
     coupling:
-      sPO4_pool_sediment: abiotic_sediment/sPO4S                 # sPO4_pool_sediment (g m-2)
-      sNO3_pool_sediment: abiotic_sediment/sNO3S                 # sNO3_pool_sediment (g m-2)
-      sNH4_pool_sediment: abiotic_sediment/sNH4S                 # sNH4_pool_sediment (g m-2)
-      detritus_DW_pool_sediment: abiotic_sediment/sDDetS         # detritus_DW_pool_sediment (g m-2)
-      detritus_N_pool_sediment: abiotic_sediment/sNDetS          # detritus_N_pool_sediment (g m-2)
-      detritus_P_pool_sediment: abiotic_sediment/sPDetS          # detritus_P_pool_sediment (g m-2)
-      detritus_Si_pool_sediment: abiotic_sediment/sSiDetS        # detritus_Si_pool_sediment (g m-2)
+      PO4_pool_sediment: abiotic_sediment/sPO4S                  # PO4_pool_sediment (g m-2)
+      NO3_pool_sediment: abiotic_sediment/sNO3S                  # NO3_pool_sediment (g m-2)
+      NH4_pool_sediment: abiotic_sediment/sNH4S                  # NH4_pool_sediment (g m-2)
+      Detritus_DW_pool_sediment: abiotic_sediment/sDDetS         # Detritus_DW_pool_sediment (g m-2)
+      Detritus_N_pool_sediment: abiotic_sediment/sNDetS          # Detritus_N_pool_sediment (g m-2)
+      Detritus_P_pool_sediment: abiotic_sediment/sPDetS          # Detritus_P_pool_sediment (g m-2)
+      Detritus_Si_pool_sediment: abiotic_sediment/sSiDetS        # Detritus_Si_pool_sediment (g m-2)
       SiO2_pool_water: abiotic_water/sSiO2W                      # SiO2_pool_water (g m-3)
   macrophytes:
     long_name: macrophytes
@@ -268,8 +274,8 @@ instances:
       fSedUptVegExp: -0.83                                       # exponent in sigm. regr. for sediment fraction of nutrient uptake ([-]), default = -0.83
       cAffNUptVeg: 0.2                                           # initial N uptake affinity vegetation (l/mgDW/d), default = 0.2
       cVNUptMaxVeg: 0.1                                          # maximum N uptake capacity of vegetation (mgN/mgDW/d), default = 0.1
-      cDepthS: 0.3                                               # sediment depth ([m]), default = 0.1
-      bPorS: 0.918222                                            # porosity ([m3waterm-3sediment]), default = 0.847947
+      cDepthS: 0.1                                               # sediment depth ([m]), default = 0.1
+      bPorS: 0.847947                                            # porosity ([m3waterm-3sediment]), default = 0.847947
       UseEmpUpt: 0                                               # false=do not use this empirical relation ([-]), default = 0
       cAffPUptVeg: 0.2                                           # initial P uptake affinity vegetation (l/mgDW/d), default = 0.2
       cVPUptMaxVeg: 0.01                                         # maximum P uptake capacity of vegetation (mgP/mgDW/d), default = 0.01
@@ -279,25 +285,26 @@ instances:
       hO2BOD: 1.0                                                # half-sat. oxygen conc. for BOD (mgO2/l), default = 1.0
       cHeightVeg: 1.0                                            # vegetation height (m), default = 1.0
       cExtSpVeg: 0.01                                            # specific extinction (m2/gDW), default = 0.01
+      cDVegMin: 0.0001                                           # minimun dry-weight macrophytes in system (gDW/m2), default = 1e-05
     initialization:
-      sDVeg: 1.0                                                 # vegetation_dry_weight (g m-2)
-      sNVeg: 0.02                                                # vegetation_Nitrogen (g m-2)
-      sPVeg: 0.002                                               # vegetation_phosphorus (g m-2)
+      sDVeg: 21.2055                                             # vegetation_dry_weight (g m-2)
+      sNVeg: 0.740716                                            # vegetation_Nitrogen (g m-2)
+      sPVeg: 0.074054                                            # vegetation_phosphorus (g m-2)
     coupling:
       Ammonium_pool_water: abiotic_water/sNH4W                   # Ammonium pool for nutrient uptake (g m-3)
-      nitrate_pool_water: abiotic_water/sNO3W                    # Nitrate pool for nutrient uptake (g m-3)
-      phosphate_pool_water: abiotic_water/sPO4W                  # Phosphate pool for nutrient uptake (g m-3)
-      oxygen_pool_water: abiotic_water/sO2W                      # oxygen pool in water (g m-3)
-      detritus_DW_pool_water: abiotic_water/sDDetW               # detritus_DW_pool_water (g m-3)
-      detritus_N_pool_water: abiotic_water/sPDetW                # detritus_N_pool_water (g m-3)
-      detritus_P_pool_water: abiotic_water/sNDetW                # detritus_P_pool_water (g m-3)
+      Nitrate_pool_water: abiotic_water/sNO3W                    # Nitrate pool for nutrient uptake (g m-3)
+      Phosphate_pool_water: abiotic_water/sPO4W                  # Phosphate pool for nutrient uptake (g m-3)
+      Oxygen_pool_water: abiotic_water/sO2W                      # Oxygen pool in water (g m-3)
+      Detritus_DW_pool_water: abiotic_water/sDDetW               # Detritus_DW_pool_water (g m-3)
+      Detritus_N_pool_water: abiotic_water/sPDetW                # Detritus_N_pool_water (g m-3)
+      Detritus_P_pool_water: abiotic_water/sNDetW                # Detritus_P_pool_water (g m-3)
       Ammonium_pool_sediment: abiotic_sediment/sNH4S             # Ammonium pool for nutrient uptake (g m-2)
-      nitrate_pool_sediment: abiotic_sediment/sNO3S              # Nitrate pool for nutrient uptake (g m-2)
-      phosphate_pool_sediment: abiotic_sediment/sPO4S            # Phosphate pool for nutrient uptake (g m-2)
-      detritus_DW_pool_sediment: abiotic_sediment/sDDetS         # detritus_DW_pool_sediment (g m-2)
-      detritus_N_pool_sediment: abiotic_sediment/sNDetS          # detritus_N_pool_sediment (g m-2)
-      detritus_P_pool_sediment: abiotic_sediment/sPDetS          # detritus_P_pool_sediment (g m-2)
-      oxic_layer_value: abiotic_sediment/afOxySed                # oxic_layer_value ([-])
+      Nitrate_pool_sediment: abiotic_sediment/sNO3S              # Nitrate pool for nutrient uptake (g m-2)
+      Phosphate_pool_sediment: abiotic_sediment/sPO4S            # Phosphate pool for nutrient uptake (g m-2)
+      Detritus_DW_pool_sediment: abiotic_sediment/sDDetS         # Detritus_DW_pool_sediment (g m-2)
+      Detritus_N_pool_sediment: abiotic_sediment/sNDetS          # Detritus_N_pool_sediment (g m-2)
+      Detritus_P_pool_sediment: abiotic_sediment/sPDetS          # Detritus_P_pool_sediment (g m-2)
+      Oxic_layer_value: abiotic_sediment/afOxySed                # Oxic_layer_value ([-])
   zooplankton:
     long_name: zooplankton
     model: au/pclake/zooplankton
@@ -331,24 +338,25 @@ instances:
       cPDBlueMax: 0.025                                          # max. P/day ratio blue-greens (mgP/mgDW), default = 0.025
       cPDDiatMax: 0.005                                          # max. P/day ratio Diatoms (mgP/mgDW), default = 0.005
       cPDGrenMax: 0.015                                          # max. P/day ratio greens (mgP/mgDW), default = 0.015
+      cDZooMin: 1e-05                                            # minimun zooplankton biomass in system (gDW/m3), default = 1e-05
     initialization:
-      sDZoo: 0.05                                                # zooplankton biomass (g m-3)
-      sPZoo: 0.0005                                              # zooplankton phosphorus content (g m-3)
-      sNZoo: 0.0035                                              # zooplankton nitrogen content (g m-3)
+      sDZoo: 0.199642                                            # zooplankton biomass (g m-3)
+      sPZoo: 0.00989778                                          # zooplankton phosphorus content (g m-3)
+      sNZoo: 0.00137144                                          # zooplankton nitrogen content (g m-3)
     coupling:
-      diatom_as_food_DW: phytoplankton_water/sDDiatW             # diatom_as_food_DW (g m-3)
-      green_as_food_DW: phytoplankton_water/sDGrenW              # green_as_food_DW (g m-3)
-      blue_as_food_DW: phytoplankton_water/sDBlueW               # blue_as_food_DW (g m-3)
-      diatom_as_food_N: phytoplankton_water/sNDiatW              # diatom_as_food_N (g m-3)
-      green_as_food_N: phytoplankton_water/sNGrenW               # green_as_food_N (g m-3)
-      blue_as_food_N: phytoplankton_water/sNBlueW                # blue_as_food_N (g m-3)
-      diatom_as_food_P: phytoplankton_water/sPDiatW              # diatom_as_food_P (g m-3)
-      green_as_food_P: phytoplankton_water/sPGrenW               # green_as_food_P (g m-3)
-      blue_as_food_P: phytoplankton_water/sPBlueW                # blue_as_food_P (g m-3)
-      detritus_DW_pool_water: abiotic_water/sDDetW               # detritus_DW_pool_water (g m-3)
-      detritus_N_pool_water: abiotic_water/sNDetW                # detritus_N_pool_water (g m-3)
-      detritus_P_pool_water: abiotic_water/sPDetW                # detritus_P_pool_water (g m-3)
-      detritus_Si_pool_water: abiotic_water/sSiDetW              # detritus_Si_pool_water (g m-3)
+      Diatom_as_food_DW: phytoplankton_water/sDDiatW             # Diatom_as_food_DW (g m-3)
+      Green_as_food_DW: phytoplankton_water/sDGrenW              # Green_as_food_DW (g m-3)
+      Blue_as_food_DW: phytoplankton_water/sDBlueW               # Blue_as_food_DW (g m-3)
+      Diatom_as_food_N: phytoplankton_water/sNDiatW              # Diatom_as_food_N (g m-3)
+      Green_as_food_N: phytoplankton_water/sNGrenW               # Green_as_food_N (g m-3)
+      Blue_as_food_N: phytoplankton_water/sNBlueW                # Blue_as_food_N (g m-3)
+      Diatom_as_food_P: phytoplankton_water/sPDiatW              # Diatom_as_food_P (g m-3)
+      Green_as_food_P: phytoplankton_water/sPGrenW               # Green_as_food_P (g m-3)
+      Blue_as_food_P: phytoplankton_water/sPBlueW                # Blue_as_food_P (g m-3)
+      Detritus_DW_pool_water: abiotic_water/sDDetW               # Detritus_DW_pool_water (g m-3)
+      Detritus_N_pool_water: abiotic_water/sNDetW                # Detritus_N_pool_water (g m-3)
+      Detritus_P_pool_water: abiotic_water/sPDetW                # Detritus_P_pool_water (g m-3)
+      Detritus_Si_pool_water: abiotic_water/sSiDetW              # Detritus_Si_pool_water (g m-3)
       NH4_pool_water: abiotic_water/sNH4W                        # NH4_pool_water (g m-3)
       NO3_pool_water: abiotic_water/sNO3W                        # NO3_pool_water (g m-3)
       PO4_pool_water: abiotic_water/sPO4W                        # PO4_pool_water (g m-3)
@@ -402,26 +410,29 @@ instances:
       Manipulate_FiAd: false                                     # Turn on benthivorous fish manipulation, default = false
       Manipulate_FiJv: false                                     # Turn on zooplanktivorous manipulation, default = false
       Manipulate_Pisc: false                                     # Turn on piscivorous fish manipulation, default = false
+      cDFiJvMin: 1e-05                                           # minimun zooplanktivorous  fish biomass in system (gDW/m3), default = 0.0001
+      cDFiAdMin: 1e-05                                           # minimun benthivorous fish biomass in system (gDW/m3), default = 0.0001
+      cDPiscMin: 1e-05                                           # minimun piscivorous fish biomass in system (gDW/m3), default = 0.0001
     initialization:
-      sDFiJv: 0.25                                               # zooplanktivorous fish biomass (g m-3)
-      sPFiJv: 0.0055                                             # zooplanktivorous fish phosphorus content (g m-3)
-      sNFiJv: 0.025                                              # zooplanktivorous fish nitrogen content (g m-3)
-      sDFiAd: 1.0                                                # benthivorous fish biomass (g m-3)
-      sPFiAd: 0.022                                              # benthivorous fish phosphorus content (g m-3)
-      sNFiAd: 0.1                                                # benthivorous fish nitrogen content (g m-3)
-      sDPisc: 0.005                                              # piscivorous fish biomass (g m-3)
+      sDFiJv: 0.1767455                                          # zooplanktivorous fish biomass (g m-3)
+      sPFiJv: 0.00370361                                         # zooplanktivorous fish phosphorus content (g m-3)
+      sNFiJv: 0.0179063                                          # zooplanktivorous fish nitrogen content (g m-3)
+      sDFiAd: 1.443465                                           # benthivorous fish biomass (g m-3)
+      sPFiAd: 0.02826425                                         # benthivorous fish phosphorus content (g m-3)
+      sNFiAd: 0.1479335                                          # benthivorous fish nitrogen content (g m-3)
+      sDPisc: 0.03776645                                         # piscivorous fish biomass (g m-3)
     coupling:
-      detritus_DW_pool_water: abiotic_water/sDDetW               # detritus_DW_pool_water (g m-3)
-      detritus_N_pool_water: abiotic_water/sNDetW                # detritus_N_pool_water (g m-3)
-      detritus_P_pool_water: abiotic_water/sPDetW                # detritus_P_pool_water (g m-3)
+      Detritus_DW_pool_water: abiotic_water/sDDetW               # Detritus_DW_pool_water (g m-3)
+      Detritus_N_pool_water: abiotic_water/sNDetW                # Detritus_N_pool_water (g m-3)
+      Detritus_P_pool_water: abiotic_water/sPDetW                # Detritus_P_pool_water (g m-3)
       NH4_pool_water: abiotic_water/sNH4W                        # NH4_pool_water (g m-3)
       PO4_pool_water: abiotic_water/sPO4W                        # PO4_pool_water (g m-3)
       Zooplankton_D_Food: zooplankton/sDZoo                      # Zooplankton_D_Food (g m-3)
       Zooplankton_N_Food: zooplankton/sNZoo                      # Zooplankton_N_Food (g m-3)
       Zooplankton_P_Food: zooplankton/sPZoo                      # Zooplankton_P_Food (g m-3)
-      env_correction_adfish: zoobenthos/tDEnvFiAd                # env_correction_adfish ([-])
-      submerged_vegetation: macrophytes/aDSubVeg                 # submerged_vegetation (g m-2)
-      food_limit_function_adfish: zoobenthos/aDSatFiAd           # food_limit_function_adfish ([-])
+      Env_correction_adfish: zoobenthos/tDEnvFiAd                # Env_correction_adfish ([-])
+      Submerged_vegetation: macrophytes/aDSubVeg                 # Submerged_vegetation (g m-2)
+      Food_limit_function_adfish: zoobenthos/aDSatFiAd           # Food_limit_function_adfish ([-])
   zoobenthos:
     long_name: zoobenthos
     model: au/pclake/zoobenthos
@@ -465,42 +476,43 @@ instances:
       cPDBlueMax: 0.025                                          # max. P/day ratio blue-greens (mgP/mgDW), default = 0.025
       cPDDiatMax: 0.05                                           # max. P/day ratio Diatoms (mgP/mgDW), default = 0.05
       cPDGrenMax: 0.015                                          # max. P/day ratio greens (mgP/mgDW), default = 0.015
+      cDBentMin: 1e-05                                           # minimun zoobenthos biomass in system (gDW/m2), default = 1e-05
     initialization:
-      sDBent: 3.0                                                # zoobenthos_DW (g m-2)
-      sPBent: 0.03                                               # zoobenthos_P (g m-2)
-      sNBent: 0.21                                               # zoobenthos_N (g m-2)
+      sDBent: 2.4032                                             # zoobenthos_DW (g m-2)
+      sPBent: 0.108189                                           # zoobenthos_P (g m-2)
+      sNBent: 0.0178026                                          # zoobenthos_N (g m-2)
     coupling:
-      diatom_as_food_DW: phytoplankton_sediment/sDDiatS          # diatom_as_food_DW (g m-2)
-      green_as_food_DW: phytoplankton_sediment/sDGrenS           # green_as_food_DW (g m-2)
-      blue_as_food_DW: phytoplankton_sediment/sDBlueS            # blue_as_food_DW (g m-2)
-      diatom_as_food_N: phytoplankton_sediment/sNDiatS           # diatom_as_food_N (g m-2)
-      green_as_food_N: phytoplankton_sediment/sNGrenS            # green_as_food_N (g m-2)
-      blue_as_food_N: phytoplankton_sediment/sNBlueS             # blue_as_food_N (g m-2)
-      diatom_as_food_P: phytoplankton_sediment/sPDiatS           # diatom_as_food_P (g m-2)
-      green_as_food_P: phytoplankton_sediment/sPGrenS            # green_as_food_P (g m-2)
-      blue_as_food_P: phytoplankton_sediment/sPBlueS             # blue_as_food_P (g m-2)
-      detritus_DW_pool_sediment: abiotic_sediment/sDDetS         # detritus_DW_pool_sediment (g m-2)
-      detritus_P_pool_sediment: abiotic_sediment/sPDetS          # detritus_P_pool_sediment (g m-2)
-      detritus_N_pool_sediment: abiotic_sediment/sNDetS          # detritus_N_pool_sediment (g m-2)
-      detritus_Si_pool_sediment: abiotic_sediment/sSiDetS        # detritus_Si_pool_sediment (g m-2)
+      Diatom_as_food_DW: phytoplankton_sediment/sDDiatS          # Diatom_as_food_DW (g m-2)
+      Green_as_food_DW: phytoplankton_sediment/sDGrenS           # Green_as_food_DW (g m-2)
+      Blue_as_food_DW: phytoplankton_sediment/sDBlueS            # Blue_as_food_DW (g m-2)
+      Diatom_as_food_N: phytoplankton_sediment/sNDiatS           # Diatom_as_food_N (g m-2)
+      Green_as_food_N: phytoplankton_sediment/sNGrenS            # Green_as_food_N (g m-2)
+      Blue_as_food_N: phytoplankton_sediment/sNBlueS             # Blue_as_food_N (g m-2)
+      Diatom_as_food_P: phytoplankton_sediment/sPDiatS           # Diatom_as_food_P (g m-2)
+      Green_as_food_P: phytoplankton_sediment/sPGrenS            # Green_as_food_P (g m-2)
+      Blue_as_food_P: phytoplankton_sediment/sPBlueS             # Blue_as_food_P (g m-2)
+      Detritus_DW_pool_sediment: abiotic_sediment/sDDetS         # Detritus_DW_pool_sediment (g m-2)
+      Detritus_P_pool_sediment: abiotic_sediment/sPDetS          # Detritus_P_pool_sediment (g m-2)
+      Detritus_N_pool_sediment: abiotic_sediment/sNDetS          # Detritus_N_pool_sediment (g m-2)
+      Detritus_Si_pool_sediment: abiotic_sediment/sSiDetS        # Detritus_Si_pool_sediment (g m-2)
       NH4_pool_sediment: abiotic_sediment/sNH4S                  # NH4_pool_sediment (g m-2)
       NO3_pool_sediment: abiotic_sediment/sNO3S                  # NO3_pool_sediment (g m-2)
       PO4_pool_sediment: abiotic_sediment/sPO4S                  # PO4_pool_sediment (g m-2)
-      adult_fish_biomass: fish/sDFiAd                            # adult_fish_biomass (g m-3)
-      adult_fish_nitrogen: fish/sNFiAd                           # adult_fish_nitrogen (g m-3)
-      adult_fish_phosphorus: fish/sPFiAd                         # adult_fish_phosphorus (g m-3)
+      Adult_fish_biomass: fish/sDFiAd                            # Adult_fish_biomass (g m-3)
+      Adult_fish_nitrogen: fish/sNFiAd                           # Adult_fish_nitrogen (g m-3)
+      Adult_fish_phosphorus: fish/sPFiAd                         # Adult_fish_phosphorus (g m-3)
       NH4_pool_water: abiotic_water/sNH4W                        # NH4_pool_water (g m-3)
       PO4_pool_water: abiotic_water/sPO4W                        # PO4_pool_water (g m-3)
       DDet_pool_water: abiotic_water/sDDetW                      # DDet_pool_water (g m-3)
       NDet_pool_water: abiotic_water/sNDetW                      # NDet_pool_water (g m-3)
       PDet_pool_water: abiotic_water/sPDetW                      # PDet_pool_water (g m-3)
-      young_fish_biomass: fish/sDFiJv                            # young_fish_biomass (g m-3)
-      vegetation_coverage: macrophytes/aCovVeg                   # vegetation_coverage ([-])
-  auxilary:
-    long_name: extra_processes
-    model: au/pclake/auxilary
+      Young_fish_biomass: fish/sDFiJv                            # Young_fish_biomass (g m-3)
+      Vegetation_coverage: macrophytes/aCovVeg                   # Vegetation_coverage ([-])
+  auxiliary:
+    long_name: auxiliary_process
+    model: au_pclake_auxiliary
     parameters:
-      cDepthS: 0.3                                               # sediment depth (m), default = 0.1
+      cDepthS: 0.1                                               # sediment depth (m), default = 0.1
       cThetaSet: 1.01                                            # temp. parameter of sedimentation (1/e^oC), default = 1.01
       kVegResus: 0.01                                            # rel. resuspension reduction per g vegetation (m2/gDW), default = 0.01
       kTurbFish: 1.0                                             # relative resuspension by adult fish browsing (g/gfish/d), default = 1.0
@@ -513,12 +525,12 @@ instances:
       cFetch: 1000.0                                             # the length of the lake in the prevailing wind direction (m), default = 1000.0
       fLutum: 0.1                                                # lutum content of inorg. matter ([-]), default = 0.1
       fLutumRef: 0.2                                             # reference lutum fraction ([-]), default = 0.2
-      bPorS: 0.918222                                            # porosity (m3waterm-3sediment), default = 0.847947
+      bPorS: 0.847947                                            # porosity (m3waterm-3sediment), default = 0.847947
       cResusPhytExp: -0.379                                      # exp._par. for phytopl. resuspension ((gDW m-2 d-1)-1), default = -0.379
       kResusPhytMax: 0.25                                        # max. phytopl. resuspension (d-1), default = 0.25
       cVSetIM: 1.0                                               # max. sedimentation velocity of inert org. matter (m d-1), default = -1.0
       cVSetDet: 0.25                                             # max. sedimentation velocity of detritus (m d-1), default = -0.25
-      cVSetDiat: 0.5                                             # sedimentation velocity Diatoms (m d-1), default = 0.5
+      cVSetDiat: 1.0                                             # sedimentation velocity Diatoms (m d-1), default = 0.5
       cVSetGren: 0.2                                             # sedimentation velocity of greens (m d-1), default = 0.2
       cVSetBlue: 0.06                                            # sedimentation velocity Blue-greens (m d-1), default = 0.06
       cRhoIM: 2500000.0                                          # density of sediment IM (g m-3), default = 2500000.0
@@ -556,9 +568,9 @@ instances:
       tNDepoNO3: 0.0                                             # nitrate deposition (g m-2 d-1), default = 0.0
     coupling:
       Ammonium_pool_in_water: abiotic_water/sNH4W                # Ammonium_pool_in_water (g m-3)
-      nitrate_pool_in_water: abiotic_water/sNO3W                 # nitrate_pool_in_water (g m-3)
+      Nitrate_pool_in_water: abiotic_water/sNO3W                 # Nitrate_pool_in_water (g m-3)
       Phosphate_pool_in_water: abiotic_water/sPO4W               # Phosphate_pool_in_water (g m-3)
-      adsorbed_phosphorus_in_water: abiotic_water/sPAIMW         # adsorbed_phosphorus_in_water (g m-3)
+      Adsorbed_phosphorus_in_water: abiotic_water/sPAIMW         # Adsorbed_phosphorus_in_water (g m-3)
       Oxygen_pool_in_water: abiotic_water/sO2W                   # Oxygen_pool_in_water (g m-3)
       Inorg_pool_in_water: abiotic_water/sDIMW                   # Inorg_pool_in_water (g m-3)
       Detritus_DW_in_water: abiotic_water/sDDetW                 # Detritus_DW_in_water (g m-3)
@@ -569,7 +581,7 @@ instances:
       Ammonium_pool_in_sediment: abiotic_sediment/sNH4S          # Ammonium_pool_in_sediment (g m-2)
       Nitrate_pool_in_sediment: abiotic_sediment/sNO3S           # Nitrate_pool_in_sediment (g m-2)
       Phosphate_pool_in_sediment: abiotic_sediment/sPO4S         # Phosphate_pool_in_sediment (g m-2)
-      adsorbed_phosphorus_in_sediment: abiotic_sediment/sPAIMS   # adsorbed_phosphorus_in_sediment (g m-2)
+      Adsorbed_phosphorus_in_sediment: abiotic_sediment/sPAIMS   # Adsorbed_phosphorus_in_sediment (g m-2)
       Inorg_pool_in_sediment: abiotic_sediment/sDIMS             # Inorg_pool_in_sediment (g m-2)
       Detritus_DW_in_sediment: abiotic_sediment/sDDetS           # Detritus_DW_in_sediment (g m-2)
       Detritus_N_in_sediment: abiotic_sediment/sNDetS            # Detritus_N_in_sediment (g m-2)
@@ -596,8 +608,8 @@ instances:
       Diatom_P_in_sediment: phytoplankton_sediment/sPDiatS       # Diatom_P_in_sediment (g m-2)
       Green_P_in_sediment: phytoplankton_sediment/sPGrenS        # Green_P_in_sediment (g m-2)
       Blue_P_in_sediment: phytoplankton_sediment/sPBlueS         # Blue_P_in_sediment (g m-2)
-      vegetation_DW: macrophytes/sDVeg                           # vegetation_DW (g m-2)
-      adult_fish_DW: fish/sDFiAd                                 # adult_fish_DW (g m-3)
+      Vegetation_DW: macrophytes/sDVeg                           # Vegetation_DW (g m-2)
+      Adult_fish_DW: fish/sDFiAd                                 # Adult_fish_DW (g m-3)
       Zooplankton_DW: zooplankton/sDZoo                          # Zooplankton_DW (g m-3)
       Zooplankton_P: zooplankton/sPZoo                           # Zooplankton_P (g m-3)
       Zooplankton_N: zooplankton/sNZoo                           # Zooplankton_N (g m-3)

@@ -336,24 +336,9 @@
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
    allocate(cc(size(model%state_variables)+size(model%bottom_state_variables)+size(model%surface_state_variables)))
-   do i=1,size(model%state_variables)
-      cc(i) = model%state_variables(i)%initial_value
-      call fabm_link_bulk_state_data(model,i,cc(i))
-   end do
-
-   ! Create bottom-bound state variable vector, using the initial values specified by the model,
-   ! and link state data to FABM.
-   do i=1,size(model%bottom_state_variables)
-      cc(size(model%state_variables)+i) = model%bottom_state_variables(i)%initial_value
-      call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i))
-   end do
-
-   ! Create surface-bound state variable vector, using the initial values specified by the model,
-   ! and link state data to FABM.
-   do i=1,size(model%surface_state_variables)
-      cc(size(model%state_variables)+size(model%bottom_state_variables)+i) = model%surface_state_variables(i)%initial_value
-      call fabm_link_surface_state_data(model,i,cc(size(model%state_variables)+size(model%bottom_state_variables)+i))
-   end do
+   call model%link_all_interior_state_data(cc(1:size(model%state_variables)))
+   call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
+   call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
 
    id_dens = fabm_get_bulk_variable_id(model,standard_variables%density)
    compute_density = fabm_variable_needs_values(model,id_dens)
@@ -386,6 +371,11 @@
 
    ! Update time and all time-dependent inputs.
    call start_time_step(0_timestepkind)
+
+   ! Perform custom initialization per biogeochemical model
+   call fabm_initialize_state(model)
+   call fabm_initialize_surface_state(model)
+   call fabm_initialize_bottom_state(model)
 
    ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
    allocate(rhs(size(cc)))

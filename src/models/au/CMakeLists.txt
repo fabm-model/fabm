@@ -3,7 +3,7 @@ add_library(fabm_models_au OBJECT
             pclake/model_library.F90
             pclake/abiotic_sediment.F90
             pclake/abiotic_water.F90
-            pclake/auxilary.F90
+            pclake/auxiliary.F90
             pclake/zoobenthos.F90
             pclake/zooplankton.F90
             pclake/fish.F90

@@ -352,6 +352,10 @@
       type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list
       type (type_link),pointer        :: sms_sum => null(), surface_flux_sum => null(), bottom_flux_sum => null()
       type (type_link),pointer        :: movement_diagnostic => null()
+      type (type_link),pointer        :: sms                 => null()
+      type (type_link),pointer        :: surface_flux        => null()
+      type (type_link),pointer        :: bottom_flux         => null()
+
       type (type_internal_variable),pointer :: write_owner => null()
       type (type_variable_set)        :: cowriters
    end type
@@ -1486,6 +1490,7 @@ end subroutine real_pointer_set_set_value
       sms_id%link%target%prefill = prefill_constant
       sms_id%link%target%write_operator = operator_add
       link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
+      link%target%sms => link2
    end subroutine register_source
 
    subroutine register_surface_flux(self, link, surface_flux_id)
@@ -1502,6 +1507,7 @@ end subroutine real_pointer_set_set_value
       surface_flux_id%link%target%prefill = prefill_constant
       surface_flux_id%link%target%write_operator = operator_add
       link2 => link%target%surface_flux_list%append(surface_flux_id%link%target,surface_flux_id%link%target%name)
+      link%target%surface_flux => link2
    end subroutine register_surface_flux
 
    subroutine register_bottom_flux(self, link, bottom_flux_id)
@@ -1518,6 +1524,7 @@ end subroutine real_pointer_set_set_value
       bottom_flux_id%link%target%prefill = prefill_constant
       bottom_flux_id%link%target%write_operator = operator_add
       link2 => link%target%bottom_flux_list%append(bottom_flux_id%link%target,bottom_flux_id%link%target%name)
+      link%target%bottom_flux => link2
    end subroutine register_bottom_flux
 
 !-----------------------------------------------------------------------
@@ -1741,7 +1748,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !LOCAL VARIABLES:
       type (type_internal_variable), pointer :: variable
-      type (type_link),              pointer :: link_,link2
+      type (type_link),              pointer :: link_
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1765,11 +1772,10 @@ end subroutine real_pointer_set_set_value
 
       if (present(movement_index)) then
          call self%add_interior_variable(trim(link_%name)//'_w', 'm/s', trim(long_name)//' vertical movement', &
-                                     variable%vertical_movement, output=output_none, write_index=movement_index, link=link2, &
+                                     variable%vertical_movement, output=output_none, write_index=movement_index, link=variable%movement_diagnostic, &
                                      source=source_get_vertical_movement)
-         link2%target%can_be_slave = .true.
-         link2%target%prefill = prefill_constant
-         variable%movement_diagnostic => link2
+         variable%movement_diagnostic%target%can_be_slave = .true.
+         variable%movement_diagnostic%target%prefill = prefill_constant
       end if
 
       if (present(link)) link => link_
@@ -1810,7 +1816,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !LOCAL VARIABLES:
       type (type_internal_variable),pointer :: variable
-      type (type_link),             pointer :: link_,link2,link_dum
+      type (type_link),             pointer :: link_,link_dum
       integer                               :: sms_source
 !
 !-----------------------------------------------------------------------
@@ -1839,10 +1845,10 @@ end subroutine real_pointer_set_set_value
          sms_source = source_do_bottom
          if (variable%domain==domain_surface) sms_source = source_do_surface
          call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                           0.0_rk, output=output_none, write_index=sms_index, link=link2, &
+                                           0.0_rk, output=output_none, write_index=sms_index, link=variable%sms, &
                                            domain=variable%domain, source=sms_source)
-         link2%target%prefill = prefill_constant
-         link_dum => variable%sms_list%append(link2%target,link2%target%name)
+         variable%sms%target%prefill = prefill_constant
+         link_dum => variable%sms_list%append(variable%sms%target,variable%sms%target%name)
       end if
 
       if (present(link)) link => link_

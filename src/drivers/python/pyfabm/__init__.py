@@ -57,6 +57,8 @@ fabm.variable_get_output_name.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_
 fabm.variable_get_output_name.restype = None
 fabm.variable_get_suitable_masters.argtypes = [ctypes.c_void_p]
 fabm.variable_get_suitable_masters.restype = ctypes.c_void_p
+fabm.variable_get_output.argtypes = [ctypes.c_void_p]
+fabm.variable_get_output.restype = ctypes.c_int
 
 # Read/write/reset access to parameters.
 fabm.get_real_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
@@ -108,6 +110,10 @@ fabm.check_ready.restype = None
 # Routine for retrieving source-sink terms for the interior domain.
 fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS')]
 fabm.get_rates.restype = None
+
+# Routine for getting git repository version information.
+fabm.get_version.argtypes = (ctypes.c_int,ctypes.c_char_p)
+fabm.get_version.restype = None
 
 BULK_STATE_VARIABLE            = 1
 SURFACE_STATE_VARIABLE         = 2
@@ -234,6 +240,10 @@ class StateVariable(Variable):
     def background_value(self):
         return fabm.variable_get_background_value(self.variable_pointer)
 
+    @property
+    def output(self):
+        return fabm.variable_get_output(self.variable_pointer)!=0
+
 class DiagnosticVariable(Variable):
     def __init__(self,variable_pointer,index,horizontal):
         Variable.__init__(self,variable_pointer=variable_pointer)
@@ -246,6 +256,10 @@ class DiagnosticVariable(Variable):
 
     def getValue(self):
         return self.data.value
+
+    @property
+    def output(self):
+        return fabm.variable_get_output(self.variable_pointer)!=0
 
     value = property(getValue)
 
@@ -392,17 +406,17 @@ class Model(object):
         strpath = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         typecode = ctypes.c_int()
         has_default = ctypes.c_int()
-        self.bulk_state_variables = []
+        self.interior_state_variables = []
         self.surface_state_variables = []
         self.bottom_state_variables = []
-        self.bulk_diagnostic_variables = []
+        self.interior_diagnostic_variables = []
         self.horizontal_diagnostic_variables = []
         self.conserved_quantities = []
         self.parameters = []
         self.dependencies = []
         for i in range(nstate_bulk.value):
             ptr = fabm.get_variable(BULK_STATE_VARIABLE,i+1)
-            self.bulk_state_variables.append(StateVariable(ptr,self.state,i))
+            self.interior_state_variables.append(StateVariable(ptr,self.state,i))
         for i in range(nstate_surface.value):
             ptr = fabm.get_variable(SURFACE_STATE_VARIABLE,i+1)
             self.surface_state_variables.append(StateVariable(ptr,self.state,nstate_bulk.value+i))
@@ -411,13 +425,13 @@ class Model(object):
             self.bottom_state_variables.append(StateVariable(ptr,self.state,nstate_bulk.value+nstate_surface.value+i))
         for i in range(ndiag_bulk.value):
             ptr = fabm.get_variable(BULK_DIAGNOSTIC_VARIABLE,i+1)
-            self.bulk_diagnostic_variables.append(DiagnosticVariable(ptr,i,False))
+            self.interior_diagnostic_variables.append(DiagnosticVariable(ptr,i,False))
         for i in range(ndiag_horizontal.value):
             ptr = fabm.get_variable(HORIZONTAL_DIAGNOSTIC_VARIABLE,i+1)
             self.horizontal_diagnostic_variables.append(DiagnosticVariable(ptr,i,True))
         for i in range(nconserved.value):
-            ptr = fabm.get_variable(CONSERVED_QUANTITY,i+1)
-            self.conserved_quantities.append(Variable(variable_pointer=ptr))
+            fabm.get_variable_metadata(CONSERVED_QUANTITY,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
+            self.conserved_quantities.append(Variable(strname.value,strunits.value,strlong_name.value,strpath.value))
         for i in range(nparameters.value):
             fabm.get_parameter_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,ctypes.byref(typecode),ctypes.byref(has_default))
             self.parameters.append(Parameter(strname.value,i,type=typecode.value,units=strunits.value,long_name=strlong_name.value,model=self,has_default=has_default.value!=0))
@@ -428,10 +442,14 @@ class Model(object):
         self.couplings = [Coupling(i+1) for i in range(ncouplings.value)]
 
         # Arrays that combine variables from pelagic and boundary domains.
-        self.state_variables = self.bulk_state_variables + self.surface_state_variables + self.bottom_state_variables
-        self.diagnostic_variables = self.bulk_diagnostic_variables + self.horizontal_diagnostic_variables
+        self.state_variables = self.interior_state_variables + self.surface_state_variables + self.bottom_state_variables
+        self.diagnostic_variables = self.interior_diagnostic_variables + self.horizontal_diagnostic_variables
 
         if settings is not None: self.restoreSettings(settings)
+
+        # For backward compatibility
+        self.bulk_state_variables = self.interior_state_variables
+        self.bulk_diagnostic_variables = self.interior_diagnostic_variables
 
     def getRates(self):
         """Returns the local rate of change in state variables,
@@ -524,11 +542,18 @@ class Model(object):
             for variable in array: print '    %s = %s %s' % (variable.name,variable.value,variable.units)
 
         print 'FABM model contains the following:'
-        printArray('bulk state variables',self.bulk_state_variables)
+        printArray('interior state variables',self.interior_state_variables)
         printArray('bottom state variables',self.bottom_state_variables)
         printArray('surface state variables',self.surface_state_variables)
-        printArray('bulk diagnostic variables',self.bulk_diagnostic_variables)
+        printArray('interior diagnostic variables',self.interior_diagnostic_variables)
         printArray('horizontal diagnostic variables',self.horizontal_diagnostic_variables)
         printArray('external variables',self.dependencies)
         print ' %i parameters:' % len(self.parameters)
         printTree(self.getParameterTree(),lambda x:'%s %s' % (x.value,x.units),'    ')
+
+def get_version():
+    version_length = 256
+    strversion = ctypes.create_string_buffer(version_length)
+    fabm.get_version(version_length,strversion)
+    return strversion.value
+

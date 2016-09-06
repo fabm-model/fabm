@@ -254,8 +254,8 @@
 #define _ARGUMENTS_CHECK_STATE_ _ARGUMENTS_INTERIOR_,repair,valid,set_interior
 #define _ARGUMENTS_CHECK_SURFACE_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior
 #define _ARGUMENTS_CHECK_BOTTOM_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior
-#define _ARGUMENTS_INITIALIZE_STATE_ _ARGUMENTS_INTERIOR_
-#define _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_HORIZONTAL_
+#define _ARGUMENTS_INITIALIZE_STATE_ _ARGUMENTS_INTERIOR_,set_interior
+#define _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_HORIZONTAL_,set_horizontal
 
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
 #define _DECLARE_ARGUMENTS_DO_  _DECLARE_ARGUMENTS_INTERIOR_
@@ -272,8 +272,8 @@
 #define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_INTERIOR_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_interior
 #define _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior
 #define _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior
-#define _DECLARE_ARGUMENTS_INITIALIZE_STATE_ _DECLARE_ARGUMENTS_INTERIOR_
-#define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_
+#define _DECLARE_ARGUMENTS_INITIALIZE_STATE_ _DECLARE_ARGUMENTS_INTERIOR_;logical,intent(inout) :: set_interior
+#define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(inout) :: set_horizontal
 
 #define _ADD_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%sum_index) = cache%write _INDEX_SLICE_PLUS_1_(variable%sum_index) + (value)
 #define _ADD_HORIZONTAL_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_sum_index) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_sum_index) + (value)
