@@ -70,7 +70,7 @@ result:
         shutil.copyfile(current_fabm_yaml, 'fabm.yaml') 
 
         # Run GOTM
-        run('../../build/gotm')
+        run(os.path.join(work_root,'build/gotm'))
 
 if __name__=='__main__':
     import argparse
