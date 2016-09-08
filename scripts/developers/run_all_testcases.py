@@ -9,7 +9,21 @@ import glob
 
 script_root = os.path.abspath(os.path.dirname(__file__))
 
-def build(work_root,fabm_url,gotm_url,fabm_branch=None,gotm_branch=None):
+def run(*args):
+    returncode = subprocess.call(args)
+    if returncode != 0:
+        print('Command failed: %s' % (args,))
+        sys.exit(1)
+
+def git_clone(url,workdir,branch=None):
+    run('git','clone',url,workdir)
+    if branch is not None:
+        olddir = os.getcwd()
+        os.chdir(workdir)
+        run('git','checkout',branch)
+        os.chdir(olddir)
+
+def build(work_root,fabm_url,gotm_url,fabm_branch=None,gotm_branch=None,cmake_arguments=()):
     # Save current working directory
     olddir = os.getcwd()
 
@@ -33,26 +47,10 @@ def build(work_root,fabm_url,gotm_url,fabm_branch=None,gotm_branch=None):
 
 def test(testcase_dir,work_root=None,cmake_arguments=(),fabm_url='git://git.code.sf.net/p/fabm/code',gotm_url='https://github.com/gotm-model/code.git',fabm_branch=None,gotm_branch=None):
     if work_root is None: work_root = tempfile.mkdtemp()
-    web_root = os.path.abspath(web_root)
     work_root = os.path.abspath(work_root)
-    print 'Root of web directory: %s' % web_root
     print 'Root of test directory: %s' % work_root
 
-    def run(*args):
-        returncode = subprocess.call(args)
-        if returncode != 0:
-            print('Command failed: %s' % (args,))
-            sys.exit(1)
-
-    def git_clone(url,workdir,branch=None):
-        run('git','clone',url,workdir)
-        if branch is not None:
-            olddir = os.getcwd()
-            os.chdir(workdir)
-            run('git','checkout',branch)
-            os.chdir(olddir)
-
-    build(work_root,fabm_url,gotm_url,fabm_branch,gotm_branch)    
+    build(work_root,fabm_url,gotm_url,fabm_branch,gotm_branch,cmake_arguments)
     
     # Run L4 test case
     os.chdir(testcase_dir)
