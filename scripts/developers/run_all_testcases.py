@@ -65,8 +65,8 @@ result:
     - source: h
 """)
 
-    for current_fabm_yaml in glob.glob(os.path.join(work_root,'code/fabm/testcases/*.yaml')):
-        print 'TESTING %s...' % current_fabm_yaml,
+    for current_fabm_yaml in sorted(glob.glob(os.path.join(work_root,'code/fabm/testcases/*.yaml'))):
+        print 'TESTING %s...' % os.path.basename(current_fabm_yaml),
 
         # Copy fabm.yaml
         shutil.copyfile(current_fabm_yaml, 'fabm.yaml') 
