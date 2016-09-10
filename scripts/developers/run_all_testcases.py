@@ -66,11 +66,20 @@ result:
 """)
 
     for current_fabm_yaml in glob.glob(os.path.join(work_root,'code/fabm/testcases/*.yaml')):
+        print 'TESTING %s...' % current_fabm_yaml,
+
         # Copy fabm.yaml
         shutil.copyfile(current_fabm_yaml, 'fabm.yaml') 
 
         # Run GOTM
-        run(os.path.join(work_root,'build/gotm'))
+        p = subprocess.Popen([os.path.join(work_root,'build/gotm')],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        stdoutdata, stderrdata = p.communicate()
+        if p.returncode!=0:
+            print 'FAILED - last output:'
+            last_lines = stdoutdata.rsplit('\n',10)[1:]
+            print '\n'.join(last_lines)
+        else:
+            print 'ok'
 
 if __name__=='__main__':
     import argparse
