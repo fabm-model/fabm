@@ -271,6 +271,7 @@ module fabm_builtin_models
       do i=1,ncomponents
          call self%add_component('')
       end do
+      call self%get_parameter(self%units,'units','','units',default=trim(self%units))
 
       ncomponents = 0
       component => self%first
@@ -498,6 +499,7 @@ module fabm_builtin_models
       do i=1,n
          call self%add_component('')
       end do
+      call self%get_parameter(self%units,'units','','units',default=trim(self%units))
 
       i = 0
       component => self%first
