@@ -18,6 +18,7 @@ contains
    subroutine create(self,name,model)
 
       use fabm_niva_oxydep
+      use fabm_niva_oxydep_cod
       use fabm_niva_brom_bio
       use fabm_niva_brom_carb
       use fabm_niva_brom_eqconst
@@ -31,6 +32,7 @@ contains
 
       select case (name)
          case ('oxydep');       allocate(type_niva_oxydep::model)
+         case ('oxydep_cod');   allocate(type_niva_oxydep_cod::model)
          case ('brom_bio');     allocate(type_niva_brom_bio::model)
          case ('brom_carb');    allocate(type_niva_brom_carb::model)
          case ('brom_eqconst'); allocate(type_niva_brom_eqconst::model)
