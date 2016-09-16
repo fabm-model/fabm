@@ -733,6 +733,7 @@ contains
       end if
       node%p => child
       node%retrieved = .true.
+      call node%p%clear_retrieved()
    end subroutine hierarchical_dictionary_add_child
 
    recursive subroutine hierarchical_dictionary_set_property(self,name,property,overwrite)

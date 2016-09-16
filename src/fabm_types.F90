@@ -797,6 +797,8 @@
       integer                             :: islash
       class (type_base_model),    pointer :: parent
       type (type_model_list_node),pointer :: child
+      type (type_set)                     :: unretrieved
+      type (type_set_element),   pointer  :: set_element
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -837,6 +839,14 @@
       call self%couplings%add_child(model%couplings,name)
       call self%children%append(model)
       call model%initialize(configunit)
+
+      call model%parameters%collect_unretrieved(unretrieved,'')
+      set_element => unretrieved%first
+      do while (associated(set_element))
+         call fatal_error('create_model_from_dictionary', 'Unrecognized parameter "'//trim(set_element%string)//'" found below '//trim(model%get_path())//'.')
+         set_element => set_element%next
+      end do
+      call unretrieved%finalize()
    end subroutine add_child
 !EOC
 

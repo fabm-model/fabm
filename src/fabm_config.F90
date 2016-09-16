@@ -153,12 +153,10 @@ contains
       character(len=256)                 :: long_name
       type (type_dictionary)             :: parametermap
       class (type_dictionary),   pointer :: childmap
-      type (type_set_element),   pointer :: set_element
       type (type_key_value_pair),pointer :: pair
       type (type_set)                    :: initialized_set,background_set
       type (type_link),pointer           :: link
       type (type_error),pointer          :: config_error
-      type (type_set)                    :: unretrieved
 
       nullify(config_error)
 
@@ -201,7 +199,6 @@ contains
          end do
          call parametermap%finalize()
       end if
-      call model%parameters%clear_retrieved()
 
       ! Add the model to its parent.
       call log_message('Initializing '//trim(instancename)//'...')
@@ -213,15 +210,6 @@ contains
       if (require_all_parameters.and.associated(model%parameters%missing%first)) &
          call fatal_error('create_model_from_dictionary','Value for parameter "'// &
             trim(model%parameters%missing%first%string)//'" of model "'//trim(instancename)//'" is not provided.')
-
-      ! Check for parameters present in configuration file, but not interpreted by the models.
-      call model%parameters%collect_unretrieved(unretrieved,'')
-      set_element => unretrieved%first
-      do while (associated(set_element))
-         call fatal_error('create_model_from_dictionary', 'Unrecognized parameter "'//trim(set_element%string)//'" found below '//trim(childmap%path)//'.')
-         set_element => set_element%next
-      end do
-      call unretrieved%finalize()
 
       ! Interpret coupling links specified in configuration file.
       ! These override any couplings requested by the models during initialization.

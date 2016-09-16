@@ -91,9 +91,6 @@
       open(unit=childunit,file=configfile,action='read',status='old')
       call self%add_child(childmodel,instancename,configunit=childunit)
       close(childunit)
-
-      if (.not.childmodel%parameters%retrieved%contains(parameter)) &
-         call self%fatal_error('initialize','Parameter "'//trim(parameter)//'" was not registered by model "'//trim(model)//'".')
    end do
 
    return
