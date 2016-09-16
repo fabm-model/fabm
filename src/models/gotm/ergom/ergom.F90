@@ -515,7 +515,7 @@ subroutine initialize(self,configunit)
       _SET_BOTTOM_ODE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_de,-llds*deb+llsd*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_ni,self%s1*thomnp*llsa*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_ni,-self%s1*thomnp*llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_po,self%sr*(1.0_rk-self%ph1*th(oxb,wo,0.0_rk,1.0_rk)*yy(self%ph2,oxb))*llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
    end if
