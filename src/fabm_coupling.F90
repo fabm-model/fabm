@@ -197,16 +197,17 @@ end subroutine
 ! !IROUTINE: Automatically couple variables that represent the same standard variable.
 !
 ! !INTERFACE:
-   subroutine couple_standard_variables(model)
+   subroutine couple_standard_variables(root)
 !
 ! !DESCRIPTION:
 !
 ! !INPUT PARAMETERS:
-      class (type_base_model),intent(inout),target :: model
+      class (type_base_model),intent(inout),target :: root
 !
 !EOP
 !
 ! !LOCAL VARIABLES:
+      type (type_link_list) :: all_links
       type (type_link),pointer :: link,first_link
       type (type_standard_variable_set) :: standard_variables
       type (type_standard_variable_node), pointer :: node
@@ -214,26 +215,27 @@ end subroutine
 !-----------------------------------------------------------------------
 !BOC
       ! Build a list of all unique standard variables.
-      link => model%links%first
+      call root%collect_descendants(all_links,'')
+      link => all_links%first
       do while (associated(link))
          call standard_variables%update(link%target%standard_variables)
          link => link%next
       end do
 
-      ! Looop over all unique standard variable and collect and couple associated model variables.
+      ! Loop over all unique standard variable and collect and couple associated model variables.
       node => standard_variables%first
       do while (associated(node))
          first_link => null()
-         link => model%links%first
+         link => all_links%first
          do while (associated(link))
             if (link%target%standard_variables%contains(node%p)) then
                if (associated(first_link)) then
                   if (link%target%write_indices%is_empty().and..not.(first_link%target%presence/=presence_internal.and.link%target%presence==presence_internal)) then
                      ! Default coupling: early variable (first_link) is master, later variable (link) is slave.
-                     call couple_variables(model,first_link%target,link%target)
+                     call couple_variables(root,first_link%target,link%target)
                   else
                      ! Later variable (link) is write-only and therefore can only be master. Try coupling with early variable (first_link) as slave.
-                     call couple_variables(model,link%target,first_link%target)
+                     call couple_variables(root,link%target,first_link%target)
                   end if
                else
                   first_link => link
@@ -256,18 +258,15 @@ end subroutine
 
       link => self%links%first
       do while (associated(link))
-         ! Only process own links (those without slash in the name)
-         if (index(link%name,'/')==0) then
-            master_name => self%couplings%find_in_tree(link%name)
-            if (associated(master_name)) then
-               call self%coupling_task_list%add(link,.true.,task)
-               task%user_specified = .true.
-               select type (master_name)
-                  class is (type_string_property)
-                     task%master_name = master_name%value
-               end select
-            end if    ! Coupling provided
-         end if   ! Our own link, which may be coupled
+         master_name => self%couplings%get_property(link%name)
+         if (associated(master_name)) then
+            call self%coupling_task_list%add(link,.true.,task)
+            task%user_specified = .true.
+            select type (master_name)
+            class is (type_string_property)
+               task%master_name = master_name%value
+            end select
+         end if    ! Coupling provided
          link => link%next
       end do
 
@@ -296,6 +295,7 @@ end subroutine
       class (type_coupling_task),   pointer :: coupling, next_coupling
       type (type_internal_variable),pointer :: master
       type (type_link),             pointer :: link
+      type (type_link_list)                 :: all_links
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -316,11 +316,7 @@ end subroutine
             case (couple_explicit,couple_final)
                if (associated(coupling%master_standard_variable)) then
                   ! Coupling to a standard variable - first try to find the corresponding standard variable.
-                  link => root%links%first
-                  do while (associated(link))
-                     if (link%target%standard_variables%contains(coupling%master_standard_variable)) exit
-                     link => link%next
-                  end do
+                  link => find_standard_variable(root,coupling%master_standard_variable)
 
                   if (stage==couple_final.and..not.associated(link)) then
                      ! This is our last chance - create an appropriate variable at the root level.
@@ -384,6 +380,27 @@ end subroutine
 
    end subroutine process_coupling_tasks
 !EOC
+
+   recursive function find_standard_variable(self,standard_variable) result(link)
+      class (type_base_model),             intent(in) :: self
+      class (type_base_standard_variable), intent(in) :: standard_variable
+      type (type_link), pointer                       :: link
+
+      type (type_model_list_node), pointer :: child
+
+      link => self%links%first
+      do while (associated(link))
+         if (link%target%standard_variables%contains(standard_variable)) return
+         link => link%next
+      end do
+
+      child => self%children%first
+      do while (associated(child))
+         link => find_standard_variable(child%model,standard_variable)
+         if (associated(link)) return
+         child => child%next
+      end do
+   end function find_standard_variable
 
    subroutine create_sum(parent,link_list,name)
       class (type_base_model),intent(inout),target :: parent
@@ -538,14 +555,16 @@ function aggregate_variable_list_get(self,standard_variable) result(aggregate_va
    self%first => aggregate_variable
 end function
 
-function collect_aggregate_variables(self) result(list)
-   class (type_base_model),intent(in),target :: self
-   type (type_aggregate_variable_list)       :: list
+recursive subroutine collect_aggregate_variables(self,list,children_only)
+   class (type_base_model),target,     intent(in)    :: self
+   type (type_aggregate_variable_list),intent(inout) :: list
+   logical,optional,                   intent(in)    :: children_only
 
    type (type_link),                 pointer :: link
    type (type_contribution),         pointer :: contribution
    type (type_contributing_variable),pointer :: contributing_variable
    type (type_aggregate_variable),   pointer :: aggregate_variable
+   type (type_model_list_node),      pointer :: child
 
    link => self%links%first
    do while (associated(link))
@@ -564,7 +583,17 @@ function collect_aggregate_variables(self) result(list)
       end do
       link => link%next
    end do
-end function collect_aggregate_variables
+
+   if (present(children_only)) then
+      if (children_only) return
+   end if
+
+   child => self%children%first
+   do while (associated(child))
+      call collect_aggregate_variables(child%model,list)
+      child => child%next
+   end do
+end subroutine collect_aggregate_variables
 
 recursive subroutine create_aggregate_models(self)
    class (type_base_model),intent(inout),target :: self
@@ -574,11 +603,11 @@ recursive subroutine create_aggregate_models(self)
    class (type_weighted_sum),             pointer :: sum
    class (type_horizontal_weighted_sum),  pointer :: horizontal_sum,bottom_sum,surface_sum
    type (type_contributing_variable),     pointer :: contributing_variable
-   type (type_aggregate_variable_list)              :: list
+   type (type_aggregate_variable_list)            :: list
    type (type_model_list_node),           pointer :: child
 
    ! Get a list of all aggregate
-   list = collect_aggregate_variables(self)
+   call collect_aggregate_variables(self,list,children_only=associated(self%parent))
 
    ! Make sure that readable fields for all aggregate variables are created at the root level.
    if (.not.associated(self%parent)) then
@@ -603,33 +632,32 @@ recursive subroutine create_aggregate_models(self)
       contributing_variable => aggregate_variable%first_contributing_variable
       do while (associated(contributing_variable))
          if (associated(contributing_variable%link%target,contributing_variable%link%original) &                  ! Variable must not be coupled
-             .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable) &       ! Only include fake state variable for non-root models
-             .and.(index(contributing_variable%link%name,'/')==0.or..not.associated(self%parent))) then           ! Variable must be owned by the model itself unless we are aggregating at root level
+             .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable)) then   ! Only include fake state variable for non-root models
              if (associated(sum)) then
                select case (contributing_variable%link%target%domain)
                case (domain_interior)
-                  call sum%add_component(trim(contributing_variable%link%name), &
+                  call sum%add_component(trim(contributing_variable%link%target%name), &
                      weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
                end select
             end if
             if (associated(bottom_sum)) then
                select case (contributing_variable%link%target%domain)
                case (domain_bottom)
-                  call bottom_sum%add_component(trim(contributing_variable%link%name), &
+                  call bottom_sum%add_component(trim(contributing_variable%link%target%name), &
                      weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
                end select
             end if
             if (associated(surface_sum)) then
                select case (contributing_variable%link%target%domain)
                case (domain_surface)
-                  call surface_sum%add_component(trim(contributing_variable%link%name), &
+                  call surface_sum%add_component(trim(contributing_variable%link%target%name), &
                      weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
                end select
             end if
             if (associated(horizontal_sum)) then
                select case (contributing_variable%link%target%domain)
                case (domain_horizontal,domain_surface,domain_bottom)
-                  call horizontal_sum%add_component(trim(contributing_variable%link%name), &
+                  call horizontal_sum%add_component(trim(contributing_variable%link%target%name), &
                      weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
                end select
             end if
@@ -690,7 +718,7 @@ recursive subroutine create_conservation_checks(self)
    type (type_model_list_node),         pointer :: child
 
    if (self%check_conservation) then
-      aggregate_variable_list = collect_aggregate_variables(self)
+      call collect_aggregate_variables(self,aggregate_variable_list,children_only=.true.)
 
       aggregate_variable => aggregate_variable_list%first
       do while (associated(aggregate_variable))
@@ -701,18 +729,16 @@ recursive subroutine create_conservation_checks(self)
             ! Enumerate contributions to aggregate variable.
             contributing_variable => aggregate_variable%first_contributing_variable
             do while (associated(contributing_variable))
-               if (index(contributing_variable%link%name,'/')==0) then
-                  select case (contributing_variable%link%original%domain)
-                     case (domain_interior)
-                        if (associated(contributing_variable%link%original%sms))          call sum%add_component        (contributing_variable%link%original%sms%name,         contributing_variable%scale_factor)
-                        if (associated(contributing_variable%link%original%surface_flux)) call surface_sum%add_component(contributing_variable%link%original%surface_flux%name,contributing_variable%scale_factor)
-                        if (associated(contributing_variable%link%original%bottom_flux))  call bottom_sum%add_component (contributing_variable%link%original%bottom_flux%name, contributing_variable%scale_factor)
-                     case (domain_surface)
-                        if (associated(contributing_variable%link%original%sms)) call surface_sum%add_component(contributing_variable%link%original%sms%name,contributing_variable%scale_factor)
-                     case (domain_bottom)
-                        if (associated(contributing_variable%link%original%sms)) call bottom_sum%add_component(contributing_variable%link%original%sms%name,contributing_variable%scale_factor)
-                  end select
-               end if   
+               select case (contributing_variable%link%original%domain)
+                  case (domain_interior)
+                     if (associated(contributing_variable%link%original%sms))          call sum%add_component        (contributing_variable%link%original%sms%name,         contributing_variable%scale_factor)
+                     if (associated(contributing_variable%link%original%surface_flux)) call surface_sum%add_component(contributing_variable%link%original%surface_flux%name,contributing_variable%scale_factor)
+                     if (associated(contributing_variable%link%original%bottom_flux))  call bottom_sum%add_component (contributing_variable%link%original%bottom_flux%name, contributing_variable%scale_factor)
+                  case (domain_surface)
+                     if (associated(contributing_variable%link%original%sms)) call surface_sum%add_component(contributing_variable%link%original%sms%name,contributing_variable%scale_factor)
+                  case (domain_bottom)
+                     if (associated(contributing_variable%link%original%sms)) call bottom_sum%add_component(contributing_variable%link%original%sms%name,contributing_variable%scale_factor)
+               end select
                contributing_variable => contributing_variable%next
             end do
 
@@ -741,9 +767,9 @@ recursive subroutine couple_variables(self,master,slave)
    class (type_base_model),     intent(inout),target :: self
    type (type_internal_variable),pointer             :: master,slave
 
-   type (type_internal_variable),pointer :: pslave
-   logical                               :: slave_is_state_variable
-   logical                               :: master_is_state_variable
+   type (type_link_pointer),pointer :: link_pointer, next_link_pointer
+   logical                          :: slave_is_state_variable
+   logical                          :: master_is_state_variable
 
    ! If slave and master are the same, we are done - return.
    if (associated(slave,master)) return
@@ -790,40 +816,18 @@ recursive subroutine couple_variables(self,master,slave)
    if (master%presence==presence_external_optional.and.slave%presence/=presence_external_optional) &
       master%presence = presence_external_required
 
-   ! Store a pointer to the slave, because the call to redirect_links will cause all pointers (from links)
-   ! to the slave node to be connected to the master node. This includes the original "slave" argument.
-   pslave => slave
-
-   ! Note: in call below we provide our local copy of the pointer to the slave (pslave), not the original slave pointer (slave).
-   ! Reason: ifort appears to pass the slave pointer by reference. The original pointer comes from a link, and is therefore
-   ! overwritten by redirect_links. If we pass this original pointer to redirect_links for comparing object identities,
-   ! the recursive redirecting will fail after the very first redirect (which destroyed the pointer to the object that we
-   ! want to compare against).
-   call redirect_links(self,pslave,master)
+   ! Make all links that originally pointed to the slave now point to the master.
+   ! Then include those links in the master's link set.
+   link_pointer => slave%first_link
+   slave%first_link => null()
+   do while (associated(link_pointer))
+      next_link_pointer => link_pointer%next
+      link_pointer%p%target => master
+      link_pointer%next => master%first_link
+      master%first_link => link_pointer
+      link_pointer => next_link_pointer
+   end do
 end subroutine couple_variables
-
-recursive subroutine redirect_links(model,oldtarget,newtarget)
-   class (type_base_model),     intent(inout),target :: model
-   type (type_internal_variable),pointer :: oldtarget,newtarget
-
-   type (type_link),           pointer :: link
-   type (type_model_list_node),pointer :: child
-
-   ! Process all links and if they used to refer to the specified slave,
-   ! redirect them to the specified master.
-   link => model%links%first
-   do while (associated(link))
-      if (associated(link%target,oldtarget)) link%target => newtarget
-      link => link%next
-   end do
-
-   ! Allow child models to do the same.
-   child => model%children%first
-   do while (associated(child))
-      call redirect_links(child%model,oldtarget,newtarget)
-      child => child%next
-   end do
-end subroutine
 
 recursive subroutine find_dependencies(self,list,forbidden)
    class (type_base_model),intent(in),target   :: self
@@ -857,8 +861,7 @@ recursive subroutine find_dependencies(self,list,forbidden)
    ! Loop over all variables, and if they belong to some other model, first add that model to the dependency list.
    link => self%links%first
    do while (associated(link))
-      if (index(link%name,'/')==0 &                        ! Our own link...
-          .and..not.link%target%write_indices%is_empty() & ! ...to a diagnostic variable...
+      if (.not.link%target%write_indices%is_empty() &      ! link to a diagnostic variable...
           .and.link%target%source/=source_none &           ! ...not a constant...
           .and..not.associated(link%target%owner,self) &   ! ...not set by ourselves...
           .and.associated(link%original%read_index)) &     ! ...and we do depend on its value.
@@ -881,7 +884,7 @@ end subroutine find_dependencies
 
       link => self%links%first
       do while (associated(link))
-         if (index(link%name,'/')==0 .and. .not. associated(link%target,link%original)) then
+         if (.not. associated(link%target,link%original)) then
             if (link%target%units/=''.and. link%original%units/=''.and. link%target%units/=link%original%units) &
                call log_message('WARNING: unit mismatch between master '//trim(link%target%name)//' ('//trim(link%target%units)// &
                   ') and slave '//trim(link%original%name)//' ('//trim(link%original%units)//').')
@@ -1113,8 +1116,7 @@ recursive subroutine find_dependencies2(self,source,allowed_sources,list,forbidd
    link => self%links%first
    do while (associated(link))
       same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
-      if (index(link%name,'/')==0 &                                        ! Our own link...
-          .and..not.link%target%write_indices%is_empty() &                 ! ...to a diagnostic variable...
+      if (.not.link%target%write_indices%is_empty() &                      ! link to a diagnostic variable...
           .and.link%target%source/=source_none &                           ! ...not a constant...
           .and..not.(associated(link%target%owner,self).and.same_source) & ! ...not set by ourselves...
           .and.associated(link%original%read_index)) then                  ! ...and we do depend on its value

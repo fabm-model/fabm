@@ -205,21 +205,21 @@
       class (type_external_variable),intent(in) :: variable
       logical                                   :: used
 
-      integer                        :: output_level
-      type (type_field),     pointer :: field
-      class (type_property), pointer :: property
+      integer                               :: output_level
+      type (type_field),            pointer :: field
+      type (type_key_property_pair),pointer :: pair
 
       output_level = output_level_default
       if (variable%output==output_none) output_level = output_level_debug
       call fm%register(variable%name, variable%units, variable%long_name, &
                        minimum=variable%minimum, maximum=variable%maximum, fill_value=variable%missing_value, &
                        category='fabm'//variable%target%owner%get_path(), output_level=output_level, used=used, field=field)
-      property => variable%properties%first
-      do while (associated(property))
-         select type (property)
-         class is (type_real_property); call field%set_attribute(property%name,property%value)
+      pair => variable%properties%first
+      do while (associated(pair))
+         select type (property=>pair%property)
+         class is (type_real_property); call field%set_attribute(pair%name,property%value)
          end select
-         property => property%next
+         pair => pair%next
       end do
    end function register
 

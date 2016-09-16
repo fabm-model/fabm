@@ -227,6 +227,7 @@
       integer                                :: extinction_index = -1
       type (type_internal_variable), pointer :: extinction_target => null()
 
+      type (type_link_list) :: links_all
       type (type_link_list) :: links_postcoupling
 
       ! Declare the arrays for diagnostic variable values.
@@ -619,8 +620,9 @@
 ! !LOCAL VARIABLES:
       type (type_aggregate_variable_access),    pointer :: aggregate_variable_access
       class (type_custom_extinction_calculator),pointer :: extinction_calculator
-      class (type_property),                    pointer :: property => null()
       integer                                           :: islash
+      type (type_set_element),                  pointer :: set_element
+      type (type_set)                                   :: unretrieved
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -652,14 +654,14 @@
       call freeze_model_info(self%root)
 
       ! Raise error for unused coupling commands.
-      property => self%root%couplings%first
-      do while (associated(property))
-         if (.not.self%root%couplings%retrieved%contains(trim(property%name))) then
-            islash = index(property%name,'/',.true.)
-            call fatal_error('fabm_initialize','model '//property%name(1:islash-1)//' does not contain variable "'//trim(property%name(islash+1:))//'" mentioned in coupling section.')
-         end if
-         property => property%next
+      call self%root%couplings%collect_unretrieved(unretrieved,'')
+      set_element => unretrieved%first
+      do while (associated(set_element))
+         islash = index(set_element%string,'/',.true.)
+         call fatal_error('fabm_initialize','model '//set_element%string(1:islash-1)//' does not contain variable "'//trim(set_element%string(islash+1:))//'" mentioned in coupling section.')
+         set_element => set_element%next
       end do
+      call unretrieved%finalize()
 
       ! Build final authorative arrays with variable metadata .
       call classify_variables(self)
@@ -1313,7 +1315,7 @@
          call log_message('  It is needed by the following model instances:')
 
          first => null()
-         link => self%root%links%first
+         link => self%links_all%first
          do while (associated(link))
             if (     associated(link%target,variable)           &                   ! This link points to the target variable,
                 .and.associated(link%original%owner%parent)     &                   ! it is not owned by the root model [which has copies of all unfilled dependencies],
@@ -1375,7 +1377,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   link => self%root%links%first
+   link => self%links_all%first
    do while (associated(link))
       if (link%target%domain==domain_interior) then
          if (link%name==name.or.get_safe_name(link%name)==name) then
@@ -1387,7 +1389,7 @@
    end do
 
    ! Name not found among variable names. Now try standard names that are in use.
-   link => self%root%links%first
+   link => self%links_all%first
    do while (associated(link))
       if (link%target%domain==domain_interior.and.link%target%standard_variables%contains(name)) then
          id = create_external_interior_id(link%target)
@@ -1421,7 +1423,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   link => self%root%links%first
+   link => self%links_all%first
    do while (associated(link))
       if (link%target%standard_variables%contains(standard_variable)) then
          id = create_external_interior_id(link%target)
@@ -1455,7 +1457,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   link => self%root%links%first
+   link => self%links_all%first
    do while (associated(link))
       if (link%target%domain==domain_horizontal.or.link%target%domain==domain_surface.or.link%target%domain==domain_bottom) then
          if (link%name==name.or.get_safe_name(link%name)==name) then
@@ -1467,7 +1469,7 @@
    end do
 
    ! Name not found among variable names. Now try standard names that are in use.
-   link => self%root%links%first
+   link => self%links_all%first
    do while (associated(link))
       if ((link%target%domain==domain_horizontal.or.link%target%domain==domain_surface.or.link%target%domain==domain_bottom).and.link%target%standard_variables%contains(name)) then
          id = create_external_horizontal_id(link%target)
@@ -1501,7 +1503,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   link => self%root%links%first
+   link => self%links_all%first
    do while (associated(link))
       if (link%target%standard_variables%contains(standard_variable)) then
          id = create_external_horizontal_id(link%target)
@@ -1537,7 +1539,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   link => self%root%links%first
+   link => self%links_all%first
    do while (associated(link))
       if (link%target%domain==domain_scalar) then
          if (link%name==name.or.get_safe_name(link%name)==name) then
@@ -1549,7 +1551,7 @@
    end do
 
    ! Name not found among variable names. Now try standard names that are in use.
-   link => self%root%links%first
+   link => self%links_all%first
    do while (associated(link))
       if (link%target%domain==domain_scalar.and.link%target%standard_variables%contains(name)) then
          id = create_external_scalar_id(link%target)
@@ -1583,7 +1585,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   link => self%root%links%first
+   link => self%links_all%first
    do while (associated(link))
       if (link%target%standard_variables%contains(standard_variable)) then
          id = create_external_scalar_id(link%target)
@@ -4471,7 +4473,7 @@ recursive subroutine set_diagnostic_indices(self)
    n_hz = 0
    link => self%links%first
    do while (associated(link))
-      if (index(link%name,'/')==0.and.associated(link%original%write_index).and..not.link%target%read_indices%is_empty()) then
+      if (associated(link%original%write_index).and..not.link%target%read_indices%is_empty()) then
          ! Variable is a diagnostic written to by current model, and read by at least one model.
          select case (link%target%domain)
             case (domain_interior)
@@ -4490,7 +4492,7 @@ recursive subroutine set_diagnostic_indices(self)
    n_hz = 0
    link => self%links%first
    do while (associated(link))
-      if (index(link%name,'/')==0.and.associated(link%original%write_index).and..not.link%target%read_indices%is_empty()) then
+      if (associated(link%original%write_index).and..not.link%target%read_indices%is_empty()) then
          ! Variable is written to by current model, and read by someone.
          select case (link%target%domain)
             case (domain_interior)
@@ -4637,13 +4639,15 @@ subroutine classify_variables(self)
    ! Consistency check (of find_dependencies): does every model (except the root) appear exactly once in the call list?
    call test_presence(self,self%root)
 
+   call self%root%collect_descendants(self%links_all,'')
+
    ! Create a list of all non-coupled variables, ordered according to the order in which the models will be called.
    ! This promotes sequential memory access and hopefully increases cache hits.
    model_node => self%models%first
    do while (associated(model_node))
       link => model_node%model%links%first
       do while (associated(link))
-         if (associated(link%target,link%original).and.index(link%name,'/')==0) &
+         if (associated(link%target,link%original)) &
             newlink => self%links_postcoupling%append(link%target,link%target%name)
          link => link%next
       end do
@@ -4651,7 +4655,7 @@ subroutine classify_variables(self)
    end do
 
    ! Count number of conserved quantities and allocate associated array.
-   aggregate_variable_list = collect_aggregate_variables(self%root)
+   call collect_aggregate_variables(self%root,aggregate_variable_list)
    ncons = 0
    aggregate_variable => aggregate_variable_list%first
    do while (associated(aggregate_variable))
@@ -4852,7 +4856,7 @@ subroutine classify_variables(self)
    ! Create lists of variables that may be provided by the host model.
    ! These lists include external dependencies, as well as the model's own state variables,
    ! which may be overridden by the host.
-   link => self%root%links%first
+   link => self%links_all%first
    do while (associated(link))
       object =>link%target
       if (.not.object%read_indices%is_empty().and. &

@@ -250,7 +250,7 @@ module fabm_particle
       reference%state = busy
 
       ! First find a coupling for the referenced model.
-      model_master_name => self%couplings%find_in_tree(reference%name)
+      model_master_name => self%couplings%get_property(reference%name)
       if (.not.associated(model_master_name)) call self%fatal_error('resolve_model_reference','Model reference "'//trim(reference%name)//'" was not coupled.')
 
       select type (model_master_name)
@@ -393,7 +393,7 @@ module fabm_particle
       n = 0
       link => reference%model%links%first
       do while (associated(link))
-         if (index(link%name,'/')==0.and.link%target%domain==domain.and.link%original%presence==presence_internal &
+         if (link%target%domain==domain.and.link%original%presence==presence_internal &
              .and.(.not.link%original%state_indices%is_empty().or.link%original%fake_state_variable)) n = n + 1
          link => link%next
       end do
@@ -412,7 +412,7 @@ module fabm_particle
       n = 0
       link => reference%model%links%first
       do while (associated(link))
-         if (index(link%name,'/')==0.and.link%target%domain==domain.and.link%original%presence==presence_internal &
+         if (link%target%domain==domain.and.link%original%presence==presence_internal &
              .and.(.not.link%original%state_indices%is_empty().or.link%original%fake_state_variable)) then
             n = n + 1
             write (strindex,'(i0)') n

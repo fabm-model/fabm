@@ -46,7 +46,7 @@
    public type_global_dependency_id
 
    ! Data types and procedures for variable management - used by FABM internally only.
-   public type_link, type_link_list
+   public type_link, type_link_list, type_link_pointer
    public type_internal_variable
    public type_environment
 
@@ -232,12 +232,18 @@
 
    type type_link_list
       type (type_link),pointer :: first => null()
+      type (type_link),pointer :: last  => null()
    contains
       procedure :: append   => link_list_append
       procedure :: find     => link_list_find
       procedure :: count    => link_list_count
       procedure :: finalize => link_list_finalize
       procedure :: extend   => link_list_extend
+   end type
+
+   type type_link_pointer
+      type (type_link),        pointer :: p    => null()
+      type (type_link_pointer),pointer :: next => null()
    end type
 
    ! ====================================================================================================
@@ -283,6 +289,8 @@
       type (type_link),pointer        :: sms                 => null()
       type (type_link),pointer        :: surface_flux        => null()
       type (type_link),pointer        :: bottom_flux         => null()
+
+      type (type_link_pointer), pointer :: first_link => null()
    end type
 
    type type_link
@@ -386,6 +394,7 @@
       procedure :: find_link
       procedure :: find_object
       procedure :: find_model
+      procedure :: collect_descendants
 
       ! Procedures for requesting coupling between variables
       procedure :: request_coupling_for_link
@@ -1072,17 +1081,14 @@ function link_list_append(self,target,name) result(link)
    ! Append a new link to the list.
    if (.not.associated(self%first)) then
       allocate(self%first)
-      link => self%first
+      self%last => self%first
    else
-      link => self%first
-      do while (associated(link%next))
-         link => link%next
-      end do
-      allocate(link%next)
-      link => link%next
+      allocate(self%last%next)
+      self%last => self%last%next
    end if
 
    ! Set link attributes.
+   link => self%last
    link%name = name
    link%target => target
    link%original => target
@@ -1144,12 +1150,6 @@ function create_coupling_task(self,link) result(task)
    end do
    if (.not.associated(current_link)) call self%fatal_error('request_coupling_for_link', &
       'Couplings can only be requested for variables that you own yourself.')
-
-   ! Make sure that the link also points to a variable that we registered ourselves,
-   ! rather than one registered by a child model.
-   if (index(link%name,'/')/=0) call self%fatal_error('request_coupling_for_link', &
-      'Couplings can only be requested for variables that you registered yourself, &
-      &not inherited ones such as the current '//trim(link%name)//'.')
 
    ! Create a coupling task (reuse existing one if available, and not user-specified)
    call self%coupling_task_list%add(link,.false.,task)
@@ -1780,18 +1780,16 @@ end subroutine real_pointer_set_set_value
    end subroutine add_scalar_variable
 !EOC
 
-   recursive function add_object(self,object) result(link)
-      ! This subroutine creates a link to the supplied object, then allows
-      ! parent models to do the same.
-      ! NB this subroutine MUST be recursive, to allow parent models to override
-      ! the properties of objects added by their child models.
+   function add_object(self,object) result(link)
       class (type_base_model),target,     intent(inout) :: self
       type (type_internal_variable),pointer             :: object
 
-      type (type_link), pointer       :: link,parent_link
-      character(len=attribute_length) :: oriname
-      integer                         :: instance
-      logical                         :: duplicate
+      type (type_link), pointer         :: link,parent_link
+      character(len=attribute_length)   :: oriname
+      integer                           :: instance
+      logical                           :: duplicate
+      type (type_link_pointer), pointer :: link_pointer
+      class (type_base_model),  pointer :: ancestor
 
       ! First check if a link with this name exists.
       duplicate = associated(self%links%find(object%name))
@@ -1811,16 +1809,23 @@ end subroutine real_pointer_set_set_value
       ! Create link for this object.
       link => self%links%append(object,object%name)
 
+      ! Store a pointer to the link with the object to facilitate redirection of the link during coupling.
+      allocate(link_pointer)
+      link_pointer%p => link
+      link_pointer%next => object%first_link
+      object%first_link => link_pointer
+
       ! If this name matched that of a previous variable, create a coupling to it.
       if (duplicate) call self%request_coupling(link,oriname)
 
-      ! Forward to parent
-      if (associated(self%parent)) then
-         if (len_trim(self%name)+1+len_trim(object%name)>len(object%name)) call fatal_error('add_object', &
-            'Variable path "'//trim(self%name)//'/'//trim(object%name)//'" exceeds maximum allowed length.')
-         object%name = trim(self%name)//'/'//trim(object%name)
-         parent_link => self%parent%add_object(object)
-      end if
+      ! Build full path
+      ancestor => self
+      do while (associated(ancestor%parent))
+         if (len_trim(ancestor%name)+1+len_trim(object%name)>len(object%name)) call fatal_error('add_object', &
+            'Variable path "'//trim(ancestor%name)//'/'//trim(object%name)//'" exceeds maximum allowed length.')
+         object%name = trim(ancestor%name)//'/'//trim(object%name)
+         ancestor => ancestor%parent
+      end do
    end function add_object
 
 !-----------------------------------------------------------------------
@@ -2419,13 +2424,15 @@ subroutine get_real_parameter(self,value,name,units,long_name,default,scale_fact
    end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => self%parameters%find_in_tree(name)
+   property => self%parameters%get_property(name)
    if (associated(property)) then
       ! Value found - try to convert to real.
       value = property%to_real(success=success)
       if (.not.success) call self%fatal_error('get_real_parameter', &
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a real number.')
-   elseif (.not.present(default)) then
+   elseif (present(default)) then
+      call self%parameters%missing%add(name)
+   else
       call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
@@ -2465,10 +2472,9 @@ subroutine set_parameter(self,parameter,name,units,long_name)
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   parameter%name = name
    if (present(units))     parameter%units     = units
    if (present(long_name)) parameter%long_name = long_name
-   call self%parameters%set_in_tree(parameter)
+   call self%parameters%set_property(name,parameter)
 end subroutine set_parameter
 !EOC
 
@@ -2497,13 +2503,15 @@ subroutine get_integer_parameter(self,value,name,units,long_name,default,minimum
    end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => self%parameters%find_in_tree(name)
+   property => self%parameters%get_property(name)
    if (associated(property)) then
       ! Value found - try to convert to integer.
       value = property%to_integer(success=success)
       if (.not.success) call self%fatal_error('get_integer_parameter', &
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an integer number.')
-   elseif (.not.present(default)) then
+   elseif (present(default)) then
+      call self%parameters%missing%add(name)
+   else
       call self%fatal_error('get_integer_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
@@ -2554,13 +2562,15 @@ subroutine get_logical_parameter(self,value,name,units,long_name,default)
    end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => self%parameters%find_in_tree(name)
+   property => self%parameters%get_property(name)
    if (associated(property)) then
       ! Value found - try to convert to logical.
       value = property%to_logical(success=success)
       if (.not.success) call self%fatal_error('get_logical_parameter', &
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a Boolean value.')
-   elseif (.not.present(default)) then
+   elseif (present(default)) then
+      call self%parameters%missing%add(name)
+   else
       call self%fatal_error('get_logical_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
@@ -2594,13 +2604,15 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
    end if
 
    ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => self%parameters%find_in_tree(name)
+   property => self%parameters%get_property(name)
    if (associated(property)) then
       ! Value found - try to convert to string.
       value = property%to_string(success=success)
       if (.not.success) call self%fatal_error('get_string_parameter', &
          'Value for parameter "'//trim(name)//'" cannot be converted to string.')
-   elseif (.not.present(default)) then
+   elseif (present(default)) then
+      call self%parameters%missing%add(name)
+   else
       call self%fatal_error('get_string_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
@@ -2632,32 +2644,14 @@ end subroutine get_string_parameter
       logical,         optional,intent(in)        :: recursive,exact
       type (type_link),pointer                    :: link
 
-      integer                         :: n
+      integer                         :: islash,n
       logical                         :: recursive_eff,exact_eff
-      class (type_base_model),pointer :: current
+      class (type_base_model),pointer :: current, root
+      type (type_model_list_node), pointer :: child
 
       link => null()
 
-      n = len_trim(name)
-      if (n>=1) then
-         if (name(1:1)=='/') then
-            link => find_link(self,name(2:),recursive,exact=.true.)
-            return
-         end if
-         if (n>=2) then
-            if (name(1:2)=='./') then
-               link => find_link(self,name(3:),recursive,exact=.true.)
-               return
-            end if
-            if (n>=3) then
-               if (name(1:3)=='../') then
-                  if (.not.associated(self%parent)) return
-                  link => find_link(self%parent,name(4:),recursive,exact=.true.)
-                  return
-               end if
-            end if
-         end if
-      end if
+      islash = index(name,'/',.true.)
 
       recursive_eff = .false.
       if (present(recursive)) recursive_eff = recursive
@@ -2665,7 +2659,9 @@ end subroutine get_string_parameter
       ! First search self and ancestors (if allowed) based on exact name provided.
       current => self
       do while (associated(current))
-         link => current%links%find(name)
+         root => current
+         if (islash/=0) root => current%find_model(name(1:islash-1))
+         if (associated(root)) link => root%links%find(name(islash+1:))
          if (associated(link)) return
          if (.not.recursive_eff) exit
          current => current%parent
@@ -2673,15 +2669,20 @@ end subroutine get_string_parameter
 
       exact_eff = .true.
       if (present(exact)) exact_eff = exact
+      if (.not.exact_eff) exact_eff = index(name,'_')==0
       if (exact_eff) return
 
       ! Not found. Now search self and ancestors (if allowed) based on safe name (letters and underscores only).
       current => self
       do while (associated(current))
-         link => current%links%first
-         do while (associated(link))
-            if (get_safe_name(link%name)==name) return
-            link => link%next
+         child => current%children%first
+         do while (associated(child))
+            n = len_trim(child%model%name)
+            if (child%model%name==name(1:n).and.name(n+1:n+1)=='_') then
+               link => child%model%find_link(name(n+2:),recursive=.false.,exact=.false.)
+               if (associated(link)) return
+            end if
+            child => child%next
          end do
          if (.not.recursive_eff) exit
          current => current%parent
@@ -2729,7 +2730,7 @@ end subroutine get_string_parameter
             if (length==-1) length = len(name) - istart + 1
             if (length==2.and.name(istart:istart+1)=='..') then
                found_model => found_model%parent
-            elseif (.not.(length==1.and.name(istart:istart)=='.')) then
+            elseif (length/=0.and..not.(length==1.and.name(istart:istart)=='.')) then
                node => found_model%children%find(name(istart:istart+length-1))
                nullify(found_model)
                if (associated(node)) found_model => node%model
@@ -2973,6 +2974,27 @@ end subroutine abstract_model_factory_register_version
       if (.not.used) deallocate(task)
 
    end subroutine coupling_task_list_add
+
+   recursive subroutine collect_descendants(self,link_list,prefix)
+      class (type_base_model),intent(in)    :: self
+      type (type_link_list),  intent(inout) :: link_list
+      character(len=*),       intent(in)    :: prefix
+
+      type (type_model_list_node), pointer :: child
+      type (type_link),            pointer :: link,newlink
+
+      link => self%links%first
+      do while (associated(link))
+         newlink => link_list%append(link%target,prefix//trim(link%name))
+         link => link%next
+      end do
+
+      child => self%children%first
+      do while (associated(child))
+         call collect_descendants(child%model,link_list,prefix//trim(child%model%name)//'/')
+         child => child%next
+      end do
+   end subroutine collect_descendants
 
    end module fabm_types
 

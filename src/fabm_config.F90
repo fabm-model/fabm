@@ -3,7 +3,7 @@
 module fabm_config
 
    use fabm_types
-   use fabm_properties,only:type_property_dictionary,type_property,type_set
+   use fabm_properties,only:type_property_dictionary,type_set_element,type_set
    use fabm_driver
    use fabm,only:type_model,fabm_initialize_library,fabm_initialize
 
@@ -152,12 +152,13 @@ contains
       character(len=64)                  :: modelname
       character(len=256)                 :: long_name
       type (type_dictionary)             :: parametermap
-      class (type_dictionary),pointer    :: childmap
-      class (type_property),pointer      :: property
+      class (type_dictionary),   pointer :: childmap
+      type (type_set_element),   pointer :: set_element
       type (type_key_value_pair),pointer :: pair
       type (type_set)                    :: initialized_set,background_set
       type (type_link),pointer           :: link
       type (type_error),pointer          :: config_error
+      type (type_set)                    :: unretrieved
 
       nullify(config_error)
 
@@ -200,6 +201,7 @@ contains
          end do
          call parametermap%finalize()
       end if
+      call model%parameters%clear_retrieved()
 
       ! Add the model to its parent.
       call log_message('Initializing '//trim(instancename)//'...')
@@ -213,12 +215,13 @@ contains
             trim(model%parameters%missing%first%string)//'" of model "'//trim(instancename)//'" is not provided.')
 
       ! Check for parameters present in configuration file, but not interpreted by the models.
-      property => model%parameters%first
-      do while (associated(property))
-         if (.not.model%parameters%retrieved%contains(property%name)) call fatal_error('create_model_from_dictionary', &
-            'Unrecognized parameter "'//trim(property%name)//'" found below '//trim(childmap%path)//'.')
-         property => property%next
+      call model%parameters%collect_unretrieved(unretrieved,'')
+      set_element => unretrieved%first
+      do while (associated(set_element))
+         call fatal_error('create_model_from_dictionary', 'Unrecognized parameter "'//trim(set_element%string)//'" found below '//trim(childmap%path)//'.')
+         set_element => set_element%next
       end do
+      call unretrieved%finalize()
 
       ! Interpret coupling links specified in configuration file.
       ! These override any couplings requested by the models during initialization.
@@ -229,16 +232,16 @@ contains
          pair => childmap%first
          do while (associated(pair))
             select type (value=>pair%value)
-               class is (type_scalar)
-                  ! Register couplings at the root level, so they override whatever the models themselves request.
-                  call parent%couplings%set_string(trim(instancename)//'/'//trim(pair%key),trim(value%string))
-               class is (type_node)
-                  call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
-                     ' must be a string, not a nested dictionary.')
+            class is (type_scalar)
+               call model%couplings%set_string(trim(pair%key),trim(value%string))
+            class is (type_node)
+               call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
+                  ' must be a string, not a nested dictionary.')
             end select
             pair => pair%next
          end do
       end if
+      call model%couplings%clear_retrieved()
 
       ! Transfer user-specified initial state to the model.
       childmap => node%get_dictionary('initialization',required=.false.,error=config_error)
