@@ -119,8 +119,8 @@ module fabm_properties
    end type
 
    type,extends(type_property_dictionary) :: type_hierarchical_dictionary
-      type (type_set)                                    :: missing
-      class (type_hierarchical_dictionary_node), pointer :: first_child => null()
+      type (type_set)                                   :: missing
+      type (type_hierarchical_dictionary_node), pointer :: first_child => null()
    contains
       procedure :: add_child            => hierarchical_dictionary_add_child
       procedure :: set_property         => hierarchical_dictionary_set_property
