@@ -20,7 +20,7 @@ except ImportError:
     pass
 # ------------------------------------------
 
-def processFile(infile,outfile,subtract_background=False):
+def processFile(infile,outfile,subtract_background=False,add_missing=False):
    # Create model object from YAML file.
    model = pyfabm.Model(infile)
 
@@ -45,7 +45,10 @@ def processFile(infile,outfile,subtract_background=False):
       for parameter in model.parameters:
          if parameter.name.lower().startswith(modelname+'/'):
             name = parameter.name[len(modelname)+1:].lower()
-            if name in parameters_lower: newparameters[name] = parameters_lower[name]
+            if name in parameters_lower:
+                newparameters[name] = parameters_lower[name]
+            elif '/' not in name and parameter.default is not None and add_missing:
+                newparameters[name] = parameter.default
       assert len(newparameters)>=len(parameters)
       return newparameters
 
