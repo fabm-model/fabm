@@ -144,6 +144,14 @@ module fabm_builtin_models
       procedure :: do_surface => external_surface_flux_do_surface
    end type
 
+   type,extends(type_base_model) :: type_external_bottom_flux
+      type (type_state_variable_id)        :: id_target
+      type (type_horizontal_dependency_id) :: id_flux
+   contains
+      procedure :: initialize => external_bottom_flux_initialize
+      procedure :: do_bottom  => external_bottom_flux_do_bottom
+   end type
+
    type,extends(type_base_model) :: type_interior_source
       type (type_state_variable_id) :: id_target
       type (type_dependency_id)     :: id_source
@@ -194,6 +202,7 @@ module fabm_builtin_models
          case ('surface_flux');           allocate(type_constant_surface_flux::model)
          case ('constant_surface_flux');  allocate(type_constant_surface_flux::model)
          case ('external_surface_flux');  allocate(type_external_surface_flux::model)
+         case ('external_bottom_flux');  allocate(type_external_bottom_flux::model)
          case ('interior_source');        allocate(type_interior_source::model)
          case ('weighted_sum');           allocate(type_weighted_sum::model)
          case ('horizontal_weighted_sum');allocate(type_horizontal_weighted_sum::model)
@@ -703,6 +712,26 @@ module fabm_builtin_models
          _SET_SURFACE_EXCHANGE_(self%id_target,flux)
       _HORIZONTAL_LOOP_END_
    end subroutine external_surface_flux_do_surface
+
+   subroutine external_bottom_flux_initialize(self,configunit)
+      class (type_external_bottom_flux),intent(inout),target :: self
+      integer,                          intent(in)           :: configunit
+
+      call self%register_state_dependency(self%id_target,'target','UNITS m-3','target variable')
+      call self%register_dependency(self%id_flux,'flux','UNITS m-2 s-1','bottom flux')
+   end subroutine external_bottom_flux_initialize
+
+   subroutine external_bottom_flux_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
+      class (type_external_bottom_flux), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_BOTTOM_
+
+      real(rk) :: flux
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _GET_HORIZONTAL_(self%id_flux,flux)
+         _SET_BOTTOM_EXCHANGE_(self%id_target,flux)
+      _HORIZONTAL_LOOP_END_
+   end subroutine external_bottom_flux_do_bottom
 
    subroutine interior_source_initialize(self,configunit)
       class (type_interior_source),intent(inout),target :: self
