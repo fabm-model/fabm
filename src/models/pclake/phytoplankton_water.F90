@@ -5,7 +5,7 @@
 !
 ! !DESCRIPTION:
 !  The pclake_abiotic_water module describes the processes related to phytoplankton in water column.
-!  Three groups of phytoplankton are described here: Diatom, green algae and 
+!  Three groups of phytoplankton are described here: Diatom, green algae and
 !  cyanobacteria(blue algae). Each group is described in three elements, dry-weight
 !  nitrogen and phosphrus. Silica contration in diatom is not a state variables here
 !  but a diagnostic instead, since model assumes diatom have fixed Si/D ration,i.e. 0.1
@@ -14,8 +14,8 @@
 !                             sDGrenW, sNGrenW, sPGrenW(grenn algae concentration in DW, N and P element)
 !                             sDBlueW, sNBlueW, sPBlueW(cyanobacteria concentration in DW, N and P element)
 !  units( for all the groups):gDW m-3, gN m-3, gP m-3 in three elements respectively,
-!  involved processes( for all the groups): 
-!  assimilation(primary production,only for sDDiatW,sDGrenW,sDBlueW),nutrient uptake(only for 
+!  involved processes( for all the groups):
+!  assimilation(primary production,only for sDDiatW,sDGrenW,sDBlueW),nutrient uptake(only for
 !  sNDiatW,sNGrenW,sNBlueW,sPDiatW,sPGrenW,sPBlueW), respiration(only for sDDiatW,sDGrenW,sDBlueW)
 !  excretion(only for sNDiatW,sNGrenW,sNBlueW,sPDiatW,sPGrenW,sPBlueW), mortality(for all state
 !  variables)
@@ -31,7 +31,7 @@
    use fabm_expressions
    use fabm_standard_variables
    use pclake_utility, ONLY:uFunTmBio
-   
+
 
 
    implicit none
@@ -61,7 +61,7 @@
       type (type_diagnostic_variable_id)       :: id_oChlaDiat,id_oChlaGren,id_oChlaBlue
       type (type_diagnostic_variable_id)       :: id_rPDDiatW,id_rPDGrenW,id_rPDBlueW,id_rPDPhytW
       type (type_diagnostic_variable_id)       :: id_rNDDiatW,id_rNDGrenW,id_rNDBlueW,id_rNDPhytW
-!     diagnostic variables relating 
+!     diagnostic variables relating
       type (type_diagnostic_variable_id)       :: id_extDiat,id_extGren,id_extBlue
       type (type_diagnostic_variable_id)       :: id_phypar,id_phytoextinction
       type (type_diagnostic_variable_id)       :: id_aLLimDiat,id_aLLimGren,id_aLLimBlue
@@ -110,7 +110,7 @@
       real(rk)   :: cVSetDiat,cVSetGren,cVSetBlue
 !     parameter for specific light attenuation coefficient
       real(rk)   :: cExtSpDiat,cExtSpGren,cExtSpBlue
-      
+
    contains
 
 !     Model procedure
@@ -118,16 +118,16 @@
       procedure :: do
       procedure :: get_light_extinction
    end type type_pclake_phytoplankton_water
-   
+
 !  private data memebers(API0.92)
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: Pi=3.14159265358979_rk
    real(rk),parameter :: NearZero = 0.000000000000000000000000000000001_rk
-!  ratio of mol.weights, = 32/12 [gO2/gC], 
+!  ratio of mol.weights, = 32/12 [gO2/gC],
    real(rk),parameter :: molO2molC = 2.6667_rk
 !  mol_O2_formed_per_mol_NO3-_ammonified
    real(rk),parameter ::O2PerNO3 = 1.5_rk
-!  ratio of mol.weights,32/14 [gO2/gN], 
+!  ratio of mol.weights,32/14 [gO2/gN],
    real(rk),parameter :: molO2molN = 2.2857_rk
 !  Lowest phytoplankton value
    real(rk),parameter :: PhyZero=0.0001_rk
@@ -140,7 +140,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
 
@@ -223,19 +223,19 @@
 !  Register local state variable
 !   all phytoplankton has vertical movement activated,normally netgative, meaning settling.
    call self%register_state_variable(self%id_sDDiatW,'sDDiatW','g m-3','diatom_D in water',    &
-                                     initial_value=0.5_rk,minimum=PhyZero,vertical_movement= self%cVSetDiat,no_river_dilution=.FALSE.) 
+                                     initial_value=0.5_rk,minimum=PhyZero,vertical_movement= self%cVSetDiat,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sPDiatW,'sPDiatW','g m-3','diatom_P in water',     &
                                     initial_value=0.005_rk,minimum=PhyZero,vertical_movement= self%cVSetDiat,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sNDiatW,'sNDiatW','g m-3','diatom_N in water',     &
                                     initial_value=0.05_rk,minimum=PhyZero,vertical_movement= self%cVSetDiat,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sDGrenW,'sDGrenW','g m-3','green_D in water',    &
-                                    initial_value=0.5_rk,minimum=PhyZero,vertical_movement= self%cVSetGren,no_river_dilution=.FALSE.) 
+                                    initial_value=0.5_rk,minimum=PhyZero,vertical_movement= self%cVSetGren,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sPGrenW,'sPGrenW','g m-3','green_P in water',     &
                                     initial_value=0.005_rk,minimum=PhyZero,vertical_movement= self%cVSetGren,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sNGrenW,'sNGrenW','g m-3','green_N in water',     &
                                     initial_value=0.05_rk,minimum=PhyZero,vertical_movement= self%cVSetGren,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sDBlueW,'sDBlueW','g m-3','blue_D in water',     &
-                                    initial_value=3.0_rk,minimum=PhyZero,vertical_movement= self%cVSetBlue,no_river_dilution=.FALSE.) 
+                                    initial_value=3.0_rk,minimum=PhyZero,vertical_movement= self%cVSetBlue,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sPBlueW,'sPBlueW','g m-3','blue_P in water',     &
                                     initial_value=0.03_rk,minimum=PhyZero,vertical_movement= self%cVSetBlue,no_river_dilution=.FALSE.)
    call self%register_state_variable(self%id_sNBlueW,'sNBlueW','g m-3','blue_N in water',     &
@@ -302,7 +302,7 @@
 !  environmental light dependencies
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_meanpar,temporal_mean(self%id_par,period=86400._rk,resolution=3600._rk))
-   
+
    return
 
 
@@ -312,7 +312,7 @@
 !-----------------------------------------------------------------------
 !BOP
 
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
@@ -465,9 +465,9 @@
 !  Temperature functions for pelagic phytoplankton
 !--------------------------------------------------
 !  temperature_function_of_Diatom
-   uFunTmDiat = uFunTmBio(uTm,self%cSigTmDiat,self%cTmOptDiat) 
+   uFunTmDiat = uFunTmBio(uTm,self%cSigTmDiat,self%cTmOptDiat)
 !  temperature_function_of_Blue_algae
-   uFunTmBlue =uFunTmBio(uTm,self%cSigTmBlue,self%cTmOptBlue) 
+   uFunTmBlue =uFunTmBio(uTm,self%cSigTmBlue,self%cTmOptBlue)
 !  temperature_function_of_Green_Algae
    uFunTmGren = uFunTmBio(uTm,self%cSigTmGren,self%cTmOptGren)
 
@@ -476,7 +476,7 @@
 !-----------------------------------------------------------------------
 !  Light function in PCLake include 2 motheds: 1)with depth depended
 !  PAR(botthom par and top par), originally from PCLake
-!  mannual with self-shading. For the monod type,we use the 
+!  mannual with self-shading. For the monod type,we use the
 !  functions from Jef Huisman & Franz J. 1994. ,equation 7.
 !  The steele function is simplified. 2) Use layer-centered PAR
 !  with Monod type for non-photpinhibiton and Klepper et al. (1988)
@@ -494,11 +494,11 @@
 !      light limitation function for green algae, no photo-inhibition
        aLLimGren= 1.0_rk /(extc * dz) * log((1.0_rk + uLPARSurf / uhLGren) / (1.0_rk + aLPARBot /uhLGren))
 !  case 2, Klepper et al. (1988) / Ebenhoh et al. (1997) model.
-   case(2) 
+   case(2)
        uOptGren=uFunTmGren*self%cLOptRefGren
        aLLimGren = exp(1.0_rk) /(extc * dz) *(exp(- aLPARBot /uOptGren) - exp(- uLPARSurf /uOptGren))
    end select
-   
+
    select case(self%UseLightMethodBlue)
 !  case 1, without photoinhibition,Chalker (1980) model
       case(1)
@@ -507,7 +507,7 @@
 !      light limitation function for green algae, no photo-inhibition
        aLLimBlue= 1.0_rk /(extc * dz) * log((1.0_rk + uLPARSurf / uhLBlue) / (1.0_rk + aLPARBot /uhLBlue))
 !  case 2, Klepper et al. (1988) / Ebenhoh et al. (1997) model.
-      case(2) 
+      case(2)
        uOptBlue=uFunTmGren*self%cLOptRefBlue
        aLLimBlue = exp(1.0_rk) /(extc * dz) *(exp(- aLPARBot /uOptBlue) - exp(- uLPARSurf /uOptBlue))
    end select
@@ -520,7 +520,7 @@
 !      light limitation function for green algae, no photo-inhibition
        aLLimDiat= 1.0_rk /(extc * dz) * log((1.0_rk + uLPARSurf / uhLDiat) / (1.0_rk + aLPARBot /uhLDiat))
 !  case 2, Klepper et al. (1988) / Ebenhoh et al. (1997) model.
-   case(2) 
+   case(2)
        uOptDiat=uFunTmDiat*self%cLOptRefDiat
        aLLimDiat = exp(1.0_rk) /(extc * dz) *(exp(- aLPARBot /uOptDiat) - exp(- uLPARSurf /uOptDiat))
    end select
@@ -907,7 +907,7 @@
    _SET_DIAGNOSTIC_(self%id_rNDGrenW,rNDGrenW)
    _SET_DIAGNOSTIC_(self%id_rNDBlueW,rNDBlueW)
    _SET_DIAGNOSTIC_(self%id_rPDPhytW,rPDPhytW)
-   
+
    _SET_DIAGNOSTIC_(self%id_aLLimDiat,aLLimDiat)
    _SET_DIAGNOSTIC_(self%id_aLLimGren,aLLimGren)
    _SET_DIAGNOSTIC_(self%id_aLLimBlue,aLLimBlue)
@@ -962,13 +962,13 @@
 
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(extDiat+extGren+extBlue)
-   
-   
-   
+
+
+
    _SET_DIAGNOSTIC_(self%id_extDiat,extDiat)
    _SET_DIAGNOSTIC_(self%id_extGren,extGren)
    _SET_DIAGNOSTIC_(self%id_extBlue,extBlue)
-   
+
    ! Leave spatial loops (if any)
    _LOOP_END_
 

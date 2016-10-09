@@ -37,7 +37,10 @@ module fabm_particle
 
    public type_particle_model, type_model_id
 
+   integer, parameter :: not_done = 0, busy = 1, done   = 2
+
    type type_model_reference
+      integer                                 :: state = not_done
       character(len=attribute_length)         :: name  = ''
       class (type_base_model),        pointer :: model => null()
       type (type_model_id),           pointer :: id    => null()
@@ -57,7 +60,8 @@ module fabm_particle
    end type
 
    type,extends(type_base_model) :: type_particle_model
-      type (type_model_reference),    pointer :: first_model_reference => null()
+      type (type_model_reference),    pointer :: first_model_reference   => null()
+      integer                                 :: internal_variable_state = not_done
    contains
       ! Used by inheriting biogeochemical models:
       procedure :: register_model_dependency
@@ -70,6 +74,8 @@ module fabm_particle
 
       ! Hooks called by FABM:
       procedure :: before_coupling
+      procedure :: resolve_model_reference
+      procedure :: complete_internal_variables
    end type
 
    contains
@@ -89,8 +95,8 @@ module fabm_particle
 !  access all of the model's state variables.
 !
 ! !INPUT/OUTPUT PARAMETERS:
-      class (type_particle_model), intent(inout) :: self
-      type (type_model_id),target, intent(inout) :: id
+      class (type_particle_model), intent(inout)          :: self
+      type (type_model_id),target, intent(inout),optional :: id
 !
 ! !INPUT PARAMETERS:
       character(len=*),            intent(in)    :: name
@@ -107,9 +113,10 @@ module fabm_particle
          'Dependencies may only be registered during initialization.')
 
       reference => add_model_reference(self,name,require_empty_id=.true.)
-      reference%id => id
-      id%reference => reference
-
+      if (present(id)) then
+         reference%id => id
+         id%reference => reference
+      end if
    end subroutine register_model_dependency
 !EOC
 
@@ -146,9 +153,9 @@ module fabm_particle
       reference%name = name
    end function add_model_reference
 
-   subroutine request_coupling_to_model_generic(self,slave_variable,master_model,master_model_name,master_name,master_standard_variable)
+   subroutine request_coupling_to_model_generic(self,slave,master_model,master_model_name,master_name,master_standard_variable)
       class (type_particle_model),       intent(inout)          :: self
-      class (type_variable_id),          intent(in)             :: slave_variable
+      type (type_link),target                                   :: slave
       class (type_model_id),             intent(inout),optional :: master_model
       character(len=*),                  intent(in),   optional :: master_name, master_model_name
       type (type_bulk_standard_variable),intent(in),   optional :: master_standard_variable
@@ -156,34 +163,15 @@ module fabm_particle
       type (type_coupling_from_model), pointer :: coupling
       class (type_coupling_task),      pointer :: base_coupling
 
-      if (.not.associated(slave_variable%link)) &
-         call self%fatal_error('request_coupling_to_model_generic','slave variable must be registered before it is coupled.')
-
       ! Create object describing the coupling, and send it to FABM.
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
       allocate(coupling)
-      coupling%slave => slave_variable%link
+      coupling%slave => slave
       if (present(master_name)) coupling%master_name = master_name
       if (present(master_standard_variable)) then
          allocate(coupling%master_standard_variable,source=master_standard_variable)
-         select type (slave_variable)
-         class is (type_dependency_id)
-            coupling%domain = domain_interior
-         class is (type_horizontal_dependency_id)
-            coupling%domain = domain_horizontal
-         class is (type_state_variable_id)
-            coupling%domain = domain_interior
-            coupling%access = access_state
-         class is (type_bottom_state_variable_id)
-            coupling%domain = domain_bottom
-            coupling%access = access_state
-         class is (type_surface_state_variable_id)
-            coupling%domain = domain_surface
-            coupling%access = access_state
-         class default
-            call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of ones of the following types: &
-               &type type_dependency_id, type_horizontal_dependency_id, type_state_variable_id, type_bottom_state_variable_id, type_surface_state_variable_id.')
-         end select
+         coupling%domain = coupling%slave%target%domain
+         if (.not.coupling%slave%target%state_indices%is_empty().or.coupling%slave%target%fake_state_variable) coupling%access = access_state
       end if
       if (present(master_model)) then
          coupling%model_reference => master_model%reference
@@ -192,7 +180,7 @@ module fabm_particle
          coupling%model_reference => add_model_reference(self,master_model_name,require_empty_id=.false.)
       end if
       base_coupling => coupling
-      if (.not.self%coupling_task_list%add(base_coupling,.false.)) deallocate(coupling)
+      if (.not.self%coupling_task_list%add_object(base_coupling,.false.)) deallocate(coupling)
    end subroutine request_coupling_to_model_generic
 
    subroutine request_named_coupling_to_model(self,slave_variable,master_model,master_variable)
@@ -201,7 +189,9 @@ module fabm_particle
       class (type_model_id),      intent(inout) :: master_model
       character(len=*),           intent(in)    :: master_variable
 
-      call request_coupling_to_model_generic(self,slave_variable,master_model=master_model,master_name=master_variable)
+      if (.not.associated(slave_variable%link)) &
+         call self%fatal_error('request_named_coupling_to_model','slave variable must be registered before it is coupled.')
+      call request_coupling_to_model_generic(self,slave_variable%link,master_model=master_model,master_name=master_variable)
    end subroutine request_named_coupling_to_model
 
    subroutine request_standard_coupling_to_model(self,slave_variable,master_model,master_variable)
@@ -210,7 +200,9 @@ module fabm_particle
       class (type_model_id),             intent(inout) :: master_model
       type (type_bulk_standard_variable),intent(in)    :: master_variable
 
-      call request_coupling_to_model_generic(self,slave_variable,master_model=master_model,master_standard_variable=master_variable)
+      if (.not.associated(slave_variable%link)) &
+         call self%fatal_error('request_standard_coupling_to_model','slave variable must be registered before it is coupled.')
+      call request_coupling_to_model_generic(self,slave_variable%link,master_model=master_model,master_standard_variable=master_variable)
    end subroutine request_standard_coupling_to_model
 
    subroutine request_named_coupling_to_named_model(self,slave_variable,master_model,master_variable)
@@ -219,7 +211,9 @@ module fabm_particle
       character(len=*),           intent(in)    :: master_model
       character(len=*),           intent(in)    :: master_variable
 
-      call request_coupling_to_model_generic(self,slave_variable,master_model_name=master_model,master_name=master_variable)
+      if (.not.associated(slave_variable%link)) &
+         call self%fatal_error('request_named_coupling_to_named_model','slave variable must be registered before it is coupled.')
+      call request_coupling_to_model_generic(self,slave_variable%link,master_model_name=master_model,master_name=master_variable)
    end subroutine request_named_coupling_to_named_model
 
    subroutine request_standard_coupling_to_named_model(self,slave_variable,master_model,master_variable)
@@ -228,48 +222,118 @@ module fabm_particle
       character(len=*),                  intent(in)    :: master_model
       type (type_bulk_standard_variable),intent(in)    :: master_variable
 
-      call request_coupling_to_model_generic(self,slave_variable,master_model_name=master_model,master_standard_variable=master_variable)
+      if (.not.associated(slave_variable%link)) &
+         call self%fatal_error('request_named_coupling_to_named_model','slave variable must be registered before it is coupled.')
+      call request_coupling_to_model_generic(self,slave_variable%link,master_model_name=master_model,master_standard_variable=master_variable)
    end subroutine request_standard_coupling_to_named_model
 
-   subroutine before_coupling(self)
+   recursive function resolve_model_reference(self,reference,require_internal_variables) result(model)
+      class (type_particle_model),intent(inout),target :: self
+      type (type_model_reference),intent(inout)        :: reference
+      logical,optional,           intent(in)           :: require_internal_variables
+      class (type_base_model), pointer :: model
+
+      type (type_model_reference), pointer :: reference2
+      class (type_property),       pointer :: model_master_name
+      integer                              :: istart
+      class (type_particle_model), pointer :: source_model
+      logical                              :: require_internal_variables_
+
+      select case (reference%state)
+      case (busy)
+         call self%fatal_error('resolve_model_reference','Circular dependency')
+      case (done)
+         model => reference%model
+         return
+      end select
+
+      reference%state = busy
+
+      ! First find a coupling for the referenced model.
+      model_master_name => self%couplings%find_in_tree(reference%name)
+      if (.not.associated(model_master_name)) call self%fatal_error('resolve_model_reference','Model reference "'//trim(reference%name)//'" was not coupled.')
+
+      select type (model_master_name)
+      class is (type_string_property)
+         ! Try to find references model among actual models (as opposed to among model dependencies)
+         reference%model => self%find_model(model_master_name%value,recursive=.true.)
+
+         if (.not.associated(reference%model)) then
+            ! Find starting position of local name (excluding any preprended path components)
+            istart = index(model_master_name%value,'/',.true.)+1
+
+            reference2 => null()
+            if (istart==1) then
+               ! No slash in path; search model references within current model
+               source_model => self
+            else
+               ! Try model references in specified other model
+               model => self%find_model(model_master_name%value(:istart-1),recursive=.true.)
+               if (associated(model)) then
+                  select type (model)
+                  class is (type_particle_model)
+                     source_model => model
+                  end select
+               end if
+            end if
+
+            ! Search model references
+            reference2 => source_model%first_model_reference
+            do while (associated(reference2))
+               if (model_master_name%value(istart:)==reference2%name) then
+                  reference%model => source_model%resolve_model_reference(reference2)
+                  exit
+               end if
+               reference2 => reference2%next
+            end do
+         end if
+
+         if (.not.associated(reference%model)) call self%fatal_error('resolve_model_reference','Referenced model "'//trim(model_master_name%value)//'" not found.')
+      end select
+
+      reference%state = done
+      model => reference%model
+
+      require_internal_variables_ = .false.
+      if (present(require_internal_variables)) require_internal_variables_ = require_internal_variables
+      if (require_internal_variables_) then
+         select type (model)
+         class is (type_particle_model)
+            call complete_internal_variables_if_needed(model)
+         end select
+      end if
+   end function resolve_model_reference
+
+   recursive subroutine complete_internal_variables_if_needed(self)
       class (type_particle_model),intent(inout) :: self
 
-      type (type_model_reference),           pointer :: reference,reference2
-      class (type_property),                 pointer :: model_master_name
-      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
+      select case (self%internal_variable_state)
+      case (done)
+         return
+      case (busy)
+         call self%fatal_error('complete_internal_variables_if_needed','Circular dependency')
+      end select
+      self%internal_variable_state = busy
+      call self%complete_internal_variables()
+      self%internal_variable_state = done
+   end subroutine complete_internal_variables_if_needed
+
+   recursive subroutine complete_internal_variables(self)
+      class (type_particle_model),intent(inout) :: self
+   end subroutine
+
+   recursive subroutine before_coupling(self)
+      class (type_particle_model),intent(inout) :: self
+
+      type (type_model_reference),           pointer :: reference
+      class (type_base_model),               pointer :: model
       class (type_coupling_task),            pointer :: coupling, next_coupling
+      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
       character(len=attribute_length)                :: master_name
 
       reference => self%first_model_reference
       do while (associated(reference))
-         ! First find a coupling for the referenced model.
-         model_master_name => self%couplings%find_in_tree(reference%name)
-         if (.not.associated(model_master_name)) call self%fatal_error('before_coupling','Model reference "'//trim(reference%name)//'" was not coupled.')
-
-         ! First try among earlier model references
-         reference2 => self%first_model_reference
-         do while (associated(reference2))
-            select type (model_master_name)
-               class is (type_string_property)
-                  if (model_master_name%value==reference2%name) reference%model => reference2%model
-            end select
-            reference2 => reference2%next
-         end do
-
-         if (.not.associated(reference%model)) then
-            ! Now find the actual model that was coupled.
-            select type (model_master_name)
-               class is (type_string_property)
-                  reference%model => self%find_model(model_master_name%value,recursive=.true.)
-                  if (.not.associated(reference%model)) call self%fatal_error('before_coupling','Referenced model "'//trim(model_master_name%value)//'" not found.')
-            end select
-         end if
-
-         reference => reference%next
-      end do
-
-      reference => self%first_model_reference
-      do while (associated(reference))
+         model => resolve_model_reference(self,reference,require_internal_variables=associated(reference%id))
          if (associated(reference%id)) then
             call build_state_id_list(self,reference,domain_interior)
             call build_state_id_list(self,reference,domain_surface)
@@ -312,6 +376,8 @@ module fabm_particle
          end select
          coupling => next_coupling
       end do
+
+      call complete_internal_variables_if_needed(self)
    end subroutine before_coupling
 
    subroutine build_state_id_list(self,reference,domain)
@@ -319,9 +385,9 @@ module fabm_particle
       type (type_model_reference),intent(inout) :: reference
       integer,                    intent(in)    :: domain
 
-      type (type_link),           pointer :: link
-      integer                             :: n
-      character(len=10)                   :: strindex
+      type (type_link),pointer :: link
+      integer                  :: n
+      character(len=10)        :: strindex
 
       ! Count number of state variables in target model.
       n = 0

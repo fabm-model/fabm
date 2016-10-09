@@ -1,4 +1,20 @@
-module fabm_config_types
+! -----------------------------------------------------------------------------
+! This file is part of Fortran-YAML: a lightweight YAML parser written in
+! object-oriented Fortran.
+!
+! Official repository: https://github.com/BoldingBruggeman/fortran-yaml
+!
+! Copyright 2013-2016 Bolding & Bruggeman ApS.
+!
+! This is free software: you can redistribute it and/or modify it under
+! the terms of the GNU General Public License as published by the Free Software
+! Foundation (https://www.gnu.org/licenses/gpl.html). It is distributed in the
+! hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+! implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+! A copy of the license is provided in the COPYING file.
+! -----------------------------------------------------------------------------
+
+module yaml_types
 
    implicit none
 
@@ -342,12 +358,12 @@ contains
          error%message = trim(self%path)//' does not contain key "'//trim(key)//'".'
       end if
       if (associated(node)) then
-         select type (node)
+         select type (typed_node=>node)
             class is (type_null)
                allocate(dictionary)
                dictionary%path = node%path
             class is (type_dictionary)
-               dictionary => node
+               dictionary => typed_node
             class default
                allocate(error)
                error%message = trim(node%path)//' must be a dictionary.'
@@ -372,11 +388,11 @@ contains
          error%message = trim(self%path)//' does not contain key "'//trim(key)//'".'
       end if
       if (associated(node)) then
-         select type (node)
+         select type (typed_node=>node)
             class is (type_null)
                allocate(list)
             class is (type_list)
-               list => node
+               list => typed_node
             class default
                allocate(error)
                error%message = trim(node%path)//' must be a list.'
@@ -539,4 +555,4 @@ contains
       end do
    end subroutine list_set_path
 
-end module fabm_config_types
+end module yaml_types

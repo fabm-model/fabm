@@ -868,6 +868,7 @@
    call initialize_prefill(self%get_conserved_quantities_environment,self%nscratch,self%links_postcoupling,source_do,domain_interior)
    call initialize_prefill(self%get_horizontal_conserved_quantities_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
    call initialize_prefill(self%get_light_extinction_environment,self%nscratch,self%links_postcoupling,source_do,domain_interior)
+   call initialize_prefill(self%get_light_environment,self%nscratch,self%links_postcoupling,source_do_column,domain_interior)
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
@@ -2630,7 +2631,7 @@ subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
 #endif
    if (allocated(settings%prefill_type)) then
       do i=1,self%nscratch
-         if (settings%prefill_type(i)==prefill_missing_value) then
+         if (settings%prefill_type(i)==prefill_constant) then
             _CONCURRENT_LOOP_BEGIN_
                environment%scratch _INDEX_SLICE_PLUS_1_(i) = settings%prefill_values(i)
             _LOOP_END_
@@ -2685,7 +2686,7 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
 #endif
    if (allocated(settings%prefill_type)) then
       do i=1,self%nscratch_hz
-         if (settings%prefill_type(i)==prefill_missing_value) then
+         if (settings%prefill_type(i)==prefill_constant) then
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
                environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = settings%prefill_values(i)
             _HORIZONTAL_LOOP_END_
@@ -2830,13 +2831,10 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
 #endif
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   allocate(environment%scratch(_N_,self%nscratch))
    allocate(environment%prefetch(_N_,size(self%data)))
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%scratch(1,self%nscratch))
    allocate(environment%prefetch(1,size(self%data)))
 #else
-   allocate(environment%scratch(self%nscratch))
    allocate(environment%prefetch(size(self%data)))
 #endif
    do i=1,size(self%data)
@@ -2858,10 +2856,8 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
    end do
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%scratch_hz(1,self%nscratch_hz))
    allocate(environment%prefetch_hz(1,size(self%data_hz)))
 #else
-   allocate(environment%scratch_hz(self%nscratch_hz))
    allocate(environment%prefetch_hz(size(self%data_hz)))
 #endif
    do i=1,size(self%data_hz)
@@ -2879,6 +2875,31 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
    do i=1,size(self%data_scalar)
       if (associated(self%data_scalar(i)%p)) environment%prefetch_scalar(i) = self%data_scalar(i)%p
    end do
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   allocate(environment%scratch(_N_,self%nscratch))
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(environment%scratch(1,self%nscratch))
+#else
+   allocate(environment%scratch(self%nscratch))
+#endif
+   if (allocated(settings%prefill_type)) then
+      do i=1,self%nscratch
+         if (settings%prefill_type(i)==prefill_constant) then
+#if defined(_INTERIOR_IS_VECTORIZED_)
+            environment%scratch(:,i) = settings%prefill_values(i)
+#else
+            environment%scratch(i) = settings%prefill_values(i)
+#endif
+         end if
+      end do
+   end if
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(environment%scratch_hz(1,self%nscratch_hz))
+#else
+   allocate(environment%scratch_hz(self%nscratch_hz))
+#endif
 end subroutine prefetch_vertical
 
 subroutine deallocate_prefetch(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
@@ -2990,6 +3011,7 @@ end subroutine deallocate_prefetch_vertical
    type (type_environment)               :: environment
    integer                               :: ivar,read_index
    type (type_model_list_node), pointer  :: node
+   logical                               :: set_interior
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -3009,16 +3031,19 @@ end subroutine deallocate_prefetch_vertical
    end do
 
    ! Allow biogeochemical models to initialize their interior state.
+   set_interior = .false.
    node => self%models%first
    do while (associated(node))
-      call node%model%initialize_state(_ARGUMENTS_INTERIOR_)
+      call node%model%initialize_state(_ARGUMENTS_INTERIOR_,set_interior)
       node => node%next
    end do
 
    ! Copy from prefetch back to global data store.
    do ivar=1,size(self%state_variables)
       read_index = self%state_variables(ivar)%globalid%read_index
-      _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+      if (self%interior_data_sources(read_index)==data_source_fabm) then
+         _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+      end if
    end do
 
    call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
@@ -3042,6 +3067,7 @@ end subroutine deallocate_prefetch_vertical
    type (type_environment)               :: environment
    integer                               :: ivar,read_index
    type (type_model_list_node), pointer  :: node
+   logical                               :: set_horizontal
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -3062,16 +3088,19 @@ end subroutine deallocate_prefetch_vertical
    end do
 
    ! Allow biogeochemical models to initialize their bottom state.
+   set_horizontal = .false.
    node => self%models%first
    do while (associated(node))
-      call node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_)
+      call node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       node => node%next
    end do
 
    ! Copy from prefetch back to global data store.
    do ivar=1,size(self%bottom_state_variables)
       read_index = self%bottom_state_variables(ivar)%globalid%read_index
-      _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,self%bottom_state_variables(ivar)%missing_value)
+      if (self%horizontal_data_sources(read_index)==data_source_fabm) then
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,self%bottom_state_variables(ivar)%missing_value)
+      end if
    end do
 
    call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
@@ -3095,6 +3124,7 @@ end subroutine deallocate_prefetch_vertical
    type (type_environment)               :: environment
    integer                               :: ivar,read_index
    type (type_model_list_node), pointer  :: node
+   logical                               :: set_horizontal
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -3115,16 +3145,19 @@ end subroutine deallocate_prefetch_vertical
    end do
 
    ! Allow biogeochemical models to initialize their surface state.
+   set_horizontal = .false.
    node => self%models%first
    do while (associated(node))
-      call node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_)
+      call node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       node => node%next
    end do
 
    ! Copy from prefetch back to global data store.
    do ivar=1,size(self%surface_state_variables)
       read_index = self%surface_state_variables(ivar)%globalid%read_index
-      _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,self%surface_state_variables(ivar)%missing_value)
+      if (self%horizontal_data_sources(read_index)==data_source_fabm) then
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,self%surface_state_variables(ivar)%missing_value)
+      end if
    end do
 
    call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
@@ -3342,7 +3375,9 @@ end subroutine deallocate_prefetch_vertical
    if (set_interior.or..not.valid) then
       do ivar=1,size(self%state_variables)
          read_index = self%state_variables(ivar)%globalid%read_index
-         _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+         if (self%interior_data_sources(read_index)==data_source_fabm) then
+            _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+         end if
       end do
    end if
 
@@ -3549,7 +3584,9 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
    if (set_horizontal.or..not.valid) then
       do ivar=1,size(state_variables)
          read_index = state_variables(ivar)%globalid%read_index
-         _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,state_variables(ivar)%missing_value)
+         if (self%horizontal_data_sources(read_index)==data_source_fabm) then
+            _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,state_variables(ivar)%missing_value)
+         end if
       end do
    end if
 
@@ -3570,7 +3607,7 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
 
       do ivar=1,size(self%state_variables)
          read_index = self%state_variables(ivar)%globalid%read_index
-
+         if (self%interior_data_sources(read_index)==data_source_fabm) then
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
       if (flag==1) then
 #endif
@@ -3609,7 +3646,7 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
 #  endif
    end if
 #endif
-
+         end if
       end do
    end if
 
@@ -4418,7 +4455,7 @@ subroutine initialize_prefill(self,n,link_list,source,domain)
             ! To avoid saving uninitialized data, prefill the target field with the previous value before any such calls.
             self%prefill_type(link%target%write_indices%value) = prefill_previous_value
          end if
-         self%prefill_values(link%target%write_indices%value) = link%target%missing_value
+         self%prefill_values(link%target%write_indices%value) = link%target%prefill_value
       end if
       link => link%next
    end do
@@ -4433,7 +4470,7 @@ subroutine flag_write_indices(self,source)
    link => source%first
    do while (associated(link))
       if (.not.link%target%write_indices%is_empty()) then
-         self%prefill_type(link%target%write_indices%value) = prefill_missing_value
+         self%prefill_type(link%target%write_indices%value) = prefill_constant
          self%prefill_values(link%target%write_indices%value) = 0
       end if
       link => link%next

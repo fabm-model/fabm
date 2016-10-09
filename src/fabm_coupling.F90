@@ -260,7 +260,7 @@ end subroutine
          if (index(link%name,'/')==0) then
             master_name => self%couplings%find_in_tree(link%name)
             if (associated(master_name)) then
-               task => self%coupling_task_list%add(link,.true.)
+               call self%coupling_task_list%add(link,.true.,task)
                task%user_specified = .true.
                select type (master_name)
                   class is (type_string_property)
@@ -476,7 +476,7 @@ end subroutine
 
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access
 
-      nullify(master)
+      master => null()
       if (task%master_standard_variable%aggregate_variable) then
          ! Make sure that an aggregate variable will be created on the fly
          select type (aggregate_standard_variable=>task%master_standard_variable)
@@ -603,8 +603,9 @@ recursive subroutine create_aggregate_models(self)
       contributing_variable => aggregate_variable%first_contributing_variable
       do while (associated(contributing_variable))
          if (associated(contributing_variable%link%target,contributing_variable%link%original) &                  ! Variable must not be coupled
-             .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable)) then   ! Only include fake state variable for non-root models
-            if (associated(sum)) then
+             .and.(associated(self%parent).or..not.contributing_variable%link%target%fake_state_variable) &       ! Only include fake state variable for non-root models
+             .and.(index(contributing_variable%link%name,'/')==0.or..not.associated(self%parent))) then           ! Variable must be owned by the model itself unless we are aggregating at root level
+             if (associated(sum)) then
                select case (contributing_variable%link%target%domain)
                case (domain_interior)
                   call sum%add_component(trim(contributing_variable%link%name), &
@@ -700,17 +701,16 @@ recursive subroutine create_conservation_checks(self)
             ! Enumerate contributions to aggregate variable.
             contributing_variable => aggregate_variable%first_contributing_variable
             do while (associated(contributing_variable))
-               if ((.not.contributing_variable%link%original%state_indices%is_empty().or.contributing_variable%link%original%fake_state_variable).and.index(contributing_variable%link%name,'/')==0) then
-                  ! Contributing variable is a state variable
+               if (index(contributing_variable%link%name,'/')==0) then
                   select case (contributing_variable%link%original%domain)
                      case (domain_interior)
-                        call sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
-                        call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sfl',contributing_variable%scale_factor)
-                        call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_bfl',contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%sms))          call sum%add_component        (contributing_variable%link%original%sms%name,         contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%surface_flux)) call surface_sum%add_component(contributing_variable%link%original%surface_flux%name,contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%bottom_flux))  call bottom_sum%add_component (contributing_variable%link%original%bottom_flux%name, contributing_variable%scale_factor)
                      case (domain_surface)
-                        call surface_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%sms)) call surface_sum%add_component(contributing_variable%link%original%sms%name,contributing_variable%scale_factor)
                      case (domain_bottom)
-                        call bottom_sum%add_component(trim(contributing_variable%link%original%name)//'_sms',contributing_variable%scale_factor)
+                        if (associated(contributing_variable%link%original%sms)) call bottom_sum%add_component(contributing_variable%link%original%sms%name,contributing_variable%scale_factor)
                   end select
                end if   
                contributing_variable => contributing_variable%next
@@ -742,17 +742,26 @@ recursive subroutine couple_variables(self,master,slave)
    type (type_internal_variable),pointer             :: master,slave
 
    type (type_internal_variable),pointer :: pslave
+   logical                               :: slave_is_state_variable
+   logical                               :: master_is_state_variable
 
    ! If slave and master are the same, we are done - return.
    if (associated(slave,master)) return
+
+   slave_is_state_variable  = slave%fake_state_variable.or..not.slave%state_indices%is_empty()
+   master_is_state_variable = master%fake_state_variable.or..not.master%state_indices%is_empty()
 
    if (associated(self%parent)) call self%fatal_error('couple_variables','BUG: must be called on root node.')
    if (.not.slave%can_be_slave) &
       call fatal_error('couple_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
-   if ((slave%fake_state_variable.or..not.slave%state_indices%is_empty()).and.(master%state_indices%is_empty().and..not.master%fake_state_variable)) &
-      call fatal_error('couple_variables','Attempt to couple state variable ' &
+   if (slave_is_state_variable) then
+      ! Extra checks when coupling state variables
+      if (.not.master_is_state_variable) call fatal_error('couple_variables','Attempt to couple state variable ' &
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
+      if ((slave%domain==domain_bottom.and.master%domain==domain_surface).or.(slave%domain==domain_surface.and.master%domain==domain_bottom)) &
+         call fatal_error('couple_variables', 'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because their domains are incompatible.')
+   end if
    !if (slave%domain/=master%domain.and..not.(slave%domain==domain_horizontal.and. &
    !   (master%domain==domain_surface.or.master%domain==domain_bottom))) call fatal_error('couple_variables', &
    !   'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because their domains are incompatible.')

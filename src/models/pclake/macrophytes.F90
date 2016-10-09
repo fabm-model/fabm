@@ -89,16 +89,16 @@
       procedure :: do_bottom
       procedure :: get_light_extinction
    end type type_pclake_macrophytes
-   
+
 !  private data memebers(API0.92)
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk),parameter :: NearZero = 0.000000000000000000000000000000001_rk
    real(rk),parameter :: Pi=3.14159265358979_rk
-!  ratio of mol.weights, = 32/12 [gO2/gC], 
+!  ratio of mol.weights, = 32/12 [gO2/gC],
    real(rk),parameter :: molO2molC = 2.6667_rk
 !  mol_O2_formed_per_mol_NO3-_ammonified
    real(rk),parameter ::O2PerNO3 = 1.5_rk
-!  ratio of mol.weights,32/14 [gO2/gN], 
+!  ratio of mol.weights,32/14 [gO2/gN],
    real(rk),parameter :: molO2molN = 2.2857_rk
 !   lowest state variable value
     real(rk),parameter :: VegZero=0.0001_rk
@@ -110,18 +110,18 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
 
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  
+!
 ! !INPUT PARAMETERS:
    class (type_pclake_macrophytes), intent(inout), target :: self
    integer,                          intent(in)            :: configunit
-!EOP                             
+!EOP
 !-----------------------------------------------------------------------
 !BOC
 !  Store parameter values in our own derived type
@@ -194,7 +194,7 @@
 !  Register contribution of state to global aggregate variables
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,  self%id_sNVeg)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPVeg)
-!  regirster state variables dependencies 
+!  regirster state variables dependencies
    call self%register_state_dependency(self%id_NH4poolW,  'ammonia_pool_water',       'g m-3', 'Amonia pool for nutrient uptake')
    call self%register_state_dependency(self%id_NO3poolW,  'nitrate_pool_water',       'g m-3', 'Nitrate pool for nutrient uptake')
    call self%register_state_dependency(self%id_PO4poolW,  'phosphate_pool_water',     'g m-3', 'Phosphate pool for nutrient uptake')
@@ -234,7 +234,7 @@
 !-----------------------------------------------------------------------
 !BOP
 
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
@@ -309,7 +309,7 @@
    real(rk)   :: tNBedDetS,tNMortVegS,tNMortVegDetS
    real(rk)   :: tPBedDetS,tPMortVegS,tPMortVegDetS
 
-! 
+!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -365,35 +365,35 @@
 !  temperature_function_of_vegetation_respiration
    uFunTmRespVeg = uFunTmVeg(uTm,self%cQ10RespVeg)
 !-----------------------------------------------------------------------
-!  the germination, allocation and reallocation process 
+!  the germination, allocation and reallocation process
 !-----------------------------------------------------------------------
 !    Initial_growth_only_once_a_year
       if (Day < 1) then
          aDayInitVeg=367
-      else if (uTm >= self%cTmInitVeg .and. aDayInitVeg > 366) then 
+      else if (uTm >= self%cTmInitVeg .and. aDayInitVeg > 366) then
          aDayInitVeg = Day
       else
          aDayInitVeg=aDayInitVeg
       endif
-      
+
 
 !    setting_root_fration
       if (Day < aDayInitVeg) then
-      bfRootVeg = self%fRootVegWin 
+      bfRootVeg = self%fRootVegWin
       else if (Day < aDayInitVeg + self%cLengAllo) then
       bfRootVeg = 0.5*(self%fRootVegWin + self%fRootVegSum) + 0.5*(self%fRootVegWin - self%fRootVegSum) * &
       &cos(Pi/self%cLengAllo * (Day - aDayInitVeg))
       else if (Day < self%cDayWinVeg) then
-      bfRootVeg = self%fRootVegSum 
+      bfRootVeg = self%fRootVegSum
       else if (Day < self%cDayWinVeg + self%cLengAllo) then
       bfRootVeg = 0.5*(self%fRootVegWin + self%fRootVegSum) - 0.5*(self%fRootVegWin - self%fRootVegSum) * &
       &cos(Pi/self%cLengAllo * (Day - self%cDayWinVeg))
       else
-      bfRootVeg = self%fRootVegWin 
+      bfRootVeg = self%fRootVegWin
       endif
 !  mortality_constant
    if (Day < self%cDayWinVeg) then
-   bkMortVeg = self%kMortVegSum 
+   bkMortVeg = self%kMortVegSum
    else if (Day < self%cDayWinVeg + self%cLengMort) then
    bkMortVeg = - log(self%fWinVeg) / self%cLengMort/secs_pr_day
    else
@@ -454,7 +454,7 @@
 !  light_at_top_of_vegetation_layer
    aLPAR1Veg = aLPAR2Veg / exp(- extc * (aDepth2Veg - aDepth1Veg))
    aLLimShootVeg = self%fEmergVeg + self%fFloatVeg * (1.0 - afCovEmergVeg) + bfSubVeg * (1.0 &
-   &- afCovSurfVeg) * 1.0 / (extc * sDepthW) * log( (1.0 + aLPAR1Veg / uhLVeg) /& 
+   &- afCovSurfVeg) * 1.0 / (extc * sDepthW) * log( (1.0 + aLPAR1Veg / uhLVeg) /&
    & (1.0 + aLPAR2Veg / uhLVeg))
 !=======================================================================
    ufDay = 0.5_rk - 0.2_rk * cos(2.0_rk*Pi*Day / 365.0_rk)
@@ -472,7 +472,7 @@
 !  actual_growth_rate_of_vegetation
    aMuVeg = aMuTmLVeg * aNutLimVeg
 !-----------------------------------------------------------------------
-!  vegetation growth rate adjust and correction 
+!  vegetation growth rate adjust and correction
 !-----------------------------------------------------------------------
 !  intrinsic_net_increase_rate_of_vegetation
    akDIncrVeg = aMuTmLVeg - self%kDRespVeg * uFunTmRespVeg -bkMortVeg
@@ -505,40 +505,40 @@
       afPUptVegS = 1.0_rk
    else
       afPUptVegS = self%fSedUptVegMax / (1.0_rk + self%fSedUptVegCoef * ((((oPO4S+NearZero) / (sPO4&
-      &W+NearZero)) )** self%fSedUptVegExp)) 
+      &W+NearZero)) )** self%fSedUptVegExp))
    endif
 !  maximum_P_uptake_rate_of_vegetation,_corrected_for_P/D_ratio
    aVPUptMaxCrVeg = max( 0.0_rk, self%cVPUptMaxVeg * uFunTmProdVeg * (self%cPDVegMax-rPDVeg) / (&
    &self%cPDVegMax-self%cPDVegMin))
 !    P_uptake_RATE_by_subm_AND_floating_parts
    if (self%UseEmpUpt==0) then
-      aVPUptVegW = sPO4W * aVPUptMaxCrVeg / (aVPUptMaxCrVeg / self%cAffPUptVeg + sPO4W) 
+      aVPUptVegW = sPO4W * aVPUptMaxCrVeg / (aVPUptMaxCrVeg / self%cAffPUptVeg + sPO4W)
    else
-      aVPUptVegW = 0.0_rk 
+      aVPUptVegW = 0.0_rk
    endif
 !    P_uptake_rate_by_roots
    if  (self%UseEmpUpt==0) then
-      aVPUptVegS = oPO4S * aVPUptMaxCrVeg / (aVPUptMaxCrVeg / self%cAffPUptVeg + oPO4S) 
+      aVPUptVegS = oPO4S * aVPUptMaxCrVeg / (aVPUptMaxCrVeg / self%cAffPUptVeg + oPO4S)
    else
       aVPUptVegS = 0.0_rk
    endif
 !  P_uptake_from_water
       if (self%UseEmpUpt==0) then
-      tPUptVegW = aVPUptVegW * (aDSubVeg + aDFloatVeg) 
+      tPUptVegW = aVPUptVegW * (aDSubVeg + aDFloatVeg)
       else
       tPUptVegW = (1.0 - afPUptVegS) * aVPUptMaxCrVeg * sPO4W / (aVPUptMaxCrVeg / self%cAff&
-      &PUptVeg + sPO4W) * sDVeg 
+      &PUptVeg + sPO4W) * sDVeg
       endif
 !    P_uptake_from_pore_water_(by_root_fraction)
       if (self%UseEmpUpt==0) then
-      tPUptVegS = aVPUptVegS * aDRootVeg 
+      tPUptVegS = aVPUptVegS * aDRootVeg
       else
       tPUptVegS = afPUptVegS * aVPUptMaxCrVeg * oPO4S / (aVPUptMaxCrVeg / self%cAffPUptVeg &
-      &+ oPO4S) * sDVeg 
+      &+ oPO4S) * sDVeg
       endif
 
 !    total_P_uptake_vegetation
-      tPUptVeg = tPUptVegW + tPUptVegS 
+      tPUptVeg = tPUptVegW + tPUptVegS
 
 !  maximum_N_uptake_rate_of_vegetation,_corrected_for_N/D_ratio
    aVNUptMaxCrVeg = max( 0.0_rk, self%cVNUptMaxVeg * uFunTmProdVeg * (self%cNDVegMax - rNDVeg) /&
@@ -547,29 +547,29 @@
    ahNUptVeg = aVNUptMaxCrVeg / self%cAffNUptVeg
 !  N_uptake_RATE_by_subm_AND_floating_parts
    if (self%UseEmpUpt==0) then
-      aVNUptVegW = oNDissW * aVNUptMaxCrVeg / (ahNUptVeg + oNDissW) 
+      aVNUptVegW = oNDissW * aVNUptMaxCrVeg / (ahNUptVeg + oNDissW)
    else
       aVNUptVegW = 0.0_rk
    endif
 !  N_uptake_from_water_(by_shoots)
    if (self%UseEmpUpt==0) then
-      tNUptVegW = aVNUptVegW * (aDSubVeg + aDFloatVeg) 
+      tNUptVegW = aVNUptVegW * (aDSubVeg + aDFloatVeg)
    else
       tNUptVegW = (1.0_rk - afNUptVegS) * aVNUptMaxCrVeg * oNDissW / (aVNUptMaxCrVeg / self%cA&
-      &ffNUptVeg + oNDissW) * sDVeg 
+      &ffNUptVeg + oNDissW) * sDVeg
    endif
 !  N_uptake_RATE_of_roots
    if (self%UseEmpUpt==0) then
-      aVNUptVegS = oNDissS * aVNUptMaxCrVeg / (ahNUptVeg + oNDissS) 
+      aVNUptVegS = oNDissS * aVNUptMaxCrVeg / (ahNUptVeg + oNDissS)
    else
-      aVNUptVegS = 0.0 
+      aVNUptVegS = 0.0
    endif
 !  N_uptake_from_pore_water_(by_roots)
    if (self%UseEmpUpt==0)  then
-      tNUptVegS = aVNUptVegS * aDRootVeg 
+      tNUptVegS = aVNUptVegS * aDRootVeg
    else
       tNUptVegS = afNUptVegS * aVNUptMaxCrVeg * oNDissS / (aVNUptMaxCrVeg / self%cAffNUptVeg&
-      & + oNDissS) * sDVeg 
+      & + oNDissS) * sDVeg
    endif
 !  total Nitrogen uptake of water column and sediment
    tNUptVeg = tNUptVegW+ tNUptVegS
@@ -582,7 +582,7 @@
 !  P_uptake_RATE_by_subm._AND_floating_parts
    aVPUptVegW = sPO4W * aVPUptMaxCrVeg / (ahPUptVeg + sPO4W)
 !  P_uptake_rate_by_roots
-   aVPUptVegS = oPO4S * aVPUptMaxCrVeg / (ahPUptVeg + oPO4S) 
+   aVPUptVegS = oPO4S * aVPUptMaxCrVeg / (ahPUptVeg + oPO4S)
 !=======================================================================
 !  the Dissimilation part!
 !=======================================================================
@@ -625,7 +625,7 @@
 !  derivative_of_vegetation_biomass
    tDBedVeg = tDMigrVeg + tDProdVeg- tDMortVeg - tDRespVeg
 !  total_vegetation_N_flux_in_bed_module
-   tNBedVeg = tNMigrVeg + tNUptVeg - tNExcrVeg - tNMortVeg 
+   tNBedVeg = tNMigrVeg + tNUptVeg - tNExcrVeg - tNMortVeg
 !  total_vegetation_P_flux_in_bed_module
    tPBedVeg = tPMigrVeg + tPUptVeg - tPExcrVeg - tPMortVeg
 !=======================================================================
@@ -657,7 +657,7 @@
 !  fraction_ammonium_uptake_from_pore_water_(from_WASP_model,_EPA)
    afNH4UptVegS = oNH4S * oNO3S / ((ahNUptVeg + oNH4S +NearZero) * (ahNUptVeg + oNO&
    &3S +NearZero)) + oNH4S * ahNUptVeg / ((oNH4S + oNO3S+NearZero) * (ahNUptVeg + oN&
-   &O3S+NearZero)) 
+   &O3S+NearZero))
 !  NH4_uptake_of_vegetation_from_sediment
    tNUptNH4VegS = afNH4UptVegS * tNUptVegS
 !  total_N_flux_from_Vegetation_module_to_NH4_in_pore_water
@@ -673,7 +673,7 @@
 !  Update NO3 in sediment
 !-----------------------------------------------------------------------
 ! NO3_uptake_of_vegetation_from_sediment
-   tNUptNO3VegS = tNUptVegS - tNUptNH4VegS 
+   tNUptNO3VegS = tNUptVegS - tNUptNH4VegS
 ! total_N_flux_from_Vegetation_module_to_NO3_in_pore_water
    tNBedNO3S = - tNUptNO3VegS
 !-----------------------------------------------------------------------
@@ -787,11 +787,11 @@
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aCovVeg,aCovVeg)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBedDetS,tDBedDetS)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_afCovSurfVeg,afCovSurfVeg)
-   
+
 !  for vegetation light attenutaion output
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aDayInitVeg,aDayInitVeg)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tDBedVeg,tDBedVeg)
-   
+
 !  light output
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_macroextinction,extc)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_aLPAR1Veg,aLPAR1Veg)
@@ -848,25 +848,25 @@
 !    Initial_growth_only_once_a_year
    if (Day < 1) then
       aDayInitVeg=367
-   else if (uTm >= self%cTmInitVeg .and. aDayInitVeg > 366) then 
+   else if (uTm >= self%cTmInitVeg .and. aDayInitVeg > 366) then
       aDayInitVeg = Day
    else
       aDayInitVeg=aDayInitVeg
    endif
- 
+
 ! setting_root_fration
    if (Day < aDayInitVeg) then
-   bfRootVeg = self%fRootVegWin 
+   bfRootVeg = self%fRootVegWin
    else if (Day < aDayInitVeg + self%cLengAllo) then
    bfRootVeg = 0.5*(self%fRootVegWin + self%fRootVegSum) + 0.5*(self%fRootVegWin - self%fRootVegSum) * &
    &cos(Pi/self%cLengAllo * (Day - aDayInitVeg))
    else if (Day < self%cDayWinVeg) then
-   bfRootVeg = self%fRootVegSum 
+   bfRootVeg = self%fRootVegSum
    else if (Day < self%cDayWinVeg + self%cLengAllo) then
    bfRootVeg = 0.5*(self%fRootVegWin + self%fRootVegSum) - 0.5*(self%fRootVegWin - self%fRootVegSum) * &
-   &cos(Pi/self%cLengAllo * (Day - self%cDayWinVeg)) 
+   &cos(Pi/self%cLengAllo * (Day - self%cDayWinVeg))
    else
-   bfRootVeg = self%fRootVegWin 
+   bfRootVeg = self%fRootVegWin
    endif
 !-----------------------------------------------------------------------
 !  fractions of roots and shoots
