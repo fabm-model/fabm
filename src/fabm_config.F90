@@ -7,8 +7,8 @@ module fabm_config
    use fabm_driver
    use fabm,only:type_model,fabm_initialize_library,fabm_initialize
 
-   use fabm_config_types
-   use fabm_yaml,yaml_parse=>parse,yaml_error_length=>error_length
+   use yaml_types
+   use yaml,yaml_parse=>parse,yaml_error_length=>error_length
 
    use fabm_library
 
@@ -334,3 +334,15 @@ contains
    end subroutine
 
 end module fabm_config
+
+module fabm_config_types
+   use yaml_types
+   implicit none
+   public
+end module
+
+module fabm_yaml
+   use yaml
+   implicit none
+   public
+end module

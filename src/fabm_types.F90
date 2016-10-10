@@ -47,7 +47,7 @@
    public type_aggregate_variable_id, type_horizontal_aggregate_variable_id
 
    ! Data types and procedures for variable management - used by FABM internally only.
-   public type_link, type_link_list
+   public type_link, type_link_list, type_variable_node, type_variable_set, type_variable_list
    public type_internal_variable
    public type_cache
 
@@ -99,13 +99,19 @@
                                  presence_external_optional = 6
 
    integer, parameter, public :: prefill_none           = 0, &
-                                 prefill_missing_value  = 1, &
+                                 prefill_constant       = 1, &
                                  prefill_previous_value = 2
 
    integer, parameter, public :: access_none       = 0, &
                                  access_read       = 1, &
                                  access_set_source = 2, &
                                  access_state      = ior(access_read,access_set_source)
+
+   integer, parameter, public :: store_index_none      = 0
+   integer, parameter, public :: store_index_requested = 1
+
+   integer, parameter, public :: operator_assign = 0, &
+                                 operator_add    = 1
 !
 ! !PUBLIC TYPES:
 !
@@ -149,8 +155,8 @@
       procedure :: extend      => integer_pointer_set_extend
       procedure :: set_value   => integer_pointer_set_set_value
       procedure :: is_empty    => integer_pointer_set_is_empty
-      procedure :: copy_values => integer_pointer_copy_values
-      procedure :: clear       => integer_pointer_clear
+      procedure :: copy_values => integer_pointer_set_copy_values
+      procedure :: clear       => integer_pointer_set_clear
    end type
 
    type type_coupling_task
@@ -280,6 +286,28 @@
       procedure :: extend   => link_list_extend
    end type
 
+   type type_variable_node
+      type (type_internal_variable), pointer :: target => null()
+      type (type_variable_node),     pointer :: next   => null()
+   end type
+
+   type type_variable_set
+      type (type_variable_node), pointer :: first => null()
+   contains
+      procedure :: add      => variable_set_add
+      procedure :: update   => variable_set_update
+      procedure :: remove   => variable_set_remove
+      procedure :: contains => variable_set_contains
+      procedure :: finalize => variable_set_finalize
+   end type
+
+   type type_variable_list
+      type (type_variable_node), pointer :: first => null()
+      integer                            :: count = 0
+   contains
+      procedure :: append => variable_list_append
+   end type
+
    ! ====================================================================================================
    ! Derived types used internally to store information on model variables and model references.
    ! ====================================================================================================
@@ -292,12 +320,14 @@
       real(rk)                        :: minimum        = -1.e20_rk
       real(rk)                        :: maximum        =  1.e20_rk
       real(rk)                        :: missing_value  = -2.e20_rk
+      real(rk)                        :: prefill_value  = -2.e20_rk
       real(rk)                        :: initial_value  = 0.0_rk
       integer                         :: output         = output_instantaneous
       integer                         :: presence       = presence_internal
       integer                         :: domain         = domain_interior
       integer                         :: source         = source_unknown
       integer                         :: prefill        = prefill_none
+      integer                         :: write_operator = operator_assign
       class (type_base_model),pointer :: owner          => null()
       type (type_contribution_list)   :: contributions
 
@@ -313,13 +343,21 @@
 
       integer,pointer :: read_index  => null()
       integer,pointer :: write_index => null()
-      integer         :: store_index = 0
+      integer         :: store_index = store_index_none
+      logical         :: in_read_registry = .false.
 
       ! Collections to collect information from all coupled variables.
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
       type (type_real_pointer_set)    :: background_values
       type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list
+      type (type_link),pointer        :: sms_sum => null(), surface_flux_sum => null(), bottom_flux_sum => null()
       type (type_link),pointer        :: movement_diagnostic => null()
+      type (type_link),pointer        :: sms                 => null()
+      type (type_link),pointer        :: surface_flux        => null()
+      type (type_link),pointer        :: bottom_flux         => null()
+
+      type (type_internal_variable),pointer :: write_owner => null()
+      type (type_variable_set)        :: cowriters
    end type
 
    type type_link
@@ -1300,12 +1338,12 @@ subroutine integer_pointer_set_extend(self,other)
    end if
 end subroutine integer_pointer_set_extend
 
-subroutine integer_pointer_clear(self)
+subroutine integer_pointer_set_clear(self)
    class (type_integer_pointer_set),intent(inout) :: self
 
    if (allocated(self%pointers)) deallocate(self%pointers)
    self%value = -1
-end subroutine integer_pointer_clear
+end subroutine integer_pointer_set_clear
 
 subroutine integer_pointer_set_set_value(self,value)
    class (type_integer_pointer_set),intent(inout) :: self
@@ -1313,9 +1351,11 @@ subroutine integer_pointer_set_set_value(self,value)
 
    integer :: i
 
-   do i=1,size(self%pointers)
-      self%pointers(i)%p = value
-   end do
+   if (allocated(self%pointers)) then
+      do i=1,size(self%pointers)
+         self%pointers(i)%p = value
+      end do
+   end if
    self%value = value
 end subroutine integer_pointer_set_set_value
 
@@ -1324,7 +1364,7 @@ logical function integer_pointer_set_is_empty(self)
    integer_pointer_set_is_empty = .not.allocated(self%pointers)
 end function integer_pointer_set_is_empty
 
-subroutine integer_pointer_copy_values(self,target)
+subroutine integer_pointer_set_copy_values(self,target)
    class (type_integer_pointer_set),intent(in) :: self
    integer,allocatable                         :: target(:)
 
@@ -1338,7 +1378,7 @@ subroutine integer_pointer_copy_values(self,target)
          target(i) = self%pointers(i)%p
       end do
    end if
-end subroutine
+end subroutine integer_pointer_set_copy_values
 
 subroutine real_pointer_set_append(self,value)
    class (type_real_pointer_set),intent(inout) :: self
@@ -1442,13 +1482,15 @@ end subroutine real_pointer_set_set_value
       type (type_link),                  intent(in)           :: link
       type (type_aggregate_variable_id), intent(inout),target :: sms_id
 
-      type (type_link),pointer :: link1,link2
+      type (type_link),pointer :: link2
 
       if (.not.associated(sms_id%link)) &
          call self%add_interior_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
-                                         0.0_rk, output=output_none, write_index=sms_id%sum_index, link=link1)
-      link1%target%prefill = prefill_missing_value
-      link2 => link%target%sms_list%append(link1%target,link1%target%name)
+                                         0.0_rk, output=output_none, write_index=sms_id%sum_index, link=sms_id%link)
+      sms_id%link%target%prefill = prefill_constant
+      sms_id%link%target%write_operator = operator_add
+      link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
+      link%target%sms => link2
    end subroutine register_source
 
    subroutine register_surface_flux(self, link, surface_flux_id)
@@ -1456,14 +1498,16 @@ end subroutine real_pointer_set_set_value
       type (type_link),                             intent(in)           :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: surface_flux_id
 
-      type (type_link),pointer :: link1,link2
+      type (type_link),pointer :: link2
 
       if (.not.associated(surface_flux_id%link)) &
          call self%add_horizontal_variable(trim(link%name)//'_sfl', trim(link%target%units)//'*m/s', trim(link%target%long_name)//' surface flux', &
                                            0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
-                                           domain=domain_surface, source=source_do_surface, link=link1)
-      link1%target%prefill = prefill_missing_value
-      link2 => link%target%surface_flux_list%append(link1%target,link1%target%name)
+                                           domain=domain_surface, source=source_do_surface, link=surface_flux_id%link)
+      surface_flux_id%link%target%prefill = prefill_constant
+      surface_flux_id%link%target%write_operator = operator_add
+      link2 => link%target%surface_flux_list%append(surface_flux_id%link%target,surface_flux_id%link%target%name)
+      link%target%surface_flux => link2
    end subroutine register_surface_flux
 
    subroutine register_bottom_flux(self, link, bottom_flux_id)
@@ -1471,14 +1515,16 @@ end subroutine real_pointer_set_set_value
       type (type_link),                             intent(in)           :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: bottom_flux_id
 
-      type (type_link),pointer :: link1,link2
+      type (type_link),pointer :: link2
 
       if (.not.associated(bottom_flux_id%link)) &
          call self%add_horizontal_variable(trim(link%name)//'_bfl', trim(link%target%units)//'*m/s', trim(link%target%long_name)//' bottom flux', &
                                            0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
-                                           domain=domain_bottom, source=source_do_bottom, link=link1)
-      link1%target%prefill = prefill_missing_value
-      link2 => link%target%bottom_flux_list%append(link1%target,link1%target%name)
+                                           domain=domain_bottom, source=source_do_bottom, link=bottom_flux_id%link)
+      bottom_flux_id%link%target%prefill = prefill_constant
+      bottom_flux_id%link%target%write_operator = operator_add
+      link2 => link%target%bottom_flux_list%append(bottom_flux_id%link%target,bottom_flux_id%link%target%name)
+      link%target%bottom_flux => link2
    end subroutine register_bottom_flux
 
 !-----------------------------------------------------------------------
@@ -1626,6 +1672,7 @@ end subroutine real_pointer_set_set_value
          variable%output = time_treatment2output(time_treatment)
       end if
       if (present(output))        variable%output        = output
+      variable%prefill_value = variable%missing_value
 
       if (present(state_index)) then
          ! Ensure that initial value falls within prescribed valid range.
@@ -1701,7 +1748,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !LOCAL VARIABLES:
       type (type_internal_variable), pointer :: variable
-      type (type_link),              pointer :: link_,link2
+      type (type_link),              pointer :: link_
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1725,11 +1772,10 @@ end subroutine real_pointer_set_set_value
 
       if (present(movement_index)) then
          call self%add_interior_variable(trim(link_%name)//'_w', 'm/s', trim(long_name)//' vertical movement', &
-                                     variable%vertical_movement, output=output_none, write_index=movement_index, link=link2, &
+                                     variable%vertical_movement, output=output_none, write_index=movement_index, link=variable%movement_diagnostic, &
                                      source=source_get_vertical_movement)
-         link2%target%can_be_slave = .true.
-         link2%target%prefill = prefill_missing_value
-         variable%movement_diagnostic => link2
+         variable%movement_diagnostic%target%can_be_slave = .true.
+         variable%movement_diagnostic%target%prefill = prefill_constant
       end if
 
       if (present(link)) link => link_
@@ -1770,7 +1816,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !LOCAL VARIABLES:
       type (type_internal_variable),pointer :: variable
-      type (type_link),             pointer :: link_,link2,link_dum
+      type (type_link),             pointer :: link_,link_dum
       integer                               :: sms_source
 !
 !-----------------------------------------------------------------------
@@ -1799,10 +1845,10 @@ end subroutine real_pointer_set_set_value
          sms_source = source_do_bottom
          if (variable%domain==domain_surface) sms_source = source_do_surface
          call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                           0.0_rk, output=output_none, write_index=sms_index, link=link2, &
+                                           0.0_rk, output=output_none, write_index=sms_index, link=variable%sms, &
                                            domain=variable%domain, source=sms_source)
-         link2%target%prefill = prefill_missing_value
-         link_dum => variable%sms_list%append(link2%target,link2%target%name)
+         variable%sms%target%prefill = prefill_constant
+         link_dum => variable%sms_list%append(variable%sms%target,variable%sms%target%name)
       end if
 
       if (present(link)) link => link_
@@ -1907,7 +1953,7 @@ end subroutine real_pointer_set_set_value
 ! !INTERFACE:
    subroutine register_interior_diagnostic_variable(self, id, name, units, long_name, &
                                                 time_treatment, missing_value, standard_variable, output, source, &
-                                                act_as_state_variable)
+                                                act_as_state_variable, prefill_value)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1919,7 +1965,7 @@ end subroutine real_pointer_set_set_value
 ! !INPUT PARAMETERS:
       character(len=*),                   intent(in)          :: name, long_name, units
       integer,                            intent(in),optional :: time_treatment, output, source
-      real(rk),                           intent(in),optional :: missing_value
+      real(rk),                           intent(in),optional :: missing_value, prefill_value
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       logical,                            intent(in),optional :: act_as_state_variable
 !
@@ -1933,7 +1979,10 @@ end subroutine real_pointer_set_set_value
       call self%add_interior_variable(name, units, long_name, missing_value, &
                                   standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
                                   source=source, write_index=id%diag_index, link=id%link, act_as_state_variable=act_as_state_variable)
-
+      if (present(prefill_value)) then
+         id%link%target%prefill = prefill_constant
+         id%link%target%prefill_value = prefill_value
+      end if
    end subroutine register_interior_diagnostic_variable
 !EOC
 
@@ -3071,6 +3120,119 @@ end subroutine abstract_model_factory_register_version
          write (source2string,'(i0)') source
       end select
    end function source2string
+
+   subroutine variable_set_add(self,variable)
+      class (type_variable_set),intent(inout) :: self
+      type (type_internal_variable),target    :: variable
+
+      type (type_variable_node), pointer :: node
+
+      ! Check if this variable already exists.
+      node => self%first
+      do while (associated(node))
+         if (associated(node%target,variable)) return
+         node => node%next
+      end do
+
+      ! Create a new variable object and prepend it to the list.
+      allocate(node)
+      node%target => variable
+      node%next => self%first
+      self%first => node
+   end subroutine variable_set_add
+
+   subroutine variable_set_remove(self,variable,discard)
+      class (type_variable_set),intent(inout) :: self
+      type (type_internal_variable),target    :: variable
+      logical,optional,         intent(in)    :: discard
+
+      type (type_variable_node), pointer :: node, previous
+      logical                            :: discard_
+
+      ! Check if this variable already exists.
+      previous => null()
+      node => self%first
+      do while (associated(node))
+         if (associated(node%target,variable)) then
+            if (associated(previous)) then
+               previous%next => node%next
+            else
+               self%first => node%next
+            end if
+            deallocate(node)
+            return
+         end if
+         previous => node
+         node => node%next
+      end do
+      discard_ = .false.
+      if (present(discard)) discard_ = discard
+      if (.not.discard_) call fatal_error('variable_set_remove','Variable "'//trim(variable%name)//'" not found in set.')
+   end subroutine variable_set_remove
+
+   logical function variable_set_contains(self,variable)
+      class (type_variable_set),intent(in) :: self
+      type (type_internal_variable),target :: variable
+
+      type (type_variable_node), pointer :: node
+
+      variable_set_contains = .true.
+      node => self%first
+      do while (associated(node))
+         if (associated(node%target,variable)) return
+         node => node%next
+      end do
+      variable_set_contains = .false.
+   end function variable_set_contains
+
+   subroutine variable_set_update(self,other)
+      class (type_variable_set),intent(inout) :: self
+      class (type_variable_set),intent(in)    :: other
+
+      type (type_variable_node), pointer :: node
+
+      node => other%first
+      do while (associated(node))
+         call self%add(node%target)
+         node => node%next
+      end do
+   end subroutine variable_set_update
+
+   subroutine variable_set_finalize(self)
+      class (type_variable_set), intent(inout) :: self
+
+      type (type_variable_node),pointer :: node, next
+
+      node => self%first
+      do while (associated(node))
+         next => node%next
+         deallocate(node)
+         node => next
+      end do
+      self%first => null()
+   end subroutine variable_set_finalize
+
+   subroutine variable_list_append(self,variable,index)
+      class (type_variable_list),intent(inout) :: self
+      type (type_internal_variable), target    :: variable
+      integer,optional,          intent(out)   :: index
+
+      type (type_variable_node), pointer :: last
+
+      if (associated(self%first)) then
+         last => self%first
+         do while (associated(last%next))
+            last => last%next
+         end do
+         allocate(last%next)
+         last%next%target => variable
+      else
+         allocate(self%first)
+         self%first%target => variable
+      end if
+      self%count = self%count + 1
+      if (present(index)) index = self%count
+   end subroutine variable_list_append
 
    end module fabm_types
 

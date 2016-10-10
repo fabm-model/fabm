@@ -16,7 +16,7 @@ module fabm_graph
    implicit none
 
    public type_graph, type_node, type_node_set_member, type_node_list, type_node_list_member
-   public type_output_variable, type_input_variable, type_input_variable_set
+   public type_output_variable
 
    private
 
@@ -66,23 +66,10 @@ module fabm_graph
       procedure :: finalize => output_variable_set_finalize
    end type
 
-   type type_input_variable
-      type (type_internal_variable), pointer :: target => null()
-      type (type_input_variable),    pointer :: next   => null()
-   end type
-
-   type type_input_variable_set
-      type (type_input_variable), pointer :: first => null()
-   contains
-      procedure :: add      => input_variable_set_add
-      procedure :: finalize => input_variable_set_finalize
-   end type
-
    type type_node
       class (type_base_model), pointer :: model => null()
       integer                          :: source = source_unknown
-      logical                          :: not_stale = .false.
-      type (type_input_variable_set)   :: inputs               ! input variables (irrespective of their source - can be constants, state variables, host-provided, or diagnostics computed by another node)
+      type (type_variable_set)         :: inputs               ! input variables (irrespective of their source - can be constants, state variables, host-provided, or diagnostics computed by another node)
       type (type_node_set)             :: dependencies         ! direct dependencies
       type (type_output_variable_set)  :: outputs              ! output variables that a later called model requires
    contains
@@ -91,6 +78,7 @@ module fabm_graph
 
    type,extends(type_node_list) :: type_graph
       type (type_graph),pointer :: previous => null()
+      logical                   :: frozen = .false.
    contains
       procedure :: add_call     => graph_add_call
       procedure :: add_variable => graph_add_variable
@@ -135,40 +123,6 @@ subroutine output_variable_set_finalize(self)
    self%first => null()
 end subroutine output_variable_set_finalize
 
-subroutine input_variable_set_add(self,variable)
-   class (type_input_variable_set),intent(inout) :: self
-   type (type_internal_variable),target          :: variable
-
-   type (type_input_variable), pointer :: node
-
-   ! Check if this variable already exists.
-   node => self%first
-   do while (associated(node))
-      if (associated(node%target,variable)) return
-      node => node%next
-   end do
-
-   ! Create a new variable object and prepend it to the list.
-   allocate(node)
-   node%target => variable
-   node%next => self%first
-   self%first => node
-end subroutine input_variable_set_add
-
-subroutine input_variable_set_finalize(self)
-   class (type_input_variable_set), intent(inout) :: self
-
-   type (type_input_variable),pointer :: node, next
-
-   node => self%first
-   do while (associated(node))
-      next => node%next
-      deallocate(node)
-      node => next
-   end do
-   self%first => null()
-end subroutine input_variable_set_finalize
-
 subroutine graph_print(self)
    class (type_graph), intent(in) :: self
 
@@ -184,7 +138,7 @@ subroutine graph_print(self)
          write (*,'("   ",a,",write@",i0)',advance='no') trim(variable%target%name),variable%target%write_indices%value
          if (variable%copy_to_cache) write (*,'(",cache@",i0)',advance='no') variable%target%read_indices%value
          if (variable%copy_to_store) write (*,'(",store@",i0)',advance='no') variable%target%store_index
-         if (variable%target%prefill==prefill_missing_value) write (*,'(",prefill=",g0.6)',advance='no') variable%target%missing_value
+         if (variable%target%prefill==prefill_constant) write (*,'(",prefill=",g0.6)',advance='no') variable%target%prefill_value
          if (variable%target%prefill==prefill_previous_value) write (*,'(",prefill=previous")',advance='no')
          write (*,*)
          pnode => variable%dependent_nodes%first
@@ -199,16 +153,14 @@ subroutine graph_print(self)
 
 end subroutine graph_print
 
-recursive function graph_add_call(self,model,source,outer_calls,not_stale,ignore_dependencies) result(node)
+recursive function graph_add_call(self,model,source,outer_calls,ignore_dependencies) result(node)
    class (type_graph),            intent(inout) :: self
    class (type_base_model),target,intent(in)    :: model
    integer,                       intent(in)    :: source
    type (type_node_list),  target,intent(inout) :: outer_calls
-   logical,optional,              intent(in)    :: not_stale
    logical,optional,              intent(in)    :: ignore_dependencies
    type (type_node), pointer :: node
 
-   logical                               :: not_stale_
    type (type_graph),            pointer :: previous_graph
    type (type_node_list_member), pointer :: pnode
    character(len=2048)                   :: chain
@@ -216,26 +168,24 @@ recursive function graph_add_call(self,model,source,outer_calls,not_stale,ignore
    logical                               :: ignore_dependencies_
    logical                               :: same_source
 
+   if (self%frozen) call driver%fatal_error('graph_add_call','Graph is frozen; no calls can be added.')
+
    ! Provide optional arguments with default value.
    ignore_dependencies_ = .false.
    if (present(ignore_dependencies)) ignore_dependencies_ = ignore_dependencies
-   not_stale_ = .false.
-   if (present(not_stale)) not_stale_ = not_stale
 
    ! First see if this node is already in the graph. If so, we are done: return.
    node => self%find(model,source)
    if (associated(node)) return
 
-   ! Now check any preceding graphs (provided not_stale is not active).
+   ! Now check any preceding graphs.
    ! If the call is found in a preceding graph, we are done: return.
-   if (.not.not_stale_) then
-      previous_graph => self%previous
-      do while (associated(previous_graph))
-         node => previous_graph%find(model,source)
-         if (associated(node)) return
-         previous_graph => previous_graph%previous
-      end do
-   end if
+   previous_graph => self%previous
+   do while (associated(previous_graph))
+      node => previous_graph%find(model,source)
+      if (associated(node)) return
+      previous_graph => previous_graph%previous
+   end do
 
    ! Add current call to the list of outer calls.
    allocate(node)
@@ -264,9 +214,13 @@ recursive function graph_add_call(self,model,source,outer_calls,not_stale,ignore
       if (index(link%name,'/')==0.and.associated(link%original%read_index)) then
          ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
          call node%inputs%add(link%target)
-         if (.not.ignore_dependencies_) then
-            same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
-            if (.not.(associated(link%target%owner,model).and.same_source)) call self%add_variable(link%target,outer_calls,caller=node)
+         same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
+         if (.not.(associated(link%target%owner,model).and.same_source)) then
+            if (.not.ignore_dependencies_) then
+               call self%add_variable(link%target,outer_calls,caller=node)
+            else
+               call self%previous%add_variable(link%target,outer_calls,caller=node)
+            end if
          end if
       end if
       link => link%next
@@ -277,17 +231,20 @@ recursive function graph_add_call(self,model,source,outer_calls,not_stale,ignore
    call self%append(node)
 end function graph_add_call
 
-recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,copy_to_store,not_stale,caller)
+recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,copy_to_store,caller)
    class (type_graph),              intent(inout) :: self
    type (type_internal_variable),   intent(in)    :: variable
    type (type_node_list),    target,intent(inout) :: outer_calls
    logical,         optional,       intent(in)    :: copy_to_cache
    logical,         optional,       intent(in)    :: copy_to_store
-   logical,         optional,       intent(in)    :: not_stale
    type (type_node),optional,target,intent(inout) :: caller
 
+   type (type_variable_node), pointer :: variable_node
+
+   if (self%frozen) call driver%fatal_error('graph_add_variable','Graph is frozen; no variables can be added.')
+
    ! If this variable is not an output of some model (e.g., a state variable or external dependency), no call is needed.
-   if (variable%write_indices%is_empty()) return
+   if (variable%write_indices%value==-1) return
 
    if (variable%source==source_unknown) then
       ! This variable is either written by do_surface or do_bottom - which one of these two APIs is unknown.
@@ -298,6 +255,13 @@ recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,
       call add_call(variable%source)
    end if
 
+   ! Automatically request additional value contributions (for reduction operators that accept in-place modification of the variable value)
+   variable_node => variable%cowriters%first
+   do while (associated(variable_node))
+      call self%add_variable(variable_node%target,outer_calls,caller=caller)
+      variable_node => variable_node%next
+   end do
+
 contains
    
    recursive subroutine add_call(source)
@@ -306,11 +270,10 @@ contains
       type (type_node),           pointer :: node
       type (type_output_variable),pointer :: variable_node
 
-      node => self%add_call(variable%owner,source,outer_calls,not_stale)
+      node => self%add_call(variable%owner,source,outer_calls)
       variable_node => node%outputs%add(variable)
       if (present(copy_to_cache)) variable_node%copy_to_cache = variable_node%copy_to_cache .or. copy_to_cache
       if (present(copy_to_store)) variable_node%copy_to_store = variable_node%copy_to_store .or. copy_to_store
-      if (present(not_stale)) node%not_stale = not_stale
       if (present(caller)) then
          call caller%dependencies%add(node)
          call variable_node%dependent_nodes%add(caller)

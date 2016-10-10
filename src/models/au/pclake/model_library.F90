@@ -34,7 +34,7 @@ module au_pclake_model_library
    use au_pclake_zooplankton
    use au_pclake_fish
    use au_pclake_zoobenthos
-   use au_pclake_auxilary
+   use au_pclake_auxiliary
 
 
    implicit none
@@ -67,7 +67,7 @@ contains
          case ('zooplankton');            allocate(type_au_pclake_zooplankton::model);
          case ('fish');                   allocate(type_au_pclake_fish::model);
          case ('zoobenthos');       allocate(type_au_pclake_zoobenthos::model);
-         case ('auxilary');               allocate(type_au_pclake_auxilary::model);
+         case ('auxiliary');               allocate(type_au_pclake_auxiliary::model);
          case default
             call self%type_base_model_factory%create(name,model)
        end select

@@ -78,7 +78,8 @@
       real(rk)                   :: cVSetIM,cVSetDet
 !     parameter for specific light attenuation coefficient
       real(rk)                   :: cExtSpIM,cExtSpDet
-
+!    minimun state variable vaules
+     real(rk)   :: cDVegMin, cNVegMin,cPVegMin
    contains
 !     Model procedures
       procedure :: initialize

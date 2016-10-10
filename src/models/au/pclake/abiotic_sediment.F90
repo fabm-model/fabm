@@ -217,7 +217,7 @@
 !  register state variables dependencies (2 steps)
 !---------------------------------------------------------------------------------------------------------------
 !   Register dependencies on external state variables
-   call self%register_state_dependency(self%id_O2ConsumpSed, 'oxygen_pool_water',               'g m-3', 'oxygen_pool_water')
+   call self%register_state_dependency(self%id_O2ConsumpSed, 'Oxygen_pool_water',               'g m-3', 'Oxygen_pool_water')
    call self%register_state_dependency(self%id_MinSiO2Sed,   'SiO2_generated_by_mineralization','g m-3', 'SiO2_generated_by_mineralization')
    call self%register_state_dependency(self%id_diffNH4,      'NH4_diffusion_flux',              'g m-3', 'NH4_diffusion_flux')
    call self%register_state_dependency(self%id_diffNO3,      'NO3_diffusion_flux',              'g m-3', 'NO3_diffusion_flux')

@@ -117,6 +117,8 @@
       real(rk)   :: cVSetDiat,cVSetGren,cVSetBlue
 !     parameter for specific light attenuation coefficient
       real(rk)   :: cExtSpDiat,cExtSpGren,cExtSpBlue
+!     minimum state variable values
+      real(rk)   :: cDBlueMinW,cDGrenMinW,cDDiatMinW
 
    contains
 
@@ -136,8 +138,6 @@
    real(rk),parameter ::O2PerNO3 = 1.5_rk
 !  ratio of mol.weights,32/14 [gO2/gN],
    real(rk),parameter :: molO2molN = 2.2857_rk
-!  Lowest phytoplankton value
-   real(rk),parameter :: PhyZero=0.000001_rk
    real(rk),parameter :: mgPerg = 1000_rk
 !EOP
 !-----------------------------------------------------------------------
@@ -227,26 +227,30 @@
    call self%get_parameter(self%UseLightMethodGren,'UseLightMethodGren','[-]',       'lightmethod,1without photoinhibition,Chalker(1980)model,2with photoinhibition,Klepperetal.(1988)/Ebenhohetal.(1997)model.',default=1)
    call self%get_parameter(self%UseLightMethodBlue,'UseLightMethodBlue','[-]',       'lightmethod,1without photoinhibition,Chalker(1980)model,2with photoinhibition,Klepperetal.(1988)/Ebenhohetal.(1997)model.',default=2)
    call self%get_parameter(self%UseLightMethodDiat,'UseLightMethodDiat','[-]',       'lightmethod,1without photoinhibition,Chalker(1980)model,2with photoinhibition,Klepperetal.(1988)/Ebenhohetal.(1997)model.',default=2)
+!  the user defined minumun value for state variables
+   call self%get_parameter(self%cDBlueMinW,           'cDBlueMinW',           'gDW/m3',             'minimun blue-green algae biomass in system',                                                             default=0.00001_rk)
+   call self%get_parameter(self%cDGrenMinW,           'cDGrenMinW',           'gDW/m3',             'minimun green algae biomass in system',                                                                  default=0.00001_rk)
+   call self%get_parameter(self%cDDiatMinW,           'cDDiatMinW',           'gDW/m3',             'minimun diatom biomass in system',                                                                       default=0.00001_rk)
 !  Register local state variable
-!   all phytoplankton has vertical movement activated,normally netgative, meaning settling.
+!  all phytoplankton has vertical movement activated,normally netgative, meaning settling.
    call self%register_state_variable(self%id_sDDiatW,'sDDiatW','g m-3','diatom_D in water',    &
-                                     initial_value=0.5_rk,minimum=NearZero,vertical_movement= self%cVSetDiat,no_river_dilution=.TRUE.)
+                                    initial_value=0.5_rk,minimum=self%cDDiatMinW,vertical_movement= self%cVSetDiat,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sPDiatW,'sPDiatW','g m-3','diatom_P in water',     &
-                                    initial_value=0.005_rk,minimum=NearZero,vertical_movement= self%cVSetDiat,no_river_dilution=.TRUE.)
+                                    initial_value=0.005_rk,minimum=self%cDDiatMinW* self%cPDDiatMin,vertical_movement= self%cVSetDiat,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sNDiatW,'sNDiatW','g m-3','diatom_N in water',     &
-                                    initial_value=0.05_rk,minimum=NearZero,vertical_movement= self%cVSetDiat,no_river_dilution=.TRUE.)
+                                    initial_value=0.05_rk,minimum=self%cDDiatMinW * self%cNDDiatMin,vertical_movement= self%cVSetDiat,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sDGrenW,'sDGrenW','g m-3','green_D in water',    &
                                     initial_value=0.5_rk,minimum=NearZero,vertical_movement= self%cVSetGren,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sPGrenW,'sPGrenW','g m-3','green_P in water',     &
-                                    initial_value=0.005_rk,minimum=NearZero,vertical_movement= self%cVSetGren,no_river_dilution=.TRUE.)
+                                    initial_value=0.005_rk,minimum=self%cDGrenMinW * self%cPDGrenMin,vertical_movement= self%cVSetGren,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sNGrenW,'sNGrenW','g m-3','green_N in water',     &
-                                    initial_value=0.05_rk,minimum=NearZero,vertical_movement= self%cVSetGren,no_river_dilution=.TRUE.)
+                                    initial_value=0.05_rk,minimum=self%cDGrenMinW * self%cNDGrenMin,vertical_movement= self%cVSetGren,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sDBlueW,'sDBlueW','g m-3','blue_D in water',     &
-                                    initial_value=3.0_rk,minimum=NearZero,vertical_movement= self%cVSetBlue,no_river_dilution=.TRUE.)
+                                    initial_value=3.0_rk,minimum=self%cDBlueMinW,vertical_movement= self%cVSetBlue,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sPBlueW,'sPBlueW','g m-3','blue_P in water',     &
-                                    initial_value=0.03_rk,minimum=NearZero,vertical_movement= self%cVSetBlue,no_river_dilution=.TRUE.)
+                                    initial_value=0.03_rk,minimum=self%cDBlueMinW * self%cPDBlueMin,vertical_movement= self%cVSetBlue,no_river_dilution=.TRUE.)
    call self%register_state_variable(self%id_sNBlueW,'sNBlueW','g m-3','blue_N in water',     &
-                                    initial_value=0.3_rk,minimum=NearZero,vertical_movement= self%cVSetBlue,no_river_dilution=.TRUE.)
+                                    initial_value=0.3_rk,minimum=self%cDBlueMinW * self%cNDBlueMin,vertical_movement= self%cVSetBlue,no_river_dilution=.TRUE.)
 !     register diagnostic variables
    call self%register_diagnostic_variable(self%id_oSiDiatW,       'oSiDiatW',       'g m-3 ',   'diatom_Si in water',                           output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_oChlaDiat,      'oChlaDiat',      'mg m-3',   'diatom_chla',                                  output=output_instantaneous)
@@ -312,17 +316,17 @@
    call self%add_to_aggregate_variable(type_bulk_standard_variable(name='pclake_chla'),self%id_oChlaGren)
    call self%add_to_aggregate_variable(type_bulk_standard_variable(name='pclake_chla'),self%id_oChlaBlue)
 !  register state variables dependencies
-   call self%register_state_dependency(self%id_SiO2poolW, 'SiO2_pool_water',       'g m-3', 'SiO2_pool_water')
-   call self%register_state_dependency(self%id_PO4poolW,  'sPO4_pool_water',       'g m-3', 'sPO4_pool_water')
-   call self%register_state_dependency(self%id_NH4poolW,  'sNH4_pool_water',       'g m-3', 'sNH4_pool_water')
-   call self%register_state_dependency(self%id_NO3poolW,  'sNO3_pool_water',       'g m-3', 'sNO3_pool_water')
-   call self%register_state_dependency(self%id_O2poolW,   'oxygen_pool_water',     'g m-3', 'oxygen_pool_water)')
-   call self%register_state_dependency(self%id_DDetpoolW, 'detritus_DW_pool_water','g m-3', 'detritus_DW_pool_water')
-   call self%register_state_dependency(self%id_NDetpoolW, 'detritus_N_pool_water', 'g m-3', 'detritus_N_pool_water')
-   call self%register_state_dependency(self%id_PDetpoolW, 'detritus_P_pool_water', 'g m-3', 'detritus_P_pool_water')
-   call self%register_state_dependency(self%id_SiDetpoolW,'detritus_Si_pool_water','g m-3', 'detritus_Si_pool_water')
+   call self%register_state_dependency(self%id_SiO2poolW, 'SiO2_pool_water',            'g m-3', 'SiO2_pool_water')
+   call self%register_state_dependency(self%id_PO4poolW,  'PO4_pool_water',             'g m-3', 'PO4_pool_water')
+   call self%register_state_dependency(self%id_NH4poolW,  'NH4_pool_water',             'g m-3', 'NH4_pool_water')
+   call self%register_state_dependency(self%id_NO3poolW,  'NO3_pool_water',             'g m-3', 'NO3_pool_water')
+   call self%register_state_dependency(self%id_O2poolW,   'Oxygen_pool_water',          'g m-3', 'Oxygen_pool_water)')
+   call self%register_state_dependency(self%id_DDetpoolW, 'Detritus_DW_pool_water',     'g m-3', 'Detritus_DW_pool_water')
+   call self%register_state_dependency(self%id_NDetpoolW, 'Detritus_N_pool_water',      'g m-3', 'Detritus_N_pool_water')
+   call self%register_state_dependency(self%id_PDetpoolW, 'Detritus_P_pool_water',      'g m-3', 'Detritus_P_pool_water')
+   call self%register_state_dependency(self%id_SiDetpoolW,'Detritus_Si_pool_water',     'g m-3', 'Detritus_Si_pool_water')
 !  register diagnostic dependencies
-   call self%register_dependency(self%id_afCovSurfVeg, 'surface_vegetation_coverage','[-]','surface_vegetation_coverage')
+   call self%register_dependency(self%id_afCovSurfVeg,    'Surface_vegetation_coverage','[-]',   'Surface_vegetation_coverage')
 !  register environmental dependencies
    call self%register_dependency(self%id_uTm, standard_variables%temperature)
    call self%register_dependency(self%id_dz,  standard_variables%cell_thickness)

@@ -94,6 +94,11 @@
       real(rk)      :: cPDFishRef,cNDFishRef,cPDPisc,cNDPisc
 !     Fish manipulation parameters, switch for turned on/off fish manipulation
       logical    :: Manipulate_FiAd, Manipulate_FiJv, Manipulate_Pisc
+!     minimum state variable values
+      real(rk)   :: cDFiJvMin,cDFiAdMin,cDPiscMin
+      
+      
+      
    contains
 
 !     Model procedures
@@ -183,27 +188,31 @@
 !  Fish manipulation, register of switches
    call self%get_parameter(self%Manipulate_FiAd, 'Manipulate_FiAd', ' ',        'Turn on benthivorous fish manipulation',                                         default=.false.)
    call self%get_parameter(self%Manipulate_FiJv, 'Manipulate_FiJv', ' ',        'Turn on zooplanktivorous manipulation',                                          default=.false.)
-   call self%get_parameter(self%Manipulate_Pisc,'Manipulate_Pisc',  ' ',        'Turn on piscivorous fish manipulation',                                          default=.false.)
+   call self%get_parameter(self%Manipulate_Pisc, 'Manipulate_Pisc', ' ',        'Turn on piscivorous fish manipulation',                                          default=.false.)
+!  the user defined minumun value for state variables
+   call self%get_parameter(self%cDFiJvMin,       'cDFiJvMin',       'gDW/m3',   'minimun zooplanktivorous  fish biomass in system',                               default=0.0001_rk)
+   call self%get_parameter(self%cDFiAdMin,       'cDFiAdMin',       'gDW/m3',   'minimun benthivorous fish biomass in system',                                    default=0.0001_rk)
+   call self%get_parameter(self%cDPiscMin,       'cDPiscMin',       'gDW/m3',   'minimun piscivorous fish biomass in system',                                     default=0.0001_rk)
 !  Register local state variable
 !  zooplanktivorous fish, transportation is turned off
    call self%register_state_variable(self%id_sDFiJv,'sDFiJv','g m-3','zooplanktivorous fish biomass',     &
-                                    initial_value= 0.5_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value= 0.5_rk,minimum=self%cDFiJvMin,no_river_dilution=.TRUE.)
 !   call self%set_variable_property(self%id_sDFiJv,'disable_transport',.true.)
    call self%register_state_variable(self%id_sPFiJv,'sPFiJv','g m-3','zooplanktivorous fish phosphorus content',     &
-                                    initial_value=0.011_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value=0.011_rk,minimum=self%cDFiJvMin * self%cPDFishRef,no_river_dilution=.TRUE.)
 !   call self%set_variable_property(self%id_sPFiJv,'disable_transport',.true.)
    call self%register_state_variable(self%id_sNFiJv,'sNFiJv','g m-3','zooplanktivorous fish nitrogen content',     &
-                                    initial_value=0.05_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value=0.05_rk,minimum=self%cDFiJvMin * self%cNDFishRef,no_river_dilution=.TRUE.)
 !   call self%set_variable_property(self%id_spFiJv,'disable_transport',.true.)
 !  benthivoros fish, transportation turned off
    call self%register_state_variable(self%id_sDFiAd,'sDFiAd','g m-3','benthivorous fish biomass',     &
-                                    initial_value=2.0_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value=2.0_rk,minimum=self%cDFiAdMin,no_river_dilution=.TRUE.)
 !   call self%set_variable_property(self%id_sDFiAd,'disable_transport',.true.)
    call self%register_state_variable(self%id_sPFiAd,'sPFiAd','g m-3','benthivorous fish phosphorus content',     &
-                                    initial_value=0.044_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value=0.044_rk,minimum=self%cDFiAdMin * self%cPDFishRef,no_river_dilution=.TRUE.)
 !   call self%set_variable_property(self%id_sPFiAd,'disable_transport',.true.)
    call self%register_state_variable(self%id_sNFiAd,'sNFiAd','g m-3','benthivorous fish nitrogen content',     &
-                                    initial_value=0.2_rk,minimum=NearZero,no_river_dilution=.TRUE.)
+                                    initial_value=0.2_rk,minimum=self%cDFiAdMin * self%cNDFishRef,no_river_dilution=.TRUE.)
 !   call self%set_variable_property(self%id_sNFiAd,'disable_transport',.true.)
 !  piscivorous fish
    call self%register_state_variable(self%id_sDPisc,'sDPisc','g m-3','piscivorous fish biomass', &
@@ -253,9 +262,9 @@
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_sPFiAd)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_aPPisc)
 !  register state variables dependencies
-   call self%register_state_dependency(self%id_DDetpoolW, 'detritus_DW_pool_water','g m-3', 'detritus_DW_pool_water')
-   call self%register_state_dependency(self%id_NDetpoolW, 'detritus_N_pool_water', 'g m-3', 'detritus_N_pool_water')
-   call self%register_state_dependency(self%id_PDetpoolW, 'detritus_P_pool_water', 'g m-3', 'detritus_P_pool_water')
+   call self%register_state_dependency(self%id_DDetpoolW, 'Detritus_DW_pool_water','g m-3', 'Detritus_DW_pool_water')
+   call self%register_state_dependency(self%id_NDetpoolW, 'Detritus_N_pool_water', 'g m-3', 'Detritus_N_pool_water')
+   call self%register_state_dependency(self%id_PDetpoolW, 'Detritus_P_pool_water', 'g m-3', 'Detritus_P_pool_water')
    call self%register_state_dependency(self%id_NH4poolW,  'NH4_pool_water',        'g m-3', 'NH4_pool_water')
    call self%register_state_dependency(self%id_PO4poolW,  'PO4_pool_water',        'g m-3', 'PO4_pool_water')
    call self%register_state_dependency(self%id_DFoodZoo,  'Zooplankton_D_Food',    'g m-3', 'Zooplankton_D_Food')
@@ -267,9 +276,9 @@
    call self%register_dependency(self%id_dz,     standard_variables%cell_thickness)
    call self%register_dependency(self%id_sDepthW,standard_variables%bottom_depth)
 !  register diagnostic dependencies
-   call self%register_dependency(self%id_tDEnvFiAd, 'env_correction_adfish',     '[-]',  'env_correction_adfish')
-   call self%register_dependency(self%id_aDSubVeg,  'submerged_vegetation',      'g m-2','submerged_vegetation')
-   call self%register_dependency(self%id_aDSatFiAd, 'food_limit_function_adfish','[-]',  'food_limit_function_adfish')
+   call self%register_dependency(self%id_tDEnvFiAd, 'Env_correction_adfish',     '[-]',  'Env_correction_adfish')
+   call self%register_dependency(self%id_aDSubVeg,  'Submerged_vegetation',      'g m-2','Submerged_vegetation')
+   call self%register_dependency(self%id_aDSatFiAd, 'Food_limit_function_adfish','[-]',  'Food_limit_function_adfish')
 
 
    return

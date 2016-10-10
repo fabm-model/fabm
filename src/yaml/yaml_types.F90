@@ -1,4 +1,20 @@
-module fabm_config_types
+! -----------------------------------------------------------------------------
+! This file is part of Fortran-YAML: a lightweight YAML parser written in
+! object-oriented Fortran.
+!
+! Official repository: https://github.com/BoldingBruggeman/fortran-yaml
+!
+! Copyright 2013-2016 Bolding & Bruggeman ApS.
+!
+! This is free software: you can redistribute it and/or modify it under
+! the terms of the GNU General Public License as published by the Free Software
+! Foundation (https://www.gnu.org/licenses/gpl.html). It is distributed in the
+! hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+! implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+! A copy of the license is provided in the COPYING file.
+! -----------------------------------------------------------------------------
+
+module yaml_types
 
    implicit none
 
@@ -539,4 +555,4 @@ contains
       end do
    end subroutine list_set_path
 
-end module fabm_config_types
+end module yaml_types
