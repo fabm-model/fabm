@@ -581,7 +581,7 @@
       real(rk)                         :: albedo,albedo_water,bio_albedo
       real(rk)                         :: hh
 
-      bio_albedo = _ZERO_
+      bio_albedo = 0._rk
 
       ! Update time in time manager
       call update_time(n)
@@ -601,12 +601,12 @@
       if (swr_method==0) then
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
          call fabm_get_albedo(model,bio_albedo)
-         hh = secondsofday*(_ONE_/3600)
+         hh = secondsofday*(1._rk/3600)
          zenith_angle = solar_zenith_angle(yearday,hh,longitude,latitude)
          swr_sf = short_wave_radiation(zenith_angle,yearday,longitude,latitude,cloud)
          if (albedo_correction) then
             albedo = albedo_water(1,zenith_angle,yearday)
-            swr_sf = swr_sf*(_ONE_-albedo-bio_albedo)
+            swr_sf = swr_sf*(1._rk-albedo-bio_albedo)
          end if
       end if
 

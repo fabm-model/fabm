@@ -177,7 +177,7 @@ subroutine initialize(self,configunit)
    call self%register_state_variable(self%id_<name>,'<trimName>','mol/kg', &
          '<description>', <trimName>_initial &
    <if isPositive=1>
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
    </if>
    <if vertSpeed/=0>
          , vertical_movement=<vertSpeed>/secs_pr_day &
@@ -191,7 +191,7 @@ subroutine initialize(self,configunit)
    call self%register_state_variable(self%id_<name>,'<trimName>','mol/m**2','<description>', &
          <initValue> &
    <if isPositive=1>
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
    </if>
          )
  </tracers>

@@ -778,7 +778,7 @@ do n=1,instances
    allocate(biotic(n)%adv    (        nk+1,size(biotic(n)%model%info%state_variables)))
    if (any(biotic(n)%inds_cons>0).or.any(biotic(n)%inds_cons_tot>0).or.any(biotic(n)%inds_cons_ave>0)) then
       allocate(biotic(n)%work_cons(isd:ied,jsd:jed,nk,size(biotic(n)%model%info%conserved_quantities)))
-      biotic(n)%work_cons = _ZERO_
+      biotic(n)%work_cons = 0._rk
    end if
 
    !if (biotic(n)%id_pres  /=-1) call fabm_link_bulk_data   (biotic(n)%model,biotic(n)%id_pres,  Dens%pressure_at_depth (isc:iec,jsc:jec,:))
@@ -978,7 +978,7 @@ do n = 1, instances  !{
   call fabm_check_ready(biotic(n)%model)
 
   ! Repair bio state at the start of the time step
-  clipped = _ZERO_
+  clipped = 0._rk
   do k = 1, nk  !{
     do j = jsc, jec  !{
 #ifdef _FABM_USE_1D_LOOP_
@@ -987,7 +987,7 @@ do n = 1, instances  !{
       do i = isc, iec  !{
         if (grid_tmask(i,j,k)==1.) then
           call fabm_check_state(biotic(n)%model,i-isc+1,j-jsc+1,k,.true.,valid)
-          if (.not.valid) clipped(i,j,k) = _ONE_
+          if (.not.valid) clipped(i,j,k) = 1._rk
         end if
       end do
 #endif

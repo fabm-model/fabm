@@ -463,72 +463,72 @@ subroutine initialize(self,configunit)
 !  Register state variables
    call self%register_state_variable(self%id_t_n2           ,'t_n2','mol/kg', &
          'dissolved molecular nitrogen', t_n2_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_o2           ,'t_o2','mol/kg', &
          'dissolved oxygen', t_o2_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , no_river_dilution=.true. &
          )
    call self%register_state_variable(self%id_t_nh4          ,'t_nh4','mol/kg', &
          'ammonium', t_nh4_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , no_river_dilution=.true. &
          )
    call self%register_state_variable(self%id_t_no3          ,'t_no3','mol/kg', &
          'nitrate', t_no3_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , no_river_dilution=.true. &
          )
    call self%register_state_variable(self%id_t_po4          ,'t_po4','mol/kg', &
          'phosphate', t_po4_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , no_river_dilution=.true. &
          )
    call self%register_state_variable(self%id_t_spp          ,'t_spp','mol/kg', &
          'small-cell phytoplankton', t_spp_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_zoo          ,'t_zoo','mol/kg', &
          'zooplankton', t_zoo_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_h2s          ,'t_h2s','mol/kg', &
          'hydrogen sulfide', t_h2s_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_sul          ,'t_sul','mol/kg', &
          'sulfur', t_sul_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_ipw          ,'t_ipw','mol/kg', &
          'suspended iron phosphate', t_ipw_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , vertical_movement=w_ipw/secs_pr_day &
          )
    call self%register_state_variable(self%id_t_lpp          ,'t_lpp','mol/kg', &
          'large-cell phytoplankton', t_lpp_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , vertical_movement=w_lpp/secs_pr_day &
          )
    call self%register_state_variable(self%id_t_cya          ,'t_cya','mol/kg', &
          'diazotroph cyanobacteria', t_cya_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , vertical_movement=w_cya/secs_pr_day &
          )
    call self%register_state_variable(self%id_t_det          ,'t_det','mol/kg', &
          'detritus', t_det_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , vertical_movement=w_det/secs_pr_day &
          , no_river_dilution=.true. &
          )
    call self%register_state_variable(self%id_t_sed          ,'t_sed','mol/m**2','sediment detritus', &
          0.0_rk &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_ips          ,'t_ips','mol/m**2','iron phosphate in sediment', &
          0.0_rk &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
 
    ! Register the contribution of all state variables to total nitrogen
