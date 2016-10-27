@@ -92,6 +92,9 @@
 
       if (.not.associated(driver)) allocate(type_python_driver::driver)
 
+      call forced_parameters%finalize()
+      call forced_couplings%finalize()
+
       ! Build FABM model tree (configuration will be read from fabm.yaml).
       allocate(model)
       call fabm_create_model_from_yaml_file(model,path=ppath(:index(ppath,C_NULL_CHAR)-1),parameters=forced_parameters)
