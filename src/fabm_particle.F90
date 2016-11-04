@@ -71,6 +71,7 @@ module fabm_particle
       procedure :: request_standard_coupling_to_named_model
       generic :: request_coupling_to_model => request_named_coupling_to_model,request_standard_coupling_to_model, &
                                               request_named_coupling_to_named_model,request_standard_coupling_to_named_model
+      procedure :: resolve_model_dependency
 
       ! Hooks called by FABM:
       procedure :: before_coupling
@@ -152,6 +153,25 @@ module fabm_particle
       ! Set attributes of the model reference.
       reference%name = name
    end function add_model_reference
+
+   function resolve_model_dependency(self,name,require_internal_variables) result(model)
+      class (type_particle_model), intent(inout) :: self
+      character(len=*),            intent(in)    :: name
+      logical,optional,            intent(in)    :: require_internal_variables
+      class (type_base_model), pointer :: model
+
+      type (type_model_reference), pointer :: reference
+
+      model => null()
+      reference => self%first_model_reference
+      do while (associated(reference))
+         if (reference%name==name) then
+            model => self%resolve_model_reference(reference,require_internal_variables)
+            return
+         end if
+         reference => reference%next
+      end do
+   end function resolve_model_dependency
 
    subroutine request_coupling_to_model_generic(self,slave,master_model,master_model_name,master_name,master_standard_variable)
       class (type_particle_model),       intent(inout)          :: self
