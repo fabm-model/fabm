@@ -646,7 +646,7 @@ recursive subroutine create_aggregate_models(self)
             allocate(sum%standard_variable)
             sum%standard_variable = aggregate_variable%standard_variable
          end if
-         if (.not.sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name))) deallocate(sum)
+         if (.not.sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name),aggregate_variable=aggregate_variable%standard_variable)) deallocate(sum)
       end if
       if (associated(horizontal_sum)) then
          horizontal_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'

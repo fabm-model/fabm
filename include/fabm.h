@@ -1,3 +1,6 @@
+! This pre-processor macro shall be removed when v1.0 has been released
+#define _FABM_BGC_BACKWARD_COMPATIBILITY_
+
 #ifndef _FABM_REAL_KIND_
 #  define _FABM_REAL_KIND_ selected_real_kind(13)
 #endif
@@ -373,12 +376,14 @@
 #define _FABM_HORIZONTAL_LOOP_END_ _HORIZONTAL_LOOP_END_
 
 ! Constants related to floating point precision; used throughout FABM.
+#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
 #undef REALTYPE
 #undef _ZERO_
 #undef _ONE_
 #define REALTYPE real(rk)
 #define _ZERO_ 0._rk
 #define _ONE_  1._rk
+#endif
 
 ! For backward compatibility only [pre Fortran 2003]:
 #define _CLASS_ class
