@@ -311,7 +311,7 @@ end subroutine
       coupling => self%coupling_task_list%first
       do while (associated(coupling))
 
-         nullify(master)
+         nullify(master, link)
          select case (stage)
             case (couple_explicit,couple_final)
                if (associated(coupling%master_standard_variable)) then
@@ -336,7 +336,6 @@ end subroutine
                                                       standard_variable=standard_variable, presence=presence_external_optional, link=link)
                      end select
                   end if
-                  if (associated(link)) master => link%target
                else
                   ! Try to find the master variable among the variables of the requesting model or its parents.
                   if (coupling%slave%name/=coupling%master_name) then
@@ -349,7 +348,12 @@ end subroutine
                      call self%fatal_error('process_coupling_tasks', &
                         'Master and slave name are identical: "'//trim(coupling%master_name)//'". This is not valid at the root of the model tree.')
                   end if
+                  if (stage==couple_final .and. .not.associated(master) .and. index(coupling%master_name,'/')==0) then
+                     ! This is our last chance - create an appropriate variable at the root level.
+                     call root%add_interior_variable(coupling%master_name, link=link)
+                  end if
                end if
+               if (associated(link)) master => link%target
             case (couple_aggregate_standard_variables)
                if (associated(coupling%master_standard_variable)) master => generate_standard_master(root,coupling)
             case (couple_flux_sums)
