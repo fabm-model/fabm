@@ -1,10 +1,10 @@
-add_library(fabm_models_akvaplan OBJECT
+add_library(${PROJECT_PREFIX}_models_akvaplan OBJECT
             akvaplan_model_library.F90
             tracer.F90
             plume_injection.F90
            )
 
-add_dependencies(fabm_models_akvaplan fabm_base)
+add_dependencies(${PROJECT_PREFIX}_models_akvaplan ${PROJECT_PREFIX}_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2016 - Akvaplan-niva

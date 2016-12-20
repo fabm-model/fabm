@@ -1,4 +1,4 @@
-add_library(fabm_models_pclake OBJECT
+add_library(${PROJECT_PREFIX}_models_pclake OBJECT
             utility.F90
             abiotic_sediment.F90
             abiotic_water.F90
@@ -11,7 +11,7 @@ add_library(fabm_models_pclake OBJECT
             model_library.F90
            )
 
-add_dependencies(fabm_models_pclake fabm_base)
+add_dependencies(${PROJECT_PREFIX}_models_pclake ${PROJECT_PREFIX}_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2014 - Karsten Bolding and Jorn Bruggeman (BB)         !

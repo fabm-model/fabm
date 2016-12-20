@@ -20,6 +20,7 @@ contains
       use fabm_iow_age
       use fabm_iow_ergom
       use fabm_iow_spm
+      use fabm_iow_tnt
       ! Add new IOW models here
 
       class (type_factory),intent(in) :: self
@@ -27,9 +28,10 @@ contains
       class (type_base_model),pointer :: model
 
       select case (name)
-         case ('iow_age');    allocate(type_iow_age::model)
-         case ('iow_ergom');  allocate(type_iow_ergom::model)
-         case ('iow_spm');    allocate(type_iow_spm::model)
+         case ('age');    allocate(type_iow_age::model)
+         case ('ergom');  allocate(type_iow_ergom::model)
+         case ('spm');    allocate(type_iow_spm::model)
+         case ('tnt');    allocate(type_iow_tnt::model)
          ! Add new IOW models here
       end select
 

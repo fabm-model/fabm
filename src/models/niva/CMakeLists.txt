@@ -1,4 +1,4 @@
-add_library(fabm_models_niva OBJECT
+add_library(${PROJECT_PREFIX}_models_niva OBJECT
             niva_model_library.F90
             oxydep/oxydep.F90
             brom/brom_bio.F90
@@ -8,7 +8,7 @@ add_library(fabm_models_niva OBJECT
             brom/brom_salt.F90
            )
 
-add_dependencies(fabm_models_niva fabm_base)
+add_dependencies(${PROJECT_PREFIX}_models_niva ${PROJECT_PREFIX}_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2014 - Karsten Bolding and Jorn Bruggeman (BB)         !

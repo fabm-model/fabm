@@ -1,4 +1,4 @@
-add_library(fabm_models_au OBJECT
+add_library(${PROJECT_PREFIX}_models_au OBJECT
             model_library.F90
             pclake/model_library.F90
             pclake/abiotic_sediment.F90
@@ -16,7 +16,7 @@ add_library(fabm_models_au OBJECT
             prey_predator/jacob_monod.F90
            )
 
-add_dependencies(fabm_models_au fabm_base)
+add_dependencies(${PROJECT_PREFIX}_models_au ${PROJECT_PREFIX}_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2014 - Karsten Bolding and Jorn Bruggeman (BB)         !

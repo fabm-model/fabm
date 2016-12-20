@@ -1,4 +1,4 @@
-add_library(fabm_models_examples OBJECT
+add_library(${PROJECT_PREFIX}_models_examples OBJECT
             examples_model_library.F90
             benthic_predator/benthic_predator.F90
             duplicator/duplicator.F90
@@ -12,7 +12,7 @@ add_library(fabm_models_examples OBJECT
             nonlocal/nonlocal.F90
            )
 
-add_dependencies(fabm_models_examples fabm_base)
+add_dependencies(${PROJECT_PREFIX}_models_examples ${PROJECT_PREFIX}_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2014 - Karsten Bolding and Jorn Bruggeman (BB)         !

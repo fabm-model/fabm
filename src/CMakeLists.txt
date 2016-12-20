@@ -13,6 +13,7 @@ set(DEFAULT_INSTITUTES
     ersem        # European Regional Seas Ecosytem Model
     niva         # Norsk Institutt for Vannforskning, Norway
     akvaplan     # Akvaplan-niva, Norway
+    iow          # Leibniz Institute for Baltic Sea Research, Germany
 )
 
 # List of institutes that use manual edits to fabm_library.F90.
@@ -21,7 +22,6 @@ set(DEFAULT_INSTITUTES
 set(FABM_INSTITUTES_OLD
     aed          # Aquatic Eco Dynamics, University of Western Australia
     hzg          # Helmholtz-Zentrum Geesthacht, Germany
-    iow          # Leibniz Institute for Baltic Sea Research, Germany
     klimacampus  # KlimaCampus Hamburg, Germany
     metu         # Middle East Technical University, Turkey
     msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
@@ -32,8 +32,14 @@ set(FABM_INSTITUTES ${DEFAULT_INSTITUTES} CACHE STRING "Institute directories to
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+if(FABM_FORCED_PREFIX)
+  set(PROJECT_PREFIX ${FABM_FORCED_PREFIX})
+else(FABM_FORCED_PREFIX)
+  set(PROJECT_PREFIX fabm)
+endif(FABM_FORCED_PREFIX)
+
 # Create main project.
-project(fabm Fortran)
+project(${PROJECT_PREFIX} Fortran)
 
 # Create fabm_library.F90 with all active institutes,
 # and set final paths to institute source directories (FABM_${INSTITUTE_UC}_DIR)
@@ -138,17 +144,17 @@ configure_file(${PROJECT_SOURCE_DIR}/fabm_version.F90.in ${CMAKE_CURRENT_BINARY_
 option(FABM_EMBED_VERSION "Embed FABM version information" OFF)
 if(FABM_EMBED_VERSION)
   set(GET_GIT_INFO_SCRIPT "${PROJECT_SOURCE_DIR}/cmake/Modules/GetGitInfo.cmake")
-  add_custom_target(fabm_version
+  add_custom_target(${PROJECT_PREFIX}_version
      ${CMAKE_COMMAND} -DINFILE=${PROJECT_SOURCE_DIR}/fabm_version.F90.in -DOUTFILE=${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90 -P ${GET_GIT_INFO_SCRIPT}
      WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
      COMMENT "Retrieving description of last FABM commit..." 
      SOURCES ${PROJECT_SOURCE_DIR}/fabm_version.F90.in ${GET_GIT_INFO_SCRIPT}
      VERBATIM
   )
-  set_property(TARGET fabm_version PROPERTY FOLDER fabm)
+  set_property(TARGET ${PROJECT_PREFIX}_version PROPERTY FOLDER ${PROJECT_PREFIX})
 endif()
 
-add_library(fabm_base OBJECT
+add_library(${PROJECT_PREFIX}_base OBJECT
             fabm_driver.F90
             fabm_standard_variables.F90
             fabm_properties.F90
@@ -168,18 +174,18 @@ foreach(institute ${ACTIVE_INSTITUTES})
     set(FABM_${INSTITUTE_UC}_BASE "${PROJECT_SOURCE_DIR}/models/${institute}")
   endif()
   add_subdirectory(${FABM_${INSTITUTE_UC}_BASE} ${CMAKE_CURRENT_BINARY_DIR}/models/${institute})
-  set_property(TARGET fabm_models_${institute} PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
-  set_property(TARGET fabm_models_${institute} APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
-  list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
+  set_property(TARGET ${PROJECT_PREFIX}_models_${institute} PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
+  set_property(TARGET ${PROJECT_PREFIX}_models_${institute} APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
+  list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:${PROJECT_PREFIX}_models_${institute}>)
 endforeach(institute) 
 
 # Add YAML parsing library
 add_subdirectory(yaml)
-set_property(TARGET yaml test_yaml PROPERTY FOLDER fabm/yaml)
+set_property(TARGET ${PROJECT_PREFIX}_yaml test_${PROJECT_PREFIX}_yaml PROPERTY FOLDER ${PROJECT_PREFIX}/yaml)
 
-add_library(fabm
-            $<TARGET_OBJECTS:fabm_base>
-            $<TARGET_OBJECTS:yaml>
+add_library(${PROJECT_PREFIX}
+            $<TARGET_OBJECTS:${PROJECT_PREFIX}_base>
+            $<TARGET_OBJECTS:${PROJECT_PREFIX}_yaml>
             ${MODEL_OBJECTS}
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
@@ -189,21 +195,21 @@ add_library(fabm
            )
 
 if(FABM_EMBED_VERSION)
-  add_dependencies(fabm fabm_version)
+  add_dependencies(${PROJECT_PREFIX} ${PROJECT_PREFIX}_version)
 endif()
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
-set_property(TARGET fabm_base fabm yaml PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
+set_property(TARGET ${PROJECT_PREFIX}_base ${PROJECT_PREFIX} ${PROJECT_PREFIX}_yaml PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
 foreach(institute ${ACTIVE_INSTITUTES})
-  set_property(TARGET fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
+  set_property(TARGET ${PROJECT_PREFIX} APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
 endforeach(institute)
 
 # Place projects in specific solution folders (Visual Studio only).
-set_property(TARGET fabm_base fabm PROPERTY FOLDER fabm)
+set_property(TARGET ${PROJECT_PREFIX}_base ${PROJECT_PREFIX} PROPERTY FOLDER ${PROJECT_PREFIX})
 foreach(institute ${ACTIVE_INSTITUTES})
-  set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
+  set_property(TARGET ${PROJECT_PREFIX}_models_${institute} PROPERTY FOLDER ${PROJECT_PREFIX}/models)
 endforeach(institute)
 
 if(NOT FABM_FORCED_HOST)
@@ -218,7 +224,7 @@ message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
 
 # Install FABM library and include files, unless the host overruled this.
 if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
-  install(TARGETS fabm
+  install(TARGETS ${PROJECT_PREFIX}
     DESTINATION lib)
   install(DIRECTORY ${CMAKE_BINARY_DIR}/modules/\${BUILD_TYPE}/
     DESTINATION include)

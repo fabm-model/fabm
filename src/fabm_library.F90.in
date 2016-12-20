@@ -24,7 +24,6 @@
    use fabm_klimacampus_phy_feedback
    use fabm_hzg_omexdia_p
    use fabm_msi_ergom1
-   use iow_model_library
 
    implicit none
 
@@ -54,7 +53,6 @@ contains
       ! the required code and insert it above.
       call self%add(builtin_factory)
       call self%add(aed_model_factory)
-      call self%add(iow_model_factory)
 
       ! Go through default initializaton steps.
       ! This also allows new added child model factories to initialize.

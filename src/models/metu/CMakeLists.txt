@@ -1,8 +1,8 @@
-add_library(fabm_models_metu OBJECT
+add_library(${PROJECT_PREFIX}_models_metu OBJECT
             mnemiopsis/mnemiopsis.F90
            )
 
-add_dependencies(fabm_models_metu fabm_base)
+add_dependencies(${PROJECT_PREFIX}_models_metu ${PROJECT_PREFIX}_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2014 - Karsten Bolding and Jorn Bruggeman (BB)         !

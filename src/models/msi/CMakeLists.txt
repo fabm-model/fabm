@@ -1,8 +1,8 @@
-add_library(fabm_models_msi OBJECT
+add_library(${PROJECT_PREFIX}_models_msi OBJECT
             ergom1/ergom1.F90
            )
 
-add_dependencies(fabm_models_msi fabm_base)
+add_dependencies(${PROJECT_PREFIX}_models_msi ${PROJECT_PREFIX}_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2014 - Karsten Bolding and Jorn Bruggeman (BB)         !
