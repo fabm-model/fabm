@@ -8,6 +8,7 @@ project(fabm_particle_driver Fortran)
 
 # Force FABM_HOST to 0d and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST particles)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
 
 # Build 0d executable.
@@ -30,3 +31,6 @@ set_property(TARGET fabm_particle_driver APPEND PROPERTY INCLUDE_DIRECTORIES "${
 # Set include directories with header files (*.h) - our own and FABM's.
 set_property(TARGET fabm_particle_driver APPEND PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}")
 set_property(TARGET fabm_particle_driver APPEND PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../../../include")
+
+#set_property(TARGET fabm_particle_driver PROPERTY Fortran_VISIBILITY_PRESET hidden)
+
