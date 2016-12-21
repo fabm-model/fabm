@@ -2,22 +2,33 @@ module fabm_particle_driver
 
    use fabm
    use fabm_config
-   use fabm_types, only: rk
+   use fabm_types, only: rk, attribute_length
 
    implicit none
 
    private
 
-   public type_fabm_particle_state
+   public type_fabm_particle_state, type_output
+
+   type type_output
+      character(len=attribute_length) :: name      = ''
+      character(len=attribute_length) :: units     = ''
+      character(len=attribute_length) :: long_name = ''
+      real(rk), pointer               :: data(:)   => null()
+      logical                         :: save      = .false.
+      type (type_output), pointer     :: next      => null()
+   end type
 
    type type_fabm_particle_state
-      integer               :: npar
-      integer               :: nstate
-      real(rk), allocatable :: y(:,:)
-      logical,  allocatable :: active(:)
-      logical               :: active_hz
-      type (type_model)     :: model
+      integer                     :: npar
+      integer                     :: nstate
+      real(rk), allocatable       :: y(:,:)
+      logical,  allocatable       :: active(:)
+      logical                     :: active_hz
+      type (type_model)           :: model
+      type (type_output), pointer :: first_output => null()
    contains
+      procedure :: configure
       procedure :: initialize
       procedure :: start
       procedure :: is_variable_used
@@ -28,11 +39,14 @@ module fabm_particle_driver
 
    contains
 
-   subroutine initialize(self, npar, config_path)
-!DEC$ ATTRIBUTES DLLEXPORT :: initialize
-      class (type_fabm_particle_state), intent(inout) :: self
-      integer,                          intent(in)    :: npar
-      character(len=*), optional,       intent(in)    :: config_path
+   subroutine configure(self, npar, config_path)
+!DEC$ ATTRIBUTES DLLEXPORT :: configure
+      class (type_fabm_particle_state), target, intent(inout) :: self
+      integer,                                  intent(in)    :: npar
+      character(len=*), optional,               intent(in)    :: config_path
+
+      integer                     :: ivar
+      type (type_output), pointer :: output
 
       self%npar = npar
       if (present(config_path)) then
@@ -42,15 +56,33 @@ module fabm_particle_driver
       end if
       self%nstate = size(self%model%state_variables)
 
+      allocate(self%y(self%npar, self%nstate))
+
+      do ivar=1,size(self%model%state_variables)
+         allocate(output)
+         output%name      = self%model%state_variables(ivar)%name
+         output%units     = self%model%state_variables(ivar)%units
+         output%long_name = self%model%state_variables(ivar)%long_name
+         output%save      = .true.
+         output%data      => self%y(:, ivar)
+         output%next => self%first_output
+         self%first_output => output
+      end do
+
       allocate(self%active(self%npar))
       self%active = .true.
       self%active_hz = .false.
+   end subroutine configure
+
+   subroutine initialize(self)
+!DEC$ ATTRIBUTES DLLEXPORT :: initialize
+      class (type_fabm_particle_state), intent(inout) :: self
+
       call fabm_set_domain(self%model, self%npar)
       call self%model%set_bottom_index(1)
       call self%model%set_surface_index(1)
       call fabm_set_mask(self%model, self%active, self%active_hz)
 
-      allocate(self%y(self%npar, self%nstate))
       call self%model%link_all_interior_state_data(self%y)
    end subroutine initialize
 
