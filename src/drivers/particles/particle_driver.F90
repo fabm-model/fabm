@@ -11,12 +11,12 @@ module fabm_particle_driver
    public type_fabm_particle_state
 
    type type_fabm_particle_state
-      integer :: npar
-      integer :: nstate
+      integer               :: npar
+      integer               :: nstate
       real(rk), allocatable :: y(:,:)
       logical,  allocatable :: active(:)
       logical               :: active_hz
-      type (type_model) :: model
+      type (type_model)     :: model
    contains
       procedure :: initialize
       procedure :: start
@@ -27,7 +27,7 @@ module fabm_particle_driver
    end type
 
    contains
-   
+
    subroutine initialize(self, npar, config_path)
 !DEC$ ATTRIBUTES DLLEXPORT :: initialize
       class (type_fabm_particle_state), intent(inout) :: self
@@ -49,7 +49,7 @@ module fabm_particle_driver
       call self%model%set_bottom_index(1)
       call self%model%set_surface_index(1)
       call fabm_set_mask(self%model, self%active, self%active_hz)
-      
+
       allocate(self%y(self%npar, self%nstate))
       call self%model%link_all_interior_state_data(self%y)
    end subroutine initialize
@@ -59,7 +59,7 @@ module fabm_particle_driver
       class (type_fabm_particle_state), intent(inout) :: self
 
       call fabm_check_ready(self%model)
-      call fabm_initialize_state(self%model,1,self%npar)
+      call fabm_initialize_state(self%model, 1, self%npar)
    end subroutine start
 
    logical function is_variable_used(self, name)
@@ -84,7 +84,7 @@ module fabm_particle_driver
       class (type_fabm_particle_state), intent(inout) :: self
       real(rk),                         intent(out)   :: w(1:self%npar)
 
-      real(rk) :: w_all(1:self%npar,self%nstate)
+      real(rk) :: w_all(1:self%npar, self%nstate)
 
       call fabm_get_vertical_movement(self%model, 1, self%npar, w_all)
       w = w_all(:, 1)
@@ -100,4 +100,3 @@ module fabm_particle_driver
    end subroutine get_sources
 
 end module
-   
