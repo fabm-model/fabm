@@ -8,6 +8,7 @@ set(DEFAULT_INSTITUTES
     bb           # Bolding & Bruggeman - formerly Bolding & Burchard
     examples     # Examples supplied with FABM itself
     gotm         # Models ported from original GOTM/BIO library
+    jrc          # EC - Joint Research Centre - Ispra, Italy
     pclake       # The PCLake model - reference implementation
     pml          # Plymouth Marine Laboratory, United Kingdom
     ersem        # European Regional Seas Ecosytem Model
