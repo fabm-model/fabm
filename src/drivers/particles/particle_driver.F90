@@ -16,6 +16,7 @@ module fabm_particle_driver
       character(len=attribute_length) :: long_name = ''
       real(rk), pointer               :: data(:)   => null()
       logical                         :: save      = .false.
+      type (type_output), pointer     :: specific_to => null()
       type (type_output), pointer     :: next      => null()
    end type
 
@@ -27,6 +28,8 @@ module fabm_particle_driver
       logical                     :: active_hz
       type (type_model), private  :: model
       type (type_output), pointer :: first_output => null()
+      real(rk), allocatable       :: particle_count(:)
+      type (type_output), pointer :: particle_count_output => null()
    contains
       procedure :: configure
       procedure :: initialize
@@ -35,6 +38,7 @@ module fabm_particle_driver
       procedure :: send_data
       procedure :: get_vertical_movement
       procedure :: get_sources
+      procedure :: check_state
    end type
 
    contains
@@ -65,6 +69,24 @@ module fabm_particle_driver
          output%long_name = self%model%state_variables(ivar)%long_name
          output%save      = .true.
          output%data      => self%y(:, ivar)
+         if (self%model%state_variables(ivar)%target%specific_to == -2) then
+            if (.not.associated(self%particle_count_output)) then
+               ! Particle count variable does not exist yet - create it.
+               allocate(self%particle_count(self%npar))
+               self%particle_count(:) = 1
+               allocate(self%particle_count_output)
+               self%particle_count_output%name = 'count'
+               self%particle_count_output%units = '# m-3'
+               self%particle_count_output%long_name = 'count'
+               self%particle_count_output%save = .true.
+               self%particle_count_output%data => self%particle_count
+               self%particle_count_output%next => self%first_output
+               self%first_output => self%particle_count_output
+            end if
+            output%specific_to => self%particle_count_output
+         elseif (self%model%state_variables(ivar)%target%specific_to/=-1) then
+            stop 'unsupported'
+         end if
          output%next => self%first_output
          self%first_output => output
       end do
@@ -89,6 +111,9 @@ module fabm_particle_driver
    subroutine start(self)
 !DEC$ ATTRIBUTES DLLEXPORT :: start
       class (type_fabm_particle_state), intent(inout) :: self
+
+      ! By convention, cell thicknesses associated with individual particles are zero.
+      call self%send_data('cell_thickness',self%model%zero)
 
       call fabm_check_ready(self%model)
       call fabm_initialize_state(self%model, 1, self%npar)
@@ -130,5 +155,16 @@ module fabm_particle_driver
       dy = 0.0_rk
       call fabm_do(self%model, 1, self%npar, dy)
    end subroutine get_sources
+
+   logical function check_state(self, repair)
+!DEC$ ATTRIBUTES DLLEXPORT :: check_state
+      class (type_fabm_particle_state), intent(inout) :: self
+      logical,                          intent(in)    :: repair
+
+      logical :: valid
+
+      call fabm_check_state(self%model, 1, self%npar, repair, valid)
+      check_state = valid
+   end function check_state
 
 end module
