@@ -202,6 +202,8 @@
    end type
 #endif
 
+   type (type_state_variable_id), parameter, public :: id_water_parcel = type_state_variable_id(state_index=-2)
+
    ! ====================================================================================================
    ! Derived types used internally to register contributions of variables to aggregate variables.
    ! ====================================================================================================
@@ -272,6 +274,8 @@
 
       integer,pointer :: read_index  => null()
       integer,pointer :: write_index => null()
+
+      integer :: specific_to = -1
 
       ! Collections to collect information from all coupled variables.
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
@@ -1356,7 +1360,7 @@ end subroutine real_pointer_set_set_value
                                                initial_value, vertical_movement, specific_light_extinction, &
                                                minimum, maximum, missing_value, &
                                                no_precipitation_dilution, no_river_dilution, &
-                                               standard_variable, presence, background_value)
+                                               standard_variable, presence, background_value, specific_to)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical state variable in the global model database.
@@ -1373,6 +1377,7 @@ end subroutine real_pointer_set_set_value
       logical,                            intent(in),optional :: no_precipitation_dilution,no_river_dilution
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       integer,                            intent(in),optional :: presence
+      type (type_state_variable_id),      intent(in),optional :: specific_to
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1388,6 +1393,7 @@ end subroutine real_pointer_set_set_value
                                       state_index=id%state_index, read_index=id%index, sms_index=id%sms_index, &
                                       surface_flux_index=id%surface_flux_index, bottom_flux_index=id%bottom_flux_index, &
                                       movement_index=id%movement_index, background=id%background, link=id%link)
+      if (present(specific_to)) id%link%target%specific_to = -2
 
    end subroutine register_interior_state_variable
 !EOC
