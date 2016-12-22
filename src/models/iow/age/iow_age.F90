@@ -35,22 +35,25 @@
 ! !PUBLIC DERIVED TYPES:
    type, extends(type_base_model), public :: type_iow_age
 !     Variable identifiers
-      type (type_state_variable_id)       :: id_age
-      type (type_state_variable_id)       :: id_age_alpha
-      type (type_dependency_id)           :: id_tracer
-      type (type_diagnostic_variable_id)  :: id_tracer_age
+      type (type_state_variable_id)        :: id_age
+      type (type_state_variable_id)        :: id_age_alpha
+      type (type_dependency_id)            :: id_tracer
+      type (type_dependency_id)            :: id_depth
+      type (type_dependency_id)            :: id_cell_thickness
+      type (type_horizontal_dependency_id) :: id_bottom_depth
+      type (type_diagnostic_variable_id)   :: id_tracer_age
 
 !     Model parameters
-      logical                      :: track_surface_age
-      logical                      :: track_bottom_age
-      logical                      :: external_tracer
+      logical  :: track_surface_age
+      logical  :: track_bottom_age
+      logical  :: external_tracer
+      real(rk) :: h_crit
 
       contains
 
       procedure :: initialize
       procedure :: do
-      procedure :: check_surface_state
-      procedure :: check_bottom_state
+      procedure :: check_state
 
    end type
 !
@@ -97,11 +100,10 @@
 
    call self%get_parameter(self%track_surface_age,'track_surface_age','','track surface age',default=track_surface_age)
    call self%get_parameter(self%track_bottom_age, 'track_bottom_age', '','track bottom age', default=track_bottom_age)
+   call self%get_parameter(self%h_crit, 'h_crit', 'm','thickness of boundary layer in which age is reset')
    self%external_tracer = .false.
 
    ! Register state variables
-
-
    if ( tracer_age_variable/='' ) then
       call self%register_dependency(self%id_tracer,trim(tracer_age_variable))
       self%external_tracer   = .true.
@@ -115,8 +117,11 @@
    else
       call self%register_state_variable(self%id_age, &
                     'age_of_water',units,'age of water mass', &
-                    initial_age,minimum=0.0_rk)
-   endif
+                    initial_age,minimum=0.0_rk,specific_to=id_water_parcel)
+      call self%register_dependency(self%id_depth,standard_variables%depth)
+      call self%register_dependency(self%id_cell_thickness,standard_variables%cell_thickness)
+      if (self%track_bottom_age) call self%register_dependency(self%id_bottom_depth,standard_variables%bottom_depth)
+   end if
 
    return
 
@@ -159,12 +164,13 @@
       _SET_DIAGNOSTIC_(self%id_tracer_age,age/secs_pr_day)
    else
       _SET_ODE_(self%id_age,1.0_rk/secs_pr_day)
-   endif
+   end if
 
    ! Leave spatial loops (if any)
    _LOOP_END_
 
    end subroutine do
+!EOC
 
 !-----------------------------------------------------------------------
 !BOP
@@ -173,52 +179,47 @@
 !
 ! !INTERFACE:
 
-   subroutine check_surface_state(self,_ARGUMENTS_CHECK_SURFACE_STATE_)
+   subroutine check_state(self,_ARGUMENTS_CHECK_STATE_)
       class (type_iow_age), intent(in) :: self
-      _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_
+      _DECLARE_ARGUMENTS_CHECK_STATE_
 
+      real(rk) :: h,d,d_top,d_bot,age,f,d_crit
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   if ( .not. self%external_tracer ) then
-      if ( self%track_surface_age ) then
-         ! set the age in the surface cell to zero
-        _HORIZONTAL_LOOP_BEGIN_
-           _SET_(self%id_age,0.0_rk)
-        _HORIZONTAL_LOOP_END_
+   if (self%external_tracer ) return
 
-      endif
-   endif
+   _LOOP_BEGIN_
+      _GET_(self%id_depth,d)
+      _GET_(self%id_cell_thickness,h)
+      d_top = d - h/2
+      d_bot = d + h/2
+      f = 0.0_rk
+      if (self%track_surface_age) then
+         if (d_bot < self%h_crit) then
+            ! Completely in surface layer
+            f = 1.0_rk
+         elseif (d_top < self%h_crit) then
+            ! Partially in surface layer
+            f = (self%h_crit-d_top)/h
+         end if
+      end if
+      if (self%track_bottom_age) then
+         _GET_HORIZONTAL_(self%id_bottom_depth,d_crit)
+         d_crit = d_crit - self%h_crit
+         if (d_top > d_crit) then
+            ! Completely in bottom layer
+            f = f + 1.0_rk
+         elseif (d_bot > d_crit) then
+            ! Partially in bottom layer
+            f = f + (d_bot-d_crit)/h
+         end if
+      end if
+      _GET_(self%id_age,age)
+      _SET_(self%id_age,max(0.0_rk,1.0_rk-f)*age)
+   _LOOP_END_
 
-   end subroutine check_surface_state
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: track age of bottom water
-!
-! !INTERFACE:
-
-   subroutine check_bottom_state(self,_ARGUMENTS_CHECK_BOTTOM_STATE_)
-      class (type_iow_age), intent(in) :: self
-      _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-
-   if ( .not. self%external_tracer ) then
-      if ( self%track_bottom_age ) then
-         ! set the age in the bottom cell to zero
-        _HORIZONTAL_LOOP_BEGIN_
-           _SET_(self%id_age,0.0_rk)
-        _HORIZONTAL_LOOP_END_
-
-      endif
-   endif
-
-   end subroutine check_bottom_state
-
+   end subroutine check_state
 !EOC
 
 !-----------------------------------------------------------------------
