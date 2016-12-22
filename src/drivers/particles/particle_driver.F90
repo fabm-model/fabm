@@ -25,7 +25,7 @@ module fabm_particle_driver
       real(rk), allocatable       :: y(:,:)
       logical,  allocatable       :: active(:)
       logical                     :: active_hz
-      type (type_model)           :: model
+      type (type_model), private  :: model
       type (type_output), pointer :: first_output => null()
    contains
       procedure :: configure
