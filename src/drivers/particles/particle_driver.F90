@@ -36,6 +36,7 @@ module fabm_particle_driver
       procedure :: start
       procedure :: is_variable_used
       procedure :: send_data
+      procedure :: send_horizontal_data
       procedure :: get_vertical_movement
       procedure :: get_sources
       procedure :: check_state
@@ -135,6 +136,15 @@ module fabm_particle_driver
 
       call self%model%link_interior_data(name, dat)
    end subroutine send_data
+
+   subroutine send_horizontal_data(self, name, dat)
+!DEC$ ATTRIBUTES DLLEXPORT :: send_horizontal_data
+      class (type_fabm_particle_state), intent(inout) :: self
+      character(len=*),                 intent(in)    :: name
+      real(rk), target,                 intent(in)    :: dat
+
+      call self%model%link_horizontal_data(name, dat)
+   end subroutine send_horizontal_data
 
    subroutine get_vertical_movement(self, w)
 !DEC$ ATTRIBUTES DLLEXPORT :: get_vertical_movement
