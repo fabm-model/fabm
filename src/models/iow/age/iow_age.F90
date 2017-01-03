@@ -39,7 +39,6 @@
       type (type_state_variable_id)        :: id_age_alpha
       type (type_dependency_id)            :: id_tracer
       type (type_dependency_id)            :: id_depth
-      type (type_dependency_id)            :: id_cell_thickness
       type (type_horizontal_dependency_id) :: id_bottom_depth
       type (type_diagnostic_variable_id)   :: id_tracer_age
 
@@ -119,7 +118,6 @@
                     'age_of_water',units,'age of water mass', &
                     initial_age,minimum=0.0_rk,specific_to=id_water_parcel)
       call self%register_dependency(self%id_depth,standard_variables%depth)
-      call self%register_dependency(self%id_cell_thickness,standard_variables%cell_thickness)
       if (self%track_bottom_age) call self%register_dependency(self%id_bottom_depth,standard_variables%bottom_depth)
    end if
 
@@ -183,40 +181,21 @@
       class (type_iow_age), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_STATE_
 
-      real(rk) :: h,d,d_top,d_bot,age,f,d_crit
+      real(rk) :: d,d_bot
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   if (self%external_tracer ) return
+   if (self%external_tracer) return
 
    _LOOP_BEGIN_
       _GET_(self%id_depth,d)
-      _GET_(self%id_cell_thickness,h)
-      d_top = d - h/2
-      d_bot = d + h/2
-      f = 0.0_rk
       if (self%track_surface_age) then
-         if (d_bot < self%h_crit) then
-            ! Completely in surface layer
-            f = 1.0_rk
-         elseif (d_top < self%h_crit) then
-            ! Partially in surface layer
-            f = (self%h_crit-d_top)/h
-         end if
+         if (d < self%h_crit) _SET_(self%id_age,0.0_rk)
       end if
       if (self%track_bottom_age) then
-         _GET_HORIZONTAL_(self%id_bottom_depth,d_crit)
-         d_crit = d_crit - self%h_crit
-         if (d_top > d_crit) then
-            ! Completely in bottom layer
-            f = f + 1.0_rk
-         elseif (d_bot > d_crit) then
-            ! Partially in bottom layer
-            f = f + (d_bot-d_crit)/h
-         end if
+         _GET_HORIZONTAL_(self%id_bottom_depth,d_bot)
+         if (d > d_bot - self%h_crit) _SET_(self%id_age,0.0_rk)
       end if
-      _GET_(self%id_age,age)
-      _SET_(self%id_age,max(0.0_rk,1.0_rk-f)*age)
    _LOOP_END_
 
    end subroutine check_state
