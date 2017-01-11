@@ -190,11 +190,15 @@
    _LOOP_BEGIN_
       _GET_(self%id_depth,d)
       if (self%track_surface_age) then
-         if (d < self%h_crit) _SET_(self%id_age,0.0_rk)
+         if (d < self%h_crit) then
+            _SET_(self%id_age,0.0_rk)
+         end if
       end if
       if (self%track_bottom_age) then
          _GET_HORIZONTAL_(self%id_bottom_depth,d_bot)
-         if (d > d_bot - self%h_crit) _SET_(self%id_age,0.0_rk)
+         if (d > d_bot - self%h_crit) then
+            _SET_(self%id_age,0.0_rk)
+         end if
       end if
    _LOOP_END_
 
