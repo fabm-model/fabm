@@ -12,7 +12,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
 
 # Build 0d executable.
-add_library(fabm_particle_driver SHARED
+add_library(fabm_particle_driver
             particle_driver.F90
            )
 
