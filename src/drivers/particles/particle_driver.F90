@@ -29,7 +29,6 @@ module fabm_particle_driver
       type (type_model), private  :: model
       type (type_output), pointer :: first_output => null()
       real(rk), allocatable       :: particle_count(:)
-      type (type_output), pointer :: particle_count_output => null()
    contains
       procedure :: configure
       procedure :: initialize
@@ -52,6 +51,7 @@ module fabm_particle_driver
 
       integer                     :: ivar
       type (type_output), pointer :: output
+      type (type_output), pointer :: particle_count_output
 
       self%npar = npar
       if (present(config_path)) then
@@ -61,8 +61,10 @@ module fabm_particle_driver
       end if
       self%nstate = size(self%model%state_variables)
 
+      ! Allocate the particle state.
       allocate(self%y(self%npar, self%nstate))
 
+      particle_count_output => null()
       do ivar=1,size(self%model%state_variables)
          allocate(output)
          output%name      = self%model%state_variables(ivar)%name
@@ -71,21 +73,30 @@ module fabm_particle_driver
          output%save      = .true.
          output%data      => self%y(:, ivar)
          if (self%model%state_variables(ivar)%target%specific_to == -2) then
-            if (.not.associated(self%particle_count_output)) then
+            ! This is a variable that describes a property specific to water parcels (e.g., age).
+            ! To average this over a volume, we need to sum its value over all particles in the volume,
+            ! then divide by the number of particles in the volume. The averging infrastucture
+            ! does this by computing \Sigma c w / \Sigma w, for property value c and weight w, and the
+            ! sums taken over all particles. For the current case, w is therefore a constant (typically 1).
+            ! We explicitly create a dummy weight field with this value below.
+            if (.not.associated(particle_count_output)) then
                ! Particle count variable does not exist yet - create it.
                allocate(self%particle_count(self%npar))
                self%particle_count(:) = 1
-               allocate(self%particle_count_output)
-               self%particle_count_output%name = 'count'
-               self%particle_count_output%units = '# m-3'
-               self%particle_count_output%long_name = 'count'
-               self%particle_count_output%save = .true.
-               self%particle_count_output%data => self%particle_count
-               self%particle_count_output%next => self%first_output
-               self%first_output => self%particle_count_output
+               allocate(particle_count_output)
+               particle_count_output%name = 'count'
+               particle_count_output%units = '# m-3'
+               particle_count_output%long_name = 'count'
+               particle_count_output%save = .true.
+               particle_count_output%data => self%particle_count
+               particle_count_output%next => self%first_output
+               self%first_output => particle_count_output
             end if
-            output%specific_to => self%particle_count_output
-         elseif (self%model%state_variables(ivar)%target%specific_to/=-1) then
+            output%specific_to => particle_count_output
+         elseif (self%model%state_variables(ivar)%target%specific_to /= -1) then
+            ! This is a variable that describes a property specific to one of the model's other (non-property) state variables.
+            ! To average this over a volume, we need to compute \Sigma c w / \Sigma w,
+            ! with c being the property value, and w being the variable that the property pertains to.
             stop 'unsupported'
          end if
          output%next => self%first_output
@@ -101,11 +112,17 @@ module fabm_particle_driver
 !DEC$ ATTRIBUTES DLLEXPORT :: initialize
       class (type_fabm_particle_state), intent(inout) :: self
 
+      ! Domain size: number of particles
       call fabm_set_domain(self%model, self%npar)
+
+      ! Provide dummy indices for top and bottom. These will not be used but FABM currently demands they are set.
       call self%model%set_bottom_index(1)
       call self%model%set_surface_index(1)
+
+      ! Provide FABM with a pointer to the mask.
       call fabm_set_mask(self%model, self%active, self%active_hz)
 
+      ! Provide pointers to the particle state.
       call self%model%link_all_interior_state_data(self%y)
    end subroutine initialize
 
@@ -114,7 +131,7 @@ module fabm_particle_driver
       class (type_fabm_particle_state), intent(inout) :: self
 
       ! By convention, cell thicknesses associated with individual particles are zero.
-      call self%send_data('cell_thickness',self%model%zero)
+      call self%send_data('cell_thickness', self%model%zero)
 
       call fabm_check_ready(self%model)
       call fabm_initialize_state(self%model, 1, self%npar)
@@ -154,6 +171,9 @@ module fabm_particle_driver
       real(rk) :: w_all(1:self%npar, self%nstate)
 
       call fabm_get_vertical_movement(self%model, 1, self%npar, w_all)
+
+      ! All variables associated with the particle should move with the same vertical velocity.
+      ! Take the velocity from the first variable.
       w = w_all(:, 1)
    end subroutine get_vertical_movement
 
@@ -166,7 +186,7 @@ module fabm_particle_driver
       call fabm_do(self%model, 1, self%npar, dy)
    end subroutine get_sources
 
-   logical function check_state(self, repair)
+   function check_state(self, repair) result(valid)
 !DEC$ ATTRIBUTES DLLEXPORT :: check_state
       class (type_fabm_particle_state), intent(inout) :: self
       logical,                          intent(in)    :: repair
@@ -174,7 +194,6 @@ module fabm_particle_driver
       logical :: valid
 
       call fabm_check_state(self%model, 1, self%npar, repair, valid)
-      check_state = valid
    end function check_state
 
 end module
