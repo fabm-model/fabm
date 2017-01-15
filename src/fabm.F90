@@ -2724,7 +2724,7 @@ subroutine prefetch_surface(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
       if (associated(self%data(i)%p)) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),environment%mask)
+         _PACK(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),environment%mask,environment%prefetch(:,i))
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
             environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1)
@@ -2781,7 +2781,7 @@ subroutine prefetch_bottom(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
             end if
          end do
 #    else
-         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),environment%mask)
+         _PACK(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),environment%mask,environment%prefetch(:,i))
 #    endif
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
@@ -2841,7 +2841,7 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
       if (associated(self%data(i)%p)) then
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  ifdef _HAS_MASK_
-         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(loop_start:loop_stop),environment%mask)
+         _PACK(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(loop_start:loop_stop),environment%mask,environment%prefetch(:,i))
 #  else
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
             environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(loop_start+_I_-1)
@@ -3570,7 +3570,7 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-         self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop) = unpack(environment%prefetch(:,read_index),environment%mask,self%state_variables(ivar)%missing_value)
+         _UNPACK(environment%prefetch(:,read_index),environment%mask,self%state_variables(ivar)%missing_value,self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop))
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
             self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1) = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
@@ -5120,6 +5120,59 @@ end subroutine
          call fatal_error(routine,'Index '//name//' = '//trim(str1)//' exceeds size of associated dimension ('//trim(str2)//').')
       end if
    end subroutine check_index
+
+#ifdef _HAS_MASK_
+   subroutine manual_pack(source, source_mask, target)
+      real(rk), intent(in)    :: source(:)
+      logical,  intent(in)    :: source_mask(:)
+      real(rk), intent(inout) :: target(:)
+
+      integer :: i, j
+
+      j = 1
+      do i=1,size(source_mask)
+         if (source_mask(i)) then
+            target(j) = source(i)
+            j = j + 1
+         end if
+      end do
+   end subroutine manual_pack
+
+   subroutine manual_unpack(source, target_mask, default_value, target)
+      real(rk), intent(in)    :: source(:)
+      logical,  intent(in)    :: target_mask(:)
+      real(rk), intent(inout) :: target(:)
+      real(rk), intent(in)    :: default_value
+
+      integer :: i, j
+
+      j = 1
+      do i=1,size(target_mask)
+         if (target_mask(i)) then
+            target(i) = source(j)
+            j = j + 1
+         else
+            target(i) = default_value
+         end if
+      end do
+   end subroutine manual_unpack
+
+   subroutine manual_unpack_add(source, target_mask, target)
+      real(rk), intent(in)    :: source(:)
+      logical,  intent(in)    :: target_mask(:)
+      real(rk), intent(inout) :: target(:)
+
+      integer :: i, j
+
+      j = 1
+      do i=1,size(target_mask)
+         if (target_mask(i)) then
+            target(i) = target(i) + source(j)
+            j = j + 1
+         end if
+      end do
+   end subroutine manual_unpack_add
+#endif
 
 end module fabm
 
