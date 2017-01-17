@@ -198,6 +198,9 @@ module fabm_particle_driver
       do ivar=1,size(self%model%state_variables)
          if (self%model%state_variables(ivar)%target%specific_to == -1) self%y(:,ivar) = self%y(:,ivar) * domain_per_particle
       end do
+
+      ! Make sure all diagnostics have an initial value
+      call self%get_sources(self%work)
    end subroutine start
 
    logical function is_variable_used(self, name)
