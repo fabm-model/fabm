@@ -1835,7 +1835,7 @@ end subroutine real_pointer_set_set_value
 ! !INTERFACE:
    subroutine register_interior_diagnostic_variable(self, id, name, units, long_name, &
                                                 time_treatment, missing_value, standard_variable, output, source, &
-                                                act_as_state_variable, prefill_value)
+                                                act_as_state_variable, prefill_value, specific_to)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1850,6 +1850,7 @@ end subroutine real_pointer_set_set_value
       real(rk),                           intent(in),optional :: missing_value, prefill_value
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       logical,                            intent(in),optional :: act_as_state_variable
+      type (type_state_variable_id),      intent(in),optional :: specific_to
 !
 !EOP
 !
@@ -1865,6 +1866,7 @@ end subroutine real_pointer_set_set_value
          id%link%target%prefill = prefill_constant
          id%link%target%prefill_value = prefill_value
       end if
+      if (present(specific_to)) id%link%target%specific_to = -2
    end subroutine register_interior_diagnostic_variable
 !EOC
 
