@@ -21,6 +21,7 @@ contains
       use gotm_fasham
       use gotm_ergom
       use gotm_light
+      use gotm_photo
       ! Add new GOTM models here
 
       class (type_factory),intent(in) :: self
@@ -32,6 +33,7 @@ contains
          case ('fasham'); allocate(type_gotm_fasham::model)
          case ('ergom');  allocate(type_gotm_ergom::model)
          case ('light');  allocate(type_gotm_light::model)
+         case ('photo');  allocate(type_gotm_photo::model)
          ! Add new GOTM models here
       end select
 
