@@ -1,5 +1,5 @@
 instances:
-  fasham:
+  photo:
     model: gotm/photo
     parameters:
       photo_mig: false   # vertical migration in response to photoinhibition, default = false
