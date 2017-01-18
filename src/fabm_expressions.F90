@@ -20,6 +20,8 @@ module fabm_expressions
       integer  :: n
       real(rk) :: last_time, next_save_time
       integer  :: ioldest = -1
+      real(rk) :: missing_value = -2.e20_rk
+      logical  :: valid = .false.
 
       integer,pointer :: in  => null()
       real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_ :: history
