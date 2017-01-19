@@ -9,27 +9,27 @@ module fabm_particle_driver
 
    private
 
-   public type_fabm_particle_state, type_output
+   public type_particle_properties, type_particle_property
 
-   type type_output
-      character(len=attribute_length) :: name      = ''
-      character(len=attribute_length) :: units     = ''
-      character(len=attribute_length) :: long_name = ''
-      real(rk), pointer               :: data(:)   => null()
-      logical                         :: save      = .false.
-      type (type_output), pointer     :: specific_to => null()
-      integer                         :: id        = -1
-      type (type_output), pointer     :: next      => null()
+   type type_particle_property
+      character(len=attribute_length)        :: name        = ''
+      character(len=attribute_length)        :: units       = ''
+      character(len=attribute_length)        :: long_name   = ''
+      real(rk), pointer                      :: data(:)     => null()
+      logical                                :: save        = .false.
+      type (type_particle_property), pointer :: specific_to => null()
+      integer                                :: id          = -1
+      type (type_particle_property), pointer :: next        => null()
    end type
 
-   type type_fabm_particle_state
+   type type_particle_properties
       integer                     :: npar
       integer                     :: nstate
-      real(rk), allocatable       :: y(:,:)
+      real(rk), allocatable       :: state(:,:)
       logical,  allocatable       :: active(:)
       logical                     :: active_hz
       type (type_model), private  :: model
-      type (type_output), pointer :: first_output => null()
+      type (type_particle_property), pointer :: first => null()
       real(rk), allocatable       :: particle_count(:)
       real(rk), allocatable       :: work(:,:)
    contains
@@ -37,30 +37,30 @@ module fabm_particle_driver
       procedure :: initialize
       procedure :: start
       procedure :: is_variable_used
-      procedure :: send_data
-      procedure :: send_horizontal_data
-      procedure :: send_scalar
+      procedure :: link_interior_data
+      procedure :: link_horizontal_data
+      procedure :: link_scalar
       procedure :: get_vertical_movement
       procedure :: get_sources
       procedure :: check_state
+      procedure :: advance
    end type
 
    contains
 
    subroutine configure(self, dictionary, npar)
-!DEC$ ATTRIBUTES DLLEXPORT :: configure
       use yaml_types, only: type_node, type_dictionary, type_key_value_pair, type_scalar, type_error
 
-      class (type_fabm_particle_state), target, intent(inout) :: self
+      class (type_particle_properties), target, intent(inout) :: self
       class (type_dictionary),                  intent(inout) :: dictionary
       integer,          optional,               intent(in)    :: npar
 
-      integer                             :: ivar
-      type (type_output),         pointer :: output
-      type (type_output),         pointer :: particle_count_output
-      type (type_error),          pointer :: yaml_error
-      type (type_key_value_pair), pointer :: pair
-      class (type_scalar),        pointer :: config_path
+      integer                                :: ivar
+      type (type_particle_property), pointer :: output
+      type (type_particle_property), pointer :: particle_count_property
+      type (type_error),             pointer :: yaml_error
+      type (type_key_value_pair),    pointer :: pair
+      class (type_scalar),           pointer :: config_path
 
       ! Determine particle count (provided as argument, or otherwise read from yaml).
       if (present(npar)) then
@@ -82,16 +82,16 @@ module fabm_particle_driver
       self%nstate = size(self%model%state_variables)
 
       ! Allocate the particle state.
-      allocate(self%y(self%npar, self%nstate))
+      allocate(self%state(self%npar, self%nstate))
       allocate(self%work(self%npar, self%nstate))
 
-      particle_count_output => null()
+      particle_count_property => null()
       do ivar = 1, size(self%model%state_variables)
-         output => add_output(self%model%state_variables(ivar), .true.)
-         output%data => self%y(:, ivar)
+         output => add_property(self%model%state_variables(ivar), .true.)
+         output%data => self%state(:, ivar)
       end do
       do ivar = 1, size(self%model%diagnostic_variables)
-         output => add_output(self%model%diagnostic_variables(ivar), self%model%diagnostic_variables(ivar)%output /= output_none)
+         output => add_property(self%model%diagnostic_variables(ivar), self%model%diagnostic_variables(ivar)%output /= output_none)
          output%id = ivar
       end do
 
@@ -101,17 +101,17 @@ module fabm_particle_driver
 
    contains
 
-      function add_output(variable, save) result(output)
+      function add_property(variable, save) result(property)
          class (type_external_variable), intent(in) :: variable
          logical,                        intent(in) :: save
 
-         type (type_output), pointer :: output
+         type (type_particle_property), pointer :: property
 
-         allocate(output)
-         output%name      = variable%name
-         output%units     = variable%units
-         output%long_name = variable%long_name
-         output%save      = save
+         allocate(property)
+         property%name      = variable%name
+         property%units     = variable%units
+         property%long_name = variable%long_name
+         property%save      = save
          if (variable%target%specific_to == -2) then
             ! This is a variable that describes a property specific to water parcels (e.g., age).
             ! To average this over a volume, we need to sum its value over all particles in the volume,
@@ -119,20 +119,20 @@ module fabm_particle_driver
             ! does this by computing \Sigma c w / \Sigma w, for property value c and weight w, and the
             ! sums taken over all particles. For the current case, w is therefore a constant (typically 1).
             ! We explicitly create a dummy weight field with this value below.
-            if (.not.associated(particle_count_output)) then
+            if (.not.associated(particle_count_property)) then
                ! Particle count variable does not exist yet - create it.
                allocate(self%particle_count(self%npar))
                self%particle_count(:) = 1
-               allocate(particle_count_output)
-               particle_count_output%name = 'count'
-               particle_count_output%units = '# m-3'
-               particle_count_output%long_name = 'count'
-               particle_count_output%save = .true.
-               particle_count_output%data => self%particle_count
-               particle_count_output%next => self%first_output
-               self%first_output => particle_count_output
+               allocate(particle_count_property)
+               particle_count_property%name = 'count'
+               particle_count_property%units = '# m-3'
+               particle_count_property%long_name = 'count'
+               particle_count_property%save = .true.
+               particle_count_property%data => self%particle_count
+               particle_count_property%next => self%first
+               self%first => particle_count_property
             end if
-            output%specific_to => particle_count_output
+            property%specific_to => particle_count_property
          elseif (variable%target%specific_to /= -1) then
             ! This is a variable that describes a property specific to one of the model's other (non-property) state variables.
             ! To average this over a volume, we need to compute \Sigma c w / \Sigma w,
@@ -141,23 +141,22 @@ module fabm_particle_driver
          end if
 
          ! Prepend to list of outputs
-         output%next => self%first_output
-         self%first_output => output
-      end function add_output
+         property%next => self%first
+         self%first => property
+      end function add_property
 
    end subroutine configure
 
    subroutine initialize(self)
-!DEC$ ATTRIBUTES DLLEXPORT :: initialize
-      class (type_fabm_particle_state), intent(inout) :: self
+      class (type_particle_properties), intent(inout) :: self
 
-      type (type_output), pointer :: output
+      type (type_particle_property), pointer :: property
 
       ! Copy "save" attribute of particle property to FABM diagnostics
-      output => self%first_output
-      do while (associated(output))
-         if (output%id /= -1) self%model%diagnostic_variables(output%id)%save = output%save
-         output => output%next
+      property => self%first
+      do while (associated(property))
+         if (property%id /= -1) self%model%diagnostic_variables(property%id)%save = property%save
+         property => property%next
       end do
 
       ! Domain size: number of particles
@@ -171,25 +170,24 @@ module fabm_particle_driver
       call fabm_set_mask(self%model, self%active, self%active_hz)
 
       ! Provide pointers to the particle state.
-      call self%model%link_all_interior_state_data(self%y)
+      call self%model%link_all_interior_state_data(self%state)
 
       ! Fo saved diagnostics, obtain a pointer to their values.
-      output => self%first_output
-      do while (associated(output))
-         if (output%id /= -1 .and. output%save) output%data => fabm_get_interior_diagnostic_data(self%model, output%id)
-         output => output%next
+      property => self%first
+      do while (associated(property))
+         if (property%id /= -1 .and. property%save) property%data => fabm_get_interior_diagnostic_data(self%model, property%id)
+         property => property%next
       end do
    end subroutine initialize
 
    subroutine start(self, domain_per_particle)
-!DEC$ ATTRIBUTES DLLEXPORT :: start
-      class (type_fabm_particle_state), intent(inout) :: self
+      class (type_particle_properties), intent(inout) :: self
       real(rk),                         intent(in)    :: domain_per_particle
 
       integer :: ivar
 
       ! By convention, cell thicknesses associated with individual particles are zero.
-      call self%send_data('cell_thickness', self%model%zero)
+      call self%link_interior_data('cell_thickness', self%model%zero)
 
       call fabm_check_ready(self%model)
       call fabm_initialize_state(self%model, 1, self%npar)
@@ -197,7 +195,7 @@ module fabm_particle_driver
       ! For non-property state variables, the initial state in FABM is given as a concentration.
       ! Here, we convert this to an amount per particle.
       do ivar=1,size(self%model%state_variables)
-         if (self%model%state_variables(ivar)%target%specific_to == -1) self%y(:,ivar) = self%y(:,ivar) * domain_per_particle
+         if (self%model%state_variables(ivar)%target%specific_to == -1) self%state(:,ivar) = self%state(:,ivar) * domain_per_particle
       end do
 
       ! Make sure all diagnostics have an initial value
@@ -205,43 +203,38 @@ module fabm_particle_driver
    end subroutine start
 
    logical function is_variable_used(self, name)
-!DEC$ ATTRIBUTES DLLEXPORT :: is_variable_used
-      class (type_fabm_particle_state), intent(in) :: self
+      class (type_particle_properties), intent(in) :: self
       character(len=*),                 intent(in) :: name
 
       is_variable_used = fabm_is_variable_used(self%model%get_bulk_variable_id(name))
    end function is_variable_used
 
-   subroutine send_data(self, name, dat)
-!DEC$ ATTRIBUTES DLLEXPORT :: send_data
-      class (type_fabm_particle_state), intent(inout) :: self
+   subroutine link_interior_data(self, name, dat)
+      class (type_particle_properties), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       real(rk), target,                 intent(in)    :: dat(:)
 
       call self%model%link_interior_data(name, dat)
-   end subroutine send_data
+   end subroutine link_interior_data
 
-   subroutine send_horizontal_data(self, name, dat)
-!DEC$ ATTRIBUTES DLLEXPORT :: send_horizontal_data
-      class (type_fabm_particle_state), intent(inout) :: self
+   subroutine link_horizontal_data(self, name, dat)
+      class (type_particle_properties), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       real(rk), target,                 intent(in)    :: dat
 
       call self%model%link_horizontal_data(name, dat)
-   end subroutine send_horizontal_data
+   end subroutine link_horizontal_data
 
-   subroutine send_scalar(self, name, dat)
-!DEC$ ATTRIBUTES DLLEXPORT :: send_scalar_data
-      class (type_fabm_particle_state), intent(inout) :: self
+   subroutine link_scalar(self, name, dat)
+      class (type_particle_properties), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       real(rk), target,                 intent(in)    :: dat
 
       call self%model%link_scalar(name, dat)
-   end subroutine send_scalar
+   end subroutine link_scalar
 
    subroutine get_vertical_movement(self, w)
-!DEC$ ATTRIBUTES DLLEXPORT :: get_vertical_movement
-      class (type_fabm_particle_state), intent(inout) :: self
+      class (type_particle_properties), intent(inout) :: self
       real(rk),                         intent(out)   :: w(1:self%npar)
 
       call fabm_get_vertical_movement(self%model, 1, self%npar, self%work)
@@ -252,8 +245,7 @@ module fabm_particle_driver
    end subroutine get_vertical_movement
 
    subroutine get_sources(self, dy)
-!DEC$ ATTRIBUTES DLLEXPORT :: get_sources
-      class (type_fabm_particle_state), intent(inout) :: self
+      class (type_particle_properties), intent(inout) :: self
       real(rk),                         intent(out)   :: dy(1:self%npar, self%nstate)
 
       dy = 0.0_rk
@@ -261,13 +253,21 @@ module fabm_particle_driver
    end subroutine get_sources
 
    function check_state(self, repair) result(valid)
-!DEC$ ATTRIBUTES DLLEXPORT :: check_state
-      class (type_fabm_particle_state), intent(inout) :: self
+      class (type_particle_properties), intent(inout) :: self
       logical,                          intent(in)    :: repair
 
       logical :: valid
 
       call fabm_check_state(self%model, 1, self%npar, repair, valid)
    end function check_state
+
+   subroutine advance(self, dt)
+      class (type_particle_properties), intent(inout) :: self
+      real(rk),                         intent(in)    :: dt
+
+      ! Time-integrate source terms (Forward Euler)
+      call get_sources(self, self%work)
+      self%state = self%state + dt*self%work
+   end subroutine advance
 
 end module
