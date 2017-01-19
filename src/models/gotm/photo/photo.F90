@@ -96,6 +96,7 @@
       type (type_state_variable_id)        :: id_Carb
       type (type_horizontal_dependency_id) :: id_swr0
       type (type_dependency_id)            :: id_depth
+      type (type_global_dependency_id)     :: id_yearday
 
 !     Model parameters
       logical  :: photo_mig
@@ -116,7 +117,7 @@
 
       procedure :: initialize
       procedure :: do
-      !procedure :: get_vertical_movement
+      procedure :: get_vertical_movement
 
    end type
 !
@@ -163,6 +164,7 @@
 
    call self%register_dependency(self%id_depth, standard_variables%depth)
    call self%register_dependency(self%id_swr0, standard_variables%surface_downwelling_shortwave_flux)
+   call self%register_dependency(self%id_yearday, standard_variables%number_of_days_since_start_of_the_year)
 
    end subroutine initialize
 !EOC
@@ -219,6 +221,42 @@
 
    end subroutine do
 !EOC
+
+   subroutine get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
+      class (type_gotm_photo),intent(in) :: self
+      _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
+
+      real(rk) :: y, yearday, dayhour, w
+
+      if (.not. self%photo_mig) return
+
+      _LOOP_BEGIN_
+
+         _GET_(self%id_Y,y)   ! get inhibition state
+
+         _GET_GLOBAL_(self%id_yearday,yearday)
+         dayhour = 24*mod(yearday, 1.0_rk)
+
+         if (dayhour > 6.0_rk .and. dayhour < 18.0_rk) then
+
+            if (y > self%yh)  then
+               w = -self%w_c          ! it's day but it's too bright: move down
+            else
+               w = self%w_c           ! it's day and not too bright: move up
+            endif
+
+         else
+
+            w = -self%w_c             ! it's night: move down
+
+         end if
+
+         _SET_VERTICAL_MOVEMENT_(self%id_Y,w)
+         _SET_VERTICAL_MOVEMENT_(self%id_Carb,w)
+
+      _LOOP_END_
+
+   end subroutine get_vertical_movement
 
 !-----------------------------------------------------------------------
 
