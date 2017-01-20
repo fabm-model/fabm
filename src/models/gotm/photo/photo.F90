@@ -237,7 +237,7 @@
          _GET_GLOBAL_(self%id_yearday,yearday)
          dayhour = 24*mod(yearday, 1.0_rk)
 
-         if (dayhour > 6.0_rk .and. dayhour < 18.0_rk) then
+         if (dayhour >= 6.0_rk .and. dayhour < 18.0_rk) then
 
             if (y > self%yh)  then
                w = -self%w_c          ! it's day but it's too bright: move down
