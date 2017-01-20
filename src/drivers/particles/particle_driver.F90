@@ -15,6 +15,7 @@ module fabm_particle_driver
       character(len=attribute_length)        :: name        = ''
       character(len=attribute_length)        :: units       = ''
       character(len=attribute_length)        :: long_name   = ''
+      real(rk)                               :: missing_value = -2e20_rk
       real(rk), pointer                      :: data(:)     => null()
       logical                                :: save        = .false.
       type (type_particle_property), pointer :: specific_to => null()
@@ -111,6 +112,7 @@ module fabm_particle_driver
          property%name      = variable%name
          property%units     = variable%units
          property%long_name = variable%long_name
+         property%missing_value = variable%missing_value
          property%save      = save
          if (variable%target%specific_to == -2) then
             ! This is a variable that describes a property specific to water parcels (e.g., age).
