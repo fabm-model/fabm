@@ -24,7 +24,7 @@ except ImportError:
     print 'Unable to load pyfabm. See https://github.com/fabm-model/code/wiki/python.'
     sys.exit(1)
 
-def evaluate(yaml_path, sources=(), location={}, assignments={}, verbose=True, ignore_missing=False):
+def evaluate(yaml_path, sources=(), location={}, assignments={}, verbose=True, ignore_missing=False, surface=True, bottom=True):
     # Create model object from YAML file.
     model = pyfabm.Model(yaml_path)
 
@@ -113,7 +113,7 @@ def evaluate(yaml_path, sources=(), location={}, assignments={}, verbose=True, i
         print '  %s: %s %s' % (variable.name, variable.value, variable.units)
 
     # Get model rates
-    rates = model.getRates()
+    rates = model.getRates(surface=surface, bottom=bottom)
     assert len(rates) == len(model.state_variables), 'Length of array with rates does not match number of state variables'
 
     if verbose:
@@ -153,10 +153,12 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--location', nargs='*', help='NetCDF dimension to fix at particular index (specify: DIMENSION_NAME=INDEX)', default=[])
     parser.add_argument('-v', '--values', nargs='*', help='Additional state variable/environmental dependency values (specify: VARIABLE_NAME=VALUE)', default=[])
     parser.add_argument('--ignore_missing', action='store_true', help='Whether to ignore missing values for state variables and dependencies (the model will be evaluated with a default value of 0 for such missing variables)', default=False)
+    parser.add_argument('--no_surface', dest='surface', action='store_false', help='Whether to omit surface processes (do_surface calls)', default=True)
+    parser.add_argument('--no_bottom', dest='bottom', action='store_false', help='Whether to omit surface processes (do_bottom calls)', default=True)
     parser.add_argument('--pause', action='store_true', help='Whether to pause before model evaluation to manually attach a debugger.', default=False)
     args = parser.parse_args()
 
     if args.pause:
         raw_input('Attach the debugger (process id = %i) and then press Enter.' % os.getpid())
 
-    evaluate(args.model_path, args.sources, location=dict([dimension2index.split('=') for dimension2index in args.location]), assignments=dict([name2value.split('=') for name2value in args.values]), ignore_missing=args.ignore_missing)
+    evaluate(args.model_path, args.sources, location=dict([dimension2index.split('=') for dimension2index in args.location]), assignments=dict([name2value.split('=') for name2value in args.values]), ignore_missing=args.ignore_missing, surface=args.surface, bottom=args.bottom)
