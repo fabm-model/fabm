@@ -39,6 +39,8 @@
    class (type_model),private,pointer,save :: model => null()
    real(8),dimension(:),pointer :: state
    character(len=1024),dimension(:),allocatable :: environment_names,environment_units
+   integer :: index_column_depth
+   real(c_double),pointer :: column_depth
    type (type_link_list),save :: coupling_link_list
 
    type (type_property_dictionary),save,private :: forced_parameters,forced_couplings
@@ -119,7 +121,8 @@
       call fabm_set_domain(model)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment_metadata(model,environment_names,environment_units)
+      call get_environment_metadata(model,environment_names,environment_units,index_column_depth)
+      column_depth => null()
 
       call get_couplings(model,coupling_link_list)
    end subroutine initialize
@@ -171,7 +174,8 @@
       call fabm_set_domain(model)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment_metadata(model,environment_names,environment_units)
+      call get_environment_metadata(model,environment_names,environment_units,index_column_depth)
+      column_depth => null()
 
       call get_couplings(model,coupling_link_list)
    end subroutine reinitialize
@@ -352,6 +356,7 @@
       call fabm_link_bulk_data(model,environment_names(index),value)
       call fabm_link_horizontal_data(model,environment_names(index),value)
       call fabm_link_scalar_data(model,environment_names(index),value)
+      if (index==index_column_depth) column_depth => value
    end subroutine link_dependency_data
 
    subroutine link_bulk_state_data(index,value) bind(c)
@@ -381,9 +386,10 @@
       call fabm_link_bottom_state_data(model,index,value)
    end subroutine link_bottom_state_data
 
-   subroutine get_rates(pelagic_rates_) bind(c)
+   subroutine get_rates(pelagic_rates_, do_surface, do_bottom) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_rates
       real(c_double),target,intent(in) :: pelagic_rates_(*)
+      integer(c_int),value, intent(in) :: do_surface, do_bottom
 
       real(c_double),pointer :: pelagic_rates(:)
       real(rk)               :: ext
@@ -393,10 +399,16 @@
       call c_f_pointer(c_loc(pelagic_rates_),pelagic_rates, &
         (/size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)/))
       pelagic_rates = 0.0_rk
-      call fabm_do_bottom(model,pelagic_rates(1:size(model%state_variables)), &
-         pelagic_rates(size(model%state_variables)+size(model%surface_state_variables)+1:))
-      call fabm_do_surface(model,pelagic_rates(1:size(model%state_variables)), &
+      if (int2logical(do_surface)) call fabm_do_surface(model,pelagic_rates(1:size(model%state_variables)), &
          pelagic_rates(size(model%state_variables)+1:size(model%state_variables)+size(model%surface_state_variables)))
+      if (int2logical(do_bottom)) call fabm_do_bottom(model,pelagic_rates(1:size(model%state_variables)), &
+         pelagic_rates(size(model%state_variables)+size(model%surface_state_variables)+1:))
+      if (int2logical(do_surface) .or. int2logical(do_bottom)) then
+         if (.not.associated(column_depth)) call driver%fatal_error('get_rates', &
+            'Value for environmental dependency '//trim(environment_names(index_column_depth))// &
+            ' must be provided if get_rates is called with the do_surface and/or do_bottom flags.')
+         pelagic_rates(1:size(model%state_variables)) = pelagic_rates(1:size(model%state_variables))/column_depth
+      end if
       call fabm_do(model,pelagic_rates(1:size(model%state_variables)))
 
       ! Compute rate of change in conserved quantities

@@ -8,6 +8,7 @@ set(DEFAULT_INSTITUTES
     bb           # Bolding & Bruggeman - formerly Bolding & Burchard
     examples     # Examples supplied with FABM itself
     gotm         # Models ported from original GOTM/BIO library
+    jrc          # EC - Joint Research Centre - Ispra, Italy
     pclake       # The PCLake model - reference implementation
     pml          # Plymouth Marine Laboratory, United Kingdom
     ersem        # European Regional Seas Ecosytem Model
@@ -27,7 +28,16 @@ set(FABM_INSTITUTES_OLD
     msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
    )
 
+# Ensure FABM_INSTITUTES tracks the up-to-date DEFAULT_INSTITUTES list unless the user manually customized FABM_INSTITUTES.
+if(NOT FABM_DEFAULT_INSTITUTES OR NOT FABM_INSTITUTES)
+  set(FABM_DEFAULT_INSTITUTES "${DEFAULT_INSTITUTES}" CACHE INTERNAL "Default institutes at the time FABM_INSTITUTES was initialized or updated automatically.")
+endif()
 set(FABM_INSTITUTES ${DEFAULT_INSTITUTES} CACHE STRING "Institute directories to include during compilation.")
+if(FABM_INSTITUTES STREQUAL FABM_DEFAULT_INSTITUTES)
+  # FABM_INSTITUTES matches its original default value; update both with the current DEFAULT_INSTITUTES list.
+  set(FABM_INSTITUTES ${DEFAULT_INSTITUTES} CACHE STRING "Institute directories to include during compilation." FORCE)  
+  set(FABM_DEFAULT_INSTITUTES ${DEFAULT_INSTITUTES} CACHE INTERNAL "Default institutes at the time FABM_INSTITUTES was initialized or updated automatically.")  
+endif()
 
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)

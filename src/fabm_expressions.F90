@@ -20,6 +20,8 @@ module fabm_expressions
       integer  :: n
       real(rk) :: last_time, next_save_time
       integer  :: ioldest = -1
+      real(rk) :: missing_value = -2.e20_rk
+      logical  :: valid = .false.
 
       integer,pointer :: in  => null()
       real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_ :: history
@@ -131,9 +133,10 @@ contains
       if (present(maximum_depth)) expression%maximum_depth = maximum_depth
    end function
 
-   function bulk_temporal_mean(input,period,resolution) result(expression)
+   function bulk_temporal_mean(input,period,resolution,missing_value) result(expression)
       type (type_dependency_id), intent(inout),target   :: input
       real(rk),                  intent(in)             :: period,resolution
+      real(rk),optional,         intent(in)             :: missing_value
 
       type (type_bulk_temporal_mean) :: expression
       character(len=attribute_length) :: prefix,postfix
@@ -149,6 +152,7 @@ contains
       expression%in => input%index
       expression%n = nint(period/resolution)
       expression%period = period
+      if (present(missing_value)) expression%missing_value = missing_value
    end function
 
    function horizontal_temporal_mean(input,period,resolution) result(expression)
