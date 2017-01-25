@@ -993,7 +993,7 @@
 ! \end{equation}
 !
 ! !INPUT PARAMETERS:
-!  REALTYPE, intent(in)
+!  real(rk), intent(in)
 !  real :: a
    real(rk)  :: a,x
 !

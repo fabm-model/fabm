@@ -1,6 +1,4 @@
 #include "fabm_driver.h"
-
-#define _FABM_BGC_BACKWARD_COMPATIBILITY_
 !-----------------------------------------------------------------------
 !BOP
 !

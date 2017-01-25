@@ -108,7 +108,7 @@ fabm.check_ready.argtypes = []
 fabm.check_ready.restype = None
 
 # Routine for retrieving source-sink terms for the interior domain.
-fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS')]
+fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS'), ctypes.c_int, ctypes.c_int]
 fabm.get_rates.restype = None
 
 # Routine for getting git repository version information.
@@ -451,12 +451,12 @@ class Model(object):
         self.bulk_state_variables = self.interior_state_variables
         self.bulk_diagnostic_variables = self.interior_diagnostic_variables
 
-    def getRates(self):
+    def getRates(self, surface=True, bottom=True):
         """Returns the local rate of change in state variables,
         given the current state and environment.
         """
         localrates = numpy.empty_like(self.state)
-        fabm.get_rates(localrates)
+        fabm.get_rates(localrates, surface, bottom)
         return localrates
 
     def getJacobian(self,pert=None):
