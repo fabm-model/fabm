@@ -612,8 +612,9 @@ module fabm_job
 
    end subroutine task_process_indices
 
-   subroutine job_print(self)
-      class (type_job), intent(in) :: self
+   subroutine job_print(self, specific_variable)
+      class (type_job),                                intent(in) :: self
+      type (type_internal_variable), target, optional, intent(in) :: specific_variable
 
       type (type_task), pointer :: task
 
@@ -621,12 +622,12 @@ module fabm_job
       task => self%first_task
       do while (associated(task))
          write (*,'(a,a)') '- TASK WITH OPERATION = ',trim(source2string(task%operation))
-         call task%print(indent=2)
+         call task%print(indent=2,specific_variable=specific_variable)
          task => task%next
       end do
       if (associated(self%final_task)) then
          write (*,'(a,a)') '- FINAL TASK WITH OPERATION = ',trim(source2string(self%final_task%operation))
-         call self%final_task%print(indent=2)
+         call self%final_task%print(indent=2,specific_variable=specific_variable)
       end if
    end subroutine job_print
 
@@ -638,45 +639,91 @@ subroutine call_finalize(self)
    self%graph_node => null()
 end subroutine call_finalize
 
-subroutine task_print(self,indent)
-   class (type_task), intent(in) :: self
-   integer,optional,  intent(in) :: indent
+subroutine print_output_variable(variable,indent)
+   type (type_output_variable),intent(in) :: variable
+   integer,optional,           intent(in) :: indent
+
+   type (type_node_set_member),pointer :: pnode
+
+   write (*,'(a,"   ",a,", write@",i0)',advance='no') repeat(' ',indent),trim(variable%target%name),variable%target%write_indices%value
+   if (variable%copy_to_cache) write (*,'(", cache@",i0)',advance='no') variable%target%read_indices%value
+   if (variable%copy_to_store) write (*,'(", store@",i0)',advance='no') variable%target%store_index
+   if (variable%target%prefill==prefill_constant) write (*,'(", prefill=",g0.6)',advance='no') variable%target%prefill_value
+   if (variable%target%prefill==prefill_previous_value) write (*,'(", prefill=previous")',advance='no')
+   write (*,*)
+   pnode => variable%dependent_nodes%first
+   do while (associated(pnode))
+      write (*,'(a,"     <- ",a,": ",a)') repeat(' ',indent),trim(pnode%p%model%get_path()),trim(source2string(pnode%p%source))
+      pnode => pnode%next
+   end do
+end subroutine print_output_variable
+
+subroutine print_input_variable(variable,indent)
+   type (type_variable_node),intent(in) :: variable
+   integer,optional,         intent(in) :: indent
+
+   type (type_node_set_member),pointer :: pnode
+
+   write (*,'(a,"   - ",a,", read@",i0)') repeat(' ',indent),trim(variable%target%name),variable%target%read_indices%value
+end subroutine print_input_variable
+
+subroutine task_print(self,indent,specific_variable)
+   class (type_task),                               intent(in) :: self
+   integer,optional,                                intent(in) :: indent
+   type (type_internal_variable), target, optional, intent(in) :: specific_variable
 
    integer                             :: indent_
    type (type_call),           pointer :: call_node
    type (type_output_variable),pointer :: output_variable
+   logical                             :: show
    type (type_variable_node),  pointer :: input_variable
-   type (type_node_set_member),pointer :: pnode
+   logical                             :: header_written
+   logical                             :: input_header_written
 
    indent_ = 0
    if (present(indent)) indent_ = indent
 
+   header_written = .false.
+   input_header_written = .false.
    call_node => self%first_call
    do while (associated(call_node))
-      write (*,'(a,a,": ",a)') repeat(' ',indent_),trim(call_node%model%get_path()),trim(source2string(call_node%source))
       output_variable => call_node%graph_node%outputs%first
       do while (associated(output_variable))
-         write (*,'(a,"   ",a,", write@",i0)',advance='no') repeat(' ',indent_),trim(output_variable%target%name),output_variable%target%write_indices%value
-         if (output_variable%copy_to_cache) write (*,'(", cache@",i0)',advance='no') output_variable%target%read_indices%value
-         if (output_variable%copy_to_store) write (*,'(", store@",i0)',advance='no') output_variable%target%store_index
-         if (output_variable%target%prefill==prefill_constant) write (*,'(", prefill=",g0.6)',advance='no') output_variable%target%prefill_value
-         if (output_variable%target%prefill==prefill_previous_value) write (*,'(", prefill=previous")',advance='no')
-         write (*,*)
-         pnode => output_variable%dependent_nodes%first
-         do while (associated(pnode))
-            write (*,'(a,"     <- ",a,": ",a)') repeat(' ',indent_),trim(pnode%p%model%get_path()),trim(source2string(pnode%p%source))
-            pnode => pnode%next
-         end do
+         show = .true.
+         if (present(specific_variable)) show = associated(output_variable%target, specific_variable)
+         if (show) then
+            call write_header()
+            call print_output_variable(output_variable,indent_)
+         end if
          output_variable => output_variable%next
       end do
-      write (*,'(a,"   ",a)') repeat(' ',indent_),'inputs:'
+
       input_variable => call_node%graph_node%inputs%first
       do while (associated(input_variable))
-         write (*,'(a,"   - ",a,", read@",i0)') repeat(' ',indent_),trim(input_variable%target%name),input_variable%target%read_indices%value
+         show = .true.
+         if (present(specific_variable)) show = associated(input_variable%target, specific_variable)
+         if (show) then
+            call write_header()
+            if (.not.input_header_written) then
+               write (*,'(a,"   ",a)') repeat(' ',indent_),'inputs:'
+               input_header_written = .true.
+            end if
+            call print_input_variable(input_variable,indent_)
+         end if
          input_variable => input_variable%next
       end do
       call_node => call_node%next
    end do
+
+   contains
+
+   subroutine write_header()
+      if (.not.header_written) then
+         write (*,'(a,a,": ",a)') repeat(' ',indent_),trim(call_node%model%get_path()),trim(source2string(call_node%source))
+         header_written = .true.
+      end if
+   end subroutine
+
 end subroutine task_print
 
 subroutine task_finalize(self)
@@ -1437,14 +1484,15 @@ subroutine job_manager_process_indices(self,unfulfilled_dependencies)
    end do
 end subroutine job_manager_process_indices
 
-subroutine job_manager_print(self)
-   class (type_job_manager), intent(inout) :: self
+subroutine job_manager_print(self,specific_variable)
+   class (type_job_manager),                        intent(in) :: self
+   type (type_internal_variable), target, optional, intent(in) :: specific_variable
 
    type (type_job_manager_item),pointer :: node
 
    node => self%first
    do while (associated(node))
-      call node%job%print()
+      call node%job%print(specific_variable)
       node => node%next
    end do
 end subroutine job_manager_print
