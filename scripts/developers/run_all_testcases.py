@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import os.path
 import tempfile
 import subprocess
 import shutil
 import sys
 import glob
+import timeit
 
 script_root = os.path.abspath(os.path.dirname(__file__))
 
@@ -26,6 +28,19 @@ def git_clone(url, workdir, branch=None):
         run('git', 'checkout', branch)
         os.chdir(olddir)
 
+def run_gotm(testcase_dir, gotm_exe):
+    start = timeit.default_timer()
+    p = subprocess.Popen([gotm_exe], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=testcase_dir)
+    stdoutdata, stderrdata = p.communicate()
+    duration = timeit.default_timer() - start
+    if p.returncode != 0:
+        print('FAILED - last output:')
+        last_lines = stdoutdata.rsplit('\n', 10)[1:]
+        print('\n'.join(last_lines))
+    else:
+        print('ok (%.3f s)' % duration)
+    return p.returncode == 0
+
 def build(build_dir, fabm_base, gotm_base, cmake_arguments=()):
     # Save current working directory
     olddir = os.getcwd()
@@ -38,10 +53,43 @@ def build(build_dir, fabm_base, gotm_base, cmake_arguments=()):
 
     # Build GOTM-FABM
     run('cmake', os.path.join(gotm_base, 'src'), '-DFABM_BASE=%s' % fabm_base, *cmake_arguments)
-    run('make','-j8')
+    run('make', '-j8')
 
     # Restore original working directory
     os.chdir(olddir)
+
+def enumerate_testcases(testcase_dir, fabm_testcases):
+    with open(os.path.join(testcase_dir, 'output.yaml'), 'w') as f:
+        f.write("""
+result:
+  time_unit: day
+  time_step: 1
+  time_method: mean
+  variables:
+    - source: fabm/*
+    - source: h
+""")
+
+    for current_fabm_yaml in sorted(glob.glob(fabm_testcases)):
+        # Copy fabm.yaml
+        shutil.copyfile(current_fabm_yaml, os.path.join(testcase_dir, 'fabm.yaml'))
+
+        yield os.path.basename(current_fabm_yaml)
+
+def compare_netcdf(path, ref_path):
+    import numpy
+    import netCDF4
+    nc = netCDF4.Dataset(path)
+    nc_ref = netCDF4.Dataset(ref_path)
+    for varname in nc.variables.keys():
+        if varname not in nc_ref.variables or varname in ('lon', 'lat', 'h', 'z', 'time'):
+            continue
+        ncvar = nc.variables[varname]
+        ncvar_ref = nc_ref.variables[varname]
+        delta = ncvar[...] - ncvar_ref[...]
+        print('    %s: max abs difference = %s' % (varname, numpy.abs(delta).max()))
+    nc.close()
+    nc_ref.close()
 
 def test(testcase_dir, work_root, cmake_arguments=(), fabm_url=default_fabm_url, gotm_url=default_gotm_url, fabm_branch=None, gotm_branch=None):
     fabm_base = os.path.join(work_root, 'code/fabm')
@@ -58,7 +106,7 @@ def test(testcase_dir, work_root, cmake_arguments=(), fabm_url=default_fabm_url,
     build(build_dir, fabm_base, gotm_base, cmake_arguments)
 
     for name in enumerate_testcases(testcase_dir, os.path.join(fabm_base, 'testcases/*.yaml')):
-        print 'TESTING %s...' % name,
+        print('TESTING %s...' % name, end='')
         run_gotm(testcase_dir, gotm_exe)
 
 def compare(testcase_dir, work_root=None, cmake_arguments=(), fabm_url=default_fabm_url, gotm_url=default_gotm_url, fabm_branch=None, gotm_branch=None, fabm_ref_branch=None, gotm_ref_branch=None):
@@ -72,59 +120,14 @@ def compare(testcase_dir, work_root=None, cmake_arguments=(), fabm_url=default_f
     build(os.path.join(work_root, 'ref/build'), os.path.join(work_root, 'ref/code/fabm'), os.path.join(work_root, 'ref/code/gotm'), cmake_arguments)
 
     for name in enumerate_testcases(testcase_dir, os.path.join(work_root, 'code/fabm/testcases/*.yaml')):
-        print 'TESTING %s...' % name
-        print '  reference...',
+        print('TESTING %s...' % name)
+        print('  reference...', end='')
         valid_ref = run_gotm(testcase_dir, os.path.join(work_root, 'ref/build/gotm'))
         os.rename(os.path.join(testcase_dir, 'result.nc'), os.path.join(testcase_dir, 'result_ref.nc'))
-        print '  target...',
+        print('  target...', end='')
         valid = run_gotm(testcase_dir, os.path.join(work_root, 'build/gotm'))
         if valid and valid_ref:
             compare_netcdf(os.path.join(testcase_dir, 'result_ref.nc'), os.path.join(testcase_dir, 'result.nc'))
-
-def compare_netcdf(path, ref_path):
-    import numpy
-    import netCDF4
-    nc = netCDF4.Dataset(path)
-    nc_ref = netCDF4.Dataset(ref_path)
-    for varname in nc.variables.keys():
-        if varname not in nc_ref.variables or varname in ('lon', 'lat', 'h', 'z', 'time'):
-            continue
-        ncvar = nc.variables[varname]
-        ncvar_ref = nc_ref.variables[varname]
-        delta = ncvar[...] - ncvar_ref[...]
-        print '    %s: max abs difference = %s' % (varname, numpy.abs(delta).max())
-    nc.close()
-    nc_ref.close()
-
-def enumerate_testcases(testcase_dir, fabm_testcases):
-    with open(os.path.join(testcase_dir, 'output.yaml'), 'w') as f:
-       f.write("""
-result:
-  time_unit: day
-  time_step: 1
-  time_method: mean
-  variables:
-    - source: fabm/*
-    - source: h
-""")
-
-    for current_fabm_yaml in sorted(glob.glob(fabm_testcases)):
-        # Copy fabm.yaml
-        shutil.copyfile(current_fabm_yaml, os.path.join(testcase_dir, 'fabm.yaml'))
-
-        yield os.path.basename(current_fabm_yaml)
-
-def run_gotm(testcase_dir, gotm_exe):
-    # Run GOTM
-    p = subprocess.Popen([gotm_exe], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=testcase_dir)
-    stdoutdata, stderrdata = p.communicate()
-    if p.returncode != 0:
-        print 'FAILED - last output:'
-        last_lines = stdoutdata.rsplit('\n',10)[1:]
-        print '\n'.join(last_lines)
-    else:
-        print 'ok'
-    return p.returncode == 0
 
 if __name__ == '__main__':
     import argparse
@@ -139,10 +142,10 @@ if __name__ == '__main__':
     if args.work_root is None:
         args.work_root = tempfile.mkdtemp()
     args.work_root = os.path.abspath(args.work_root)
-    print 'Root of test directory: %s' % args.work_root
+    print('Root of test directory: %s' % args.work_root)
 
     if args.fabm_ref_branch is not None:
-        print 'Running in comparison mode.' 
+        print('Running in comparison mode.')
         compare(args.scenario_dir, args.work_root, args.cmake_arguments, fabm_branch=args.fabm_branch, fabm_ref_branch=args.fabm_ref_branch)
     else:
         test(args.scenario_dir, args.work_root, args.cmake_arguments, fabm_branch=args.fabm_branch)
