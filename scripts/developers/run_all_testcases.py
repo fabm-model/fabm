@@ -39,7 +39,7 @@ def run_gotm(testcase_dir, gotm_exe):
         print('\n'.join(last_lines))
     else:
         print('ok (%.3f s)' % duration)
-    return p.returncode == 0
+    return p.returncode == 0, duration
 
 def build(build_dir, fabm_base, gotm_base, cmake_arguments=()):
     # Save current working directory
@@ -79,6 +79,7 @@ result:
 def compare_netcdf(path, ref_path):
     import numpy
     import netCDF4
+    perfect = True
     nc = netCDF4.Dataset(path)
     nc_ref = netCDF4.Dataset(ref_path)
     for varname in nc.variables.keys():
@@ -87,9 +88,12 @@ def compare_netcdf(path, ref_path):
         ncvar = nc.variables[varname]
         ncvar_ref = nc_ref.variables[varname]
         delta = ncvar[...] - ncvar_ref[...]
-        print('    %s: max abs difference = %s' % (varname, numpy.abs(delta).max()))
+        maxdelta = numpy.abs(delta).max()
+        perfect = perfect and maxdelta == 0.0
+        print('    %s: max abs difference = %s' % (varname, maxdelta))
     nc.close()
     nc_ref.close()
+    return perfect
 
 def test(testcase_dir, work_root, cmake_arguments=(), fabm_url=default_fabm_url, gotm_url=default_gotm_url, fabm_branch=None, gotm_branch=None):
     fabm_base = os.path.join(work_root, 'code/fabm')
@@ -119,15 +123,31 @@ def compare(testcase_dir, work_root=None, cmake_arguments=(), fabm_url=default_f
     git_clone(gotm_url, os.path.join(work_root, 'ref/code/gotm'), gotm_ref_branch)
     build(os.path.join(work_root, 'ref/build'), os.path.join(work_root, 'ref/code/fabm'), os.path.join(work_root, 'ref/code/gotm'), cmake_arguments)
 
+    faster, slower = [], []
+    failed, success, crashed = [], [], []
     for name in enumerate_testcases(testcase_dir, os.path.join(work_root, 'code/fabm/testcases/*.yaml')):
         print('TESTING %s...' % name)
         print('  reference...', end='')
-        valid_ref = run_gotm(testcase_dir, os.path.join(work_root, 'ref/build/gotm'))
+        valid_ref, duration_ref = run_gotm(testcase_dir, os.path.join(work_root, 'ref/build/gotm'))
         os.rename(os.path.join(testcase_dir, 'result.nc'), os.path.join(testcase_dir, 'result_ref.nc'))
         print('  target...', end='')
-        valid = run_gotm(testcase_dir, os.path.join(work_root, 'build/gotm'))
+        valid, duration = run_gotm(testcase_dir, os.path.join(work_root, 'build/gotm'))
         if valid and valid_ref:
-            compare_netcdf(os.path.join(testcase_dir, 'result_ref.nc'), os.path.join(testcase_dir, 'result.nc'))
+            if compare_netcdf(os.path.join(testcase_dir, 'result_ref.nc'), os.path.join(testcase_dir, 'result.nc')):
+                success.append(name)
+            else:
+                failed.append(name)
+        else:
+            crashed.append(name)
+        if duration < duration_ref:
+            faster.append(name)
+        else:
+            slower.append(name)
+
+    print('%i perfect matches: %s' % (len(success), ', '.join(success)))
+    print('%i mismatches: %s' % (len(failed), ', '.join(failed)))
+    print('%i failed to run: %s' % (len(crashed), ', '.join(crashed)))
+    print('Faster than reference? %i out of %i times.' % (len(faster), len(faster) + len(slower)))
 
 if __name__ == '__main__':
     import argparse
