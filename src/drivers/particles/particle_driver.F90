@@ -63,6 +63,8 @@ module fabm_particle_driver
       type (type_key_value_pair),    pointer :: pair
       class (type_scalar),           pointer :: config_path
 
+      call fabm_initialize_library()
+
       ! Determine particle count (provided as argument, or otherwise read from yaml).
       if (present(npar)) then
          self%npar = npar
