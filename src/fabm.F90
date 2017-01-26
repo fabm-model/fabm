@@ -887,8 +887,8 @@
    ! finalizes the set of variables for which input data is available.
    call self%job_manager%initialize(self%variable_register)
 
-   !call self%job_manager%print()
-
+   call self%job_manager%print()
+stop
    ! Allocate arrays with pointers to data.
    allocate(self%data       (self%variable_register%interior_read%count))
    allocate(self%data_hz    (self%variable_register%horizontal_read%count))
