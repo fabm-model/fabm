@@ -645,7 +645,7 @@ subroutine print_output_variable(variable,indent)
 
    type (type_node_set_member),pointer :: pnode
 
-   write (*,'(a,"   ",a,", write@",i0)',advance='no') repeat(' ',indent),trim(variable%target%name),variable%target%write_indices%value
+   write (*,'(a,"   - ",a,", write@",i0)',advance='no') repeat(' ',indent),trim(variable%target%name),variable%target%write_indices%value
    if (variable%copy_to_cache) write (*,'(", cache@",i0)',advance='no') variable%target%read_indices%value
    if (variable%copy_to_store) write (*,'(", store@",i0)',advance='no') variable%target%store_index
    if (variable%target%prefill==prefill_constant) write (*,'(", prefill=",g0.6)',advance='no') variable%target%prefill_value
@@ -678,35 +678,41 @@ subroutine task_print(self,indent,specific_variable)
    logical                             :: show
    type (type_variable_node),  pointer :: input_variable
    logical                             :: header_written
-   logical                             :: input_header_written
+   logical                             :: subheader_written
 
    indent_ = 0
    if (present(indent)) indent_ = indent
 
-   header_written = .false.
-   input_header_written = .false.
    call_node => self%first_call
    do while (associated(call_node))
+      header_written = .false.
+
+      subheader_written = .false.
       output_variable => call_node%graph_node%outputs%first
       do while (associated(output_variable))
          show = .true.
          if (present(specific_variable)) show = associated(output_variable%target, specific_variable)
          if (show) then
             call write_header()
+            if (.not. subheader_written) then
+               write (*,'(a,"   ",a)') repeat(' ',indent_),'outputs:'
+               subheader_written = .true.
+            end if
             call print_output_variable(output_variable,indent_)
          end if
          output_variable => output_variable%next
       end do
 
+      subheader_written = .false.
       input_variable => call_node%graph_node%inputs%first
       do while (associated(input_variable))
          show = .true.
          if (present(specific_variable)) show = associated(input_variable%target, specific_variable)
          if (show) then
             call write_header()
-            if (.not.input_header_written) then
+            if (.not. subheader_written) then
                write (*,'(a,"   ",a)') repeat(' ',indent_),'inputs:'
-               input_header_written = .true.
+               subheader_written = .true.
             end if
             call print_input_variable(input_variable,indent_)
          end if
