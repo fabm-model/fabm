@@ -73,7 +73,7 @@ contains
    function variable_get_output(pvariable) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_output
       type (c_ptr), value, intent(in) :: pvariable
-      real(kind=c_int)                :: value
+      integer(kind=c_int)             :: value
 
       type (type_internal_variable),pointer :: variable
 
