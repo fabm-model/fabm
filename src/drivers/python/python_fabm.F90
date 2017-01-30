@@ -433,7 +433,7 @@
       ptr = c_loc(fabm_get_horizontal_diagnostic_data(model,index))
    end subroutine get_horizontal_diagnostic_data
 
-   subroutine finalize() bind(c)
+   subroutine finalize()
       call fabm_finalize(model)
       if (allocated(environment_names)) deallocate(environment_names)
       if (allocated(environment_units)) deallocate(environment_units)
