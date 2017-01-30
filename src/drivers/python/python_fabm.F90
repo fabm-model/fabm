@@ -606,5 +606,5 @@
    end module fabm_python
 
 !-----------------------------------------------------------------------
-! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
+! Copyright by the FABM team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
