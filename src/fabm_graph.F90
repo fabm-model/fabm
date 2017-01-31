@@ -213,6 +213,7 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
    do while (associated(link))
       if (index(link%name,'/')==0.and.associated(link%original%read_index)) then
          ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
+         if (associated(link%target%write_owner)) call driver%fatal_error('graph::add_call','BUG: required input variable is co-written.')
          call node%inputs%add(link%target)
          same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
          if (.not.(associated(link%target%owner,model).and.same_source)) then
@@ -258,7 +259,7 @@ recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,
    ! Automatically request additional value contributions (for reduction operators that accept in-place modification of the variable value)
    variable_node => variable%cowriters%first
    do while (associated(variable_node))
-      call self%add_variable(variable_node%target,outer_calls,caller=caller)
+      call self%add_variable(variable_node%target,outer_calls,copy_to_cache,copy_to_store,caller)
       variable_node => variable_node%next
    end do
 

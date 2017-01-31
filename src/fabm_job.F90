@@ -508,13 +508,13 @@ module fabm_job
             call_node => call_node%next
          end do
 
-         if (ilast==0) return
-
          allocate(prefill(ilast))
          allocate(indices(ilast))
          allocate(values(ilast))
          prefill(:) = prefill_none
          indices(:) = 0
+
+         if (ilast==0) return
 
          call_node => self%first_call
          do while (associated(call_node))
@@ -643,17 +643,21 @@ subroutine print_output_variable(variable,indent)
    type (type_output_variable),intent(in) :: variable
    integer,optional,           intent(in) :: indent
 
+   integer                             :: read_index
    type (type_node_set_member),pointer :: pnode
 
-   write (*,'(a,"   - ",a,", write@",i0)',advance='no') repeat(' ',indent),trim(variable%target%name),variable%target%write_indices%value
-   if (variable%copy_to_cache) write (*,'(", cache@",i0)',advance='no') variable%target%read_indices%value
+   read_index = variable%target%read_indices%value
+   if (associated(variable%target%write_owner)) read_index = variable%target%write_owner%read_indices%value
+
+   write (*,'(a,"   - ",a,", write@",i0)',advance='no') repeat(' ',indent), trim(variable%target%name), variable%target%write_indices%value
+   if (variable%copy_to_cache) write (*,'(", cache@",i0)',advance='no') read_index
    if (variable%copy_to_store) write (*,'(", store@",i0)',advance='no') variable%target%store_index
    if (variable%target%prefill==prefill_constant) write (*,'(", prefill=",g0.6)',advance='no') variable%target%prefill_value
    if (variable%target%prefill==prefill_previous_value) write (*,'(", prefill=previous")',advance='no')
    write (*,*)
    pnode => variable%dependent_nodes%first
    do while (associated(pnode))
-      write (*,'(a,"     <- ",a,": ",a)') repeat(' ',indent),trim(pnode%p%model%get_path()),trim(source2string(pnode%p%source))
+      write (*,'(a,"     <- ",a,": ",a)') repeat(' ',indent), trim(pnode%p%model%get_path()), trim(source2string(pnode%p%source))
       pnode => pnode%next
    end do
 end subroutine print_output_variable
@@ -662,9 +666,7 @@ subroutine print_input_variable(variable,indent)
    type (type_variable_node),intent(in) :: variable
    integer,optional,         intent(in) :: indent
 
-   type (type_node_set_member),pointer :: pnode
-
-   write (*,'(a,"   - ",a,", read@",i0)') repeat(' ',indent),trim(variable%target%name),variable%target%read_indices%value
+   write (*,'(a,"   - ",a,", read@",i0)') repeat(' ',indent), trim(variable%target%name), variable%target%read_indices%value
 end subroutine print_input_variable
 
 subroutine task_print(self,indent,specific_variable)
@@ -673,6 +675,7 @@ subroutine task_print(self,indent,specific_variable)
    type (type_internal_variable), target, optional, intent(in) :: specific_variable
 
    integer                             :: indent_
+   integer                             :: i
    type (type_call),           pointer :: call_node
    type (type_output_variable),pointer :: output_variable
    logical                             :: show
@@ -683,9 +686,45 @@ subroutine task_print(self,indent,specific_variable)
    indent_ = 0
    if (present(indent)) indent_ = indent
 
+   if (allocated(self%prefill_type)) then
+      do i=1,size(self%prefill_type)
+         select case (self%prefill_type(i))
+         case (prefill_constant)
+            write (*,'(a,"prefilling write[",i0,"] = ",g0.6)') repeat(' ',indent_), i, self%prefill_values(i)
+         case (prefill_previous_value)
+            write (*,'(a,"prefilling write[",i0,"] = previous value")') repeat(' ',indent_), i
+         end select
+      end do
+      do i=1,size(self%prefill_type_hz)
+         select case (self%prefill_type_hz(i))
+         case (prefill_constant)
+            write (*,'(a,"prefilling write_hz[",i0,"] = ",g0.6)') repeat(' ',indent_), i, self%prefill_values_hz(i)
+         case (prefill_previous_value)
+            write (*,'(a,"prefilling write_hz[",i0,"] = previous value")') repeat(' ',indent_), i
+         end select
+      end do
+   end if
+
    call_node => self%first_call
    do while (associated(call_node))
       header_written = .false.
+      if (.not.present(specific_variable)) call write_header()
+
+      subheader_written = .false.
+      input_variable => call_node%graph_node%inputs%first
+      do while (associated(input_variable))
+         show = .true.
+         if (present(specific_variable)) show = associated(input_variable%target, specific_variable)
+         if (show) then
+            call write_header()
+            if (.not. subheader_written) then
+               write (*,'(a,"   ",a)') repeat(' ',indent_),'inputs:'
+               subheader_written = .true.
+            end if
+            call print_input_variable(input_variable,indent_)
+         end if
+         input_variable => input_variable%next
+      end do
 
       subheader_written = .false.
       output_variable => call_node%graph_node%outputs%first
@@ -703,21 +742,6 @@ subroutine task_print(self,indent,specific_variable)
          output_variable => output_variable%next
       end do
 
-      subheader_written = .false.
-      input_variable => call_node%graph_node%inputs%first
-      do while (associated(input_variable))
-         show = .true.
-         if (present(specific_variable)) show = associated(input_variable%target, specific_variable)
-         if (show) then
-            call write_header()
-            if (.not. subheader_written) then
-               write (*,'(a,"   ",a)') repeat(' ',indent_),'inputs:'
-               subheader_written = .true.
-            end if
-            call print_input_variable(input_variable,indent_)
-         end if
-         input_variable => input_variable%next
-      end do
       call_node => call_node%next
    end do
 
@@ -754,8 +778,6 @@ subroutine call_initialize(self,variable_register)
    class (type_base_model),     pointer :: parent
    class (type_model_list_node),pointer :: model_list_node
    type (type_output_variable), pointer :: variable_node
-   type (type_node_set_member), pointer :: dependent_call
-   type (type_call),            pointer :: later_call
 
    ! Make sure the pointer to the model has the highest class (and not a base class)
    ! This is needed because model classes that use inheritance and call base class methods
@@ -779,25 +801,6 @@ subroutine call_initialize(self,variable_register)
    ! of to save it to the persistent data store.
    variable_node => self%graph_node%outputs%first
    do while (associated(variable_node))
-      ! For this output variable, loop over all calls that depend on it.
-      dependent_call => variable_node%dependent_nodes%first
-      do while (associated(dependent_call))
-         ! For this dependent call, establish whether it is part of the same task, or of another task.
-         later_call => self%next
-         do while (associated(later_call))
-            if (associated(later_call%graph_node,dependent_call%p)) exit
-            later_call => later_call%next
-         end do
-         if (associated(later_call)) then
-            ! The dependent call is part of the same task. Therefore the output needs to be copied to the read cache.
-            ! But only do this is the variable is not already writing to a shared (aggregate) diagnostic.
-            if (.not.associated(variable_node%target%write_owner)) variable_node%copy_to_cache = .true.
-         else
-            ! The dependent call is part of another task. Therefore the output needs to be copied to the persistent store.
-            variable_node%copy_to_store = .true.
-         end if
-         dependent_call => dependent_call%next
-      end do
       if (variable_node%copy_to_cache) call variable_register%add_read(variable_node%target)
       if (variable_node%copy_to_store) call variable_register%add_store(variable_node%target)
       variable_node => variable_node%next
@@ -817,7 +820,7 @@ contains
       integer,                                     intent(in)  :: domain
 
       type (type_output_variable), pointer :: variable
-      integer                              :: iorder, n, maxorder
+      integer                              :: iorder, n, maxorder, read_index
 
       n = 0
       maxorder = -1
@@ -827,11 +830,13 @@ contains
             if (variable%target%write_indices%value<=0) &
                call driver%fatal_error('call_list_node_initialize::create_cache_copy_commands', &
                   'BUG: '//trim(variable%target%name)//' cannot be copied from write to read cache because it lacks a write cache index.')
-            if (variable%target%read_indices%value<=0) &
+            read_index = variable%target%read_indices%value
+            if (associated(variable%target%write_owner)) read_index = variable%target%write_owner%read_indices%value
+            if (read_index<=0) &
                call driver%fatal_error('call_list_node_initialize::create_cache_copy_commands', &
                   'BUG: '//trim(variable%target%name)//' cannot be copied from write to read cache because it lacks a read cache index.')
             n = n + 1
-            maxorder = max(maxorder,variable%target%read_indices%value)
+            maxorder = max(maxorder,read_index)
          end if
          variable => variable%next
       end do
@@ -843,9 +848,11 @@ contains
       do iorder=1,maxorder
          variable => self%graph_node%outputs%first
          do while (associated(variable))
-            if (variable%copy_to_cache.and.iand(variable%target%domain,domain)/=0.and.variable%target%read_indices%value==iorder) then
+            read_index = variable%target%read_indices%value
+            if (associated(variable%target%write_owner)) read_index = variable%target%write_owner%read_indices%value
+            if (variable%copy_to_cache.and.iand(variable%target%domain,domain)/=0.and.read_index==iorder) then
                n = n + 1
-               commands(n)%read_index = variable%target%read_indices%value
+               commands(n)%read_index = read_index
                commands(n)%write_index = variable%target%write_indices%value
                exit
             end if
@@ -873,10 +880,13 @@ subroutine job_request_variable(self,variable,copy_to_cache,copy_to_store)
    ! If this variable is not written [but a field provided by the host or a state variable], return immediately.
    if (variable%write_indices%is_empty().or.variable%source==source_none) then
       if (present(copy_to_cache)) then
+         ! If the variable needs to be present in the read cache, make sure that we load it from the store into the cache.
          if (copy_to_cache) call self%required_cache_loads%add(variable)
       end if
       return
    end if
+
+   if (associated(variable%write_owner)) call driver%fatal_error('job_request_variable','BUG: requested variable is co-written.')
 
    allocate(variable_request)
    variable_request%variable => variable
@@ -1244,16 +1254,24 @@ subroutine job_finalize_prefill_settings(self)
    class (type_job),target,intent(inout) :: self
 
    type (type_node_list_member),pointer :: graph_node
-   type (type_output_variable), pointer :: output_variable, output_variable1
+   type (type_output_variable), pointer :: output_variable, output_variable1, final_output_variable
    type (type_variable_set)             :: remaining_cowriters, found_cowriters
    type (type_task),            pointer :: task
    class (type_job),            pointer :: current_job
    type (type_call),            pointer :: call_node
    type (type_variable_node),   pointer :: variable_node
    logical                              :: last_task
+   logical                              :: copy_to_cache
 
    if (self%state>=job_state_finalized_prefill_settings) call driver%fatal_error('job_finalize_prefill_settings','This job has already been initialized.')
    if (self%state<job_state_tasks_created) call driver%fatal_error('job_finalize_prefill_settings','Tasks for this job have not been created yet.')
+
+   task => self%first_task
+   do while (associated(task))
+      call prepare_task(task)
+      task => task%next
+   end do
+   if (associated(self%final_task)) call prepare_task(self%final_task)
 
    ! Loop over all graph nodes, for each, enumerate outputs.
    ! For outputs that are jointly written, find all tasks that contribute to the variable value (in current and previous jobs)
@@ -1264,6 +1282,8 @@ subroutine job_finalize_prefill_settings(self)
       output_variable => graph_node%p%outputs%first
       do while (associated(output_variable))
          if (associated(output_variable%target%cowriters%first)) then
+            ! This is the result of a reduction operation (e.g., sum) represented by output_variable.
+            ! The result will be written by the controller (output_variable) and its co-writers (output_variable%target%cowriters).
             call remaining_cowriters%update(output_variable%target%cowriters)
             call remaining_cowriters%add(output_variable%target)
 
@@ -1273,7 +1293,7 @@ subroutine job_finalize_prefill_settings(self)
             current_job => self
             task => get_last_task(self)
             do while (associated(task))
-               ! Look over all calls in this task
+               ! Loop over all calls in this task
                call_node => task%first_call
                do while (associated(call_node))
                   ! Loop over all outputs of this call
@@ -1283,7 +1303,17 @@ subroutine job_finalize_prefill_settings(self)
                         ! This output is co-written to the target variable we are interested in.
                         call found_cowriters%add(output_variable1%target)
                         call remaining_cowriters%remove(output_variable1%target)
-                        if (.not.last_task) output_variable1%copy_to_store = .true.
+                        if (last_task) then
+                           ! Keep a link to the very last output variable that contributes to the result,
+                           ! and remember whether that needs to be copied to cache (copy-to-cache is reset by default below)
+                           final_output_variable => output_variable1
+                           copy_to_cache = final_output_variable%copy_to_cache
+                        else
+                           ! This is not the last task contributing. Make sure the result of this task is copied to the store,
+                           ! so it is availble for subsequent tasks (which will use it as prefill).
+                           output_variable1%copy_to_store = .true.
+                        end if
+                        output_variable1%copy_to_cache = .false.
                      end if
                      output_variable1 => output_variable1%next
                   end do
@@ -1311,6 +1341,7 @@ subroutine job_finalize_prefill_settings(self)
                end do
                call fatal_error('job_finalize_prefill_settings','BUG: not all sources of cowritten variable '//trim(output_variable%target%name)//' were found within owning and earlier jobs.')
             end if
+            final_output_variable%copy_to_cache = copy_to_cache
          end if
          output_variable => output_variable%next
       end do
@@ -1318,6 +1349,53 @@ subroutine job_finalize_prefill_settings(self)
    end do
 
    self%state = job_state_finalized_prefill_settings
+
+contains
+
+   subroutine prepare_task(task)
+      type (type_task),intent(inout) :: task
+
+      type (type_call),pointer :: call_node
+      call_node => task%first_call
+      do while (associated(call_node))
+         call prepare_call(call_node)
+         call_node => call_node%next
+      end do
+   end subroutine prepare_task
+
+   subroutine prepare_call(call_node)
+      type (type_call),intent(inout) :: call_node
+
+      type (type_output_variable), pointer :: variable_node
+      type (type_node_set_member), pointer :: dependent_call
+      type (type_call),            pointer :: later_call
+
+      ! For all output variables that other models are interested in, decide whether to copy their value
+      ! from the write to read cache [if the other model will be called as part of the same task],
+      ! of to save it to the persistent data store.
+      variable_node => call_node%graph_node%outputs%first
+      do while (associated(variable_node))
+         ! For this output variable, loop over all calls that depend on it.
+         dependent_call => variable_node%dependent_nodes%first
+         do while (associated(dependent_call))
+            ! For this dependent call, establish whether it is part of the same task, or of another task.
+            later_call => call_node%next
+            do while (associated(later_call))
+               if (associated(later_call%graph_node,dependent_call%p)) exit
+               later_call => later_call%next
+            end do
+            if (associated(later_call)) then
+               ! The dependent call is part of the same task. Therefore the output needs to be copied to the read cache.
+               variable_node%copy_to_cache = .true.
+            else
+               ! The dependent call is part of another task. Therefore the output needs to be copied to the persistent store.
+               variable_node%copy_to_store = .true.
+            end if
+            dependent_call => dependent_call%next
+         end do
+         variable_node => variable_node%next
+      end do
+   end subroutine prepare_call
 
 end subroutine job_finalize_prefill_settings
 

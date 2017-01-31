@@ -360,13 +360,6 @@
       type (type_integer_list_node), pointer :: first => null()
    end type
 
-   type,extends(type_base_model) :: type_custom_extinction_calculator
-      type (type_diagnostic_variable_id) :: id_output
-      type (type_model_list)  :: models
-   contains
-      procedure :: initialize => custom_extinction_calculator_initialize
-      procedure :: do => custom_extinction_calculator_do
-   end type
 !
 ! !PUBLIC INTERFACES:
 !
@@ -604,7 +597,6 @@
 !
 ! !LOCAL VARIABLES:
       type (type_aggregate_variable_access),    pointer :: aggregate_variable_access
-      class (type_custom_extinction_calculator),pointer :: extinction_calculator
       class (type_property),                    pointer :: property => null()
       integer                                           :: islash
       type (type_link),                         pointer :: link
@@ -628,9 +620,6 @@
       call self%root%add_interior_variable('zero',act_as_state_variable=.true.,source=source_none)
       call self%root%add_horizontal_variable('zero_hz',act_as_state_variable=.true.,source=source_none)
 
-      allocate(extinction_calculator)
-      call self%root%add_child(extinction_calculator,'custom_extinction_calculator',configunit=-1)
-
       ! Filter out expressions that FABM can handle itself.
       ! The remainder, if any, must be handled by the host model.
       call filter_expressions(self)
@@ -650,8 +639,6 @@
 
       ! Build final authorative arrays with variable metadata .
       call classify_variables(self)
-
-      call extinction_calculator%models%extend(self%models)
 
       ! Create built-in jobs, which can then be chained by the host/user by calling job%set_next.
       ! (the reason for chaining is to allow later jobs to use results of earlier ones, thus reducing the number of calls needed)
@@ -1189,6 +1176,8 @@
    call filter_readable_variable_registry(self)
 
    call self%job_manager%process_indices(unfulfilled_dependencies)
+
+   call self%job_manager%print()
 
    variable_node => unfulfilled_dependencies%first
    do while (associated(variable_node))
@@ -2417,17 +2406,15 @@ subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
 #else
    allocate(cache%write(self%nscratch))
 #endif
-   if (allocated(task%prefill_type)) then
-      do i=1,size(task%prefill_type)
-         if (task%prefill_type(i)==prefill_constant) then
-            _CONCURRENT_LOOP_BEGIN_
-               cache%write _INDEX_SLICE_PLUS_1_(i) = task%prefill_values(i)
-            _LOOP_END_
-         elseif (task%prefill_type(i)==prefill_previous_value) then
-            _PACK_GLOBAL_PLUS_1_(self%diag,task%prefill_index(i),cache%write,i,cache%mask)
-         end if
-      end do
-   end if
+   do i=1,size(task%prefill_type)
+      if (task%prefill_type(i)==prefill_constant) then
+         _CONCURRENT_LOOP_BEGIN_
+            cache%write _INDEX_SLICE_PLUS_1_(i) = task%prefill_values(i)
+         _LOOP_END_
+      elseif (task%prefill_type(i)==prefill_previous_value) then
+         _PACK_GLOBAL_PLUS_1_(self%diag,task%prefill_index(i),cache%write,i,cache%mask)
+      end if
+   end do
 end subroutine begin_interior_task
 
 subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
@@ -2472,17 +2459,15 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 #else
    allocate(cache%write_hz(self%nscratch_hz))
 #endif
-   if (allocated(task%prefill_type_hz)) then
-      do i=1,size(task%prefill_type_hz)
-         if (task%prefill_type_hz(i)==prefill_constant) then
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-               cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = task%prefill_values_hz(i)
-            _HORIZONTAL_LOOP_END_
-         elseif (task%prefill_type_hz(i)==prefill_previous_value) then
-            _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,task%prefill_index_hz(i),cache%write_hz,i,cache%mask)
-         end if
-      end do
-   end if
+   do i=1,size(task%prefill_type_hz)
+      if (task%prefill_type_hz(i)==prefill_constant) then
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = task%prefill_values_hz(i)
+         _HORIZONTAL_LOOP_END_
+      elseif (task%prefill_type_hz(i)==prefill_previous_value) then
+         _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,task%prefill_index_hz(i),cache%write_hz,i,cache%mask)
+      end if
+   end do
 
    ! Also load boundary values for interior fields if performing surface or bottom-specific operations.
    if (task%operation==source_do_surface) then
@@ -2673,17 +2658,15 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 #else
    allocate(cache%write(self%nscratch))
 #endif
-   if (allocated(task%prefill_type)) then
-      do i=1,size(task%prefill_type)
-         if (task%prefill_type(i)==prefill_constant) then
+   do i=1,size(task%prefill_type)
+      if (task%prefill_type(i)==prefill_constant) then
 #if defined(_INTERIOR_IS_VECTORIZED_)
-            cache%write(:,i) = task%prefill_values(i)
+         cache%write(:,i) = task%prefill_values(i)
 #else
-            cache%write(i) = task%prefill_values(i)
+         cache%write(i) = task%prefill_values(i)
 #endif
-         end if
-      end do
-   end if
+      end if
+   end do
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
    allocate(cache%write_hz(1,self%nscratch_hz))
@@ -2985,7 +2968,11 @@ end subroutine end_vertical_task
 
    call_node => self%do_interior_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%do(_ARGUMENTS_INTERIOR_)
+      if (call_node%source==source_do) then
+         call call_node%model%do(_ARGUMENTS_INTERIOR_)
+      elseif (call_node%source==source_get_light_extinction) then
+         call call_node%model%get_light_extinction(_ARGUMENTS_INTERIOR_)
+      end if
 
       ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
@@ -3692,7 +3679,11 @@ end subroutine internal_check_horizontal_state
    ! Call all models that calculate extinction components to make sure the extinction diagnostic is up to date.
    call_node => self%get_light_extinction_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%do(_ARGUMENTS_INTERIOR_)
+      if (call_node%source==source_do) then
+         call call_node%model%do(_ARGUMENTS_INTERIOR_)
+      elseif (call_node%source==source_get_light_extinction) then
+         call call_node%model%get_light_extinction(_ARGUMENTS_INTERIOR_)
+      end if
 
       ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
@@ -4644,38 +4635,6 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    call external_variable%properties%update(internal_variable%properties)
 end subroutine
 end subroutine classify_variables
-
-   subroutine custom_extinction_calculator_initialize(self,configunit)
-      class (type_custom_extinction_calculator), intent(inout), target :: self
-      integer,                                   intent(in)            :: configunit
-
-      call self%register_diagnostic_variable(self%id_output,'total','1/m','total custom light extinction',output=output_none)
-      call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, &
-         self%id_output)
-   end subroutine custom_extinction_calculator_initialize
-
-   subroutine custom_extinction_calculator_do(self,_ARGUMENTS_DO_)
-      class (type_custom_extinction_calculator),intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_
-
-      type (type_model_list_node), pointer :: node
-      real(rk) _DIMENSION_SLICE_AUTOMATIC_ :: extinction
-
-      ! Ask all active biogeochemical models for custom light extinction values.
-      ! (custom as in: not computed by FABM from concentration+specific_light_extincton,
-      ! but by the model's own implementation of the get_light_extinction routine)
-      extinction = 0.0_rk
-      node => self%models%first
-      do while (associated(node))
-         call node%model%get_light_extinction(_ARGUMENTS_INTERIOR_,extinction)
-         node => node%next
-      end do
-
-      ! Transfer computed light extinction values to the output diagnostic.
-      _LOOP_BEGIN_
-         _SET_DIAGNOSTIC_(self%id_output,extinction _INDEX_SLICE_)
-      _LOOP_END_
-   end subroutine custom_extinction_calculator_do
 
    recursive subroutine build_call_list(self,list)
       class (type_base_model),intent(in),target   :: self

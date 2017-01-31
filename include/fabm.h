@@ -249,7 +249,7 @@
 #define _ARGUMENTS_DO_BOTTOM_ _ARGUMENTS_HORIZONTAL_
 #define _ARGUMENTS_DO_BOTTOM_PPDD_ _ARGUMENTS_HORIZONTAL_,pp,dd,benthos_offset
 #define _ARGUMENTS_GET_VERTICAL_MOVEMENT_ _ARGUMENTS_INTERIOR_
-#define _ARGUMENTS_GET_EXTINCTION_ _ARGUMENTS_INTERIOR_,extinction
+#define _ARGUMENTS_GET_EXTINCTION_ _ARGUMENTS_INTERIOR_
 #define _ARGUMENTS_GET_DRAG_ _ARGUMENTS_HORIZONTAL_,drag
 #define _ARGUMENTS_GET_ALBEDO_ _ARGUMENTS_HORIZONTAL_,albedo
 #define _ARGUMENTS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_INTERIOR_,sums
@@ -267,7 +267,7 @@
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
 #define _DECLARE_ARGUMENTS_DO_SURFACE_ _DECLARE_ARGUMENTS_HORIZONTAL_
 #define _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ _DECLARE_ARGUMENTS_INTERIOR_
-#define _DECLARE_ARGUMENTS_GET_EXTINCTION_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_SLICE_,intent(inout) :: extinction
+#define _DECLARE_ARGUMENTS_GET_EXTINCTION_ _DECLARE_ARGUMENTS_INTERIOR_
 #define _DECLARE_ARGUMENTS_GET_DRAG_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: drag
 #define _DECLARE_ARGUMENTS_GET_ALBEDO_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: albedo
 #define _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_SLICE_PLUS_1_,intent(inout) :: sums
@@ -289,7 +289,7 @@
 #define _SET_SURFACE_EXCHANGE_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux%horizontal_sum_index) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux%horizontal_sum_index) + (value)/self%dt
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = dd _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
 #define _SET_PP_(variable1,variable2,value) pp _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = pp _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
-#define _SET_EXTINCTION_(value) extinction _INDEX_SLICE_ = extinction _INDEX_SLICE_ + (value)
+#define _SET_EXTINCTION_(value) _ADD_(self%extinction_id,value)
 #define _SCALE_DRAG_(value) drag _INDEX_HORIZONTAL_SLICE_ = drag _INDEX_HORIZONTAL_SLICE_ * (value)
 #define _SET_ALBEDO_(value) albedo _INDEX_HORIZONTAL_SLICE_ = albedo _INDEX_HORIZONTAL_SLICE_ + (value)
 #define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_SLICE_PLUS_1_(variable%cons_index) = sums _INDEX_SLICE_PLUS_1_(variable%cons_index) + (value)

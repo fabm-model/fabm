@@ -442,6 +442,8 @@
       real(rk) :: dt = 1.0_rk
 
       logical :: check_conservation = .false.
+
+      type (type_aggregate_variable_id) :: extinction_id
    contains
 
       ! Procedure for adding child models [during initialization only]
@@ -480,6 +482,7 @@
       generic   :: set_variable_property => set_variable_property_real,set_variable_property_integer,set_variable_property_logical
 
       procedure :: add_interior_state_variable_to_aggregate_variable
+      procedure :: add_interior_source_to_aggregate_variable
       procedure :: add_bottom_state_variable_to_aggregate_variable
       procedure :: add_surface_state_variable_to_aggregate_variable
       procedure :: add_interior_diagnostic_variable_to_aggregate_variable
@@ -488,7 +491,8 @@
                                               add_bottom_state_variable_to_aggregate_variable, &
                                               add_surface_state_variable_to_aggregate_variable, &
                                               add_interior_diagnostic_variable_to_aggregate_variable, &
-                                              add_horizontal_diagnostic_variable_to_aggregate_variable
+                                              add_horizontal_diagnostic_variable_to_aggregate_variable, &
+                                              add_interior_source_to_aggregate_variable
 
       ! Procedures that may be used to register model variables and dependencies during initialization.
       procedure :: register_source
@@ -904,6 +908,12 @@
       call self%couplings%add_child(model%couplings,name)
       call self%children%append(model)
       call model%initialize(configunit)
+
+      call model%add_interior_variable('light_extinction', 'm-1', 'light extinction contribution computed by get_light_extinction', &
+                                       0.0_rk, output=output_none, write_index=model%extinction_id%sum_index, link=model%extinction_id%link, source=source_get_light_extinction)
+      model%extinction_id%link%target%prefill = prefill_constant
+      model%extinction_id%link%target%write_operator = operator_add
+      call model%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, model%extinction_id)
    end subroutine add_child
 !EOC
 
@@ -945,6 +955,18 @@
          call self%fatal_error('add_to_aggregate_variable','interior state variable added to '//trim(target%name)//' has not been registered')
       call variable_id%link%target%contributions%add(target,scale_factor,include_background)
    end subroutine add_interior_state_variable_to_aggregate_variable
+
+   subroutine add_interior_source_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
+      class (type_base_model),           intent(inout) :: self
+      type (type_bulk_standard_variable),intent(in)    :: target
+      class (type_aggregate_variable_id),intent(inout) :: variable_id
+      real(rk),optional,                 intent(in)    :: scale_factor
+      logical,optional,                  intent(in)    :: include_background
+
+      if (.not.associated(variable_id%link)) &
+         call self%fatal_error('add_to_aggregate_variable','interior aggregate variable added to '//trim(target%name)//' has not been registered')
+      call variable_id%link%target%contributions%add(target,scale_factor,include_background)
+   end subroutine add_interior_source_to_aggregate_variable
 
    subroutine add_bottom_state_variable_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
       class (type_base_model),              intent(inout) :: self
