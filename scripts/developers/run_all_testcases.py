@@ -87,10 +87,16 @@ def compare_netcdf(path, ref_path):
             continue
         ncvar = nc.variables[varname]
         ncvar_ref = nc_ref.variables[varname]
-        delta = ncvar[...] - ncvar_ref[...]
-        maxdelta = numpy.abs(delta).max()
-        perfect = perfect and maxdelta == 0.0
-        print('    %s: max abs difference = %s' % (varname, maxdelta))
+        dat = ncvar[...]
+        valid = numpy.isfinite(dat)
+        if not valid.all():
+            print('    %s: %i of %i values are invalid' % (varname, valid.size - valid.sum(), valid.size))
+            perfect = False
+        else:
+            delta = dat - ncvar_ref[...]
+            maxdelta = numpy.abs(delta).max()
+            perfect = perfect and maxdelta == 0.0
+            print('    %s: max abs difference = %s' % (varname, maxdelta))
     nc.close()
     nc_ref.close()
     return perfect
