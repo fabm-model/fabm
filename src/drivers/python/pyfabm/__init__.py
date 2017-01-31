@@ -89,8 +89,8 @@ fabm.link_list_finalize.argtypes = [ctypes.c_void_p]
 fabm.link_list_finalize.restype = None
 
 # Routines for sending pointers to state and dependency data.
-fabm.link_bulk_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
-fabm.link_bulk_state_data.restype = None
+fabm.link_interior_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
+fabm.link_interior_state_data.restype = None
 fabm.link_surface_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
 fabm.link_surface_state_data.restype = None
 fabm.link_bottom_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
@@ -99,8 +99,8 @@ fabm.link_dependency_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_doubl
 fabm.link_dependency_data.restype = None
 
 # Read access to diagnostic data.
-fabm.get_bulk_diagnostic_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
-fabm.get_bulk_diagnostic_data.restype = None
+fabm.get_interior_diagnostic_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
+fabm.get_interior_diagnostic_data.restype = None
 fabm.get_horizontal_diagnostic_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
 fabm.get_horizontal_diagnostic_data.restype = None
 
@@ -115,10 +115,10 @@ fabm.get_rates.restype = None
 fabm.get_version.argtypes = (ctypes.c_int,ctypes.c_char_p)
 fabm.get_version.restype = None
 
-BULK_STATE_VARIABLE            = 1
+INTERIOR_STATE_VARIABLE        = 1
 SURFACE_STATE_VARIABLE         = 2
 BOTTOM_STATE_VARIABLE          = 3
-BULK_DIAGNOSTIC_VARIABLE       = 4
+INTERIOR_DIAGNOSTIC_VARIABLE   = 4
 HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
 CONSERVED_QUANTITY             = 6
 ATTRIBUTE_LENGTH               = 256
@@ -251,7 +251,7 @@ class DiagnosticVariable(Variable):
         if horizontal:
             fabm.get_horizontal_diagnostic_data(index+1,ctypes.byref(pdata))
         else:
-            fabm.get_bulk_diagnostic_data(index+1,ctypes.byref(pdata))
+            fabm.get_interior_diagnostic_data(index+1,ctypes.byref(pdata))
         self.data = pdata.contents
 
     def getValue(self):
@@ -377,27 +377,27 @@ class Model(object):
 
     def updateConfiguration(self,settings=None):
         # Get number of model variables per category
-        nstate_bulk = ctypes.c_int()
+        nstate_interior = ctypes.c_int()
         nstate_surface = ctypes.c_int()
         nstate_bottom = ctypes.c_int()
-        ndiag_bulk = ctypes.c_int()
+        ndiag_interior = ctypes.c_int()
         ndiag_horizontal = ctypes.c_int()
         nconserved = ctypes.c_int()
         ndependencies = ctypes.c_int()
         nparameters = ctypes.c_int()
         ncouplings = ctypes.c_int()
-        fabm.get_counts(ctypes.byref(nstate_bulk),ctypes.byref(nstate_surface),ctypes.byref(nstate_bottom),
-                                 ctypes.byref(ndiag_bulk),ctypes.byref(ndiag_horizontal),
+        fabm.get_counts(ctypes.byref(nstate_interior),ctypes.byref(nstate_surface),ctypes.byref(nstate_bottom),
+                                 ctypes.byref(ndiag_interior),ctypes.byref(ndiag_horizontal),
                                  ctypes.byref(nconserved),ctypes.byref(ndependencies),ctypes.byref(nparameters),ctypes.byref(ncouplings))
 
         # Allocate memory for state variable values, and send ctypes.pointer to this memory to FABM.
-        self.state = numpy.empty((nstate_bulk.value+nstate_surface.value+nstate_bottom.value,),dtype=float)
-        for i in range(nstate_bulk.value):
-            fabm.link_bulk_state_data(i+1,self.state[i:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
+        self.state = numpy.empty((nstate_interior.value+nstate_surface.value+nstate_bottom.value,),dtype=float)
+        for i in range(nstate_interior.value):
+            fabm.link_interior_state_data(i+1,self.state[i:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
         for i in range(nstate_surface.value):
-            fabm.link_surface_state_data(i+1,self.state[i+nstate_bulk.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
+            fabm.link_surface_state_data(i+1,self.state[i+nstate_interior.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
         for i in range(nstate_bottom.value):
-            fabm.link_bottom_state_data(i+1,self.state[i+nstate_bulk.value+nstate_surface.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
+            fabm.link_bottom_state_data(i+1,self.state[i+nstate_interior.value+nstate_surface.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
 
         # Retrieve variable metadata
         strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
@@ -414,17 +414,17 @@ class Model(object):
         self.conserved_quantities = []
         self.parameters = []
         self.dependencies = []
-        for i in range(nstate_bulk.value):
-            ptr = fabm.get_variable(BULK_STATE_VARIABLE,i+1)
+        for i in range(nstate_interior.value):
+            ptr = fabm.get_variable(INTERIOR_STATE_VARIABLE,i+1)
             self.interior_state_variables.append(StateVariable(ptr,self.state,i))
         for i in range(nstate_surface.value):
             ptr = fabm.get_variable(SURFACE_STATE_VARIABLE,i+1)
-            self.surface_state_variables.append(StateVariable(ptr,self.state,nstate_bulk.value+i))
+            self.surface_state_variables.append(StateVariable(ptr,self.state,nstate_interior.value+i))
         for i in range(nstate_bottom.value):
             ptr = fabm.get_variable(BOTTOM_STATE_VARIABLE,i+1)
-            self.bottom_state_variables.append(StateVariable(ptr,self.state,nstate_bulk.value+nstate_surface.value+i))
-        for i in range(ndiag_bulk.value):
-            ptr = fabm.get_variable(BULK_DIAGNOSTIC_VARIABLE,i+1)
+            self.bottom_state_variables.append(StateVariable(ptr,self.state,nstate_interior.value+nstate_surface.value+i))
+        for i in range(ndiag_interior.value):
+            ptr = fabm.get_variable(INTERIOR_DIAGNOSTIC_VARIABLE,i+1)
             self.interior_diagnostic_variables.append(DiagnosticVariable(ptr,i,False))
         for i in range(ndiag_horizontal.value):
             ptr = fabm.get_variable(HORIZONTAL_DIAGNOSTIC_VARIABLE,i+1)
@@ -448,8 +448,8 @@ class Model(object):
         if settings is not None: self.restoreSettings(settings)
 
         # For backward compatibility
-        self.bulk_state_variables = self.interior_state_variables
-        self.bulk_diagnostic_variables = self.interior_diagnostic_variables
+        self.INTERIOR_STATE_VARIABLEs = self.interior_state_variables
+        self.INTERIOR_DIAGNOSTIC_VARIABLEs = self.interior_diagnostic_variables
 
     def getRates(self, surface=True, bottom=True):
         """Returns the local rate of change in state variables,

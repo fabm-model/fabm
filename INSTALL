@@ -1,12 +1,9 @@
-For the brave ones:
-cd src; make
+The procedure to build FABM depends on the host [hydrodynamic model] you want
+to use it with. Please visit the wiki for instructions: http://fabm.net/wiki.
 
-If you encounter errors during compilation please check the WWW-page:
-http://sourceforge.net/projects/fabm/
-for further information and if that does not 
-help, send an e-mail to fabm-users@googlegroups.com.
+If you encounter any problems, send an e-mail to fabm-users@googlegroups.com.
 
-Good luck, and remember to inform of further developments for inclusion, 
+Good luck, and remember to inform us of further developments for inclusion, 
 exciting simulations etc.
 
 The FABM team.
