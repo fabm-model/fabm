@@ -174,6 +174,9 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
    ignore_dependencies_ = .false.
    if (present(ignore_dependencies)) ignore_dependencies_ = ignore_dependencies
 
+   ! For some APIs we never dynamically resolve dependencies
+   ignore_dependencies_ = ignore_dependencies_ .or. source==source_get_light_extinction
+
    ! First see if this node is already in the graph. If so, we are done: return.
    node => self%find(model,source)
    if (associated(node)) return
