@@ -223,7 +223,7 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
             if (.not.ignore_dependencies_) then
                call self%add_variable(link%target,outer_calls,caller=node)
             else
-               call self%previous%add_variable(link%target,outer_calls,caller=node)
+               if (associated(self%previous)) call self%previous%add_variable(link%target,outer_calls,caller=node)
             end if
          end if
       end if
