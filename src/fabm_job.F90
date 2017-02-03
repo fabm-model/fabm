@@ -124,6 +124,7 @@ module fabm_job
       type (type_variable_request), pointer :: first_variable_request => null()
       type (type_call_request),     pointer :: first_call_request     => null()
       class (type_job), pointer :: previous => null()
+      class (type_job), pointer :: dependency_handler => null()
    contains
       procedure :: request_variable  => job_request_variable
       procedure :: request_call      => job_request_call
@@ -975,11 +976,10 @@ subroutine job_create_graph(self)
    ! If we are linked to an earlier called job, make sure its graph has been created already.
    ! This is essential because we can skip calls if they appear already in the previous job - we determine this by exploring its graph.
    if (associated(self%previous)) then
-      if (self%ignore_dependencies) then
-         if (self%previous%state>=job_state_graph_created) call driver%fatal_error('job_create_graphs',trim(self%name)//': graph for dependency handling job ('//trim(self%previous%name)//') has already been created.')
-      else
-         if (self%previous%state<job_state_graph_created) call driver%fatal_error('job_create_graphs',trim(self%name)//': graph for previous job ('//trim(self%previous%name)//') has not been created yet.')
-      end if
+      if (self%previous%state<job_state_graph_created) call driver%fatal_error('job_create_graphs',trim(self%name)//': graph for previous job ('//trim(self%previous%name)//') has not been created yet.')
+   end if
+   if (associated(self%dependency_handler)) then
+      if (self%dependency_handler%state>=job_state_graph_created) call driver%fatal_error('job_create_graphs',trim(self%name)//': graph for dependency handling job ('//trim(self%dependency_handler%name)//') has already been created.')
    end if
 
    ! Construct the dependency graph by adding explicitly requested variables and calls.
@@ -1028,7 +1028,7 @@ subroutine job_create_tasks(self)
 
    ! If we are linked to an earlier called job, make sure its task list has already been created.
    ! This is essential if we will try to outsource our own calls to previous tasks/jobs.
-   if (associated(self%previous).and..not.self%ignore_dependencies) then
+   if (associated(self%previous)) then
       if (self%previous%state<job_state_tasks_created) call driver%fatal_error('job_create_tasks',trim(self%name)//': tasks for previous job '//trim(self%previous%name)//' have not been created yet.')
    end if
 
@@ -1457,8 +1457,11 @@ subroutine job_manager_create(self,job,name,final_operation,outsource_tasks,depe
    self%first => node
 
    if (present(dependency_handler)) then
-      call job%set_previous(dependency_handler)
+      job%dependency_handler => dependency_handler
+      job%graph%dependency_handler => dependency_handler%graph
       job%ignore_dependencies = .true.
+   else
+      job%graph%dependency_handler => job%graph
    end if
 end subroutine job_manager_create
 
@@ -1525,17 +1528,21 @@ contains
 
       ! If this job has a previous job, append that first.
       if (associated(job%previous)) then
-         if (.not.job%ignore_dependencies) then
-            call add_to_order(job%previous)
-         elseif (associated(job%previous%previous)) then
-            call add_to_order(job%previous%previous)
+         call add_to_order(job%previous)
+      end if
+
+      ! If this job has a dependency handler, it may outsource variable rrequests and calls to it.
+      ! Therefore, the dependncy handler's previous job must have been created; add that first if present.
+      if (associated(job%dependency_handler)) then
+         if (associated(job%dependency_handler%previous)) then
+            call add_to_order(job%dependency_handler%previous)
          end if
       end if
 
       ! Add any other jobs that use the current one as their dependency handler
       node => self%first
       do while (associated(node))
-         if (node%job%ignore_dependencies .and. associated(node%job%previous,job)) call add_to_order(node%job)
+         if (node%job%ignore_dependencies .and. associated(node%job%dependency_handler,job)) call add_to_order(node%job)
          node => node%next
       end do
 

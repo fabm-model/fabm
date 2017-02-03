@@ -78,6 +78,7 @@ module fabm_graph
 
    type,extends(type_node_list) :: type_graph
       type (type_graph),pointer :: previous => null()
+      type (type_graph),pointer :: dependency_handler => null()
       logical                   :: frozen = .false.
    contains
       procedure :: add_call     => graph_add_call
@@ -154,14 +155,14 @@ subroutine graph_print(self)
 end subroutine graph_print
 
 recursive function graph_add_call(self,model,source,outer_calls,ignore_dependencies) result(node)
-   class (type_graph),            intent(inout) :: self
+   class (type_graph),     target,intent(inout) :: self
    class (type_base_model),target,intent(in)    :: model
    integer,                       intent(in)    :: source
    type (type_node_list),  target,intent(inout) :: outer_calls
    logical,optional,              intent(in)    :: ignore_dependencies
    type (type_node), pointer :: node
 
-   type (type_graph),            pointer :: previous_graph
+   type (type_graph),            pointer :: current_graph
    type (type_node_list_member), pointer :: pnode
    character(len=2048)                   :: chain
    type (type_link),             pointer :: link
@@ -177,17 +178,13 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
    ! For some APIs we never dynamically resolve dependencies
    ignore_dependencies_ = ignore_dependencies_ .or. source==source_get_light_extinction
 
-   ! First see if this node is already in the graph. If so, we are done: return.
-   node => self%find(model,source)
-   if (associated(node)) return
-
-   ! Now check any preceding graphs.
-   ! If the call is found in a preceding graph, we are done: return.
-   previous_graph => self%previous
-   do while (associated(previous_graph))
-      node => previous_graph%find(model,source)
+   ! Check if this node is already in the graph, or in any of the preceding graphs.
+   ! If it is, we are done: return.
+   current_graph => self
+   do while (associated(current_graph))
+      node => current_graph%find(model,source)
       if (associated(node)) return
-      previous_graph => previous_graph%previous
+      current_graph => current_graph%previous
    end do
 
    ! Add current call to the list of outer calls.
@@ -220,10 +217,10 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
          call node%inputs%add(link%target)
          same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
          if (.not.(associated(link%target%owner,model).and.same_source)) then
-            if (.not.ignore_dependencies_) then
+            if (associated(self%dependency_handler,self).or..not.ignore_dependencies_) then
                call self%add_variable(link%target,outer_calls,caller=node)
             else
-               if (associated(self%previous)) call self%previous%add_variable(link%target,outer_calls,caller=node)
+               call self%dependency_handler%add_variable(link%target,outer_calls,caller=node)
             end if
          end if
       end if

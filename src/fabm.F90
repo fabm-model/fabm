@@ -648,7 +648,7 @@
       call self%job_manager%create(self%get_vertical_movement_job,'get_vertical_movement',final_operation=source_do,dependency_handler=self%get_diagnostics_job)
       call self%job_manager%create(self%get_conserved_quantities_job,'get_conserved_quantities',final_operation=source_do)
       call self%job_manager%create(self%get_horizontal_conserved_quantities_job,'get_horizontal_conserved_quantities',final_operation=source_do_horizontal)
-      call self%job_manager%create(self%get_light_extinction_job,'get_light_extinction',final_operation=source_do)
+      call self%job_manager%create(self%get_light_extinction_job,'get_light_extinction',final_operation=source_do,dependency_handler=self%get_diagnostics_job)
       call self%job_manager%create(self%get_diagnostics_job,'get_diagnostics_job',outsource_tasks=.true.)
       call self%job_manager%create(self%initialize_state_job,'initialize_state',final_operation=source_do,dependency_handler=self%get_diagnostics_job)
       call self%job_manager%create(self%initialize_bottom_state_job,'initialize_bottom_state',final_operation=source_do_bottom,dependency_handler=self%get_diagnostics_job)
