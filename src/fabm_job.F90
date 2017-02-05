@@ -58,9 +58,9 @@ module fabm_job
    end type
 
    type type_call_request
-      class (type_base_model),pointer  :: model               => null()
-      integer                          :: source              = source_unknown
-      type (type_call_request),pointer :: next                => null()
+      class (type_base_model),pointer  :: model  => null()
+      integer                          :: source = source_unknown
+      type (type_call_request),pointer :: next   => null()
    end type
 
    type type_cache_copy_command
@@ -139,6 +139,7 @@ module fabm_job
 
    type type_job_manager
       type (type_job_manager_item),pointer :: first => null()
+      class (type_job),            pointer :: default_dependency_handler => null()
    contains
       procedure :: create          => job_manager_create
       procedure :: initialize      => job_manager_initialize
@@ -969,17 +970,18 @@ subroutine job_create_graph(self)
    type (type_variable_request),pointer :: variable_request, next_variable_request
    type (type_call_request),    pointer :: call_request, next_call_request
    type (type_node),            pointer :: graph_node
+   type (type_variable_node),   pointer :: unresolved_dependency
 
-   if (self%state<job_state_created) call driver%fatal_error('job_create_graphs','This job has not been created yet.')
-   if (self%state>=job_state_graph_created) call driver%fatal_error('job_create_graphs','Graph for this job has already been created.')
+   if (self%state<job_state_created) call driver%fatal_error('job_create_graph','This job has not been created yet.')
+   if (self%state>=job_state_graph_created) call driver%fatal_error('job_create_graps','Graph for this job has already been created.')
 
    ! If we are linked to an earlier called job, make sure its graph has been created already.
    ! This is essential because we can skip calls if they appear already in the previous job - we determine this by exploring its graph.
    if (associated(self%previous)) then
-      if (self%previous%state<job_state_graph_created) call driver%fatal_error('job_create_graphs',trim(self%name)//': graph for previous job ('//trim(self%previous%name)//') has not been created yet.')
+      if (self%previous%state<job_state_graph_created) call driver%fatal_error('job_create_graph',trim(self%name)//': graph for previous job ('//trim(self%previous%name)//') has not been created yet.')
    end if
    if (associated(self%dependency_handler)) then
-      if (self%dependency_handler%state>=job_state_graph_created) call driver%fatal_error('job_create_graphs',trim(self%name)//': graph for dependency handling job ('//trim(self%dependency_handler%name)//') has already been created.')
+      if (self%dependency_handler%state>=job_state_graph_created) call driver%fatal_error('job_create_graph',trim(self%name)//': graph for dependency handling job ('//trim(self%dependency_handler%name)//') has already been created.')
    end if
 
    ! Construct the dependency graph by adding explicitly requested variables and calls.
@@ -1003,6 +1005,14 @@ subroutine job_create_graph(self)
    call outer_calls%finalize()
 
    self%graph%frozen = .true.
+
+   if (associated(self%dependency_handler)) then
+      unresolved_dependency => self%graph%unresolved_dependencies%first
+      do while (associated(unresolved_dependency))
+         call self%dependency_handler%request_variable(unresolved_dependency%target)
+         unresolved_dependency => unresolved_dependency%next
+      end do
+   end if
 
    ! Save graph
    !open(newunit=unit,file='graph.gv',action='write',status='replace',iostat=ios)
@@ -1434,13 +1444,14 @@ subroutine job_process_indices(self,unfulfilled_dependencies)
    if (associated(self%final_task)) call task_process_indices(self%final_task,unfulfilled_dependencies)
 end subroutine job_process_indices
 
-subroutine job_manager_create(self,job,name,final_operation,outsource_tasks,dependency_handler)
+subroutine job_manager_create(self,job,name,final_operation,outsource_tasks,dependency_handler,ignore_dependencies)
    class (type_job_manager), intent(inout) :: self
    type (type_job),target,   intent(inout) :: job
    character(len=*),         intent(in)    :: name
    integer,optional,         intent(in)    :: final_operation
    logical,optional,         intent(in)    :: outsource_tasks
    type (type_job),target,optional         :: dependency_handler
+   logical,optional                        :: ignore_dependencies
 
    type (type_job_manager_item),pointer :: node
 
@@ -1456,13 +1467,9 @@ subroutine job_manager_create(self,job,name,final_operation,outsource_tasks,depe
    node%next => self%first
    self%first => node
 
-   if (present(dependency_handler)) then
-      job%dependency_handler => dependency_handler
-      job%graph%dependency_handler => dependency_handler%graph
-      job%ignore_dependencies = .true.
-   else
-      job%graph%dependency_handler => job%graph
-   end if
+   if (.not.associated(self%default_dependency_handler,job)) job%dependency_handler => self%default_dependency_handler
+   if (present(dependency_handler)) job%dependency_handler => dependency_handler
+   if (present(ignore_dependencies)) job%ignore_dependencies = ignore_dependencies
 end subroutine job_manager_create
 
 subroutine job_manager_initialize(self,variable_register)
@@ -1531,18 +1538,10 @@ contains
          call add_to_order(job%previous)
       end if
 
-      ! If this job has a dependency handler, it may outsource variable rrequests and calls to it.
-      ! Therefore, the dependncy handler's previous job must have been created; add that first if present.
-      if (associated(job%dependency_handler)) then
-         if (associated(job%dependency_handler%previous)) then
-            call add_to_order(job%dependency_handler%previous)
-         end if
-      end if
-
       ! Add any other jobs that use the current one as their dependency handler
       node => self%first
       do while (associated(node))
-         if (node%job%ignore_dependencies .and. associated(node%job%dependency_handler,job)) call add_to_order(node%job)
+         if (associated(node%job%dependency_handler,job)) call add_to_order(node%job)
          node => node%next
       end do
 

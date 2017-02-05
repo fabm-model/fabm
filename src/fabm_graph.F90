@@ -78,7 +78,7 @@ module fabm_graph
 
    type,extends(type_node_list) :: type_graph
       type (type_graph),pointer :: previous => null()
-      type (type_graph),pointer :: dependency_handler => null()
+      type (type_variable_set)  :: unresolved_dependencies
       logical                   :: frozen = .false.
    contains
       procedure :: add_call     => graph_add_call
@@ -217,10 +217,10 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
          call node%inputs%add(link%target)
          same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
          if (.not.(associated(link%target%owner,model).and.same_source)) then
-            if (associated(self%dependency_handler,self).or..not.ignore_dependencies_) then
-               call self%add_variable(link%target,outer_calls,caller=node)
+            if (ignore_dependencies_) then
+               call self%unresolved_dependencies%add(link%target)
             else
-               call self%dependency_handler%add_variable(link%target,outer_calls,caller=node)
+               call self%add_variable(link%target,outer_calls,caller=node)
             end if
          end if
       end if
