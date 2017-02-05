@@ -17,7 +17,6 @@ module fabm_job
 
    public type_job_manager, type_job, type_task, type_call
    public type_variable_register
-   public find_dependencies
 
    type type_graph_subset_node_pointer
       type (type_graph_subset_node),         pointer :: p    => null()
@@ -915,54 +914,6 @@ subroutine job_request_call(self,model,source)
    self%first_call_request => call_request
 end subroutine job_request_call
 
-recursive subroutine find_dependencies(self,list,forbidden)
-   class (type_base_model),intent(in),target   :: self
-   type (type_model_list), intent(inout)       :: list
-   type (type_model_list), intent(in),optional :: forbidden
-
-   type (type_link),pointer            :: link
-   type (type_model_list)              :: forbidden_with_self
-   type (type_model_list_node),pointer :: node
-   character(len=2048)                 :: chain
-
-   if (associated(list%find(self))) return
-
-   ! Check the list of forbidden model (i.e., models that indirectly request the current model)
-   ! If the current model is on this list, there is a circular dependency between models.
-   if (present(forbidden)) then
-      node => forbidden%find(self)
-      if (associated(node)) then
-         ! Circular dependency found - report as fatal error.
-         chain = ''
-         do while (associated(node))
-            chain = trim(chain)//' '//trim(node%model%get_path())//' ->'
-            node => node%next
-         end do
-         call driver%fatal_error('find_dependencies','circular dependency found: '//trim(chain(2:))//' '//trim(self%get_path()))
-      end if
-      call forbidden_with_self%extend(forbidden)
-   end if
-   call forbidden_with_self%append(self)
-
-   ! Loop over all variables, and if they belong to some other model, first add that model to the dependency list.
-   link => self%links%first
-   do while (associated(link))
-      if (index(link%name,'/')==0 &                        ! Our own link...
-          .and..not.link%target%write_indices%is_empty() & ! ...to a diagnostic variable...
-          .and.link%target%source/=source_none           & ! ...not a constant...
-          .and..not.associated(link%target%owner,self)   & ! ...not set by ourselves...
-          .and.associated(link%original%read_index))     & ! ...and we do depend on its value.
-         call find_dependencies(link%target%owner,list,forbidden_with_self)
-      link => link%next
-   end do
-
-   ! We're happy - add ourselves to the list of processed models.
-   call list%append(self)
-
-   ! Clean up our temporary list.
-   call forbidden_with_self%finalize()
-end subroutine find_dependencies
-
 subroutine job_create_graph(self)
    class (type_job),target,intent(inout) :: self
 
@@ -1009,7 +960,7 @@ subroutine job_create_graph(self)
    if (associated(self%dependency_handler)) then
       unresolved_dependency => self%graph%unresolved_dependencies%first
       do while (associated(unresolved_dependency))
-         call self%dependency_handler%request_variable(unresolved_dependency%target)
+         call self%dependency_handler%request_variable(unresolved_dependency%target, copy_to_store=.true.)
          unresolved_dependency => unresolved_dependency%next
       end do
    end if

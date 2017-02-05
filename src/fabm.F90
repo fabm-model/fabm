@@ -189,7 +189,6 @@
    ! Derived type for a single generic biogeochemical model
    type type_model
       type (type_base_model) :: root
-      type (type_model_list) :: models
 
       integer :: state = state_none
       type (type_variable_register) :: variable_register
@@ -727,37 +726,6 @@
       end do
    end subroutine
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE:
-!
-! !INTERFACE:
-   recursive subroutine test_presence(self,model)
-!
-! !INPUT PARAMETERS:
-      class (type_model),     intent(in) :: self
-      class (type_base_model),intent(in) :: model
-!
-! !LOCAL VARIABLES:
-      type (type_model_list_node),pointer :: child
-      character(len=4) :: strcount
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-      child => model%children%first
-      do while (associated(child))
-         if (self%models%count(child%model)/=1) then
-            write (strcount,'(i0)') self%models%count(child%model)
-            call fatal_error('fabm_initialize::test_presence', &
-               'BUG: Model "'//trim(child%model%get_path())//'" is not called exactly one time, but '//trim(strcount)//' times .')
-         end if
-         call test_presence(self,child%model)
-         child => child%next
-      end do
-   end subroutine test_presence
-!EOC
 
 !-----------------------------------------------------------------------
 !BOP
@@ -775,9 +743,6 @@
 !BOC
    nullify(self%info)
    self%state = state_none
-
-   ! Deallocate the list of models (this does not deallocate the models themselves!)
-   call self%models%finalize()
 
    ! TODO: this should deallocate the memory of all biogeochemical models
 
@@ -4358,26 +4323,13 @@ subroutine classify_variables(self)
    type (type_aggregate_variable_list)         :: aggregate_variable_list
    type (type_aggregate_variable),     pointer :: aggregate_variable
    type (type_set)                             :: dependencies,dependencies_hz,dependencies_scalar
-   type (type_model_list_node),        pointer :: model_node
    type (type_standard_variable_node), pointer :: standard_variables_node
 
-   ! Determine the order in which individual biogeochemical models should be called.
-   call build_call_list(self%root,self%models)
-
-   ! Consistency check (of find_dependencies): does every model (except the root) appear exactly once in the call list?
-   call test_presence(self,self%root)
-
-   ! Create a list of all non-coupled variables, ordered according to the order in which the models will be called.
-   ! This promotes sequential memory access and hopefully increases cache hits.
-   model_node => self%models%first
-   do while (associated(model_node))
-      link => model_node%model%links%first
-      do while (associated(link))
-         if (associated(link%target,link%original).and.index(link%name,'/')==0) &
-            newlink => self%links_postcoupling%append(link%target,link%target%name)
-         link => link%next
-      end do
-      model_node => model_node%next
+   link => self%root%links%first
+   do while (associated(link))
+      if (associated(link%target,link%original)) &
+         newlink => self%links_postcoupling%append(link%target,link%target%name)
+      link => link%next
    end do
 
    ! Count number of conserved quantities and allocate associated array.
@@ -4636,20 +4588,6 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    call external_variable%properties%update(internal_variable%properties)
 end subroutine
 end subroutine classify_variables
-
-   recursive subroutine build_call_list(self,list)
-      class (type_base_model),intent(in),target   :: self
-      type (type_model_list), intent(inout)       :: list
-
-      type (type_model_list_node),pointer :: node
-
-      call find_dependencies(self,list)
-      node => self%children%first
-      do while (associated(node))
-         call build_call_list(node%model,list)
-         node => node%next
-      end do
-   end subroutine build_call_list
 
    subroutine require_flux_computation(self,link_list,domain)
       type (type_job),      intent(inout) :: self
