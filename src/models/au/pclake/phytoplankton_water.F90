@@ -264,9 +264,9 @@
    call self%register_diagnostic_variable(self%id_rNDBlueW,       'rNDBlueW',       '[-]',      'blue_N/D_ration_wat',                          output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_rPDPhytW,       'rPDPhytW',       '[-]',      'Phyt_P/D_ration_wat',                          output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_rNDPhytW,       'rNDPhytW',       '[-]',      'Phyt_N/D_ration_wat',                          output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_extDiat,        'extDiat',        '[-]',      'extinction factor caused by diatom',           output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_extGren,        'extGren',        '[-]',      'extinction factor caused by green algae',      output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_extBlue,        'extBlue',        '[-]',      'extinction factor caused by blue green algae', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_extDiat,        'extDiat',        '[-]',      'extinction factor caused by diatom',           output=output_instantaneous, source=source_get_light_extinction)
+   call self%register_diagnostic_variable(self%id_extGren,        'extGren',        '[-]',      'extinction factor caused by green algae',      output=output_instantaneous, source=source_get_light_extinction)
+   call self%register_diagnostic_variable(self%id_extBlue,        'extBlue',        '[-]',      'extinction factor caused by blue green algae', output=output_instantaneous, source=source_get_light_extinction)
    call self%register_diagnostic_variable(self%id_phytoextinction,'phytoextinction','[-]',      'phytoextinction',                              output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_phypar,         'phypar',         '[-]',      'local PAR',                                    output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_aLLimDiat,      'aLLimDiat',      '[-]',      'diatoms light limitation factor',              output=output_instantaneous)
@@ -334,7 +334,7 @@
    call self%register_dependency(self%id_Day, standard_variables%number_of_days_since_start_of_the_year)
 !  environmental light dependencies
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
-   call self%register_dependency(self%id_meanpar,temporal_mean(self%id_par,period=86400._rk,resolution=3600._rk))
+   call self%register_dependency(self%id_meanpar,temporal_mean(self%id_par,period=86400._rk,resolution=3600._rk,missing_value=0.0_rk))
 
    return
 
@@ -939,6 +939,7 @@
    _SET_DIAGNOSTIC_(self%id_rNDGrenW,    rNDGrenW)
    _SET_DIAGNOSTIC_(self%id_rNDBlueW,    rNDBlueW)
    _SET_DIAGNOSTIC_(self%id_rPDPhytW,    rPDPhytW)
+   _SET_DIAGNOSTIC_(self%id_rNDPhytW,    rNDPhytW)
 
    _SET_DIAGNOSTIC_(self%id_aLLimDiat,   aLLimDiat)
    _SET_DIAGNOSTIC_(self%id_aLLimGren,   aLLimGren)
