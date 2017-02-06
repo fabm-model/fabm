@@ -92,6 +92,7 @@
    integer, parameter, public :: data_source_user = 3
    integer, parameter, public :: data_source_default = data_source_host
 
+   real(rk), parameter :: not_written = huge(1.0_rk)
 !
 ! !PUBLIC TYPES:
 !
@@ -2372,6 +2373,9 @@ subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
 #else
    allocate(cache%write(self%nscratch))
 #endif
+#ifndef NDEBUG
+   cache%write = not_written
+#endif
    do i=1,size(task%prefill_type)
       if (task%prefill_type(i)==prefill_constant) then
          _CONCURRENT_LOOP_BEGIN_
@@ -2424,6 +2428,9 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    allocate(cache%write_hz(_N_,self%nscratch_hz))
 #else
    allocate(cache%write_hz(self%nscratch_hz))
+#endif
+#ifndef NDEBUG
+   cache%write_hz = not_written
 #endif
    do i=1,size(task%prefill_type_hz)
       if (task%prefill_type_hz(i)==prefill_constant) then
@@ -2624,6 +2631,9 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 #else
    allocate(cache%write(self%nscratch))
 #endif
+#ifndef NDEBUG
+   cache%write = not_written
+#endif
    do i=1,size(task%prefill_type)
       if (task%prefill_type(i)==prefill_constant) then
 #if defined(_INTERIOR_IS_VECTORIZED_)
@@ -2639,7 +2649,50 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 #else
    allocate(cache%write_hz(self%nscratch_hz))
 #endif
+#ifndef NDEBUG
+   cache%write_hz = not_written
+#endif
 end subroutine begin_vertical_task
+
+subroutine check_call_output(call_node,cache)
+   use fabm_graph, only: type_output_variable
+   use, intrinsic :: ieee_arithmetic
+
+   type (type_call), intent(in) :: call_node
+   type (type_cache),intent(in) :: cache
+   _DECLARE_INTERIOR_INDICES_
+
+   type (type_output_variable),pointer :: output_variable
+
+   output_variable => call_node%graph_node%outputs%first
+   do while (associated(output_variable))
+      select case (output_variable%target%domain)
+      case (domain_interior)
+         _LOOP_BEGIN_
+            if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%target%write_indices%value))) &
+               call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%target%name))
+         _LOOP_END_
+         if (output_variable%target%prefill==prefill_none) then
+            _LOOP_BEGIN_
+               if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%target%write_indices%value) == not_written) &
+                  call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%target%name))
+            _LOOP_END_
+         end if
+      case (domain_surface,domain_bottom,domain_horizontal)
+         _HORIZONTAL_LOOP_BEGIN_
+            if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%target%write_indices%value))) &
+               call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%target%name))
+         _HORIZONTAL_LOOP_END_
+         if (output_variable%target%prefill==prefill_none) then
+            _HORIZONTAL_LOOP_BEGIN_
+               if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%target%write_indices%value) == not_written) &
+                  call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%target%name))
+            _HORIZONTAL_LOOP_END_
+         end if
+      end select
+      output_variable => output_variable%next
+   end do
+end subroutine check_call_output
 
 subroutine end_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
    type (type_model),intent(inout) :: self
@@ -2939,6 +2992,10 @@ end subroutine end_vertical_task
       elseif (call_node%source==source_get_light_extinction) then
          call call_node%model%get_light_extinction(_ARGUMENTS_INTERIOR_)
       end if
+
+#ifndef NDEBUG
+      call check_call_output(call_node,cache)
+#endif
 
       ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
@@ -3651,6 +3708,10 @@ end subroutine internal_check_horizontal_state
          call call_node%model%get_light_extinction(_ARGUMENTS_INTERIOR_)
       end if
 
+#ifndef NDEBUG
+      call check_call_output(call_node,cache)
+#endif
+
       ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
          j = call_node%copy_commands_int(i)%read_index
@@ -4026,7 +4087,15 @@ end subroutine internal_check_horizontal_state
 
       call_node => task%first_call
       do while (associated(call_node))
-         call call_node%model%do(_ARGUMENTS_INTERIOR_)
+         if (call_node%source==source_do) then
+            call call_node%model%do(_ARGUMENTS_INTERIOR_)
+         elseif (call_node%source==source_get_light_extinction) then
+            call call_node%model%get_light_extinction(_ARGUMENTS_INTERIOR_)
+         end if
+
+#ifndef NDEBUG
+         call check_call_output(call_node,cache)
+#endif
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
          _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
