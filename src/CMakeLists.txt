@@ -95,6 +95,8 @@ elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
   set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -N 1023")
 endif()
 
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:Release>:NDEBUG> $<$<CONFIG:MinSizeRel>:NDEBUG>)
+
 if(FABM_FORCED_HOST)
   # FABM_HOST was specified by a higher level CMakeLists.txt
   unset(FABM_HOST CACHE)
