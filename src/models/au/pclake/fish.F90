@@ -965,7 +965,15 @@
       _SET_DIAGNOSTIC_(self%id_wDFishDetW, wDFishDetW*86400.0_rk)
       _SET_DIAGNOSTIC_(self%id_wNFishDetW, wNFishDetW*86400.0_rk)
       _SET_DIAGNOSTIC_(self%id_wPFishDetW, wPFishDetW*86400.0_rk)
-
+   else
+      _SET_DIAGNOSTIC_(self%id_wDFiAd,     0.0_rk)
+      _SET_DIAGNOSTIC_(self%id_wPFiAd,     0.0_rk)
+      _SET_DIAGNOSTIC_(self%id_wNFiAd,     0.0_rk)
+      _SET_DIAGNOSTIC_(self%id_wNFishNH4W, 0.0_rk)
+      _SET_DIAGNOSTIC_(self%id_wPFishPO4W, 0.0_rk)
+      _SET_DIAGNOSTIC_(self%id_wDFishDetW, 0.0_rk)
+      _SET_DIAGNOSTIC_(self%id_wNFishDetW, 0.0_rk)
+      _SET_DIAGNOSTIC_(self%id_wPFishDetW, 0.0_rk)
    endif
    n=n+1
 !-----------------------------------------------------------------------

@@ -37,7 +37,6 @@
    integer,parameter :: CONSERVED_QUANTITY             = 6
 
    class (type_model),private,pointer,save :: model => null()
-   real(8),dimension(:),pointer :: state
    character(len=1024),dimension(:),allocatable :: environment_names,environment_units
    integer :: index_column_depth
    real(c_double),pointer :: column_depth
@@ -88,17 +87,20 @@
       class (type_property),          pointer :: property
 !-----------------------------------------------------------------------
 !BOC
-      call c_f_pointer(c_loc(path), ppath)
-
-      if (associated(model)) call finalize()
-
+      ! Initialize driver object used by FABM for logging/error reporting.
       if (.not.associated(driver)) allocate(type_python_driver::driver)
 
+      ! If the model object already exists, delete it to start from scratch.
+      if (associated(model)) call finalize()
+
+      ! Remove any existing user-specified parameter values and couplings.
+      ! (If the user wanted to preserve those, he would have called reinitialize)
       call forced_parameters%finalize()
       call forced_couplings%finalize()
 
-      ! Build FABM model tree (configuration will be read from fabm.yaml).
+      ! Build FABM model tree (configuration will be read from file specified as argument).
       allocate(model)
+      call c_f_pointer(c_loc(path), ppath)
       call fabm_create_model_from_yaml_file(model,path=ppath(:index(ppath,C_NULL_CHAR)-1),parameters=forced_parameters)
 
       ! Get a list of all parameters that had an explicit value specified.
@@ -134,6 +136,7 @@
       class (type_base_model),     pointer :: childmodel
       class (type_property),       pointer :: property,next
 
+      ! Create new model object.
       allocate(newmodel)
 
       ! Transfer forced parameters to root of the model.
@@ -600,5 +603,5 @@
    end module fabm_python
 
 !-----------------------------------------------------------------------
-! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
+! Copyright by the FABM team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------

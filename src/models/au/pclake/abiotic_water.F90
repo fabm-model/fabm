@@ -191,8 +191,8 @@
    call self%register_diagnostic_variable(self%id_rPDDetW, 'rPDDetW',   '[-]',       'detritus_P/D_ratio_wat',   output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_rNDDetW, 'rNDDetW',   '[-]',       'detritus_N/D_ratio_wat',   output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_wind,    'wind',      'm/s',       'windspeed',                output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_extIM,   'extIM',     '[-]',       'extIM',                    output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_extDet,  'extDet',    '[-]',       'extDet',                   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_extIM,   'extIM',     '[-]',       'extIM',                    output=output_instantaneous, source=source_get_light_extinction)
+   call self%register_diagnostic_variable(self%id_extDet,  'extDet',    '[-]',       'extDet',                   output=output_instantaneous, source=source_get_light_extinction)
 !  Register diagnostic variables for modular fluexes for state variables
    call self%register_diagnostic_variable(self%id_wDAbioIMW,   'wDAbioIMW',    'g m-3 s-1', 'abiotic_water_IMW_change',    output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_wDAbioDetW,  'wDAbioDetW',   'g m-3 s-1', 'abiotic_water_DDetW_change',  output=output_instantaneous)
