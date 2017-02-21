@@ -294,6 +294,8 @@ module fabm_particle
                   class is (type_particle_model)
                      source_model => model
                   end select
+               else
+                  call self%fatal_error('resolve_model_reference','Coupling target '//trim(model_master_name%value)//' for "'//trim(reference%name)//'" not found (unknown parent instance "'//model_master_name%value(:istart-2)//'").')
                end if
             end if
 
