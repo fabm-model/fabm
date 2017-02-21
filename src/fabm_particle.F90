@@ -294,23 +294,23 @@ module fabm_particle
                   class is (type_particle_model)
                      source_model => model
                   end select
-               else
-                  call self%fatal_error('resolve_model_reference','Coupling target '//trim(model_master_name%value)//' for "'//trim(reference%name)//'" not found (unknown parent instance "'//model_master_name%value(:istart-2)//'").')
                end if
             end if
 
             ! Search model references
-            reference2 => source_model%first_model_reference
-            do while (associated(reference2))
-               if (model_master_name%value(istart:)==reference2%name) then
-                  reference%model => source_model%resolve_model_reference(reference2)
-                  exit
-               end if
-               reference2 => reference2%next
-            end do
+            if (associated(source_model)) then
+               reference2 => source_model%first_model_reference
+               do while (associated(reference2))
+                  if (model_master_name%value(istart:)==reference2%name) then
+                     reference%model => source_model%resolve_model_reference(reference2)
+                     exit
+                  end if
+                  reference2 => reference2%next
+               end do
+            end if
          end if
 
-         if (.not.associated(reference%model)) call self%fatal_error('resolve_model_reference','Referenced model "'//trim(model_master_name%value)//'" not found.')
+         if (.not.associated(reference%model)) call self%fatal_error('resolve_model_reference','Referenced model instance "'//trim(model_master_name%value)//'" not found.')
       end select
 
       reference%state = done
