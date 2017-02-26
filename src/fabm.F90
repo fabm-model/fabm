@@ -2818,7 +2818,7 @@ end subroutine end_vertical_task
    set_interior = .false.
    call_node => self%initialize_state_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%initialize_state(_ARGUMENTS_INTERIOR_,set_interior)
+      if (call_node%source == source_initialize_state) call call_node%model%initialize_state(_ARGUMENTS_INTERIOR_,set_interior)
       call_node => call_node%next
    end do
 
@@ -2875,7 +2875,7 @@ end subroutine end_vertical_task
    set_horizontal = .false.
    call_node => self%initialize_bottom_state_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
+      if (call_node%source == source_initialize_bottom_state) call call_node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       call_node => call_node%next
    end do
 
@@ -2932,7 +2932,7 @@ end subroutine end_vertical_task
    set_horizontal = .false.
    call_node => self%initialize_surface_state_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
+      if (call_node%source == source_initialize_surface_state) call call_node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       call_node => call_node%next
    end do
 
@@ -3119,7 +3119,7 @@ end subroutine end_vertical_task
    ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
    call_node => self%check_state_job%final_task%first_call
    do while (associated(call_node) .and. valid)
-      call call_node%model%check_state(_ARGUMENTS_INTERIOR_,repair,valid,set_interior)
+      if (call_node%source==source_check_state) call call_node%model%check_state(_ARGUMENTS_INTERIOR_,repair,valid,set_interior)
       if (.not. (valid .or. repair)) return
       call_node => call_node%next
    end do
@@ -3276,9 +3276,9 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
    call_node => job%final_task%first_call
    do while (associated(call_node) .and. valid)
       if (flag==1) then
-         call call_node%model%check_surface_state(_ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior)
+         if (call_node%source==source_check_surface_state) call call_node%model%check_surface_state(_ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior)
       else
-         call call_node%model%check_bottom_state(_ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior)
+         if (call_node%source==source_check_bottom_state) call call_node%model%check_bottom_state(_ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior)
       end if
       if (.not. (valid .or. repair)) return
       call_node => call_node%next
@@ -3438,7 +3438,7 @@ end subroutine internal_check_horizontal_state
       do while (associated(call_node))
          if (call_node%source==source_do_horizontal) then
             call call_node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
-         else
+         elseif (call_node%source==source_do_surface) then
             call call_node%model%do_surface(_ARGUMENTS_HORIZONTAL_)
          end if
 
@@ -3522,7 +3522,7 @@ end subroutine internal_check_horizontal_state
    do while (associated(call_node))
       if (call_node%source==source_do_horizontal) then
          call call_node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
-      else
+      elseif (call_node%source==source_do_bottom) then
          call call_node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
       end if
 
@@ -3593,7 +3593,7 @@ end subroutine internal_check_horizontal_state
 
    call_node => self%do_bottom_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%do_bottom_ppdd(_ARGUMENTS_HORIZONTAL_,pp,dd,benthos_offset)
+      if (call_node%source==source_do_bottom) call call_node%model%do_bottom_ppdd(_ARGUMENTS_HORIZONTAL_,pp,dd,benthos_offset)
 
       ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
@@ -3652,7 +3652,7 @@ end subroutine internal_check_horizontal_state
    ! Now allow models to overwrite with spatially-varying sinking rates - if any.
    call_node => self%get_vertical_movement_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%get_vertical_movement(_ARGUMENTS_INTERIOR_)
+      if (call_node%source==source_get_vertical_movement) call call_node%model%get_vertical_movement(_ARGUMENTS_INTERIOR_)
       call_node => call_node%next
    end do
 
@@ -3787,7 +3787,7 @@ end subroutine internal_check_horizontal_state
    drag = 1.0_rk
    call_node => self%get_drag_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%get_drag(_ARGUMENTS_HORIZONTAL_,drag)
+      if (call_node%source==source_get_drag) call call_node%model%get_drag(_ARGUMENTS_HORIZONTAL_,drag)
       call_node => call_node%next
    end do
 
@@ -3830,7 +3830,7 @@ end subroutine internal_check_horizontal_state
    albedo = 0.0_rk
    call_node => self%get_albedo_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%get_albedo(_ARGUMENTS_HORIZONTAL_,albedo)
+      if (call_node%source==source_get_albedo) call call_node%model%get_albedo(_ARGUMENTS_HORIZONTAL_,albedo)
       call_node => call_node%next
    end do
 
@@ -3874,7 +3874,7 @@ end subroutine internal_check_horizontal_state
 
    call_node => self%get_conserved_quantities_job%final_task%first_call
    do while (associated(call_node))
-      call call_node%model%do(_ARGUMENTS_INTERIOR_)
+      if (call_node%source==source_do) call call_node%model%do(_ARGUMENTS_INTERIOR_)
 
       ! Copy outputs of interest to read cache so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
@@ -3935,7 +3935,7 @@ end subroutine internal_check_horizontal_state
    do while (associated(call_node))
       if (call_node%source==source_do_horizontal) then
          call call_node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
-      else
+      elseif (call_node%source==source_do_bottom) then
          call call_node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
       end if
 
@@ -4670,18 +4670,18 @@ end subroutine classify_variables
          select case (domain)
          case (domain_interior)
             if (link%target%domain==domain_interior.and.associated(link%target%sms_sum)) &
-               call self%request_variable(link%target%sms_sum%target)
+               call self%request_variable(link%target%sms_sum%target,must_be_in_write_cache=.true.)
          case (domain_bottom)
             if (link%target%domain==domain_bottom.and.associated(link%target%sms_sum)) then
-               call self%request_variable(link%target%sms_sum%target)
+               call self%request_variable(link%target%sms_sum%target,must_be_in_write_cache=.true.)
             elseif (link%target%domain==domain_interior.and.associated(link%target%bottom_flux_sum)) then
-               call self%request_variable(link%target%bottom_flux_sum%target)
+               call self%request_variable(link%target%bottom_flux_sum%target,must_be_in_write_cache=.true.)
             end if
          case (domain_surface)
             if (link%target%domain==domain_surface.and.associated(link%target%sms_sum)) then
-               call self%request_variable(link%target%sms_sum%target)
+               call self%request_variable(link%target%sms_sum%target,must_be_in_write_cache=.true.)
             elseif (link%target%domain==domain_interior.and.associated(link%target%surface_flux_sum)) then
-               call self%request_variable(link%target%surface_flux_sum%target)
+               call self%request_variable(link%target%surface_flux_sum%target,must_be_in_write_cache=.true.)
             end if
          end select
          link => link%next

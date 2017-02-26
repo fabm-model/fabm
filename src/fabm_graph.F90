@@ -56,6 +56,8 @@ module fabm_graph
       type (type_node_set)                   :: dependent_nodes
       logical                                :: copy_to_cache   = .false.
       logical                                :: copy_to_store   = .false.
+      integer                                :: prefill         = prefill_none
+      type (type_node_set), pointer          :: group           => null()
       type (type_output_variable),   pointer :: next            => null()
    end type
 
@@ -105,6 +107,7 @@ function output_variable_set_add(self,variable) result(node)
    ! Create a new variable object and prepend it to the list.
    allocate(node)
    node%target => variable
+   node%prefill = variable%prefill
    node%next => self%first
    self%first => node
 end function output_variable_set_add
@@ -139,8 +142,8 @@ subroutine graph_print(self)
          write (*,'("   ",a,",write@",i0)',advance='no') trim(variable%target%name),variable%target%write_indices%value
          if (variable%copy_to_cache) write (*,'(",cache@",i0)',advance='no') variable%target%read_indices%value
          if (variable%copy_to_store) write (*,'(",store@",i0)',advance='no') variable%target%store_index
-         if (variable%target%prefill==prefill_constant) write (*,'(",prefill=",g0.6)',advance='no') variable%target%prefill_value
-         if (variable%target%prefill==prefill_previous_value) write (*,'(",prefill=previous")',advance='no')
+         if (variable%prefill==prefill_constant) write (*,'(",prefill=",g0.6)',advance='no') variable%target%prefill_value
+         if (variable%prefill==prefill_previous_value) write (*,'(",prefill=previous")',advance='no')
          write (*,*)
          pnode => variable%dependent_nodes%first
          do while (associated(pnode))
@@ -232,20 +235,25 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
    call self%append(node)
 end function graph_add_call
 
-recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,copy_to_store,caller)
+recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_store,caller,group)
    class (type_graph),              intent(inout) :: self
    type (type_internal_variable),   intent(in)    :: variable
    type (type_node_list),    target,intent(inout) :: outer_calls
-   logical,         optional,       intent(in)    :: copy_to_cache
    logical,         optional,       intent(in)    :: copy_to_store
    type (type_node),optional,target,intent(inout) :: caller
+   type (type_node_set),optional,target,intent(inout) :: group
 
    type (type_variable_node), pointer :: variable_node
+   type (type_node_set), pointer :: group_
 
    if (self%frozen) call driver%fatal_error('graph_add_variable','Graph is frozen; no variables can be added.')
 
    ! If this variable is not an output of some model (e.g., a state variable or external dependency), no call is needed.
    if (variable%write_indices%value==-1) return
+
+   group_ => null()
+   if (present(group)) group_ => group
+   if (associated(variable%cowriters%first)) allocate(group_)
 
    if (variable%source==source_unknown) then
       ! This variable is either written by do_surface or do_bottom - which one of these two APIs is unknown.
@@ -259,7 +267,7 @@ recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_cache,
    ! Automatically request additional value contributions (for reduction operators that accept in-place modification of the variable value)
    variable_node => variable%cowriters%first
    do while (associated(variable_node))
-      call self%add_variable(variable_node%target,outer_calls,copy_to_cache,copy_to_store,caller)
+      call self%add_variable(variable_node%target,outer_calls,copy_to_store,caller,group_)
       variable_node => variable_node%next
    end do
 
@@ -273,12 +281,13 @@ contains
 
       node => self%add_call(variable%owner,source,outer_calls)
       variable_node => node%outputs%add(variable)
-      if (present(copy_to_cache)) variable_node%copy_to_cache = variable_node%copy_to_cache .or. copy_to_cache
+      variable_node%group => group_
       if (present(copy_to_store)) variable_node%copy_to_store = variable_node%copy_to_store .or. copy_to_store
       if (present(caller)) then
          call caller%dependencies%add(node)
          call variable_node%dependent_nodes%add(caller)
       end if
+      if (associated(group_)) call group_%add(node)
    end subroutine add_call
 
 end subroutine graph_add_variable
