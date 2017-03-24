@@ -59,6 +59,8 @@ fabm.variable_get_suitable_masters.argtypes = [ctypes.c_void_p]
 fabm.variable_get_suitable_masters.restype = ctypes.c_void_p
 fabm.variable_get_output.argtypes = [ctypes.c_void_p]
 fabm.variable_get_output.restype = ctypes.c_int
+fabm.variable_get_real_property.argtypes = [ctypes.c_void_p,ctypes.c_char_p,ctypes.c_double]
+fabm.variable_get_real_property.restype = ctypes.c_double
 
 # Read/write/reset access to parameters.
 fabm.get_real_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
@@ -204,6 +206,9 @@ class Variable(object):
 
     def getOptions(self):
         pass
+
+    def getRealProperty(self, name, default=-1.0):
+        return fabm.variable_get_real_property(self.variable_pointer, name, default)
 
 class Dependency(Variable):
     def __init__(self,name,index,units=None,long_name=None):
