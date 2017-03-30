@@ -348,7 +348,7 @@
 
    id_dens = fabm_get_bulk_variable_id(model,standard_variables%density)
    compute_density = fabm_variable_needs_values(model,id_dens)
-   if (compute_density) call fabm_link_bulk_data(model,id_dens,dens)
+   if (compute_density) call fabm_link_interior_data(model,id_dens,dens)
 
    id_par = fabm_get_bulk_variable_id(model,standard_variables%downwelling_photosynthetic_radiative_flux)
 
@@ -496,15 +496,15 @@
       logical                            :: is_state_variable
       type (type_input_data),    pointer :: input_data
       type (type_key_value_pair),pointer :: pair
-      type (type_bulk_variable_id)       :: bulk_id
+      type (type_bulk_variable_id)       :: interior_id
       type (type_horizontal_variable_id) :: horizontal_id
       type (type_scalar_variable_id)     :: scalar_id
 
-      ! Try to locate the forced variable among bulk, horizontal, and global variables in the active biogeochemical models.
+      ! Try to locate the forced variable among interior, horizontal, and global variables in the active biogeochemical models.
       is_state_variable = .false.
-      bulk_id = fabm_get_bulk_variable_id(model,variable_name)
-      if (fabm_is_variable_used(bulk_id)) then
-         is_state_variable = bulk_id%variable%state_indices%value/=-1
+      interior_id = fabm_get_bulk_variable_id(model,variable_name)
+      if (fabm_is_variable_used(interior_id)) then
+         is_state_variable = interior_id%variable%state_indices%value/=-1
       else
          horizontal_id = fabm_get_horizontal_variable_id(model,variable_name)
          if (fabm_is_variable_used(horizontal_id)) then
@@ -577,8 +577,8 @@
       end do
 
       ! Link forced data to target variable.
-      if (fabm_is_variable_used(bulk_id)) then
-         call fabm_link_bulk_data(model,bulk_id,input_data%value,source=data_source_user)
+      if (fabm_is_variable_used(interior_id)) then
+         call fabm_link_interior_data(model,interior_id,input_data%value,source=data_source_user)
       elseif (fabm_is_variable_used(horizontal_id)) then
          call fabm_link_horizontal_data(model,horizontal_id,input_data%value,source=data_source_user)
       else
