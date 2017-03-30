@@ -192,6 +192,7 @@
    real(rk),parameter        :: invalid_latitude = -100._rk,invalid_longitude = -400.0_rk
    logical                   :: file_exists
    real(rk),allocatable      :: rhs(:)
+   integer                   :: ios
 
    namelist /model_setup/ title,start,stop,dt,ode_method,repair_state
    namelist /environment/ env_file,swr_method,albedo_correction, &
@@ -211,7 +212,8 @@
 
    ! Open the namelist file.
    LEVEL2 'reading model setup namelists from ',trim(run_nml_file)
-   open(namlst,file=run_nml_file,status='old',action='read',err=90)
+   open(namlst,file=run_nml_file,status='old',action='read',iostat=ios)
+   if (ios/=0) call fatal_error('init_run','I could not open '//trim(run_nml_file)//' for reading.')
 
    ! Initialize environment
    temp = 0.0_rk
@@ -230,7 +232,8 @@
    dt = 0.0_rk
    ode_method = 1
    repair_state = .false.
-   read(namlst,nml=model_setup,err=91)
+   read(namlst,nml=model_setup,iostat=ios)
+   if (ios/=0) call fatal_error('init_run','I could not read the "model_setup" namelist from '//trim(run_nml_file)//'.')
 
    ! Read environment namelist
    env_file = ''
@@ -243,7 +246,8 @@
    depth = -1.0_rk
    par_background_extinction = 0.0_rk
    apply_self_shading = .true.
-   read(namlst,nml=environment,err=92)
+   read(namlst,nml=environment,iostat=ios)
+   if (ios/=0) call fatal_error('init_run','I could not read the "environment" namelist from '//trim(run_nml_file)//'.')
 
    compute_conserved_quantities = .false.
    call configure_output(namlst)
@@ -251,14 +255,14 @@
    ! Close the namelist file.
    close (namlst)
 
-   if (start=='')  call fatal_error('init_run','run.nml: start time "start" must be set in "model_setup" namelist.')
-   if (stop=='')   call fatal_error('init_run','run.nml: stop time "stop" must be set in "model_setup" namelist.')
-   if (dt<=0.0_rk) call fatal_error('init_run','run.nml: time step "dt" must be set to a positive value in "model_setup" namelist.')
-   if (env_file=='') call fatal_error('init_run','run.nml: "env_file" must be set to a valid file path in "environment" namelist.')
+   if (start=='')  call fatal_error('init_run',trim(run_nml_file)//': start time "start" must be set in "model_setup" namelist.')
+   if (stop=='')   call fatal_error('init_run',trim(run_nml_file)//': stop time "stop" must be set in "model_setup" namelist.')
+   if (dt<=0.0_rk) call fatal_error('init_run',trim(run_nml_file)//': time step "dt" must be set to a positive value in "model_setup" namelist.')
+   if (env_file=='') call fatal_error('init_run',trim(run_nml_file)//': "env_file" must be set to a valid file path in "environment" namelist.')
    if (latitude/=invalid_latitude.and.(latitude<-90._rk.or.latitude>90._rk)) &
-      call fatal_error('init_run','run.nml: latitude must lie between -90 and 90.')
+      call fatal_error('init_run',trim(run_nml_file)//': latitude must lie between -90 and 90.')
    if (longitude/=invalid_longitude.and.(longitude<-360._rk.or.longitude>360._rk)) &
-      call fatal_error('init_run','run.nml: longitude must lie between -360 and 360.')
+      call fatal_error('init_run',trim(run_nml_file)//': longitude must lie between -360 and 360.')
 
    ! Make sure depth has been provided.
    if (depth<=0.0_rk) call fatal_error('init_run','run.nml: &
@@ -268,9 +272,9 @@
 
    ! If longitude and latitude are used, make sure they have been provided and are valid.
    if (swr_method==0) then
-      if (latitude==invalid_latitude) call fatal_error('init_run','run.nml: &
+      if (latitude==invalid_latitude) call fatal_error('init_run',trim(run_nml_file)//': &
          &a valid value for "latitude" must be provided in "environment" if "swr_method" is 0.')
-      if (longitude==invalid_longitude) call fatal_error('init_run','run.nml: &
+      if (longitude==invalid_longitude) call fatal_error('init_run',trim(run_nml_file)//': &
          &a valid value for "longitude" must be provided in "environment" if "swr_method" is 0.')
    end if
 
@@ -328,7 +332,7 @@
          LEVEL3 trim(fabm_nml_file)
          model => fabm_create_model_from_file(namlst)
       else
-         call fatal_error('init_run','can not find valid FABM yaml or nml files')
+         call fatal_error('init_run','can not find '//trim(fabm_yaml_file)//' or '//trim(fabm_nml_file)//'.')
       end if
    end if
 
@@ -349,13 +353,13 @@
    id_par = fabm_get_bulk_variable_id(model,standard_variables%downwelling_photosynthetic_radiative_flux)
 
    ! Link environmental data to FABM
-   call fabm_link_bulk_data(model,standard_variables%temperature,temp)
-   call fabm_link_bulk_data(model,standard_variables%practical_salinity,salt)
-   if (fabm_variable_needs_values(model,id_par)) call fabm_link_bulk_data(model,id_par,par)
-   call fabm_link_bulk_data(model,standard_variables%pressure,current_depth)
-   call fabm_link_bulk_data(model,standard_variables%cell_thickness,column_depth)
-   call fabm_link_bulk_data(model,standard_variables%depth,current_depth)
-   call fabm_link_bulk_data(model,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,extinction)
+   call fabm_link_interior_data(model,standard_variables%temperature,temp)
+   call fabm_link_interior_data(model,standard_variables%practical_salinity,salt)
+   if (fabm_variable_needs_values(model,id_par)) call fabm_link_interior_data(model,id_par,par)
+   call fabm_link_interior_data(model,standard_variables%pressure,current_depth)
+   call fabm_link_interior_data(model,standard_variables%cell_thickness,column_depth)
+   call fabm_link_interior_data(model,standard_variables%depth,current_depth)
+   call fabm_link_interior_data(model,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,extinction)
    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_photosynthetic_radiative_flux,par_sf)
    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,swr_sf)
    call fabm_link_horizontal_data(model,standard_variables%cloud_area_fraction,cloud)
@@ -422,11 +426,6 @@
    endif
 
    STDERR LINE
-
-   return
-90 call fatal_error('init_run','I could not open run.nml for reading.')
-91 call fatal_error('init_run','I could not read the "model_setup" namelist from run.nml.')
-92 call fatal_error('init_run','I could not read the "environment" namelist from run.nml.')
 
    end subroutine init_run
 !EOC
