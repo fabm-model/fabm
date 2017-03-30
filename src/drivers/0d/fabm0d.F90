@@ -370,12 +370,15 @@
    call fabm_check_ready(model)
 
    ! Update time and all time-dependent inputs.
-   call start_time_step(0_timestepkind)
+   call update_environment(0_timestepkind)
 
    ! Perform custom initialization per biogeochemical model
    call fabm_initialize_state(model)
    call fabm_initialize_surface_state(model)
    call fabm_initialize_bottom_state(model)
+
+   ! Let FABM update the light field (requires state variables to be initialized!)
+   call update_light()
 
    ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
    allocate(rhs(size(cc)))
@@ -573,15 +576,8 @@
 
    end subroutine parse_input_variable
 
-   subroutine start_time_step(n)
+   subroutine update_environment(n)
       integer(timestepkind),intent(in) :: n
-
-      real(rk)                         :: zenith_angle,solar_zenith_angle
-      real(rk)                         :: short_wave_radiation
-      real(rk)                         :: albedo,albedo_water,bio_albedo
-      real(rk)                         :: hh
-
-      bio_albedo = 0._rk
 
       ! Update time in time manager
       call update_time(n)
@@ -591,6 +587,18 @@
 
       ! Update environment (i.e., read from input files)
       call do_input(julianday,secondsofday)
+
+      ! Compute density from temperature and salinity, if required by biogeochemistry.
+      if (compute_density) dens = rho_feistel(salt,temp,5._rk*column_depth,.true.)
+   end subroutine update_environment
+
+   subroutine update_light()
+      real(rk)                         :: zenith_angle,solar_zenith_angle
+      real(rk)                         :: short_wave_radiation
+      real(rk)                         :: albedo,albedo_water,bio_albedo
+      real(rk)                         :: hh
+
+      bio_albedo = 0._rk
 
       ! Calculate light extinction
       extinction = 0.0_rk
@@ -626,10 +634,7 @@
       call update_depth(CENTER)
 
       call fabm_get_light(model)
-
-      ! Compute density from temperature and salinity, if required by biogeochemistry.
-      if (compute_density) dens = rho_feistel(salt,temp,5._rk*column_depth,.true.)
-   end subroutine start_time_step
+   end subroutine update_light
 
 !-----------------------------------------------------------------------
 !BOP
@@ -667,7 +672,8 @@
       end if
 
       ! Update time and all time-dependent inputs.
-      call start_time_step(n)
+      call update_environment(n)
+      call update_light()
 
       call fabm_update_time(model,real(n,rk))
 
