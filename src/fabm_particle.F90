@@ -282,6 +282,7 @@ module fabm_particle
             ! Find starting position of local name (excluding any preprended path components)
             istart = index(model_master_name%value,'/',.true.)+1
 
+            source_model => null()
             reference2 => null()
             if (istart==1) then
                ! No slash in path; search model references within current model
