@@ -15,6 +15,7 @@
    use fabm
    use fabm_types, only: rk,output_none
    use fabm_properties
+   use shared
 
    IMPLICIT NONE
 !
@@ -43,17 +44,9 @@
 ! !ROUTINE: do_register_all_variables
 !
 ! !INTERFACE:
-   subroutine do_register_all_variables(lat,lon,par,temp,salt,model)
-!
-! !USES:
-   IMPLICIT NONE
+   subroutine do_register_all_variables()
 !
 ! !DESCRIPTION:
-!
-! !INPUT PARAMETERS:
-   real(rk), intent(in)                :: lat,lon
-   real(rk)                            :: par,temp,salt
-   class (type_model), intent(inout)   :: model
 !
 ! !REVISION HISTORY:
 !  Original author(s): Karsten Bolding & Jorn Bruggeman
@@ -63,9 +56,9 @@
 !-------------------------------------------------------------------------
 !BOC
    LEVEL2 'register_all_variables'
-   call register_coordinate_variables(lat,lon)
-   call register_environment_variables(par,temp,salt)
-   call register_fabm_variables(model)
+   call register_coordinate_variables()
+   call register_environment_variables()
+   call register_fabm_variables()
 !KB   call fm%list
 !   LEVEL2 'registrated ',N,'variables'
    return
@@ -77,15 +70,9 @@
 ! !IROUTINE: Coordinate variable registration 
 !
 ! !INTERFACE:
-   subroutine register_coordinate_variables(lat,lon)
+   subroutine register_coordinate_variables()
 !
 ! !DESCRIPTION:
-!
-! !USES:
-   IMPLICIT NONE
-!
-! !INPUT PARAMETERS:
-   real(rk), intent(in) :: lat,lon
 !
 ! !LOCAL VARIABLES:
 !EOP
@@ -98,8 +85,8 @@
    call fm%register_dimension('lat',1,id=id_dim_lat)
    call fm%register_dimension('time',id=id_dim_time)
    call fm%initialize(prepend_by_default=(/id_dim_lon,id_dim_lat/),append_by_default=(/id_dim_time/))
-   call fm%register('lon','degrees_east','longitude',dimensions=(/id_dim_lon/),no_default_dimensions=.true.,data0d=lon,coordinate_dimension=id_dim_lon)
-   call fm%register('lat','degrees_north','latitude',dimensions=(/id_dim_lat/),no_default_dimensions=.true.,data0d=lat,coordinate_dimension=id_dim_lat)
+   call fm%register('lon','degrees_east','longitude',dimensions=(/id_dim_lon/),no_default_dimensions=.true.,data0d=longitude,coordinate_dimension=id_dim_lon)
+   call fm%register('lat','degrees_north','latitude',dimensions=(/id_dim_lat/),no_default_dimensions=.true.,data0d=latitude,coordinate_dimension=id_dim_lat)
 
    return
    end subroutine register_coordinate_variables
@@ -110,15 +97,9 @@
 ! !IROUTINE: airsea variable registration 
 !
 ! !INTERFACE:
-   subroutine register_environment_variables(par,temp,salt)
+   subroutine register_environment_variables()
 !
 ! !DESCRIPTION:
-!
-! !USES:
-   IMPLICIT NONE
-!
-! !INPUT PARAMETERS:
-   real(rk)        :: par,temp,salt
 !
 ! !LOCAL VARIABLES:
 !EOP
@@ -137,15 +118,9 @@
 ! !IROUTINE: airsea variable registration 
 !
 ! !INTERFACE:
-   subroutine register_fabm_variables(model)
+   subroutine register_fabm_variables()
 !
 ! !DESCRIPTION:
-!
-! !USES:
-   IMPLICIT NONE
-!
-! !INPUT PARAMETERS:
-   class (type_model), intent(inout)   :: model
 !
 ! !LOCAL VARIABLES:
    integer          :: i
@@ -175,6 +150,14 @@
    do i=1,size(model%horizontal_diagnostic_variables)
       in_output = register(model%horizontal_diagnostic_variables(i))
       if (in_output) model%horizontal_diagnostic_variables(i)%save = .true.
+   end do
+
+   ! conserved quantities
+   do i=1,size(model%conserved_quantities)
+      call fm%register('int_change_in_'//trim(model%conserved_quantities(i)%name), trim(model%conserved_quantities(i)%units)//'*m', 'integrated change in '//trim(model%conserved_quantities(i)%long_name), &
+                       minimum=model%conserved_quantities(i)%minimum, maximum=model%conserved_quantities(i)%maximum, fill_value=model%conserved_quantities(i)%missing_value, &
+                       category='fabm/conservation', output_level=output_level_default, used=in_output, data0d=int_change_in_totals(i))
+      if (in_output) compute_conserved_quantities = .true.
    end do
 
    do i=1,size(model%state_variables)
@@ -217,7 +200,8 @@
       property => variable%properties%first
       do while (associated(property))
          select type (property)
-         class is (type_real_property); call field%set_attribute(property%name,property%value)
+         class is (type_real_property)
+            call field%set_attribute(property%name,property%value)
          end select
          property => property%next
       end do

@@ -41,9 +41,6 @@
    integer                    :: out_unit = -1
 
    character, parameter       :: separator = char(9)
-
-   real(rk), allocatable, dimension(:) :: totals,totals0,totals_hz
-
 !EOP
 !-----------------------------------------------------------------------
 
@@ -157,6 +154,7 @@
             end do
          end if
          if (add_conserved_quantities) then
+            compute_conserved_quantities = .true.
             do i=1,size(model%conserved_quantities)
                if (model%conserved_quantities(i)%output/=output_none) &
                   write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%conserved_quantities(i)%long_name), &
@@ -167,11 +165,6 @@
       case (NETCDF_FMT)
       case default
    end select
-
-   ! Allocate space for totals of conserved quantities.
-   allocate(totals0  (size(model%conserved_quantities)))  ! at initial time
-   allocate(totals   (size(model%conserved_quantities)))  ! at current time
-   allocate(totals_hz(size(model%conserved_quantities)))  ! at current time, on top/bottom interfaces only
 
    return
 96 call driver%fatal_error('init_output','I could not open '//trim(output_file))
@@ -238,7 +231,6 @@
             end do
          end if
          if (add_conserved_quantities) then
-            call fabm_get_conserved_quantities(model,totals)
             do i=1,size(model%conserved_quantities)
                if (model%conserved_quantities(i)%output/=output_none) &
                   write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,totals(i)

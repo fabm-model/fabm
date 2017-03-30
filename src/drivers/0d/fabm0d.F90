@@ -70,6 +70,7 @@
    real(rk)        :: swr_sf,par_sf,par_bt,par_ct,extinction
 
    real(rk),allocatable :: expression_data(:)
+   real(rk),allocatable :: totals0(:)
 
    type (type_bulk_variable_id), save :: id_dens, id_par
    logical                            :: compute_density
@@ -244,6 +245,7 @@
    apply_self_shading = .true.
    read(namlst,nml=environment,err=92)
 
+   compute_conserved_quantities = .false.
    call configure_output(namlst)
 
    ! Close the namelist file.
@@ -387,6 +389,14 @@
    call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
    call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
 
+   ! Allocate memeroy to hold totals of conserved quantities
+   allocate(totals0             (size(model%conserved_quantities)))  ! at initial time (depth-integrated, interior + interfaces)
+   allocate(totals              (size(model%conserved_quantities)))  ! at current time (depth-explicit, interior only)
+   allocate(int_change_in_totals(size(model%conserved_quantities)))  ! change since start of simulation (depth-integrated, interior + interfaces)
+
+   call get_conserved_quantities(totals0)
+   int_change_in_totals = 0.0_rk
+
    ! Output variable values at initial time
 #ifndef NETCDF4
     if (output_format .eq. 2) then
@@ -400,11 +410,13 @@
       call do_output(0_timestepkind)
    else
 #ifdef NETCDF4
-      LEVEL1 'field_manager'
-      call do_register_all_variables(latitude,longitude,par,temp,salt,model)
       LEVEL1 'output_manager'
       allocate(type_0d_host::output_manager_host)
       call output_manager_init(fm,title)
+
+      LEVEL1 'field_manager'
+      call do_register_all_variables()
+
       call output_manager_save(julianday,secondsofday,0)
 #endif
    endif
@@ -695,6 +707,11 @@
             &This may be fixed by setting repair_state=.true. (clip state to nearest valid value), &
             &but this should be used with caution. Try and decrease the time step (dt) first - and see if that helps.')
 
+      if (compute_conserved_quantities) then
+         call get_conserved_quantities(int_change_in_totals)
+         int_change_in_totals = int_change_in_totals - totals0
+      end if
+
       ! Do output
       if (output_format .eq. 1) then
          call do_output(n)
@@ -709,6 +726,13 @@
    end subroutine time_loop
 !EOC
 
+   subroutine get_conserved_quantities(depth_int_totals)
+      real(rk), intent(inout) :: depth_int_totals(size(model%conserved_quantities))
+      real(rk) :: totals_hz(size(model%conserved_quantities))
+      call fabm_get_conserved_quantities(model,totals)
+      call fabm_get_horizontal_conserved_quantities(model,totals_hz)
+      depth_int_totals = totals*column_depth + totals_hz
+   end subroutine
 !-----------------------------------------------------------------------
 !BOP
 !
