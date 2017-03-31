@@ -265,7 +265,7 @@
       call fatal_error('init_run',trim(run_nml_file)//': longitude must lie between -360 and 360.')
 
    ! Make sure depth has been provided.
-   if (depth<=0.0_rk) call fatal_error('init_run','run.nml: &
+   if (depth<=0.0_rk) call fatal_error('init_run',trim(run_nml_file)//': &
       &a positive value for "depth" must be provided in "environment" namelist.')
    column_depth = depth ! Provided depth is the column depth. The modelled biogeochemistry will be positioned at half this depth.
    call update_depth(CENTER)
