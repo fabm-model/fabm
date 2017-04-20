@@ -37,8 +37,8 @@
    public init_run, time_loop, clean_up
 !
 ! !DEFINED PARAMETERS:
-   integer, parameter        :: namlst=10, yaml_unit=23
-   integer, parameter        :: CENTER=0,SURFACE=1,BOTTOM=2
+   integer, parameter :: namlst=10, yaml_unit=23
+   integer, parameter :: CENTER=0,SURFACE=1,BOTTOM=2
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -346,33 +346,33 @@
 
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
-   allocate(cc(size(model%state_variables)+size(model%bottom_state_variables)+size(model%surface_state_variables)))
+   allocate(cc(n_int+n_bt+n_sf))
    call model%link_all_interior_state_data(cc(1:n_int))
    call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
    call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
 
    id_dens = fabm_get_bulk_variable_id(model,standard_variables%density)
    compute_density = fabm_variable_needs_values(model,id_dens)
-   if (compute_density) call fabm_link_interior_data(model,id_dens,dens)
+   if (compute_density) call model%link_interior_data(id_dens,dens)
 
    id_par = fabm_get_bulk_variable_id(model,standard_variables%downwelling_photosynthetic_radiative_flux)
 
    ! Link environmental data to FABM
-   call fabm_link_interior_data(model,standard_variables%temperature,temp)
-   call fabm_link_interior_data(model,standard_variables%practical_salinity,salt)
-   if (fabm_variable_needs_values(model,id_par)) call fabm_link_interior_data(model,id_par,par)
-   call fabm_link_interior_data(model,standard_variables%pressure,current_depth)
-   call fabm_link_interior_data(model,standard_variables%cell_thickness,column_depth)
-   call fabm_link_interior_data(model,standard_variables%depth,current_depth)
-   call fabm_link_interior_data(model,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,extinction)
-   call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_photosynthetic_radiative_flux,par_sf)
-   call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,swr_sf)
-   call fabm_link_horizontal_data(model,standard_variables%cloud_area_fraction,cloud)
-   call fabm_link_horizontal_data(model,standard_variables%bottom_depth,column_depth)
-   call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,column_depth)
-   if (latitude /=invalid_latitude ) call fabm_link_horizontal_data(model,standard_variables%latitude,latitude)
-   if (longitude/=invalid_longitude) call fabm_link_horizontal_data(model,standard_variables%longitude,longitude)
-   call fabm_link_scalar_data(model,standard_variables%number_of_days_since_start_of_the_year,decimal_yearday)
+   call model%link_interior_data(standard_variables%temperature,temp)
+   call model%link_interior_data(standard_variables%practical_salinity,salt)
+   if (fabm_variable_needs_values(model,id_par)) call model%link_interior_data(id_par,par)
+   call model%link_interior_data(standard_variables%pressure,current_depth)
+   call model%link_interior_data(standard_variables%cell_thickness,column_depth)
+   call model%link_interior_data(standard_variables%depth,current_depth)
+   call model%link_interior_data(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,extinction)
+   call model%link_horizontal_data(standard_variables%surface_downwelling_photosynthetic_radiative_flux,par_sf)
+   call model%link_horizontal_data(standard_variables%surface_downwelling_shortwave_flux,swr_sf)
+   call model%link_horizontal_data(standard_variables%cloud_area_fraction,cloud)
+   call model%link_horizontal_data(standard_variables%bottom_depth,column_depth)
+   call model%link_horizontal_data(standard_variables%bottom_depth_below_geoid,column_depth)
+   if (latitude /=invalid_latitude ) call model%link_horizontal_data(standard_variables%latitude,latitude)
+   if (longitude/=invalid_longitude) call model%link_horizontal_data(standard_variables%longitude,longitude)
+   call model%link_scalar(standard_variables%number_of_days_since_start_of_the_year,decimal_yearday)
 
    ! Read forcing data specified in input.yaml.
    call init_input_from_file('input.yaml')
@@ -548,6 +548,10 @@
          write (message,'(g13.6)') input_data%value
          call driver%log_message('    constant_value: '//adjustl(message))
       else
+         scalar => mapping%get_scalar('file',required=.false.,error=config_error)
+         if (.not.associated(scalar)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
+            &either key "constant_value" or key "file" must be present.')
+
          ! Input variable is set to a time-varying value. Obtain path, column number and scale factor.
          path = mapping%get_string('file',error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
