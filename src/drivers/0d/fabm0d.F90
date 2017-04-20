@@ -64,6 +64,7 @@
    real(rk) :: par_fraction
    real(rk) :: par_background_extinction
    logical  :: apply_self_shading
+   real(rk),allocatable :: current_rhs(:)
 
    ! Environment
    real(rk),target :: current_depth,dens,decimal_yearday
@@ -191,7 +192,6 @@
    real(rk)                  :: depth
    real(rk),parameter        :: invalid_latitude = -100._rk,invalid_longitude = -400.0_rk
    logical                   :: file_exists
-   real(rk),allocatable      :: rhs(:)
    integer                   :: ios
 
    namelist /model_setup/ title,start,stop,dt,ode_method,repair_state
@@ -387,8 +387,8 @@
    call update_light()
 
    ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
-   allocate(rhs(size(cc)))
-   call get_rhs(.true.,size(cc),cc,rhs)
+   allocate(current_rhs(size(cc)))
+   call get_rhs(.false.,size(cc),cc,current_rhs)
    call model%link_all_interior_state_data(cc(1:size(model%state_variables)))
    call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
    call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
@@ -690,6 +690,7 @@
 
       ! Integrate one time step
       call ode_solver(ode_method,size(model%state_variables)+size(model%bottom_state_variables),dt,cc,get_rhs,get_ppdd)
+      call get_rhs(.false.,size(cc),cc,current_rhs)
 
       ! ODE solver may have redirected the current state with to an array with intermediate values.
       ! Reset to global array.
@@ -886,6 +887,11 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if (first) then
+      rhs = current_rhs
+      return
+   end if
+
    ! Initialize derivatives to zero (entries will be incremented by FABM)
    rhs = 0.0_rk
 
