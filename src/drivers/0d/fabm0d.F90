@@ -43,17 +43,14 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-!  private data members initialised via namelists
-   real(rk)                  :: dt
-
-!  fabm0d run nml configuration file
-   character(len=PATH_MAX)   :: run_nml_file='run.nml'
+!  Run configuration file
+   character(len=PATH_MAX) :: run_nml_file='run.nml'
 
 !  FABM nml configuration file
-   character(len=PATH_MAX)   :: fabm_nml_file='fabm.nml'
+   character(len=PATH_MAX) :: fabm_nml_file='fabm.nml'
 
 !  FABM yaml configuration file
-   character(len=PATH_MAX)   :: fabm_yaml_file='fabm.yaml'
+   character(len=PATH_MAX) :: fabm_yaml_file='fabm.yaml'
 
    ! Bio model info
    integer  :: ode_method
@@ -66,6 +63,9 @@
    logical  :: apply_self_shading
    real(rk),allocatable :: current_rhs(:)
 
+   ! Shortcuts to number of state variables (interior, surface, bottom)
+   integer :: n_int, n_sf, n_bt
+
    ! Environment
    real(rk),target :: current_depth,dens,decimal_yearday
    real(rk)        :: swr_sf,par_sf,par_bt,par_ct,extinction
@@ -76,16 +76,16 @@
    type (type_bulk_variable_id), save :: id_dens, id_par
    logical                            :: compute_density
 
-   type,extends(type_base_driver) :: type_0d_driver
+   type,extends(type_base_driver) :: type_fabm0d_driver
    contains
-      procedure :: fatal_error => custom_fatal_error
-      procedure :: log_message => custom_log_message
+      procedure :: fatal_error => fabm0d_driver_fatal_error
+      procedure :: log_message => fabm0d_driver_log_message
    end type
 #ifdef NETCDF4
-   type,extends(type_output_manager_host) :: type_0d_host
+   type,extends(type_output_manager_host) :: type_fabm0d_host
    contains
-      procedure :: julian_day => a0d_host_julian_day
-      procedure :: calendar_date => a0d_host_calendar_date
+      procedure :: julian_day    => fabm0d_host_julian_day
+      procedure :: calendar_date => fabm0d_host_calendar_date
    end type
 #endif
 !EOP
@@ -189,7 +189,7 @@
 ! !LOCAL VARIABLES:
    character(len=PATH_MAX)   :: env_file
    integer                   :: i
-   real(rk)                  :: depth
+   real(rk)                  :: depth, dt
    real(rk),parameter        :: invalid_latitude = -100._rk,invalid_longitude = -400.0_rk
    logical                   :: file_exists
    integer                   :: ios
@@ -203,7 +203,7 @@
 !BOC
 
    ! Make FABM use our custom logger/error reporter
-   allocate(type_0d_driver::driver)
+   allocate(type_fabm0d_driver::driver)
 
    call cmdline
 
@@ -325,6 +325,11 @@
       LEVEL3 trim(fabm_yaml_file)
       allocate(model)
       call fabm_create_model_from_yaml_file(model,path=trim(fabm_yaml_file))
+
+   ! Shortcuts to the number of state variables.
+   n_int = size(model%state_variables)
+   n_sf  = size(model%surface_state_variables)
+   n_bt  = size(model%bottom_state_variables)
    else
       ! From namelists in fabm_nml_file
       inquire(file=trim(fabm_nml_file),exist=file_exists)
@@ -337,14 +342,14 @@
    end if
 
    ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
-   call fabm_set_domain(model,dt)
+   call fabm_set_domain(model,seconds_per_time_unit=timestep)
 
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
    allocate(cc(size(model%state_variables)+size(model%bottom_state_variables)+size(model%surface_state_variables)))
-   call model%link_all_interior_state_data(cc(1:size(model%state_variables)))
-   call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
-   call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
+   call model%link_all_interior_state_data(cc(1:n_int))
+   call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
+   call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
 
    id_dens = fabm_get_bulk_variable_id(model,standard_variables%density)
    compute_density = fabm_variable_needs_values(model,id_dens)
@@ -370,7 +375,7 @@
    call fabm_link_scalar_data(model,standard_variables%number_of_days_since_start_of_the_year,decimal_yearday)
 
    ! Read forcing data specified in input.yaml.
-   call init_yaml()
+   call init_input_from_file('input.yaml')
 
    ! Check whether all dependencies of biogeochemical models have now been fulfilled.
    call fabm_check_ready(model)
@@ -389,9 +394,9 @@
    ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
    allocate(current_rhs(size(cc)))
    call get_rhs(.false.,size(cc),cc,current_rhs)
-   call model%link_all_interior_state_data(cc(1:size(model%state_variables)))
-   call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
-   call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
+   call model%link_all_interior_state_data(cc(1:n_int))
+   call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
+   call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
 
    ! Allocate memeroy to hold totals of conserved quantities
    allocate(totals0             (size(model%conserved_quantities)))  ! at initial time (depth-integrated, interior + interfaces)
@@ -415,7 +420,7 @@
    else
 #ifdef NETCDF4
       LEVEL1 'output_manager'
-      allocate(type_0d_host::output_manager_host)
+      allocate(type_fabm0d_host::output_manager_host)
       call output_manager_init(fm,title)
 
       LEVEL1 'field_manager'
@@ -430,34 +435,35 @@
    end subroutine init_run
 !EOC
 
-   subroutine init_yaml()
+   subroutine init_input_from_file(path)
       use yaml_types
       use yaml,yaml_parse=>parse,yaml_error_length=>error_length
 
+      character(len=*),intent(in) :: path
+
       logical                            :: exists
       character(len=yaml_error_length)   :: yaml_error
-      class (type_node),         pointer :: node
+      class (type_node),         pointer :: root
 
-      ! Determine whether input.yaml exists.
-      inquire(file='input.yaml',exist=exists)
+      ! Determine whether input configuration file exists. If not, return.
+      inquire(file=path,exist=exists)
       if (.not.exists) return
 
       ! Parse YAML.
-      node => yaml_parse('input.yaml',yaml_unit,yaml_error)
-      if (yaml_error/='') call driver%fatal_error('init_yaml',trim(yaml_error))
+      root => yaml_parse(path,yaml_unit,yaml_error)
+      if (yaml_error/='') call driver%fatal_error('init_input_from_file',trim(yaml_error))
 
       ! Process root-level dictionary.
-      select type (node)
+      select type (root)
          class is (type_dictionary)
-            ! Process "input" section.
-            call init_yaml_input(node)
+         call init_input_from_yaml_node(root)
          class default
-            call fatal_error('init_yaml','input.yaml must contain a dictionary with (variable name : information) pairs,&
+         call fatal_error('init_input_from_file',trim(path)//' must contain a dictionary with (variable name : information) pairs,&
                & not a single value.')
       end select
-   end subroutine init_yaml
+   end subroutine init_input_from_file
 
-   subroutine init_yaml_input(mapping)
+   subroutine init_input_from_yaml_node(mapping)
       use yaml_types
 
       class (type_dictionary),intent(in)  :: mapping
@@ -469,16 +475,16 @@
       if (associated(pair)) call driver%log_message('Forcing data specified in input.yaml:')
       do while (associated(pair))
          variable_name = trim(pair%key)
-         if (variable_name=='') call driver%fatal_error('init_yaml_input','Empty variable name specified.')
+         if (variable_name=='') call driver%fatal_error('init_input_from_yaml_node','Empty variable name specified.')
          select type (dict=>pair%value)
             class is (type_dictionary)
                call parse_input_variable(variable_name,dict)
             class default
-               call fatal_error('init_input','Contents of '//trim(dict%path)//' must be a dictionary, not a single value.')
+               call fatal_error('init_input_from_yaml_node','Contents of '//trim(dict%path)//' must be a dictionary, not a single value.')
          end select
          pair => pair%next
       end do
-   end subroutine init_yaml_input
+   end subroutine init_input_from_yaml_node
 
    subroutine parse_input_variable(variable_name,mapping)
       use yaml_types
@@ -521,7 +527,7 @@
       input_data%next => first_input_data
       first_input_data => input_data
       input_data%variable_name = variable_name
-      call driver%log_message('  '//trim(input_data%variable_name))
+      call driver%log_message('  '//trim(input_data%variable_name)//':')
 
       scalar => mapping%get_scalar('constant_value',required=.false.,error=config_error)
       if (associated(scalar)) then
@@ -540,7 +546,7 @@
          if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
             &keys "constant_value" and "scale_factor" cannot both be present.')
          write (message,'(g13.6)') input_data%value
-         call driver%log_message('    constant_value = '//adjustl(message))
+         call driver%log_message('    constant_value: '//adjustl(message))
       else
          ! Input variable is set to a time-varying value. Obtain path, column number and scale factor.
          path = mapping%get_string('file',error=config_error)
@@ -550,11 +556,11 @@
          scale_factor = mapping%get_real('scale_factor',default=1.0_rk,error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
          call register_input_0d(path,column,input_data%value,variable_name,scale_factor=scale_factor)
-         call driver%log_message('    file = '//trim(path))
+         call driver%log_message('    file: '//trim(path))
          write (message,'(i0)') column
-         call driver%log_message('    column = '//adjustl(message))
+         call driver%log_message('    column: '//adjustl(message))
          write (message,'(g13.6)') scale_factor
-         call driver%log_message('    scale factor = '//adjustl(message))
+         call driver%log_message('    scale factor: '//adjustl(message))
       end if
 
       if (is_state_variable) then
@@ -578,11 +584,11 @@
 
       ! Link forced data to target variable.
       if (fabm_is_variable_used(interior_id)) then
-         call fabm_link_interior_data(model,interior_id,input_data%value,source=data_source_user)
+         call model%link_interior_data(interior_id,input_data%value,source=data_source_user)
       elseif (fabm_is_variable_used(horizontal_id)) then
-         call fabm_link_horizontal_data(model,horizontal_id,input_data%value,source=data_source_user)
+         call model%link_horizontal_data(horizontal_id,input_data%value,source=data_source_user)
       else
-         call fabm_link_scalar_data(model,scalar_id,input_data%value,source=data_source_user)
+         call model%link_scalar(scalar_id,input_data%value,source=data_source_user)
       end if
 
    end subroutine parse_input_variable
@@ -664,10 +670,8 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   integer                   :: i
    integer(timestepkind)     :: n
    logical                   :: valid_state
-   character(len=10)         :: strstep
    integer                   :: progress,k
 !EOP
 !-----------------------------------------------------------------------
@@ -689,14 +693,14 @@
       call fabm_update_time(model,real(n,rk))
 
       ! Integrate one time step
-      call ode_solver(ode_method,size(model%state_variables)+size(model%bottom_state_variables),dt,cc,get_rhs,get_ppdd)
+      call ode_solver(ode_method,size(cc),timestep,cc,get_rhs,get_ppdd)
       call get_rhs(.false.,size(cc),cc,current_rhs)
 
-      ! ODE solver may have redirected the current state with to an array with intermediate values.
+      ! ODE solver may have redirected the current state to an array with intermediate values.
       ! Reset to global array.
-      call model%link_all_interior_state_data(cc(1:size(model%state_variables)))
-      call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
-      call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
+      call model%link_all_interior_state_data(cc(1:n_int))
+      call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
+      call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_sf+n_bt))
 
       ! Verify whether the model state is still valid (clip if needed and allowed)
       call fabm_check_state(model,repair_state,valid_state)
@@ -827,7 +831,6 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL PARAMETERS:
-   integer                              :: n
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -837,20 +840,17 @@
 
    ! Send current state to FABM
    ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
-   call model%link_all_interior_state_data(cc(1:size(model%state_variables)))
-   call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
-   call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
-
-   ! Shortcut to the number of pelagic state variables.
-   n = size(model%state_variables)
+   call model%link_all_interior_state_data(cc(1:n_int))
+   call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
+   call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
 
    ! Calculate temporal derivatives due to benthic processes.
    call update_depth(BOTTOM)
-   call fabm_do_benthos(model,pp,dd,n)
+   call fabm_do_benthos(model,pp,dd,n_int)
 
    ! For pelagic variables: translate bottom flux to into change in concentration
-   pp(1:n,:) = pp(1:n,:)/column_depth
-   dd(1:n,:) = dd(1:n,:)/column_depth
+   pp(1:n_int,:) = pp(1:n_int,:)/column_depth
+   dd(1:n_int,:) = dd(1:n_int,:)/column_depth
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
    call update_depth(CENTER)
@@ -879,7 +879,6 @@
    real(rk), intent(out)                :: rhs(1:numc)
 !
 ! !LOCAL PARAMETERS:
-   integer                              :: n
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -897,64 +896,61 @@
 
    ! Send current state to FABM
    ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
-   call model%link_all_interior_state_data(cc(1:size(model%state_variables)))
-   call model%link_all_bottom_state_data  (cc(size(model%state_variables)+1:size(model%state_variables)+size(model%bottom_state_variables)))
-   call model%link_all_surface_state_data (cc(size(model%state_variables)+size(model%bottom_state_variables)+1:))
-
-   ! Shortcut to the number of pelagic state variables.
-   n = size(model%state_variables)
+   call model%link_all_interior_state_data(cc(1:n_int))
+   call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
+   call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
 
    ! Calculate temporal derivatives due to surface-bound processes.
    call update_depth(SURFACE)
-   call fabm_do_surface(model,rhs(1:n),rhs(n+size(model%bottom_state_variables)+1:))
+   call fabm_do_surface(model,rhs(1:n_int),rhs(n_int+n_bt+1:n_int+n_bt+n_sf))
 
    ! Calculate temporal derivatives due to bottom-bound processes.
    call update_depth(BOTTOM)
-   call fabm_do_bottom(model,rhs(1:n),rhs(n+1:n+size(model%bottom_state_variables)))
+   call fabm_do_bottom(model,rhs(1:n_int),rhs(n_int+1:n_int+n_bt))
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
-   rhs(1:n) = rhs(1:n)/column_depth
+   rhs(1:n_int) = rhs(1:n_int)/column_depth
 
    ! Add change in pelagic variables.
    call update_depth(CENTER)
-   call fabm_do(model,rhs(1:n))
+   call fabm_do(model,rhs(1:n_int))
 
    end subroutine get_rhs
 !EOC
 
-   subroutine custom_fatal_error(self,location,message)
-      class (type_0d_driver), intent(inout) :: self
+   subroutine fabm0d_driver_fatal_error(self,location,message)
+      class (type_fabm0d_driver), intent(inout) :: self
       character(len=*),       intent(in)    :: location,message
 
+      write (stderr,'(A)') ''
       write (stderr,'(A)') 'FATAL ERROR: '//trim(location)
       write (stderr,'(A)') trim(message)
       call clean_up(ignore_errors=.true.)
       stop 1
    end subroutine
 
-   subroutine custom_log_message(self,message)
-      class (type_0d_driver), intent(inout) :: self
+   subroutine fabm0d_driver_log_message(self,message)
+      class (type_fabm0d_driver), intent(inout) :: self
       character(len=*),       intent(in)    :: message
 
       write (stdout,'(A)') trim(message)
    end subroutine
 
 #ifdef NETCDF4
-   subroutine a0d_host_julian_day(self,yyyy,mm,dd,julian)
-      class (type_0d_host), intent(in) :: self
+   subroutine fabm0d_host_julian_day(self,yyyy,mm,dd,julian)
+      class (type_fabm0d_host), intent(in) :: self
       integer, intent(in)  :: yyyy,mm,dd
       integer, intent(out) :: julian
       call julian_day(yyyy,mm,dd,julian)
    end subroutine
 
-   subroutine a0d_host_calendar_date(self,julian,yyyy,mm,dd)
-      class (type_0d_host), intent(in) :: self
+   subroutine fabm0d_host_calendar_date(self,julian,yyyy,mm,dd)
+      class (type_fabm0d_host), intent(in) :: self
       integer, intent(in)  :: julian
       integer, intent(out) :: yyyy,mm,dd
       call calendar_date(julian,yyyy,mm,dd)
    end subroutine
 #endif
-
 
 !-----------------------------------------------------------------------
 
