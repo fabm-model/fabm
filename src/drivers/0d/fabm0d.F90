@@ -22,11 +22,6 @@
    use fabm_expressions
    use fabm_config
 
-#ifdef NETCDF4
-   use register_all_variables, only: do_register_all_variables, fm
-   use output_manager_core, only:output_manager_host=>host, type_output_manager_host=>type_host
-   use output_manager
-#endif
    use shared
    use output
 
@@ -81,13 +76,6 @@
       procedure :: fatal_error => fabm0d_driver_fatal_error
       procedure :: log_message => fabm0d_driver_log_message
    end type
-#ifdef NETCDF4
-   type,extends(type_output_manager_host) :: type_fabm0d_host
-   contains
-      procedure :: julian_day    => fabm0d_host_julian_day
-      procedure :: calendar_date => fabm0d_host_calendar_date
-   end type
-#endif
 !EOP
 !-----------------------------------------------------------------------
 
@@ -188,7 +176,6 @@
 !
 ! !LOCAL VARIABLES:
    character(len=PATH_MAX)   :: env_file
-   integer                   :: i
    real(rk)                  :: depth, dt
    real(rk),parameter        :: invalid_latitude = -100._rk,invalid_longitude = -400.0_rk
    logical                   :: file_exists
@@ -325,11 +312,6 @@
       LEVEL3 trim(fabm_yaml_file)
       allocate(model)
       call fabm_create_model_from_yaml_file(model,path=trim(fabm_yaml_file))
-
-   ! Shortcuts to the number of state variables.
-   n_int = size(model%state_variables)
-   n_sf  = size(model%surface_state_variables)
-   n_bt  = size(model%bottom_state_variables)
    else
       ! From namelists in fabm_nml_file
       inquire(file=trim(fabm_nml_file),exist=file_exists)
@@ -341,12 +323,27 @@
       end if
    end if
 
+   ! Shortcuts to the number of state variables.
+   n_int = size(model%state_variables)
+   n_sf  = size(model%surface_state_variables)
+   n_bt  = size(model%bottom_state_variables)
+
+   allocate(cc(n_int+n_bt+n_sf))
+
+   ! Allocate memeroy to hold totals of conserved quantities
+   allocate(totals0             (size(model%conserved_quantities)))  ! at initial time (depth-integrated, interior + interfaces)
+   allocate(totals              (size(model%conserved_quantities)))  ! at current time (depth-explicit, interior only)
+   allocate(int_change_in_totals(size(model%conserved_quantities)))  ! change since start of simulation (depth-integrated, interior + interfaces)
+
+#ifdef NETCDF4
+   if (output_format /= 1) call register_output_fields()
+#endif
+
    ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
    call fabm_set_domain(model,seconds_per_time_unit=timestep)
 
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
-   allocate(cc(n_int+n_bt+n_sf))
    call model%link_all_interior_state_data(cc(1:n_int))
    call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
    call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
@@ -360,7 +357,7 @@
    ! Link environmental data to FABM
    call model%link_interior_data(standard_variables%temperature,temp)
    call model%link_interior_data(standard_variables%practical_salinity,salt)
-   if (fabm_variable_needs_values(model,id_par)) call model%link_interior_data(id_par,par)
+   if (model%variable_needs_values(id_par)) call model%link_interior_data(id_par,par)
    call model%link_interior_data(standard_variables%pressure,current_depth)
    call model%link_interior_data(standard_variables%cell_thickness,column_depth)
    call model%link_interior_data(standard_variables%depth,current_depth)
@@ -398,37 +395,21 @@
    call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
    call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
 
-   ! Allocate memeroy to hold totals of conserved quantities
-   allocate(totals0             (size(model%conserved_quantities)))  ! at initial time (depth-integrated, interior + interfaces)
-   allocate(totals              (size(model%conserved_quantities)))  ! at current time (depth-explicit, interior only)
-   allocate(int_change_in_totals(size(model%conserved_quantities)))  ! change since start of simulation (depth-integrated, interior + interfaces)
-
    call get_conserved_quantities(totals0)
    int_change_in_totals = 0.0_rk
 
    ! Output variable values at initial time
 #ifndef NETCDF4
-    if (output_format .eq. 2) then
-       LEVEL0 'WARNING: NetCDF support not compiled in - setting output to ASCII'
-       output_format = 1
-    end if
+   if (output_format .eq. 2) then
+      LEVEL0 'WARNING: NetCDF support not compiled in - setting output to ASCII'
+      output_format = 1
+   end if
 #endif
-   if (output_format .eq. 1) then
-      LEVEL1 'init_output'
-      call init_output(start)
-      call do_output(0_timestepkind)
-   else
-#ifdef NETCDF4
-      LEVEL1 'output_manager'
-      allocate(type_fabm0d_host::output_manager_host)
-      call output_manager_init(fm,title)
 
-      LEVEL1 'field_manager'
-      call do_register_all_variables()
+   LEVEL1 'init_output'
+   call init_output(start)
 
-      call output_manager_save(julianday,secondsofday,0)
-#endif
-   endif
+   call do_output(0_timestepkind)
 
    STDERR LINE
 
@@ -622,8 +603,8 @@
       bio_albedo = 0._rk
 
       ! Calculate light extinction
-      extinction = 0.0_rk
-      if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
+      call fabm_get_light_extinction(model,extinction)
+      if (.not. apply_self_shading) extinction = 0.0_rk
       extinction = extinction + par_background_extinction
 
       ! Calculate photosynthetically active radiation at surface, if it is not provided in the input file.
@@ -721,13 +702,7 @@
       end if
 
       ! Do output
-      if (output_format .eq. 1) then
-         call do_output(n)
-      else
-#ifdef NETCDF4
-         call output_manager_save(julianday,secondsofday,int(n))
-#endif
-      end if
+      call do_output(n)
    end do
    STDERR LINE
 
@@ -764,14 +739,7 @@
    LEVEL1 'clean_up'
 
    call close_input()
-   if (output_format .eq. 1) then
-      call clean_output(ignore_errors=ignore_errors)
-   else
-#ifdef NETCDF4
-      call output_manager_clean()
-      call fm%finalize()
-#endif
-   end if
+   call clean_output(ignore_errors=ignore_errors)
 
    end subroutine clean_up
 !EOC
@@ -939,22 +907,6 @@
 
       write (stdout,'(A)') trim(message)
    end subroutine
-
-#ifdef NETCDF4
-   subroutine fabm0d_host_julian_day(self,yyyy,mm,dd,julian)
-      class (type_fabm0d_host), intent(in) :: self
-      integer, intent(in)  :: yyyy,mm,dd
-      integer, intent(out) :: julian
-      call julian_day(yyyy,mm,dd,julian)
-   end subroutine
-
-   subroutine fabm0d_host_calendar_date(self,julian,yyyy,mm,dd)
-      class (type_fabm0d_host), intent(in) :: self
-      integer, intent(in)  :: julian
-      integer, intent(out) :: yyyy,mm,dd
-      call calendar_date(julian,yyyy,mm,dd)
-   end subroutine
-#endif
 
 !-----------------------------------------------------------------------
 

@@ -46,7 +46,6 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
 add_executable (fabm0d
                 main.F90
                 fabm0d.F90
-                register_all_variables.F90
                 shared.F90
                 output.F90
                 fabm_0d.h
