@@ -10,7 +10,10 @@ scripts = glob.glob('scripts/*.py')
 
 # This part needs to be cleaned up :-)
 if sys.platform.startswith('win32'):
-    lib = 'libpython_fabm.so'
+    lib = 'python_fabm.dll'
+    pkgpath = 'pyfabm'
+    libpath = 'build/python_fabm.dll'
+    platform = 'win-x86_64'
 elif sys.platform.startswith('linux'):
     lib = 'libpython_fabm.so'
     pkgpath = 'lib/python2.7/site-packages/pyfabm'
