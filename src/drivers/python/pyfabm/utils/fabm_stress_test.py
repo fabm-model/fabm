@@ -152,15 +152,21 @@ def testExtremesRecursive(vary):
     variable.value = maximum
     testExtremesRecursive(vary[1:])
 
-if args.test is None:
-    check()
-else:
-    for test in args.test:
-       if test=='extremes_per_variable':
-          testExtremes()
-       elif test=='extremes_randomized':
-          testRandomizedExtremes()
-       elif test=='extremes_all':
-          testExtremesRecursive(vary)
-       elif test=='randomized':
-          testRandomized()
+
+def main():
+    if args.test is None:
+        check()
+    else:
+        for test in args.test:
+           if test=='extremes_per_variable':
+              testExtremes()
+           elif test=='extremes_randomized':
+              testRandomizedExtremes()
+           elif test=='extremes_all':
+              testExtremesRecursive(vary)
+           elif test=='randomized':
+              testRandomized()
+
+if __name__ == "__main__":
+    # execute only if run as a script
+    main()
