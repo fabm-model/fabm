@@ -56,6 +56,7 @@
    real(rk) :: par_fraction
    real(rk) :: par_background_extinction
    logical  :: apply_self_shading
+   integer  :: model_type
    real(rk),allocatable :: current_rhs(:)
 
    ! Shortcuts to number of state variables (interior, surface, bottom)
@@ -67,6 +68,10 @@
 
    real(rk),allocatable :: expression_data(:)
    real(rk),allocatable :: totals0(:)
+
+   real(rk),            target :: mixing_rate
+   real(rk),allocatable,target :: cc_deep(:)
+   real(rk),allocatable,target :: w(:)
 
    type (type_bulk_variable_id), save :: id_dens, id_par
    logical                            :: compute_density
@@ -181,7 +186,7 @@
    logical                   :: file_exists
    integer                   :: ios
 
-   namelist /model_setup/ title,start,stop,dt,ode_method,repair_state
+   namelist /model_setup/ title,start,stop,dt,ode_method,repair_state,model_type
    namelist /environment/ env_file,swr_method,albedo_correction, &
                           latitude,longitude,cloud,par_fraction, &
                           depth,par_background_extinction,apply_self_shading
@@ -211,6 +216,7 @@
    par_bt = 0.0_rk
    par_ct = 0.0_rk
    decimal_yearday = 0.0_rk
+   model_type = 0
 
    ! Read all namelists
    title = ''
@@ -329,6 +335,15 @@
    n_bt  = size(model%bottom_state_variables)
 
    allocate(cc(n_int+n_bt+n_sf))
+
+   if (model_type==1) then
+      call driver%log_message('The model type is set to mixed layer model (model_type = 1).')
+      call driver%log_message('Therefore, bottom-associated processes will be deactivated.')
+      allocate(cc_deep(n_int))
+      cc_deep = 0.0_rk
+      mixing_rate = 0.0_rk
+      allocate(w(n_int))
+   end if
 
    ! Allocate memeroy to hold totals of conserved quantities
    allocate(totals0             (size(model%conserved_quantities)))  ! at initial time (depth-integrated, interior + interfaces)
@@ -451,31 +466,48 @@
 
       character(len=64)                  :: variable_name
       type (type_key_value_pair),pointer :: pair
+      integer                            :: i
+      logical                            :: found
 
       pair => mapping%first
       if (associated(pair)) call driver%log_message('Forcing data specified in input.yaml:')
       do while (associated(pair))
          variable_name = trim(pair%key)
          if (variable_name=='') call driver%fatal_error('init_input_from_yaml_node','Empty variable name specified.')
-         select type (dict=>pair%value)
-            class is (type_dictionary)
-               call parse_input_variable(variable_name,dict)
-            class default
-               call fatal_error('init_input_from_yaml_node','Contents of '//trim(dict%path)//' must be a dictionary, not a single value.')
-         end select
+         found = .false.
+         if (model_type==1) then
+            select case (variable_name)
+            case ('mixed_layer_depth')
+               call parse_input_variable(pair%key,pair%value,column_depth)
+               found = .true.
+            case ('mixing_rate')
+               call parse_input_variable(pair%key,pair%value,mixing_rate)
+               found = .true.
+            case default
+               do i=1,n_int
+                  if (variable_name=='deep/'//trim(model%state_variables(i)%path)) then
+                     call parse_input_variable(pair%key,pair%value,cc_deep(i))
+                     found = .true.
+                  end if
+               end do
+            end select
+         end if
+         if (.not.found) call parse_input_variable(pair%key,pair%value)
          pair => pair%next
       end do
    end subroutine init_input_from_yaml_node
 
-   subroutine parse_input_variable(variable_name,mapping)
+   subroutine parse_input_variable(variable_name,value_node,data)
       use yaml_types
 
-      character(len=*),      intent(in) :: variable_name
-      type (type_dictionary),intent(in) :: mapping
+      character(len=*),        intent(in) :: variable_name
+      class (type_node),target,intent(in) :: value_node
+      real(rk),         target,optional   :: data
 
+      class (type_dictionary),   pointer :: mapping
       type (type_error),         pointer :: config_error
       class (type_node),         pointer :: node
-      class (type_scalar),       pointer :: scalar
+      class (type_scalar),       pointer :: constant_value_node, file_node
       character(len=1024)                :: path,message
       integer                            :: column
       real(rk)                           :: scale_factor
@@ -486,20 +518,30 @@
       type (type_bulk_variable_id)       :: interior_id
       type (type_horizontal_variable_id) :: horizontal_id
       type (type_scalar_variable_id)     :: scalar_id
+      real(rk), pointer                  :: pdata
 
-      ! Try to locate the forced variable among interior, horizontal, and global variables in the active biogeochemical models.
+      select type (value_node)
+      class is (type_dictionary)
+         mapping => value_node
+      class default
+         call fatal_error('init_input_from_yaml_node','Contents of '//trim(value_node%path)//' must be a dictionary, not a single value.')
+      end select
+
       is_state_variable = .false.
-      interior_id = fabm_get_bulk_variable_id(model,variable_name)
-      if (fabm_is_variable_used(interior_id)) then
-         is_state_variable = interior_id%variable%state_indices%value/=-1
-      else
-         horizontal_id = fabm_get_horizontal_variable_id(model,variable_name)
-         if (fabm_is_variable_used(horizontal_id)) then
-            is_state_variable = horizontal_id%variable%state_indices%value/=-1
+      if (.not.present(data)) then
+         ! Try to locate the forced variable among interior, horizontal, and global variables in the active biogeochemical models.
+         interior_id = fabm_get_bulk_variable_id(model,variable_name)
+         if (fabm_is_variable_used(interior_id)) then
+            is_state_variable = interior_id%variable%state_indices%value/=-1
          else
-            scalar_id = fabm_get_scalar_variable_id(model,variable_name)
-            if (.not.fabm_is_variable_used(scalar_id)) call log_message('WARNING! input.yaml: &
-               &Variable "'//trim(variable_name)//'" is not present in any biogeochemical  model.')
+            horizontal_id = fabm_get_horizontal_variable_id(model,variable_name)
+            if (fabm_is_variable_used(horizontal_id)) then
+               is_state_variable = horizontal_id%variable%state_indices%value/=-1
+            else
+               scalar_id = fabm_get_scalar_variable_id(model,variable_name)
+               if (.not.fabm_is_variable_used(scalar_id)) call log_message('WARNING! input.yaml: &
+                  &Variable "'//trim(variable_name)//'" is not present in any biogeochemical  model.')
+            end if
          end if
       end if
 
@@ -508,17 +550,19 @@
       input_data%next => first_input_data
       first_input_data => input_data
       input_data%variable_name = variable_name
+      pdata => input_data%value
+      if (present(data)) pdata => data
       call driver%log_message('  '//trim(input_data%variable_name)//':')
 
-      scalar => mapping%get_scalar('constant_value',required=.false.,error=config_error)
-      if (associated(scalar)) then
+      constant_value_node => mapping%get_scalar('constant_value',required=.false.,error=config_error)
+      file_node => mapping%get_scalar('file',required=.false.,error=config_error)
+      if (associated(constant_value_node)) then
          ! Input variable is set to a constant value.
-         input_data%value = mapping%get_real('constant_value',error=config_error)
+         pdata = mapping%get_real('constant_value',error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
 
          ! Make sure keys related to time-varying input are not present.
-         node => mapping%get('file')
-         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
+         if (associated(file_node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
             &keys "constant_value" and "file" cannot both be present.')
          node => mapping%get('column')
          if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
@@ -526,13 +570,9 @@
          node => mapping%get('scale_factor')
          if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
             &keys "constant_value" and "scale_factor" cannot both be present.')
-         write (message,'(g13.6)') input_data%value
+         write (message,'(g13.6)') pdata
          call driver%log_message('    constant_value: '//adjustl(message))
-      else
-         scalar => mapping%get_scalar('file',required=.false.,error=config_error)
-         if (.not.associated(scalar)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
-            &either key "constant_value" or key "file" must be present.')
-
+      elseif (associated(file_node)) then
          ! Input variable is set to a time-varying value. Obtain path, column number and scale factor.
          path = mapping%get_string('file',error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
@@ -540,12 +580,15 @@
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
          scale_factor = mapping%get_real('scale_factor',default=1.0_rk,error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
-         call register_input_0d(path,column,input_data%value,variable_name,scale_factor=scale_factor)
+         call register_input_0d(path,column,pdata,variable_name,scale_factor=scale_factor)
          call driver%log_message('    file: '//trim(path))
          write (message,'(i0)') column
          call driver%log_message('    column: '//adjustl(message))
          write (message,'(g13.6)') scale_factor
          call driver%log_message('    scale factor: '//adjustl(message))
+      else
+         call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
+            &either key "constant_value" or key "file" must be present.')
       end if
 
       if (is_state_variable) then
@@ -566,6 +609,9 @@
             &Unrecognized option "'//trim(pair%key)//'" found for variable "'//trim(variable_name)//'".')
          pair => pair%next
       end do
+
+      ! If a data pointer was provided, this variable for the host, not FABM, so return.
+      if (present(data)) return
 
       ! Link forced data to target variable.
       if (fabm_is_variable_used(interior_id)) then
@@ -877,8 +923,14 @@
    call fabm_do_surface(model,rhs(1:n_int),rhs(n_int+n_bt+1:n_int+n_bt+n_sf))
 
    ! Calculate temporal derivatives due to bottom-bound processes.
-   call update_depth(BOTTOM)
-   call fabm_do_bottom(model,rhs(1:n_int),rhs(n_int+1:n_int+n_bt))
+   select case (model_type)
+   case (0)
+      call update_depth(BOTTOM)
+      call fabm_do_bottom(model,rhs(1:n_int),rhs(n_int+1:n_int+n_bt))
+   case (1)
+      call fabm_get_vertical_movement(model,w)
+      rhs(1:n_int) = rhs(1:n_int) + mixing_rate * (cc_deep(1:n_int) - cc(1:n_int)) + w * cc(1:n_int)
+   end select
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
    rhs(1:n_int) = rhs(1:n_int)/column_depth
