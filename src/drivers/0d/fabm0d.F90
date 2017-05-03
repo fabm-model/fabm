@@ -965,5 +965,5 @@
    end module fabm_0d
 
 !-----------------------------------------------------------------------
-! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
+! Copyright Bolding & Bruggeman ApS - GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------

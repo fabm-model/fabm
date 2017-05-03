@@ -2991,5 +2991,5 @@ end subroutine abstract_model_factory_register_version
    end module fabm_types
 
 !-----------------------------------------------------------------------
-! Copyright under the GNU Public License - www.gnu.org
+! Copyright Bolding & Bruggeman ApS (GNU Public License - www.gnu.org)
 !-----------------------------------------------------------------------

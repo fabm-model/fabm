@@ -158,5 +158,5 @@
    end module fabm_python_helper
 
 !-----------------------------------------------------------------------
-! Copyright by the FABM-team under the GNU Public License - www.gnu.org
+! Copyright Bolding & Bruggeman ApS - GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
