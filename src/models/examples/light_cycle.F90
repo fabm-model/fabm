@@ -35,7 +35,7 @@ module examples_light_cycle
    call self%register_diagnostic_variable(self%id_swr_sf, 'swr_sf', 'W m-2', 'surface downward shortwave radiation', standard_variable=standard_variables%surface_downwelling_shortwave_flux, source=source_do_surface, domain=domain_surface)
    call self%get_parameter(self%swr,          'swr',          'W m-2', 'surface downward shortwave radiation during light phase', minimum=0.0_rk)
    call self%get_parameter(self%light_period, 'light_period', 'h',     'duration of light phase',                                 minimum=0.0_rk,   maximum=24._rk, scale_factor=1._rk/24._rk)
-   call self%get_parameter(self%offset,       'offset',       'h',     'start of light period (relative to midnight)',            minimum=-24.0_rk, maximum=24._rk, scale_factor=1._rk/24._rk, default=0.0_rk)
+   call self%get_parameter(self%offset,       'offset',       'h',     'start of light period (relative to midnight)',            minimum=-24.0_rk, maximum=24._rk, scale_factor=1._rk/24._rk, default=self%light_period*12)
    end subroutine initialize
 
    subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
