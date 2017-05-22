@@ -16,11 +16,22 @@ elif os.name == "posix" and sys.platform == "darwin":
 else:
    dllpaths = ('libpython_fabm.so',)
 
-# Determine name of existing FABM dynamic library.
-for dllpath in dllpaths:
-   dllpath = os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpath)
-   if os.path.isfile(dllpath): break
-else:
+def find_library(basedir):
+    for dllpath in dllpaths:
+        dllpath = os.path.join(basedir, dllpath)
+        if os.path.isfile(dllpath):
+            return dllpath
+
+# Find FABM dynamic library.
+# Look first in pyfabm directory, then in Python path.
+dllpath = find_library(os.path.dirname(os.path.abspath(__file__)))
+if not dllpath:
+    for basedir in sys.path:
+        dllpath = find_library(basedir)
+        if dllpath:
+            break
+
+if not dllpath:
    print 'Unable to locate FABM dynamic library %s.' % (' or '.join(dllpaths),)
    sys.exit(1)
 
