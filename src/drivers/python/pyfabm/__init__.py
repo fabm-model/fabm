@@ -464,8 +464,8 @@ class Model(object):
         if settings is not None: self.restoreSettings(settings)
 
         # For backward compatibility
-        self.INTERIOR_STATE_VARIABLEs = self.interior_state_variables
-        self.INTERIOR_DIAGNOSTIC_VARIABLEs = self.interior_diagnostic_variables
+        self.bulk_state_variables = self.interior_state_variables
+        self.bulk_diagnostic_variables = self.interior_diagnostic_variables
 
     def getRates(self, surface=True, bottom=True):
         """Returns the local rate of change in state variables,
