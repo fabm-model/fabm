@@ -880,6 +880,9 @@
             call flag_write_indices(self%do_bottom_environment, link%target%sms_list)
          case (domain_surface)
             call flag_write_indices(self%do_surface_environment, link%target%sms_list)
+         case (domain_horizontal)
+            call flag_write_indices(self%do_bottom_environment, link%target%sms_list)
+            call flag_write_indices(self%do_surface_environment, link%target%sms_list)
       end select
       link => link%next
    end do
