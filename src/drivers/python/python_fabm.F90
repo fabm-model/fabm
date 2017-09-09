@@ -41,6 +41,7 @@
    integer :: index_column_depth
    real(c_double),pointer :: column_depth
    type (type_link_list),save :: coupling_link_list
+   logical, save :: error_occurred = .false.
 
    type (type_property_dictionary),save,private :: forced_parameters,forced_couplings
 
@@ -187,6 +188,11 @@
       !DIR$ ATTRIBUTES DLLEXPORT :: check_ready
       call fabm_check_ready(model)
    end subroutine check_ready
+
+   integer(c_int) function get_error_state() bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_error_state
+      get_error_state = logical2int(error_occurred)
+   end function get_error_state
 
    integer(c_int) function model_count() bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: model_count
@@ -592,8 +598,9 @@
       class (type_python_driver),intent(inout) :: self
       character(len=*),          intent(in)    :: location,message
 
+      error_occurred = .true.
       write (*,*) trim(location)//': '//trim(message)
-      stop 1
+      !stop 1
    end subroutine python_driver_fatal_error
 
    subroutine python_driver_log_message(self,message)

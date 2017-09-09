@@ -56,6 +56,8 @@ fabm.get_model_metadata.argtypes = [ctypes.c_char_p,ctypes.c_int,ctypes.c_char_p
 fabm.get_model_metadata.restype = None
 fabm.get_coupling.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_void_p),ctypes.POINTER(ctypes.c_void_p)]
 fabm.get_coupling.restype = None
+fabm.get_error_state.argtypes = []
+fabm.get_error_state.restype = ctypes.c_int
 
 # Read access to variable attributes
 fabm.variable_get_metadata.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
@@ -166,6 +168,9 @@ def createPrettyUnit(unit):
     unit = supnumber.sub(replace_superscript,unit)
     #unit = oldsupminus.sub(reploldminus,unit)
     return unit
+
+def hasError():
+   return fabm.get_error_state() != 0
 
 def printTree(root,stringmapper,indent=''):
     """Print an indented tree of objects, encoded by dictionaries linking the names of children to
