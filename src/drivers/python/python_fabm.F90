@@ -599,7 +599,7 @@
       character(len=*),          intent(in)    :: location,message
 
       error_occurred = .true.
-      write (*,*) trim(location)//': '//trim(message)
+      !write (*,*) trim(location)//': '//trim(message)
       !stop 1
    end subroutine python_driver_fatal_error
 
