@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 2.8.8)
 
+if(POLICY CMP0048)
+  cmake_policy(SET CMP0048 NEW)
+endif()
+
 # List of contributing institutes that should be included in compilation.
 # When adding new institutes to the source tree, please add them here as well.
 # You can exclude institute directories from compilation by commenting them out.
