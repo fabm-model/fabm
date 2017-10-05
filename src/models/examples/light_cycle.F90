@@ -47,7 +47,7 @@ module examples_light_cycle
 
    _HORIZONTAL_LOOP_BEGIN_
       _GET_GLOBAL_(self%id_yearday,yearday)
-      if (mod(yearday-self%offset, 1.0_rk) < self%light_period) then
+      if (modulo(yearday-self%offset, 1.0_rk) < self%light_period) then
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_swr_sf, self%swr)
       else
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_swr_sf, 0.0_rk)
