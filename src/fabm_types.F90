@@ -1881,7 +1881,7 @@ end subroutine real_pointer_set_set_value
 ! !IROUTINE: Adds a scalar variable to the model and returns the link to it.
 !
 ! !INTERFACE:
-   recursive subroutine add_scalar_variable(self,name, long_name, units, missing_value, minimum, maximum, initial_value, &
+   recursive subroutine add_scalar_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
                                             background_value, standard_variable, presence, output, time_treatment, &
                                             read_index, state_index, write_index, sms_index, background, link)
 !
@@ -3257,5 +3257,5 @@ end subroutine abstract_model_factory_register_version
    end module fabm_types
 
 !-----------------------------------------------------------------------
-! Copyright under the GNU Public License - www.gnu.org
+! Copyright Bolding & Bruggeman ApS (GNU Public License - www.gnu.org)
 !-----------------------------------------------------------------------

@@ -81,4 +81,19 @@ contains
       value = logical2int(variable%output/=output_none)
    end function variable_get_output
 
+   function variable_get_real_property(pvariable,name,default) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_real_property
+      type (c_ptr), value,          intent(in) :: pvariable
+      character(kind=c_char),target,intent(in) :: name(*)
+      real(kind=c_double), value,   intent(in) :: default
+      real(kind=c_double)                      :: value
+
+      type (type_internal_variable),  pointer :: variable
+      character(len=attribute_length),pointer :: pname
+
+      call c_f_pointer(pvariable, variable)
+      call c_f_pointer(c_loc(name), pname)
+      value = variable%properties%get_real(pname(:index(pname,C_NULL_CHAR)-1),default=default)
+   end function variable_get_real_property
+
 end module fabm_c_variable

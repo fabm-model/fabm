@@ -16,11 +16,22 @@ elif os.name == "posix" and sys.platform == "darwin":
 else:
    dllpaths = ('libpython_fabm.so',)
 
-# Determine name of existing FABM dynamic library.
-for dllpath in dllpaths:
-   dllpath = os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpath)
-   if os.path.isfile(dllpath): break
-else:
+def find_library(basedir):
+    for dllpath in dllpaths:
+        dllpath = os.path.join(basedir, dllpath)
+        if os.path.isfile(dllpath):
+            return dllpath
+
+# Find FABM dynamic library.
+# Look first in pyfabm directory, then in Python path.
+dllpath = find_library(os.path.dirname(os.path.abspath(__file__)))
+if not dllpath:
+    for basedir in sys.path:
+        dllpath = find_library(basedir)
+        if dllpath:
+            break
+
+if not dllpath:
    print 'Unable to locate FABM dynamic library %s.' % (' or '.join(dllpaths),)
    sys.exit(1)
 
@@ -45,6 +56,8 @@ fabm.get_model_metadata.argtypes = [ctypes.c_char_p,ctypes.c_int,ctypes.c_char_p
 fabm.get_model_metadata.restype = None
 fabm.get_coupling.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_void_p),ctypes.POINTER(ctypes.c_void_p)]
 fabm.get_coupling.restype = None
+fabm.get_error_state.argtypes = []
+fabm.get_error_state.restype = ctypes.c_int
 
 # Read access to variable attributes
 fabm.variable_get_metadata.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
@@ -59,6 +72,8 @@ fabm.variable_get_suitable_masters.argtypes = [ctypes.c_void_p]
 fabm.variable_get_suitable_masters.restype = ctypes.c_void_p
 fabm.variable_get_output.argtypes = [ctypes.c_void_p]
 fabm.variable_get_output.restype = ctypes.c_int
+fabm.variable_get_real_property.argtypes = [ctypes.c_void_p,ctypes.c_char_p,ctypes.c_double]
+fabm.variable_get_real_property.restype = ctypes.c_double
 
 # Read/write/reset access to parameters.
 fabm.get_real_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
@@ -154,6 +169,9 @@ def createPrettyUnit(unit):
     #unit = oldsupminus.sub(reploldminus,unit)
     return unit
 
+def hasError():
+   return fabm.get_error_state() != 0
+
 def printTree(root,stringmapper,indent=''):
     """Print an indented tree of objects, encoded by dictionaries linking the names of children to
     their subtree, or to their object. Objects are finally printed as string obtained by
@@ -204,6 +222,9 @@ class Variable(object):
 
     def getOptions(self):
         pass
+
+    def getRealProperty(self, name, default=-1.0):
+        return fabm.variable_get_real_property(self.variable_pointer, name, default)
 
 class Dependency(Variable):
     def __init__(self,name,index,units=None,long_name=None):
@@ -448,8 +469,8 @@ class Model(object):
         if settings is not None: self.restoreSettings(settings)
 
         # For backward compatibility
-        self.INTERIOR_STATE_VARIABLEs = self.interior_state_variables
-        self.INTERIOR_DIAGNOSTIC_VARIABLEs = self.interior_diagnostic_variables
+        self.bulk_state_variables = self.interior_state_variables
+        self.bulk_diagnostic_variables = self.interior_diagnostic_variables
 
     def getRates(self, surface=True, bottom=True):
         """Returns the local rate of change in state variables,

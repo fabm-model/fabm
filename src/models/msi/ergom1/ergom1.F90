@@ -226,7 +226,7 @@
    call self%register_diagnostic_variable(self%id_SBR,     'SBR',     'mmol/m**2',  'sediment burial',                          output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_PBR,     'PBR',     'mmol/m**2/d','phosphorus burial',                        output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_OFL,     'OFL',     'mmol/m**2/d','oxygen surface flux',                      output=output_time_step_averaged)
-     
+
    ! Register environmental dependencies
    call self%register_dependency(self%id_par,  standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_temp, standard_variables%temperature)
@@ -324,9 +324,9 @@
 
     ! Cyanobacteria uptake
     if (self%nitrogen_fixation) then
-       nlim = ntemp / (self%alphab * self%alphab + ntemp) ! MiMe eq. for IN
-    else
        nlim = 1.0_rk
+    else
+       nlim = ntemp / (self%alphab * self%alphab + ntemp) ! MiMe eq. for IN
     end if
     plim = ptemp / (self%alphab * self%alphab * self%rfr * self%rfr + ptemp) ! MiMe for IP
     rb = min(nlim, plim, ppi) !Liebig's law: IP,light. No dependence on IN for cyanos.
@@ -411,14 +411,13 @@
   _SET_DIAGNOSTIC_(self%id_bb_chla, (bb * 9.5 + 2.1)/self%Yc_cyan)
   _SET_DIAGNOSTIC_(self%id_tot_chla, (pp * 9.5 + 2.1)/self%Yc_diat + (ff * 9.5 + 2.1)/self%Yc_flag + (bb * 9.5 + 2.1)/self%Yc_cyan)
   _SET_DIAGNOSTIC_(self%id_dPAR,par)
-  _SET_DIAGNOSTIC_(self%id_GPP ,rp + rf)
-  _SET_DIAGNOSTIC_(self%id_NCP ,rp + rf + rb - lpn * phyto)
-  _SET_DIAGNOSTIC_(self%id_PPR ,(rp + rf + rb) * secs_per_day)
-  _SET_DIAGNOSTIC_(self%id_NPR ,(rp + rf + rb - lpn*phyto) * secs_per_day)
+  _SET_DIAGNOSTIC_(self%id_GPP ,rp * ppg + rf * ffg)
+  _SET_DIAGNOSTIC_(self%id_NCP ,rp * ppg + rf * ffg + rb * bbg - lpn * phyto)
+  _SET_DIAGNOSTIC_(self%id_PPR ,(rp * ppg + rf * ffg + rb * bbg) * secs_per_day)
+  _SET_DIAGNOSTIC_(self%id_NPR ,(rp * ppg + rf * ffg + rb * bbg - lpn*phyto) * secs_per_day)
   _SET_DIAGNOSTIC_(self%id_NFX, rb * bbg * secs_per_day)
   _SET_DIAGNOSTIC_(self%id_DNP, (ldn_N * ldn *dd + ade) * secs_per_day)
-  
-  
+
    ! Leave spatial loops (if any)
    _LOOP_END_
 

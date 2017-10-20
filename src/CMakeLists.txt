@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 2.8.8)
 
+if(POLICY CMP0048)
+  cmake_policy(SET CMP0048 NEW)
+endif()
+
 # List of contributing institutes that should be included in compilation.
 # When adding new institutes to the source tree, please add them here as well.
 # You can exclude institute directories from compilation by commenting them out.
@@ -66,11 +70,17 @@ foreach(institute ${FABM_INSTITUTES})
 
   if(FABM_${INSTITUTE_UC}_BASE)
     # Either a custom institute directory has been specified, or the default institute directory exists.
-    set(FABM_LIBRARY_USE "${FABM_LIBRARY_USE}
-   use ${institute}_model_library")
-    set(FABM_LIBRARY_ADD "${FABM_LIBRARY_ADD}
-      call self%add(${institute}_model_factory,'${institute}')")
-    set(ACTIVE_INSTITUTES ${ACTIVE_INSTITUTES} ${institute})
+    if (EXISTS "${FABM_${INSTITUTE_UC}_BASE}")
+      # The institute directory exists
+      set(FABM_LIBRARY_USE "${FABM_LIBRARY_USE}
+    use ${institute}_model_library")
+      set(FABM_LIBRARY_ADD "${FABM_LIBRARY_ADD}
+        call self%add(${institute}_model_factory,'${institute}')")
+      set(ACTIVE_INSTITUTES ${ACTIVE_INSTITUTES} ${institute})
+    elseif(NOT FABM_${INSTITUTE_UC}_BASE STREQUAL DEFAULT_INSTITUTE_BASE)
+      # The institute directory does not exist and it was explicitly specified (because different from default).
+      message(FATAL_ERROR "Source directory ${FABM_${INSTITUTE_UC}_BASE} specified for institute ${institute} not found.")
+    endif()
   else()
     #message(STATUS "${institute} will not be compiled because FABM_${INSTITUTE_UC}_BASE is not set. Please visit http://fabm.net/${institute} for more information.")
   endif()

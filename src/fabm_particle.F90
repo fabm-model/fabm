@@ -282,6 +282,7 @@ module fabm_particle
             ! Find starting position of local name (excluding any preprended path components)
             istart = index(model_master_name%value,'/',.true.)+1
 
+            source_model => null()
             reference2 => null()
             if (istart==1) then
                ! No slash in path; search model references within current model
@@ -298,17 +299,19 @@ module fabm_particle
             end if
 
             ! Search model references
-            reference2 => source_model%first_model_reference
-            do while (associated(reference2))
-               if (model_master_name%value(istart:)==reference2%name) then
-                  reference%model => source_model%resolve_model_reference(reference2)
-                  exit
-               end if
-               reference2 => reference2%next
-            end do
+            if (associated(source_model)) then
+               reference2 => source_model%first_model_reference
+               do while (associated(reference2))
+                  if (model_master_name%value(istart:)==reference2%name) then
+                     reference%model => source_model%resolve_model_reference(reference2)
+                     exit
+                  end if
+                  reference2 => reference2%next
+               end do
+            end if
          end if
 
-         if (.not.associated(reference%model)) call self%fatal_error('resolve_model_reference','Referenced model "'//trim(model_master_name%value)//'" not found.')
+         if (.not.associated(reference%model)) call self%fatal_error('resolve_model_reference','Referenced model instance "'//trim(model_master_name%value)//'" not found.')
       end select
 
       reference%state = done

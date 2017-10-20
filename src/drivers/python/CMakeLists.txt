@@ -63,6 +63,12 @@ else()
 endif()
 message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
 
+add_custom_command(OUTPUT wheel.stamp POST_BUILD COMMAND pip2 wheel ${PROJECT_SOURCE_DIR} DEPENDS python_fabm VERBATIM)
+
+add_custom_target(wheel DEPENDS wheel.stamp)
+
+#KB add_custom_target(wheel_upload COMMAND cp *.whl /tmp DEPENDS wheel) # I think it is called twine
+
 install(TARGETS python_fabm
   DESTINATION pyfabm)
 install(DIRECTORY pyfabm/
