@@ -8,3 +8,5 @@ The command below will save to the data to the *CO2.dat* file.
 
 ./mouna_loa2gotm.py  > CO2.dat
 
+Please read and acknowledge the section "USE OF NOAA ESRL DATA" in the original data file.
+
