@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 
+def get_file(fn):
+    from ftplib import FTP
+
+    ftp = FTP('aftp.cmdl.noaa.gov')
+    ftp.login()
+    ftp.cwd('products/trends/co2')
+    ftp.retrbinary('RETR co2_mm_mlo.txt', open(fn , 'wb').write)
+    return
+
 def read_file(fn):
     with open(fn,'rU') as f:
         while 1:
@@ -15,10 +24,11 @@ def read_file(fn):
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description='Convert Mauna Loa CO2 data to GOTM format')
-    parser.add_argument('obs', type=str, help='Data file downloaded from: ftp://aftp.cmdl.noaa.gov/products/trends/co2/co2_mm_mlo.txt')
+    parser = argparse.ArgumentParser(description="Convert Mauna Loa CO2 data to GOTM format. Data are downloaded automatically via ftp.")
     args = parser.parse_args()
-    read_file(args.obs)
+    fn = 'co2_mm_mlo.txt'
+    get_file(fn)
+    read_file(fn)
 
 if __name__ == "__main__":
     main()
