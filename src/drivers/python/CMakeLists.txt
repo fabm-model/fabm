@@ -19,6 +19,10 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
   endif()
 endif()
 
+if(MSVC)
+  add_compile_options("/libs:static")
+endif()
+
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST python)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
