@@ -66,11 +66,6 @@
       call copy_to_c_string(string, version_string)
    end subroutine get_version
 
-   subroutine initialize_library() bind(c)
-!DIR$ ATTRIBUTES DLLEXPORT :: initialize_library
-      call fabm_initialize_library()
-    end subroutine initialize_library
-
 !-----------------------------------------------------------------------
 !BOP
 !

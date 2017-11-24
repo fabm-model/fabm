@@ -507,6 +507,7 @@
 
       type (type_version),pointer :: version
 
+      call fabm_initialize_library()
       string = git_commit_id//' ('//git_branch_name//' branch)'
       version => first_module_version
       do while (associated(version))
