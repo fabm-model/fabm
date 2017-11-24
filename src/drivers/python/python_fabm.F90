@@ -57,15 +57,19 @@
 
    subroutine get_version(length,version_string) bind(c)
 !DIR$ ATTRIBUTES DLLEXPORT :: get_version
-      use fabm_version, only: fabm_commit_id=>git_commit_id, &
-                              fabm_branch_name=>git_branch_name
-
       integer(c_int),value,intent(in) :: length
       character(kind=c_char)          :: version_string(length)
 
-      call copy_to_c_string(fabm_commit_id//' ('//fabm_branch_name//' branch)', version_string)
+      character(len=length-1) :: string
+
+      call fabm_get_version(string)
+      call copy_to_c_string(string, version_string)
    end subroutine get_version
 
+   subroutine initialize_library() bind(c)
+!DIR$ ATTRIBUTES DLLEXPORT :: initialize_library
+      call fabm_initialize_library()
+    end subroutine initialize_library
 
 !-----------------------------------------------------------------------
 !BOP

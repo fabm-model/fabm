@@ -36,7 +36,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public fabm_initialize_library, type_model, fabm_create_model_from_file
+   public fabm_initialize_library, type_model, fabm_create_model_from_file, fabm_get_version
    public fabm_initialize, fabm_finalize, fabm_set_domain, fabm_check_ready, fabm_update_time
    public fabm_initialize_state, fabm_initialize_surface_state, fabm_initialize_bottom_state
 
@@ -499,6 +499,21 @@
       factory => fabm_model_factory
       call factory%initialize()
    end subroutine fabm_initialize_library
+
+   subroutine fabm_get_version(string)
+      use fabm_version
+
+      character(len=*), intent(out) :: string
+
+      type (type_version),pointer :: version
+
+      string = git_commit_id//' ('//git_branch_name//' branch)'
+      version => first_module_version
+      do while (associated(version))
+         string = trim(string)//', '//trim(version%module_name)//': '//trim(version%version_string)
+         version => version%next
+      end do
+   end subroutine fabm_get_version
 
 !-----------------------------------------------------------------------
 !BOP
