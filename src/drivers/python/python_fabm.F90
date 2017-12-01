@@ -394,30 +394,32 @@
       call fabm_link_bottom_state_data(model,index,value)
    end subroutine link_bottom_state_data
 
-   subroutine get_rates(pelagic_rates_, do_surface, do_bottom) bind(c)
+   subroutine get_rates(rates_, do_surface, do_bottom) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_rates
-      real(c_double),target,intent(in) :: pelagic_rates_(*)
+      real(c_double),target,intent(in) :: rates_(*)
       integer(c_int),value, intent(in) :: do_surface, do_bottom
 
-      real(c_double),pointer :: pelagic_rates(:)
+      real(c_double),pointer :: rates(:)
       real(rk)               :: ext
 
-      call fabm_get_light_extinction(model,ext)
-      call fabm_get_light(model)
-      call c_f_pointer(c_loc(pelagic_rates_),pelagic_rates, &
+      call c_f_pointer(c_loc(rates_),rates, &
         (/size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)/))
-      pelagic_rates = 0.0_rk
-      if (int2logical(do_surface)) call fabm_do_surface(model,pelagic_rates(1:size(model%state_variables)), &
-         pelagic_rates(size(model%state_variables)+1:size(model%state_variables)+size(model%surface_state_variables)))
-      if (int2logical(do_bottom)) call fabm_do_bottom(model,pelagic_rates(1:size(model%state_variables)), &
-         pelagic_rates(size(model%state_variables)+size(model%surface_state_variables)+1:))
+
+      call fabm_get_light_extinction(model, ext)
+      call fabm_get_light(model)
+
+      rates = 0.0_rk
+      if (int2logical(do_surface)) call fabm_do_surface(model, rates(1:size(model%state_variables)), &
+         rates(size(model%state_variables)+1:size(model%state_variables)+size(model%surface_state_variables)))
+      if (int2logical(do_bottom)) call fabm_do_bottom(model, rates(1:size(model%state_variables)), &
+         rates(size(model%state_variables)+size(model%surface_state_variables)+1:))
       if (int2logical(do_surface) .or. int2logical(do_bottom)) then
          if (.not.associated(column_depth)) call driver%fatal_error('get_rates', &
             'Value for environmental dependency '//trim(environment_names(index_column_depth))// &
             ' must be provided if get_rates is called with the do_surface and/or do_bottom flags.')
-         pelagic_rates(1:size(model%state_variables)) = pelagic_rates(1:size(model%state_variables))/column_depth
+         rates(1:size(model%state_variables)) = rates(1:size(model%state_variables))/column_depth
       end if
-      call fabm_do(model,pelagic_rates(1:size(model%state_variables)))
+      call fabm_do(model, rates(1:size(model%state_variables)))
 
       ! Compute rate of change in conserved quantities
       !call fabm_state_to_conserved_quantities(model,pelagic_rates,conserved_rates)
@@ -426,6 +428,76 @@
       !call fabm_state_to_conserved_quantities(model,abs(pelagic_rates),abs_conserved_rates)
       !where (abs_conserved_rates>0.0_rk) conserved_rates = conserved_rates/abs_conserved_rates
    end subroutine get_rates
+
+   function check_state(repair_) bind(c) result(valid_)
+      !DIR$ ATTRIBUTES DLLEXPORT :: check_state
+      integer(c_int),value, intent(in) :: repair_
+      integer(c_int)                   :: valid_
+
+      logical :: repair, interior_valid, surface_valid, bottom_valid
+
+      repair = int2logical(repair_)
+      call fabm_check_state(model, repair, interior_valid)
+      call fabm_check_surface_state(model, repair, surface_valid)
+      call fabm_check_bottom_state(model, repair, bottom_valid)
+      valid_ = logical2int(interior_valid .and. surface_valid .and. bottom_valid)
+   end function check_state
+
+   subroutine integrate(nt, ny, t_, y_ini_, y_, dt, do_surface, do_bottom) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: integrate
+      integer(c_int),value, intent(in) :: nt, ny
+      real(c_double),target,intent(in) :: t_(*), y_ini_(*), y_(*)
+      real(c_double),value, intent(in) :: dt
+      integer(c_int),value, intent(in) :: do_surface, do_bottom
+
+      real(c_double),pointer :: t(:), y_ini(:), y(:,:)
+      integer                :: it
+      real(rk)               :: t_cur
+      real(rk), target       :: y_cur(ny)
+      real(rk)               :: rates(ny)
+      real(rk)               :: ext
+      logical                :: surface, bottom
+
+      if (ny /= size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)) &
+          call driver%fatal_error('integrate', 'ny is wrong length')
+
+      call c_f_pointer(c_loc(t_), t, (/nt/))
+      call c_f_pointer(c_loc(y_ini_), y_ini, (/ny/))
+      call c_f_pointer(c_loc(y_), y, (/ny, nt/))
+
+      surface = int2logical(do_surface)
+      bottom = int2logical(do_bottom)
+      if (surface .or. bottom) then
+          if (.not.associated(column_depth)) call driver%fatal_error('get_rates', &
+            'Value for environmental dependency '//trim(environment_names(index_column_depth))// &
+            ' must be provided if integrate is called with the do_surface and/or do_bottom flags.')
+      end if
+      call model%link_all_interior_state_data(y_cur(1:size(model%state_variables)))
+      call model%link_all_surface_state_data(y_cur(size(model%state_variables)+1:size(model%state_variables)+size(model%surface_state_variables)))
+      call model%link_all_bottom_state_data(y_cur(size(model%state_variables)+size(model%surface_state_variables)+1:))
+
+      it = 1
+      t_cur = t(1)
+      y_cur = y_ini
+      do while (it <= nt)
+          if (t_cur >= t(it)) then
+              y(:, it) = y_cur
+              it = it + 1
+          end if
+
+          call fabm_get_light_extinction(model, ext)
+          call fabm_get_light(model)
+          rates = 0.0_rk
+          if (surface) call fabm_do_surface(model, rates(1:size(model%state_variables)), &
+             rates(size(model%state_variables)+1:size(model%state_variables)+size(model%surface_state_variables)))
+          if (bottom) call fabm_do_bottom(model, rates(1:size(model%state_variables)), &
+             rates(size(model%state_variables)+size(model%surface_state_variables)+1:))
+          if (surface .or. bottom) rates(1:size(model%state_variables)) = rates(1:size(model%state_variables))/column_depth
+          call fabm_do(model, rates(1:size(model%state_variables)))
+          y_cur = y_cur + dt*rates*86400
+          t_cur = t_cur + dt
+      end do
+   end subroutine integrate
 
    subroutine get_interior_diagnostic_data(index,ptr) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_interior_diagnostic_data

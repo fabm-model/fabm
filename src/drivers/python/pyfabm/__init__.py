@@ -125,6 +125,10 @@ fabm.check_ready.restype = None
 # Routine for retrieving source-sink terms for the interior domain.
 fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS'), ctypes.c_int, ctypes.c_int]
 fabm.get_rates.restype = None
+fabm.check_state.argtypes = [ctypes.c_int]
+fabm.check_state.restype = ctypes.c_int
+fabm.integrate.argtypes = [ctypes.c_int, ctypes.c_int, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS'), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS'), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=2, flags='CONTIGUOUS'), ctypes.c_double, ctypes.c_int, ctypes.c_int]
+fabm.integrate.restype = None
 
 # Routine for getting git repository version information.
 fabm.get_version.argtypes = (ctypes.c_int,ctypes.c_char_p)
@@ -480,6 +484,9 @@ class Model(object):
         fabm.get_rates(localrates, surface, bottom)
         return localrates
 
+    def checkState(self, repair=False):
+        return fabm.check_state(repair) != 0
+
     def getJacobian(self,pert=None):
         # Define perturbation per state variable.
         y_pert = numpy.empty_like(self.state)
@@ -571,6 +578,15 @@ class Model(object):
         printArray('external variables',self.dependencies)
         print ' %i parameters:' % len(self.parameters)
         printTree(self.getParameterTree(),lambda x:'%s %s' % (x.value,x.units),'    ')
+
+class Simulator(object):
+    def __init__(self, model):
+        self.model = model
+
+    def integrate(self, y0, t, dt, surface=True, bottom=True):
+        y = numpy.empty((t.size, self.model.state.size))
+        fabm.integrate(t.size, self.model.state.size, t, y0, y, dt, surface, bottom)
+        return y
 
 def get_version():
     version_length = 256
