@@ -473,8 +473,9 @@
             ' must be provided if integrate is called with the do_surface and/or do_bottom flags.')
       end if
       call model%link_all_interior_state_data(y_cur(1:size(model%state_variables)))
-      call model%link_all_surface_state_data(y_cur(size(model%state_variables)+1:size(model%state_variables)+size(model%surface_state_variables)))
-      call model%link_all_bottom_state_data(y_cur(size(model%state_variables)+size(model%surface_state_variables)+1:))
+      call model%link_all_surface_state_data(y_cur(size(model%state_variables) + 1: &
+         size(model%state_variables) + size(model%surface_state_variables)))
+      call model%link_all_bottom_state_data(y_cur(size(model%state_variables) + size(model%surface_state_variables) + 1:))
 
       it = 1
       t_cur = t(1)
