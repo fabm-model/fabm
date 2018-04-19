@@ -68,7 +68,23 @@
 
    integer, parameter, public :: domain_interior = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
 
-   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5, source_get_vertical_movement = 6, source_do_horizontal = 7
+   integer, parameter, public :: source_unknown                  =  0, &
+                                 source_do                       =  1, &
+                                 source_do_column                =  2, &
+                                 source_do_horizontal            =  3, &
+                                 source_do_bottom                =  4, &
+                                 source_do_surface               =  5, &
+                                 source_none                     =  6, &
+                                 source_get_vertical_movement    =  7, &
+                                 source_initialize_state         =  8, &
+                                 source_initialize_surface_state =  9, &
+                                 source_initialize_bottom_state  = 10, &
+                                 source_check_state              = 11, &
+                                 source_check_surface_state      = 12, &
+                                 source_check_bottom_state       = 13, &
+                                 source_get_light_extinction     = 14, &
+                                 source_get_drag                 = 15, &
+                                 source_get_albedo               = 16
 
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
 
@@ -2975,5 +2991,5 @@ end subroutine abstract_model_factory_register_version
    end module fabm_types
 
 !-----------------------------------------------------------------------
-! Copyright under the GNU Public License - www.gnu.org
+! Copyright Bolding & Bruggeman ApS (GNU Public License - www.gnu.org)
 !-----------------------------------------------------------------------

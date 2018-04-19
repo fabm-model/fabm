@@ -6,8 +6,8 @@ module examples_model_library
    use examples_duplicator
    use examples_mean
    use examples_npzd_model_library
-   use examples_npzd_f2003
    use nonlocal
+   use examples_light_cycle
    ! Add new examples modules here
 
    implicit none
@@ -43,9 +43,9 @@ contains
          case ('benthic_predator');      allocate(type_examples_benthic_predator::model)
          case ('duplicator');            allocate(type_examples_duplicator::model)
          case ('mean');                  allocate(type_examples_mean::model)
-         case ('npzd_f2003');            allocate(type_examples_npzd_f2003::model)
          case ('depth_integral');        allocate(type_depth_integral::model)
          case ('vertical_distribution'); allocate(type_vertical_distribution::model)
+         case ('light_cycle');           allocate(type_examples_light_cycle::model)
          ! Add individual example models here
          case default
             call self%type_base_model_factory%create(name,model)

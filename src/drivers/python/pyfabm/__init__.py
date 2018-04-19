@@ -16,11 +16,22 @@ elif os.name == "posix" and sys.platform == "darwin":
 else:
    dllpaths = ('libpython_fabm.so',)
 
-# Determine name of existing FABM dynamic library.
-for dllpath in dllpaths:
-   dllpath = os.path.join(os.path.dirname(os.path.abspath(__file__)),dllpath)
-   if os.path.isfile(dllpath): break
-else:
+def find_library(basedir):
+    for dllpath in dllpaths:
+        dllpath = os.path.join(basedir, dllpath)
+        if os.path.isfile(dllpath):
+            return dllpath
+
+# Find FABM dynamic library.
+# Look first in pyfabm directory, then in Python path.
+dllpath = find_library(os.path.dirname(os.path.abspath(__file__)))
+if not dllpath:
+    for basedir in sys.path:
+        dllpath = find_library(basedir)
+        if dllpath:
+            break
+
+if not dllpath:
    print 'Unable to locate FABM dynamic library %s.' % (' or '.join(dllpaths),)
    sys.exit(1)
 
@@ -45,6 +56,8 @@ fabm.get_model_metadata.argtypes = [ctypes.c_char_p,ctypes.c_int,ctypes.c_char_p
 fabm.get_model_metadata.restype = None
 fabm.get_coupling.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_void_p),ctypes.POINTER(ctypes.c_void_p)]
 fabm.get_coupling.restype = None
+fabm.get_error_state.argtypes = []
+fabm.get_error_state.restype = ctypes.c_int
 
 # Read access to variable attributes
 fabm.variable_get_metadata.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
@@ -59,6 +72,8 @@ fabm.variable_get_suitable_masters.argtypes = [ctypes.c_void_p]
 fabm.variable_get_suitable_masters.restype = ctypes.c_void_p
 fabm.variable_get_output.argtypes = [ctypes.c_void_p]
 fabm.variable_get_output.restype = ctypes.c_int
+fabm.variable_get_real_property.argtypes = [ctypes.c_void_p,ctypes.c_char_p,ctypes.c_double]
+fabm.variable_get_real_property.restype = ctypes.c_double
 
 # Read/write/reset access to parameters.
 fabm.get_real_parameter.argtypes = [ctypes.c_int,ctypes.c_int]
@@ -89,8 +104,8 @@ fabm.link_list_finalize.argtypes = [ctypes.c_void_p]
 fabm.link_list_finalize.restype = None
 
 # Routines for sending pointers to state and dependency data.
-fabm.link_bulk_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
-fabm.link_bulk_state_data.restype = None
+fabm.link_interior_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
+fabm.link_interior_state_data.restype = None
 fabm.link_surface_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
 fabm.link_surface_state_data.restype = None
 fabm.link_bottom_state_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_double)]
@@ -99,8 +114,8 @@ fabm.link_dependency_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_doubl
 fabm.link_dependency_data.restype = None
 
 # Read access to diagnostic data.
-fabm.get_bulk_diagnostic_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
-fabm.get_bulk_diagnostic_data.restype = None
+fabm.get_interior_diagnostic_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
+fabm.get_interior_diagnostic_data.restype = None
 fabm.get_horizontal_diagnostic_data.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
 fabm.get_horizontal_diagnostic_data.restype = None
 
@@ -108,17 +123,21 @@ fabm.check_ready.argtypes = []
 fabm.check_ready.restype = None
 
 # Routine for retrieving source-sink terms for the interior domain.
-fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS')]
+fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS'), ctypes.c_int, ctypes.c_int]
 fabm.get_rates.restype = None
+fabm.check_state.argtypes = [ctypes.c_int]
+fabm.check_state.restype = ctypes.c_int
+fabm.integrate.argtypes = [ctypes.c_int, ctypes.c_int, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS'), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS'), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=2, flags='CONTIGUOUS'), ctypes.c_double, ctypes.c_int, ctypes.c_int]
+fabm.integrate.restype = None
 
 # Routine for getting git repository version information.
 fabm.get_version.argtypes = (ctypes.c_int,ctypes.c_char_p)
 fabm.get_version.restype = None
 
-BULK_STATE_VARIABLE            = 1
+INTERIOR_STATE_VARIABLE        = 1
 SURFACE_STATE_VARIABLE         = 2
 BOTTOM_STATE_VARIABLE          = 3
-BULK_DIAGNOSTIC_VARIABLE       = 4
+INTERIOR_DIAGNOSTIC_VARIABLE   = 4
 HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
 CONSERVED_QUANTITY             = 6
 ATTRIBUTE_LENGTH               = 256
@@ -153,6 +172,9 @@ def createPrettyUnit(unit):
     unit = supnumber.sub(replace_superscript,unit)
     #unit = oldsupminus.sub(reploldminus,unit)
     return unit
+
+def hasError():
+   return fabm.get_error_state() != 0
 
 def printTree(root,stringmapper,indent=''):
     """Print an indented tree of objects, encoded by dictionaries linking the names of children to
@@ -205,6 +227,9 @@ class Variable(object):
     def getOptions(self):
         pass
 
+    def getRealProperty(self, name, default=-1.0):
+        return fabm.variable_get_real_property(self.variable_pointer, name, default)
+
 class Dependency(Variable):
     def __init__(self,name,index,units=None,long_name=None):
         if long_name is None: long_name = name
@@ -251,7 +276,7 @@ class DiagnosticVariable(Variable):
         if horizontal:
             fabm.get_horizontal_diagnostic_data(index+1,ctypes.byref(pdata))
         else:
-            fabm.get_bulk_diagnostic_data(index+1,ctypes.byref(pdata))
+            fabm.get_interior_diagnostic_data(index+1,ctypes.byref(pdata))
         self.data = pdata.contents
 
     def getValue(self):
@@ -377,27 +402,27 @@ class Model(object):
 
     def updateConfiguration(self,settings=None):
         # Get number of model variables per category
-        nstate_bulk = ctypes.c_int()
+        nstate_interior = ctypes.c_int()
         nstate_surface = ctypes.c_int()
         nstate_bottom = ctypes.c_int()
-        ndiag_bulk = ctypes.c_int()
+        ndiag_interior = ctypes.c_int()
         ndiag_horizontal = ctypes.c_int()
         nconserved = ctypes.c_int()
         ndependencies = ctypes.c_int()
         nparameters = ctypes.c_int()
         ncouplings = ctypes.c_int()
-        fabm.get_counts(ctypes.byref(nstate_bulk),ctypes.byref(nstate_surface),ctypes.byref(nstate_bottom),
-                                 ctypes.byref(ndiag_bulk),ctypes.byref(ndiag_horizontal),
+        fabm.get_counts(ctypes.byref(nstate_interior),ctypes.byref(nstate_surface),ctypes.byref(nstate_bottom),
+                                 ctypes.byref(ndiag_interior),ctypes.byref(ndiag_horizontal),
                                  ctypes.byref(nconserved),ctypes.byref(ndependencies),ctypes.byref(nparameters),ctypes.byref(ncouplings))
 
         # Allocate memory for state variable values, and send ctypes.pointer to this memory to FABM.
-        self.state = numpy.empty((nstate_bulk.value+nstate_surface.value+nstate_bottom.value,),dtype=float)
-        for i in range(nstate_bulk.value):
-            fabm.link_bulk_state_data(i+1,self.state[i:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
+        self.state = numpy.empty((nstate_interior.value+nstate_surface.value+nstate_bottom.value,),dtype=float)
+        for i in range(nstate_interior.value):
+            fabm.link_interior_state_data(i+1,self.state[i:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
         for i in range(nstate_surface.value):
-            fabm.link_surface_state_data(i+1,self.state[i+nstate_bulk.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
+            fabm.link_surface_state_data(i+1,self.state[i+nstate_interior.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
         for i in range(nstate_bottom.value):
-            fabm.link_bottom_state_data(i+1,self.state[i+nstate_bulk.value+nstate_surface.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
+            fabm.link_bottom_state_data(i+1,self.state[i+nstate_interior.value+nstate_surface.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
 
         # Retrieve variable metadata
         strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
@@ -414,17 +439,17 @@ class Model(object):
         self.conserved_quantities = []
         self.parameters = []
         self.dependencies = []
-        for i in range(nstate_bulk.value):
-            ptr = fabm.get_variable(BULK_STATE_VARIABLE,i+1)
+        for i in range(nstate_interior.value):
+            ptr = fabm.get_variable(INTERIOR_STATE_VARIABLE,i+1)
             self.interior_state_variables.append(StateVariable(ptr,self.state,i))
         for i in range(nstate_surface.value):
             ptr = fabm.get_variable(SURFACE_STATE_VARIABLE,i+1)
-            self.surface_state_variables.append(StateVariable(ptr,self.state,nstate_bulk.value+i))
+            self.surface_state_variables.append(StateVariable(ptr,self.state,nstate_interior.value+i))
         for i in range(nstate_bottom.value):
             ptr = fabm.get_variable(BOTTOM_STATE_VARIABLE,i+1)
-            self.bottom_state_variables.append(StateVariable(ptr,self.state,nstate_bulk.value+nstate_surface.value+i))
-        for i in range(ndiag_bulk.value):
-            ptr = fabm.get_variable(BULK_DIAGNOSTIC_VARIABLE,i+1)
+            self.bottom_state_variables.append(StateVariable(ptr,self.state,nstate_interior.value+nstate_surface.value+i))
+        for i in range(ndiag_interior.value):
+            ptr = fabm.get_variable(INTERIOR_DIAGNOSTIC_VARIABLE,i+1)
             self.interior_diagnostic_variables.append(DiagnosticVariable(ptr,i,False))
         for i in range(ndiag_horizontal.value):
             ptr = fabm.get_variable(HORIZONTAL_DIAGNOSTIC_VARIABLE,i+1)
@@ -451,13 +476,16 @@ class Model(object):
         self.bulk_state_variables = self.interior_state_variables
         self.bulk_diagnostic_variables = self.interior_diagnostic_variables
 
-    def getRates(self):
+    def getRates(self, surface=True, bottom=True):
         """Returns the local rate of change in state variables,
         given the current state and environment.
         """
         localrates = numpy.empty_like(self.state)
-        fabm.get_rates(localrates)
+        fabm.get_rates(localrates, surface, bottom)
         return localrates
+
+    def checkState(self, repair=False):
+        return fabm.check_state(repair) != 0
 
     def getJacobian(self,pert=None):
         # Define perturbation per state variable.
@@ -550,6 +578,15 @@ class Model(object):
         printArray('external variables',self.dependencies)
         print ' %i parameters:' % len(self.parameters)
         printTree(self.getParameterTree(),lambda x:'%s %s' % (x.value,x.units),'    ')
+
+class Simulator(object):
+    def __init__(self, model):
+        self.model = model
+
+    def integrate(self, y0, t, dt, surface=True, bottom=True):
+        y = numpy.empty((t.size, self.model.state.size))
+        fabm.integrate(t.size, self.model.state.size, t, y0, y, dt, surface, bottom)
+        return y
 
 def get_version():
     version_length = 256

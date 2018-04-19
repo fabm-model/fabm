@@ -22,4 +22,7 @@ module shared
    end type
    type (type_input_data), pointer, save :: first_input_data => null()
 
+   logical :: compute_conserved_quantities
+   real(rk), allocatable, dimension(:) :: totals,int_change_in_totals
+
 end module

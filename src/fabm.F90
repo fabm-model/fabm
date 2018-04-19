@@ -36,7 +36,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public fabm_initialize_library, type_model, fabm_create_model_from_file
+   public fabm_initialize_library, type_model, fabm_create_model_from_file, fabm_get_version
    public fabm_initialize, fabm_finalize, fabm_set_domain, fabm_check_ready, fabm_update_time
    public fabm_initialize_state, fabm_initialize_surface_state, fabm_initialize_bottom_state
 
@@ -500,6 +500,22 @@
       call factory%initialize()
    end subroutine fabm_initialize_library
 
+   subroutine fabm_get_version(string)
+      use fabm_version
+
+      character(len=*), intent(out) :: string
+
+      type (type_version),pointer :: version
+
+      call fabm_initialize_library()
+      string = git_commit_id//' ('//git_branch_name//' branch)'
+      version => first_module_version
+      do while (associated(version))
+         string = trim(string)//', '//trim(version%module_name)//': '//trim(version%version_string)
+         version => version%next
+      end do
+   end subroutine fabm_get_version
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -879,6 +895,9 @@
          case (domain_bottom)
             call flag_write_indices(self%do_bottom_environment, link%target%sms_list)
          case (domain_surface)
+            call flag_write_indices(self%do_surface_environment, link%target%sms_list)
+         case (domain_horizontal)
+            call flag_write_indices(self%do_bottom_environment, link%target%sms_list)
             call flag_write_indices(self%do_surface_environment, link%target%sms_list)
       end select
       link => link%next
@@ -4281,10 +4300,7 @@ contains
       real(rk) :: weight_right,frac_outside
 
       if (expression%ioldest==-1) then
-         ! Start of simulation; set entire history equal to current value.
-         do i=1,expression%n+3
-            expression%history(_PREARG_LOCATION_DIMENSIONS_ i) = self%data(expression%in)%p
-         end do
+         ! Start of simulation
          expression%next_save_time = t + expression%period/expression%n
          expression%ioldest = 1
       end if
@@ -4293,8 +4309,8 @@ contains
          weight_right = (expression%next_save_time-expression%last_time)/(t-expression%last_time)
 
          ! For temporal means:
-         ! - remove contribution of oldest point from historical mean
-         ! - linearly interpolate to desired time
+         ! - remove contribution of oldest point from historical mean (@ n + 2)
+         ! - linearly interpolate to desired time (@ ioldest), by computing a weighted mean of the current value (data(expression%in)%p) and the previous value (@ n + 1)
          ! - add contribution of new point to historical mean
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
             - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
@@ -4306,20 +4322,39 @@ contains
          ! Compute next time for which we want to store output
          expression%next_save_time = expression%next_save_time + expression%period/expression%n
 
+         ! If we just completed the first entire history, compute the running mean and record that it is now valid.
+         if (expression%ioldest == expression%n .and. .not. expression%valid) then
+            expression%valid = .true.
+            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = 0.0_rk
+            do i=1,expression%n
+               expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) + expression%history(_PREARG_LOCATION_DIMENSIONS_ i)
+            end do
+            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2)/expression%n
+         end if
+
          ! Increment index for oldest time point
          expression%ioldest = expression%ioldest + 1
          if (expression%ioldest>expression%n) expression%ioldest = 1
       end do
 
-      ! Compute extent of time period outside history
-      frac_outside = (t-(expression%next_save_time-expression%period/expression%n))/expression%period
-
-      ! For temporal means:
-      ! - store values at current time step
-      ! - for current mean, use historical mean but account for change since most recent point in history.
+      ! Store current value to enable linear interpolation to next output time in subsequent call.
       expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) = self%data(expression%in)%p
-      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
-         + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1))
+
+      if (expression%valid) then
+         ! We have a full history. To compute the temporal mean:
+         ! - store values at current time step (@ n + 1)
+         ! - set mean (@ n + 3) to historical mean (@ n + 2) but account for change since most recent point in history.
+
+         ! Compute extent of time period outside history
+         frac_outside = (t-(expression%next_save_time-expression%period/expression%n))/expression%period
+
+         ! Set corrected running mean (move window by removing part of the start, and appending to the end)
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
+            + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1))
+      else
+         ! We do not have a full history yet; set temporal mean to msising value
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%missing_value
+      end if
 
       expression%last_time = t
    end subroutine
@@ -5221,5 +5256,5 @@ end subroutine
 end module fabm
 
 !-----------------------------------------------------------------------
-! Copyright under the GNU Public License - www.gnu.org
+! Copyright Bolding & Bruggeman ApS (GNU Public License - www.gnu.org)
 !-----------------------------------------------------------------------

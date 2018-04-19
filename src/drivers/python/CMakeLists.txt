@@ -19,6 +19,10 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
   endif()
 endif()
 
+if(MSVC)
+  add_compile_options("/libs:static")
+endif()
+
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST python)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
@@ -62,6 +66,12 @@ else()
   set(CMAKE_INSTALL_PREFIX "${DEFAULT_PREFIX}" CACHE PATH "Directory to install python_fabm in")
 endif()
 message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
+
+add_custom_command(OUTPUT wheel.stamp POST_BUILD COMMAND pip2 wheel ${PROJECT_SOURCE_DIR} DEPENDS python_fabm VERBATIM)
+
+add_custom_target(wheel DEPENDS wheel.stamp)
+
+#KB add_custom_target(wheel_upload COMMAND cp *.whl /tmp DEPENDS wheel) # I think it is called twine
 
 install(TARGETS python_fabm
   DESTINATION pyfabm)
