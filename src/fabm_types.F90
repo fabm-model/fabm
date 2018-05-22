@@ -342,6 +342,7 @@
       integer,pointer :: read_index  => null()
       integer,pointer :: write_index => null()
       integer         :: store_index = store_index_none
+      integer         :: catalog_index = -1
       logical         :: in_read_registry = .false.
 
       ! Collections to collect information from all coupled variables.

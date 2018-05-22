@@ -192,7 +192,7 @@
       type (type_base_model) :: root
 
       integer :: state = state_none
-      type (type_variable_register) :: variable_register
+      type (type_global_variable_register) :: variable_register
 
       class (type_model),pointer :: info => null()  ! For backward compatibility (hosts pre 11/2013); always points to root.
 
@@ -215,19 +215,21 @@
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_hz
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar
 
-      integer                                :: extinction_index = -1
-      type (type_internal_variable), pointer :: extinction_target => null()
+      type (type_bulk_variable_id) :: extinction_id
 
       type (type_link_list) :: links_postcoupling
 
-      ! Declare the arrays for diagnostic variable values.
+      ! Persistent store
       real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: diag
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
       real(rk),allocatable                                      :: diag_missing_value(:)
       real(rk),allocatable                                      :: diag_hz_missing_value(:)
 
-      real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
-      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
+      ! Read cache fill values
+      real(rk),allocatable                                      :: read_cache_missing_value(:)
+      real(rk),allocatable                                      :: read_cache_hz_missing_value(:)
+      real(rk),allocatable                                      :: read_cache_scalar_missing_value(:)
+
       integer                                                   :: domain_size(_FABM_DIMENSION_COUNT_)
       integer                                                   :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
 
@@ -274,9 +276,6 @@
 #  endif
       integer :: surface_index = -1
 #endif
-
-      integer :: nscratch = -1
-      integer :: nscratch_hz = -1
    contains
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
       procedure :: set_bottom_index => fabm_set_bottom_index
@@ -609,16 +608,9 @@
 
       self%info => self ! For backward compatibility (pre 11/2013 hosts only)
 
-      ! Make sure a variable for light extinction is created at the root level when calling freeze_model_info.
-      ! This variable is used from fabm_get_light_extinction.
-      aggregate_variable_access => get_aggregate_variable_access(self%root, &
-         standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
-      aggregate_variable_access%interior = ior(aggregate_variable_access%interior,access_read)
-
-      ! Create placeholder variables for zero fields.
-      ! Values for these fields will only be provided if actually used by one of the biogeochemical models.
-      call self%root%add_interior_variable('zero',act_as_state_variable=.true.,source=source_none)
-      call self%root%add_horizontal_variable('zero_hz',act_as_state_variable=.true.,source=source_none)
+      ! Create zero fields.
+      call self%root%add_interior_variable('zero', act_as_state_variable=.true., source=source_none, missing_value=0.0_rk, output=output_none)
+      call self%root%add_horizontal_variable('zero_hz', act_as_state_variable=.true., source=source_none, missing_value=0.0_rk, output=output_none)
 
       ! Filter out expressions that FABM can handle itself.
       ! The remainder, if any, must be handled by the host model.
@@ -639,6 +631,9 @@
 
       ! Build final authorative arrays with variable metadata .
       call classify_variables(self)
+
+      ! Create catalog for storing pointers to data per variable.
+      call create_catalog(self)
 
       ! Create built-in jobs, which can then be chained by the host/user by calling job%set_next.
       ! (the reason for chaining is to allow later jobs to use results of earlier ones, thus reducing the number of calls needed)
@@ -669,7 +664,7 @@
       call require_call_all_with_state(self%get_vertical_movement_job,self%root%links,domain_interior,source_get_vertical_movement)
       link => self%links_postcoupling%first
       do while (associated(link))
-         if (associated(link%target%movement_diagnostic)) call self%get_vertical_movement_job%request_variable(link%target%movement_diagnostic%target)
+         if (associated(link%target%movement_diagnostic)) call self%get_vertical_movement_job%request_variable(link%target%movement_diagnostic%target, target_location=location_write_cache)
          link => link%next
       end do
 
@@ -764,10 +759,7 @@
    real(rk),optional,        intent(in)    :: seconds_per_time_unit
 !
 ! !LOCAL VARIABLES:
-  integer                            :: ivar
   class (type_expression),   pointer :: expression
-  integer                            :: n
-  type (type_variable_node), pointer :: variable_node
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -782,139 +774,22 @@
    self%horizontal_domain_size = (/ _HORIZONTAL_LOCATION_ /)
 #endif
 
-   ! Default chaining (temporary; should be done explicitly by host if true)
-   call self%do_surface_job%set_previous(self%do_bottom_job)
-   call self%do_interior_job%set_previous(self%do_surface_job)
-
-   ! Create job that ensures all diagnostics required by the user are computed.
-   call self%get_diagnostics_job%set_previous(self%do_interior_job)
-   do ivar=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(ivar)%save) then
-         select case (self%diagnostic_variables(ivar)%target%source)
-         case (source_check_state)
-            call self%check_state_job%request_variable(self%diagnostic_variables(ivar)%target,copy_to_store=.true.)
-         case (source_get_vertical_movement)
-            call self%get_vertical_movement_job%request_variable(self%diagnostic_variables(ivar)%target,copy_to_store=.true.)
-         case default
-            call self%get_diagnostics_job%request_variable(self%diagnostic_variables(ivar)%target,copy_to_store=.true.)
-         end select
-      end if
-   end do
-   do ivar=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(ivar)%save) &
-         call self%get_diagnostics_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target,copy_to_store=.true.)
-   end do
-
-   ! Merge write indices when operations can be done in place
-   ! This must be done after all variables are requested from the different jobs, so we know which variables
-   ! will be retrieved (such variables cannot be merged)
-   call merge_indices(self%root)
-
-   ! Note: aggregate variables below are copied to read cache, just in case they are not diagnostics
-   ! (they may be equal to a state variable, or to zero)
-   do ivar=1,size(self%conserved_quantities)
-      call self%get_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target,copy_to_cache=.true.)
-      call self%get_horizontal_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target_hz,copy_to_cache=.true.)
-   end do
-   call self%get_light_extinction_job%request_variable(self%extinction_target,copy_to_cache=.true.)
-
-   ! Assign write cache indices to all interior diagnostic variables.
-   ! Must be done after calls to merge_aggregating_diagnostics.
-   self%nscratch = 0
-   call assign_write_indices(self%links_postcoupling,domain_interior,self%nscratch)
-
-   ! Assign write cache indices to all horizontal diagnostic variables.
-   ! Must be done after calls to merge_aggregating_diagnostics.
-   self%nscratch_hz = 0
-   call assign_write_indices(self%links_postcoupling,domain_surface,   self%nscratch_hz)
-   call assign_write_indices(self%links_postcoupling,domain_horizontal,self%nscratch_hz)
-   call assign_write_indices(self%links_postcoupling,domain_bottom,    self%nscratch_hz)
-
-   if (any(self%state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more interior state variables.')
-   if (any(self%state_variables(:)%surface_flux_index<=0)) call fatal_error('fabm_set_domain','BUG: surface_flux_index invalid for one or more interior state variables.')
-   if (any(self%state_variables(:)%bottom_flux_index<=0)) call fatal_error('fabm_set_domain','BUG: bottom_flux_index invalid for one or more interior state variables.')
-   if (any(self%state_variables(:)%movement_index<=0)) call fatal_error('fabm_set_domain','BUG: movement_index invalid for one or more interior state variables.')
-   if (any(self%surface_state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more surface state variables.')
-   if (any(self%bottom_state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more bottom state variables.')
-
-   ! Initialize all jobs - must be done after the call to filter_readable_variable_registry because that
-   ! finalizes the set of variables for which input data is available.
-   call self%job_manager%initialize(self%variable_register)
-
-   !call self%job_manager%print()
-
-   ! Allocate arrays with pointers to data.
-   allocate(self%data       (self%variable_register%interior_read%count))
-   allocate(self%data_hz    (self%variable_register%horizontal_read%count))
-   allocate(self%data_scalar(self%variable_register%scalar_read%count))
-
-   ! Allocate and initialize arrays that store the source (host, fabm, user) of all data.
-   allocate(self%interior_data_sources  (size(self%data       )))
-   allocate(self%horizontal_data_sources(size(self%data_hz    )))
-   allocate(self%scalar_data_sources    (size(self%data_scalar)))
-   self%interior_data_sources   = data_source_none
-   self%horizontal_data_sources = data_source_none
-   self%scalar_data_sources     = data_source_none
-
-   ! Provide fields with zeros.
-   ! This must be done after read indices are assigned (self%job_manager%initialize), otherwise link_*_data will not store the value!
-   allocate(self%zero _INDEX_LOCATION_)
-   self%zero = 0.0_rk
-   call self%link_interior_data('zero',self%zero)
-
-   allocate(self%zero_hz _INDEX_HORIZONTAL_LOCATION_)
-   self%zero_hz = 0.0_rk
-   call self%link_horizontal_data('zero_hz',self%zero_hz)
-
-   allocate(self%diag(self%domain_size(1),0:self%variable_register%interior_store%count))
-   self%diag = 0.0_rk
-
-   allocate(self%diag_hz(0:self%variable_register%horizontal_store%count))
-   self%diag_hz = 0.0_rk
-
-   ! Create arrays with missing values for all stored diagnostics (used as fill value for masked cells)
-   allocate(self%diag_missing_value(self%variable_register%interior_store%count))
-   allocate(self%diag_hz_missing_value(self%variable_register%horizontal_store%count))
-
-   ! Initialize diagnostic variables to missing value.
-   n = 0
-   variable_node => self%variable_register%interior_store%first
-   do while (associated(variable_node))
-      n = n + 1
-      self%diag_missing_value(n) = variable_node%target%missing_value
-      self%diag(_PREARG_LOCATION_DIMENSIONS_ n) = self%diag_missing_value(n)
-      call fabm_link_interior_data(self,variable_node%target,self%diag(_PREARG_LOCATION_DIMENSIONS_ n),source=data_source_fabm)
-      variable_node => variable_node%next
-   end do
-
-   n = 0
-   variable_node => self%variable_register%horizontal_store%first
-   do while (associated(variable_node))
-      n = n + 1
-      self%diag_hz_missing_value(n) = variable_node%target%missing_value
-      self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ n) = self%diag_hz_missing_value(n)
-      call fabm_link_horizontal_data(self,variable_node%target,self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ n),source=data_source_fabm)
-      variable_node => variable_node%next
-   end do
-
-   call self%variable_register%print()
-
    if (present(seconds_per_time_unit)) then
       expression => self%root%first_expression
       do while (associated(expression))
          select type (expression)
-            class is (type_bulk_temporal_mean)
-               expression%period = expression%period/seconds_per_time_unit
-               allocate(expression%history(_PREARG_LOCATION_ expression%n+3))
-               expression%history = 0.0_rk
-               call fabm_link_interior_data(self,expression%output_name, &
-                                        expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
-            class is (type_horizontal_temporal_mean)
-               expression%period = expression%period/seconds_per_time_unit
-               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n+3))
-               expression%history = 0.0_rk
-               call fabm_link_horizontal_data(self,expression%output_name, &
-                                              expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+3))
+         class is (type_bulk_temporal_mean)
+            expression%period = expression%period/seconds_per_time_unit
+            allocate(expression%history(_PREARG_LOCATION_ expression%n+3))
+            expression%history = 0.0_rk
+            call self%link_interior_data(expression%output_name, &
+                                         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
+         class is (type_horizontal_temporal_mean)
+            expression%period = expression%period/seconds_per_time_unit
+            allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n+3))
+            expression%history = 0.0_rk
+            call self%link_horizontal_data(expression%output_name, &
+                                           expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+3))
          end select
          expression => expression%next
       end do
@@ -922,6 +797,82 @@
 
    end subroutine fabm_set_domain
 !EOC
+
+   subroutine create_catalog(self)
+      class (type_model), intent(inout) :: self
+
+      type (type_link), pointer :: link
+
+      link => self%links_postcoupling%first
+      do while (associated(link))
+         call self%variable_register%add_to_catalog(link%target)
+         link => link%next
+      end do
+
+      allocate(self%data(self%variable_register%catalog%interior%count))
+      allocate(self%data_hz(self%variable_register%catalog%horizontal%count))
+      allocate(self%data_scalar(self%variable_register%catalog%scalar%count))
+
+      ! Allocate and initialize arrays that store the source (host, fabm, user) of all data.
+      allocate(self%interior_data_sources(size(self%data)))
+      allocate(self%horizontal_data_sources(size(self%data_hz)))
+      allocate(self%scalar_data_sources(size(self%data_scalar)))
+      self%interior_data_sources = data_source_none
+      self%horizontal_data_sources = data_source_none
+      self%scalar_data_sources = data_source_none
+   end subroutine create_catalog
+
+   subroutine collect_missing_values(variable_list, missing_values)
+      type (type_variable_list), intent(in) :: variable_list
+      real(rk), allocatable, intent(out) :: missing_values(:)
+
+      type (type_variable_node), pointer :: variable_node
+      integer :: i
+
+      allocate(missing_values(variable_list%count))
+      i = 0
+      variable_node => variable_list%first
+      do while (associated(variable_node))
+         i = i + 1
+         missing_values(i) = variable_node%target%missing_value
+         variable_node => variable_node%next
+      end do
+   end subroutine collect_missing_values
+
+   subroutine create_store(self)
+      class (type_model), intent(inout) :: self
+
+      integer :: i
+      type (type_variable_node), pointer :: variable_node
+
+      ! Allocate memory for persistent store
+      allocate(self%diag(self%domain_size(1), 0:self%variable_register%store%interior%count))
+      allocate(self%diag_hz(0:self%variable_register%store%horizontal%count))
+
+      ! Collect missing values in array for faster access
+      call collect_missing_values(self%variable_register%store%interior, self%diag_missing_value)
+      call collect_missing_values(self%variable_register%store%horizontal, self%diag_hz_missing_value)
+
+      ! Initialize persistent store entries to missing value.
+      do i = 1, self%variable_register%store%interior%count
+         self%diag(_PREARG_LOCATION_DIMENSIONS_ i) = self%diag_missing_value(i)
+      end do
+      do i = 1, self%variable_register%store%horizontal%count
+         self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%diag_hz_missing_value(i)
+      end do
+
+      ! Register data fields from persistent store in catalog.
+      variable_node => self%variable_register%store%interior%first
+      do i = 1, self%variable_register%store%interior%count
+         call self%link_interior_data(variable_node%target, self%diag(_PREARG_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
+         variable_node => variable_node%next
+      end do
+      variable_node => self%variable_register%store%horizontal%first
+      do i = 1, self%variable_register%store%horizontal%count
+         call self%link_horizontal_data(variable_node%target, self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
+         variable_node => variable_node%next
+      end do
+   end subroutine create_store
 
    recursive subroutine merge_indices(model)
       class (type_base_model), intent(inout) :: model
@@ -1096,9 +1047,12 @@
    class (type_model),intent(inout),target :: self
 !
 ! !LOCAL VARIABLES:
+  integer                           :: ivar
+  integer                           :: n
   logical                           :: ready
   type (type_variable_set)          :: unfulfilled_dependencies
   type (type_variable_node),pointer :: variable_node
+  type (type_link), pointer         :: link
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1129,7 +1083,7 @@
    end if
 #  elif _FABM_BOTTOM_INDEX_==-1
    if (.not.associated(self%bottom_indices)) then
-      call log_message('bottom indices has not been set. Make sure to call set_bottom_index.')
+      call log_message('bottom indices have not been set. Make sure to call set_bottom_index.')
       ready = .false.
    end if
 #  endif
@@ -1139,20 +1093,98 @@
    end if
 #endif
 
-   ! Host has sent all fields - disable all optional fields that were not provided in individual BGC models.
+   ! Default chaining (temporary; should be done explicitly by host if true)
+   call self%do_surface_job%set_previous(self%do_bottom_job)
+   call self%do_interior_job%set_previous(self%do_surface_job)
+
+   ! Create job that ensures all diagnostics required by the user are computed.
+   call self%get_diagnostics_job%set_previous(self%do_interior_job)
+   do ivar=1,size(self%diagnostic_variables)
+      if (self%diagnostic_variables(ivar)%save) then
+         select case (self%diagnostic_variables(ivar)%target%source)
+         case (source_check_state)
+            call self%check_state_job%request_variable(self%diagnostic_variables(ivar)%target, target_location=location_store)
+         case (source_get_vertical_movement)
+            call self%get_vertical_movement_job%request_variable(self%diagnostic_variables(ivar)%target, target_location=location_store)
+         case default
+            call self%get_diagnostics_job%request_variable(self%diagnostic_variables(ivar)%target, target_location=location_store)
+         end select
+      end if
+   end do
+   do ivar=1,size(self%horizontal_diagnostic_variables)
+      if (self%horizontal_diagnostic_variables(ivar)%save) &
+         call self%get_diagnostics_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target, target_location=location_store)
+   end do
+
+   ! Merge write indices when operations can be done in place
+   ! This must be done after all variables are requested from the different jobs, so we know which variables
+   ! will be retrieved (such variables cannot be merged)
+   call merge_indices(self%root)
+
+   ! Note: aggregate variables below are copied to read cache, just in case they are not diagnostics
+   ! (they may be equal to a state variable, or to zero)
+   do ivar=1,size(self%conserved_quantities)
+      call self%get_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target, target_location=location_read_cache)
+      call self%get_horizontal_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target_hz, target_location=location_read_cache)
+   end do
+
+   self%extinction_id = self%get_bulk_variable_id(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
+   _ASSERT_(associated(self%extinction_id%variable), 'fabm_check_ready', 'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux not found')
+   call self%get_light_extinction_job%request_variable(self%extinction_id%variable, target_location=location_write_cache)
+
+   ! Initialize all jobs.
+   ! NOTE this does not yet set the final cache/store indices per variable. That step is postponed until check_ready in order to know which variables have been provided by the host.
+   call self%job_manager%initialize(self%variable_register)
+
+   !call self%job_manager%print()
+
+   ! Create persistent store. This provides memory for all variables to be stored there.
+   call create_store(self)
+
+   call collect_missing_values(self%variable_register%read_cache%interior, self%read_cache_missing_value)
+   call collect_missing_values(self%variable_register%read_cache%horizontal, self%read_cache_hz_missing_value)
+   call collect_missing_values(self%variable_register%read_cache%scalar, self%read_cache_scalar_missing_value)
+
+   call self%variable_register%print()
+
+   ! Flag variables that have had data asssigned (by user, host or FABM).
    call filter_readable_variable_registry(self)
 
+   ! Determine final variable indices (in read/write caches, persistent store)
+   ! Set up data structures that depend on these indices (e.g., read cache loading instructions),
+   ! and collect a list of unfulfilled dependencies in the process. Because of the latter,
+   ! this must be done AFTER the call to filter_readable_variable_registry.
    call self%job_manager%process_indices(unfulfilled_dependencies)
+
+   write (*,*) 'Writes for the following variables are directed to the rubbish bin:'
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      if (.not. link%target%write_indices%is_empty() .and. link%target%write_indices%value == -1) then
+         write (*,*) '- '//trim(link%target%name)
+         call link%target%write_indices%set_value(0)
+      end if
+      link => link%next
+   end do
+   write (*,*) '---'
 
    call self%job_manager%print()
 
+   if (any(self%state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more interior state variables.')
+   if (any(self%state_variables(:)%surface_flux_index<=0)) call fatal_error('fabm_set_domain','BUG: surface_flux_index invalid for one or more interior state variables.')
+   if (any(self%state_variables(:)%bottom_flux_index<=0)) call fatal_error('fabm_set_domain','BUG: bottom_flux_index invalid for one or more interior state variables.')
+   if (any(self%state_variables(:)%movement_index<=0)) call fatal_error('fabm_set_domain','BUG: movement_index invalid for one or more interior state variables.')
+   if (any(self%surface_state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more surface state variables.')
+   if (any(self%bottom_state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more bottom state variables.')
+
+   ! Report all unfulfilled dependencies.
    variable_node => unfulfilled_dependencies%first
    do while (associated(variable_node))
       call report_unfulfilled_dependency(variable_node%target)
       variable_node => variable_node%next
    end do
 
-   if (associated(unfulfilled_dependencies%first).or..not.ready) call fatal_error('fabm_check_ready','FABM is lacking required data.')
+   if (associated(unfulfilled_dependencies%first) .or. .not. ready) &
+      call fatal_error('fabm_check_ready', 'FABM is lacking required data.')
 
    self%state = state_check_ready_done
 
@@ -1296,6 +1328,7 @@
       end if
       link => link%next
    end do
+   if (standard_variable%aggregate_variable) id%variable => self%root%find_object('zero')
 
    end function fabm_get_bulk_variable_id_sn
 !EOC
@@ -1376,6 +1409,7 @@
       end if
       link => link%next
    end do
+   if (standard_variable%aggregate_variable) id%variable => self%root%find_object('zero_hz')
 
    end function fabm_get_horizontal_variable_id_sn
 !EOC
@@ -1507,7 +1541,7 @@
 !-----------------------------------------------------------------------
 !BOC
    used = associated(id%variable)
-   if (used) used = id%variable%read_indices%value/=-1
+   if (used) used = .not. id%variable%read_indices%is_empty()
 
    end function fabm_is_variable_used
 !EOC
@@ -1533,8 +1567,8 @@
 !-----------------------------------------------------------------------
 !BOC
    required = associated(id%variable)
-   if (required) required = id%variable%read_indices%value/=-1
-   if (required) required = .not.associated(self%data(id%variable%read_indices%value)%p)
+   if (required) required = .not. id%variable%read_indices%is_empty()
+   if (required) required = .not. associated(self%data(id%variable%catalog_index)%p)
 
    end function fabm_interior_variable_needs_values
 !EOC
@@ -1589,8 +1623,8 @@
 !-----------------------------------------------------------------------
 !BOC
    required = associated(id%variable)
-   if (required) required = id%variable%read_indices%value/=-1
-   if (required) required = .not.associated(self%data_hz(id%variable%read_indices%value)%p)
+   if (required) required = .not. id%variable%read_indices%is_empty()
+   if (required) required = .not. associated(self%data_hz(id%variable%catalog_index)%p)
 
    end function fabm_horizontal_variable_needs_values
 !EOC
@@ -1645,8 +1679,8 @@
 !-----------------------------------------------------------------------
 !BOC
    required = associated(id%variable)
-   if (required) required = id%variable%read_indices%value/=-1
-   if (required) required = .not.associated(self%data_scalar(id%variable%read_indices%value)%p)
+   if (required) required = .not. id%variable%read_indices%is_empty()
+   if (required) required = .not. associated(self%data_scalar(id%variable%catalog_index)%p)
 
    end function fabm_scalar_variable_needs_values
 !EOC
@@ -1763,11 +1797,11 @@
    end do
 #endif
 
-   i = variable%read_indices%value
-   if (i/=-1) then
+   i = variable%catalog_index
+   if (i /= -1) then
       source_ = data_source_default
       if (present(source)) source_ = source
-      if (source_>=self%interior_data_sources(i)) then
+      if (source_ >= self%interior_data_sources(i)) then
          self%data(i)%p => dat
          self%interior_data_sources(i) = source_
       end if
@@ -1891,11 +1925,11 @@
    end do
 #endif
 
-   i = variable%read_indices%value
-   if (i/=-1) then
+   i = variable%catalog_index
+   if (i /= -1) then
       source_ = data_source_default
       if (present(source)) source_ = source
-      if (source_>=self%horizontal_data_sources(i)) then
+      if (source_ >= self%horizontal_data_sources(i)) then
          self%data_hz(i)%p => dat
          self%horizontal_data_sources(i) = source_
       end if
@@ -2012,11 +2046,11 @@
 !-----------------------------------------------------------------------
 !BOC
    if (.not.associated(id%variable)) return
-   i = id%variable%read_indices%value
-   if (i/=-1) then
+   i = id%variable%catalog_index
+   if (i /= -1) then
       source_ = data_source_default
       if (present(source)) source_ = source
-      if (source_>=self%scalar_data_sources(i)) then
+      if (source_ >= self%scalar_data_sources(i)) then
          self%data_scalar(i)%p => dat
          self%scalar_data_sources(i) = source_
       end if
@@ -2295,7 +2329,7 @@ function fabm_get_interior_data(self,id) result(dat)
    real(rk) _DIMENSION_GLOBAL_,pointer           :: dat
 
    nullify(dat)
-   if (id%variable%read_indices%value/=-1) dat => self%data(id%variable%read_indices%value)%p
+   if (id%variable%catalog_index /= -1) dat => self%data(id%variable%catalog_index)%p
 end function fabm_get_interior_data
 
 function fabm_get_horizontal_data(self,id) result(dat)
@@ -2304,7 +2338,7 @@ function fabm_get_horizontal_data(self,id) result(dat)
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,pointer :: dat
 
    nullify(dat)
-   if (id%variable%read_indices%value/=-1) dat => self%data_hz(id%variable%read_indices%value)%p
+   if (id%variable%catalog_index /= -1) dat => self%data_hz(id%variable%catalog_index)%p
 end function fabm_get_horizontal_data
 
 function fabm_get_scalar_data(self,id) result(dat)
@@ -2313,8 +2347,103 @@ function fabm_get_scalar_data(self,id) result(dat)
    real(rk),pointer                               :: dat
 
    nullify(dat)
-   if (id%variable%read_indices%value/=-1) dat => self%data_scalar(id%variable%read_indices%value)%p
+   if (id%variable%catalog_index /= -1) dat => self%data_scalar(id%variable%catalog_index)%p
 end function fabm_get_scalar_data
+
+function create_cache(self, source) result(cache)
+   type (type_model), intent(in) :: self
+   integer,           intent(in) :: source
+   type (type_cache) :: cache
+
+   integer :: n, i
+
+   if (source == 1) then
+
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+      n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
+#  ifdef _HAS_MASK_
+      allocate(cache%mask(n))
+#  endif
+#endif
+#if defined(_INTERIOR_IS_VECTORIZED_)
+      allocate(cache%read(n, self%variable_register%read_cache%interior%count))
+      allocate(cache%write(n, 0:self%variable_register%write_cache%interior%count))
+#else
+      allocate(cache%read(self%variable_register%read_cache%interior%count))
+      allocate(cache%write(0:self%variable_register%write_cache%interior%count))
+#endif
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+      allocate(cache%read_hz(n, self%variable_register%read_cache%horizontal%count))
+#else
+      allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
+#endif
+
+   elseif (source == 2) then
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+      n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
+#  ifdef _HAS_MASK_
+      allocate(cache%mask(n))
+#  endif
+      allocate(cache%read(n, self%variable_register%read_cache%interior%count))
+      allocate(cache%read_hz(n, self%variable_register%read_cache%horizontal%count))
+      allocate(cache%write_hz(n, 0:self%variable_register%write_cache%horizontal%count))
+#else
+#  if defined(_INTERIOR_IS_VECTORIZED_)
+      allocate(cache%read(1, self%variable_register%read_cache%interior%count))
+#  else
+      allocate(cache%read(self%variable_register%read_cache%interior%count))
+#  endif
+      allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
+      allocate(cache%write_hz(0:self%variable_register%write_cache%horizontal%count))
+#endif
+
+   else
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      n = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
+#  ifdef _HAS_MASK_
+      allocate(cache%mask(n))
+#  endif
+      allocate(cache%read(n, self%variable_register%read_cache%interior%count))
+      allocate(cache%write(n, 0:self%variable_register%write_cache%interior%count))
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+      allocate(cache%read(1, self%variable_register%read_cache%interior%count))
+      allocate(cache%write(1, 0:self%variable_register%write_cache%interior%count))
+#else
+      allocate(cache%read(self%variable_register%read_cache%interior%count)
+      allocate(cache%write(0:self%variable_register%write_cache%interior%count))
+#endif
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+      allocate(cache%read_hz(1, self%variable_register%read_cache%horizontal%count))
+      allocate(cache%write_hz(1, 0:self%variable_register%write_cache%horizontal%count))
+#else
+      allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
+      allocate(cache%write_hz(0:self%variable_register%write_cache%horizontal%count))
+#endif
+   end if
+   allocate(cache%read_scalar(self%variable_register%read_cache%scalar%count))
+   
+   do i = 1, self%variable_register%read_cache%interior%count
+#if defined(_INTERIOR_IS_VECTORIZED_)
+      cache%read(:, i) = self%read_cache_missing_value(i)
+#else
+      cache%read(i) = self%read_cache_missing_value(i)
+#endif
+   end do
+
+   do i = 1, self%variable_register%read_cache%horizontal%count
+#if defined(_HORIZONTAL_IS_VECTORIZED_)
+      cache%read_hz(:, i) = self%read_cache_hz_missing_value(i)
+#else
+      cache%read_hz(i) = self%read_cache_hz_missing_value(i)
+#endif   
+   end do
+
+   do i = 1, self%variable_register%read_cache%scalar%count
+      cache%read_scalar(i) = self%read_cache_scalar_missing_value(i)
+   end do
+end function create_cache
 
 subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
    type (type_model),intent(inout) :: self
@@ -2325,10 +2454,11 @@ subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
 
    integer :: i
 
+   cache = create_cache(self, 1)
+
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
    _N_ = _STOP_-_START_+1
 #  ifdef _HAS_MASK_
-   allocate(cache%mask(_N_))
    _DO_CONCURRENT_(_I_,1,_N_)
 #    ifdef _FABM_HORIZONTAL_MASK_
       cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_+_I_-1))
@@ -2336,43 +2466,24 @@ subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
       cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1))
 #    endif
    end do
-   _N_ = count(cache%mask)
+   _N_ = count(cache%mask(1:_N_))
 #  endif
 #endif
    
-#if defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(cache%read(_N_,size(self%data)))
-#else
-   allocate(cache%read(size(self%data)))
-#endif
-   do i=1,size(task%load)
-      if (task%load(i)) then
-         _PACK_GLOBAL_(self%data(i)%p,cache%read,i,cache%mask)
+   do i = 1, size(task%load)
+      if (task%load(i) /= -1) then
+         _PACK_GLOBAL_(self%data(task%load(i))%p, cache%read, i, cache%mask)
       end if
    end do
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(cache%read_hz(_N_,size(self%data_hz)))
-#else
-   allocate(cache%read_hz(size(self%data_hz)))
-#endif
-   do i=1,size(task%load_hz)
-      if (task%load_hz(i)) then
-         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(i)%p,cache%read_hz,i,cache%mask)
+   do i = 1, size(task%load_hz)
+      if (task%load_hz(i) /= -1) then
+         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(task%load_hz(i))%p, cache%read_hz, i, cache%mask)
       end if
    end do
-
-   ! Copy global scalars to read cache
-   allocate(cache%read_scalar(size(self%data_scalar)))
-   do i=1,size(task%load_scalar)
-      if (task%load_scalar(i)) cache%read_scalar(i) = self%data_scalar(i)%p
+   do i = 1, size(task%load_scalar)
+      if (task%load_scalar(i) /= -1) cache%read_scalar(i) = self%data_scalar(task%load_scalar(i))%p
    end do
 
-#if defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(cache%write(_N_,self%nscratch))
-#else
-   allocate(cache%write(self%nscratch))
-#endif
 #ifndef NDEBUG
    cache%write = not_written
 #endif
@@ -2396,39 +2507,27 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    integer :: i
 
+   cache = create_cache(self, 2)
+
 #ifdef _HORIZONTAL_IS_VECTORIZED_
    _N_ = _STOP_-_START_+1
 #  ifdef _HAS_MASK_
-   allocate(cache%mask(_N_))
    _DO_CONCURRENT_(_J_,1,_N_)
       cache%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1))
    end do
-   _N_ = count(cache%mask)
+   _N_ = count(cache%mask(1:_N_))
 #  endif
 #endif
 
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(cache%read_hz(_N_,size(self%data_hz)))
-#else
-   allocate(cache%read_hz(size(self%data_hz)))
-#endif
-   do i=1,size(task%load_hz)
-      if (task%load_hz(i)) then
-         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(i)%p,cache%read_hz,i,cache%mask)
+   do i = 1, size(task%load_hz)
+      if (task%load_hz(i) /= -1) then
+         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(task%load_hz(i))%p, cache%read_hz, i, cache%mask)
       end if
    end do
-
-   ! Copy global scalars to read cache
-   allocate(cache%read_scalar(size(self%data_scalar)))
-   do i=1,size(task%load_scalar)
-      if (task%load_scalar(i)) cache%read_scalar(i) = self%data_scalar(i)%p
+   do i = 1, size(task%load_scalar)
+      if (task%load_scalar(i) /= -1) cache%read_scalar(i) = self%data_scalar(task%load_scalar(i))%p
    end do
 
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(cache%write_hz(_N_,self%nscratch_hz))
-#else
-   allocate(cache%write_hz(self%nscratch_hz))
-#endif
 #ifndef NDEBUG
    cache%write_hz = not_written
 #endif
@@ -2464,27 +2563,20 @@ subroutine load_surface_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    _VERTICAL_ITERATOR_ = self%surface_index
 #endif
 
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(cache%read(_N_,size(self%data)))
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(cache%read(1,size(self%data)))
-#else
-   allocate(cache%read(size(self%data)))
-#endif
    do i=1,size(task%load)
-      if (task%load(i)) then
+      if (task%load(i) /= -1) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-         cache%read(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_),cache%mask)
+         cache%read(:, i) = pack(self%data(task%load(i))%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_), cache%mask)
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(task%load(i))%p _INDEX_GLOBAL_INTERIOR_(_START_ + _I_ - 1)
          _HORIZONTAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1,i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(1, i) = self%data(task%load(i))%p _INDEX_LOCATION_
 #else
-         cache%read(i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(i) = self%data(task%load(i))%p _INDEX_LOCATION_
 #endif
       end if
    end do
@@ -2509,15 +2601,8 @@ subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    _VERTICAL_ITERATOR_ = self%bottom_index
 #endif
 
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(cache%read(_N_,size(self%data)))
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(cache%read(1,size(self%data)))
-#else
-   allocate(cache%read(size(self%data)))
-#endif
-   do i=1,size(task%load)
-      if (task%load(i)) then
+   do i=1, size(task%load)
+      if (task%load(i) /= -1) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
 #    if _FABM_BOTTOM_INDEX_==-1
@@ -2526,18 +2611,18 @@ subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
             if (cache%mask(_J_)) then
                _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
                j = j + 1
-               cache%read(j,i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_+_J_-1)
+               cache%read(j, i) = self%data(task%load(i))%p _INDEX_GLOBAL_INTERIOR_(_START_ + _J_ - 1)
             end if
          end do
 #    else
-         cache%read(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_),cache%mask)
+         cache%read(:, i) = pack(self%data(task%load(i))%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_), cache%mask)
 #    endif
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
 #    if _FABM_BOTTOM_INDEX_==-1
-            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
+            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_ + _J_ - 1)
 #    endif
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(task%load(i))%p _INDEX_GLOBAL_INTERIOR_(_START_ + _I_ - 1)
          _HORIZONTAL_LOOP_END_
 #  endif
 #else
@@ -2545,9 +2630,9 @@ subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
          _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #  endif
 #  if defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1,i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(1, i) = self%data(task%load(i))%p _INDEX_LOCATION_
 #  else
-         cache%read(i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(i) = self%data(task%load(i))%p _INDEX_LOCATION_
 #  endif
 #endif
       end if
@@ -2563,10 +2648,11 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 
    integer :: i
 
+   cache = create_cache(self, 3)
+
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
    _N_ = _VERTICAL_STOP_-_VERTICAL_START_+1
 #  ifdef _HAS_MASK_
-   allocate(cache%mask(_N_))
    _DO_CONCURRENT_(_I_,1,_N_)
 #    ifdef _FABM_HORIZONTAL_MASK_
       cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)
@@ -2574,65 +2660,45 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
       cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1))
 #    endif
    end do
-   _N_ = count(cache%mask)
+   _N_ = count(cache%mask(1:_N_))
 #  endif
 #endif
 
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   allocate(cache%read(_N_,size(self%data)))
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(cache%read(1,size(self%data)))
-#else
-   allocate(cache%read(size(self%data)))
-#endif
-   do i=1,size(task%load)
-      if (task%load(i)) then
+   do i=1, size(task%load)
+      if (task%load(i) /= -1) then
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  ifdef _HAS_MASK_
-         cache%read(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_:_VERTICAL_STOP_),cache%mask)
+         cache%read(:, i) = pack(self%data(task%load(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_:_VERTICAL_STOP_), cache%mask)
 #  else
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(task%load(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_ + _I_ - 1)
          _VERTICAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1,i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(1, i) = self%data(task%load(i))%p _INDEX_LOCATION_
 #else
-         cache%read(i) = self%data(i)%p _INDEX_LOCATION_
+         cache%read(i) = self%data(task%load(i))%p _INDEX_LOCATION_
 #endif
       end if
    end do
 
+   do i = 1, size(task%load_hz)
+      if (task%load_hz(i) /= -1) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(cache%read_hz(1,size(self%data_hz)))
+         cache%read_hz(1, i) = self%data_hz(task%load_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
 #else
-   allocate(cache%read_hz(size(self%data_hz)))
-#endif
-   do i=1,size(task%load_hz)
-      if (task%load_hz(i)) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-         cache%read_hz(1,i) = self%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
-#else
-         cache%read_hz(i) = self%data_hz(i)%p _INDEX_HORIZONTAL_LOCATION_
+         cache%read_hz(i) = self%data_hz(task%load_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
 #endif
       end if
    end do
 
-   ! Copy global scalars to read cache
-   allocate(cache%read_scalar(size(self%data_scalar)))
-   do i=1,size(task%load_scalar)
-      if (task%load_scalar(i)) cache%read_scalar(i) = self%data_scalar(i)%p
+   do i = 1, size(task%load_scalar)
+      if (task%load_scalar(i) /= -1) cache%read_scalar(i) = self%data_scalar(task%load_scalar(i))%p
    end do
 
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   allocate(cache%write(_N_,self%nscratch))
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(cache%write(1,self%nscratch))
-#else
-   allocate(cache%write(self%nscratch))
-#endif
 #ifndef NDEBUG
    cache%write = not_written
+   cache%write_hz = not_written
 #endif
    do i=1,size(task%prefill_type)
       if (task%prefill_type(i)==prefill_constant) then
@@ -2644,14 +2710,6 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
       end if
    end do
 
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(cache%write_hz(1,self%nscratch_hz))
-#else
-   allocate(cache%write_hz(self%nscratch_hz))
-#endif
-#ifndef NDEBUG
-   cache%write_hz = not_written
-#endif
 end subroutine begin_vertical_task
 
 subroutine check_call_output(call_node,cache)
@@ -2825,8 +2883,8 @@ end subroutine end_vertical_task
    ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
    do ivar=1,size(self%state_variables)
       read_index = self%state_variables(ivar)%target%read_indices%value
-      if (self%interior_data_sources(read_index)==data_source_fabm) then
-         _UNPACK_TO_GLOBAL_(cache%read,read_index,self%data(read_index)%p,cache%mask,self%state_variables(ivar)%missing_value)
+      if (self%interior_data_sources(read_index) == data_source_fabm) then
+         _UNPACK_TO_GLOBAL_(cache%read, read_index, self%data(self%state_variables(ivar)%target%catalog_index)%p, cache%mask, self%state_variables(ivar)%missing_value)
       end if
    end do
 
@@ -2883,7 +2941,7 @@ end subroutine end_vertical_task
    do ivar=1,size(self%bottom_state_variables)
       read_index = self%bottom_state_variables(ivar)%target%read_indices%value
       if (self%horizontal_data_sources(read_index)==data_source_fabm) then
-         _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,self%bottom_state_variables(ivar)%missing_value)
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz, read_index, self%data_hz(self%bottom_state_variables(ivar)%target%catalog_index)%p, cache%mask, self%bottom_state_variables(ivar)%missing_value)
       end if
    end do
 
@@ -2939,8 +2997,8 @@ end subroutine end_vertical_task
    ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
    do ivar=1,size(self%surface_state_variables)
       read_index = self%surface_state_variables(ivar)%target%read_indices%value
-      if (self%horizontal_data_sources(read_index)==data_source_fabm) then
-         _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,self%surface_state_variables(ivar)%missing_value)
+      if (self%horizontal_data_sources(read_index) == data_source_fabm) then
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz, read_index, self%data_hz(self%surface_state_variables(ivar)%target%catalog_index)%p, cache%mask, self%surface_state_variables(ivar)%missing_value)
       end if
    end do
 
@@ -3178,8 +3236,8 @@ end subroutine end_vertical_task
    if (set_interior.or..not.valid) then
       do ivar=1,size(self%state_variables)
          read_index = self%state_variables(ivar)%target%read_indices%value
-         if (self%interior_data_sources(read_index)==data_source_fabm) then
-            _UNPACK_TO_GLOBAL_(cache%read,read_index,self%data(read_index)%p,cache%mask,self%state_variables(ivar)%missing_value)
+         if (self%interior_data_sources(read_index) == data_source_fabm) then
+            _UNPACK_TO_GLOBAL_(cache%read, read_index, self%data(self%state_variables(ivar)%target%catalog_index)%p, cache%mask, self%state_variables(ivar)%missing_value)
          end if
       end do
    end if
@@ -3324,7 +3382,7 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
       do ivar=1,size(state_variables)
          read_index = state_variables(ivar)%target%read_indices%value
          if (self%horizontal_data_sources(read_index)==data_source_fabm) then
-            _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz,read_index,self%data_hz(read_index)%p,cache%mask,state_variables(ivar)%missing_value)
+            _HORIZONTAL_UNPACK_TO_GLOBAL_(cache%read_hz, read_index, self%data_hz(state_variables(ivar)%target%catalog_index)%p, cache%mask, state_variables(ivar)%missing_value)
          end if
       end do
    end if
@@ -3353,16 +3411,16 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-         self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_) = unpack(cache%read(:,read_index),cache%mask,self%state_variables(ivar)%missing_value)
+         self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_) = unpack(cache%read(:,read_index),cache%mask,self%state_variables(ivar)%missing_value)
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = cache%read _INDEX_SLICE_PLUS_1_(read_index)
+            self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = cache%read _INDEX_SLICE_PLUS_1_(read_index)
          _HORIZONTAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         self%data(read_index)%p _INDEX_LOCATION_ = cache%read(1,read_index)
+         self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = cache%read(1,read_index)
 #else
-         self%data(read_index)%p _INDEX_LOCATION_ = cache%read(read_index)
+         self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = cache%read(read_index)
 #endif
 
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
@@ -3374,13 +3432,13 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
             if (cache%mask(_J_)) then
                _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
                j = j + 1
-               self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_J_-1) = cache%read(j,read_index)
+               self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_J_-1) = cache%read(j,read_index)
             end if
          end do
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
             _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
-            self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = cache%read _INDEX_SLICE_PLUS_1_(read_index)
+            self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = cache%read _INDEX_SLICE_PLUS_1_(read_index)
          _HORIZONTAL_LOOP_END_
 #  endif
       end if
@@ -3725,8 +3783,7 @@ end subroutine internal_check_horizontal_state
       call_node => call_node%next
    end do
 
-   ! NB the extinction value is taken from the *read* cache.
-   _UNPACK_(cache%read,self%extinction_index,extinction,cache%mask,0.0_rk)
+   _UNPACK_(cache%write,self%extinction_id%variable%write_indices%value,extinction,cache%mask,0.0_rk)
 
    call end_interior_task(self,self%get_light_extinction_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
 
@@ -4327,52 +4384,26 @@ contains
 
 end subroutine fabm_update_time
 
-subroutine assign_write_indices(link_list,domain,count)
-   type (type_link_list),intent(inout) :: link_list
-   integer,              intent(in)    :: domain
-   integer,              intent(inout) :: count
-
-   type (type_link),pointer :: link
-
-   link => link_list%first
-   do while (associated(link))
-      if (link%target%domain==domain) then
-         if (.not.link%target%write_indices%is_empty().and.link%target%write_indices%value==-1.and..not.associated(link%target%write_owner)) then
-            count = count + 1
-            call link%target%write_indices%set_value(count)
-         end if
-      end if
-      link => link%next
-   end do
-end subroutine assign_write_indices
-
 subroutine filter_readable_variable_registry(self)
    class (type_model),intent(inout),target :: self
 
-   integer :: i
    type (type_variable_node),pointer :: variable_node
 
-   i = 0
-   variable_node => self%variable_register%interior_read%first
+   variable_node => self%variable_register%read_cache%interior%first
    do while (associated(variable_node))
-      i = i + 1
-      variable_node%target%in_read_registry = associated(self%data(i)%p)
+      variable_node%target%in_read_registry = associated(self%data(variable_node%target%catalog_index)%p)
       variable_node => variable_node%next
    end do
 
-   i = 0
-   variable_node => self%variable_register%horizontal_read%first
+   variable_node => self%variable_register%read_cache%horizontal%first
    do while (associated(variable_node))
-      i = i + 1
-      variable_node%target%in_read_registry = associated(self%data_hz(i)%p)
+      variable_node%target%in_read_registry = associated(self%data_hz(variable_node%target%catalog_index)%p)
       variable_node => variable_node%next
    end do
 
-   i = 0
-   variable_node => self%variable_register%scalar_read%first
+   variable_node => self%variable_register%read_cache%scalar%first
    do while (associated(variable_node))
-      i = i + 1
-      variable_node%target%in_read_registry = associated(self%data_scalar(i)%p)
+      variable_node%target%in_read_registry = associated(self%data_scalar(variable_node%target%catalog_index)%p)
       variable_node => variable_node%next
    end do
 end subroutine filter_readable_variable_registry
@@ -4437,12 +4468,6 @@ subroutine classify_variables(self)
       end if
       aggregate_variable => aggregate_variable%next
    end do
-
-   ! Get link to extinction variable.
-   self%extinction_target => self%root%find_object(trim(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux%name))
-   if (.not.associated(self%extinction_target)) call driver%fatal_error('classify_variables', &
-      'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux was not created')
-   call self%extinction_target%read_indices%append(self%extinction_index)
 
    ! From this point on, variables will stay as they are.
    ! Coupling is done, and the framework will not add further read indices.
@@ -4670,18 +4695,18 @@ end subroutine classify_variables
          select case (domain)
          case (domain_interior)
             if (link%target%domain==domain_interior.and.associated(link%target%sms_sum)) &
-               call self%request_variable(link%target%sms_sum%target,must_be_in_write_cache=.true.)
+               call self%request_variable(link%target%sms_sum%target, target_location=location_write_cache)
          case (domain_bottom)
             if (link%target%domain==domain_bottom.and.associated(link%target%sms_sum)) then
-               call self%request_variable(link%target%sms_sum%target,must_be_in_write_cache=.true.)
+               call self%request_variable(link%target%sms_sum%target, target_location=location_write_cache)
             elseif (link%target%domain==domain_interior.and.associated(link%target%bottom_flux_sum)) then
-               call self%request_variable(link%target%bottom_flux_sum%target,must_be_in_write_cache=.true.)
+               call self%request_variable(link%target%bottom_flux_sum%target, target_location=location_write_cache)
             end if
          case (domain_surface)
             if (link%target%domain==domain_surface.and.associated(link%target%sms_sum)) then
-               call self%request_variable(link%target%sms_sum%target,must_be_in_write_cache=.true.)
+               call self%request_variable(link%target%sms_sum%target, target_location=location_write_cache)
             elseif (link%target%domain==domain_interior.and.associated(link%target%surface_flux_sum)) then
-               call self%request_variable(link%target%surface_flux_sum%target,must_be_in_write_cache=.true.)
+               call self%request_variable(link%target%surface_flux_sum%target, target_location=location_write_cache)
             end if
          end select
          link => link%next

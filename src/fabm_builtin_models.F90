@@ -443,6 +443,7 @@ module fabm_builtin_models
       integer :: n_kept, n_removed
 
       sum_variable => self%id_output%link%target
+      write (*,*) 'Reindexing '//trim(sum_variable%name)
       component_previous => null()
       n_kept = 0
       n_removed = 0
@@ -470,9 +471,11 @@ module fabm_builtin_models
                self%first => component_next
             end if
             n_removed = n_removed + 1
+            write (*,*) '- merged '//trim(component_variable%name)
          else
             component_previous => component
             n_kept = n_kept + 1
+            write (*,*) '- kept '//trim(component_variable%name)
          end if
          component => component_next
       end do

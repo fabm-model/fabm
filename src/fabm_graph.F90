@@ -3,9 +3,9 @@
 !BOP
 !
 ! !MODULE: fabm_graph: derived types to describe the directed acyclic graph (DAG) that characterizes dependencies between models.
-   ! Each graph node represents a call, that is, a specific combination of a model and one of its APIs ("source").
-   ! Graph nodes maintain both pointers to their dependencies (a set of other nodes, maintained at the node level),
-   ! and to the nodes that depend on them (maintained separately per output variable).
+! Each graph node represents a call, that is, a specific combination of a model and one of its APIs ("source").
+! Graph nodes maintain both pointers to their dependencies (a set of other nodes, maintained at the node level),
+! and to the nodes that depend on them (maintained separately per output variable).
 !
 ! !INTERFACE:
 module fabm_graph
@@ -15,7 +15,7 @@ module fabm_graph
 
    implicit none
 
-   public type_graph, type_node, type_node_set_member, type_node_set, type_node_list, type_node_list_member
+   public type_graph, type_node, type_node_set_member, type_node_list, type_node_list_member
    public type_output_variable
 
    private
@@ -57,7 +57,6 @@ module fabm_graph
       logical                                :: copy_to_cache   = .false.
       logical                                :: copy_to_store   = .false.
       integer                                :: prefill         = prefill_none
-      type (type_node_set), pointer          :: group           => null()
       type (type_output_variable),   pointer :: next            => null()
    end type
 
@@ -157,7 +156,7 @@ subroutine graph_print(self)
 
 end subroutine graph_print
 
-recursive function graph_add_call(self,model,source,outer_calls,ignore_dependencies) result(node)
+recursive function graph_add_call(self, model, source, outer_calls, ignore_dependencies) result(node)
    class (type_graph),     target,intent(inout) :: self
    class (type_base_model),target,intent(in)    :: model
    integer,                       intent(in)    :: source
@@ -179,7 +178,7 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
    if (present(ignore_dependencies)) ignore_dependencies_ = ignore_dependencies
 
    ! For some APIs we never dynamically resolve dependencies
-   ignore_dependencies_ = ignore_dependencies_ .or. source==source_get_light_extinction
+   ignore_dependencies_ = ignore_dependencies_ .or. source == source_get_light_extinction
 
    ! Check if this node is already in the graph, or in any of the preceding graphs.
    ! If it is, we are done: return.
@@ -214,16 +213,16 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
 
    link => model%links%first
    do while (associated(link))
-      if (index(link%name,'/')==0.and.associated(link%original%read_index)) then
+      if (index(link%name, '/') == 0 .and. associated(link%original%read_index)) then
          ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
          if (associated(link%target%write_owner)) call driver%fatal_error('graph::add_call','BUG: required input variable is co-written.')
          call node%inputs%add(link%target)
-         same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
-         if (.not.(associated(link%target%owner,model).and.same_source)) then
+         same_source = link%target%source == source .or. (link%target%source == source_unknown .and. (source == source_do_surface .or. source == source_do_bottom))
+         if (.not. (associated(link%target%owner, model) .and. same_source)) then
             if (ignore_dependencies_) then
                call self%unresolved_dependencies%add(link%target)
             else
-               call self%add_variable(link%target,outer_calls,caller=node)
+               call self%add_variable(link%target, outer_calls, caller=node)
             end if
          end if
       end if
@@ -235,31 +234,25 @@ recursive function graph_add_call(self,model,source,outer_calls,ignore_dependenc
    call self%append(node)
 end function graph_add_call
 
-recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_store,caller,group)
+recursive subroutine graph_add_variable(self, variable, outer_calls, copy_to_store, caller)
    class (type_graph),              intent(inout) :: self
    type (type_internal_variable),   intent(in)    :: variable
    type (type_node_list),    target,intent(inout) :: outer_calls
    logical,         optional,       intent(in)    :: copy_to_store
    type (type_node),optional,target,intent(inout) :: caller
-   type (type_node_set),optional,target,intent(inout) :: group
 
    type (type_variable_node), pointer :: variable_node
-   type (type_node_set), pointer :: group_
 
    if (self%frozen) call driver%fatal_error('graph_add_variable','Graph is frozen; no variables can be added.')
 
    ! If this variable is not an output of some model (e.g., a state variable or external dependency), no call is needed.
-   if (variable%write_indices%value==-1) return
+   if (variable%write_indices%is_empty()) return
 
-   group_ => null()
-   if (present(group)) group_ => group
-   if (associated(variable%cowriters%first)) allocate(group_)
-
-   if (variable%source==source_unknown) then
+   if (variable%source == source_unknown) then
       ! This variable is either written by do_surface or do_bottom - which one of these two APIs is unknown.
       call add_call(source_do_surface)
       call add_call(source_do_bottom)
-   elseif (variable%source/=source_none) then
+   elseif (variable%source /= source_none) then
       ! This variable is written by a known BGC API [is is not a constant indicated by source_none]
       call add_call(variable%source)
    end if
@@ -267,32 +260,30 @@ recursive subroutine graph_add_variable(self,variable,outer_calls,copy_to_store,
    ! Automatically request additional value contributions (for reduction operators that accept in-place modification of the variable value)
    variable_node => variable%cowriters%first
    do while (associated(variable_node))
-      call self%add_variable(variable_node%target,outer_calls,copy_to_store,caller,group_)
+      call self%add_variable(variable_node%target, outer_calls, copy_to_store, caller)
       variable_node => variable_node%next
    end do
 
 contains
-   
+
    recursive subroutine add_call(source)
       integer, intent(in) :: source
 
       type (type_node),           pointer :: node
       type (type_output_variable),pointer :: variable_node
 
-      node => self%add_call(variable%owner,source,outer_calls)
+      node => self%add_call(variable%owner, source, outer_calls)
       variable_node => node%outputs%add(variable)
-      variable_node%group => group_
       if (present(copy_to_store)) variable_node%copy_to_store = variable_node%copy_to_store .or. copy_to_store
       if (present(caller)) then
          call caller%dependencies%add(node)
          call variable_node%dependent_nodes%add(caller)
       end if
-      if (associated(group_)) call group_%add(node)
    end subroutine add_call
 
 end subroutine graph_add_variable
 
-subroutine node_set_add(self,node)
+subroutine node_set_add(self, node)
    class (type_node_set), intent(inout) :: self
    type (type_node),target              :: node
 
@@ -301,7 +292,7 @@ subroutine node_set_add(self,node)
    ! First determine if the graph node is already part of the set. If so, we are done: return.
    member => self%first
    do while (associated(member))
-      if (associated(member%p,node)) return
+      if (associated(member%p, node)) return
       member => member%next
    end do
 
@@ -312,7 +303,7 @@ subroutine node_set_add(self,node)
    self%first => member
 end subroutine node_set_add
 
-function node_set_contains(self,node) result(found)
+function node_set_contains(self, node) result(found)
    class (type_node_set), intent(in) :: self
    type (type_node), target          :: node
    logical                           :: found
@@ -323,7 +314,7 @@ function node_set_contains(self,node) result(found)
    found = .true.
    member => self%first
    do while (associated(member))
-      if (associated(member%p,node)) return
+      if (associated(member%p, node)) return
       member => member%next
    end do
    found = .false.
@@ -332,7 +323,7 @@ end function node_set_contains
 subroutine node_set_finalize(self)
    class (type_node_set), intent(inout) :: self
 
-   type (type_node_set_member), pointer :: current,next
+   type (type_node_set_member), pointer :: current, next
 
    current => self%first
    do while (associated(current))
@@ -343,7 +334,7 @@ subroutine node_set_finalize(self)
    self%first => null()
 end subroutine node_set_finalize
 
-subroutine node_list_append(self,node)
+subroutine node_list_append(self, node)
    class (type_node_list), intent(inout) :: self
    type (type_node),target               :: node
 
@@ -363,19 +354,19 @@ end subroutine node_list_append
 
 subroutine node_list_check(self)
    class (type_node_list), intent(in) :: self
-   type (type_node_list_member), pointer :: current,previous
+   type (type_node_list_member), pointer :: current, previous
 
-   if (associated(self%last).and..not.associated(self%first)) call driver%fatal_error('node_list_check','BUG: list has tail but no head.')
-   if (associated(self%first).and..not.associated(self%last)) call driver%fatal_error('node_list_check','BUG: list has head but no tail.')
-   if (.not.associated(self%first)) return
+   if (associated(self%last) .and. .not. associated(self%first)) call driver%fatal_error('node_list_check','BUG: list has tail but no head.')
+   if (associated(self%first) .and. .not. associated(self%last)) call driver%fatal_error('node_list_check','BUG: list has head but no tail.')
+   if (.not. associated(self%first)) return
    if (associated(self%first%previous)) call driver%fatal_error('node_list_check','BUG: head of list has pointer to previous node.')
    if (associated(self%last%next)) call driver%fatal_error('node_list_check','BUG: tail of list has pointer to next node.')
    previous => null()
    current => self%first
    do while (associated(current))
       if (associated(previous)) then
-         if (.not.associated(current%previous,previous)) call driver%fatal_error('node_list_check','BUG: previous pointer does not match actual previous node.')
-         if (.not.associated(previous%next,current)) call driver%fatal_error('node_list_check','BUG: next pointer does not match actual next node.')
+         if (.not. associated(current%previous, previous)) call driver%fatal_error('node_list_check','BUG: previous pointer does not match actual previous node.')
+         if (.not. associated(previous%next, current)) call driver%fatal_error('node_list_check','BUG: next pointer does not match actual next node.')
       end if
       previous => current
       current => current%next
@@ -408,7 +399,7 @@ end function node_list_pop
 subroutine node_list_finalize(self)
    class (type_node_list), intent(inout) :: self
 
-   type (type_node_list_member), pointer :: current,next
+   type (type_node_list_member), pointer :: current, next
 
    current => self%first
    do while (associated(current))
@@ -420,7 +411,7 @@ subroutine node_list_finalize(self)
    self%last => null()
 end subroutine node_list_finalize
 
-function node_list_find_node(self,model,source) result(pnode)
+function node_list_find_node(self, model, source) result(pnode)
    class (type_node_list),  intent(in) :: self
    class (type_base_model),target,intent(in) :: model
    integer,                       intent(in) :: source
@@ -428,12 +419,12 @@ function node_list_find_node(self,model,source) result(pnode)
 
    pnode => self%first
    do while (associated(pnode))
-      if (associated(pnode%p%model,model).and.pnode%p%source==source) return
+      if (associated(pnode%p%model, model) .and. pnode%p%source == source) return
       pnode => pnode%next
    end do
 end function node_list_find_node
 
-function node_list_find(self,model,source) result(node)
+function node_list_find(self, model, source) result(node)
    class (type_node_list),  intent(in) :: self
    class (type_base_model),target,intent(in) :: model
    integer,                       intent(in) :: source
@@ -441,7 +432,7 @@ function node_list_find(self,model,source) result(node)
    type (type_node_list_member), pointer :: pnode
 
    node => null()
-   pnode => node_list_find_node(self,model,source)
+   pnode => node_list_find_node(self, model, source)
    if (associated(pnode)) node => pnode%p
 end function node_list_find
 
@@ -461,7 +452,7 @@ subroutine graph_finalize(self)
    call self%type_node_list%finalize()
 end subroutine graph_finalize
 
-subroutine graph_save_as_dot(self,unit)
+subroutine graph_save_as_dot(self, unit)
    class (type_graph),intent(in) :: self
    integer,           intent(in) :: unit
 
@@ -475,7 +466,7 @@ subroutine graph_save_as_dot(self,unit)
    do while (associated(node))
       pnode => node%p%dependencies%first
       do while (associated(pnode))
-         write (unit,'(A)') '  "'//trim(pnode%p%as_string())//'" -> "'//trim(node%p%as_string())//'";'
+         write (unit,'(A)') '  "' // trim(pnode%p%as_string()) // '" -> "' // trim(node%p%as_string()) // '";'
          pnode => pnode%next
       end do
       node => node%next
@@ -488,7 +479,7 @@ function node_as_string(node) result(string)
    class (type_node), intent(in) :: node
    character(len=attribute_length) :: string
 
-   string = trim(node%model%get_path())//':'//trim(source2string(node%source))
+   string = trim(node%model%get_path()) // ':' // trim(source2string(node%source))
 end function node_as_string
 
 end module fabm_graph

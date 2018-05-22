@@ -318,6 +318,8 @@
 #define _SET_DIAGNOSTIC_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%diag_index) = value
 #define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_diag_index) = value
 
+#define _ASSERT_(condition, routine, message) if (.not.(condition)) call driver%fatal_error(routine, message)
+
 ! ==============================
 ! Backward compatibility
 ! ==============================
