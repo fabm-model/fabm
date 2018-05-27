@@ -97,8 +97,8 @@
                                  presence_external_optional = 6
 
    integer, parameter, public :: prefill_none           = 0, &
-                                 prefill_constant       = 1, &
-                                 prefill_previous_value = 2
+                                 prefill_constant       = -1, &
+                                 prefill_previous_value = -2
 
    integer, parameter, public :: access_none       = 0, &
                                  access_read       = 1, &

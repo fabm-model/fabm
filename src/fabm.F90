@@ -226,9 +226,11 @@
       real(rk),allocatable                                      :: diag_hz_missing_value(:)
 
       ! Read cache fill values
-      real(rk),allocatable                                      :: read_cache_missing_value(:)
-      real(rk),allocatable                                      :: read_cache_hz_missing_value(:)
-      real(rk),allocatable                                      :: read_cache_scalar_missing_value(:)
+      real(rk),allocatable                                      :: read_cache_fill_value(:)
+      real(rk),allocatable                                      :: read_cache_hz_fill_value(:)
+      real(rk),allocatable                                      :: read_cache_scalar_fill_value(:)
+      real(rk),allocatable                                      :: write_cache_fill_value(:)
+      real(rk),allocatable                                      :: write_cache_hz_fill_value(:)
 
       integer                                                   :: domain_size(_FABM_DIMENSION_COUNT_)
       integer                                                   :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
@@ -595,7 +597,6 @@
       class (type_model),target,intent(inout) :: self
 !
 ! !LOCAL VARIABLES:
-      type (type_aggregate_variable_access),    pointer :: aggregate_variable_access
       class (type_property),                    pointer :: property => null()
       integer                                           :: islash
       type (type_link),                         pointer :: link
@@ -822,22 +823,27 @@
       self%scalar_data_sources = data_source_none
    end subroutine create_catalog
 
-   subroutine collect_missing_values(variable_list, missing_values)
+   subroutine collect_fill_values(variable_list, values, use_missing)
       type (type_variable_list), intent(in) :: variable_list
-      real(rk), allocatable, intent(out) :: missing_values(:)
+      real(rk), allocatable, intent(out) :: values(:)
+      logical, intent(in) :: use_missing
 
       type (type_variable_node), pointer :: variable_node
       integer :: i
 
-      allocate(missing_values(variable_list%count))
+      allocate(values(variable_list%count))
       i = 0
       variable_node => variable_list%first
       do while (associated(variable_node))
          i = i + 1
-         missing_values(i) = variable_node%target%missing_value
+         if (use_missing) then
+            values(i) = variable_node%target%missing_value
+         else
+            values(i) = variable_node%target%prefill_value
+         end if
          variable_node => variable_node%next
       end do
-   end subroutine collect_missing_values
+   end subroutine collect_fill_values
 
    subroutine create_store(self)
       class (type_model), intent(inout) :: self
@@ -849,26 +855,21 @@
       allocate(self%diag(self%domain_size(1), 0:self%variable_register%store%interior%count))
       allocate(self%diag_hz(0:self%variable_register%store%horizontal%count))
 
-      ! Collect missing values in array for faster access
-      call collect_missing_values(self%variable_register%store%interior, self%diag_missing_value)
-      call collect_missing_values(self%variable_register%store%horizontal, self%diag_hz_missing_value)
+      ! Collect missing values in array for faster access. These will be used to fill masked parts of outputs.
+      call collect_fill_values(self%variable_register%store%interior, self%diag_missing_value, use_missing=.true.)
+      call collect_fill_values(self%variable_register%store%horizontal, self%diag_hz_missing_value, use_missing=.true.)
 
-      ! Initialize persistent store entries to missing value.
-      do i = 1, self%variable_register%store%interior%count
-         self%diag(_PREARG_LOCATION_DIMENSIONS_ i) = self%diag_missing_value(i)
-      end do
-      do i = 1, self%variable_register%store%horizontal%count
-         self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%diag_hz_missing_value(i)
-      end do
-
+      ! Initialize persistent store entries to fill value. For constant outputs, their values will be set here, and never touched again.
       ! Register data fields from persistent store in catalog.
       variable_node => self%variable_register%store%interior%first
       do i = 1, self%variable_register%store%interior%count
+         self%diag(_PREARG_LOCATION_DIMENSIONS_ i) = variable_node%target%prefill_value
          call self%link_interior_data(variable_node%target, self%diag(_PREARG_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
          variable_node => variable_node%next
       end do
       variable_node => self%variable_register%store%horizontal%first
       do i = 1, self%variable_register%store%horizontal%count
+         self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = variable_node%target%prefill_value
          call self%link_horizontal_data(variable_node%target, self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
          variable_node => variable_node%next
       end do
@@ -1048,7 +1049,6 @@
 !
 ! !LOCAL VARIABLES:
   integer                           :: ivar
-  integer                           :: n
   logical                           :: ready
   type (type_variable_set)          :: unfulfilled_dependencies
   type (type_variable_node),pointer :: variable_node
@@ -1141,9 +1141,11 @@
    ! Create persistent store. This provides memory for all variables to be stored there.
    call create_store(self)
 
-   call collect_missing_values(self%variable_register%read_cache%interior, self%read_cache_missing_value)
-   call collect_missing_values(self%variable_register%read_cache%horizontal, self%read_cache_hz_missing_value)
-   call collect_missing_values(self%variable_register%read_cache%scalar, self%read_cache_scalar_missing_value)
+   call collect_fill_values(self%variable_register%read_cache%interior, self%read_cache_fill_value, use_missing=.false.)
+   call collect_fill_values(self%variable_register%read_cache%horizontal, self%read_cache_hz_fill_value, use_missing=.false.)
+   call collect_fill_values(self%variable_register%read_cache%scalar, self%read_cache_scalar_fill_value, use_missing=.false.)
+   call collect_fill_values(self%variable_register%write_cache%interior, self%write_cache_fill_value, use_missing=.false.)
+   call collect_fill_values(self%variable_register%write_cache%horizontal, self%write_cache_hz_fill_value, use_missing=.false.)
 
    call self%variable_register%print()
 
@@ -1714,56 +1716,22 @@
    end function fabm_scalar_variable_needs_values_sn
 !EOC
 
-   function get_host_container_model(self) result(host)
-      class (type_model), intent(inout) :: self
-      class (type_host_container), pointer :: host
-
-      type (type_model_list_node),pointer :: node
-      class (type_base_model), pointer :: base_host
-
-      node => self%root%children%find('_host_')
-      if (associated(node)) then
-         base_host => node%model
-         select type (base_host)
-         class is (type_host_container)
-            host => base_host
-         end select
-      else
-         allocate(host)
-         call self%root%add_child(host,'_host_',configunit=-1)
-      end if
-   end function get_host_container_model
-
    subroutine fabm_require_interior_data(self,standard_variable,domain)
       class (type_model),                intent(inout) :: self
       type(type_bulk_standard_variable), intent(in)    :: standard_variable
       integer,optional,                  intent(in)    :: domain
 
-      class (type_host_container),  pointer :: host
-      type (type_integer_list_node),pointer :: node
-      type (type_link),             pointer :: link
-      integer                               :: domain_
+      type (type_bulk_variable_id) :: id
 
-      if (self%state>=state_initialize_done) &
-         call fatal_error('fabm_require_interior_data','model%require_data cannot be called after model initialization.')
+      if (self%state < state_initialize_done) &
+         call fatal_error('fabm_require_interior_data','model%require_data can only be called after model initialization.')
+      if (self%state >= state_check_ready_done) &
+         call fatal_error('fabm_require_interior_data','model%require_data cannot be called after check_ready is called.')
 
-      domain_ = domain_interior
-      if (present(domain)) domain_ = domain
-
-      host => get_host_container_model(self)
-
-      allocate(node)
-      node%next => host%first
-      host%first => node
-      select case (domain_)
-      case (domain_interior)
-         call host%add_interior_variable(standard_variable%name,standard_variable%units,standard_variable%name,read_index=node%value,link=link)
-      case (domain_horizontal,domain_surface,domain_bottom)
-         call host%add_horizontal_variable(standard_variable%name,standard_variable%units,standard_variable%name,read_index=node%value,domain=domain_,link=link)
-      case default
-         call fatal_error('fabm_require_interior_data','model%require_data called with unknown domain.')
-      end select
-      call host%request_coupling(link,standard_variable,domain=domain_)
+      id = self%get_bulk_variable_id(standard_variable)
+      if (.not. associated(id%variable)) &
+         call fatal_error('fabm_require_interior_data', 'Model does not contain requested variable ' // trim(standard_variable%name))
+      call self%get_diagnostics_job%request_variable(id%variable, target_location=location_store)
    end subroutine fabm_require_interior_data
 
 !-----------------------------------------------------------------------
@@ -2275,22 +2243,19 @@
 ! a single diagnostic variable, defined on the full spatial domain.
 !
 ! !INTERFACE:
-   function fabm_get_interior_diagnostic_data(self,id) result(dat)
+   function fabm_get_interior_diagnostic_data(self, index) result(dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,         intent(in) :: self
-   integer,                           intent(in) :: id
+   class (type_model), intent(in) :: self
+   integer,            intent(in) :: index
    real(rk) _DIMENSION_GLOBAL_,pointer           :: dat
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifndef NDEBUG
-   if (.not.allocated(self%diag)) call fatal_error('fabm_get_interior_diagnostic_data','Diagnostics have not been allocated yet.')
-#endif
-
-   ! Retrieve a pointer to the array holding the requested data.
-   dat => self%diag(_PREARG_LOCATION_DIMENSIONS_ self%diagnostic_variables(id)%target%store_index)
+   _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_interior_diagnostic_data', 'model%get_interior_diagnostic_data can only be called after model start.')   
+   nullify(dat)
+   if (self%diagnostic_variables(index)%target%catalog_index /= -1) dat => self%data(self%diagnostic_variables(index)%target%catalog_index)%p
 
    end function fabm_get_interior_diagnostic_data
 !EOC
@@ -2303,22 +2268,19 @@
 ! spatial domain.
 !
 ! !INTERFACE:
-   function fabm_get_horizontal_diagnostic_data(self,id) result(dat)
+   function fabm_get_horizontal_diagnostic_data(self, index) result(dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,                  intent(in) :: self
-   integer,                                    intent(in) :: id
+   class (type_model), intent(in) :: self
+   integer,            intent(in) :: index
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,pointer         :: dat
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifndef NDEBUG
-   if (.not.allocated(self%diag_hz)) call fatal_error('fabm_get_horizontal_diagnostic_data','Diagnostics have not been allocated yet.')
-#endif
-
-   ! Retrieve a pointer to the array holding the requested data.
-   dat => self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ self%horizontal_diagnostic_variables(id)%target%store_index)
+   _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_horizontal_diagnostic_data', 'model%get_horizontal_diagnostic_data can only be called after model start.')   
+   nullify(dat)
+   if (self%horizontal_diagnostic_variables(index)%target%catalog_index /= -1) dat => self%data_hz(self%horizontal_diagnostic_variables(index)%target%catalog_index)%p
 
    end function fabm_get_horizontal_diagnostic_data
 !EOC
@@ -2328,6 +2290,7 @@ function fabm_get_interior_data(self,id) result(dat)
    type(type_bulk_variable_id),       intent(in) :: id
    real(rk) _DIMENSION_GLOBAL_,pointer           :: dat
 
+   _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_interior_data', 'model%get_data can only be called after model start.')   
    nullify(dat)
    if (id%variable%catalog_index /= -1) dat => self%data(id%variable%catalog_index)%p
 end function fabm_get_interior_data
@@ -2337,6 +2300,7 @@ function fabm_get_horizontal_data(self,id) result(dat)
    type(type_horizontal_variable_id),  intent(in) :: id
    real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,pointer :: dat
 
+   _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_horizontal_data', 'model%get_data can only be called after model start.')   
    nullify(dat)
    if (id%variable%catalog_index /= -1) dat => self%data_hz(id%variable%catalog_index)%p
 end function fabm_get_horizontal_data
@@ -2346,6 +2310,7 @@ function fabm_get_scalar_data(self,id) result(dat)
    type(type_scalar_variable_id),      intent(in) :: id
    real(rk),pointer                               :: dat
 
+   _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_scalar_data', 'model%get_data can only be called after model start.')   
    nullify(dat)
    if (id%variable%catalog_index /= -1) dat => self%data_scalar(id%variable%catalog_index)%p
 end function fabm_get_scalar_data
@@ -2426,22 +2391,22 @@ function create_cache(self, source) result(cache)
    
    do i = 1, self%variable_register%read_cache%interior%count
 #if defined(_INTERIOR_IS_VECTORIZED_)
-      cache%read(:, i) = self%read_cache_missing_value(i)
+      cache%read(:, i) = self%read_cache_fill_value(i)
 #else
-      cache%read(i) = self%read_cache_missing_value(i)
+      cache%read(i) = self%read_cache_fill_value(i)
 #endif
    end do
 
    do i = 1, self%variable_register%read_cache%horizontal%count
 #if defined(_HORIZONTAL_IS_VECTORIZED_)
-      cache%read_hz(:, i) = self%read_cache_hz_missing_value(i)
+      cache%read_hz(:, i) = self%read_cache_hz_fill_value(i)
 #else
-      cache%read_hz(i) = self%read_cache_hz_missing_value(i)
+      cache%read_hz(i) = self%read_cache_hz_fiLL_value(i)
 #endif   
    end do
 
    do i = 1, self%variable_register%read_cache%scalar%count
-      cache%read_scalar(i) = self%read_cache_scalar_missing_value(i)
+      cache%read_scalar(i) = self%read_cache_scalar_fill_value(i)
    end do
 end function create_cache
 
@@ -2487,13 +2452,13 @@ subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
 #ifndef NDEBUG
    cache%write = not_written
 #endif
-   do i=1,size(task%prefill_type)
-      if (task%prefill_type(i)==prefill_constant) then
+   do i = 1, size(task%prefill)
+      if (task%prefill(i) == prefill_constant) then
          _CONCURRENT_LOOP_BEGIN_
-            cache%write _INDEX_SLICE_PLUS_1_(i) = task%prefill_values(i)
+            cache%write _INDEX_SLICE_PLUS_1_(i) = self%write_cache_fill_value(i)
          _LOOP_END_
-      elseif (task%prefill_type(i)==prefill_previous_value) then
-         _PACK_GLOBAL_PLUS_1_(self%diag,task%prefill_index(i),cache%write,i,cache%mask)
+      elseif (task%prefill(i) /= prefill_none) then
+         _PACK_GLOBAL_(self%data(task%prefill(i))%p, cache%write, i, cache%mask)
       end if
    end do
 end subroutine begin_interior_task
@@ -2531,13 +2496,13 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 #ifndef NDEBUG
    cache%write_hz = not_written
 #endif
-   do i=1,size(task%prefill_type_hz)
-      if (task%prefill_type_hz(i)==prefill_constant) then
+   do i = 1, size(task%prefill_hz)
+      if (task%prefill_hz(i) == prefill_constant) then
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = task%prefill_values_hz(i)
+            cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%write_cache_hz_fill_value(i)
          _HORIZONTAL_LOOP_END_
-      elseif (task%prefill_type_hz(i)==prefill_previous_value) then
-         _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,task%prefill_index_hz(i),cache%write_hz,i,cache%mask)
+      elseif (task%prefill_hz(i) /= prefill_none) then
+         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(task%prefill_hz(i))%p, cache%write_hz, i, cache%mask)
       end if
    end do
 
@@ -2700,16 +2665,46 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
    cache%write = not_written
    cache%write_hz = not_written
 #endif
-   do i=1,size(task%prefill_type)
-      if (task%prefill_type(i)==prefill_constant) then
+   do i = 1, size(task%prefill)
+      if (task%prefill(i) == prefill_constant) then
 #if defined(_INTERIOR_IS_VECTORIZED_)
-         cache%write(:,i) = task%prefill_values(i)
+         cache%write(:, i) = self%write_cache_fill_value(i)
 #else
-         cache%write(i) = task%prefill_values(i)
+         cache%write(i) = self%write_cache_fill_value(i)
+#endif
+      elseif (task%prefill(i) /= prefill_none) then
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  ifdef _HAS_MASK_
+         cache%write(:, i) = pack(self%data(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_:_VERTICAL_STOP_), cache%mask)
+#  else
+         _CONCURRENT_VERTICAL_LOOP_BEGIN_
+            cache%write _INDEX_SLICE_PLUS_1_(i) = self%data(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_ + _I_ - 1)
+         _VERTICAL_LOOP_END_
+#  endif
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+         cache%write(1, i) = self%data(task%prefill(i))%p _INDEX_LOCATION_
+#else
+         cache%write(i) = self%data(task%prefill(i))%p _INDEX_LOCATION_
 #endif
       end if
    end do
 
+   do i = 1, size(task%prefill_hz)
+      if (task%prefill_hz(i) == prefill_constant) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+         cache%write_hz(1, i) = self%write_cache_hz_fill_value(i)
+#else
+         cache%write_hz(i) = self%write_cache_hz_fill_value(i)
+#endif
+      elseif (task%prefill_hz(i) /= prefill_none) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+         cache%write_hz(1, i) = self%data_hz(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
+#else
+         cache%write_hz(i) = self%data_hz(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
+#endif
+      end if
+   end do
+   
 end subroutine begin_vertical_task
 
 subroutine check_call_output(call_node,cache)
