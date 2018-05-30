@@ -90,7 +90,8 @@
                                  source_check_bottom_state       = 13, &
                                  source_get_light_extinction     = 14, &
                                  source_get_drag                 = 15, &
-                                 source_get_albedo               = 16
+                                 source_get_albedo               = 16, &
+                                 source_external                 = 17
 
    integer, parameter, public :: presence_internal          = 1, &
                                  presence_external_required = 2, &
@@ -105,11 +106,11 @@
                                  access_set_source = 2, &
                                  access_state      = ior(access_read,access_set_source)
 
-   integer, parameter, public :: store_index_none      = 0
-   integer, parameter, public :: store_index_requested = 1
+   integer, parameter, public :: store_index_none = -1
 
    integer, parameter, public :: operator_assign = 0, &
-                                 operator_add    = 1
+                                 operator_add    = 1, &
+                                 operator_merge_forbidden = 256
 !
 ! !PUBLIC TYPES:
 !
@@ -195,9 +196,6 @@
    type,extends(type_variable_id) :: type_state_variable_id
       integer  :: index              = -1
       integer  :: state_index        = -1
-      !integer  :: sms_index          = -1
-      !integer  :: surface_flux_index = -1
-      !integer  :: bottom_flux_index  = -1
       integer  :: movement_index     = -1
       real(rk) :: background         = 0.0_rk
       type (type_aggregate_variable_id) :: sms
@@ -207,16 +205,16 @@
 
    type,extends(type_variable_id) :: type_bottom_state_variable_id
       integer  :: horizontal_index   = -1
-      integer  :: bottom_sms_index   = -1
       integer  :: bottom_state_index = -1
       real(rk) :: background         = 0.0_rk
+      type (type_horizontal_aggregate_variable_id) :: bottom_sms
    end type
 
    type,extends(type_variable_id) :: type_surface_state_variable_id
       integer  :: horizontal_index    = -1
-      integer  :: surface_sms_index   = -1
       integer  :: surface_state_index = -1
       real(rk) :: background          = 0.0_rk
+      type (type_horizontal_aggregate_variable_id) :: surface_sms
    end type
 
    type,extends(type_variable_id) :: type_diagnostic_variable_id
@@ -343,7 +341,7 @@
       integer,pointer :: write_index => null()
       integer         :: store_index = store_index_none
       integer         :: catalog_index = -1
-      logical         :: in_read_registry = .false.
+      logical         :: has_data = .false.
 
       ! Collections to collect information from all coupled variables.
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
@@ -1548,6 +1546,38 @@ end subroutine real_pointer_set_set_value
       link%target%bottom_flux => link2
    end subroutine register_bottom_flux
 
+   subroutine register_surface_source(self, link, sms_id)
+      class (type_base_model),           intent(inout)        :: self
+      type (type_link),                  intent(in)           :: link
+      type (type_horizontal_aggregate_variable_id), intent(inout),target :: sms_id
+
+      type (type_link), pointer :: link2
+
+      if (.not.associated(sms_id%link)) &
+         call self%add_horizontal_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
+                                         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_surface, source=source_do_surface)
+      sms_id%link%target%prefill = prefill_constant
+      sms_id%link%target%write_operator = operator_add
+      link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
+      link%target%sms => link2
+   end subroutine register_surface_source
+
+   subroutine register_bottom_source(self, link, sms_id)
+      class (type_base_model),           intent(inout)        :: self
+      type (type_link),                  intent(in)           :: link
+      type (type_horizontal_aggregate_variable_id), intent(inout),target :: sms_id
+
+      type (type_link), pointer :: link2
+
+      if (.not.associated(sms_id%link)) &
+         call self%add_horizontal_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
+                                         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_bottom, source=source_do_bottom)
+      sms_id%link%target%prefill = prefill_constant
+      sms_id%link%target%write_operator = operator_add
+      link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
+      link%target%sms => link2
+   end subroutine register_bottom_source
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -1582,7 +1612,8 @@ end subroutine real_pointer_set_set_value
                                         initial_value=initial_value, background_value=background_value, &
                                         standard_variable=standard_variable, presence=presence, domain=domain_bottom, &
                                         state_index=id%bottom_state_index, read_index=id%horizontal_index, &
-                                        sms_index=id%bottom_sms_index, background=id%background, link=id%link)
+                                        background=id%background, link=id%link)
+      call register_bottom_source(self,id%link,id%bottom_sms)
    end subroutine register_bottom_state_variable
 !EOC
 
@@ -1620,7 +1651,8 @@ end subroutine real_pointer_set_set_value
                                         initial_value=initial_value, background_value=background_value, &
                                         standard_variable=standard_variable, presence=presence, domain=domain_surface, &
                                         state_index=id%surface_state_index, read_index=id%horizontal_index, &
-                                        sms_index=id%surface_sms_index, background=id%background, link=id%link)
+                                        background=id%background, link=id%link)
+      call register_surface_source(self,id%link,id%surface_sms)
 
    end subroutine register_surface_state_variable
 !EOC
@@ -1812,7 +1844,7 @@ end subroutine real_pointer_set_set_value
    recursive subroutine add_horizontal_variable(self,name,units,long_name, missing_value, minimum, maximum, initial_value, &
                                                 background_value, standard_variable, presence, output, time_treatment, &
                                                 act_as_state_variable, domain, source, &
-                                                read_index, state_index, write_index, sms_index, background, link)
+                                                read_index, state_index, write_index, background, link)
 !
 ! !DESCRIPTION:
 !  This function registers a new horizontal variable. It is not predefined to be a state variable, diagnostic variable
@@ -1828,7 +1860,7 @@ end subroutine real_pointer_set_set_value
       integer,                                  intent(in),optional :: presence, domain, output, time_treatment, source
       logical,                                  intent(in),optional :: act_as_state_variable
 
-      integer,                            target,optional :: read_index, state_index, write_index, sms_index
+      integer,                            target,optional :: read_index, state_index, write_index
       real(rk),                           target,optional :: background
 
       type (type_link),pointer,optional :: link
@@ -1861,16 +1893,6 @@ end subroutine real_pointer_set_set_value
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, &
                         act_as_state_variable, read_index, state_index, write_index, background, link_)
-
-      if (present(sms_index)) then
-         sms_source = source_do_bottom
-         if (variable%domain==domain_surface) sms_source = source_do_surface
-         call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                           0.0_rk, output=output_none, write_index=sms_index, link=variable%sms, &
-                                           domain=variable%domain, source=sms_source)
-         variable%sms%target%prefill = prefill_constant
-         link_dum => variable%sms_list%append(variable%sms%target,variable%sms%target%name)
-      end if
 
       if (present(link)) link => link_
    end subroutine add_horizontal_variable

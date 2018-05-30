@@ -252,7 +252,7 @@ recursive subroutine graph_add_variable(self, variable, outer_calls, copy_to_sto
       ! This variable is either written by do_surface or do_bottom - which one of these two APIs is unknown.
       call add_call(source_do_surface)
       call add_call(source_do_bottom)
-   elseif (variable%source /= source_none) then
+   elseif (variable%source /= source_none .and. variable%source /= source_external) then
       ! This variable is written by a known BGC API [is is not a constant indicated by source_none]
       call add_call(variable%source)
    end if

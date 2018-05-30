@@ -257,7 +257,8 @@ module fabm_builtin_models
       if (present(link)) link => link_
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
-         call parent%request_coupling(link_,'zero')
+         link_%target%source = source_none
+         link_%target%prefill_value = 0
       elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
          call parent%request_coupling(link_,self%first%name)
@@ -389,26 +390,34 @@ module fabm_builtin_models
       call self%id_output%link%target%background_values%set_value(background)
    end subroutine
 
-   subroutine weighted_sum_reindex(self)
-      class (type_weighted_sum),intent(inout) :: self
+   subroutine weighted_sum_reindex(self, log_unit)
+      class (type_weighted_sum), intent(inout) :: self
+      integer, optional,         intent(in)    :: log_unit
 
       type (type_internal_variable),pointer :: component_variable, sum_variable
       type (type_component),        pointer :: component, component_next, component_previous
-      integer :: n_kept, n_removed
 
       sum_variable => self%id_output%link%target
-      write (*,*) 'Reindexing '//trim(sum_variable%name)
+      if (present(log_unit)) write (log_unit,'(a)') 'Reindexing ' // trim(sum_variable%name)
       component_previous => null()
-      n_kept = 0
-      n_removed = 0
       component => self%first
       do while (associated(component))
          component_variable => component%id%link%target
          component_next => component%next
-         if (component_variable%write_operator==operator_add &             ! This component will increment its target diagnostic in place
-             .and. component%weight==1.0_rk                          &     ! It does not require scaling
-             .and. size(component_variable%read_indices%pointers)==1) then ! And the user has not asked for it to be stored separately
 
+         if (iand(component_variable%write_operator, operator_merge_forbidden) /= 0) then
+            component_previous => component
+            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by FABM or host'
+         elseif (component_variable%write_operator /= operator_add) then
+            component_previous => component
+            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it assigns directly'
+         elseif (component%weight /= 1.0_rk) then
+            component_previous => component
+            if (present(log_unit)) write (log_unit,'(a,g0.6)') '- kept '// trim(component_variable%name) // ' because it uses scale factor ', component%weight
+         elseif (size(component_variable%read_indices%pointers) > 1) then
+            component_previous => component
+            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by other models'
+         else
             ! This component can increment the sum result directly (it does not need a separate diagnostic)
             call sum_variable%write_indices%extend(component_variable%write_indices)
             call sum_variable%write_indices%append(component_variable%write_indices%value)
@@ -424,37 +433,39 @@ module fabm_builtin_models
             else
                self%first => component_next
             end if
-            n_removed = n_removed + 1
-            write (*,*) '- merged '//trim(component_variable%name)
-         else
-            component_previous => component
-            n_kept = n_kept + 1
-            write (*,*) '- kept '//trim(component_variable%name)
+            if (present(log_unit)) write (log_unit,'(a)') '- merged ' // trim(component_variable%name)
          end if
          component => component_next
       end do
    end subroutine weighted_sum_reindex
 
-   subroutine horizontal_weighted_sum_reindex(self)
-      class (type_horizontal_weighted_sum),intent(inout) :: self
+   subroutine horizontal_weighted_sum_reindex(self, log_unit)
+      class (type_horizontal_weighted_sum), intent(inout) :: self
+      integer, optional,                    intent(in)    :: log_unit
 
       type (type_internal_variable),   pointer :: component_variable, sum_variable
       type (type_horizontal_component),pointer :: component, component_next, component_previous
-      integer :: n_kept, n_removed
 
       sum_variable => self%id_output%link%target
-      write (*,*) 'Reindexing '//trim(sum_variable%name)
+      if (present(log_unit)) write (log_unit,'(a)') 'Reindexing ' // trim(sum_variable%name)
       component_previous => null()
-      n_kept = 0
-      n_removed = 0
       component => self%first
       do while (associated(component))
          component_variable => component%id%link%target
          component_next => component%next
-         if (component_variable%write_operator==operator_add &             ! This component will increment its target diagnostic in place
-             .and. component%weight==1.0_rk                          &     ! It does not require scaling
-             .and. size(component_variable%read_indices%pointers)==1) then ! And the user has not asked for it to be stored separately
-
+         if (iand(component_variable%write_operator, operator_merge_forbidden) /= 0) then
+            component_previous => component
+            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by FABM or host'
+         elseif (component_variable%write_operator /= operator_add) then
+            component_previous => component
+            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it assigns directly'
+         elseif (component%weight /= 1.0_rk) then
+            component_previous => component
+            if (present(log_unit)) write (log_unit,'(a,g0.6)') '- kept '// trim(component_variable%name) // ' because it uses scale factor ', component%weight
+         elseif (size(component_variable%read_indices%pointers) > 1) then
+            component_previous => component
+            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by other models'
+         else
             ! This component can increment the sum result directly (it does not need a separate diagnostic)
             call sum_variable%write_indices%extend(component_variable%write_indices)
             call sum_variable%write_indices%append(component_variable%write_indices%value)
@@ -470,12 +481,7 @@ module fabm_builtin_models
             else
                self%first => component_next
             end if
-            n_removed = n_removed + 1
-            write (*,*) '- merged '//trim(component_variable%name)
-         else
-            component_previous => component
-            n_kept = n_kept + 1
-            write (*,*) '- kept '//trim(component_variable%name)
+            if (present(log_unit)) write (log_unit,'(a)') '- merged ' // trim(component_variable%name)
          end if
          component => component_next
       end do
@@ -572,7 +578,8 @@ module fabm_builtin_models
       if (present(link)) link => link_
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
-         call parent%request_coupling(link_,'zero_hz')
+         link_%target%source = source_none
+         link_%target%prefill_value = 0
       elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
          call parent%request_coupling(link_,self%first%name)

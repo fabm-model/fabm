@@ -600,6 +600,7 @@
       class (type_property),                    pointer :: property => null()
       integer                                           :: islash
       type (type_link),                         pointer :: link
+      integer                                           :: ivar
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -665,7 +666,7 @@
       call require_call_all_with_state(self%get_vertical_movement_job,self%root%links,domain_interior,source_get_vertical_movement)
       link => self%links_postcoupling%first
       do while (associated(link))
-         if (associated(link%target%movement_diagnostic)) call self%get_vertical_movement_job%request_variable(link%target%movement_diagnostic%target, target_location=location_write_cache)
+         if (associated(link%target%movement_diagnostic)) call self%get_vertical_movement_job%request_variable(link%target%movement_diagnostic%target)
          link => link%next
       end do
 
@@ -679,6 +680,15 @@
       call require_call_all_with_state(self%check_surface_state_job,self%root%links,domain_interior,source_check_surface_state)
       call require_call_all(self%get_albedo_job,self%root,source_get_albedo)
       call require_call_all(self%get_drag_job,self%root,source_get_drag)
+
+      do ivar = 1, size(self%conserved_quantities)
+         call self%get_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target)
+         call self%get_horizontal_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target_hz)
+      end do
+
+      self%extinction_id = self%get_bulk_variable_id(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
+      _ASSERT_(associated(self%extinction_id%variable), 'fabm_initialize', 'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux not found')
+      call self%get_light_extinction_job%request_variable(self%extinction_id%variable)
 
       self%state = state_initialize_done
 
@@ -875,22 +885,23 @@
       end do
    end subroutine create_store
 
-   recursive subroutine merge_indices(model)
-      class (type_base_model), intent(inout) :: model
+   recursive subroutine merge_indices(model, log_unit)
+      class (type_base_model), intent(inout)        :: model
+      integer,                 intent(in), optional :: log_unit
 
       type (type_model_list_node), pointer :: child
 
       select type (model)
       class is (type_weighted_sum)
-         call model%reindex()
+         call model%reindex(log_unit)
       class is (type_horizontal_weighted_sum)
-         call model%reindex()
+         call model%reindex(log_unit)
       end select
 
       ! Process children
       child => model%children%first
       do while (associated(child))
-         call merge_indices(child%model)
+         call merge_indices(child%model, log_unit)
          child => child%next
       end do
    end subroutine merge_indices
@@ -1045,7 +1056,7 @@
    subroutine fabm_check_ready(self)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),intent(inout),target :: self
+   class (type_model), intent(inout), target :: self
 !
 ! !LOCAL VARIABLES:
   integer                           :: ivar
@@ -1053,6 +1064,10 @@
   type (type_variable_set)          :: unfulfilled_dependencies
   type (type_variable_node),pointer :: variable_node
   type (type_link), pointer         :: link
+#ifndef NDEBUG
+   character(len=*), parameter      :: log_prefix = 'fabm_'
+  integer                           :: log_unit, ios
+#endif
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1097,46 +1112,46 @@
    call self%do_surface_job%set_previous(self%do_bottom_job)
    call self%do_interior_job%set_previous(self%do_surface_job)
 
+   ! Flag variables that have had data asssigned (by user, host or FABM).
+   call flag_variables_with_data(self%variable_register%catalog%interior, self%interior_data_sources)
+   call flag_variables_with_data(self%variable_register%catalog%horizontal, self%horizontal_data_sources)
+   call flag_variables_with_data(self%variable_register%catalog%scalar, self%scalar_data_sources)
+
    ! Create job that ensures all diagnostics required by the user are computed.
    call self%get_diagnostics_job%set_previous(self%do_interior_job)
-   do ivar=1,size(self%diagnostic_variables)
+   do ivar = 1, size(self%diagnostic_variables)
       if (self%diagnostic_variables(ivar)%save) then
          select case (self%diagnostic_variables(ivar)%target%source)
          case (source_check_state)
-            call self%check_state_job%request_variable(self%diagnostic_variables(ivar)%target, target_location=location_store)
+            call self%check_state_job%request_variable(self%diagnostic_variables(ivar)%target, store=.true.)
          case (source_get_vertical_movement)
-            call self%get_vertical_movement_job%request_variable(self%diagnostic_variables(ivar)%target, target_location=location_store)
+            call self%get_vertical_movement_job%request_variable(self%diagnostic_variables(ivar)%target, store=.true.)
          case default
-            call self%get_diagnostics_job%request_variable(self%diagnostic_variables(ivar)%target, target_location=location_store)
+            call self%get_diagnostics_job%request_variable(self%diagnostic_variables(ivar)%target, store=.true.)
          end select
       end if
    end do
-   do ivar=1,size(self%horizontal_diagnostic_variables)
+   do ivar = 1, size(self%horizontal_diagnostic_variables)
       if (self%horizontal_diagnostic_variables(ivar)%save) &
-         call self%get_diagnostics_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target, target_location=location_store)
+         call self%get_diagnostics_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target, store=.true.)
    end do
-
+   
    ! Merge write indices when operations can be done in place
    ! This must be done after all variables are requested from the different jobs, so we know which variables
    ! will be retrieved (such variables cannot be merged)
+#ifndef NDEBUG
+   log_unit = get_free_unit()
+
+   open(unit=log_unit, file=log_prefix // 'merges.log', action='write', status='replace', iostat=ios)
+   if (ios /= 0) call fatal_error('fabm_check_ready', 'Unable to open ' // log_prefix // 'merges.log')
+   call merge_indices(self%root, log_unit)
+   close(log_unit)
+#else
    call merge_indices(self%root)
+#endif
 
-   ! Note: aggregate variables below are copied to read cache, just in case they are not diagnostics
-   ! (they may be equal to a state variable, or to zero)
-   do ivar=1,size(self%conserved_quantities)
-      call self%get_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target, target_location=location_read_cache)
-      call self%get_horizontal_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target_hz, target_location=location_read_cache)
-   end do
-
-   self%extinction_id = self%get_bulk_variable_id(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
-   _ASSERT_(associated(self%extinction_id%variable), 'fabm_check_ready', 'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux not found')
-   call self%get_light_extinction_job%request_variable(self%extinction_id%variable, target_location=location_write_cache)
-
-   ! Initialize all jobs.
-   ! NOTE this does not yet set the final cache/store indices per variable. That step is postponed until check_ready in order to know which variables have been provided by the host.
-   call self%job_manager%initialize(self%variable_register)
-
-   !call self%job_manager%print()
+   ! Initialize all jobs. This also creates registers for the read and write caches, as well as the persistent store.
+   call self%job_manager%initialize(self%variable_register, unfulfilled_dependencies)
 
    ! Create persistent store. This provides memory for all variables to be stored there.
    call create_store(self)
@@ -1147,36 +1162,42 @@
    call collect_fill_values(self%variable_register%write_cache%interior, self%write_cache_fill_value, use_missing=.false.)
    call collect_fill_values(self%variable_register%write_cache%horizontal, self%write_cache_hz_fill_value, use_missing=.false.)
 
-   call self%variable_register%print()
-
-   ! Flag variables that have had data asssigned (by user, host or FABM).
-   call filter_readable_variable_registry(self)
-
-   ! Determine final variable indices (in read/write caches, persistent store)
-   ! Set up data structures that depend on these indices (e.g., read cache loading instructions),
-   ! and collect a list of unfulfilled dependencies in the process. Because of the latter,
-   ! this must be done AFTER the call to filter_readable_variable_registry.
-   call self%job_manager%process_indices(unfulfilled_dependencies)
-
-   write (*,*) 'Writes for the following variables are directed to the rubbish bin:'
+   ! For diagnostics that are not needed, set their write index to 0 (rubbish bin)
    link => self%links_postcoupling%first
    do while (associated(link))
-      if (.not. link%target%write_indices%is_empty() .and. link%target%write_indices%value == -1) then
-         write (*,*) '- '//trim(link%target%name)
+      if (.not. link%target%write_indices%is_empty() .and. link%target%write_indices%value == -1) &
          call link%target%write_indices%set_value(0)
-      end if
       link => link%next
    end do
-   write (*,*) '---'
 
-   call self%job_manager%print()
+#ifndef NDEBUG
+   open(unit=log_unit, file=log_prefix // 'register.log', action='write', status='replace', iostat=ios)
+   if (ios /= 0) call fatal_error('fabm_check_ready', 'Unable to open ' // log_prefix // 'register.log')
+   call self%variable_register%print(log_unit)
+   close(log_unit)
 
-   if (any(self%state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more interior state variables.')
-   if (any(self%state_variables(:)%surface_flux_index<=0)) call fatal_error('fabm_set_domain','BUG: surface_flux_index invalid for one or more interior state variables.')
-   if (any(self%state_variables(:)%bottom_flux_index<=0)) call fatal_error('fabm_set_domain','BUG: bottom_flux_index invalid for one or more interior state variables.')
-   if (any(self%state_variables(:)%movement_index<=0)) call fatal_error('fabm_set_domain','BUG: movement_index invalid for one or more interior state variables.')
-   if (any(self%surface_state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more surface state variables.')
-   if (any(self%bottom_state_variables(:)%sms_index<=0)) call fatal_error('fabm_set_domain','BUG: sms_index invalid for one or more bottom state variables.')
+   open(unit=log_unit, file=log_prefix // 'jobs.log', action='write', status='replace', iostat=ios)
+   if (ios /= 0) call fatal_error('fabm_check_ready', 'Unable to open ' // log_prefix // 'jobs.log')
+   call self%job_manager%print(log_unit)
+   close(log_unit)
+
+   open(unit=log_unit, file=log_prefix // 'discards.log', action='write', status='replace', iostat=ios)
+   if (ios /= 0) call fatal_error('fabm_check_ready', 'Unable to open ' // log_prefix // 'discards.log')
+   write (log_unit,'(a)') 'Writes for the following variables are discarded:'
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      if (link%target%write_indices%value == 0) write (log_unit,'("- ",a)') trim(link%target%name)
+      link => link%next
+   end do
+   close(log_unit)
+#endif
+
+   _ASSERT_(all(self%state_variables(:)%sms_index > 0), 'fabm_set_domain', 'BUG: sms_index invalid for one or more interior state variables.')
+   _ASSERT_(all(self%state_variables(:)%surface_flux_index > 0), 'fabm_set_domain', 'BUG: surface_flux_index invalid for one or more interior state variables.')
+   _ASSERT_(all(self%state_variables(:)%bottom_flux_index > 0), 'fabm_set_domain', 'BUG: bottom_flux_index invalid for one or more interior state variables.')
+   _ASSERT_(all(self%state_variables(:)%movement_index > 0), 'fabm_set_domain', 'BUG: movement_index invalid for one or more interior state variables.')
+   _ASSERT_(all(self%surface_state_variables(:)%sms_index > 0), 'fabm_set_domain', 'BUG: sms_index invalid for one or more surface state variables.')
+   _ASSERT_(all(self%bottom_state_variables(:)%sms_index > 0), 'fabm_set_domain', 'BUG: sms_index invalid for one or more bottom state variables.')
 
    ! Report all unfulfilled dependencies.
    variable_node => unfulfilled_dependencies%first
@@ -1191,6 +1212,24 @@
    self%state = state_check_ready_done
 
    contains
+
+      subroutine flag_variables_with_data(variable_list, data_sources)
+         type (type_variable_list), intent(inout) :: variable_list
+         integer,                   intent(in)    :: data_sources(:)
+
+         integer :: i
+         type (type_variable_node), pointer :: variable_node
+
+         variable_node => variable_list%first
+         do i = 1, variable_list%count
+            variable_node%target%has_data = data_sources(i) /= data_source_none
+            if (data_sources(i) > data_source_fabm) then
+               variable_node%target%source = source_external
+               variable_node%target%write_operator = operator_assign
+            end if
+            variable_node => variable_node%next
+         end do
+      end subroutine
 
       subroutine report_unfulfilled_dependency(variable)
          type (type_internal_variable),target :: variable
@@ -1731,7 +1770,7 @@
       id = self%get_bulk_variable_id(standard_variable)
       if (.not. associated(id%variable)) &
          call fatal_error('fabm_require_interior_data', 'Model does not contain requested variable ' // trim(standard_variable%name))
-      call self%get_diagnostics_job%request_variable(id%variable, target_location=location_store)
+      call self%get_diagnostics_job%request_variable(id%variable, store=.true.)
    end subroutine fabm_require_interior_data
 
 !-----------------------------------------------------------------------
@@ -3942,7 +3981,7 @@ end subroutine internal_check_horizontal_state
    end do
 
    do i=1,size(self%conserved_quantities)
-      _UNPACK_TO_PLUS_1_(cache%read,self%conserved_quantities(i)%index,sums,i,cache%mask,0.0_rk)
+      _UNPACK_TO_PLUS_1_(cache%write,self%conserved_quantities(i)%index,sums,i,cache%mask,0.0_rk)
    end do
 
    call end_interior_task(self,self%get_conserved_quantities_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
@@ -4005,7 +4044,7 @@ end subroutine internal_check_horizontal_state
    end do
 
    do i=1,size(self%conserved_quantities)
-      _HORIZONTAL_UNPACK_TO_PLUS_1_(cache%read_hz,self%conserved_quantities(i)%horizontal_index,sums,i,cache%mask,0.0_rk)
+      _HORIZONTAL_UNPACK_TO_PLUS_1_(cache%write_hz,self%conserved_quantities(i)%horizontal_index,sums,i,cache%mask,0.0_rk)
    end do
 
    call end_horizontal_task(self,self%get_horizontal_conserved_quantities_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
@@ -4379,30 +4418,6 @@ contains
 
 end subroutine fabm_update_time
 
-subroutine filter_readable_variable_registry(self)
-   class (type_model),intent(inout),target :: self
-
-   type (type_variable_node),pointer :: variable_node
-
-   variable_node => self%variable_register%read_cache%interior%first
-   do while (associated(variable_node))
-      variable_node%target%in_read_registry = associated(self%data(variable_node%target%catalog_index)%p)
-      variable_node => variable_node%next
-   end do
-
-   variable_node => self%variable_register%read_cache%horizontal%first
-   do while (associated(variable_node))
-      variable_node%target%in_read_registry = associated(self%data_hz(variable_node%target%catalog_index)%p)
-      variable_node => variable_node%next
-   end do
-
-   variable_node => self%variable_register%read_cache%scalar%first
-   do while (associated(variable_node))
-      variable_node%target%in_read_registry = associated(self%data_scalar(variable_node%target%catalog_index)%p)
-      variable_node => variable_node%next
-   end do
-end subroutine filter_readable_variable_registry
-
 subroutine classify_variables(self)
    class (type_model),intent(inout),target :: self
 
@@ -4455,11 +4470,11 @@ subroutine classify_variables(self)
          consvar%target => self%root%find_object(trim(aggregate_variable%standard_variable%name))
          if (.not.associated(consvar%target)) call driver%fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
-         call consvar%target%read_indices%append(consvar%index)
+         call consvar%target%write_indices%append(consvar%index)
          consvar%target_hz => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
          if (.not.associated(consvar%target_hz)) call driver%fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
-         call consvar%target_hz%read_indices%append(consvar%horizontal_index)
+         call consvar%target_hz%write_indices%append(consvar%horizontal_index)
       end if
       aggregate_variable => aggregate_variable%next
    end do
@@ -4678,7 +4693,7 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
 end subroutine
 end subroutine classify_variables
 
-   subroutine require_flux_computation(self,link_list,domain)
+   subroutine require_flux_computation(self, link_list, domain)
       type (type_job),      intent(inout) :: self
       type (type_link_list),intent(in)    :: link_list
       integer,              intent(in)    :: domain
@@ -4687,23 +4702,26 @@ end subroutine classify_variables
 
       link => link_list%first
       do while (associated(link))
-         select case (domain)
-         case (domain_interior)
-            if (link%target%domain==domain_interior.and.associated(link%target%sms_sum)) &
-               call self%request_variable(link%target%sms_sum%target, target_location=location_write_cache)
-         case (domain_bottom)
-            if (link%target%domain==domain_bottom.and.associated(link%target%sms_sum)) then
-               call self%request_variable(link%target%sms_sum%target, target_location=location_write_cache)
-            elseif (link%target%domain==domain_interior.and.associated(link%target%bottom_flux_sum)) then
-               call self%request_variable(link%target%bottom_flux_sum%target, target_location=location_write_cache)
-            end if
-         case (domain_surface)
-            if (link%target%domain==domain_surface.and.associated(link%target%sms_sum)) then
-               call self%request_variable(link%target%sms_sum%target, target_location=location_write_cache)
-            elseif (link%target%domain==domain_interior.and.associated(link%target%surface_flux_sum)) then
-               call self%request_variable(link%target%surface_flux_sum%target, target_location=location_write_cache)
-            end if
-         end select
+         if (.not. link%original%state_indices%is_empty() .and. .not. link%target%fake_state_variable) then
+            ! This is a state variable
+            select case (domain)
+            case (domain_interior)
+               if (link%target%domain == domain_interior .and. associated(link%target%sms_sum)) &
+                  call self%request_variable(link%target%sms_sum%target)
+            case (domain_bottom)
+               if (link%target%domain == domain_bottom .and. associated(link%target%sms_sum)) then
+                  call self%request_variable(link%target%sms_sum%target)
+               elseif (link%target%domain == domain_interior .and. associated(link%target%bottom_flux_sum)) then
+                  call self%request_variable(link%target%bottom_flux_sum%target)
+               end if
+            case (domain_surface)
+               if (link%target%domain == domain_surface .and. associated(link%target%sms_sum)) then
+                  call self%request_variable(link%target%sms_sum%target)
+               elseif (link%target%domain == domain_interior .and. associated(link%target%surface_flux_sum)) then
+                  call self%request_variable(link%target%surface_flux_sum%target)
+               end if
+            end select
+         end if
          link => link%next
       end do
    end subroutine require_flux_computation
@@ -4733,7 +4751,7 @@ end subroutine classify_variables
 
       link => link_list%first
       do while (associated(link))
-         if (link%target%domain==domain.and..not.link%original%state_indices%is_empty().and..not.link%target%fake_state_variable) &
+         if (link%target%domain == domain .and. .not. link%original%state_indices%is_empty() .and. .not. link%target%fake_state_variable) &
             call self%request_call(link%original%owner,source)
          link => link%next
       end do
