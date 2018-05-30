@@ -347,7 +347,9 @@
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
       type (type_real_pointer_set)    :: background_values
       type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list
-      type (type_link),pointer        :: sms_sum => null(), surface_flux_sum => null(), bottom_flux_sum => null()
+      type (type_link),pointer        :: sms_sum             => null()
+      type (type_link),pointer        :: surface_flux_sum    => null()
+      type (type_link),pointer        :: bottom_flux_sum     => null()
       type (type_link),pointer        :: movement_diagnostic => null()
       type (type_link),pointer        :: sms                 => null()
       type (type_link),pointer        :: surface_flux        => null()
