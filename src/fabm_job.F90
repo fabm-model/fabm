@@ -113,7 +113,7 @@ module fabm_job
       integer                   :: state = job_state_none
       logical                   :: ignore_dependencies = .false.
       logical                   :: outsource_tasks     = .false.
-      type (type_node), pointer :: own_node => null()
+      integer                   :: operation = source_unknown
 
       type (type_task), pointer :: first_task => null()
       type (type_task), pointer :: final_task => null()
@@ -965,8 +965,14 @@ subroutine job_create_graph(self, variable_register)
       next_variable_request => variable_request%next
       call self%graph%add_variable(variable_request%variable, outer_calls, copy_to_store=variable_request%store)
       if (variable_request%store) then
+         ! FABM must be able to provide data for this variable across the entire spatial domain.
+         ! If this variable is a constant, explicitly request a data field for it in the persistent store.
+         ! If it is not a constant, the above call to add_variable will ensure that if the variable needs explicit computation,
+         ! its value will also be copied to the persistent store.
          if (variable_request%variable%source == source_none) call variable_register%add_to_store(variable_request%variable)
       else
+         ! FABM only needs to have this variable in its write cache. Register this - if the variable is a constant, or
+         ! a variable that has data prescribed by the user, it will need explicit preloading to the write cache.
          call self%required_in_write_cache%add(variable_request%variable)
       end if
       deallocate(variable_request)
@@ -1023,12 +1029,11 @@ subroutine job_create_tasks(self)
    end if
 
    ! Create tree that describes all possible task orders (root is at the right of the call list, i.e., at the end of the very last call)
-   call create_graph_subset_node_set(self%graph,subset)
-   if (associated(self%own_node)) then
-      root%operation = self%own_node%source
+   call create_graph_subset_node_set(self%graph, subset)
+   root%operation = self%operation
+   if (root%operation /= source_unknown) then
       call subset%collect_and_branch(root)
    else
-      root%operation = source_unknown
       call subset%branch(root)
    end if
 
@@ -1053,7 +1058,7 @@ subroutine job_create_tasks(self)
       end do
    end if
 
-   if (associated(self%own_node)) then
+   if (self%operation /= source_unknown) then
       ! Separate the last task (remove from main task list)
       task => null()
       self%final_task => self%first_task
@@ -1112,7 +1117,8 @@ contains
             task%first_call => call_node
          end if
          previous_call_node => call_node
-         if (.not.associated(call_node%model)) call_node%source = source_none
+         _ASSERT_(associated(call_node%model), 'create_tasks', 'Call node does not have a model pointer.')
+         _ASSERT_(call_node%source /= source_none .and. call_node%source /= source_external .and. call_node%source /= source_unknown, 'create_tasks', 'Call node has invalid source.')
          pnode => pnode%next
       end do
 
@@ -1481,11 +1487,7 @@ subroutine job_manager_create(self, job, name, final_operation, outsource_tasks,
    job%state = job_state_created
 
    job%name = name
-   if (present(final_operation)) then
-      allocate(job%own_node)
-      job%own_node%source = final_operation
-      call job%graph%append(job%own_node)
-   end if
+   if (present(final_operation)) job%operation = final_operation
    if (present(outsource_tasks)) job%outsource_tasks = outsource_tasks
 
    allocate(node)
