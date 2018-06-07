@@ -310,7 +310,8 @@
       procedure :: link_all_surface_state_data  => fabm_link_all_surface_state_data
 
       procedure :: require_interior_data => fabm_require_interior_data
-      generic :: require_data => require_interior_data
+      procedure :: require_horizontal_data => fabm_require_horizontal_data
+      generic :: require_data => require_interior_data,require_horizontal_data
 
       procedure :: get_interior_data => fabm_get_interior_data
       procedure :: get_horizontal_data => fabm_get_horizontal_data
@@ -1975,6 +1976,26 @@
       end select
       call host%request_coupling(link,standard_variable,domain=domain_)
    end subroutine fabm_require_interior_data
+
+   subroutine fabm_require_horizontal_data(self,standard_variable)
+      class (type_model),                      intent(inout) :: self
+      type(type_horizontal_standard_variable), intent(in)    :: standard_variable
+
+      class (type_host_container),  pointer :: host
+      type (type_integer_list_node),pointer :: node
+      type (type_link),             pointer :: link
+
+      if (self%state>=state_initialize_done) &
+         call fatal_error('fabm_require_horizontal_data','model%require_data cannot be called after model initialization.')
+
+      host => get_host_container_model(self)
+
+      allocate(node)
+      node%next => host%first
+      host%first => node
+      call host%add_horizontal_variable(standard_variable%name,standard_variable%units,standard_variable%name,read_index=node%value,link=link)
+      call host%request_coupling(link,standard_variable)
+   end subroutine fabm_require_horizontal_data
 
 !-----------------------------------------------------------------------
 !BOP
