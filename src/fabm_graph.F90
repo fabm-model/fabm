@@ -16,7 +16,7 @@ module fabm_graph
    implicit none
 
    public type_graph, type_node, type_node_set_member, type_node_list, type_node_list_member
-   public type_output_variable
+   public type_output_variable, source2operation
 
    private
 
@@ -45,6 +45,7 @@ module fabm_graph
    contains
       procedure :: append    => node_list_append
       procedure :: pop       => node_list_pop
+      procedure :: remove    => node_list_remove
       procedure :: finalize  => node_list_finalize
       procedure :: find      => node_list_find
       procedure :: find_node => node_list_find_node
@@ -56,7 +57,6 @@ module fabm_graph
       type (type_node_set)                   :: dependent_nodes
       logical                                :: copy_to_cache   = .false.
       logical                                :: copy_to_store   = .false.
-      integer                                :: prefill         = prefill_none
       type (type_output_variable),   pointer :: next            => null()
    end type
 
@@ -77,11 +77,22 @@ module fabm_graph
       procedure :: as_string => node_as_string
    end type
 
+   type type_graph_set_member
+      type (type_graph), pointer :: p => null()
+      type (type_graph_set_member), pointer :: next => null()
+   end type
+
+   type type_graph_set
+      type (type_graph_set_member), pointer :: first => null()
+   end type
+
    type,extends(type_node_list) :: type_graph
-      type (type_graph),pointer :: previous => null()
-      type (type_variable_set)  :: unresolved_dependencies
+      type (type_graph_set)     :: previous
+      type (type_graph_set)     :: next
+      integer                   :: operation = source_unknown
       logical                   :: frozen = .false.
    contains
+      procedure :: connect      => graph_connect
       procedure :: add_call     => graph_add_call
       procedure :: add_variable => graph_add_variable
       procedure :: print        => graph_print
@@ -106,7 +117,6 @@ function output_variable_set_add(self,variable) result(node)
    ! Create a new variable object and prepend it to the list.
    allocate(node)
    node%target => variable
-   node%prefill = variable%prefill
    node%next => self%first
    self%first => node
 end function output_variable_set_add
@@ -141,8 +151,6 @@ subroutine graph_print(self)
          write (*,'("   ",a,",write@",i0)',advance='no') trim(variable%target%name),variable%target%write_indices%value
          if (variable%copy_to_cache) write (*,'(",cache@",i0)',advance='no') variable%target%read_indices%value
          if (variable%copy_to_store) write (*,'(",store@",i0)',advance='no') variable%target%store_index
-         if (variable%prefill==prefill_constant) write (*,'(",prefill=",g0.6)',advance='no') variable%target%prefill_value
-         if (variable%prefill==prefill_previous_value) write (*,'(",prefill=previous")',advance='no')
          write (*,*)
          pnode => variable%dependent_nodes%first
          do while (associated(pnode))
@@ -156,55 +164,106 @@ subroutine graph_print(self)
 
 end subroutine graph_print
 
-recursive function graph_add_call(self, model, source, outer_calls, ignore_dependencies) result(node)
+recursive subroutine find_node(self, model, source, graph, node, search_self, search_previous, search_next)
+   class (type_graph),      intent(inout), target :: self
+   class (type_base_model), intent(in),    target :: model
+   integer,                 intent(in)            :: source
+   logical,                 intent(in)            :: search_self
+   logical,                 intent(in)            :: search_previous
+   logical,                 intent(in)            :: search_next
+   type (type_graph), pointer :: graph
+   type (type_node), pointer :: node
+
+   type (type_graph_set_member), pointer :: member
+
+   if (search_self) then
+      graph => self
+      node => self%find(model, source)
+      if (associated(node)) return
+   end if
+
+   if (search_previous) then
+      member => self%previous%first
+      do while (associated(member))
+         call find_node(member%p, model, source, graph, node, .true., .true., .false.)
+         if (associated(node)) return
+         member => member%next
+      end do
+   end if
+
+   if (search_next) then
+      member => self%next%first
+      do while (associated(member))
+         call find_node(member%p, model, source, graph, node, .true., .false., .true.)
+         if (associated(node)) return
+         member => member%next
+      end do
+   end if
+
+   graph => null()
+end subroutine
+
+recursive function graph_add_call(self, model, source, outer_calls) result(node)
    class (type_graph),     target,intent(inout) :: self
    class (type_base_model),target,intent(in)    :: model
    integer,                       intent(in)    :: source
    type (type_node_list),  target,intent(inout) :: outer_calls
-   logical,optional,              intent(in)    :: ignore_dependencies
    type (type_node), pointer :: node
 
-   type (type_graph),            pointer :: current_graph
+   type (type_graph),            pointer :: graph
+   type (type_graph_set_member), pointer :: member, member2
    type (type_node_list_member), pointer :: pnode
    character(len=2048)                   :: chain
    type (type_link),             pointer :: link
-   logical                               :: ignore_dependencies_
    logical                               :: same_source
 
    if (self%frozen) call driver%fatal_error('graph_add_call','Graph is frozen; no calls can be added.')
 
-   ! Provide optional arguments with default value.
-   ignore_dependencies_ = .false.
-   if (present(ignore_dependencies)) ignore_dependencies_ = ignore_dependencies
-
-   ! For some APIs we never dynamically resolve dependencies
-   ignore_dependencies_ = ignore_dependencies_ .or. source == source_get_light_extinction
-
-   ! Check if this node is already in the graph, or in any of the preceding graphs.
+   ! Check if this node is already in the current graph, or in any of the earlier scheduled ones.
    ! If it is, we are done: return.
-   current_graph => self
-   do while (associated(current_graph))
-      node => current_graph%find(model,source)
-      if (associated(node)) return
-      current_graph => current_graph%previous
+   call find_node(self, model, source, graph, node, search_self=.true., search_previous=.true., search_next=.false.)
+   if (associated(node)) return
+
+   ! See if this call is already in a sibling graph. If so, it needs to move from the sibling to an earlier scheduled graph.
+   member => self%previous%first
+   do while (associated(member))
+      member2 => member%p%next%first
+      do while (associated(member2) .and. .not. associated(node))
+         if (.not. associated(member2%p, self)) &
+            call find_node(member2%p, model, source, graph, node, search_self=.true., search_previous=.false., search_next=.true.)
+         member2 => member2%next
+      end do
+      if (associated(node)) then
+         write (*,*) 'present in parallel scheduled graph: ' // trim(node%as_string())
+         node => member%p%add_call(model, source, outer_calls)
+         return
+      end if
+      member => member%next
    end do
 
-   ! Add current call to the list of outer calls.
-   allocate(node)
-   node%model => model
-   node%source = source
+   ! See if this call is already in a later-scheduled graph. If so, it needs to move from the later one to the current one.
+   call find_node(self, model, source, graph, node, search_self=.false., search_previous=.false., search_next=.true.)
+   if (associated(node)) then
+      write (*,*) 'present in later scheduled graph: ' // trim(node%as_string())
+      call graph%remove(node)
+   else
+      ! Add current call to the list of outer calls.
+      allocate(node)
+      node%model => model
+      node%source = source
 
-   ! Check the list of outer model calls, i.e., calls that [indirectly] request the current call.
-   ! If the current call is already on this list, it is indirectly calling itself: there is a circular dependency.
-   pnode => outer_calls%find_node(model,source)
-   if (associated(pnode)) then
-      ! Circular dependency found - report as fatal error.
-      chain = ''
-      do while (associated(pnode))
-         chain = trim(chain)//' '//trim(pnode%p%as_string())//' ->'
-         pnode => pnode%next
-      end do
-      call driver%fatal_error('graph::add_call','circular dependency found: '//trim(chain(2:))//' '//trim(node%as_string()))
+      ! Check the list of outer model calls, i.e., calls that [indirectly] request the current call.
+      ! If the current call is already on this list, it is indirectly calling itself: there is a circular dependency.
+      pnode => outer_calls%find_node(model, source)
+      if (associated(pnode)) then
+         ! Circular dependency found - report as fatal error.
+         chain = ''
+         do while (associated(pnode))
+            chain = trim(chain)//' '//trim(pnode%p%as_string())//' ->'
+            pnode => pnode%next
+         end do
+         call driver%fatal_error('graph::add_call','circular dependency found: '//trim(chain(2:))//' '//trim(node%as_string()))
+      end if
    end if
 
    ! First add this call to the list of requesting calls [a list of all calls higher on the call stack]
@@ -215,16 +274,10 @@ recursive function graph_add_call(self, model, source, outer_calls, ignore_depen
    do while (associated(link))
       if (index(link%name, '/') == 0 .and. associated(link%original%read_index)) then
          ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
-         if (associated(link%target%write_owner)) call driver%fatal_error('graph::add_call','BUG: required input variable is co-written.')
+         _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
          call node%inputs%add(link%target)
          same_source = link%target%source == source .or. (link%target%source == source_unknown .and. (source == source_do_surface .or. source == source_do_bottom))
-         if (.not. (associated(link%target%owner, model) .and. same_source)) then
-            if (ignore_dependencies_) then
-               call self%unresolved_dependencies%add(link%target)
-            else
-               call self%add_variable(link%target, outer_calls, caller=node)
-            end if
-         end if
+         if (.not. (associated(link%target%owner, model) .and. same_source)) call self%add_variable(link%target, outer_calls, caller=node)
       end if
       link => link%next
    end do
@@ -269,10 +322,17 @@ contains
    recursive subroutine add_call(source)
       integer, intent(in) :: source
 
+      integer :: operation
       type (type_node),           pointer :: node
       type (type_output_variable),pointer :: variable_node
 
-      node => self%add_call(variable%owner, source, outer_calls)
+      operation = source2operation(source)
+      if ((self%operation == source_do_bottom .or. self%operation == source_do_surface) .and. operation == source_do_horizontal) operation = self%operation
+      if (self%operation /= source_unknown .and. operation /= self%operation) then
+         node => self%previous%first%p%add_call(variable%owner, source, outer_calls)
+      else
+         node => self%add_call(variable%owner, source, outer_calls)
+      end if
       variable_node => node%outputs%add(variable)
       if (present(copy_to_store)) variable_node%copy_to_store = variable_node%copy_to_store .or. copy_to_store
       if (present(caller)) then
@@ -283,9 +343,42 @@ contains
 
 end subroutine graph_add_variable
 
+function source2operation(source) result(operation)
+   integer,intent(in) :: source
+   integer            :: operation
+   select case (source)
+   case (source_do, source_do_column, source_do_bottom, source_do_surface, source_do_horizontal)
+      operation = source
+   case (source_get_vertical_movement, source_initialize_state, source_check_state, source_get_light_extinction)
+      operation = source_do
+   case (source_initialize_bottom_state, source_check_bottom_state)
+      operation = source_do_bottom
+   case (source_initialize_surface_state, source_check_surface_state, source_get_drag, source_get_albedo)
+      operation = source_do_surface
+   case default
+      call driver%fatal_error('source2operation', 'unknown source value')
+   end select
+end function source2operation
+
+subroutine graph_connect(self, next)
+   class (type_graph), intent(inout), target :: self
+   class (type_graph), intent(inout), target :: next
+
+   type (type_graph_set_member), pointer :: member
+
+   allocate(member)
+   member%p => next
+   member%next => self%next%first
+   self%next%first => member
+   allocate(member)
+   member%p => self
+   member%next => next%previous%first
+   next%previous%first => member
+end subroutine graph_connect
+
 subroutine node_set_add(self, node)
    class (type_node_set), intent(inout) :: self
-   type (type_node),target              :: node
+   type (type_node), target             :: node
 
    type (type_node_set_member), pointer :: member
 
@@ -395,6 +488,30 @@ function node_list_pop(self) result(node)
    end if
    !call self%check()
 end function node_list_pop
+
+subroutine node_list_remove(self, node)
+   class (type_node_list), intent(inout) :: self
+   type (type_node), target              :: node
+
+   type (type_node_list_member), pointer :: pnode
+
+   pnode => self%first
+   do while (.not. associated(pnode%p, node))
+      pnode => pnode%next
+   end do
+   _ASSERT_(associated(pnode), 'node_list_remove', 'Node ' // trim(node%as_string()) // ' not found in graph.')
+   if (associated(pnode%next)) then
+      pnode%next%previous => pnode%previous
+   else
+      self%last => pnode%previous
+   end if
+   if (associated(pnode%previous)) then
+      pnode%previous%next => pnode%next
+   else
+      self%first => pnode%next
+   end if
+   deallocate(pnode)
+end subroutine node_list_remove
 
 subroutine node_list_finalize(self)
    class (type_node_list), intent(inout) :: self

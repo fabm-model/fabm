@@ -247,6 +247,7 @@
       type (type_job) :: get_drag_job
       type (type_job) :: get_albedo_job
       type (type_job) :: get_diagnostics_job
+      type (type_job) :: prepare_job
       type (type_job) :: check_state_job
       type (type_job) :: check_bottom_state_job
       type (type_job) :: check_surface_state_job
@@ -639,47 +640,52 @@
 
       ! Create built-in jobs, which can then be chained by the host/user by calling job%set_next.
       ! (the reason for chaining is to allow later jobs to use results of earlier ones, thus reducing the number of calls needed)
-      self%job_manager%default_dependency_handler => self%get_diagnostics_job
-      call self%job_manager%create(self%do_interior_job,'do_interior',final_operation=source_do)
-      call self%job_manager%create(self%do_surface_job,'do_surface',final_operation=source_do_surface)
-      call self%job_manager%create(self%do_bottom_job,'do_bottom',final_operation=source_do_bottom)
-      call self%job_manager%create(self%get_vertical_movement_job,'get_vertical_movement',final_operation=source_do,ignore_dependencies=.true.)
-      call self%job_manager%create(self%get_conserved_quantities_job,'get_conserved_quantities',final_operation=source_do)
-      call self%job_manager%create(self%get_horizontal_conserved_quantities_job,'get_horizontal_conserved_quantities',final_operation=source_do_horizontal)
-      call self%job_manager%create(self%get_light_extinction_job,'get_light_extinction',final_operation=source_do,ignore_dependencies=.true.)
-      call self%job_manager%create(self%get_diagnostics_job,'get_diagnostics_job',outsource_tasks=.true.)
-      call self%job_manager%create(self%initialize_state_job,'initialize_state',final_operation=source_do,ignore_dependencies=.true.)
-      call self%job_manager%create(self%initialize_bottom_state_job,'initialize_bottom_state',final_operation=source_do_bottom,ignore_dependencies=.true.)
-      call self%job_manager%create(self%initialize_surface_state_job,'initialize_surface_state',final_operation=source_do_surface,ignore_dependencies=.true.)
-      call self%job_manager%create(self%check_state_job,'check_state',final_operation=source_do,ignore_dependencies=.true.)
-      call self%job_manager%create(self%check_bottom_state_job,'check_bottom_state',final_operation=source_do_bottom,ignore_dependencies=.true.)
-      call self%job_manager%create(self%check_surface_state_job,'check_surface_state',final_operation=source_do_surface,ignore_dependencies=.true.)
-      call self%job_manager%create(self%get_albedo_job,'get_albedo',final_operation=source_do_surface,ignore_dependencies=.true.)
-      call self%job_manager%create(self%get_drag_job,'get_drag',final_operation=source_do_surface,ignore_dependencies=.true.)
+      call self%job_manager%create(self%prepare_job, 'prepare_job')
+      call self%job_manager%create(self%do_interior_job, 'do_interior', source=source_do, previous=self%do_surface_job)
+      call self%job_manager%create(self%do_surface_job, 'do_surface', source=source_do_surface, previous=self%do_bottom_job)
+      call self%job_manager%create(self%do_bottom_job, 'do_bottom', source=source_do_bottom, previous=self%prepare_job)
+      call self%job_manager%create(self%get_conserved_quantities_job, 'get_conserved_quantities', source=source_do, previous=self%prepare_job)
+      call self%job_manager%create(self%get_horizontal_conserved_quantities_job, 'get_horizontal_conserved_quantities', source=source_do_horizontal, previous=self%prepare_job)
+      call self%job_manager%create(self%get_diagnostics_job, 'get_diagnostics_job', outsource_tasks=.true.)
+      call self%do_interior_job%connect(self%get_diagnostics_job)
+      !call self%do_surface_job%connect(self%get_diagnostics_job)
+      !call self%do_bottom_job%connect(self%get_diagnostics_job)
+      !call self%get_conserved_quantities_job%connect(self%get_diagnostics_job)
+      !call self%get_horizontal_conserved_quantities_job%connect(self%get_diagnostics_job)
+      call self%job_manager%create(self%get_vertical_movement_job, 'get_vertical_movement', source=source_get_vertical_movement, previous=self%get_diagnostics_job)
+      call self%job_manager%create(self%get_light_extinction_job, 'get_light_extinction', source=source_get_light_extinction, previous=self%get_diagnostics_job)
+      call self%job_manager%create(self%initialize_state_job,'initialize_state', source=source_initialize_state, previous=self%get_diagnostics_job)
+      call self%job_manager%create(self%initialize_bottom_state_job,'initialize_bottom_state', source=source_initialize_bottom_state, previous=self%get_diagnostics_job)
+      call self%job_manager%create(self%initialize_surface_state_job,'initialize_surface_state', source=source_initialize_surface_state, previous=self%get_diagnostics_job)
+      call self%job_manager%create(self%check_state_job,'check_state', source=source_check_state, previous=self%get_diagnostics_job)
+      call self%job_manager%create(self%check_bottom_state_job,'check_bottom_state', source=source_check_bottom_state, previous=self%get_diagnostics_job)
+      call self%job_manager%create(self%check_surface_state_job,'check_surface_state', source=source_check_surface_state, previous=self%get_diagnostics_job)
+      call self%job_manager%create(self%get_albedo_job,'get_albedo', source=source_get_albedo, previous=self%get_diagnostics_job)
+      call self%job_manager%create(self%get_drag_job,'get_drag', source=source_get_drag, previous=self%get_diagnostics_job)
 
-      call require_flux_computation(self%do_bottom_job,self%links_postcoupling,domain_bottom)
-      call require_flux_computation(self%do_surface_job,self%links_postcoupling,domain_surface)
-      call require_flux_computation(self%do_interior_job,self%links_postcoupling,domain_interior)
+      call require_flux_computation(self%do_bottom_job, self%links_postcoupling, domain_bottom)
+      call require_flux_computation(self%do_surface_job, self%links_postcoupling, domain_surface)
+      call require_flux_computation(self%do_interior_job, self%links_postcoupling, domain_interior)
 
       ! For vertical movement rates, call all models that access interior state variables,
       ! and explicitly express interest in the movement diagnostics so they will be properly prefilled.
-      call require_call_all_with_state(self%get_vertical_movement_job,self%root%links,domain_interior,source_get_vertical_movement)
+      call require_call_all_with_state(self%get_vertical_movement_job, self%root%links, domain_interior, source_get_vertical_movement)
       link => self%links_postcoupling%first
       do while (associated(link))
          if (associated(link%target%movement_diagnostic)) call self%get_vertical_movement_job%request_variable(link%target%movement_diagnostic%target)
          link => link%next
       end do
 
-      call require_call_all_with_state(self%initialize_state_job,self%root%links,domain_interior,source_initialize_state)
-      call require_call_all_with_state(self%initialize_bottom_state_job,self%root%links,domain_bottom,source_initialize_bottom_state)
-      call require_call_all_with_state(self%initialize_surface_state_job,self%root%links,domain_surface,source_initialize_surface_state)
-      call require_call_all_with_state(self%check_state_job,self%root%links,domain_interior,source_check_state)
-      call require_call_all_with_state(self%check_bottom_state_job,self%root%links,domain_bottom,source_check_bottom_state)
-      call require_call_all_with_state(self%check_bottom_state_job,self%root%links,domain_interior,source_check_bottom_state)
-      call require_call_all_with_state(self%check_surface_state_job,self%root%links,domain_surface,source_check_surface_state)
-      call require_call_all_with_state(self%check_surface_state_job,self%root%links,domain_interior,source_check_surface_state)
-      call require_call_all(self%get_albedo_job,self%root,source_get_albedo)
-      call require_call_all(self%get_drag_job,self%root,source_get_drag)
+      call require_call_all_with_state(self%initialize_state_job, self%root%links, domain_interior, source_initialize_state)
+      call require_call_all_with_state(self%initialize_bottom_state_job, self%root%links, domain_bottom, source_initialize_bottom_state)
+      call require_call_all_with_state(self%initialize_surface_state_job, self%root%links, domain_surface, source_initialize_surface_state)
+      call require_call_all_with_state(self%check_state_job, self%root%links, domain_interior, source_check_state)
+      call require_call_all_with_state(self%check_bottom_state_job, self%root%links, domain_bottom, source_check_bottom_state)
+      call require_call_all_with_state(self%check_bottom_state_job, self%root%links, domain_interior, source_check_bottom_state)
+      call require_call_all_with_state(self%check_surface_state_job, self%root%links, domain_surface, source_check_surface_state)
+      call require_call_all_with_state(self%check_surface_state_job, self%root%links, domain_interior, source_check_surface_state)
+      call require_call_all(self%get_albedo_job,self%root, source_get_albedo)
+      call require_call_all(self%get_drag_job,self%root, source_get_drag)
 
       do ivar = 1, size(self%conserved_quantities)
          call self%get_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target)
@@ -812,8 +818,23 @@
    subroutine create_catalog(self)
       class (type_model), intent(inout) :: self
 
+      integer :: i
       type (type_link), pointer :: link
 
+      ! Add all state variables to the catalog and read cache in the order the host is likely to
+      ! have them in memory. This hopefully speeds up access (cache hits).
+      do i = 1, size(self%state_variables)
+         call self%variable_register%add_to_catalog(self%state_variables(i)%target)
+         call self%variable_register%add_to_read_cache(self%state_variables(i)%target)
+      end do
+      do i = 1, size(self%bottom_state_variables)
+         call self%variable_register%add_to_catalog(self%bottom_state_variables(i)%target)
+         call self%variable_register%add_to_read_cache(self%bottom_state_variables(i)%target)
+      end do
+      do i = 1, size(self%surface_state_variables)
+         call self%variable_register%add_to_catalog(self%surface_state_variables(i)%target)
+         call self%variable_register%add_to_read_cache(self%surface_state_variables(i)%target)
+      end do
       link => self%links_postcoupling%first
       do while (associated(link))
          call self%variable_register%add_to_catalog(link%target)
@@ -1108,17 +1129,12 @@
    end if
 #endif
 
-   ! Default chaining (temporary; should be done explicitly by host if true)
-   call self%do_surface_job%set_previous(self%do_bottom_job)
-   call self%do_interior_job%set_previous(self%do_surface_job)
-
    ! Flag variables that have had data asssigned (by user, host or FABM).
    call flag_variables_with_data(self%variable_register%catalog%interior, self%interior_data_sources)
    call flag_variables_with_data(self%variable_register%catalog%horizontal, self%horizontal_data_sources)
    call flag_variables_with_data(self%variable_register%catalog%scalar, self%scalar_data_sources)
 
    ! Create job that ensures all diagnostics required by the user are computed.
-   call self%get_diagnostics_job%set_previous(self%do_interior_job)
    do ivar = 1, size(self%diagnostic_variables)
       if (self%diagnostic_variables(ivar)%save) then
          select case (self%diagnostic_variables(ivar)%target%source)
@@ -1135,7 +1151,7 @@
       if (self%horizontal_diagnostic_variables(ivar)%save) &
          call self%get_diagnostics_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target, store=.true.)
    end do
-   
+
    ! Merge write indices when operations can be done in place
    ! This must be done after all variables are requested from the different jobs, so we know which variables
    ! will be retrieved (such variables cannot be merged)
@@ -2354,10 +2370,10 @@ function fabm_get_scalar_data(self,id) result(dat)
    if (id%variable%catalog_index /= -1) dat => self%data_scalar(id%variable%catalog_index)%p
 end function fabm_get_scalar_data
 
-function create_cache(self, source) result(cache)
-   type (type_model), intent(in) :: self
-   integer,           intent(in) :: source
-   type (type_cache) :: cache
+subroutine create_cache(self, cache, source)
+   type (type_model), intent(in)    :: self
+   type (type_cache), intent(inout) :: cache
+   integer,           intent(in)    :: source
 
    integer :: n, i
 
@@ -2440,25 +2456,25 @@ function create_cache(self, source) result(cache)
 #if defined(_HORIZONTAL_IS_VECTORIZED_)
       cache%read_hz(:, i) = self%read_cache_hz_fill_value(i)
 #else
-      cache%read_hz(i) = self%read_cache_hz_fiLL_value(i)
+      cache%read_hz(i) = self%read_cache_hz_fill_value(i)
 #endif   
    end do
 
    do i = 1, self%variable_register%read_cache%scalar%count
       cache%read_scalar(i) = self%read_cache_scalar_fill_value(i)
    end do
-end function create_cache
+end subroutine create_cache
 
 subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
-   type (type_model),intent(inout) :: self
-   type (type_task), intent(in)    :: task
-   type (type_cache),intent(out)   :: cache
+   type (type_model), intent(in)    :: self
+   type (type_task),  intent(in)    :: task
+   type (type_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    _DECLARE_INTERIOR_INDICES_
 
-   integer :: i
+   integer :: i, j
 
-   cache = create_cache(self, 1)
+   call create_cache(self, cache, 1)
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
    _N_ = _STOP_-_START_+1
@@ -2475,43 +2491,49 @@ subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
 #endif
    
    do i = 1, size(task%load)
-      if (task%load(i) /= -1) then
-         _PACK_GLOBAL_(self%data(task%load(i))%p, cache%read, i, cache%mask)
+      j = task%load(i)
+      if (j /= 0) then
+         _PACK_GLOBAL_(self%data(j)%p, cache%read, i, cache%mask)
       end if
    end do
    do i = 1, size(task%load_hz)
-      if (task%load_hz(i) /= -1) then
-         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(task%load_hz(i))%p, cache%read_hz, i, cache%mask)
+      j = task%load_hz(i)
+      if (j /= 0) then
+         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(j)%p, cache%read_hz, i, cache%mask)
       end if
    end do
    do i = 1, size(task%load_scalar)
-      if (task%load_scalar(i) /= -1) cache%read_scalar(i) = self%data_scalar(task%load_scalar(i))%p
+      j = task%load_scalar(i)
+      if (j /= 0) then
+         cache%read_scalar(i) = self%data_scalar(j)%p
+      end if
    end do
 
 #ifndef NDEBUG
    cache%write = not_written
 #endif
    do i = 1, size(task%prefill)
-      if (task%prefill(i) == prefill_constant) then
+      j = task%prefill(i)
+      if (j == prefill_constant) then
          _CONCURRENT_LOOP_BEGIN_
             cache%write _INDEX_SLICE_PLUS_1_(i) = self%write_cache_fill_value(i)
          _LOOP_END_
-      elseif (task%prefill(i) /= prefill_none) then
-         _PACK_GLOBAL_(self%data(task%prefill(i))%p, cache%write, i, cache%mask)
+      elseif (j /= prefill_none) then
+         _PACK_GLOBAL_(self%data(j)%p, cache%write, i, cache%mask)
       end if
    end do
 end subroutine begin_interior_task
 
 subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_model),intent(inout) :: self
-   type (type_task), intent(in)    :: task
-   type (type_cache),intent(out)   :: cache
+   type (type_model), intent(in)    :: self
+   type (type_task),  intent(in)    :: task
+   type (type_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
-   integer :: i
+   integer :: i, j
 
-   cache = create_cache(self, 2)
+   call create_cache(self, cache, 2)
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
    _N_ = _STOP_-_START_+1
@@ -2524,12 +2546,14 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 #endif
 
    do i = 1, size(task%load_hz)
-      if (task%load_hz(i) /= -1) then
-         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(task%load_hz(i))%p, cache%read_hz, i, cache%mask)
+      j = task%load_hz(i)
+      if (j /= 0) then
+         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(j)%p, cache%read_hz, i, cache%mask)
       end if
    end do
    do i = 1, size(task%load_scalar)
-      if (task%load_scalar(i) /= -1) cache%read_scalar(i) = self%data_scalar(task%load_scalar(i))%p
+      j = task%load_scalar(i)
+      if (j /= 0) cache%read_scalar(i) = self%data_scalar(j)%p
    end do
 
 #ifndef NDEBUG
@@ -2554,13 +2578,13 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 end subroutine begin_horizontal_task
 
 subroutine load_surface_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_model),intent(inout) :: self
-   type (type_task), intent(in)    :: task
-   type (type_cache),intent(inout) :: cache
+   type (type_model), intent(in)    :: self
+   type (type_task),  intent(in)    :: task
+   type (type_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
-   integer :: i
+   integer :: i, j
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
    integer :: _VERTICAL_ITERATOR_
@@ -2568,32 +2592,33 @@ subroutine load_surface_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 #endif
 
    do i=1,size(task%load)
-      if (task%load(i) /= -1) then
+      j = task%load(i)
+      if (j /= 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-         cache%read(:, i) = pack(self%data(task%load(i))%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_), cache%mask)
+         cache%read(:, i) = pack(self%data(j)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_), cache%mask)
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(task%load(i))%p _INDEX_GLOBAL_INTERIOR_(_START_ + _I_ - 1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(j)%p _INDEX_GLOBAL_INTERIOR_(_START_ + _I_ - 1)
          _HORIZONTAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1, i) = self%data(task%load(i))%p _INDEX_LOCATION_
+         cache%read(1, i) = self%data(j)%p _INDEX_LOCATION_
 #else
-         cache%read(i) = self%data(task%load(i))%p _INDEX_LOCATION_
+         cache%read(i) = self%data(j)%p _INDEX_LOCATION_
 #endif
       end if
    end do
 end subroutine load_surface_data
    
 subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_model),intent(inout) :: self
-   type (type_task), intent(in)    :: task
-   type (type_cache),intent(inout) :: cache
+   type (type_model), intent(in)    :: self
+   type (type_task),  intent(in)    :: task
+   type (type_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
-   integer :: i
+   integer :: i, k
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
    integer :: _VERTICAL_ITERATOR_
 #endif
@@ -2606,7 +2631,8 @@ subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 #endif
 
    do i=1, size(task%load)
-      if (task%load(i) /= -1) then
+      k = task%load(i)
+      if (k /= 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
 #    if _FABM_BOTTOM_INDEX_==-1
@@ -2615,18 +2641,18 @@ subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
             if (cache%mask(_J_)) then
                _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
                j = j + 1
-               cache%read(j, i) = self%data(task%load(i))%p _INDEX_GLOBAL_INTERIOR_(_START_ + _J_ - 1)
+               cache%read(j, i) = self%data(k)%p _INDEX_GLOBAL_INTERIOR_(_START_ + _J_ - 1)
             end if
          end do
 #    else
-         cache%read(:, i) = pack(self%data(task%load(i))%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_), cache%mask)
+         cache%read(:, i) = pack(self%data(k)%p _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_), cache%mask)
 #    endif
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
 #    if _FABM_BOTTOM_INDEX_==-1
             _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_ + _J_ - 1)
 #    endif
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(task%load(i))%p _INDEX_GLOBAL_INTERIOR_(_START_ + _I_ - 1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(k)%p _INDEX_GLOBAL_INTERIOR_(_START_ + _I_ - 1)
          _HORIZONTAL_LOOP_END_
 #  endif
 #else
@@ -2634,9 +2660,9 @@ subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
          _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #  endif
 #  if defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1, i) = self%data(task%load(i))%p _INDEX_LOCATION_
+         cache%read(1, i) = self%data(k)%p _INDEX_LOCATION_
 #  else
-         cache%read(i) = self%data(task%load(i))%p _INDEX_LOCATION_
+         cache%read(i) = self%data(k)%p _INDEX_LOCATION_
 #  endif
 #endif
       end if
@@ -2644,15 +2670,15 @@ subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 end subroutine load_bottom_data
 
 subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
-   type (type_model),intent(inout) :: self
-   type (type_task), intent(in)    :: task
-   type (type_cache),intent(out)   :: cache
+   type (type_model), intent(in)    :: self
+   type (type_task),  intent(in)    :: task
+   type (type_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_VERTICAL_IN_
    _DECLARE_VERTICAL_INDICES_
 
-   integer :: i
+   integer :: i, j
 
-   cache = create_cache(self, 3)
+   call create_cache(self, cache, 3)
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
    _N_ = _VERTICAL_STOP_-_VERTICAL_START_+1
@@ -2669,35 +2695,38 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 #endif
 
    do i=1, size(task%load)
-      if (task%load(i) /= -1) then
+      j = task%load(i)
+      if (j /= 0) then
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  ifdef _HAS_MASK_
-         cache%read(:, i) = pack(self%data(task%load(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_:_VERTICAL_STOP_), cache%mask)
+         cache%read(:, i) = pack(self%data(j)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_:_VERTICAL_STOP_), cache%mask)
 #  else
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(task%load(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_ + _I_ - 1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(j)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_ + _I_ - 1)
          _VERTICAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1, i) = self%data(task%load(i))%p _INDEX_LOCATION_
+         cache%read(1, i) = self%data(j)%p _INDEX_LOCATION_
 #else
-         cache%read(i) = self%data(task%load(i))%p _INDEX_LOCATION_
+         cache%read(i) = self%data(j)%p _INDEX_LOCATION_
 #endif
       end if
    end do
 
    do i = 1, size(task%load_hz)
-      if (task%load_hz(i) /= -1) then
+      j = task%load_hz(i)
+      if (j /= 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-         cache%read_hz(1, i) = self%data_hz(task%load_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
+         cache%read_hz(1, i) = self%data_hz(j)%p _INDEX_HORIZONTAL_LOCATION_
 #else
-         cache%read_hz(i) = self%data_hz(task%load_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
+         cache%read_hz(i) = self%data_hz(j)%p _INDEX_HORIZONTAL_LOCATION_
 #endif
       end if
    end do
 
    do i = 1, size(task%load_scalar)
-      if (task%load_scalar(i) /= -1) cache%read_scalar(i) = self%data_scalar(task%load_scalar(i))%p
+      j = task%load_scalar(i)
+      if (j /= 0) cache%read_scalar(i) = self%data_scalar(j)%p
    end do
 
 #ifndef NDEBUG
@@ -2797,7 +2826,7 @@ subroutine end_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
 
    ! Copy newly written diagnostics that need to be saved to global store.
    do i=1,size(task%save_sources)
-      if (task%save_sources(i)/=-1) then
+      if (task%save_sources(i) /= 0) then
          _UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%diag,i,cache%mask,self%diag_missing_value(i))
       end if
    end do
@@ -2821,8 +2850,8 @@ subroutine end_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    integer :: i
 
    ! Copy newly written horizontal diagnostics that need to be saved to global store.
-   do i=1,size(task%save_sources_hz)
-      if (task%save_sources_hz(i)/=-1) then
+   do i = 1, size(task%save_sources_hz)
+      if (task%save_sources_hz(i) /= 0) then
          _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write_hz,task%save_sources_hz(i),self%diag_hz,i,cache%mask,self%diag_hz_missing_value(i))
       end if
    end do
@@ -2847,12 +2876,12 @@ subroutine end_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 
    ! Copy diagnostics that need to be saved to global store.
    do i=1,size(task%save_sources)
-      if (task%save_sources(i)/=-1) then
+      if (task%save_sources(i) /= 0) then
          _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%diag,i,cache%mask,self%diag_missing_value(i))
       end if
    end do
    do i=1,size(task%save_sources_hz)
-      if (task%save_sources_hz(i)/=-1) then
+      if (task%save_sources_hz(i) /= 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
          self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(1,task%save_sources_hz(i))
 #else
@@ -2897,7 +2926,7 @@ end subroutine end_vertical_task
    call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_initialize_state')
 #endif
 
-   call begin_interior_task(self,self%initialize_state_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call begin_interior_task(self,self%initialize_state_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
    do ivar=1,size(self%state_variables)
       read_index = self%state_variables(ivar)%target%read_indices%value
@@ -2908,7 +2937,7 @@ end subroutine end_vertical_task
 
    ! Allow biogeochemical models to initialize their interior state.
    set_interior = .false.
-   call_node => self%initialize_state_job%final_task%first_call
+   call_node => self%initialize_state_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source == source_initialize_state) call call_node%model%initialize_state(_ARGUMENTS_INTERIOR_,set_interior)
       call_node => call_node%next
@@ -2922,7 +2951,7 @@ end subroutine end_vertical_task
       end if
    end do
 
-   call end_interior_task(self,self%initialize_state_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self,self%initialize_state_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_initialize_state
 !EOC
@@ -2953,7 +2982,7 @@ end subroutine end_vertical_task
    call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_initialize_bottom_state')
 #endif
 
-   call begin_horizontal_task(self,self%initialize_bottom_state_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%initialize_bottom_state_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    ! Initialize bottom variables
    do ivar=1,size(self%bottom_state_variables)
@@ -2965,7 +2994,7 @@ end subroutine end_vertical_task
 
    ! Allow biogeochemical models to initialize their bottom state.
    set_horizontal = .false.
-   call_node => self%initialize_bottom_state_job%final_task%first_call
+   call_node => self%initialize_bottom_state_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source == source_initialize_bottom_state) call call_node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       call_node => call_node%next
@@ -2979,7 +3008,7 @@ end subroutine end_vertical_task
       end if
    end do
 
-   call end_horizontal_task(self,self%initialize_bottom_state_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self,self%initialize_bottom_state_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_initialize_bottom_state
 !EOC
@@ -3010,7 +3039,7 @@ end subroutine end_vertical_task
    call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_initialize_surface_state')
 #endif
 
-   call begin_horizontal_task(self,self%initialize_surface_state_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%initialize_surface_state_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    ! Initialize surface variables
    do ivar=1,size(self%surface_state_variables)
@@ -3022,7 +3051,7 @@ end subroutine end_vertical_task
 
    ! Allow biogeochemical models to initialize their surface state.
    set_horizontal = .false.
-   call_node => self%initialize_surface_state_job%final_task%first_call
+   call_node => self%initialize_surface_state_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source == source_initialize_surface_state) call call_node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       call_node => call_node%next
@@ -3036,7 +3065,7 @@ end subroutine end_vertical_task
       end if
    end do
 
-   call end_horizontal_task(self,self%initialize_surface_state_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self,self%initialize_surface_state_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_initialize_surface_state
 !EOC
@@ -3075,9 +3104,9 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
-   call begin_interior_task(self,self%do_interior_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call begin_interior_task(self,self%do_interior_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
-   call_node => self%do_interior_job%final_task%first_call
+   call_node => self%do_interior_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source==source_do) then
          call call_node%model%do(_ARGUMENTS_INTERIOR_)
@@ -3108,7 +3137,7 @@ end subroutine end_vertical_task
       _UNPACK_AND_ADD_TO_PLUS_1_(cache%write,k,dy,i,cache%mask,0.0_rk)
    end do
 
-   call end_interior_task(self,self%do_interior_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self,self%do_interior_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_do_rhs
 !EOC
@@ -3149,9 +3178,9 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
-   call begin_interior_task(self,self%do_interior_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call begin_interior_task(self,self%do_interior_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
-   call_node => self%do_interior_job%final_task%first_call
+   call_node => self%do_interior_job%first_task%first_call
    do while (associated(call_node))
       call call_node%model%do_ppdd(_ARGUMENTS_INTERIOR_,pp,dd)
 
@@ -3167,7 +3196,7 @@ end subroutine end_vertical_task
       call_node => call_node%next
    end do
 
-   call end_interior_task(self,self%do_interior_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self,self%do_interior_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_do_ppdd
 !EOC
@@ -3206,10 +3235,10 @@ end subroutine end_vertical_task
    valid = .true.
    set_interior = .false.
 
-   call begin_interior_task(self,self%check_state_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call begin_interior_task(self,self%check_state_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
    ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
-   call_node => self%check_state_job%final_task%first_call
+   call_node => self%check_state_job%first_task%first_call
    do while (associated(call_node) .and. valid)
       if (call_node%source==source_check_state) call call_node%model%check_state(_ARGUMENTS_INTERIOR_,repair,valid,set_interior)
       if (.not. (valid .or. repair)) return
@@ -3276,7 +3305,7 @@ end subroutine end_vertical_task
       end do
    end if
 
-   call end_interior_task(self,self%check_state_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self,self%check_state_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_check_state
 !EOC
@@ -3358,14 +3387,14 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
    integer :: j
 #endif
 
-   call begin_horizontal_task(self,job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    valid = .true.
    set_horizontal = .false.
    set_interior = .false.
 
    ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
-   call_node => job%final_task%first_call
+   call_node => job%first_task%first_call
    do while (associated(call_node) .and. valid)
       if (flag==1) then
          if (call_node%source==source_check_surface_state) call call_node%model%check_surface_state(_ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior)
@@ -3481,7 +3510,7 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
       end do
    end if
 
-   call end_horizontal_task(self,job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self,job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
 end subroutine internal_check_horizontal_state
 
@@ -3522,11 +3551,10 @@ end subroutine internal_check_horizontal_state
    if (present(flux_sf)) call check_extents_1d(flux_sf,size(self%surface_state_variables),'fabm_do_surface','flux_sf','# surface state variables')
 #  endif
 #endif
-      call fabm_process_job(self,self%do_surface_job _ARGUMENTS_HORIZONTAL_IN_)
 
-      call begin_horizontal_task(self,self%do_surface_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+      call begin_horizontal_task(self,self%do_surface_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-      call_node => self%do_surface_job%final_task%first_call
+      call_node => self%do_surface_job%first_task%first_call
       do while (associated(call_node))
          if (call_node%source==source_do_horizontal) then
             call call_node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
@@ -3562,7 +3590,7 @@ end subroutine internal_check_horizontal_state
          end do
       end if
 
-      call end_horizontal_task(self,self%do_surface_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+      call end_horizontal_task(self,self%do_surface_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_do_surface
 !EOC
@@ -3606,11 +3634,9 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call fabm_process_job(self,self%do_bottom_job _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%do_bottom_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-   call begin_horizontal_task(self,self%do_bottom_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
-
-   call_node => self%do_bottom_job%final_task%first_call
+   call_node => self%do_bottom_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source==source_do_horizontal) then
          call call_node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
@@ -3642,7 +3668,7 @@ end subroutine internal_check_horizontal_state
       _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache%write_hz,k,flux_ben,i,cache%mask,0.0_rk)
    end do
 
-   call end_horizontal_task(self,self%do_bottom_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self,self%do_bottom_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_do_bottom_rhs
 !EOC
@@ -3679,11 +3705,9 @@ end subroutine internal_check_horizontal_state
    call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_bottom_ppdd')
 #endif
 
-   call fabm_process_job(self,self%do_bottom_job _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%do_bottom_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-   call begin_horizontal_task(self,self%do_bottom_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
-
-   call_node => self%do_bottom_job%final_task%first_call
+   call_node => self%do_bottom_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source==source_do_bottom) call call_node%model%do_bottom_ppdd(_ARGUMENTS_HORIZONTAL_,pp,dd,benthos_offset)
 
@@ -3699,7 +3723,7 @@ end subroutine internal_check_horizontal_state
       call_node => call_node%next
    end do
 
-   call end_horizontal_task(self,self%do_bottom_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self,self%do_bottom_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_do_bottom_ppdd
 !EOC
@@ -3739,10 +3763,10 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call begin_interior_task(self,self%get_vertical_movement_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call begin_interior_task(self,self%get_vertical_movement_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
    ! Now allow models to overwrite with spatially-varying sinking rates - if any.
-   call_node => self%get_vertical_movement_job%final_task%first_call
+   call_node => self%get_vertical_movement_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source==source_get_vertical_movement) call call_node%model%get_vertical_movement(_ARGUMENTS_INTERIOR_)
       call_node => call_node%next
@@ -3754,7 +3778,7 @@ end subroutine internal_check_horizontal_state
       _UNPACK_TO_PLUS_1_(cache%write,k,velocity,i,cache%mask,0.0_rk)
    end do
 
-   call end_interior_task(self,self%get_vertical_movement_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self,self%get_vertical_movement_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_vertical_movement
 !EOC
@@ -3789,10 +3813,10 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call begin_interior_task(self,self%get_light_extinction_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call begin_interior_task(self,self%get_light_extinction_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
    ! Call all models that calculate extinction components to make sure the extinction diagnostic is up to date.
-   call_node => self%get_light_extinction_job%final_task%first_call
+   call_node => self%get_light_extinction_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source==source_do) then
          call call_node%model%do(_ARGUMENTS_INTERIOR_)
@@ -3819,7 +3843,7 @@ end subroutine internal_check_horizontal_state
 
    _UNPACK_(cache%write,self%extinction_id%variable%write_indices%value,extinction,cache%mask,0.0_rk)
 
-   call end_interior_task(self,self%get_light_extinction_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self,self%get_light_extinction_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_light_extinction
 !EOC
@@ -3873,16 +3897,16 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call begin_horizontal_task(self,self%get_drag_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%get_drag_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    drag = 1.0_rk
-   call_node => self%get_drag_job%final_task%first_call
+   call_node => self%get_drag_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source==source_get_drag) call call_node%model%get_drag(_ARGUMENTS_HORIZONTAL_,drag)
       call_node => call_node%next
    end do
 
-   call end_horizontal_task(self,self%get_drag_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self,self%get_drag_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_get_drag
 !EOC
@@ -3916,16 +3940,16 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call begin_horizontal_task(self,self%get_albedo_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%get_albedo_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    albedo = 0.0_rk
-   call_node => self%get_albedo_job%final_task%first_call
+   call_node => self%get_albedo_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source==source_get_albedo) call call_node%model%get_albedo(_ARGUMENTS_HORIZONTAL_,albedo)
       call_node => call_node%next
    end do
 
-   call end_horizontal_task(self,self%get_albedo_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self,self%get_albedo_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_get_albedo
 !EOC
@@ -3961,9 +3985,9 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call begin_interior_task(self,self%get_conserved_quantities_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call begin_interior_task(self,self%get_conserved_quantities_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
-   call_node => self%get_conserved_quantities_job%final_task%first_call
+   call_node => self%get_conserved_quantities_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source==source_do) call call_node%model%do(_ARGUMENTS_INTERIOR_)
 
@@ -3984,7 +4008,7 @@ end subroutine internal_check_horizontal_state
       _UNPACK_TO_PLUS_1_(cache%write,self%conserved_quantities(i)%index,sums,i,cache%mask,0.0_rk)
    end do
 
-   call end_interior_task(self,self%get_conserved_quantities_job%final_task,cache _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self,self%get_conserved_quantities_job%first_task,cache _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_conserved_quantities
 !EOC
@@ -4020,9 +4044,9 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call begin_horizontal_task(self,self%get_horizontal_conserved_quantities_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%get_horizontal_conserved_quantities_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
-   call_node => self%get_horizontal_conserved_quantities_job%final_task%first_call
+   call_node => self%get_horizontal_conserved_quantities_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source==source_do_horizontal) then
          call call_node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
@@ -4047,7 +4071,7 @@ end subroutine internal_check_horizontal_state
       _HORIZONTAL_UNPACK_TO_PLUS_1_(cache%write_hz,self%conserved_quantities(i)%horizontal_index,sums,i,cache%mask,0.0_rk)
    end do
 
-   call end_horizontal_task(self,self%get_horizontal_conserved_quantities_job%final_task,cache _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self,self%get_horizontal_conserved_quantities_job%first_task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_get_horizontal_conserved_quantities
 !EOC
@@ -4288,6 +4312,8 @@ subroutine fabm_update_time(self,t)
    real(rk),           intent(in)    :: t
 
    class (type_expression),pointer :: expression
+
+   call fabm_process_job(self,self%prepare_job _ARGUMENTS_HORIZONTAL_IN_)
 
    expression => self%root%first_expression
    do while (associated(expression))
@@ -4736,7 +4762,12 @@ end subroutine classify_variables
       node => model%children%first
       do while (associated(node))
          call require_call_all(self,node%model,source)
-         call self%request_call(node%model,source)
+         select type (model => node%model)
+         class is (type_weighted_sum)
+         class is (type_horizontal_weighted_sum)
+         class default
+            call self%request_call(node%model,source)
+         end select
          node => node%next
       end do
    end subroutine require_call_all
