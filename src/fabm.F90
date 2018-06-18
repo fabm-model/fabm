@@ -2633,6 +2633,14 @@ subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
 #    endif
    end do
    _N_ = count(environment%mask)
+   allocate(environment%imask(_N_))
+   i = 0
+   do _I_=1,size(environment%mask)
+      if (environment%mask(_I_)) then
+          i = i + 1
+          environment%imask(i) = loop_start + _I_ - 1
+      end if
+   end do
 #  endif
 #endif
    
@@ -2699,6 +2707,14 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
       environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1))
    end do
    _N_ = count(environment%mask)
+   allocate(environment%imask(_N_))
+   i = 0
+   do _J_=1,size(environment%mask)
+      if (environment%mask(_J_)) then
+          i = i + 1
+          environment%imask(i) = loop_start + _I_ - 1
+      end if
+   end do
 #  endif
 #endif
 
@@ -2867,6 +2883,13 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
 #    endif
    end do
    _N_ = count(environment%mask)
+   i = 0
+   do _I_=1,size(environment%mask)
+      if (environment%mask(_I_)) then
+          i = i + 1
+          environment%imask(i) = loop_start + _I_ - 1
+      end if
+   end do
 #  endif
 #endif
 
@@ -2881,7 +2904,10 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
       if (associated(self%data(i)%p)) then
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  ifdef _HAS_MASK_
-         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(loop_start:loop_stop),environment%mask)
+         !environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(loop_start:loop_stop),environment%mask)
+         _CONCURRENT_VERTICAL_LOOP_BEGIN_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(environment%imask(_I_))
+         _VERTICAL_LOOP_END_
 #  else
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
             environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(loop_start+_I_-1)
