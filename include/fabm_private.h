@@ -368,8 +368,10 @@
 #endif
 
 #if defined(_HORIZONTAL_IS_VECTORIZED_)&&defined(_HAS_MASK_)
-#  define _HORIZONTAL_PACK_GLOBAL_(in,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop),mask)
-#  define _HORIZONTAL_PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(loop_start:loop_stop,i),mask)
+!#  define _HORIZONTAL_PACK_GLOBAL_(in,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop),mask)
+!#  define _HORIZONTAL_PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(loop_start:loop_stop,i),mask)
+#  define _HORIZONTAL_PACK_GLOBAL_(in,out,j,mask) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_HORIZONTAL_(environment%imask(_J_));_HORIZONTAL_LOOP_END_
+#  define _HORIZONTAL_PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(environment%imask(_J_),i);_HORIZONTAL_LOOP_END_
 #  define _HORIZONTAL_UNPACK_TO_PLUS_1_(in,i,out,j,mask,missing) out(:,j) = unpack(in(:,i),mask,missing)
 #  define _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(in,i,out,j,mask,missing) out(:,j) = out(:,j) + unpack(in(:,i),mask,missing)
 #  define _HORIZONTAL_UNPACK_TO_GLOBAL_(in,i,out,mask,missing) out _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop) = unpack(in(:,i),mask,missing)
