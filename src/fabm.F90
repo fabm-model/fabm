@@ -2712,7 +2712,7 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
    do _J_=1,size(environment%mask)
       if (environment%mask(_J_)) then
           i = i + 1
-          environment%imask(i) = loop_start + _I_ - 1
+          environment%imask(i) = loop_start + _J_ - 1
       end if
    end do
 #  endif
