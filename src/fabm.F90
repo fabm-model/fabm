@@ -2883,6 +2883,7 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
 #    endif
    end do
    _N_ = count(environment%mask)
+   allocate(environment%imask(_N_))
    i = 0
    do _I_=1,size(environment%mask)
       if (environment%mask(_I_)) then
