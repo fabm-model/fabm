@@ -849,6 +849,7 @@ recursive subroutine find_dependencies(self,list,forbidden)
             node => node%next
          end do
          call fatal_error('find_dependencies','circular dependency found: '//trim(chain(2:))//' '//trim(self%get_path()))
+         return
       end if
       call forbidden_with_self%extend(forbidden)
    end if
@@ -1104,6 +1105,7 @@ recursive subroutine find_dependencies2(self,source,allowed_sources,list,forbidd
             node => node%next
          end do
          call fatal_error('find_dependencies','circular dependency found: '//trim(chain(2:))//' '//trim(self%get_path()))
+         return
       end if
       call forbidden_with_self%extend(forbidden)
    end if
@@ -1253,7 +1255,7 @@ contains
       maxwrite = -1
       node => call_list_node%written_variables%first
       do while (associated(node))
-         if (node%target%write_indices%is_empty()) call driver%fatal_error('call_list_node_initialize','BUG: target without write indices')
+         if (node%target%write_indices%is_empty()) call fatal_error('call_list_node_initialize','BUG: target without write indices')
          if (iand(node%target%domain,domain)/=0) then
             n = n + 1
             maxwrite = max(maxwrite,node%target%write_indices%value)

@@ -4493,7 +4493,7 @@ function create_external_interior_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
    type (type_bulk_variable_id) :: id
 
-   if (variable%domain/=domain_interior) call driver%fatal_error('create_external_interior_id','BUG: called on non-interior variable.')
+   if (variable%domain/=domain_interior) call fatal_error('create_external_interior_id','BUG: called on non-interior variable.')
    id%variable => variable
    if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
 end function create_external_interior_id
@@ -4503,7 +4503,7 @@ function create_external_horizontal_id(variable) result(id)
    type (type_horizontal_variable_id) :: id
 
    if (variable%domain/=domain_horizontal.and.variable%domain/=domain_surface.and.variable%domain/=domain_bottom) &
-      call driver%fatal_error('create_external_horizontal_id','BUG: called on non-horizontal variable.')
+      call fatal_error('create_external_horizontal_id','BUG: called on non-horizontal variable.')
    id%variable => variable
    if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
 end function create_external_horizontal_id
@@ -4511,7 +4511,7 @@ end function create_external_horizontal_id
 function create_external_scalar_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
    type (type_scalar_variable_id) :: id
-   if (variable%domain/=domain_scalar) call driver%fatal_error('create_external_scalar_id','BUG: called on non-scalar variable.')
+   if (variable%domain/=domain_scalar) call fatal_error('create_external_scalar_id','BUG: called on non-scalar variable.')
    id%variable => variable
    if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
 end function create_external_scalar_id
@@ -4732,11 +4732,11 @@ subroutine classify_variables(self)
          consvar%long_name = trim(consvar%standard_variable%name)
          consvar%path = trim(consvar%standard_variable%name)
          consvar%target => self%root%find_object(trim(aggregate_variable%standard_variable%name))
-         if (.not.associated(consvar%target)) call driver%fatal_error('classify_variables', &
+         if (.not.associated(consvar%target)) call fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
          call consvar%target%read_indices%append(consvar%index)
          consvar%target_hz => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
-         if (.not.associated(consvar%target_hz)) call driver%fatal_error('classify_variables', &
+         if (.not.associated(consvar%target_hz)) call fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
          call consvar%target_hz%read_indices%append(consvar%horizontal_index)
       end if
@@ -4745,7 +4745,7 @@ subroutine classify_variables(self)
 
    ! Get link to extinction variable.
    self%extinction_target => self%root%find_object(trim(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux%name))
-   if (.not.associated(self%extinction_target)) call driver%fatal_error('classify_variables', &
+   if (.not.associated(self%extinction_target)) call fatal_error('classify_variables', &
       'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux was not created')
    call self%extinction_target%read_indices%append(self%extinction_index)
 

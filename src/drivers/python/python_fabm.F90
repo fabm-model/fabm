@@ -19,7 +19,7 @@
    use fabm_config
    use fabm_types, only:rk,attribute_length,type_model_list_node,type_base_model, &
                         factory,type_link,type_link_list,type_internal_variable
-   use fabm_driver, only: type_base_driver, driver
+   use fabm_driver, only: type_base_driver, driver, fatal_error
    use fabm_properties
    use fabm_python_helper
    use fabm_c_helper
@@ -350,7 +350,7 @@
 
       call c_f_pointer(c_loc(name), pname)
       found_model => model%root%find_model(pname(:index(pname,C_NULL_CHAR)-1))
-      if (.not.associated(found_model)) call driver%fatal_error('get_model_metadata', &
+      if (.not.associated(found_model)) call fatal_error('get_model_metadata', &
          'model "'//pname(:index(pname,C_NULL_CHAR)-1)//'" not found.')
       call copy_to_c_string(found_model%long_name,long_name)
       user_created = logical2int(found_model%user_created)
@@ -414,7 +414,7 @@
       if (int2logical(do_bottom)) call fabm_do_bottom(model, rates(1:size(model%state_variables)), &
          rates(size(model%state_variables)+size(model%surface_state_variables)+1:))
       if (int2logical(do_surface) .or. int2logical(do_bottom)) then
-         if (.not.associated(column_depth)) call driver%fatal_error('get_rates', &
+         if (.not.associated(column_depth)) call fatal_error('get_rates', &
             'Value for environmental dependency '//trim(environment_names(index_column_depth))// &
             ' must be provided if get_rates is called with the do_surface and/or do_bottom flags.')
          rates(1:size(model%state_variables)) = rates(1:size(model%state_variables))/column_depth
@@ -459,7 +459,7 @@
       logical                :: surface, bottom
 
       if (ny /= size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)) &
-          call driver%fatal_error('integrate', 'ny is wrong length')
+          call fatal_error('integrate', 'ny is wrong length')
 
       call c_f_pointer(c_loc(t_), t, (/nt/))
       call c_f_pointer(c_loc(y_ini_), y_ini, (/ny/))
@@ -468,7 +468,7 @@
       surface = int2logical(do_surface)
       bottom = int2logical(do_bottom)
       if (surface .or. bottom) then
-          if (.not.associated(column_depth)) call driver%fatal_error('get_rates', &
+          if (.not.associated(column_depth)) call fatal_error('get_rates', &
             'Value for environmental dependency '//trim(environment_names(index_column_depth))// &
             ' must be provided if integrate is called with the do_surface and/or do_bottom flags.')
       end if
@@ -562,7 +562,7 @@
             value = property%value
          end if
       class default
-         call driver%fatal_error('get_real_parameter','not a real variable')
+         call fatal_error('get_real_parameter','not a real variable')
       end select
    end function get_real_parameter
 
@@ -595,7 +595,7 @@
             value = property%value
          end if
       class default
-         call driver%fatal_error('get_integer_parameter','not an integer variable')
+         call fatal_error('get_integer_parameter','not an integer variable')
       end select
    end function get_integer_parameter
 
@@ -628,7 +628,7 @@
             value = logical2int(property%value)
          end if
       class default
-         call driver%fatal_error('get_logical_parameter','not a logical variable')
+         call fatal_error('get_logical_parameter','not a logical variable')
       end select
    end function get_logical_parameter
 
@@ -662,7 +662,7 @@
             call copy_to_c_string(property%value, value)
          end if
       class default
-         call driver%fatal_error('get_string_parameter','not a string variable')
+         call fatal_error('get_string_parameter','not a string variable')
       end select
    end subroutine get_string_parameter
 
