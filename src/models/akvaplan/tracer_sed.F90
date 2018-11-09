@@ -173,7 +173,7 @@ contains
           _GET_HORIZONTAL_(self%id_shear,shear)
 
           ! Sedimentation
-          if (self%do_sed==.true.) then
+          if (self%do_sed) then
             !_SET_BOTTOM_EXCHANGE_(self%id_c,-self%w*c)
             !_SET_BOTTOM_ODE_(self%id_c_bot, +self%w*c)
 
