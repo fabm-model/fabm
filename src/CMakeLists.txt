@@ -1,4 +1,8 @@
-cmake_minimum_required(VERSION 2.8.8)
+cmake_minimum_required(VERSION 2.8.11)
+
+if(POLICY CMP0048)
+  cmake_policy(SET CMP0048 NEW)
+endif()
 
 # List of contributing institutes that should be included in compilation.
 # When adding new institutes to the source tree, please add them here as well.
@@ -8,10 +12,12 @@ set(DEFAULT_INSTITUTES
     bb           # Bolding & Bruggeman - formerly Bolding & Burchard
     examples     # Examples supplied with FABM itself
     gotm         # Models ported from original GOTM/BIO library
+    jrc          # EC - Joint Research Centre - Ispra, Italy
     pclake       # The PCLake model - reference implementation
     pml          # Plymouth Marine Laboratory, United Kingdom
     ersem        # European Regional Seas Ecosytem Model
     niva         # Norsk Institutt for Vannforskning, Norway
+    akvaplan     # Akvaplan-niva, Norway
 )
 
 # List of institutes that use manual edits to fabm_library.F90.
@@ -26,7 +32,16 @@ set(FABM_INSTITUTES_OLD
     msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
    )
 
+# Ensure FABM_INSTITUTES tracks the up-to-date DEFAULT_INSTITUTES list unless the user manually customized FABM_INSTITUTES.
+if(NOT FABM_DEFAULT_INSTITUTES OR NOT FABM_INSTITUTES)
+  set(FABM_DEFAULT_INSTITUTES "${DEFAULT_INSTITUTES}" CACHE INTERNAL "Default institutes at the time FABM_INSTITUTES was initialized or updated automatically.")
+endif()
 set(FABM_INSTITUTES ${DEFAULT_INSTITUTES} CACHE STRING "Institute directories to include during compilation.")
+if(FABM_INSTITUTES STREQUAL FABM_DEFAULT_INSTITUTES)
+  # FABM_INSTITUTES matches its original default value; update both with the current DEFAULT_INSTITUTES list.
+  set(FABM_INSTITUTES ${DEFAULT_INSTITUTES} CACHE STRING "Institute directories to include during compilation." FORCE)  
+  set(FABM_DEFAULT_INSTITUTES ${DEFAULT_INSTITUTES} CACHE INTERNAL "Default institutes at the time FABM_INSTITUTES was initialized or updated automatically.")  
+endif()
 
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -55,11 +70,17 @@ foreach(institute ${FABM_INSTITUTES})
 
   if(FABM_${INSTITUTE_UC}_BASE)
     # Either a custom institute directory has been specified, or the default institute directory exists.
+    if (EXISTS "${FABM_${INSTITUTE_UC}_BASE}")
+      # The institute directory exists
     set(FABM_LIBRARY_USE "${FABM_LIBRARY_USE}
    use ${institute}_model_library")
     set(FABM_LIBRARY_ADD "${FABM_LIBRARY_ADD}
       call self%add(${institute}_model_factory,'${institute}')")
     set(ACTIVE_INSTITUTES ${ACTIVE_INSTITUTES} ${institute})
+    elseif(NOT FABM_${INSTITUTE_UC}_BASE STREQUAL DEFAULT_INSTITUTE_BASE)
+      # The institute directory does not exist and it was explicitly specified (because different from default).
+      message(FATAL_ERROR "Source directory ${FABM_${INSTITUTE_UC}_BASE} specified for institute ${institute} not found.")
+    endif()
   else()
     #message(STATUS "${institute} will not be compiled because FABM_${INSTITUTE_UC}_BASE is not set. Please visit http://fabm.net/${institute} for more information.")
   endif()
@@ -168,35 +189,35 @@ foreach(institute ${ACTIVE_INSTITUTES})
   endif()
   add_subdirectory(${FABM_${INSTITUTE_UC}_BASE} ${CMAKE_CURRENT_BINARY_DIR}/models/${institute})
   set_property(TARGET fabm_models_${institute} PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
-  set_property(TARGET fabm_models_${institute} APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
+  target_include_directories(fabm_models_${institute} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
   list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
 endforeach(institute) 
 
+# Add YAML parsing library
+add_subdirectory(yaml)
+set_property(TARGET yaml test_yaml PROPERTY FOLDER fabm/yaml)
+
 add_library(fabm
             $<TARGET_OBJECTS:fabm_base>
+            $<TARGET_OBJECTS:yaml>
             ${MODEL_OBJECTS}
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
             fabm_coupling.F90
             fabm.F90
-            config/fabm_config_types.F90
-            config/fabm_yaml.F90
-            config/fabm_config.F90
+            fabm_config.F90
            )
-
-# Group config source files in a folder in IDEs that support this.
-source_group(config REGULAR_EXPRESSION config/)
 
 if(FABM_EMBED_VERSION)
   add_dependencies(fabm fabm_version)
 endif()
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
-set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
+set_property(TARGET fabm_base fabm yaml PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
 foreach(institute ${ACTIVE_INSTITUTES})
-  set_property(TARGET fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
+  target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:fabm_models_${institute},INTERFACE_INCLUDE_DIRECTORIES>)
 endforeach(institute)
 
 # Place projects in specific solution folders (Visual Studio only).
@@ -234,12 +255,6 @@ add_executable(test_host EXCLUDE_FROM_ALL
                test/models.F90
               )
 target_link_libraries(test_host fabm)
-
-add_executable(test_yaml EXCLUDE_FROM_ALL
-               config/test_yaml.F90
-               config/fabm_config_types.F90
-               config/fabm_yaml.F90
-              )
 
 # End of testing section
 

@@ -1,9 +1,21 @@
+!-----------------------------------------------------------------------
+! BROM is free software: you can redistribute it and/or modify it under
+! the terms of the GNU General Public License as published by the Free
+! Software Foundation (https://www.gnu.org/licenses/gpl.html).
+! It is distributed in the hope that it will be useful, but WITHOUT ANY
+! WARRANTY; without even the implied warranty of MERCHANTABILITY or
+! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
+! the COPYING file at the root of the FABM distribution.
+!-----------------------------------------------------------------------
+! Original author(s): Evgeniy Yakushev, Jorn Bruggeman
+!-----------------------------------------------------------------------
+
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: 
+! !MODULE:
 !
 ! !INTERFACE:
    module fabm_niva_brom_salt
@@ -18,8 +30,6 @@
 
 !  default: all is private.
    private
-! !REVISION HISTORY:!
-!  Original author(s): Evgeniy Yakushev, Jorn Bruggeman
 
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_brom_salt
@@ -67,14 +77,14 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-! 
+!
 !
 ! !INPUT PARAMETERS:
    class (type_niva_brom_salt), intent(inout), target :: self
    integer,                     intent(in)            :: configunit
 !
 ! !REVISION HISTORY:
-!  Original author(s): 
+!  Original author(s):
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -116,20 +126,20 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
-! 
+!
 !
 ! !INPUT PARAMETERS:
    class (type_niva_brom_salt),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
-!  Original author(s): 
+!  Original author(s):
 !
 ! !LOCAL VARIABLES:
    real(rk) :: temp,Na,Cl,NaCl
@@ -172,20 +182,20 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! !IROUTINE:
 !
 ! !INTERFACE:
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
-! 
+!
 !
 ! !INPUT PARAMETERS:
    class (type_niva_brom_salt),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
-!  Original author(s): 
+!  Original author(s):
 !
 ! !LOCAL VARIABLES:
    real(rk) :: Na,Cl,NaCl,NaCl_bot

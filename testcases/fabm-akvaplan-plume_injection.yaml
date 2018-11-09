@@ -1,0 +1,21 @@
+instances:
+  tracer:
+    model: akvaplan/tracer
+    parameters:
+      k: 0.05                         # decay rate (half-life = ln(2)/k) (d-1), default = 0.0
+      conserved: true                 # whether this is a conserved quantity (activates budget tracking in host), default = false
+  injection:
+    model: akvaplan/plume_injection
+    parameters:
+      rho: 1027.5                     # plume density (kg m-3)
+    coupling:
+      flux_int: flux/data
+  tracer_source:
+    model: interior_source
+    coupling:
+      source: injection/flux
+      target: tracer/c
+  flux:
+    model: horizontal_constant
+    parameters:
+      value: 0.0001                   # value

@@ -1,0 +1,13 @@
+instances:
+  L:
+    long_name: lorenz63
+    model: bb/lorenz63
+    use: true
+    parameters:
+      sigma: 10.0
+      rho: 28.0
+      beta: 2.66666667
+    initialization:
+      x: 1.0
+      y: 1.0
+      z: 1.0

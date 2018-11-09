@@ -71,6 +71,7 @@ module fabm_particle
       procedure :: request_standard_coupling_to_named_model
       generic :: request_coupling_to_model => request_named_coupling_to_model,request_standard_coupling_to_model, &
                                               request_named_coupling_to_named_model,request_standard_coupling_to_named_model
+      procedure :: resolve_model_dependency
 
       ! Hooks called by FABM:
       procedure :: before_coupling
@@ -152,6 +153,25 @@ module fabm_particle
       ! Set attributes of the model reference.
       reference%name = name
    end function add_model_reference
+
+   function resolve_model_dependency(self,name,require_internal_variables) result(model)
+      class (type_particle_model), intent(inout) :: self
+      character(len=*),            intent(in)    :: name
+      logical,optional,            intent(in)    :: require_internal_variables
+      class (type_base_model), pointer :: model
+
+      type (type_model_reference), pointer :: reference
+
+      model => null()
+      reference => self%first_model_reference
+      do while (associated(reference))
+         if (reference%name==name) then
+            model => self%resolve_model_reference(reference,require_internal_variables)
+            return
+         end if
+         reference => reference%next
+      end do
+   end function resolve_model_dependency
 
    subroutine request_coupling_to_model_generic(self,slave,master_model,master_model_name,master_name,master_standard_variable)
       class (type_particle_model),       intent(inout)          :: self
@@ -262,6 +282,7 @@ module fabm_particle
             ! Find starting position of local name (excluding any preprended path components)
             istart = index(model_master_name%value,'/',.true.)+1
 
+            source_model => null()
             reference2 => null()
             if (istart==1) then
                ! No slash in path; search model references within current model
@@ -278,17 +299,19 @@ module fabm_particle
             end if
 
             ! Search model references
-            reference2 => source_model%first_model_reference
-            do while (associated(reference2))
-               if (model_master_name%value(istart:)==reference2%name) then
-                  reference%model => source_model%resolve_model_reference(reference2)
-                  exit
-               end if
-               reference2 => reference2%next
-            end do
+            if (associated(source_model)) then
+               reference2 => source_model%first_model_reference
+               do while (associated(reference2))
+                  if (model_master_name%value(istart:)==reference2%name) then
+                     reference%model => source_model%resolve_model_reference(reference2)
+                     exit
+                  end if
+                  reference2 => reference2%next
+               end do
+            end if
          end if
 
-         if (.not.associated(reference%model)) call self%fatal_error('resolve_model_reference','Referenced model "'//trim(model_master_name%value)//'" not found.')
+         if (.not.associated(reference%model)) call self%fatal_error('resolve_model_reference','Referenced model instance "'//trim(model_master_name%value)//'" not found.')
       end select
 
       reference%state = done

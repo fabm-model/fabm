@@ -2,7 +2,6 @@ module au_model_library
 
    use fabm_types, only: type_base_model_factory,type_base_model
 
-   use au_pclake_model_library
    use au_prey_predator
 ! Add new AU models here
 
@@ -23,10 +22,9 @@ contains
    subroutine initialize(self)
       class (type_factory), intent(inout) :: self
 
-      call self%add(pclake_factory,'pclake')
       ! Add additional model factories here
 
-      ! Go through default initializaton steps. 
+      ! Go through default initializaton steps.
       ! This also allows new added child model factories to initialize.
       call self%type_base_model_factory%initialize()
    end subroutine initialize

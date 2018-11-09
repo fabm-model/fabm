@@ -23,9 +23,7 @@ if(FABM_USE_NetCDF)
   if (NetCDF_STATIC_MSVC_BUILD)
     add_compile_options("/libs:static")
   endif()
-  set (OUTPUT_MANAGER_CORE ${GOTM_BASE}/src/output/output_manager_core.F90)
-  set (OUTPUT_MANAGER ${GOTM_BASE}/src/output/output_manager.F90 ${GOTM_BASE}/src/output/text_output.F90)
-  set (NETCDF_OUTPUT ${GOTM_BASE}/src/output/netcdf_output.F90)
+  set (OUTPUT_MANAGER ${GOTM_BASE}/src/output/output_manager_core.F90 ${GOTM_BASE}/src/output/output_manager.F90 ${GOTM_BASE}/src/output/text_output.F90 ${GOTM_BASE}/src/output/netcdf_output.F90)
   set (FIELD_MANAGER ${GOTM_BASE}/src/util/field_manager.F90)
 endif(FABM_USE_NetCDF)
 
@@ -46,7 +44,6 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
 add_executable (fabm0d
                 main.F90
                 fabm0d.F90
-                register_all_variables.F90
                 shared.F90
                 output.F90
                 fabm_0d.h
@@ -54,11 +51,9 @@ add_executable (fabm0d
                 ${GOTM_BASE}/src/airsea/albedo_water.F90
                 ${GOTM_BASE}/src/airsea/short_wave_radiation.F90
                 ${GOTM_BASE}/src/input/input.F90
-		${OUTPUT_MANAGER_CORE}
-		${OUTPUT_MANAGER}
-		${NETCDF_OUTPUT}
+                ${FIELD_MANAGER}
+                ${OUTPUT_MANAGER}
                 ${GOTM_BASE}/src/util/eqstate.F90
-		${FIELD_MANAGER}
                 ${GOTM_BASE}/src/util/gridinterpol.F90
                 ${GOTM_BASE}/src/util/time.F90
                 )
@@ -73,6 +68,7 @@ if(FABM_USE_NetCDF)
   target_link_libraries(fabm0d ${NetCDF_LIBRARIES})
   set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES ${NetCDF_INCLUDE_DIRS})
   set_property(TARGET fabm0d APPEND PROPERTY COMPILE_DEFINITIONS NETCDF4)
+  set_property(SOURCE ${OUTPUT_MANAGER} APPEND PROPERTY COMPILE_DEFINITIONS NETCDF_FMT)
   if (NetCDF_STATIC_MSVC_BUILD)
     set_property(TARGET fabm0d PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmt\"")
   endif()

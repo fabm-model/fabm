@@ -19,7 +19,7 @@
    use fabm_config
    use fabm_types, only:rk,attribute_length,type_model_list_node,type_base_model, &
                         factory,type_link,type_link_list,type_internal_variable
-   use fabm_driver, only: type_base_driver, driver
+   use fabm_driver, only: type_base_driver, driver, fatal_error
    use fabm_properties
    use fabm_python_helper
    use fabm_c_helper
@@ -29,17 +29,19 @@
 ! !PUBLIC MEMBER FUNCTIONS:
    public
 
-   integer,parameter :: BULK_STATE_VARIABLE            = 1
+   integer,parameter :: INTERIOR_STATE_VARIABLE        = 1
    integer,parameter :: SURFACE_STATE_VARIABLE         = 2
    integer,parameter :: BOTTOM_STATE_VARIABLE          = 3
-   integer,parameter :: BULK_DIAGNOSTIC_VARIABLE       = 4
+   integer,parameter :: INTERIOR_DIAGNOSTIC_VARIABLE   = 4
    integer,parameter :: HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
    integer,parameter :: CONSERVED_QUANTITY             = 6
 
    class (type_model),private,pointer,save :: model => null()
-   real(8),dimension(:),pointer :: state
    character(len=1024),dimension(:),allocatable :: environment_names,environment_units
+   integer :: index_column_depth
+   real(c_double),pointer :: column_depth
    type (type_link_list),save :: coupling_link_list
+   logical, save :: error_occurred = .false.
 
    type (type_property_dictionary),save,private :: forced_parameters,forced_couplings
 
@@ -52,6 +54,17 @@
 !-----------------------------------------------------------------------
 
    contains
+
+   subroutine get_version(length,version_string) bind(c)
+!DIR$ ATTRIBUTES DLLEXPORT :: get_version
+      integer(c_int),value,intent(in) :: length
+      character(kind=c_char)          :: version_string(length)
+
+      character(len=length-1) :: string
+
+      call fabm_get_version(string)
+      call copy_to_c_string(string, version_string)
+   end subroutine get_version
 
 !-----------------------------------------------------------------------
 !BOP
@@ -74,14 +87,20 @@
       class (type_property),          pointer :: property
 !-----------------------------------------------------------------------
 !BOC
-      call c_f_pointer(c_loc(path), ppath)
-
-      if (associated(model)) call finalize()
-
+      ! Initialize driver object used by FABM for logging/error reporting.
       if (.not.associated(driver)) allocate(type_python_driver::driver)
 
-      ! Build FABM model tree (configuration will be read from fabm.yaml).
+      ! If the model object already exists, delete it to start from scratch.
+      if (associated(model)) call finalize()
+
+      ! Remove any existing user-specified parameter values and couplings.
+      ! (If the user wanted to preserve those, he would have called reinitialize)
+      call forced_parameters%finalize()
+      call forced_couplings%finalize()
+
+      ! Build FABM model tree (configuration will be read from file specified as argument).
       allocate(model)
+      call c_f_pointer(c_loc(path), ppath)
       call fabm_create_model_from_yaml_file(model,path=ppath(:index(ppath,C_NULL_CHAR)-1),parameters=forced_parameters)
 
       ! Get a list of all parameters that had an explicit value specified.
@@ -104,7 +123,8 @@
       call fabm_set_domain(model)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment_metadata(model,environment_names,environment_units)
+      call get_environment_metadata(model,environment_names,environment_units,index_column_depth)
+      column_depth => null()
 
       call get_couplings(model,coupling_link_list)
    end subroutine initialize
@@ -116,6 +136,7 @@
       class (type_base_model),     pointer :: childmodel
       class (type_property),       pointer :: property,next
 
+      ! Create new model object.
       allocate(newmodel)
 
       ! Transfer forced parameters to root of the model.
@@ -156,7 +177,8 @@
       call fabm_set_domain(model)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment_metadata(model,environment_names,environment_units)
+      call get_environment_metadata(model,environment_names,environment_units,index_column_depth)
+      column_depth => null()
 
       call get_couplings(model,coupling_link_list)
    end subroutine reinitialize
@@ -165,6 +187,11 @@
       !DIR$ ATTRIBUTES DLLEXPORT :: check_ready
       call fabm_check_ready(model)
    end subroutine check_ready
+
+   integer(c_int) function get_error_state() bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_error_state
+      get_error_state = logical2int(error_occurred)
+   end function get_error_state
 
    integer(c_int) function model_count() bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: model_count
@@ -179,16 +206,16 @@
       end do
    end function model_count
 
-   subroutine get_counts(nstate_bulk,nstate_surface,nstate_bottom,ndiagnostic_bulk,ndiagnostic_horizontal,nconserved, &
+   subroutine get_counts(nstate_interior,nstate_surface,nstate_bottom,ndiagnostic_interior,ndiagnostic_horizontal,nconserved, &
       ndependencies,nparameters,ncouplings) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_counts
-      integer(c_int),intent(out) :: nstate_bulk,nstate_surface,nstate_bottom
-      integer(c_int),intent(out) :: ndiagnostic_bulk,ndiagnostic_horizontal
+      integer(c_int),intent(out) :: nstate_interior,nstate_surface,nstate_bottom
+      integer(c_int),intent(out) :: ndiagnostic_interior,ndiagnostic_horizontal
       integer(c_int),intent(out) :: nconserved,ndependencies,nparameters,ncouplings
-      nstate_bulk = size(model%state_variables)
+      nstate_interior = size(model%state_variables)
       nstate_surface = size(model%surface_state_variables)
       nstate_bottom = size(model%bottom_state_variables)
-      ndiagnostic_bulk = size(model%diagnostic_variables)
+      ndiagnostic_interior = size(model%diagnostic_variables)
       ndiagnostic_horizontal = size(model%horizontal_diagnostic_variables)
       nconserved = size(model%conserved_quantities)
       ndependencies = size(environment_names)
@@ -205,13 +232,13 @@
 
       ! Get a pointer to the target variable
       select case (category)
-      case (BULK_STATE_VARIABLE)
+      case (INTERIOR_STATE_VARIABLE)
          variable => model%state_variables(index)
       case (SURFACE_STATE_VARIABLE)
          variable => model%surface_state_variables(index)
       case (BOTTOM_STATE_VARIABLE)
          variable => model%bottom_state_variables(index)
-      case (BULK_DIAGNOSTIC_VARIABLE)
+      case (INTERIOR_DIAGNOSTIC_VARIABLE)
          variable => model%diagnostic_variables(index)
       case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
          variable => model%horizontal_diagnostic_variables(index)
@@ -233,13 +260,13 @@
 
       ! Get a pointer to the target variable
       select case (category)
-      case (BULK_STATE_VARIABLE)
+      case (INTERIOR_STATE_VARIABLE)
          variable => model%state_variables(index)%target
       case (SURFACE_STATE_VARIABLE)
          variable => model%surface_state_variables(index)%target
       case (BOTTOM_STATE_VARIABLE)
          variable => model%bottom_state_variables(index)%target
-      case (BULK_DIAGNOSTIC_VARIABLE)
+      case (INTERIOR_DIAGNOSTIC_VARIABLE)
          variable => model%diagnostic_variables(index)%target
       case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
          variable => model%horizontal_diagnostic_variables(index)%target
@@ -323,7 +350,7 @@
 
       call c_f_pointer(c_loc(name), pname)
       found_model => model%root%find_model(pname(:index(pname,C_NULL_CHAR)-1))
-      if (.not.associated(found_model)) call driver%fatal_error('get_model_metadata', &
+      if (.not.associated(found_model)) call fatal_error('get_model_metadata', &
          'model "'//pname(:index(pname,C_NULL_CHAR)-1)//'" not found.')
       call copy_to_c_string(found_model%long_name,long_name)
       user_created = logical2int(found_model%user_created)
@@ -334,19 +361,20 @@
       integer(c_int),intent(in),value  :: index
       real(c_double),intent(in),target :: value
 
-      call fabm_link_bulk_data(model,environment_names(index),value)
+      call fabm_link_interior_data(model,environment_names(index),value)
       call fabm_link_horizontal_data(model,environment_names(index),value)
       call fabm_link_scalar_data(model,environment_names(index),value)
+      if (index==index_column_depth) column_depth => value
    end subroutine link_dependency_data
 
-   subroutine link_bulk_state_data(index,value) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: link_bulk_state_data
+   subroutine link_interior_state_data(index,value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: link_interior_state_data
       integer(c_int),intent(in),   value  :: index
       real(c_double),intent(inout),target :: value
 
       value = model%state_variables(index)%initial_value
-      call fabm_link_bulk_state_data(model,index,value)
-   end subroutine link_bulk_state_data
+      call fabm_link_interior_state_data(model,index,value)
+   end subroutine link_interior_state_data
 
    subroutine link_surface_state_data(index,value) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_surface_state_data
@@ -366,23 +394,32 @@
       call fabm_link_bottom_state_data(model,index,value)
    end subroutine link_bottom_state_data
 
-   subroutine get_rates(pelagic_rates_) bind(c)
+   subroutine get_rates(rates_, do_surface, do_bottom) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_rates
-      real(c_double),target,intent(in) :: pelagic_rates_(*)
+      real(c_double),target,intent(in) :: rates_(*)
+      integer(c_int),value, intent(in) :: do_surface, do_bottom
 
-      real(c_double),pointer :: pelagic_rates(:)
+      real(c_double),pointer :: rates(:)
       real(rk)               :: ext
 
-      call fabm_get_light_extinction(model,ext)
-      call fabm_get_light(model)
-      call c_f_pointer(c_loc(pelagic_rates_),pelagic_rates, &
+      call c_f_pointer(c_loc(rates_),rates, &
         (/size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)/))
-      pelagic_rates = 0.0_rk
-      call fabm_do_bottom(model,pelagic_rates(1:size(model%state_variables)), &
-         pelagic_rates(size(model%state_variables)+size(model%surface_state_variables)+1:))
-      call fabm_do_surface(model,pelagic_rates(1:size(model%state_variables)), &
-         pelagic_rates(size(model%state_variables)+1:size(model%state_variables)+size(model%surface_state_variables)))
-      call fabm_do(model,pelagic_rates(1:size(model%state_variables)))
+
+      call fabm_get_light_extinction(model, ext)
+      call fabm_get_light(model)
+
+      rates = 0.0_rk
+      if (int2logical(do_surface)) call fabm_do_surface(model, rates(1:size(model%state_variables)), &
+         rates(size(model%state_variables)+1:size(model%state_variables)+size(model%surface_state_variables)))
+      if (int2logical(do_bottom)) call fabm_do_bottom(model, rates(1:size(model%state_variables)), &
+         rates(size(model%state_variables)+size(model%surface_state_variables)+1:))
+      if (int2logical(do_surface) .or. int2logical(do_bottom)) then
+         if (.not.associated(column_depth)) call fatal_error('get_rates', &
+            'Value for environmental dependency '//trim(environment_names(index_column_depth))// &
+            ' must be provided if get_rates is called with the do_surface and/or do_bottom flags.')
+         rates(1:size(model%state_variables)) = rates(1:size(model%state_variables))/column_depth
+      end if
+      call fabm_do(model, rates(1:size(model%state_variables)))
 
       ! Compute rate of change in conserved quantities
       !call fabm_state_to_conserved_quantities(model,pelagic_rates,conserved_rates)
@@ -392,12 +429,83 @@
       !where (abs_conserved_rates>0.0_rk) conserved_rates = conserved_rates/abs_conserved_rates
    end subroutine get_rates
 
-   subroutine get_bulk_diagnostic_data(index,ptr) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_bulk_diagnostic_data
+   function check_state(repair_) bind(c) result(valid_)
+      !DIR$ ATTRIBUTES DLLEXPORT :: check_state
+      integer(c_int),value, intent(in) :: repair_
+      integer(c_int)                   :: valid_
+
+      logical :: repair, interior_valid, surface_valid, bottom_valid
+
+      repair = int2logical(repair_)
+      call fabm_check_state(model, repair, interior_valid)
+      call fabm_check_surface_state(model, repair, surface_valid)
+      call fabm_check_bottom_state(model, repair, bottom_valid)
+      valid_ = logical2int(interior_valid .and. surface_valid .and. bottom_valid)
+   end function check_state
+
+   subroutine integrate(nt, ny, t_, y_ini_, y_, dt, do_surface, do_bottom) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: integrate
+      integer(c_int),value, intent(in) :: nt, ny
+      real(c_double),target,intent(in) :: t_(*), y_ini_(*), y_(*)
+      real(c_double),value, intent(in) :: dt
+      integer(c_int),value, intent(in) :: do_surface, do_bottom
+
+      real(c_double),pointer :: t(:), y_ini(:), y(:,:)
+      integer                :: it
+      real(rk)               :: t_cur
+      real(rk), target       :: y_cur(ny)
+      real(rk)               :: rates(ny)
+      real(rk)               :: ext
+      logical                :: surface, bottom
+
+      if (ny /= size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)) &
+          call fatal_error('integrate', 'ny is wrong length')
+
+      call c_f_pointer(c_loc(t_), t, (/nt/))
+      call c_f_pointer(c_loc(y_ini_), y_ini, (/ny/))
+      call c_f_pointer(c_loc(y_), y, (/ny, nt/))
+
+      surface = int2logical(do_surface)
+      bottom = int2logical(do_bottom)
+      if (surface .or. bottom) then
+          if (.not.associated(column_depth)) call fatal_error('get_rates', &
+            'Value for environmental dependency '//trim(environment_names(index_column_depth))// &
+            ' must be provided if integrate is called with the do_surface and/or do_bottom flags.')
+      end if
+      call model%link_all_interior_state_data(y_cur(1:size(model%state_variables)))
+      call model%link_all_surface_state_data(y_cur(size(model%state_variables) + 1: &
+         size(model%state_variables) + size(model%surface_state_variables)))
+      call model%link_all_bottom_state_data(y_cur(size(model%state_variables) + size(model%surface_state_variables) + 1:))
+
+      it = 1
+      t_cur = t(1)
+      y_cur = y_ini
+      do while (it <= nt)
+          if (t_cur >= t(it)) then
+              y(:, it) = y_cur
+              it = it + 1
+          end if
+
+          call fabm_get_light_extinction(model, ext)
+          call fabm_get_light(model)
+          rates = 0.0_rk
+          if (surface) call fabm_do_surface(model, rates(1:size(model%state_variables)), &
+             rates(size(model%state_variables)+1:size(model%state_variables)+size(model%surface_state_variables)))
+          if (bottom) call fabm_do_bottom(model, rates(1:size(model%state_variables)), &
+             rates(size(model%state_variables)+size(model%surface_state_variables)+1:))
+          if (surface .or. bottom) rates(1:size(model%state_variables)) = rates(1:size(model%state_variables))/column_depth
+          call fabm_do(model, rates(1:size(model%state_variables)))
+          y_cur = y_cur + dt*rates*86400
+          t_cur = t_cur + dt
+      end do
+   end subroutine integrate
+
+   subroutine get_interior_diagnostic_data(index,ptr) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_interior_diagnostic_data
       integer(c_int),intent(in),value :: index
       type(c_ptr),   intent(out)      :: ptr
-      ptr = c_loc(fabm_get_bulk_diagnostic_data(model,index))
-   end subroutine get_bulk_diagnostic_data
+      ptr = c_loc(fabm_get_interior_diagnostic_data(model,index))
+   end subroutine get_interior_diagnostic_data
 
    subroutine get_horizontal_diagnostic_data(index,ptr) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_horizontal_diagnostic_data
@@ -406,7 +514,7 @@
       ptr = c_loc(fabm_get_horizontal_diagnostic_data(model,index))
    end subroutine get_horizontal_diagnostic_data
 
-   subroutine finalize() bind(c)
+   subroutine finalize()
       call fabm_finalize(model)
       if (allocated(environment_names)) deallocate(environment_names)
       if (allocated(environment_units)) deallocate(environment_units)
@@ -454,7 +562,7 @@
             value = property%value
          end if
       class default
-         call driver%fatal_error('get_real_parameter','not a real variable')
+         call fatal_error('get_real_parameter','not a real variable')
       end select
    end function get_real_parameter
 
@@ -487,7 +595,7 @@
             value = property%value
          end if
       class default
-         call driver%fatal_error('get_integer_parameter','not an integer variable')
+         call fatal_error('get_integer_parameter','not an integer variable')
       end select
    end function get_integer_parameter
 
@@ -520,7 +628,7 @@
             value = logical2int(property%value)
          end if
       class default
-         call driver%fatal_error('get_logical_parameter','not a logical variable')
+         call fatal_error('get_logical_parameter','not a logical variable')
       end select
    end function get_logical_parameter
 
@@ -554,7 +662,7 @@
             call copy_to_c_string(property%value, value)
          end if
       class default
-         call driver%fatal_error('get_string_parameter','not a string variable')
+         call fatal_error('get_string_parameter','not a string variable')
       end select
    end subroutine get_string_parameter
 
@@ -562,8 +670,9 @@
       class (type_python_driver),intent(inout) :: self
       character(len=*),          intent(in)    :: location,message
 
-      write (*,*) trim(location)//': '//trim(message)
-      stop 1
+      error_occurred = .true.
+      !write (*,*) trim(location)//': '//trim(message)
+      !stop 1
    end subroutine python_driver_fatal_error
 
    subroutine python_driver_log_message(self,message)
@@ -576,5 +685,5 @@
    end module fabm_python
 
 !-----------------------------------------------------------------------
-! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
+! Copyright Bolding & Bruggeman ApS - Public License - www.gnu.org
 !-----------------------------------------------------------------------

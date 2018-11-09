@@ -18,6 +18,7 @@ contains
    subroutine create(self,name,model)
 
       use bb_filter_feeder
+      use bb_lorenz63
       use bb_passive
       ! Add new BB models here
 
@@ -27,6 +28,7 @@ contains
 
       select case (name)
          case ('passive');       allocate(type_bb_passive::model)
+         case ('lorenz63');      allocate(type_bb_lorenz63::model)
          case ('filter_feeder'); allocate(type_bb_filter_feeder::model)
          ! Add new BB models here
       end select

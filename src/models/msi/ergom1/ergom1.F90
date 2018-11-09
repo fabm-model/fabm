@@ -30,6 +30,9 @@
 !  incl. chlorophyll a, oxygen and nutrients in mass concentration units. 
 !  Updated yaml input file with new entries (e.g., sediment burial rate, and phytoplankton
 !  carbon:chla ratios for individual phyto groups)
+!  May 2016, by Dennis Trolle (AU):
+!  Added option to switch on or off n-fixation by cyanobacteria
+!  Added settling of diatoms to bottom sediments, where diatoms are converted to fluff once settled
 !
 ! !MODULE:fabm_msi_ergom1
 !
@@ -66,6 +69,7 @@
       logical  :: calc_dic=.false.
       character(len=16) :: env_type ! identifier for setting the environment to "marine" or "fresh" (freshwater/lake) 
       character(len=64) :: dic_variable      
+      logical  :: nitrogen_fixation=.true. ! identifier for whether or not to allow n-fixation for cyanos "true" to use n-fix or "false" to allow n-limitation function
    contains
       procedure :: initialize
       procedure :: do
@@ -98,7 +102,8 @@
    call self%get_parameter(self%env_type, 'env_type', 'Define environment type, either fresh or marine', default='marine') 
    call self%get_parameter(self%calc_dic, 'calc_dic', 'Deside whether to calculate DIC', default=.false.)
    call self%get_parameter(self%dic_variable, 'dic_variable', 'Define DIC variable')
-   call self%get_parameter(wdz,     'wdz',   'm/d',  'Detritus      sinking velocity', default=4.5_rk)
+   call self%get_parameter(self%nitrogen_fixation, 'nitrogen_fixation', 'Nitrogen fixation of cyanos', default=.true.)
+   call self%get_parameter(wdz,     'wdz',   'm/d',  'Detritus      sinking velocity', default=-4.5_rk)
    call self%get_parameter(wpz,     'wpz',   'm/d',  'Diatoms       sinking velocity', default=-0.5_rk)
    call self%get_parameter(wfz,     'wfz',   'm/d',  'Zooplankton   sinking velocity', default=0.0_rk)
    call self%get_parameter(wbz,     'wbz',   'm/d',  'Cyanobacteria sinking velocity (positive)', default=0.1_rk)
@@ -162,7 +167,7 @@
    call self%get_parameter(self%eroratepo4,'eroratepo4','m/d', 'P-Fe     erosion rate', default=6._rk)
    self%eroratepo4 = self%eroratepo4/secs_per_day
    call self%get_parameter(self%po4ret,  'po4ret',  '-', 'Phosphate retention rate, oxic sediments', default=0.18_rk)
-   call self%get_parameter(self%pburialrate,'pburialrate','-', 'Phopshate burial rate', default=0.007_rk)
+   call self%get_parameter(self%pburialrate,'pburialrate','-', 'Phoshate burial rate', default=0.007_rk)
    self%pburialrate = self%pburialrate/secs_per_day
    call self%get_parameter(self%fl_burialrate,'fl_burialrate','-', 'Sediment burial rate', default=0.001_rk)
    self%fl_burialrate = self%fl_burialrate/secs_per_day
@@ -221,7 +226,7 @@
    call self%register_diagnostic_variable(self%id_SBR,     'SBR',     'mmol/m**2',  'sediment burial',                          output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_PBR,     'PBR',     'mmol/m**2/d','phosphorus burial',                        output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_OFL,     'OFL',     'mmol/m**2/d','oxygen surface flux',                      output=output_time_step_averaged)
-     
+
    ! Register environmental dependencies
    call self%register_dependency(self%id_par,  standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_temp, standard_variables%temperature)
@@ -318,8 +323,13 @@
     rf = rf * self%rf0 * (1.0_rk + tempq / (self%flagtll + tempq)) ! Uptake rate is temp dependent
 
     ! Cyanobacteria uptake
+    if (self%nitrogen_fixation) then
+       nlim = 1.0_rk
+    else
+       nlim = ntemp / (self%alphab * self%alphab + ntemp) ! MiMe eq. for IN
+    end if
     plim = ptemp / (self%alphab * self%alphab * self%rfr * self%rfr + ptemp) ! MiMe for IP
-    rb = min(plim, ppi) !Liebig's law: IP,light. No dependence on IN for cyanos.
+    rb = min(nlim, plim, ppi) !Liebig's law: IP,light. No dependence on IN for cyanos.
     rb = rb * self%rb0 / (1.0_rk + exp(self%cyanotll - temp)) !Uptake rate temp dependent
     !rb = rb / (1.0_rk + exp (salt - self%cyanosul)) / (1.0_rk + exp (self%cyanosll - salt))
     !Uptake rate is also salinity dependent for cyanos
@@ -401,14 +411,13 @@
   _SET_DIAGNOSTIC_(self%id_bb_chla, (bb * 9.5 + 2.1)/self%Yc_cyan)
   _SET_DIAGNOSTIC_(self%id_tot_chla, (pp * 9.5 + 2.1)/self%Yc_diat + (ff * 9.5 + 2.1)/self%Yc_flag + (bb * 9.5 + 2.1)/self%Yc_cyan)
   _SET_DIAGNOSTIC_(self%id_dPAR,par)
-  _SET_DIAGNOSTIC_(self%id_GPP ,rp + rf)
-  _SET_DIAGNOSTIC_(self%id_NCP ,rp + rf + rb - lpn * phyto)
-  _SET_DIAGNOSTIC_(self%id_PPR ,(rp + rf + rb) * secs_per_day)
-  _SET_DIAGNOSTIC_(self%id_NPR ,(rp + rf + rb - lpn*phyto) * secs_per_day)
+  _SET_DIAGNOSTIC_(self%id_GPP ,rp * ppg + rf * ffg)
+  _SET_DIAGNOSTIC_(self%id_NCP ,rp * ppg + rf * ffg + rb * bbg - lpn * phyto)
+  _SET_DIAGNOSTIC_(self%id_PPR ,(rp * ppg + rf * ffg + rb * bbg) * secs_per_day)
+  _SET_DIAGNOSTIC_(self%id_NPR ,(rp * ppg + rf * ffg + rb * bbg - lpn*phyto) * secs_per_day)
   _SET_DIAGNOSTIC_(self%id_NFX, rb * bbg * secs_per_day)
   _SET_DIAGNOSTIC_(self%id_DNP, (ldn_N * ldn *dd + ade) * secs_per_day)
-  
-  
+
    ! Leave spatial loops (if any)
    _LOOP_END_
 
@@ -465,9 +474,10 @@
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   :: pwb,pb,fl,aab,nnb,pob,ddb,oxb,taub,temp,biores
-   real(rk)                   :: llds,llsd,bpds,bpsd,recs,ldn_O,ldn_N,plib,oxlim
+   real(rk)                   :: pwb,pb,fl,ppb,aab,nnb,pob,ddb,oxb,taub,temp,biores
+   real(rk)                   :: llds,llsd,bpds,bpsd,lldiat,recs,ldn_O,ldn_N,plib,oxlim
    real(rk)                   :: fracdenitsed,pret,pbr
+   real(rk)                   :: tau_frac
    real(rk),parameter :: secs_per_day = 86400._rk
 !
 !EOP
@@ -480,6 +490,7 @@
  !   if (self%fluff) then
    _GET_(self%id_aa,aab)
    _GET_(self%id_dd,ddb)
+   _GET_(self%id_pp,ppb)
    _GET_(self%id_nn,nnb)
    _GET_(self%id_po,pob)
    _GET_(self%id_o2,oxb)
@@ -498,19 +509,23 @@
             / (max(0.0_rk, oxb) * max(0.0_rk, oxb) + 0.03_rk)  
 
    ! Resuspension-sedimentation rate are computed as in GOTM-BIO
-   if (self%tau_crit .gt. taub) then
-      llds=self%sedrate*(self%tau_crit-taub)/self%tau_crit
-      bpds=self%sedratepo4*(self%tau_crit-taub)/self%tau_crit
-   else
-      llds= 0.0_rk
-      bpds= 0.0_rk
-   end if
-   if (self%tau_crit .lt. taub) then
+! Diatoms is assumed to become detritus/fluff as soon as it settles to bottom sediments,
+   ! and diatoms can therefore not be resuspended from benthic layer
+  
+   tau_frac = (taub-self%tau_crit)/self%tau_crit
+   ! if actual taub is greater than critical tau, then do resuspension
+   if (taub .gt. self%tau_crit) then
+      llds=0.0_rk
       llsd=self%erorate*(taub-self%tau_crit)/self%tau_crit
+      bpds=0.0_rk
       bpsd=self%eroratepo4*(taub-self%tau_crit)/self%tau_crit
+      lldiat= 0.0_rk
    else
+      llds=self%sedrate*(self%tau_crit-taub)/self%tau_crit
       llsd=0.0_rk
+      bpds=self%sedratepo4*(self%tau_crit-taub)/self%tau_crit
       bpsd=0.0_rk
+      lldiat=self%sedrate*(self%tau_crit-taub)/self%tau_crit
    end if
 
    recs = self%dn_sed * exp(self%q10_recs * temp)
@@ -542,8 +557,8 @@
 
    oxlim = max (0.0_rk,oxb) * max (0.0_rk,oxb) / (0.01_rk + max(0.0_rk,oxb) * max(0.0_rk,oxb))
 
-   ! Sediment resuspension, detritus settling, bio-resuspension, mineralization and burial
-   _SET_BOTTOM_ODE_(self%id_fl,-llsd * fl + llds * ddb - biores * fl - recs * fl - fl * self%fl_burialrate * fl/self%maxsed)
+   ! Sediment resuspension, detritus settling, diatom settling, bio-resuspension, mineralization and burial
+   _SET_BOTTOM_ODE_(self%id_fl,-llsd * fl + llds * ddb + lldiat * ppb - biores * fl - recs * fl - fl * self%fl_burialrate * fl/self%maxsed)
    ! P-Fe resuspension, sedimentation, bio-resuspension, liberation, retention and burial
    _SET_BOTTOM_ODE_(self%id_pb,-bpsd * pb + bpds * pwb -biores * pb -plib * pb + self%rfr * recs * fl * pret * oxlim - pbr * self%pburialrate * fl/self%maxsed)
 
@@ -559,6 +574,8 @@
    _SET_BOTTOM_EXCHANGE_(self%id_dd, llsd * fl -llds * ddb + biores * fl)
    ! P-Fe resuspension, settling and bio-resuspension
    _SET_BOTTOM_EXCHANGE_(self%id_pw, bpsd * pb -bpds * pwb + biores * pb)
+   ! Diatom settling
+   _SET_BOTTOM_EXCHANGE_(self%id_pp, -lldiat * ppb)
 
    if (_AVAILABLE_(self%id_dic)) _SET_BOTTOM_EXCHANGE_(self%id_dic, self%rfc*recs * fl)
 

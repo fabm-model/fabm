@@ -24,12 +24,15 @@
 
    contains
 
-   subroutine get_environment_metadata(model,environment_names,environment_units)
+   subroutine get_environment_metadata(model,environment_names,environment_units,index_column_depth)
      type (type_model),                           intent(inout) :: model
      character(len=1024),dimension(:),allocatable,intent(out)   :: environment_names,environment_units
+     integer,                                     intent(out)   :: index_column_depth
 
      integer                         :: n
      type (type_link),       pointer :: link
+
+     index_column_depth = -1
 
       ! Get number of environmental dependencies (light, temperature, etc.)
       n = 0
@@ -39,14 +42,22 @@
             select case (link%target%domain)
                case (domain_interior)
                   if (.not.associated(model%data(link%target%read_indices%pointers(1)%p)%p)) n = n+1
+                  if (index_column_depth==-1 .and. associated(link%target%standard_variables%first)) then
+                     if (link%target%standard_variables%first%p%compare(standard_variables%cell_thickness)) index_column_depth = n
+                  end if
                case (domain_bottom,domain_surface,domain_horizontal)
                   if (.not.associated(model%data_hz(link%target%read_indices%pointers(1)%p)%p)) n = n+1
+                  if (index_column_depth==-1 .and. associated(link%target%standard_variables%first)) then
+                     if (link%target%standard_variables%first%p%compare(standard_variables%bottom_depth)) index_column_depth = n
+                  end if
                case (domain_scalar)
                   if (.not.associated(model%data_scalar(link%target%read_indices%pointers(1)%p)%p)) n = n+1
             end select
          end if
          link => link%next
       end do
+
+      if (index_column_depth==-1) n = n + 1
 
       ! Allocate arrays to hold information on environment
       allocate(environment_names(n))
@@ -95,6 +106,13 @@
          end if
          link => link%next
       end do
+
+      if (index_column_depth==-1) then
+         n = n + 1
+         index_column_depth = n
+         environment_names(n) = trim(standard_variables%bottom_depth%name)
+         environment_units(n) = trim(standard_variables%bottom_depth%units)
+      end if
    end subroutine get_environment_metadata
 
    subroutine get_couplings(model,link_list)
@@ -140,5 +158,5 @@
    end module fabm_python_helper
 
 !-----------------------------------------------------------------------
-! Copyright by the FABM-team under the GNU Public License - www.gnu.org
+! Copyright Bolding & Bruggeman ApS - GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------

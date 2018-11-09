@@ -1,6 +1,4 @@
 #include "fabm_driver.h"
-
-#define _FABM_BGC_BACKWARD_COMPATIBILITY_
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -70,11 +68,27 @@
 
    integer, parameter, public :: domain_interior = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
 
-   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5, source_get_vertical_movement = 6, source_do_horizontal = 7
+   integer, parameter, public :: source_unknown                  =  0, &
+                                 source_do                       =  1, &
+                                 source_do_column                =  2, &
+                                 source_do_horizontal            =  3, &
+                                 source_do_bottom                =  4, &
+                                 source_do_surface               =  5, &
+                                 source_none                     =  6, &
+                                 source_get_vertical_movement    =  7, &
+                                 source_initialize_state         =  8, &
+                                 source_initialize_surface_state =  9, &
+                                 source_initialize_bottom_state  = 10, &
+                                 source_check_state              = 11, &
+                                 source_check_surface_state      = 12, &
+                                 source_check_bottom_state       = 13, &
+                                 source_get_light_extinction     = 14, &
+                                 source_get_drag                 = 15, &
+                                 source_get_albedo               = 16
 
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
 
-   integer, parameter, public :: prefill_none = 0, prefill_missing_value = 1, prefill_previous_value = 2
+   integer, parameter, public :: prefill_none = 0, prefill_constant = 1, prefill_previous_value = 2
 
    integer, parameter, public :: access_none = 0, access_read = 1, access_set_source = 2, access_state = ior(access_read,access_set_source)
 !
@@ -252,6 +266,7 @@
       real(rk)                        :: minimum        = -1.e20_rk
       real(rk)                        :: maximum        =  1.e20_rk
       real(rk)                        :: missing_value  = -2.e20_rk
+      real(rk)                        :: prefill_value  = -2.e20_rk
       real(rk)                        :: initial_value  = 0.0_rk
       integer                         :: output         = output_instantaneous
       integer                         :: presence       = presence_internal
@@ -279,6 +294,9 @@
       type (type_real_pointer_set)    :: background_values
       type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list
       type (type_link),pointer        :: movement_diagnostic => null()
+      type (type_link),pointer        :: sms                 => null()
+      type (type_link),pointer        :: surface_flux        => null()
+      type (type_link),pointer        :: bottom_flux         => null()
    end type
 
    type type_link
@@ -1536,6 +1554,7 @@ end subroutine real_pointer_set_set_value
          variable%output = time_treatment2output(time_treatment)
       end if
       if (present(output))        variable%output        = output
+      variable%prefill_value = variable%missing_value
 
       if (present(state_index)) then
          ! Ensure that initial value falls within prescribed valid range.
@@ -1611,7 +1630,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !LOCAL VARIABLES:
       type (type_internal_variable), pointer :: variable
-      type (type_link),              pointer :: link_,link2,link_dum
+      type (type_link),              pointer :: link_,link_dum
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -1635,28 +1654,27 @@ end subroutine real_pointer_set_set_value
 
       if (present(sms_index)) then
          call self%add_interior_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                     0.0_rk, output=output_none, write_index=sms_index, link=link2)
-         link_dum => variable%sms_list%append(link2%target,link2%target%name)
+                                     0.0_rk, output=output_none, write_index=sms_index, link=variable%sms)
+         link_dum => variable%sms_list%append(variable%sms%target,variable%sms%target%name)
       end if
       if (present(surface_flux_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_sfl', trim(units)//'*m/s', trim(long_name)//' surface flux', &
-                                     0.0_rk, output=output_none, write_index=surface_flux_index, link=link2, &
+                                     0.0_rk, output=output_none, write_index=surface_flux_index, link=variable%surface_flux, &
                                      domain=domain_surface, source=source_do_surface)
-         link_dum => variable%surface_flux_list%append(link2%target,link2%target%name)
+         link_dum => variable%surface_flux_list%append(variable%surface_flux%target,variable%surface_flux%target%name)
       end if
       if (present(bottom_flux_index)) then
          call self%add_horizontal_variable(trim(link_%name)//'_bfl', trim(units)//'*m/s', trim(long_name)//' bottom flux', &
-                                     0.0_rk, output=output_none, write_index=bottom_flux_index, link=link2, &
+                                     0.0_rk, output=output_none, write_index=bottom_flux_index, link=variable%bottom_flux, &
                                      domain=domain_bottom, source=source_do_bottom)
-         link_dum => variable%bottom_flux_list%append(link2%target,link2%target%name)
+         link_dum => variable%bottom_flux_list%append(variable%bottom_flux%target,variable%bottom_flux%target%name)
       end if
       if (present(movement_index)) then
          call self%add_interior_variable(trim(link_%name)//'_w', 'm/s', trim(long_name)//' vertical movement', &
-                                     variable%vertical_movement, output=output_none, write_index=movement_index, link=link2, &
+                                     variable%vertical_movement, output=output_none, write_index=movement_index, link=variable%movement_diagnostic, &
                                      source=source_get_vertical_movement)
-         link2%target%can_be_slave = .true.
-         link2%target%prefill = prefill_missing_value
-         variable%movement_diagnostic => link2
+         variable%movement_diagnostic%target%can_be_slave = .true.
+         variable%movement_diagnostic%target%prefill = prefill_constant
       end if
 
       if (present(link)) link => link_
@@ -1697,7 +1715,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !LOCAL VARIABLES:
       type (type_internal_variable),pointer :: variable
-      type (type_link),             pointer :: link_,link2,link_dum
+      type (type_link),             pointer :: link_,link_dum
       integer                               :: sms_source
 !
 !-----------------------------------------------------------------------
@@ -1720,9 +1738,9 @@ end subroutine real_pointer_set_set_value
          sms_source = source_do_bottom
          if (variable%domain==domain_surface) sms_source = source_do_surface
          call self%add_horizontal_variable(trim(link_%name)//'_sms', trim(units)//'/s', trim(long_name)//' sources-sinks', &
-                                           0.0_rk, output=output_none, write_index=sms_index, link=link2, &
+                                           0.0_rk, output=output_none, write_index=sms_index, link=variable%sms, &
                                            domain=variable%domain, source=sms_source)
-         link_dum => variable%sms_list%append(link2%target,link2%target%name)
+         link_dum => variable%sms_list%append(variable%sms%target,variable%sms%target%name)
       end if
 
       if (present(link)) link => link_
@@ -1827,7 +1845,7 @@ end subroutine real_pointer_set_set_value
 ! !INTERFACE:
    subroutine register_interior_diagnostic_variable(self, id, name, units, long_name, &
                                                 time_treatment, missing_value, standard_variable, output, source, &
-                                                act_as_state_variable)
+                                                act_as_state_variable, prefill_value)
 !
 ! !DESCRIPTION:
 !  This function registers a new biogeochemical diagnostic variable in the global model database.
@@ -1839,7 +1857,7 @@ end subroutine real_pointer_set_set_value
 ! !INPUT PARAMETERS:
       character(len=*),                   intent(in)          :: name, long_name, units
       integer,                            intent(in),optional :: time_treatment, output, source
-      real(rk),                           intent(in),optional :: missing_value
+      real(rk),                           intent(in),optional :: missing_value, prefill_value
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       logical,                            intent(in),optional :: act_as_state_variable
 !
@@ -1853,7 +1871,10 @@ end subroutine real_pointer_set_set_value
       call self%add_interior_variable(name, units, long_name, missing_value, &
                                   standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
                                   source=source, write_index=id%diag_index, link=id%link, act_as_state_variable=act_as_state_variable)
-
+      if (present(prefill_value)) then
+         id%link%target%prefill = prefill_constant
+         id%link%target%prefill_value = prefill_value
+      end if
    end subroutine register_interior_diagnostic_variable
 !EOC
 
@@ -2970,5 +2991,5 @@ end subroutine abstract_model_factory_register_version
    end module fabm_types
 
 !-----------------------------------------------------------------------
-! Copyright under the GNU Public License - www.gnu.org
+! Copyright Bolding & Bruggeman ApS (GNU Public License - www.gnu.org)
 !-----------------------------------------------------------------------

@@ -20,7 +20,7 @@ except ImportError:
     pass
 # ------------------------------------------
 
-def processFile(infile,outfile,subtract_background=False):
+def processFile(infile,outfile,subtract_background=False,add_missing=False):
    # Create model object from YAML file.
    model = pyfabm.Model(infile)
 
@@ -39,15 +39,26 @@ def processFile(infile,outfile,subtract_background=False):
       return n
 
    def reorderParameters(modelname,parameters):
+      """This reorders the parameters and adjusts the letter case of parameter names so that both match their declaration in the code."""
       newparameters = collections.OrderedDict()
       parameters_lower = dict([(key.lower(),value) for key,value in parameters.iteritems()])
       modelname = modelname.lower()
       for parameter in model.parameters:
          if parameter.name.lower().startswith(modelname+'/'):
-            name = parameter.name[len(modelname)+1:].lower()
-            if name in parameters_lower: newparameters[name] = parameters_lower[name]
-      assert len(newparameters)>=len(parameters)
+            name = parameter.name[len(modelname)+1:]
+            name_lc = name.lower()
+            if name_lc in parameters_lower: newparameters[name] = parameters_lower[name_lc]
+      assert len(newparameters)==len(parameters)
       return newparameters
+
+   def addMissingParameters(modelname,parameters):
+      """This adds all parameters that have a default specified in the code but are missing from the yaml file."""
+      parameters_lower = frozenset([key.lower() for key in parameters.keys()])
+      modelname = modelname.lower()
+      for parameter in model.parameters:
+         if parameter.name.lower().startswith(modelname+'/'):
+            name = parameter.name[len(modelname)+1:]
+            if name.lower() not in parameters_lower and '/' not in name and parameter.default is not None: parameters[name] = parameter.default
 
    def reorderCouplings(modelname,variables):
       newvariables = collections.OrderedDict()
@@ -79,6 +90,7 @@ def processFile(infile,outfile,subtract_background=False):
       if len(path)==3:
          if path[-1]=='parameters':
             d = reorderParameters(path[1],d)
+            if len(d)==0: return
          elif path[-1]=='coupling':
             d = reorderCouplings(path[1],d)
 
@@ -91,6 +103,8 @@ def processFile(infile,outfile,subtract_background=False):
       # If processing a model dictionary, reorder according to prescribed order.
       if len(path)==2 and path[0]=='instances':
          d.pop('use',None)
+         if add_missing: addMissingParameters(path[1],d.setdefault('parameters',collections.OrderedDict()))
+         if not d.get('parameters',{}): d.pop('parameters',None)
          newd = collections.OrderedDict()
          order = ('long_name','model','parameters','initialization','coupling')
          for key in order:
@@ -108,7 +122,7 @@ def processFile(infile,outfile,subtract_background=False):
             metadata = None
             if len(path)==3:
                if path[-1]=='parameters':
-                  metadata = model.findParameter(path[1]+'/'+key,case_insensitive=True)
+                  metadata = model.findParameter(path[1]+'/'+key)
                   value = metadata.value
                elif path[-1]=='initialization':
                   metadata = model.findStateVariable(path[1]+'/'+key)

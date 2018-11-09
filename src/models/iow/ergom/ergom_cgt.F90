@@ -463,72 +463,72 @@ subroutine initialize(self,configunit)
 !  Register state variables
    call self%register_state_variable(self%id_t_n2           ,'t_n2','mol/kg', &
          'dissolved molecular nitrogen', t_n2_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_o2           ,'t_o2','mol/kg', &
          'dissolved oxygen', t_o2_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , no_river_dilution=.true. &
          )
    call self%register_state_variable(self%id_t_nh4          ,'t_nh4','mol/kg', &
          'ammonium', t_nh4_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , no_river_dilution=.true. &
          )
    call self%register_state_variable(self%id_t_no3          ,'t_no3','mol/kg', &
          'nitrate', t_no3_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , no_river_dilution=.true. &
          )
    call self%register_state_variable(self%id_t_po4          ,'t_po4','mol/kg', &
          'phosphate', t_po4_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , no_river_dilution=.true. &
          )
    call self%register_state_variable(self%id_t_spp          ,'t_spp','mol/kg', &
          'small-cell phytoplankton', t_spp_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_zoo          ,'t_zoo','mol/kg', &
          'zooplankton', t_zoo_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_h2s          ,'t_h2s','mol/kg', &
          'hydrogen sulfide', t_h2s_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_sul          ,'t_sul','mol/kg', &
          'sulfur', t_sul_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_ipw          ,'t_ipw','mol/kg', &
          'suspended iron phosphate', t_ipw_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , vertical_movement=w_ipw/secs_pr_day &
          )
    call self%register_state_variable(self%id_t_lpp          ,'t_lpp','mol/kg', &
          'large-cell phytoplankton', t_lpp_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , vertical_movement=w_lpp/secs_pr_day &
          )
    call self%register_state_variable(self%id_t_cya          ,'t_cya','mol/kg', &
          'diazotroph cyanobacteria', t_cya_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , vertical_movement=w_cya/secs_pr_day &
          )
    call self%register_state_variable(self%id_t_det          ,'t_det','mol/kg', &
          'detritus', t_det_initial &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          , vertical_movement=w_det/secs_pr_day &
          , no_river_dilution=.true. &
          )
    call self%register_state_variable(self%id_t_sed          ,'t_sed','mol/m**2','sediment detritus', &
          0.0_rk &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
    call self%register_state_variable(self%id_t_ips          ,'t_ips','mol/m**2','iron phosphate in sediment', &
          0.0_rk &
-         , minimum=_ZERO_ &
+         , minimum=0._rk &
          )
 
    ! Register the contribution of all state variables to total nitrogen
@@ -1374,16 +1374,16 @@ subroutine initialize(self,configunit)
    ! Apply time tendencies to tracers
       _SET_ODE_BEN_(self%id_t_sed          ,0.0_rk                     + p_det_sedi_sed              /secs_pr_day                     - p_sed_resp_nh4              /secs_pr_day                     - p_sed_denit_nh4             /secs_pr_day                     - p_sed_sulf_nh4              /secs_pr_day                     - p_sed_ero_det               /secs_pr_day                     - p_sed_biores_det            /secs_pr_day                     - p_sed_burial                /secs_pr_day                    )
       _SET_ODE_BEN_(self%id_t_ips          ,0.0_rk                     + (p_po4_retent_ips)*(rfr_p)  /secs_pr_day                     + p_ipw_sedi_ips              /secs_pr_day                     - p_ips_liber_po4             /secs_pr_day                     - p_ips_ero_ipw               /secs_pr_day                     - p_ips_biores_ipw            /secs_pr_day                     - p_ips_burial                /secs_pr_day                    )
-      _SET_BOTTOM_EXCHANGE_(self%id_t_n2           ,0.0_rk                     + (p_nh4_nitdenit_n2)*(0.5_rk)   /(1000.0_rk*cgt_density*secs_pr_day)                     + (p_sed_denit_nh4)*(2.65_rk)    /(1000.0_rk*cgt_density*secs_pr_day)                            )
-      _SET_BOTTOM_EXCHANGE_(self%id_t_o2           ,0.0_rk                     - (p_sed_resp_nh4)*(6.625_rk)    /(1000.0_rk*cgt_density*secs_pr_day)                     - (p_nh4_nitdenit_n2)*(0.75_rk)  /(1000.0_rk*cgt_density*secs_pr_day)                            )
-      _SET_BOTTOM_EXCHANGE_(self%id_t_nh4          ,0.0_rk                     + p_sed_resp_nh4              /(1000.0_rk*cgt_density*secs_pr_day)                     + p_sed_denit_nh4             /(1000.0_rk*cgt_density*secs_pr_day)                     + p_sed_sulf_nh4              /(1000.0_rk*cgt_density*secs_pr_day)                     - p_nh4_nitdenit_n2           /(1000.0_rk*cgt_density*secs_pr_day)                            )
-      _SET_BOTTOM_EXCHANGE_(self%id_t_no3          ,0.0_rk                     - (p_sed_denit_nh4)*(5.3_rk)     /(1000.0_rk*cgt_density*secs_pr_day)                            )
-      _SET_BOTTOM_EXCHANGE_(self%id_t_po4          ,0.0_rk                     + (p_sed_resp_nh4)*(rfr_p)    /(1000.0_rk*cgt_density*secs_pr_day)                     + (p_sed_denit_nh4)*(rfr_p)   /(1000.0_rk*cgt_density*secs_pr_day)                     + (p_sed_sulf_nh4)*(rfr_p)    /(1000.0_rk*cgt_density*secs_pr_day)                     + p_ips_liber_po4             /(1000.0_rk*cgt_density*secs_pr_day)                     - (p_po4_retent_ips)*(rfr_p)  /(1000.0_rk*cgt_density*secs_pr_day)                            )
-      _SET_BOTTOM_EXCHANGE_(self%id_t_h2s          ,0.0_rk                     + (p_sed_sulf_nh4)*(3.3125_rk)   /(1000.0_rk*cgt_density*secs_pr_day)                            )
-      _SET_BOTTOM_EXCHANGE_(self%id_t_ipw          ,0.0_rk                     + p_ips_ero_ipw               /(1000.0_rk*cgt_density*secs_pr_day)                     + p_ips_biores_ipw            /(1000.0_rk*cgt_density*secs_pr_day)                     - p_ipw_sedi_ips              /(1000.0_rk*cgt_density*secs_pr_day)                            )
-      _SET_BOTTOM_EXCHANGE_(self%id_t_det          ,0.0_rk                     + p_sed_ero_det               /(1000.0_rk*cgt_density*secs_pr_day)                     + p_sed_biores_det            /(1000.0_rk*cgt_density*secs_pr_day)                     - p_det_sedi_sed              /(1000.0_rk*cgt_density*secs_pr_day)                            )
+      _SET_BOTTOM_EXCHANGE_(self%id_t_n2           ,0.0_rk                     + (p_nh4_nitdenit_n2)*(0.5_rk)   /(cgt_density*secs_pr_day)                     + (p_sed_denit_nh4)*(2.65_rk)    /(cgt_density*secs_pr_day)                            )
+      _SET_BOTTOM_EXCHANGE_(self%id_t_o2           ,0.0_rk                     - (p_sed_resp_nh4)*(6.625_rk)    /(cgt_density*secs_pr_day)                     - (p_nh4_nitdenit_n2)*(0.75_rk)  /(cgt_density*secs_pr_day)                            )
+      _SET_BOTTOM_EXCHANGE_(self%id_t_nh4          ,0.0_rk                     + p_sed_resp_nh4              /(cgt_density*secs_pr_day)                     + p_sed_denit_nh4             /(cgt_density*secs_pr_day)                     + p_sed_sulf_nh4              /(cgt_density*secs_pr_day)                     - p_nh4_nitdenit_n2           /(cgt_density*secs_pr_day)                            )
+      _SET_BOTTOM_EXCHANGE_(self%id_t_no3          ,0.0_rk                     - (p_sed_denit_nh4)*(5.3_rk)     /(cgt_density*secs_pr_day)                            )
+      _SET_BOTTOM_EXCHANGE_(self%id_t_po4          ,0.0_rk                     + (p_sed_resp_nh4)*(rfr_p)    /(cgt_density*secs_pr_day)                     + (p_sed_denit_nh4)*(rfr_p)   /(cgt_density*secs_pr_day)                     + (p_sed_sulf_nh4)*(rfr_p)    /(cgt_density*secs_pr_day)                     + p_ips_liber_po4             /(cgt_density*secs_pr_day)                     - (p_po4_retent_ips)*(rfr_p)  /(cgt_density*secs_pr_day)                            )
+      _SET_BOTTOM_EXCHANGE_(self%id_t_h2s          ,0.0_rk                     + (p_sed_sulf_nh4)*(3.3125_rk)   /(cgt_density*secs_pr_day)                            )
+      _SET_BOTTOM_EXCHANGE_(self%id_t_ipw          ,0.0_rk                     + p_ips_ero_ipw               /(cgt_density*secs_pr_day)                     + p_ips_biores_ipw            /(cgt_density*secs_pr_day)                     - p_ipw_sedi_ips              /(cgt_density*secs_pr_day)                            )
+      _SET_BOTTOM_EXCHANGE_(self%id_t_det          ,0.0_rk                     + p_sed_ero_det               /(cgt_density*secs_pr_day)                     + p_sed_biores_det            /(cgt_density*secs_pr_day)                     - p_det_sedi_sed              /(cgt_density*secs_pr_day)                            )
 
-    if (_AVAILABLE_(self%id_t_dic)) _SET_BOTTOM_EXCHANGE_(self%id_t_dic, rfr_c*lr_sed_rec/(1000.0_rk*cgt_density*secs_pr_day))
+    if (_AVAILABLE_(self%id_t_dic)) _SET_BOTTOM_EXCHANGE_(self%id_t_dic, rfr_c*lr_sed_rec/(cgt_density*secs_pr_day))
 
    ! Leave spatial loops over the horizontal domain (if any)._rk
    _HORIZONTAL_LOOP_END_
@@ -1668,11 +1668,11 @@ subroutine initialize(self,configunit)
        p_po4_stf_down  = stf_po4
 
    ! Apply time tendencies to tracers
-      _SET_SURFACE_EXCHANGE_(self%id_t_n2           ,0.0_rk                     + p_n2_stf_down               /(1000.0_rk*cgt_density*secs_pr_day)                     - p_n2_stf_up                 /(1000.0_rk*cgt_density*secs_pr_day)                            )
-      _SET_SURFACE_EXCHANGE_(self%id_t_o2           ,0.0_rk                     + p_o2_stf_down               /(1000.0_rk*cgt_density*secs_pr_day)                     - p_o2_stf_up                 /(1000.0_rk*cgt_density*secs_pr_day)                            )
-      _SET_SURFACE_EXCHANGE_(self%id_t_nh4          ,0.0_rk                     + p_nh4_stf_down              /(1000.0_rk*cgt_density*secs_pr_day)                            )
-      _SET_SURFACE_EXCHANGE_(self%id_t_no3          ,0.0_rk                     + p_no3_stf_down              /(1000.0_rk*cgt_density*secs_pr_day)                            )
-      _SET_SURFACE_EXCHANGE_(self%id_t_po4          ,0.0_rk                     + p_po4_stf_down              /(1000.0_rk*cgt_density*secs_pr_day)                            )
+      _SET_SURFACE_EXCHANGE_(self%id_t_n2           ,0.0_rk                     + p_n2_stf_down               /(cgt_density*secs_pr_day)                     - p_n2_stf_up                 /(cgt_density*secs_pr_day)                            )
+      _SET_SURFACE_EXCHANGE_(self%id_t_o2           ,0.0_rk                     + p_o2_stf_down               /(cgt_density*secs_pr_day)                     - p_o2_stf_up                 /(cgt_density*secs_pr_day)                            )
+      _SET_SURFACE_EXCHANGE_(self%id_t_nh4          ,0.0_rk                     + p_nh4_stf_down              /(cgt_density*secs_pr_day)                            )
+      _SET_SURFACE_EXCHANGE_(self%id_t_no3          ,0.0_rk                     + p_no3_stf_down              /(cgt_density*secs_pr_day)                            )
+      _SET_SURFACE_EXCHANGE_(self%id_t_po4          ,0.0_rk                     + p_po4_stf_down              /(cgt_density*secs_pr_day)                            )
 
    ! Leave spatial loops over the horizontal domain (if any)._rk
    _HORIZONTAL_LOOP_END_

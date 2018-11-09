@@ -36,7 +36,7 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public fabm_initialize_library, type_model, fabm_create_model_from_file
+   public fabm_initialize_library, type_model, fabm_create_model_from_file, fabm_get_version
    public fabm_initialize, fabm_finalize, fabm_set_domain, fabm_check_ready, fabm_update_time
    public fabm_initialize_state, fabm_initialize_surface_state, fabm_initialize_bottom_state
 
@@ -310,7 +310,8 @@
       procedure :: link_all_surface_state_data  => fabm_link_all_surface_state_data
 
       procedure :: require_interior_data => fabm_require_interior_data
-      generic :: require_data => require_interior_data
+      procedure :: require_horizontal_data => fabm_require_horizontal_data
+      generic :: require_data => require_interior_data,require_horizontal_data
 
       procedure :: get_interior_data => fabm_get_interior_data
       procedure :: get_horizontal_data => fabm_get_horizontal_data
@@ -499,6 +500,22 @@
       factory => fabm_model_factory
       call factory%initialize()
    end subroutine fabm_initialize_library
+
+   subroutine fabm_get_version(string)
+      use fabm_version
+
+      character(len=*), intent(out) :: string
+
+      type (type_version),pointer :: version
+
+      call fabm_initialize_library()
+      string = git_commit_id//' ('//git_branch_name//' branch)'
+      version => first_module_version
+      do while (associated(version))
+         string = trim(string)//', '//trim(version%module_name)//': '//trim(version%version_string)
+         version => version%next
+      end do
+   end subroutine fabm_get_version
 
 !-----------------------------------------------------------------------
 !BOP
@@ -868,6 +885,7 @@
    call initialize_prefill(self%get_conserved_quantities_environment,self%nscratch,self%links_postcoupling,source_do,domain_interior)
    call initialize_prefill(self%get_horizontal_conserved_quantities_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
    call initialize_prefill(self%get_light_extinction_environment,self%nscratch,self%links_postcoupling,source_do,domain_interior)
+   call initialize_prefill(self%get_light_environment,self%nscratch,self%links_postcoupling,source_do_column,domain_interior)
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
@@ -878,6 +896,9 @@
          case (domain_bottom)
             call flag_write_indices(self%do_bottom_environment, link%target%sms_list)
          case (domain_surface)
+            call flag_write_indices(self%do_surface_environment, link%target%sms_list)
+         case (domain_horizontal)
+            call flag_write_indices(self%do_bottom_environment, link%target%sms_list)
             call flag_write_indices(self%do_surface_environment, link%target%sms_list)
       end select
       link => link%next
@@ -1956,6 +1977,26 @@
       call host%request_coupling(link,standard_variable,domain=domain_)
    end subroutine fabm_require_interior_data
 
+   subroutine fabm_require_horizontal_data(self,standard_variable)
+      class (type_model),                      intent(inout) :: self
+      type(type_horizontal_standard_variable), intent(in)    :: standard_variable
+
+      class (type_host_container),  pointer :: host
+      type (type_integer_list_node),pointer :: node
+      type (type_link),             pointer :: link
+
+      if (self%state>=state_initialize_done) &
+         call fatal_error('fabm_require_horizontal_data','model%require_data cannot be called after model initialization.')
+
+      host => get_host_container_model(self)
+
+      allocate(node)
+      node%next => host%first
+      host%first => node
+      call host%add_horizontal_variable(standard_variable%name,standard_variable%units,standard_variable%name,read_index=node%value,link=link)
+      call host%request_coupling(link,standard_variable)
+   end subroutine fabm_require_horizontal_data
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -2630,7 +2671,7 @@ subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
 #endif
    if (allocated(settings%prefill_type)) then
       do i=1,self%nscratch
-         if (settings%prefill_type(i)==prefill_missing_value) then
+         if (settings%prefill_type(i)==prefill_constant) then
             _CONCURRENT_LOOP_BEGIN_
                environment%scratch _INDEX_SLICE_PLUS_1_(i) = settings%prefill_values(i)
             _LOOP_END_
@@ -2685,7 +2726,7 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
 #endif
    if (allocated(settings%prefill_type)) then
       do i=1,self%nscratch_hz
-         if (settings%prefill_type(i)==prefill_missing_value) then
+         if (settings%prefill_type(i)==prefill_constant) then
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
                environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = settings%prefill_values(i)
             _HORIZONTAL_LOOP_END_
@@ -2830,13 +2871,10 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
 #endif
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   allocate(environment%scratch(_N_,self%nscratch))
    allocate(environment%prefetch(_N_,size(self%data)))
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%scratch(1,self%nscratch))
    allocate(environment%prefetch(1,size(self%data)))
 #else
-   allocate(environment%scratch(self%nscratch))
    allocate(environment%prefetch(size(self%data)))
 #endif
    do i=1,size(self%data)
@@ -2858,10 +2896,8 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
    end do
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%scratch_hz(1,self%nscratch_hz))
    allocate(environment%prefetch_hz(1,size(self%data_hz)))
 #else
-   allocate(environment%scratch_hz(self%nscratch_hz))
    allocate(environment%prefetch_hz(size(self%data_hz)))
 #endif
    do i=1,size(self%data_hz)
@@ -2879,6 +2915,31 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
    do i=1,size(self%data_scalar)
       if (associated(self%data_scalar(i)%p)) environment%prefetch_scalar(i) = self%data_scalar(i)%p
    end do
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   allocate(environment%scratch(_N_,self%nscratch))
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(environment%scratch(1,self%nscratch))
+#else
+   allocate(environment%scratch(self%nscratch))
+#endif
+   if (allocated(settings%prefill_type)) then
+      do i=1,self%nscratch
+         if (settings%prefill_type(i)==prefill_constant) then
+#if defined(_INTERIOR_IS_VECTORIZED_)
+            environment%scratch(:,i) = settings%prefill_values(i)
+#else
+            environment%scratch(i) = settings%prefill_values(i)
+#endif
+         end if
+      end do
+   end if
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(environment%scratch_hz(1,self%nscratch_hz))
+#else
+   allocate(environment%scratch_hz(self%nscratch_hz))
+#endif
 end subroutine prefetch_vertical
 
 subroutine deallocate_prefetch(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
@@ -2990,6 +3051,7 @@ end subroutine deallocate_prefetch_vertical
    type (type_environment)               :: environment
    integer                               :: ivar,read_index
    type (type_model_list_node), pointer  :: node
+   logical                               :: set_interior
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -3009,16 +3071,19 @@ end subroutine deallocate_prefetch_vertical
    end do
 
    ! Allow biogeochemical models to initialize their interior state.
+   set_interior = .false.
    node => self%models%first
    do while (associated(node))
-      call node%model%initialize_state(_ARGUMENTS_INTERIOR_)
+      call node%model%initialize_state(_ARGUMENTS_INTERIOR_,set_interior)
       node => node%next
    end do
 
    ! Copy from prefetch back to global data store.
    do ivar=1,size(self%state_variables)
       read_index = self%state_variables(ivar)%globalid%read_index
-      _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+      if (self%interior_data_sources(read_index)==data_source_fabm) then
+         _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+      end if
    end do
 
    call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
@@ -3042,6 +3107,7 @@ end subroutine deallocate_prefetch_vertical
    type (type_environment)               :: environment
    integer                               :: ivar,read_index
    type (type_model_list_node), pointer  :: node
+   logical                               :: set_horizontal
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -3062,16 +3128,19 @@ end subroutine deallocate_prefetch_vertical
    end do
 
    ! Allow biogeochemical models to initialize their bottom state.
+   set_horizontal = .false.
    node => self%models%first
    do while (associated(node))
-      call node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_)
+      call node%model%initialize_bottom_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       node => node%next
    end do
 
    ! Copy from prefetch back to global data store.
    do ivar=1,size(self%bottom_state_variables)
       read_index = self%bottom_state_variables(ivar)%globalid%read_index
-      _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,self%bottom_state_variables(ivar)%missing_value)
+      if (self%horizontal_data_sources(read_index)==data_source_fabm) then
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,self%bottom_state_variables(ivar)%missing_value)
+      end if
    end do
 
    call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
@@ -3095,6 +3164,7 @@ end subroutine deallocate_prefetch_vertical
    type (type_environment)               :: environment
    integer                               :: ivar,read_index
    type (type_model_list_node), pointer  :: node
+   logical                               :: set_horizontal
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -3115,16 +3185,19 @@ end subroutine deallocate_prefetch_vertical
    end do
 
    ! Allow biogeochemical models to initialize their surface state.
+   set_horizontal = .false.
    node => self%models%first
    do while (associated(node))
-      call node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_)
+      call node%model%initialize_surface_state(_ARGUMENTS_HORIZONTAL_,set_horizontal)
       node => node%next
    end do
 
    ! Copy from prefetch back to global data store.
    do ivar=1,size(self%surface_state_variables)
       read_index = self%surface_state_variables(ivar)%globalid%read_index
-      _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,self%surface_state_variables(ivar)%missing_value)
+      if (self%horizontal_data_sources(read_index)==data_source_fabm) then
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,self%surface_state_variables(ivar)%missing_value)
+      end if
    end do
 
    call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
@@ -3357,7 +3430,9 @@ end subroutine deallocate_prefetch_vertical
    if (set_interior.or..not.valid) then
       do ivar=1,size(self%state_variables)
          read_index = self%state_variables(ivar)%globalid%read_index
-         _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+         if (self%interior_data_sources(read_index)==data_source_fabm) then
+            _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+         end if
       end do
    end if
 
@@ -3505,7 +3580,9 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
    if (set_horizontal.or..not.valid) then
       do ivar=1,size(state_variables)
          read_index = state_variables(ivar)%globalid%read_index
-         _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,state_variables(ivar)%missing_value)
+         if (self%horizontal_data_sources(read_index)==data_source_fabm) then
+            _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,state_variables(ivar)%missing_value)
+         end if
       end do
    end if
 
@@ -3526,7 +3603,7 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
 
       do ivar=1,size(self%state_variables)
          read_index = self%state_variables(ivar)%globalid%read_index
-
+         if (self%interior_data_sources(read_index)==data_source_fabm) then
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
       if (flag==1) then
 #endif
@@ -3565,7 +3642,7 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
 #  endif
    end if
 #endif
-
+         end if
       end do
    end if
 
@@ -4200,10 +4277,7 @@ contains
       real(rk) :: weight_right,frac_outside
 
       if (expression%ioldest==-1) then
-         ! Start of simulation; set entire history equal to current value.
-         do i=1,expression%n+3
-            expression%history(_PREARG_LOCATION_DIMENSIONS_ i) = self%data(expression%in)%p
-         end do
+         ! Start of simulation
          expression%next_save_time = t + expression%period/expression%n
          expression%ioldest = 1
       end if
@@ -4212,8 +4286,8 @@ contains
          weight_right = (expression%next_save_time-expression%last_time)/(t-expression%last_time)
 
          ! For temporal means:
-         ! - remove contribution of oldest point from historical mean
-         ! - linearly interpolate to desired time
+         ! - remove contribution of oldest point from historical mean (@ n + 2)
+         ! - linearly interpolate to desired time (@ ioldest), by computing a weighted mean of the current value (data(expression%in)%p) and the previous value (@ n + 1)
          ! - add contribution of new point to historical mean
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
             - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
@@ -4225,20 +4299,39 @@ contains
          ! Compute next time for which we want to store output
          expression%next_save_time = expression%next_save_time + expression%period/expression%n
 
+         ! If we just completed the first entire history, compute the running mean and record that it is now valid.
+         if (expression%ioldest == expression%n .and. .not. expression%valid) then
+            expression%valid = .true.
+            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = 0.0_rk
+            do i=1,expression%n
+               expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) + expression%history(_PREARG_LOCATION_DIMENSIONS_ i)
+            end do
+            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2)/expression%n
+         end if
+
          ! Increment index for oldest time point
          expression%ioldest = expression%ioldest + 1
          if (expression%ioldest>expression%n) expression%ioldest = 1
       end do
 
-      ! Compute extent of time period outside history
-      frac_outside = (t-(expression%next_save_time-expression%period/expression%n))/expression%period
-
-      ! For temporal means:
-      ! - store values at current time step
-      ! - for current mean, use historical mean but account for change since most recent point in history.
+      ! Store current value to enable linear interpolation to next output time in subsequent call.
       expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) = self%data(expression%in)%p
-      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
-         + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1))
+
+      if (expression%valid) then
+         ! We have a full history. To compute the temporal mean:
+         ! - store values at current time step (@ n + 1)
+         ! - set mean (@ n + 3) to historical mean (@ n + 2) but account for change since most recent point in history.
+
+         ! Compute extent of time period outside history
+         frac_outside = (t-(expression%next_save_time-expression%period/expression%n))/expression%period
+
+         ! Set corrected running mean (move window by removing part of the start, and appending to the end)
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
+            + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1))
+      else
+         ! We do not have a full history yet; set temporal mean to msising value
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%missing_value
+      end if
 
       expression%last_time = t
    end subroutine
@@ -4374,7 +4467,7 @@ subroutine initialize_prefill(self,n,link_list,source,domain)
             ! To avoid saving uninitialized data, prefill the target field with the previous value before any such calls.
             self%prefill_type(link%target%write_indices%value) = prefill_previous_value
          end if
-         self%prefill_values(link%target%write_indices%value) = link%target%missing_value
+         self%prefill_values(link%target%write_indices%value) = link%target%prefill_value
       end if
       link => link%next
    end do
@@ -4389,7 +4482,7 @@ subroutine flag_write_indices(self,source)
    link => source%first
    do while (associated(link))
       if (.not.link%target%write_indices%is_empty()) then
-         self%prefill_type(link%target%write_indices%value) = prefill_missing_value
+         self%prefill_type(link%target%write_indices%value) = prefill_constant
          self%prefill_values(link%target%write_indices%value) = 0
       end if
       link => link%next
@@ -4400,7 +4493,7 @@ function create_external_interior_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
    type (type_bulk_variable_id) :: id
 
-   if (variable%domain/=domain_interior) call driver%fatal_error('create_external_interior_id','BUG: called on non-interior variable.')
+   if (variable%domain/=domain_interior) call fatal_error('create_external_interior_id','BUG: called on non-interior variable.')
    id%variable => variable
    if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
 end function create_external_interior_id
@@ -4410,7 +4503,7 @@ function create_external_horizontal_id(variable) result(id)
    type (type_horizontal_variable_id) :: id
 
    if (variable%domain/=domain_horizontal.and.variable%domain/=domain_surface.and.variable%domain/=domain_bottom) &
-      call driver%fatal_error('create_external_horizontal_id','BUG: called on non-horizontal variable.')
+      call fatal_error('create_external_horizontal_id','BUG: called on non-horizontal variable.')
    id%variable => variable
    if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
 end function create_external_horizontal_id
@@ -4418,7 +4511,7 @@ end function create_external_horizontal_id
 function create_external_scalar_id(variable) result(id)
    type (type_internal_variable),intent(inout),target :: variable
    type (type_scalar_variable_id) :: id
-   if (variable%domain/=domain_scalar) call driver%fatal_error('create_external_scalar_id','BUG: called on non-scalar variable.')
+   if (variable%domain/=domain_scalar) call fatal_error('create_external_scalar_id','BUG: called on non-scalar variable.')
    id%variable => variable
    if (.not.variable%read_indices%is_empty()) id%read_index = variable%read_indices%value
 end function create_external_scalar_id
@@ -4639,11 +4732,11 @@ subroutine classify_variables(self)
          consvar%long_name = trim(consvar%standard_variable%name)
          consvar%path = trim(consvar%standard_variable%name)
          consvar%target => self%root%find_object(trim(aggregate_variable%standard_variable%name))
-         if (.not.associated(consvar%target)) call driver%fatal_error('classify_variables', &
+         if (.not.associated(consvar%target)) call fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
          call consvar%target%read_indices%append(consvar%index)
          consvar%target_hz => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
-         if (.not.associated(consvar%target_hz)) call driver%fatal_error('classify_variables', &
+         if (.not.associated(consvar%target_hz)) call fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
          call consvar%target_hz%read_indices%append(consvar%horizontal_index)
       end if
@@ -4652,7 +4745,7 @@ subroutine classify_variables(self)
 
    ! Get link to extinction variable.
    self%extinction_target => self%root%find_object(trim(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux%name))
-   if (.not.associated(self%extinction_target)) call driver%fatal_error('classify_variables', &
+   if (.not.associated(self%extinction_target)) call fatal_error('classify_variables', &
       'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux was not created')
    call self%extinction_target%read_indices%append(self%extinction_index)
 
@@ -5087,5 +5180,5 @@ end subroutine
 end module fabm
 
 !-----------------------------------------------------------------------
-! Copyright under the GNU Public License - www.gnu.org
+! Copyright Bolding & Bruggeman ApS (GNU Public License - www.gnu.org)
 !-----------------------------------------------------------------------

@@ -7,9 +7,9 @@
    module au_pp_lotka_volterra
 !
 ! !DESCRIPTION:
-!  Lotka_Volterra model(L_V): explains the simple and ideal interaction 
-!  between the prey and predator. In this model, the population of the 
-!  prey and the predator is only influenced by each other and its own 
+!  Lotka_Volterra model(L_V): explains the simple and ideal interaction
+!  between the prey and predator. In this model, the population of the
+!  prey and the predator is only influenced by each other and its own
 !  growth rate.
 !
 !  USES:
@@ -55,7 +55,7 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  
+!
 !
 ! !INPUT PARAMETERS:
    class (type_au_pp_lotka_volterra), intent(inout), target :: self

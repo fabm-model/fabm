@@ -1,3 +1,6 @@
+! This pre-processor macro shall be removed when v1.0 has been released
+#define _FABM_BGC_BACKWARD_COMPATIBILITY_
+
 #ifndef _FABM_REAL_KIND_
 #  define _FABM_REAL_KIND_ selected_real_kind(13)
 #endif
@@ -177,12 +180,17 @@
 #  define _VERTICAL_LOOP_END_ end do
 #  define _VERTICAL_LOOP_EXIT_ exit
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-#    define _VERTICAL_LOOP_BEGIN_ do _I_=_N_,1,-1
-#    define _CONCURRENT_VERTICAL_LOOP_BEGIN_ _DO_CONCURRENT_WITH_STRIDE_(_I_,_N_,1,-1)
+#    define _DOWNWARD_LOOP_BEGIN_ do _I_=_N_,1,-1
+#    define _UPWARD_LOOP_BEGIN_ do _I_=1,_N_
+#    define _MOVE_TO_BOTTOM_ _I_=1
+#    define _MOVE_TO_SURFACE_ _I_=_N_
 #  else
-#    define _VERTICAL_LOOP_BEGIN_ do _I_=1,_N_
-#    define _CONCURRENT_VERTICAL_LOOP_BEGIN_ _DO_CONCURRENT_(_I_,1,_N_)
+#    define _DOWNWARD_LOOP_BEGIN_ do _I_=1,_N_
+#    define _UPWARD_LOOP_BEGIN_ do _I_=_N_,1,-1
+#    define _MOVE_TO_SURFACE_ _I_=1
+#    define _MOVE_TO_BOTTOM_ _I_=_N_
 #  endif
+#  define _CONCURRENT_VERTICAL_LOOP_BEGIN_ _DO_CONCURRENT_(_I_,1,_N_)
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
 !    Horizontal slices are 1D arrays - we will operate on their first element (_J_=1)
 !    For instance, model with i,j,k [MOM,NEMO] or i,k [FVCOM]; vectorized along i or j
@@ -196,10 +204,13 @@
 !  Vertical procedures operate in 0D
 !  Interior slices may scalars or 1D arrays [the latter if the model is vectorized over a horizontal dimension]
 !  Applies to all models without depth dimension; for instance, 0D box or model with i,j or i
-#  define _VERTICAL_LOOP_BEGIN_
 #  define _CONCURRENT_VERTICAL_LOOP_BEGIN_
 #  define _VERTICAL_LOOP_END_
 #  define _VERTICAL_LOOP_EXIT_
+#  define _DOWNWARD_LOOP_BEGIN_
+#  define _UPWARD_LOOP_BEGIN_
+#  define _MOVE_TO_SURFACE_
+#  define _MOVE_TO_BOTTOM_
 #  ifdef _INTERIOR_IS_VECTORIZED_
 !    Interior slices are 1D arrays. Since the vectorized dimension is not depth, horizontal slices MUST be 1D arrays too
 !    Operate on their first element (_I_=1,_J_=1)
@@ -211,6 +222,9 @@
 #    define _DECLARE_VERTICAL_INDICES_
 #  endif
 #endif
+#define _VERTICAL_LOOP_BEGIN_ _DOWNWARD_LOOP_BEGIN_
+#define _DOWNWARD_LOOP_END_ _VERTICAL_LOOP_END_
+#define _UPWARD_LOOP_END_ _VERTICAL_LOOP_END_
 #define _ARGUMENTS_VERTICAL_ _ARGUMENTS_SHARED_
 #define _DECLARE_ARGUMENTS_VERTICAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_VERTICAL_INDICES_
 
@@ -243,8 +257,8 @@
 #define _ARGUMENTS_CHECK_STATE_ _ARGUMENTS_INTERIOR_,repair,valid,set_interior
 #define _ARGUMENTS_CHECK_SURFACE_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior
 #define _ARGUMENTS_CHECK_BOTTOM_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior
-#define _ARGUMENTS_INITIALIZE_STATE_ _ARGUMENTS_INTERIOR_
-#define _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_HORIZONTAL_
+#define _ARGUMENTS_INITIALIZE_STATE_ _ARGUMENTS_INTERIOR_,set_interior
+#define _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_HORIZONTAL_,set_horizontal
 
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
 #define _DECLARE_ARGUMENTS_DO_  _DECLARE_ARGUMENTS_INTERIOR_
@@ -261,8 +275,8 @@
 #define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_INTERIOR_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_interior
 #define _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior
 #define _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior
-#define _DECLARE_ARGUMENTS_INITIALIZE_STATE_ _DECLARE_ARGUMENTS_INTERIOR_
-#define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_
+#define _DECLARE_ARGUMENTS_INITIALIZE_STATE_ _DECLARE_ARGUMENTS_INTERIOR_;logical,intent(inout) :: set_interior
+#define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(inout) :: set_horizontal
 
 ! For BGC models: Expressions for setting space-dependent FABM variables defined on the full spatial domain.
 #define _SET_ODE_(variable,value) environment%scratch _INDEX_SLICE_PLUS_1_(variable%sms_index) = environment%scratch _INDEX_SLICE_PLUS_1_(variable%sms_index) + (value)/self%dt
@@ -362,12 +376,14 @@
 #define _FABM_HORIZONTAL_LOOP_END_ _HORIZONTAL_LOOP_END_
 
 ! Constants related to floating point precision; used throughout FABM.
+#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
 #undef REALTYPE
 #undef _ZERO_
 #undef _ONE_
 #define REALTYPE real(rk)
 #define _ZERO_ 0._rk
 #define _ONE_  1._rk
+#endif
 
 ! For backward compatibility only [pre Fortran 2003]:
 #define _CLASS_ class

@@ -395,10 +395,10 @@ subroutine initialize(self,configunit)
 
 ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_dPAR,par)
-   _SET_DIAGNOSTIC_(self%id_GPP ,r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30))
-   _SET_DIAGNOSTIC_(self%id_NCP ,r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30) - self%lpa*(p1+p2+p3))
-   _SET_DIAGNOSTIC_(self%id_PPR ,(r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30))*secs_pr_day)
-   _SET_DIAGNOSTIC_(self%id_NPR ,(r1/(p1+self%p10)+r2/(p2+self%p20)+r3/(p2+self%p30) - self%lpa*(p1+p2+p3))*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_GPP ,r1+r2+r3)
+   _SET_DIAGNOSTIC_(self%id_NCP ,r1+r2+r3 - self%lpa*(p1+p2+p3))
+   _SET_DIAGNOSTIC_(self%id_PPR ,(r1+r2+r3)*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_NPR ,(r1+r2+r3 - self%lpa*(p1+p2+p3))*secs_pr_day)
 
 !   Leave spatial loops (if any)
    _LOOP_END_
@@ -515,7 +515,7 @@ subroutine initialize(self,configunit)
       _SET_BOTTOM_ODE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_de,-llds*deb+llsd*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_ni,self%s1*thomnp*llsa*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_ni,-self%s1*thomnp*llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_po,self%sr*(1.0_rk-self%ph1*th(oxb,wo,0.0_rk,1.0_rk)*yy(self%ph2,oxb))*llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
    end if
