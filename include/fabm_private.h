@@ -409,7 +409,7 @@
 #endif
 
 #if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&defined(_HAS_MASK_)
-#  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_VERTICAL_PLUS_1_(loop_start:loop_stop,j) = unpack(in(:,i),mask,missing)
+#  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _DO_CONCURRENT_(_I_,loop_start,loop_stop);if (environment%iunpack(_I_)/=0) then;out _INDEX_GLOBAL_VERTICAL_PLUS_1_(_I_,j) = in(environment%iunpack(_I_),i);else;out _INDEX_GLOBAL_VERTICAL_PLUS_1_(_I_,j) = missing;end if;_LOOP_END_
 #else
 #  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_VERTICAL_LOOP_BEGIN_;out _INDEX_GLOBAL_VERTICAL_PLUS_1_(loop_start+_I_-1,j) = in _INDEX_SLICE_PLUS_1_(i);_VERTICAL_LOOP_END_
 #endif
