@@ -2624,21 +2624,25 @@ subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
    _N_ = loop_stop-loop_start+1
 #  ifdef _HAS_MASK_
-   allocate(environment%mask(_N_))
-   _DO_CONCURRENT_(_I_,1,_N_)
+   allocate(environment%mask(loop_start:loop_stop))
+   _DO_CONCURRENT_(_I_,loop_start,loop_stop)
 #    ifdef _FABM_HORIZONTAL_MASK_
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start+_I_-1))
+      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_I_))
 #    else
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1))
+      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(_I_))
 #    endif
    end do
    _N_ = count(environment%mask)
-   allocate(environment%imask(_N_))
+   allocate(environment%ipack(_N_))
+   allocate(environment%iunpack(loop_start:loop_stop))
    i = 0
-   do _I_=1,size(environment%mask)
+   do _I_=loop_start,loop_stop
       if (environment%mask(_I_)) then
           i = i + 1
-          environment%imask(i) = loop_start + _I_ - 1
+          environment%ipack(i) = _I_
+          environment%iunpack(_I_) = i
+      else
+          environment%iunpack(_I_) = 0
       end if
    end do
 #  endif
@@ -2702,17 +2706,21 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
 #ifdef _HORIZONTAL_IS_VECTORIZED_
    _N_ = loop_stop-loop_start+1
 #  ifdef _HAS_MASK_
-   allocate(environment%mask(_N_))
+   allocate(environment%mask(loop_start:loop_stop))
    _DO_CONCURRENT_(_J_,1,_N_)
-      environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1))
+      environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_J_))
    end do
    _N_ = count(environment%mask)
-   allocate(environment%imask(_N_))
+   allocate(environment%ipack(_N_))
+   allocate(environment%iunpack(loop_start:loop_stop))
    i = 0
-   do _J_=1,size(environment%mask)
+   do _J_=loop_start,loop_stop
       if (environment%mask(_J_)) then
           i = i + 1
-          environment%imask(i) = loop_start + _J_ - 1
+          environment%ipack(i) = _J_
+          environment%iunpack(_J_) = i
+      else
+          environment%iunpack(_J_) = 0
       end if
    end do
 #  endif
@@ -2806,9 +2814,6 @@ subroutine prefetch_bottom(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
    integer :: _VERTICAL_ITERATOR_
 #endif
-#if _FABM_BOTTOM_INDEX_==-1
-   integer :: j
-#endif
 
    call prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
 
@@ -2826,27 +2831,20 @@ subroutine prefetch_bottom(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
    do i=1,size(self%data)
       if (associated(self%data(i)%p)) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-#  ifdef _HAS_MASK_
-#    if _FABM_BOTTOM_INDEX_==-1
-         j = 0
-         do _J_=1,loop_stop-loop_start+1
-            if (environment%mask(_J_)) then
-               _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1)
-               j = j + 1
-               environment%prefetch(j,i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_J_-1)
-            end if
-         end do
-#    else
-         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),environment%mask)
-#    endif
-#  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-#    if _FABM_BOTTOM_INDEX_==-1
+#  if _FABM_BOTTOM_INDEX_==-1
+#    ifdef _HAS_MASK_
+            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(environment%ipack(_J_))
+#    else
             _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1)
 #    endif
-            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1)
-         _HORIZONTAL_LOOP_END_
 #  endif
+#  ifdef _HAS_MASK_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(environment%ipack(_J_))
+#  else
+            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1)
+#  endif
+         _HORIZONTAL_LOOP_END_
 #elif defined(_INTERIOR_IS_VECTORIZED_)
 #  if _FABM_BOTTOM_INDEX_==-1
          _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
@@ -2874,21 +2872,25 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
    _N_ = loop_stop-loop_start+1
 #  ifdef _HAS_MASK_
-   allocate(environment%mask(_N_))
-   _DO_CONCURRENT_(_I_,1,_N_)
+   allocate(environment%mask(loop_start:loop_stop))
+   _DO_CONCURRENT_(_I_,loop_start,loop_stop)
 #    ifdef _FABM_HORIZONTAL_MASK_
       environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)
 #    else
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(loop_start+_I_-1))
+      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(_I_))
 #    endif
    end do
    _N_ = count(environment%mask)
-   allocate(environment%imask(_N_))
+   allocate(environment%ipack(_N_))
+   allocate(environment%iunpack(loop_start:loop_stop))
    i = 0
-   do _I_=1,size(environment%mask)
+   do _I_=loop_start,loop_stop
       if (environment%mask(_I_)) then
           i = i + 1
-          environment%imask(i) = loop_start + _I_ - 1
+          environment%ipack(i) = _I_
+          environment%iunpack(_I_) = i
+      else
+          environment%iunpack(_I_) = 0
       end if
    end do
 #  endif
@@ -2907,7 +2909,7 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
 #  ifdef _HAS_MASK_
          !environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(loop_start:loop_stop),environment%mask)
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
-            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(environment%imask(_I_))
+            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(environment%ipack(_I_))
          _VERTICAL_LOOP_END_
 #  else
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
@@ -3552,9 +3554,6 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
    integer :: _VERTICAL_ITERATOR_
 #endif
-#if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)&&defined(_HAS_MASK_)
-   integer :: j
-#endif
 
    valid = .true.
    set_horizontal = .false.
@@ -3657,12 +3656,12 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
       else
          ! Special case for bottom if vertical index of bottom point is variable.
 #  ifdef _HAS_MASK_
-         j = 0
-         do _J_=1,loop_stop-loop_start+1
-            if (environment%mask(_J_)) then
-               _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1)
-               j = j + 1
-               self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_J_-1) = environment%prefetch(j,read_index)
+         _DO_CONCURRENT_(_J_,loop_start,loop_stop)
+            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_J_)
+            if (environment%iunpack(_J_)/=0) then
+               self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = environment%prefetch(environment%iunpack(_J_),read_index)
+            else
+               self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%state_variables(ivar)%missing_value
             end if
          end do
 #  else
@@ -3696,8 +3695,8 @@ end subroutine internal_check_horizontal_state
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)          :: flux_pel
-      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out),optional :: flux_sf
+      real(rk) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_,intent(out)          :: flux_pel
+      real(rk) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_,intent(out),optional :: flux_sf
 !
 ! !LOCAL PARAMETERS:
       type (type_environment)             :: environment
@@ -3783,7 +3782,7 @@ end subroutine internal_check_horizontal_state
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_ben
+   real(rk) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_ben
 !
 ! !LOCAL PARAMETERS:
    type (type_environment)             :: environment
@@ -3865,7 +3864,7 @@ end subroutine internal_check_horizontal_state
    integer,                   intent(in)    :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd
+   real(rk) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd
 !
 ! !LOCAL PARAMETERS:
    type (type_environment)              :: environment
@@ -4087,7 +4086,7 @@ end subroutine internal_check_horizontal_state
 ! !INPUT PARAMETERS:
    class (type_model),                   intent(inout) :: self
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: drag
+   real(rk) _DIMENSION_EXT_HORIZONTAL_SLICE_,intent(out)   :: drag
 !
 ! !LOCAL PARAMETERS:
    type (type_environment)              :: environment
@@ -4130,7 +4129,7 @@ end subroutine internal_check_horizontal_state
 ! !INPUT PARAMETERS:
    class (type_model),                   intent(inout) :: self
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: albedo
+   real(rk) _DIMENSION_EXT_HORIZONTAL_SLICE_,intent(out)   :: albedo
 !
 ! !LOCAL PARAMETERS:
    type (type_environment)              :: environment
@@ -4231,7 +4230,7 @@ end subroutine internal_check_horizontal_state
 ! !INPUT PARAMETERS:
    class (type_model),                          intent(inout) :: self
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: sums
+   real(rk) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: sums
 !
 ! !LOCAL PARAMETERS:
    type (type_environment)             :: environment

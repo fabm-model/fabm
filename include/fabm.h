@@ -69,22 +69,6 @@
 #  define _DIMENSION_SLICE_AUTOMATIC_
 #endif
 
-#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-#  define _DIMENSION_EXT_SLICE_ ,dimension(:)
-#  define _DIMENSION_EXT_SLICE_PLUS_1_ ,dimension(:,:)
-#  define _DIMENSION_EXT_SLICE_PLUS_2_ ,dimension(:,:,:)
-#  define _INDEX_EXT_SLICE_ (_I_)
-#  define _INDEX_EXT_SLICE_PLUS_1_(i) (_I_,i)
-#  define _INDEX_EXT_SLICE_PLUS_2_(i,j) (_I_,i,j)
-#else
-#  define _DIMENSION_EXT_SLICE_
-#  define _DIMENSION_EXT_SLICE_PLUS_1_ ,dimension(:)
-#  define _DIMENSION_EXT_SLICE_PLUS_2_ ,dimension(:,:)
-#  define _INDEX_EXT_SLICE_
-#  define _INDEX_EXT_SLICE_PLUS_1_(i) (i)
-#  define _INDEX_EXT_SLICE_PLUS_2_(i,j) (i,j)
-#endif
-
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 !  Horizontal fields are 1D
 #  define _DIMENSION_HORIZONTAL_SLICE_ ,dimension(:)
@@ -258,7 +242,7 @@
 
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
 #define _DECLARE_ARGUMENTS_DO_  _DECLARE_ARGUMENTS_INTERIOR_
-#define _DECLARE_ARGUMENTS_DO_PPDD_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_EXT_SLICE_PLUS_2_,intent(inout) :: pp,dd
+#define _DECLARE_ARGUMENTS_DO_PPDD_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_SLICE_PLUS_2_,intent(inout) :: pp,dd
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_ _DECLARE_ARGUMENTS_HORIZONTAL_
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
 #define _DECLARE_ARGUMENTS_DO_SURFACE_ _DECLARE_ARGUMENTS_HORIZONTAL_
@@ -280,8 +264,8 @@
 #define _SET_SURFACE_ODE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_sms_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_sms_index) + (value)/self%dt
 #define _SET_BOTTOM_EXCHANGE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_flux_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_flux_index) + (value)/self%dt
 #define _SET_SURFACE_EXCHANGE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux_index) + (value)/self%dt
-#define _SET_DD_(variable1,variable2,value) dd _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = dd _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
-#define _SET_PP_(variable1,variable2,value) pp _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = pp _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
+#define _SET_DD_(variable1,variable2,value) dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
+#define _SET_PP_(variable1,variable2,value) pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
 #define _SET_EXTINCTION_(value) extinction _INDEX_SLICE_ = extinction _INDEX_SLICE_ + (value)
 #define _SCALE_DRAG_(value) drag _INDEX_HORIZONTAL_SLICE_ = drag _INDEX_HORIZONTAL_SLICE_ * (value)
 #define _SET_ALBEDO_(value) albedo _INDEX_HORIZONTAL_SLICE_ = albedo _INDEX_HORIZONTAL_SLICE_ + (value)
