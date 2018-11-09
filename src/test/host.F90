@@ -108,8 +108,8 @@ real(rk),allocatable,target _DIMENSION_GLOBAL_PLUS_1_            :: interior_sta
 real(rk),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: surface_state
 real(rk),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: bottom_state
 
-real(rk),allocatable _DIMENSION_EXT_SLICE_PLUS_1_        :: dy
-real(rk),allocatable _DIMENSION_EXT_SLICE_PLUS_1_        :: w
+real(rk),allocatable _DIMENSION_SLICE_PLUS_1_        :: dy
+real(rk),allocatable _DIMENSION_SLICE_PLUS_1_        :: w
 real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: flux,sms_sf,sms_bt
 
 real(rk),allocatable,target _DIMENSION_GLOBAL_            :: temperature
@@ -126,13 +126,13 @@ integer :: ivar
 integer :: i
 
 #if _FABM_DIMENSION_COUNT_>0
-i__=10000
+i__=50
 #endif
 #if _FABM_DIMENSION_COUNT_>1
-j__=20
+j__=40
 #endif
 #if _FABM_DIMENSION_COUNT_>2
-k__=12
+k__=45
 #endif
 
 #if _FABM_DIMENSION_COUNT_>0
@@ -334,6 +334,9 @@ allocate(sms_bt(size(model%bottom_state_variables)))
    end subroutine randomize_mask
 
    subroutine test_update
+      real(rk),pointer _DIMENSION_GLOBAL_ :: pdata
+      real(rk),pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: pdata_hz
+
       call randomize_mask
 
       ! ======================================================================
@@ -416,6 +419,14 @@ allocate(sms_bt(size(model%bottom_state_variables)))
             call check_interior_slice_plus_1(dy,ivar,0.0_rk,-real(ivar+interior_state_offset,rk) _ARGUMENTS_INTERIOR_IN_)
          end do
       _END_OUTER_INTERIOR_LOOP_
+
+      do ivar=1,size(model%diagnostic_variables)
+         if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source==source_do) then
+            pdata => fabm_get_interior_diagnostic_data(model, ivar)
+            call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, -model%diagnostic_variables(ivar)%missing_value)
+         end if
+      end do
+
       call report_test_result()
 
       ! ======================================================================
@@ -440,8 +451,16 @@ allocate(sms_bt(size(model%bottom_state_variables)))
             call check_horizontal_slice_plus_1(sms_sf,ivar,0.0_rk,-real(ivar+surface_state_offset,rk) _ARGUMENTS_HORIZONTAL_IN_)
          end do
       _END_OUTER_HORIZONTAL_LOOP_
-      call report_test_result()
 
+      do ivar=1,size(model%horizontal_diagnostic_variables)
+         if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_surface) then
+            pdata_hz => fabm_get_horizontal_diagnostic_data(model, ivar)
+            call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
+         end if
+      end do
+
+      call report_test_result()
+      
       ! ======================================================================
       ! Retrieve bottom fluxes of interior state variables, source terms of bottom-associated state variables.
       ! ======================================================================
@@ -464,6 +483,35 @@ allocate(sms_bt(size(model%bottom_state_variables)))
             call check_horizontal_slice_plus_1(sms_bt,ivar,0.0_rk,-real(ivar+bottom_state_offset,rk) _ARGUMENTS_HORIZONTAL_IN_)
          end do
       _END_OUTER_HORIZONTAL_LOOP_
+
+      do ivar=1,size(model%horizontal_diagnostic_variables)
+         if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_bottom) then
+            pdata_hz => fabm_get_horizontal_diagnostic_data(model, ivar)
+            call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
+         end if
+      end do
+
+      call report_test_result()
+
+      ! ======================================================================
+      ! Column-based operators
+      ! ======================================================================
+
+      call start_test('fabm_get_light')
+      _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+         call fabm_get_light(model,1,domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) _ARG_VERTICAL_FIXED_LOCATION_)
+#else
+         call fabm_get_light(model,_ARGUMENTS_LOCATION_)
+#endif
+      _END_GLOBAL_HORIZONTAL_LOOP_
+
+      do ivar=1,size(model%diagnostic_variables)
+         if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source==source_do_column) then
+            pdata => fabm_get_interior_diagnostic_data(model, ivar)
+            call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, -model%diagnostic_variables(ivar)%missing_value)
+         end if
+      end do
       call report_test_result()
 
       ! ======================================================================
@@ -583,5 +631,42 @@ allocate(sms_bt(size(model%bottom_state_variables)))
       end if
 #endif
    end subroutine check_horizontal_slice
+
+   subroutine check_interior(dat,required_masked_value,required_value)
+      real(rk) _DIMENSION_GLOBAL_,intent(in) :: dat
+      real(rk),                   intent(in) :: required_masked_value,required_value
+#ifdef _HAS_MASK_
+#  ifdef _FABM_HORIZONTAL_MASK_
+#  else
+      if (any(dat/=required_masked_value.and..not._IS_UNMASKED_(mask))) then
+         call driver%fatal_error('check_interior','one or more masked cells do not have the value required.')
+      end if
+      if (any(dat/=required_value.and._IS_UNMASKED_(mask))) then
+         call driver%fatal_error('check_interior','one or more non-masked cells do not have the value required.')
+      end if
+#  endif
+#else
+      if (any(dat/=required_value)) then
+         call driver%fatal_error('check_interior','one or more cells do not have the value required.')
+      end if
+#endif
+   end subroutine
+
+   subroutine check_horizontal(dat,required_masked_value,required_value)
+      real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,intent(in) :: dat
+      real(rk),                              intent(in) :: required_masked_value,required_value
+#ifdef _HAS_MASK_
+    if (any(dat/=required_masked_value.and..not._IS_UNMASKED_(mask_hz))) then
+        call driver%fatal_error('check_horizontal','one or more masked cells do not have the value required.')
+    end if
+    if (any(dat/=required_value.and._IS_UNMASKED_(mask_hz))) then
+        call driver%fatal_error('check_horizontal','one or more non-masked cells do not have the value required.')
+    end if
+#else
+      if (any(dat/=required_value)) then
+         call driver%fatal_error('check_horizontal','one or more cells do not have the value required.')
+      end if
+#endif
+   end subroutine
 
 end program
