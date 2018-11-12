@@ -512,6 +512,14 @@ allocate(sms_bt(size(model%bottom_state_variables)))
             call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, -model%diagnostic_variables(ivar)%missing_value)
          end if
       end do
+
+      do ivar=1,size(model%horizontal_diagnostic_variables)
+         if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_column) then
+            pdata_hz => fabm_get_horizontal_diagnostic_data(model, ivar)
+            call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
+         end if
+      end do
+
       call report_test_result()
 
       ! ======================================================================

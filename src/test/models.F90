@@ -33,6 +33,7 @@ type,extends(type_base_model) :: type_test_model
    integer :: nint_diag      = 12
    integer :: nsurface_diag  = 4
    integer :: nbottom_diag   = 6
+   integer :: nhz_diag_vert  = 3
    integer :: nint_diag_vert = 2
 contains
    procedure :: initialize
@@ -77,16 +78,20 @@ subroutine initialize(self,configunit)
    end do
    do i=1,self%nint_diag_vert
       write (strindex,'(i0)') i
-      call self%register_diagnostic_variable(self%id_diag(self%nint_diag + i),'vertical_diagnostic'//trim(strindex),'','vertical diagnostic variable #'//trim(strindex),missing_value=-3999._rk - i, source=source_do_column)
+      call self%register_diagnostic_variable(self%id_diag(self%nint_diag + i),'vertical_diagnostic'//trim(strindex),'','vertical diagnostic variable #'//trim(strindex),missing_value=-1999._rk - i, source=source_do_column)
    end do
-   allocate(self%id_horizontal_diag(self%nsurface_diag + self%nbottom_diag))
+   allocate(self%id_horizontal_diag(self%nsurface_diag + self%nbottom_diag + self%nhz_diag_vert))
    do i=1,self%nsurface_diag
       write (strindex,'(i0)') i
-      call self%register_diagnostic_variable(self%id_horizontal_diag(i),'surface_diagnostic'//trim(strindex),'','surface diagnostic variable #'//trim(strindex),missing_value=-1999._rk - i,source=source_do_surface)
+      call self%register_diagnostic_variable(self%id_horizontal_diag(i),'surface_diagnostic'//trim(strindex),'','surface diagnostic variable #'//trim(strindex),missing_value=-2999._rk - i,source=source_do_surface)
    end do
    do i=1,self%nbottom_diag
       write (strindex,'(i0)') i
-      call self%register_diagnostic_variable(self%id_horizontal_diag(self%nsurface_diag + i),'bottom_diagnostic'//trim(strindex),'','bottom diagnostic variable #'//trim(strindex),missing_value=-2999._rk - i,source=source_do_bottom)
+      call self%register_diagnostic_variable(self%id_horizontal_diag(self%nsurface_diag + i),'bottom_diagnostic'//trim(strindex),'','bottom diagnostic variable #'//trim(strindex),missing_value=-3999._rk - i,source=source_do_bottom)
+   end do
+   do i=1,self%nhz_diag_vert
+      write (strindex,'(i0)') i
+      call self%register_diagnostic_variable(self%id_horizontal_diag(self%nsurface_diag + self%nbottom_diag + i),'vert_hz_diagnostic'//trim(strindex),'','horizontal diagnostic variable set from get_light #'//trim(strindex),missing_value=-4999._rk - i,source=source_do_column)
    end do
 end subroutine initialize
 
@@ -164,7 +169,7 @@ subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
       if (value/=1+horizontal_dependency_offset) call self%fatal_error('do_surface','invalid value of horizontal dependency #1.')
 
       do i=1,self%nsurface_diag
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_horizontal_diag(i),1999._rk+i)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_horizontal_diag(i),2999._rk+i)
       end do
 
    _HORIZONTAL_LOOP_END_
@@ -208,7 +213,7 @@ subroutine do_bottom(self,_ARGUMENTS_DO_SURFACE_)
       if (value/=1+horizontal_dependency_offset) call self%fatal_error('do_bottom','invalid value of horizontal dependency #1.')
 
       do i=1,self%nbottom_diag
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_horizontal_diag(self%nsurface_diag + i),2999._rk+i)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_horizontal_diag(self%nsurface_diag + i),3999._rk+i)
       end do
 
    _HORIZONTAL_LOOP_END_
@@ -244,7 +249,11 @@ subroutine get_light(self,_ARGUMENTS_VERTICAL_)
       if (value/=1+horizontal_dependency_offset) call self%fatal_error('do','invalid value of horizontal dependency #1.')
 
       do i=1,self%nint_diag_vert
-         _SET_DIAGNOSTIC_(self%id_diag(self%nint_diag + i),3999._rk+i)
+         _SET_DIAGNOSTIC_(self%id_diag(self%nint_diag + i),1999._rk+i)
+      end do
+
+      do i=1,self%nhz_diag_vert
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_horizontal_diag(self%nsurface_diag + self%nbottom_diag + i),4999._rk+i)
       end do
 
    _VERTICAL_LOOP_END_
