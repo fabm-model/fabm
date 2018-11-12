@@ -3016,11 +3016,15 @@ subroutine deallocate_prefetch_vertical(self,settings,environment _ARGUMENTS_VER
    if (allocated(settings%save_sources_hz)) then
       do i=1,size(settings%save_sources_hz)
          if (settings%save_sources_hz(i)/=-1) then
+             if (_N_ > 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-            self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = environment%scratch_hz(1,settings%save_sources_hz(i))
+               self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = environment%scratch_hz(1,settings%save_sources_hz(i))
 #else
-            self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = environment%scratch_hz(settings%save_sources_hz(i))
+               self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = environment%scratch_hz(settings%save_sources_hz(i))
 #endif
+            else
+               self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = self%diag_hz_missing_value(i)
+            end if
          end if
       end do
    end if
