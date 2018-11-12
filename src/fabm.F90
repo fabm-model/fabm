@@ -2707,7 +2707,7 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
    _N_ = loop_stop-loop_start+1
 #  ifdef _HAS_MASK_
    allocate(environment%mask(loop_start:loop_stop))
-   _DO_CONCURRENT_(_J_,1,_N_)
+   _DO_CONCURRENT_(_J_,loop_start,loop_stop)
       environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_J_))
    end do
    _N_ = count(environment%mask)
