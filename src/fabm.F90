@@ -2787,13 +2787,13 @@ subroutine prefetch_surface(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
    do i=1,size(self%data)
       if (associated(self%data(i)%p)) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-#  ifdef _HAS_MASK_
-         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),environment%mask)
-#  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+#  ifdef _HAS_MASK_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(environment%ipack(_J_))
+#  else
             environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1)
-         _HORIZONTAL_LOOP_END_
 #  endif
+         _HORIZONTAL_LOOP_END_
 #elif defined(_INTERIOR_IS_VECTORIZED_)
          environment%prefetch(1,i) = self%data(i)%p _INDEX_LOCATION_
 #else
@@ -2906,16 +2906,13 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
    do i=1,size(self%data)
       if (associated(self%data(i)%p)) then
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
+         _CONCURRENT_VERTICAL_LOOP_BEGIN_
 #  ifdef _HAS_MASK_
-         !environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_VERTICAL_(loop_start:loop_stop),environment%mask)
-         _CONCURRENT_VERTICAL_LOOP_BEGIN_
             environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(environment%ipack(_I_))
-         _VERTICAL_LOOP_END_
 #  else
-         _CONCURRENT_VERTICAL_LOOP_BEGIN_
             environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_VERTICAL_(loop_start+_I_-1)
-         _VERTICAL_LOOP_END_
 #  endif
+         _VERTICAL_LOOP_END_
 #elif defined(_INTERIOR_IS_VECTORIZED_)
          environment%prefetch(1,i) = self%data(i)%p _INDEX_LOCATION_
 #else
@@ -3640,7 +3637,13 @@ subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTA
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-         self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop) = unpack(environment%prefetch(:,read_index),environment%mask,self%state_variables(ivar)%missing_value)
+         _DO_CONCURRENT_(_J_,loop_start,loop_stop)
+            if (environment%iunpack(_J_)/=0) then
+               self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = environment%prefetch(environment%iunpack(_J_),read_index)
+            else
+               self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%state_variables(ivar)%missing_value
+            end if
+         end do
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
             self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1) = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
