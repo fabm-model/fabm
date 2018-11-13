@@ -3292,7 +3292,7 @@ end subroutine deallocate_prefetch_vertical
    do i=1,size(self%state_variables)
       do j=1,size(self%state_variables(i)%sms_indices)
          k = self%state_variables(i)%sms_indices(j)
-         _UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch,k,dy,i,environment%mask,0.0_rk)
+         _UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch,k,dy,i,environment%mask)
       end do
    end do
 
@@ -3748,7 +3748,7 @@ end subroutine internal_check_horizontal_state
       do i=1,size(self%state_variables)
          do j=1,size(self%state_variables(i)%surface_flux_indices)
             k = self%state_variables(i)%surface_flux_indices(j)
-            _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_pel,i,environment%mask,0.0_rk)
+            _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_pel,i,environment%mask)
          end do
       end do
 
@@ -3758,7 +3758,7 @@ end subroutine internal_check_horizontal_state
          do i=1,size(self%surface_state_variables)
             do j=1,size(self%surface_state_variables(i)%sms_indices)
                k = self%surface_state_variables(i)%sms_indices(j)
-               _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_sf,i,environment%mask,0.0_rk)
+               _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_sf,i,environment%mask)
             end do
          end do
       end if
@@ -3833,7 +3833,7 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%state_variables)
       do j=1,size(self%state_variables(i)%bottom_flux_indices)
          k = self%state_variables(i)%bottom_flux_indices(j)
-         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_pel,i,environment%mask,0.0_rk)
+         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_pel,i,environment%mask)
       end do
    end do
 
@@ -3841,7 +3841,7 @@ end subroutine internal_check_horizontal_state
    do i=1,size(self%bottom_state_variables)
       do j=1,size(self%bottom_state_variables(i)%sms_indices)
          k = self%bottom_state_variables(i)%sms_indices(j)
-         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_ben,i,environment%mask,0.0_rk)
+         _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(environment%scratch_hz,k,flux_ben,i,environment%mask)
       end do
    end do
 
