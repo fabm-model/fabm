@@ -48,7 +48,16 @@ integer,parameter :: ntest = 1
 integer :: _LOCATION_
 #endif
 
-#if _FABM_DIMENSION_COUNT_==1
+#if _FABM_DIMENSION_COUNT_==0
+#  define _BEGIN_GLOBAL_LOOP_
+#  define _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+#  define _BEGIN_OUTER_HORIZONTAL_LOOP_
+#  define _BEGIN_OUTER_INTERIOR_LOOP_
+#  define _END_GLOBAL_LOOP_
+#  define _END_GLOBAL_HORIZONTAL_LOOP_
+#  define _END_OUTER_HORIZONTAL_LOOP_
+#  define _END_OUTER_INTERIOR_LOOP_
+#elif _FABM_DIMENSION_COUNT_==1
 #  define _BEGIN_GLOBAL_LOOP_ do i__=1,domain_extent(1)
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
 #    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_
@@ -310,8 +319,13 @@ allocate(sms_bt(size(model%bottom_state_variables)))
             ! All land - mask entire column
             mask _INDEX_GLOBAL_VERTICAL_(:) = _FABM_MASKED_VALUE_
          else
-            ! Valid bottom index - unmask associated cell
+            ! Valid bottom index - unmask associated cell, then mask all deeper ones
             mask _INDEX_GLOBAL_VERTICAL_(bottom_index _INDEX_HORIZONTAL_LOCATION_) = _FABM_UNMASKED_VALUE_
+#      ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+            mask _INDEX_GLOBAL_VERTICAL_(:bottom_index _INDEX_HORIZONTAL_LOCATION_ - 1) = _FABM_MASKED_VALUE_
+#      else
+            mask _INDEX_GLOBAL_VERTICAL_(bottom_index _INDEX_HORIZONTAL_LOCATION_ + 1:) = _FABM_MASKED_VALUE_
+#      endif
          end if
       _END_GLOBAL_HORIZONTAL_LOOP_
 #    endif
@@ -502,7 +516,7 @@ allocate(sms_bt(size(model%bottom_state_variables)))
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
          call fabm_get_light(model,1,domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) _ARG_VERTICAL_FIXED_LOCATION_)
 #else
-         call fabm_get_light(model,_ARGUMENTS_LOCATION_)
+         call fabm_get_light(model _ARGUMENTS_HORIZONTAL_IN_)
 #endif
       _END_GLOBAL_HORIZONTAL_LOOP_
 
@@ -596,9 +610,13 @@ allocate(sms_bt(size(model%bottom_state_variables)))
          call driver%fatal_error('check_interior_slice','one or more non-masked cells do not have the value required.')
       end if
 #  endif
-#else
+#elif defined(_INTERIOR_IS_VECTORIZED_)
       if (any(slice_data/=required_value)) then
          call driver%fatal_error('check_interior_slice','one or more cells do not have the value required.')
+      end if
+#else
+      if (slice_data/=required_value) then
+         call driver%fatal_error('check_interior_slice','variable does not have the value required.')
       end if
 #endif
    end subroutine
@@ -653,9 +671,13 @@ allocate(sms_bt(size(model%bottom_state_variables)))
          call driver%fatal_error('check_interior','one or more non-masked cells do not have the value required.')
       end if
 #  endif
-#else
+#elif _FABM_DIMENSION_COUNT_>0
       if (any(dat/=required_value)) then
          call driver%fatal_error('check_interior','one or more cells do not have the value required.')
+      end if
+#else
+      if (dat/=required_value) then
+         call driver%fatal_error('check_horizontal','variable does not have the value required.')
       end if
 #endif
    end subroutine
@@ -670,10 +692,14 @@ allocate(sms_bt(size(model%bottom_state_variables)))
     if (any(dat/=required_value.and._IS_UNMASKED_(mask_hz))) then
         call driver%fatal_error('check_horizontal','one or more non-masked cells do not have the value required.')
     end if
+#elif _HORIZONTAL_DIMENSION_COUNT_>0
+    if (any(dat/=required_value)) then
+        call driver%fatal_error('check_horizontal','one or more cells do not have the value required.')
+    end if
 #else
-      if (any(dat/=required_value)) then
-         call driver%fatal_error('check_horizontal','one or more cells do not have the value required.')
-      end if
+    if (dat/=required_value) then
+        call driver%fatal_error('check_horizontal','variable does not have the value required.')
+    end if
 #endif
    end subroutine
 
