@@ -225,28 +225,35 @@ subroutine get_light(self,_ARGUMENTS_VERTICAL_)
 
    integer  :: i
    real(rk) :: value
+   real(rk) :: old_depth
+
+   old_depth = -1._rk
 
    _VERTICAL_LOOP_BEGIN_
       do i=1,self%nstate
          _GET_(self%id_state(i),value)
-         if (value/=i+interior_state_offset) call self%fatal_error('do','invalid value of interior state variable.')
-         _SET_ODE_(self%id_state(i),-value)
+         if (value/=i+interior_state_offset) call self%fatal_error('get_light','invalid value of interior state variable.')
       end do
 
       do i=1,self%nsurface_state
          _GET_HORIZONTAL_(self%id_surface_state(i),value)
-         if (value/=i+surface_state_offset) call self%fatal_error('do','invalid value of surface state variable.')
+         if (value/=i+surface_state_offset) call self%fatal_error('get_light','invalid value of surface state variable.')
       end do
 
       do i=1,self%nbottom_state
          _GET_HORIZONTAL_(self%id_bottom_state(i),value)
-         if (value/=i+bottom_state_offset) call self%fatal_error('do','invalid value of bottom state variable.')
+         if (value/=i+bottom_state_offset) call self%fatal_error('get_light','invalid value of bottom state variable.')
       end do
 
       _GET_(self%id_dep,value)
-      if (value/=1+interior_dependency_offset) call self%fatal_error('do','invalid value of interior dependency #1.')
+      if (value/=1+interior_dependency_offset) call self%fatal_error('get_light','invalid value of interior dependency #1.')
       _GET_HORIZONTAL_(self%id_hz_dep,value)
-      if (value/=1+horizontal_dependency_offset) call self%fatal_error('do','invalid value of horizontal dependency #1.')
+      if (value/=1+horizontal_dependency_offset) call self%fatal_error('get_light','invalid value of horizontal dependency #1.')
+
+      _GET_(self%id_depth,value)
+      if (value <= old_depth) &
+          call self%fatal_error('get_light','depth is not increasing as expected.')
+      old_depth = value
 
       do i=1,self%nint_diag_vert
          _SET_DIAGNOSTIC_(self%id_diag(self%nint_diag + i),1999._rk+i)
