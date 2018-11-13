@@ -131,8 +131,16 @@ class (type_test_model), pointer :: test_model
 
 integer :: domain_extent(_FABM_DIMENSION_COUNT_)
 
+character(len=20) :: arg
 integer :: ivar
 integer :: i
+integer :: mode = 1
+
+call get_command_argument(1, arg)
+select case (arg)
+case ('-s', '--simulate')
+   mode = 2
+end select
 
 #if _FABM_DIMENSION_COUNT_>0
 i__=50
@@ -159,9 +167,16 @@ allocate(tmp_hz _INDEX_HORIZONTAL_LOCATION_)
 allocate(type_test_driver::driver)
 call fabm_initialize_library()
 
-allocate(test_model)
-call model%root%add_child(test_model,'test_model','test model',configunit=-1)
-
+select case (mode)
+case (1)
+    ! Unit testing with built-in model
+    allocate(test_model)
+    call model%root%add_child(test_model,'test_model','test model',configunit=-1)
+case (2)
+    ! Test with user-provided fabm.yaml
+    call fabm_create_model_from_yaml_file(model, do_not_initialize=.true.)
+end select
+    
 call start_test('fabm_initialize')
 call fabm_initialize(model)
 call report_test_result()
@@ -245,22 +260,27 @@ do ivar=1,size(model%bottom_state_variables)
 end do
 call report_test_result()
 
-allocate(depth _INDEX_LOCATION_)
-allocate(temperature _INDEX_LOCATION_)
-allocate(wind_speed _INDEX_HORIZONTAL_LOCATION_)
-
 ! ======================================================================
 ! Transfer pointers to environmental data
 ! ======================================================================
 
-call start_test('link_interior_data')
-call model%link_interior_data(standard_variables%temperature,temperature)
-call model%link_interior_data(standard_variables%depth,depth)
-call report_test_result()
+select case (mode)
+case (1)
+    allocate(depth _INDEX_LOCATION_)
+    allocate(temperature _INDEX_LOCATION_)
+    allocate(wind_speed _INDEX_HORIZONTAL_LOCATION_)
 
-call start_test('link_horizontal_data')
-call model%link_horizontal_data(standard_variables%wind_speed,wind_speed)
-call report_test_result()
+    call start_test('link_interior_data')
+    call model%link_interior_data(standard_variables%temperature,temperature)
+    call model%link_interior_data(standard_variables%depth,depth)
+    call report_test_result()
+
+    call start_test('link_horizontal_data')
+    call model%link_horizontal_data(standard_variables%wind_speed,wind_speed)
+    call report_test_result()
+case (2)
+    call read_environment
+end select
 
 ! ======================================================================
 ! Check whether FABM has all dependencies fulfilled
@@ -289,11 +309,84 @@ allocate(sms_sf(size(model%surface_state_variables)))
 allocate(sms_bt(size(model%bottom_state_variables)))
 #endif
 
+select case (mode)
+case (1)
    do i=1,ntest
       call test_update
    end do
+case(2)
+   call simulate
+end select
 
-   contains
+contains
+
+   subroutine read_environment
+      use yaml, only: yaml_parse => parse, yaml_error_length => error_length
+      use yaml_types, only: type_yaml_node => type_node, type_yaml_dictionary => type_dictionary, type_yaml_scalar => type_scalar, type_yaml_key_value_pair => type_key_value_pair
+
+      integer, parameter :: yaml_unit = 100
+      character(yaml_error_length) :: yaml_error
+      class (type_yaml_node),pointer :: yaml_root
+      type (type_yaml_key_value_pair), pointer :: yaml_pair
+      real(rk) :: value
+      logical :: success
+      type type_input
+         type (type_bulk_variable_id)                        :: interior_id
+         type (type_horizontal_variable_id)                  :: horizontal_id
+         type (type_scalar_variable_id)                      :: scalar_id
+         real(rk), allocatable _DIMENSION_GLOBAL_            :: interior_data
+         real(rk), allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: horizontal_data
+         real(rk)                                            :: scalar_data
+      end type
+      type (type_input), pointer :: input
+
+      yaml_root => yaml_parse('environment.yaml', yaml_unit, yaml_error)
+      if (yaml_error /= '') then
+         call driver%log_message(yaml_error)
+         stop 2
+      end if
+      select type (yaml_root)
+      class is (type_yaml_dictionary)
+          yaml_pair => yaml_root%first
+          do while (associated(yaml_pair))
+              select type (node => yaml_pair%value)
+              class is (type_yaml_scalar)
+                  call driver%log_message('Setting '//trim(yaml_pair%key)//' to '//trim(node%string))
+                  value = node%to_real(0._rk, success)
+                  if (.not. success) then
+                     call driver%log_message('Cannot parse '//trim(node%string)//' as real.')
+                     stop 2
+                  end if
+                  allocate(input)
+                  input%interior_id = model%get_bulk_variable_id(trim(yaml_pair%key))
+                  if (fabm_is_variable_used(input%interior_id)) then
+                      allocate(input%interior_data _INDEX_LOCATION_)
+                      input%interior_data = value
+                      call model%link_interior_data(input%interior_id, input%interior_data)
+                  else
+                      input%horizontal_id = model%get_horizontal_variable_id(trim(yaml_pair%key))
+                      if (fabm_is_variable_used(input%horizontal_id)) then
+                         allocate(input%horizontal_data _INDEX_HORIZONTAL_LOCATION_)
+                         input%horizontal_data = value
+                         call model%link_horizontal_data(input%horizontal_id, input%horizontal_data)
+                      else
+                         input%scalar_id = model%get_scalar_variable_id(trim(yaml_pair%key))
+                         if (fabm_is_variable_used(input%scalar_id)) then
+                            input%scalar_data = value
+                            call model%link_scalar(input%scalar_id, input%scalar_data)
+                         else
+                            call driver%log_message('WARNING: environment variable '//trim(yaml_pair%key)//' is not used by FABM model and will be ignored.')
+                         end if
+                      end if
+                  end if
+              end select
+              yaml_pair => yaml_pair%next
+          end do
+      class default
+         call driver%log_message('environment.yaml should contain a dictionary at root level')
+         stop 2
+      end select
+   end subroutine read_environment
 
    subroutine randomize_mask
 #ifdef _HAS_MASK_
@@ -346,6 +439,64 @@ allocate(sms_bt(size(model%bottom_state_variables)))
 #  endif
 #endif
    end subroutine randomize_mask
+
+   subroutine simulate
+      real(rk) :: time_begin, time_end
+
+      call start_test('fabm_initialize_state')
+      _BEGIN_OUTER_INTERIOR_LOOP_
+         call fabm_initialize_state(model _ARGUMENTS_INTERIOR_IN_)
+      _END_OUTER_INTERIOR_LOOP_
+      call report_test_result()
+
+      call start_test('fabm_initialize_bottom_state')
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         call fabm_initialize_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_)
+      _END_OUTER_HORIZONTAL_LOOP_
+      call report_test_result()
+
+      call start_test('fabm_initialize_surface_state')
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         call fabm_initialize_surface_state(model _ARGUMENTS_HORIZONTAL_IN_)
+      _END_OUTER_HORIZONTAL_LOOP_
+      call report_test_result()
+
+      call start_test('simulation')
+
+      call cpu_time(time_begin)
+
+      do i=1,1000
+         _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+            call fabm_get_light(model,1,domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) _ARG_VERTICAL_FIXED_LOCATION_)
+#else
+            call fabm_get_light(model _ARGUMENTS_HORIZONTAL_IN_)
+#endif
+         _END_GLOBAL_HORIZONTAL_LOOP_
+
+         _BEGIN_OUTER_HORIZONTAL_LOOP_
+            flux = 0
+            sms_bt = 0
+            call fabm_do_bottom(model _ARGUMENTS_HORIZONTAL_IN_,flux,sms_bt)
+         _END_OUTER_HORIZONTAL_LOOP_
+
+         _BEGIN_OUTER_HORIZONTAL_LOOP_
+            flux = 0
+            sms_sf = 0
+            call fabm_do_surface(model _ARGUMENTS_HORIZONTAL_IN_,flux,sms_sf)
+         _END_OUTER_HORIZONTAL_LOOP_
+
+         _BEGIN_OUTER_INTERIOR_LOOP_
+            dy = 0
+            call fabm_do(model _ARGUMENTS_INTERIOR_IN_,dy)
+         _END_OUTER_INTERIOR_LOOP_
+      end do
+
+      call cpu_time(time_end)
+
+      call report_test_result()
+      write (*,*) 'Total time:', time_end - time_begin, 's'
+   end subroutine
 
    subroutine test_update
       real(rk),pointer _DIMENSION_GLOBAL_ :: pdata
@@ -474,7 +625,7 @@ allocate(sms_bt(size(model%bottom_state_variables)))
       end do
 
       call report_test_result()
-      
+
       ! ======================================================================
       ! Retrieve bottom fluxes of interior state variables, source terms of bottom-associated state variables.
       ! ======================================================================
@@ -544,7 +695,11 @@ allocate(sms_bt(size(model%bottom_state_variables)))
       _BEGIN_OUTER_INTERIOR_LOOP_
          call fabm_get_vertical_movement(model _ARGUMENTS_INTERIOR_IN_,w)
          do ivar=1,size(model%state_variables)
-            call check_interior_slice_plus_1(w,ivar,0.0_rk,-real(ivar+interior_state_offset,rk) _ARGUMENTS_INTERIOR_IN_)
+            if (mod(ivar, 2) == 0) then
+               call check_interior_slice_plus_1(w,ivar,0.0_rk,real(ivar+interior_state_offset,rk) _ARGUMENTS_INTERIOR_IN_)
+            else
+               call check_interior_slice_plus_1(w,ivar,0.0_rk,-real(ivar+interior_state_offset,rk) _ARGUMENTS_INTERIOR_IN_)
+            end if
          end do
       _END_OUTER_INTERIOR_LOOP_
       call report_test_result()
@@ -677,7 +832,7 @@ allocate(sms_bt(size(model%bottom_state_variables)))
       end if
 #else
       if (dat/=required_value) then
-         call driver%fatal_error('check_horizontal','variable does not have the value required.')
+         call driver%fatal_error('check_interior','variable does not have the value required.')
       end if
 #endif
    end subroutine

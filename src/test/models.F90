@@ -41,6 +41,7 @@ contains
    procedure :: do_surface
    procedure :: do_bottom
    procedure :: get_light
+   procedure :: get_vertical_movement
 end type
 
    contains
@@ -265,5 +266,36 @@ subroutine get_light(self,_ARGUMENTS_VERTICAL_)
 
    _VERTICAL_LOOP_END_
 end subroutine get_light
+
+subroutine get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
+   class (type_test_model),intent(in) :: self
+   _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
+
+   integer  :: i
+   real(rk) :: value
+
+   _LOOP_BEGIN_
+      do i=1,self%nstate
+         _GET_(self%id_state(i),value)
+         if (value/=i+interior_state_offset) call self%fatal_error('get_vertical_movement','invalid value of interior state variable.')
+         if (mod(i, 2) == 0) _SET_VERTICAL_MOVEMENT_(self%id_state(i),real(i+interior_state_offset,rk))
+      end do
+
+      do i=1,self%nsurface_state
+         _GET_HORIZONTAL_(self%id_surface_state(i),value)
+         if (value/=i+surface_state_offset) call self%fatal_error('get_vertical_movement','invalid value of surface state variable.')
+      end do
+
+      do i=1,self%nbottom_state
+         _GET_HORIZONTAL_(self%id_bottom_state(i),value)
+         if (value/=i+bottom_state_offset) call self%fatal_error('get_vertical_movement','invalid value of bottom state variable.')
+      end do
+
+      _GET_(self%id_dep,value)
+      if (value/=1+interior_dependency_offset) call self%fatal_error('get_vertical_movement','invalid value of interior dependency #1.')
+      _GET_HORIZONTAL_(self%id_hz_dep,value)
+      if (value/=1+horizontal_dependency_offset) call self%fatal_error('get_vertical_movement','invalid value of horizontal dependency #1.')
+   _LOOP_END_
+end subroutine get_vertical_movement
 
 end module
