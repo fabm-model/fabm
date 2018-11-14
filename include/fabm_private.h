@@ -371,8 +371,16 @@
 #endif
 
 #ifdef _HAS_MASK_
+! Using pack/unpack intrinsics
 !#  define _PACK_GLOBAL_(in, out, i, mask) out(:, i) = pack(in _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop), mask)
 !#  define _PACK_GLOBAL_PLUS_1_(in, i, out, j, mask) out(:, j) = pack(in _INDEX_GLOBAL_INTERIOR_PLUS_1_(loop_start:loop_stop, i), mask)
+!#  define _UNPACK_(in, i, out, mask, missing) out(:) = unpack(in(:, i), mask, missing)
+!#  define _UNPACK_TO_PLUS_1_(in, i, out, j, mask, missing) out(:, j) = unpack(in(:, i), mask, missing)
+!#  define _UNPACK_AND_ADD_TO_PLUS_1_(in, i, out, j, mask, missing) out(:, j) = out(:, j) + unpack(in(:, i), mask, missing)
+!#  define _UNPACK_TO_GLOBAL_(in, i, out, mask, missing) out _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop) = unpack(in(:, i), mask, missing)
+!#  define _UNPACK_TO_GLOBAL_PLUS_1_(in, i, out, j, mask, missing) out _INDEX_GLOBAL_INTERIOR_PLUS_1_(loop_start:loop_stop, j) = unpack(in(:, i), mask, missing)
+
+! Using our own arrays with pack/unpack indices
 #  define _PACK_GLOBAL_(in,out,i,mask) _CONCURRENT_LOOP_BEGIN_;out _INDEX_SLICE_PLUS_1_(i) = in _INDEX_GLOBAL_INTERIOR_(environment%ipack(_I_));_LOOP_END_
 #  define _PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) _CONCURRENT_LOOP_BEGIN_;out _INDEX_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_INTERIOR_PLUS_1_(environment%ipack(_I_),i);_LOOP_END_
 #  define _UNPACK_(in,i,out,mask,missing) _DO_CONCURRENT_(_I_,loop_start,loop_stop);if (environment%iunpack(_I_)/=0) then;out(_I_) = in(environment%iunpack(_I_),i);else;out(_I_) = missing;end if;_LOOP_END_
@@ -392,8 +400,15 @@
 #endif
 
 #if defined(_HORIZONTAL_IS_VECTORIZED_)&&defined(_HAS_MASK_)
+! Using pack/unpack intrinsics
 !#  define _HORIZONTAL_PACK_GLOBAL_(in,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop),mask)
 !#  define _HORIZONTAL_PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) out(:,j) = pack(in _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(loop_start:loop_stop,i),mask)
+!#  define _HORIZONTAL_UNPACK_TO_PLUS_1_(in,i,out,j,mask,missing) out(:,j) = unpack(in(:,i),mask,missing)
+!#  define _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(in,i,out,j,mask,missing) out(:,j) = out(:,j) + unpack(in(:,i),mask,missing)
+!#  define _HORIZONTAL_UNPACK_TO_GLOBAL_(in,i,out,mask,missing) out _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop) = unpack(in(:,i),mask,missing)
+!#  define _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(loop_start:loop_stop,j) = unpack(in(:,i),mask,missing)
+
+! Using our own arrays with pack/unpack indices
 #  define _HORIZONTAL_PACK_GLOBAL_(in,out,j,mask) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_HORIZONTAL_(environment%ipack(_J_));_HORIZONTAL_LOOP_END_
 #  define _HORIZONTAL_PACK_GLOBAL_PLUS_1_(in,i,out,j,mask) _CONCURRENT_HORIZONTAL_LOOP_BEGIN_;out _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = in _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(environment%ipack(_J_),i);_HORIZONTAL_LOOP_END_
 #  define _HORIZONTAL_UNPACK_TO_PLUS_1_(in,i,out,j,mask,missing) _DO_CONCURRENT_(_J_,loop_start,loop_stop);if (environment%iunpack(_J_)/=0) then;out(_J_,j) = in(environment%iunpack(_J_),i);else;out(_J_,j) = missing;end if;_LOOP_END_
@@ -411,6 +426,10 @@
 #endif
 
 #if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&defined(_HAS_MASK_)
+! Using pack/unpack intrinsics
+!#  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) out _INDEX_GLOBAL_VERTICAL_PLUS_1_(loop_start:loop_stop,j) = unpack(in(:,i),mask,missing)
+
+! Using our own arrays with pack/unpack indices
 #  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _DO_CONCURRENT_(_I_,loop_start,loop_stop);if (environment%iunpack(_I_)/=0) then;out _INDEX_GLOBAL_VERTICAL_PLUS_1_(_I_,j) = in(environment%iunpack(_I_),i);else;out _INDEX_GLOBAL_VERTICAL_PLUS_1_(_I_,j) = missing;end if;_LOOP_END_
 #else
 #  define _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(in,i,out,j,mask,missing) _CONCURRENT_VERTICAL_LOOP_BEGIN_;out _INDEX_GLOBAL_VERTICAL_PLUS_1_(loop_start+_I_-1,j) = in _INDEX_SLICE_PLUS_1_(i);_VERTICAL_LOOP_END_
