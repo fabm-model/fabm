@@ -513,6 +513,7 @@ contains
    subroutine test_update
       real(rk),pointer _DIMENSION_GLOBAL_ :: pdata
       real(rk),pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: pdata_hz
+      logical :: valid
 
       call randomize_mask
 
@@ -524,18 +525,27 @@ contains
       _BEGIN_OUTER_INTERIOR_LOOP_
          call fabm_initialize_state(model _ARGUMENTS_INTERIOR_IN_)
       _END_OUTER_INTERIOR_LOOP_
+      do ivar=1,size(model%state_variables)
+         call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, ivar+interior_state_offset+1._rk)
+      end do
       call report_test_result()
 
       call start_test('fabm_initialize_bottom_state')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          call fabm_initialize_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
+      do ivar=1,size(model%bottom_state_variables)
+         call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, ivar+bottom_state_offset+1._rk)
+      end do
       call report_test_result()
 
       call start_test('fabm_initialize_surface_state')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          call fabm_initialize_surface_state(model _ARGUMENTS_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
+      do ivar=1,size(model%surface_state_variables)
+         call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, ivar+surface_state_offset+1._rk)
+      end do
       call report_test_result()
 
       ! ======================================================================
@@ -573,15 +583,15 @@ contains
 
       do ivar=1,size(model%state_variables)
          interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = ivar+interior_state_offset
-         call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar),-999._rk-interior_state_offset)
+         call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar),model%state_variables(ivar)%missing_value)
       end do
       do ivar=1,size(model%surface_state_variables)
          surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = ivar+surface_state_offset
-         call apply_mask_2d(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar),-999._rk-surface_state_offset)
+         call apply_mask_2d(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar),model%surface_state_variables(ivar)%missing_value)
       end do
       do ivar=1,size(model%bottom_state_variables)
          bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = ivar+bottom_state_offset
-         call apply_mask_2d(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar),-999._rk-bottom_state_offset)
+         call apply_mask_2d(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar),model%bottom_state_variables(ivar)%missing_value)
       end do
 
       ! ======================================================================
@@ -714,6 +724,136 @@ contains
             end if
          end do
       _END_OUTER_INTERIOR_LOOP_
+      call report_test_result()
+
+      ! ======================================================================
+      ! Check state with valid state
+      ! ======================================================================
+
+      call start_test('fabm_check_state')
+      _BEGIN_OUTER_INTERIOR_LOOP_
+         valid = .false.
+         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_,.true.,valid)
+         if (.not.valid) call driver%fatal_error('fabm_check_state','state is reported as invalid')
+      _END_OUTER_INTERIOR_LOOP_
+      call report_test_result()
+
+      call start_test('fabm_check_surface_state')
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         valid = .false.
+         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
+         if (.not.valid) call driver%fatal_error('fabm_check_surface_state','state is reported as invalid')
+      _END_OUTER_HORIZONTAL_LOOP_
+      call report_test_result()
+
+      call start_test('fabm_check_bottom_state')
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         valid = .false.
+         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
+         if (.not.valid) call driver%fatal_error('fabm_check_bottom_state','state is reported as invalid')
+      _END_OUTER_HORIZONTAL_LOOP_
+      call report_test_result()
+
+      ! ======================================================================
+      ! Check state with state below minimum
+      ! ======================================================================
+
+      ! Now destroy the state by setting all values to below the minimum
+      do ivar=1,size(model%state_variables)
+        interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = model%state_variables(ivar)%minimum - 1
+        call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar),model%state_variables(ivar)%missing_value)
+      end do
+      do ivar=1,size(model%bottom_state_variables)
+        bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = model%bottom_state_variables(ivar)%minimum - 1
+        call apply_mask_2d(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar),model%bottom_state_variables(ivar)%missing_value)
+      end do
+      do ivar=1,size(model%surface_state_variables)
+        surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = model%surface_state_variables(ivar)%minimum - 1
+        call apply_mask_2d(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar),model%surface_state_variables(ivar)%missing_value)
+      end do
+
+      call start_test('fabm_check_state < min')
+      _BEGIN_OUTER_INTERIOR_LOOP_
+         !valid = .true.
+         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_,.true.,valid)
+         !if (valid) call driver%fatal_error('fabm_check_state','state is reported as valid')
+      _END_OUTER_INTERIOR_LOOP_
+      do ivar=1,size(model%state_variables)
+         call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, model%state_variables(ivar)%minimum)
+      end do
+      call report_test_result()
+
+      call start_test('fabm_check_surface_state < min')
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         !valid = .true.
+         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
+         !if (valid) call driver%fatal_error('fabm_check_surface_state','state is reported as valid')
+      _END_OUTER_HORIZONTAL_LOOP_
+      do ivar=1,size(model%surface_state_variables)
+         call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, model%surface_state_variables(ivar)%minimum)
+      end do
+      call report_test_result()
+
+      call start_test('fabm_check_bottom_state < min')
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         !valid = .true.
+         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
+         !if (valid) call driver%fatal_error('fabm_check_surface_state','state is reported as valid')
+      _END_OUTER_HORIZONTAL_LOOP_
+      do ivar=1,size(model%bottom_state_variables)
+         call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, model%bottom_state_variables(ivar)%minimum)
+      end do
+      call report_test_result()
+
+      ! ======================================================================
+      ! Check state with state above maximum
+      ! ======================================================================
+
+      ! Now destroy the state by setting all values to above the maximum
+      do ivar=1,size(model%state_variables)
+        interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = model%state_variables(ivar)%maximum + 1
+        call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar),model%state_variables(ivar)%missing_value)
+      end do
+      do ivar=1,size(model%bottom_state_variables)
+        bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = model%bottom_state_variables(ivar)%maximum + 1
+        call apply_mask_2d(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar),model%bottom_state_variables(ivar)%missing_value)
+      end do
+      do ivar=1,size(model%surface_state_variables)
+        surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = model%surface_state_variables(ivar)%maximum + 1
+        call apply_mask_2d(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar),model%surface_state_variables(ivar)%missing_value)
+      end do
+
+      call start_test('fabm_check_state > max')
+      _BEGIN_OUTER_INTERIOR_LOOP_
+         !valid = .true.
+         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_,.true.,valid)
+         !if (valid) call driver%fatal_error('fabm_check_state','state is reported as valid')
+      _END_OUTER_INTERIOR_LOOP_
+      do ivar=1,size(model%state_variables)
+         call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, model%state_variables(ivar)%maximum)
+      end do
+      call report_test_result()
+
+      call start_test('fabm_check_surface_state > max')
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         !valid = .true.
+         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
+         !if (valid) call driver%fatal_error('fabm_check_surface_state','state is reported as valid')
+      _END_OUTER_HORIZONTAL_LOOP_
+      do ivar=1,size(model%surface_state_variables)
+         call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, model%surface_state_variables(ivar)%maximum)
+      end do
+      call report_test_result()
+
+      call start_test('fabm_check_bottom_state > max')
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         !valid = .true.
+         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
+         !if (valid) call driver%fatal_error('fabm_check_surface_state','state is reported as valid')
+      _END_OUTER_HORIZONTAL_LOOP_
+      do ivar=1,size(model%bottom_state_variables)
+         call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, model%bottom_state_variables(ivar)%maximum)
+      end do
       call report_test_result()
 
    end subroutine test_update

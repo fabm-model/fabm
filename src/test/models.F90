@@ -56,17 +56,17 @@ subroutine initialize(self,configunit)
    allocate(self%id_state(self%nstate))
    do i=1,self%nstate
       write (strindex,'(i0)') i
-      call self%register_state_variable(self%id_state(i),'state'//trim(strindex),'','state variable #'//trim(strindex),vertical_movement=-real(i+interior_state_offset,rk))
+      call self%register_state_variable(self%id_state(i),'state'//trim(strindex),'','state variable #'//trim(strindex),vertical_movement=-real(i+interior_state_offset,rk), initial_value=1._rk+i+interior_state_offset, missing_value=-999._rk-interior_state_offset-i)
    end do
    allocate(self%id_surface_state(self%nsurface_state))
    do i=1,self%nsurface_state
       write (strindex,'(i0)') i
-      call self%register_state_variable(self%id_surface_state(i),'surface_state'//trim(strindex),'','surface state variable #'//trim(strindex))
+      call self%register_state_variable(self%id_surface_state(i),'surface_state'//trim(strindex),'','surface state variable #'//trim(strindex), initial_value=1._rk+i+surface_state_offset, missing_value=-999._rk-surface_state_offset-i)
    end do
    allocate(self%id_bottom_state(self%nbottom_state))
    do i=1,self%nbottom_state
       write (strindex,'(i0)') i
-      call self%register_state_variable(self%id_bottom_state(i),'bottom_state'//trim(strindex),'','bottom state variable #'//trim(strindex))
+      call self%register_state_variable(self%id_bottom_state(i),'bottom_state'//trim(strindex),'','bottom state variable #'//trim(strindex), initial_value=1._rk+i+bottom_state_offset, missing_value=-999._rk-bottom_state_offset-i)
    end do
    call self%register_dependency(self%id_dep,standard_variables%temperature)
    call self%register_dependency(self%id_depth,standard_variables%depth)
