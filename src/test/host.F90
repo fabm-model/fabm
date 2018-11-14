@@ -315,7 +315,7 @@ case (1)
       call test_update
    end do
 case(2)
-   call simulate
+   call simulate(1000)
 end select
 
 contains
@@ -440,8 +440,18 @@ contains
 #endif
    end subroutine randomize_mask
 
-   subroutine simulate
+   subroutine simulate(n)
+      integer, intent(in) :: n
       real(rk) :: time_begin, time_end
+      integer :: nseed
+      integer, allocatable :: seed(:)
+
+      call random_seed(size=nseed)
+      allocate(seed(nseed))
+      seed(:) = 1
+      call random_seed(put=seed)
+
+      call randomize_mask
 
       call start_test('fabm_initialize_state')
       _BEGIN_OUTER_INTERIOR_LOOP_
@@ -461,11 +471,11 @@ contains
       _END_OUTER_HORIZONTAL_LOOP_
       call report_test_result()
 
-      call start_test('simulation')
+      write (*,'(a)') 'Simulating...'
 
       call cpu_time(time_begin)
 
-      do i=1,1000
+      do i=1,n
          _BEGIN_GLOBAL_HORIZONTAL_LOOP_
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
             call fabm_get_light(model,1,domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) _ARG_VERTICAL_FIXED_LOCATION_)
@@ -490,12 +500,14 @@ contains
             dy = 0
             call fabm_do(model _ARGUMENTS_INTERIOR_IN_,dy)
          _END_OUTER_INTERIOR_LOOP_
+
+         if (mod(i, 100) == 0) write (*,'(i0,a)') int(100*i/real(n, rk)), ' % complete'
       end do
 
       call cpu_time(time_end)
 
-      call report_test_result()
-      write (*,*) 'Total time:', time_end - time_begin, 's'
+      write (*,'(a)') 'Simulation complete.'
+      write (*,'(a,f8.3,a)') 'Total time: ', time_end - time_begin, ' s'
    end subroutine
 
    subroutine test_update
