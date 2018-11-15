@@ -42,8 +42,6 @@ use host_hooks
 
 implicit none
 
-integer,parameter :: ntest = 1
-
 #if _FABM_DIMENSION_COUNT_>0
 integer :: _LOCATION_
 #endif
@@ -135,12 +133,35 @@ character(len=20) :: arg
 integer :: ivar
 integer :: i
 integer :: mode = 1
+integer :: ntest = -1
 
-call get_command_argument(1, arg)
-select case (arg)
-case ('-s', '--simulate')
-   mode = 2
-end select
+! Parse command line arguments
+i = 1
+do
+   call get_command_argument(i, arg)
+   if (arg == '') exit
+   select case (arg)
+   case ('-s', '--simulate')
+      mode = 2
+      i = i + 1
+   case ('-n')
+      call get_command_argument(i + 1, arg)
+      read (arg,*) ntest
+      i = i + 2
+   case default
+      write (*,'(a)') 'Unknown command line argument: ' // trim(arg)
+      stop 2
+   end select
+end do
+
+! Set defaults
+if (ntest == -1) then
+   if (mode == 1) then
+      ntest = 1
+   else
+      ntest = 1000
+   end if
+end if
 
 #if _FABM_DIMENSION_COUNT_>0
 i__=50
@@ -315,7 +336,7 @@ case (1)
       call test_update
    end do
 case(2)
-   call simulate(1000)
+   call simulate(ntest)
 end select
 
 contains
