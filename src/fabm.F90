@@ -2910,14 +2910,15 @@ subroutine allocate_prefetch_vertical(self, environment)
 #endif
 
     allocate(environment%prefetch_scalar(size(self%data_scalar)))
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
 
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
    allocate(environment%scratch(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_),self%nscratch))
 #elif defined(_INTERIOR_IS_VECTORIZED_)
    allocate(environment%scratch(1,self%nscratch))
 #else
    allocate(environment%scratch(self%nscratch))
 #endif
+
 #ifdef _HORIZONTAL_IS_VECTORIZED_
    allocate(environment%scratch_hz(1,self%nscratch_hz))
 #else
