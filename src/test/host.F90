@@ -105,6 +105,9 @@ _FABM_MASK_TYPE_,allocatable,target _DIMENSION_GLOBAL_ :: mask
 #  ifndef _FABM_MASKED_VALUE_
 #    define _FABM_MASKED_VALUE_ _FABM_UNMASKED_VALUE_+1
 #  endif
+#  ifndef _FABM_UNMASKED_VALUE_
+#    define _FABM_UNMASKED_VALUE_ _FABM_MASKED_VALUE_+1
+#  endif
 #endif
 
 #if _FABM_BOTTOM_INDEX_==-1
@@ -753,25 +756,22 @@ contains
 
       call start_test('fabm_check_state')
       _BEGIN_OUTER_INTERIOR_LOOP_
-         valid = .false.
-         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_,.true.,valid)
-         if (.not.valid) call driver%fatal_error('fabm_check_state','state is reported as invalid')
+         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_, .true., valid)
+         if (.not. valid) call driver%fatal_error('fabm_check_state', 'state is reported as invalid')
       _END_OUTER_INTERIOR_LOOP_
       call report_test_result()
 
       call start_test('fabm_check_surface_state')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         valid = .false.
-         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
-         if (.not.valid) call driver%fatal_error('fabm_check_surface_state','state is reported as invalid')
+         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
+         if (.not. valid) call driver%fatal_error('fabm_check_surface_state', 'state is reported as invalid')
       _END_OUTER_HORIZONTAL_LOOP_
       call report_test_result()
 
       call start_test('fabm_check_bottom_state')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         valid = .false.
-         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
-         if (.not.valid) call driver%fatal_error('fabm_check_bottom_state','state is reported as invalid')
+         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
+         if (.not. valid) call driver%fatal_error('fabm_check_bottom_state', 'state is reported as invalid')
       _END_OUTER_HORIZONTAL_LOOP_
       call report_test_result()
 
@@ -795,9 +795,16 @@ contains
 
       call start_test('fabm_check_state < min')
       _BEGIN_OUTER_INTERIOR_LOOP_
-         !valid = .true.
-         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_,.true.,valid)
-         !if (valid) call driver%fatal_error('fabm_check_state','state is reported as valid')
+         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_, .true., valid)
+#ifdef _HAS_MASK_
+#  ifdef _FABM_HORIZONTAL_MASK_
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop))), 'fabm_check_state', 'invalid result')
+#  else
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop))), 'fabm_check_state', 'invalid result')
+#  endif
+#else
+         call assert(.not. valid, 'fabm_check_state', 'invalid result')
+#endif
       _END_OUTER_INTERIOR_LOOP_
       do ivar=1,size(model%state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value - 1, model%state_variables(ivar)%minimum)
@@ -806,9 +813,12 @@ contains
 
       call start_test('fabm_check_surface_state < min')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         !valid = .true.
-         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
-         !if (valid) call driver%fatal_error('fabm_check_surface_state','state is reported as valid')
+         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
+#ifdef _HAS_MASK_
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop))), 'fabm_check_surface_state', 'invalid result')
+#else
+         call assert(.not. valid, 'fabm_check_surface_state', 'invalid result')
+#endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%surface_state_variables)
          call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value - 1, model%surface_state_variables(ivar)%minimum)
@@ -817,9 +827,12 @@ contains
 
       call start_test('fabm_check_bottom_state < min')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         !valid = .true.
-         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
-         !if (valid) call driver%fatal_error('fabm_check_surface_state','state is reported as valid')
+         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
+#ifdef _HAS_MASK_
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop))), 'fabm_check_bottom_state', 'invalid result')
+#else
+         call assert(.not. valid, 'fabm_check_bottom_state', 'invalid result')
+#endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%bottom_state_variables)
          call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value - 1, model%bottom_state_variables(ivar)%minimum)
@@ -846,9 +859,16 @@ contains
 
       call start_test('fabm_check_state > max')
       _BEGIN_OUTER_INTERIOR_LOOP_
-         !valid = .true.
-         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_,.true.,valid)
-         !if (valid) call driver%fatal_error('fabm_check_state','state is reported as valid')
+         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_, .true., valid)
+#ifdef _HAS_MASK_
+#  ifdef _FABM_HORIZONTAL_MASK_
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop))), 'fabm_check_state', 'invalid result')
+#  else
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop))), 'fabm_check_state', 'invalid result')
+#  endif
+#else
+         call assert(.not. valid, 'fabm_check_state', 'invalid result')
+#endif
       _END_OUTER_INTERIOR_LOOP_
       do ivar=1,size(model%state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value - 1, model%state_variables(ivar)%maximum)
@@ -857,9 +877,12 @@ contains
 
       call start_test('fabm_check_surface_state > max')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         !valid = .true.
-         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
-         !if (valid) call driver%fatal_error('fabm_check_surface_state','state is reported as valid')
+         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
+#ifdef _HAS_MASK_
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop))), 'fabm_check_surface_state', 'invalid result')
+#else
+         call assert(.not. valid, 'fabm_check_surface_state', 'invalid result')
+#endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%surface_state_variables)
          call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value - 1, model%surface_state_variables(ivar)%maximum)
@@ -868,9 +891,12 @@ contains
 
       call start_test('fabm_check_bottom_state > max')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         !valid = .true.
-         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_,.true.,valid)
-         !if (valid) call driver%fatal_error('fabm_check_surface_state','state is reported as valid')
+         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
+#ifdef _HAS_MASK_
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop))), 'fabm_check_bottom_state', 'invalid result')
+#else
+         call assert(.not. valid, 'fabm_check_bottom_state', 'invalid result')
+#endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%bottom_state_variables)
          call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value - 1, model%bottom_state_variables(ivar)%maximum)
@@ -888,6 +914,12 @@ contains
       write (*,'(X,A)') 'SUCCESS'
    end subroutine
 
+   subroutine assert(condition, source, message)
+      logical,          intent(in) :: condition
+      character(len=*), intent(in) :: source, message
+      if (.not. condition) call driver%fatal_error(source, message)
+   end subroutine
+
    subroutine apply_mask_3d(dat,missing_value)
       real(rk) _DIMENSION_GLOBAL_,intent(inout) :: dat
       real(rk),                   intent(in)    :: missing_value
@@ -895,7 +927,7 @@ contains
 #  ifdef _FABM_HORIZONTAL_MASK_
       integer :: j__
       _BEGIN_GLOBAL_HORIZONTAL_LOOP_
-         if (.not._IS_UNMASKED_(mask_hz _INDEX_HORIZONTAL_LOCATION_)) dat _INDEX_GLOBAL_VERTICAL_(:) = missing_value
+         if (.not. _IS_UNMASKED_(mask_hz _INDEX_HORIZONTAL_LOCATION_)) dat _INDEX_GLOBAL_VERTICAL_(:) = missing_value
       _END_GLOBAL_HORIZONTAL_LOOP_
 #  else
       where (.not._IS_UNMASKED_(mask)) dat = missing_value
@@ -903,131 +935,113 @@ contains
 #endif
    end subroutine
 
-   subroutine apply_mask_2d(dat,missing_value)
+   subroutine apply_mask_2d(dat, missing_value)
       real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,intent(inout) :: dat
       real(rk),                              intent(in)    :: missing_value
 #ifdef _HAS_MASK_
-      where (.not._IS_UNMASKED_(mask_hz)) dat = missing_value
+      where (.not. _IS_UNMASKED_(mask_hz)) dat = missing_value
 #endif
    end subroutine
 
-   subroutine check_interior_slice_plus_1(dat,index,required_masked_value,required_value _ARGUMENTS_INTERIOR_IN_)
+   subroutine check_interior_slice_plus_1(dat, index, required_masked_value, required_value _ARGUMENTS_INTERIOR_IN_)
       real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(in) :: dat
       integer,                              intent(in) :: index
-      real(rk),                             intent(in) :: required_masked_value,required_value
+      real(rk),                             intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_interior_slice(dat(:,index),required_masked_value,required_value _ARGUMENTS_INTERIOR_IN_)
+      call check_interior_slice(dat(:,index), required_masked_value, required_value _ARGUMENTS_INTERIOR_IN_)
 #else
-      call check_interior_slice(dat(index),required_masked_value,required_value _ARGUMENTS_INTERIOR_IN_)
+      call check_interior_slice(dat(index), required_masked_value, required_value _ARGUMENTS_INTERIOR_IN_)
 #endif
    end subroutine
 
-   subroutine check_interior_slice(slice_data,required_masked_value,required_value _ARGUMENTS_INTERIOR_IN_)
+   subroutine check_interior_slice(slice_data, required_masked_value, required_value _ARGUMENTS_INTERIOR_IN_)
       real(rk) _DIMENSION_EXT_SLICE_,intent(in) :: slice_data
-      real(rk),                      intent(in) :: required_masked_value,required_value
+      real(rk),                      intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
+      call assert(all(slice_data == required_masked_value .or.       _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop))), &
+         'check_interior_slice', 'one or more masked cells do not have the value required.')
+      call assert(all(slice_data == required_value        .or. .not. _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop))), &
+         'check_interior_slice', 'one or more non-masked cells do not have the value required.')
 #  else
-      if (any(slice_data/=required_masked_value.and..not._IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop)))) then
-         call driver%fatal_error('check_interior_slice','one or more masked cells do not have the value required.')
-      end if
-      if (any(slice_data/=required_value.and._IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop)))) then
-         call driver%fatal_error('check_interior_slice','one or more non-masked cells do not have the value required.')
-      end if
+      call assert(all(slice_data == required_masked_value .or.       _IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop))), &
+         'check_interior_slice', 'one or more masked cells do not have the value required.')
+      call assert(all(slice_data == required_value        .or. .not. _IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop))), &
+         'check_interior_slice', 'one or more non-masked cells do not have the value required.')
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-      if (any(slice_data/=required_value)) then
-         call driver%fatal_error('check_interior_slice','one or more cells do not have the value required.')
-      end if
+      call assert(all(slice_data == required_value), 'check_interior_slice', 'one or more cells do not have the value required.')
 #else
-      if (slice_data/=required_value) then
-         call driver%fatal_error('check_interior_slice','variable does not have the value required.')
-      end if
+      call assert(slice_data == required_value, 'check_interior_slice', 'variable does not have the value required.')
 #endif
    end subroutine
 
-   subroutine check_horizontal_slice_plus_1(dat,index,required_masked_value,required_value _ARGUMENTS_HORIZONTAL_IN_)
+   subroutine check_horizontal_slice_plus_1(dat,index, required_masked_value, required_value _ARGUMENTS_HORIZONTAL_IN_)
       real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(in) :: dat
       integer,                                      intent(in) :: index
-      real(rk),                                     intent(in) :: required_masked_value,required_value
+      real(rk),                                     intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_horizontal_slice(dat(:,index),required_masked_value,required_value _ARGUMENTS_HORIZONTAL_IN_)
+      call check_horizontal_slice(dat(:,index), required_masked_value, required_value _ARGUMENTS_HORIZONTAL_IN_)
 #else
-      call check_horizontal_slice(dat(index),required_masked_value,required_value _ARGUMENTS_HORIZONTAL_IN_)
+      call check_horizontal_slice(dat(index), required_masked_value, required_value _ARGUMENTS_HORIZONTAL_IN_)
 #endif
    end subroutine check_horizontal_slice_plus_1
 
-   subroutine check_horizontal_slice(slice_data,required_masked_value,required_value _ARGUMENTS_HORIZONTAL_IN_)
+   subroutine check_horizontal_slice(slice_data, required_masked_value, required_value _ARGUMENTS_HORIZONTAL_IN_)
       real(rk) _DIMENSION_HORIZONTAL_SLICE_, intent(in) :: slice_data
-      real(rk),                              intent(in) :: required_masked_value,required_value
+      real(rk),                              intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-      if (any(slice_data/=required_masked_value.and..not._IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop)))) then
-         call driver%fatal_error('check_horizontal_slice','one or more masked cells do not have the value required.')
-      end if
-      if (any(slice_data/=required_value.and._IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop)))) then
-         call driver%fatal_error('check_horizontal_slice','one or more non-masked cells do not have the value required.')
-      end if
+      call assert(all(slice_data == required_masked_value .or.       _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop))), 'check_horizontal_slice', 'one or more masked cells do not have the value required.')
+      call assert(all(slice_data == required_value        .or. .not. _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start:loop_stop))), 'check_horizontal_slice', 'one or more non-masked cells do not have the value required.')
 #  else
-      if (any(slice_data/=required_value)) then
-         call driver%fatal_error('check_horizontal_slice','one or more cells do not have the value required.')
-      end if
+      call assert(all(slice_data == required_value), 'check_horizontal_slice', 'one or more cells do not have the value required.')
 #  endif
 #else
-      if (slice_data/=required_value) then
-         call driver%fatal_error('check_horizontal_slice','returned scalar does not have the value required.')
-      end if
+      call assert(slice_data == required_value, 'check_horizontal_slice', 'returned scalar does not have the value required.')
 #endif
    end subroutine check_horizontal_slice
 
-   subroutine check_interior(dat,required_masked_value,required_value)
+   subroutine check_interior(dat, required_masked_value, required_value)
       real(rk) _DIMENSION_GLOBAL_,intent(in) :: dat
-      real(rk),                   intent(in) :: required_masked_value,required_value
+      real(rk),                   intent(in) :: required_masked_value, required_value
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
+      integer :: j__
+      _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+         if (_IS_UNMASKED_(mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
+            call assert(all(dat _INDEX_GLOBAL_VERTICAL_(:) == required_value), 'check_interior', 'one or more non-masked cells do not have the value required.')
+         else
+            call assert(all(dat _INDEX_GLOBAL_VERTICAL_(:) == required_masked_value), 'check_interior', 'one or more masked cells do not have the value required.')
+         end if
+      _END_GLOBAL_HORIZONTAL_LOOP_
 #  else
-      if (any(dat/=required_masked_value.and..not._IS_UNMASKED_(mask))) then
-         call driver%fatal_error('check_interior','one or more masked cells do not have the value required.')
-      end if
-      if (any(dat/=required_value.and._IS_UNMASKED_(mask))) then
-         call driver%fatal_error('check_interior','one or more non-masked cells do not have the value required.')
-      end if
+      call assert(all(dat == required_masked_value .or.       _IS_UNMASKED_(mask)), 'check_interior', 'one or more masked cells do not have the value required.')
+      call assert(all(dat == required_value        .or. .not. _IS_UNMASKED_(mask)), 'check_interior', 'one or more non-masked cells do not have the value required.')
 #  endif
 #elif _FABM_DIMENSION_COUNT_>0
-      if (any(dat/=required_value)) then
-         call driver%fatal_error('check_interior','one or more cells do not have the value required.')
-      end if
+      call assert(all(dat == required_value), 'check_interior', 'one or more cells do not have the value required.')
 #else
-      if (dat/=required_value) then
-         call driver%fatal_error('check_interior','variable does not have the value required.')
-      end if
+      call assert(dat == required_value, 'check_interior', 'variable does not have the value required.')
 #endif
    end subroutine
 
-   subroutine check_horizontal(dat,required_masked_value,required_value)
+   subroutine check_horizontal(dat, required_masked_value, required_value)
       real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,intent(in) :: dat
-      real(rk),                              intent(in) :: required_masked_value,required_value
+      real(rk),                              intent(in) :: required_masked_value, required_value
 #ifdef _HAS_MASK_
-    if (any(dat/=required_masked_value.and..not._IS_UNMASKED_(mask_hz))) then
-        call driver%fatal_error('check_horizontal','one or more masked cells do not have the value required.')
-    end if
-    if (any(dat/=required_value.and._IS_UNMASKED_(mask_hz))) then
-        call driver%fatal_error('check_horizontal','one or more non-masked cells do not have the value required.')
-    end if
+      call assert(all(dat == required_masked_value .or.       _IS_UNMASKED_(mask_hz)), 'check_horizontal', 'one or more masked cells do not have the value required.')
+      call assert(all(dat == required_value        .or. .not. _IS_UNMASKED_(mask_hz)), 'check_horizontal', 'one or more non-masked cells do not have the value required.')
 #elif _HORIZONTAL_DIMENSION_COUNT_>0
-    if (any(dat/=required_value)) then
-        call driver%fatal_error('check_horizontal','one or more cells do not have the value required.')
-    end if
+      call assert(all(dat == required_value), 'check_horizontal', 'one or more cells do not have the value required.')
 #else
-    if (dat/=required_value) then
-        call driver%fatal_error('check_horizontal','variable does not have the value required.')
-    end if
+      call assert(dat == required_value, 'check_horizontal', 'variable does not have the value required.')
 #endif
    end subroutine
 
