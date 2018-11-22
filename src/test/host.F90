@@ -46,48 +46,98 @@ implicit none
 integer :: _LOCATION_
 #endif
 
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
+!  No mask but variable bottom index. Index of depth dimension must be 1.
+!  All loops over inner dimension should skip points below bottom.
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+#    define _IRANGE_ bottom_index _INDEX_HORIZONTAL_LOCATION_,domain_extent(1)
+#  else
+#    define _IRANGE_ 1,bottom_index _INDEX_HORIZONTAL_LOCATION_
+#  endif
+#else
+!  Loops over inner dimension should span full domain
+#  define _IRANGE_ 1,domain_extent(1)
+#endif
+
 #if _FABM_DIMENSION_COUNT_==0
 #  define _BEGIN_GLOBAL_LOOP_
-#  define _BEGIN_GLOBAL_HORIZONTAL_LOOP_
-#  define _BEGIN_OUTER_HORIZONTAL_LOOP_
-#  define _BEGIN_OUTER_INTERIOR_LOOP_
 #  define _END_GLOBAL_LOOP_
-#  define _END_GLOBAL_HORIZONTAL_LOOP_
-#  define _END_OUTER_HORIZONTAL_LOOP_
-#  define _END_OUTER_INTERIOR_LOOP_
 #elif _FABM_DIMENSION_COUNT_==1
-#  define _BEGIN_GLOBAL_LOOP_ do i__=1,domain_extent(1)
-#  if _FABM_DEPTH_DIMENSION_INDEX_==1
-#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_
-#    define _BEGIN_OUTER_HORIZONTAL_LOOP_
-#    define _BEGIN_OUTER_INTERIOR_LOOP_
-#  endif
+#  define _BEGIN_GLOBAL_LOOP_ do i__=_IRANGE_
 #  define _END_GLOBAL_LOOP_ end do;i__=domain_extent(1)
-#  define _END_GLOBAL_HORIZONTAL_LOOP_
-#  define _END_OUTER_HORIZONTAL_LOOP_
-#  define _END_OUTER_INTERIOR_LOOP_
+#  ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+#    define _END_GLOBAL_HORIZONTAL_LOOP_
+#  endif
 #elif _FABM_DIMENSION_COUNT_==2
-#  define _BEGIN_GLOBAL_LOOP_ do j__=1,domain_extent(2);do i__=1,domain_extent(1)
-#  if _FABM_DEPTH_DIMENSION_INDEX_==2
-#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ do i__=1,domain_extent(1)
-#    define _BEGIN_OUTER_HORIZONTAL_LOOP_
-#    define _BEGIN_OUTER_INTERIOR_LOOP_ do j__=1,domain_extent(2)
-#  endif
+#  define _BEGIN_GLOBAL_LOOP_ do j__=1,domain_extent(2);do i__=_IRANGE_
 #  define _END_GLOBAL_LOOP_ end do;end do;i__=domain_extent(1);j__=domain_extent(2)
-#  define _END_GLOBAL_HORIZONTAL_LOOP_ end do;i__=domain_extent(1)
-#  define _END_OUTER_HORIZONTAL_LOOP_
-#  define _END_OUTER_INTERIOR_LOOP_ end do;j__=domain_extent(2)
-#elif _FABM_DIMENSION_COUNT_==3
-#  define _BEGIN_GLOBAL_LOOP_ do k__=1,domain_extent(3);do j__=1,domain_extent(2);do i__=1,domain_extent(1)
-#  if _FABM_DEPTH_DIMENSION_INDEX_==3
-#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ do j__=1,domain_extent(2);do i__=1,domain_extent(1)
-#    define _BEGIN_OUTER_HORIZONTAL_LOOP_ do j__=1,domain_extent(2)
-#    define _BEGIN_OUTER_INTERIOR_LOOP_ do k__=1,domain_extent(3);do j__=1,domain_extent(2)
+#  if _FABM_DEPTH_DIMENSION_INDEX_==1
+#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ do j__=1,domain_extent(2)
+#    define _END_GLOBAL_HORIZONTAL_LOOP_ end do;j__=domain_extent(2)
+#  elif _FABM_DEPTH_DIMENSION_INDEX_==2
+#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ do i__=_IRANGE_
+#    define _END_GLOBAL_HORIZONTAL_LOOP_ end do;i__=domain_extent(1)
 #  endif
+#elif _FABM_DIMENSION_COUNT_==3
+#  define _BEGIN_GLOBAL_LOOP_ do k__=1,domain_extent(3);do j__=1,domain_extent(2);do i__=_IRANGE_
 #  define _END_GLOBAL_LOOP_ end do;end do;end do;i__=domain_extent(1);j__=domain_extent(2);k__=domain_extent(3)
-#  define _END_GLOBAL_HORIZONTAL_LOOP_ end do;end do;i__=domain_extent(1);j__=domain_extent(2)
-#  define _END_OUTER_HORIZONTAL_LOOP_ end do;j__=domain_extent(2)
+#  if _FABM_DEPTH_DIMENSION_INDEX_==1
+#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ do k__=1,domain_extent(3);do j__=1,domain_extent(2)
+#    define _END_GLOBAL_HORIZONTAL_LOOP_ end do;end do;j__=domain_extent(2);k__=domain_extent(3)
+#  elif _FABM_DEPTH_DIMENSION_INDEX_==2
+#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ do k__=1,domain_extent(3);do i__=_IRANGE_
+#    define _END_GLOBAL_HORIZONTAL_LOOP_ end do;end do;i__=domain_extent(1);k__=domain_extent(3)
+#  elif _FABM_DEPTH_DIMENSION_INDEX_==3
+#    define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ do j__=1,domain_extent(2);do i__=_IRANGE_
+#    define _END_GLOBAL_HORIZONTAL_LOOP_ end do;end do;i__=domain_extent(1);j__=domain_extent(2)
+#  endif
+#endif
+
+! If there is no depth dimension, horizontal = global
+#ifndef _FABM_DEPTH_DIMENSION_INDEX_
+#  define _BEGIN_GLOBAL_HORIZONTAL_LOOP_ _BEGIN_GLOBAL_LOOP_
+#  define _END_GLOBAL_HORIZONTAL_LOOP_ _END_GLOBAL_LOOP_
+#endif
+
+#ifndef _FABM_VECTORIZED_DIMENSION_INDEX_
+   ! No vectorization: outer loops are global loops
+#  define _BEGIN_OUTER_INTERIOR_LOOP_ _BEGIN_GLOBAL_LOOP_
+#  define _END_OUTER_INTERIOR_LOOP_ _END_GLOBAL_LOOP_
+#  define _BEGIN_OUTER_HORIZONTAL_LOOP_ _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+#  define _END_OUTER_HORIZONTAL_LOOP_ _END_GLOBAL_HORIZONTAL_LOOP_
+#elif _FABM_DIMENSION_COUNT_==1
+   ! Entire domain is vectorized; no outer loops needed
+#  define _BEGIN_OUTER_INTERIOR_LOOP_
+#  define _END_OUTER_INTERIOR_LOOP_
+#  define _BEGIN_OUTER_HORIZONTAL_LOOP_
+#  define _END_OUTER_HORIZONTAL_LOOP_
+#elif _FABM_DIMENSION_COUNT_==2
+#  define _BEGIN_OUTER_INTERIOR_LOOP_ do j__=1,domain_extent(2)
+#  define _END_OUTER_INTERIOR_LOOP_ end do;j__=domain_extent(2)
+#  if _FABM_DEPTH_DIMENSION_INDEX_==2
+     ! The entire horizontal is already vectorized; no outer loop necessary
+#    define _BEGIN_OUTER_HORIZONTAL_LOOP_
+#    define _END_OUTER_HORIZONTAL_LOOP_
+#  else
+     ! No horizontal dimension vectorized; do full outer loop.
+#    define _BEGIN_OUTER_HORIZONTAL_LOOP_ _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+#    define _END_OUTER_HORIZONTAL_LOOP_ _END_GLOBAL_HORIZONTAL_LOOP_
+#  endif
+#elif _FABM_DIMENSION_COUNT_==3
+#  define _BEGIN_OUTER_INTERIOR_LOOP_ do k__=1,domain_extent(3);do j__=1,domain_extent(2)
 #  define _END_OUTER_INTERIOR_LOOP_ end do;end do;j__=domain_extent(2);k__=domain_extent(3)
+#  if _FABM_DEPTH_DIMENSION_INDEX_==2
+#    define _BEGIN_OUTER_HORIZONTAL_LOOP_ do k__=1,domain_extent(3)
+#    define _END_OUTER_HORIZONTAL_LOOP_ end do;k__=domain_extent(3)
+#  elif _FABM_DEPTH_DIMENSION_INDEX_==3
+#    define _BEGIN_OUTER_HORIZONTAL_LOOP_ do j__=1,domain_extent(2)
+#    define _END_OUTER_HORIZONTAL_LOOP_ end do;j__=domain_extent(2)
+#  else
+     ! No horizontal dimension vectorized; do full outer loop.
+#    define _BEGIN_OUTER_HORIZONTAL_LOOP_ _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+#    define _END_OUTER_HORIZONTAL_LOOP_ _END_GLOBAL_HORIZONTAL_LOOP_
+#  endif
 #endif
 
 #ifdef _INTERIOR_IS_VECTORIZED_
@@ -200,7 +250,7 @@ case (2)
     ! Test with user-provided fabm.yaml
     call fabm_create_model_from_yaml_file(model, do_not_initialize=.true.)
 end select
-    
+
 call start_test('fabm_initialize')
 call fabm_initialize(model)
 call report_test_result()
@@ -234,28 +284,24 @@ call report_test_result()
 ! ======================================================================
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
+call start_test('set_surface_index')
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-call start_test('set_bottom_index')
-call model%set_bottom_index(1)
-call report_test_result()
-
-call start_test('set_surface_index')
 call model%set_surface_index(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_))
-call report_test_result()
 #  else
-call start_test('set_surface_index')
 call model%set_surface_index(1)
+#  endif
 call report_test_result()
 
 call start_test('set_bottom_index')
-#if _FABM_BOTTOM_INDEX_==-1
+#  if _FABM_BOTTOM_INDEX_==-1
 allocate(bottom_index _INDEX_HORIZONTAL_LOCATION_)
 call model%set_bottom_index(bottom_index)
-#else
+#  elif defined(_FABM_VERTICAL_BOTTOM_TO_SURFACE_)
+call model%set_bottom_index(1)
+#  else
 call model%set_bottom_index(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_))
-#endif
-call report_test_result()
 #  endif
+call report_test_result()
 #endif
 
 allocate(interior_state(_PREARG_LOCATION_ size(model%state_variables)))
@@ -461,6 +507,15 @@ contains
          end if
       _END_GLOBAL_HORIZONTAL_LOOP_
 #  endif
+#elif _FABM_BOTTOM_INDEX_==-1
+     ! No mask but variable bottom index
+     call random_number(tmp_hz)
+     bottom_index = floor(tmp_hz*(1+domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)))
+#endif
+
+     ! Ensure invalid bottom indices [land points] are set such that vertical loops have 0 iterations.
+#if _FABM_BOTTOM_INDEX_==-1 && defined(_FABM_VERTICAL_BOTTOM_TO_SURFACE_)
+     where (bottom_index == 0) bottom_index = domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) + 1
 #endif
    end subroutine randomize_mask
 
@@ -502,7 +557,13 @@ contains
       do i=1,n
          _BEGIN_GLOBAL_HORIZONTAL_LOOP_
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
+            ! No mask but non-constant bottom index. We need to skip everything below bottom
+            if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= 1 .and. bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) &
+               call fabm_get_light(model,_IRANGE_ _ARG_VERTICAL_FIXED_LOCATION_)
+#  else
             call fabm_get_light(model,1,domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) _ARG_VERTICAL_FIXED_LOCATION_)
+#  endif
 #else
             call fabm_get_light(model _ARGUMENTS_HORIZONTAL_IN_)
 #endif
@@ -586,7 +647,15 @@ contains
       ! Model has depth dimension: make sure depth varies from 0 at the surface till 1 at the bottom
       _BEGIN_GLOBAL_LOOP_
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+#    if _FABM_BOTTOM_INDEX_==-1
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) then
+            depth _INDEX_LOCATION_ = 2
+         else
+            depth _INDEX_LOCATION_ = real(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-_VERTICAL_ITERATOR_,rk)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-bottom_index _INDEX_HORIZONTAL_LOCATION_)
+         end if
+#    else
          depth _INDEX_LOCATION_ = real(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-_VERTICAL_ITERATOR_,rk)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-1)
+#    endif
 #  else
 #    if _FABM_BOTTOM_INDEX_==-1
          if (bottom_index _INDEX_HORIZONTAL_LOCATION_==1) then
@@ -646,7 +715,11 @@ contains
 
 #if _FABM_BOTTOM_INDEX_==-1
       _BEGIN_GLOBAL_HORIZONTAL_LOOP_
-         if (bottom_index _INDEX_HORIZONTAL_LOCATION_==1) depth _INDEX_GLOBAL_VERTICAL_(1) = 0
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) depth _INDEX_GLOBAL_VERTICAL_(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) = 0
+#  else
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == 1) depth _INDEX_GLOBAL_VERTICAL_(1) = 0
+#  endif
       _END_GLOBAL_HORIZONTAL_LOOP_
 #endif
 
@@ -678,7 +751,11 @@ contains
 
 #if _FABM_BOTTOM_INDEX_==-1
       _BEGIN_GLOBAL_HORIZONTAL_LOOP_
-         if (bottom_index _INDEX_HORIZONTAL_LOCATION_==1) depth _INDEX_GLOBAL_VERTICAL_(1) = 1
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) depth _INDEX_GLOBAL_VERTICAL_(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) = 1
+#  else
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == 1) depth _INDEX_GLOBAL_VERTICAL_(1) = 1
+#  endif
       _END_GLOBAL_HORIZONTAL_LOOP_
 #endif
 
@@ -711,7 +788,13 @@ contains
       call start_test('fabm_get_light')
       _BEGIN_GLOBAL_HORIZONTAL_LOOP_
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
+         ! No mask but non-constant bottom index. We need to skip everything below bottom
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= 1 .and. bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) &
+            call fabm_get_light(model,_IRANGE_ _ARG_VERTICAL_FIXED_LOCATION_)
+#  else
          call fabm_get_light(model,1,domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) _ARG_VERTICAL_FIXED_LOCATION_)
+#  endif
 #else
          call fabm_get_light(model _ARGUMENTS_HORIZONTAL_IN_)
 #endif
@@ -917,7 +1000,8 @@ contains
    subroutine assert(condition, source, message)
       logical,          intent(in) :: condition
       character(len=*), intent(in) :: source, message
-      if (.not. condition) call driver%fatal_error(source, message)
+      if (.not. condition) &
+         call driver%fatal_error(source, message)
    end subroutine
 
    subroutine apply_mask_3d(dat,missing_value)
@@ -1026,7 +1110,18 @@ contains
       call assert(all(dat == required_value        .or. .not. _IS_UNMASKED_(mask)), 'check_interior', 'one or more non-masked cells do not have the value required.')
 #  endif
 #elif _FABM_DIMENSION_COUNT_>0
+#  if _FABM_BOTTOM_INDEX_==-1
+      ! Skip points below bottom
+      _BEGIN_GLOBAL_HORIZONTAL_LOOP_
+#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+         call assert(all(dat _INDEX_GLOBAL_VERTICAL_(bottom_index _INDEX_HORIZONTAL_LOCATION_:) == required_value), 'check_interior', 'one or more masked cells do not have the value required.')
+#    else
+         call assert(all(dat _INDEX_GLOBAL_VERTICAL_(1:bottom_index _INDEX_HORIZONTAL_LOCATION_) == required_value), 'check_interior', 'one or more masked cells do not have the value required.')
+#    endif
+      _END_GLOBAL_HORIZONTAL_LOOP_
+#  else
       call assert(all(dat == required_value), 'check_interior', 'one or more cells do not have the value required.')
+#  endif
 #else
       call assert(dat == required_value, 'check_interior', 'variable does not have the value required.')
 #endif
@@ -1039,7 +1134,12 @@ contains
       call assert(all(dat == required_masked_value .or.       _IS_UNMASKED_(mask_hz)), 'check_horizontal', 'one or more masked cells do not have the value required.')
       call assert(all(dat == required_value        .or. .not. _IS_UNMASKED_(mask_hz)), 'check_horizontal', 'one or more non-masked cells do not have the value required.')
 #elif _HORIZONTAL_DIMENSION_COUNT_>0
+#  if _FABM_BOTTOM_INDEX_==-1
+      ! Skip land points (with bottom index of 0 or max+1)
+      call assert(all(dat == required_value .or. bottom_index == 0 .or. bottom_index == domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) + 1), 'check_horizontal', 'one or more cells do not have the value required.')
+#  else
       call assert(all(dat == required_value), 'check_horizontal', 'one or more cells do not have the value required.')
+#  endif
 #else
       call assert(dat == required_value, 'check_horizontal', 'variable does not have the value required.')
 #endif
