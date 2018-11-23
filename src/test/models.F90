@@ -44,6 +44,8 @@ contains
    procedure :: get_vertical_movement
 end type
 
+integer, save, public :: loop_count = 0
+
    contains
 
 subroutine initialize(self,configunit)
@@ -129,6 +131,7 @@ subroutine do(self,_ARGUMENTS_DO_)
          _SET_DIAGNOSTIC_(self%id_diag(i),999._rk+i)
       end do
 
+      loop_count = loop_count + 1
    _LOOP_END_
 end subroutine do
 
@@ -173,6 +176,7 @@ subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_horizontal_diag(i),2999._rk+i)
       end do
 
+      loop_count = loop_count + 1
    _HORIZONTAL_LOOP_END_
 end subroutine do_surface
 
@@ -217,6 +221,7 @@ subroutine do_bottom(self,_ARGUMENTS_DO_SURFACE_)
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_horizontal_diag(self%nsurface_diag + i),3999._rk+i)
       end do
 
+      loop_count = loop_count + 1
    _HORIZONTAL_LOOP_END_
 end subroutine do_bottom
 
@@ -264,6 +269,7 @@ subroutine get_light(self,_ARGUMENTS_VERTICAL_)
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_horizontal_diag(self%nsurface_diag + self%nbottom_diag + i),4999._rk+i)
       end do
 
+      loop_count = loop_count + 1
    _VERTICAL_LOOP_END_
 end subroutine get_light
 
@@ -295,6 +301,8 @@ subroutine get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
       if (value/=1+interior_dependency_offset) call self%fatal_error('get_vertical_movement','invalid value of interior dependency #1.')
       _GET_HORIZONTAL_(self%id_hz_dep,value)
       if (value/=1+horizontal_dependency_offset) call self%fatal_error('get_vertical_movement','invalid value of horizontal dependency #1.')
+
+      loop_count = loop_count + 1
    _LOOP_END_
 end subroutine get_vertical_movement
 

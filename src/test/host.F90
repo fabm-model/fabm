@@ -160,6 +160,9 @@ _FABM_MASK_TYPE_,allocatable,target _DIMENSION_GLOBAL_ :: mask
 #  endif
 #endif
 
+integer :: interior_count
+integer :: horizontal_count
+
 #if _FABM_BOTTOM_INDEX_==-1
 integer,allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_index
 #endif
@@ -228,6 +231,13 @@ k__=45
 
 #if _FABM_DIMENSION_COUNT_>0
 domain_extent = (/ _LOCATION_ /)
+#endif
+
+interior_count = product(domain_extent)
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+horizontal_count = interior_count / domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)
+#else
+horizontal_count = interior_count
 #endif
 
 #ifdef _INTERIOR_IS_VECTORIZED_
@@ -465,6 +475,12 @@ contains
       call random_number(tmp_hz)
       mask_hz = _FABM_UNMASKED_VALUE_
       where (tmp_hz>0.5_rk) mask_hz = _FABM_MASKED_VALUE_
+      horizontal_count = count(_IS_UNMASKED_(mask_hz))
+#    ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      interior_count = horizontal_count * domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)
+#    else
+      interior_count = horizontal_count
+#    endif
 #  else
       ! Apply random mask across interior domain (half of grid cells masked)
       call random_number(tmp)
@@ -506,11 +522,19 @@ contains
 #    endif
          end if
       _END_GLOBAL_HORIZONTAL_LOOP_
+      horizontal_count = count(_IS_UNMASKED_(mask_hz))
+      interior_count = count(_IS_UNMASKED_(mask))
 #  endif
 #elif _FABM_BOTTOM_INDEX_==-1
-     ! No mask but variable bottom index
-     call random_number(tmp_hz)
-     bottom_index = floor(tmp_hz*(1+domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)))
+      ! No mask but variable bottom index
+      call random_number(tmp_hz)
+      bottom_index = floor(tmp_hz*(1+domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)))
+      horizontal_count = count(bottom_index > 0)
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+      interior_count = sum(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) - bottom_index + 1)
+#  else
+      interior_count = sum(bottom_index)
+#  endif
 #endif
 
      ! Ensure invalid bottom indices [land points] are set such that vertical loops have 0 iterations.
@@ -692,6 +716,7 @@ contains
       ! ======================================================================
 
       call start_test('fabm_do')
+      loop_count = 0
       _BEGIN_OUTER_INTERIOR_LOOP_
          dy = 0
          call fabm_do(model _ARGUMENTS_INTERIOR_IN_,dy)
@@ -699,6 +724,7 @@ contains
             call check_interior_slice_plus_1(dy,ivar,0.0_rk,-real(ivar+interior_state_offset,rk) _ARGUMENTS_INTERIOR_IN_)
          end do
       _END_OUTER_INTERIOR_LOOP_
+      call assert(loop_count == interior_count, 'fabm_do', 'call count does not match number of (unmasked) interior points')
 
       do ivar=1,size(model%diagnostic_variables)
          if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source==source_do) then
@@ -724,6 +750,7 @@ contains
 #endif
 
       call start_test('fabm_do_surface')
+      loop_count = 0
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          flux = 0
          sms_sf = 0
@@ -735,6 +762,7 @@ contains
             call check_horizontal_slice_plus_1(sms_sf,ivar,0.0_rk,-real(ivar+surface_state_offset,rk) _ARGUMENTS_HORIZONTAL_IN_)
          end do
       _END_OUTER_HORIZONTAL_LOOP_
+      call assert(loop_count == horizontal_count, 'fabm_do_surface', 'call count does not match number of (unmasked) horizontal points')
 
       do ivar=1,size(model%horizontal_diagnostic_variables)
          if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_surface) then
@@ -760,6 +788,7 @@ contains
 #endif
 
       call start_test('fabm_do_bottom')
+      loop_count = 0
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          flux = 0
          sms_bt = 0
@@ -771,6 +800,7 @@ contains
             call check_horizontal_slice_plus_1(sms_bt,ivar,0.0_rk,-real(ivar+bottom_state_offset,rk) _ARGUMENTS_HORIZONTAL_IN_)
          end do
       _END_OUTER_HORIZONTAL_LOOP_
+      call assert(loop_count == horizontal_count, 'fabm_do_surface', 'call count does not match number of (unmasked) horizontal points')
 
       do ivar=1,size(model%horizontal_diagnostic_variables)
          if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_bottom) then
@@ -786,6 +816,7 @@ contains
       ! ======================================================================
 
       call start_test('fabm_get_light')
+      loop_count = 0
       _BEGIN_GLOBAL_HORIZONTAL_LOOP_
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
@@ -799,6 +830,7 @@ contains
          call fabm_get_light(model _ARGUMENTS_HORIZONTAL_IN_)
 #endif
       _END_GLOBAL_HORIZONTAL_LOOP_
+      call assert(loop_count == interior_count, 'fabm_get_light', 'call count does not match number of (unmasked) interior points')
 
       do ivar=1,size(model%diagnostic_variables)
          if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source==source_do_column) then
@@ -821,6 +853,7 @@ contains
       ! ======================================================================
 
       call start_test('fabm_get_vertical_movement')
+      loop_count = 0
       _BEGIN_OUTER_INTERIOR_LOOP_
          call fabm_get_vertical_movement(model _ARGUMENTS_INTERIOR_IN_,w)
          do ivar=1,size(model%state_variables)
@@ -831,6 +864,7 @@ contains
             end if
          end do
       _END_OUTER_INTERIOR_LOOP_
+      call assert(loop_count == interior_count, 'fabm_get_vertical_movement', 'call count does not match number of (unmasked) interior points')
       call report_test_result()
 
       ! ======================================================================
