@@ -25,19 +25,18 @@ if not args.hosts:
     args.hosts = allowed_hosts
 print('Selected hosts: %s' % ', '.join(args.hosts))
 
-nfailed = 0
 logs = []
 def run(phase, args, **kwargs):
-    global nfailed
     proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs)
     stdoutdata, stderrdata = proc.communicate()
-    print('SUCCESS' if proc.returncode == 0 else 'FAILED')
     if proc.returncode != 0:
         log_path = '%s.log' % phase
         with open(log_path, 'w') as f:
             f.write(stdoutdata)
-        nfailed += 1
         logs.append(log_path)
+        print('FAILED (log written to %s)' % log_path)
+    else:
+        print('SUCCESS')
     return proc.returncode
 
 build_root = tempfile.mkdtemp()
@@ -62,8 +61,8 @@ try:
 finally:
     shutil.rmtree(build_root)
 
-if nfailed == 0:
-    print('All tests complete - no failures')
-else:
-    print('All tests complete - %i FAILED' % nfailed)
+if logs:
+    print('All tests complete - %i FAILED' % len(logs))
     print('See the following log files:\n%s' % '\n'.join(logs))
+else:
+    print('All tests complete - no failures')
