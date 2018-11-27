@@ -574,7 +574,7 @@ contains
       _END_OUTER_HORIZONTAL_LOOP_
       call report_test_result()
 
-      write (*,'(a)') 'Simulating...'
+      write (*,'(a,i0,a)') 'Simulating with ', interior_count, ' wet cells...'
 
       call cpu_time(time_begin)
 
