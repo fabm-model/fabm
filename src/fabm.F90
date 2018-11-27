@@ -89,6 +89,7 @@
    integer, parameter, public :: data_source_user = 3
    integer, parameter, public :: data_source_default = data_source_host
 
+   integer, parameter :: array_block_size = 1
 !
 ! !PUBLIC TYPES:
 !
@@ -2622,6 +2623,15 @@ subroutine allocate_prefetch_interior(self, environment)
    type (type_model),       intent(in)  :: self
    type (type_environment), intent(out) :: environment
 
+   integer :: n, n_mod
+#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
+   n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
+   n_mod = mod(n, array_block_size)
+   if (n_mod /= 0) n = n - n_mod + array_block_size
+#else
+   n = 1
+#endif
+
 #if defined(_FABM_VECTORIZED_DIMENSION_INDEX_) && defined(_HAS_MASK_)
    allocate(environment%mask(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
    allocate(environment%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
@@ -2629,13 +2639,13 @@ subroutine allocate_prefetch_interior(self, environment)
 #endif
 
 #if defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%prefetch(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),size(self%data)))
+   allocate(environment%prefetch(n,size(self%data)))
 #else
    allocate(environment%prefetch(size(self%data)))
 #endif
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%prefetch_hz(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),size(self%data_hz)))
+   allocate(environment%prefetch_hz(n,size(self%data_hz)))
 #else
    allocate(environment%prefetch_hz(size(self%data_hz)))
 #endif
@@ -2643,7 +2653,7 @@ subroutine allocate_prefetch_interior(self, environment)
    allocate(environment%prefetch_scalar(size(self%data_scalar)))
 
 #if defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%scratch(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),self%nscratch))
+   allocate(environment%scratch(n,self%nscratch))
 #else
    allocate(environment%scratch(self%nscratch))
 #endif
@@ -2717,22 +2727,29 @@ subroutine allocate_prefetch_horizontal(self, environment)
    type (type_model),       intent(in)  :: self
    type (type_environment), intent(out) :: environment
 
+   integer :: n, n_mod
+#if defined(_HORIZONTAL_IS_VECTORIZED_)
+   n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
+   n_mod = mod(n, array_block_size)
+   if (n_mod /= 0) n = n - n_mod + array_block_size
+#else
+   n = 1
+#endif
+
 #if defined(_HORIZONTAL_IS_VECTORIZED_) && defined(_HAS_MASK_)
    allocate(environment%mask(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
    allocate(environment%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
    allocate(environment%iunpack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
 #endif
 
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%prefetch(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),size(self%data)))
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%prefetch(1,size(self%data)))
+#if defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(environment%prefetch(n,size(self%data)))
 #else
    allocate(environment%prefetch(size(self%data)))
 #endif
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%prefetch_hz(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),size(self%data_hz)))
+   allocate(environment%prefetch_hz(n,size(self%data_hz)))
 #else
    allocate(environment%prefetch_hz(size(self%data_hz)))
 #endif
@@ -2740,7 +2757,7 @@ subroutine allocate_prefetch_horizontal(self, environment)
    allocate(environment%prefetch_scalar(size(self%data_scalar)))
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%scratch_hz(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),self%nscratch_hz))
+   allocate(environment%scratch_hz(n,self%nscratch_hz))
 #else
    allocate(environment%scratch_hz(self%nscratch_hz))
 #endif
@@ -2889,16 +2906,23 @@ subroutine allocate_prefetch_vertical(self, environment)
    type (type_model),       intent(in)  :: self
    type (type_environment), intent(out) :: environment
 
+   integer :: n, n_mod
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)
+   n = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
+   n_mod = mod(n, array_block_size)
+   if (n_mod /= 0) n = n - n_mod + array_block_size
+#else
+   n = 1
+#endif
+
 #if defined(_FABM_DEPTH_DIMENSION_INDEX_) && defined(_HAS_MASK_)
    allocate(environment%mask(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
    allocate(environment%ipack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
    allocate(environment%iunpack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
 #endif
 
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   allocate(environment%prefetch(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_),size(self%data)))
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%prefetch(1,size(self%data)))
+#if defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(environment%prefetch(n,size(self%data)))
 #else
    allocate(environment%prefetch(size(self%data)))
 #endif
@@ -2911,10 +2935,8 @@ subroutine allocate_prefetch_vertical(self, environment)
 
     allocate(environment%prefetch_scalar(size(self%data_scalar)))
 
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   allocate(environment%scratch(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_),self%nscratch))
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-   allocate(environment%scratch(1,self%nscratch))
+#if defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(environment%scratch(n,self%nscratch))
 #else
    allocate(environment%scratch(self%nscratch))
 #endif
