@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
+"""
+This script lists all state variables, diagnostic variables, conserved quantities and environmental dependencies of a biogeochemical model.
+"""
+
 import sys
-import argparse
 
 try:
    import pyfabm
@@ -10,8 +13,9 @@ except ImportError:
    sys.exit(1)
 
 def main():
+    import argparse
 
-    parser = argparse.ArgumentParser(description='This script lists all state variables, diagnostic variables, conserved quantities and environmental dependencies of a biogeochemical model.')
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('path',help='Path to a YAML file with the model configuration (typically fabm.yaml)',nargs='?',default='fabm.yaml')
     args = parser.parse_args()
 
