@@ -1,0 +1,6 @@
+We managed to have two different versions of the pyfabm dependent python scripts. 
+
+The different versions have now been merged and are present in $FABM_BASE/src/drivers/python/pyfabm/utils. 
+
+Karsten 2019-11-28
+
