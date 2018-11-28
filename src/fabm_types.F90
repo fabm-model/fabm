@@ -14,6 +14,7 @@
 ! (state and diagnostic variables), retrieval of model settings (parameter values) and coupling.
 !
 ! !USES:
+   use fabm_parameters
    use fabm_standard_variables
    use fabm_properties
    use fabm_driver
@@ -64,7 +65,7 @@
 !
    integer, parameter, public :: attribute_length = 256
 
-   integer, parameter, public :: rk = _FABM_REAL_KIND_
+   public rk
 
    integer, parameter, public :: domain_interior = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
 

@@ -128,7 +128,6 @@ else()
   set(FABM_REAL_KIND "selected_real_kind(13)" CACHE STRING "Fortran kind to use for real data type.")
   mark_as_advanced(FABM_REAL_KIND)
 endif()
-add_definitions(-D_FABM_REAL_KIND_=${FABM_REAL_KIND})
 
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
 if(BUILD_SHARED_LIBS)
@@ -168,7 +167,10 @@ if(FABM_EMBED_VERSION)
   set_property(TARGET fabm_version PROPERTY FOLDER fabm)
 endif()
 
+configure_file(${PROJECT_SOURCE_DIR}/fabm_parameters.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90)
+
 add_library(fabm_base OBJECT
+            ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90
             fabm_driver.F90
             fabm_standard_variables.F90
             fabm_properties.F90

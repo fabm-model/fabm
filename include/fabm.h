@@ -1,10 +1,6 @@
 ! This pre-processor macro shall be removed when v1.0 has been released
 #define _FABM_BGC_BACKWARD_COMPATIBILITY_
 
-#ifndef _FABM_REAL_KIND_
-#  define _FABM_REAL_KIND_ selected_real_kind(13)
-#endif
-
 ! ========================================================
 ! Validate input symbols
 ! ========================================================

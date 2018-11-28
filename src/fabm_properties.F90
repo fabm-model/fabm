@@ -6,6 +6,8 @@
 
 module fabm_properties
 
+   use fabm_parameters
+
    implicit none
 
    private
@@ -13,7 +15,6 @@ module fabm_properties
    public type_property,type_property_dictionary,type_set,type_hierarchical_dictionary
    public type_integer_property,type_real_property,type_logical_property,type_string_property
 
-   integer, parameter :: rk = _FABM_REAL_KIND_
    integer, parameter :: metadata_string_length = 256
    integer, parameter :: value_string_length = 1024
 
