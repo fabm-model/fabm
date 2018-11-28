@@ -125,9 +125,9 @@ def testExtremesRecursive(model, vary, ntot=None):
     variable, (minimum, maximum) = vary[0]
     oldvalue = float(variable.value)
     variable.value = minimum
-    testExtremesRecursive(vary[1:], ntot)
+    testExtremesRecursive(model, vary[1:], ntot)
     variable.value = maximum
-    testExtremesRecursive(vary[1:], ntot)
+    testExtremesRecursive(model, vary[1:], ntot)
     variable.value = oldvalue
 
 if __name__ == '__main__':
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     with open(args.ranges_path, 'rU') as f:
         ranges = yaml.load(f)
     if not isinstance(ranges, dict):
-        print('Range file %s should contain a dicionary mapping each variable to its range (or constant value).' % args.ranges_path)
+        print('Range file %s should contain a dictionary mapping each variable to its range (or constant value).' % args.ranges_path)
         sys.exit(1)
 
     vary = []
