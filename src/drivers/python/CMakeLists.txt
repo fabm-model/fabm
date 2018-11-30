@@ -50,31 +50,18 @@ set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CUR
 set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}")
 set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../../../include")
 
-# Query Python itself for default installation prefix.
+# Find target Python interpreter.
 find_package(PythonInterp)
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -m site --user-site
                 OUTPUT_VARIABLE SITE_PACKAGES_DIR
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-set(DEFAULT_PREFIX "${SITE_PACKAGES_DIR}")
 
-# Set cache variable with installation prefix.
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  # None set - set our default prefix.
-  set(CMAKE_INSTALL_PREFIX "${DEFAULT_PREFIX}" CACHE PATH "Directory to install python_fabm in" FORCE)
-else()
-  # User specified a prefix - just update the variable description.
-  set(CMAKE_INSTALL_PREFIX "${DEFAULT_PREFIX}" CACHE PATH "Directory to install python_fabm in")
-endif()
-message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
+# Build wheel
+add_custom_command(OUTPUT wheel.stamp COMMAND ${CMAKE_COMMAND} -DPYFABM_LIB=$<TARGET_FILE:python_fabm> -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} -P "${CMAKE_CURRENT_SOURCE_DIR}/wheel.cmake" DEPENDS python_fabm VERBATIM)
+add_custom_target(wheel ALL DEPENDS wheel.stamp)
 
-add_custom_command(OUTPUT wheel.stamp POST_BUILD COMMAND pip2 wheel ${PROJECT_SOURCE_DIR} DEPENDS python_fabm VERBATIM)
-
-add_custom_target(wheel DEPENDS wheel.stamp)
+# Let pip install the wheel
+install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install --use-wheel --no-index --find-links=${CMAKE_CURRENT_BINARY_DIR}/dist --user --force-reinstall --upgrade pyfabm WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dist)")
 
 #KB add_custom_target(wheel_upload COMMAND cp *.whl /tmp DEPENDS wheel) # I think it is called twine
-
-install(TARGETS python_fabm
-  DESTINATION pyfabm)
-install(DIRECTORY pyfabm/
-  DESTINATION pyfabm)
 
