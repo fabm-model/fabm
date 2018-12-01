@@ -4,10 +4,8 @@ import os
 from setuptools import setup, find_packages
 
 def readme():
-    with open('${SOURCE_DIR}/README.rst', 'rU') as f:
+    with open(os.path.join(os.path.dirname(__file__), 'README.rst'), 'rU') as f:
         return f.read()
-
-lib = os.path.basename('${PYFABM_LIB}')
 
 setup(name='pyfabm',
       version='0.1',
@@ -28,7 +26,7 @@ setup(name='pyfabm',
       },
 #      packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
       packages=['pyfabm', 'pyfabm/utils'],
-      package_data={'pyfabm': [lib]},
+      #package_data={'pyfabm': [lib]},
       include_package_data=True,
 #      platforms = platform,
       zip_safe=False)

@@ -52,12 +52,13 @@ set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${PROJECT_S
 
 # Find target Python interpreter.
 find_package(PythonInterp)
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -m site --user-site
-                OUTPUT_VARIABLE SITE_PACKAGES_DIR
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # Build wheel
-add_custom_command(OUTPUT wheel.stamp COMMAND ${CMAKE_COMMAND} -DPYFABM_LIB=$<TARGET_FILE:python_fabm> -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} -P "${CMAKE_CURRENT_SOURCE_DIR}/wheel.cmake" DEPENDS python_fabm VERBATIM)
+add_custom_command(OUTPUT wheel.stamp
+                   COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/pyfabm" pyfabm
+                   COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:python_fabm>" pyfabm/
+                   COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py bdist_wheel
+                   VERBATIM)
 add_custom_target(wheel ALL DEPENDS wheel.stamp)
 
 # Let pip install the wheel
