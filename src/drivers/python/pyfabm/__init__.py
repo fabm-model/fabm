@@ -125,11 +125,11 @@ fabm.check_ready.argtypes = []
 fabm.check_ready.restype = None
 
 # Routine for retrieving source-sink terms for the interior domain.
-fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS'), ctypes.c_int, ctypes.c_int]
+fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=('CONTIGUOUS',)), ctypes.c_int, ctypes.c_int]
 fabm.get_rates.restype = None
 fabm.check_state.argtypes = [ctypes.c_int]
 fabm.check_state.restype = ctypes.c_int
-fabm.integrate.argtypes = [ctypes.c_int, ctypes.c_int, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS'), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS'), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=2, flags='CONTIGUOUS'), ctypes.c_double, ctypes.c_int, ctypes.c_int]
+fabm.integrate.argtypes = [ctypes.c_int, ctypes.c_int, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=('CONTIGUOUS',)), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=('CONTIGUOUS',)), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=2, flags=('CONTIGUOUS',)), ctypes.c_double, ctypes.c_int, ctypes.c_int]
 fabm.integrate.restype = None
 
 # Routine for getting git repository version information.
