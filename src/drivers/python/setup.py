@@ -1,7 +1,5 @@
-import sys
-import glob
-import os
-from setuptools import setup, find_packages
+import os.path
+from setuptools import setup
 
 def readme():
     with open(os.path.join(os.path.dirname(__file__), 'README.rst'), 'rU') as f:
@@ -24,9 +22,7 @@ setup(name='pyfabm',
                 'fabm_stress_test=pyfabm.utils.fabm_stress_test:main',
           ]
       },
-#      packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
       packages=['pyfabm', 'pyfabm/utils'],
-      #package_data={'pyfabm': [lib]},
       include_package_data=True,
 #      platforms = platform,
       zip_safe=False)
