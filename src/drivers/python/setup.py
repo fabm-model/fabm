@@ -1,6 +1,19 @@
 import os.path
 from setuptools import setup
 
+try:
+    import wheel.bdist_wheel
+    class bdist_wheel(wheel.bdist_wheel.bdist_wheel):
+        def finalize_options(self):
+            wheel.bdist_wheel.bdist_wheel.finalize_options(self)
+            self.root_is_pure = False
+        def get_tag(self):
+            python, abi, plat = wheel.bdist_wheel.bdist_wheel.get_tag(self)
+            python, abi = 'py2.py3', 'none'
+            return python, abi, plat
+except ImportError:
+    bdist_wheel = None
+
 def readme():
     with open(os.path.join(os.path.dirname(__file__), 'README.rst'), 'rU') as f:
         return f.read()
@@ -24,7 +37,7 @@ setup(name='pyfabm',
       },
       packages=['pyfabm', 'pyfabm/utils'],
       include_package_data=True,
-#      platforms = platform,
+      cmdclass={'bdist_wheel': bdist_wheel},
       zip_safe=False)
 
 
