@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-import sys,os.path
+import sys
+import os.path
+import io
 import urllib
 import xml.etree.ElementTree
 
@@ -8,21 +10,21 @@ import yaml # http://pyyaml.org
 
 variablespath = 'variables.yaml'
 localpath = 'cf-standard-name-table.xml'
-url = 'http://cfconventions.org/Data/cf-standard-names/28/src/cf-standard-name-table.xml'
-html = 'http://cfconventions.org/Data/cf-standard-names/28/build/cf-standard-name-table.html'
+url = 'http://cfconventions.org/Data/cf-standard-names/60/src/cf-standard-name-table.xml'
+html = 'http://cfconventions.org/Data/cf-standard-names/60/build/cf-standard-name-table.html'
 output_F90 = '../../include/standard_variables.h'
 output_F90_assignments = '../../include/standard_variable_assignments.h'
 output_wiki = 'standard_variables.wiki'
 
-domain2type = {'bulk':'type_bulk_standard_variable',
+domain2type = {'interior':'type_bulk_standard_variable',
                'horizontal':'type_horizontal_standard_variable',
                'global':'type_global_standard_variable',
                'conserved':'type_bulk_standard_variable'}
 
 print 'Parsing %s...' % variablespath
-stream = file(variablespath, 'rU')
-selection = yaml.load(stream)
-stream.close()
+with io.open(variablespath, 'rU', encoding='utf-8') as stream:
+    selection = yaml.load(stream)
+
 name2data = {}
 for cls,items in selection.iteritems():
     for item in items: name2data[item['name']] = item
@@ -37,11 +39,14 @@ def strip_end(text, suffix):
 
 def CF2FABM(id):
     id = strip_end(id,'_in_sea_water')
+    id = strip_end(id,'_of_sea_water')
     id = strip_start(id,'sea_water_')
     if id.endswith('_at_sea_floor'):
         id = 'bottom_'+strip_end(id,'_at_sea_floor')
     if id.startswith('sea_floor_'):
         id = 'bottom_'+strip_start(id,'sea_floor_')
+    if id.endswith('_in_ocean_layer'):
+        id = strip_end(id,'_in_ocean_layer') + '_in_layer'
     return id
 
 if not os.path.isfile(localpath):

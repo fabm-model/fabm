@@ -69,6 +69,10 @@ standard_variables%mole_concentration_of_silicate%name = 'mole_concentration_of_
 standard_variables%mole_concentration_of_silicate%units = 'mmol m-3'
 standard_variables%mole_concentration_of_silicate%cf_names = 'mole_concentration_of_silicate_in_sea_water'
 
+standard_variables%net_rate_of_absorption_of_shortwave_energy_in_layer%name = 'net_rate_of_absorption_of_shortwave_energy_in_layer'
+standard_variables%net_rate_of_absorption_of_shortwave_energy_in_layer%units = 'W m-2'
+standard_variables%net_rate_of_absorption_of_shortwave_energy_in_layer%cf_names = 'net_rate_of_absorption_of_shortwave_energy_in_ocean_layer'
+
 standard_variables%ph_reported_on_total_scale%name = 'ph_reported_on_total_scale'
 standard_variables%ph_reported_on_total_scale%units = '1'
 standard_variables%ph_reported_on_total_scale%cf_names = 'sea_water_ph_reported_on_total_scale'
@@ -80,6 +84,10 @@ standard_variables%practical_salinity%cf_names = 'sea_water_practical_salinity'
 standard_variables%pressure%name = 'pressure'
 standard_variables%pressure%units = 'dbar'
 standard_variables%pressure%cf_names = 'sea_water_pressure'
+
+standard_variables%secchi_depth%name = 'secchi_depth'
+standard_variables%secchi_depth%units = 'm'
+standard_variables%secchi_depth%cf_names = 'secchi_depth_of_sea_water'
 
 standard_variables%temperature%name = 'temperature'
 standard_variables%temperature%units = 'degree_Celsius'
