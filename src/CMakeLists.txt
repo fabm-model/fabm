@@ -15,7 +15,7 @@ set(DEFAULT_INSTITUTES
     jrc          # EC - Joint Research Centre - Ispra, Italy
     pclake       # The PCLake model - reference implementation
     pml          # Plymouth Marine Laboratory, United Kingdom
-    ersem        # European Regional Seas Ecosytem Model
+    ersem        # European Regional Seas Ecosystem Model
     niva         # Norsk Institutt for Vannforskning, Norway
     akvaplan     # Akvaplan-niva, Norway
 )
