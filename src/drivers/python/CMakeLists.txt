@@ -62,7 +62,7 @@ add_custom_command(OUTPUT wheel.stamp
 add_custom_target(wheel ALL DEPENDS wheel.stamp)
 
 # Let pip install the wheel
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install --use-wheel --no-index --find-links=${CMAKE_CURRENT_BINARY_DIR}/dist --user --force-reinstall --upgrade pyfabm WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dist)")
+install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install --no-index --find-links=${CMAKE_CURRENT_BINARY_DIR}/dist --user --force-reinstall --upgrade pyfabm WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dist)")
 
-#KB add_custom_target(wheel_upload COMMAND cp *.whl /tmp DEPENDS wheel) # I think it is called twine
+add_custom_target(wheel_upload COMMAND twine upload dist/*.whl DEPENDS wheel)
 
