@@ -38,7 +38,7 @@ if not dllpath:
    sys.exit(1)
 
 # Load FABM library.
-fabm = ctypes.CDLL(dllpath)
+fabm = ctypes.CDLL(str(dllpath))
 
 # Initialization
 fabm.initialize.argtypes = [ctypes.c_char_p]
