@@ -4,12 +4,14 @@
 This script takes a model configuration file and rewrites it with standardized indentation and comments describing each of the model\'s variables and parameters.
 """
 
+from __future__ import print_function
+
 import sys
 
 try:
    import pyfabm.complete_yaml
 except ImportError:
-   print 'Unable to load pyfabm. See https://github.com/fabm-model/code/wiki/python.'
+   print('Unable to load pyfabm. See https://github.com/fabm-model/code/wiki/python.')
    sys.exit(1)
 
 def main():
