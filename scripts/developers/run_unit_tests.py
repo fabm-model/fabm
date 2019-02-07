@@ -13,6 +13,7 @@ allowed_hosts = os.listdir(os.path.join(root, 'src/drivers'))
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--host', action='append', dest='hosts', choices=allowed_hosts)
+parser.add_argument('--cmake', default='cmake')
 args = parser.parse_args()
 
 cmake_arguments = []
@@ -31,7 +32,7 @@ def run(phase, args, **kwargs):
     stdoutdata, stderrdata = proc.communicate()
     if proc.returncode != 0:
         log_path = '%s.log' % phase
-        with open(log_path, 'w') as f:
+        with open(log_path, 'wb') as f:
             f.write(stdoutdata)
         logs.append(log_path)
         print('FAILED (log written to %s)' % log_path)
@@ -46,11 +47,11 @@ try:
         build_dir = os.path.join(build_root, host)
         os.mkdir(build_dir)
         print('  generating...', end='')
-        generates[host] = run('%s_generate' % host, ['cmake', os.path.join(root, 'src'), '-DFABM_HOST=%s' % host] + cmake_arguments, cwd=build_dir)
+        generates[host] = run('%s_generate' % host, [args.cmake, os.path.join(root, 'src'), '-DFABM_HOST=%s' % host] + cmake_arguments, cwd=build_dir)
         if generates[host] != 0:
             continue
         print('  building...', end='')
-        builds[host] = run('%s_build' % host, ['cmake', '--build', build_dir, '--target', 'test_host'])
+        builds[host] = run('%s_build' % host, [args.cmake, '--build', build_dir, '--target', 'test_host'])
         if builds[host] != 0:
             continue
         print('  testing...', end='')
