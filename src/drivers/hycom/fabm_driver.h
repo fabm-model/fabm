@@ -6,6 +6,8 @@
 
 #define _FABM_MASK_TYPE_ logical
 #define _FABM_MASKED_VALUE_ .false.
+#define _FABM_UNMASKED_VALUE_ .true.
+#define _FABM_IS_UNMASKED_(maskvalue) maskvalue
 
 #include "fabm.h"
 
