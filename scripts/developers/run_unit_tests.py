@@ -6,6 +6,7 @@ import tempfile
 import subprocess
 import shutil
 import argparse
+import timeit
 
 script_root = os.path.abspath(os.path.dirname(__file__))
 root = os.path.join(script_root, '../..')
@@ -14,7 +15,13 @@ allowed_hosts = os.listdir(os.path.join(root, 'src/drivers'))
 parser = argparse.ArgumentParser()
 parser.add_argument('--host', action='append', dest='hosts', choices=allowed_hosts)
 parser.add_argument('--cmake', default='cmake')
+parser.add_argument('-p', '--performance', action='store_true')
+parser.add_argument('--config', default='fabm.yaml')
+parser.add_argument('--env', default='environment.yaml')
 args = parser.parse_args()
+if args.performance:
+    assert os.path.isfile(args.config)
+    assert os.path.isfile(args.env)
 
 cmake_arguments = []
 
@@ -42,6 +49,7 @@ def run(phase, args, **kwargs):
 
 build_root = tempfile.mkdtemp()
 try:
+    host2exe = {}
     for host in args.hosts:
         print(host)
         build_dir = os.path.join(build_root, host)
@@ -55,10 +63,25 @@ try:
         if builds[host] != 0:
             continue
         print('  testing...', end='')
-        if os.path.isfile(os.path.join(build_dir, 'Debug/test_host.exe')):
-            tests[host] = run('%s_test' % host, [os.path.join(build_dir, 'Debug/test_host.exe')])
-        else:
-            tests[host] = run('%s_test' % host, [os.path.join(build_dir, 'test_host')])
+        for exename in ('Debug/test_host.exe', 'test_host'):
+            exepath = os.path.join(build_dir, exename)
+            if os.path.isfile(exepath):
+                host2exe[host] = exepath
+        tests[host] = run('%s_test' % host, [host2exe[host]])
+
+    if args.performance:
+        timings = {}
+        shutil.copy(args.config, os.path.join(build_root, 'fabm.yaml'))
+        shutil.copy(args.env, os.path.join(build_root, 'environment.yaml'))
+        for i in range(5):
+            for host in args.hosts:
+                if tests.get(host, 1) != 0:
+                    continue
+                start = timeit.default_timer()
+                print('Measuring runtime for %s (replicate %i)...' % (host, i), end='')
+                run('%s_perfrun_%i' % (host, i), [host2exe[host], '--simulate'], cwd=build_root)
+                timings.setdefault(host, []).append(timeit.default_timer() - start)
+
 finally:
     shutil.rmtree(build_root)
 
@@ -67,3 +90,10 @@ if logs:
     print('See the following log files:\n%s' % '\n'.join(logs))
 else:
     print('All tests complete - no failures')
+
+if args.performance:
+    print('Timings:')
+    for host in args.hosts:
+        t = timings.get(host, ())
+        timing = 'NA' if not t else '%.3f s' % (sum(t) / len(t))
+        print('  %s: %s' % (host, timing))
