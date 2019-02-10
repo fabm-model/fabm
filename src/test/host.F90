@@ -210,15 +210,6 @@ do
    end select
 end do
 
-! Set defaults
-if (ntest == -1) then
-   if (mode == 1) then
-      ntest = 1
-   else
-      ntest = 1000
-   end if
-end if
-
 #if _FABM_DIMENSION_COUNT_>0
 i__=50
 #endif
@@ -232,6 +223,15 @@ k__=45
 #if _FABM_DIMENSION_COUNT_>0
 domain_extent = (/ _LOCATION_ /)
 #endif
+
+! Set defaults
+if (ntest == -1) then
+   if (mode == 1) then
+      ntest = 1
+   else
+      ntest = 50000000/product(domain_extent)
+   end if
+end if
 
 interior_count = product(domain_extent)
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
