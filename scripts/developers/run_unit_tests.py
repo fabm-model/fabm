@@ -15,6 +15,7 @@ allowed_hosts = os.listdir(os.path.join(root, 'src/drivers'))
 parser = argparse.ArgumentParser()
 parser.add_argument('--host', action='append', dest='hosts', choices=allowed_hosts)
 parser.add_argument('--cmake', default='cmake')
+parser.add_argument('--compiler')
 parser.add_argument('-p', '--performance', action='store_true')
 parser.add_argument('--config', default='fabm.yaml')
 parser.add_argument('--env', default='environment.yaml')
@@ -31,6 +32,8 @@ if args.performance:
         print('Performance report will be written to %s' % args.report)
 
 cmake_arguments = []
+if args.compiler is not None:
+    cmake_arguments.append('-DCMAKE_Fortran_COMPILER=%s' % args.compiler)
 
 generates = {}
 builds = {}
