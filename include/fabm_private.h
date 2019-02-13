@@ -207,9 +207,9 @@
 #  define _DIMENSION_EXT_SLICE_ ,dimension(loop_start:)
 #  define _DIMENSION_EXT_SLICE_PLUS_1_ ,dimension(loop_start:,:)
 #  define _DIMENSION_EXT_SLICE_PLUS_2_ ,dimension(loop_start:,:,:)
-#  define _INDEX_EXT_SLICE_ (_I_)
-#  define _INDEX_EXT_SLICE_PLUS_1_(i) (_I_,i)
-#  define _INDEX_EXT_SLICE_PLUS_2_(i,j) (_I_,i,j)
+#  define _INDEX_EXT_SLICE_ (loop_start+_I_-1)
+#  define _INDEX_EXT_SLICE_PLUS_1_(i) (loop_start+_I_-1,i)
+#  define _INDEX_EXT_SLICE_PLUS_2_(i,j) (loop_start+_I_-1,i,j)
 #else
 #  define _DIMENSION_EXT_SLICE_
 #  define _DIMENSION_EXT_SLICE_PLUS_1_ ,dimension(:)
