@@ -27,7 +27,7 @@ def loadResult(path):
 reference = loadResult(args.reference)
 others = [loadResult(path) for path in args.other]
 print('host\tchange in runtime (%)')
-for host, reflength in reference.items():
+for host, reflength in sorted(reference.items(), key=lambda x: x[0].lower()):
     print(host, end='')
     for other in others:
         print('\t%.0f %%' % (100 * (other[host] / reflength - 1)), end='')
