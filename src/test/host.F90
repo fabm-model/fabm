@@ -502,13 +502,14 @@ contains
       where (tmp>0.5_rk) mask = _FABM_MASKED_VALUE_
 
 #    if _FABM_BOTTOM_INDEX_==-1
-      ! Based on value for bottom index (0 or higher), either mask all point in the column, or unmask the bottom point
+      ! Bottom index varies in the horizontal. Ensure the bottom cell itself is unmasked, and anything deeper is masked.
       _BEGIN_GLOBAL_HORIZONTAL_LOOP_
          ! Valid bottom index - unmask associated cell, then mask all deeper ones
-         mask _INDEX_GLOBAL_VERTICAL_(bottom_index _INDEX_HORIZONTAL_LOCATION_) = _FABM_UNMASKED_VALUE_
 #      ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) mask _INDEX_GLOBAL_VERTICAL_(bottom_index _INDEX_HORIZONTAL_LOCATION_) = _FABM_UNMASKED_VALUE_
          mask _INDEX_GLOBAL_VERTICAL_(:bottom_index _INDEX_HORIZONTAL_LOCATION_ - 1) = _FABM_MASKED_VALUE_
 #      else
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= 1) mask _INDEX_GLOBAL_VERTICAL_(bottom_index _INDEX_HORIZONTAL_LOCATION_) = _FABM_UNMASKED_VALUE_
          mask _INDEX_GLOBAL_VERTICAL_(bottom_index _INDEX_HORIZONTAL_LOCATION_ + 1:) = _FABM_MASKED_VALUE_
 #      endif
       _END_GLOBAL_HORIZONTAL_LOOP_
