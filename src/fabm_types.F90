@@ -575,6 +575,8 @@
 
 #ifdef _FABM_MASK_TYPE_
       logical,allocatable _DIMENSION_SLICE_ :: mask
+      integer,allocatable _DIMENSION_SLICE_ :: ipack
+      integer,allocatable _DIMENSION_SLICE_ :: iunpack
 #endif
    end type type_environment
 

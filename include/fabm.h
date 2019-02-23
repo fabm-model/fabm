@@ -69,22 +69,6 @@
 #  define _DIMENSION_SLICE_AUTOMATIC_
 #endif
 
-#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-#  define _DIMENSION_EXT_SLICE_ ,dimension(:)
-#  define _DIMENSION_EXT_SLICE_PLUS_1_ ,dimension(:,:)
-#  define _DIMENSION_EXT_SLICE_PLUS_2_ ,dimension(:,:,:)
-#  define _INDEX_EXT_SLICE_ (_I_)
-#  define _INDEX_EXT_SLICE_PLUS_1_(i) (_I_,i)
-#  define _INDEX_EXT_SLICE_PLUS_2_(i,j) (_I_,i,j)
-#else
-#  define _DIMENSION_EXT_SLICE_
-#  define _DIMENSION_EXT_SLICE_PLUS_1_ ,dimension(:)
-#  define _DIMENSION_EXT_SLICE_PLUS_2_ ,dimension(:,:)
-#  define _INDEX_EXT_SLICE_
-#  define _INDEX_EXT_SLICE_PLUS_1_(i) (i)
-#  define _INDEX_EXT_SLICE_PLUS_2_(i,j) (i,j)
-#endif
-
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 !  Horizontal fields are 1D
 #  define _DIMENSION_HORIZONTAL_SLICE_ ,dimension(:)
@@ -117,20 +101,20 @@
 !    Horizontal slices are 1D arrays
 !    For instance, model with i,j,k [MOM,NEMO] or i,j or i,k [FVCOM], or i; vectorized along i or j
 #    define _DECLARE_INTERIOR_INDICES_ integer :: _I_,_J_
-#    define _LOOP_BEGIN_ do _I_=1,_N_;_J_=_I_
-#    define _CONCURRENT_LOOP_BEGIN_ _DO_CONCURRENT_(_I_,1,_N_);_J_=_I_
+#    define _LOOP_BEGIN_EX_(env) do _I_=1,env%n;_J_=_I_
+#    define _CONCURRENT_LOOP_BEGIN_EX_(env) _DO_CONCURRENT_(_I_,1,env%n);_J_=_I_
 #  else
 !    Horizontal slices are scalars
 !    For instance model with k [GOTM] or i,k, i,j,k, vectorized along k
 #    define _DECLARE_INTERIOR_INDICES_ integer :: _I_
-#    define _LOOP_BEGIN_ do _I_=1,_N_
-#    define _CONCURRENT_LOOP_BEGIN_ _DO_CONCURRENT_(_I_,1,_N_)
+#    define _LOOP_BEGIN_EX_(env) do _I_=1,env%n
+#    define _CONCURRENT_LOOP_BEGIN_EX_(env) _DO_CONCURRENT_(_I_,1,env%n)
 #  endif
 #else
 !  Interior procedures operate in 0D
 !  Interior slices may be 0D scalars or 1D arrays [the latter if the model has a vertical dimension]
-#  define _LOOP_BEGIN_
-#  define _CONCURRENT_LOOP_BEGIN_
+#  define _LOOP_BEGIN_EX_(env)
+#  define _CONCURRENT_LOOP_BEGIN_EX_(env)
 #  define _LOOP_END_
 #  ifdef _INTERIOR_IS_VECTORIZED_
 !    Interior slices are 1D arrays - we will operate on their first element (_I_=1)
@@ -142,6 +126,8 @@
 #endif
 #define _ARGUMENTS_INTERIOR_ _ARGUMENTS_SHARED_
 #define _DECLARE_ARGUMENTS_INTERIOR_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_INTERIOR_INDICES_
+#define _LOOP_BEGIN_ _LOOP_BEGIN_EX_(environment)
+#define _CONCURRENT_LOOP_BEGIN_ _CONCURRENT_LOOP_BEGIN_EX_(environment)
 
 ! Preprocessor symbols for procedures operating on a HORIZONTAL slice
 #ifdef _HORIZONTAL_IS_VECTORIZED_
@@ -149,13 +135,13 @@
 !  Horizontal and interior slices MUST be 1D. Use same index for horizontal and interior (_I_=_J_)
 #  define _DECLARE_HORIZONTAL_INDICES_ integer :: _I_,_J_
 #  define _HORIZONTAL_LOOP_BEGIN_ do _J_=1,_N_;_I_=_J_
-#  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_ _DO_CONCURRENT_(_J_,1,_N_);_I_=_J_
+#  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(env) _DO_CONCURRENT_(_J_,1,env%n);_I_=_J_
 #  define _HORIZONTAL_LOOP_END_ end do
 #else
 !  Horizontal procedures operate in 0D
 !  Horizontal slices MUST be scalars; interior slices can be scalars or 1D arrays
 #  define _HORIZONTAL_LOOP_BEGIN_
-#  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+#  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(env)
 #  define _HORIZONTAL_LOOP_END_
 #  ifdef _INTERIOR_IS_VECTORIZED_
 !    Interior slices are 1D arrays - we will operate on their first element (_I_=1)
@@ -167,6 +153,7 @@
 #endif
 #define _ARGUMENTS_HORIZONTAL_ _ARGUMENTS_SHARED_
 #define _DECLARE_ARGUMENTS_HORIZONTAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_HORIZONTAL_INDICES_
+#define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_ _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(environment)
 
 ! Preprocessor symbols for procedures operating on a VERTICAL slice
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
@@ -186,7 +173,7 @@
 #    define _MOVE_TO_SURFACE_ _I_=1
 #    define _MOVE_TO_BOTTOM_ _I_=_N_
 #  endif
-#  define _CONCURRENT_VERTICAL_LOOP_BEGIN_ _DO_CONCURRENT_(_I_,1,_N_)
+#  define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(env) _DO_CONCURRENT_(_I_,1,env%n)
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
 !    Horizontal slices are 1D arrays - we will operate on their first element (_J_=1)
 !    For instance, model with i,j,k [MOM,NEMO] or i,k [FVCOM]; vectorized along i or j
@@ -200,7 +187,7 @@
 !  Vertical procedures operate in 0D
 !  Interior slices may scalars or 1D arrays [the latter if the model is vectorized over a horizontal dimension]
 !  Applies to all models without depth dimension; for instance, 0D box or model with i,j or i
-#  define _CONCURRENT_VERTICAL_LOOP_BEGIN_
+#  define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(env)
 #  define _VERTICAL_LOOP_END_
 #  define _VERTICAL_LOOP_EXIT_
 #  define _DOWNWARD_LOOP_BEGIN_
@@ -223,6 +210,7 @@
 #define _UPWARD_LOOP_END_ _VERTICAL_LOOP_END_
 #define _ARGUMENTS_VERTICAL_ _ARGUMENTS_SHARED_
 #define _DECLARE_ARGUMENTS_VERTICAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_VERTICAL_INDICES_
+#define _CONCURRENT_VERTICAL_LOOP_BEGIN_ _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(environment)
 
 ! Preprocessor symbols for procedures operating on a single point in space.
 #ifdef _INTERIOR_IS_VECTORIZED_
@@ -258,7 +246,7 @@
 
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
 #define _DECLARE_ARGUMENTS_DO_  _DECLARE_ARGUMENTS_INTERIOR_
-#define _DECLARE_ARGUMENTS_DO_PPDD_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_EXT_SLICE_PLUS_2_,intent(inout) :: pp,dd
+#define _DECLARE_ARGUMENTS_DO_PPDD_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_SLICE_PLUS_2_,intent(inout) :: pp,dd
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_ _DECLARE_ARGUMENTS_HORIZONTAL_
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
 #define _DECLARE_ARGUMENTS_DO_SURFACE_ _DECLARE_ARGUMENTS_HORIZONTAL_
@@ -280,8 +268,8 @@
 #define _SET_SURFACE_ODE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_sms_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_sms_index) + (value)/self%dt
 #define _SET_BOTTOM_EXCHANGE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_flux_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%bottom_flux_index) + (value)/self%dt
 #define _SET_SURFACE_EXCHANGE_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_flux_index) + (value)/self%dt
-#define _SET_DD_(variable1,variable2,value) dd _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = dd _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
-#define _SET_PP_(variable1,variable2,value) pp _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = pp _INDEX_EXT_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
+#define _SET_DD_(variable1,variable2,value) dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
+#define _SET_PP_(variable1,variable2,value) pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)/self%dt
 #define _SET_EXTINCTION_(value) extinction _INDEX_SLICE_ = extinction _INDEX_SLICE_ + (value)
 #define _SCALE_DRAG_(value) drag _INDEX_HORIZONTAL_SLICE_ = drag _INDEX_HORIZONTAL_SLICE_ * (value)
 #define _SET_ALBEDO_(value) albedo _INDEX_HORIZONTAL_SLICE_ = albedo _INDEX_HORIZONTAL_SLICE_ + (value)
