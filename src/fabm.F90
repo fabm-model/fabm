@@ -289,6 +289,7 @@
       procedure :: set_bottom_index => fabm_set_bottom_index
       procedure :: set_surface_index => fabm_set_surface_index
 #endif
+      procedure :: process_job => fabm_process_job
 
       procedure :: link_interior_data_by_variable => fabm_link_interior_data_by_variable
       procedure :: link_interior_data_by_id   => fabm_link_interior_data_by_id
@@ -2499,7 +2500,7 @@ subroutine create_cache(self, cache, cache_type)
       allocate(cache%read(n, self%variable_register%read_cache%interior%count))
       allocate(cache%write(n, 0:self%variable_register%write_cache%interior%count))
 #else
-      allocate(cache%read(self%variable_register%read_cache%interior%count)
+      allocate(cache%read(self%variable_register%read_cache%interior%count))
       allocate(cache%write(0:self%variable_register%write_cache%interior%count))
 #endif
 
