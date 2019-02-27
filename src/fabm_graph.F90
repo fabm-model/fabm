@@ -164,44 +164,44 @@ subroutine graph_print(self)
 
 end subroutine graph_print
 
-recursive subroutine find_node(self, model, source, graph, node, search_self, search_previous, search_next)
+recursive subroutine find_node(self, model, source, graph, node)
    class (type_graph),      intent(inout), target :: self
    class (type_base_model), intent(in),    target :: model
    integer,                 intent(in)            :: source
-   logical,                 intent(in)            :: search_self
-   logical,                 intent(in)            :: search_previous
-   logical,                 intent(in)            :: search_next
    type (type_graph), pointer :: graph
    type (type_node), pointer :: node
 
    type (type_graph_set_member), pointer :: member
 
-   if (search_self) then
-      graph => self
-      node => self%find(model, source)
+   graph => self
+   node => self%find(model, source)
+   if (associated(node)) return
+
+   member => self%next%first
+   do while (associated(member))
+      call find_node(member%p, model, source, graph, node)
       if (associated(node)) return
-   end if
-
-   if (search_previous) then
-      member => self%previous%first
-      do while (associated(member))
-         call find_node(member%p, model, source, graph, node, .true., .true., .false.)
-         if (associated(node)) return
-         member => member%next
-      end do
-   end if
-
-   if (search_next) then
-      member => self%next%first
-      do while (associated(member))
-         call find_node(member%p, model, source, graph, node, .true., .false., .true.)
-         if (associated(node)) return
-         member => member%next
-      end do
-   end if
+      member => member%next
+   end do
 
    graph => null()
 end subroutine
+
+recursive logical function graph_has_descendant(self, graph)
+   type (type_graph), pointer :: self
+   type (type_graph), pointer :: graph
+
+   type (type_graph_set_member), pointer :: member
+
+   graph_has_descendant = .true.
+   if (associated(self, graph)) return
+   member => self%next%first
+   do while (associated(member))
+      if (graph_has_descendant(member%p, graph)) return
+      member => member%next
+   end do
+   graph_has_descendant = .false.
+end function
 
 recursive function graph_add_call(self, model, source, outer_calls) result(node)
    class (type_graph),     target,intent(inout) :: self
@@ -210,61 +210,66 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
    type (type_node_list),  target,intent(inout) :: outer_calls
    type (type_node), pointer :: node
 
-   type (type_graph),            pointer :: graph
-   type (type_graph_set_member), pointer :: member, member2
    type (type_node_list_member), pointer :: pnode
    character(len=2048)                   :: chain
+   type (type_graph),            pointer :: root_graph, owner_graph, target_graph
+   integer                               :: operation
    type (type_link),             pointer :: link
    logical                               :: same_source
 
-   if (self%frozen) call driver%fatal_error('graph_add_call','Graph is frozen; no calls can be added.')
-
-   ! Check if this node is already in the current graph, or in any of the earlier scheduled ones.
-   ! If it is, we are done: return.
-   call find_node(self, model, source, graph, node, search_self=.true., search_previous=.true., search_next=.false.)
-   if (associated(node)) return
-
-   ! See if this call is already in a sibling graph. If so, it needs to move from the sibling to an earlier scheduled graph.
-   member => self%previous%first
-   do while (associated(member))
-      member2 => member%p%next%first
-      do while (associated(member2) .and. .not. associated(node))
-         if (.not. associated(member2%p, self)) &
-            call find_node(member2%p, model, source, graph, node, search_self=.true., search_previous=.false., search_next=.true.)
-         member2 => member2%next
+   ! Circular dependency check:
+   ! Search the list of outer model calls, i.e., calls that [indirectly] request the current call.
+   ! If the current call is already on this list, it is indirectly calling itself: there is a circular dependency.
+   pnode => outer_calls%find_node(model, source)
+   if (associated(pnode)) then
+      ! Circular dependency found - report as fatal error.
+      chain = ''
+      do while (associated(pnode))
+         chain = trim(chain)//' '//trim(pnode%p%as_string())//' ->'
+         pnode => pnode%next
       end do
-      if (associated(node)) then
-         write (*,*) 'present in parallel scheduled graph: ' // trim(node%as_string())
-         node => member%p%add_call(model, source, outer_calls)
-         return
-      end if
-      member => member%next
-   end do
+      call driver%fatal_error('graph::add_call','circular dependency found: '//trim(chain(2:))//' '//trim(node%as_string()))
+   end if
 
-   ! See if this call is already in a later-scheduled graph. If so, it needs to move from the later one to the current one.
-   call find_node(self, model, source, graph, node, search_self=.false., search_previous=.false., search_next=.true.)
+   ! By default we add the call to the current graph (but if necessary we will target an ancestor instead)
+   target_graph => self
+
+   ! Check if this node is already in a graph of another job (recursive search from the root graph/very first job).
+   root_graph => target_graph
+   do while (associated(root_graph%previous%first))
+      root_graph => root_graph%previous%first%p
+   end do
+   call find_node(root_graph, model, source, owner_graph, node)
+
    if (associated(node)) then
-      write (*,*) 'present in later scheduled graph: ' // trim(node%as_string())
-      call graph%remove(node)
+      ! If the graph that contains the target call is one of our ancestors, or us (i.e., it is scheduled to run before us or together with us),
+      ! we are done - return.
+      if (graph_has_descendant(owner_graph, target_graph)) return
+
+      ! This node is in sibling graph (a job scheduled to run in parallel) or in a descendent graph (a job scheduled to run later).
+      ! It needs to be moved to the last common ancestor of the currently targeted graph and the graph that already contains the call.
+      ! First find the last common ancestor (i.e., the graph that needs to receive the node)
+      do while (.not. graph_has_descendant(target_graph, owner_graph))
+         _ASSERT_(.not. associated(target_graph%previous%first%next), 'graph::add_call', 'Multiple ancestors found when trying to find common')
+         target_graph => target_graph%previous%first%p
+      end do
+
+      ! Now remove the node from the graph that currently contains it.
+      call owner_graph%remove(node)
    else
-      ! Add current call to the list of outer calls.
       allocate(node)
       node%model => model
       node%source = source
-
-      ! Check the list of outer model calls, i.e., calls that [indirectly] request the current call.
-      ! If the current call is already on this list, it is indirectly calling itself: there is a circular dependency.
-      pnode => outer_calls%find_node(model, source)
-      if (associated(pnode)) then
-         ! Circular dependency found - report as fatal error.
-         chain = ''
-         do while (associated(pnode))
-            chain = trim(chain)//' '//trim(pnode%p%as_string())//' ->'
-            pnode => pnode%next
-         end do
-         call driver%fatal_error('graph::add_call','circular dependency found: '//trim(chain(2:))//' '//trim(node%as_string()))
-      end if
    end if
+
+   ! Find an ancestor graph (earlier scheduled job) with a compatible operation.
+   operation = source2operation(source)
+   do while (target_graph%operation /= source_unknown .and. target_graph%operation /= operation .and. .not. ((target_graph%operation == source_do_bottom .or. target_graph%operation == source_do_surface) .and. operation == source_do_horizontal))
+      _ASSERT_(.not. associated(target_graph%previous%first%next), 'graph::add_call', 'Multiple ancestors found when trying to find ancestor with compatible operation')
+      target_graph => target_graph%previous%first%p
+   end do
+
+   if (target_graph%frozen) call driver%fatal_error('graph_add_call','Target graph is frozen; no calls can be added.')
 
    ! First add this call to the list of requesting calls [a list of all calls higher on the call stack]
    ! This forbids any indirect dependency on this call, as such would be a circular dependency.
@@ -277,14 +282,14 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
          _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
          call node%inputs%add(link%target)
          same_source = link%target%source == source .or. (link%target%source == source_unknown .and. (source == source_do_surface .or. source == source_do_bottom))
-         if (.not. (associated(link%target%owner, model) .and. same_source)) call self%add_variable(link%target, outer_calls, caller=node)
+         if (.not. (associated(link%target%owner, model) .and. same_source)) call target_graph%add_variable(link%target, outer_calls, caller=node)
       end if
       link => link%next
    end do
 
    ! Remove node from the list of outer calls and add it to the graph instead.
    node => outer_calls%pop()
-   call self%append(node)
+   call target_graph%append(node)
 end function graph_add_call
 
 recursive subroutine graph_add_variable(self, variable, outer_calls, copy_to_store, caller)
@@ -322,17 +327,10 @@ contains
    recursive subroutine add_call(source)
       integer, intent(in) :: source
 
-      integer :: operation
       type (type_node),           pointer :: node
       type (type_output_variable),pointer :: variable_node
 
-      operation = source2operation(source)
-      if ((self%operation == source_do_bottom .or. self%operation == source_do_surface) .and. operation == source_do_horizontal) operation = self%operation
-      if (self%operation /= source_unknown .and. operation /= self%operation) then
-         node => self%previous%first%p%add_call(variable%owner, source, outer_calls)
-      else
-         node => self%add_call(variable%owner, source, outer_calls)
-      end if
+      node => self%add_call(variable%owner, source, outer_calls)
       variable_node => node%outputs%add(variable)
       if (present(copy_to_store)) variable_node%copy_to_store = variable_node%copy_to_store .or. copy_to_store
       if (present(caller)) then
