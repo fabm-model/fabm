@@ -3676,7 +3676,7 @@ end subroutine internal_check_horizontal_state
       if (present(flux_sf)) then
          flux_sf = 0.0_rk
          do i=1,size(self%surface_state_variables)
-            k = self%state_variables(i)%sms_index
+            k = self%surface_state_variables(i)%sms_index
             _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(cache_hz%write_hz,k,flux_sf,i,cache_hz)
          end do
       end if
