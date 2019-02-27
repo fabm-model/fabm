@@ -14,6 +14,7 @@
 ! (state and diagnostic variables), retrieval of model settings (parameter values) and coupling.
 !
 ! !USES:
+   use fabm_parameters
    use fabm_standard_variables
    use fabm_properties
    use fabm_driver
@@ -66,7 +67,7 @@
 !
    integer, parameter, public :: attribute_length = 256
 
-   integer, parameter, public :: rk = _FABM_REAL_KIND_
+   public rk
 
    integer, parameter, public :: domain_interior   = 4, &
                                  domain_horizontal = 8, &
@@ -641,6 +642,8 @@
 #ifdef _FABM_MASK_TYPE_
       ! Mask used to transfer data between persistent store and cache [pack/unpack]
       logical,allocatable _DIMENSION_SLICE_ :: mask
+      integer,allocatable _DIMENSION_SLICE_ :: ipack
+      integer,allocatable _DIMENSION_SLICE_ :: iunpack
 #endif
    end type type_cache
 

@@ -1,0 +1,3 @@
+module fabm_parameters
+   integer, parameter, public :: rk = @FABM_REAL_KIND@
+end module

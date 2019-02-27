@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import sys
 
 import pyfabm
@@ -10,11 +12,11 @@ import yaml # http://pyyaml.org/wiki/PyYAML
 # Hook into PyYAML to make it preserve the order of dictionary elements.
 try:
     import collections
-    def dict_representer(dumper, data):                                                            
-        return dumper.represent_mapping(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, data.iteritems())                                                                                         
-    def dict_constructor(loader, node):                                                            
-        return collections.OrderedDict(loader.construct_pairs(node))                               
-    yaml.add_representer(collections.OrderedDict, dict_representer)                                
+    def dict_representer(dumper, data):
+        return dumper.represent_mapping(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, data.items())
+    def dict_constructor(loader, node):
+        return collections.OrderedDict(loader.construct_pairs(node))
+    yaml.add_representer(collections.OrderedDict, dict_representer)
     yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, dict_constructor)
 except ImportError:
     pass
@@ -30,18 +32,18 @@ def processFile(infile,outfile,subtract_background=False,add_missing=False):
 
    def findMaximumDepth(d):
       n = 0
-      for key,value in d.iteritems():
+      for key,value in d.items():
          if isinstance(value,dict):
             l = 2+findMaximumDepth(value)
          else:
-            l = len(key)+2+len(str(value)) # key, folowed by ": ", followed by value
+            l = len(key)+2+len(str(value)) # key, followed by ": ", followed by value
          n = max(n,l)
       return n
 
    def reorderParameters(modelname,parameters):
       """This reorders the parameters and adjusts the letter case of parameter names so that both match their declaration in the code."""
       newparameters = collections.OrderedDict()
-      parameters_lower = dict([(key.lower(),value) for key,value in parameters.iteritems()])
+      parameters_lower = dict([(key.lower(),value) for key,value in parameters.items()])
       modelname = modelname.lower()
       for parameter in model.parameters:
          if parameter.name.lower().startswith(modelname+'/'):
@@ -66,11 +68,11 @@ def processFile(infile,outfile,subtract_background=False,add_missing=False):
 
       # First insert all couplings we do not understand (e.g., to whole models)
       couplings_lower = set([coupling.name.lower() for coupling in model.couplings])
-      for name in variables.iterkeys():
+      for name in variables.keys():
          if modelname+'/'+name.lower() not in couplings_lower:
             newvariables[name] = variables[name]
 
-      variables_lower = dict([(key.lower(),value) for key,value in variables.iteritems()])
+      variables_lower = dict([(key.lower(),value) for key,value in variables.items()])
       for coupling in model.couplings:
          if coupling.name.lower().startswith(modelname+'/'):
             name = coupling.name[len(modelname)+1:]
@@ -113,7 +115,7 @@ def processFile(infile,outfile,subtract_background=False,add_missing=False):
          d = newd
 
       nspace = len(path)*2
-      for key,value in d.iteritems():
+      for key, value in d.items():
          f.write(' '*nspace)
          if isinstance(value,dict):
             f.write('%s:\n' % key)

@@ -3,7 +3,7 @@
 # This script parse_standard_variables.py parses this file
 # to generate the standard variable include files as well
 # as the text on the wiki.
-bulk:
+interior:
   - name: alkalinity_expressed_as_mole_equivalent
     units: mmol m-3
   - name: attenuation_coefficient_of_photosynthetic_radiative_flux
@@ -48,6 +48,10 @@ bulk:
     units: degree_Celsius
   - name: fractional_saturation_of_oxygen
     units: 1
+  - name: secchi_depth
+    units: m
+  - name: net_rate_of_absorption_of_shortwave_energy_in_layer
+    units: W m-2
 horizontal:
   - name: bottom_depth_below_geoid
     units: m

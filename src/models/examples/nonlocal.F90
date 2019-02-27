@@ -100,7 +100,7 @@ contains
       call self%register_state_dependency(self%id_target, 'target', '', 'variable to depth-integrate')
       call self%register_dependency(self%id_weights,'weights','-','weights for vertical integration')
       call self%register_diagnostic_variable(self%id_integral,'result','','result',missing_value=0.0_rk, &
-         act_as_state_variable=.true.,domain=domain_bottom)
+         act_as_state_variable=.true.,domain=domain_bottom,source=source_do_column)
       call self%register_dependency(self%id_thickness,standard_variables%cell_thickness)
 
       ! Create a child model that receives the intended rate of the change of the depth-integrated variable,

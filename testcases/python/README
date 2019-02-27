@@ -1,0 +1,4 @@
+The utilities that demonstrate how to access FABM through Python are now installed as part of pyfabm.
+Instructions on how install and use pyfabm can be found at https://github.com/fabm-model/fabm/wiki/python.
+
+If you are looking for Python examples of pyfabm use: the utilities are now located at <FABMDIR>/src/drivers/python/pyfabm/utils.

@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
+"""
+This script open an interactive tree view with all settings of a biogeochemical model.
+"""
+
 import sys
-import argparse
 
 try:
     import pyfabm
@@ -13,9 +16,9 @@ import pyfabm.gui_qt
 from PySide import QtCore,QtGui
 
 def main():
-
+    import argparse
     # Parse command line arguments.
-    parser = argparse.ArgumentParser(description='This script open an interactive tree view with all settings of a biogeochemical model.')
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('path',help='Path to a YAML file with the model configuration (typically fabm.yaml)',nargs='?',default='fabm.yaml')
     args = parser.parse_args()
 

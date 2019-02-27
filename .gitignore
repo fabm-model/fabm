@@ -12,3 +12,4 @@ timestamp
 VERSION
 include/version.h
 *.pyc
+/build*

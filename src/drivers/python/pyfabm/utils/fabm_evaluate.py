@@ -12,7 +12,6 @@ You can set additional variables on the command line with -v/--values.
 
 import sys
 import os
-import argparse
 
 import numpy
 import netCDF4
@@ -146,7 +145,8 @@ def evaluate(yaml_path, sources=(), location={}, assignments={}, verbose=True, i
     i = relative_rates.argmin()
     print 'Minimum time step = %.3f s due to decrease in %s' % (-1./relative_rates[i], model.state_variables[i].name)
 
-if __name__ == '__main__':
+def main():
+    import argparse
     parser = argparse.ArgumentParser(description='This script evaluates a biogeochemical model for a state and environment specified in one or more NetCDF files, yaml files, and command line arguments.')
     parser.add_argument('model_path', help='Path to a YAML file with the model configuration (typically fabm.yaml)')
     parser.add_argument('sources', nargs='+', help='Path to NetCDF or yaml file with the model state and environment')
@@ -162,3 +162,6 @@ if __name__ == '__main__':
         raw_input('Attach the debugger (process id = %i) and then press Enter.' % os.getpid())
 
     evaluate(args.model_path, args.sources, location=dict([dimension2index.split('=') for dimension2index in args.location]), assignments=dict([name2value.split('=') for name2value in args.values]), ignore_missing=args.ignore_missing, surface=args.surface, bottom=args.bottom)
+
+if __name__ == '__main__':
+    main()

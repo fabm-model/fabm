@@ -7,6 +7,7 @@ module akvaplan_model_library
 
    use akvaplan_tracer
    use akvaplan_plume_injection
+   use akvaplan_tracer_sed
 
    implicit none
 
@@ -29,6 +30,7 @@ contains
       select case (name)
          case ('tracer');          allocate(type_tracer::model)
          case ('plume_injection'); allocate(type_plume_injection::model)
+         case ('tracer_sed');      allocate(type_tracer_sed::model)
          ! Add new models here
          case default
             call self%type_base_model_factory%create(name,model)

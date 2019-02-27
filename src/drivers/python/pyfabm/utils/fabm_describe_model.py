@@ -1,50 +1,55 @@
 #!/usr/bin/env python
 
+"""
+This script lists all state variables, diagnostic variables, conserved quantities and environmental dependencies of a biogeochemical model.
+"""
+
+from __future__ import print_function
 import sys
-import argparse
 
 try:
    import pyfabm
 except ImportError:
-   print 'Unable to load pyfabm. See https://github.com/fabm-model/code/wiki/python.'
+   print('Unable to load pyfabm. See https://github.com/fabm-model/code/wiki/python.')
    sys.exit(1)
 
 def main():
+    import argparse
 
-    parser = argparse.ArgumentParser(description='This script lists all state variables, diagnostic variables, conserved quantities and environmental dependencies of a biogeochemical model.')
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('path',help='Path to a YAML file with the model configuration (typically fabm.yaml)',nargs='?',default='fabm.yaml')
     args = parser.parse_args()
 
     # Create model object from YAML file.
     model = pyfabm.Model(args.path)
 
-    print 'Interior state variables:'
+    print('Interior state variables:')
     for variable in model.bulk_state_variables:
-       print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
+       print('  %s = %s (%s)' % (variable.name,variable.long_name,variable.units))
 
-    print 'Surface-attached state variables:'
+    print('Surface-attached state variables:')
     for variable in model.surface_state_variables:
-       print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
+       print('  %s = %s (%s)' % (variable.name,variable.long_name,variable.units))
 
-    print 'Bottom-attached state variables:'
+    print('Bottom-attached state variables:')
     for variable in model.bottom_state_variables:
-       print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
+       print('  %s = %s (%s)' % (variable.name,variable.long_name,variable.units))
 
-    print 'Interior diagnostic variables:'
+    print('Interior diagnostic variables:')
     for variable in model.bulk_diagnostic_variables:
-       print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
+       print('  %s = %s (%s)' % (variable.name,variable.long_name,variable.units))
 
-    print 'Horizontal diagnostic variables:'
+    print('Horizontal diagnostic variables:')
     for variable in model.horizontal_diagnostic_variables:
-       print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
+       print('  %s = %s (%s)' % (variable.name,variable.long_name,variable.units))
 
-    print 'Conserved quantities:'
+    print('Conserved quantities:')
     for variable in model.conserved_quantities:
-       print '  %s (%s)' % (variable.name,variable.units)
+       print('  %s (%s)' % (variable.name,variable.units))
 
-    print 'Dependencies:'
+    print('Dependencies:')
     for variable in model.dependencies:
-       print '  %s = %s (%s)' % (variable.name,variable.long_name,variable.units)
+       print('  %s = %s (%s)' % (variable.name,variable.long_name,variable.units))
 
 if __name__ == "__main__":
     # execute only if run as a script

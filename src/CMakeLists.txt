@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.8)
+cmake_minimum_required(VERSION 2.8.11)
 
 if(POLICY CMP0048)
   cmake_policy(SET CMP0048 NEW)
@@ -15,7 +15,7 @@ set(DEFAULT_INSTITUTES
     jrc          # EC - Joint Research Centre - Ispra, Italy
     pclake       # The PCLake model - reference implementation
     pml          # Plymouth Marine Laboratory, United Kingdom
-    ersem        # European Regional Seas Ecosytem Model
+    ersem        # European Regional Seas Ecosystem Model
     niva         # Norsk Institutt for Vannforskning, Norway
     akvaplan     # Akvaplan-niva, Norway
 )
@@ -72,11 +72,11 @@ foreach(institute ${FABM_INSTITUTES})
     # Either a custom institute directory has been specified, or the default institute directory exists.
     if (EXISTS "${FABM_${INSTITUTE_UC}_BASE}")
       # The institute directory exists
-      set(FABM_LIBRARY_USE "${FABM_LIBRARY_USE}
-    use ${institute}_model_library")
-      set(FABM_LIBRARY_ADD "${FABM_LIBRARY_ADD}
-        call self%add(${institute}_model_factory,'${institute}')")
-      set(ACTIVE_INSTITUTES ${ACTIVE_INSTITUTES} ${institute})
+    set(FABM_LIBRARY_USE "${FABM_LIBRARY_USE}
+   use ${institute}_model_library")
+    set(FABM_LIBRARY_ADD "${FABM_LIBRARY_ADD}
+      call self%add(${institute}_model_factory,'${institute}')")
+    set(ACTIVE_INSTITUTES ${ACTIVE_INSTITUTES} ${institute})
     elseif(NOT FABM_${INSTITUTE_UC}_BASE STREQUAL DEFAULT_INSTITUTE_BASE)
       # The institute directory does not exist and it was explicitly specified (because different from default).
       message(FATAL_ERROR "Source directory ${FABM_${INSTITUTE_UC}_BASE} specified for institute ${institute} not found.")
@@ -130,7 +130,6 @@ else()
   set(FABM_REAL_KIND "selected_real_kind(13)" CACHE STRING "Fortran kind to use for real data type.")
   mark_as_advanced(FABM_REAL_KIND)
 endif()
-add_definitions(-D_FABM_REAL_KIND_=${FABM_REAL_KIND})
 
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
 if(BUILD_SHARED_LIBS)
@@ -170,7 +169,10 @@ if(FABM_EMBED_VERSION)
   set_property(TARGET fabm_version PROPERTY FOLDER fabm)
 endif()
 
+configure_file(${PROJECT_SOURCE_DIR}/fabm_parameters.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90)
+
 add_library(fabm_base OBJECT
+            ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90
             fabm_driver.F90
             fabm_standard_variables.F90
             fabm_properties.F90
@@ -191,7 +193,7 @@ foreach(institute ${ACTIVE_INSTITUTES})
   endif()
   add_subdirectory(${FABM_${INSTITUTE_UC}_BASE} ${CMAKE_CURRENT_BINARY_DIR}/models/${institute})
   set_property(TARGET fabm_models_${institute} PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
-  set_property(TARGET fabm_models_${institute} APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
+  target_include_directories(fabm_models_${institute} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
   list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
 endforeach(institute) 
 
@@ -221,7 +223,7 @@ set_property(TARGET fabm_base fabm yaml PROPERTY Fortran_MODULE_DIRECTORY ${CMAK
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
 foreach(institute ${ACTIVE_INSTITUTES})
-  set_property(TARGET fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
+  target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:fabm_models_${institute},INTERFACE_INCLUDE_DIRECTORIES>)
 endforeach(institute)
 
 # Place projects in specific solution folders (Visual Studio only).
@@ -253,6 +255,12 @@ endif()
 # Begin testing section
 
 add_custom_target(test_all COMMENT "building tests - nothing yet :-)")
+
+add_executable(test_host EXCLUDE_FROM_ALL
+               test/host.F90
+               test/models.F90
+              )
+target_link_libraries(test_host fabm)
 
 # End of testing section
 

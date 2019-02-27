@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from __future__ import unicode_literals
 import sys,os,ctypes,re
 
 try:
    import numpy
 except ImportError:
-   print 'Unable to import NumPy. Please ensure it is installed.'
+   print('Unable to import NumPy. Please ensure it is installed.')
    sys.exit(1)
 
 # Determine potential names of FABM dynamic library.
@@ -32,14 +34,16 @@ if not dllpath:
             break
 
 if not dllpath:
-   print 'Unable to locate FABM dynamic library %s.' % (' or '.join(dllpaths),)
+   print('Unable to locate FABM dynamic library %s.' % (' or '.join(dllpaths),))
    sys.exit(1)
 
 # Load FABM library.
-fabm = ctypes.CDLL(dllpath)
+fabm = ctypes.CDLL(str(dllpath))
 
 # Initialization
 fabm.initialize.argtypes = [ctypes.c_char_p]
+
+CONTIGUOUS = str('CONTIGUOUS')
 
 # Access to model objects (variables, parameters, dependencies, couplings, model instances)
 fabm.get_counts.argtypes = [ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
@@ -123,8 +127,12 @@ fabm.check_ready.argtypes = []
 fabm.check_ready.restype = None
 
 # Routine for retrieving source-sink terms for the interior domain.
-fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags='CONTIGUOUS'), ctypes.c_int, ctypes.c_int]
+fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), ctypes.c_int, ctypes.c_int]
 fabm.get_rates.restype = None
+fabm.check_state.argtypes = [ctypes.c_int]
+fabm.check_state.restype = ctypes.c_int
+fabm.integrate.argtypes = [ctypes.c_int, ctypes.c_int, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=2, flags=CONTIGUOUS), ctypes.c_double, ctypes.c_int, ctypes.c_int]
+fabm.integrate.restype = None
 
 # Routine for getting git repository version information.
 fabm.get_version.argtypes = (ctypes.c_int,ctypes.c_char_p)
@@ -138,28 +146,28 @@ HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
 CONSERVED_QUANTITY             = 6
 ATTRIBUTE_LENGTH               = 256
 
-unicodesuperscript = {'1':u'\u00B9','2':u'\u00B2','3':u'\u00B3',
-                      '4':u'\u2074','5':u'\u2075','6':u'\u2076',
-                      '7':u'\u2077','8':u'\u2078','9':u'\u2079',
-                      '0':u'\u2070','-':u'\u207B'}
-unicodesubscript = {'1':u'\u2081','2':u'\u2082','3':u'\u2083',
-                    '4':u'\u2084','5':u'\u2085','6':u'\u2086',
-                    '7':u'\u2087','8':u'\u2088','9':u'\u2089',
-                    '0':u'\u2080'}
-supnumber = re.compile('(?<=\w)(-?\d+)(?=[ \*+\-/]|$)')
-supenumber = re.compile('(?<=\d)e(-?\d+)(?=[ \*+\-/]|$)')
-oldsupminus = re.compile('/(\w+)(?:\*\*|\^)(\d+)(?=[ \*+\-/]|$)')
-oldsup = re.compile('(?<=\w)(?:\*\*|\^)(-?\d+)(?=[ \*+\-/]|$)')
-oldsub = re.compile('(?<=\w)_(-?\d+)(?=[ \*+\-/]|$)')
+unicodesuperscript = {'1':'\u00B9','2':'\u00B2','3':'\u00B3',
+                      '4':'\u2074','5':'\u2075','6':'\u2076',
+                      '7':'\u2077','8':'\u2078','9':'\u2079',
+                      '0':'\u2070','-':'\u207B'}
+unicodesubscript = {'1':'\u2081','2':'\u2082','3':'\u2083',
+                    '4':'\u2084','5':'\u2085','6':'\u2086',
+                    '7':'\u2087','8':'\u2088','9':'\u2089',
+                    '0':'\u2080'}
+supnumber = re.compile(r'(?<=\w)(-?\d+)(?=[ \*+\-/]|$)')
+supenumber = re.compile(r'(?<=\d)e(-?\d+)(?=[ \*+\-/]|$)')
+oldsupminus = re.compile(r'/(\w+)(?:\*\*|\^)(\d+)(?=[ \*+\-/]|$)')
+oldsup = re.compile(r'(?<=\w)(?:\*\*|\^)(-?\d+)(?=[ \*+\-/]|$)')
+oldsub = re.compile(r'(?<=\w)_(-?\d+)(?=[ \*+\-/]|$)')
 def createPrettyUnit(unit):
     def replace_superscript(m):
-        return u''.join([unicodesuperscript[n] for n in m.group(1)])
+        return ''.join([unicodesuperscript[n] for n in m.group(1)])
     def replace_subscript(m):
-        return u''.join([unicodesubscript[n] for n in m.group(1)])
+        return ''.join([unicodesubscript[n] for n in m.group(1)])
     def reple(m):
-        return u'\u00D710%s' % u''.join([unicodesuperscript[n] for n in m.group(1)])
+        return '\u00D710%s' % ''.join([unicodesuperscript[n] for n in m.group(1)])
     def reploldminus(m):
-        return u' %s\u207B%s' % (m.group(1),u''.join([unicodesuperscript[n] for n in m.group(2)]))
+        return ' %s\u207B%s' % (m.group(1),''.join([unicodesuperscript[n] for n in m.group(2)]))
     #def replold(m):
     #    return u'%s%s' % (m.group(1),u''.join([unicodesuperscript[n] for n in m.group(2)]))
     unit = oldsup.sub(replace_superscript,unit)
@@ -176,12 +184,12 @@ def printTree(root,stringmapper,indent=''):
     """Print an indented tree of objects, encoded by dictionaries linking the names of children to
     their subtree, or to their object. Objects are finally printed as string obtained by
     calling the provided stringmapper method."""
-    for name,item in root.iteritems():
+    for name,item in root.items():
         if isinstance(item,dict):
-            print '%s%s' % (indent,name)
+            print('%s%s' % (indent,name))
             printTree(item,stringmapper,indent+'   ')
         else:
-            print '%s%s = %s' % (indent,name,stringmapper(item))
+            print('%s%s = %s' % (indent,name,stringmapper(item)))
 
 class Variable(object):
     def __init__(self,name=None,units=None,long_name=None,path=None,variable_pointer=None):
@@ -191,9 +199,9 @@ class Variable(object):
            strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
            strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
            fabm.variable_get_metadata(variable_pointer,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
-           name = strname.value
-           units = strunits.value
-           long_name = strlong_name.value
+           name = strname.value.decode('ascii')
+           units = strunits.value.decode('ascii')
+           long_name = strlong_name.value.decode('ascii')
 
         self.name = name
         self.units = units
@@ -211,20 +219,20 @@ class Variable(object):
         if self.variable_pointer is None: return self.long_name
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         fabm.variable_get_long_path(self.variable_pointer,ATTRIBUTE_LENGTH,strlong_name)
-        return strlong_name.value
+        return strlong_name.value.decode('ascii')
 
     @property
     def output_name(self):
         if self.variable_pointer is None: return self.name
         stroutput_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         fabm.variable_get_output_name(self.variable_pointer,ATTRIBUTE_LENGTH,stroutput_name)
-        return stroutput_name.value
+        return stroutput_name.value.decode('ascii')
 
     def getOptions(self):
         pass
 
     def getRealProperty(self, name, default=-1.0):
-        return fabm.variable_get_real_property(self.variable_pointer, name, default)
+        return fabm.variable_get_real_property(self.variable_pointer, name.encode('ascii'), default)
 
 class Dependency(Variable):
     def __init__(self,name,index,units=None,long_name=None):
@@ -303,19 +311,19 @@ class Parameter(Variable):
         elif self.type==4:
             result = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
             fabm.get_string_parameter(self.index,default,ATTRIBUTE_LENGTH,result)
-            return result.value
+            return result.value.decode('ascii')
 
     def setValue(self,value):
         settings = self.model.saveSettings()
 
         if self.type==1:
-            fabm.set_real_parameter(self.name,value)
+            fabm.set_real_parameter(self.name.encode('ascii'),value)
         elif self.type==2:
-            fabm.set_integer_parameter(self.name,value)
+            fabm.set_integer_parameter(self.name.encode('ascii'),value)
         elif self.type==3:
-            fabm.set_logical_parameter(self.name,value)
+            fabm.set_logical_parameter(self.name.encode('ascii'),value)
         elif self.type==4:
-            fabm.set_string_parameter(self.name,value)
+            fabm.set_string_parameter(self.name.encode('ascii'),value)
 
         # Update the model configuration (arrays with variables and parameters have changed)
         self.model.updateConfiguration(settings)
@@ -342,10 +350,10 @@ class Coupling(Variable):
     def getValue(self):
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         fabm.variable_get_long_path(self.master,ATTRIBUTE_LENGTH,strlong_name)
-        return strlong_name.value
+        return strlong_name.value.decode('ascii')
 
     def setValue(self,value):
-        print 'New coupling specified: %s' % value
+        print('New coupling specified: %s' % value)
         pass
 
     def getOptions(self):
@@ -355,7 +363,7 @@ class Coupling(Variable):
         for i in range(fabm.link_list_count(list)):
            variable = fabm.link_list_index(list,i+1)
            fabm.variable_get_long_path(variable,ATTRIBUTE_LENGTH,strlong_name)
-           options.append(strlong_name.value)
+           options.append(strlong_name.value.decode('ascii'))
         fabm.link_list_finalize(list)
         return options
 
@@ -363,7 +371,7 @@ class Coupling(Variable):
     def long_path(self):
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         fabm.variable_get_long_path(self.slave,ATTRIBUTE_LENGTH,strlong_name)
-        return strlong_name.value
+        return strlong_name.value.decode('ascii')
 
     value = property(getValue, setValue)
 
@@ -371,14 +379,14 @@ class SubModel(object):
     def __init__(self,name):
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         iuser = ctypes.c_int()
-        fabm.get_model_metadata(name,ATTRIBUTE_LENGTH,strlong_name,iuser)
-        self.long_name = strlong_name.value
+        fabm.get_model_metadata(name.encode('ascii'),ATTRIBUTE_LENGTH,strlong_name,iuser)
+        self.long_name = strlong_name.value.decode('ascii')
         self.user_created = iuser.value!=0
 
 class Model(object):
     def __init__(self,path='fabm.yaml'):
         self.lookup_tables = {}
-        fabm.initialize(path)
+        fabm.initialize(path.encode('ascii'))
         self.updateConfiguration()
 
     def getSubModel(self,name):
@@ -452,13 +460,13 @@ class Model(object):
             self.horizontal_diagnostic_variables.append(DiagnosticVariable(ptr,i,True))
         for i in range(nconserved.value):
             fabm.get_variable_metadata(CONSERVED_QUANTITY,i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,strpath)
-            self.conserved_quantities.append(Variable(strname.value,strunits.value,strlong_name.value,strpath.value))
+            self.conserved_quantities.append(Variable(strname.value.decode('ascii'),strunits.value.decode('ascii'),strlong_name.value.decode('ascii'),strpath.value.decode('ascii')))
         for i in range(nparameters.value):
             fabm.get_parameter_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits,strlong_name,ctypes.byref(typecode),ctypes.byref(has_default))
-            self.parameters.append(Parameter(strname.value,i,type=typecode.value,units=strunits.value,long_name=strlong_name.value,model=self,has_default=has_default.value!=0))
+            self.parameters.append(Parameter(strname.value.decode('ascii'),i,type=typecode.value,units=strunits.value.decode('ascii'),long_name=strlong_name.value.decode('ascii'),model=self,has_default=has_default.value!=0))
         for i in range(ndependencies.value):
             fabm.get_dependency_metadata(i+1,ATTRIBUTE_LENGTH,strname,strunits)
-            self.dependencies.append(Dependency(strname.value,i,units=strunits.value))
+            self.dependencies.append(Dependency(strname.value.decode('ascii'),i,units=strunits.value.decode('ascii')))
 
         self.couplings = [Coupling(i+1) for i in range(ncouplings.value)]
 
@@ -479,6 +487,9 @@ class Model(object):
         localrates = numpy.empty_like(self.state)
         fabm.get_rates(localrates, surface, bottom)
         return localrates
+
+    def checkState(self, repair=False):
+        return fabm.check_state(repair) != 0
 
     def getJacobian(self,pert=None):
         # Define perturbation per state variable.
@@ -549,7 +560,7 @@ class Model(object):
        ready = True
        for dependency in self.dependencies:
           if not dependency.is_set:
-             print 'Value for dependency %s is not set.' % dependency.name
+             print('Value for dependency %s is not set.' % dependency.name)
              ready = False
        assert ready or not stop,'Not all dependencies have been fulfilled.'
        fabm.check_ready()
@@ -559,22 +570,31 @@ class Model(object):
         """Show information about the model."""
         def printArray(classname,array):
             if not array: return
-            print ' %i %s:' % (len(array),classname)
-            for variable in array: print '    %s = %s %s' % (variable.name,variable.value,variable.units)
+            print(' %i %s:' % (len(array),classname))
+            for variable in array: print('    %s = %s %s' % (variable.name,variable.value,variable.units))
 
-        print 'FABM model contains the following:'
+        print('FABM model contains the following:')
         printArray('interior state variables',self.interior_state_variables)
         printArray('bottom state variables',self.bottom_state_variables)
         printArray('surface state variables',self.surface_state_variables)
         printArray('interior diagnostic variables',self.interior_diagnostic_variables)
         printArray('horizontal diagnostic variables',self.horizontal_diagnostic_variables)
         printArray('external variables',self.dependencies)
-        print ' %i parameters:' % len(self.parameters)
+        print(' %i parameters:' % len(self.parameters))
         printTree(self.getParameterTree(),lambda x:'%s %s' % (x.value,x.units),'    ')
+
+class Simulator(object):
+    def __init__(self, model):
+        self.model = model
+
+    def integrate(self, y0, t, dt, surface=True, bottom=True):
+        y = numpy.empty((t.size, self.model.state.size))
+        fabm.integrate(t.size, self.model.state.size, t, y0, y, dt, surface, bottom)
+        return y
 
 def get_version():
     version_length = 256
     strversion = ctypes.create_string_buffer(version_length)
     fabm.get_version(version_length,strversion)
-    return strversion.value
+    return strversion.value.decode('ascii')
 
