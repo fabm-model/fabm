@@ -2780,7 +2780,7 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
     end do
     _N_ = i
 #  else
-   _N_ = _STOP_ - _START_ + 1
+   _N_ = _VERTICAL_STOP_ - _VERTICAL_START_ + 1
 #  endif
 #endif
 
@@ -2792,7 +2792,7 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 #  ifdef _HAS_MASK_
             cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(j)%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
 #  else
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(j)%p _INDEX_GLOBAL_VERTICAL_(_START_+_I_-1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(j)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
 #  endif
          _VERTICAL_LOOP_END_
 #elif defined(_INTERIOR_IS_VECTORIZED_)
@@ -2836,7 +2836,7 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 #  ifdef _HAS_MASK_
             cache%write _INDEX_SLICE_PLUS_1_(i) = self%data(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
 #  else
-            cache%write _INDEX_SLICE_PLUS_1_(i) = self%data(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(_START_+_I_-1)
+            cache%write _INDEX_SLICE_PLUS_1_(i) = self%data(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
 #  endif
          _VERTICAL_LOOP_END_
 #elif defined(_INTERIOR_IS_VECTORIZED_)
