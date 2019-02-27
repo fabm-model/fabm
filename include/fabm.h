@@ -134,13 +134,13 @@
 !  Horizontal procedures operate in 1D
 !  Horizontal and interior slices MUST be 1D. Use same index for horizontal and interior (_I_=_J_)
 #  define _DECLARE_HORIZONTAL_INDICES_ integer :: _I_,_J_
-#  define _HORIZONTAL_LOOP_BEGIN_ do _J_=1,_N_;_I_=_J_
+#  define _HORIZONTAL_LOOP_BEGIN_EX_(env) do _J_=1,env%n;_I_=_J_
 #  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(env) _DO_CONCURRENT_(_J_,1,env%n);_I_=_J_
 #  define _HORIZONTAL_LOOP_END_ end do
 #else
 !  Horizontal procedures operate in 0D
 !  Horizontal slices MUST be scalars; interior slices can be scalars or 1D arrays
-#  define _HORIZONTAL_LOOP_BEGIN_
+#  define _HORIZONTAL_LOOP_BEGIN_EX_(env)
 #  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(env)
 #  define _HORIZONTAL_LOOP_END_
 #  ifdef _INTERIOR_IS_VECTORIZED_
@@ -153,6 +153,7 @@
 #endif
 #define _ARGUMENTS_HORIZONTAL_ _ARGUMENTS_SHARED_
 #define _DECLARE_ARGUMENTS_HORIZONTAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_HORIZONTAL_INDICES_
+#define _HORIZONTAL_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_EX_(cache)
 #define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_ _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache)
 
 ! Preprocessor symbols for procedures operating on a VERTICAL slice

@@ -3500,7 +3500,7 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
       minimum = state_variables(ivar)%minimum
       maximum = state_variables(ivar)%maximum
 
-      _HORIZONTAL_LOOP_BEGIN_
+      _HORIZONTAL_LOOP_BEGIN_EX_(cache_hz)
          value = cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index)
          if (value<minimum) then
             ! State variable value lies below prescribed minimum.
@@ -3562,8 +3562,8 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
          _DO_CONCURRENT_(_J_,_START_,_STOP_)
-            if (environment%iunpack(_J_)/=0) then
-               self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = environment%prefetch(environment%iunpack(_J_),read_index)
+            if (cache_hz%iunpack(_J_)/=0) then
+               self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = cache_hz%read(cache_hz%iunpack(_J_),read_index)
             else
                self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%state_variables(ivar)%missing_value
             end if
@@ -3585,8 +3585,8 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
 #  ifdef _HAS_MASK_
          _DO_CONCURRENT_(_J_,_START_,_STOP_)
             _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_J_)
-            if (environment%iunpack(_J_)/=0) then
-               self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = environment%prefetch(environment%iunpack(_J_),read_index)
+            if (cache_hz%iunpack(_J_)/=0) then
+               self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = cache_hz%read(cache_hz%iunpack(_J_),read_index)
             else
                self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%state_variables(ivar)%missing_value
             end if
@@ -3739,7 +3739,7 @@ end subroutine internal_check_horizontal_state
       _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
          j = call_node%copy_commands_hz(i)%read_index
          k = call_node%copy_commands_hz(i)%write_index
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache_hz)
             cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache_hz%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
          _HORIZONTAL_LOOP_END_
       end do
@@ -3805,7 +3805,7 @@ end subroutine internal_check_horizontal_state
       _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
          j = call_node%copy_commands_hz(i)%read_index
          k = call_node%copy_commands_hz(i)%write_index
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache_hz)
             cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache_hz%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
          _HORIZONTAL_LOOP_END_
       end do
@@ -4142,7 +4142,7 @@ end subroutine internal_check_horizontal_state
       _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
          j = call_node%copy_commands_hz(i)%read_index
          k = call_node%copy_commands_hz(i)%write_index
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache_hz)
             cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache_hz%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
          _HORIZONTAL_LOOP_END_
       end do
@@ -4152,7 +4152,7 @@ end subroutine internal_check_horizontal_state
    end do
 
    do i=1,size(self%conserved_quantities)
-      _HORIZONTAL_UNPACK_TO_PLUS_1_(cache_hz%write_hz,self%conserved_quantities(i)%horizontal_index,sums,i,cache_hz%mask,0.0_rk)
+      _HORIZONTAL_UNPACK_TO_PLUS_1_(cache_hz%write_hz,self%conserved_quantities(i)%horizontal_index,sums,i,cache_hz,0.0_rk)
    end do
 
    call end_horizontal_task(self,self%get_horizontal_conserved_quantities_job%first_task,cache_hz _ARGUMENTS_HORIZONTAL_IN_)
@@ -4335,7 +4335,7 @@ end subroutine internal_check_horizontal_state
          _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
             j = call_node%copy_commands_hz(i)%read_index
             k = call_node%copy_commands_hz(i)%write_index
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache_hz)
                cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache_hz%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _HORIZONTAL_LOOP_END_
          end do
@@ -4393,8 +4393,6 @@ subroutine fabm_update_time(self,t)
    real(rk),           intent(in)    :: t
 
    class (type_expression),pointer :: expression
-
-   call fabm_process_job(self,self%prepare_job _ARGUMENTS_HORIZONTAL_IN_)
 
    expression => self%root%first_expression
    do while (associated(expression))
