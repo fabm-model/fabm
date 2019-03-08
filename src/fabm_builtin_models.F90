@@ -783,9 +783,9 @@ module fabm_builtin_models
       call self%register_dependency(self%id_target,'target', '', 'target to relax towards')
       call self%get_parameter(self%rate_is_variable, 'rate_is_variable', '', 'use variable relaxation rate', default=.false.)
       if (self%rate_is_variable) then
-         call self%register_dependency(self%id_rate, 'relaxation_rate', 's-1', 'relaxation rate')
+         call self%register_dependency(self%id_rate, 'rate', 's-1', 'relaxation rate')
       else
-         call self%get_parameter(self%rate, 'relaxation_rate', 's-1', 'relaxation rate', minimum=0._rk)
+         call self%get_parameter(self%rate, 'rate', 's-1', 'relaxation rate', minimum=0._rk)
       end if
    end subroutine interior_relaxation_initialize
 
