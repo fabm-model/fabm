@@ -92,15 +92,15 @@ def evaluate(yaml_path, sources=(), location={}, assignments={}, verbose=True, i
         if verbose:
             print()
             print('State:')
-            for variable in sorted(model.state_variables, cmp=lambda x, y: cmp(x.name.lower(), y.name.lower())):
+            for variable in sorted(model.state_variables, key=lambda x: x.name.lower()):
                 print('  %s: %s [%s]' % (variable.name, variable.value, variable2source.get(variable)))
             print('Environment:')
-            for variable in sorted(model.dependencies, cmp=lambda x, y: cmp(x.name.lower(), y.name.lower())):
+            for variable in sorted(model.dependencies, key=lambda x: x.name.lower()):
                 print('  %s: %s [%s]' % (variable.name, variable.value, variable2source.get(variable)))
 
         if missing:
             print('The following variables are still missing:')
-            for variable in sorted(missing, cmp=lambda x, y: cmp(x.name.lower(), y.name.lower())):
+            for variable in sorted(missing, key=lambda x: x.name.lower()):
                 print('- %s' % variable.name,)
                 if variable.name != variable.output_name:
                     print('(NetCDF: %s)' % variable.output_name,)
@@ -113,7 +113,7 @@ def evaluate(yaml_path, sources=(), location={}, assignments={}, verbose=True, i
         sys.exit(1)
 
     print('State variables with largest value:')
-    for variable in sorted(model.state_variables, cmp=lambda x, y: cmp(abs(y.value), abs(x.value)))[:3]:
+    for variable in sorted(model.state_variables, key=lambda x: abs(x.value), reverse=True)[:3]:
         print('  %s: %s %s' % (variable.name, variable.value, variable.units))
 
     # Get model rates
@@ -122,7 +122,7 @@ def evaluate(yaml_path, sources=(), location={}, assignments={}, verbose=True, i
 
     if verbose:
         print('Diagnostics:')
-        for variable in sorted(model.diagnostic_variables, cmp=lambda x, y: cmp(x.name.lower(), y.name.lower())):
+        for variable in sorted(model.diagnostic_variables, key=lambda x: x.name.lower()):
             if variable.output:
                 print('  %s: %s %s' % (variable.name, variable.value, variable.units))
 
@@ -140,11 +140,11 @@ def evaluate(yaml_path, sources=(), location={}, assignments={}, verbose=True, i
     if verbose:
         # Show all rates of change, odered by their value relative to the state variable's value.
         print('Relative rates of change (low to high):')
-        for variable, rate, relative_rate in sorted(zip(model.state_variables, rates, relative_rates), cmp=lambda x, y: cmp(x[2], y[2])):
+        for variable, rate, relative_rate in sorted(zip(model.state_variables, rates, relative_rates), key=lambda x: x[2]):
             print('  %s: %s d-1' % (variable.name, 86400*relative_rate))
 
     print('Largest relative rates of change:')
-    for variable, rate, relative_rate in sorted(zip(model.state_variables, rates, relative_rates), cmp=lambda x, y: cmp(abs(y[2]), abs(x[2])))[:3]:
+    for variable, rate, relative_rate in sorted(zip(model.state_variables, rates, relative_rates), key=lambda x: abs(x[2]), reverse=True)[:3]:
         print('  %s: %s d-1' % (variable.name, 86400*relative_rate))
 
     i = relative_rates.argmin()
