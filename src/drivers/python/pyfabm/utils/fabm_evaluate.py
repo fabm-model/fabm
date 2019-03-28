@@ -13,6 +13,11 @@ You can set additional variables on the command line with -v/--values.
 import sys
 import os
 
+try:
+    input = raw_input
+except NameError:
+    pass
+
 import numpy
 import netCDF4
 import yaml
@@ -150,8 +155,8 @@ def main():
     parser = argparse.ArgumentParser(description='This script evaluates a biogeochemical model for a state and environment specified in one or more NetCDF files, yaml files, and command line arguments.')
     parser.add_argument('model_path', help='Path to a YAML file with the model configuration (typically fabm.yaml)')
     parser.add_argument('sources', nargs='+', help='Path to NetCDF or yaml file with the model state and environment')
-    parser.add_argument('-l', '--location', nargs='*', help='NetCDF dimension to fix at particular index (specify: DIMENSION_NAME=INDEX)', default=[])
-    parser.add_argument('-v', '--values', nargs='*', help='Additional state variable/environmental dependency values (specify: VARIABLE_NAME=VALUE)', default=[])
+    parser.add_argument('-l', '--location', nargs='+', help='NetCDF dimension to fix at particular index (specify: DIMENSION_NAME=INDEX)', default=[])
+    parser.add_argument('-v', '--values', nargs='+', help='Additional state variable/environmental dependency values (specify: VARIABLE_NAME=VALUE)', default=[])
     parser.add_argument('--ignore_missing', action='store_true', help='Whether to ignore missing values for state variables and dependencies (the model will be evaluated with a default value of 0 for such missing variables)', default=False)
     parser.add_argument('--no_surface', dest='surface', action='store_false', help='Whether to omit surface processes (do_surface calls)', default=True)
     parser.add_argument('--no_bottom', dest='bottom', action='store_false', help='Whether to omit surface processes (do_bottom calls)', default=True)
@@ -159,7 +164,7 @@ def main():
     args = parser.parse_args()
 
     if args.pause:
-        raw_input('Attach the debugger (process id = %i) and then press Enter.' % os.getpid())
+        input('Attach the debugger (process id = %i) and then press Enter.' % os.getpid())
 
     evaluate(args.model_path, args.sources, location=dict([dimension2index.split('=') for dimension2index in args.location]), assignments=dict([name2value.split('=') for name2value in args.values]), ignore_missing=args.ignore_missing, surface=args.surface, bottom=args.bottom)
 
