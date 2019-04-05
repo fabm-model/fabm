@@ -33,7 +33,7 @@ setup(
             'fabm_complete_yaml=pyfabm.utils.fabm_complete_yaml:main',
             'fabm_configuration_gui=pyfabm.utils.fabm_configuration_gui:main',
             'fabm_describe_model=pyfabm.utils.fabm_describe_model:main',
-#KB - script needs further checks                'fabm_evaluate=pyfabm.utils.fabm_evaluate:main',
+            'fabm_evaluate=pyfabm.utils.fabm_evaluate:main',
             'fabm_stress_test=pyfabm.utils.fabm_stress_test:main',
         ]
     },
