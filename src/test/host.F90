@@ -406,11 +406,11 @@ contains
 
    subroutine read_environment
       use yaml, only: yaml_parse => parse, yaml_error_length => error_length
-      use yaml_types, only: type_yaml_node => type_node, type_yaml_dictionary => type_dictionary, type_yaml_scalar => type_scalar, type_yaml_key_value_pair => type_key_value_pair
+      use yaml_types, only: type_node, type_yaml_dictionary => type_dictionary, type_yaml_scalar => type_scalar, type_yaml_key_value_pair => type_key_value_pair
 
       integer, parameter :: yaml_unit = 100
       character(yaml_error_length) :: yaml_error
-      class (type_yaml_node),pointer :: yaml_root
+      class (type_node),pointer :: yaml_root
       type (type_yaml_key_value_pair), pointer :: yaml_pair
       real(rk) :: value
       logical :: success
