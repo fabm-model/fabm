@@ -52,7 +52,7 @@ def run(phase, args, **kwargs):
         with open(log_path, 'wb') as f:
             f.write(stdoutdata)
         logs.append(log_path)
-        print('FAILED (log written to %s)' % log_path)
+        print('FAILED (return code %i, log written to %s)' % (proc.returncode, log_path))
     else:
         print('SUCCESS')
     return proc.returncode

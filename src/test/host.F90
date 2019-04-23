@@ -196,6 +196,7 @@ integer :: mode = 1
 integer :: ntest = -1
 
 ! Parse command line arguments
+call start_test('parsing command line arguments')
 i = 1
 do
    call get_command_argument(i, arg)
@@ -213,6 +214,7 @@ do
       stop 2
    end select
 end do
+call report_test_result()
 
 #if _FABM_DIMENSION_COUNT_>0
 i__=50
@@ -253,8 +255,12 @@ allocate(tmp _INDEX_LOCATION_)
 allocate(tmp_hz _INDEX_HORIZONTAL_LOCATION_)
 
 allocate(type_test_driver::driver)
-call fabm_initialize_library()
 
+call start_test('fabm_initialize_library')
+call fabm_initialize_library()
+call report_test_result()
+
+call start_test('building model tree')
 select case (mode)
 case (1)
     ! Unit testing with built-in model
@@ -264,6 +270,7 @@ case (2)
     ! Test with user-provided fabm.yaml
     call fabm_create_model_from_yaml_file(model, do_not_initialize=.true.)
 end select
+call report_test_result()
 
 call start_test('fabm_initialize')
 call fabm_initialize(model)
