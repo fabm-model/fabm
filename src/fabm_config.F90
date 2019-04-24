@@ -10,8 +10,6 @@ module fabm_config
    use yaml_types
    use yaml,yaml_parse=>parse,yaml_error_length=>error_length
 
-   use fabm_library
-
    implicit none
 
    private

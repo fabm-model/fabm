@@ -22,7 +22,6 @@
    use fabm_standard_variables,only: type_bulk_standard_variable, type_horizontal_standard_variable, &
                                      type_global_standard_variable, initialize_standard_variables, type_standard_variable_node
    use fabm_types
-   use fabm_library
    use fabm_expressions
    use fabm_driver
    use fabm_properties
@@ -490,6 +489,8 @@
    contains
 
    subroutine fabm_initialize_library()
+      use fabm_library, only: fabm_model_factory
+
       ! Do nothing if already initialized.
       if (associated(factory)) return
 
