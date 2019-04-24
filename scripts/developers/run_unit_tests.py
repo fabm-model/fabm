@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+import sys
 import os.path
 import tempfile
 import subprocess
@@ -66,7 +67,11 @@ try:
         build_dir = os.path.join(build_root, host)
         os.mkdir(build_dir)
         print('  generating...', end='')
-        generates[host] = run('%s_generate' % host, [args.cmake, os.path.join(root, 'src'), '-DFABM_HOST=%s' % host] + cmake_arguments, cwd=build_dir)
+        try:
+            generates[host] = run('%s_generate' % host, [args.cmake, os.path.join(root, 'src'), '-DFABM_HOST=%s' % host] + cmake_arguments, cwd=build_dir)
+        except FileNotFoundError:
+            print('\n\ncmake executable not found. Specify its location on the command line with --cmake.')
+            sys.exit(2)
         if generates[host] != 0:
             continue
         print('  building...', end='')
