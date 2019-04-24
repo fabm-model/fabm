@@ -34,7 +34,7 @@ if args.performance:
         git_branch = subprocess.check_output(['git', 'name-rev', '--name-only', 'HEAD']).decode('ascii').strip()
         git_commit = subprocess.check_output(['git', 'describe', '--always', '--dirty']).decode('ascii').strip()
         args.report = 'performance_%s_%s.log' % (git_branch, git_commit)
-        print('Performance report will be written to %s' % args.report)
+    print('Performance report will be written to %s' % args.report)
 
 if args.compiler is not None:
     cmake_arguments.append('-DCMAKE_Fortran_COMPILER=%s' % args.compiler)
