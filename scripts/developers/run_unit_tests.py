@@ -24,8 +24,12 @@ parser.add_argument('--report', default=None, help='file to write performance re
 parser.add_argument('--repeat', type=int, default=5, help='number of times to run each performance test. Increase this to reduce the noise in timings')
 args, cmake_arguments = parser.parse_known_args()
 if args.performance:
-    assert os.path.isfile(args.config)
-    assert os.path.isfile(args.env)
+    if not os.path.isfile(args.config):
+        print('Model configuration %s does not exist. Specify (or change) --config.' % args.config)
+        sys.exit(2)
+    if not os.path.isfile(args.env):
+        print('Model environment %s does not exist. Specify (or change) --env.' % args.env)
+        sys.exit(2)
     if args.report is None:
         git_branch = subprocess.check_output(['git', 'name-rev', '--name-only', 'HEAD']).decode('ascii').strip()
         git_commit = subprocess.check_output(['git', 'describe', '--always', '--dirty']).decode('ascii').strip()
