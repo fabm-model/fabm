@@ -835,12 +835,13 @@ recursive subroutine find_dependencies(self,list,forbidden)
    type (type_model_list_node),pointer :: node
    character(len=2048)                 :: chain
 
-   if (associated(list%find(self))) return
+   ! Directly below and further down: use of generic procedure list%find confuses PGI 18.10 (Jorn 2019-04-24)
+   if (associated(list%find_model(self))) return
 
    ! Check the list of forbidden model (i.e., models that indirectly request the current model)
    ! If the current model is on this list, there is a circular dependency between models.
    if (present(forbidden)) then
-      node => forbidden%find(self)
+      node => forbidden%find_model(self)
       if (associated(node)) then
          ! Circular dependency found - report as fatal error.
          chain = ''

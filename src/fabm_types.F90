@@ -733,9 +733,9 @@
       class (type_base_model), intent(in) :: self
       character(len=*),        intent(in) :: location,message
       if (self%name/='') then
-         call fatal_error('model '//trim(self%get_path())//', '//trim(location),message)
+         call driver%fatal_error('model '//trim(self%get_path())//', '//trim(location),message)
       else
-         call fatal_error(location,message)
+         call driver%fatal_error(location,message)
       end if
    end subroutine
 
@@ -743,9 +743,9 @@
       class (type_base_model), intent(in) :: self
       character(len=*),        intent(in) :: message
       if (self%name/='') then
-         call log_message('model "'//trim(self%name)//'": '//message)
+         call driver%log_message('model "'//trim(self%name)//'": '//message)
       else
-         call log_message(message)
+         call driver%log_message(message)
       end if
    end subroutine
 
@@ -825,7 +825,7 @@
       if (name=='' .or. name/=get_safe_name(name)) call self%fatal_error('add_child', &
          'Cannot add child model "'//trim(name)//'" because its name is not valid. &
          &Model names should not be empty, and can contain letters, digits and underscores only.')
-      if (len_trim(name)>len(model%name)) call fatal_error('add_child','Model name "'//trim(name)//'" exceeds maximum length.')
+      if (len_trim(name)>len(model%name)) call self%fatal_error('add_child','Model name "'//trim(name)//'" exceeds maximum length.')
 
       ! Make sure a child with this name does not exist yet.
       child => self%children%first
@@ -1833,10 +1833,12 @@ end subroutine real_pointer_set_set_value
 
       ! Forward to parent
       if (associated(self%parent)) then
-         if (len_trim(self%name)+1+len_trim(object%name)>len(object%name)) call fatal_error('add_object', &
+         if (len_trim(self%name)+1+len_trim(object%name)>len(object%name)) call self%fatal_error('add_object', &
             'Variable path "'//trim(self%name)//'/'//trim(object%name)//'" exceeds maximum allowed length.')
          object%name = trim(self%name)//'/'//trim(object%name)
-         parent_link => self%parent%add_object(object)
+
+         ! Below, the equivalent self%parent%add_object(object) confuses PGI 18.10 (Jorn 2019-04-24)
+         parent_link => add_object(self%parent, object)
       end if
    end function add_object
 
@@ -2832,7 +2834,7 @@ subroutine abstract_model_factory_add(self,child,prefix)
 
    type (type_base_model_factory_node),pointer :: current
 
-   if (self%initialized) call fatal_error('abstract_model_factory_add', &
+   if (self%initialized) call driver%fatal_error('abstract_model_factory_add', &
       'BUG! Factory initialiation is complete. Child factories can no longer be added.')
 
    if (.not.associated(self%first_child)) then
