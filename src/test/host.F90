@@ -228,6 +228,9 @@ k__=45
 
 #if _FABM_DIMENSION_COUNT_>0
 domain_extent = (/ _LOCATION_ /)
+interior_count = product(domain_extent)
+#else
+interior_count = 1
 #endif
 
 ! Set defaults
@@ -235,11 +238,10 @@ if (ntest == -1) then
    if (mode == 1) then
       ntest = 1
    else
-      ntest = 50000000/product(domain_extent)
+      ntest = 50000000/interior_count
    end if
 end if
 
-interior_count = product(domain_extent)
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 horizontal_count = interior_count / domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)
 #else
