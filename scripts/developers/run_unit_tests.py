@@ -22,7 +22,7 @@ parser.add_argument('--config', default='fabm.yaml')
 parser.add_argument('--env', default='environment.yaml')
 parser.add_argument('--report', default=None)
 parser.add_argument('--repeat', type=int, default=5)
-args = parser.parse_args()
+args, cmake_arguments = parser.parse_known_args()
 if args.performance:
     assert os.path.isfile(args.config)
     assert os.path.isfile(args.env)
@@ -32,7 +32,6 @@ if args.performance:
         args.report = 'performance_%s_%s.log' % (git_branch, git_commit)
         print('Performance report will be written to %s' % args.report)
 
-cmake_arguments = []
 if args.compiler is not None:
     cmake_arguments.append('-DCMAKE_Fortran_COMPILER=%s' % args.compiler)
 
