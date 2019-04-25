@@ -298,25 +298,25 @@ call self%register_diagnostic_variable(self%id_N_fixation,'N_fixation','mmol/m**
      LimT        = exp(self%bm*temp-self%cm)  ! 0.2+0.22*(exp(bm*t(ci))-cm)/(cm+0.28*exp(bm*t(ci))) !exp(bm*t(ci)-cm)  ! Influence of Temperature on photosynthesis
 
 !%! dependence of photosynthesis on P
-     LimP    =  yy(self%K_po4_lim*self%r_n_p,PO4/max(Phy,1.e-10))
+     LimP    =  yy(self%K_po4_lim*self%r_n_p,PO4/max(Phy,1.e-10_rk))
 
 !%! dependence of photosynthesis on Si
-     LimSi   = yy(self%K_si_lim/self%r_si_n,Si/max(Phy,1.e-10))
+     LimSi   = yy(self%K_si_lim/self%r_si_n,Si/max(Phy,1.e-10_rk))
 
 !%! dependence of photosynthesis on NO3+NO2
-     LimNO3 =  yy(self%K_nox_lim,(NO3+NO2)/max(Phy,1.e-10))*exp(-self%K_psi*(NH4/max(Phy,1.e-10)))
+     LimNO3 =  yy(self%K_nox_lim,(NO3+NO2)/max(Phy,1.e-10_rk))*exp(-self%K_psi*(NH4/max(Phy,1.e-10_rk)))
 
 !%! dependence of photosynthesis on NH4
-     LimNH4 =  yy(self%K_nh4_lim,NH4/max(Phy,1.e-10))*(1-exp(-self%K_psi*(NH4/max(Phy,1.e-10))))
+     LimNH4 =  yy(self%K_nh4_lim,NH4/max(Phy,1.e-10_rk))*(1-exp(-self%K_psi*(NH4/max(Phy,1.e-10_rk))))
 
 !%! dependence of photosynthesis on N
-     LimN     = min(1.,LimNO3+LimNH4)
+     LimN     = min(1._rk,LimNO3+LimNH4)
 
 !%! Grouth of Phy (gross primary production in uM N)
      GrowthPhy     =self%K_phy_gro*LimLight*LimT*min(LimP,LimN,LimSi)*Phy
 
 !%! Rate of mortality of phy
-     MortPhy=max(0.99,(self%K_phy_mrt+(0.5-0.5*tanh(O2-60.))*0.45+(0.5-0.5*tanh(O2-20))*0.45))*Phy !+(0.5-0.5*tanh(LimLight-0.1))*0.4)
+     MortPhy=max(0.99_rk,(self%K_phy_mrt+(0.5-0.5*tanh(O2-60.))*0.45+(0.5-0.5*tanh(O2-20))*0.45))*Phy !+(0.5-0.5*tanh(LimLight-0.1))*0.4)
 
 !&! Excretion of phy
      ExcrPhy=self%K_phy_exc*Phy

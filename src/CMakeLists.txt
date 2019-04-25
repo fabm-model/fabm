@@ -129,6 +129,12 @@ else()
   mark_as_advanced(FABM_REAL_KIND)
 endif()
 
+option(FABM_USE_DO_CONCURRENT "Use DO CONCURRENT (Fortran 2008)" ON)
+mark_as_advanced(FABM_USE_DO_CONCURRENT)
+if(NOT FABM_USE_DO_CONCURRENT)
+  add_definitions(-D_NO_DO_CONCURRENT_)
+endif()
+
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
 if(BUILD_SHARED_LIBS)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
