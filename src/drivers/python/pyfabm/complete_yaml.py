@@ -25,6 +25,7 @@ except ImportError:
 def processFile(infile,outfile,subtract_background=False,add_missing=False):
    # Create model object from YAML file.
    model = pyfabm.Model(infile)
+   assert not pyfabm.hasError(), 'An error occurred while parsing %s:\n%s' % (infile, pyfabm.getError())
 
    # Load the old configuration
    with open(infile,'rU') as f:
