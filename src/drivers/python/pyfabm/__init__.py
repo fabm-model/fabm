@@ -395,6 +395,7 @@ class Model(object):
     def __init__(self,path='fabm.yaml'):
         self.lookup_tables = {}
         fabm.initialize(path.encode('ascii'))
+        assert not hasError(), 'An error occurred while parsing %s:\n%s' % (path, getError())
         self.updateConfiguration()
 
     def getSubModel(self,name):
