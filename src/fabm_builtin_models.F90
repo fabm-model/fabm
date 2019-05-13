@@ -160,6 +160,15 @@ module fabm_builtin_models
       procedure :: do         => interior_source_do
    end type
 
+   type,extends(type_base_model) :: type_bottom_source
+      type (type_bottom_state_variable_id) :: id_target
+      type (type_horizontal_dependency_id) :: id_source
+      real(rk) :: scale_factor
+   contains
+      procedure :: initialize => bottom_source_initialize
+      procedure :: do_bottom  => bottom_source_do_bottom
+   end type
+
    type,extends(type_base_model) :: type_interior_relaxation
       type (type_state_variable_id) :: id_original
       type (type_dependency_id)     :: id_target
@@ -219,8 +228,9 @@ module fabm_builtin_models
          case ('surface_flux');           allocate(type_constant_surface_flux::model)
          case ('constant_surface_flux');  allocate(type_constant_surface_flux::model)
          case ('external_surface_flux');  allocate(type_external_surface_flux::model)
-         case ('external_bottom_flux');  allocate(type_external_bottom_flux::model)
+         case ('external_bottom_flux');   allocate(type_external_bottom_flux::model)
          case ('interior_source');        allocate(type_interior_source::model)
+         case ('bottom_source');          allocate(type_bottom_source::model)
          case ('interior_relaxation');    allocate(type_interior_relaxation::model)
          case ('weighted_sum');           allocate(type_weighted_sum::model)
          case ('horizontal_weighted_sum');allocate(type_horizontal_weighted_sum::model)
@@ -774,6 +784,27 @@ module fabm_builtin_models
          _SET_ODE_(self%id_target,source)
       _LOOP_END_
    end subroutine interior_source_do
+
+   subroutine bottom_source_initialize(self,configunit)
+      class (type_bottom_source),intent(inout),target :: self
+      integer,                   intent(in)           :: configunit
+
+      call self%register_state_dependency(self%id_target,'target','UNITS m-2','target variable')
+      call self%register_dependency(self%id_source,'source','UNITS m-2 s-1','source')
+      call self%get_parameter(self%scale_factor, 'scale_factor', '', 'scale factor')
+   end subroutine bottom_source_initialize
+
+   subroutine bottom_source_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
+      class (type_bottom_source), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_BOTTOM_
+
+      real(rk) :: source
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _GET_HORIZONTAL_(self%id_source, source)
+         _SET_BOTTOM_ODE_(self%id_target, self%scale_factor*source)
+      _HORIZONTAL_LOOP_END_
+   end subroutine bottom_source_do_bottom
 
    subroutine interior_relaxation_initialize(self,configunit)
       class (type_interior_relaxation),intent(inout),target :: self
