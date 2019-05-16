@@ -212,6 +212,7 @@ add_library(fabm
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
             fabm_coupling.F90
+            fabm_schedule.F90
             fabm.F90
             fabm_config.F90
            )
