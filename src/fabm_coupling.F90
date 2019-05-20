@@ -40,6 +40,7 @@ module fabm_coupling
 
    type type_call_list_node
       class (type_base_model),          pointer :: model => null()
+      logical                                   :: active = .true.
       integer                                   :: source = source_unknown
       type (type_copy_command), allocatable     :: copy_commands_int(:)
       type (type_copy_command), allocatable     :: copy_commands_hz(:)

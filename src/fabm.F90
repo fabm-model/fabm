@@ -27,6 +27,7 @@
    use fabm_properties
    use fabm_builtin_models
    use fabm_coupling
+   use fabm_schedule
 !
 
    implicit none
@@ -252,6 +253,8 @@
       type (type_environment_settings)                          :: get_horizontal_conserved_quantities_environment
       type (type_environment_settings)                          :: get_light_extinction_environment
 
+      type (type_schedules) :: schedules
+
       ! Registry with pointers to global fields of readable variables.
       ! These pointers are accessed to fill the prefetch (see below).
       type (type_interior_data_pointer),  allocatable :: data(:)
@@ -455,6 +458,11 @@
    interface fabm_variable_needs_values
       module procedure fabm_interior_variable_needs_values
       module procedure fabm_horizontal_variable_needs_values
+   end interface
+
+   interface fabm_update_time
+      module procedure fabm_update_time1
+      module procedure fabm_update_time2
    end interface
 
    ! For backward compatibility only:
@@ -1045,6 +1053,7 @@
       type (type_environment_settings), intent(inout) :: settings
 
       integer :: ivar
+      type (type_call_list_node), pointer :: call_list_node
 
       allocate(settings%save_sources(nsave))
       settings%save_sources = -1
@@ -1067,6 +1076,12 @@
       if (all(settings%save_sources_hz==-1)) deallocate(settings%save_sources_hz)
 
       call settings%call_list%initialize()
+
+      call_list_node => settings%call_list%first
+      do while (associated(call_list_node))
+         call self%schedules%attach(call_list_node%model, call_list_node%source, call_list_node%active)
+         call_list_node => call_list_node%next
+      end do
    end subroutine initialize_settings
 
    end subroutine fabm_set_domain
@@ -3330,7 +3345,7 @@ end subroutine deallocate_prefetch_vertical
 
    node => self%do_interior_environment%call_list%first
    do while (associated(node))
-      call node%model%do(env_int)
+      if (node%active) call node%model%do(env_int)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
@@ -4326,7 +4341,7 @@ end subroutine internal_check_horizontal_state
    end subroutine fabm_get_horizontal_conserved_quantities
 !EOC
 
-subroutine fabm_update_time(self,t)
+subroutine fabm_update_time1(self,t)
    class (type_model), intent(inout) :: self
    real(rk),           intent(in)    :: t
 
@@ -4459,7 +4474,17 @@ contains
       expression%last_time = t
    end subroutine
 
-end subroutine
+end subroutine fabm_update_time1
+
+subroutine fabm_update_time2(self, t, year, month, day, seconds)
+   class (type_model), intent(inout) :: self
+   real(rk),           intent(in)    :: t
+   integer,            intent(in)    :: year, month, day
+   real(rk),           intent(in)    :: seconds
+
+   call fabm_update_time1(self, t)
+   call self%schedules%update(year, month, day, seconds)
+end subroutine fabm_update_time2
 
 subroutine assign_write_indices(link_list,domain,count)
    type (type_link_list),intent(inout) :: link_list
