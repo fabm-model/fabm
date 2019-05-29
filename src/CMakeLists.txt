@@ -207,7 +207,7 @@ set_property(TARGET yaml test_yaml PROPERTY FOLDER fabm/yaml)
 
 add_library(fabm
             $<TARGET_OBJECTS:fabm_base>
-            $<TARGET_OBJECTS:yaml>
+            ${YAML_SOURCES}
             ${MODEL_OBJECTS}
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
