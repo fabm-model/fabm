@@ -222,7 +222,7 @@ if(FABM_EMBED_VERSION)
 endif()
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
-set_property(TARGET fabm_base fabm yaml PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
+set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
 foreach(institute ${ACTIVE_INSTITUTES})
