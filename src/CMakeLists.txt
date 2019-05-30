@@ -203,8 +203,8 @@ endforeach(institute)
 
 # Add YAML parsing library
 if(NOT TARGET yaml)
-  add_subdirectory(yaml)
-  set_property(TARGET yaml test_yaml PROPERTY FOLDER fabm/yaml)
+  add_subdirectory(yaml EXCLUDE_FROM_ALL)
+  set_property(TARGET yaml PROPERTY FOLDER fabm/yaml)
 endif(NOT TARGET yaml)
 
 add_library(fabm
