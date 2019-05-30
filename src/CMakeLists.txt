@@ -202,8 +202,10 @@ foreach(institute ${ACTIVE_INSTITUTES})
 endforeach(institute) 
 
 # Add YAML parsing library
-add_subdirectory(yaml)
-set_property(TARGET yaml test_yaml PROPERTY FOLDER fabm/yaml)
+if(NOT TARGET yaml)
+  add_subdirectory(yaml)
+  set_property(TARGET yaml test_yaml PROPERTY FOLDER fabm/yaml)
+endif(NOT TARGET yaml)
 
 add_library(fabm
             $<TARGET_OBJECTS:fabm_base>
