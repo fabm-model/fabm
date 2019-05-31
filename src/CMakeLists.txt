@@ -209,6 +209,7 @@ endif(NOT TARGET yaml)
 
 add_library(fabm
             $<TARGET_OBJECTS:fabm_base>
+            ${YAML_SOURCES}
             ${MODEL_OBJECTS}
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
@@ -217,7 +218,7 @@ add_library(fabm
             fabm.F90
             fabm_config.F90
            )
-target_link_libraries(fabm PRIVATE yaml)
+add_dependencies(fabm yaml)
 
 if(FABM_EMBED_VERSION)
   add_dependencies(fabm fabm_version)
