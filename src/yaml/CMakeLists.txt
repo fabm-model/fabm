@@ -11,11 +11,10 @@ endif(TARGET yaml)
 # Create main project.
 project(yaml Fortran)
 
-add_library(yaml OBJECT
+add_library(yaml
             yaml_types.F90
             yaml.F90
            )
-set(YAML_SOURCES $<TARGET_OBJECTS:yaml>)
 set_property(TARGET yaml PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules")
 target_include_directories(yaml
    PUBLIC
@@ -24,6 +23,6 @@ target_include_directories(yaml
 )
 
 add_executable(test_yaml EXCLUDE_FROM_ALL
-               ${YAML_SOURCES}
                test_yaml.F90
               )
+target_link_libraries(test_yaml PRIVATE yaml)
