@@ -269,8 +269,8 @@ add_executable(test_host EXCLUDE_FROM_ALL
                test/host.F90
                test/models.F90
               )
-target_link_libraries(test_host fabm)
-add_dependencies(test_host yaml)
+target_link_libraries(test_host PRIVATE fabm)
+target_include_directories(test_host PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # End of testing section
 
