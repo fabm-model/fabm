@@ -270,6 +270,7 @@ add_executable(test_host EXCLUDE_FROM_ALL
                test/models.F90
               )
 target_link_libraries(test_host fabm)
+add_dependencies(test_host yaml)
 
 # End of testing section
 
