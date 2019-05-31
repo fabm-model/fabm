@@ -202,12 +202,14 @@ foreach(institute ${ACTIVE_INSTITUTES})
 endforeach(institute) 
 
 # Add YAML parsing library
-add_subdirectory(yaml)
-set_property(TARGET yaml test_yaml PROPERTY FOLDER fabm/yaml)
+if(NOT TARGET yaml)
+  add_subdirectory(yaml EXCLUDE_FROM_ALL)
+  set_property(TARGET yaml PROPERTY FOLDER fabm/yaml)
+endif(NOT TARGET yaml)
 
 add_library(fabm
             $<TARGET_OBJECTS:fabm_base>
-            $<TARGET_OBJECTS:yaml>
+            ${YAML_SOURCES}
             ${MODEL_OBJECTS}
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
@@ -216,15 +218,19 @@ add_library(fabm
             fabm.F90
             fabm_config.F90
            )
+add_dependencies(fabm yaml)
 
 if(FABM_EMBED_VERSION)
   add_dependencies(fabm fabm_version)
 endif()
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
-set_property(TARGET fabm_base fabm yaml PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
+set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules")
+target_include_directories(fabm_base INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/modules")
+target_include_directories(fabm INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/modules")
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
+target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
 foreach(institute ${ACTIVE_INSTITUTES})
   target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:fabm_models_${institute},INTERFACE_INCLUDE_DIRECTORIES>)
 endforeach(institute)
@@ -263,7 +269,8 @@ add_executable(test_host EXCLUDE_FROM_ALL
                test/host.F90
                test/models.F90
               )
-target_link_libraries(test_host fabm)
+target_link_libraries(test_host PRIVATE fabm)
+target_include_directories(test_host PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # End of testing section
 
