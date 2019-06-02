@@ -226,8 +226,8 @@ endif()
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
 set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules")
-target_include_directories(fabm_base INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/modules")
-target_include_directories(fabm INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/modules")
+target_include_directories(fabm_base PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules> $<INSTALL_INTERFACE:include>)
+target_include_directories(fabm PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules> $<INSTALL_INTERFACE:include>)
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
 target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -254,12 +254,16 @@ message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
 # Install FABM library and include files, unless the host overruled this.
 if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
   install(TARGETS fabm
+    EXPORT fabmConfig
     DESTINATION lib)
   install(DIRECTORY ${CMAKE_BINARY_DIR}/modules/\${BUILD_TYPE}/
     DESTINATION include)
   install(FILES ${PROJECT_SOURCE_DIR}/../include/fabm.h ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/fabm_driver.h
     DESTINATION include)
 endif()
+
+export(EXPORT fabmConfig)
+install(EXPORT fabmConfig DESTINATION cmake)
 
 # Begin testing section
 
