@@ -235,8 +235,16 @@ foreach(institute ${ACTIVE_INSTITUTES})
   target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:fabm_models_${institute},INTERFACE_INCLUDE_DIRECTORIES>)
 endforeach(institute)
 
+# Tests
+add_executable(test_host EXCLUDE_FROM_ALL
+               test/host.F90
+               test/models.F90
+              )
+target_link_libraries(test_host PRIVATE fabm)
+target_include_directories(test_host PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
+
 # Place projects in specific solution folders (Visual Studio only).
-set_property(TARGET fabm_base fabm PROPERTY FOLDER fabm)
+set_property(TARGET fabm_base fabm test_host PROPERTY FOLDER fabm)
 foreach(institute ${ACTIVE_INSTITUTES})
   set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
 endforeach(institute)
@@ -264,11 +272,3 @@ endif()
 
 export(EXPORT fabmConfig)
 install(EXPORT fabmConfig DESTINATION cmake)
-
-# Tests
-add_executable(test_host EXCLUDE_FROM_ALL
-               test/host.F90
-               test/models.F90
-              )
-target_link_libraries(test_host PRIVATE fabm)
-target_include_directories(test_host PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
