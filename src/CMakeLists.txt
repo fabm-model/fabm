@@ -242,21 +242,21 @@ foreach(institute ${ACTIVE_INSTITUTES})
 endforeach(institute)
 
 if(NOT FABM_FORCED_HOST)
-
-# Re-initialize installation prefix if needed.
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL PREVIOUS_DEFAULT_PREFIX)
-  get_filename_component(DEFAULT_PREFIX "${DEFAULT_PREFIX}" ABSOLUTE)
-  set(CMAKE_INSTALL_PREFIX "${DEFAULT_PREFIX}" CACHE PATH "Directory to install FABM in" FORCE)
-  set(PREVIOUS_DEFAULT_PREFIX "${DEFAULT_PREFIX}" CACHE INTERNAL "Default directory to install FABM in")
+  # Re-initialize installation prefix if needed.
+  if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL PREVIOUS_DEFAULT_PREFIX)
+    get_filename_component(DEFAULT_PREFIX "${DEFAULT_PREFIX}" ABSOLUTE)
+    set(CMAKE_INSTALL_PREFIX "${DEFAULT_PREFIX}" CACHE PATH "Directory to install FABM in" FORCE)
+    set(PREVIOUS_DEFAULT_PREFIX "${DEFAULT_PREFIX}" CACHE INTERNAL "Default directory to install FABM in")
+  endif()
+  message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
 endif()
-message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
 
 # Install FABM library and include files, unless the host overruled this.
 if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
   install(TARGETS fabm
     EXPORT fabmConfig
     DESTINATION lib)
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/modules/\${BUILD_TYPE}/
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules/\${BUILD_TYPE}/
     DESTINATION include)
   install(FILES ${PROJECT_SOURCE_DIR}/../include/fabm.h ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/fabm_driver.h
     DESTINATION include)
@@ -265,17 +265,10 @@ endif()
 export(EXPORT fabmConfig)
 install(EXPORT fabmConfig DESTINATION cmake)
 
-# Begin testing section
-
-add_custom_target(test_all COMMENT "building tests - nothing yet :-)")
-
+# Tests
 add_executable(test_host EXCLUDE_FROM_ALL
                test/host.F90
                test/models.F90
               )
 target_link_libraries(test_host PRIVATE fabm)
 target_include_directories(test_host PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
-
-# End of testing section
-
-endif()
