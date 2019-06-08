@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 3.0)
 
 if(POLICY CMP0048)
   cmake_policy(SET CMP0048 NEW)
@@ -262,7 +262,7 @@ endif()
 # Install FABM library and include files, unless the host overruled this.
 if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
   install(TARGETS fabm
-    EXPORT fabmConfig
+    EXPORT FABMConfig
     DESTINATION lib)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules/\${BUILD_TYPE}/
     DESTINATION include)
@@ -270,5 +270,5 @@ if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
     DESTINATION include)
 endif()
 
-export(EXPORT fabmConfig)
-install(EXPORT fabmConfig DESTINATION cmake)
+export(EXPORT FABMConfig)
+install(EXPORT FABMConfig DESTINATION cmake)
