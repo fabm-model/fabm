@@ -4058,7 +4058,7 @@ end subroutine internal_check_horizontal_state
    ! Call all models that calculate extinction components to make sure the extinction diagnostic is up to date.
    node => self%get_light_extinction_environment%call_list%first
    do while (associated(node))
-      call node%model%do(env_int)
+      if (node%active) call node%model%do(env_int)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
       _DO_CONCURRENT_(i,1,size(node%copy_commands_int))
