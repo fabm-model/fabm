@@ -241,7 +241,13 @@ add_executable(test_host EXCLUDE_FROM_ALL
                test/models.F90
               )
 target_link_libraries(test_host PRIVATE fabm)
-target_include_directories(test_host PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
+if(YAML_SOURCES)
+  # YAML is integrated into FABM library; we only need to set the proper include directory
+  target_include_directories(test_host PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
+else()
+  # YAML library is stand-alone - target_link_libraries will add both include direcotry and library
+  target_link_libraries(test_host PRIVATE yaml)
+endif()
 
 # Place projects in specific solution folders (Visual Studio only).
 set_property(TARGET fabm_base fabm test_host PROPERTY FOLDER fabm)
