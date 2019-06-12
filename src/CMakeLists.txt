@@ -268,7 +268,7 @@ endif()
 # Install FABM library and include files, unless the host overruled this.
 if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
   install(TARGETS fabm
-    EXPORT FABMConfig
+    EXPORT fabmConfig
     DESTINATION lib)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules/\${BUILD_TYPE}/
     DESTINATION include)
@@ -276,5 +276,5 @@ if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
     DESTINATION include)
 endif()
 
-export(EXPORT FABMConfig)
-install(EXPORT FABMConfig DESTINATION cmake)
+export(EXPORT fabmConfig)
+install(EXPORT fabmConfig DESTINATION cmake)
