@@ -4,6 +4,10 @@ if(POLICY CMP0048)
   cmake_policy(SET CMP0048 NEW)
 endif()
 
+if(NOT PROJECT_NAME STREQUAL fabm)
+  project(fabm Fortran)
+endif()
+
 # List of contributing institutes that should be included in compilation.
 # When adding new institutes to the source tree, please add them here as well.
 # You can exclude institute directories from compilation by commenting them out.
@@ -46,9 +50,6 @@ endif()
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# Create main project.
-project(fabm Fortran)
-
 # Create fabm_library.F90 with all active institutes,
 # and set final paths to institute source directories (FABM_${INSTITUTE_UC}_DIR)
 set(FABM_LIBRARY_USE "")
@@ -56,7 +57,7 @@ set(FABM_LIBRARY_ADD "")
 set(ACTIVE_INSTITUTES ${FABM_INSTITUTES_OLD})
 foreach(institute ${FABM_INSTITUTES})
   # First retrieve the effective source directory
-  set(DEFAULT_INSTITUTE_BASE "${PROJECT_SOURCE_DIR}/models/${institute}")
+  set(DEFAULT_INSTITUTE_BASE "${CMAKE_CURRENT_LIST_DIR}/models/${institute}")
   string(TOUPPER ${institute} INSTITUTE_UC)
   find_path(FABM_${INSTITUTE_UC}_BASE
     NAMES CMakeLists.txt
@@ -85,7 +86,7 @@ foreach(institute ${FABM_INSTITUTES})
     #message(STATUS "${institute} will not be compiled because FABM_${INSTITUTE_UC}_BASE is not set. Please visit http://fabm.net/${institute} for more information.")
   endif()
 endforeach(institute)
-configure_file(${PROJECT_SOURCE_DIR}/fabm_library.F90.in
+configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_library.F90.in
                ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90)
 
 # Specify default build type for single-type systems (not VS)
@@ -112,7 +113,7 @@ if(FABM_FORCED_HOST)
 else()
   # FABM_HOST is user-configurable.
   # Make sure FABM_HOST is set to a subdir of src/drivers
-  FILE(GLOB HOSTNAMES RELATIVE "${PROJECT_SOURCE_DIR}/drivers" "${PROJECT_SOURCE_DIR}/drivers/*")
+  FILE(GLOB HOSTNAMES RELATIVE "${CMAKE_CURRENT_LIST_DIR}/drivers" "${CMAKE_CURRENT_LIST_DIR}/drivers/*")
   set (FABM_HOST "gotm" CACHE STRING "Host that FABM should be compiled for")
   set_property(CACHE FABM_HOST PROPERTY STRINGS ${HOSTNAMES})
   message(STATUS "FABM host: ${FABM_HOST}")
@@ -152,48 +153,48 @@ else()
 endif()
 
 # Global include directories
-include_directories("${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}"
-                    "${PROJECT_SOURCE_DIR}/../include"
+include_directories("${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}"
+                    "${CMAKE_CURRENT_LIST_DIR}/../include"
                     "${CMAKE_CURRENT_BINARY_DIR}/modules"
                    )
 
 set(GIT_COMMIT_ID unknown)
 set(GIT_BRANCH_NAME unknown)
-configure_file(${PROJECT_SOURCE_DIR}/fabm_version.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90)
+configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90)
 option(FABM_EMBED_VERSION "Embed FABM version information" OFF)
 if(FABM_EMBED_VERSION)
-  set(GET_GIT_INFO_SCRIPT "${PROJECT_SOURCE_DIR}/cmake/Modules/GetGitInfo.cmake")
+  set(GET_GIT_INFO_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/GetGitInfo.cmake")
   add_custom_target(fabm_version
-     ${CMAKE_COMMAND} -DINFILE=${PROJECT_SOURCE_DIR}/fabm_version.F90.in -DOUTFILE=${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90 -P ${GET_GIT_INFO_SCRIPT}
-     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+     ${CMAKE_COMMAND} -DINFILE=${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in -DOUTFILE=${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90 -P ${GET_GIT_INFO_SCRIPT}
+     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
      COMMENT "Retrieving description of last FABM commit..." 
-     SOURCES ${PROJECT_SOURCE_DIR}/fabm_version.F90.in ${GET_GIT_INFO_SCRIPT}
+     SOURCES ${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in ${GET_GIT_INFO_SCRIPT}
      VERBATIM
   )
   set_property(TARGET fabm_version PROPERTY FOLDER fabm)
 endif()
 
-configure_file(${PROJECT_SOURCE_DIR}/fabm_parameters.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90)
+configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_parameters.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90)
 
 add_library(fabm_base OBJECT
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90
-            fabm_driver.F90
-            fabm_standard_variables.F90
-            fabm_properties.F90
-            fabm_types.F90
-            fabm_particle.F90
-            fabm_expressions.F90
-            fabm_builtin_models.F90
-            ../include/fabm.h
-            ../include/fabm_private.h
-            ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/fabm_driver.h
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_driver.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_standard_variables.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_properties.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_types.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_particle.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_expressions.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_builtin_models.F90
+            ${CMAKE_CURRENT_LIST_DIR}/../include/fabm.h
+            ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_private.h
+            ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
            )
 
 # Create a list of institute-specific object libraries.
 foreach(institute ${ACTIVE_INSTITUTES})
   string(TOUPPER ${institute} INSTITUTE_UC)
   if(NOT DEFINED FABM_${INSTITUTE_UC}_BASE)
-    set(FABM_${INSTITUTE_UC}_BASE "${PROJECT_SOURCE_DIR}/models/${institute}")
+    set(FABM_${INSTITUTE_UC}_BASE "${CMAKE_CURRENT_LIST_DIR}/models/${institute}")
   endif()
   add_subdirectory(${FABM_${INSTITUTE_UC}_BASE} ${CMAKE_CURRENT_BINARY_DIR}/models/${institute})
   set_property(TARGET fabm_models_${institute} PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
@@ -203,7 +204,7 @@ endforeach(institute)
 
 # Add YAML parsing library
 if(NOT TARGET yaml)
-  add_subdirectory(yaml EXCLUDE_FROM_ALL)
+  add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/yaml" yaml EXCLUDE_FROM_ALL)
   set_property(TARGET yaml PROPERTY FOLDER fabm/yaml)
 endif(NOT TARGET yaml)
 
@@ -213,10 +214,10 @@ add_library(fabm
             ${MODEL_OBJECTS}
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
-            fabm_coupling.F90
-            fabm_schedule.F90
-            fabm.F90
-            fabm_config.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_coupling.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_schedule.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_config.F90
            )
 add_dependencies(fabm yaml)
 
@@ -237,8 +238,8 @@ endforeach(institute)
 
 # Tests
 add_executable(test_host EXCLUDE_FROM_ALL
-               test/host.F90
-               test/models.F90
+               ${CMAKE_CURRENT_LIST_DIR}/test/host.F90
+               ${CMAKE_CURRENT_LIST_DIR}/test/models.F90
               )
 target_link_libraries(test_host PRIVATE fabm)
 if(YAML_SOURCES)
@@ -268,13 +269,13 @@ endif()
 # Install FABM library and include files, unless the host overruled this.
 if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
   install(TARGETS fabm
-    EXPORT FABMConfig
+    EXPORT fabmConfig
     DESTINATION lib)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules/\${BUILD_TYPE}/
     DESTINATION include)
-  install(FILES ${PROJECT_SOURCE_DIR}/../include/fabm.h ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/fabm_driver.h
+  install(FILES ${CMAKE_CURRENT_LIST_DIR}/../include/fabm.h ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
     DESTINATION include)
 endif()
 
-export(EXPORT FABMConfig)
-install(EXPORT FABMConfig DESTINATION cmake)
+export(EXPORT fabmConfig)
+install(EXPORT fabmConfig DESTINATION cmake)

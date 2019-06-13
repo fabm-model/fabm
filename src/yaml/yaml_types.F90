@@ -25,7 +25,7 @@ module yaml_types
    public type_list,type_list_item
 
    integer,parameter :: string_length = 1024
-   integer,parameter :: real_kind = 8
+   integer,parameter :: real_kind = kind(1.0d0)
 
    type,abstract :: type_node
       character(len=string_length) :: path = ''
