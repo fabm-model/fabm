@@ -25,7 +25,7 @@ endif()
 
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST python)
-add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
+add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm EXCLUDE_FROM_ALL)
 
 # Add Python-FABM library
 add_library(python_fabm SHARED
