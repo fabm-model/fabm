@@ -11,6 +11,7 @@ project(fabm0d Fortran)
 find_path(GOTM_BASE
           NAMES src/gotm/gotm.F90
           HINTS ENV GOTMDIR
+          PATHS ${PROJECT_SOURCE_DIR}/../../../../..
           PATH_SUFFIXES GOTM/gotm-git gotm-git
           DOC "Directory with GOTM source code (www.gotm.net)")
 
