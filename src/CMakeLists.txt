@@ -97,13 +97,13 @@ endif()
 
 # Customize compiler flags
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-  set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-line-length-none")
+  add_compile_options(-ffree-line-length-none)
 elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
   if(WIN32)
-    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
+    add_compile_options("$<$<CONFIG:DEBUG>:/Od>")
   endif()
 elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
-  set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -N 1023")
+  add_compile_options(-N 1023)
 endif()
 
 if(FABM_FORCED_HOST)
