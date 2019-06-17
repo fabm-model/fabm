@@ -67,7 +67,7 @@ add_executable (fabm0d
                 )
 
 # Group GOTM source files in a folder in IDEs that support this.
-source_group(gotm REGULAR_EXPRESSION ${GOTM_BASE})
+source_group(gotm REGULAR_EXPRESSION ${GOTM_BASE}/src)
 
 # Link with FABM library.
 target_link_libraries(fabm0d PRIVATE fabm)
