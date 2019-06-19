@@ -97,13 +97,13 @@ endif()
 
 # Customize compiler flags
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-  set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-line-length-none")
+  add_compile_options(-ffree-line-length-none)
 elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
   if(WIN32)
-    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
+    add_compile_options("$<$<CONFIG:DEBUG>:/Od>")
   endif()
 elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
-  set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -N 1023")
+  add_compile_options(-N 1023)
 endif()
 
 if(FABM_FORCED_HOST)
@@ -196,10 +196,12 @@ foreach(institute ${ACTIVE_INSTITUTES})
   if(NOT DEFINED FABM_${INSTITUTE_UC}_BASE)
     set(FABM_${INSTITUTE_UC}_BASE "${CMAKE_CURRENT_LIST_DIR}/models/${institute}")
   endif()
+  set(CMAKE_FOLDER fabm/models)
   add_subdirectory(${FABM_${INSTITUTE_UC}_BASE} ${CMAKE_CURRENT_BINARY_DIR}/models/${institute})
   set_property(TARGET fabm_models_${institute} PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
   target_include_directories(fabm_models_${institute} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
   list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
+  set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
 endforeach(institute) 
 
 # Add YAML parsing library
@@ -252,9 +254,6 @@ endif()
 
 # Place projects in specific solution folders (Visual Studio only).
 set_property(TARGET fabm_base fabm test_host PROPERTY FOLDER fabm)
-foreach(institute ${ACTIVE_INSTITUTES})
-  set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
-endforeach(institute)
 
 if(NOT FABM_FORCED_HOST)
   # Re-initialize installation prefix if needed.
