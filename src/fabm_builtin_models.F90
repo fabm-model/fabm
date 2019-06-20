@@ -180,6 +180,14 @@ module fabm_builtin_models
       procedure :: do         => interior_relaxation_do
    end type
 
+   type,extends(type_base_model) :: type_column_projection
+      type (type_horizontal_dependency_id) :: id_source
+      type (type_diagnostic_variable_id)   :: id_result
+   contains
+      procedure :: initialize => column_projection_initialize
+      procedure :: do         => column_projection_do
+   end type
+
    type,extends(type_base_model) :: type_flux_copier
       type (type_state_variable_id)        :: id_target
       type (type_dependency_id)            :: id_sms
@@ -232,6 +240,7 @@ module fabm_builtin_models
          case ('interior_source');        allocate(type_interior_source::model)
          case ('bottom_source');          allocate(type_bottom_source::model)
          case ('interior_relaxation');    allocate(type_interior_relaxation::model)
+         case ('column_projection');      allocate(type_column_projection::model)
          case ('weighted_sum');           allocate(type_weighted_sum::model)
          case ('horizontal_weighted_sum');allocate(type_horizontal_weighted_sum::model)
          case ('bottom_field');           allocate(type_bottom_field::model)
@@ -834,6 +843,26 @@ module fabm_builtin_models
          _SET_ODE_(self%id_original, relaxation_rate*(target_value - original_value))
       _LOOP_END_
    end subroutine interior_relaxation_do
+
+   subroutine column_projection_initialize(self,configunit)
+      class (type_column_projection),intent(inout),target :: self
+      integer,                       intent(in)           :: configunit
+
+      call self%register_dependency(self%id_source,'source', '', 'horizontal source')
+      call self%register_diagnostic_variable(self%id_result,'result', '', 'interior result')
+   end subroutine column_projection_initialize
+
+   subroutine column_projection_do(self,_ARGUMENTS_DO_)
+      class (type_column_projection), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_
+
+      real(rk) :: value
+
+      _LOOP_BEGIN_
+         _GET_HORIZONTAL_(self%id_source,value)
+         _SET_DIAGNOSTIC_(self%id_result,value)
+      _LOOP_END_
+   end subroutine column_projection_do
 
    subroutine copy_fluxes_to_id(source_model,source_variable,target_variable,scale_factor)
       class (type_base_model),           intent(inout), target :: source_model
