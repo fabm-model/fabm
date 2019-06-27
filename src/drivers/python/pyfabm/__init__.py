@@ -62,6 +62,8 @@ fabm.get_coupling.argtypes = [ctypes.c_int,ctypes.POINTER(ctypes.c_void_p),ctype
 fabm.get_coupling.restype = None
 fabm.get_error_state.argtypes = []
 fabm.get_error_state.restype = ctypes.c_int
+fabm.get_error.argtypes = [ctypes.c_int, ctypes.c_char_p]
+fabm.get_error.restype = None
 
 # Read access to variable attributes
 fabm.variable_get_metadata.argtypes = [ctypes.c_void_p,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p]
@@ -179,6 +181,12 @@ def createPrettyUnit(unit):
 
 def hasError():
    return fabm.get_error_state() != 0
+
+def getError():
+    if hasError():
+        strmessage = ctypes.create_string_buffer(1024)
+        fabm.get_error(1024, strmessage)
+        return strmessage.value.decode('ascii')
 
 def printTree(root,stringmapper,indent=''):
     """Print an indented tree of objects, encoded by dictionaries linking the names of children to
@@ -387,6 +395,7 @@ class Model(object):
     def __init__(self,path='fabm.yaml'):
         self.lookup_tables = {}
         fabm.initialize(path.encode('ascii'))
+        assert not hasError(), 'An error occurred while parsing %s:\n%s' % (path, getError())
         self.updateConfiguration()
 
     def getSubModel(self,name):

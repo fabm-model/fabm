@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+import sys
 import os.path
 import tempfile
 import subprocess
@@ -13,25 +14,28 @@ root = os.path.join(script_root, '../..')
 allowed_hosts = os.listdir(os.path.join(root, 'src/drivers'))
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--host', action='append', dest='hosts', choices=allowed_hosts)
-parser.add_argument('--cmake', default='cmake')
-parser.add_argument('--compiler')
-parser.add_argument('-p', '--performance', action='store_true')
-parser.add_argument('--config', default='fabm.yaml')
-parser.add_argument('--env', default='environment.yaml')
-parser.add_argument('--report', default=None)
-parser.add_argument('--repeat', type=int, default=5)
-args = parser.parse_args()
+parser.add_argument('--host', action='append', dest='hosts', choices=allowed_hosts, help='host to test (may appear multiple times)')
+parser.add_argument('--cmake', default='cmake', help='path to cmake executable')
+parser.add_argument('--compiler', help='Fortran compiler executable')
+parser.add_argument('--performance', action='store_true', help='test performance with a specific model and environment (see --config and --env)')
+parser.add_argument('--config', default='fabm.yaml', help='model configuration for performance testing, default: fabm.yaml')
+parser.add_argument('--env', default='environment.yaml', help='model environment for performance testing (YAML file containing a dictionary with variable: value combinations), default: environment.yaml')
+parser.add_argument('--report', default=None, help='file to write performance report to (only used with --performance), default: performance_<BRANCH>_<COMMIT>.log')
+parser.add_argument('--repeat', type=int, default=5, help='number of times to run each performance test. Increase this to reduce the noise in timings')
+args, cmake_arguments = parser.parse_known_args()
 if args.performance:
-    assert os.path.isfile(args.config)
-    assert os.path.isfile(args.env)
+    if not os.path.isfile(args.config):
+        print('Model configuration %s does not exist. Specify (or change) --config.' % args.config)
+        sys.exit(2)
+    if not os.path.isfile(args.env):
+        print('Model environment %s does not exist. Specify (or change) --env.' % args.env)
+        sys.exit(2)
     if args.report is None:
         git_branch = subprocess.check_output(['git', 'name-rev', '--name-only', 'HEAD']).decode('ascii').strip()
         git_commit = subprocess.check_output(['git', 'describe', '--always', '--dirty']).decode('ascii').strip()
         args.report = 'performance_%s_%s.log' % (git_branch, git_commit)
-        print('Performance report will be written to %s' % args.report)
+    print('Performance report will be written to %s' % args.report)
 
-cmake_arguments = []
 if args.compiler is not None:
     cmake_arguments.append('-DCMAKE_Fortran_COMPILER=%s' % args.compiler)
 
@@ -52,7 +56,7 @@ def run(phase, args, **kwargs):
         with open(log_path, 'wb') as f:
             f.write(stdoutdata)
         logs.append(log_path)
-        print('FAILED (log written to %s)' % log_path)
+        print('FAILED (return code %i, log written to %s)' % (proc.returncode, log_path))
     else:
         print('SUCCESS')
     return proc.returncode
@@ -66,7 +70,11 @@ try:
         build_dir = os.path.join(build_root, host)
         os.mkdir(build_dir)
         print('  generating...', end='')
-        generates[host] = run('%s_generate' % host, [args.cmake, os.path.join(root, 'src'), '-DFABM_HOST=%s' % host] + cmake_arguments, cwd=build_dir)
+        try:
+            generates[host] = run('%s_generate' % host, [args.cmake, os.path.join(root, 'src'), '-DFABM_HOST=%s' % host] + cmake_arguments, cwd=build_dir)
+        except FileNotFoundError:
+            print('\n\ncmake executable not found. Specify its location on the command line with --cmake.')
+            sys.exit(2)
         if generates[host] != 0:
             continue
         print('  building...', end='')

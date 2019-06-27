@@ -196,6 +196,7 @@ integer :: mode = 1
 integer :: ntest = -1
 
 ! Parse command line arguments
+call start_test('parsing command line arguments')
 i = 1
 do
    call get_command_argument(i, arg)
@@ -213,6 +214,7 @@ do
       stop 2
    end select
 end do
+call report_test_result()
 
 #if _FABM_DIMENSION_COUNT_>0
 i__=50
@@ -226,6 +228,9 @@ k__=45
 
 #if _FABM_DIMENSION_COUNT_>0
 domain_extent = (/ _LOCATION_ /)
+interior_count = product(domain_extent)
+#else
+interior_count = 1
 #endif
 
 ! Set defaults
@@ -233,11 +238,10 @@ if (ntest == -1) then
    if (mode == 1) then
       ntest = 1
    else
-      ntest = 50000000/product(domain_extent)
+      ntest = 50000000/interior_count
    end if
 end if
 
-interior_count = product(domain_extent)
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 horizontal_count = interior_count / domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)
 #else
@@ -253,8 +257,12 @@ allocate(tmp _INDEX_LOCATION_)
 allocate(tmp_hz _INDEX_HORIZONTAL_LOCATION_)
 
 allocate(type_test_driver::driver)
-call fabm_initialize_library()
 
+call start_test('fabm_initialize_library')
+call fabm_initialize_library()
+call report_test_result()
+
+call start_test('building model tree')
 select case (mode)
 case (1)
     ! Unit testing with built-in model
@@ -264,6 +272,7 @@ case (2)
     ! Test with user-provided fabm.yaml
     call fabm_create_model_from_yaml_file(model, do_not_initialize=.true.)
 end select
+call report_test_result()
 
 call start_test('fabm_initialize')
 call fabm_initialize(model)
@@ -406,11 +415,11 @@ contains
 
    subroutine read_environment
       use yaml, only: yaml_parse => parse, yaml_error_length => error_length
-      use yaml_types, only: type_yaml_node => type_node, type_yaml_dictionary => type_dictionary, type_yaml_scalar => type_scalar, type_yaml_key_value_pair => type_key_value_pair
+      use yaml_types, only: type_node, type_yaml_dictionary => type_dictionary, type_yaml_scalar => type_scalar, type_yaml_key_value_pair => type_key_value_pair
 
       integer, parameter :: yaml_unit = 100
       character(yaml_error_length) :: yaml_error
-      class (type_yaml_node),pointer :: yaml_root
+      class (type_node),pointer :: yaml_root
       type (type_yaml_key_value_pair), pointer :: yaml_pair
       real(rk) :: value
       logical :: success

@@ -5,12 +5,11 @@ module fabm_config
    use fabm_types
    use fabm_properties,only:type_property_dictionary,type_property,type_set
    use fabm_driver
+   use fabm_schedule
    use fabm,only:type_model,fabm_initialize_library,fabm_initialize
 
    use yaml_types
    use yaml,yaml_parse=>parse,yaml_error_length=>error_length
-
-   use fabm_library
 
    implicit none
 
@@ -75,6 +74,7 @@ contains
       type (type_property_dictionary),optional,intent(in)  :: parameters
 
       class (type_node),pointer          :: node
+      type (type_dictionary)             :: empty_dict
       character(len=64)                  :: instancename
       type (type_key_value_pair),pointer :: pair
       logical                            :: initialize,check_conservation,require_initialization,require_all_parameters
@@ -114,10 +114,10 @@ contains
          select type (dict=>pair%value)
             class is (type_dictionary)
                call create_model_from_dictionary(instancename,dict,model%root, &
-                                                 require_initialization,require_all_parameters,check_conservation)
+                                                 require_initialization,require_all_parameters,check_conservation,model%schedules)
             class is (type_null)
-               call create_model_from_dictionary(instancename,type_dictionary(),model%root, &
-                                                 require_initialization,require_all_parameters,check_conservation)
+               call create_model_from_dictionary(instancename,empty_dict,model%root, &
+                                                 require_initialization,require_all_parameters,check_conservation,model%schedules)
             class is (type_node)
                call fatal_error('create_model_tree_from_dictionary','Configuration information for model "'// &
                   trim(instancename)//'" must be a dictionary, not a single value.')
@@ -141,11 +141,12 @@ contains
    end subroutine create_model_tree_from_dictionary
 
    subroutine create_model_from_dictionary(instancename,node,parent, &
-                                           require_initialization,require_all_parameters,check_conservation)
+                                           require_initialization,require_all_parameters,check_conservation,schedules)
       character(len=*),       intent(in)           :: instancename
       class (type_dictionary),intent(in)           :: node
       class (type_base_model),intent(inout),target :: parent
       logical,                intent(in)           :: require_initialization,require_all_parameters,check_conservation
+      class (type_schedules), intent(inout)        :: schedules
       class (type_base_model),pointer              :: model
 
       logical                            :: use_model
@@ -158,6 +159,8 @@ contains
       type (type_set)                    :: initialized_set,background_set
       type (type_link),pointer           :: link
       type (type_error),pointer          :: config_error
+      integer                            :: schedule_pattern, source
+      character(len=64)                  :: pattern
 
       nullify(config_error)
 
@@ -235,6 +238,39 @@ contains
                class is (type_node)
                   call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
                      ' must be a string, not a nested dictionary.')
+            end select
+            pair => pair%next
+         end do
+      end if
+
+      ! Parse scheduling instructions
+      childmap => node%get_dictionary('schedule',required=.false.,error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      if (associated(childmap)) then
+         pair => childmap%first
+         do while (associated(pair))
+            select type (value=>pair%value)
+               class is (type_dictionary)
+                  select case (pair%key)
+                  case ('interior')
+                     source = source_do
+                  case default
+                     call fatal_error('create_model_from_dictionary', 'Scheduler currently only supports "interior" &
+                        &(not "' // trim(pair%key) // '").')
+                  end select
+                  pattern = trim(value%get_string('pattern', error=config_error))
+                  if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
+                  select case (pattern)
+                  case ('monthly')
+                     schedule_pattern = schedule_pattern_monthly
+                  case default
+                     call fatal_error('create_model_from_dictionary', 'Scheduler currently only supports "monthly" &
+                        &as a pattern (not "' // trim(pattern) // '").')
+                  end select
+                  call schedules%add(model, source, schedule_pattern)
+               class is (type_node)
+                  call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
+                     ' must be a dictionary.')
             end select
             pair => pair%next
          end do

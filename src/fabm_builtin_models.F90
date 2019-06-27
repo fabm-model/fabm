@@ -9,7 +9,7 @@ module fabm_builtin_models
    private
 
    public type_weighted_sum,type_horizontal_weighted_sum,type_depth_integral,copy_fluxes,copy_horizontal_fluxes
-   public type_surface_source_copier
+   public type_surface_source
 
    type,extends(type_base_model_factory) :: type_factory
       contains
@@ -162,6 +162,24 @@ module fabm_builtin_models
       procedure :: do         => interior_source_do
    end type
 
+   type,extends(type_base_model) :: type_bottom_source
+      type (type_bottom_state_variable_id) :: id_target
+      type (type_horizontal_dependency_id) :: id_source
+      real(rk)                             :: scale_factor = 1.0_rk
+   contains
+      procedure :: initialize => bottom_source_initialize
+      procedure :: do_bottom  => bottom_source_do_bottom
+   end type
+
+   type,extends(type_base_model) :: type_surface_source
+      type (type_surface_state_variable_id) :: id_target
+      type (type_horizontal_dependency_id)  :: id_source
+      real(rk)                              :: scale_factor = 1.0_rk
+   contains
+      procedure :: initialize => surface_source_initialize
+      procedure :: do_surface => surface_source_do_surface
+   end type
+
    type,extends(type_base_model) :: type_interior_relaxation
       type (type_state_variable_id) :: id_original
       type (type_dependency_id)     :: id_target
@@ -171,6 +189,14 @@ module fabm_builtin_models
    contains
       procedure :: initialize => interior_relaxation_initialize
       procedure :: do         => interior_relaxation_do
+   end type
+
+   type,extends(type_base_model) :: type_column_projection
+      type (type_horizontal_dependency_id) :: id_source
+      type (type_diagnostic_variable_id)   :: id_result
+   contains
+      procedure :: initialize => column_projection_initialize
+      procedure :: do         => column_projection_do
    end type
 
    type,extends(type_base_model) :: type_source_copier
@@ -197,24 +223,6 @@ module fabm_builtin_models
       procedure :: do_surface  => surface_flux_copier_do_surface
    end type
 
-   type,extends(type_base_model) :: type_surface_source_copier
-      type (type_surface_state_variable_id) :: id_target
-      type (type_horizontal_dependency_id)  :: id_sms
-      real(rk)                              :: scale_factor = 1.0_rk
-   contains
-      procedure :: initialize => surface_source_copier_initialize
-      procedure :: do_surface => surface_source_copier_do_surface
-   end type
-
-   type,extends(type_base_model) :: type_bottom_source_copier
-      type (type_bottom_state_variable_id) :: id_target
-      type (type_horizontal_dependency_id) :: id_sms
-      real(rk)                             :: scale_factor = 1.0_rk
-   contains
-      procedure :: initialize => bottom_source_copier_initialize
-      procedure :: do_bottom  => bottom_source_copier_do_bottom
-   end type
-
    interface copy_fluxes
       module procedure copy_fluxes_to_id
       module procedure copy_fluxes_to_named_variable
@@ -236,7 +244,10 @@ module fabm_builtin_models
          case ('external_surface_flux');  allocate(type_external_surface_flux::model)
          case ('external_bottom_flux');  allocate(type_external_bottom_flux::model)
          case ('interior_source');        allocate(type_interior_source::model)
+         case ('bottom_source');          allocate(type_bottom_source::model)
+         case ('surface_source');         allocate(type_surface_source::model)
          case ('interior_relaxation');    allocate(type_interior_relaxation::model)
+         case ('column_projection');      allocate(type_column_projection::model)
          case ('weighted_sum');           allocate(type_weighted_sum::model)
          case ('horizontal_weighted_sum');allocate(type_horizontal_weighted_sum::model)
          case ('bottom_field');           allocate(type_bottom_field::model)
@@ -898,6 +909,48 @@ module fabm_builtin_models
       _LOOP_END_
    end subroutine interior_source_do
 
+   subroutine bottom_source_initialize(self,configunit)
+      class (type_bottom_source),intent(inout),target :: self
+      integer,                   intent(in)           :: configunit
+
+      call self%register_state_dependency(self%id_target,'target','UNITS m-2','target variable')
+      call self%register_dependency(self%id_source,'source','UNITS m-2 s-1','source')
+      call self%get_parameter(self%scale_factor, 'scale_factor', '', 'scale factor', default=1.0_rk)
+   end subroutine bottom_source_initialize
+
+   subroutine bottom_source_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
+      class (type_bottom_source), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_BOTTOM_
+
+      real(rk) :: source
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _GET_HORIZONTAL_(self%id_source, source)
+         _SET_BOTTOM_ODE_(self%id_target, self%scale_factor*source)
+      _HORIZONTAL_LOOP_END_
+   end subroutine bottom_source_do_bottom
+
+   subroutine surface_source_initialize(self, configunit)
+      class (type_surface_source), intent(inout), target :: self
+      integer,                            intent(in)            :: configunit
+
+      call self%register_state_dependency(self%id_target,'target','','target variable')
+      call self%register_dependency(self%id_source,'source','UNITS m-2 s-1','source')
+      call self%get_parameter(self%scale_factor, 'scale_factor', '', 'scale factor', default=1.0_rk)
+   end subroutine surface_source_initialize
+
+   subroutine surface_source_do_surface(self,_ARGUMENTS_DO_SURFACE_)
+      class (type_surface_source), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_SURFACE_
+
+      real(rk) :: source
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _GET_HORIZONTAL_(self%id_source, source)
+         _SET_SURFACE_ODE_(self%id_target, self%scale_factor*source)
+      _HORIZONTAL_LOOP_END_
+   end subroutine surface_source_do_surface
+
    subroutine interior_relaxation_initialize(self,configunit)
       class (type_interior_relaxation),intent(inout),target :: self
       integer,                         intent(in)           :: configunit
@@ -926,6 +979,26 @@ module fabm_builtin_models
          _SET_ODE_(self%id_original, relaxation_rate*(target_value - original_value))
       _LOOP_END_
    end subroutine interior_relaxation_do
+
+   subroutine column_projection_initialize(self,configunit)
+      class (type_column_projection),intent(inout),target :: self
+      integer,                       intent(in)           :: configunit
+
+      call self%register_dependency(self%id_source,'source', '', 'horizontal source')
+      call self%register_diagnostic_variable(self%id_result,'result', '', 'interior result')
+   end subroutine column_projection_initialize
+
+   subroutine column_projection_do(self,_ARGUMENTS_DO_)
+      class (type_column_projection), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_
+
+      real(rk) :: value
+
+      _LOOP_BEGIN_
+         _GET_HORIZONTAL_(self%id_source,value)
+         _SET_DIAGNOSTIC_(self%id_result,value)
+      _LOOP_END_
+   end subroutine column_projection_do
 
    subroutine copy_fluxes_to_id(source_model,source_variable,target_variable,scale_factor)
       class (type_base_model),           intent(inout), target :: source_model
@@ -980,8 +1053,8 @@ module fabm_builtin_models
       character(len=*),                             intent(in)            :: target_variable
       real(rk),optional,                            intent(in)            :: scale_factor
 
-      class (type_bottom_source_copier), pointer :: bottom_copier
-      class (type_surface_source_copier),pointer :: surface_copier
+      class (type_bottom_source),  pointer :: bottom_copier
+      class (type_surface_source), pointer :: surface_copier
 
       select case (source_variable%link%target%domain)
       case (domain_bottom)
@@ -989,13 +1062,13 @@ module fabm_builtin_models
          if (present(scale_factor)) bottom_copier%scale_factor = scale_factor
          call source_model%add_child(bottom_copier,'redirect_'//trim(source_variable%link%name)//'_fluxes',configunit=-1)
          call bottom_copier%request_coupling(bottom_copier%id_target,target_variable)
-         call bottom_copier%request_coupling(bottom_copier%id_sms,trim(source_variable%link%target%name)//'_sms_tot')
+         call bottom_copier%request_coupling(bottom_copier%id_source,trim(source_variable%link%target%name)//'_sms_tot')
       case (domain_surface)
          allocate(surface_copier)
          if (present(scale_factor)) surface_copier%scale_factor = scale_factor
          call source_model%add_child(surface_copier,'redirect_'//trim(source_variable%link%name)//'_fluxes',configunit=-1)
          call surface_copier%request_coupling(surface_copier%id_target,target_variable)
-         call surface_copier%request_coupling(surface_copier%id_sms,trim(source_variable%link%target%name)//'_sms_tot')
+         call surface_copier%request_coupling(surface_copier%id_source,trim(source_variable%link%target%name)//'_sms_tot')
       case default
          call source_model%fatal_error('copy_horizontal_fluxes','source variable has unknown domain (should be either surface or bottom)')
       end select
@@ -1036,45 +1109,5 @@ module fabm_builtin_models
          _ADD_HORIZONTAL_(self%id_target_flux,flux*self%scale_factor)
       _HORIZONTAL_LOOP_END_
    end subroutine bottom_flux_copier_do_bottom
-
-   subroutine surface_source_copier_initialize(self,configunit)
-      class (type_surface_source_copier), intent(inout), target :: self
-      integer,                            intent(in)            :: configunit
-
-      call self%register_state_dependency(self%id_target,'target','','target variable')
-      call self%register_dependency(self%id_sms,'sms','','sources minus sinks')
-   end subroutine surface_source_copier_initialize
-
-   subroutine surface_source_copier_do_surface(self,_ARGUMENTS_DO_SURFACE_)
-      class (type_surface_source_copier), intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_SURFACE_
-
-      real(rk) :: sms
-
-      _HORIZONTAL_LOOP_BEGIN_
-         _GET_HORIZONTAL_(self%id_sms,sms)
-         _SET_SURFACE_ODE_(self%id_target,sms*self%scale_factor)
-      _HORIZONTAL_LOOP_END_
-   end subroutine surface_source_copier_do_surface
-
-   subroutine bottom_source_copier_initialize(self,configunit)
-      class (type_bottom_source_copier), intent(inout), target :: self
-      integer,                           intent(in)            :: configunit
-
-      call self%register_state_dependency(self%id_target,'target','','target variable')
-      call self%register_dependency(self%id_sms,'sms','','sources minus sinks')
-   end subroutine bottom_source_copier_initialize
-
-   subroutine bottom_source_copier_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
-      class (type_bottom_source_copier), intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_BOTTOM_
-
-      real(rk) :: sms
-
-      _HORIZONTAL_LOOP_BEGIN_
-         _GET_HORIZONTAL_(self%id_sms,sms)
-         _SET_BOTTOM_ODE_(self%id_target,sms*self%scale_factor)
-      _HORIZONTAL_LOOP_END_
-   end subroutine bottom_source_copier_do_bottom
 
 end module fabm_builtin_models

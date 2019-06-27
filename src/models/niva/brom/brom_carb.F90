@@ -287,7 +287,7 @@
 !          flux = fwind * HENRY * ( PCO2A - PCO2W ) * dcf
 
 
-      Q_pCO2= fwind * ( pCO2a- max(0e0,pCO2w))
+      Q_pCO2= fwind * ( pCO2a- max(0._rk,pCO2w))
       Q_DIC = Q_pCO2*Kc0/86400.
 ! /PML
       !!!!!
