@@ -187,6 +187,7 @@ add_library(fabm_base OBJECT
             ${CMAKE_CURRENT_LIST_DIR}/fabm_builtin_models.F90
             ${CMAKE_CURRENT_LIST_DIR}/../include/fabm.h
             ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_private.h
+            ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_version.h
             ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
            )
 
@@ -229,8 +230,8 @@ endif()
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
 set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules")
-target_include_directories(fabm_base PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules> $<INSTALL_INTERFACE:include>)
-target_include_directories(fabm PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules> $<INSTALL_INTERFACE:include>)
+target_include_directories(fabm_base PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules> $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include> $<INSTALL_INTERFACE:include>)
+target_include_directories(fabm PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules> $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include> $<INSTALL_INTERFACE:include>)
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
 target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -272,7 +273,10 @@ if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
     DESTINATION lib)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules/\${BUILD_TYPE}/
     DESTINATION include)
-  install(FILES ${CMAKE_CURRENT_LIST_DIR}/../include/fabm.h ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
+  install(FILES
+    ${CMAKE_CURRENT_LIST_DIR}/../include/fabm.h
+    ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_version.h
+    ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
     DESTINATION include)
 endif()
 
