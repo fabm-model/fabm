@@ -8,6 +8,7 @@
 module fabm_job
 
    use fabm_types
+   use fabm_schedule
    use fabm_driver
    use fabm_graph
 
@@ -72,6 +73,7 @@ module fabm_job
       class (type_base_model), pointer            :: model => null()
       integer                                     :: source = source_unknown
       type (type_node), pointer                   :: graph_node => null()
+      logical                                     :: active = .true.
       type (type_cache_copy_command), allocatable :: copy_commands_int(:) ! interior variables to copy from write to read cache after call completes
       type (type_cache_copy_command), allocatable :: copy_commands_hz(:)  ! horizontal variables to copy from write to read cache after call completes
       type (type_call), pointer                   :: next => null()
@@ -406,9 +408,10 @@ module fabm_job
       end do
    end subroutine graph_subset_node_set_branch
 
-   subroutine task_initialize(self, variable_register)
-      class (type_task),             intent(inout) :: self
+   subroutine task_initialize(self, variable_register, schedules)
+      class (type_task),                    intent(inout) :: self
       type (type_global_variable_register), intent(inout) :: variable_register
+      type (type_schedules),                intent(inout) :: schedules
 
       type (type_call),          pointer :: call_node
       type (type_variable_node), pointer :: input_variable
@@ -436,6 +439,7 @@ module fabm_job
       call_node => self%first_call
       do while (associated(call_node))
          call call_initialize(call_node, variable_register)
+         call schedules%attach(call_node%model, call_node%source, call_node%active)
          call_node => call_node%next
       end do
    end subroutine task_initialize
@@ -1425,9 +1429,10 @@ contains
 
 end subroutine job_finalize_prefill_settings
 
-subroutine job_initialize(self, variable_register)
-   class (type_job),target,      intent(inout) :: self
+subroutine job_initialize(self, variable_register, schedules)
+   class (type_job),target,             intent(inout) :: self
    type (type_global_variable_register),intent(inout) :: variable_register
+   type (type_schedules),               intent(inout) :: schedules
 
    type (type_task), pointer :: task
 
@@ -1437,7 +1442,7 @@ subroutine job_initialize(self, variable_register)
    ! Initialize tasks
    task => self%first_task
    do while (associated(task))
-      call task%initialize(variable_register)
+      call task%initialize(variable_register, schedules)
       task => task%next
    end do
 
@@ -1506,10 +1511,11 @@ subroutine check_graph_duplicates(self)
    end do
 end subroutine check_graph_duplicates
 
-subroutine job_manager_initialize(self, variable_register, unfulfilled_dependencies)
-   class (type_job_manager), intent(inout) :: self
+subroutine job_manager_initialize(self, variable_register, schedules, unfulfilled_dependencies)
+   class (type_job_manager),             intent(inout) :: self
    type (type_global_variable_register), intent(inout) :: variable_register
-   type (type_variable_set), intent(out)   :: unfulfilled_dependencies
+   type (type_schedules),                intent(inout) :: schedules
+   type (type_variable_set),             intent(out)   :: unfulfilled_dependencies
 
    type (type_job_node), pointer :: node, first_ordered
 
@@ -1555,7 +1561,7 @@ subroutine job_manager_initialize(self, variable_register, unfulfilled_dependenc
    ! Initialize all jobs. This assigns indices in the read and write caches, and in the persistent store.
    node => self%first
    do while (associated(node))
-      call job_initialize(node%p, variable_register)
+      call job_initialize(node%p, variable_register, schedules)
       node => node%next
    end do
 
