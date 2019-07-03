@@ -38,7 +38,7 @@ setup(
         ]
     },
     packages=['pyfabm', 'pyfabm/utils'],
-    package_data={'pyfabm': ['*.so', '*.dll', '.dylib']},
+    package_data={'pyfabm': ['*.so', '*.dll', '*.dylib']},
     cmdclass={'bdist_wheel': bdist_wheel},
     zip_safe=False
 )
