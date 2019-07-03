@@ -41,8 +41,6 @@
    public fabm_initialize, fabm_finalize, fabm_set_domain, fabm_check_ready, fabm_update_time
    public fabm_initialize_state, fabm_initialize_surface_state, fabm_initialize_bottom_state
 
-   public fabm_process_job_all
-
    ! Process rates and diagnostics for pelagic, surface, bottom.
    public fabm_do, fabm_do_surface, fabm_do_bottom
 
@@ -227,6 +225,8 @@
       ! Persistent store
       real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: diag
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
+      real(rk),allocatable                                      :: diag_fill_value(:)
+      real(rk),allocatable                                      :: diag_hz_fill_value(:)
       real(rk),allocatable                                      :: diag_missing_value(:)
       real(rk),allocatable                                      :: diag_hz_missing_value(:)
 
@@ -293,7 +293,6 @@
       procedure :: set_bottom_index => fabm_set_bottom_index
       procedure :: set_surface_index => fabm_set_surface_index
 #endif
-      procedure :: process_job => fabm_process_job
 
       procedure :: link_interior_data_by_variable => fabm_link_interior_data_by_variable
       procedure :: link_interior_data_by_id   => fabm_link_interior_data_by_id
@@ -320,7 +319,8 @@
       procedure :: link_all_surface_state_data  => fabm_link_all_surface_state_data
 
       procedure :: require_interior_data => fabm_require_interior_data
-      generic :: require_data => require_interior_data
+      procedure :: require_horizontal_data => fabm_require_horizontal_data
+      generic :: require_data => require_interior_data, require_horizontal_data
 
       procedure :: get_interior_data => fabm_get_interior_data
       procedure :: get_horizontal_data => fabm_get_horizontal_data
@@ -348,6 +348,13 @@
       generic :: variable_needs_values => interior_variable_needs_values, interior_variable_needs_values_sn, &
                                           horizontal_variable_needs_values, horizontal_variable_needs_values_sn, &
                                           scalar_variable_needs_values, scalar_variable_needs_values_sn
+
+      procedure :: process_job => fabm_process_job
+      generic :: process => process_job
+#if _FABM_DIMENSION_COUNT_ > 1 || (_FABM_DIMENSION_COUNT_ == 1 && !defined(_FABM_DEPTH_DIMENSION_INDEX_))
+      procedure :: process_job_everywhere => fabm_process_job_everywhere
+      generic :: process => process_job_everywhere
+#endif
 
       ! -----------------------------------------------------------------------------
       ! For backward compatibility (pre 11 Dec 2015)
@@ -645,8 +652,8 @@
       self%info => self ! For backward compatibility (pre 11/2013 hosts only)
 
       ! Create zero fields.
-      call self%root%add_interior_variable('zero', act_as_state_variable=.true., source=source_none, missing_value=0.0_rk, output=output_none)
-      call self%root%add_horizontal_variable('zero_hz', act_as_state_variable=.true., source=source_none, missing_value=0.0_rk, output=output_none)
+      call self%root%add_interior_variable('zero', act_as_state_variable=.true., source=source_constant, missing_value=0.0_rk, output=output_none)
+      call self%root%add_horizontal_variable('zero_hz', act_as_state_variable=.true., source=source_constant, missing_value=0.0_rk, output=output_none)
 
       ! Filter out expressions that FABM can handle itself.
       ! The remainder, if any, must be handled by the host model.
@@ -673,7 +680,7 @@
 
       ! Create built-in jobs, which can then be chained by the host/user by calling job%set_next.
       ! (the reason for chaining is to allow later jobs to use results of earlier ones, thus reducing the number of calls needed)
-      call self%job_manager%create(self%prepare_job, 'prepare_job')
+      call self%job_manager%create(self%prepare_job, 'prepare')
       call self%job_manager%create(self%do_interior_job, 'do_interior', source=source_do, previous=self%do_surface_job)
       call self%job_manager%create(self%do_surface_job, 'do_surface', source=source_do_surface, previous=self%do_bottom_job)
       call self%job_manager%create(self%do_bottom_job, 'do_bottom', source=source_do_bottom, previous=self%prepare_job)
@@ -927,6 +934,8 @@
 #endif
 
       ! Collect missing values in array for faster access. These will be used to fill masked parts of outputs.
+      call collect_fill_values(self%variable_register%store%interior, self%diag_fill_value, use_missing=.false.)
+      call collect_fill_values(self%variable_register%store%horizontal, self%diag_hz_fill_value, use_missing=.false.)
       call collect_fill_values(self%variable_register%store%interior, self%diag_missing_value, use_missing=.true.)
       call collect_fill_values(self%variable_register%store%horizontal, self%diag_hz_missing_value, use_missing=.true.)
 
@@ -1843,6 +1852,30 @@
          call fatal_error('fabm_require_interior_data', 'Model does not contain requested variable ' // trim(standard_variable%name))
       call self%get_diagnostics_job%request_variable(id%variable, store=.true.)
    end subroutine fabm_require_interior_data
+
+   subroutine fabm_require_horizontal_data(self,standard_variable,domain)
+      class (type_model),                      intent(inout) :: self
+      type(type_horizontal_standard_variable), intent(in)    :: standard_variable
+      integer,optional,                        intent(in)    :: domain
+
+      type (type_horizontal_variable_id) :: id
+      type (type_link), pointer          :: link
+
+      if (self%state < state_initialize_done) &
+         call fatal_error('fabm_require_horizontal_data','model%require_data can only be called after model initialization.')
+      if (self%state >= state_check_ready_done) &
+         call fatal_error('fabm_require_horizontal_data','model%require_data cannot be called after check_ready is called.')
+
+      id = self%get_horizontal_variable_id(standard_variable)
+      if (associated(id%variable)) then
+         call self%get_diagnostics_job%request_variable(id%variable, store=.true.)
+      else
+         self%root%frozen = .false.
+         call self%root%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable=standard_variable, link=link)
+         call self%get_diagnostics_job%request_variable(link%target, store=.true.)
+         self%root%frozen = .true.
+      end if
+   end subroutine fabm_require_horizontal_data
 
 !-----------------------------------------------------------------------
 !BOP
@@ -2875,38 +2908,38 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 end subroutine begin_vertical_task
 
 subroutine check_call_output(call_node,cache)
-   use fabm_graph, only: type_output_variable
+   use fabm_graph, only: type_output_variable_set_node
    use, intrinsic :: ieee_arithmetic
 
    type (type_call), intent(in) :: call_node
    type (type_cache),intent(in) :: cache
    _DECLARE_INTERIOR_INDICES_
 
-   type (type_output_variable),pointer :: output_variable
+   type (type_output_variable_set_node), pointer :: output_variable
 
    output_variable => call_node%graph_node%outputs%first
    do while (associated(output_variable))
-      select case (output_variable%target%domain)
+      select case (output_variable%p%target%domain)
       case (domain_interior)
          _LOOP_BEGIN_
-            if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%target%write_indices%value))) &
-               call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%target%name))
+            if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
+               call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
          _LOOP_END_
-         if (output_variable%target%prefill==prefill_none) then
+         if (output_variable%p%target%prefill==prefill_none) then
             _LOOP_BEGIN_
-               if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%target%write_indices%value) == not_written) &
-                  call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%target%name))
+               if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
+                  call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
             _LOOP_END_
          end if
       case (domain_surface,domain_bottom,domain_horizontal)
          _HORIZONTAL_LOOP_BEGIN_
-            if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%target%write_indices%value))) &
-               call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%target%name))
+            if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
+               call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
          _HORIZONTAL_LOOP_END_
-         if (output_variable%target%prefill==prefill_none) then
+         if (output_variable%p%target%prefill==prefill_none) then
             _HORIZONTAL_LOOP_BEGIN_
-               if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%target%write_indices%value) == not_written) &
-                  call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%target%name))
+               if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
+                  call driver%fatal_error('verify_outputs',trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
             _HORIZONTAL_LOOP_END_
          end if
       end select
@@ -3962,7 +3995,7 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-
+   call self%process_job(self%prepare_job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
    end subroutine fabm_get_light
 !EOC
 
@@ -4171,117 +4204,85 @@ end subroutine internal_check_horizontal_state
    end subroutine fabm_get_horizontal_conserved_quantities
 !EOC
 
-   subroutine fabm_process_job_all(self,job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
+   subroutine fabm_process_job(self,job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
       class (type_model), intent(inout), target :: self
       type (type_job),    intent(in)            :: job
       _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
 
-      type (type_task),pointer :: task
+      integer :: i
+      type (type_task), pointer :: task
+      _DECLARE_LOCATION_
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
       ! Jobs must be applied across the entire depth range (if any),
       ! so we set vertical start and stop indices here.
-      integer :: _VERTICAL_START_,_VERTICAL_STOP_
+      integer :: _VERTICAL_START_, _VERTICAL_STOP_
       _VERTICAL_START_ = 1
       _VERTICAL_STOP_ = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
 
-      task => job%first_task
-      do while (associated(task))
-         select case (task%operation)
-         case (source_do)
-            call fabm_process_interior_all(self,task _ARGUMENTS_LOCATION_RANGE_)
-         case (source_do_surface,source_do_bottom,source_do_horizontal)
-            call fabm_process_horizontal_all(self,task _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
-         case (source_do_column)
-            call fabm_process_vertical_all(self,task _ARGUMENTS_LOCATION_RANGE_)
-         end select
-         task => task%next
+      do i = 1, size(job%interior_store_prefill)
+         if (job%interior_store_prefill(i)) then
+            _BEGIN_OUTER_INTERIOR_LOOP_
+               self%diag _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_, i) = self%diag_fill_value(i)
+            _END_OUTER_INTERIOR_LOOP_
+         end if
       end do
-   end subroutine fabm_process_job_all
-
-   subroutine fabm_process_interior_all(self,job _ARGUMENTS_LOCATION_RANGE_)
-      class (type_model),intent(inout), target :: self
-      type (type_task),  intent(in)            :: job
-      _DECLARE_ARGUMENTS_LOCATION_RANGE_
-
-      _DECLARE_LOCATION_
-
-      _BEGIN_OUTER_INTERIOR_LOOP_
-         call fabm_process_interior_slice(self,job _ARGUMENTS_INTERIOR_IN_)
-      _END_OUTER_INTERIOR_LOOP_
-   end subroutine fabm_process_interior_all
-
-   subroutine fabm_process_horizontal_all(self,job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
-      class (type_model),intent(inout), target :: self
-      type (type_task),  intent(in)            :: job
-      _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
-
-      _DECLARE_LOCATION_
-
-      _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_process_horizontal_slice(self,job _ARGUMENTS_HORIZONTAL_IN_)
-      _END_OUTER_HORIZONTAL_LOOP_
-   end subroutine fabm_process_horizontal_all
-
-   subroutine fabm_process_vertical_all(self,job _ARGUMENTS_LOCATION_RANGE_)
-      class (type_model),intent(inout), target :: self
-      type (type_task),  intent(in)            :: job
-      _DECLARE_ARGUMENTS_LOCATION_RANGE_
-
-      _DECLARE_LOCATION_
-
-      _BEGIN_OUTER_VERTICAL_LOOP_
-         call fabm_process_vertical_slice(self,job _ARGUMENTS_VERTICAL_IN_)
-      _END_OUTER_VERTICAL_LOOP_
-   end subroutine fabm_process_vertical_all
-
-   subroutine fabm_process_job(self,job _ARGUMENTS_HORIZONTAL_IN_)
-      class (type_model),intent(inout) :: self
-      type (type_job),   intent(in)    :: job
-      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-
-      type (type_task),pointer :: task
-
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      ! Jobs must be applied across the entire depth range (if any),
-      ! so we set vertical start and stop indices here.
-      integer :: _VERTICAL_START_,_VERTICAL_STOP_
-#  if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
-      integer :: _ITERATOR_
-#  endif
-#  if _FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
-      integer :: _VERTICAL_ITERATOR_
-#  endif
-      _VERTICAL_START_ = 1
-      _VERTICAL_STOP_ = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
-#endif
+      do i = 1, size(job%horizontal_store_prefill)
+         if (job%horizontal_store_prefill(i)) then
+            _BEGIN_OUTER_HORIZONTAL_LOOP_
+               self%diag_hz _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_, i) = self%diag_hz_fill_value(i)
+            _END_OUTER_HORIZONTAL_LOOP_
+         end if
+      end do
 
       task => job%first_task
       do while (associated(task))
          select case (task%operation)
          case (source_do)
-#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
-            do _VERTICAL_ITERATOR_=_VERTICAL_START_,_VERTICAL_STOP_
-#endif
-               call fabm_process_interior_slice(self,task _ARGUMENTS_INTERIOR_IN_)
-#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
-            end do
-#endif
-         case (source_do_surface,source_do_bottom,source_do_horizontal)
-            call fabm_process_horizontal_slice(self,task _ARGUMENTS_HORIZONTAL_IN_)
+            _BEGIN_OUTER_INTERIOR_LOOP_
+               call fabm_process_interior_slice(self, task _ARGUMENTS_INTERIOR_IN_)
+            _END_OUTER_INTERIOR_LOOP_
+         case (source_do_surface, source_do_bottom, source_do_horizontal)
+            _BEGIN_OUTER_HORIZONTAL_LOOP_
+               call fabm_process_horizontal_slice(self, task _ARGUMENTS_HORIZONTAL_IN_)
+            _END_OUTER_HORIZONTAL_LOOP_
          case (source_do_column)
-#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
-            do _ITERATOR_=_START_,_STOP_
+            _BEGIN_OUTER_VERTICAL_LOOP_
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  if _FABM_BOTTOM_INDEX_==-1
+#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+               _VERTICAL_START_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#    else
+               _VERTICAL_STOP_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#    endif
+#  endif
 #endif
-               call fabm_process_vertical_slice(self,task _ARGUMENTS_VERTICAL_IN_)
-#if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_
-            end do
-#endif
+               call fabm_process_vertical_slice(self, task _ARGUMENTS_VERTICAL_IN_)
+            _END_OUTER_VERTICAL_LOOP_
          end select
          task => task%next
       end do
    end subroutine fabm_process_job
+
+#if _FABM_DIMENSION_COUNT_>1 || (_FABM_DIMENSION_COUNT_==1 && !defined(_FABM_DEPTH_DIMENSION_INDEX_))
+   subroutine fabm_process_job_everywhere(self, job)
+      class (type_model), intent(inout), target :: self
+      type (type_job),    intent(in)            :: job
+      integer :: _LOCATION_RANGE_
+      istart__ = 1
+      istop__ = self%domain_size(1)
+#  if _FABM_DIMENSION_COUNT_ > 1
+      jstart__ = 1
+      jstop__ = self%domain_size(2)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      kstart__ = 1
+      kstop__ = self%domain_size(3)
+#  endif
+      call fabm_process_job(self, job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
+   end subroutine fabm_process_job_everywhere
+#endif
 
    subroutine fabm_process_interior_slice(self,task _ARGUMENTS_INTERIOR_IN_)
       class (type_model),intent(inout), target :: self
@@ -4296,11 +4297,10 @@ end subroutine internal_check_horizontal_state
 
       call_node => task%first_call
       do while (associated(call_node))
-         if (call_node%source==source_do) then
-            call call_node%model%do(self%cache_int)
-         elseif (call_node%source==source_get_light_extinction) then
-            call call_node%model%get_light_extinction(self%cache_int)
-         end if
+         select case (call_node%source)
+         case (source_do);                   call call_node%model%do(self%cache_int)
+         case (source_get_light_extinction); call call_node%model%get_light_extinction(self%cache_int)
+         end select
 
 #ifndef NDEBUG
          call check_call_output(call_node,self%cache_int)
@@ -4617,6 +4617,7 @@ subroutine classify_variables(self)
    link => self%links_postcoupling%first
    do while (associated(link))
       object => link%target
+      _ASSERT_(object%source /= source_state .or. object%state_indices%is_empty(), 'classify_variables', 'variable '//trim(object%name)//' has source_state and one or more write indices.')
       select case (object%domain)
          case (domain_interior)
             if (.not.object%write_indices%is_empty()) then

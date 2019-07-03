@@ -1,6 +1,6 @@
 module fabm_schedule
 
-   use fabm_types, only: type_base_model, source_none, rk
+   use fabm_types, only: type_base_model, source_unknown, rk
 
    implicit none
 
@@ -18,7 +18,7 @@ module fabm_schedule
 
    type type_schedule
       class (type_base_model),     pointer :: model          => null()
-      integer                              :: source         =  source_none
+      integer                              :: source         =  source_unknown
       integer                              :: pattern        =  schedule_pattern_none
       integer                              :: last_year      = -1
       integer                              :: last_month     = -1

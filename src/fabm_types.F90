@@ -81,6 +81,7 @@
                                  source_do_horizontal            =  3, &
                                  source_do_bottom                =  4, &
                                  source_do_surface               =  5, &
+                                 source_constant                 =  6, &
                                  source_none                     =  6, &
                                  source_get_vertical_movement    =  7, &
                                  source_initialize_state         =  8, &
@@ -92,7 +93,8 @@
                                  source_get_light_extinction     = 14, &
                                  source_get_drag                 = 15, &
                                  source_get_albedo               = 16, &
-                                 source_external                 = 17
+                                 source_external                 = 17, &
+                                 source_state                    = 18
 
    integer, parameter, public :: presence_internal          = 1, &
                                  presence_external_required = 2, &
@@ -1490,7 +1492,7 @@ end subroutine real_pointer_set_set_value
                                   initial_value=initial_value, background_value=background_value, &
                                   vertical_movement=vertical_movement, specific_light_extinction=specific_light_extinction, &
                                   no_precipitation_dilution=no_precipitation_dilution, no_river_dilution=no_river_dilution, &
-                                  standard_variable=standard_variable, presence=presence, &
+                                  standard_variable=standard_variable, presence=presence, source=source_state, &
                                   state_index=id%state_index, read_index=id%index, &
                                   movement_index=id%movement_index, background=id%background, link=id%link)
 
@@ -1617,7 +1619,7 @@ end subroutine real_pointer_set_set_value
                                         initial_value=initial_value, background_value=background_value, &
                                         standard_variable=standard_variable, presence=presence, domain=domain_bottom, &
                                         state_index=id%bottom_state_index, read_index=id%horizontal_index, &
-                                        background=id%background, link=id%link)
+                                        background=id%background, link=id%link, source=source_state)
       call register_bottom_source(self,id%link,id%bottom_sms)
    end subroutine register_bottom_state_variable
 !EOC
@@ -1656,7 +1658,7 @@ end subroutine real_pointer_set_set_value
                                         initial_value=initial_value, background_value=background_value, &
                                         standard_variable=standard_variable, presence=presence, domain=domain_surface, &
                                         state_index=id%surface_state_index, read_index=id%horizontal_index, &
-                                        background=id%background, link=id%link)
+                                        background=id%background, link=id%link, source=source_state)
       call register_surface_source(self,id%link,id%surface_sms)
 
    end subroutine register_surface_state_variable
@@ -1758,6 +1760,7 @@ end subroutine real_pointer_set_set_value
       end if
       if (present(write_index)) then
          variable%write_index => write_index
+         _ASSERT_(variable%source /= source_state, 'add_variable', 'Variable '//trim(name)//' being registered with source_state and write index.')
          call variable%write_indices%append(write_index)
       end if
       variable%can_be_slave = .not.present(write_index)
@@ -3150,12 +3153,14 @@ end subroutine abstract_model_factory_register_version
       integer, intent(in) :: source
       select case (source)
       case (source_unknown);                  source2string = 'unknown'
+      case (source_state);                    source2string = 'state'
+      case (source_external);                 source2string = 'external'
       case (source_do);                       source2string = 'do'
       case (source_do_column);                source2string = 'do_column'
       case (source_do_horizontal);            source2string = 'do_horizontal'
       case (source_do_bottom);                source2string = 'do_bottom'
       case (source_do_surface);               source2string = 'do_surface'
-      case (source_none);                     source2string = 'none'
+      case (source_constant);                 source2string = 'constant'
       case (source_get_vertical_movement);    source2string = 'get_vertical_movement'
       case (source_check_state);              source2string = 'check_state'
       case (source_check_bottom_state);       source2string = 'check_bottom_state'

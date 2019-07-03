@@ -280,7 +280,7 @@ module fabm_builtin_models
       if (present(link)) link => link_
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
-         link_%target%source = source_none
+         link_%target%source = source_constant
          link_%target%prefill_value = 0
       elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
@@ -601,7 +601,7 @@ module fabm_builtin_models
       if (present(link)) link => link_
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
-         link_%target%source = source_none
+         link_%target%source = source_constant
          link_%target%prefill_value = 0
       elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
@@ -787,10 +787,10 @@ module fabm_builtin_models
       call self%get_parameter(value,'value','','value')
       if (standard_name/='') then
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none, standard_variable=type_bulk_standard_variable(name=standard_name), source=source_none)
+            output=output_none, standard_variable=type_bulk_standard_variable(name=standard_name), source=source_constant)
       else
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none, source=source_none)
+            output=output_none, source=source_constant)
       end if
    end subroutine interior_constant_initialize
 
@@ -805,10 +805,10 @@ module fabm_builtin_models
       call self%get_parameter(value,'value','','value')
       if (standard_name/='') then
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none, standard_variable=type_horizontal_standard_variable(name=standard_name), source=source_none)
+            output=output_none, standard_variable=type_horizontal_standard_variable(name=standard_name), source=source_constant)
       else
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none, source=source_none)
+            output=output_none, source=source_constant)
       end if
    end subroutine horizontal_constant_initialize
 

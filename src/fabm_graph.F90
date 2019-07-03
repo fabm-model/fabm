@@ -15,7 +15,7 @@ module fabm_graph
 
    implicit none
 
-   public type_graph, type_node, type_node_set_member, type_node_list, type_node_list_member
+   public type_graph, type_node, type_output_variable_set, type_output_variable_set_node, type_node_set_member, type_node_list, type_node_list_member
    public type_output_variable, source2operation
 
    private
@@ -57,14 +57,19 @@ module fabm_graph
       type (type_node_set)                   :: dependent_nodes
       logical                                :: copy_to_cache   = .false.
       logical                                :: copy_to_store   = .false.
-      type (type_output_variable),   pointer :: next            => null()
+   end type
+
+   type type_output_variable_set_node
+      type (type_output_variable),          pointer :: p    => null()
+      type (type_output_variable_set_node), pointer :: next => null()
    end type
 
    type type_output_variable_set
-      type (type_output_variable), pointer :: first => null()
+      type (type_output_variable_set_node), pointer :: first => null()
    contains
-      procedure :: add      => output_variable_set_add
-      procedure :: finalize => output_variable_set_finalize
+      procedure :: add                 => output_variable_set_add
+      procedure :: add_output_variable => output_variable_set_add_output_variable
+      procedure :: finalize            => output_variable_set_finalize
    end type
 
    type type_node
@@ -101,35 +106,51 @@ module fabm_graph
 
 contains
 
-function output_variable_set_add(self,variable) result(node)
+function output_variable_set_add(self,variable) result(output_variable)
    class (type_output_variable_set),intent(inout) :: self
    type (type_internal_variable),target           :: variable
 
-   type (type_output_variable), pointer :: node
+   type (type_output_variable_set_node), pointer :: node
+   type (type_output_variable),          pointer :: output_variable
 
    ! Check if this variable already exists.
    node => self%first
    do while (associated(node))
-      if (associated(node%target,variable)) return
+      if (associated(node%p%target, variable)) then
+         output_variable => node%p
+         return
+      end if
       node => node%next
    end do
 
    ! Create a new variable object and prepend it to the list.
+   allocate(output_variable)
+   output_variable%target => variable
+   call self%add_output_variable(output_variable)
+end function output_variable_set_add
+
+subroutine output_variable_set_add_output_variable(self, output_variable)
+   class (type_output_variable_set), intent(inout) :: self
+   type (type_output_variable), target             :: output_variable
+
+   class (type_output_variable_set_node), pointer :: node
+
    allocate(node)
-   node%target => variable
+   node%p => output_variable
    node%next => self%first
    self%first => node
-end function output_variable_set_add
+end subroutine output_variable_set_add_output_variable
 
 subroutine output_variable_set_finalize(self)
    class (type_output_variable_set), intent(inout) :: self
 
-   type (type_output_variable),pointer :: node, next
+   type (type_output_variable_set_node),pointer :: node, next
 
    node => self%first
    do while (associated(node))
       next => node%next
-      call node%dependent_nodes%finalize()
+      call node%p%dependent_nodes%finalize()
+      deallocate(node%p)
       deallocate(node)
       node => next
    end do
@@ -140,7 +161,7 @@ subroutine graph_print(self)
    class (type_graph), intent(in) :: self
 
    type (type_node_list_member),pointer :: node
-   type (type_output_variable), pointer :: variable
+   type (type_output_variable_set_node), pointer :: variable
    type (type_node_set_member), pointer :: pnode
 
    node => self%first
@@ -148,11 +169,11 @@ subroutine graph_print(self)
       write (*,'(a,": ",a)') trim(node%p%model%get_path()),trim(source2string(node%p%source))
       variable => node%p%outputs%first
       do while (associated(variable))
-         write (*,'("   ",a,",write@",i0)',advance='no') trim(variable%target%name),variable%target%write_indices%value
-         if (variable%copy_to_cache) write (*,'(",cache@",i0)',advance='no') variable%target%read_indices%value
-         if (variable%copy_to_store) write (*,'(",store@",i0)',advance='no') variable%target%store_index
+         write (*,'("   ",a,",write@",i0)',advance='no') trim(variable%p%target%name),variable%p%target%write_indices%value
+         if (variable%p%copy_to_cache) write (*,'(",cache@",i0)',advance='no') variable%p%target%read_indices%value
+         if (variable%p%copy_to_store) write (*,'(",store@",i0)',advance='no') variable%p%target%store_index
          write (*,*)
-         pnode => variable%dependent_nodes%first
+         pnode => variable%p%dependent_nodes%first
          do while (associated(pnode))
             write (*,'("     <- ",a,": ",a)') trim(pnode%p%model%get_path()),trim(source2string(pnode%p%source))
             pnode => pnode%next
@@ -292,12 +313,13 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
    call target_graph%append(node)
 end function graph_add_call
 
-recursive subroutine graph_add_variable(self, variable, outer_calls, copy_to_store, caller)
+recursive subroutine graph_add_variable(self, variable, outer_calls, copy_to_store, caller, variable_set)
    class (type_graph),              intent(inout) :: self
    type (type_internal_variable),   intent(in)    :: variable
    type (type_node_list),    target,intent(inout) :: outer_calls
    logical,         optional,       intent(in)    :: copy_to_store
    type (type_node),optional,target,intent(inout) :: caller
+   type (type_output_variable_set), optional, intent(inout) :: variable_set
 
    type (type_variable_node), pointer :: variable_node
 
@@ -310,15 +332,15 @@ recursive subroutine graph_add_variable(self, variable, outer_calls, copy_to_sto
       ! This variable is either written by do_surface or do_bottom - which one of these two APIs is unknown.
       call add_call(source_do_surface)
       call add_call(source_do_bottom)
-   elseif (variable%source /= source_none .and. variable%source /= source_external) then
-      ! This variable is written by a known BGC API [is is not a constant indicated by source_none]
+   elseif (variable%source /= source_constant .and. variable%source /= source_state .and. variable%source /= source_external) then
+      ! This variable is written by a known BGC API [is is not constant/part of state/host- or user-provided]
       call add_call(variable%source)
    end if
 
    ! Automatically request additional value contributions (for reduction operators that accept in-place modification of the variable value)
    variable_node => variable%cowriters%first
    do while (associated(variable_node))
-      call self%add_variable(variable_node%target, outer_calls, copy_to_store, caller)
+      call self%add_variable(variable_node%target, outer_calls, copy_to_store, caller, variable_set)
       variable_node => variable_node%next
    end do
 
@@ -328,15 +350,16 @@ contains
       integer, intent(in) :: source
 
       type (type_node),           pointer :: node
-      type (type_output_variable),pointer :: variable_node
+      type (type_output_variable),pointer :: output_variable
 
       node => self%add_call(variable%owner, source, outer_calls)
-      variable_node => node%outputs%add(variable)
-      if (present(copy_to_store)) variable_node%copy_to_store = variable_node%copy_to_store .or. copy_to_store
+      output_variable => node%outputs%add(variable)
+      if (present(copy_to_store)) output_variable%copy_to_store = output_variable%copy_to_store .or. copy_to_store
       if (present(caller)) then
          call caller%dependencies%add(node)
-         call variable_node%dependent_nodes%add(caller)
+         call output_variable%dependent_nodes%add(caller)
       end if
+      if (present(variable_set)) call variable_set%add_output_variable(output_variable)
    end subroutine add_call
 
 end subroutine graph_add_variable

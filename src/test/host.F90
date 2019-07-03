@@ -720,6 +720,16 @@ contains
       end do
 
       ! ======================================================================
+      ! Preprocessing
+      ! ======================================================================
+
+      column_loop_count = 0
+
+      call start_test('model%process(job%prepare)')
+      call model%process(model%prepare_job)
+      call report_test_result()
+
+      ! ======================================================================
       ! Retrieve source terms of interior state variables.
       ! ======================================================================
 
@@ -838,24 +848,13 @@ contains
       call report_test_result()
 
       ! ======================================================================
-      ! Column-based operators
+      ! Postprocressing
       ! ======================================================================
 
-      call start_test('fabm_get_light')
-      column_loop_count = 0
-      _BEGIN_GLOBAL_HORIZONTAL_LOOP_
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#  if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
-         ! No mask but non-constant bottom index. We need to skip everything below bottom
-         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= 1 .and. bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) &
-            call fabm_get_light(model,_IMIN_,_IMAX_ _ARG_VERTICAL_FIXED_LOCATION_)
-#  else
-         call fabm_get_light(model,1,domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) _ARG_VERTICAL_FIXED_LOCATION_)
-#  endif
-#else
-         call fabm_get_light(model _ARGUMENTS_HORIZONTAL_IN_)
-#endif
-      _END_GLOBAL_HORIZONTAL_LOOP_
+      call start_test('model%process(model%get_diagnostics_job)')
+      call model%process(model%get_diagnostics_job)
+      call report_test_result()
+
       call assert(column_loop_count == interior_count, 'fabm_get_light', 'call count does not match number of (unmasked) interior points')
 
       do ivar=1,size(model%diagnostic_variables)
