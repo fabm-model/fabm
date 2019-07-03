@@ -730,6 +730,8 @@
       do ivar = 1, size(self%conserved_quantities)
          call self%get_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target)
          call self%get_horizontal_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target_hz)
+         call self%conserved_quantities(ivar)%target%write_indices%append(self%conserved_quantities(ivar)%index)
+         call self%conserved_quantities(ivar)%target_hz%write_indices%append(self%conserved_quantities(ivar)%horizontal_index)
       end do
 
       self%extinction_id = self%get_bulk_variable_id(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
@@ -4594,13 +4596,11 @@ subroutine classify_variables(self)
          consvar%long_name = trim(consvar%standard_variable%name)
          consvar%path = trim(consvar%standard_variable%name)
          consvar%target => self%root%find_object(trim(aggregate_variable%standard_variable%name))
-         if (.not.associated(consvar%target)) call driver%fatal_error('classify_variables', &
-            'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
-         call consvar%target%write_indices%append(consvar%index)
+         _ASSERT_(associated(consvar%target), 'classify_variables', &
+            'Conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
          consvar%target_hz => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
-         if (.not.associated(consvar%target_hz)) call driver%fatal_error('classify_variables', &
-            'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
-         call consvar%target_hz%write_indices%append(consvar%horizontal_index)
+         _ASSERT_(associated(consvar%target_hz), 'classify_variables', &
+            'Conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
       end if
       aggregate_variable => aggregate_variable%next
    end do
@@ -4617,7 +4617,7 @@ subroutine classify_variables(self)
    link => self%links_postcoupling%first
    do while (associated(link))
       object => link%target
-      _ASSERT_(object%source /= source_state .or. object%state_indices%is_empty(), 'classify_variables', 'variable '//trim(object%name)//' has source_state and one or more write indices.')
+      _ASSERT_(object%source /= source_state .or. object%write_indices%is_empty(), 'classify_variables', 'variable '//trim(object%name)//' has source_state and one or more write indices.')
       select case (object%domain)
          case (domain_interior)
             if (.not.object%write_indices%is_empty()) then
