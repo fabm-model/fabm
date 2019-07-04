@@ -1041,7 +1041,7 @@ module fabm_builtin_models
       if (present(scale_factor)) sfl_copier%scale_factor = scale_factor
       call source_model%add_child(sfl_copier,'redirect_'//trim(source_variable%link%name)//'_surface_flux',configunit=-1)
       call sfl_copier%add_interior_variable('target','','target variable',link=link)
-      call sfl_copier%register_bottom_flux(link,sfl_copier%id_target_flux)
+      call sfl_copier%register_surface_flux(link,sfl_copier%id_target_flux)
       call sfl_copier%register_dependency(sfl_copier%id_flux,'surface_flux','','surface flux')
       call sfl_copier%request_coupling(link,target_variable)
       call sfl_copier%request_coupling(sfl_copier%id_flux,trim(source_variable%link%target%name)//'_sfl_tot')
