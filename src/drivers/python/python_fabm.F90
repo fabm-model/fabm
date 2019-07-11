@@ -121,7 +121,7 @@
       end do
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
-      call fabm_set_domain(model)
+      call fabm_set_domain(model, 1._rk)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
       call get_environment_metadata(model,environment_names,environment_units,index_column_depth)
@@ -175,7 +175,7 @@
       end do
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
-      call fabm_set_domain(model)
+      call fabm_set_domain(model, 1._rk)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
       call get_environment_metadata(model,environment_names,environment_units,index_column_depth)
@@ -188,6 +188,12 @@
       !DIR$ ATTRIBUTES DLLEXPORT :: check_ready
       call fabm_check_ready(model)
    end subroutine check_ready
+
+   subroutine update_time(nsec) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: update_time
+      real(rk), value, intent(in) :: nsec
+      call fabm_update_time(model, nsec)
+   end subroutine update_time
 
    integer(c_int) function get_error_state() bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_error_state
