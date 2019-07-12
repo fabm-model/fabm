@@ -127,6 +127,8 @@ fabm.get_horizontal_diagnostic_data.restype = None
 
 fabm.check_ready.argtypes = []
 fabm.check_ready.restype = None
+fabm.update_time.argtypes = [ctypes.c_double]
+fabm.update_time.restype = None
 
 # Routine for retrieving source-sink terms for the interior domain.
 fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), ctypes.c_int, ctypes.c_int]
@@ -574,6 +576,9 @@ class Model(object):
        assert ready or not stop,'Not all dependencies have been fulfilled.'
        fabm.check_ready()
        return ready
+
+    def updateTime(self, nsec):
+       fabm.update_time(nsec)
 
     def printInformation(self):
         """Show information about the model."""
