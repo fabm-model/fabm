@@ -128,6 +128,14 @@ module fabm_builtin_models
       procedure :: do_bottom  => bottom_field_do_bottom
    end type
 
+   type,extends(type_base_model) :: type_surface_field
+      type (type_dependency_id)                     :: id_interior
+      type (type_horizontal_diagnostic_variable_id) :: id_surface
+   contains
+      procedure :: initialize => surface_field_initialize
+      procedure :: do_surface => surface_field_do_surface
+   end type
+
    type,extends(type_base_model) :: type_constant_surface_flux
       type (type_state_variable_id) :: id_target
       real(rk) :: flux
@@ -236,6 +244,7 @@ module fabm_builtin_models
          case ('weighted_sum');           allocate(type_weighted_sum::model)
          case ('horizontal_weighted_sum');allocate(type_horizontal_weighted_sum::model)
          case ('bottom_field');           allocate(type_bottom_field::model)
+         case ('surface_field');          allocate(type_surface_field::model)
          ! Add new examples models here
       end select
 
@@ -708,6 +717,26 @@ module fabm_builtin_models
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_bottom,value)
       _HORIZONTAL_LOOP_END_
    end subroutine bottom_field_do_bottom
+
+   subroutine surface_field_initialize(self,configunit)
+      class (type_surface_field),intent(inout),target :: self
+      integer,                   intent(in)           :: configunit
+
+      call self%register_diagnostic_variable(self%id_surface,'data','','data', output=output_none, source=source_do_surface)
+      call self%register_dependency(self%id_interior,'interior','','interior')
+   end subroutine surface_field_initialize
+
+   subroutine surface_field_do_surface(self,_ARGUMENTS_DO_SURFACE_)
+      class (type_surface_field),intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_SURFACE_
+
+      real(rk) :: value
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _GET_(self%id_interior,value)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_surface,value)
+      _HORIZONTAL_LOOP_END_
+   end subroutine surface_field_do_surface
 
    subroutine constant_surface_flux_initialize(self,configunit)
       class (type_constant_surface_flux),intent(inout),target :: self
