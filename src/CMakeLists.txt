@@ -19,6 +19,7 @@ set(DEFAULT_INSTITUTES
     jrc          # EC - Joint Research Centre - Ispra, Italy
     pclake       # The PCLake model - reference implementation
     pml          # Plymouth Marine Laboratory, United Kingdom
+    selma        # Simple EcoLogical Model for the Aquatic - PROGNOS
     ersem        # European Regional Seas Ecosystem Model
     niva         # Norsk Institutt for Vannforskning, Norway
     akvaplan     # Akvaplan-niva, Norway
