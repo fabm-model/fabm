@@ -49,6 +49,8 @@ instances:
       po: selma/po                       # phosphate (mmol P/m3)
       dd: selma/dd                       # detritus (mmol N/m3)
       fl: selma/fl                       # fluff (mmol N/m2)
+    initialization:
+      c: 0.001
   flagellates:
     model: selma/phytoplankton
     parameters:
@@ -70,6 +72,8 @@ instances:
       o2: selma/o2                       # oxygen (mmol O2/m3)
       po: selma/po                       # phosphate (mmol P/m3)
       dd: selma/dd                       # detritus (mmol N/m3)
+    initialization:
+      c: 0.001
   cyanobacteria:
     model: selma/phytoplankton
     parameters:
@@ -93,6 +97,8 @@ instances:
       o2: selma/o2                       # oxygen (mmol O2/m3)
       po: selma/po                       # phosphate (mmol P/m3)
       dd: selma/dd                       # detritus (mmol N/m3)
+    initialization:
+      c: 0.001
   zooplankton:
     model: selma/zooplankton
     parameters:
@@ -115,6 +121,8 @@ instances:
       po: selma/po                       # phosphate (mmol P/m3)
       dd: selma/dd                       # detritus (mmol N/m3)
       o2: selma/o2                       # oxygen (mmol O2/m3)
+    initialization:
+      c: 0.001
   selma:
     model: selma/selma
     parameters:
