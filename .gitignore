@@ -12,3 +12,5 @@ timestamp
 VERSION
 include/version.h
 *.pyc
+/scripts/developers/*.log
+/scripts/developers/environment.yaml
