@@ -928,6 +928,7 @@
          ! Store index at which data will be saved, so we can access it when prefilling.
          index = self%diagnostic_variables(ivar)%target%write_indices%value
          self%do_interior_environment%prefill_index(index) = nsave
+         self%get_light_extinction_environment%prefill_index(index) = nsave
       end if
    end do
    allocate(self%diag(_PREARG_LOCATION_ 0:nsave))
