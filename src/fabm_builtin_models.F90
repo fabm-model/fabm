@@ -250,7 +250,7 @@ module fabm_builtin_models
          case ('surface_flux');           allocate(type_constant_surface_flux::model)
          case ('constant_surface_flux');  allocate(type_constant_surface_flux::model)
          case ('external_surface_flux');  allocate(type_external_surface_flux::model)
-         case ('external_bottom_flux');  allocate(type_external_bottom_flux::model)
+         case ('external_bottom_flux');   allocate(type_external_bottom_flux::model)
          case ('interior_source');        allocate(type_interior_source::model)
          case ('bottom_source');          allocate(type_bottom_source::model)
          case ('surface_source');         allocate(type_surface_source::model)
@@ -266,12 +266,12 @@ module fabm_builtin_models
    end subroutine
 
    function weighted_sum_add_to_parent(self,parent,name,create_for_one,aggregate_variable,link) result(sum_used)
-      class (type_weighted_sum),intent(inout),target :: self
-      class (type_base_model),  intent(inout),target :: parent
-      character(len=*),         intent(in)           :: name
-      logical,optional,         intent(in)           :: create_for_one
+      class (type_weighted_sum),         intent(inout),target :: self
+      class (type_base_model),           intent(inout),target :: parent
+      character(len=*),                  intent(in)           :: name
+      logical,optional,                  intent(in)           :: create_for_one
       type (type_bulk_standard_variable),intent(in),optional  :: aggregate_variable
-      type (type_link),pointer,optional              :: link
+      type (type_link),pointer,optional                       :: link
 
       logical                                       :: sum_used,create_for_one_
       type (type_link),                     pointer :: link_

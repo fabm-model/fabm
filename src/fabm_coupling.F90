@@ -84,7 +84,7 @@ contains
 
       ! Perform coupling for any new aggregate models.
       ! This may append items to existing lists of source terms and bottom/surface fluxes,
-      ! so it has to proceed the call to create_flux_sums.
+      ! so it has to precede the call to create_flux_sums.
       call process_coupling_tasks(self,couple_explicit)
 
       ! Now that coupling for non-rate variables is complete, contributions to aggregate quantities

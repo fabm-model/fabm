@@ -1489,12 +1489,12 @@ end subroutine real_pointer_set_set_value
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
       call self%add_interior_variable(name, units, long_name, missing_value, minimum, maximum, &
-                                  initial_value=initial_value, background_value=background_value, &
-                                  vertical_movement=vertical_movement, specific_light_extinction=specific_light_extinction, &
-                                  no_precipitation_dilution=no_precipitation_dilution, no_river_dilution=no_river_dilution, &
-                                  standard_variable=standard_variable, presence=presence, source=source_state, &
-                                  state_index=id%state_index, read_index=id%index, &
-                                  movement_index=id%movement_index, background=id%background, link=id%link)
+                                      initial_value=initial_value, background_value=background_value, &
+                                      vertical_movement=vertical_movement, specific_light_extinction=specific_light_extinction, &
+                                      no_precipitation_dilution=no_precipitation_dilution, no_river_dilution=no_river_dilution, &
+                                      standard_variable=standard_variable, presence=presence, source=source_state, &
+                                      state_index=id%state_index, read_index=id%index, &
+                                      movement_index=id%movement_index, background=id%background, link=id%link)
 
       call register_source(self,id%link,id%sms)
       call register_surface_flux(self,id%link,id%surface_flux)
