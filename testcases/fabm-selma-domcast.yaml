@@ -1,0 +1,177 @@
+instances:
+  dom:
+    model: niva/domcast
+    parameters:
+      kOM2: 14.31 # OM2 degradation (yr**-1) 3.42
+      kOM1: 0    # OM1 degradation (yr**-1)
+      Km_O2: 1.23e-2  # Respiration (mmol/m**3) 20 // 12.3
+      Km_NO3: 10 # Denitrification (mmol/m3)
+      Kin_O2: 1  # Inhibition of denitrification by O2 (mmol/m**3)
+      oc_DOM: 6.99e-5  # Optical cross-section of DOM (m**2.mmolC) 0.313
+      qy_DOM: 8.3e-3 # Quantum yield (mmolC/mol)
+      f_par: 0.45 # Fraction of PAR in incoming solar radiation (Unitless)
+      e_par: 240800 # Average energy of PAR photons (J/mol)
+      theta: 1.24729    # Temperature adjustment coefficient (unitless) 1.45
+      k_floc: 5.81587e-17  # Flocculation coefficient (s**-1) 5.93e-8
+      rfc: 6.625 # carbon : nitrogen ratio (mol C/mol N), default = 6.625
+      frac: 0 # fraction of DOMb that is refractory, default = 0
+    initialization:
+      DOMa: 0 # Pool of organic matter (mg/m**3)
+      DOMb: 8100 # Pool of organic matter (mg/m**3)
+    coupling: # Explicit linking between the DOM module and ERGOM
+      enn: selma/nn # nitrate (mmol/m**3)
+      eo2: selma/o2 # oxygen (mmol/m**3)
+      epp: diatoms/c # (mmol/m**3)
+      edd: selma/dd # detritus (mmol/m**3)
+      ebb: cyanobacteria/c # (mmol/m**3)
+      eff: flagellates/c # (mmol/m**3)
+      eaa: selma/aa # ammonium (mmol/m3)
+  diatoms:
+    model: selma/phytoplankton
+    parameters:
+      c0: 0.0                          # background concentration (mmol N/m3), default = 0.0
+      rfr: 0.0625                        # phosphorus : nitrogen ratio (mol P/mol N), default = 0.0625
+      rfc: 6.625                         # carbon : nitrogen ratio (mol C/mol N), default = 6.625
+      imin: 35.0                         # minimal optimal light radiation (W/m2), default = 50.0
+      alpha: 0.25                        # half-saturation for nutrient uptake (mmol N/m3), default = 0.25
+      r0: 1.3                            # maximum growth rate (1/d), default = 1.3
+      nb: 0.01                           # excretion rate (1/d), default = 0.01
+      deltao: 0.02                       # mortality rate (1/d), default = 0.02
+      Yc: 6.25                           # carbon : chlorophyll a ratio (mmol C/mg Chl a), default = 6.25
+      wz: -0.5                           # vertical velocity (positive: upwards/floating, negative: downwards/sinking) (m/d), default = 0.0
+      kc: 0.5                            # specific light attenuation (m2/mmol N)
+      sedrate: 2.25                      # sedimentation rate (m/d), default = 0.0
+      tau_crit: 0.07                     # critical shear stress (N/m2), default = 0.07
+    coupling:
+      aa: selma/aa                       # ammonium (mmol N/m3)
+      nn: selma/nn                       # nitrate (mmol N/m3)
+      o2: selma/o2                       # oxygen (mmol O2/m3)
+      po: selma/po                       # phosphate (mmol P/m3)
+      dd: selma/dd                       # detritus (mmol N/m3)
+      fl: selma/fl                       # fluff (mmol N/m2)
+    initialization:
+      c: 0.001
+  flagellates:
+    model: selma/phytoplankton
+    parameters:
+      c0: 0.0                          # background concentration (mmol N/m3), default = 0.0
+      rfr: 0.0625                        # phosphorus : nitrogen ratio (mol P/mol N), default = 0.0625
+      rfc: 6.625                         # carbon : nitrogen ratio (mol C/mol N), default = 6.625
+      imin: 50.0                         # minimal optimal light radiation (W/m2), default = 50.0
+      alpha: 0.25                         # half-saturation for nutrient uptake (mmol N/m3), default = 0.25
+      r0: 1.3                            # maximum growth rate (1/d), default = 1.3
+      tlim: 0                            # temperature limitation of growth (0: none, 1: flagellate-style, 2: cyanobacteria-style), default = 0
+      #tll: 100                         # half-saturation temperature, squared (degrees C^2), default = 100.0
+      nb: 0.01                           # excretion rate (1/d), default = 0.01
+      deltao: 0.02                       # mortality rate (1/d), default = 0.02
+      Yc: 6.25                           # carbon : chlorophyll a ratio (mmol C/mg Chl a), default = 6.25
+      kc: 0.5                            # specific light attenuation (m2/mmol N)
+    coupling:
+      aa: selma/aa                       # ammonium (mmol N/m3)
+      nn: selma/nn                       # nitrate (mmol N/m3)
+      o2: selma/o2                       # oxygen (mmol O2/m3)
+      po: selma/po                       # phosphate (mmol P/m3)
+      dd: selma/dd                       # detritus (mmol N/m3)
+    initialization:
+      c: 0.001
+  cyanobacteria:
+    model: selma/phytoplankton
+    parameters:
+      c0: 0.0                          # background concentration (mmol N/m3), default = 0.0
+      rfr: 0.0625                        # phosphorus : nitrogen ratio (mol P/mol N), default = 0.0625
+      rfc: 6.625                         # carbon : nitrogen ratio (mol C/mol N), default = 6.625
+      imin: 50.0                         # minimal optimal light radiation (W/m2), default = 50.0
+      alpha: 0.25                         # half-saturation for nutrient uptake (mmol N/m3), default = 0.25
+      r0: 1.3                           # maximum growth rate (1/d), default = 1.3
+      nitrogen_fixation: true            # whether nitrogen fixation is used to acquire nitrogen, default = false
+      tlim: 0                            # temperature limitation of growth (0: none, 1: flagellate-style, 2: cyanobacteria-style), default = 0
+      #tll: 13.5                          # lower temperature limit (degrees C), default = 13.5
+      nb: 0.01                           # excretion rate (1/d), default = 0.01
+      deltao: 0.02                       # mortality rate (1/d), default = 0.02
+      Yc: 6.25                           # carbon : chlorophyll a ratio (mmol C/mg Chl a), default = 6.25
+      wz: 0.0                            # vertical velocity (positive: upwards/floating, negative: downwards/sinking) (m/d), default = 0.0
+      kc: 0.5                            # specific light attenuation (m2/mmol N)
+    coupling:
+      aa: selma/aa                       # ammonium (mmol N/m3)
+      nn: selma/nn                       # nitrate (mmol N/m3)
+      o2: selma/o2                       # oxygen (mmol O2/m3)
+      po: selma/po                       # phosphate (mmol P/m3)
+      dd: selma/dd                       # detritus (mmol N/m3)
+    initialization:
+      c: 0.001
+  zooplankton:
+    model: selma/zooplankton
+    parameters:
+      c0: 0.0                          # background concentration (mmol N/m3), default = 0.0
+      rfr: 0.0625                        # phosphorus : nitrogen ratio (mol P/mol N), default = 0.0625
+      rfc: 6.625                         # carbon : nitrogen ratio (mol C/mol N), default = 6.625
+      nprey: 3                           # number of prey, default = 1
+      pref3: 1.0                         # preference for prey 3 (-), default = 1.0
+      nue: 0.01                          # respiration rate (m3/d/mmol N), default = 0.01
+      sigma_b: 0.03                      # mortality rate (m3/d/mmol N), default = 0.03
+      iv: 1.2                            # Ivlev constant, quadratic (1/(mmol N/m3)3), default = 1.2
+      graz: 0.5                          # grazing rate (1/d), default = 0.5
+      toptz: 20.0                        # optimal temperature for grazing (deg C), default = 20.0
+      zcl1: 50.0                         # closure parameter (-), default = 50.0
+    coupling:
+      prey1: diatoms/c                   # prey 1 (mmol N/m3)
+      prey2: flagellates/c               # prey 2 (mmol N/m3)
+      prey3: cyanobacteria/c             # prey 3 (mmol N/m3)
+      aa: selma/aa                       # ammonium (mmol N/m3)
+      po: selma/po                       # phosphate (mmol P/m3)
+      dd: selma/dd                       # detritus (mmol N/m3)
+      o2: selma/o2                       # oxygen (mmol O2/m3)
+    initialization:
+      c: 0.001
+  selma:
+    model: selma/selma
+    parameters:
+      env_type: fresh                    #  (Define environment type, either fresh or marine), default = marine
+      wdz: -1.01322                     # vertical velocity of detritus (positive: upwards/floating, negative: downwards/sinking) (m/d), default = -4.5
+      wpo4: -1.0                         # vertical velocity of suspended P-Fe (positive: upwards/floating, negative: downwards/sinking) (m/d), default = -1.0
+      dn: 0                              # detritus mineralization rate (1/d), default = 0.003
+      dn_sed: 0.001                  # sediment mineralization rate (1/d), default = 0.002  0.0103
+      kc: 0.5                            # specific light attenuation of detritus (m2/mmol N)
+      q10_rec: 1                         # temperature dependence of detritus remineralization (1/K), default = 0.15
+      ade_r0: 0.1                        # maximum chemoautolithotrophic denitrification rate (1/d), default = 0.1
+      alphaade: 1.0                      # half-saturation constant for chemoautolithotrophic denitrification (mmol N/m3), default = 1.0
+      q10_recs: 0.0100438                 # temperature dependence of sediment remineralization (1/K), default = 0.175
+      tau_crit: 0.07                     # critical shear stress (N/m2), default = 0.07
+      sedrate: 63.8202                   # detritus sedimentation rate (m/d), default = 2.25
+      erorate: 0                         # sediment erosion rate (1/d), default = 6.0
+      sedratepo4: 0.5                    # P-Fe sedimentation rate (m/d), default = 0.5
+      eroratepo4: 6.0                    # P-Fe erosion rate (1/d), default = 6.0
+      po4ret: 0.18                       # phosphate retention rate, oxic sediments (-), default = 0.18
+      pburialrate: 0.007                 # phosphate burial rate (1/d), default = 0.007
+      fl_burialrate: 0.0138659           # sediment burial rate (1/d), default = 0.001
+      pliberationrate: 0.1               # phosphate liberation rate, anoxic sediments (1/d), default = 0.1
+      ipo4th: 100.0                      # maximum phosphorus density available for burial (mmol P/m2), default = 100.0
+      maxsed: 1000.0                     # maximum active sediment density (mmol N/m2), default = 1000.0
+      br0: 0                             # bioresuspension rate (1/d), default = 0.03
+      fds: 0.7                           # fraction of sediment remineralization fueled by denitrification (-), default = 0.7
+      pvel: 0.128183                     # piston velocity (m/d), default = 5.0
+      newflux: 2                         # oxygen flux type (-), default = 2
+    initialization:
+      nn: 1.0                            # nitrate (mmol N/m3)
+      aa: 1.0                            # ammonium (mmol N/m3)
+      dd: 0.0                            # detritus (mmol N/m3)
+      o2: 180.0                          # oxygen (mmol O2/m3)
+      po: 3.0                            # phosphate (mmol P/m3)
+  ammonium_input:
+    model: constant_surface_flux
+    parameters:
+      flux: 6.94e-07                     # flux (positive for into water) (UNITS m-2 s-1)
+    coupling:
+      target: selma/aa                   # target variable (UNITS m-3)
+  nitrate_input:
+    model: constant_surface_flux
+    parameters:
+      flux: 9.61e-07                     # flux (positive for into water) (UNITS m-2 s-1)
+    coupling:
+      target: selma/nn                   # target variable (UNITS m-3)
+  phosphate_input:
+    model: constant_surface_flux
+    parameters:
+      flux: 1.74e-08                     # flux (positive for into water) (UNITS m-2 s-1)
+    coupling:
+      target: selma/po                   # target variable (UNITS m-3)
