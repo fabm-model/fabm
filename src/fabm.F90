@@ -4299,10 +4299,12 @@ end subroutine internal_check_horizontal_state
 
       call_node => task%first_call
       do while (associated(call_node))
-         select case (call_node%source)
-         case (source_do);                   call call_node%model%do(self%cache_int)
-         case (source_get_light_extinction); call call_node%model%get_light_extinction(self%cache_int)
-         end select
+         if (call_node%active) then
+            select case (call_node%source)
+            case (source_do);                   call call_node%model%do(self%cache_int)
+            case (source_get_light_extinction); call call_node%model%get_light_extinction(self%cache_int)
+            end select
+         end if
 
 #ifndef NDEBUG
          call check_call_output(call_node,self%cache_int)
@@ -4338,11 +4340,13 @@ end subroutine internal_check_horizontal_state
 
       call_node => task%first_call
       do while (associated(call_node))
-         select case (call_node%source)
-         case (source_do_surface);    call call_node%model%do_surface   (self%cache_hz)
-         case (source_do_bottom);     call call_node%model%do_bottom    (self%cache_hz)
-         case (source_do_horizontal); call call_node%model%do_horizontal(self%cache_hz)
-         end select
+         if (call_node%active) then
+            select case (call_node%source)
+            case (source_do_surface);    call call_node%model%do_surface   (self%cache_hz)
+            case (source_do_bottom);     call call_node%model%do_bottom    (self%cache_hz)
+            case (source_do_horizontal); call call_node%model%do_horizontal(self%cache_hz)
+            end select
+         end if
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
          _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
@@ -4373,7 +4377,7 @@ end subroutine internal_check_horizontal_state
 
       call_node => task%first_call
       do while (associated(call_node))
-         call call_node%model%get_light(self%cache_vert)
+         if (call_node%active) call call_node%model%get_light(self%cache_vert)
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
          _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
