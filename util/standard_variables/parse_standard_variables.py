@@ -51,6 +51,7 @@ def CF2FABM(id):
         id = 'bottom_'+strip_start(id,'sea_floor_')
     if id.endswith('_in_ocean_layer'):
         id = strip_end(id,'_in_ocean_layer') + '_in_layer'
+    id = strip_start(id,'sea_')
     return id
 
 if not os.path.isfile(localpath):
