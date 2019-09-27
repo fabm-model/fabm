@@ -32,6 +32,7 @@ type (type_horizontal_standard_variable) :: bottom_depth_below_geoid
 type (type_horizontal_standard_variable) :: bottom_roughness_length
 type (type_horizontal_standard_variable) :: bottom_stress
 type (type_horizontal_standard_variable) :: cloud_area_fraction
+type (type_horizontal_standard_variable) :: ice_area_fraction
 type (type_horizontal_standard_variable) :: latitude
 type (type_horizontal_standard_variable) :: longitude
 type (type_horizontal_standard_variable) :: mole_fraction_of_carbon_dioxide_in_air

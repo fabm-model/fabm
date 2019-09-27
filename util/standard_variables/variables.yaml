@@ -87,6 +87,8 @@ horizontal:
     units: Pa
   - name: surface_temperature
     units: degree_Celsius
+  - name: ice_area_fraction
+    units: 1
 global:
   - name: number_of_days_since_start_of_the_year
     units: d

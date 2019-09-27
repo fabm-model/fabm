@@ -110,6 +110,10 @@ standard_variables%cloud_area_fraction%name = 'cloud_area_fraction'
 standard_variables%cloud_area_fraction%units = '1'
 standard_variables%cloud_area_fraction%cf_names = 'cloud_area_fraction'
 
+standard_variables%ice_area_fraction%name = 'ice_area_fraction'
+standard_variables%ice_area_fraction%units = '1'
+standard_variables%ice_area_fraction%cf_names = 'sea_ice_area_fraction'
+
 standard_variables%latitude%name = 'latitude'
 standard_variables%latitude%units = 'degree_north'
 standard_variables%latitude%cf_names = 'latitude'
@@ -147,7 +151,7 @@ standard_variables%surface_specific_humidity%cf_names = 'surface_specific_humidi
 
 standard_variables%surface_temperature%name = 'surface_temperature'
 standard_variables%surface_temperature%units = 'degree_Celsius'
-standard_variables%surface_temperature%cf_names = 'surface_temperature,surface_temperature_where_land,surface_temperature_where_open_sea,surface_temperature_where_snow'
+standard_variables%surface_temperature%cf_names = 'sea_surface_temperature,surface_temperature,surface_temperature_where_land,surface_temperature_where_open_sea,surface_temperature_where_snow'
 
 standard_variables%wind_speed%name = 'wind_speed'
 standard_variables%wind_speed%units = 'm s-1'
