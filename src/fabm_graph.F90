@@ -208,20 +208,21 @@ recursive subroutine find_node(self, model, source, graph, node)
    graph => null()
 end subroutine
 
-recursive logical function graph_has_descendant(self, graph)
+recursive function graph_has_descendant(self, graph) result(has_descendant)
    type (type_graph), pointer :: self
    type (type_graph), pointer :: graph
+   logical :: has_descendant
 
    type (type_graph_set_member), pointer :: member
 
-   graph_has_descendant = .true.
+   has_descendant = .true.
    if (associated(self, graph)) return
    member => self%next%first
    do while (associated(member))
       if (graph_has_descendant(member%p, graph)) return
       member => member%next
    end do
-   graph_has_descendant = .false.
+   has_descendant = .false.
 end function
 
 recursive function graph_add_call(self, model, source, outer_calls) result(node)
