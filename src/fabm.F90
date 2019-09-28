@@ -4599,11 +4599,9 @@ subroutine classify_variables(self)
          consvar%long_name = trim(consvar%standard_variable%name)
          consvar%path = trim(consvar%standard_variable%name)
          consvar%target => self%root%find_object(trim(aggregate_variable%standard_variable%name))
-         _ASSERT_(associated(consvar%target), 'classify_variables', &
-            'Conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
+         _ASSERT_(associated(consvar%target), 'classify_variables', 'Conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
          consvar%target_hz => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
-         _ASSERT_(associated(consvar%target_hz), 'classify_variables', &
-            'Conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
+         _ASSERT_(associated(consvar%target_hz), 'classify_variables', 'Conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
       end if
       aggregate_variable => aggregate_variable%next
    end do
