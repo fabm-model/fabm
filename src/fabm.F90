@@ -3997,7 +3997,6 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call self%process_job(self%prepare_job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
    end subroutine fabm_get_light
 !EOC
 
