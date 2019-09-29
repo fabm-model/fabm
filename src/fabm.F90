@@ -2532,9 +2532,9 @@ subroutine create_cache(self, cache, cache_type)
       n_mod = mod(n, array_block_size)
       if (n_mod /= 0) n = n - n_mod + array_block_size
 #  ifdef _HAS_MASK_
-      allocate(cache%mask(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
-      allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
-      allocate(cache%iunpack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
+      allocate(cache%mask(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
+      allocate(cache%ipack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
+      allocate(cache%iunpack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
 #  endif
 #else
        n = 1
