@@ -1049,8 +1049,8 @@ module fabm_builtin_models
       type (type_link),pointer :: link
 
       allocate(copier)
-      if (present(scale_factor)) copier%scale_factor = scale_factor
       call source_model%add_child(copier,'redirect_'//trim(source_variable%link%name)//'_sources',configunit=-1)
+      if (present(scale_factor)) copier%scale_factor = scale_factor
       call copier%add_interior_variable('target','','target variable',link=link)
       call copier%register_source(link,copier%id_target_sms)
       call copier%register_dependency(copier%id_sms,'sms','','sources minus sinks')
@@ -1058,8 +1058,8 @@ module fabm_builtin_models
       call copier%request_coupling(copier%id_sms,trim(source_variable%link%target%name)//'_sms_tot')
 
       allocate(bfl_copier)
-      if (present(scale_factor)) bfl_copier%scale_factor = scale_factor
       call source_model%add_child(bfl_copier,'redirect_'//trim(source_variable%link%name)//'_bottom_flux',configunit=-1)
+      if (present(scale_factor)) bfl_copier%scale_factor = scale_factor
       call bfl_copier%add_interior_variable('target','','target variable',link=link)
       call bfl_copier%register_bottom_flux(link,bfl_copier%id_target_flux)
       call bfl_copier%register_dependency(bfl_copier%id_flux,'bottom_flux','','bottom flux')
@@ -1067,8 +1067,8 @@ module fabm_builtin_models
       call bfl_copier%request_coupling(bfl_copier%id_flux,trim(source_variable%link%target%name)//'_bfl_tot')
 
       allocate(sfl_copier)
-      if (present(scale_factor)) sfl_copier%scale_factor = scale_factor
       call source_model%add_child(sfl_copier,'redirect_'//trim(source_variable%link%name)//'_surface_flux',configunit=-1)
+      if (present(scale_factor)) sfl_copier%scale_factor = scale_factor
       call sfl_copier%add_interior_variable('target','','target variable',link=link)
       call sfl_copier%register_surface_flux(link,sfl_copier%id_target_flux)
       call sfl_copier%register_dependency(sfl_copier%id_flux,'surface_flux','','surface flux')
@@ -1088,14 +1088,14 @@ module fabm_builtin_models
       select case (source_variable%link%target%domain)
       case (domain_bottom)
          allocate(bottom_copier)
-         if (present(scale_factor)) bottom_copier%scale_factor = scale_factor
          call source_model%add_child(bottom_copier,'redirect_'//trim(source_variable%link%name)//'_fluxes',configunit=-1)
+         if (present(scale_factor)) bottom_copier%scale_factor = scale_factor
          call bottom_copier%request_coupling(bottom_copier%id_target,target_variable)
          call bottom_copier%request_coupling(bottom_copier%id_source,trim(source_variable%link%target%name)//'_sms_tot')
       case (domain_surface)
          allocate(surface_copier)
-         if (present(scale_factor)) surface_copier%scale_factor = scale_factor
          call source_model%add_child(surface_copier,'redirect_'//trim(source_variable%link%name)//'_fluxes',configunit=-1)
+         if (present(scale_factor)) surface_copier%scale_factor = scale_factor
          call surface_copier%request_coupling(surface_copier%id_target,target_variable)
          call surface_copier%request_coupling(surface_copier%id_source,trim(source_variable%link%target%name)//'_sms_tot')
       case default
