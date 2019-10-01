@@ -137,6 +137,8 @@ if(NOT FABM_USE_DO_CONCURRENT)
   add_definitions(-D_NO_DO_CONCURRENT_)
 endif()
 
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<NOT:$<CONFIG:DEBUG>>:NDEBUG>)
+
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
 if(BUILD_SHARED_LIBS)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
