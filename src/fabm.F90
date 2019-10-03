@@ -1239,7 +1239,7 @@
    call collect_fill_values(self%variable_register%write_cache%horizontal, self%write_cache_hz_fill_value, use_missing=.false.)
 
    ! Create global caches for exchanging information wiht BGC models.
-   ! This can only be done after collect_fill_values calls complete, becuase they specify what values to prefill te cache with.
+   ! This can only be done after collect_fill_values calls complete, because they specify what values to prefill te cache with.
    call create_cache(self, self%cache_int, cache_type_interior)
    call create_cache(self, self%cache_hz, cache_type_horizontal)
    call create_cache(self, self%cache_vert, cache_type_vertical)
@@ -4261,6 +4261,8 @@ end subroutine internal_check_horizontal_state
 #endif
                call fabm_process_vertical_slice(self, task _ARGUMENTS_VERTICAL_IN_)
             _END_OUTER_VERTICAL_LOOP_
+            _VERTICAL_START_ = 1
+            _VERTICAL_STOP_ = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
          end select
          task => task%next
       end do
