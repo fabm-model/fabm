@@ -872,10 +872,10 @@ contains
       integer,                                     intent(in)  :: domain
 
       type (type_output_variable_set_node), pointer :: variable
-      integer                              :: iorder, n, maxorder, read_index
+      integer                              :: n, max_write_index, read_index, write_index
 
       n = 0
-      maxorder = -1
+      max_write_index = -1
       variable => self%graph_node%outputs%first
       do while (associated(variable))
          if (variable%p%copy_to_cache .and. iand(variable%p%target%domain, domain) /= 0) then
@@ -884,29 +884,33 @@ contains
             if (associated(variable%p%target%write_owner)) read_index = variable%p%target%write_owner%read_indices%value
             _ASSERT_(read_index > 0, 'call_list_node_initialize::create_cache_copy_commands', 'BUG: ' // trim(variable%p%target%name) // ' cannot be copied from write to read cache because it lacks a read cache index.')
             n = n + 1
-            maxorder = max(maxorder, read_index)
+            max_write_index = max(max_write_index, variable%p%target%write_indices%value)
          end if
          variable => variable%next
       end do
 
       ! Create list of cache copy commands (source index in write cache, target index in read cache)
-      ! They are sorted by write index to make (write) access to memory more predictable.
+      ! They are sorted by write index (= where the data comes from) to hopefully benefit cache prefetching.
       allocate(commands(n))
+      commands%read_index = -1
+      commands%write_index = -1
       n = 0
-      do iorder = 1, maxorder
+      do write_index = 1, max_write_index
          variable => self%graph_node%outputs%first
          do while (associated(variable))
-            read_index = variable%p%target%read_indices%value
-            if (associated(variable%p%target%write_owner)) read_index = variable%p%target%write_owner%read_indices%value
-            if (variable%p%copy_to_cache .and. iand(variable%p%target%domain, domain) /= 0 .and. read_index == iorder) then
+            if (variable%p%copy_to_cache .and. iand(variable%p%target%domain, domain) /= 0 .and. variable%p%target%write_indices%value == write_index) then
                n = n + 1
+               read_index = variable%p%target%read_indices%value
+               if (associated(variable%p%target%write_owner)) read_index = variable%p%target%write_owner%read_indices%value
                commands(n)%read_index = read_index
-               commands(n)%write_index = variable%p%target%write_indices%value
+               commands(n)%write_index = write_index
                exit
             end if
             variable => variable%next
          end do
       end do
+      _ASSERT_(all(commands%read_index > 0), 'call_process_indices', 'one or more read_index values <= 0')
+      _ASSERT_(all(commands%write_index > 0), 'call_process_indices', 'one or more write_index values <= 0')
    end subroutine create_cache_copy_commands
 
 end subroutine call_process_indices
