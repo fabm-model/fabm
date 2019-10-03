@@ -209,6 +209,15 @@ do
       call get_command_argument(i + 1, arg)
       read (arg,*) ntest
       i = i + 2
+   case ('-h')
+      write (*,'(a)') ''
+      write (*,'(a)') ''
+      write (*,'(a)') 'FABM host emulator'
+      write (*,'(a)') ''
+      write (*,'(a)') 'Accepted arguments:'
+      write (*,'(a)') '-s/--simulate: simulate using provided fabm.yaml/environment.yaml'
+      write (*,'(a)') '-n:            number of replicates when simulating'
+      stop 0
    case default
       write (*,'(a)') 'Unknown command line argument: ' // trim(arg)
       stop 2
