@@ -426,7 +426,7 @@ module fabm_builtin_models
       class (type_weighted_sum), intent(inout) :: self
       integer, optional,         intent(in)    :: log_unit
 
-      type (type_internal_variable),pointer :: component_variable, sum_variable
+      type (type_internal_variable),pointer :: sum_variable
       type (type_component),        pointer :: component, component_next, component_previous
 
       sum_variable => self%id_output%link%target
@@ -434,48 +434,69 @@ module fabm_builtin_models
       component_previous => null()
       component => self%first
       do while (associated(component))
-         component_variable => component%id%link%target
          component_next => component%next
-
-         if (iand(component_variable%write_operator, operator_merge_forbidden) /= 0) then
-            component_previous => component
-            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by FABM or host'
-         elseif (component_variable%write_operator /= operator_add) then
-            component_previous => component
-            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it assigns directly'
-         elseif (component%weight /= 1.0_rk) then
-            component_previous => component
-            if (present(log_unit)) write (log_unit,'(a,g0.6)') '- kept '// trim(component_variable%name) // ' because it uses scale factor ', component%weight
-         elseif (size(component_variable%read_indices%pointers) > 1) then
-            component_previous => component
-            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by other models'
-         else
-            ! This component can increment the sum result directly (it does not need a separate diagnostic)
-            call sum_variable%write_indices%extend(component_variable%write_indices)
-            call sum_variable%write_indices%append(component_variable%write_indices%value)
-            component_variable%write_owner => sum_variable
-            call sum_variable%cowriters%add(component_variable)
-            call component_variable%read_indices%set_value(-1)
-            call component_variable%read_indices%clear()
-            component%id%link%original%read_index => null()
-
-            ! Remove component from the summation
+         if (merge_component(component%id%link, component%weight, sum_variable, self%offset, log_unit)) then
+            ! Component was merged into target
             if (associated(component_previous)) then
                component_previous%next => component_next
             else
                self%first => component_next
             end if
-            if (present(log_unit)) write (log_unit,'(a)') '- merged ' // trim(component_variable%name)
+            deallocate(component)
+         else
+            ! Component was left stand-alone (not merged)
+            component_previous => component
          end if
          component => component_next
       end do
    end subroutine weighted_sum_reindex
 
+   logical function merge_component(component_link, weight, target_variable, offset, log_unit)
+      type (type_link),              intent(in)            :: component_link
+      type (type_internal_variable), intent(inout), target :: target_variable
+      real(rk),                      intent(in)            :: weight
+      real(rk),                      intent(inout)         :: offset
+      integer, optional,             intent(in)            :: log_unit
+
+      type (type_internal_variable),pointer :: component_variable
+
+      component_variable => component_link%target
+
+      merge_component = .false.
+      if (iand(component_variable%write_operator, operator_merge_forbidden) /= 0) then
+         if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by FABM or host'
+      elseif (component_variable%write_operator /= operator_add .and. component_variable%source /= source_constant) then
+         if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it assigns directly'
+      elseif (weight /= 1.0_rk) then
+         if (present(log_unit)) write (log_unit,'(a,g0.6)') '- kept '// trim(component_variable%name) // ' because it uses scale factor ', weight
+      elseif (size(component_variable%read_indices%pointers) > 1) then
+         if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by other models'
+      else
+         ! This component does not need a separate diagnostic - it will be merged into the target
+         if (component_variable%source == source_constant) then
+            ! This component is a constant that we can just add to our offset
+            if (present(log_unit)) write (log_unit,'(a,g0.6,a)') '- merged ' // trim(component_variable%name) // ' - constant ', component_variable%prefill_value, ' added to offset'
+            offset = offset + component_variable%prefill_value
+         else
+            ! This component can increment the sum result directly
+            if (present(log_unit)) write (log_unit,'(a,g0.6,a)') '- merged ' // trim(component_variable%name) // ' - to be written in-place'
+            call target_variable%write_indices%extend(component_variable%write_indices)
+            call target_variable%write_indices%append(component_variable%write_indices%value)
+            component_variable%write_owner => target_variable
+            call target_variable%cowriters%add(component_variable)
+         end if
+         call component_variable%read_indices%set_value(-1)
+         call component_variable%read_indices%clear()
+         component_link%original%read_index => null()
+         merge_component = .true.
+      end if
+   end function
+
    subroutine horizontal_weighted_sum_reindex(self, log_unit)
       class (type_horizontal_weighted_sum), intent(inout) :: self
       integer, optional,                    intent(in)    :: log_unit
 
-      type (type_internal_variable),   pointer :: component_variable, sum_variable
+      type (type_internal_variable),   pointer :: sum_variable
       type (type_horizontal_component),pointer :: component, component_next, component_previous
 
       sum_variable => self%id_output%link%target
@@ -483,37 +504,18 @@ module fabm_builtin_models
       component_previous => null()
       component => self%first
       do while (associated(component))
-         component_variable => component%id%link%target
          component_next => component%next
-         if (iand(component_variable%write_operator, operator_merge_forbidden) /= 0) then
-            component_previous => component
-            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by FABM or host'
-         elseif (component_variable%write_operator /= operator_add) then
-            component_previous => component
-            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it assigns directly'
-         elseif (component%weight /= 1.0_rk) then
-            component_previous => component
-            if (present(log_unit)) write (log_unit,'(a,g0.6)') '- kept '// trim(component_variable%name) // ' because it uses scale factor ', component%weight
-         elseif (size(component_variable%read_indices%pointers) > 1) then
-            component_previous => component
-            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by other models'
-         else
-            ! This component can increment the sum result directly (it does not need a separate diagnostic)
-            call sum_variable%write_indices%extend(component_variable%write_indices)
-            call sum_variable%write_indices%append(component_variable%write_indices%value)
-            component_variable%write_owner => sum_variable
-            call sum_variable%cowriters%add(component_variable)
-            call component_variable%read_indices%set_value(-1)
-            call component_variable%read_indices%clear()
-            component%id%link%original%read_index => null()
-
-            ! Remove component from the summation
+         if (merge_component(component%id%link, component%weight, sum_variable, self%offset, log_unit)) then
+            ! Component was merged into target
             if (associated(component_previous)) then
                component_previous%next => component_next
             else
                self%first => component_next
             end if
-            if (present(log_unit)) write (log_unit,'(a)') '- merged ' // trim(component_variable%name)
+            deallocate(component)
+         else
+            ! Component was left stand-alone (not merged)
+            component_previous => component
          end if
          component => component_next
       end do
