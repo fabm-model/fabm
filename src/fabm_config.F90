@@ -291,7 +291,7 @@ contains
       !do while (associated(link))
       !   if (link%owner.and..not.associated(model%couplings%find(link%name))) then
       !      ! This link is our own: not coupled to another variable, not an alias, and no intention to couple was registered.
-      !            if (.not.object%state_indices%is_empty()) then
+      !            if (object%source == source_state) then
       !               if (object%presence/=presence_external_optional .and. .not.initialized_set%contains(trim(link%name))) then
       !                  ! State variable is required, but initial value is not explicitly provided.
       !                  if (require_initialization) then
@@ -333,7 +333,7 @@ contains
 
       type (type_key_value_pair),   pointer :: pair
       type (type_internal_variable),pointer :: object
-      logical                               :: is_state_variable,success
+      logical                               :: success
       real(rk)                              :: realvalue
 
       ! Transfer user-specified initial state to the model.
@@ -344,21 +344,17 @@ contains
                object => model%find_object(trim(pair%key))
                if (.not.associated(object)) call fatal_error('parse_initialization', &
                   trim(value%path)//': "'//trim(pair%key)//'" is not a member of model "'//trim(model%name)//'".')
-               is_state_variable = .false.
-               if (.not.object%state_indices%is_empty()) then
-                  realvalue = value%to_real(default=real(0,real_kind),success=success)
-                  if (.not.success) call fatal_error('parse_initialization', &
-                     trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
-                  if (get_background) then
-                     call object%background_values%set_value(realvalue)
-                  else
-                     object%initial_value = realvalue
-                  end if
-                  call initialized_set%add(trim(pair%key))
-                  is_state_variable = .true.
-               end if
-               if (.not.is_state_variable) call fatal_error('parse_initialization', &
+               if (object%source /= source_state) call fatal_error('parse_initialization', &
                   trim(value%path)//': "'//trim(pair%key)//'" is not a state variable of model "'//trim(model%name)//'".')
+               realvalue = value%to_real(default=real(0, real_kind), success=success)
+               if (.not. success) call fatal_error('parse_initialization', &
+                  trim(value%path) // ': "' // trim(value%string) // '" is not a real number.')
+               if (get_background) then
+                  call object%background_values%set_value(realvalue)
+               else
+                  object%initial_value = realvalue
+               end if
+               call initialized_set%add(trim(pair%key))
             class is (type_null)
                call fatal_error('parse_initialization',trim(value%path)//' must be set to a real number, not to null.')
             class is (type_dictionary)

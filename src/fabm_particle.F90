@@ -191,7 +191,7 @@ module fabm_particle
       if (present(master_standard_variable)) then
          allocate(coupling%master_standard_variable,source=master_standard_variable)
          coupling%domain = coupling%slave%target%domain
-         if (.not.coupling%slave%target%state_indices%is_empty().or.coupling%slave%target%fake_state_variable) coupling%access = access_state
+         if (coupling%slave%target%source == source_state .or. coupling%slave%target%fake_state_variable) coupling%access = access_state
       end if
       if (present(master_model)) then
          coupling%model_reference => master_model%reference
@@ -417,7 +417,7 @@ module fabm_particle
       link => reference%model%links%first
       do while (associated(link))
          if (index(link%name,'/')==0.and.link%target%domain==domain.and.link%original%presence==presence_internal &
-             .and.(.not.link%original%state_indices%is_empty().or.link%original%fake_state_variable)) n = n + 1
+             .and.(link%original%source == source_state .or. link%original%fake_state_variable)) n = n + 1
          link => link%next
       end do
 
@@ -436,7 +436,7 @@ module fabm_particle
       link => reference%model%links%first
       do while (associated(link))
          if (index(link%name,'/')==0.and.link%target%domain==domain.and.link%original%presence==presence_internal &
-             .and.(.not.link%original%state_indices%is_empty().or.link%original%fake_state_variable)) then
+             .and.(link%original%source == source_state .or. link%original%fake_state_variable)) then
             n = n + 1
             write (strindex,'(i0)') n
             select case (domain)

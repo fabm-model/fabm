@@ -383,9 +383,10 @@ recursive subroutine create_flux_sums(self)
 
    link => self%links%first
    do while (associated(link))
-      if (index(link%name,'/')==0.and.(.not.link%original%state_indices%is_empty().or.link%original%fake_state_variable)) then
-         if (associated(link%target,link%original)) then
-            ! We own this state variable. Create summations for sources-sinks and surface/bottom fluxes.
+      if (index(link%name, '/') == 0 .and. (link%original%source == source_state .or. link%original%fake_state_variable)) then
+         ! This is a state variable, or a diagnostic pretending to be one, that we have registered (it is owned by "self")
+         if (associated(link%target, link%original)) then
+            ! We own this variable (it has not been coupled to another). Create summations for sources-sinks and surface/bottom fluxes.
             select case (link%target%domain)
             case (domain_interior)
                link%target%sms_sum          => create_sum(self,link%target%sms_list,                    trim(link%name)//'_sms_tot')
@@ -700,8 +701,8 @@ recursive subroutine couple_variables(self,master,slave)
    ! If slave and master are the same, we are done - return.
    if (associated(slave,master)) return
 
-   slave_is_state_variable  = slave%fake_state_variable.or..not.slave%state_indices%is_empty()
-   master_is_state_variable = master%fake_state_variable.or..not.master%state_indices%is_empty()
+   slave_is_state_variable  = slave%source == source_state .or. slave%fake_state_variable
+   master_is_state_variable = master%source == source_state .or. master%fake_state_variable
 
    if (associated(self%parent)) call self%fatal_error('couple_variables','BUG: must be called on root node.')
    if (.not.slave%can_be_slave) &

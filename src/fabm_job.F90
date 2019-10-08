@@ -1299,8 +1299,14 @@ subroutine job_finalize_prefill_settings(self)
             output_variable => output_variable%next
          end do
       end if
+
       if (associated(variable_request%output_variable_set%first)) then
          if (associated(variable_request%output_variable_set%first%next)) then
+            ! This request requires multiple variables to be written (e.g., all incrementing a sum)
+            ! If these variables are all written by the same task, we're fine (the task will initialize the sum to 0 and all variables will be added)
+            ! If they are written by multiple tasks, the very first one should handle the initialization to 0.
+            ! But since it can be difficult to find out which task is first, we let the very first job initialize the corrresponding entry in the store.
+            ! All tasks will prefill the relevant output variable with the value from the store, and all but the last will write the updated value to the store again.
             task => null()
             multiple_tasks = .false.
             output_variable => variable_request%output_variable_set%first
@@ -1317,12 +1323,13 @@ subroutine job_finalize_prefill_settings(self)
                   current_task => find_responsible_task(self, output_variable%p)
                   call first_job%store_prefills%add(output_variable%p%target)
                   call current_task%write_cache_preload%add(output_variable%p%target)
-                  output_variable%p%copy_to_store = .true.
+                  if (.not. associated(task, last_task)) output_variable%p%copy_to_store = .true.
                   output_variable => output_variable%next
                end do
             end if
          end if
       end if
+
       variable_request => variable_request%next
    end do
 

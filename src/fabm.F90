@@ -4626,7 +4626,7 @@ subroutine classify_variables(self)
             if (.not.object%write_indices%is_empty()) then
                ! Interior diagnostic variable.
                ndiag = ndiag+1
-            elseif (.not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
+            elseif (object%source == source_state) then
                ! Interior state variable.
                select case (object%presence)
                   case (presence_internal)
@@ -4643,7 +4643,7 @@ subroutine classify_variables(self)
             if (.not.object%write_indices%is_empty()) then
                ! Horizontal diagnostic variable.
                ndiag_hz = ndiag_hz+1
-            elseif (.not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
+            elseif (object%source == source_state) then
                ! Horizontal state variable.
                select case (object%presence)
                   case (presence_internal)
@@ -4703,7 +4703,7 @@ subroutine classify_variables(self)
                diagvar%time_treatment    = output2time_treatment(diagvar%output)
                diagvar%save = diagvar%output/=output_none
                diagvar%source = object%source
-            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
+            elseif (object%presence == presence_internal .and. object%source == source_state) then
                ! Interior state variable
                nstate = nstate + 1
                statevar => self%state_variables(nstate)
@@ -4738,7 +4738,7 @@ subroutine classify_variables(self)
                hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
                hz_diagvar%save = hz_diagvar%output/=output_none
                hz_diagvar%source = object%source
-            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
+            elseif (object%presence == presence_internal .and. object%source == source_state) then
                ! Horizontal state variable
                select case (object%domain)
                   case (domain_bottom)
@@ -4770,8 +4770,8 @@ subroutine classify_variables(self)
    link => self%root%links%first
    do while (associated(link))
       object =>link%target
-      if (.not.object%read_indices%is_empty().and. &
-          .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
+      if (.not. object%read_indices%is_empty() .and. &
+          .not. (object%presence == presence_external_optional .and. object%source == source_state)) then
          select case (object%domain)
             case (domain_interior);                                call dependencies%add(link%name)
             case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(link%name)
@@ -4832,7 +4832,7 @@ end subroutine classify_variables
 
       link => link_list%first
       do while (associated(link))
-         if (.not. link%original%state_indices%is_empty() .and. .not. link%target%fake_state_variable) then
+         if (link%target%source == source_state) then
             ! This is a state variable
             select case (domain)
             case (domain_interior)
@@ -4856,7 +4856,7 @@ end subroutine classify_variables
       end do
    end subroutine require_flux_computation
 
-   recursive subroutine require_call_all(self,model,source)
+   recursive subroutine require_call_all(self, model, source)
       type (type_job),        intent(inout) :: self
       class (type_base_model),intent(in)    :: model
       integer,                intent(in)    :: source
@@ -4865,18 +4865,18 @@ end subroutine classify_variables
 
       node => model%children%first
       do while (associated(node))
-         call require_call_all(self,node%model,source)
+         call require_call_all(self,node%model, source)
          select type (model => node%model)
          class is (type_weighted_sum)
          class is (type_horizontal_weighted_sum)
          class default
-            call self%request_call(node%model,source)
+            call self%request_call(node%model, source)
          end select
          node => node%next
       end do
    end subroutine require_call_all
 
-   subroutine require_call_all_with_state(self,link_list,domain,source)
+   subroutine require_call_all_with_state(self, link_list, domain, source)
       type (type_job),      intent(inout) :: self
       type (type_link_list),intent(in)    :: link_list
       integer,              intent(in)    :: domain
@@ -4886,8 +4886,8 @@ end subroutine classify_variables
 
       link => link_list%first
       do while (associated(link))
-         if (link%target%domain == domain .and. .not. link%original%state_indices%is_empty() .and. .not. link%target%fake_state_variable) &
-            call self%request_call(link%original%owner,source)
+         if (link%target%domain == domain .and. link%original%source == source_state .and. link%target%source == source_state) &
+            call self%request_call(link%original%owner, source)
          link => link%next
       end do
    end subroutine require_call_all_with_state
