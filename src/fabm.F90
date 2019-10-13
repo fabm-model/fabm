@@ -190,6 +190,24 @@
       real(rk),pointer :: p => null()
    end type
 
+   type type_catalog
+      type (type_interior_data_pointer),   allocatable :: interior(:)
+      type (type_horizontal_data_pointer), allocatable :: horizontal(:)
+      type (type_scalar_data_pointer),     allocatable :: scalar(:)
+      integer, allocatable :: interior_sources(:)
+      integer, allocatable :: horizontal_sources(:)
+      integer, allocatable :: scalar_sources(:)
+   end type
+
+   type type_store
+      real(rk), allocatable _DIMENSION_GLOBAL_PLUS_1_            :: interior
+      real(rk), allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: horizontal
+      real(rk), allocatable                                      :: interior_fill_value(:)
+      real(rk), allocatable                                      :: horizontal_fill_value(:)
+      real(rk), allocatable                                      :: interior_missing_value(:)
+      real(rk), allocatable                                      :: horizontal_missing_value(:)
+   end type
+
    ! Derived type for a single generic biogeochemical model
    type type_model
       type (type_base_model) :: root
@@ -222,13 +240,8 @@
 
       type (type_link_list) :: links_postcoupling
 
-      ! Persistent store
-      real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: diag
-      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
-      real(rk),allocatable                                      :: diag_fill_value(:)
-      real(rk),allocatable                                      :: diag_hz_fill_value(:)
-      real(rk),allocatable                                      :: diag_missing_value(:)
-      real(rk),allocatable                                      :: diag_hz_missing_value(:)
+      type (type_catalog) :: catalog
+      type (type_store)   :: store
 
       ! Read cache fill values
       real(rk),allocatable                                      :: read_cache_fill_value(:)
@@ -261,15 +274,6 @@
       type (type_job) :: initialize_state_job
       type (type_job) :: initialize_bottom_state_job
       type (type_job) :: initialize_surface_state_job
-
-      ! Registry with pointers to global fields of readable variables.
-      ! These pointers are accessed to fill the read cache just before individual model instances are called.
-      type (type_interior_data_pointer),  allocatable :: data(:)
-      type (type_horizontal_data_pointer),allocatable :: data_hz(:)
-      type (type_scalar_data_pointer),    allocatable :: data_scalar(:)
-      integer, allocatable :: interior_data_sources(:)
-      integer, allocatable :: horizontal_data_sources(:)
-      integer, allocatable :: scalar_data_sources(:)
 
 #ifdef _HAS_MASK_
 #  ifndef _FABM_HORIZONTAL_MASK_
@@ -883,17 +887,17 @@
          link => link%next
       end do
 
-      allocate(self%data(self%variable_register%catalog%interior%count))
-      allocate(self%data_hz(self%variable_register%catalog%horizontal%count))
-      allocate(self%data_scalar(self%variable_register%catalog%scalar%count))
+      allocate(self%catalog%interior(self%variable_register%catalog%interior%count))
+      allocate(self%catalog%horizontal(self%variable_register%catalog%horizontal%count))
+      allocate(self%catalog%scalar(self%variable_register%catalog%scalar%count))
 
       ! Allocate and initialize arrays that store the source (host, fabm, user) of all data.
-      allocate(self%interior_data_sources(size(self%data)))
-      allocate(self%horizontal_data_sources(size(self%data_hz)))
-      allocate(self%scalar_data_sources(size(self%data_scalar)))
-      self%interior_data_sources = data_source_none
-      self%horizontal_data_sources = data_source_none
-      self%scalar_data_sources = data_source_none
+      allocate(self%catalog%interior_sources(size(self%catalog%interior)))
+      allocate(self%catalog%horizontal_sources(size(self%catalog%horizontal)))
+      allocate(self%catalog%scalar_sources(size(self%catalog%scalar)))
+      self%catalog%interior_sources = data_source_none
+      self%catalog%horizontal_sources = data_source_none
+      self%catalog%scalar_sources = data_source_none
    end subroutine create_catalog
 
    subroutine collect_fill_values(variable_list, values, use_missing)
@@ -936,23 +940,23 @@
 #endif
 
       ! Collect missing values in array for faster access. These will be used to fill masked parts of outputs.
-      call collect_fill_values(self%variable_register%store%interior, self%diag_fill_value, use_missing=.false.)
-      call collect_fill_values(self%variable_register%store%horizontal, self%diag_hz_fill_value, use_missing=.false.)
-      call collect_fill_values(self%variable_register%store%interior, self%diag_missing_value, use_missing=.true.)
-      call collect_fill_values(self%variable_register%store%horizontal, self%diag_hz_missing_value, use_missing=.true.)
+      call collect_fill_values(self%variable_register%store%interior, self%store%interior_fill_value, use_missing=.false.)
+      call collect_fill_values(self%variable_register%store%horizontal, self%store%horizontal_fill_value, use_missing=.false.)
+      call collect_fill_values(self%variable_register%store%interior, self%store%interior_missing_value, use_missing=.true.)
+      call collect_fill_values(self%variable_register%store%horizontal, self%store%horizontal_missing_value, use_missing=.true.)
 
       ! Initialize persistent store entries to fill value. For constant outputs, their values will be set here, and never touched again.
       ! Register data fields from persistent store in catalog.
       variable_node => self%variable_register%store%interior%first
       do i = 1, self%variable_register%store%interior%count
-         self%diag(_PREARG_LOCATION_DIMENSIONS_ i) = variable_node%target%prefill_value
-         call self%link_interior_data(variable_node%target, self%diag(_PREARG_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
+         self%store%interior(_PREARG_LOCATION_DIMENSIONS_ i) = variable_node%target%prefill_value
+         call self%link_interior_data(variable_node%target, self%store%interior(_PREARG_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
          variable_node => variable_node%next
       end do
       variable_node => self%variable_register%store%horizontal%first
       do i = 1, self%variable_register%store%horizontal%count
-         self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = variable_node%target%prefill_value
-         call self%link_horizontal_data(variable_node%target, self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
+         self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = variable_node%target%prefill_value
+         call self%link_horizontal_data(variable_node%target, self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
          variable_node => variable_node%next
       end do
 
@@ -960,8 +964,8 @@
 
       subroutine allocate_store(_LOCATION_)
          _DECLARE_ARGUMENTS_LOCATION_
-         allocate(self%diag(_PREARG_LOCATION_ 0:self%variable_register%store%interior%count))
-         allocate(self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ 0:self%variable_register%store%horizontal%count))
+         allocate(self%store%interior(_PREARG_LOCATION_ 0:self%variable_register%store%interior%count))
+         allocate(self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_ 0:self%variable_register%store%horizontal%count))
       end subroutine
 
    end subroutine create_store
@@ -1190,9 +1194,9 @@
 #endif
 
    ! Flag variables that have had data asssigned (by user, host or FABM).
-   call flag_variables_with_data(self%variable_register%catalog%interior, self%interior_data_sources)
-   call flag_variables_with_data(self%variable_register%catalog%horizontal, self%horizontal_data_sources)
-   call flag_variables_with_data(self%variable_register%catalog%scalar, self%scalar_data_sources)
+   call flag_variables_with_data(self%variable_register%catalog%interior, self%catalog%interior_sources)
+   call flag_variables_with_data(self%variable_register%catalog%horizontal, self%catalog%horizontal_sources)
+   call flag_variables_with_data(self%variable_register%catalog%scalar, self%catalog%scalar_sources)
 
    ! Create job that ensures all diagnostics required by the user are computed.
    do ivar = 1, size(self%diagnostic_variables)
@@ -1691,7 +1695,7 @@
 !BOC
    required = associated(id%variable)
    if (required) required = .not. id%variable%read_indices%is_empty()
-   if (required) required = .not. associated(self%data(id%variable%catalog_index)%p)
+   if (required) required = .not. associated(self%catalog%interior(id%variable%catalog_index)%p)
 
    end function fabm_interior_variable_needs_values
 !EOC
@@ -1747,7 +1751,7 @@
 !BOC
    required = associated(id%variable)
    if (required) required = .not. id%variable%read_indices%is_empty()
-   if (required) required = .not. associated(self%data_hz(id%variable%catalog_index)%p)
+   if (required) required = .not. associated(self%catalog%horizontal(id%variable%catalog_index)%p)
 
    end function fabm_horizontal_variable_needs_values
 !EOC
@@ -1803,7 +1807,7 @@
 !BOC
    required = associated(id%variable)
    if (required) required = .not. id%variable%read_indices%is_empty()
-   if (required) required = .not. associated(self%data_scalar(id%variable%catalog_index)%p)
+   if (required) required = .not. associated(self%catalog%scalar(id%variable%catalog_index)%p)
 
    end function fabm_scalar_variable_needs_values
 !EOC
@@ -1914,9 +1918,9 @@
    if (i /= -1) then
       source_ = data_source_default
       if (present(source)) source_ = source
-      if (source_ >= self%interior_data_sources(i)) then
-         self%data(i)%p => dat
-         self%interior_data_sources(i) = source_
+      if (source_ >= self%catalog%interior_sources(i)) then
+         self%catalog%interior(i)%p => dat
+         self%catalog%interior_sources(i) = source_
       end if
    end if
 
@@ -2042,9 +2046,9 @@
    if (i /= -1) then
       source_ = data_source_default
       if (present(source)) source_ = source
-      if (source_ >= self%horizontal_data_sources(i)) then
-         self%data_hz(i)%p => dat
-         self%horizontal_data_sources(i) = source_
+      if (source_ >= self%catalog%horizontal_sources(i)) then
+         self%catalog%horizontal(i)%p => dat
+         self%catalog%horizontal_sources(i) = source_
       end if
    end if
 
@@ -2163,9 +2167,9 @@
    if (i /= -1) then
       source_ = data_source_default
       if (present(source)) source_ = source
-      if (source_ >= self%scalar_data_sources(i)) then
-         self%data_scalar(i)%p => dat
-         self%scalar_data_sources(i) = source_
+      if (source_ >= self%catalog%scalar_sources(i)) then
+         self%catalog%scalar(i)%p => dat
+         self%catalog%scalar_sources(i) = source_
       end if
    end if
 
@@ -2400,7 +2404,7 @@
 !BOC
    _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_interior_diagnostic_data', 'model%get_interior_diagnostic_data can only be called after model start.')   
    nullify(dat)
-   if (self%diagnostic_variables(index)%target%catalog_index /= -1) dat => self%data(self%diagnostic_variables(index)%target%catalog_index)%p
+   if (self%diagnostic_variables(index)%target%catalog_index /= -1) dat => self%catalog%interior(self%diagnostic_variables(index)%target%catalog_index)%p
 
    end function fabm_get_interior_diagnostic_data
 !EOC
@@ -2425,7 +2429,7 @@
 !BOC
    _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_horizontal_diagnostic_data', 'model%get_horizontal_diagnostic_data can only be called after model start.')
    nullify(dat)
-   if (self%horizontal_diagnostic_variables(index)%target%catalog_index /= -1) dat => self%data_hz(self%horizontal_diagnostic_variables(index)%target%catalog_index)%p
+   if (self%horizontal_diagnostic_variables(index)%target%catalog_index /= -1) dat => self%catalog%horizontal(self%horizontal_diagnostic_variables(index)%target%catalog_index)%p
 
    end function fabm_get_horizontal_diagnostic_data
 !EOC
@@ -2437,7 +2441,7 @@ function fabm_get_interior_data(self,id) result(dat)
 
    _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_interior_data', 'model%get_data can only be called after model start.')
    nullify(dat)
-   if (id%variable%catalog_index /= -1) dat => self%data(id%variable%catalog_index)%p
+   if (id%variable%catalog_index /= -1) dat => self%catalog%interior(id%variable%catalog_index)%p
 end function fabm_get_interior_data
 
 function fabm_get_horizontal_data(self,id) result(dat)
@@ -2447,7 +2451,7 @@ function fabm_get_horizontal_data(self,id) result(dat)
 
    _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_horizontal_data', 'model%get_data can only be called after model start.')
    nullify(dat)
-   if (id%variable%catalog_index /= -1) dat => self%data_hz(id%variable%catalog_index)%p
+   if (id%variable%catalog_index /= -1) dat => self%catalog%horizontal(id%variable%catalog_index)%p
 end function fabm_get_horizontal_data
 
 function fabm_get_scalar_data(self,id) result(dat)
@@ -2457,7 +2461,7 @@ function fabm_get_scalar_data(self,id) result(dat)
 
    _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_scalar_data', 'model%get_data can only be called after model start.')
    nullify(dat)
-   if (id%variable%catalog_index /= -1) dat => self%data_scalar(id%variable%catalog_index)%p
+   if (id%variable%catalog_index /= -1) dat => self%catalog%scalar(id%variable%catalog_index)%p
 end function fabm_get_scalar_data
 
 subroutine create_cache(self, cache, cache_type)
@@ -2618,19 +2622,19 @@ subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
    do i = 1, size(task%load)
       j = task%load(i)
       if (j /= 0) then
-         _PACK_GLOBAL_(self%data(j)%p, cache%read, i, cache)
+         _PACK_GLOBAL_(self%catalog%interior(j)%p, cache%read, i, cache)
       end if
    end do
    do i = 1, size(task%load_hz)
       j = task%load_hz(i)
       if (j /= 0) then
-         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(j)%p, cache%read_hz, i, cache)
+         _HORIZONTAL_PACK_GLOBAL_(self%catalog%horizontal(j)%p, cache%read_hz, i, cache)
       end if
    end do
    do i = 1, size(task%load_scalar)
       j = task%load_scalar(i)
       if (j /= 0) then
-         cache%read_scalar(i) = self%data_scalar(j)%p
+         cache%read_scalar(i) = self%catalog%scalar(j)%p
       end if
    end do
 
@@ -2644,7 +2648,7 @@ subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
             cache%write _INDEX_SLICE_PLUS_1_(i) = self%write_cache_fill_value(i)
          _LOOP_END_
       elseif (j /= prefill_none) then
-         _PACK_GLOBAL_(self%data(j)%p, cache%write, i, cache)
+         _PACK_GLOBAL_(self%catalog%interior(j)%p, cache%write, i, cache)
       end if
    end do
 end subroutine begin_interior_task
@@ -2682,12 +2686,12 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    do i = 1, size(task%load_hz)
       j = task%load_hz(i)
       if (j /= 0) then
-         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(j)%p, cache%read_hz, i, cache)
+         _HORIZONTAL_PACK_GLOBAL_(self%catalog%horizontal(j)%p, cache%read_hz, i, cache)
       end if
    end do
    do i = 1, size(task%load_scalar)
       j = task%load_scalar(i)
-      if (j /= 0) cache%read_scalar(i) = self%data_scalar(j)%p
+      if (j /= 0) cache%read_scalar(i) = self%catalog%scalar(j)%p
    end do
 
 #ifndef NDEBUG
@@ -2699,7 +2703,7 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
             cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%write_cache_hz_fill_value(i)
          _HORIZONTAL_LOOP_END_
       elseif (task%prefill_hz(i) /= prefill_none) then
-         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(task%prefill_hz(i))%p, cache%write_hz, i, cache)
+         _HORIZONTAL_PACK_GLOBAL_(self%catalog%horizontal(task%prefill_hz(i))%p, cache%write_hz, i, cache)
       end if
    end do
 
@@ -2731,15 +2735,15 @@ subroutine load_surface_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 #ifdef _HORIZONTAL_IS_VECTORIZED_
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
 #  ifdef _HAS_MASK_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(j)%p _INDEX_GLOBAL_INTERIOR_(cache%ipack(_J_))
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(j)%p _INDEX_GLOBAL_INTERIOR_(cache%ipack(_J_))
 #  else
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(j)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(j)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
 #  endif
          _HORIZONTAL_LOOP_END_
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1,i) = self%data(j)%p _INDEX_LOCATION_
+         cache%read(1,i) = self%catalog%interior(j)%p _INDEX_LOCATION_
 #else
-         cache%read(i) = self%data(j)%p _INDEX_LOCATION_
+         cache%read(i) = self%catalog%interior(j)%p _INDEX_LOCATION_
 #endif
       end if
    end do
@@ -2774,21 +2778,21 @@ subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 #    endif
 #  endif
 #  ifdef _HAS_MASK_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(k)%p _INDEX_GLOBAL_INTERIOR_(cache%ipack(_J_))
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(k)%p _INDEX_GLOBAL_INTERIOR_(cache%ipack(_J_))
 #  else
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(k)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(k)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
 #  endif
          _HORIZONTAL_LOOP_END_
 #elif defined(_INTERIOR_IS_VECTORIZED_)
 #  if _FABM_BOTTOM_INDEX_==-1
          _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #  endif
-         cache%read(1,i) = self%data(k)%p _INDEX_LOCATION_
+         cache%read(1,i) = self%catalog%interior(k)%p _INDEX_LOCATION_
 #else
 #  if _FABM_BOTTOM_INDEX_==-1
          _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #  endif
-         cache%read(i) = self%data(k)%p _INDEX_LOCATION_
+         cache%read(i) = self%catalog%interior(k)%p _INDEX_LOCATION_
 #endif
       end if
    end do
@@ -2834,15 +2838,15 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
 #  ifdef _HAS_MASK_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(j)%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(j)%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
 #  else
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%data(j)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
+            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(j)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
 #  endif
          _VERTICAL_LOOP_END_
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1,i) = self%data(j)%p _INDEX_LOCATION_
+         cache%read(1,i) = self%catalog%interior(j)%p _INDEX_LOCATION_
 #else
-         cache%read(i) = self%data(j)%p _INDEX_LOCATION_
+         cache%read(i) = self%catalog%interior(j)%p _INDEX_LOCATION_
 #endif
       end if
    end do
@@ -2851,16 +2855,16 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
       j = task%load_hz(i)
       if (j /= 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-         cache%read_hz(1, i) = self%data_hz(j)%p _INDEX_HORIZONTAL_LOCATION_
+         cache%read_hz(1, i) = self%catalog%horizontal(j)%p _INDEX_HORIZONTAL_LOCATION_
 #else
-         cache%read_hz(i) = self%data_hz(j)%p _INDEX_HORIZONTAL_LOCATION_
+         cache%read_hz(i) = self%catalog%horizontal(j)%p _INDEX_HORIZONTAL_LOCATION_
 #endif
       end if
    end do
 
    do i = 1, size(task%load_scalar)
       j = task%load_scalar(i)
-      if (j /= 0) cache%read_scalar(i) = self%data_scalar(j)%p
+      if (j /= 0) cache%read_scalar(i) = self%catalog%scalar(j)%p
    end do
 
 #ifndef NDEBUG
@@ -2878,15 +2882,15 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
          _CONCURRENT_VERTICAL_LOOP_BEGIN_
 #  ifdef _HAS_MASK_
-            cache%write _INDEX_SLICE_PLUS_1_(i) = self%data(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
+            cache%write _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
 #  else
-            cache%write _INDEX_SLICE_PLUS_1_(i) = self%data(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
+            cache%write _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
 #  endif
          _VERTICAL_LOOP_END_
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%write(1, i) = self%data(task%prefill(i))%p _INDEX_LOCATION_
+         cache%write(1, i) = self%catalog%interior(task%prefill(i))%p _INDEX_LOCATION_
 #else
-         cache%write(i) = self%data(task%prefill(i))%p _INDEX_LOCATION_
+         cache%write(i) = self%catalog%interior(task%prefill(i))%p _INDEX_LOCATION_
 #endif
       end if
    end do
@@ -2900,9 +2904,9 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 #endif
       elseif (task%prefill_hz(i) /= prefill_none) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-         cache%write_hz(1, i) = self%data_hz(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
+         cache%write_hz(1, i) = self%catalog%horizontal(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
 #else
-         cache%write_hz(i) = self%data_hz(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
+         cache%write_hz(i) = self%catalog%horizontal(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
 #endif
       end if
    end do
@@ -2961,7 +2965,7 @@ subroutine end_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
    ! Copy newly written diagnostics that need to be saved to global store.
    do i=1,size(task%save_sources)
       if (task%save_sources(i) /= 0) then
-         _UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%diag,i,cache,self%diag_missing_value(i))
+         _UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%store%interior,i,cache,self%store%interior_missing_value(i))
       end if
    end do
 
@@ -2986,7 +2990,7 @@ subroutine end_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    ! Copy newly written horizontal diagnostics that need to be saved to global store.
    do i = 1, size(task%save_sources_hz)
       if (task%save_sources_hz(i) /= 0) then
-         _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write_hz,task%save_sources_hz(i),self%diag_hz,i,cache,self%diag_hz_missing_value(i))
+         _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write_hz,task%save_sources_hz(i),self%store%horizontal,i,cache,self%store%horizontal_missing_value(i))
       end if
    end do
 
@@ -3011,21 +3015,21 @@ subroutine end_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
    ! Copy diagnostics that need to be saved to global store.
    do i=1,size(task%save_sources)
       if (task%save_sources(i) /= 0) then
-         _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%diag,i,cache,self%diag_missing_value(i))
+         _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%store%interior,i,cache,self%store%interior_missing_value(i))
       end if
    end do
    do i=1,size(task%save_sources_hz)
       if (task%save_sources_hz(i) /= 0) then
-             if (_N_ > 0) then
+         if (_N_ > 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-         self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(1,task%save_sources_hz(i))
+            self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(1,task%save_sources_hz(i))
 #else
-         self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(task%save_sources_hz(i))
+            self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(task%save_sources_hz(i))
 #endif
-            else
-               self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ i) = self%diag_hz_missing_value(i)
-            end if
+         else
+            self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = self%store%horizontal_missing_value(i)
          end if
+      end if
    end do
 
 !#ifdef _HAS_MASK_
@@ -3083,8 +3087,8 @@ end subroutine end_vertical_task
    ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
    do ivar=1,size(self%state_variables)
       read_index = self%state_variables(ivar)%target%read_indices%value
-      if (self%interior_data_sources(read_index) == data_source_fabm) then
-         _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%data(self%state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%state_variables(ivar)%missing_value)
+      if (self%catalog%interior_sources(read_index) == data_source_fabm) then
+         _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%state_variables(ivar)%missing_value)
       end if
    end do
 
@@ -3139,8 +3143,8 @@ end subroutine end_vertical_task
    ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
    do ivar=1,size(self%bottom_state_variables)
       read_index = self%bottom_state_variables(ivar)%target%read_indices%value
-      if (self%horizontal_data_sources(read_index)==data_source_fabm) then
-         _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%data_hz(self%bottom_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%bottom_state_variables(ivar)%missing_value)
+      if (self%catalog%horizontal_sources(read_index)==data_source_fabm) then
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(self%bottom_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%bottom_state_variables(ivar)%missing_value)
       end if
    end do
 
@@ -3195,8 +3199,8 @@ end subroutine end_vertical_task
    ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
    do ivar=1,size(self%surface_state_variables)
       read_index = self%surface_state_variables(ivar)%target%read_indices%value
-      if (self%horizontal_data_sources(read_index) == data_source_fabm) then
-         _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%data_hz(self%surface_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%surface_state_variables(ivar)%missing_value)
+      if (self%catalog%horizontal_sources(read_index) == data_source_fabm) then
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(self%surface_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%surface_state_variables(ivar)%missing_value)
       end if
    end do
 
@@ -3433,8 +3437,8 @@ end subroutine end_vertical_task
    if (set_interior.or..not.valid) then
       do ivar=1,size(self%state_variables)
          read_index = self%state_variables(ivar)%target%read_indices%value
-         if (self%interior_data_sources(read_index) == data_source_fabm) then
-            _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%data(self%state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%state_variables(ivar)%missing_value)
+         if (self%catalog%interior_sources(read_index) == data_source_fabm) then
+            _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%state_variables(ivar)%missing_value)
          end if
       end do
    end if
@@ -3577,8 +3581,8 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
    if (set_horizontal.or..not.valid) then
       do ivar=1,size(state_variables)
          read_index = state_variables(ivar)%target%read_indices%value
-         if (self%horizontal_data_sources(read_index)==data_source_fabm) then
-            _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%data_hz(state_variables(ivar)%target%catalog_index)%p, self%cache_hz, state_variables(ivar)%missing_value)
+         if (self%catalog%horizontal_sources(read_index)==data_source_fabm) then
+            _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(state_variables(ivar)%target%catalog_index)%p, self%cache_hz, state_variables(ivar)%missing_value)
          end if
       end do
    end if
@@ -3600,7 +3604,7 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
 
       do ivar=1,size(self%state_variables)
          read_index = self%state_variables(ivar)%target%read_indices%value
-         if (self%interior_data_sources(read_index)==data_source_fabm) then
+         if (self%catalog%interior_sources(read_index)==data_source_fabm) then
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
       if (flag==1) then
 #endif
@@ -3609,20 +3613,20 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
 #  ifdef _HAS_MASK_
          _DO_CONCURRENT_(_J_,_START_,_STOP_)
             if (self%cache_hz%iunpack(_J_)/=0) then
-               self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%cache_hz%read(self%cache_hz%iunpack(_J_),read_index)
+               self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%cache_hz%read(self%cache_hz%iunpack(_J_),read_index)
             else
-               self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%state_variables(ivar)%missing_value
+               self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%state_variables(ivar)%missing_value
             end if
          end do
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
-            self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
+            self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
          _HORIZONTAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-         self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(1,read_index)
+         self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(1,read_index)
 #else
-         self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(read_index)
+         self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(read_index)
 #endif
 
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
@@ -3632,15 +3636,15 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
          _DO_CONCURRENT_(_J_,_START_,_STOP_)
             _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_J_)
             if (self%cache_hz%iunpack(_J_)/=0) then
-               self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%cache_hz%read(self%cache_hz%iunpack(_J_),read_index)
+               self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%cache_hz%read(self%cache_hz%iunpack(_J_),read_index)
             else
-               self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%state_variables(ivar)%missing_value
+               self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_J_) = self%state_variables(ivar)%missing_value
             end if
          end do
 #  else
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
             _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
-            self%data(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
+            self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
          _HORIZONTAL_LOOP_END_
 #  endif
       end if
@@ -4225,14 +4229,14 @@ end subroutine internal_check_horizontal_state
       do i = 1, size(job%interior_store_prefill)
          if (job%interior_store_prefill(i)) then
             _BEGIN_OUTER_INTERIOR_LOOP_
-               self%diag _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_, i) = self%diag_fill_value(i)
+               self%store%interior _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_, i) = self%store%interior_fill_value(i)
             _END_OUTER_INTERIOR_LOOP_
          end if
       end do
       do i = 1, size(job%horizontal_store_prefill)
          if (job%horizontal_store_prefill(i)) then
             _BEGIN_OUTER_HORIZONTAL_LOOP_
-               self%diag_hz _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_, i) = self%diag_hz_fill_value(i)
+               self%store%horizontal _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_, i) = self%store%horizontal_fill_value(i)
             _END_OUTER_HORIZONTAL_LOOP_
          end if
       end do
@@ -4261,8 +4265,10 @@ end subroutine internal_check_horizontal_state
 #endif
                call fabm_process_vertical_slice(self, task _ARGUMENTS_VERTICAL_IN_)
             _END_OUTER_VERTICAL_LOOP_
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
             _VERTICAL_START_ = 1
             _VERTICAL_STOP_ = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
+#endif
          end select
          task => task%next
       end do
@@ -4446,7 +4452,7 @@ contains
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
             - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) &
-            + weight_right*self%data(expression%in)%p
+            + weight_right*self%catalog%interior(expression%in)%p
          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
             + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
 
@@ -4469,7 +4475,7 @@ contains
       end do
 
       ! Store current value to enable linear interpolation to next output time in subsequent call.
-      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) = self%data(expression%in)%p
+      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) = self%catalog%interior(expression%in)%p
 
       if (expression%valid) then
          ! We have a full history. To compute the temporal mean:
@@ -4498,7 +4504,7 @@ contains
       if (expression%ioldest==-1) then
          ! Start of simulation; set entire history equal to current value.
          do i=1,expression%n+3
-            expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%data_hz(expression%in)%p
+            expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%catalog%horizontal(expression%in)%p
          end do
          expression%next_save_time = t + expression%period/expression%n
          expression%ioldest = 1
@@ -4514,7 +4520,7 @@ contains
          expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) &
             - expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
          expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+1) &
-            + weight_right*self%data_hz(expression%in)%p
+            + weight_right*self%catalog%horizontal(expression%in)%p
          expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) &
             + expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
 
@@ -4532,7 +4538,7 @@ contains
       ! For temporal means:
       ! - store values at current time step
       ! - for current mean, use historical mean but account for change since most recent point in history.
-      expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+1) = self%data_hz(expression%in)%p
+      expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+1) = self%catalog%horizontal(expression%in)%p
       expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) &
          + frac_outside*(-expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+1))
 
