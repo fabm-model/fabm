@@ -244,14 +244,14 @@
       type (type_store)   :: store
 
       ! Read cache fill values
-      real(rk),allocatable                                      :: read_cache_fill_value(:)
-      real(rk),allocatable                                      :: read_cache_hz_fill_value(:)
-      real(rk),allocatable                                      :: read_cache_scalar_fill_value(:)
-      real(rk),allocatable                                      :: write_cache_fill_value(:)
-      real(rk),allocatable                                      :: write_cache_hz_fill_value(:)
+      real(rk), allocatable :: read_cache_fill_value(:)
+      real(rk), allocatable :: read_cache_hz_fill_value(:)
+      real(rk), allocatable :: read_cache_scalar_fill_value(:)
+      real(rk), allocatable :: write_cache_fill_value(:)
+      real(rk), allocatable :: write_cache_hz_fill_value(:)
 
-      integer                                                   :: domain_size(_FABM_DIMENSION_COUNT_)
-      integer                                                   :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
+      integer :: domain_size(_FABM_DIMENSION_COUNT_)
+      integer :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
 
       type (type_job_manager) :: job_manager
 
@@ -277,16 +277,16 @@
 
 #ifdef _HAS_MASK_
 #  ifndef _FABM_HORIZONTAL_MASK_
-      _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
+      _FABM_MASK_TYPE_, pointer _DIMENSION_GLOBAL_ :: mask => null()
 #  endif
-      _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz => null()
+      _FABM_MASK_TYPE_, pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz => null()
 #endif
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  if _FABM_BOTTOM_INDEX_==0
       integer :: bottom_index = -1
 #  elif _FABM_BOTTOM_INDEX_==-1
-      integer,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_indices => null()
+      integer, pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_indices => null()
 #  endif
       integer :: surface_index = -1
 #endif
@@ -945,17 +945,23 @@
       call collect_fill_values(self%variable_register%store%interior, self%store%interior_missing_value, use_missing=.true.)
       call collect_fill_values(self%variable_register%store%horizontal, self%store%horizontal_missing_value, use_missing=.true.)
 
-      ! Initialize persistent store entries to fill value. For constant outputs, their values will be set here, and never touched again.
+      ! Initialize persistent store entries to fill value.
+      ! For constant outputs, their values will be set here, and never touched again.
+      do i = 1, self%variable_register%store%interior%count
+         self%store%interior(_PREARG_LOCATION_DIMENSIONS_ i) = self%store%interior_fill_value(i)
+      end do
+      do i = 1, self%variable_register%store%horizontal%count
+         self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%store%horizontal_fill_value(i)
+      end do
+
       ! Register data fields from persistent store in catalog.
       variable_node => self%variable_register%store%interior%first
       do i = 1, self%variable_register%store%interior%count
-         self%store%interior(_PREARG_LOCATION_DIMENSIONS_ i) = variable_node%target%prefill_value
          call self%link_interior_data(variable_node%target, self%store%interior(_PREARG_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
          variable_node => variable_node%next
       end do
       variable_node => self%variable_register%store%horizontal%first
       do i = 1, self%variable_register%store%horizontal%count
-         self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = variable_node%target%prefill_value
          call self%link_horizontal_data(variable_node%target, self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
          variable_node => variable_node%next
       end do
@@ -2953,35 +2959,27 @@ subroutine check_call_output(call_node,cache)
    end do
 end subroutine check_call_output
 
-subroutine end_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
-   type (type_model),intent(inout) :: self
+subroutine end_interior_task(task, cache, store _ARGUMENTS_INTERIOR_IN_)
    type (type_task), intent(in)    :: task
-   type (type_cache),intent(inout) :: cache
+   type (type_cache),intent(in)    :: cache
+   type (type_store),intent(inout) :: store
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    _DECLARE_INTERIOR_INDICES_
 
    integer :: i
 
    ! Copy newly written diagnostics that need to be saved to global store.
-   do i=1,size(task%save_sources)
+   do i = 1, size(task%save_sources)
       if (task%save_sources(i) /= 0) then
-         _UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%store%interior,i,cache,self%store%interior_missing_value(i))
+         _UNPACK_TO_GLOBAL_PLUS_1_(cache%write, task%save_sources(i), store%interior, i, cache, store%interior_missing_value(i))
       end if
    end do
-
-!#ifdef _HAS_MASK_
-!   deallocate(cache%mask)
-!#endif
-!   deallocate(cache%read)
-!   deallocate(cache%read_hz)
-!   deallocate(cache%read_scalar)
-!   deallocate(cache%write)
 end subroutine end_interior_task
 
-subroutine end_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_model),intent(inout) :: self
-   type (type_task), intent(in)    :: task
-   type (type_cache),intent(inout) :: cache
+subroutine end_horizontal_task(task, cache, store _ARGUMENTS_HORIZONTAL_IN_)
+   type (type_task),  intent(in)    :: task
+   type (type_cache), intent(in)    :: cache
+   type (type_store), intent(inout) :: store
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
@@ -2990,56 +2988,39 @@ subroutine end_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    ! Copy newly written horizontal diagnostics that need to be saved to global store.
    do i = 1, size(task%save_sources_hz)
       if (task%save_sources_hz(i) /= 0) then
-         _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write_hz,task%save_sources_hz(i),self%store%horizontal,i,cache,self%store%horizontal_missing_value(i))
+         _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write_hz, task%save_sources_hz(i), store%horizontal, i, cache, store%horizontal_missing_value(i))
       end if
    end do
-
-!#ifdef _HAS_MASK_
-!   deallocate(cache%mask)
-!#endif
-!   if (allocated(cache%read)) deallocate(cache%read)
-!   deallocate(cache%read_hz)
-!   deallocate(cache%read_scalar)
-!   deallocate(cache%write_hz)
 end subroutine end_horizontal_task
 
-subroutine end_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
-   type (type_model),intent(inout) :: self
-   type (type_task), intent(in)    :: task
-   type (type_cache),intent(inout) :: cache
+subroutine end_vertical_task(task, cache, store _ARGUMENTS_VERTICAL_IN_)
+   type (type_task),  intent(in)    :: task
+   type (type_cache), intent(in)    :: cache
+   type (type_store), intent(inout) :: store
    _DECLARE_ARGUMENTS_VERTICAL_IN_
    _DECLARE_VERTICAL_INDICES_
 
    integer :: i
 
    ! Copy diagnostics that need to be saved to global store.
-   do i=1,size(task%save_sources)
+   do i = 1, size(task%save_sources)
       if (task%save_sources(i) /= 0) then
-         _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write,task%save_sources(i),self%store%interior,i,cache,self%store%interior_missing_value(i))
+         _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write, task%save_sources(i), store%interior, i, cache, store%interior_missing_value(i))
       end if
    end do
-   do i=1,size(task%save_sources_hz)
+   do i = 1, size(task%save_sources_hz)
       if (task%save_sources_hz(i) /= 0) then
          if (_N_ > 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-            self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(1,task%save_sources_hz(i))
+            store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(1, task%save_sources_hz(i))
 #else
-            self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(task%save_sources_hz(i))
+            store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(task%save_sources_hz(i))
 #endif
          else
-            self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = self%store%horizontal_missing_value(i)
+            store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = store%horizontal_missing_value(i)
          end if
       end if
    end do
-
-!#ifdef _HAS_MASK_
-!   deallocate(cache%mask)
-!#endif
-!   deallocate(cache%read)
-!   deallocate(cache%read_hz)
-!   deallocate(cache%read_scalar)
-!   deallocate(cache%write)
-!   deallocate(cache%write_hz)
 end subroutine end_vertical_task
 
 !-----------------------------------------------------------------------
@@ -3092,7 +3073,7 @@ end subroutine end_vertical_task
       end if
    end do
 
-   call end_interior_task(self,self%initialize_state_job%first_task,self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self%initialize_state_job%first_task, self%cache_int, self%store _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_initialize_state
 !EOC
@@ -3148,7 +3129,7 @@ end subroutine end_vertical_task
       end if
    end do
 
-   call end_horizontal_task(self,self%initialize_bottom_state_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%initialize_bottom_state_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_initialize_bottom_state
 !EOC
@@ -3204,7 +3185,7 @@ end subroutine end_vertical_task
       end if
    end do
 
-   call end_horizontal_task(self,self%initialize_surface_state_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%initialize_surface_state_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_initialize_surface_state
 !EOC
@@ -3277,7 +3258,7 @@ end subroutine end_vertical_task
       _UNPACK_AND_ADD_TO_PLUS_1_(self%cache_int%write,k,dy,i,self%cache_int)
    end do
 
-   call end_interior_task(self,self%do_interior_job%first_task,self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self%do_interior_job%first_task, self%cache_int, self%store _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_do_rhs
 !EOC
@@ -3335,7 +3316,7 @@ end subroutine end_vertical_task
       call_node => call_node%next
    end do
 
-   call end_interior_task(self,self%do_interior_job%first_task,self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self%do_interior_job%first_task, self%cache_int, self%store _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_do_ppdd
 !EOC
@@ -3443,7 +3424,7 @@ end subroutine end_vertical_task
       end do
    end if
 
-   call end_interior_task(self,self%check_state_job%first_task,self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self%check_state_job%first_task, self%cache_int, self%store _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_check_state
 !EOC
@@ -3653,7 +3634,7 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
       end do
    end if
 
-   call end_horizontal_task(self,job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
 
 end subroutine internal_check_horizontal_state
 
@@ -3732,7 +3713,7 @@ end subroutine internal_check_horizontal_state
          end do
       end if
 
-      call end_horizontal_task(self,self%do_surface_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+      call end_horizontal_task(self%do_surface_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_do_surface
 !EOC
@@ -3809,7 +3790,7 @@ end subroutine internal_check_horizontal_state
       _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(self%cache_hz%write_hz,k,flux_ben,i,self%cache_hz)
    end do
 
-   call end_horizontal_task(self,self%do_bottom_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%do_bottom_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_do_bottom_rhs
 !EOC
@@ -3863,7 +3844,7 @@ end subroutine internal_check_horizontal_state
       call_node => call_node%next
    end do
 
-   call end_horizontal_task(self,self%do_bottom_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%do_bottom_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_do_bottom_ppdd
 !EOC
@@ -3917,7 +3898,7 @@ end subroutine internal_check_horizontal_state
       _UNPACK_TO_PLUS_1_(self%cache_int%write,k,velocity,i,self%cache_int,0.0_rk)
    end do
 
-   call end_interior_task(self,self%get_vertical_movement_job%first_task,self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self%get_vertical_movement_job%first_task, self%cache_int, self%store _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_vertical_movement
 !EOC
@@ -3981,7 +3962,7 @@ end subroutine internal_check_horizontal_state
 
    _UNPACK_(self%cache_int%write,self%extinction_id%variable%write_indices%value,extinction,self%cache_int,0.0_rk)
 
-   call end_interior_task(self,self%get_light_extinction_job%first_task,self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self%get_light_extinction_job%first_task, self%cache_int, self%store _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_light_extinction
 !EOC
@@ -4042,7 +4023,7 @@ end subroutine internal_check_horizontal_state
       call_node => call_node%next
    end do
 
-   call end_horizontal_task(self,self%get_drag_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%get_drag_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_get_drag
 !EOC
@@ -4084,7 +4065,7 @@ end subroutine internal_check_horizontal_state
       call_node => call_node%next
    end do
 
-   call end_horizontal_task(self,self%get_albedo_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%get_albedo_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_get_albedo
 !EOC
@@ -4142,7 +4123,7 @@ end subroutine internal_check_horizontal_state
       _UNPACK_TO_PLUS_1_(self%cache_int%write,self%conserved_quantities(i)%index,sums,i,self%cache_int,0.0_rk)
    end do
 
-   call end_interior_task(self,self%get_conserved_quantities_job%first_task,self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self%get_conserved_quantities_job%first_task, self%cache_int, self%store _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_conserved_quantities
 !EOC
@@ -4204,7 +4185,7 @@ end subroutine internal_check_horizontal_state
       _HORIZONTAL_UNPACK_TO_PLUS_1_(self%cache_hz%write_hz,self%conserved_quantities(i)%horizontal_index,sums,i,self%cache_hz,0.0_rk)
    end do
 
-   call end_horizontal_task(self,self%get_horizontal_conserved_quantities_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%get_horizontal_conserved_quantities_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_get_horizontal_conserved_quantities
 !EOC
@@ -4330,7 +4311,7 @@ end subroutine internal_check_horizontal_state
          call_node => call_node%next
       end do
 
-      call end_interior_task(self,task,self%cache_int _ARGUMENTS_INTERIOR_IN_)
+      call end_interior_task(task, self%cache_int, self%store _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_process_interior_slice
 
@@ -4367,7 +4348,7 @@ end subroutine internal_check_horizontal_state
          call_node => call_node%next
       end do
 
-      call end_horizontal_task(self,task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+      call end_horizontal_task(task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_process_horizontal_slice
 
@@ -4407,10 +4388,9 @@ end subroutine internal_check_horizontal_state
          call_node => call_node%next
       end do
 
-      call end_vertical_task(self,task,self%cache_vert _ARGUMENTS_VERTICAL_IN_)
+      call end_vertical_task(task, self%cache_vert, self%store _ARGUMENTS_VERTICAL_IN_)
 
    end subroutine fabm_process_vertical_slice
-
 
 subroutine fabm_update_time1(self,t)
    class (type_model), intent(inout) :: self
