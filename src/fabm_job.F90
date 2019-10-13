@@ -418,26 +418,26 @@ module fabm_job
       type (type_global_variable_register), intent(inout) :: variable_register
       type (type_schedules),                intent(inout) :: schedules
 
-      type (type_call),          pointer :: call_node
-      type (type_variable_node), pointer :: input_variable
+      type (type_call),                    pointer :: call_node
+      type (type_input_variable_set_node), pointer :: input_variable_node
 
       ! Initialize individual call objects, then collect all input variables in a task-encompassing set.
       call_node => self%first_call
       do while (associated(call_node))
-         input_variable => call_node%graph_node%inputs%first
-         do while (associated(input_variable))
-            _ASSERT_(.not. input_variable%target%read_indices%is_empty(), 'task_initialize', 'variable without read indices among inputs')
-            _ASSERT_(.not. associated(input_variable%target%write_owner), 'task_initialize', 'write contribution among inputs')
+         input_variable_node => call_node%graph_node%inputs%first
+         do while (associated(input_variable_node))
+            _ASSERT_(.not. input_variable_node%p%target%read_indices%is_empty(), 'task_initialize', 'variable without read indices among inputs')
+            _ASSERT_(.not. associated(input_variable_node%p%target%write_owner), 'task_initialize', 'write contribution among inputs')
 
             ! Make sure the variable has an entry in the read register.
             ! (the assigned index can be used in the global read store and in the read cache)
-            call variable_register%add_to_read_cache(input_variable%target)
+            call variable_register%add_to_read_cache(input_variable_node%p%target)
 
             ! Make sure this input is loaded into the read cache before the task is started.
-            if (input_variable%target%source /= source_constant) call self%cache_preload%add(input_variable%target)
+            if (input_variable_node%p%target%source /= source_constant) call self%cache_preload%add(input_variable_node%p%target)
 
-            input_variable => input_variable%next
-         end do         
+            input_variable_node => input_variable_node%next
+         end do
          call_node => call_node%next
       end do
 
@@ -694,11 +694,11 @@ subroutine print_output_variable(variable, unit, indent)
 end subroutine print_output_variable
 
 subroutine print_input_variable(variable, unit, indent)
-   type (type_variable_node), intent(in) :: variable
-   integer,                   intent(in) :: unit
-   integer,optional,          intent(in) :: indent
+   type (type_internal_variable), intent(in) :: variable
+   integer,                       intent(in) :: unit
+   integer,optional,              intent(in) :: indent
 
-   write (unit,'(a,"   - ",a,", read@",i0)') repeat(' ',indent), trim(variable%target%name), variable%target%read_indices%value
+   write (unit,'(a,"   - ",a,", read@",i0)') repeat(' ',indent), trim(variable%name), variable%read_indices%value
 end subroutine print_input_variable
 
 subroutine task_print(self, unit, indent, specific_variable)
@@ -707,14 +707,14 @@ subroutine task_print(self, unit, indent, specific_variable)
    integer,optional,                                intent(in) :: indent
    type (type_internal_variable), target, optional, intent(in) :: specific_variable
 
-   integer                             :: indent_
-   integer                             :: i
-   type (type_call),           pointer :: call_node
-   type (type_output_variable_set_node),pointer :: output_variable
-   logical                             :: show
-   type (type_variable_node),  pointer :: input_variable
-   logical                             :: header_written
-   logical                             :: subheader_written
+   integer                                       :: indent_
+   integer                                       :: i
+   type (type_call),                     pointer :: call_node
+   type (type_output_variable_set_node), pointer :: output_variable
+   logical                                       :: show
+   type (type_input_variable_set_node),  pointer :: input_variable
+   logical                                       :: header_written
+   logical                                       :: subheader_written
 
    indent_ = 0
    if (present(indent)) indent_ = indent
@@ -759,14 +759,14 @@ subroutine task_print(self, unit, indent, specific_variable)
       input_variable => call_node%graph_node%inputs%first
       do while (associated(input_variable))
          show = .true.
-         if (present(specific_variable)) show = associated(input_variable%target, specific_variable)
+         if (present(specific_variable)) show = associated(input_variable%p%target, specific_variable)
          if (show) then
             call write_header()
             if (.not. subheader_written) then
                write (unit,'(a,"   ",a)') repeat(' ', indent_), 'inputs:'
                subheader_written = .true.
             end if
-            call print_input_variable(input_variable, unit, indent_)
+            call print_input_variable(input_variable%p%target, unit, indent_)
          end if
          input_variable => input_variable%next
       end do
@@ -979,7 +979,7 @@ subroutine job_create_graph(self, variable_register)
    ! We clean up [deallocate] the variable and call requests at the same time.
    variable_request => self%first_variable_request
    do while (associated(variable_request))
-      call self%graph%add_variable(variable_request%variable, outer_calls, copy_to_store=variable_request%store, variable_set=variable_request%output_variable_set)
+      call self%graph%add_variable(variable_request%variable, outer_calls, variable_request%output_variable_set, copy_to_store=variable_request%store)
       if (variable_request%store) then
          ! FABM must be able to provide data for this variable across the entire spatial domain.
          ! If this variable is a constant, explicitly request a data field for it in the persistent store.
@@ -1257,17 +1257,43 @@ logical function task_is_responsible(task, output_variable)
    task_is_responsible = .false.
 end function
 
+logical function output_is_produced_before(task, reference_output_variable, output_variable)
+   class (type_task), intent(in)       :: task
+   type (type_output_variable), target :: reference_output_variable, output_variable
+
+   type (type_call),                     pointer :: call_node
+   type (type_output_variable_set_node), pointer :: output_variable_node
+
+   output_is_produced_before = .false.
+   call_node => task%first_call
+   do while (associated(call_node))
+      ! Loop over all outputs of this call
+      output_variable_node => call_node%graph_node%outputs%first
+      do while (associated(output_variable_node))
+         if (associated(output_variable_node%p, output_variable)) output_is_produced_before = .true.
+         if (associated(output_variable_node%p, reference_output_variable)) return
+         output_variable_node => output_variable_node%next
+      end do
+      call_node => call_node%next
+   end do
+   _ASSERT_(.false., 'output_is_produced_before', 'reference output not found in task')
+end function output_is_produced_before
+
 subroutine job_finalize_prefill_settings(self)
    class (type_job), target, intent(inout) :: self
 
-   type (type_task),                     pointer :: task, last_task, current_task
+   type (type_task),                     pointer :: task, last_task
    class (type_job),                     pointer :: first_job
    type (type_variable_request),         pointer :: variable_request
-   type (type_output_variable_set_node), pointer :: output_variable 
-   logical                                       :: multiple_tasks
+   type (type_output_variable_set_node), pointer :: output_variable
 
    _ASSERT_(self%state < job_state_finalized_prefill_settings, 'job_finalize_prefill_settings', 'This job has already been initialized.')
    _ASSERT_(self%state >= job_state_tasks_created, 'job_finalize_prefill_settings', 'Tasks for this job have not been created yet.')
+
+   first_job => self
+   do while (associated(first_job%previous%first))
+      first_job => first_job%previous%first%p
+   end do
 
    ! Set copy-to-cache and copy-to-store based on dependencies between different calls/tasks.
    task => self%first_task
@@ -1278,17 +1304,12 @@ subroutine job_finalize_prefill_settings(self)
 
    last_task => get_last_task(self)
 
-   first_job => self
-   do while (associated(first_job%previous%first))
-      first_job => first_job%previous%first%p
-   end do
-
    variable_request => self%first_variable_request
    do while (associated(variable_request))
       if (.not. variable_request%store) then
          ! This variable needs to end up in the write cache
          ! Any contributions from tasks other than the last need to be saved in the store and loaded into the write cache by the last task.
-         ! If the variable is not written by anyone, it needs to be preloaded inot the write cache by the last task
+         ! If the variable is not written by anyone, it needs to be preloaded into the write cache by the last task
          output_variable => variable_request%output_variable_set%first
          if (.not. associated(output_variable)) call last_task%write_cache_preload%add(variable_request%variable)
          do while (associated(output_variable))
@@ -1299,37 +1320,7 @@ subroutine job_finalize_prefill_settings(self)
             output_variable => output_variable%next
          end do
       end if
-
-      if (associated(variable_request%output_variable_set%first)) then
-         if (associated(variable_request%output_variable_set%first%next)) then
-            ! This request requires multiple variables to be written (e.g., all incrementing a sum)
-            ! If these variables are all written by the same task, we're fine (the task will initialize the sum to 0 and all variables will be added)
-            ! If they are written by multiple tasks, the very first one should handle the initialization to 0.
-            ! But since it can be difficult to find out which task is first, we let the very first job initialize the corrresponding entry in the store.
-            ! All tasks will prefill the relevant output variable with the value from the store, and all but the last will write the updated value to the store again.
-            task => null()
-            multiple_tasks = .false.
-            output_variable => variable_request%output_variable_set%first
-            do while (associated(output_variable))
-               current_task => find_responsible_task(self, output_variable%p)
-               _ASSERT_(associated(current_task), 'job_finalize_prefill_settings', 'Task responsible for ' // trim(variable_request%output_variable_set%first%p%target%name) // ' not found.')
-               if (associated(task) .and. .not. associated(task, current_task)) multiple_tasks = .true.
-               task => current_task
-               output_variable => output_variable%next
-            end do
-            if (multiple_tasks) then
-               output_variable => variable_request%output_variable_set%first
-               do while (associated(output_variable))
-                  current_task => find_responsible_task(self, output_variable%p)
-                  call first_job%store_prefills%add(output_variable%p%target)
-                  call current_task%write_cache_preload%add(output_variable%p%target)
-                  if (.not. associated(task, last_task)) output_variable%p%copy_to_store = .true.
-                  output_variable => output_variable%next
-               end do
-            end if
-         end if
-      end if
-
+      call link_cowritten_outputs(variable_request%output_variable_set, last_task)
       variable_request => variable_request%next
    end do
 
@@ -1337,52 +1328,82 @@ subroutine job_finalize_prefill_settings(self)
 
 contains
 
-   subroutine prepare_task(task)
-      type (type_task),intent(inout) :: task
+   subroutine link_cowritten_outputs(output_variable_set, requesting_task)
+      type (type_output_variable_set), intent(in) :: output_variable_set
+      type (type_task), target                    :: requesting_task
 
-      type (type_call),pointer :: call_node
+      type (type_output_variable_set_node), pointer :: output_variable
+      logical                                       :: multiple_tasks
+      type (type_task),                     pointer :: task
+
+      if (.not. associated(output_variable_set%first)) return
+
+      output_variable => output_variable_set%first
+      task => find_responsible_task(self, output_variable%p)
+      _ASSERT_(associated(task), 'job_finalize_prefill_settings', 'Task responsible for ' // trim(output_variable%p%target%name) // ' not found.')
+      multiple_tasks = .false.
+      output_variable => output_variable%next
+      do while (associated(output_variable) .and. .not. multiple_tasks)
+         if (.not. task_is_responsible(task, output_variable%p)) multiple_tasks = .true.
+         output_variable => output_variable%next
+      end do
+
+      ! If all outputs are written by the same task, it can handle its own initialization
+      ! and there is no need to temporarily store results and reload them into the write cache.
+      ! Thus we are done.
+      if (.not. multiple_tasks) return
+
+      output_variable => output_variable_set%first
+      do while (associated(output_variable))
+         task => find_responsible_task(self, output_variable%p)
+         _ASSERT_(associated(task), 'job_finalize_prefill_settings', 'Task responsible for ' // trim(output_variable%p%target%name) // ' not found.')
+         call first_job%store_prefills%add(output_variable%p%target)
+         call task%write_cache_preload%add(output_variable%p%target)
+         if (.not. associated(task, requesting_task)) output_variable%p%copy_to_store = .true.
+         output_variable => output_variable%next
+      end do
+   end subroutine
+
+   subroutine prepare_task(task)
+      type (type_task), intent(inout) :: task
+
+      type (type_call),                     pointer :: call_node
+      type (type_input_variable_set_node),  pointer :: input_variable
+      type (type_output_variable_set_node), pointer :: output_variable
+      type (type_output_variable),          pointer :: final_output_variable
+
       call_node => task%first_call
       do while (associated(call_node))
-         call prepare_call(call_node)
+         ! For all inputs that this call requires, determine whether they are produced by the same task
+         ! (solved by copying between write and read cache) or by an earlier task (solved by temporary storing)
+         input_variable => call_node%graph_node%inputs%first
+         do while (associated(input_variable))
+            final_output_variable => null()
+            output_variable => input_variable%p%sources%first
+            do while (associated(output_variable))
+               if (task_is_responsible(task, output_variable%p)) then
+                  ! The call that is responsible for computing this input is part of the same task.
+                  ! Therefore the output needs to be copied to the read cache.
+                  ! But only if it is the last variable in this task contributing to this input.
+                  if (.not. associated(final_output_variable)) then
+                     final_output_variable => output_variable%p
+                  elseif (output_is_produced_before(task, output_variable%p, final_output_variable)) then
+                     final_output_variable => output_variable%p
+                  end if
+               else
+                  ! The call that is responsible for computing this input is part of another task.
+                  ! Therefore the output needs to be copied to the persistent store.
+                  output_variable%p%copy_to_store = .true.
+               end if
+               output_variable => output_variable%next
+            end do
+            if (associated(final_output_variable)) final_output_variable%copy_to_cache = .true.
+            call link_cowritten_outputs(input_variable%p%sources, task)
+            input_variable => input_variable%next
+         end do
          call_node => call_node%next
       end do
    end subroutine prepare_task
-
-   subroutine prepare_call(call_node)
-      type (type_call),intent(inout) :: call_node
-
-      type (type_output_variable_set_node), pointer :: variable_node
-      type (type_node_set_member), pointer :: dependent_call
-      type (type_call),            pointer :: later_call
-
-      ! For all output variables that other models are interested in, decide whether to copy their value
-      ! from the write to read cache [if the other model will be called as part of the same task],
-      ! or to save it to the persistent data store.
-      variable_node => call_node%graph_node%outputs%first
-      do while (associated(variable_node))
-         ! For this output variable, loop over all calls that depend on it.
-         dependent_call => variable_node%p%dependent_nodes%first
-         do while (associated(dependent_call))
-            ! For this dependent call, establish whether it is part of the same task, or of another task.
-            later_call => call_node%next
-            do while (associated(later_call))
-               if (associated(later_call%graph_node, dependent_call%p)) exit
-               later_call => later_call%next
-            end do
-            if (associated(later_call)) then
-               ! The dependent call is part of the same task. Therefore the output needs to be copied to the read cache.
-               ! Note for cowritten variables - we flag all contributors. The body of job_finalize_prefill_settings
-               ! will make sure that only the final contributing one is actually cached.
-               variable_node%p%copy_to_cache = .true.
-            else
-               ! The dependent call is part of another task. Therefore the output needs to be copied to the persistent store.
-               variable_node%p%copy_to_store = .true.
-            end if
-            dependent_call => dependent_call%next
-         end do
-         variable_node => variable_node%next
-      end do
-   end subroutine prepare_call
 
 end subroutine job_finalize_prefill_settings
 

@@ -16,7 +16,7 @@ module fabm_graph
    implicit none
 
    public type_graph, type_node, type_output_variable_set, type_output_variable_set_node, type_node_set_member, type_node_list, type_node_list_member
-   public type_output_variable, source2operation
+   public type_output_variable, source2operation, type_input_variable_set_node
 
    private
 
@@ -72,10 +72,27 @@ module fabm_graph
       procedure :: finalize            => output_variable_set_finalize
    end type
 
+   type type_input_variable
+      type (type_internal_variable), pointer :: target  => null()
+      type (type_output_variable_set)        :: sources
+   end type
+
+   type type_input_variable_set_node
+      type (type_input_variable),          pointer :: p    => null()
+      type (type_input_variable_set_node), pointer :: next => null()
+   end type
+
+   type type_input_variable_set
+      type (type_input_variable_set_node), pointer :: first => null()
+   contains
+      procedure :: add      => input_variable_set_add
+      procedure :: finalize => input_variable_set_finalize
+   end type
+
    type type_node
       class (type_base_model), pointer :: model => null()
       integer                          :: source = source_unknown
-      type (type_variable_set)         :: inputs               ! input variables (irrespective of their source - can be constants, state variables, host-provided, or diagnostics computed by another node)
+      type (type_input_variable_set)   :: inputs               ! input variables (irrespective of their source - can be constants, state variables, host-provided, or diagnostics computed by another node)
       type (type_node_set)             :: dependencies         ! direct dependencies
       type (type_output_variable_set)  :: outputs              ! output variables that a later called model requires
    contains
@@ -141,21 +158,66 @@ subroutine output_variable_set_add_output_variable(self, output_variable)
    self%first => node
 end subroutine output_variable_set_add_output_variable
 
-subroutine output_variable_set_finalize(self)
+function input_variable_set_add(self, variable) result(input_variable)
+   class (type_input_variable_set), intent(inout) :: self
+   type (type_internal_variable), target          :: variable
+
+   type (type_input_variable_set_node), pointer :: node
+   type (type_input_variable),          pointer :: input_variable
+
+   node => self%first
+   do while (associated(node))
+      if (associated(node%p%target, variable)) then
+         input_variable => node%p
+         call input_variable%sources%finalize(owner=.false.)
+         return
+      end if
+      node => node%next
+   end do
+
+   allocate(input_variable)
+   input_variable%target => variable
+
+   allocate(node)
+   node%p => input_variable
+   node%next => self%first
+   self%first => node
+end function input_variable_set_add
+
+subroutine output_variable_set_finalize(self, owner)
    class (type_output_variable_set), intent(inout) :: self
+   logical,                          intent(in)    :: owner
 
    type (type_output_variable_set_node),pointer :: node, next
 
    node => self%first
    do while (associated(node))
       next => node%next
-      call node%p%dependent_nodes%finalize()
-      deallocate(node%p)
+      if (owner) then
+         call node%p%dependent_nodes%finalize()
+         deallocate(node%p)
+      end if
       deallocate(node)
       node => next
    end do
    self%first => null()
 end subroutine output_variable_set_finalize
+
+subroutine input_variable_set_finalize(self)
+   class (type_input_variable_set), intent(inout) :: self
+
+   type (type_input_variable_set_node), pointer :: node, next
+
+   node => self%first
+   do while (associated(node))
+      next => node%next
+      call node%p%sources%finalize(owner=.false.)
+      deallocate(node%p)
+      deallocate(node)
+      node => next
+   end do
+   self%first => null()
+end subroutine input_variable_set_finalize
 
 subroutine graph_print(self)
    class (type_graph), intent(in) :: self
@@ -238,6 +300,7 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
    integer                               :: operation
    type (type_link),             pointer :: link
    logical                               :: same_source
+   type (type_input_variable),   pointer :: input_variable
 
    ! Circular dependency check:
    ! Search the list of outer model calls, i.e., calls that [indirectly] request the current call.
@@ -302,9 +365,9 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
       if (index(link%name, '/') == 0 .and. associated(link%original%read_index)) then
          ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
          _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
-         call node%inputs%add(link%target)
+         input_variable => node%inputs%add(link%target)
          same_source = link%target%source == source .or. (link%target%source == source_unknown .and. (source == source_do_surface .or. source == source_do_bottom))
-         if (.not. (associated(link%target%owner, model) .and. same_source)) call target_graph%add_variable(link%target, outer_calls, caller=node)
+         if (.not. (associated(link%target%owner, model) .and. same_source)) call target_graph%add_variable(link%target, outer_calls, input_variable%sources, caller=node)
       end if
       link => link%next
    end do
@@ -314,13 +377,13 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
    call target_graph%append(node)
 end function graph_add_call
 
-recursive subroutine graph_add_variable(self, variable, outer_calls, copy_to_store, caller, variable_set)
+recursive subroutine graph_add_variable(self, variable, outer_calls, variable_set, copy_to_store, caller)
    class (type_graph),              intent(inout) :: self
    type (type_internal_variable),   intent(in)    :: variable
    type (type_node_list),    target,intent(inout) :: outer_calls
+   type (type_output_variable_set), intent(inout) :: variable_set
    logical,         optional,       intent(in)    :: copy_to_store
    type (type_node),optional,target,intent(inout) :: caller
-   type (type_output_variable_set), optional, intent(inout) :: variable_set
 
    type (type_variable_node), pointer :: variable_node
 
@@ -341,7 +404,7 @@ recursive subroutine graph_add_variable(self, variable, outer_calls, copy_to_sto
    ! Automatically request additional value contributions (for reduction operators that accept in-place modification of the variable value)
    variable_node => variable%cowriters%first
    do while (associated(variable_node))
-      call self%add_variable(variable_node%target, outer_calls, copy_to_store, caller, variable_set)
+      call self%add_variable(variable_node%target, outer_calls, variable_set, copy_to_store, caller)
       variable_node => variable_node%next
    end do
 
@@ -360,7 +423,7 @@ contains
          call caller%dependencies%add(node)
          call output_variable%dependent_nodes%add(caller)
       end if
-      if (present(variable_set)) call variable_set%add_output_variable(output_variable)
+      call variable_set%add_output_variable(output_variable)
    end subroutine add_call
 
 end subroutine graph_add_variable
@@ -583,7 +646,7 @@ subroutine graph_finalize(self)
    current => self%first
    do while (associated(current))
       call current%p%inputs%finalize()
-      call current%p%outputs%finalize()
+      call current%p%outputs%finalize(owner=.true.)
       call current%p%dependencies%finalize()
       deallocate(current%p)
       current => current%next
