@@ -947,6 +947,7 @@ subroutine job_request_call(self, model, source)
    _ASSERT_(self%state >= job_state_created, 'job_request_call', 'Job has not been created yet.')
    _ASSERT_(self%state <= job_state_created, 'job_request_call', 'Job "'//trim(self%name)//'" has already begun initialization; calls can no longer be requested.')
 
+   if (.not. model%implements(source)) return
    allocate(call_request)
    call_request%model => model
    call_request%source = source
@@ -1311,7 +1312,8 @@ subroutine job_finalize_prefill_settings(self)
          ! Any contributions from tasks other than the last need to be saved in the store and loaded into the write cache by the last task.
          ! If the variable is not written by anyone, it needs to be preloaded into the write cache by the last task
          output_variable => variable_request%output_variable_set%first
-         if (.not. associated(output_variable)) call last_task%write_cache_preload%add(variable_request%variable)
+         if (.not. associated(output_variable) .and. variable_request%variable%source /= source_constant) &
+            call last_task%write_cache_preload%add(variable_request%variable)
          do while (associated(output_variable))
             if (.not. task_is_responsible(last_task, output_variable%p)) then
                output_variable%p%copy_to_store = .true.

@@ -389,11 +389,12 @@ recursive subroutine create_flux_sums(self)
             ! We own this variable (it has not been coupled to another). Create summations for sources-sinks and surface/bottom fluxes.
             select case (link%target%domain)
             case (domain_interior)
-               link%target%sms_sum          => create_sum(self,link%target%sms_list,                    trim(link%name)//'_sms_tot')
-               link%target%surface_flux_sum => create_horizontal_sum(self,link%target%surface_flux_list,trim(link%name)//'_sfl_tot')
-               link%target%bottom_flux_sum  => create_horizontal_sum(self,link%target%bottom_flux_list, trim(link%name)//'_bfl_tot')
+               link%target%sms_sum          => create_sum(self, link%target%sms_list,                     trim(link%name)//'_sms_tot')
+               link%target%surface_flux_sum => create_horizontal_sum(self, link%target%surface_flux_list, trim(link%name)//'_sfl_tot')
+               link%target%bottom_flux_sum  => create_horizontal_sum(self, link%target%bottom_flux_list,  trim(link%name)//'_bfl_tot')
+               link%target%movement_sum     => create_sum(self, link%target%movement_list,                trim(link%name)//'_w_tot')
             case (domain_horizontal,domain_surface,domain_bottom)
-               link%target%sms_sum          => create_horizontal_sum(self,link%target%sms_list,         trim(link%name)//'_sms_tot')
+               link%target%sms_sum          => create_horizontal_sum(self, link%target%sms_list,         trim(link%name)//'_sms_tot')
             end select
          else
             ! We do not own this variable. Link to summations for sources-sinks and surface/bottom fluxes.
@@ -405,6 +406,8 @@ recursive subroutine create_flux_sums(self)
                call self%request_coupling(link1,trim(link%target%name)//'_sfl_tot')
                call self%add_horizontal_variable(trim(link%name)//'_bfl_tot', link=link1)
                call self%request_coupling(link1,trim(link%target%name)//'_bfl_tot')
+               call self%add_interior_variable(trim(link%name)//'_w_tot', link=link1)
+               call self%request_coupling(link1,trim(link%target%name)//'_w_tot')
             case (domain_horizontal,domain_surface,domain_bottom)
                call self%add_horizontal_variable(trim(link%name)//'_sms_tot', link=link1)
                call self%request_coupling(link1,trim(link%target%name)//'_sms_tot')
@@ -727,20 +730,16 @@ recursive subroutine couple_variables(self,master,slave)
    call master%state_indices%extend(slave%state_indices)
    call master%read_indices%extend(slave%read_indices)
    call master%write_indices%extend(slave%write_indices)
-   call master%sms_list%extend(slave%sms_list)
    call master%background_values%extend(slave%background_values)
    call master%properties%update(slave%properties,overwrite=.false.)
+   call master%sms_list%extend(slave%sms_list)
    call master%surface_flux_list%extend(slave%surface_flux_list)
    call master%bottom_flux_list%extend(slave%bottom_flux_list)
+   call master%movement_list%extend(slave%movement_list)
 
    call master%standard_variables%update(slave%standard_variables)
 
-   ! For vertical movement rates only keep the master, which all models will (over)write.
-   ! NB if the slave has vertical movement but the master does not (e.g., if the master is
-   ! a fake state variable, the slave variable can still be set, but won't be used).
-   if (associated(slave%movement_diagnostic).and.associated(master%movement_diagnostic)) &
-      call couple_variables(self,master%movement_diagnostic%target,slave%movement_diagnostic%target)
-   if (master%presence==presence_external_optional.and.slave%presence/=presence_external_optional) &
+   if (master%presence == presence_external_optional .and. slave%presence /= presence_external_optional) &
       master%presence = presence_external_required
 
    ! Store a pointer to the slave, because the call to redirect_links will cause all pointers (from links)

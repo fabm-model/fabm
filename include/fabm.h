@@ -278,7 +278,7 @@
 #define _SCALE_DRAG_(value) drag _INDEX_HORIZONTAL_SLICE_ = drag _INDEX_HORIZONTAL_SLICE_ * (value)
 #define _SET_ALBEDO_(value) albedo _INDEX_HORIZONTAL_SLICE_ = albedo _INDEX_HORIZONTAL_SLICE_ + (value)
 #define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_SLICE_PLUS_1_(variable%cons_index) = sums _INDEX_SLICE_PLUS_1_(variable%cons_index) + (value)
-#define _SET_VERTICAL_MOVEMENT_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%movement_index) = value/self%dt
+#define _SET_VERTICAL_MOVEMENT_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%movement%sum_index) = cache%write _INDEX_SLICE_PLUS_1_(variable%movement%sum_index) + value/self%dt
 #define _INVALIDATE_STATE_ valid = .false.
 #define _REPAIR_STATE_ repair
 

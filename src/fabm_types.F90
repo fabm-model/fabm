@@ -199,9 +199,9 @@
    type,extends(type_variable_id) :: type_state_variable_id
       integer  :: index              = -1
       integer  :: state_index        = -1
-      integer  :: movement_index     = -1
       real(rk) :: background         = 0.0_rk
       type (type_aggregate_variable_id) :: sms
+      type (type_aggregate_variable_id) :: movement
       type (type_horizontal_aggregate_variable_id) :: surface_flux
       type (type_horizontal_aggregate_variable_id) :: bottom_flux
    end type
@@ -336,7 +336,6 @@
       logical :: can_be_slave = .false.
 
       ! Only used for interior state variables:
-      real(rk) :: vertical_movement         = 0.0_rk
       logical  :: no_precipitation_dilution = .false.
       logical  :: no_river_dilution         = .false.
 
@@ -349,11 +348,11 @@
       ! Collections to collect information from all coupled variables.
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
       type (type_real_pointer_set)    :: background_values
-      type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list
+      type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list,movement_list
       type (type_link),pointer        :: sms_sum             => null()
       type (type_link),pointer        :: surface_flux_sum    => null()
       type (type_link),pointer        :: bottom_flux_sum     => null()
-      type (type_link),pointer        :: movement_diagnostic => null()
+      type (type_link),pointer        :: movement_sum        => null()
       type (type_link),pointer        :: sms                 => null()
       type (type_link),pointer        :: surface_flux        => null()
       type (type_link),pointer        :: bottom_flux         => null()
@@ -448,6 +447,8 @@
       logical :: check_conservation = .false.
 
       type (type_aggregate_variable_id) :: extinction_id
+
+      integer, allocatable :: implemented(:)
    contains
 
       ! Procedure for adding child models [during initialization only]
@@ -598,6 +599,9 @@
       ! Hooks called by FABM - usable by inheriting models
       procedure :: before_coupling => base_before_coupling
       procedure :: after_coupling  => base_after_coupling
+
+      procedure :: implements
+      procedure :: register_implemented_routines
 
 #ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
       ! Pre 11 Dec 2015:
@@ -826,6 +830,30 @@
       class (type_base_model), intent(inout) :: self
    end subroutine
 
+   function implements(self, source) result(is_implemented)
+      class (type_base_model), intent(in) :: self
+      integer,                 intent(in) :: source
+      logical :: is_implemented
+
+      integer :: i
+
+      is_implemented = .true.
+      if (allocated(self%implemented)) then
+         do i = 1, size(self%implemented)
+            if (self%implemented(i) == source) return
+         end do
+         is_implemented = .false.
+      end if
+   end function
+
+   subroutine register_implemented_routines(self, sources)
+      class (type_base_model), intent(inout) :: self
+      integer,                 intent(in)    :: sources(:)
+      if (allocated(self%implemented)) deallocate(self%implemented)
+      allocate(self%implemented(size(sources)))
+      self%implemented(:) = sources
+   end subroutine
+
 #ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
    subroutine base_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
       class (type_base_model),intent(in) :: self
@@ -915,11 +943,13 @@
       call self%children%append(model)
       call model%initialize(configunit)
 
-      call model%add_interior_variable('light_extinction', 'm-1', 'light extinction contribution computed by get_light_extinction', &
-                                       0.0_rk, output=output_none, write_index=model%extinction_id%sum_index, link=model%extinction_id%link, source=source_get_light_extinction)
-      model%extinction_id%link%target%prefill = prefill_constant
-      model%extinction_id%link%target%write_operator = operator_add
-      call model%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, model%extinction_id)
+      if (model%implements(source_get_light_extinction)) then
+         call model%add_interior_variable('light_extinction', 'm-1', 'light extinction contribution computed by get_light_extinction', &
+                                          0.0_rk, output=output_none, write_index=model%extinction_id%sum_index, link=model%extinction_id%link, source=source_get_light_extinction)
+         model%extinction_id%link%target%prefill = prefill_constant
+         model%extinction_id%link%target%write_operator = operator_add
+         call model%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, model%extinction_id)
+      end if
    end subroutine add_child
 !EOC
 
@@ -1490,15 +1520,16 @@ end subroutine real_pointer_set_set_value
 
       call self%add_interior_variable(name, units, long_name, missing_value, minimum, maximum, &
                                       initial_value=initial_value, background_value=background_value, &
-                                      vertical_movement=vertical_movement, specific_light_extinction=specific_light_extinction, &
+                                      specific_light_extinction=specific_light_extinction, &
                                       no_precipitation_dilution=no_precipitation_dilution, no_river_dilution=no_river_dilution, &
                                       standard_variable=standard_variable, presence=presence, source=source_state, &
                                       state_index=id%state_index, read_index=id%index, &
-                                      movement_index=id%movement_index, background=id%background, link=id%link)
+                                      background=id%background, link=id%link)
 
-      call register_source(self,id%link,id%sms)
-      call register_surface_flux(self,id%link,id%surface_flux)
-      call register_bottom_flux(self,id%link,id%bottom_flux)
+      call register_source(self, id%link, id%sms)
+      call register_surface_flux(self, id%link, id%surface_flux)
+      call register_bottom_flux(self, id%link, id%bottom_flux)
+      call register_movement(self, id%link, id%movement, vertical_movement)
 
    end subroutine register_interior_state_variable
 !EOC
@@ -1552,6 +1583,28 @@ end subroutine real_pointer_set_set_value
       link2 => link%target%bottom_flux_list%append(bottom_flux_id%link%target,bottom_flux_id%link%target%name)
       link%target%bottom_flux => link2
    end subroutine register_bottom_flux
+
+   subroutine register_movement(self, link, movement_id, vertical_movement)
+      class (type_base_model),           intent(inout)         :: self
+      type (type_link),                  intent(in)            :: link
+      type (type_aggregate_variable_id), intent(inout), target :: movement_id
+      real(rk),                          intent(in), optional  :: vertical_movement
+
+      real(rk) :: vertical_movement_
+      type (type_link),pointer :: link2
+
+      vertical_movement_ = 0
+      if (present(vertical_movement)) vertical_movement_ = vertical_movement
+      if (.not.associated(movement_id%link)) &
+         call self%add_interior_variable(trim(link%name)//'_w', 'm/s', trim(link%target%long_name)//' vertical velocity', &
+            vertical_movement_, output=output_none, write_index=movement_id%sum_index, link=movement_id%link, source=source_constant)
+      if (self%implements(source_get_vertical_movement)) then
+         movement_id%link%target%source = source_get_vertical_movement
+         movement_id%link%target%prefill = prefill_constant
+         movement_id%link%target%write_operator = operator_add
+      end if
+      link2 => link%target%movement_list%append(movement_id%link%target, movement_id%link%target%name)
+   end subroutine register_movement
 
    subroutine register_surface_source(self, link, sms_id)
       class (type_base_model),           intent(inout)        :: self
@@ -1778,11 +1831,11 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    recursive subroutine add_interior_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
-                                          background_value, vertical_movement, specific_light_extinction, &
+                                          background_value, specific_light_extinction, &
                                           no_precipitation_dilution, no_river_dilution, standard_variable, presence, output, &
                                           time_treatment, act_as_state_variable, source, &
                                           read_index, state_index, write_index, &
-                                          movement_index, background, link)
+                                          background, link)
 !
 ! !DESCRIPTION:
 !  This function registers a new interior variable. It is not predefined to be a state variable, diagnostic variable or dependency.
@@ -1793,14 +1846,13 @@ end subroutine real_pointer_set_set_value
       character(len=*),                  intent(in)          :: name
       character(len=*),                  intent(in),optional :: long_name, units
       real(rk),                          intent(in),optional :: minimum, maximum, missing_value, initial_value, background_value
-      real(rk),                          intent(in),optional :: vertical_movement, specific_light_extinction
+      real(rk),                          intent(in),optional :: specific_light_extinction
       logical,                           intent(in),optional :: no_precipitation_dilution, no_river_dilution
       type (type_bulk_standard_variable),intent(in),optional :: standard_variable
       integer,                           intent(in),optional :: presence, output, time_treatment, source
       logical,                           intent(in),optional :: act_as_state_variable
 
       integer,                      target,optional :: read_index, state_index, write_index
-      integer,                      target,optional :: movement_index
       real(rk),                     target,optional :: background
 
       type (type_link),pointer,optional :: link
@@ -1819,7 +1871,6 @@ end subroutine real_pointer_set_set_value
       ! Fill fields specific to interior variables.
       variable%source = source_do
       if (present(source))                    variable%source                    = source
-      if (present(vertical_movement))         variable%vertical_movement         = vertical_movement
       if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
       if (present(no_river_dilution))         variable%no_river_dilution         = no_river_dilution
       if (present(standard_variable))         call variable%standard_variables%add(standard_variable)
@@ -1830,14 +1881,6 @@ end subroutine real_pointer_set_set_value
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                         initial_value, background_value, presence, output, time_treatment, &
                         act_as_state_variable, read_index, state_index, write_index, background, link_)
-
-      if (present(movement_index)) then
-         call self%add_interior_variable(trim(link_%name)//'_w', 'm/s', trim(long_name)//' vertical movement', &
-                                     variable%vertical_movement, output=output_none, write_index=movement_index, link=variable%movement_diagnostic, &
-                                     source=source_get_vertical_movement)
-         variable%movement_diagnostic%target%can_be_slave = .true.
-         variable%movement_diagnostic%target%prefill = prefill_constant
-      end if
 
       if (present(link)) link => link_
    end subroutine add_interior_variable

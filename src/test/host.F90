@@ -596,19 +596,7 @@ contains
       call cpu_time(time_begin)
 
       do i=1,n
-         _BEGIN_GLOBAL_HORIZONTAL_LOOP_
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#  if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
-            ! No mask but non-constant bottom index. We need to skip everything below bottom
-            if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= 1 .and. bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) &
-               call fabm_get_light(model,_IRANGE_ _ARG_VERTICAL_FIXED_LOCATION_)
-#  else
-            call fabm_get_light(model,1,domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) _ARG_VERTICAL_FIXED_LOCATION_)
-#  endif
-#else
-            call fabm_get_light(model _ARGUMENTS_HORIZONTAL_IN_)
-#endif
-         _END_GLOBAL_HORIZONTAL_LOOP_
+         call model%process(model%prepare_job)
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             flux = 0
@@ -626,6 +614,8 @@ contains
             dy = 0
             call fabm_do(model _ARGUMENTS_INTERIOR_IN_,dy)
          _END_OUTER_INTERIOR_LOOP_
+
+         call model%process(model%get_diagnostics_job)
 
          if (mod(i, 100) == 0) write (*,'(i0,a)') int(100*i/real(n, rk)), ' % complete'
       end do
