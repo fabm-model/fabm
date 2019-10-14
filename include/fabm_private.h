@@ -267,6 +267,7 @@
 #  ifdef _FABM_UNMASKED_VALUE_
 #    error To use _FABM_UNMASKED_VALUE_, _FABM_MASK_TYPE_ must be set as well.
 #  endif
+#  define _IS_UNMASKED_(maskvalue) .true.
 #endif
 
 #if _FABM_DIMENSION_COUNT_==0||(_FABM_DIMENSION_COUNT_==1&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_))

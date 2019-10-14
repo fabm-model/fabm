@@ -2928,26 +2928,32 @@ subroutine invalidate_call_output(call_node, cache)
    _DECLARE_INTERIOR_INDICES_
 
    type (type_output_variable_set_node), pointer :: output_variable
+   integer                                       :: i
 
    output_variable => call_node%graph_node%outputs%first
    do while (associated(output_variable))
       if (output_variable%p%target%prefill == prefill_none) then
+         i = output_variable%p%target%write_indices%value
          select case (output_variable%p%target%domain)
          case (domain_interior)
-            _CONCURRENT_LOOP_BEGIN_
-               cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) = not_written
-            _LOOP_END_
+#if defined(_INTERIOR_IS_VECTORIZED_)
+            cache%write(:, i) = not_written
+#else
+            cache%write(i) = not_written
+#endif
          case (domain_surface, domain_bottom, domain_horizontal)
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-               cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) = not_written
-            _HORIZONTAL_LOOP_END_
+#if defined(_HORIZONTAL_IS_VECTORIZED_)
+            cache%write_hz(:, i) = not_written
+#else
+            cache%write_hz(i) = not_written
+#endif
          end select
       end if
       output_variable => output_variable%next
    end do
 end subroutine
 
-subroutine check_call_output(call_node, cache)
+subroutine check_interior_call_output(call_node, cache)
    use fabm_graph, only: type_output_variable_set_node
    use, intrinsic :: ieee_arithmetic
 
@@ -2959,33 +2965,83 @@ subroutine check_call_output(call_node, cache)
 
    output_variable => call_node%graph_node%outputs%first
    do while (associated(output_variable))
+      _ASSERT_(output_variable%p%target%domain == domain_interior, 'check_interior_call_output', 'output not for interior domain')
+      _LOOP_BEGIN_
+         if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
+            call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
+      _LOOP_END_
+      if (output_variable%p%target%prefill==prefill_none) then
+         _LOOP_BEGIN_
+            if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
+               call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
+         _LOOP_END_
+      end if
+      output_variable => output_variable%next
+   end do
+end subroutine check_interior_call_output
+
+subroutine check_horizontal_call_output(call_node, cache)
+   use fabm_graph, only: type_output_variable_set_node
+   use, intrinsic :: ieee_arithmetic
+
+   type (type_call),  intent(in) :: call_node
+   type (type_cache), intent(in) :: cache
+   _DECLARE_HORIZONTAL_INDICES_
+
+   type (type_output_variable_set_node), pointer :: output_variable
+
+   output_variable => call_node%graph_node%outputs%first
+   do while (associated(output_variable))
+      _ASSERT_(iand(output_variable%p%target%domain, domain_horizontal) /= 0, 'check_horizontal_call_output', 'output not for horizontal domain')
+      _HORIZONTAL_LOOP_BEGIN_
+         if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
+            call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
+      _HORIZONTAL_LOOP_END_
+      if (output_variable%p%target%prefill==prefill_none) then
+         _HORIZONTAL_LOOP_BEGIN_
+            if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
+               call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
+         _HORIZONTAL_LOOP_END_
+      end if
+      output_variable => output_variable%next
+   end do
+end subroutine check_horizontal_call_output
+
+subroutine check_vertical_call_output(call_node, cache)
+   use fabm_graph, only: type_output_variable_set_node
+   use, intrinsic :: ieee_arithmetic
+
+   type (type_call),  intent(in) :: call_node
+   type (type_cache), intent(in) :: cache
+   _DECLARE_VERTICAL_INDICES_
+
+   type (type_output_variable_set_node), pointer :: output_variable
+
+   output_variable => call_node%graph_node%outputs%first
+   do while (associated(output_variable))
       select case (output_variable%p%target%domain)
       case (domain_interior)
-         _LOOP_BEGIN_
+         _VERTICAL_LOOP_BEGIN_
             if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-               call driver%fatal_error('check_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
-         _LOOP_END_
+               call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
+         _VERTICAL_LOOP_END_
          if (output_variable%p%target%prefill==prefill_none) then
-            _LOOP_BEGIN_
+            _VERTICAL_LOOP_BEGIN_
                if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-                  call driver%fatal_error('check_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
-            _LOOP_END_
+                  call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
+            _VERTICAL_LOOP_END_
          end if
       case (domain_surface, domain_bottom, domain_horizontal)
-         _HORIZONTAL_LOOP_BEGIN_
-            if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-               call driver%fatal_error('check_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
-         _HORIZONTAL_LOOP_END_
+         if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
+            call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
          if (output_variable%p%target%prefill==prefill_none) then
-            _HORIZONTAL_LOOP_BEGIN_
-               if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-                  call driver%fatal_error('check_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
-            _HORIZONTAL_LOOP_END_
+            if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
+               call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
          end if
       end select
       output_variable => output_variable%next
    end do
-end subroutine check_call_output
+end subroutine check_vertical_call_output
 
 subroutine end_interior_task(task, cache, store _ARGUMENTS_INTERIOR_IN_)
    type (type_task), intent(in)    :: task
@@ -4157,7 +4213,7 @@ end subroutine internal_check_horizontal_state
 #    endif
 #  endif
 #endif
-               call fabm_process_vertical_slice(self, task _ARGUMENTS_VERTICAL_IN_)
+               if (_IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)) call fabm_process_vertical_slice(self, task _ARGUMENTS_VERTICAL_IN_)
             _END_OUTER_VERTICAL_LOOP_
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
             _VERTICAL_START_ = 1
@@ -4212,7 +4268,7 @@ end subroutine internal_check_horizontal_state
             end select
 
 #ifndef NDEBUG
-            call check_call_output(call_node, self%cache_int)
+            call check_interior_call_output(call_node, self%cache_int)
 #endif
          end if
 
@@ -4258,7 +4314,7 @@ end subroutine internal_check_horizontal_state
             end select
 
 #ifndef NDEBUG
-            call check_call_output(call_node, self%cache_hz)
+            call check_horizontal_call_output(call_node, self%cache_hz)
 #endif
          end if
 
@@ -4300,7 +4356,7 @@ end subroutine internal_check_horizontal_state
             call call_node%model%get_light(self%cache_vert)
 
 #ifndef NDEBUG
-            call check_call_output(call_node, self%cache_vert)
+            call check_vertical_call_output(call_node, self%cache_vert)
 #endif
          end if
 
