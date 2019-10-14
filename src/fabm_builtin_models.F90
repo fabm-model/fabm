@@ -473,10 +473,10 @@ module fabm_builtin_models
          if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by other models'
       else
          ! This component does not need a separate diagnostic - it will be merged into the target
+         offset = offset + component_variable%prefill_value
          if (component_variable%source == source_constant) then
             ! This component is a constant that we can just add to our offset
             if (present(log_unit)) write (log_unit,'(a,g0.6,a)') '- merged ' // trim(component_variable%name) // ' - constant ', component_variable%prefill_value, ' added to offset'
-            offset = offset + component_variable%prefill_value
          else
             ! This component can increment the sum result directly
             if (present(log_unit)) write (log_unit,'(a,g0.6,a)') '- merged ' // trim(component_variable%name) // ' - to be written in-place'
