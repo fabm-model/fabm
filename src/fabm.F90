@@ -833,12 +833,14 @@
       do while (associated(expression))
          select type (expression)
          class is (type_bulk_temporal_mean)
+            expression%in = expression%link%target%catalog_index
             expression%period = expression%period/seconds_per_time_unit
             allocate(expression%history(_PREARG_LOCATION_ expression%n+3))
             expression%history = 0.0_rk
             call self%link_interior_data(expression%output_name, &
                                          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
          class is (type_horizontal_temporal_mean)
+            expression%in = expression%link%target%catalog_index
             expression%period = expression%period/seconds_per_time_unit
             allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n+3))
             expression%history = 0.0_rk

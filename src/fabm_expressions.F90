@@ -23,7 +23,8 @@ module fabm_expressions
       real(rk) :: missing_value = -2.e20_rk
       logical  :: valid = .false.
 
-      integer,pointer :: in  => null()
+      type (type_link), pointer :: link => null()
+      integer :: in = -1
       real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_ :: history
    end type
 
@@ -33,7 +34,8 @@ module fabm_expressions
       real(rk) :: last_time, next_save_time
       integer  :: ioldest = -1
 
-      integer,pointer :: in  => null()
+      type (type_link), pointer :: link => null()
+      integer :: in = -1
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: history
    end type
 
@@ -43,7 +45,7 @@ module fabm_expressions
       logical  :: average       = .false.       ! Whether to divide the depth integral by water depth, thus computing the vertical average
       character(len=attribute_length) :: input_name = ''
 
-      integer,pointer :: in  => null()
+      type (type_link), pointer :: link => null()
    end type
 
    interface temporal_mean
@@ -123,12 +125,7 @@ contains
          expression%output_name = 'integral_of_'//trim(input%link%name)//'_wrt_depth'//trim(postfix)
       end if
 
-      select type (input)
-         class is (type_dependency_id)
-            expression%in => input%index
-         class is (type_state_variable_id)
-            expression%in => input%index
-      end select
+      expression%link => input%link
       if (present(minimum_depth)) expression%minimum_depth = minimum_depth
       if (present(maximum_depth)) expression%maximum_depth = maximum_depth
    end function
@@ -149,7 +146,7 @@ contains
       write (postfix,'(a,i0,a)') '_at_',int(resolution),'_s_resolution'
       expression%output_name = trim(prefix)//trim(input%link%name)//trim(postfix)
 
-      expression%in => input%index
+      expression%link => input%link
       expression%n = nint(period/resolution)
       expression%period = period
       if (present(missing_value)) expression%missing_value = missing_value
@@ -170,7 +167,7 @@ contains
       write (postfix,'(a,i0,a)') '_at_',int(resolution),'_s_resolution'
       expression%output_name = trim(prefix)//trim(input%link%name)//trim(postfix)
 
-      expression%in => input%horizontal_index
+      expression%link => input%link
       expression%n = nint(period/resolution)
       expression%period = period
    end function
