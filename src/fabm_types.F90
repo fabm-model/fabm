@@ -46,7 +46,7 @@
    public type_aggregate_variable_id, type_horizontal_aggregate_variable_id
 
    ! Data types and procedures for variable management - used by FABM internally only.
-   public type_link, type_link_list, type_variable_node, type_variable_set, type_variable_list
+   public type_link, type_link_list, type_link_pointer, type_variable_node, type_variable_set, type_variable_list
    public type_internal_variable
    public type_cache
 
@@ -277,12 +277,18 @@
 
    type type_link_list
       type (type_link),pointer :: first => null()
+      type (type_link),pointer :: last  => null()
    contains
       procedure :: append   => link_list_append
       procedure :: find     => link_list_find
       procedure :: count    => link_list_count
       procedure :: finalize => link_list_finalize
       procedure :: extend   => link_list_extend
+   end type
+
+   type type_link_pointer
+      type (type_link),        pointer :: p    => null()
+      type (type_link_pointer),pointer :: next => null()
    end type
 
    type type_variable_node
@@ -359,6 +365,7 @@
 
       type (type_internal_variable),pointer :: write_owner => null()
       type (type_variable_set)        :: cowriters
+      type (type_link_pointer), pointer :: first_link => null()
    end type
 
    type type_link
@@ -1206,17 +1213,14 @@ function link_list_append(self,target,name) result(link)
    ! Append a new link to the list.
    if (.not.associated(self%first)) then
       allocate(self%first)
-      link => self%first
+      self%last => self%first
    else
-      link => self%first
-      do while (associated(link%next))
-         link => link%next
-      end do
-      allocate(link%next)
-      link => link%next
+      allocate(self%last%next)
+      self%last => self%last%next
    end if
 
    ! Set link attributes.
+   link => self%last
    link%name = name
    link%target => target
    link%original => target
@@ -2004,10 +2008,11 @@ end subroutine real_pointer_set_set_value
       class (type_base_model),target,     intent(inout) :: self
       type (type_internal_variable),pointer             :: object
 
-      type (type_link), pointer       :: link,parent_link
-      character(len=attribute_length) :: oriname
-      integer                         :: instance
-      logical                         :: duplicate
+      type (type_link), pointer         :: link, parent_link
+      character(len=attribute_length)   :: oriname
+      integer                           :: instance
+      logical                           :: duplicate
+      type (type_link_pointer), pointer :: link_pointer
 
       ! First check if a link with this name exists.
       duplicate = associated(self%links%find(object%name))
@@ -2025,7 +2030,13 @@ end subroutine real_pointer_set_set_value
       end if
 
       ! Create link for this object.
-      link => self%links%append(object,object%name)
+      link => self%links%append(object, object%name)
+
+      ! Store a pointer to the link with the object to facilitate redirection of the link during coupling.
+      allocate(link_pointer)
+      link_pointer%p => link
+      link_pointer%next => object%first_link
+      object%first_link => link_pointer
 
       ! If this name matched that of a previous variable, create a coupling to it.
       if (duplicate) call self%request_coupling(link,oriname)

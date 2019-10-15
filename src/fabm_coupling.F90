@@ -176,7 +176,7 @@ end subroutine
          link => link%next
       end do
 
-      ! Looop over all unique standard variable and collect and couple associated model variables.
+      ! Loop over all unique standard variable and collect and couple associated model variables.
       node => standard_variables%first
       do while (associated(node))
          first_link => null()
@@ -697,9 +697,9 @@ recursive subroutine couple_variables(self,master,slave)
    class (type_base_model),     intent(inout),target :: self
    type (type_internal_variable),pointer             :: master,slave
 
-   type (type_internal_variable),pointer :: pslave
-   logical                               :: slave_is_state_variable
-   logical                               :: master_is_state_variable
+   type (type_link_pointer),pointer :: link_pointer, next_link_pointer
+   logical                          :: slave_is_state_variable
+   logical                          :: master_is_state_variable
 
    ! If slave and master are the same, we are done - return.
    if (associated(slave,master)) return
@@ -742,40 +742,18 @@ recursive subroutine couple_variables(self,master,slave)
    if (master%presence == presence_external_optional .and. slave%presence /= presence_external_optional) &
       master%presence = presence_external_required
 
-   ! Store a pointer to the slave, because the call to redirect_links will cause all pointers (from links)
-   ! to the slave node to be connected to the master node. This includes the original "slave" argument.
-   pslave => slave
-
-   ! Note: in call below we provide our local copy of the pointer to the slave (pslave), not the original slave pointer (slave).
-   ! Reason: ifort appears to pass the slave pointer by reference. The original pointer comes from a link, and is therefore
-   ! overwritten by redirect_links. If we pass this original pointer to redirect_links for comparing object identities,
-   ! the recursive redirecting will fail after the very first redirect (which destroyed the pointer to the object that we
-   ! want to compare against).
-   call redirect_links(self,pslave,master)
+   ! Make all links that originally pointed to the slave now point to the master.
+   ! Then include those links in the master's link set.
+   link_pointer => slave%first_link
+   slave%first_link => null()
+   do while (associated(link_pointer))
+      next_link_pointer => link_pointer%next
+      link_pointer%p%target => master
+      link_pointer%next => master%first_link
+      master%first_link => link_pointer
+      link_pointer => next_link_pointer
+   end do
 end subroutine couple_variables
-
-recursive subroutine redirect_links(model,oldtarget,newtarget)
-   class (type_base_model),     intent(inout),target :: model
-   type (type_internal_variable),pointer :: oldtarget,newtarget
-
-   type (type_link),           pointer :: link
-   type (type_model_list_node),pointer :: child
-
-   ! Process all links and if they used to refer to the specified slave,
-   ! redirect them to the specified master.
-   link => model%links%first
-   do while (associated(link))
-      if (associated(link%target,oldtarget)) link%target => newtarget
-      link => link%next
-   end do
-
-   ! Allow child models to do the same.
-   child => model%children%first
-   do while (associated(child))
-      call redirect_links(child%model,oldtarget,newtarget)
-      child => child%next
-   end do
-end subroutine redirect_links
 
    recursive subroutine check_coupling_units(self)
       class (type_base_model),intent(in),target :: self
