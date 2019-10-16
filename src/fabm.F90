@@ -740,24 +740,31 @@
 
    subroutine filter_expressions(self)
       class (type_model),intent(inout)    :: self
-      class (type_expression),    pointer :: current,previous,next
-      class (type_depth_integral),pointer :: integral
-      logical                             :: filter
+
+      class (type_expression),             pointer :: current, previous, next
+      class (type_depth_integral),         pointer :: integral
+      class (type_bounded_depth_integral), pointer :: bounded_integral
+      logical                                      :: filter
 
       nullify(previous)
       current => self%root%first_expression
       do while (associated(current))
          filter = .false.
          select type (current)
-            class is (type_vertical_integral)
+         class is (type_vertical_integral)
+            if (current%minimum_depth == 0._rk .and. current%minimum_depth == huge(1.0_rk)) then
                allocate(integral)
-               integral%minimum_depth = current%minimum_depth
-               integral%maximum_depth = current%maximum_depth
-               integral%average       = current%average
-               call self%root%add_child(integral,trim(current%output_name)//'_calculator',configunit=-1)
-               call integral%request_coupling(integral%id_input,current%input_name)
-               call self%root%request_coupling(current%output_name,integral%id_output%link%target%name)
-               filter = .true.
+            else
+               allocate(bounded_integral)
+               bounded_integral%minimum_depth = current%minimum_depth
+               bounded_integral%maximum_depth = current%maximum_depth
+               integral => bounded_integral
+            end if
+            integral%average = current%average
+            call self%root%add_child(integral, trim(current%output_name)//'_calculator', configunit=-1)
+            call integral%request_coupling(integral%id_input, current%input_name)
+            call self%root%request_coupling(current%output_name, integral%id_output%link%target%name)
+            filter = .true.
          end select
 
          ! If FABM handles this expression internally, remove it from the list.

@@ -510,6 +510,8 @@
       procedure :: register_source
       procedure :: register_surface_flux
       procedure :: register_bottom_flux
+      procedure :: register_surface_source
+      procedure :: register_bottom_source
 
       procedure :: register_interior_state_variable
       procedure :: register_bottom_state_variable
@@ -1554,34 +1556,42 @@ end subroutine real_pointer_set_set_value
       link%target%sms => link2
    end subroutine register_source
 
-   subroutine register_surface_flux(self, link, surface_flux_id)
+   subroutine register_surface_flux(self, link, surface_flux_id, source)
       class (type_base_model),                      intent(inout)        :: self
       type (type_link),                             intent(in)           :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: surface_flux_id
+      integer, optional,                            intent(in)           :: source
 
-      type (type_link),pointer :: link2
+      integer                   :: source_
+      type (type_link), pointer :: link2
 
+      source_ = source_do_surface
+      if (present(source)) source_ = source
       if (.not.associated(surface_flux_id%link)) &
          call self%add_horizontal_variable(trim(link%name)//'_sfl', trim(link%target%units)//'*m/s', trim(link%target%long_name)//' surface flux', &
                                            0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
-                                           domain=domain_surface, source=source_do_surface, link=surface_flux_id%link)
+                                           domain=domain_surface, source=source_, link=surface_flux_id%link)
       surface_flux_id%link%target%prefill = prefill_constant
       surface_flux_id%link%target%write_operator = operator_add
       link2 => link%target%surface_flux_list%append(surface_flux_id%link%target,surface_flux_id%link%target%name)
       link%target%surface_flux => link2
    end subroutine register_surface_flux
 
-   subroutine register_bottom_flux(self, link, bottom_flux_id)
+   subroutine register_bottom_flux(self, link, bottom_flux_id, source)
       class (type_base_model),                      intent(inout)        :: self
       type (type_link),                             intent(in)           :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: bottom_flux_id
+      integer, optional,                            intent(in)           :: source
 
-      type (type_link),pointer :: link2
+      integer                   :: source_
+      type (type_link), pointer :: link2
 
+      source_ = source_do_bottom
+      if (present(source)) source_ = source
       if (.not.associated(bottom_flux_id%link)) &
          call self%add_horizontal_variable(trim(link%name)//'_bfl', trim(link%target%units)//'*m/s', trim(link%target%long_name)//' bottom flux', &
                                            0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
-                                           domain=domain_bottom, source=source_do_bottom, link=bottom_flux_id%link)
+                                           domain=domain_bottom, source=source_, link=bottom_flux_id%link)
       bottom_flux_id%link%target%prefill = prefill_constant
       bottom_flux_id%link%target%write_operator = operator_add
       link2 => link%target%bottom_flux_list%append(bottom_flux_id%link%target,bottom_flux_id%link%target%name)
@@ -1610,32 +1620,40 @@ end subroutine real_pointer_set_set_value
       link2 => link%target%movement_list%append(movement_id%link%target, movement_id%link%target%name)
    end subroutine register_movement
 
-   subroutine register_surface_source(self, link, sms_id)
+   subroutine register_surface_source(self, link, sms_id, source)
       class (type_base_model),           intent(inout)        :: self
       type (type_link),                  intent(in)           :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: sms_id
+      integer, optional,                            intent(in)           :: source
 
+      integer                   :: source_
       type (type_link), pointer :: link2
 
+      source_ = source_do_surface
+      if (present(source)) source_ = source
       if (.not.associated(sms_id%link)) &
          call self%add_horizontal_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
-                                         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_surface, source=source_do_surface)
+                                         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_surface, source=source_)
       sms_id%link%target%prefill = prefill_constant
       sms_id%link%target%write_operator = operator_add
       link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
       link%target%sms => link2
    end subroutine register_surface_source
 
-   subroutine register_bottom_source(self, link, sms_id)
+   subroutine register_bottom_source(self, link, sms_id, source)
       class (type_base_model),           intent(inout)        :: self
       type (type_link),                  intent(in)           :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: sms_id
+      integer, optional,                            intent(in)           :: source
 
+      integer                   :: source_
       type (type_link), pointer :: link2
 
+      source_ = source_do_bottom
+      if (present(source)) source_ = source
       if (.not.associated(sms_id%link)) &
          call self%add_horizontal_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
-                                         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_bottom, source=source_do_bottom)
+                                         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_bottom, source=source_)
       sms_id%link%target%prefill = prefill_constant
       sms_id%link%target%write_operator = operator_add
       link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
