@@ -85,7 +85,7 @@ module fabm_job
    type type_task
       integer                   :: operation = source_unknown
       type (type_call), pointer :: first_call => null()
-      type (type_variable_set)  :: cache_preload
+      type (type_variable_set)  :: read_cache_preload
       type (type_variable_set)  :: write_cache_preload
 
       integer, allocatable :: prefill(:)
@@ -157,7 +157,7 @@ module fabm_job
       type (type_variable_list) :: scalar
       logical :: frozen = .false.
    end type
-   
+
    type type_global_variable_register
       type (type_variable_register) :: catalog
       type (type_variable_register) :: store
@@ -431,11 +431,10 @@ module fabm_job
             _ASSERT_(.not. associated(input_variable_node%p%target%write_owner), 'task_initialize', 'write contribution among inputs')
 
             ! Make sure the variable has an entry in the read register.
-            ! (the assigned index can be used in the global read store and in the read cache)
             call variable_register%add_to_read_cache(input_variable_node%p%target)
 
             ! Make sure this input is loaded into the read cache before the task is started.
-            if (input_variable_node%p%target%source /= source_constant) call self%cache_preload%add(input_variable_node%p%target)
+            if (input_variable_node%p%target%source /= source_constant) call self%read_cache_preload%add(input_variable_node%p%target)
 
             input_variable_node => input_variable_node%next
          end do
@@ -468,7 +467,7 @@ module fabm_job
       do while (associated(call_node))
          output_variable => call_node%graph_node%outputs%first
          do while (associated(output_variable))
-            call self%cache_preload%remove(output_variable%p%target, discard=.true.)
+            call self%read_cache_preload%remove(output_variable%p%target, discard=.true.)
             output_variable => output_variable%next
          end do
          call_node => call_node%next
@@ -612,7 +611,7 @@ module fabm_job
 
          ! First determine the maximum index to preload from/to. That determines the length of the array with preloading instructions.
          ilast = 0
-         input_variable => self%cache_preload%first
+         input_variable => self%read_cache_preload%first
          do while (associated(input_variable))
             _ASSERT_(input_variable%target%read_indices%value /= -1, 'create_load_commands', 'variable without valid read index among variables marked for preloading.')
             _ASSERT_(.not. input_variable%target%read_indices%is_empty(), 'create_load_commands', 'variable without read indices among variables marked for preloading.')
@@ -634,7 +633,7 @@ module fabm_job
          load(:) = 0
 
          ! Flag variables that require preloading
-         input_variable => self%cache_preload%first
+         input_variable => self%read_cache_preload%first
          do while (associated(input_variable))
             if (iand(input_variable%target%domain, domain) /= 0 .and. (input_variable%target%has_data .or. input_variable%target%store_index /= store_index_none)) &
                load(input_variable%target%read_indices%value) = input_variable%target%catalog_index
@@ -1420,7 +1419,7 @@ subroutine job_initialize(self, variable_register, schedules)
    _ASSERT_(self%state < job_state_initialized, 'job_initialize', trim(self%name)//': this job has already been initialized.')
    _ASSERT_(self%state >= job_state_finalized_prefill_settings, 'job_initialize', 'Prefill settings for this job have not been finalized yet.')
 
-   if (associated(self%first_task)) call self%first_task%cache_preload%update(self%read_cache_loads)
+   if (associated(self%first_task)) call self%first_task%read_cache_preload%update(self%read_cache_loads)
 
    ! Initialize tasks
    task => self%first_task
