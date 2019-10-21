@@ -722,6 +722,16 @@
       call require_call_all(self%get_albedo_job,self%root, source_get_albedo)
       call require_call_all(self%get_drag_job,self%root, source_get_drag)
 
+      do ivar = 1, size(self%state_variables)
+         call self%check_state_job%read_cache_loads%add(self%state_variables(ivar)%target)
+      end do
+      do ivar = 1, size(self%bottom_state_variables)
+         call self%check_bottom_state_job%read_cache_loads%add(self%bottom_state_variables(ivar)%target)
+      end do
+      do ivar = 1, size(self%surface_state_variables)
+         call self%check_surface_state_job%read_cache_loads%add(self%surface_state_variables(ivar)%target)
+      end do
+
       do ivar = 1, size(self%conserved_quantities)
          call self%get_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target)
          call self%get_horizontal_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target_hz)

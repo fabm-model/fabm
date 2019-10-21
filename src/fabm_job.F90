@@ -129,6 +129,7 @@ module fabm_job
       type (type_variable_request), pointer :: first_variable_request => null()
       type (type_call_request),     pointer :: first_call_request     => null()
 
+      type (type_variable_set)  :: read_cache_loads
       type (type_variable_set)  :: store_prefills
       logical, allocatable      :: interior_store_prefill(:)
       logical, allocatable      :: horizontal_store_prefill(:)
@@ -1418,6 +1419,8 @@ subroutine job_initialize(self, variable_register, schedules)
 
    _ASSERT_(self%state < job_state_initialized, 'job_initialize', trim(self%name)//': this job has already been initialized.')
    _ASSERT_(self%state >= job_state_finalized_prefill_settings, 'job_initialize', 'Prefill settings for this job have not been finalized yet.')
+
+   if (associated(self%first_task)) call self%first_task%cache_preload%update(self%read_cache_loads)
 
    ! Initialize tasks
    task => self%first_task
