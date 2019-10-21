@@ -18,6 +18,16 @@ module fabm_builtin_models
 
    type (type_factory),save,target,public :: builtin_factory
 
+   type type_sum_term
+      type (type_dependency_id) :: id
+      real(rk)                  :: weight = 1._rk
+   end type
+
+   type type_horizontal_sum_term
+      type (type_horizontal_dependency_id) :: id
+      real(rk)                             :: weight = 1._rk
+   end type
+
    type type_component
       character(len=attribute_length) :: name   = ''
       real(rk)                        :: weight = 1._rk
@@ -42,6 +52,7 @@ module fabm_builtin_models
       type (type_bulk_standard_variable),pointer :: standard_variable => null()
       type (type_aggregate_variable_id) :: id_output
       type (type_component),pointer   :: first => null()
+      type (type_sum_term), allocatable :: sources(:)
    contains
       procedure :: initialize     => weighted_sum_initialize
       procedure :: add_component  => weighted_sum_add_component
@@ -78,7 +89,8 @@ module fabm_builtin_models
       integer                         :: access        = access_read
       integer                         :: domain        = domain_horizontal
       type (type_horizontal_aggregate_variable_id) :: id_output
-      type (type_horizontal_component),pointer   :: first => null()
+      type (type_horizontal_component), pointer   :: first => null()
+      type (type_horizontal_sum_term), allocatable :: sources(:)
    contains
       procedure :: add_component  => horizontal_weighted_sum_add_component
       procedure :: initialize     => horizontal_weighted_sum_initialize
@@ -104,7 +116,7 @@ module fabm_builtin_models
       type (type_dependency_id)                     :: id_input
       type (type_dependency_id)                     :: id_thickness
       type (type_horizontal_diagnostic_variable_id) :: id_output
-      logical                                       :: average       = .false.
+      logical                                       :: average = .false.
    contains
       procedure :: initialize     => depth_integral_initialize
       procedure :: get_light      => depth_integral_do_column
@@ -413,13 +425,15 @@ module fabm_builtin_models
       class (type_weighted_sum), intent(inout) :: self
       integer, optional,         intent(in)    :: log_unit
 
-      type (type_internal_variable),pointer :: sum_variable
-      type (type_component),        pointer :: component, component_next, component_previous
+      integer                                :: i, n
+      type (type_internal_variable), pointer :: sum_variable
+      type (type_component),         pointer :: component, component_next, component_previous
 
       sum_variable => self%id_output%link%target
       if (present(log_unit)) write (log_unit,'(a)') 'Reindexing ' // trim(sum_variable%name)
       component_previous => null()
       component => self%first
+      n = 0
       do while (associated(component))
          component_next => component%next
          if (merge_component(component%id%link, component%weight, sum_variable, self%offset, log_unit)) then
@@ -433,8 +447,18 @@ module fabm_builtin_models
          else
             ! Component was left stand-alone (not merged)
             component_previous => component
+            n = n + 1
          end if
          component => component_next
+      end do
+
+      ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
+      allocate(self%sources(n))
+      component => self%first
+      do i = 1, n
+         self%sources(i)%weight = component%weight
+         call component%id%link%target%read_indices%append(self%sources(i)%id%index)
+         component => component%next
       end do
    end subroutine weighted_sum_reindex
 
@@ -483,13 +507,15 @@ module fabm_builtin_models
       class (type_horizontal_weighted_sum), intent(inout) :: self
       integer, optional,                    intent(in)    :: log_unit
 
-      type (type_internal_variable),   pointer :: sum_variable
-      type (type_horizontal_component),pointer :: component, component_next, component_previous
+      integer                                   :: i, n
+      type (type_internal_variable),    pointer :: sum_variable
+      type (type_horizontal_component), pointer :: component, component_next, component_previous
 
       sum_variable => self%id_output%link%target
       if (present(log_unit)) write (log_unit,'(a)') 'Reindexing ' // trim(sum_variable%name)
       component_previous => null()
       component => self%first
+      n = 0
       do while (associated(component))
          component_next => component%next
          if (merge_component(component%id%link, component%weight, sum_variable, self%offset, log_unit)) then
@@ -503,36 +529,40 @@ module fabm_builtin_models
          else
             ! Component was left stand-alone (not merged)
             component_previous => component
+            n = n + 1
          end if
          component => component_next
+      end do
+
+      ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
+      allocate(self%sources(n))
+      component => self%first
+      do i = 1, n
+         self%sources(i)%weight = component%weight
+         call component%id%link%target%read_indices%append(self%sources(i)%id%horizontal_index)
+         component => component%next
       end do
    end subroutine horizontal_weighted_sum_reindex
 
    subroutine weighted_sum_do(self,_ARGUMENTS_DO_)
-      class (type_weighted_sum),intent(in) :: self
+      class (type_weighted_sum), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 
-      type (type_component),pointer        :: component
-      real(rk)                             :: value
-      real(rk) _DIMENSION_SLICE_AUTOMATIC_ :: sum
+      integer  :: i
+      real(rk) :: value
 
       ! Initialize sum to starting value (typically zero).
-      sum = self%offset
+      _CONCURRENT_LOOP_BEGIN_
+         _ADD_(self%id_output, self%offset)
+      _LOOP_END_
 
       ! Enumerate components included in the sum, and add their contributions.
-      component => self%first
-      do while (associated(component))
+      do i = 1, size(self%sources)
          _CONCURRENT_LOOP_BEGIN_
-            _GET_(component%id,value)
-            sum _INDEX_SLICE_ = sum _INDEX_SLICE_ + component%weight*value
+            _GET_(self%sources(i)%id, value)
+            _ADD_(self%id_output, self%sources(i)%weight * value)
          _LOOP_END_
-         component => component%next
       end do
-
-      ! Transfer summed values to diagnostic.
-      _CONCURRENT_LOOP_BEGIN_
-         _ADD_(self%id_output,sum _INDEX_SLICE_)
-      _LOOP_END_
    end subroutine
 
    subroutine scaled_interior_variable_initialize(self, configunit)
@@ -720,27 +750,22 @@ module fabm_builtin_models
    end subroutine
 
    subroutine horizontal_weighted_sum_do_horizontal(self,_ARGUMENTS_HORIZONTAL_)
-      class (type_horizontal_weighted_sum),intent(in) :: self
+      class (type_horizontal_weighted_sum), intent(in) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_
 
-      type (type_horizontal_component),pointer        :: component
-      real(rk)                                        :: value
-      real(rk) _DIMENSION_HORIZONTAL_SLICE_AUTOMATIC_ :: sum
-
-      sum = self%offset
-
-      component => self%first
-      do while (associated(component))
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            _GET_HORIZONTAL_(component%id,value)
-            sum _INDEX_HORIZONTAL_SLICE_ = sum _INDEX_HORIZONTAL_SLICE_ + component%weight*value
-         _HORIZONTAL_LOOP_END_
-         component => component%next
-      end do
+      integer  :: i
+      real(rk) :: value
 
       _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-         _ADD_HORIZONTAL_(self%id_output,sum _INDEX_HORIZONTAL_SLICE_)
+         _ADD_HORIZONTAL_(self%id_output, self%offset)
       _HORIZONTAL_LOOP_END_
+
+      do i = 1, size(self%sources)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            _GET_HORIZONTAL_(self%sources(i)%id, value)
+            _ADD_HORIZONTAL_(self%id_output, self%sources(i)%weight * value)
+         _HORIZONTAL_LOOP_END_
+      end do
    end subroutine horizontal_weighted_sum_do_horizontal
 
    subroutine depth_integral_initialize(self, configunit)
