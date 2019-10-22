@@ -496,14 +496,14 @@ contains
       call random_number(tmp_hz)
 #  ifdef _HAS_MASK_
       !  Pick random numbers between 0 (land) and maximum index
-      bottom_index = floor(tmp_hz*(1+domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)))
+      bottom_index = floor(tmp_hz * (1 + domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)))
 #    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
      ! Ensure invalid bottom indices [land points] are set such that vertical loops have 0 iterations.
      where (bottom_index == 0) bottom_index = domain_extent(_FABM_DEPTH_DIMENSION_INDEX_) + 1
 #    endif
 #  else
       ! Pick random numbers between 1 and maximum index
-      bottom_index = 1 + floor(tmp_hz*(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)))
+      bottom_index = 1 + floor(tmp_hz * domain_extent(_FABM_DEPTH_DIMENSION_INDEX_))
 #  endif
 #endif
 

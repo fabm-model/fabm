@@ -95,7 +95,7 @@
    integer, parameter, public :: cache_type_vertical = 3
 
    real(rk), parameter :: not_written = huge(1.0_rk)
-   integer, parameter :: array_block_size = 1
+   integer, parameter :: array_block_size = 8
 !
 ! !PUBLIC TYPES:
 !
