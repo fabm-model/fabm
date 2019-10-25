@@ -656,7 +656,6 @@
 
 #ifdef _FABM_MASK_TYPE_
       ! Mask used to transfer data between persistent store and cache [pack/unpack]
-      logical,allocatable _DIMENSION_SLICE_ :: mask
       integer,allocatable _DIMENSION_SLICE_ :: ipack
       integer,allocatable _DIMENSION_SLICE_ :: iunpack
 #endif

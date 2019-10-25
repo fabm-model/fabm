@@ -2494,7 +2494,6 @@ subroutine create_cache(self, cache, cache_type)
       n_mod = mod(n, array_block_size)
       if (n_mod /= 0) n = n - n_mod + array_block_size
 #  ifdef _HAS_MASK_
-      allocate(cache%mask(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
       allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
       allocate(cache%iunpack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
 #  endif
@@ -2523,7 +2522,6 @@ subroutine create_cache(self, cache, cache_type)
       n_mod = mod(n, array_block_size)
       if (n_mod /= 0) n = n - n_mod + array_block_size
 #  ifdef _HAS_MASK_
-      allocate(cache%mask(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
       allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
       allocate(cache%iunpack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
 #  endif
@@ -2552,7 +2550,6 @@ subroutine create_cache(self, cache, cache_type)
       n_mod = mod(n, array_block_size)
       if (n_mod /= 0) n = n - n_mod + array_block_size
 #  ifdef _HAS_MASK_
-      allocate(cache%mask(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
       allocate(cache%ipack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
       allocate(cache%iunpack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
 #  endif
@@ -2632,16 +2629,13 @@ subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
 #  ifdef _HAS_MASK_
-   _DO_CONCURRENT_(_I_,_START_,_STOP_)
-#    ifdef _FABM_HORIZONTAL_MASK_
-      cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_I_))
-#    else
-      cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(_I_))
-#    endif
-   end do
    i = 0
    do _I_=_START_,_STOP_
-      if (cache%mask(_I_)) then
+#    ifdef _FABM_HORIZONTAL_MASK_
+      if (_IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_I_))) then
+#    else
+      if (_IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(_I_))) then
+#    endif
           i = i + 1
           cache%ipack(i) = _I_
           cache%iunpack(_I_) = i
@@ -2697,12 +2691,9 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-   _DO_CONCURRENT_(_J_,_START_,_STOP_)
-      cache%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_J_))
-   end do
    i = 0
    do _J_=_START_,_STOP_
-      if (cache%mask(_J_)) then
+      if (_IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_J_))) then
           i = i + 1
           cache%ipack(i) = _J_
           cache%iunpack(_J_) = i
@@ -2839,16 +2830,13 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  ifdef _HAS_MASK_
-   _DO_CONCURRENT_(_I_,_VERTICAL_START_,_VERTICAL_STOP_)
-#    ifdef _FABM_HORIZONTAL_MASK_
-      cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)
-#    else
-      cache%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(_I_))
-#    endif
-   end do
    i = 0
    do _I_=_VERTICAL_START_,_VERTICAL_STOP_
-      if (cache%mask(_I_)) then
+#    ifdef _FABM_HORIZONTAL_MASK_
+      if (_IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
+#    else
+      if ( _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(_I_))) then
+#    endif
           i = i + 1
           cache%ipack(i) = _I_
           cache%iunpack(_I_) = i
