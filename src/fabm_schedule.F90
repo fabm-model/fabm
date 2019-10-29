@@ -1,6 +1,6 @@
 module fabm_schedule
 
-   use fabm_types, only: type_base_model, source_unknown, rk
+   use fabm_types, only: type_base_model, source_unknown, rk, type_link, prefill_previous_value, operator_assign, presence_internal
 
    implicit none
 
@@ -44,6 +44,7 @@ contains
       integer,                intent(in)    :: pattern
 
       type (type_schedule), pointer :: schedule
+      type (type_link),     pointer :: link
 
       allocate(schedule)
       schedule%model => model
@@ -51,6 +52,14 @@ contains
       schedule%pattern = pattern
       schedule%next => self%first
       self%first => schedule
+
+      link => model%links%first
+      do while (associated(link))
+         if (associated(link%original, link%target) .and. link%target%source == source &
+             .and. link%target%presence == presence_internal .and. link%target%write_operator == operator_assign) &
+               link%target%prefill = prefill_previous_value
+         link => link%next
+      end do
    end subroutine
 
    subroutine attach(self, model, source, active)
@@ -59,7 +68,7 @@ contains
       integer, intent(in) :: source
       logical,                 target  :: active
 
-      type (type_schedule), pointer :: schedule
+      type (type_schedule),        pointer :: schedule
       type (type_logical_pointer), pointer :: pactive
 
       schedule => self%first
