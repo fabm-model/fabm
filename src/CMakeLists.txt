@@ -16,7 +16,9 @@ set(DEFAULT_INSTITUTES
     bb           # Bolding & Bruggeman - formerly Bolding & Burchard
     examples     # Examples supplied with FABM itself
     gotm         # Models ported from original GOTM/BIO library
+    iow          # Leibniz Institute for Baltic Sea Research, Germany
     jrc          # EC - Joint Research Centre - Ispra, Italy
+    msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
     pclake       # The PCLake model - reference implementation
     pml          # Plymouth Marine Laboratory, United Kingdom
     selma        # Simple EcoLogical Model for the Aquatic - PROGNOS
@@ -31,10 +33,8 @@ set(DEFAULT_INSTITUTES
 set(FABM_INSTITUTES_OLD
     aed          # Aquatic Eco Dynamics, University of Western Australia
     hzg          # Helmholtz-Zentrum Geesthacht, Germany
-    iow          # Leibniz Institute for Baltic Sea Research, Germany
     klimacampus  # KlimaCampus Hamburg, Germany
     metu         # Middle East Technical University, Turkey
-    msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
    )
 
 # Ensure FABM_INSTITUTES tracks the up-to-date DEFAULT_INSTITUTES list unless the user manually customized FABM_INSTITUTES.
