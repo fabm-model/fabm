@@ -36,6 +36,8 @@ program test_host
 use fabm
 use fabm_config
 use fabm_driver
+use fabm_parameters, only: rke
+use fabm_types, only: source_do, source_do_surface, source_do_bottom, source_do_column
 
 use test_models
 use host_hooks
@@ -148,8 +150,8 @@ integer :: _LOCATION_
 integer :: _START_, _STOP_
 #endif
 
-real(rk),allocatable _DIMENSION_GLOBAL_ :: tmp
-real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: tmp_hz
+real(rke),allocatable _DIMENSION_GLOBAL_ :: tmp
+real(rke),allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: tmp_hz
 
 #ifdef _HAS_MASK_
 _FABM_MASK_TYPE_,allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz
@@ -171,17 +173,17 @@ integer :: horizontal_count
 integer,allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_index
 #endif
 
-real(rk),allocatable,target _DIMENSION_GLOBAL_PLUS_1_            :: interior_state
-real(rk),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: surface_state
-real(rk),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: bottom_state
+real(rke),allocatable,target _DIMENSION_GLOBAL_PLUS_1_            :: interior_state
+real(rke),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: surface_state
+real(rke),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: bottom_state
 
-real(rk),allocatable _DIMENSION_SLICE_PLUS_1_        :: dy
-real(rk),allocatable _DIMENSION_SLICE_PLUS_1_        :: w
-real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: flux,sms_sf,sms_bt
+real(rke),allocatable _DIMENSION_SLICE_PLUS_1_        :: dy
+real(rke),allocatable _DIMENSION_SLICE_PLUS_1_        :: w
+real(rke),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: flux,sms_sf,sms_bt
 
-real(rk),allocatable,target _DIMENSION_GLOBAL_            :: temperature
-real(rk),allocatable,target _DIMENSION_GLOBAL_            :: depth
-real(rk),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_ :: wind_speed
+real(rke),allocatable,target _DIMENSION_GLOBAL_            :: temperature
+real(rke),allocatable,target _DIMENSION_GLOBAL_            :: depth
+real(rke),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_ :: wind_speed
 
 type (type_model) :: model
 
@@ -424,21 +426,22 @@ contains
 
    subroutine read_environment
       use yaml, only: yaml_parse => parse, yaml_error_length => error_length
-      use yaml_types, only: type_node, type_yaml_dictionary => type_dictionary, type_yaml_scalar => type_scalar, type_yaml_key_value_pair => type_key_value_pair
+      use yaml_types, only: type_node, type_yaml_dictionary => type_dictionary, type_yaml_scalar => type_scalar, &
+         type_yaml_key_value_pair => type_key_value_pair, yaml_real_kind => real_kind
 
       integer, parameter :: yaml_unit = 100
       character(yaml_error_length) :: yaml_error
       class (type_node),pointer :: yaml_root
       type (type_yaml_key_value_pair), pointer :: yaml_pair
-      real(rk) :: value
+      real(rke) :: value
       logical :: success
       type type_input
-         type (type_bulk_variable_id)                        :: interior_id
-         type (type_horizontal_variable_id)                  :: horizontal_id
-         type (type_scalar_variable_id)                      :: scalar_id
-         real(rk), allocatable _DIMENSION_GLOBAL_            :: interior_data
-         real(rk), allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: horizontal_data
-         real(rk)                                            :: scalar_data
+         type (type_bulk_variable_id)                         :: interior_id
+         type (type_horizontal_variable_id)                   :: horizontal_id
+         type (type_scalar_variable_id)                       :: scalar_id
+         real(rke), allocatable _DIMENSION_GLOBAL_            :: interior_data
+         real(rke), allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: horizontal_data
+         real(rke)                                            :: scalar_data
       end type
       type (type_input), pointer :: input
 
@@ -454,7 +457,7 @@ contains
               select type (node => yaml_pair%value)
               class is (type_yaml_scalar)
                   call driver%log_message('Setting '//trim(yaml_pair%key)//' to '//trim(node%string))
-                  value = node%to_real(0._rk, success)
+                  value = node%to_real(0._yaml_real_kind, success)
                   if (.not. success) then
                      call driver%log_message('Cannot parse '//trim(node%string)//' as real.')
                      stop 2
@@ -477,7 +480,8 @@ contains
                             input%scalar_data = value
                             call model%link_scalar(input%scalar_id, input%scalar_data)
                          else
-                            call driver%log_message('WARNING: environment variable '//trim(yaml_pair%key)//' is not used by FABM model and will be ignored.')
+                            call driver%log_message('WARNING: environment variable '//trim(yaml_pair%key) &
+                               //' is not used by FABM model and will be ignored.')
                          end if
                       end if
                   end if
@@ -523,7 +527,7 @@ contains
       ! Apply random mask across interior domain (half of grid cells masked)
       call random_number(tmp)
       mask = _FABM_UNMASKED_VALUE_
-      where (tmp>0.5_rk) mask = _FABM_MASKED_VALUE_
+      where (tmp>0.5_rke) mask = _FABM_MASKED_VALUE_
 
 #    if _FABM_BOTTOM_INDEX_==-1
       ! Bottom index varies in the horizontal. Ensure the bottom cell itself is unmasked, and anything deeper is masked.
@@ -568,7 +572,7 @@ contains
 
    subroutine simulate(n)
       integer, intent(in) :: n
-      real(rk) :: time_begin, time_end
+      real(rke) :: time_begin, time_end
       integer :: nseed
       integer, allocatable :: seed(:)
 
@@ -623,7 +627,7 @@ contains
 
          call model%process(model%get_diagnostics_job)
 
-         if (mod(i, 100) == 0) write (*,'(i0,a)') int(100*i/real(n, rk)), ' % complete'
+         if (mod(i, 100) == 0) write (*,'(i0,a)') int(100*i/real(n, rke)), ' % complete'
       end do
 
       call cpu_time(time_end)
@@ -633,8 +637,8 @@ contains
    end subroutine
 
    subroutine test_update
-      real(rk),pointer _DIMENSION_GLOBAL_ :: pdata
-      real(rk),pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: pdata_hz
+      real(rke),pointer _DIMENSION_GLOBAL_ :: pdata
+      real(rke),pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: pdata_hz
       logical :: valid
 
       call randomize_mask
@@ -648,7 +652,7 @@ contains
          call fabm_initialize_state(model _ARGUMENTS_INTERIOR_IN_)
       _END_OUTER_INTERIOR_LOOP_
       do ivar=1,size(model%state_variables)
-         call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, ivar+interior_state_offset+1._rk)
+         call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, ivar+interior_state_offset+1._rke)
       end do
       call report_test_result()
 
@@ -657,7 +661,7 @@ contains
          call fabm_initialize_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%bottom_state_variables)
-         call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, ivar+bottom_state_offset+1._rk)
+         call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, ivar+bottom_state_offset+1._rke)
       end do
       call report_test_result()
 
@@ -666,7 +670,7 @@ contains
          call fabm_initialize_surface_state(model _ARGUMENTS_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%surface_state_variables)
-         call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, ivar+surface_state_offset+1._rk)
+         call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, ivar+surface_state_offset+1._rke)
       end do
       call report_test_result()
 
@@ -675,10 +679,10 @@ contains
       ! ======================================================================
 
       temperature = 1+interior_dependency_offset
-      call apply_mask_3d(temperature,-999._rk-interior_dependency_offset)
+      call apply_mask_3d(temperature,-999._rke-interior_dependency_offset)
 
       wind_speed = 1+horizontal_dependency_offset
-      call apply_mask_2d(wind_speed,-999._rk-horizontal_dependency_offset)
+      call apply_mask_2d(wind_speed,-999._rke-horizontal_dependency_offset)
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
       ! Model has depth dimension: make sure depth varies from 0 at the surface till 1 at the bottom
@@ -688,20 +692,20 @@ contains
          if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) then
             depth _INDEX_LOCATION_ = 2
          else
-            depth _INDEX_LOCATION_ = real(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-_VERTICAL_ITERATOR_,rk)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-bottom_index _INDEX_HORIZONTAL_LOCATION_)
+            depth _INDEX_LOCATION_ = real(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-_VERTICAL_ITERATOR_,rke)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-bottom_index _INDEX_HORIZONTAL_LOCATION_)
          end if
 #    else
-         depth _INDEX_LOCATION_ = real(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-_VERTICAL_ITERATOR_,rk)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-1)
+         depth _INDEX_LOCATION_ = real(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-_VERTICAL_ITERATOR_,rke)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-1)
 #    endif
 #  else
 #    if _FABM_BOTTOM_INDEX_==-1
          if (bottom_index _INDEX_HORIZONTAL_LOCATION_==1) then
             depth _INDEX_LOCATION_ = 2
          else
-            depth _INDEX_LOCATION_ = real(_VERTICAL_ITERATOR_-1,rk)/(bottom_index _INDEX_HORIZONTAL_LOCATION_-1)
+            depth _INDEX_LOCATION_ = real(_VERTICAL_ITERATOR_-1,rke)/(bottom_index _INDEX_HORIZONTAL_LOCATION_-1)
          end if
 #    else
-         depth _INDEX_LOCATION_ = real(_VERTICAL_ITERATOR_-1,rk)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-1)
+         depth _INDEX_LOCATION_ = real(_VERTICAL_ITERATOR_-1,rke)/(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)-1)
 #    endif
 #  endif
       _END_GLOBAL_LOOP_
@@ -709,7 +713,7 @@ contains
       ! No depth dimension
       depth = 2
 #endif
-      call apply_mask_3d(depth,-999._rk-interior_dependency_offset)
+      call apply_mask_3d(depth,-999._rke-interior_dependency_offset)
 
       do ivar=1,size(model%state_variables)
          interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = ivar+interior_state_offset
@@ -750,7 +754,7 @@ contains
          call fabm_do(model _ARGUMENTS_INTERIOR_IN_,dy)
 #endif
          do ivar=1,size(model%state_variables)
-            call check_interior_slice_plus_1(dy,ivar,0.0_rk,-real(ivar+interior_state_offset,rk) _ARGUMENTS_INTERIOR_IN_)
+            call check_interior_slice_plus_1(dy,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _ARGUMENTS_INTERIOR_IN_)
          end do
       _END_OUTER_INTERIOR_LOOP_
       call assert(interior_loop_count == interior_count, 'fabm_do', 'call count does not match number of (unmasked) interior points')
@@ -788,10 +792,10 @@ contains
          sms_sf = 0
          call fabm_do_surface(model _ARGUMENTS_HORIZONTAL_IN_,flux,sms_sf)
          do ivar=1,size(model%state_variables)
-            call check_horizontal_slice_plus_1(flux,ivar,0.0_rk,-real(ivar+interior_state_offset,rk) _ARGUMENTS_HORIZONTAL_IN_)
+            call check_horizontal_slice_plus_1(flux,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _ARGUMENTS_HORIZONTAL_IN_)
          end do
          do ivar=1,size(model%surface_state_variables)
-            call check_horizontal_slice_plus_1(sms_sf,ivar,0.0_rk,-real(ivar+surface_state_offset,rk) _ARGUMENTS_HORIZONTAL_IN_)
+            call check_horizontal_slice_plus_1(sms_sf,ivar,0.0_rke,-real(ivar+surface_state_offset,rke) _ARGUMENTS_HORIZONTAL_IN_)
          end do
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
          endif
@@ -832,10 +836,10 @@ contains
          sms_bt = 0
          call fabm_do_bottom(model _ARGUMENTS_HORIZONTAL_IN_,flux,sms_bt)
          do ivar=1,size(model%state_variables)
-            call check_horizontal_slice_plus_1(flux,ivar,0.0_rk,-real(ivar+interior_state_offset,rk) _ARGUMENTS_HORIZONTAL_IN_)
+            call check_horizontal_slice_plus_1(flux,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _ARGUMENTS_HORIZONTAL_IN_)
          end do
          do ivar=1,size(model%bottom_state_variables)
-            call check_horizontal_slice_plus_1(sms_bt,ivar,0.0_rk,-real(ivar+bottom_state_offset,rk) _ARGUMENTS_HORIZONTAL_IN_)
+            call check_horizontal_slice_plus_1(sms_bt,ivar,0.0_rke,-real(ivar+bottom_state_offset,rke) _ARGUMENTS_HORIZONTAL_IN_)
          end do
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
          endif
@@ -894,9 +898,9 @@ contains
 #endif
          do ivar=1,size(model%state_variables)
             if (mod(ivar, 2) == 0) then
-               call check_interior_slice_plus_1(w,ivar,0.0_rk,real(ivar+interior_state_offset,rk) _ARGUMENTS_INTERIOR_IN_)
+               call check_interior_slice_plus_1(w,ivar,0.0_rke,real(ivar+interior_state_offset,rke) _ARGUMENTS_INTERIOR_IN_)
             else
-               call check_interior_slice_plus_1(w,ivar,0.0_rk,-real(ivar+interior_state_offset,rk) _ARGUMENTS_INTERIOR_IN_)
+               call check_interior_slice_plus_1(w,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _ARGUMENTS_INTERIOR_IN_)
             end if
          end do
       _END_OUTER_INTERIOR_LOOP_
@@ -1075,8 +1079,8 @@ contains
    end subroutine
 
    subroutine apply_mask_3d(dat,missing_value)
-      real(rk) _DIMENSION_GLOBAL_,intent(inout) :: dat
-      real(rk),                   intent(in)    :: missing_value
+      real(rke) _DIMENSION_GLOBAL_,intent(inout) :: dat
+      real(rke),                   intent(in)    :: missing_value
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
       integer :: j__
@@ -1090,17 +1094,17 @@ contains
    end subroutine
 
    subroutine apply_mask_2d(dat, missing_value)
-      real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,intent(inout) :: dat
-      real(rk),                              intent(in)    :: missing_value
+      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_,intent(inout) :: dat
+      real(rke),                              intent(in)    :: missing_value
 #ifdef _HAS_MASK_
       where (.not. _IS_UNMASKED_(mask_hz)) dat = missing_value
 #endif
    end subroutine
 
    subroutine check_interior_slice_plus_1(dat, index, required_masked_value, required_value _ARGUMENTS_INTERIOR_IN_)
-      real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(in) :: dat
+      real(rke) _DIMENSION_EXT_SLICE_PLUS_1_,intent(in) :: dat
       integer,                              intent(in) :: index
-      real(rk),                             intent(in) :: required_masked_value, required_value
+      real(rke),                             intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_interior_slice(dat(:,index), required_masked_value, required_value _ARGUMENTS_INTERIOR_IN_)
@@ -1110,8 +1114,8 @@ contains
    end subroutine
 
    subroutine check_interior_slice(slice_data, required_masked_value, required_value _ARGUMENTS_INTERIOR_IN_)
-      real(rk) _DIMENSION_EXT_SLICE_,intent(in) :: slice_data
-      real(rk),                      intent(in) :: required_masked_value, required_value
+      real(rke) _DIMENSION_EXT_SLICE_,intent(in) :: slice_data
+      real(rke),                      intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
 #ifdef _HAS_MASK_
@@ -1134,9 +1138,9 @@ contains
    end subroutine
 
    subroutine check_horizontal_slice_plus_1(dat,index, required_masked_value, required_value _ARGUMENTS_HORIZONTAL_IN_)
-      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(in) :: dat
+      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(in) :: dat
       integer,                                      intent(in) :: index
-      real(rk),                                     intent(in) :: required_masked_value, required_value
+      real(rke),                                     intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 #ifdef _HORIZONTAL_IS_VECTORIZED_
       call check_horizontal_slice(dat(:,index), required_masked_value, required_value _ARGUMENTS_HORIZONTAL_IN_)
@@ -1146,8 +1150,8 @@ contains
    end subroutine check_horizontal_slice_plus_1
 
    subroutine check_horizontal_slice(slice_data, required_masked_value, required_value _ARGUMENTS_HORIZONTAL_IN_)
-      real(rk) _DIMENSION_HORIZONTAL_SLICE_, intent(in) :: slice_data
-      real(rk),                              intent(in) :: required_masked_value, required_value
+      real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(in) :: slice_data
+      real(rke),                              intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
@@ -1163,8 +1167,8 @@ contains
    end subroutine check_horizontal_slice
 
    subroutine check_interior(dat, required_masked_value, required_value)
-      real(rk) _DIMENSION_GLOBAL_,intent(in) :: dat
-      real(rk),                   intent(in) :: required_masked_value, required_value
+      real(rke) _DIMENSION_GLOBAL_,intent(in) :: dat
+      real(rke),                   intent(in) :: required_masked_value, required_value
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
       integer :: j__
@@ -1198,8 +1202,8 @@ contains
    end subroutine
 
    subroutine check_horizontal(dat, required_masked_value, required_value)
-      real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,intent(in) :: dat
-      real(rk),                              intent(in) :: required_masked_value, required_value
+      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_,intent(in) :: dat
+      real(rke),                              intent(in) :: required_masked_value, required_value
 #ifdef _HAS_MASK_
       call assert(all(dat == required_masked_value .or.       _IS_UNMASKED_(mask_hz)), 'check_horizontal', 'one or more masked cells do not have the value required.')
       call assert(all(dat == required_value        .or. .not. _IS_UNMASKED_(mask_hz)), 'check_horizontal', 'one or more non-masked cells do not have the value required.')

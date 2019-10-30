@@ -6,7 +6,7 @@
 
 module fabm_properties
 
-   use fabm_parameters
+   use fabm_parameters, only: rk => rki
 
    implicit none
 

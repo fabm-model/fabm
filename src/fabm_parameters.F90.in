@@ -1,3 +1,4 @@
 module fabm_parameters
-   integer, parameter, public :: rk = @FABM_REAL_KIND@
+   integer, parameter, public :: rki = @FABM_REAL_KIND_INTERNAL@
+   integer, parameter, public :: rke = @FABM_REAL_KIND_EXTERNAL@
 end module

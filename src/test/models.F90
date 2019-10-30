@@ -6,16 +6,18 @@ use fabm_types
 
 implicit none
 
-integer, parameter :: interior_state_offset = 0
-integer, parameter :: surface_state_offset  = 1000
-integer, parameter :: bottom_state_offset   = 2000
+private
 
-integer, parameter :: interior_dependency_offset = 3000
-integer, parameter :: horizontal_dependency_offset = 4000
+integer, parameter, public :: interior_state_offset = 0
+integer, parameter, public :: surface_state_offset  = 1000
+integer, parameter, public :: bottom_state_offset   = 2000
+
+integer, parameter, public :: interior_dependency_offset = 3000
+integer, parameter, public :: horizontal_dependency_offset = 4000
 
 real(rk), parameter :: epsilon = 1e-14_rk
 
-type,extends(type_base_model) :: type_test_model
+type, extends(type_base_model), public :: type_test_model
    type (type_state_variable_id),        allocatable :: id_state(:)
    type (type_surface_state_variable_id),allocatable :: id_surface_state(:)
    type (type_bottom_state_variable_id), allocatable :: id_bottom_state(:)

@@ -16,11 +16,12 @@
 !
 ! For more information, see the documentation at http://fabm.net/wiki.
 !
-! To add new biogeochemical models, edit fabm_library.F90.
+! To add new biogeochemical models, add source code under src/models and reference your institute in src/CMakeLists.txt
 !
 ! !USES:
    use fabm_standard_variables,only: type_bulk_standard_variable, type_horizontal_standard_variable, &
                                      type_global_standard_variable, initialize_standard_variables, type_standard_variable_node
+   use fabm_parameters
    use fabm_types
    use fabm_expressions
    use fabm_driver
@@ -90,11 +91,7 @@
    integer, parameter, public :: data_source_user = 3
    integer, parameter, public :: data_source_default = data_source_host
 
-   integer, parameter, public :: cache_type_interior = 1
-   integer, parameter, public :: cache_type_horizontal = 2
-   integer, parameter, public :: cache_type_vertical = 3
-
-   real(rk), parameter :: not_written = huge(1.0_rk)
+   real(rki), parameter :: not_written = huge(1.0_rk)
    integer, parameter :: array_block_size = 8
 !
 ! !PUBLIC TYPES:
@@ -127,9 +124,9 @@
       character(len=attribute_length) :: local_long_name = ''
       character(len=attribute_length) :: units         = ''
       character(len=attribute_length) :: path          = ''
-      real(rk)                        :: minimum       = -1.e20_rk
-      real(rk)                        :: maximum       =  1.e20_rk
-      real(rk)                        :: missing_value = -2.e20_rk
+      real(rke)                       :: minimum       = -1.e20_rk
+      real(rke)                       :: maximum       =  1.e20_rk
+      real(rke)                       :: missing_value = -2.e20_rk
       integer                         :: output        = output_instantaneous ! See output_* parameters above
       type (type_property_dictionary) :: properties
       integer                         :: externalid    = 0                    ! Identifier to be used freely by host
@@ -139,7 +136,7 @@
 !  Derived type describing a state variable
    type,extends(type_external_variable) :: type_state_variable_info
       type (type_bulk_standard_variable) :: standard_variable
-      real(rk)                           :: initial_value             = 0.0_rk
+      real(rke)                          :: initial_value             = 0.0_rk
       logical                            :: no_precipitation_dilution = .false.
       logical                            :: no_river_dilution         = .false.
       integer                            :: sms_index          = -1
@@ -150,7 +147,7 @@
 
    type,extends(type_external_variable) :: type_horizontal_state_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
-      real(rk)                                 :: initial_value = 0.0_rk
+      real(rke)                                :: initial_value = 0.0_rk
       integer                                  :: sms_index = -1
    end type type_horizontal_state_variable_info
 
@@ -178,15 +175,15 @@
    end type type_conserved_quantity_info
 
    type type_interior_data_pointer
-      real(rk),pointer _DIMENSION_GLOBAL_ :: p => null()
+      real(rke), pointer _DIMENSION_GLOBAL_ :: p => null()
    end type
 
    type type_horizontal_data_pointer
-      real(rk),pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: p => null()
+      real(rke), pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: p => null()
    end type
 
    type type_scalar_data_pointer
-      real(rk),pointer :: p => null()
+      real(rke), pointer :: p => null()
    end type
 
    type type_catalog
@@ -199,12 +196,12 @@
    end type
 
    type type_store
-      real(rk), allocatable _DIMENSION_GLOBAL_PLUS_1_            :: interior
-      real(rk), allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: horizontal
-      real(rk), allocatable                                      :: interior_fill_value(:)
-      real(rk), allocatable                                      :: horizontal_fill_value(:)
-      real(rk), allocatable                                      :: interior_missing_value(:)
-      real(rk), allocatable                                      :: horizontal_missing_value(:)
+      real(rke), allocatable _DIMENSION_GLOBAL_PLUS_1_            :: interior
+      real(rke), allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: horizontal
+      real(rke), allocatable                                      :: interior_fill_value(:)
+      real(rke), allocatable                                      :: horizontal_fill_value(:)
+      real(rke), allocatable                                      :: interior_missing_value(:)
+      real(rke), allocatable                                      :: horizontal_missing_value(:)
    end type
 
    ! Derived type for a single generic biogeochemical model
@@ -243,11 +240,11 @@
       type (type_store)   :: store
 
       ! Read cache fill values
-      real(rk), allocatable :: read_cache_fill_value(:)
-      real(rk), allocatable :: read_cache_hz_fill_value(:)
-      real(rk), allocatable :: read_cache_scalar_fill_value(:)
-      real(rk), allocatable :: write_cache_fill_value(:)
-      real(rk), allocatable :: write_cache_hz_fill_value(:)
+      real(rki), allocatable :: read_cache_fill_value(:)
+      real(rki), allocatable :: read_cache_hz_fill_value(:)
+      real(rki), allocatable :: read_cache_scalar_fill_value(:)
+      real(rki), allocatable :: write_cache_fill_value(:)
+      real(rki), allocatable :: write_cache_hz_fill_value(:)
 
       integer :: domain_size(_FABM_DIMENSION_COUNT_)
       integer :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
@@ -290,7 +287,9 @@
       integer :: surface_index = -1
 #endif
 
-      type (type_cache) :: cache_int, cache_hz, cache_vert
+      type (type_interior_cache)   :: cache_int
+      type (type_horizontal_cache) :: cache_hz
+      type (type_vertical_cache)   :: cache_vert
    contains
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
       procedure :: set_bottom_index => fabm_set_bottom_index
@@ -822,15 +821,15 @@
 ! !IROUTINE: Provide FABM with the extents of the spatial domain.
 !
 ! !INTERFACE:
-   subroutine fabm_set_domain(self _ARGUMENTS_LOCATION_,seconds_per_time_unit)
+   subroutine fabm_set_domain(self _ARGUMENTS_LOCATION_, seconds_per_time_unit)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,intent(inout) :: self
+   class (type_model), target, intent(inout) :: self
    _DECLARE_ARGUMENTS_LOCATION_
-   real(rk),optional,        intent(in)    :: seconds_per_time_unit
+   real(rke), optional,        intent(in)    :: seconds_per_time_unit
 !
 ! !LOCAL VARIABLES:
-  class (type_expression),   pointer :: expression
+  class (type_expression), pointer :: expression
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -911,9 +910,9 @@
    end subroutine create_catalog
 
    subroutine collect_fill_values(variable_list, values, use_missing)
-      type (type_variable_list), intent(in) :: variable_list
-      real(rk), allocatable, intent(out) :: values(:)
-      logical, intent(in) :: use_missing
+      type (type_variable_list), intent(in)  :: variable_list
+      real(rke), allocatable,    intent(out) :: values(:)
+      logical,                   intent(in)  :: use_missing
 
       type (type_variable_node), pointer :: variable_node
       integer :: i
@@ -930,7 +929,29 @@
          end if
          variable_node => variable_node%next
       end do
-   end subroutine collect_fill_values
+   end subroutine
+
+   subroutine collect_internal_fill_values(variable_list, values, use_missing)
+      type (type_variable_list), intent(in)  :: variable_list
+      real(rki), allocatable,    intent(out) :: values(:)
+      logical,                   intent(in)  :: use_missing
+
+      type (type_variable_node), pointer :: variable_node
+      integer :: i
+
+      allocate(values(variable_list%count))
+      i = 0
+      variable_node => variable_list%first
+      do while (associated(variable_node))
+         i = i + 1
+         if (use_missing) then
+            values(i) = variable_node%target%missing_value
+         else
+            values(i) = variable_node%target%prefill_value
+         end if
+         variable_node => variable_node%next
+      end do
+   end subroutine
 
    subroutine create_store(self)
       class (type_model), intent(inout) :: self
@@ -1252,17 +1273,17 @@
    ! Create persistent store. This provides memory for all variables to be stored there.
    call create_store(self)
 
-   call collect_fill_values(self%variable_register%read_cache%interior, self%read_cache_fill_value, use_missing=.false.)
-   call collect_fill_values(self%variable_register%read_cache%horizontal, self%read_cache_hz_fill_value, use_missing=.false.)
-   call collect_fill_values(self%variable_register%read_cache%scalar, self%read_cache_scalar_fill_value, use_missing=.false.)
-   call collect_fill_values(self%variable_register%write_cache%interior, self%write_cache_fill_value, use_missing=.false.)
-   call collect_fill_values(self%variable_register%write_cache%horizontal, self%write_cache_hz_fill_value, use_missing=.false.)
+   call collect_internal_fill_values(self%variable_register%read_cache%interior, self%read_cache_fill_value, use_missing=.false.)
+   call collect_internal_fill_values(self%variable_register%read_cache%horizontal, self%read_cache_hz_fill_value, use_missing=.false.)
+   call collect_internal_fill_values(self%variable_register%read_cache%scalar, self%read_cache_scalar_fill_value, use_missing=.false.)
+   call collect_internal_fill_values(self%variable_register%write_cache%interior, self%write_cache_fill_value, use_missing=.false.)
+   call collect_internal_fill_values(self%variable_register%write_cache%horizontal, self%write_cache_hz_fill_value, use_missing=.false.)
 
    ! Create global caches for exchanging information wiht BGC models.
    ! This can only be done after collect_fill_values calls complete, because they specify what values to prefill te cache with.
-   call create_cache(self, self%cache_int, cache_type_interior)
-   call create_cache(self, self%cache_hz, cache_type_horizontal)
-   call create_cache(self, self%cache_vert, cache_type_vertical)
+   call create_interior_cache(self, self%cache_int)
+   call create_horizontal_cache(self, self%cache_hz)
+   call create_vertical_cache(self, self%cache_vert)
 
    ! For diagnostics that are not needed, set their write index to 0 (rubbish bin)
    link => self%links_postcoupling%first
@@ -1907,13 +1928,13 @@
 ! is identified by an internal variable object.
 !
 ! !INTERFACE:
-   subroutine fabm_link_interior_data_by_variable(self,variable,dat,source)
+   subroutine fabm_link_interior_data_by_variable(self, variable, dat, source)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                intent(inout) :: self
-   type(type_internal_variable),      intent(in)    :: variable
-   real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
-   integer,optional,                  intent(in)    :: source
+   class (type_model),                   intent(inout) :: self
+   type(type_internal_variable),         intent(in)    :: variable
+   real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
+   integer, optional,                    intent(in)    :: source
 !
 ! !LOCAL VARIABLES:
    integer :: i
@@ -1951,13 +1972,13 @@
 ! is identified by an external identifier.
 !
 ! !INTERFACE:
-   subroutine fabm_link_interior_data_by_id(self,id,dat,source)
+   subroutine fabm_link_interior_data_by_id(self, id, dat, source)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                intent(inout) :: self
-   type(type_bulk_variable_id),       intent(in)    :: id
-   real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
-   integer,optional,                  intent(in)    :: source
+   class (type_model),                   intent(inout) :: self
+   type(type_bulk_variable_id),          intent(in)    :: id
+   real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
+   integer,optional,                     intent(in)    :: source
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1975,15 +1996,15 @@
 ! is identified by its identity, a "standard variable" object.
 !
 ! !INTERFACE:
-   subroutine fabm_link_interior_data_by_sn(model,standard_variable,dat)
+   subroutine fabm_link_interior_data_by_sn(model, standard_variable, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                intent(inout) :: model
-   type(type_bulk_standard_variable), intent(in)    :: standard_variable
-   real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
+   class (type_model),                   intent(inout) :: model
+   type(type_bulk_standard_variable),    intent(in)    :: standard_variable
+   real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
 !
 ! !LOCAL VARIABLES:
-   type (type_bulk_variable_id)                             :: id
+   type (type_bulk_variable_id) :: id
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -2005,12 +2026,12 @@
 ! The variable is identified by its name.
 !
 ! !INTERFACE:
-   subroutine fabm_link_interior_data_by_name(model,name,dat)
+   subroutine fabm_link_interior_data_by_name(model, name, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,         intent(inout) :: model
-   character(len=*),                  intent(in)    :: name
-   real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
+   class (type_model), target,           intent(inout) :: model
+   character(len=*),                     intent(in)    :: name
+   real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
 !
 ! !LOCAL VARIABLES:
    type (type_bulk_variable_id) :: id
@@ -2035,13 +2056,13 @@
 ! The variable is identified by an internal variable object.
 !
 ! !INTERFACE:
-   subroutine fabm_link_horizontal_data_by_variable(self,variable,dat,source)
+   subroutine fabm_link_horizontal_data_by_variable(self, variable, dat, source)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                           intent(inout) :: self
-   type (type_internal_variable),                intent(in)    :: variable
-   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
-   integer,optional,                             intent(in)    :: source
+   class (type_model),                              intent(inout) :: self
+   type (type_internal_variable),                   intent(in)    :: variable
+   real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
+   integer, optional,                               intent(in)    :: source
 !
 ! !LOCAL VARIABLES:
    integer :: i
@@ -2079,13 +2100,13 @@
 ! The variable is identified by an external identifier.
 !
 ! !INTERFACE:
-   subroutine fabm_link_horizontal_data_by_id(self,id,dat,source)
+   subroutine fabm_link_horizontal_data_by_id(self, id, dat, source)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                           intent(inout) :: self
-   type (type_horizontal_variable_id),           intent(in)    :: id
-   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
-   integer,optional,                             intent(in)    :: source
+   class (type_model),                              intent(inout) :: self
+   type (type_horizontal_variable_id),              intent(in)    :: id
+   real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
+   integer, optional,                               intent(in)    :: source
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -2103,15 +2124,15 @@
 ! The variable is identified by its identity, a "standard variable" object.
 !
 ! !INTERFACE:
-   subroutine fabm_link_horizontal_data_by_sn(model,standard_variable,dat)
+   subroutine fabm_link_horizontal_data_by_sn(model, standard_variable, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                           intent(inout) :: model
-   type(type_horizontal_standard_variable),      intent(in)    :: standard_variable
-   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
+   class (type_model),                              intent(inout) :: model
+   type(type_horizontal_standard_variable),         intent(in)    :: standard_variable
+   real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 !
 ! !LOCAL VARIABLES:
-   type (type_horizontal_variable_id)                             :: id
+   type (type_horizontal_variable_id) :: id
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -2133,12 +2154,12 @@
 ! The variable is identified by its name.
 !
 ! !INTERFACE:
-   subroutine fabm_link_horizontal_data_by_name(model,name,dat)
+   subroutine fabm_link_horizontal_data_by_name(model, name, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                           intent(inout) :: model
-   character(len=*),                             intent(in)    :: name
-   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
+   class (type_model),                              intent(inout) :: model
+   character(len=*),                                intent(in)    :: name
+   real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 !
 ! !LOCAL VARIABLES:
    type(type_horizontal_variable_id) :: id
@@ -2163,13 +2184,13 @@
 ! external identifier.
 !
 ! !INTERFACE:
-   subroutine fabm_link_scalar_by_id(self,id,dat,source)
+   subroutine fabm_link_scalar_by_id(self, id, dat, source)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),            intent(inout) :: self
-   type (type_scalar_variable_id),intent(in)    :: id
-   real(rk),target,               intent(in)    :: dat
-   integer,optional,              intent(in)    :: source
+   class (type_model),             intent(inout) :: self
+   type (type_scalar_variable_id), intent(in)    :: id
+   real(rke), target,              intent(in)    :: dat
+   integer, optional,              intent(in)    :: source
 !
 ! !LOCAL VARIABLES:
    integer :: i
@@ -2200,12 +2221,12 @@
 ! is identified by its identity, a "standard variable" object.
 !
 ! !INTERFACE:
-   subroutine fabm_link_scalar_by_sn(model,standard_variable,dat)
+   subroutine fabm_link_scalar_by_sn(model, standard_variable, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                 intent(inout) :: model
-   type(type_global_standard_variable),intent(in)    :: standard_variable
-   real(rk),target,                    intent(in)    :: dat
+   class (type_model),                  intent(inout) :: model
+   type(type_global_standard_variable), intent(in)    :: standard_variable
+   real(rke), target,                   intent(in)    :: dat
 !
 ! !LOCAL VARIABLES:
    type (type_scalar_variable_id) :: id
@@ -2229,12 +2250,12 @@
 ! data for the specified variable. The variable is identified by its name.
 !
 ! !INTERFACE:
-   subroutine fabm_link_scalar_by_name(model,name,dat)
+   subroutine fabm_link_scalar_by_name(model, name, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),intent(inout) :: model
-   character(len=*),  intent(in)    :: name
-   real(rk),target,   intent(in)    :: dat
+   class (type_model), intent(inout) :: model
+   character(len=*),   intent(in)    :: name
+   real(rke), target,  intent(in)    :: dat
 !
 ! !LOCAL VARIABLES:
    type(type_scalar_variable_id) :: id
@@ -2243,10 +2264,10 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Obtain integer identifier of the variable.
-   id = fabm_get_scalar_variable_id(model,name)
+   id = fabm_get_scalar_variable_id(model, name)
 
    ! Only link the data if needed (if the variable identifier is valid).
-   if (fabm_is_variable_used(id)) call fabm_link_scalar_data(model,id,dat)
+   if (fabm_is_variable_used(id)) call fabm_link_scalar_data(model, id, dat)
 
    end subroutine fabm_link_scalar_by_name
 !EOC
@@ -2258,12 +2279,12 @@
 ! a single pelagic state variable.
 !
 ! !INTERFACE:
-   subroutine fabm_link_interior_state_data(self,id,dat)
+   subroutine fabm_link_interior_state_data(self, id, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                intent(inout) :: self
-   integer,                           intent(in)    :: id
-   real(rk) _DIMENSION_GLOBAL_,target,intent(in)    :: dat
+   class (type_model),                   intent(inout) :: self
+   integer,                              intent(in)    :: id
+   real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -2280,12 +2301,12 @@
 ! a single benthic state variable.
 !
 ! !INTERFACE:
-   subroutine fabm_link_bottom_state_data(self,id,dat)
+   subroutine fabm_link_bottom_state_data(self, id, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                           intent(inout) :: self
-   integer,                                      intent(in)    :: id
-   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
+   class (type_model),                              intent(inout) :: self
+   integer,                                         intent(in)    :: id
+   real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -2302,12 +2323,12 @@
 ! a single surface-bound state variable.
 !
 ! !INTERFACE:
-   subroutine fabm_link_surface_state_data(self,id,dat)
+   subroutine fabm_link_surface_state_data(self, id, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                           intent(inout) :: self
-   integer,                                      intent(in)    :: id
-   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
+   class (type_model),                              intent(inout) :: self
+   integer,                                         intent(in)    :: id
+   real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -2323,11 +2344,11 @@
 ! !IROUTINE: Provide FABM with data for all pelagic state variables.
 !
 ! !INTERFACE:
-   subroutine fabm_link_all_interior_state_data(self,dat)
+   subroutine fabm_link_all_interior_state_data(self, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                       intent(inout) :: self
-   real(rk) _DIMENSION_GLOBAL_PLUS_1_,target,intent(in)    :: dat
+   class (type_model),                          intent(inout) :: self
+   real(rke) _DIMENSION_GLOBAL_PLUS_1_, target, intent(in)    :: dat
 
    integer :: i
 !
@@ -2351,11 +2372,11 @@
 ! !IROUTINE: Provide FABM with data for all bottom state variables.
 !
 ! !INTERFACE:
-   subroutine fabm_link_all_bottom_state_data(self,dat)
+   subroutine fabm_link_all_bottom_state_data(self, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                                  intent(inout) :: self
-   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_,target,intent(in)    :: dat
+   class (type_model),                                     intent(inout) :: self
+   real(rke) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, target, intent(in)    :: dat
 
    integer :: i
 !
@@ -2367,7 +2388,7 @@
       call fatal_error('fabm_link_all_bottom_state_data','length of last dimension of provided array must match number of bottom state variables.')
 #endif
    do i=1,size(self%bottom_state_variables)
-      call fabm_link_bottom_state_data(self,i,dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
+      call fabm_link_bottom_state_data(self, i, dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
    end do
 
    end subroutine fabm_link_all_bottom_state_data
@@ -2379,11 +2400,11 @@
 ! !IROUTINE: Provide FABM with data for all surface state variables.
 !
 ! !INTERFACE:
-   subroutine fabm_link_all_surface_state_data(self,dat)
+   subroutine fabm_link_all_surface_state_data(self, dat)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                                  intent(inout) :: self
-   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_,target,intent(in)    :: dat
+   class (type_model),                                     intent(inout) :: self
+   real(rke) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, target, intent(in)    :: dat
 
    integer :: i
 !
@@ -2395,7 +2416,7 @@
       call fatal_error('fabm_link_all_surface_state_data','length of last dimension of provided array must match number of surface state variables.')
 #endif
    do i=1,size(self%surface_state_variables)
-      call fabm_link_surface_state_data(self,i,dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
+      call fabm_link_surface_state_data(self, i, dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
    end do
 
    end subroutine fabm_link_all_surface_state_data
@@ -2413,7 +2434,7 @@
 ! !INPUT PARAMETERS:
    class (type_model), intent(in) :: self
    integer,            intent(in) :: index
-   real(rk) _DIMENSION_GLOBAL_,pointer           :: dat
+   real(rke) _DIMENSION_GLOBAL_, pointer :: dat
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -2438,7 +2459,7 @@
 ! !INPUT PARAMETERS:
    class (type_model), intent(in) :: self
    integer,            intent(in) :: index
-   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,pointer         :: dat
+   real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, pointer :: dat
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -2450,20 +2471,20 @@
    end function fabm_get_horizontal_diagnostic_data
 !EOC
 
-function fabm_get_interior_data(self,id) result(dat)
-   class (type_model),target,         intent(in) :: self
-   type(type_bulk_variable_id),       intent(in) :: id
-   real(rk) _DIMENSION_GLOBAL_,pointer           :: dat
+function fabm_get_interior_data(self, id) result(dat)
+   class (type_model), target,   intent(in) :: self
+   type(type_bulk_variable_id),  intent(in) :: id
+   real(rke) _DIMENSION_GLOBAL_, pointer    :: dat
 
    _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_interior_data', 'model%get_data can only be called after model start.')
    nullify(dat)
    if (id%variable%catalog_index /= -1) dat => self%catalog%interior(id%variable%catalog_index)%p
 end function fabm_get_interior_data
 
-function fabm_get_horizontal_data(self,id) result(dat)
-   class (type_model),target,          intent(in) :: self
-   type(type_horizontal_variable_id),  intent(in) :: id
-   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,pointer :: dat
+function fabm_get_horizontal_data(self, id) result(dat)
+   class (type_model), target,              intent(in)    :: self
+   type(type_horizontal_variable_id),       intent(in)    :: id
+   real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, pointer :: dat
 
    _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_horizontal_data', 'model%get_data can only be called after model start.')
    nullify(dat)
@@ -2471,109 +2492,22 @@ function fabm_get_horizontal_data(self,id) result(dat)
 end function fabm_get_horizontal_data
 
 function fabm_get_scalar_data(self,id) result(dat)
-   class (type_model),target,          intent(in) :: self
-   type(type_scalar_variable_id),      intent(in) :: id
-   real(rk),pointer                               :: dat
+   class (type_model), target,    intent(in) :: self
+   type(type_scalar_variable_id), intent(in) :: id
+   real(rke),                     pointer    :: dat
 
    _ASSERT_(self%state >= state_check_ready_done, 'fabm_get_scalar_data', 'model%get_data can only be called after model start.')
    nullify(dat)
    if (id%variable%catalog_index /= -1) dat => self%catalog%scalar(id%variable%catalog_index)%p
 end function fabm_get_scalar_data
 
-subroutine create_cache(self, cache, cache_type)
+subroutine create_cache(self, cache, write, write_hz)
    type (type_model), intent(in)  :: self
-   type (type_cache), intent(out) :: cache
-   integer,           intent(in)  :: cache_type
+   class (type_cache), intent(inout) :: cache
+   real(rki), allocatable, optional _DIMENSION_SLICE_PLUS_1_            :: write
+   real(rki), allocatable, optional _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
 
-   integer :: n, n_mod, i
-
-   select case (cache_type)
-   case (cache_type_interior)
-#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
-      n_mod = mod(n, array_block_size)
-      if (n_mod /= 0) n = n - n_mod + array_block_size
-#  ifdef _HAS_MASK_
-      allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
-      allocate(cache%iunpack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
-#  endif
-#else
-      n = 1
-#endif
-
-#ifdef _INTERIOR_IS_VECTORIZED_
-      allocate(cache%read(n, self%variable_register%read_cache%interior%count))
-      allocate(cache%write(n, 0:self%variable_register%write_cache%interior%count))
-#else
-      allocate(cache%read(self%variable_register%read_cache%interior%count))
-      allocate(cache%write(0:self%variable_register%write_cache%interior%count))
-#endif
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-      allocate(cache%read_hz(n, self%variable_register%read_cache%horizontal%count))
-#else
-      allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
-#endif
-
-   case(cache_type_horizontal)
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-      n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
-      n_mod = mod(n, array_block_size)
-      if (n_mod /= 0) n = n - n_mod + array_block_size
-#  ifdef _HAS_MASK_
-      allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
-      allocate(cache%iunpack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
-#  endif
-#else
-      n = 1
-#endif
-
-#ifdef _INTERIOR_IS_VECTORIZED_
-      allocate(cache%read(n, self%variable_register%read_cache%interior%count))
-#else
-      allocate(cache%read(self%variable_register%read_cache%interior%count))
-#endif
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-      allocate(cache%read_hz(n, self%variable_register%read_cache%horizontal%count))
-      allocate(cache%write_hz(n, 0:self%variable_register%write_cache%horizontal%count))
-#else
-      allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
-      allocate(cache%write_hz(0:self%variable_register%write_cache%horizontal%count))
-#endif
-
-   case(cache_type_vertical)
-
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      n = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
-      n_mod = mod(n, array_block_size)
-      if (n_mod /= 0) n = n - n_mod + array_block_size
-#  ifdef _HAS_MASK_
-      allocate(cache%ipack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
-      allocate(cache%iunpack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
-#  endif
-#else
-       n = 1
-#endif
-
-#ifdef _INTERIOR_IS_VECTORIZED_
-      allocate(cache%read(n, self%variable_register%read_cache%interior%count))
-      allocate(cache%write(n, 0:self%variable_register%write_cache%interior%count))
-#else
-      allocate(cache%read(self%variable_register%read_cache%interior%count))
-      allocate(cache%write(0:self%variable_register%write_cache%interior%count))
-#endif
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-      allocate(cache%read_hz(1, self%variable_register%read_cache%horizontal%count))
-      allocate(cache%write_hz(1, 0:self%variable_register%write_cache%horizontal%count))
-#else
-      allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
-      allocate(cache%write_hz(0:self%variable_register%write_cache%horizontal%count))
-#endif
-
-   end select
+   integer :: i
 
    allocate(cache%read_scalar(self%variable_register%read_cache%scalar%count))
 
@@ -2597,31 +2531,137 @@ subroutine create_cache(self, cache, cache_type)
       cache%read_scalar(i) = self%read_cache_scalar_fill_value(i)
    end do
 
-   if (allocated(cache%write)) then
+   if (present(write)) then
       do i = 1, self%variable_register%write_cache%interior%count
 #if defined(_INTERIOR_IS_VECTORIZED_)
-         cache%write(:, i) = self%write_cache_fill_value(i)
+         write(:, i) = self%write_cache_fill_value(i)
 #else
-         cache%write(i) = self%write_cache_fill_value(i)
+         write(i) = self%write_cache_fill_value(i)
 #endif
       end do
    end if
 
-   if (allocated(cache%write_hz)) then
+   if (present(write_hz)) then
       do i = 1, self%variable_register%write_cache%horizontal%count
 #if defined(_HORIZONTAL_IS_VECTORIZED_)
-         cache%write_hz(:, i) = self%write_cache_hz_fill_value(i)
+         write_hz(:, i) = self%write_cache_hz_fill_value(i)
 #else
-         cache%write_hz(i) = self%write_cache_hz_fill_value(i)
+         write_hz(i) = self%write_cache_hz_fill_value(i)
 #endif
       end do
    end if
 end subroutine create_cache
 
-subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
-   type (type_model), intent(in)    :: self
-   type (type_task),  intent(in)    :: task
-   type (type_cache), intent(inout) :: cache
+subroutine create_interior_cache(self, cache)
+   type (type_model),          intent(in)  :: self
+   type (type_interior_cache), intent(out) :: cache
+   
+   integer :: n, n_mod, i
+   
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
+   n_mod = mod(n, array_block_size)
+   if (n_mod /= 0) n = n - n_mod + array_block_size
+#  ifdef _HAS_MASK_
+   allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
+   allocate(cache%iunpack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
+#  endif
+#else
+   n = 1
+#endif
+
+#ifdef _INTERIOR_IS_VECTORIZED_
+   allocate(cache%read(n, self%variable_register%read_cache%interior%count))
+   allocate(cache%write(n, 0:self%variable_register%write_cache%interior%count))
+#else
+   allocate(cache%read(self%variable_register%read_cache%interior%count))
+   allocate(cache%write(0:self%variable_register%write_cache%interior%count))
+#endif
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(cache%read_hz(n, self%variable_register%read_cache%horizontal%count))
+#else
+   allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
+#endif
+
+   call create_cache(self, cache, write=cache%write)
+end subroutine
+
+subroutine create_horizontal_cache(self, cache)
+   type (type_model),            intent(in)  :: self
+   type (type_horizontal_cache), intent(out) :: cache
+
+   integer :: n, n_mod, i
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
+   n_mod = mod(n, array_block_size)
+   if (n_mod /= 0) n = n - n_mod + array_block_size
+#  ifdef _HAS_MASK_
+   allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
+   allocate(cache%iunpack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
+#  endif
+#else
+   n = 1
+#endif
+
+#ifdef _INTERIOR_IS_VECTORIZED_
+   allocate(cache%read(n, self%variable_register%read_cache%interior%count))
+#else
+   allocate(cache%read(self%variable_register%read_cache%interior%count))
+#endif
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(cache%read_hz(n, self%variable_register%read_cache%horizontal%count))
+   allocate(cache%write_hz(n, 0:self%variable_register%write_cache%horizontal%count))
+#else
+   allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
+   allocate(cache%write_hz(0:self%variable_register%write_cache%horizontal%count))
+#endif
+   call create_cache(self, cache, write_hz=cache%write_hz)
+end subroutine
+
+subroutine create_vertical_cache(self, cache)
+   type (type_model),          intent(in)  :: self
+   type (type_vertical_cache), intent(out) :: cache
+
+   integer :: n, n_mod, i
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   n = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
+   n_mod = mod(n, array_block_size)
+   if (n_mod /= 0) n = n - n_mod + array_block_size
+#  ifdef _HAS_MASK_
+   allocate(cache%ipack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
+   allocate(cache%iunpack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
+#  endif
+#else
+   n = 1
+#endif
+
+#ifdef _INTERIOR_IS_VECTORIZED_
+   allocate(cache%read(n, self%variable_register%read_cache%interior%count))
+   allocate(cache%write(n, 0:self%variable_register%write_cache%interior%count))
+#else
+   allocate(cache%read(self%variable_register%read_cache%interior%count))
+   allocate(cache%write(0:self%variable_register%write_cache%interior%count))
+#endif
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(cache%read_hz(1, self%variable_register%read_cache%horizontal%count))
+   allocate(cache%write_hz(1, 0:self%variable_register%write_cache%horizontal%count))
+#else
+   allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
+   allocate(cache%write_hz(0:self%variable_register%write_cache%horizontal%count))
+#endif
+
+   call create_cache(self, cache, write=cache%write, write_hz=cache%write_hz)
+end subroutine
+
+subroutine begin_interior_task(self, task, cache _ARGUMENTS_INTERIOR_IN_)
+   type (type_model),          intent(in)    :: self
+   type (type_task),           intent(in)    :: task
+   type (type_interior_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    _DECLARE_INTERIOR_INDICES_
 
@@ -2681,9 +2721,9 @@ subroutine begin_interior_task(self,task,cache _ARGUMENTS_INTERIOR_IN_)
 end subroutine begin_interior_task
 
 subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_model), intent(in)    :: self
-   type (type_task),  intent(in)    :: task
-   type (type_cache), intent(inout) :: cache
+   type (type_model),            intent(in)    :: self
+   type (type_task),             intent(in)    :: task
+   type (type_horizontal_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
@@ -2737,9 +2777,9 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 end subroutine begin_horizontal_task
 
 subroutine load_surface_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_model), intent(in)    :: self
-   type (type_task),  intent(in)    :: task
-   type (type_cache), intent(inout) :: cache
+   type (type_model),            intent(in)    :: self
+   type (type_task),             intent(in)    :: task
+   type (type_horizontal_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
@@ -2771,9 +2811,9 @@ subroutine load_surface_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 end subroutine load_surface_data
    
 subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_model), intent(in)    :: self
-   type (type_task),  intent(in)    :: task
-   type (type_cache), intent(inout) :: cache
+   type (type_model),            intent(in)    :: self
+   type (type_task),             intent(in)    :: task
+   type (type_horizontal_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
@@ -2820,9 +2860,9 @@ subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 end subroutine load_bottom_data
 
 subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
-   type (type_model), intent(in)    :: self
-   type (type_task),  intent(in)    :: task
-   type (type_cache), intent(inout) :: cache
+   type (type_model),          intent(in)    :: self
+   type (type_task),           intent(in)    :: task
+   type (type_vertical_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_VERTICAL_IN_
    _DECLARE_VERTICAL_INDICES_
 
@@ -2927,11 +2967,59 @@ subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
 
 end subroutine begin_vertical_task
 
-subroutine invalidate_call_output(call_node, cache)
+subroutine invalidate_interior_call_output(call_node, cache)
    use fabm_graph, only: type_output_variable_set_node
 
-   type (type_call),  intent(in)    :: call_node
-   type (type_cache), intent(inout) :: cache
+   type (type_call),           intent(in)    :: call_node
+   type (type_interior_cache), intent(inout) :: cache
+   _DECLARE_INTERIOR_INDICES_
+
+   type (type_output_variable_set_node), pointer :: output_variable
+   integer                                       :: i
+
+   output_variable => call_node%graph_node%outputs%first
+   do while (associated(output_variable))
+      if (output_variable%p%target%prefill == prefill_none) then
+         i = output_variable%p%target%write_indices%value
+#if defined(_INTERIOR_IS_VECTORIZED_)
+         cache%write(:, i) = not_written
+#else
+         cache%write(i) = not_written
+#endif
+      end if
+      output_variable => output_variable%next
+   end do
+end subroutine
+
+subroutine invalidate_horizontal_call_output(call_node, cache)
+   use fabm_graph, only: type_output_variable_set_node
+
+   type (type_call),             intent(in)    :: call_node
+   type (type_horizontal_cache), intent(inout) :: cache
+   _DECLARE_INTERIOR_INDICES_
+
+   type (type_output_variable_set_node), pointer :: output_variable
+   integer                                       :: i
+
+   output_variable => call_node%graph_node%outputs%first
+   do while (associated(output_variable))
+      if (output_variable%p%target%prefill == prefill_none) then
+         i = output_variable%p%target%write_indices%value
+#if defined(_HORIZONTAL_IS_VECTORIZED_)
+         cache%write_hz(:, i) = not_written
+#else
+         cache%write_hz(i) = not_written
+#endif
+      end if
+      output_variable => output_variable%next
+   end do
+end subroutine
+
+subroutine invalidate_vertical_call_output(call_node, cache)
+   use fabm_graph, only: type_output_variable_set_node
+
+   type (type_call),           intent(in)    :: call_node
+   type (type_vertical_cache), intent(inout) :: cache
    _DECLARE_INTERIOR_INDICES_
 
    type (type_output_variable_set_node), pointer :: output_variable
@@ -2964,8 +3052,8 @@ subroutine check_interior_call_output(call_node, cache)
    use fabm_graph, only: type_output_variable_set_node
    use, intrinsic :: ieee_arithmetic
 
-   type (type_call),  intent(in) :: call_node
-   type (type_cache), intent(in) :: cache
+   type (type_call),           intent(in) :: call_node
+   type (type_interior_cache), intent(in) :: cache
    _DECLARE_INTERIOR_INDICES_
 
    type (type_output_variable_set_node), pointer :: output_variable
@@ -2991,8 +3079,8 @@ subroutine check_horizontal_call_output(call_node, cache)
    use fabm_graph, only: type_output_variable_set_node
    use, intrinsic :: ieee_arithmetic
 
-   type (type_call),  intent(in) :: call_node
-   type (type_cache), intent(in) :: cache
+   type (type_call),             intent(in) :: call_node
+   type (type_horizontal_cache), intent(in) :: cache
    _DECLARE_HORIZONTAL_INDICES_
 
    type (type_output_variable_set_node), pointer :: output_variable
@@ -3018,8 +3106,8 @@ subroutine check_vertical_call_output(call_node, cache)
    use fabm_graph, only: type_output_variable_set_node
    use, intrinsic :: ieee_arithmetic
 
-   type (type_call),  intent(in) :: call_node
-   type (type_cache), intent(in) :: cache
+   type (type_call),           intent(in) :: call_node
+   type (type_vertical_cache), intent(in) :: cache
    _DECLARE_VERTICAL_INDICES_
 
    type (type_output_variable_set_node), pointer :: output_variable
@@ -3051,9 +3139,9 @@ subroutine check_vertical_call_output(call_node, cache)
 end subroutine check_vertical_call_output
 
 subroutine end_interior_task(task, cache, store _ARGUMENTS_INTERIOR_IN_)
-   type (type_task), intent(in)    :: task
-   type (type_cache),intent(in)    :: cache
-   type (type_store),intent(inout) :: store
+   type (type_task),           intent(in)    :: task
+   type (type_interior_cache), intent(in)    :: cache
+   type (type_store),          intent(inout) :: store
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    _DECLARE_INTERIOR_INDICES_
 
@@ -3068,9 +3156,9 @@ subroutine end_interior_task(task, cache, store _ARGUMENTS_INTERIOR_IN_)
 end subroutine end_interior_task
 
 subroutine end_horizontal_task(task, cache, store _ARGUMENTS_HORIZONTAL_IN_)
-   type (type_task),  intent(in)    :: task
-   type (type_cache), intent(in)    :: cache
-   type (type_store), intent(inout) :: store
+   type (type_task),             intent(in)    :: task
+   type (type_horizontal_cache), intent(in)    :: cache
+   type (type_store),            intent(inout) :: store
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    _DECLARE_HORIZONTAL_INDICES_
 
@@ -3085,9 +3173,9 @@ subroutine end_horizontal_task(task, cache, store _ARGUMENTS_HORIZONTAL_IN_)
 end subroutine end_horizontal_task
 
 subroutine end_vertical_task(task, cache, store _ARGUMENTS_VERTICAL_IN_)
-   type (type_task),  intent(in)    :: task
-   type (type_cache), intent(in)    :: cache
-   type (type_store), intent(inout) :: store
+   type (type_task),           intent(in)    :: task
+   type (type_vertical_cache), intent(in)    :: cache
+   type (type_store),          intent(inout) :: store
    _DECLARE_ARGUMENTS_VERTICAL_IN_
    _DECLARE_VERTICAL_INDICES_
 
@@ -3288,14 +3376,14 @@ end subroutine end_vertical_task
 ! model tree.
 !
 ! !INTERFACE:
-   subroutine fabm_do_rhs(self _ARGUMENTS_INTERIOR_IN_,dy)
+   subroutine fabm_do_rhs(self _ARGUMENTS_INTERIOR_IN_, dy)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                    intent(inout) :: self
+   class (type_model),                     intent(inout) :: self
    _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_, intent(inout) :: dy
+   real(rke) _DIMENSION_EXT_SLICE_PLUS_1_, intent(inout) :: dy
 !
 ! !LOCAL PARAMETERS:
    integer :: i, k
@@ -3331,18 +3419,18 @@ end subroutine end_vertical_task
 ! model tree in the form of production and destruction matrices.
 !
 ! !INTERFACE:
-   subroutine fabm_do_ppdd(self _ARGUMENTS_INTERIOR_IN_,pp,dd)
+   subroutine fabm_do_ppdd(self _ARGUMENTS_INTERIOR_IN_, pp, dd)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                   intent(inout) :: self
+   class (type_model),                    intent(inout) :: self
   _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_EXT_SLICE_PLUS_2_,intent(inout) :: pp,dd
+   real(rke) _DIMENSION_EXT_SLICE_PLUS_2_,intent(inout) :: pp, dd
 !
 ! !LOCAL PARAMETERS:
    type (type_call), pointer :: call_node
-   integer                   :: i,j,k
+   integer                   :: i, j, k
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
@@ -3389,7 +3477,7 @@ end subroutine end_vertical_task
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   subroutine fabm_check_state(self _ARGUMENTS_INTERIOR_IN_,repair,valid)
+   subroutine fabm_check_state(self _ARGUMENTS_INTERIOR_IN_, repair, valid)
 !
 ! !INPUT PARAMETERS:
    class (type_model),     intent(inout) :: self
@@ -3400,7 +3488,7 @@ end subroutine end_vertical_task
 ! !LOCAL PARAMETERS:
    integer                   :: ivar, read_index
    type (type_call), pointer :: call_node
-   real(rk)                  :: value,minimum,maximum
+   real(rki)                 :: value, minimum, maximum
    character(len=256)        :: err
    logical                   :: set_interior
    _DECLARE_INTERIOR_INDICES_
@@ -3409,18 +3497,18 @@ end subroutine end_vertical_task
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_check_state')
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_, 'fabm_check_state')
 #endif
 
    valid = .true.
    set_interior = .false.
 
-   call begin_interior_task(self,self%check_state_job%first_task,self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call begin_interior_task(self, self%check_state_job%first_task, self%cache_int _ARGUMENTS_INTERIOR_IN_)
 
    ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
    call_node => self%check_state_job%first_task%first_call
    do while (associated(call_node) .and. valid)
-      if (call_node%source==source_check_state) call call_node%model%check_state(self%cache_int,repair,valid,set_interior)
+      if (call_node%source==source_check_state) call call_node%model%check_state(self%cache_int, repair, valid, set_interior)
       if (.not. (valid .or. repair)) return
       call_node => call_node%next
    end do
@@ -3431,8 +3519,8 @@ end subroutine end_vertical_task
    ! Quick bounds check for the common case where all values are valid.
    do ivar=1,size(self%state_variables)
       read_index = self%state_variables(ivar)%target%read_indices%value
-      minimum = self%state_variables(ivar)%minimum
-      maximum = self%state_variables(ivar)%maximum
+      minimum = self%state_variables(ivar)%target%minimum
+      maximum = self%state_variables(ivar)%target%maximum
       _LOOP_BEGIN_EX_(self%cache_int)
          value = self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index)
          if (value<minimum.or.value>maximum) valid = .false.
@@ -3446,8 +3534,8 @@ end subroutine end_vertical_task
    do ivar=1,size(self%state_variables)
       ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
       read_index = self%state_variables(ivar)%target%read_indices%value
-      minimum = self%state_variables(ivar)%minimum
-      maximum = self%state_variables(ivar)%maximum
+      minimum = self%state_variables(ivar)%target%minimum
+      maximum = self%state_variables(ivar)%target%maximum
 
       if (repair) then
          _CONCURRENT_LOOP_BEGIN_EX_(self%cache_int)
@@ -3544,7 +3632,7 @@ end subroutine end_vertical_task
    end subroutine fabm_check_surface_state
 !EOC
 
-subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,flag,state_variables,repair,valid)
+subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_, flag, state_variables, repair, valid)
    class (type_model),                        intent(inout) :: self
    type (type_job),                           intent(in)    :: job
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
@@ -3554,15 +3642,15 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
    logical,                                   intent(out)   :: valid
 
    type (type_call), pointer :: call_node
-   integer                   :: ivar,read_index
-   real(rk)                  :: value,minimum,maximum
+   integer                   :: ivar, read_index
+   real(rki)                 :: value, minimum, maximum
    character(len=256)        :: err
    _DECLARE_HORIZONTAL_INDICES_
-   logical                   :: set_horizontal,set_interior
+   logical                   :: set_horizontal, set_interior
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
    integer :: _VERTICAL_ITERATOR_
 #endif
-#if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)&&defined(_HAS_MASK_)
+#if _FABM_BOTTOM_INDEX_==-1 && defined(_HORIZONTAL_IS_VECTORIZED_) && defined(_HAS_MASK_)
    integer :: j
 #endif
 
@@ -3589,8 +3677,8 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_,fl
    do ivar=1,size(state_variables)
       ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
       read_index = state_variables(ivar)%target%read_indices%value
-      minimum = state_variables(ivar)%minimum
-      maximum = state_variables(ivar)%maximum
+      minimum = state_variables(ivar)%target%minimum
+      maximum = state_variables(ivar)%target%maximum
 
       _HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
          value = self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index)
@@ -3707,15 +3795,15 @@ end subroutine internal_check_horizontal_state
 ! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
-   subroutine fabm_do_surface(self _ARGUMENTS_HORIZONTAL_IN_,flux_pel,flux_sf)
+   subroutine fabm_do_surface(self _ARGUMENTS_HORIZONTAL_IN_, flux_pel, flux_sf)
 !
 ! !INPUT PARAMETERS:
-      class (type_model),                          intent(inout) :: self
+      class (type_model),                            intent(inout)         :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)          :: flux_pel
-      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out),optional :: flux_sf
+      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out)           :: flux_pel
+      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out), optional :: flux_sf
 !
 ! !LOCAL PARAMETERS:
       integer :: i, k
@@ -3766,14 +3854,14 @@ end subroutine internal_check_horizontal_state
 ! Positive values denote state variable increases, negative values state variable decreases.
 !
 ! !INTERFACE:
-   subroutine fabm_do_bottom_rhs(self _ARGUMENTS_HORIZONTAL_IN_,flux_pel,flux_ben)
+   subroutine fabm_do_bottom_rhs(self _ARGUMENTS_HORIZONTAL_IN_, flux_pel, flux_ben)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                          intent(inout) :: self
+   class (type_model),                            intent(inout) :: self
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel, flux_ben
+   real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(inout) :: flux_pel, flux_ben
 !
 ! !LOCAL PARAMETERS:
    integer :: i, k
@@ -3819,19 +3907,19 @@ end subroutine internal_check_horizontal_state
 ! for the pelagic, and variable units/s for the benthos.
 !
 ! !INTERFACE:
-   subroutine fabm_do_bottom_ppdd(self _ARGUMENTS_HORIZONTAL_IN_,pp,dd,benthos_offset)
+   subroutine fabm_do_bottom_ppdd(self _ARGUMENTS_HORIZONTAL_IN_, pp, dd, benthos_offset)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                          intent(inout) :: self
+   class (type_model),                            intent(inout) :: self
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   integer,                                     intent(in)    :: benthos_offset
+   integer,                                       intent(in)    :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd
+   real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_, intent(inout) :: pp, dd
 !
 ! !LOCAL PARAMETERS:
    type (type_call), pointer :: call_node
-   integer                   :: i,j,k
+   integer                   :: i, j, k
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
@@ -3872,14 +3960,14 @@ end subroutine internal_check_horizontal_state
 ! and positive values indicate movemment towards the surface, e.g., floating.
 !
 ! !INTERFACE:
-   subroutine fabm_get_vertical_movement(self _ARGUMENTS_INTERIOR_IN_,velocity)
+   subroutine fabm_get_vertical_movement(self _ARGUMENTS_INTERIOR_IN_, velocity)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                   intent(inout) :: self
+   class (type_model),                     intent(inout) :: self
    _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out)   :: velocity
+   real(rke) _DIMENSION_EXT_SLICE_PLUS_1_, intent(out)   :: velocity
 !
 ! !LOCAL PARAMETERS:
    integer                   :: i, k
@@ -3915,12 +4003,12 @@ end subroutine internal_check_horizontal_state
 ! variables
 !
 ! !INTERFACE:
-   subroutine fabm_get_light_extinction(self _ARGUMENTS_INTERIOR_IN_,extinction)
+   subroutine fabm_get_light_extinction(self _ARGUMENTS_INTERIOR_IN_, extinction)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),            intent(inout) :: self
+   class (type_model),              intent(inout) :: self
    _DECLARE_ARGUMENTS_INTERIOR_IN_
-   real(rk) _DIMENSION_EXT_SLICE_,intent(out)   :: extinction
+   real(rke) _DIMENSION_EXT_SLICE_, intent(out)   :: extinction
 !
 ! !LOCAL PARAMETERS:
    _DECLARE_INTERIOR_INDICES_
@@ -3969,12 +4057,12 @@ end subroutine internal_check_horizontal_state
 ! 1 leaving drag unchanged, and 0 suppressing it completely.
 !
 ! !INTERFACE:
-   subroutine fabm_get_drag(self _ARGUMENTS_HORIZONTAL_IN_,drag)
+   subroutine fabm_get_drag(self _ARGUMENTS_HORIZONTAL_IN_, drag)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                   intent(inout) :: self
+   class (type_model),                     intent(inout) :: self
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: drag
+   real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(out)   :: drag
 !
 ! !LOCAL PARAMETERS:
    type (type_call), pointer :: call_node
@@ -4011,12 +4099,12 @@ end subroutine internal_check_horizontal_state
 ! This feedback is represented by an albedo value (0-1) relating to biogeochemistry.
 !
 ! !INTERFACE:
-   subroutine fabm_get_albedo(self _ARGUMENTS_HORIZONTAL_IN_,albedo)
+   subroutine fabm_get_albedo(self _ARGUMENTS_HORIZONTAL_IN_, albedo)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                   intent(inout) :: self
+   class (type_model),                     intent(inout) :: self
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: albedo
+   real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(out)   :: albedo
 !
 ! !LOCAL PARAMETERS:
    type (type_call), pointer :: call_node
@@ -4052,12 +4140,12 @@ end subroutine internal_check_horizontal_state
 ! !IROUTINE: Get the total of all conserved quantities in pelagic domain
 !
 ! !INTERFACE:
-   subroutine fabm_get_conserved_quantities(self _ARGUMENTS_INTERIOR_IN_,sums)
+   subroutine fabm_get_conserved_quantities(self _ARGUMENTS_INTERIOR_IN_, sums)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                   intent(inout) :: self
+   class (type_model),                     intent(inout) :: self
    _DECLARE_ARGUMENTS_INTERIOR_IN_
-   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out)   :: sums
+   real(rke) _DIMENSION_EXT_SLICE_PLUS_1_, intent(out)   :: sums
 !
 ! !LOCAL PARAMETERS:
    integer :: i
@@ -4090,12 +4178,12 @@ end subroutine internal_check_horizontal_state
 ! !IROUTINE: Get the total of all conserved quantities at top and bottom boundaries
 !
 ! !INTERFACE:
-   subroutine fabm_get_horizontal_conserved_quantities(self _ARGUMENTS_HORIZONTAL_IN_,sums)
+   subroutine fabm_get_horizontal_conserved_quantities(self _ARGUMENTS_HORIZONTAL_IN_, sums)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),                          intent(inout) :: self
+   class (type_model),                            intent(inout) :: self
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: sums
+   real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out)   :: sums
 !
 ! !LOCAL PARAMETERS:
    integer :: i
@@ -4207,9 +4295,9 @@ end subroutine internal_check_horizontal_state
 #endif
 
    subroutine fabm_process_interior_slice(self, task, cache _ARGUMENTS_INTERIOR_IN_)
-      class (type_model),intent(inout), target :: self
-      type (type_task),  intent(in)            :: task
-      type (type_cache), intent(inout)         :: cache
+      class (type_model),         intent(inout)  :: self
+      type (type_task),           intent(in)     :: task
+      type (type_interior_cache), intent(inout)  :: cache
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
       type (type_call), pointer :: call_node
@@ -4222,7 +4310,7 @@ end subroutine internal_check_horizontal_state
       do while (associated(call_node))
          if (call_node%active) then
 #ifndef NDEBUG
-            call invalidate_call_output(call_node, cache)
+            call invalidate_interior_call_output(call_node, cache)
 #endif
 
             select case (call_node%source)
@@ -4254,9 +4342,9 @@ end subroutine internal_check_horizontal_state
    end subroutine fabm_process_interior_slice
 
    subroutine fabm_process_horizontal_slice(self, task, cache _ARGUMENTS_HORIZONTAL_IN_)
-      class (type_model),intent(inout) :: self
-      type (type_task),  intent(in)    :: task
-      type (type_cache), intent(inout) :: cache
+      class (type_model),           intent(inout) :: self
+      type (type_task),             intent(in)    :: task
+      type (type_horizontal_cache), intent(inout) :: cache
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
       type (type_call), pointer :: call_node
@@ -4269,7 +4357,7 @@ end subroutine internal_check_horizontal_state
       do while (associated(call_node))
          if (call_node%active) then
 #ifndef NDEBUG
-            call invalidate_call_output(call_node, cache)
+            call invalidate_horizontal_call_output(call_node, cache)
 #endif
 
             select case (call_node%source)
@@ -4300,9 +4388,9 @@ end subroutine internal_check_horizontal_state
    end subroutine fabm_process_horizontal_slice
 
    subroutine fabm_process_vertical_slice(self, task, cache _ARGUMENTS_VERTICAL_IN_)
-      class (type_model),intent(inout) :: self
-      type (type_task),  intent(in)    :: task
-      type (type_cache), intent(inout) :: cache
+      class (type_model),         intent(inout) :: self
+      type (type_task),           intent(in)    :: task
+      type (type_vertical_cache), intent(inout) :: cache
       _DECLARE_ARGUMENTS_VERTICAL_IN_
 
       type (type_call), pointer :: call_node
@@ -4316,7 +4404,7 @@ end subroutine internal_check_horizontal_state
 
          if (call_node%active) then
 #ifndef NDEBUG
-            call invalidate_call_output(call_node, cache)
+            call invalidate_vertical_call_output(call_node, cache)
 #endif
 
             call call_node%model%get_light(cache)
@@ -4353,7 +4441,7 @@ end subroutine internal_check_horizontal_state
 
 subroutine fabm_update_time1(self,t)
    class (type_model), intent(inout) :: self
-   real(rk),           intent(in)    :: t
+   real(rke),          intent(in)    :: t
 
    class (type_expression),pointer :: expression
 
@@ -4373,7 +4461,7 @@ contains
    subroutine update_bulk_temporal_mean(expression)
       class (type_bulk_temporal_mean), intent(inout) :: expression
       integer  :: i
-      real(rk) :: weight_right,frac_outside
+      real(rke) :: weight_right, frac_outside
 
       if (expression%ioldest==-1) then
          ! Start of simulation
@@ -4438,7 +4526,7 @@ contains
    subroutine update_horizontal_temporal_mean(expression)
       class (type_horizontal_temporal_mean), intent(inout) :: expression
       integer  :: i
-      real(rk) :: weight_right,frac_outside
+      real(rke) :: weight_right, frac_outside
 
       if (expression%ioldest==-1) then
          ! Start of simulation; set entire history equal to current value.
@@ -4488,9 +4576,9 @@ end subroutine fabm_update_time1
 
 subroutine fabm_update_time2(self, t, year, month, day, seconds)
    class (type_model), intent(inout) :: self
-   real(rk),           intent(in)    :: t
+   real(rke),          intent(in)    :: t
    integer,            intent(in)    :: year, month, day
-   real(rk),           intent(in)    :: seconds
+   real(rke),          intent(in)    :: seconds
 
    call fabm_update_time1(self, t)
    call self%schedules%update(year, month, day, seconds)
@@ -4897,7 +4985,7 @@ end subroutine classify_variables
    end subroutine check_vertical_location
 
    subroutine check_extents_1d(array,required_size1,routine,array_name,shape_description)
-      real(rk),        intent(in) :: array(:)
+      real(rke),       intent(in) :: array(:)
       integer,         intent(in) :: required_size1
       character(len=*),intent(in) :: routine,array_name,shape_description
       character(len=8) :: actual,required
@@ -4909,7 +4997,7 @@ end subroutine classify_variables
    end subroutine check_extents_1d
 
    subroutine check_extents_2d(array,required_size1,required_size2,routine,array_name,shape_description)
-      real(rk),        intent(in) :: array(:,:)
+      real(rke),       intent(in) :: array(:,:)
       integer,         intent(in) :: required_size1,required_size2
       character(len=*),intent(in) :: routine,array_name,shape_description
       character(len=17) :: actual,required
@@ -4921,7 +5009,7 @@ end subroutine classify_variables
    end subroutine check_extents_2d
 
    subroutine check_extents_3d(array,required_size1,required_size2,required_size3,routine,array_name,shape_description)
-      real(rk),        intent(in) :: array(:,:,:)
+      real(rke),       intent(in) :: array(:,:,:)
       integer,         intent(in) :: required_size1,required_size2,required_size3
       character(len=*),intent(in) :: routine,array_name,shape_description
       character(len=26) :: actual,required

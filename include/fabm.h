@@ -89,9 +89,6 @@
 #  define _DIMENSION_HORIZONTAL_SLICE_AUTOMATIC_
 #endif
 
-#define _ARGUMENTS_SHARED_ cache
-#define _DECLARE_ARGUMENTS_SHARED_ type (type_cache),intent(inout) :: cache
-
 ! Preprocessor symbols for procedures operating on an INTERIOR slice
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
 !  Interior procedures operate in 1D
@@ -124,8 +121,8 @@
 #    define _DECLARE_INTERIOR_INDICES_
 #  endif
 #endif
-#define _ARGUMENTS_INTERIOR_ _ARGUMENTS_SHARED_
-#define _DECLARE_ARGUMENTS_INTERIOR_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_INTERIOR_INDICES_
+#define _ARGUMENTS_INTERIOR_ cache
+#define _DECLARE_ARGUMENTS_INTERIOR_ type (type_interior_cache),intent(inout) :: cache;_DECLARE_INTERIOR_INDICES_
 #define _LOOP_BEGIN_ _LOOP_BEGIN_EX_(cache)
 #define _CONCURRENT_LOOP_BEGIN_ _CONCURRENT_LOOP_BEGIN_EX_(cache)
 
@@ -151,8 +148,8 @@
 #    define _DECLARE_HORIZONTAL_INDICES_
 #  endif
 #endif
-#define _ARGUMENTS_HORIZONTAL_ _ARGUMENTS_SHARED_
-#define _DECLARE_ARGUMENTS_HORIZONTAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_HORIZONTAL_INDICES_
+#define _ARGUMENTS_HORIZONTAL_ cache
+#define _DECLARE_ARGUMENTS_HORIZONTAL_ type (type_horizontal_cache),intent(inout) :: cache;_DECLARE_HORIZONTAL_INDICES_
 #define _HORIZONTAL_LOOP_BEGIN_ _HORIZONTAL_LOOP_BEGIN_EX_(cache)
 #define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_ _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache)
 
@@ -209,22 +206,22 @@
 #define _VERTICAL_LOOP_BEGIN_ _DOWNWARD_LOOP_BEGIN_
 #define _DOWNWARD_LOOP_END_ _VERTICAL_LOOP_END_
 #define _UPWARD_LOOP_END_ _VERTICAL_LOOP_END_
-#define _ARGUMENTS_VERTICAL_ _ARGUMENTS_SHARED_
-#define _DECLARE_ARGUMENTS_VERTICAL_ _DECLARE_ARGUMENTS_SHARED_;_DECLARE_VERTICAL_INDICES_
+#define _ARGUMENTS_VERTICAL_ cache
+#define _DECLARE_ARGUMENTS_VERTICAL_ type (type_vertical_cache),intent(inout) :: cache;_DECLARE_VERTICAL_INDICES_
 #define _CONCURRENT_VERTICAL_LOOP_BEGIN_ _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(cache)
 
 ! Preprocessor symbols for procedures operating on a single point in space.
 #ifdef _INTERIOR_IS_VECTORIZED_
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
-#    define _ARGUMENTS_LOCAL_ _ARGUMENTS_SHARED_,_I_,_J_
-#    define _DECLARE_ARGUMENTS_LOCAL_ _DECLARE_ARGUMENTS_SHARED_;integer,intent(in) :: _I_,_J_
+#    define _ARGUMENTS_LOCAL_ cache,_I_,_J_
+#    define _DECLARE_ARGUMENTS_LOCAL_ class (type_cache),intent(in) :: cache;integer,intent(in) :: _I_,_J_
 #  else
-#    define _ARGUMENTS_LOCAL_ _ARGUMENTS_SHARED_,_I_
-#    define _DECLARE_ARGUMENTS_LOCAL_ _DECLARE_ARGUMENTS_SHARED_;integer,intent(in) :: _I_
+#    define _ARGUMENTS_LOCAL_ cache,_I_
+#    define _DECLARE_ARGUMENTS_LOCAL_ class (type_cache),intent(in) :: cache;integer,intent(in) :: _I_
 #  endif
 #else
-#  define _ARGUMENTS_LOCAL_ _ARGUMENTS_SHARED_
-#  define _DECLARE_ARGUMENTS_LOCAL_ _DECLARE_ARGUMENTS_SHARED_
+#  define _ARGUMENTS_LOCAL_ cache
+#  define _DECLARE_ARGUMENTS_LOCAL_ class (type_cache),intent(in) :: cache
 #endif
 
 ! For BGC models: FABM arguments to routines implemented by biogeochemical models.
@@ -247,16 +244,16 @@
 
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
 #define _DECLARE_ARGUMENTS_DO_  _DECLARE_ARGUMENTS_INTERIOR_
-#define _DECLARE_ARGUMENTS_DO_PPDD_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_SLICE_PLUS_2_,intent(inout) :: pp,dd
+#define _DECLARE_ARGUMENTS_DO_PPDD_ _DECLARE_ARGUMENTS_INTERIOR_;real(rke) _DIMENSION_SLICE_PLUS_2_,intent(inout) :: pp,dd
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_ _DECLARE_ARGUMENTS_HORIZONTAL_
-#define _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
+#define _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
 #define _DECLARE_ARGUMENTS_DO_SURFACE_ _DECLARE_ARGUMENTS_HORIZONTAL_
 #define _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ _DECLARE_ARGUMENTS_INTERIOR_
 #define _DECLARE_ARGUMENTS_GET_EXTINCTION_ _DECLARE_ARGUMENTS_INTERIOR_
-#define _DECLARE_ARGUMENTS_GET_DRAG_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: drag
-#define _DECLARE_ARGUMENTS_GET_ALBEDO_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: albedo
-#define _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_SLICE_PLUS_1_,intent(inout) :: sums
-#define _DECLARE_ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: sums
+#define _DECLARE_ARGUMENTS_GET_DRAG_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rke) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: drag
+#define _DECLARE_ARGUMENTS_GET_ALBEDO_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rke) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: albedo
+#define _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_INTERIOR_;real(rke) _DIMENSION_SLICE_PLUS_1_,intent(inout) :: sums
+#define _DECLARE_ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: sums
 #define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_INTERIOR_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_interior
 #define _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior
 #define _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior

@@ -1,6 +1,7 @@
 module fabm_schedule
 
-   use fabm_types, only: type_base_model, source_unknown, rk, type_link, prefill_previous_value, operator_assign, presence_internal
+   use fabm_types, only: type_base_model, source_unknown, type_link, prefill_previous_value, operator_assign, presence_internal
+   use fabm_parameters, only: rke
 
    implicit none
 
@@ -88,7 +89,7 @@ contains
    subroutine update(self, year, month, day, seconds)
       class (type_schedules), intent(inout) :: self
       integer,                intent(in)    :: year, month, day
-      real(rk),               intent(in)    :: seconds
+      real(rke),              intent(in)    :: seconds
 
       type (type_schedule),        pointer :: schedule
       logical                              :: active

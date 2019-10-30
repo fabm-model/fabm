@@ -14,7 +14,7 @@
 ! (state and diagnostic variables), retrieval of model settings (parameter values) and coupling.
 !
 ! !USES:
-   use fabm_parameters
+   use fabm_parameters, rk=>rki
    use fabm_standard_variables
    use fabm_properties
    use fabm_driver
@@ -48,7 +48,7 @@
    ! Data types and procedures for variable management - used by FABM internally only.
    public type_link, type_link_list, type_link_pointer, type_variable_node, type_variable_set, type_variable_list
    public type_internal_variable
-   public type_cache
+   public type_cache, type_interior_cache, type_horizontal_cache, type_vertical_cache
 
    public type_model_list,type_model_list_node
 
@@ -67,7 +67,7 @@
 !
    integer, parameter, public :: attribute_length = 256
 
-   public rk
+   public rk, rke
 
    integer, parameter, public :: domain_interior   = 4, &
                                  domain_horizontal = 8, &
@@ -650,16 +650,28 @@
       real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: read_hz
       real(rk),allocatable,dimension(:)                        :: read_scalar
 
-      ! Write cache (separate interior, horizontal fields).
-      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_            :: write
-      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
-
 #ifdef _FABM_MASK_TYPE_
       ! Mask used to transfer data between persistent store and cache [pack/unpack]
       integer,allocatable _DIMENSION_SLICE_ :: ipack
       integer,allocatable _DIMENSION_SLICE_ :: iunpack
 #endif
-   end type type_cache
+   end type
+
+   type, extends(type_cache) :: type_interior_cache
+      ! Write cache (separate interior, horizontal fields).
+      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_  :: write
+   end type
+
+   type, extends(type_cache) :: type_horizontal_cache
+      ! Write cache (separate interior, horizontal fields).
+      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
+   end type
+
+   type, extends(type_cache) :: type_vertical_cache
+      ! Write cache (separate interior, horizontal fields).
+      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_            :: write
+      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
+   end type
 
    ! ====================================================================================================
    ! Base type for a model object factory (generates a model object from a model name)

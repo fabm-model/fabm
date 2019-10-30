@@ -127,9 +127,12 @@ if(FABM_FORCED_REAL_KIND)
   set(FABM_REAL_KIND ${FABM_FORCED_REAL_KIND})
 else()
   # FABM_REAL_KIND is user-configurable [as advanced variable]
-  set(FABM_REAL_KIND "selected_real_kind(13)" CACHE STRING "Fortran kind to use for real data type.")
+  set(FABM_REAL_KIND "selected_real_kind(13)" CACHE STRING "Fortran real kind for host API")
   mark_as_advanced(FABM_REAL_KIND)
 endif()
+set(FABM_REAL_KIND_EXTERNAL ${FABM_REAL_KIND})
+set(FABM_REAL_KIND_INTERNAL ${FABM_REAL_KIND_EXTERNAL} CACHE STRING "Fortran real kind for biogeochemistry.")
+mark_as_advanced(FABM_REAL_KIND_INTERNAL)
 
 option(FABM_USE_DO_CONCURRENT "Use DO CONCURRENT (Fortran 2008)" ON)
 mark_as_advanced(FABM_USE_DO_CONCURRENT)
