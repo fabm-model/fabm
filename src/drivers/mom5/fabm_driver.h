@@ -4,8 +4,8 @@
 
 #define _FABM_BOTTOM_INDEX_ -1
 
-#define _FABM_MASK_TYPE_ real(rk)
-#define _FABM_UNMASKED_VALUE_ 1.
+#define _FABM_MASK_TYPE_ real(rke)
+#define _FABM_UNMASKED_VALUE_ 1._rke
 
 #include "fabm.h"
 

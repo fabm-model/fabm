@@ -169,6 +169,8 @@ _FABM_MASK_TYPE_,allocatable,target _DIMENSION_GLOBAL_ :: mask
 integer :: interior_count
 integer :: horizontal_count
 
+logical :: no_mask
+
 #if _FABM_BOTTOM_INDEX_==-1
 integer,allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_index
 #endif
@@ -236,6 +238,8 @@ j__=40
 #if _FABM_DIMENSION_COUNT_>2
 k__=45
 #endif
+
+no_mask = .true.
 
 #if _FABM_DIMENSION_COUNT_>0
 domain_extent = (/ _LOCATION_ /)
@@ -495,6 +499,7 @@ contains
    end subroutine read_environment
 
    subroutine randomize_mask
+      if (.not.no_mask) then
 #if _FABM_BOTTOM_INDEX_==-1
       ! Depth index of bottom varies in the horizontal
       call random_number(tmp_hz)
@@ -516,13 +521,7 @@ contains
       ! Apply random mask across horizontal domain (half of grid cells masked)
       call random_number(tmp_hz)
       mask_hz = _FABM_UNMASKED_VALUE_
-      where (tmp_hz>0.5_rk) mask_hz = _FABM_MASKED_VALUE_
-      horizontal_count = count(_IS_UNMASKED_(mask_hz))
-#    ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      interior_count = horizontal_count * domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)
-#    else
-      interior_count = horizontal_count
-#    endif
+      where (tmp_hz>0.5_rke) mask_hz = _FABM_MASKED_VALUE_
 #  else
       ! Apply random mask across interior domain (half of grid cells masked)
       call random_number(tmp)
@@ -556,6 +555,37 @@ contains
 #    endif
          end if
       _END_GLOBAL_HORIZONTAL_LOOP_
+#  endif
+#endif
+      else
+#if _FABM_BOTTOM_INDEX_==-1
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+      bottom_index = 1
+#  else
+      bottom_index = domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)
+#  endif
+#endif
+#ifdef _HAS_MASK_
+#  ifndef _FABM_HORIZONTAL_MASK_
+      mask = _FABM_UNMASKED_VALUE_
+#  endif
+      mask_hz = _FABM_UNMASKED_VALUE_
+#endif
+      end if
+
+      call count_active_points()
+   end subroutine randomize_mask
+
+   subroutine count_active_points()
+#ifdef _HAS_MASK_
+#  ifdef _FABM_HORIZONTAL_MASK_
+      horizontal_count = count(_IS_UNMASKED_(mask_hz))
+#    ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      interior_count = horizontal_count * domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)
+#    else
+      interior_count = horizontal_count
+#    endif
+#  else
       horizontal_count = count(_IS_UNMASKED_(mask_hz))
       interior_count = count(_IS_UNMASKED_(mask))
 #  endif
@@ -568,8 +598,8 @@ contains
       interior_count = sum(bottom_index)
 #  endif
 #endif
-   end subroutine randomize_mask
-
+   end subroutine
+   
    subroutine simulate(n)
       integer, intent(in) :: n
       real(rke) :: time_begin, time_end

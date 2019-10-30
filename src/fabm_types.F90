@@ -646,14 +646,13 @@
       integer :: n = 1
 
       ! Read cache (separate interior, horizontal, scalar fields).
-      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_            :: read
-      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: read_hz
-      real(rk),allocatable,dimension(:)                        :: read_scalar
+      real(rk), allocatable _DIMENSION_SLICE_PLUS_1_            :: read
+      real(rk), allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: read_hz
+      real(rk), allocatable, dimension(:)                       :: read_scalar
 
 #ifdef _FABM_MASK_TYPE_
-      ! Mask used to transfer data between persistent store and cache [pack/unpack]
-      integer,allocatable _DIMENSION_SLICE_ :: ipack
-      integer,allocatable _DIMENSION_SLICE_ :: iunpack
+      ! Indices of non-masked data in masked source arrays
+      integer, allocatable _DIMENSION_SLICE_ :: ipack
 #endif
    end type
 
