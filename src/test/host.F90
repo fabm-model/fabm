@@ -169,8 +169,6 @@ _FABM_MASK_TYPE_,allocatable,target _DIMENSION_GLOBAL_ :: mask
 integer :: interior_count
 integer :: horizontal_count
 
-logical :: no_mask
-
 #if _FABM_BOTTOM_INDEX_==-1
 integer,allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_index
 #endif
@@ -198,6 +196,7 @@ integer :: ivar
 integer :: i
 integer :: mode = 1
 integer :: ntest = -1
+logical :: no_mask = .false.
 
 ! Parse command line arguments
 call start_test('parsing command line arguments')
@@ -208,11 +207,12 @@ do
    select case (arg)
    case ('-s', '--simulate')
       mode = 2
-      i = i + 1
+   case ('--nomask')
+      no_mask = .true.
    case ('-n')
-      call get_command_argument(i + 1, arg)
+      i = i + 1
+      call get_command_argument(i, arg)
       read (arg,*) ntest
-      i = i + 2
    case ('-h')
       write (*,'(a)') ''
       write (*,'(a)') ''
@@ -226,6 +226,7 @@ do
       write (*,'(a)') 'Unknown command line argument: ' // trim(arg)
       stop 2
    end select
+   i = i + 1
 end do
 call report_test_result()
 
@@ -238,8 +239,6 @@ j__=40
 #if _FABM_DIMENSION_COUNT_>2
 k__=45
 #endif
-
-no_mask = .true.
 
 #if _FABM_DIMENSION_COUNT_>0
 domain_extent = (/ _LOCATION_ /)
