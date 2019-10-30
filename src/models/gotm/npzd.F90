@@ -80,88 +80,37 @@
 !  Original author(s): Hans Burchard & Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   real(rk)          :: n_initial
-   real(rk)          :: p_initial
-   real(rk)          :: z_initial
-   real(rk)          :: d_initial
-   real(rk)          :: p0
-   real(rk)          :: z0
-   real(rk)          :: w_p
-   real(rk)          :: w_d
-   real(rk)          :: kc
-   real(rk)          :: i_min
-   real(rk)          :: rmax
-   real(rk)          :: gmax
-   real(rk)          :: iv
-   real(rk)          :: alpha
-   real(rk)          :: rpn
-   real(rk)          :: rzn
-   real(rk)          :: rdn
-   real(rk)          :: rpdu
-   real(rk)          :: rpdl
-   real(rk)          :: rzd
-   real(rk)          :: dic_per_n
-   character(len=64) :: dic_variable
-
    real(rk), parameter :: d_per_s = 1.0_rk/86400.0_rk
-   namelist /gotm_npzd/ n_initial,p_initial,z_initial,d_initial,   &
-                        p0,z0,w_p,w_d,kc,i_min,rmax,gmax,iv,alpha,rpn,  &
-                        rzn,rdn,rpdu,rpdl,rzd,dic_variable,dic_per_n
+   real(rk) :: w_p, w_d
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   n_initial = 4.5_rk
-   p_initial = 0.0_rk
-   z_initial = 0.0_rk
-   d_initial = 4.5_rk
-   p0        = 0.0225_rk
-   z0        = 0.0225_rk
-   w_p       = -1.0_rk
-   w_d       = -5.0_rk
-   kc        = 0.03_rk
-   i_min     = 25.0_rk
-   rmax      = 1.0_rk
-   gmax      = 0.5_rk
-   iv        = 1.1_rk
-   alpha     = 0.3_rk
-   rpn       = 0.01_rk
-   rzn       = 0.01_rk
-   rdn       = 0.003_rk
-   rpdu      = 0.02_rk
-   rpdl      = 0.1_rk
-   rzd       = 0.02_rk
-   dic_per_n = 106.0_rk/16.0_rk  ! Redfield C:N
-   dic_variable = ''
-
-   ! Read the namelist
-   if (configunit>0) read(configunit,nml=gotm_npzd,err=99,end=100)
-
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   call self%get_parameter(self%p0,'p0','mmol m-3','background phytoplankton concentration ',default=p0)
-   call self%get_parameter(self%z0,'z0','mmol m-3','background zooplankton concentration',default=z0)
-   call self%get_parameter(self%kc,'kc','m2 mmol-1','specific light extinction of phytoplankton and detritus',default=kc)
-   call self%get_parameter(self%i_min,'i_min','W m-2','minimum light intensity in euphotic zone',default=i_min)
-   call self%get_parameter(self%rmax,'rmax','d-1','maximum specific growth rate of phytoplankton',default=rmax,scale_factor=d_per_s)
-   call self%get_parameter(self%gmax,'gmax','d-1','maximum specific grazing rate of zooplankton',default=gmax,scale_factor=d_per_s)
-   call self%get_parameter(self%iv,'iv','m3 mmol-1','Ivlev grazing constant',default=iv)
-   call self%get_parameter(self%alpha,'alpha','mmol m-3','half-saturation nutrient concentration for phytoplankton',default=alpha)
-   call self%get_parameter(self%rpn,'rpn','d-1','loss rate of phytoplankton to nutrients',default=rpn,scale_factor=d_per_s)
-   call self%get_parameter(self%rzn,'rzn','d-1','loss rate of zooplankton to nutrients',default=rzn,scale_factor=d_per_s)
-   call self%get_parameter(self%rdn,'rdn','d-1','detritus remineralization rate',default=rdn,scale_factor=d_per_s)
-   call self%get_parameter(self%rpdu,'rpdu','d-1','phytoplankton mortality in euphotic zone',default=rpdu,scale_factor=d_per_s)
-   call self%get_parameter(self%rpdl,'rpdl','d-1','phytoplankton mortality below euphotic zone',default=rpdl,scale_factor=d_per_s)
-   call self%get_parameter(self%rzd,'rzd','d-1','zooplankton mortality',default=rzd,scale_factor=d_per_s)
-   call self%get_parameter(self%dic_per_n,'dic_per_n','-','C:N ratio of biomass',default=dic_per_n)
-   call self%get_parameter(w_p,'w_p','m d-1','vertical velocity of phytoplankton (<0 for sinking)',default=w_p, scale_factor=d_per_s)
-   call self%get_parameter(w_d,'w_d','m d-1','vertical velocity of detritus  (<0 for sinking)',default=w_d,scale_factor=d_per_s)
+   call self%get_parameter(self%p0,'p0','mmol m-3','background phytoplankton concentration ',default=0.0225_rk)
+   call self%get_parameter(self%z0,'z0','mmol m-3','background zooplankton concentration',default=0.0225_rk)
+   call self%get_parameter(self%kc,'kc','m2 mmol-1','specific light extinction of phytoplankton and detritus',default=0.03_rk)
+   call self%get_parameter(self%i_min,'i_min','W m-2','minimum light intensity in euphotic zone',default=25.0_rk)
+   call self%get_parameter(self%rmax,'rmax','d-1','maximum specific growth rate of phytoplankton',default=1.0_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%gmax,'gmax','d-1','maximum specific grazing rate of zooplankton',default=0.5_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%iv,'iv','m3 mmol-1','Ivlev grazing constant',default=1.1_rk)
+   call self%get_parameter(self%alpha,'alpha','mmol m-3','half-saturation nutrient concentration for phytoplankton',default=0.3_rk)
+   call self%get_parameter(self%rpn,'rpn','d-1','loss rate of phytoplankton to nutrients',default=0.01_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%rzn,'rzn','d-1','loss rate of zooplankton to nutrients',default=0.01_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%rdn,'rdn','d-1','detritus remineralization rate',default=0.003_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%rpdu,'rpdu','d-1','phytoplankton mortality in euphotic zone',default=0.02_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%rpdl,'rpdl','d-1','phytoplankton mortality below euphotic zone',default=0.1_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%rzd,'rzd','d-1','zooplankton mortality',default=0.02_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%dic_per_n,'dic_per_n','-','molar C:N ratio of biomass',default=106.0_rk/16.0_rk)
+   call self%get_parameter(w_p,'w_p','m d-1','vertical velocity of phytoplankton (<0 for sinking)',default=-1.0_rk, scale_factor=d_per_s)
+   call self%get_parameter(w_d,'w_d','m d-1','vertical velocity of detritus  (<0 for sinking)',default=-5.0_rk,scale_factor=d_per_s)
 
    ! Register state variables
-   call self%register_state_variable(self%id_n,'nut','mmol m-3','nutrients',    n_initial,minimum=0.0_rk,no_river_dilution=.true.)
-   call self%register_state_variable(self%id_p,'phy','mmol m-3','phytoplankton',p_initial,minimum=0.0_rk,vertical_movement=w_p)
-   call self%register_state_variable(self%id_z,'zoo','mmol m-3','zooplankton',  z_initial,minimum=0.0_rk)
-   call self%register_state_variable(self%id_d,'det','mmol m-3','detritus',     d_initial,minimum=0.0_rk,vertical_movement=w_d)
+   call self%register_state_variable(self%id_n,'nut','mmol m-3','nutrients',    4.5_rk,minimum=0.0_rk,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_p,'phy','mmol m-3','phytoplankton',0.0_rk,minimum=0.0_rk,vertical_movement=w_p)
+   call self%register_state_variable(self%id_z,'zoo','mmol m-3','zooplankton',  0.0_rk,minimum=0.0_rk)
+   call self%register_state_variable(self%id_d,'det','mmol m-3','detritus',     4.5_rk,minimum=0.0_rk,vertical_movement=w_d)
 
    ! Register the contribution of all state variables to total nitrogen
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_n)
@@ -171,29 +120,17 @@
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    call self%register_state_dependency(self%id_dic,'dic','mmol m-3','total dissolved inorganic carbon',required=.false.)
-   if (dic_variable/='') call self%request_coupling(self%id_dic,dic_variable)
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol m-3',  'gross primary production',           &
-                     output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_NCP,'NCP','mmol m-3',  'net community production',           &
-                     output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_PPR,'PPR','mmol m-3 d-1','gross primary production rate',      &
-                     output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_NPR,'NPR','mmol m-3 d-1','net community production rate',      &
-                     output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W m-2',    'photosynthetically active radiation',&
-                     output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol m-3',  'gross primary production')
+   call self%register_diagnostic_variable(self%id_NCP,'NCP','mmol m-3',  'net community production')
+   call self%register_diagnostic_variable(self%id_PPR,'PPR','mmol m-3 d-1','gross primary production rate')
+   call self%register_diagnostic_variable(self%id_NPR,'NPR','mmol m-3 d-1','net community production rate')
+   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W m-2',    'photosynthetically active radiation')
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_I_0, standard_variables%surface_downwelling_photosynthetic_radiative_flux)
-
-   return
-
-99 call self%fatal_error('gotm_npzd_init','Error reading namelist gotm_npzd.')
-
-100 call self%fatal_error('gotm_npzd_init','Namelist gotm_npzd was not found.')
 
    end subroutine initialize
 !EOC
