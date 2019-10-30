@@ -5,7 +5,7 @@
 ! !MODULE: examples_npzd_nut - Fennel & Neumann 1996 NPZD model - nutrient component
 !
 ! !INTERFACE:
-   module examples_npzd_nut
+module examples_npzd_nut
 !
 ! !DESCRIPTION:
 ! This is a general nutrient (passive non-sinking, non-floating tracer), characterized by
@@ -29,7 +29,7 @@
 !EOP
 !-----------------------------------------------------------------------
 
-   contains
+contains
 
 !-----------------------------------------------------------------------
 !BOP
@@ -37,7 +37,7 @@
 ! !IROUTINE: Initialise the nutrient component
 !
 ! !INTERFACE:
-   subroutine initialize(self,configunit)
+   subroutine initialize(self, configunit)
 !
 ! !DESCRIPTION:
 !  Here, the examples_npzd_nut namelist is read and te variables exported
@@ -50,18 +50,17 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Register state variables
-   call self%register_state_variable(self%id_n,'c','mmol m-3','concentration',     &
-                                1.0_rk,minimum=0.0_rk,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_n, 'c', 'mmol m-3', 'concentration', 1.0_rk, minimum=0.0_rk, no_river_dilution=.true.)
 
    ! Register contribution of state to global aggregate variables.
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_n)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen, self%id_n)
 
    end subroutine initialize
 !EOC
 
 !-----------------------------------------------------------------------
 
-   end module examples_npzd_nut
+end module examples_npzd_nut
 
 !-----------------------------------------------------------------------
 ! Copyright Bolding & Bruggeman ApS - GNU Public License - www.gnu.org
