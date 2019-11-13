@@ -2502,10 +2502,10 @@ function fabm_get_scalar_data(self,id) result(dat)
 end function fabm_get_scalar_data
 
 subroutine create_cache(self, cache, write, write_hz)
-   type (type_model),  intent(in)    :: self
-   class (type_cache), intent(inout) :: cache
-   real(rki), allocatable, optional _DIMENSION_SLICE_PLUS_1_            :: write
-   real(rki), allocatable, optional _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
+   type (type_model),   intent(in)                                        :: self
+   class (type_cache),  intent(inout)                                     :: cache
+   real(rki), optional, intent(inout) _DIMENSION_SLICE_PLUS_1_            :: write
+   real(rki), optional, intent(inout) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
 
    integer :: i
 
