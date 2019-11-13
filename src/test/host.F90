@@ -198,6 +198,16 @@ integer :: mode = 1
 integer :: ntest = -1
 logical :: no_mask = .false.
 
+#if _FABM_DIMENSION_COUNT_>0
+i__=50
+#endif
+#if _FABM_DIMENSION_COUNT_>1
+j__=40
+#endif
+#if _FABM_DIMENSION_COUNT_>2
+k__=45
+#endif
+
 ! Parse command line arguments
 call start_test('parsing command line arguments')
 i = 1
@@ -209,6 +219,24 @@ do
       mode = 2
    case ('--nomask')
       no_mask = .true.
+#if _FABM_DIMENSION_COUNT_>0
+   case ('--nx')
+      i = i + 1
+      call get_command_argument(i, arg)
+      read (arg,*) i__
+#endif
+#if _FABM_DIMENSION_COUNT_>1
+   case ('--ny')
+      i = i + 1
+      call get_command_argument(i, arg)
+      read (arg,*) j__
+#endif
+#if _FABM_DIMENSION_COUNT_>2
+   case ('--nz')
+      i = i + 1
+      call get_command_argument(i, arg)
+      read (arg,*) k__
+#endif
    case ('-n')
       i = i + 1
       call get_command_argument(i, arg)
@@ -229,16 +257,6 @@ do
    i = i + 1
 end do
 call report_test_result()
-
-#if _FABM_DIMENSION_COUNT_>0
-i__=50
-#endif
-#if _FABM_DIMENSION_COUNT_>1
-j__=40
-#endif
-#if _FABM_DIMENSION_COUNT_>2
-k__=45
-#endif
 
 #if _FABM_DIMENSION_COUNT_>0
 domain_extent = (/ _LOCATION_ /)
