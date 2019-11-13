@@ -381,6 +381,11 @@
       type (type_integer_list_node), pointer :: first => null()
    end type
 
+   interface allocate_and_fill
+      module procedure allocate_and_fill_0d
+      module procedure allocate_and_fill_1d
+   end interface
+
 !
 ! !PUBLIC INTERFACES:
 !
@@ -2501,56 +2506,26 @@ function fabm_get_scalar_data(self,id) result(dat)
    if (id%variable%catalog_index /= -1) dat => self%catalog%scalar(id%variable%catalog_index)%p
 end function fabm_get_scalar_data
 
-subroutine create_cache(self, cache, write, write_hz)
-   type (type_model),   intent(in)                                        :: self
-   class (type_cache),  intent(inout)                                     :: cache
-   real(rki), optional, intent(inout) _DIMENSION_SLICE_PLUS_1_            :: write
-   real(rki), optional, intent(inout) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
+subroutine allocate_and_fill_0d(target, fill, lb, n)
+   real(rki), allocatable, intent(out) :: target(:)
+   real(rki),              intent(in)  :: fill(:)
+   integer,                intent(in)  :: lb, n
+   allocate(target(lb:size(fill)))
+   target(1:) = fill
+end subroutine
+
+subroutine allocate_and_fill_1d(target, fill, lb, n)
+   real(rki), allocatable, intent(out) :: target(:, :)
+   real(rki),              intent(in)  :: fill(:)
+   integer,                intent(in)  :: lb, n
 
    integer :: i
 
-   allocate(cache%read_scalar(self%variable_register%read_cache%scalar%count))
-
-   do i = 1, self%variable_register%read_cache%interior%count
-#if defined(_INTERIOR_IS_VECTORIZED_)
-      cache%read(:, i) = self%read_cache_fill_value(i)
-#else
-      cache%read(i) = self%read_cache_fill_value(i)
-#endif
+   allocate(target(1:n, lb:size(fill)))
+   do i = 1, size(fill)
+      target(:, i) = fill(i)
    end do
-
-   do i = 1, self%variable_register%read_cache%horizontal%count
-#if defined(_HORIZONTAL_IS_VECTORIZED_)
-      cache%read_hz(:, i) = self%read_cache_hz_fill_value(i)
-#else
-      cache%read_hz(i) = self%read_cache_hz_fill_value(i)
-#endif
-   end do
-
-   do i = 1, self%variable_register%read_cache%scalar%count
-      cache%read_scalar(i) = self%read_cache_scalar_fill_value(i)
-   end do
-
-   if (present(write)) then
-      do i = 1, self%variable_register%write_cache%interior%count
-#if defined(_INTERIOR_IS_VECTORIZED_)
-         write(:, i) = self%write_cache_fill_value(i)
-#else
-         write(i) = self%write_cache_fill_value(i)
-#endif
-      end do
-   end if
-
-   if (present(write_hz)) then
-      do i = 1, self%variable_register%write_cache%horizontal%count
-#if defined(_HORIZONTAL_IS_VECTORIZED_)
-         write_hz(:, i) = self%write_cache_hz_fill_value(i)
-#else
-         write_hz(i) = self%write_cache_hz_fill_value(i)
-#endif
-      end do
-   end if
-end subroutine create_cache
+end subroutine
 
 subroutine create_interior_cache(self, cache)
    type (type_model),          intent(in)  :: self
@@ -2569,21 +2544,10 @@ subroutine create_interior_cache(self, cache)
    n = 1
 #endif
 
-#ifdef _INTERIOR_IS_VECTORIZED_
-   allocate(cache%read(n, self%variable_register%read_cache%interior%count))
-   allocate(cache%write(n, 0:self%variable_register%write_cache%interior%count))
-#else
-   allocate(cache%read(self%variable_register%read_cache%interior%count))
-   allocate(cache%write(0:self%variable_register%write_cache%interior%count))
-#endif
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(cache%read_hz(n, self%variable_register%read_cache%horizontal%count))
-#else
-   allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
-#endif
-
-   call create_cache(self, cache, write=cache%write)
+   call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
+   call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, n)
+   call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
+   call allocate_and_fill(cache%write, self%write_cache_fill_value, 0, n)
 end subroutine
 
 subroutine create_horizontal_cache(self, cache)
@@ -2603,20 +2567,10 @@ subroutine create_horizontal_cache(self, cache)
    n = 1
 #endif
 
-#ifdef _INTERIOR_IS_VECTORIZED_
-   allocate(cache%read(n, self%variable_register%read_cache%interior%count))
-#else
-   allocate(cache%read(self%variable_register%read_cache%interior%count))
-#endif
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(cache%read_hz(n, self%variable_register%read_cache%horizontal%count))
-   allocate(cache%write_hz(n, 0:self%variable_register%write_cache%horizontal%count))
-#else
-   allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
-   allocate(cache%write_hz(0:self%variable_register%write_cache%horizontal%count))
-#endif
-   call create_cache(self, cache, write_hz=cache%write_hz)
+   call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
+   call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, n)
+   call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
+   call allocate_and_fill(cache%write_hz, self%write_cache_hz_fill_value, 0, n)
 end subroutine
 
 subroutine create_vertical_cache(self, cache)
@@ -2636,23 +2590,11 @@ subroutine create_vertical_cache(self, cache)
    n = 1
 #endif
 
-#ifdef _INTERIOR_IS_VECTORIZED_
-   allocate(cache%read(n, self%variable_register%read_cache%interior%count))
-   allocate(cache%write(n, 0:self%variable_register%write_cache%interior%count))
-#else
-   allocate(cache%read(self%variable_register%read_cache%interior%count))
-   allocate(cache%write(0:self%variable_register%write_cache%interior%count))
-#endif
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(cache%read_hz(1, self%variable_register%read_cache%horizontal%count))
-   allocate(cache%write_hz(1, 0:self%variable_register%write_cache%horizontal%count))
-#else
-   allocate(cache%read_hz(self%variable_register%read_cache%horizontal%count))
-   allocate(cache%write_hz(0:self%variable_register%write_cache%horizontal%count))
-#endif
-
-   call create_cache(self, cache, write=cache%write, write_hz=cache%write_hz)
+   call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
+   call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, 1)
+   call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
+   call allocate_and_fill(cache%write, self%write_cache_fill_value, 0, n)
+   call allocate_and_fill(cache%write_hz, self%write_cache_hz_fill_value, 0, 1)
 end subroutine
 
 subroutine begin_interior_task(self, task, cache _ARGUMENTS_INTERIOR_IN_)
