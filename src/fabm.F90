@@ -91,7 +91,7 @@
    integer, parameter, public :: data_source_user = 3
    integer, parameter, public :: data_source_default = data_source_host
 
-   real(rki), parameter :: not_written = huge(1.0_rk)
+   real(rki), parameter :: not_written = huge(1.0_rki)
    integer, parameter :: array_block_size = 8
 !
 ! !PUBLIC TYPES:
@@ -124,9 +124,9 @@
       character(len=attribute_length) :: local_long_name = ''
       character(len=attribute_length) :: units         = ''
       character(len=attribute_length) :: path          = ''
-      real(rke)                       :: minimum       = -1.e20_rk
-      real(rke)                       :: maximum       =  1.e20_rk
-      real(rke)                       :: missing_value = -2.e20_rk
+      real(rke)                       :: minimum       = -1.e20_rke
+      real(rke)                       :: maximum       =  1.e20_rke
+      real(rke)                       :: missing_value = -2.e20_rke
       integer                         :: output        = output_instantaneous ! See output_* parameters above
       type (type_property_dictionary) :: properties
       integer                         :: externalid    = 0                    ! Identifier to be used freely by host
@@ -136,7 +136,7 @@
 !  Derived type describing a state variable
    type,extends(type_external_variable) :: type_state_variable_info
       type (type_bulk_standard_variable) :: standard_variable
-      real(rke)                          :: initial_value             = 0.0_rk
+      real(rke)                          :: initial_value             = 0.0_rke
       logical                            :: no_precipitation_dilution = .false.
       logical                            :: no_river_dilution         = .false.
       integer                            :: sms_index          = -1
@@ -147,7 +147,7 @@
 
    type,extends(type_external_variable) :: type_horizontal_state_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
-      real(rke)                                :: initial_value = 0.0_rk
+      real(rke)                                :: initial_value = 0.0_rke
       integer                                  :: sms_index = -1
    end type type_horizontal_state_variable_info
 
@@ -852,14 +852,14 @@
             expression%in = expression%link%target%catalog_index
             expression%period = expression%period/seconds_per_time_unit
             allocate(expression%history(_PREARG_LOCATION_ expression%n+3))
-            expression%history = 0.0_rk
+            expression%history = 0.0_rke
             call self%link_interior_data(expression%output_name, &
                                          expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
          class is (type_horizontal_temporal_mean)
             expression%in = expression%link%target%catalog_index
             expression%period = expression%period/seconds_per_time_unit
             allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n+3))
-            expression%history = 0.0_rk
+            expression%history = 0.0_rke
             call self%link_horizontal_data(expression%output_name, &
                                            expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+3))
          end select
@@ -2502,7 +2502,7 @@ function fabm_get_scalar_data(self,id) result(dat)
 end function fabm_get_scalar_data
 
 subroutine create_cache(self, cache, write, write_hz)
-   type (type_model), intent(in)  :: self
+   type (type_model),  intent(in)    :: self
    class (type_cache), intent(inout) :: cache
    real(rki), allocatable, optional _DIMENSION_SLICE_PLUS_1_            :: write
    real(rki), allocatable, optional _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
@@ -2555,9 +2555,9 @@ end subroutine create_cache
 subroutine create_interior_cache(self, cache)
    type (type_model),          intent(in)  :: self
    type (type_interior_cache), intent(out) :: cache
-   
+
    integer :: n, n_mod, i
-   
+
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
    n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
    n_mod = mod(n, array_block_size)
@@ -2800,7 +2800,7 @@ subroutine load_surface_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
       end if
    end do
 end subroutine load_surface_data
-   
+
 subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    type (type_model),            intent(in)    :: self
    type (type_task),             intent(in)    :: task
@@ -3745,10 +3745,11 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_, f
       else
          ! Special case for bottom if vertical index of bottom point is variable.
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
-            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
 #  ifdef _HAS_MASK_
-            self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(self%cache_hz%ipack(_I_)) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
+            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(self%cache_hz%ipack(_J_))
+            self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(self%cache_hz%ipack(_J_)) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
 #  else
+            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
             self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
 #  endif
          _HORIZONTAL_LOOP_END_
@@ -3801,7 +3802,7 @@ end subroutine internal_check_horizontal_state
       call fabm_process_horizontal_slice(self, self%do_surface_job%first_task, self%cache_hz _ARGUMENTS_HORIZONTAL_IN_) 
 
       ! Compose surface fluxes for each interior state variable, combining model-specific contributions.
-      flux_pel = 0.0_rk
+      flux_pel = 0.0_rke
       do i = 1, size(self%state_variables)
          k = self%state_variables(i)%surface_flux_index
          _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(self%cache_hz%write_hz, k, flux_pel, i, self%cache_hz)
@@ -3809,7 +3810,7 @@ end subroutine internal_check_horizontal_state
 
       ! Compose total sources-sinks for each surface-bound state variable, combining model-specific contributions.
       if (present(flux_sf)) then
-         flux_sf = 0.0_rk
+         flux_sf = 0.0_rke
          do i = 1, size(self%surface_state_variables)
             k = self%surface_state_variables(i)%sms_index
             _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(self%cache_hz%write_hz, k, flux_sf, i, self%cache_hz)
@@ -3965,7 +3966,7 @@ end subroutine internal_check_horizontal_state
    ! Copy vertical velocities from write cache to output array provided by host
    do i = 1, size(self%state_variables)
       k = self%state_variables(i)%movement_index
-      _UNPACK_TO_PLUS_1_(self%cache_int%write, k, velocity, i, self%cache_int, 0.0_rk)
+      _UNPACK_TO_PLUS_1_(self%cache_int%write, k, velocity, i, self%cache_int, 0.0_rke)
    end do
 
    end subroutine fabm_get_vertical_movement
@@ -4001,7 +4002,7 @@ end subroutine internal_check_horizontal_state
    call fabm_process_interior_slice(self, self%get_light_extinction_job%first_task, self%cache_int _ARGUMENTS_INTERIOR_IN_)
 
    ! Copy light extinction from write cache to output array provided by host
-   _UNPACK_(self%cache_int%write, self%extinction_id%variable%write_indices%value, extinction, self%cache_int, 0.0_rk)
+   _UNPACK_(self%cache_int%write, self%extinction_id%variable%write_indices%value, extinction, self%cache_int, 0.0_rke)
 
    end subroutine fabm_get_light_extinction
 !EOC
@@ -4055,7 +4056,7 @@ end subroutine internal_check_horizontal_state
 
    call begin_horizontal_task(self,self%get_drag_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
 
-   drag = 1.0_rk
+   drag = 1.0_rke
    call_node => self%get_drag_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source==source_get_drag) call call_node%model%get_drag(self%cache_hz,drag)
@@ -4097,7 +4098,7 @@ end subroutine internal_check_horizontal_state
 
    call begin_horizontal_task(self,self%get_albedo_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
 
-   albedo = 0.0_rk
+   albedo = 0.0_rke
    call_node => self%get_albedo_job%first_task%first_call
    do while (associated(call_node))
       if (call_node%source==source_get_albedo) call call_node%model%get_albedo(self%cache_hz,albedo)
@@ -4141,7 +4142,7 @@ end subroutine internal_check_horizontal_state
    call fabm_process_interior_slice(self, self%get_conserved_quantities_job%first_task, self%cache_int _ARGUMENTS_INTERIOR_IN_)
 
    do i = 1, size(self%conserved_quantities)
-      _UNPACK_TO_PLUS_1_(self%cache_int%write, self%conserved_quantities(i)%index, sums, i, self%cache_int, 0.0_rk)
+      _UNPACK_TO_PLUS_1_(self%cache_int%write, self%conserved_quantities(i)%index, sums, i, self%cache_int, 0.0_rke)
    end do
 
    end subroutine fabm_get_conserved_quantities
@@ -4179,7 +4180,7 @@ end subroutine internal_check_horizontal_state
    call fabm_process_horizontal_slice(self, self%get_horizontal_conserved_quantities_job%first_task, self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
 
    do i = 1, size(self%conserved_quantities)
-      _HORIZONTAL_UNPACK_TO_PLUS_1_(self%cache_hz%write_hz, self%conserved_quantities(i)%horizontal_index, sums, i, self%cache_hz, 0.0_rk)
+      _HORIZONTAL_UNPACK_TO_PLUS_1_(self%cache_hz%write_hz, self%conserved_quantities(i)%horizontal_index, sums, i, self%cache_hz, 0.0_rke)
    end do
 
    end subroutine fabm_get_horizontal_conserved_quantities
@@ -4445,39 +4446,39 @@ contains
       end if
       do while (t>=expression%next_save_time)
          ! Weight for linear interpolation between last stored point and current point, to get at values for desired time.
-         weight_right = (expression%next_save_time-expression%last_time)/(t-expression%last_time)
+         weight_right = (expression%next_save_time - expression%last_time) / (t - expression%last_time)
 
          ! For temporal means:
          ! - remove contribution of oldest point from historical mean (@ n + 2)
          ! - linearly interpolate to desired time (@ ioldest), by computing a weighted mean of the current value (data(expression%in)%p) and the previous value (@ n + 1)
          ! - add contribution of new point to historical mean
-         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
-            - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
-         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) &
-            + weight_right*self%catalog%interior(expression%in)%p
-         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
-            + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) &
+            - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) / expression%n
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rke - weight_right) * expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 1) &
+            + weight_right * self%catalog%interior(expression%in)%p
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) &
+            + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) / expression%n
 
          ! Compute next time for which we want to store output
-         expression%next_save_time = expression%next_save_time + expression%period/expression%n
+         expression%next_save_time = expression%next_save_time + expression%period / expression%n
 
          ! If we just completed the first entire history, compute the running mean and record that it is now valid.
          if (expression%ioldest == expression%n .and. .not. expression%valid) then
             expression%valid = .true.
-            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = 0.0_rk
+            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = 0.0_rke
             do i=1,expression%n
-               expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) + expression%history(_PREARG_LOCATION_DIMENSIONS_ i)
+               expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) + expression%history(_PREARG_LOCATION_DIMENSIONS_ i)
             end do
-            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2)/expression%n
+            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) / expression%n
          end if
 
          ! Increment index for oldest time point
          expression%ioldest = expression%ioldest + 1
-         if (expression%ioldest>expression%n) expression%ioldest = 1
+         if (expression%ioldest > expression%n) expression%ioldest = 1
       end do
 
       ! Store current value to enable linear interpolation to next output time in subsequent call.
-      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1) = self%catalog%interior(expression%in)%p
+      expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 1) = self%catalog%interior(expression%in)%p
 
       if (expression%valid) then
          ! We have a full history. To compute the temporal mean:
@@ -4485,14 +4486,14 @@ contains
          ! - set mean (@ n + 3) to historical mean (@ n + 2) but account for change since most recent point in history.
 
          ! Compute extent of time period outside history
-         frac_outside = (t-(expression%next_save_time-expression%period/expression%n))/expression%period
+         frac_outside = (t-(expression%next_save_time-expression%period/expression%n)) / expression%period
 
          ! Set corrected running mean (move window by removing part of the start, and appending to the end)
-         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+2) &
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) &
             + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1))
       else
-         ! We do not have a full history yet; set temporal mean to msising value
-         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3) = expression%missing_value
+         ! We do not have a full history yet; set temporal mean to missing value
+         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 3) = expression%missing_value
       end if
 
       expression%last_time = t
@@ -4508,26 +4509,26 @@ contains
          do i=1,expression%n+3
             expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%catalog%horizontal(expression%in)%p
          end do
-         expression%next_save_time = t + expression%period/expression%n
+         expression%next_save_time = t + expression%period / expression%n
          expression%ioldest = 1
       end if
       do while (t>=expression%next_save_time)
          ! Weight for linear interpolation between last stored point and current point, to get at values for desired time.
-         weight_right = (expression%next_save_time-expression%last_time)/(t-expression%last_time)
+         weight_right = (expression%next_save_time - expression%last_time) / (t - expression%last_time)
 
          ! For temporal means:
          ! - remove contribution of oldest point from historical mean
          ! - linearly interpolate to desired time
          ! - add contribution of new point to historical mean
-         expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) &
-            - expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
-         expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rk-weight_right)*expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+1) &
+         expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 2) &
+            - expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) / expression%n
+         expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rke - weight_right)*expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 1) &
             + weight_right*self%catalog%horizontal(expression%in)%p
-         expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) &
-            + expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest)/expression%n
+         expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 2) &
+            + expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) / expression%n
 
          ! Compute next time for which we want to store output
-         expression%next_save_time = expression%next_save_time + expression%period/expression%n
+         expression%next_save_time = expression%next_save_time + expression%period / expression%n
 
          ! Increment index for oldest time point
          expression%ioldest = expression%ioldest + 1
@@ -4535,14 +4536,14 @@ contains
       end do
 
       ! Compute extent of time period outside history
-      frac_outside = (t-(expression%next_save_time-expression%period/expression%n))/expression%period
+      frac_outside = (t - (expression%next_save_time - expression%period / expression%n)) / expression%period
 
       ! For temporal means:
       ! - store values at current time step
       ! - for current mean, use historical mean but account for change since most recent point in history.
-      expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+1) = self%catalog%horizontal(expression%in)%p
-      expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+3) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+2) &
-         + frac_outside*(-expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+1))
+      expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 1) = self%catalog%horizontal(expression%in)%p
+      expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 3) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 2) &
+         + frac_outside * (-expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 1))
 
       expression%last_time = t
    end subroutine
