@@ -33,7 +33,7 @@ end module host_hooks
    
 program test_host
 
-use fabm
+use fabm, only: type_model, standard_variables, type_bulk_variable_id, type_horizontal_variable_id, type_scalar_variable_id, fabm_initialize_library
 use fabm_config
 use fabm_driver
 use fabm_parameters, only: rke
@@ -306,16 +306,16 @@ case (2)
 end select
 call report_test_result()
 
-call start_test('fabm_initialize')
-call fabm_initialize(model)
+call start_test('initialize')
+call model%initialize()
 call report_test_result()
 
 ! ======================================================================
 ! Provide extents of the spatial domain.
 ! ======================================================================
 
-call start_test('fabm_set_domain')
-call fabm_set_domain(model _ARGUMENTS_LOCATION_)
+call start_test('set_domain')
+call model%set_domain(_LOCATION_)
 call report_test_result()
 
 ! ======================================================================
@@ -324,12 +324,12 @@ call report_test_result()
 
 #ifdef _HAS_MASK_
 allocate(mask_hz _INDEX_HORIZONTAL_LOCATION_)
-call start_test('fabm_set_mask')
+call start_test('set_mask')
 #  ifdef _FABM_HORIZONTAL_MASK_
-call fabm_set_mask(model,mask_hz)
+call model%set_mask(mask_hz)
 #  else
 allocate(mask _INDEX_LOCATION_)
-call fabm_set_mask(model,mask,mask_hz)
+call model%set_mask(mask, mask_hz)
 #  endif
 call report_test_result()
 #endif
@@ -409,11 +409,11 @@ end select
 
 ! ======================================================================
 ! Check whether FABM has all dependencies fulfilled
-! (i.e., whether all required calls for fabm_link_*_data have been made)
+! (i.e., whether all required calls for link_*_data have been made)
 ! ======================================================================
 
-call start_test('fabm_check_ready')
-call fabm_check_ready(model)
+call start_test('check_ready')
+call model%check_ready()
 call report_test_result()
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
@@ -485,19 +485,19 @@ contains
                   end if
                   allocate(input)
                   input%interior_id = model%get_bulk_variable_id(trim(yaml_pair%key))
-                  if (fabm_is_variable_used(input%interior_id)) then
+                  if (model%is_variable_used(input%interior_id)) then
                       allocate(input%interior_data _INDEX_LOCATION_)
                       input%interior_data = value
                       call model%link_interior_data(input%interior_id, input%interior_data)
                   else
                       input%horizontal_id = model%get_horizontal_variable_id(trim(yaml_pair%key))
-                      if (fabm_is_variable_used(input%horizontal_id)) then
+                      if (model%is_variable_used(input%horizontal_id)) then
                          allocate(input%horizontal_data _INDEX_HORIZONTAL_LOCATION_)
                          input%horizontal_data = value
                          call model%link_horizontal_data(input%horizontal_id, input%horizontal_data)
                       else
                          input%scalar_id = model%get_scalar_variable_id(trim(yaml_pair%key))
-                         if (fabm_is_variable_used(input%scalar_id)) then
+                         if (model%is_variable_used(input%scalar_id)) then
                             input%scalar_data = value
                             call model%link_scalar(input%scalar_id, input%scalar_data)
                          else
@@ -630,21 +630,21 @@ contains
 
       call randomize_mask
 
-      call start_test('fabm_initialize_state')
+      call start_test('initialize_interior_state')
       _BEGIN_OUTER_INTERIOR_LOOP_
-         call fabm_initialize_state(model _ARGUMENTS_INTERIOR_IN_)
+         call model%initialize_interior_state(_ARG_INTERIOR_IN_)
       _END_OUTER_INTERIOR_LOOP_
       call report_test_result()
 
-      call start_test('fabm_initialize_bottom_state')
+      call start_test('initialize_bottom_state')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_initialize_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_)
+         call model%initialize_bottom_state(_ARG_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
       call report_test_result()
 
-      call start_test('fabm_initialize_surface_state')
+      call start_test('initialize_surface_state')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_initialize_surface_state(model _ARGUMENTS_HORIZONTAL_IN_)
+         call model%initialize_surface_state(_ARG_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
       call report_test_result()
 
@@ -658,18 +658,18 @@ contains
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             flux = 0
             sms_bt = 0
-            call fabm_do_bottom(model _ARGUMENTS_HORIZONTAL_IN_,flux,sms_bt)
+            call model%do_bottom(_PREARG_HORIZONTAL_IN_ flux, sms_bt)
          _END_OUTER_HORIZONTAL_LOOP_
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             flux = 0
             sms_sf = 0
-            call fabm_do_surface(model _ARGUMENTS_HORIZONTAL_IN_,flux,sms_sf)
+            call model%do_surface(_PREARG_HORIZONTAL_IN_ flux, sms_sf)
          _END_OUTER_HORIZONTAL_LOOP_
 
          _BEGIN_OUTER_INTERIOR_LOOP_
             dy = 0
-            call fabm_do(model _ARGUMENTS_INTERIOR_IN_,dy)
+            call model%do_interior(_PREARG_INTERIOR_IN_ dy)
          _END_OUTER_INTERIOR_LOOP_
 
          call model%process(model%get_diagnostics_job)
@@ -694,27 +694,27 @@ contains
       ! Initialize all state variables
       ! ======================================================================
 
-      call start_test('fabm_initialize_state')
+      call start_test('initialize_interior_state')
       _BEGIN_OUTER_INTERIOR_LOOP_
-         call fabm_initialize_state(model _ARGUMENTS_INTERIOR_IN_)
+         call model%initialize_interior_state(_ARG_INTERIOR_IN_)
       _END_OUTER_INTERIOR_LOOP_
       do ivar=1,size(model%state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, ivar+interior_state_offset+1._rke)
       end do
       call report_test_result()
 
-      call start_test('fabm_initialize_bottom_state')
+      call start_test('initialize_bottom_state')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_initialize_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_)
+         call model%initialize_bottom_state(_ARG_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%bottom_state_variables)
          call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, ivar+bottom_state_offset+1._rke)
       end do
       call report_test_result()
 
-      call start_test('fabm_initialize_surface_state')
+      call start_test('initialize_surface_state')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_initialize_surface_state(model _ARGUMENTS_HORIZONTAL_IN_)
+         call model%initialize_surface_state(_ARG_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%surface_state_variables)
          call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, ivar+surface_state_offset+1._rke)
@@ -781,7 +781,7 @@ contains
 
       column_loop_count = 0
 
-      call start_test('model%process(job%prepare)')
+      call start_test('process(job%prepare)')
       call model%process(model%prepare_job)
       call report_test_result()
 
@@ -789,26 +789,26 @@ contains
       ! Retrieve source terms of interior state variables.
       ! ======================================================================
 
-      call start_test('fabm_do')
+      call start_test('do_interior')
       interior_loop_count = 0
       _BEGIN_OUTER_INTERIOR_LOOP_
          dy = 0
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
          ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
          if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= 1 .and. bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) &
-            call fabm_do(model,_IMIN_,_IMAX_ _ARG_INTERIOR_FIXED_LOCATION_,dy(_IMIN_:_IMAX_,:))
+            call model%do_interior(_IMIN_, _IMAX_ _ARG_INTERIOR_FIXED_LOCATION_, dy(_IMIN_:_IMAX_,:))
 #else
-         call fabm_do(model _ARGUMENTS_INTERIOR_IN_,dy)
+         call model%do_interior(_PREARG_INTERIOR_IN_ dy)
 #endif
          do ivar=1,size(model%state_variables)
-            call check_interior_slice_plus_1(dy,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _ARGUMENTS_INTERIOR_IN_)
+            call check_interior_slice_plus_1(dy,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _POSTARG_INTERIOR_IN_)
          end do
       _END_OUTER_INTERIOR_LOOP_
-      call assert(interior_loop_count == interior_count, 'fabm_do', 'call count does not match number of (unmasked) interior points')
+      call assert(interior_loop_count == interior_count, 'do_interior', 'call count does not match number of (unmasked) interior points')
 
       do ivar=1,size(model%diagnostic_variables)
          if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source==source_do) then
-            pdata => fabm_get_interior_diagnostic_data(model, ivar)
+            pdata => model%get_interior_diagnostic_data(ivar)
             call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, -model%diagnostic_variables(ivar)%missing_value)
          end if
       end do
@@ -829,7 +829,7 @@ contains
       _END_GLOBAL_HORIZONTAL_LOOP_
 #endif
 
-      call start_test('fabm_do_surface')
+      call start_test('do_surface')
       surface_loop_count = 0
       _BEGIN_OUTER_HORIZONTAL_LOOP_
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
@@ -837,22 +837,22 @@ contains
 #endif
          flux = 0
          sms_sf = 0
-         call fabm_do_surface(model _ARGUMENTS_HORIZONTAL_IN_,flux,sms_sf)
+         call model%do_surface(_PREARG_HORIZONTAL_IN_ flux, sms_sf)
          do ivar=1,size(model%state_variables)
-            call check_horizontal_slice_plus_1(flux,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _ARGUMENTS_HORIZONTAL_IN_)
+            call check_horizontal_slice_plus_1(flux,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _POSTARG_HORIZONTAL_IN_)
          end do
          do ivar=1,size(model%surface_state_variables)
-            call check_horizontal_slice_plus_1(sms_sf,ivar,0.0_rke,-real(ivar+surface_state_offset,rke) _ARGUMENTS_HORIZONTAL_IN_)
+            call check_horizontal_slice_plus_1(sms_sf,ivar,0.0_rke,-real(ivar+surface_state_offset,rke) _POSTARG_HORIZONTAL_IN_)
          end do
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
          endif
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
-      call assert(surface_loop_count == horizontal_count, 'fabm_do_surface', 'call count does not match number of (unmasked) horizontal points')
+      call assert(surface_loop_count == horizontal_count, 'do_surface', 'call count does not match number of (unmasked) horizontal points')
 
       do ivar=1,size(model%horizontal_diagnostic_variables)
          if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_surface) then
-            pdata_hz => fabm_get_horizontal_diagnostic_data(model, ivar)
+            pdata_hz => model%get_horizontal_diagnostic_data(ivar)
             call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
          end if
       end do
@@ -873,7 +873,7 @@ contains
       _END_GLOBAL_HORIZONTAL_LOOP_
 #endif
 
-      call start_test('fabm_do_bottom')
+      call start_test('do_bottom')
       bottom_loop_count = 0
       _BEGIN_OUTER_HORIZONTAL_LOOP_
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
@@ -881,22 +881,22 @@ contains
 #endif
          flux = 0
          sms_bt = 0
-         call fabm_do_bottom(model _ARGUMENTS_HORIZONTAL_IN_,flux,sms_bt)
+         call model%do_bottom(_PREARG_HORIZONTAL_IN_ flux, sms_bt)
          do ivar=1,size(model%state_variables)
-            call check_horizontal_slice_plus_1(flux,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _ARGUMENTS_HORIZONTAL_IN_)
+            call check_horizontal_slice_plus_1(flux,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _POSTARG_HORIZONTAL_IN_)
          end do
          do ivar=1,size(model%bottom_state_variables)
-            call check_horizontal_slice_plus_1(sms_bt,ivar,0.0_rke,-real(ivar+bottom_state_offset,rke) _ARGUMENTS_HORIZONTAL_IN_)
+            call check_horizontal_slice_plus_1(sms_bt,ivar,0.0_rke,-real(ivar+bottom_state_offset,rke) _POSTARG_HORIZONTAL_IN_)
          end do
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
          endif
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
-      call assert(bottom_loop_count == horizontal_count, 'fabm_do_surface', 'call count does not match number of (unmasked) horizontal points')
+      call assert(bottom_loop_count == horizontal_count, 'do_surface', 'call count does not match number of (unmasked) horizontal points')
 
       do ivar=1,size(model%horizontal_diagnostic_variables)
          if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_bottom) then
-            pdata_hz => fabm_get_horizontal_diagnostic_data(model, ivar)
+            pdata_hz => model%get_horizontal_diagnostic_data(ivar)
             call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
          end if
       end do
@@ -907,22 +907,21 @@ contains
       ! Postprocressing
       ! ======================================================================
 
-      call start_test('model%process(model%get_diagnostics_job)')
+      call start_test('process(model%get_diagnostics_job)')
       call model%process(model%get_diagnostics_job)
-      call report_test_result()
 
-      call assert(column_loop_count == interior_count, 'fabm_get_light', 'call count does not match number of (unmasked) interior points')
+      call assert(column_loop_count == interior_count, 'process(model%get_diagnostics_job)', 'call count does not match number of (unmasked) interior points')
 
       do ivar=1,size(model%diagnostic_variables)
          if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source==source_do_column) then
-            pdata => fabm_get_interior_diagnostic_data(model, ivar)
+            pdata => model%get_interior_diagnostic_data(ivar)
             call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, -model%diagnostic_variables(ivar)%missing_value)
          end if
       end do
 
       do ivar=1,size(model%horizontal_diagnostic_variables)
          if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_column) then
-            pdata_hz => fabm_get_horizontal_diagnostic_data(model, ivar)
+            pdata_hz => model%get_horizontal_diagnostic_data(ivar)
             call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
          end if
       end do
@@ -933,49 +932,49 @@ contains
       ! Retrieve vertical velocities (sinking, floating, active movement).
       ! ======================================================================
 
-      call start_test('fabm_get_vertical_movement')
+      call start_test('get_vertical_movement')
       vertical_movement_loop_count = 0
       _BEGIN_OUTER_INTERIOR_LOOP_
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
          ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
          if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= 1 .and. bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) &
-            call fabm_get_vertical_movement(model,_IMIN_,_IMAX_ _ARG_INTERIOR_FIXED_LOCATION_,w(_IMIN_:_IMAX_,:))
+            call model%get_vertical_movement(_IMIN_, _IMAX_ _ARG_INTERIOR_FIXED_LOCATION_, w(_IMIN_:_IMAX_,:))
 #else
-         call fabm_get_vertical_movement(model _ARGUMENTS_INTERIOR_IN_,w)
+         call model%get_vertical_movement(_PREARG_INTERIOR_IN_ w)
 #endif
          do ivar=1,size(model%state_variables)
             if (mod(ivar, 2) == 0) then
-               call check_interior_slice_plus_1(w,ivar,0.0_rke,real(ivar+interior_state_offset,rke) _ARGUMENTS_INTERIOR_IN_)
+               call check_interior_slice_plus_1(w,ivar,0.0_rke,real(ivar+interior_state_offset,rke) _POSTARG_INTERIOR_IN_)
             else
-               call check_interior_slice_plus_1(w,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _ARGUMENTS_INTERIOR_IN_)
+               call check_interior_slice_plus_1(w,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _POSTARG_INTERIOR_IN_)
             end if
          end do
       _END_OUTER_INTERIOR_LOOP_
-      call assert(vertical_movement_loop_count == interior_count, 'fabm_get_vertical_movement', 'call count does not match number of (unmasked) interior points')
+      call assert(vertical_movement_loop_count == interior_count, 'get_vertical_movement', 'call count does not match number of (unmasked) interior points')
       call report_test_result()
 
       ! ======================================================================
       ! Check state with valid state
       ! ======================================================================
 
-      call start_test('fabm_check_state')
+      call start_test('check_interior_state')
       _BEGIN_OUTER_INTERIOR_LOOP_
-         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_, .true., valid)
-         if (.not. valid) call driver%fatal_error('fabm_check_state', 'state is reported as invalid')
+         call model%check_interior_state(_PREARG_INTERIOR_IN_  .true., valid)
+         if (.not. valid) call driver%fatal_error('check_interior_state', 'state is reported as invalid')
       _END_OUTER_INTERIOR_LOOP_
       call report_test_result()
 
-      call start_test('fabm_check_surface_state')
+      call start_test('check_surface_state')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
-         if (.not. valid) call driver%fatal_error('fabm_check_surface_state', 'state is reported as invalid')
+         call model%check_surface_state(_PREARG_HORIZONTAL_IN_ .true., valid)
+         if (.not. valid) call driver%fatal_error('check_surface_state', 'state is reported as invalid')
       _END_OUTER_HORIZONTAL_LOOP_
       call report_test_result()
 
-      call start_test('fabm_check_bottom_state')
+      call start_test('check_bottom_state')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
-         if (.not. valid) call driver%fatal_error('fabm_check_bottom_state', 'state is reported as invalid')
+         call model%check_bottom_state(_PREARG_HORIZONTAL_IN_ .true., valid)
+         if (.not. valid) call driver%fatal_error('check_bottom_state', 'state is reported as invalid')
       _END_OUTER_HORIZONTAL_LOOP_
       call report_test_result()
 
@@ -997,17 +996,17 @@ contains
         call apply_mask_2d(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value)
       end do
 
-      call start_test('fabm_check_state < min')
+      call start_test('check_interior_state < min')
       _BEGIN_OUTER_INTERIOR_LOOP_
-         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_, .true., valid)
+         call model%check_interior_state(_PREARG_INTERIOR_IN_ .true., valid)
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
-         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'fabm_check_state', 'invalid result')
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'check_interior_state', 'invalid result')
 #  else
-         call assert(valid .neqv. any(_IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_))), 'fabm_check_state', 'invalid result')
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_))), 'check_interior_state', 'invalid result')
 #  endif
 #else
-         call assert(.not. valid, 'fabm_check_state', 'invalid result')
+         call assert(.not. valid, 'check_interior_state', 'invalid result')
 #endif
       _END_OUTER_INTERIOR_LOOP_
       do ivar=1,size(model%state_variables)
@@ -1015,13 +1014,13 @@ contains
       end do
       call report_test_result()
 
-      call start_test('fabm_check_surface_state < min')
+      call start_test('check_surface_state < min')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
+         call model%check_surface_state(_PREARG_HORIZONTAL_IN_ .true., valid)
 #ifdef _HAS_MASK_
-         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'fabm_check_surface_state', 'invalid result')
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'check_surface_state', 'invalid result')
 #else
-         call assert(.not. valid, 'fabm_check_surface_state', 'invalid result')
+         call assert(.not. valid, 'check_surface_state', 'invalid result')
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%surface_state_variables)
@@ -1029,13 +1028,13 @@ contains
       end do
       call report_test_result()
 
-      call start_test('fabm_check_bottom_state < min')
+      call start_test('check_bottom_state < min')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
+         call model%check_bottom_state(_PREARG_HORIZONTAL_IN_ .true., valid)
 #ifdef _HAS_MASK_
-         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'fabm_check_bottom_state', 'invalid result')
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'check_bottom_state', 'invalid result')
 #else
-         call assert(.not. valid, 'fabm_check_bottom_state', 'invalid result')
+         call assert(.not. valid, 'check_bottom_state', 'invalid result')
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%bottom_state_variables)
@@ -1061,17 +1060,17 @@ contains
         call apply_mask_2d(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value)
       end do
 
-      call start_test('fabm_check_state > max')
+      call start_test('check_interior_state > max')
       _BEGIN_OUTER_INTERIOR_LOOP_
-         call fabm_check_state(model _ARGUMENTS_INTERIOR_IN_, .true., valid)
+         call model%check_interior_state(_PREARG_INTERIOR_IN_ .true., valid)
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
-         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'fabm_check_state', 'invalid result')
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'check_interior_state', 'invalid result')
 #  else
-         call assert(valid .neqv. any(_IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_))), 'fabm_check_state', 'invalid result')
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_))), 'check_interior_state', 'invalid result')
 #  endif
 #else
-         call assert(.not. valid, 'fabm_check_state', 'invalid result')
+         call assert(.not. valid, 'check_interior_state', 'invalid result')
 #endif
       _END_OUTER_INTERIOR_LOOP_
       do ivar=1,size(model%state_variables)
@@ -1079,13 +1078,13 @@ contains
       end do
       call report_test_result()
 
-      call start_test('fabm_check_surface_state > max')
+      call start_test('check_surface_state > max')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_check_surface_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
+         call model%check_surface_state(_PREARG_HORIZONTAL_IN_ .true., valid)
 #ifdef _HAS_MASK_
-         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'fabm_check_surface_state', 'invalid result')
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'check_surface_state', 'invalid result')
 #else
-         call assert(.not. valid, 'fabm_check_surface_state', 'invalid result')
+         call assert(.not. valid, 'check_surface_state', 'invalid result')
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%surface_state_variables)
@@ -1093,13 +1092,13 @@ contains
       end do
       call report_test_result()
 
-      call start_test('fabm_check_bottom_state > max')
+      call start_test('check_bottom_state > max')
       _BEGIN_OUTER_HORIZONTAL_LOOP_
-         call fabm_check_bottom_state(model _ARGUMENTS_HORIZONTAL_IN_, .true., valid)
+         call model%check_bottom_state(_PREARG_HORIZONTAL_IN_ .true., valid)
 #ifdef _HAS_MASK_
-         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'fabm_check_bottom_state', 'invalid result')
+         call assert(valid .neqv. any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'check_bottom_state', 'invalid result')
 #else
-         call assert(.not. valid, 'fabm_check_bottom_state', 'invalid result')
+         call assert(.not. valid, 'check_bottom_state', 'invalid result')
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar=1,size(model%bottom_state_variables)
@@ -1148,19 +1147,19 @@ contains
 #endif
    end subroutine
 
-   subroutine check_interior_slice_plus_1(dat, index, required_masked_value, required_value _ARGUMENTS_INTERIOR_IN_)
+   subroutine check_interior_slice_plus_1(dat, index, required_masked_value, required_value _POSTARG_INTERIOR_IN_)
       real(rke) _DIMENSION_EXT_SLICE_PLUS_1_,intent(in) :: dat
       integer,                              intent(in) :: index
       real(rke),                             intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_interior_slice(dat(:,index), required_masked_value, required_value _ARGUMENTS_INTERIOR_IN_)
+      call check_interior_slice(dat(:,index), required_masked_value, required_value _POSTARG_INTERIOR_IN_)
 #else
-      call check_interior_slice(dat(index), required_masked_value, required_value _ARGUMENTS_INTERIOR_IN_)
+      call check_interior_slice(dat(index), required_masked_value, required_value _POSTARG_INTERIOR_IN_)
 #endif
    end subroutine
 
-   subroutine check_interior_slice(slice_data, required_masked_value, required_value _ARGUMENTS_INTERIOR_IN_)
+   subroutine check_interior_slice(slice_data, required_masked_value, required_value _POSTARG_INTERIOR_IN_)
       real(rke) _DIMENSION_EXT_SLICE_,intent(in) :: slice_data
       real(rke),                      intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_INTERIOR_IN_
@@ -1184,19 +1183,19 @@ contains
 #endif
    end subroutine
 
-   subroutine check_horizontal_slice_plus_1(dat,index, required_masked_value, required_value _ARGUMENTS_HORIZONTAL_IN_)
+   subroutine check_horizontal_slice_plus_1(dat,index, required_masked_value, required_value _POSTARG_HORIZONTAL_IN_)
       real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(in) :: dat
       integer,                                      intent(in) :: index
       real(rke),                                     intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_horizontal_slice(dat(:,index), required_masked_value, required_value _ARGUMENTS_HORIZONTAL_IN_)
+      call check_horizontal_slice(dat(:,index), required_masked_value, required_value _POSTARG_HORIZONTAL_IN_)
 #else
-      call check_horizontal_slice(dat(index), required_masked_value, required_value _ARGUMENTS_HORIZONTAL_IN_)
+      call check_horizontal_slice(dat(index), required_masked_value, required_value _POSTARG_HORIZONTAL_IN_)
 #endif
    end subroutine check_horizontal_slice_plus_1
 
-   subroutine check_horizontal_slice(slice_data, required_masked_value, required_value _ARGUMENTS_HORIZONTAL_IN_)
+   subroutine check_horizontal_slice(slice_data, required_masked_value, required_value _POSTARG_HORIZONTAL_IN_)
       real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(in) :: slice_data
       real(rke),                              intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_

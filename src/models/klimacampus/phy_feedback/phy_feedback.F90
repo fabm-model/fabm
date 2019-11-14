@@ -134,10 +134,10 @@
 !  Register diagnostic variables
    call self%register_diagnostic_variable(self%id_NFIX,'NFIX','mmol/m**3',        &
                      'nitrogen fixation',                                            &
-                     time_treatment=time_treatment_step_integrated)
+                     output=output_time_step_integrated)
    call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',            &
                      'photosynthetically active radiation',                          &
-                     time_treatment=time_treatment_averaged)
+                     output=output_time_step_averaged)
 
 !  Register contribution to conserved quantities
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_nut)

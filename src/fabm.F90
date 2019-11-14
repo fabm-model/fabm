@@ -22,7 +22,7 @@
    use fabm_standard_variables,only: type_bulk_standard_variable, type_horizontal_standard_variable, &
                                      type_global_standard_variable, initialize_standard_variables, type_standard_variable_node
    use fabm_parameters
-   use fabm_types
+   use fabm_types, bgc_rk => rk
    use fabm_expressions
    use fabm_driver
    use fabm_properties
@@ -154,14 +154,12 @@
 !  Derived type describing a diagnostic variable
    type,extends(type_external_variable) :: type_diagnostic_variable_info
       type (type_bulk_standard_variable) :: standard_variable
-      integer                            :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
       logical                            :: save           = .false.
       integer                            :: source
    end type type_diagnostic_variable_info
 
    type,extends(type_external_variable) :: type_horizontal_diagnostic_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
-      integer                                  :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
       logical                                  :: save           = .false.
       integer                                  :: source
    end type type_horizontal_diagnostic_variable_info
@@ -291,10 +289,36 @@
       type (type_horizontal_cache) :: cache_hz
       type (type_vertical_cache)   :: cache_vert
    contains
+      procedure :: initialize => fabm_initialize
+      procedure :: set_domain => fabm_set_domain
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
       procedure :: set_bottom_index => fabm_set_bottom_index
       procedure :: set_surface_index => fabm_set_surface_index
 #endif
+#ifdef _HAS_MASK_
+      procedure :: set_mask => fabm_set_mask
+#endif
+      procedure :: check_ready => fabm_check_ready
+
+      procedure :: initialize_interior_state => fabm_initialize_state
+      procedure :: initialize_bottom_state => fabm_initialize_bottom_state
+      procedure :: initialize_surface_state => fabm_initialize_surface_state
+
+      procedure :: check_interior_state => fabm_check_state
+      procedure :: check_bottom_state => fabm_check_bottom_state
+      procedure :: check_surface_state => fabm_check_surface_state
+
+      procedure :: do_interior_rhs => fabm_do_rhs
+      procedure :: do_interior_ppdd => fabm_do_ppdd
+      generic :: do_interior => do_interior_rhs, do_interior_ppdd
+      procedure :: do_bottom_rhs => fabm_do_bottom_rhs
+      procedure :: do_bottom_ppdd => fabm_do_bottom_ppdd
+      generic :: do_bottom => do_bottom_rhs, do_bottom_ppdd
+      procedure :: do_surface => fabm_do_surface
+
+      procedure :: get_vertical_movement => fabm_get_vertical_movement
+      procedure :: get_interior_conserved_quantities => fabm_get_conserved_quantities
+      procedure :: get_horizontal_conserved_quantities => fabm_get_horizontal_conserved_quantities
 
       procedure :: link_interior_data_by_variable => fabm_link_interior_data_by_variable
       procedure :: link_interior_data_by_id   => fabm_link_interior_data_by_id
@@ -329,6 +353,9 @@
       procedure :: get_scalar_data => fabm_get_scalar_data
       generic :: get_data => get_interior_data,get_horizontal_data,get_scalar_data
 
+      procedure :: get_interior_diagnostic_data => fabm_get_interior_diagnostic_data
+      procedure :: get_horizontal_diagnostic_data => fabm_get_horizontal_diagnostic_data
+
       procedure :: get_bulk_variable_id_by_name => fabm_get_bulk_variable_id_by_name
       procedure :: get_bulk_variable_id_sn => fabm_get_bulk_variable_id_sn
       generic :: get_bulk_variable_id => get_bulk_variable_id_by_name, get_bulk_variable_id_sn
@@ -340,6 +367,8 @@
       procedure :: get_scalar_variable_id_by_name => fabm_get_scalar_variable_id_by_name
       procedure :: get_scalar_variable_id_sn => fabm_get_scalar_variable_id_sn
       generic :: get_scalar_variable_id => get_scalar_variable_id_by_name, get_scalar_variable_id_sn
+
+      procedure, nopass :: is_variable_used => fabm_is_variable_used
 
       procedure :: interior_variable_needs_values => fabm_interior_variable_needs_values
       procedure :: interior_variable_needs_values_sn => fabm_interior_variable_needs_values_sn
@@ -357,18 +386,6 @@
       procedure :: process_job_everywhere => fabm_process_job_everywhere
       generic :: process => process_job_everywhere
 #endif
-
-      ! -----------------------------------------------------------------------------
-      ! For backward compatibility (pre 11 Dec 2015)
-      procedure :: link_bulk_data_by_variable => fabm_link_interior_data_by_variable
-      procedure :: link_bulk_data_by_id   => fabm_link_interior_data_by_id
-      procedure :: link_bulk_data_by_sn   => fabm_link_interior_data_by_sn
-      procedure :: link_bulk_data_by_name => fabm_link_interior_data_by_name
-      generic :: link_bulk_data => link_interior_data_by_variable,link_interior_data_by_id,link_interior_data_by_sn,link_interior_data_by_name
-
-      procedure :: bulk_variable_needs_values => fabm_interior_variable_needs_values
-      procedure :: bulk_variable_needs_values_sn => fabm_interior_variable_needs_values_sn
-      ! -----------------------------------------------------------------------------
 
    end type type_model
 
@@ -659,8 +676,8 @@
       self%info => self ! For backward compatibility (pre 11/2013 hosts only)
 
       ! Create zero fields.
-      call self%root%add_interior_variable('zero', act_as_state_variable=.true., source=source_constant, missing_value=0.0_rk, output=output_none)
-      call self%root%add_horizontal_variable('zero_hz', act_as_state_variable=.true., source=source_constant, missing_value=0.0_rk, output=output_none)
+      call self%root%add_interior_variable('zero', act_as_state_variable=.true., source=source_constant, missing_value=0.0_rki, output=output_none)
+      call self%root%add_horizontal_variable('zero_hz', act_as_state_variable=.true., source=source_constant, missing_value=0.0_rki, output=output_none)
 
       ! Filter out expressions that FABM can handle itself.
       ! The remainder, if any, must be handled by the host model.
@@ -766,7 +783,7 @@
          filter = .false.
          select type (current)
          class is (type_vertical_integral)
-            if (current%minimum_depth == 0._rk .and. current%minimum_depth == huge(1.0_rk)) then
+            if (current%minimum_depth == 0._rki .and. current%maximum_depth == huge(current%maximum_depth)) then
                allocate(integral)
             else
                allocate(bounded_integral)
@@ -826,7 +843,7 @@
 ! !IROUTINE: Provide FABM with the extents of the spatial domain.
 !
 ! !INTERFACE:
-   subroutine fabm_set_domain(self _ARGUMENTS_LOCATION_, seconds_per_time_unit)
+   subroutine fabm_set_domain(self _POSTARG_LOCATION_, seconds_per_time_unit)
 !
 ! !INPUT PARAMETERS:
    class (type_model), target, intent(inout) :: self
@@ -853,7 +870,7 @@
       expression => self%root%first_expression
       do while (associated(expression))
          select type (expression)
-         class is (type_bulk_temporal_mean)
+         class is (type_interior_temporal_mean)
             expression%in = expression%link%target%catalog_index
             expression%period = expression%period/seconds_per_time_unit
             allocate(expression%history(_PREARG_LOCATION_ expression%n+3))
@@ -2597,7 +2614,7 @@ subroutine create_vertical_cache(self, cache)
    call allocate_and_fill(cache%write_hz, self%write_cache_hz_fill_value, 0, 1)
 end subroutine
 
-subroutine begin_interior_task(self, task, cache _ARGUMENTS_INTERIOR_IN_)
+subroutine begin_interior_task(self, task, cache _POSTARG_INTERIOR_IN_)
    type (type_model),          intent(in)    :: self
    type (type_task),           intent(in)    :: task
    type (type_interior_cache), intent(inout) :: cache
@@ -2656,7 +2673,7 @@ subroutine begin_interior_task(self, task, cache _ARGUMENTS_INTERIOR_IN_)
    end do
 end subroutine begin_interior_task
 
-subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
+subroutine begin_horizontal_task(self,task,cache _POSTARG_HORIZONTAL_IN_)
    type (type_model),            intent(in)    :: self
    type (type_task),             intent(in)    :: task
    type (type_horizontal_cache), intent(inout) :: cache
@@ -2703,13 +2720,13 @@ subroutine begin_horizontal_task(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
 
    ! Also load boundary values for interior fields if performing surface or bottom-specific operations.
    if (task%operation==source_do_surface) then
-      call load_surface_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
+      call load_surface_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
    elseif (task%operation==source_do_bottom) then
-      call load_bottom_data (self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
+      call load_bottom_data (self,task,cache _POSTARG_HORIZONTAL_IN_)
    end if
 end subroutine begin_horizontal_task
 
-subroutine load_surface_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
+subroutine load_surface_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
    type (type_model),            intent(in)    :: self
    type (type_task),             intent(in)    :: task
    type (type_horizontal_cache), intent(inout) :: cache
@@ -2743,7 +2760,7 @@ subroutine load_surface_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    end do
 end subroutine load_surface_data
 
-subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
+subroutine load_bottom_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
    type (type_model),            intent(in)    :: self
    type (type_task),             intent(in)    :: task
    type (type_horizontal_cache), intent(inout) :: cache
@@ -2792,7 +2809,7 @@ subroutine load_bottom_data(self,task,cache _ARGUMENTS_HORIZONTAL_IN_)
    end do
 end subroutine load_bottom_data
 
-subroutine begin_vertical_task(self,task,cache _ARGUMENTS_VERTICAL_IN_)
+subroutine begin_vertical_task(self,task,cache _POSTARG_VERTICAL_IN_)
    type (type_model),          intent(in)    :: self
    type (type_task),           intent(in)    :: task
    type (type_vertical_cache), intent(inout) :: cache
@@ -3068,7 +3085,7 @@ subroutine check_vertical_call_output(call_node, cache)
    end do
 end subroutine check_vertical_call_output
 
-subroutine end_interior_task(task, cache, store _ARGUMENTS_INTERIOR_IN_)
+subroutine end_interior_task(task, cache, store _POSTARG_INTERIOR_IN_)
    type (type_task),           intent(in)    :: task
    type (type_interior_cache), intent(in)    :: cache
    type (type_store),          intent(inout) :: store
@@ -3085,7 +3102,7 @@ subroutine end_interior_task(task, cache, store _ARGUMENTS_INTERIOR_IN_)
    end do
 end subroutine end_interior_task
 
-subroutine end_horizontal_task(task, cache, store _ARGUMENTS_HORIZONTAL_IN_)
+subroutine end_horizontal_task(task, cache, store _POSTARG_HORIZONTAL_IN_)
    type (type_task),             intent(in)    :: task
    type (type_horizontal_cache), intent(in)    :: cache
    type (type_store),            intent(inout) :: store
@@ -3102,7 +3119,7 @@ subroutine end_horizontal_task(task, cache, store _ARGUMENTS_HORIZONTAL_IN_)
    end do
 end subroutine end_horizontal_task
 
-subroutine end_vertical_task(task, cache, store _ARGUMENTS_VERTICAL_IN_)
+subroutine end_vertical_task(task, cache, store _POSTARG_VERTICAL_IN_)
    type (type_task),           intent(in)    :: task
    type (type_vertical_cache), intent(in)    :: cache
    type (type_store),          intent(inout) :: store
@@ -3138,7 +3155,7 @@ end subroutine end_vertical_task
 ! !IROUTINE: Initialize the model state (pelagic).
 !
 ! !INTERFACE:
-   subroutine fabm_initialize_state(self _ARGUMENTS_INTERIOR_IN_)
+   subroutine fabm_initialize_state(self _POSTARG_INTERIOR_IN_)
 !
 ! !INPUT PARAMETERS:
    class (type_model),intent(inout) :: self
@@ -3154,10 +3171,10 @@ end subroutine end_vertical_task
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_initialize_state')
+   call check_interior_location(self _POSTARG_INTERIOR_IN_,'fabm_initialize_state')
 #endif
 
-   call begin_interior_task(self,self%initialize_state_job%first_task,self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call begin_interior_task(self,self%initialize_state_job%first_task,self%cache_int _POSTARG_INTERIOR_IN_)
 
    do ivar=1,size(self%state_variables)
       read_index = self%state_variables(ivar)%target%read_indices%value
@@ -3182,7 +3199,7 @@ end subroutine end_vertical_task
       end if
    end do
 
-   call end_interior_task(self%initialize_state_job%first_task, self%cache_int, self%store _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self%initialize_state_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
 
    end subroutine fabm_initialize_state
 !EOC
@@ -3193,7 +3210,7 @@ end subroutine end_vertical_task
 ! !IROUTINE: Initialize the bottom model state.
 !
 ! !INTERFACE:
-   subroutine fabm_initialize_bottom_state(self _ARGUMENTS_HORIZONTAL_IN_)
+   subroutine fabm_initialize_bottom_state(self _POSTARG_HORIZONTAL_IN_)
 !
 ! !INPUT PARAMETERS:
    class (type_model), intent(inout) :: self
@@ -3209,10 +3226,10 @@ end subroutine end_vertical_task
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_initialize_bottom_state')
+   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_initialize_bottom_state')
 #endif
 
-   call begin_horizontal_task(self,self%initialize_bottom_state_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%initialize_bottom_state_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
    ! Initialize bottom variables
    do ivar=1,size(self%bottom_state_variables)
@@ -3238,7 +3255,7 @@ end subroutine end_vertical_task
       end if
    end do
 
-   call end_horizontal_task(self%initialize_bottom_state_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%initialize_bottom_state_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
 
    end subroutine fabm_initialize_bottom_state
 !EOC
@@ -3249,7 +3266,7 @@ end subroutine end_vertical_task
 ! !IROUTINE: Initialize the surface model state.
 !
 ! !INTERFACE:
-   subroutine fabm_initialize_surface_state(self _ARGUMENTS_HORIZONTAL_IN_)
+   subroutine fabm_initialize_surface_state(self _POSTARG_HORIZONTAL_IN_)
 !
 ! !INPUT PARAMETERS:
    class (type_model), intent(inout) :: self
@@ -3265,10 +3282,10 @@ end subroutine end_vertical_task
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_initialize_surface_state')
+   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_initialize_surface_state')
 #endif
 
-   call begin_horizontal_task(self,self%initialize_surface_state_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%initialize_surface_state_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
    ! Initialize surface variables
    do ivar=1,size(self%surface_state_variables)
@@ -3294,7 +3311,7 @@ end subroutine end_vertical_task
       end if
    end do
 
-   call end_horizontal_task(self%initialize_surface_state_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%initialize_surface_state_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
 
    end subroutine fabm_initialize_surface_state
 !EOC
@@ -3306,7 +3323,7 @@ end subroutine end_vertical_task
 ! model tree.
 !
 ! !INTERFACE:
-   subroutine fabm_do_rhs(self _ARGUMENTS_INTERIOR_IN_, dy)
+   subroutine fabm_do_rhs(self _POSTARG_INTERIOR_IN_, dy)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                     intent(inout) :: self
@@ -3323,7 +3340,7 @@ end subroutine end_vertical_task
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_do_rhs')
+   call check_interior_location(self _POSTARG_INTERIOR_IN_,'fabm_do_rhs')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
    call check_extents_2d(dy,_STOP_-_START_+1,size(self%state_variables),'fabm_do_rhs','dy','stop-start+1, # interior state variables')
 #  else
@@ -3331,7 +3348,7 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
-   call fabm_process_interior_slice(self, self%do_interior_job%first_task, self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call fabm_process_interior_slice(self, self%do_interior_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
    ! Compose total sources-sinks for each state variable, combining model-specific contributions.
    do i = 1, size(self%state_variables)
@@ -3349,7 +3366,7 @@ end subroutine end_vertical_task
 ! model tree in the form of production and destruction matrices.
 !
 ! !INTERFACE:
-   subroutine fabm_do_ppdd(self _ARGUMENTS_INTERIOR_IN_, pp, dd)
+   subroutine fabm_do_ppdd(self _POSTARG_INTERIOR_IN_, pp, dd)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                    intent(inout) :: self
@@ -3367,7 +3384,7 @@ end subroutine end_vertical_task
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_do_ppdd')
+   call check_interior_location(self _POSTARG_INTERIOR_IN_,'fabm_do_ppdd')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
    call check_extents_3d(pp,_STOP_-_START_+1,size(self%state_variables),size(self%state_variables),'fabm_do_ppdd','pp','stop-start+1, # interior state variables, # interior state variables')
    call check_extents_3d(dd,_STOP_-_START_+1,size(self%state_variables),size(self%state_variables),'fabm_do_ppdd','dd','stop-start+1, # interior state variables, # interior state variables')
@@ -3377,7 +3394,7 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
-   call begin_interior_task(self,self%do_interior_job%first_task,self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call begin_interior_task(self,self%do_interior_job%first_task,self%cache_int _POSTARG_INTERIOR_IN_)
 
    call_node => self%do_interior_job%first_task%first_call
    do while (associated(call_node))
@@ -3395,7 +3412,7 @@ end subroutine end_vertical_task
       call_node => call_node%next
    end do
 
-   call end_interior_task(self%do_interior_job%first_task, self%cache_int, self%store _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self%do_interior_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
 
    end subroutine fabm_do_ppdd
 !EOC
@@ -3407,7 +3424,7 @@ end subroutine end_vertical_task
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   subroutine fabm_check_state(self _ARGUMENTS_INTERIOR_IN_, repair, valid)
+   subroutine fabm_check_state(self _POSTARG_INTERIOR_IN_, repair, valid)
 !
 ! !INPUT PARAMETERS:
    class (type_model),     intent(inout) :: self
@@ -3427,13 +3444,13 @@ end subroutine end_vertical_task
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_, 'fabm_check_state')
+   call check_interior_location(self _POSTARG_INTERIOR_IN_, 'fabm_check_state')
 #endif
 
    valid = .true.
    set_interior = .false.
 
-   call begin_interior_task(self, self%check_state_job%first_task, self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call begin_interior_task(self, self%check_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
    ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
    call_node => self%check_state_job%first_task%first_call
@@ -3503,7 +3520,7 @@ end subroutine end_vertical_task
       end do
    end if
 
-   call end_interior_task(self%check_state_job%first_task, self%cache_int, self%store _ARGUMENTS_INTERIOR_IN_)
+   call end_interior_task(self%check_state_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
 
    end subroutine fabm_check_state
 !EOC
@@ -3515,7 +3532,7 @@ end subroutine end_vertical_task
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   subroutine fabm_check_bottom_state(self _ARGUMENTS_HORIZONTAL_IN_,repair,valid)
+   subroutine fabm_check_bottom_state(self _POSTARG_HORIZONTAL_IN_, repair, valid)
 !
 ! !INPUT PARAMETERS:
    class (type_model),     intent(inout) :: self
@@ -3527,10 +3544,10 @@ end subroutine end_vertical_task
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_check_bottom_state')
+   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_check_bottom_state')
 #endif
 
-   call internal_check_horizontal_state(self,self%check_bottom_state_job _ARGUMENTS_HORIZONTAL_IN_,2,self%bottom_state_variables,repair,valid)
+   call internal_check_horizontal_state(self,self%check_bottom_state_job _POSTARG_HORIZONTAL_IN_,2,self%bottom_state_variables,repair,valid)
 
    end subroutine fabm_check_bottom_state
 !EOC
@@ -3542,7 +3559,7 @@ end subroutine end_vertical_task
 ! invalid state variables if requested and possible.
 !
 ! !INTERFACE:
-   subroutine fabm_check_surface_state(self _ARGUMENTS_HORIZONTAL_IN_,repair,valid)
+   subroutine fabm_check_surface_state(self _POSTARG_HORIZONTAL_IN_, repair, valid)
 !
 ! !INPUT PARAMETERS:
    class (type_model),     intent(inout) :: self
@@ -3554,15 +3571,15 @@ end subroutine end_vertical_task
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_check_surface_state')
+   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_check_surface_state')
 #endif
 
-   call internal_check_horizontal_state(self,self%check_surface_state_job _ARGUMENTS_HORIZONTAL_IN_,1,self%info%surface_state_variables,repair,valid)
+   call internal_check_horizontal_state(self,self%check_surface_state_job _POSTARG_HORIZONTAL_IN_,1,self%info%surface_state_variables,repair,valid)
 
    end subroutine fabm_check_surface_state
 !EOC
 
-subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_, flag, state_variables, repair, valid)
+subroutine internal_check_horizontal_state(self,job _POSTARG_HORIZONTAL_IN_, flag, state_variables, repair, valid)
    class (type_model),                        intent(inout) :: self
    type (type_job),                           intent(in)    :: job
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
@@ -3584,7 +3601,7 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_, f
    integer :: j
 #endif
 
-   call begin_horizontal_task(self,job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
    valid = .true.
    set_horizontal = .false.
@@ -3701,7 +3718,7 @@ subroutine internal_check_horizontal_state(self,job _ARGUMENTS_HORIZONTAL_IN_, f
       end do
    end if
 
-   call end_horizontal_task(job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
 
 end subroutine internal_check_horizontal_state
 
@@ -3713,7 +3730,7 @@ end subroutine internal_check_horizontal_state
 ! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
-   subroutine fabm_do_surface(self _ARGUMENTS_HORIZONTAL_IN_, flux_pel, flux_sf)
+   subroutine fabm_do_surface(self _POSTARG_HORIZONTAL_IN_, flux_pel, flux_sf)
 !
 ! !INPUT PARAMETERS:
       class (type_model),                            intent(inout)         :: self
@@ -3731,7 +3748,7 @@ end subroutine internal_check_horizontal_state
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_surface')
+   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_do_surface')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
    call check_extents_2d(flux_pel,_STOP_-_START_+1,size(self%state_variables),'fabm_do_surface','flux_pel','stop-start+1, # interior state variables')
    if (present(flux_sf)) call check_extents_2d(flux_sf,_STOP_-_START_+1,size(self%surface_state_variables),'fabm_do_surface','flux_sf','stop-start+1, # surface state variables')
@@ -3741,7 +3758,7 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-      call fabm_process_horizontal_slice(self, self%do_surface_job%first_task, self%cache_hz _ARGUMENTS_HORIZONTAL_IN_) 
+      call fabm_process_horizontal_slice(self, self%do_surface_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
 
       ! Compose surface fluxes for each interior state variable, combining model-specific contributions.
       flux_pel = 0.0_rke
@@ -3772,7 +3789,7 @@ end subroutine internal_check_horizontal_state
 ! Positive values denote state variable increases, negative values state variable decreases.
 !
 ! !INTERFACE:
-   subroutine fabm_do_bottom_rhs(self _ARGUMENTS_HORIZONTAL_IN_, flux_pel, flux_ben)
+   subroutine fabm_do_bottom_rhs(self _POSTARG_HORIZONTAL_IN_, flux_pel, flux_ben)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                            intent(inout) :: self
@@ -3789,7 +3806,7 @@ end subroutine internal_check_horizontal_state
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_bottom_rhs')
+   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_do_bottom_rhs')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
    call check_extents_2d(flux_pel,_STOP_-_START_+1,size(self%state_variables),'fabm_do_bottom_rhs','flux_pel','stop-start+1, # interior state variables')
    call check_extents_2d(flux_ben,_STOP_-_START_+1,size(self%bottom_state_variables),'fabm_do_bottom_rhs','flux_ben','stop-start+1, # bottom state variables')
@@ -3799,7 +3816,7 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call fabm_process_horizontal_slice(self, self%do_bottom_job%first_task, self%cache_hz _ARGUMENTS_HORIZONTAL_IN_) 
+   call fabm_process_horizontal_slice(self, self%do_bottom_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
 
    ! Compose bottom fluxes for each interior state variable, combining model-specific contributions.
    do i = 1, size(self%state_variables)
@@ -3825,7 +3842,7 @@ end subroutine internal_check_horizontal_state
 ! for the pelagic, and variable units/s for the benthos.
 !
 ! !INTERFACE:
-   subroutine fabm_do_bottom_ppdd(self _ARGUMENTS_HORIZONTAL_IN_, pp, dd, benthos_offset)
+   subroutine fabm_do_bottom_ppdd(self _POSTARG_HORIZONTAL_IN_, pp, dd, benthos_offset)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                            intent(inout) :: self
@@ -3844,10 +3861,10 @@ end subroutine internal_check_horizontal_state
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_bottom_ppdd')
+   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_do_bottom_ppdd')
 #endif
 
-   call begin_horizontal_task(self,self%do_bottom_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%do_bottom_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
    call_node => self%do_bottom_job%first_task%first_call
    do while (associated(call_node))
@@ -3865,7 +3882,7 @@ end subroutine internal_check_horizontal_state
       call_node => call_node%next
    end do
 
-   call end_horizontal_task(self%do_bottom_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%do_bottom_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
 
    end subroutine fabm_do_bottom_ppdd
 !EOC
@@ -3878,7 +3895,7 @@ end subroutine internal_check_horizontal_state
 ! and positive values indicate movemment towards the surface, e.g., floating.
 !
 ! !INTERFACE:
-   subroutine fabm_get_vertical_movement(self _ARGUMENTS_INTERIOR_IN_, velocity)
+   subroutine fabm_get_vertical_movement(self _POSTARG_INTERIOR_IN_, velocity)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                     intent(inout) :: self
@@ -3895,7 +3912,7 @@ end subroutine internal_check_horizontal_state
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_get_vertical_movement')
+   call check_interior_location(self _POSTARG_INTERIOR_IN_,'fabm_get_vertical_movement')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
    call check_extents_2d(velocity,_STOP_-_START_+1,size(self%state_variables),'fabm_get_vertical_movement','velocity','stop-start+1, # interior state variables')
 #  else
@@ -3903,7 +3920,7 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call fabm_process_interior_slice(self, self%get_vertical_movement_job%first_task, self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call fabm_process_interior_slice(self, self%get_vertical_movement_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
    ! Copy vertical velocities from write cache to output array provided by host
    do i = 1, size(self%state_variables)
@@ -3921,7 +3938,7 @@ end subroutine internal_check_horizontal_state
 ! variables
 !
 ! !INTERFACE:
-   subroutine fabm_get_light_extinction(self _ARGUMENTS_INTERIOR_IN_, extinction)
+   subroutine fabm_get_light_extinction(self _POSTARG_INTERIOR_IN_, extinction)
 !
 ! !INPUT PARAMETERS:
    class (type_model),              intent(inout) :: self
@@ -3935,13 +3952,13 @@ end subroutine internal_check_horizontal_state
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_get_light_extinction')
+   call check_interior_location(self _POSTARG_INTERIOR_IN_,'fabm_get_light_extinction')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
    call check_extents_1d(extinction,_STOP_-_START_+1,'fabm_get_light_extinction','extinction','stop-start+1')
 #  endif
 #endif
 
-   call fabm_process_interior_slice(self, self%get_light_extinction_job%first_task, self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call fabm_process_interior_slice(self, self%get_light_extinction_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
    ! Copy light extinction from write cache to output array provided by host
    _UNPACK_(self%cache_int%write, self%extinction_id%variable%write_indices%value, extinction, self%cache_int, 0.0_rke)
@@ -3955,7 +3972,7 @@ end subroutine internal_check_horizontal_state
 ! !IROUTINE: Calculate the light field
 !
 ! !INTERFACE:
-   subroutine fabm_get_light(self _ARGUMENTS_VERTICAL_IN_)
+   subroutine fabm_get_light(self _POSTARG_VERTICAL_IN_)
 !
 ! !INPUT PARAMETERS:
    class (type_model), intent(inout) :: self
@@ -3975,7 +3992,7 @@ end subroutine internal_check_horizontal_state
 ! 1 leaving drag unchanged, and 0 suppressing it completely.
 !
 ! !INTERFACE:
-   subroutine fabm_get_drag(self _ARGUMENTS_HORIZONTAL_IN_, drag)
+   subroutine fabm_get_drag(self _POSTARG_HORIZONTAL_IN_, drag)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                     intent(inout) :: self
@@ -3990,13 +4007,13 @@ end subroutine internal_check_horizontal_state
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_get_drag')
+   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_get_drag')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
    call check_extents_1d(drag,_STOP_-_START_+1,'fabm_get_drag','drag','stop-start+1')
 #  endif
 #endif
 
-   call begin_horizontal_task(self,self%get_drag_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%get_drag_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
    drag = 1.0_rke
    call_node => self%get_drag_job%first_task%first_call
@@ -4005,7 +4022,7 @@ end subroutine internal_check_horizontal_state
       call_node => call_node%next
    end do
 
-   call end_horizontal_task(self%get_drag_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%get_drag_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
 
    end subroutine fabm_get_drag
 !EOC
@@ -4017,7 +4034,7 @@ end subroutine internal_check_horizontal_state
 ! This feedback is represented by an albedo value (0-1) relating to biogeochemistry.
 !
 ! !INTERFACE:
-   subroutine fabm_get_albedo(self _ARGUMENTS_HORIZONTAL_IN_, albedo)
+   subroutine fabm_get_albedo(self _POSTARG_HORIZONTAL_IN_, albedo)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                     intent(inout) :: self
@@ -4032,13 +4049,13 @@ end subroutine internal_check_horizontal_state
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_get_albedo')
+   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_get_albedo')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
    call check_extents_1d(albedo,_STOP_-_START_+1,'fabm_get_albedo','albedo','stop-start+1')
 #  endif
 #endif
 
-   call begin_horizontal_task(self,self%get_albedo_job%first_task,self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call begin_horizontal_task(self,self%get_albedo_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
    albedo = 0.0_rke
    call_node => self%get_albedo_job%first_task%first_call
@@ -4047,7 +4064,7 @@ end subroutine internal_check_horizontal_state
       call_node => call_node%next
    end do
 
-   call end_horizontal_task(self%get_albedo_job%first_task, self%cache_hz, self%store _ARGUMENTS_HORIZONTAL_IN_)
+   call end_horizontal_task(self%get_albedo_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
 
    end subroutine fabm_get_albedo
 !EOC
@@ -4058,7 +4075,7 @@ end subroutine internal_check_horizontal_state
 ! !IROUTINE: Get the total of all conserved quantities in pelagic domain
 !
 ! !INTERFACE:
-   subroutine fabm_get_conserved_quantities(self _ARGUMENTS_INTERIOR_IN_, sums)
+   subroutine fabm_get_conserved_quantities(self _POSTARG_INTERIOR_IN_, sums)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                     intent(inout) :: self
@@ -4073,7 +4090,7 @@ end subroutine internal_check_horizontal_state
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_get_conserved_quantities')
+   call check_interior_location(self _POSTARG_INTERIOR_IN_,'fabm_get_conserved_quantities')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
    call check_extents_2d(sums,_STOP_-_START_+1,size(self%conserved_quantities),'fabm_get_conserved_quantities','sums','stop-start+1, # conserved quantities')
 #  else
@@ -4081,7 +4098,7 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call fabm_process_interior_slice(self, self%get_conserved_quantities_job%first_task, self%cache_int _ARGUMENTS_INTERIOR_IN_)
+   call fabm_process_interior_slice(self, self%get_conserved_quantities_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
    do i = 1, size(self%conserved_quantities)
       _UNPACK_TO_PLUS_1_(self%cache_int%write, self%conserved_quantities(i)%index, sums, i, self%cache_int, 0.0_rke)
@@ -4096,7 +4113,7 @@ end subroutine internal_check_horizontal_state
 ! !IROUTINE: Get the total of all conserved quantities at top and bottom boundaries
 !
 ! !INTERFACE:
-   subroutine fabm_get_horizontal_conserved_quantities(self _ARGUMENTS_HORIZONTAL_IN_, sums)
+   subroutine fabm_get_horizontal_conserved_quantities(self _POSTARG_HORIZONTAL_IN_, sums)
 !
 ! !INPUT PARAMETERS:
    class (type_model),                            intent(inout) :: self
@@ -4111,7 +4128,7 @@ end subroutine internal_check_horizontal_state
 !-----------------------------------------------------------------------
 !BOC
 #ifndef NDEBUG
-   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_get_horizontal_conserved_quantities')
+   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_get_horizontal_conserved_quantities')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
    call check_extents_2d(sums,_STOP_-_START_+1,size(self%conserved_quantities),'fabm_get_horizontal_conserved_quantities','sums','stop-start+1, # conserved quantities')
 #  else
@@ -4119,7 +4136,7 @@ end subroutine internal_check_horizontal_state
 #  endif
 #endif
 
-   call fabm_process_horizontal_slice(self, self%get_horizontal_conserved_quantities_job%first_task, self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+   call fabm_process_horizontal_slice(self, self%get_horizontal_conserved_quantities_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
    do i = 1, size(self%conserved_quantities)
       _HORIZONTAL_UNPACK_TO_PLUS_1_(self%cache_hz%write_hz, self%conserved_quantities(i)%horizontal_index, sums, i, self%cache_hz, 0.0_rke)
@@ -4165,11 +4182,11 @@ end subroutine internal_check_horizontal_state
          select case (task%operation)
          case (source_do)
             _BEGIN_OUTER_INTERIOR_LOOP_
-               call fabm_process_interior_slice(self, task, self%cache_int _ARGUMENTS_INTERIOR_IN_)
+               call fabm_process_interior_slice(self, task, self%cache_int _POSTARG_INTERIOR_IN_)
             _END_OUTER_INTERIOR_LOOP_
          case (source_do_surface, source_do_bottom, source_do_horizontal)
             _BEGIN_OUTER_HORIZONTAL_LOOP_
-               call fabm_process_horizontal_slice(self, task, self%cache_hz _ARGUMENTS_HORIZONTAL_IN_)
+               call fabm_process_horizontal_slice(self, task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
             _END_OUTER_HORIZONTAL_LOOP_
          case (source_do_column)
             _BEGIN_OUTER_VERTICAL_LOOP_
@@ -4182,7 +4199,7 @@ end subroutine internal_check_horizontal_state
 #    endif
 #  endif
 #endif
-               if (_IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)) call fabm_process_vertical_slice(self, task, self%cache_vert _ARGUMENTS_VERTICAL_IN_)
+               if (_IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)) call fabm_process_vertical_slice(self, task, self%cache_vert _POSTARG_VERTICAL_IN_)
             _END_OUTER_VERTICAL_LOOP_
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
             _VERTICAL_START_ = 1
@@ -4212,7 +4229,7 @@ end subroutine internal_check_horizontal_state
    end subroutine fabm_process_job_everywhere
 #endif
 
-   subroutine fabm_process_interior_slice(self, task, cache _ARGUMENTS_INTERIOR_IN_)
+   subroutine fabm_process_interior_slice(self, task, cache _POSTARG_INTERIOR_IN_)
       class (type_model),         intent(inout)  :: self
       type (type_task),           intent(in)     :: task
       type (type_interior_cache), intent(inout)  :: cache
@@ -4222,7 +4239,7 @@ end subroutine internal_check_horizontal_state
       integer                   :: i, j, k
       _DECLARE_INTERIOR_INDICES_
 
-      call begin_interior_task(self, task, cache _ARGUMENTS_INTERIOR_IN_)
+      call begin_interior_task(self, task, cache _POSTARG_INTERIOR_IN_)
 
       call_node => task%first_call
       do while (associated(call_node))
@@ -4255,11 +4272,11 @@ end subroutine internal_check_horizontal_state
          call_node => call_node%next
       end do
 
-      call end_interior_task(task, cache, self%store _ARGUMENTS_INTERIOR_IN_)
+      call end_interior_task(task, cache, self%store _POSTARG_INTERIOR_IN_)
 
    end subroutine fabm_process_interior_slice
 
-   subroutine fabm_process_horizontal_slice(self, task, cache _ARGUMENTS_HORIZONTAL_IN_)
+   subroutine fabm_process_horizontal_slice(self, task, cache _POSTARG_HORIZONTAL_IN_)
       class (type_model),           intent(inout) :: self
       type (type_task),             intent(in)    :: task
       type (type_horizontal_cache), intent(inout) :: cache
@@ -4269,7 +4286,7 @@ end subroutine internal_check_horizontal_state
       integer                   :: i, j, k
       _DECLARE_HORIZONTAL_INDICES_
 
-      call begin_horizontal_task(self, task, cache _ARGUMENTS_HORIZONTAL_IN_)
+      call begin_horizontal_task(self, task, cache _POSTARG_HORIZONTAL_IN_)
 
       call_node => task%first_call
       do while (associated(call_node))
@@ -4301,11 +4318,11 @@ end subroutine internal_check_horizontal_state
          call_node => call_node%next
       end do
 
-      call end_horizontal_task(task, cache, self%store _ARGUMENTS_HORIZONTAL_IN_)
+      call end_horizontal_task(task, cache, self%store _POSTARG_HORIZONTAL_IN_)
 
    end subroutine fabm_process_horizontal_slice
 
-   subroutine fabm_process_vertical_slice(self, task, cache _ARGUMENTS_VERTICAL_IN_)
+   subroutine fabm_process_vertical_slice(self, task, cache _POSTARG_VERTICAL_IN_)
       class (type_model),         intent(inout) :: self
       type (type_task),           intent(in)    :: task
       type (type_vertical_cache), intent(inout) :: cache
@@ -4315,7 +4332,7 @@ end subroutine internal_check_horizontal_state
       integer                   :: i, j, k
       _DECLARE_VERTICAL_INDICES_
 
-      call begin_vertical_task(self, task, cache _ARGUMENTS_VERTICAL_IN_)
+      call begin_vertical_task(self, task, cache _POSTARG_VERTICAL_IN_)
 
       call_node => task%first_call
       do while (associated(call_node))
@@ -4353,7 +4370,7 @@ end subroutine internal_check_horizontal_state
          call_node => call_node%next
       end do
 
-      call end_vertical_task(task, cache, self%store _ARGUMENTS_VERTICAL_IN_)
+      call end_vertical_task(task, cache, self%store _POSTARG_VERTICAL_IN_)
 
    end subroutine fabm_process_vertical_slice
 
@@ -4366,8 +4383,8 @@ subroutine fabm_update_time1(self,t)
    expression => self%root%first_expression
    do while (associated(expression))
       select type (expression)
-         class is (type_bulk_temporal_mean)
-            call update_bulk_temporal_mean(expression)
+         class is (type_interior_temporal_mean)
+            call update_interior_temporal_mean(expression)
          class is (type_horizontal_temporal_mean)
             call update_horizontal_temporal_mean(expression)
       end select
@@ -4376,8 +4393,8 @@ subroutine fabm_update_time1(self,t)
 
 contains
 
-   subroutine update_bulk_temporal_mean(expression)
-      class (type_bulk_temporal_mean), intent(inout) :: expression
+   subroutine update_interior_temporal_mean(expression)
+      class (type_interior_temporal_mean), intent(inout) :: expression
       integer  :: i
       real(rke) :: weight_right, frac_outside
 
@@ -4651,7 +4668,6 @@ subroutine classify_variables(self)
                         diagvar%standard_variable = standard_variable
                   end select
                end if
-               diagvar%time_treatment    = output2time_treatment(diagvar%output)
                diagvar%save = diagvar%output/=output_none
                diagvar%source = object%source
             elseif (object%presence == presence_internal .and. object%source == source_state) then
@@ -4685,7 +4701,6 @@ subroutine classify_variables(self)
                         hz_diagvar%standard_variable = standard_variable
                   end select
                end if
-               hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
                hz_diagvar%save = hz_diagvar%output/=output_none
                hz_diagvar%source = object%source
             elseif (object%presence == presence_internal .and. object%source == source_state) then
@@ -4845,7 +4860,7 @@ end subroutine classify_variables
       end do
    end subroutine require_call_all_with_state
 
-   subroutine check_interior_location(self _ARGUMENTS_INTERIOR_IN_,routine)
+   subroutine check_interior_location(self _POSTARG_INTERIOR_IN_, routine)
       class (type_model),intent(in) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
       character(len=*), intent(in) :: routine
@@ -4864,7 +4879,7 @@ end subroutine classify_variables
 #endif
    end subroutine check_interior_location
 
-   subroutine check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,routine)
+   subroutine check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, routine)
       class (type_model),intent(in) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
       character(len=*), intent(in) :: routine
@@ -4883,7 +4898,7 @@ end subroutine classify_variables
 #endif
    end subroutine check_horizontal_location
 
-   subroutine check_vertical_location(self _ARGUMENTS_VERTICAL_IN_,routine)
+   subroutine check_vertical_location(self _POSTARG_VERTICAL_IN_, routine)
       class (type_model),intent(in) :: self
       _DECLARE_ARGUMENTS_VERTICAL_IN_
       character(len=*), intent(in) :: routine
@@ -4902,10 +4917,10 @@ end subroutine classify_variables
 #endif
    end subroutine check_vertical_location
 
-   subroutine check_extents_1d(array,required_size1,routine,array_name,shape_description)
-      real(rke),       intent(in) :: array(:)
-      integer,         intent(in) :: required_size1
-      character(len=*),intent(in) :: routine,array_name,shape_description
+   subroutine check_extents_1d(array, required_size1, routine, array_name, shape_description)
+      real(rke),        intent(in) :: array(:)
+      integer,          intent(in) :: required_size1
+      character(len=*), intent(in) :: routine, array_name, shape_description
       character(len=8) :: actual,required
       if (size(array,1)/=required_size1) then
          write (actual,  '(i0)') size(array,1)
@@ -4914,10 +4929,10 @@ end subroutine classify_variables
       end if
    end subroutine check_extents_1d
 
-   subroutine check_extents_2d(array,required_size1,required_size2,routine,array_name,shape_description)
-      real(rke),       intent(in) :: array(:,:)
-      integer,         intent(in) :: required_size1,required_size2
-      character(len=*),intent(in) :: routine,array_name,shape_description
+   subroutine check_extents_2d(array, required_size1, required_size2, routine, array_name, shape_description)
+      real(rke),        intent(in) :: array(:,:)
+      integer,          intent(in) :: required_size1, required_size2
+      character(len=*), intent(in) :: routine, array_name, shape_description
       character(len=17) :: actual,required
       if (size(array,1)/=required_size1.or.size(array,2)/=required_size2) then
          write (actual,  '(i0,a,i0)') size(array,1),',',size(array,2)
@@ -4926,7 +4941,7 @@ end subroutine classify_variables
       end if
    end subroutine check_extents_2d
 
-   subroutine check_extents_3d(array,required_size1,required_size2,required_size3,routine,array_name,shape_description)
+   subroutine check_extents_3d(array, required_size1, required_size2, required_size3, routine, array_name, shape_description)
       real(rke),       intent(in) :: array(:,:,:)
       integer,         intent(in) :: required_size1,required_size2,required_size3
       character(len=*),intent(in) :: routine,array_name,shape_description
@@ -4938,9 +4953,9 @@ end subroutine classify_variables
       end if
    end subroutine check_extents_3d
 
-   subroutine check_loop(istart,istop,imax,routine)
-      integer,         intent(in) :: istart,istop,imax
-      character(len=*),intent(in) :: routine
+   subroutine check_loop(istart, istop, imax, routine)
+      integer,          intent(in) :: istart, istop, imax
+      character(len=*), intent(in) :: routine
 
       character(len=8) :: str1,str2
 
@@ -4960,9 +4975,9 @@ end subroutine classify_variables
       end if
    end subroutine check_loop
 
-   subroutine check_index(i,i_max,routine,name)
-      integer,         intent(in) :: i,i_max
-      character(len=*),intent(in) :: routine,name
+   subroutine check_index(i, i_max, routine, name)
+      integer,          intent(in) :: i, i_max
+      character(len=*), intent(in) :: routine, name
       character(len=8) :: str1,str2
       if (i<1) then
          write (str1,'(i0)') i

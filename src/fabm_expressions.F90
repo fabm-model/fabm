@@ -12,10 +12,10 @@ module fabm_expressions
 
    private
 
-   public temporal_mean,vertical_mean,vertical_integral
-   public type_bulk_temporal_mean,type_horizontal_temporal_mean,type_vertical_integral
+   public temporal_mean, vertical_mean, vertical_integral
+   public type_interior_temporal_mean, type_horizontal_temporal_mean, type_vertical_integral
 
-   type,extends(type_bulk_expression) :: type_bulk_temporal_mean
+   type, extends(type_bulk_expression) :: type_interior_temporal_mean
       real(rk) :: period   ! Time period to average over (s)
       integer  :: n
       real(rk) :: last_time, next_save_time
@@ -28,7 +28,7 @@ module fabm_expressions
       real(rke),allocatable _DIMENSION_GLOBAL_PLUS_1_ :: history
    end type
 
-   type,extends(type_horizontal_expression) :: type_horizontal_temporal_mean
+   type, extends(type_horizontal_expression) :: type_horizontal_temporal_mean
       real(rk) :: period   ! Time period to average over (s)
       integer  :: n
       real(rk) :: last_time, next_save_time
@@ -39,7 +39,7 @@ module fabm_expressions
       real(rke),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: history
    end type
 
-   type,extends(type_horizontal_expression) :: type_vertical_integral
+   type, extends(type_horizontal_expression) :: type_vertical_integral
       real(rk) :: minimum_depth = 0.0_rk        ! Depth below surface in m (positive)
       real(rk) :: maximum_depth = huge(1.0_rk)  ! Depth below surface in m (positive)
       logical  :: average       = .false.       ! Whether to divide the depth integral by water depth, thus computing the vertical average
@@ -49,7 +49,7 @@ module fabm_expressions
    end type
 
    interface temporal_mean
-      module procedure bulk_temporal_mean
+      module procedure interior_temporal_mean
       module procedure horizontal_temporal_mean
    end interface
 
@@ -64,39 +64,40 @@ module fabm_expressions
    end interface
 
 contains
-   function vertical_dependency_mean(input,minimum_depth,maximum_depth) result(expression)
+
+   function vertical_dependency_mean(input, minimum_depth, maximum_depth) result(expression)
       type (type_dependency_id), intent(inout),target   :: input
       real(rk),                  intent(in),   optional :: minimum_depth,maximum_depth
       type (type_vertical_integral)                     :: expression
       expression = vertical_integral(input,minimum_depth,maximum_depth,average=.true.)
    end function
 
-   function vertical_state_mean(input,minimum_depth,maximum_depth) result(expression)
+   function vertical_state_mean(input, minimum_depth, maximum_depth) result(expression)
       type (type_state_variable_id), intent(inout),target   :: input
-      real(rk),                      intent(in),   optional :: minimum_depth,maximum_depth
+      real(rk),                      intent(in),   optional :: minimum_depth, maximum_depth
       type (type_vertical_integral)                         :: expression
       expression = vertical_integral_generic(input,minimum_depth,maximum_depth,average=.true.)
    end function
 
-   function vertical_dependency_integral(input,minimum_depth,maximum_depth,average) result(expression)
+   function vertical_dependency_integral(input, minimum_depth, maximum_depth, average) result(expression)
       type (type_dependency_id), intent(inout),target   :: input
-      real(rk),                  intent(in),   optional :: minimum_depth,maximum_depth
+      real(rk),                  intent(in),   optional :: minimum_depth, maximum_depth
       logical,                   intent(in),   optional :: average
       type (type_vertical_integral)                     :: expression
-      expression = vertical_integral_generic(input,minimum_depth,maximum_depth,average)
+      expression = vertical_integral_generic(input, minimum_depth, maximum_depth, average)
    end function
 
-   function vertical_state_integral(input,minimum_depth,maximum_depth,average) result(expression)
+   function vertical_state_integral(input, minimum_depth, maximum_depth, average) result(expression)
       type (type_state_variable_id), intent(inout),target   :: input
-      real(rk),                      intent(in),   optional :: minimum_depth,maximum_depth
+      real(rk),                      intent(in),   optional :: minimum_depth, maximum_depth
       logical,                       intent(in),   optional :: average
-      type (type_vertical_integral)                     :: expression
-      expression = vertical_integral_generic(input,minimum_depth,maximum_depth,average)
+      type (type_vertical_integral)                         :: expression
+      expression = vertical_integral_generic(input, minimum_depth, maximum_depth, average)
    end function
 
-   function vertical_integral_generic(input,minimum_depth,maximum_depth,average) result(expression)
+   function vertical_integral_generic(input, minimum_depth, maximum_depth, average) result(expression)
       class (type_variable_id), intent(inout),target   :: input
-      real(rk),                 intent(in),   optional :: minimum_depth,maximum_depth
+      real(rk),                 intent(in),   optional :: minimum_depth, maximum_depth
       logical,                  intent(in),   optional :: average
       type (type_vertical_integral)                    :: expression
 
@@ -130,13 +131,13 @@ contains
       if (present(maximum_depth)) expression%maximum_depth = maximum_depth
    end function
 
-   function bulk_temporal_mean(input,period,resolution,missing_value) result(expression)
-      type (type_dependency_id), intent(inout),target   :: input
-      real(rk),                  intent(in)             :: period,resolution
-      real(rk),optional,         intent(in)             :: missing_value
+   function interior_temporal_mean(input, period, resolution, missing_value) result(expression)
+      type (type_dependency_id), intent(inout), target :: input
+      real(rk),                  intent(in)            :: period, resolution
+      real(rk),optional,         intent(in)            :: missing_value
+      type (type_interior_temporal_mean)               :: expression
 
-      type (type_bulk_temporal_mean) :: expression
-      character(len=attribute_length) :: prefix,postfix
+      character(len=attribute_length) :: prefix, postfix
 
       if (.not.associated(input%link)) call fatal_error('fabm_expressions::bulk_temporal_mean', &
          'Input variable has not been registered yet.')
@@ -152,12 +153,12 @@ contains
       if (present(missing_value)) expression%missing_value = missing_value
    end function
 
-   function horizontal_temporal_mean(input,period,resolution) result(expression)
-      type (type_horizontal_dependency_id),intent(inout),target   :: input
-      real(rk),                            intent(in)             :: period,resolution
+   function horizontal_temporal_mean(input, period, resolution) result(expression)
+      type (type_horizontal_dependency_id), intent(inout), target :: input
+      real(rk),                             intent(in)            :: period, resolution
+      type (type_horizontal_temporal_mean)                        :: expression
 
-      type (type_horizontal_temporal_mean) :: expression
-      character(len=attribute_length) :: prefix,postfix
+      character(len=attribute_length) :: prefix, postfix
 
       if (.not.associated(input%link)) call fatal_error('fabm_expressions::horizontal_temporal_mean', &
          'Input variable has not been registered yet.')

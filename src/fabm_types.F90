@@ -59,7 +59,6 @@
    public type_expression, type_bulk_expression, type_horizontal_expression
 
    public get_aggregate_variable_access, type_aggregate_variable_access, type_contribution
-   public time_treatment2output,output2time_treatment
 
    public type_coupling_task
 
@@ -122,12 +121,6 @@
                                  output_time_integrated      = 2, &
                                  output_time_step_averaged   = 4, &
                                  output_time_step_integrated = 8
-
-   ! For pre 2014-01 backward compatibility only (please use output_* instead)
-   integer, parameter, public :: time_treatment_last            = 0, &
-                                 time_treatment_integrated      = 1, &
-                                 time_treatment_averaged        = 2, &
-                                 time_treatment_step_integrated = 3
 
    ! ====================================================================================================
    ! Data types for pointers to variable values.
@@ -1756,7 +1749,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    subroutine add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                           initial_value, background_value, presence, output, time_treatment, &
+                           initial_value, background_value, presence, output, &
                            act_as_state_variable, read_index, state_index, write_index, background, link)
 !
 ! !DESCRIPTION:
@@ -1770,7 +1763,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),              target,intent(in)          :: name
       character(len=*),                     intent(in),optional :: long_name, units
       real(rk),                             intent(in),optional :: minimum, maximum,missing_value,initial_value,background_value
-      integer,                              intent(in),optional :: presence, output, time_treatment
+      integer,                              intent(in),optional :: presence, output
       logical,                              intent(in),optional :: act_as_state_variable
       integer,                       target,           optional :: read_index, state_index, write_index
       real(rk),                      target,           optional :: background
@@ -1811,11 +1804,6 @@ end subroutine real_pointer_set_set_value
       if (present(initial_value)) variable%initial_value = initial_value
       if (present(presence))      variable%presence      = presence
       if (present(act_as_state_variable)) variable%fake_state_variable = act_as_state_variable
-      if (present(time_treatment)) then
-         call self%log_message('variable "'//trim(name)//'": "time_treatment" argument is deprecated; &
-                               &please use "output" instead. For possible values, see time_treatment2output in fabm_types.F90.')
-         variable%output = time_treatment2output(time_treatment)
-      end if
       if (present(output))        variable%output        = output
       variable%prefill_value = variable%missing_value
 
@@ -1865,7 +1853,7 @@ end subroutine real_pointer_set_set_value
    recursive subroutine add_interior_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
                                           background_value, specific_light_extinction, &
                                           no_precipitation_dilution, no_river_dilution, standard_variable, presence, output, &
-                                          time_treatment, act_as_state_variable, source, &
+                                          act_as_state_variable, source, &
                                           read_index, state_index, write_index, &
                                           background, link)
 !
@@ -1881,7 +1869,7 @@ end subroutine real_pointer_set_set_value
       real(rk),                          intent(in),optional :: specific_light_extinction
       logical,                           intent(in),optional :: no_precipitation_dilution, no_river_dilution
       type (type_bulk_standard_variable),intent(in),optional :: standard_variable
-      integer,                           intent(in),optional :: presence, output, time_treatment, source
+      integer,                           intent(in),optional :: presence, output, source
       logical,                           intent(in),optional :: act_as_state_variable
 
       integer,                      target,optional :: read_index, state_index, write_index
@@ -1911,7 +1899,7 @@ end subroutine real_pointer_set_set_value
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                        initial_value, background_value, presence, output, time_treatment, &
+                        initial_value, background_value, presence, output, &
                         act_as_state_variable, read_index, state_index, write_index, background, link_)
 
       if (present(link)) link => link_
@@ -1925,7 +1913,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    recursive subroutine add_horizontal_variable(self,name,units,long_name, missing_value, minimum, maximum, initial_value, &
-                                                background_value, standard_variable, presence, output, time_treatment, &
+                                                background_value, standard_variable, presence, output, &
                                                 act_as_state_variable, domain, source, &
                                                 read_index, state_index, write_index, background, link)
 !
@@ -1940,7 +1928,7 @@ end subroutine real_pointer_set_set_value
       real(rk),                                 intent(in),optional :: minimum, maximum, missing_value
       real(rk),                                 intent(in),optional :: initial_value, background_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
-      integer,                                  intent(in),optional :: presence, domain, output, time_treatment, source
+      integer,                                  intent(in),optional :: presence, domain, output, source
       logical,                                  intent(in),optional :: act_as_state_variable
 
       integer,                            target,optional :: read_index, state_index, write_index
@@ -1974,7 +1962,7 @@ end subroutine real_pointer_set_set_value
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                        initial_value, background_value, presence, output, time_treatment, &
+                        initial_value, background_value, presence, output, &
                         act_as_state_variable, read_index, state_index, write_index, background, link_)
 
       if (present(link)) link => link_
@@ -1988,7 +1976,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    recursive subroutine add_scalar_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
-                                            background_value, standard_variable, presence, output, time_treatment, &
+                                            background_value, standard_variable, presence, output, &
                                             read_index, state_index, write_index, sms_index, background, link)
 !
 ! !DESCRIPTION:
@@ -2001,7 +1989,7 @@ end subroutine real_pointer_set_set_value
       character(len=*),                     intent(in),optional :: long_name, units
       real(rk),                             intent(in),optional :: minimum, maximum, missing_value, initial_value, background_value
       type (type_global_standard_variable), intent(in),optional :: standard_variable
-      integer,                              intent(in),optional :: presence, output, time_treatment
+      integer,                              intent(in),optional :: presence, output
 
       integer,                        target,optional :: read_index, state_index, write_index, sms_index
       real(rk),                       target,optional :: background
@@ -2023,7 +2011,7 @@ end subroutine real_pointer_set_set_value
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                        initial_value, background_value, presence, output, time_treatment, &
+                        initial_value, background_value, presence, output, &
                         .false., read_index, state_index, write_index, background, link)
    end subroutine add_scalar_variable
 !EOC
@@ -2087,7 +2075,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    subroutine register_interior_diagnostic_variable(self, id, name, units, long_name, &
-                                                time_treatment, missing_value, standard_variable, output, source, &
+                                                missing_value, standard_variable, output, source, &
                                                 act_as_state_variable, prefill_value)
 !
 ! !DESCRIPTION:
@@ -2099,7 +2087,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INPUT PARAMETERS:
       character(len=*),                   intent(in)          :: name, long_name, units
-      integer,                            intent(in),optional :: time_treatment, output, source
+      integer,                            intent(in),optional :: output, source
       real(rk),                           intent(in),optional :: missing_value, prefill_value
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       logical,                            intent(in),optional :: act_as_state_variable
@@ -2112,7 +2100,7 @@ end subroutine real_pointer_set_set_value
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
       call self%add_interior_variable(name, units, long_name, missing_value, &
-                                  standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
+                                  standard_variable=standard_variable, output=output, &
                                   source=source, write_index=id%diag_index, link=id%link, act_as_state_variable=act_as_state_variable)
       if (present(prefill_value)) then
          id%link%target%prefill = prefill_constant
@@ -2128,7 +2116,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INTERFACE:
    subroutine register_horizontal_diagnostic_variable(self, id, name, units, long_name, &
-                                                      time_treatment, missing_value, standard_variable, output, source, &
+                                                      missing_value, standard_variable, output, source, &
                                                       act_as_state_variable, domain)
 !
 ! !DESCRIPTION:
@@ -2140,7 +2128,7 @@ end subroutine real_pointer_set_set_value
 !
 ! !INPUT PARAMETERS:
       character(len=*),                         intent(in)          :: name, long_name, units
-      integer,                                  intent(in),optional :: time_treatment, output, source, domain
+      integer,                                  intent(in),optional :: output, source, domain
       real(rk),                                 intent(in),optional :: missing_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
       logical,                                  intent(in),optional :: act_as_state_variable
@@ -2152,7 +2140,7 @@ end subroutine real_pointer_set_set_value
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
       call self%add_horizontal_variable(name, units, long_name, missing_value, &
-                                        standard_variable=standard_variable, output=output, time_treatment=time_treatment, &
+                                        standard_variable=standard_variable, output=output, &
                                         source=source, write_index=id%horizontal_diag_index, link=id%link, &
                                         act_as_state_variable=act_as_state_variable, domain=domain)
 
@@ -3135,29 +3123,6 @@ recursive subroutine abstract_model_factory_register_version(self,name,version_s
    version%module_name = name
    version%version_string = version_string
 end subroutine abstract_model_factory_register_version
-
-   function time_treatment2output(time_treatment) result(output)
-      integer, intent(in) :: time_treatment
-      integer             :: output
-      select case (time_treatment)
-         case (time_treatment_last);            output = output_instantaneous
-         case (time_treatment_integrated);      output = output_time_integrated
-         case (time_treatment_averaged);        output = output_time_step_averaged
-         case (time_treatment_step_integrated); output = output_time_step_integrated
-      end select
-   end function
-
-   function output2time_treatment(output) result(time_treatment)
-      integer, intent(in) :: output
-      integer             :: time_treatment
-      select case (output)
-         case (output_none);                 time_treatment = time_treatment_last
-         case (output_instantaneous);        time_treatment = time_treatment_last
-         case (output_time_integrated);      time_treatment = time_treatment_integrated
-         case (output_time_step_averaged);   time_treatment = time_treatment_averaged
-         case (output_time_step_integrated); time_treatment = time_treatment_step_integrated
-      end select
-   end function
 
    subroutine coupling_task_list_remove(self,task)
       class (type_coupling_task_list),intent(inout) :: self
