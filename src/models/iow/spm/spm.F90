@@ -455,7 +455,7 @@
 
       stressexponent = self%stressexponent
 
-      _FABM_HORIZONTAL_LOOP_BEGIN_
+      _HORIZONTAL_LOOP_BEGIN_
       ! get environmental variables
       _GET_(self%id_spm,spm)
       _GET_(self%id_temp,temp)
@@ -609,7 +609,7 @@
             ! unit is g/m**3 * m/s
             _SET_BOTTOM_EXCHANGE_(self%id_spm,massflux)
             ! unit is kg/m**2/s
-            _SET_ODE_BEN_(self%id_pmpool,-(massflux)/1000.0_rk*self%morfac)
+            _SET_BOTTOM_ODE_(self%id_pmpool,-(massflux)/1000.0_rk*self%morfac)
             ! Export diagnostic variables mass flux - unit is kg/m**2/s
             _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux,-(massflux)/1000.0_rk)
             ! Export diagnostic variables bed load flux - unit is kg/m/s
@@ -622,15 +622,15 @@
             ! unit is g/m**3 * m/s
             _SET_BOTTOM_EXCHANGE_(self%id_spm,(massflux+massflux_fluff))
             ! unit is kg/m**2/s
-            _SET_ODE_BEN_(self%id_pmpool ,-(massflux)/1000.0_rk)
-            _SET_ODE_BEN_(self%id_flufflayer,-(massflux_fluff)/1000.0_rk)
+            _SET_BOTTOM_ODE_(self%id_pmpool ,-(massflux)/1000.0_rk)
+            _SET_BOTTOM_ODE_(self%id_flufflayer,-(massflux_fluff)/1000.0_rk)
             ! Export diagnostic variables mass flux - unit is kg/m**2/s
             _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux ,-(massflux )/1000.0_rk)
       end select
 
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massfraction,pmpool/totalmass*100.0_rk)
 
-      _FABM_HORIZONTAL_LOOP_END_
+      _HORIZONTAL_LOOP_END_
 
    end if
 
@@ -643,13 +643,13 @@
 ! !ROUTINE: iow_spm_get_vertical_movement
 !
 ! !INTERFACE:
-   subroutine get_vertical_movement(self,_FABM_ARGS_GET_VERTICAL_MOVEMENT_)
+   subroutine get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
 
    implicit none
 
 ! !INPUT PARAMETERS:
    class (type_iow_spm), intent(in) :: self
-   _DECLARE_FABM_ARGS_GET_VERTICAL_MOVEMENT_
+   _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
 
 ! !LOCAL VARIABLES
    real(rk)      :: temp
@@ -659,14 +659,14 @@
 ! !REVISION HISTORY:
 !  Original author(s): Richard Hofmeister & Ulf Gräwe
 !
-   _FABM_LOOP_BEGIN_
+   _LOOP_BEGIN_
 
-   _GET_DEPENDENCY_(self%id_temp,temp)
-   _GET_DEPENDENCY_(self%id_rhow,rhow)
+   _GET_(self%id_temp,temp)
+   _GET_(self%id_rhow,rhow)
    _GET_(self%id_spm,spm)
    _SET_VERTICAL_MOVEMENT_(self%id_spm,ws(self,temp,rhow,spm))
 
-   _FABM_LOOP_END_
+   _LOOP_END_
 
    end subroutine get_vertical_movement
 !EOP

@@ -38,7 +38,20 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public fabm_initialize_library, type_model, fabm_create_model_from_file
+   public fabm_initialize_library, type_fabm_model
+
+   ! Variable identifier types by external physical drivers.
+   public type_bulk_variable_id
+   public type_horizontal_variable_id
+   public type_scalar_variable_id
+   public type_external_variable,type_horizontal_state_variable_info
+
+   ! Object with all supported standard variables as its members.
+   ! Imported from fabm_types, and made available so hosts only need to "use fabm"
+   public standard_variables
+
+   ! All public entitites below For backward compatibility (20191115):
+   public type_model
    public fabm_initialize, fabm_finalize, fabm_set_domain, fabm_check_ready, fabm_update_time
    public fabm_initialize_state, fabm_initialize_surface_state, fabm_initialize_bottom_state
 
@@ -53,32 +66,16 @@
    public fabm_get_conserved_quantities, fabm_get_horizontal_conserved_quantities
 
    ! Management of model variables: retrieve identifiers, get and set data.
-   public fabm_get_bulk_variable_id,fabm_get_horizontal_variable_id,fabm_get_scalar_variable_id
+   public fabm_get_bulk_variable_id, fabm_get_horizontal_variable_id, fabm_get_scalar_variable_id
    public fabm_get_variable_name, fabm_is_variable_used, fabm_variable_needs_values
    public fabm_link_interior_state_data, fabm_link_bottom_state_data, fabm_link_surface_state_data
    public fabm_link_interior_data, fabm_link_horizontal_data, fabm_link_scalar_data
    public fabm_get_interior_diagnostic_data, fabm_get_horizontal_diagnostic_data
 
-   ! For backward compatibility (pre 11 Dec 2015)
-   public fabm_link_bulk_state_data, fabm_get_bulk_diagnostic_data, fabm_link_bulk_data
-
 #ifdef _HAS_MASK_
    ! Set spatial mask
    public fabm_set_mask
 #endif
-
-   ! For backward compatibility only (use fabm_do_surface and fabm_do_bottom instead)
-   public fabm_get_surface_exchange, fabm_do_benthos
-
-   ! Object with all supported standard variables as its members.
-   ! Imported from fabm_types, and made available so hosts only need to "use fabm"
-   public standard_variables
-
-   ! Variable identifier types by external physical drivers.
-   public type_bulk_variable_id
-   public type_horizontal_variable_id
-   public type_scalar_variable_id
-   public type_external_variable,type_horizontal_state_variable_info
 
    integer, parameter :: state_none             = 0
    integer, parameter :: state_initialize_done  = 1
@@ -105,20 +102,20 @@
       type (type_internal_variable),pointer :: variable => null()
    end type
 
-   type,extends(type_external_variable_id) :: type_bulk_variable_id
+   type, extends(type_external_variable_id) :: type_bulk_variable_id
    end type
 
-   type,extends(type_external_variable_id) :: type_horizontal_variable_id
+   type, extends(type_external_variable_id) :: type_horizontal_variable_id
    end type
 
-   type,extends(type_external_variable_id) :: type_scalar_variable_id
+   type, extends(type_external_variable_id) :: type_scalar_variable_id
    end type
 
    ! ====================================================================================================
    ! Derived types for variable metadata used by host models.
    ! ====================================================================================================
 
-   type,abstract :: type_external_variable
+   type, abstract :: type_external_variable
       character(len=attribute_length) :: name          = ''
       character(len=attribute_length) :: long_name     = ''
       character(len=attribute_length) :: local_long_name = ''
@@ -134,7 +131,7 @@
    end type
 
 !  Derived type describing a state variable
-   type,extends(type_external_variable) :: type_state_variable_info
+   type, extends(type_external_variable) :: type_state_variable_info
       type (type_bulk_standard_variable) :: standard_variable
       real(rke)                          :: initial_value             = 0.0_rke
       logical                            :: no_precipitation_dilution = .false.
@@ -145,27 +142,27 @@
       integer                            :: movement_index     = -1
    end type type_state_variable_info
 
-   type,extends(type_external_variable) :: type_horizontal_state_variable_info
+   type, extends(type_external_variable) :: type_horizontal_state_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
       real(rke)                                :: initial_value = 0.0_rke
       integer                                  :: sms_index = -1
    end type type_horizontal_state_variable_info
 
 !  Derived type describing a diagnostic variable
-   type,extends(type_external_variable) :: type_diagnostic_variable_info
+   type, extends(type_external_variable) :: type_diagnostic_variable_info
       type (type_bulk_standard_variable) :: standard_variable
       logical                            :: save           = .false.
       integer                            :: source
    end type type_diagnostic_variable_info
 
-   type,extends(type_external_variable) :: type_horizontal_diagnostic_variable_info
+   type, extends(type_external_variable) :: type_horizontal_diagnostic_variable_info
       type (type_horizontal_standard_variable) :: standard_variable
       logical                                  :: save           = .false.
       integer                                  :: source
    end type type_horizontal_diagnostic_variable_info
 
 !  Derived type describing a conserved quantity
-   type,extends(type_external_variable) :: type_conserved_quantity_info
+   type, extends(type_external_variable) :: type_conserved_quantity_info
       type (type_bulk_standard_variable)    :: standard_variable
       integer                               :: index              = -1
       integer                               :: horizontal_index   = -1
@@ -209,26 +206,20 @@
       integer :: state = state_none
       type (type_global_variable_register) :: variable_register
 
-      class (type_model),pointer :: info => null()  ! For backward compatibility (hosts pre 11/2013); always points to root.
-
       ! Arrays with variable metadata [used by hosts only]
-      type (type_state_variable_info),                allocatable,dimension(:) :: state_variables
-      type (type_horizontal_state_variable_info),     allocatable,dimension(:) :: surface_state_variables
-      type (type_horizontal_state_variable_info),     allocatable,dimension(:) :: bottom_state_variables
-      type (type_diagnostic_variable_info),           allocatable,dimension(:) :: diagnostic_variables
-      type (type_horizontal_diagnostic_variable_info),allocatable,dimension(:) :: horizontal_diagnostic_variables
-      type (type_conserved_quantity_info),            allocatable,dimension(:) :: conserved_quantities
-
-      ! Pointers for backward compatibility (pre 2013-06-15) [used by hosts only]
-      type (type_horizontal_state_variable_info),     pointer,dimension(:) :: state_variables_ben     => null()
-      type (type_horizontal_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables_hz => null()
+      type (type_state_variable_info),                 allocatable, dimension(:) :: state_variables
+      type (type_horizontal_state_variable_info),      allocatable, dimension(:) :: surface_state_variables
+      type (type_horizontal_state_variable_info),      allocatable, dimension(:) :: bottom_state_variables
+      type (type_diagnostic_variable_info),            allocatable, dimension(:) :: diagnostic_variables
+      type (type_horizontal_diagnostic_variable_info), allocatable, dimension(:) :: horizontal_diagnostic_variables
+      type (type_conserved_quantity_info),             allocatable, dimension(:) :: conserved_quantities
 
       ! Arrays with names of variables read by one or more biogeochemical models.
       ! These are not used within FABM, but may be accessed by the host to determine the names of
       ! potential forcing variables.
-      character(len=attribute_length),allocatable,dimension(:) :: dependencies
-      character(len=attribute_length),allocatable,dimension(:) :: dependencies_hz
-      character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar
+      character(len=attribute_length), allocatable, dimension(:) :: dependencies
+      character(len=attribute_length), allocatable, dimension(:) :: dependencies_hz
+      character(len=attribute_length), allocatable, dimension(:) :: dependencies_scalar
 
       type (type_bulk_variable_id) :: extinction_id
 
@@ -351,7 +342,7 @@
       procedure :: get_interior_data => fabm_get_interior_data
       procedure :: get_horizontal_data => fabm_get_horizontal_data
       procedure :: get_scalar_data => fabm_get_scalar_data
-      generic :: get_data => get_interior_data,get_horizontal_data,get_scalar_data
+      generic :: get_data => get_interior_data, get_horizontal_data, get_scalar_data
 
       procedure :: get_interior_diagnostic_data => fabm_get_interior_diagnostic_data
       procedure :: get_horizontal_diagnostic_data => fabm_get_horizontal_diagnostic_data
@@ -389,13 +380,7 @@
 
    end type type_model
 
-   type type_integer_list_node
-      integer :: value
-      type (type_integer_list_node),pointer :: next => null()
-   end type
-
-   type,extends(type_base_model) :: type_host_container
-      type (type_integer_list_node), pointer :: first => null()
+   type, extends(type_model) :: type_fabm_model
    end type
 
    interface allocate_and_fill
@@ -548,111 +533,6 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Create a new model tree from a configuration file.
-!
-! !INTERFACE:
-   function fabm_create_model_from_file(file_unit,file,do_not_initialize) result(model)
-!
-! !INPUT PARAMETERS:
-   character(len=*),optional,intent(in) :: file
-   integer,                  intent(in) :: file_unit
-   logical,optional,         intent(in) :: do_not_initialize
-   type (type_model),pointer            :: model
-
-! !LOCAL VARIABLES:
-   logical                   :: isopen,initialize
-   character(len=256)        :: file_eff
-   integer                   :: i,j,modelcount,ownindex
-   character(len=64)         :: models(256),instancename
-   class (type_base_model),pointer :: childmodel
-   logical,parameter         :: alwayspostfixindex=.false.
-   namelist /fabm_nml/ models
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   call fabm_initialize_library()
-
-   nullify(model)
-
-   ! Determine whether the provided unit has been opened already.
-   inquire(file_unit,opened=isopen)
-
-   if (.not.isopen) then
-      ! Unit has not been openend - we need to open the configuration file ourselves.
-      if (present(file)) then
-         ! A file path has been provided - use that.
-         file_eff = file
-      else
-         ! No file path has been provided - use default.
-         file_eff = 'fabm.nml'
-      end if
-
-      ! Open configuration file.
-      open(file_unit,file=file_eff,action='read',status='old',err=98)
-   end if
-
-   ! Read main FABM namelist.
-   models = ''
-   read(file_unit,nml=fabm_nml,err=99,end=100)
-
-   ! Create model tree
-   allocate(model)
-   do i=1,size(models)
-      if (models(i)/='') then
-         ! Determine if this model name is used multiple times.
-         modelcount = 0
-         do j=1,size(models)
-            if (models(i)==models(j)) then
-               modelcount = modelcount + 1
-               if (i==j) ownindex = modelcount
-            end if
-         end do
-
-         ! If another model uses this name too, append a number to the model name.
-         if (alwayspostfixindex .or. modelcount>1) then
-            write (unit=instancename,fmt='(a,i2.2)') trim(models(i)),ownindex
-         else
-            instancename = models(i)
-         end if
-
-         ! Ask the factory to create the model.
-         call factory%create(trim(models(i)),childmodel)
-         if (.not.associated(childmodel)) call fatal_error('fabm_create_model_from_file', &
-            '"'//trim(models(i))//'" is not a valid model name.')
-         childmodel%user_created = .true.
-
-         call log_message('Initializing '//trim(instancename)//'...')
-         call model%root%add_child(childmodel,instancename,configunit=file_unit)
-         call log_message( '   initialization succeeded.')
-      end if
-   end do
-
-   ! Initialize model tree [this freezes the model configuration - no new child models or variables can be added]
-   initialize = .not.present(do_not_initialize)
-   if (.not.initialize) initialize = .not.do_not_initialize
-   if (initialize) call fabm_initialize(model)
-
-   ! If we have opened the configuration file ourselves, close it.
-   if (.not.isopen) close(file_unit)
-
-   return
-
-98 call fatal_error('fabm_create_model_from_file','Unable to open FABM configuration file '//trim(file_eff)//'.')
-   return
-
-99 call fatal_error('fabm_create_model_from_file','Unable to read namelist "fabm_nml".')
-   return
-
-100 call fatal_error('fabm_create_model_from_file','Unable to find namelist "fabm_nml".')
-   return
-
-   end function fabm_create_model_from_file
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
 ! !IROUTINE: Initialise the biogeochemical model tree.
 !
 ! !INTERFACE:
@@ -672,8 +552,6 @@
 !BOC
       if (self%state>=state_initialize_done) &
          call fatal_error('fabm_initialize','fabm_initialize has already been called on this model object.')
-
-      self%info => self ! For backward compatibility (pre 11/2013 hosts only)
 
       ! Create zero fields.
       call self%root%add_interior_variable('zero', act_as_state_variable=.true., source=source_constant, missing_value=0.0_rki, output=output_none)
@@ -829,7 +707,6 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   nullify(self%info)
    self%state = state_none
 
    ! TODO: this should deallocate the memory of all biogeochemical models
@@ -2545,7 +2422,7 @@ subroutine allocate_and_fill_1d(target, fill, lb, n)
 end subroutine
 
 subroutine create_interior_cache(self, cache)
-   type (type_model),          intent(in)  :: self
+   class (type_model),         intent(in)  :: self
    type (type_interior_cache), intent(out) :: cache
 
    integer :: n, n_mod, i
@@ -2568,7 +2445,7 @@ subroutine create_interior_cache(self, cache)
 end subroutine
 
 subroutine create_horizontal_cache(self, cache)
-   type (type_model),            intent(in)  :: self
+   class (type_model),           intent(in)  :: self
    type (type_horizontal_cache), intent(out) :: cache
 
    integer :: n, n_mod, i
@@ -2591,7 +2468,7 @@ subroutine create_horizontal_cache(self, cache)
 end subroutine
 
 subroutine create_vertical_cache(self, cache)
-   type (type_model),          intent(in)  :: self
+   class (type_model),         intent(in)  :: self
    type (type_vertical_cache), intent(out) :: cache
 
    integer :: n, n_mod, i
@@ -2615,7 +2492,7 @@ subroutine create_vertical_cache(self, cache)
 end subroutine
 
 subroutine begin_interior_task(self, task, cache _POSTARG_INTERIOR_IN_)
-   type (type_model),          intent(in)    :: self
+   class (type_model),         intent(in)    :: self
    type (type_task),           intent(in)    :: task
    type (type_interior_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_INTERIOR_IN_
@@ -2674,7 +2551,7 @@ subroutine begin_interior_task(self, task, cache _POSTARG_INTERIOR_IN_)
 end subroutine begin_interior_task
 
 subroutine begin_horizontal_task(self,task,cache _POSTARG_HORIZONTAL_IN_)
-   type (type_model),            intent(in)    :: self
+   class (type_model),           intent(in)    :: self
    type (type_task),             intent(in)    :: task
    type (type_horizontal_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
@@ -2727,7 +2604,7 @@ subroutine begin_horizontal_task(self,task,cache _POSTARG_HORIZONTAL_IN_)
 end subroutine begin_horizontal_task
 
 subroutine load_surface_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
-   type (type_model),            intent(in)    :: self
+   class (type_model),           intent(in)    :: self
    type (type_task),             intent(in)    :: task
    type (type_horizontal_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
@@ -2761,7 +2638,7 @@ subroutine load_surface_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
 end subroutine load_surface_data
 
 subroutine load_bottom_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
-   type (type_model),            intent(in)    :: self
+   class (type_model),           intent(in)    :: self
    type (type_task),             intent(in)    :: task
    type (type_horizontal_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
@@ -2810,7 +2687,7 @@ subroutine load_bottom_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
 end subroutine load_bottom_data
 
 subroutine begin_vertical_task(self,task,cache _POSTARG_VERTICAL_IN_)
-   type (type_model),          intent(in)    :: self
+   class (type_model),         intent(in)    :: self
    type (type_task),           intent(in)    :: task
    type (type_vertical_cache), intent(inout) :: cache
    _DECLARE_ARGUMENTS_VERTICAL_IN_
@@ -3547,7 +3424,7 @@ end subroutine end_vertical_task
    call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_check_bottom_state')
 #endif
 
-   call internal_check_horizontal_state(self,self%check_bottom_state_job _POSTARG_HORIZONTAL_IN_,2,self%bottom_state_variables,repair,valid)
+   call internal_check_horizontal_state(self, self%check_bottom_state_job _POSTARG_HORIZONTAL_IN_, 2, self%bottom_state_variables, repair, valid)
 
    end subroutine fabm_check_bottom_state
 !EOC
@@ -3574,7 +3451,7 @@ end subroutine end_vertical_task
    call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_check_surface_state')
 #endif
 
-   call internal_check_horizontal_state(self,self%check_surface_state_job _POSTARG_HORIZONTAL_IN_,1,self%info%surface_state_variables,repair,valid)
+   call internal_check_horizontal_state(self, self%check_surface_state_job _POSTARG_HORIZONTAL_IN_, 1, self%surface_state_variables, repair, valid)
 
    end subroutine fabm_check_surface_state
 !EOC
@@ -4640,11 +4517,6 @@ subroutine classify_variables(self)
    allocate(self%surface_state_variables        (nstate_surf))
    allocate(self%diagnostic_variables           (ndiag))
    allocate(self%horizontal_diagnostic_variables(ndiag_hz))
-
-   ! Set pointers for backward compatibility (pre 2013-06-15)
-   ! Note: this must be done AFTER allocation of the target arrays, above!
-   self%state_variables_ben => self%bottom_state_variables
-   self%diagnostic_variables_hz => self%horizontal_diagnostic_variables
 
    ! Build lists of state variable and diagnostic variables.
    nstate = 0

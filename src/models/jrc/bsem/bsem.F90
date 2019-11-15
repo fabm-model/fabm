@@ -319,7 +319,7 @@ else
   
    ! For gelatinous
    if(temp .gt. self%temp_zg_lim) then
-     temp_cont_zg=_ONE_+(3.5_rk*((temp-16.0_rk)/(1.0_rk+(temp-16.0_rk))))
+     temp_cont_zg=1.0_rk+(3.5_rk*((temp-16.0_rk)/(1.0_rk+(temp-16.0_rk))))
    else
      temp_cont_zg=1.0_rk
    end if
@@ -345,7 +345,7 @@ else
 
    ! Zoo Mortality terms
    ! Mesozoo mortality dependent on temp
-   mort_temp=_ONE_-((temp-5.0_rk)/(3.0_rk+(temp-5.0_rk)))
+   mort_temp=1.0_rk-((temp-5.0_rk)/(3.0_rk+(temp-5.0_rk)))
    mzl=self%mzl0*mort_temp
 
    ! Gelatinous zoop mortality dependent on density
@@ -380,7 +380,7 @@ else
      oxilimdecom=1.0_rk
    end if 
    if(ox .lt. 250.0_rk .and. ox .gt. self%ox_min ) then
-      oxilimdecom=_ONE_-(self%R0/(self%R0+ox))
+      oxilimdecom=1.0_rk-(self%R0/(self%R0+ox))
    else
       oxilimdecom=0.25_rk
     end if
@@ -438,7 +438,7 @@ else
    _SET_ODE_(self%id_zl,(self%phyZ*sum(G(:,2)*zl))-sum(G(5,:)*pred_vect)-self%mu_zl*zl-     mzl*zl**2)
    _SET_ODE_(self%id_zn,(self%phyZ*sum(G(:,3)*zn))-sum(G(6,:)*pred_vect)-self%mu_zn*zn-self%mzn*zn**2)
    _SET_ODE_(self%id_zg,(self%phyZ*sum(G(:,4)*zg))-self%mu_zg*zg-self%mnzg*zg-mpzg*zg**2)
-   _SET_ODE_(self%id_dn,(_ONE_-self%phyZ)*(sum(G(:,1)*zs)+sum(G(:,2)*zl)+sum(G(:,3)*zn)+sum(G(:,4)*zg))+self%mpl*pl+self%mps*ps+self%mzs*zs**2+self%zl_pred_lost*(mzl*zl**2)+self%mzn*zn**2+self%mnzg*zg+mpzg*zg**2+(_ONE_-oxilimexc)*(self%mu_zs*zs+self%mu_zl*zl+self%mu_zn*zn+self%mu_zg*zg)-sum(G(3,:)*pred_vect)-epsilon_n*dn)
+   _SET_ODE_(self%id_dn,(1.0_rk-self%phyZ)*(sum(G(:,1)*zs)+sum(G(:,2)*zl)+sum(G(:,3)*zn)+sum(G(:,4)*zg))+self%mpl*pl+self%mps*ps+self%mzs*zs**2+self%zl_pred_lost*(mzl*zl**2)+self%mzn*zn**2+self%mnzg*zg+mpzg*zg**2+(1.0_rk-oxilimexc)*(self%mu_zs*zs+self%mu_zl*zl+self%mu_zn*zn+self%mu_zg*zg)-sum(G(3,:)*pred_vect)-epsilon_n*dn)
    _SET_ODE_(self%id_am,epsilon_n*dn+oxilimexc*(self%mu_zs*zs+self%mu_zl*zl+self%mu_zn*zn+self%mu_zg*zg)-(self%sigma_s*ppi_s*temp_lim_s*am_lim_s*ps)-(self%sigma_l*ppi_l*temp_lim_l*am_lim_l*pl)-nitrif-amm_nit_ox)
    _SET_ODE_(self%id_ni,nitrif-(self%sigma_s*ppi_s*temp_lim_s*nit_lim_s*ps)-(self%sigma_l*ppi_l*temp_lim_l*nit_lim_l*pl)-denitri-0.6_rk*amm_nit_ox-1.34_rk*HS_nit_oxidation)
    _SET_ODE_(self%id_o2,8.1258_rk*(growth_lim_pl*pl+growth_lim_ps*ps)-6.625_rk*(epsilon_n*dn+self%mu_zs*zs+self%mu_zl*zl+self%mu_zn*zn+self%mu_zg*zg)-2.0_rk*nitrif-HS_ox_oxidation)
@@ -558,14 +558,14 @@ else
       _GET_HORIZONTAL_(self%id_taub,taub)
       _GET_(self%id_temp,temp)
 
-      thopnp=th( oxb,wo,0.0_rk,_ONE_)*yy(wn,nib)
-      thomnp=th(-oxb,wo,0.0_rk,_ONE_)*yy(wn,nib)
-      thomnm=th(-oxb,wo,0.0_rk,_ONE_)*(_ONE_-yy(wn,nib))
+      thopnp=th( oxb,wo,0.0_rk,1.0_rk)*yy(wn,nib)
+      thomnp=th(-oxb,wo,0.0_rk,1.0_rk)*yy(wn,nib)
+      thomnm=th(-oxb,wo,0.0_rk,1.0_rk)*(1.0_rk-yy(wn,nib))
       thsum=thopnp+thomnp+thomnm
       thopnp=thopnp/thsum
       thomnp=thomnp/thsum
       thomnm=thomnm/thsum
-      llsa=self%lsa*exp(self%bsa*temp)*(th(oxb,wo,dot2,_ONE_))
+      llsa=self%lsa*exp(self%bsa*temp)*(th(oxb,wo,dot2,1.0_rk))
 
 !      ltaub=taub**2*1000.
 
@@ -580,7 +580,7 @@ else
          llsd=0.0_rk
       end if
 
-      _SET_ODE_BEN_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,_ONE_)*llsa*fl)
+      _SET_BOTTOM_ODE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_dn,-llds*deb+llsd*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
       _SET_BOTTOM_EXCHANGE_(self%id_ni,self%s1*thomnp*llsa*fl)
@@ -694,7 +694,7 @@ else
       th=min+(max-min)*0.5_rk*(1._rk+tanh(x/w))
    else
       if(x .gt. 0.0_rk) then
-         th=_ONE_
+         th=1.0_rk
       else
          th=0.0_rk
       end if

@@ -19,7 +19,7 @@
    ! This is DEPRECATED - if institutes provide their own model library
    ! using recommended naming conventions (http://fabm.net/wiki), CMake
    ! will auto-generate the required code and insert it above.
-   use aed_models
+   !use aed_models
    use fabm_metu_mnemiopsis
    use fabm_klimacampus_phy_feedback
    use fabm_hzg_omexdia_p
@@ -51,7 +51,7 @@ contains
       ! naming conventions (http://fabm.net/wiki), CMake will auto-generate
       ! the required code and insert it above.
       call self%add(builtin_factory)
-      call self%add(aed_model_factory)
+      !call self%add(aed_model_factory)
 
       ! Go through default initializaton steps.
       ! This also allows new added child model factories to initialize.

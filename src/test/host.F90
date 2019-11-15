@@ -33,7 +33,7 @@ end module host_hooks
    
 program test_host
 
-use fabm, only: type_model, standard_variables, type_bulk_variable_id, type_horizontal_variable_id, type_scalar_variable_id, fabm_initialize_library
+use fabm, only: type_fabm_model, standard_variables, type_bulk_variable_id, type_horizontal_variable_id, type_scalar_variable_id, fabm_initialize_library
 use fabm_config
 use fabm_driver
 use fabm_parameters, only: rke
@@ -185,7 +185,7 @@ real(rke),allocatable,target _DIMENSION_GLOBAL_            :: temperature
 real(rke),allocatable,target _DIMENSION_GLOBAL_            :: depth
 real(rke),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_ :: wind_speed
 
-type (type_model) :: model
+class (type_fabm_model), pointer :: model
 
 class (type_test_model), pointer :: test_model
 
@@ -298,11 +298,12 @@ call start_test('building model tree')
 select case (mode)
 case (1)
     ! Unit testing with built-in model
+    allocate(model)
     allocate(test_model)
     call model%root%add_child(test_model,'test_model','test model',configunit=-1)
 case (2)
     ! Test with user-provided fabm.yaml
-    call fabm_create_model_from_yaml_file(model, do_not_initialize=.true.)
+    model => fabm_create_model(do_not_initialize=.true.)
 end select
 call report_test_result()
 

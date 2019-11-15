@@ -3,30 +3,53 @@
 module fabm_config
 
    use fabm_types
-   use fabm_properties,only:type_property_dictionary,type_property,type_set
+   use fabm_properties, only: type_property_dictionary, type_property, type_set
    use fabm_driver
    use fabm_schedule
-   use fabm,only:type_model,fabm_initialize_library,fabm_initialize
+   use fabm, only: type_fabm_model, fabm_initialize_library, type_model
 
    use yaml_types
-   use yaml,yaml_parse=>parse,yaml_error_length=>error_length
+   use yaml, yaml_parse=>parse, yaml_error_length=>error_length
 
    implicit none
 
    private
 
+   public fabm_create_model
+
+   ! For backward compatibility (20191115):
    public fabm_create_model_from_yaml_file
 
 contains
 
-   subroutine fabm_create_model_from_yaml_file(model,path,do_not_initialize,parameters,unit)
-      type (type_model),                       intent(out) :: model
-      character(len=*),               optional,intent(in)  :: path
-      logical,                        optional,intent(in)  :: do_not_initialize
-      type (type_property_dictionary),optional,intent(in)  :: parameters
-      integer,                        optional,intent(in)  :: unit
+   function fabm_create_model(path, do_not_initialize, parameters, unit) result(model)
+      character(len=*),                optional, intent(in) :: path
+      logical,                         optional, intent(in) :: do_not_initialize
+      type (type_property_dictionary), optional, intent(in) :: parameters
+      integer,                         optional, intent(in) :: unit
+      class (type_fabm_model), pointer                      :: model
+      allocate(model)
+      call configure(model, path, do_not_initialize, parameters, unit)
+   end function
 
-      class (type_node),pointer        :: node
+   ! For backward compatibility (20191115):
+   subroutine fabm_create_model_from_yaml_file(model, path, do_not_initialize, parameters, unit)
+      type (type_model),                         intent(out) :: model
+      character(len=*),                optional, intent(in)  :: path
+      logical,                         optional, intent(in)  :: do_not_initialize
+      type (type_property_dictionary), optional, intent(in)  :: parameters
+      integer,                         optional, intent(in)  :: unit
+      call configure(model, path, do_not_initialize, parameters, unit)
+   end subroutine
+
+   subroutine configure(model, path, do_not_initialize, parameters, unit)
+      class (type_model),                        intent(inout) :: model
+      character(len=*),                optional, intent(in)    :: path
+      logical,                         optional, intent(in)    :: do_not_initialize
+      type (type_property_dictionary), optional, intent(in)    :: parameters
+      integer,                         optional, intent(in)    :: unit
+
+      class (type_node), pointer       :: node
       character(len=yaml_error_length) :: yaml_error
       integer                          :: unit_eff
       character(len=256)               :: path_eff
@@ -49,36 +72,36 @@ contains
       end if
 
       ! Parse YAML file.
-      node => yaml_parse(trim(path_eff),unit_eff,yaml_error)
-      if (yaml_error/='') call fatal_error('fabm_create_model_from_yaml_file',trim(yaml_error))
-      if (.not.associated(node)) call fatal_error('fabm_create_model_from_yaml_file', &
-         'No configuration information found in '//trim(path_eff)//'.')
+      node => yaml_parse(trim(path_eff), unit_eff, yaml_error)
+      if (yaml_error /= '') call fatal_error('fabm_create_model_from_yaml_file', trim(yaml_error))
+      if (.not. associated(node)) call fatal_error('fabm_create_model_from_yaml_file', &
+         'No configuration information found in ' // trim(path_eff) // '.')
       !call node%dump(output_unit,0)
 
       ! Create model tree from YAML root node.
       select type (node)
          class is (type_dictionary)
             ! Create F2003 model tree.
-            call create_model_tree_from_dictionary(model,node,do_not_initialize,parameters)
+            call create_model_tree_from_dictionary(model, node, do_not_initialize, parameters)
          class is (type_node)
-            call fatal_error('fabm_create_model_from_yaml_file', trim(path_eff)//' must contain a dictionary &
+            call fatal_error('fabm_create_model_from_yaml_file', trim(path_eff) // ' must contain a dictionary &
                &at the root (non-indented) level, not a single value. Are you missing a trailing colon?')
       end select
 
-   end subroutine fabm_create_model_from_yaml_file
+   end subroutine configure
 
-   subroutine create_model_tree_from_dictionary(model,mapping,do_not_initialize,parameters)
-      type (type_model),                       intent(out) :: model
-      class (type_dictionary),                 intent(in)  :: mapping
-      logical,                        optional,intent(in)  :: do_not_initialize
-      type (type_property_dictionary),optional,intent(in)  :: parameters
+   subroutine create_model_tree_from_dictionary(model, mapping, do_not_initialize, parameters)
+      class (type_model),                        intent(inout) :: model
+      class (type_dictionary),                   intent(in)    :: mapping
+      logical,                         optional, intent(in)    :: do_not_initialize
+      type (type_property_dictionary), optional, intent(in)    :: parameters
 
-      class (type_node),pointer          :: node
-      type (type_dictionary)             :: empty_dict
-      character(len=64)                  :: instancename
-      type (type_key_value_pair),pointer :: pair
-      logical                            :: initialize,check_conservation,require_initialization,require_all_parameters
-      type (type_error),         pointer :: config_error
+      class (type_node),          pointer :: node
+      type (type_dictionary)              :: empty_dict
+      character(len=64)                   :: instancename
+      type (type_key_value_pair), pointer :: pair
+      logical                             :: initialize, check_conservation, require_initialization, require_all_parameters
+      type (type_error),          pointer :: config_error
 
       ! If custom parameter values were provided, transfer these to the root model.
       if (present(parameters)) call model%root%parameters%update(parameters)
@@ -136,18 +159,18 @@ contains
       ! Initialize model tree
       initialize = .true.
       if (present(do_not_initialize)) initialize = .not.do_not_initialize
-      if (initialize) call fabm_initialize(model)
+      if (initialize) call model%initialize()
 
    end subroutine create_model_tree_from_dictionary
 
-   subroutine create_model_from_dictionary(instancename,node,parent, &
-                                           require_initialization,require_all_parameters,check_conservation,schedules)
-      character(len=*),       intent(in)           :: instancename
-      class (type_dictionary),intent(in)           :: node
-      class (type_base_model),intent(inout),target :: parent
-      logical,                intent(in)           :: require_initialization,require_all_parameters,check_conservation
-      class (type_schedules), intent(inout)        :: schedules
-      class (type_base_model),pointer              :: model
+   subroutine create_model_from_dictionary(instancename, node, parent, &
+                                           require_initialization, require_all_parameters, check_conservation, schedules)
+      character(len=*),        intent(in)            :: instancename
+      class (type_dictionary), intent(in)            :: node
+      class (type_base_model), intent(inout), target :: parent
+      logical,                 intent(in)            :: require_initialization, require_all_parameters, check_conservation
+      class (type_schedules),  intent(inout)         :: schedules
+      class (type_base_model), pointer               :: model
 
       logical                            :: use_model
       character(len=64)                  :: modelname
@@ -312,8 +335,8 @@ contains
       !end do
       call initialized_set%finalize()
 
-      model%check_conservation = node%get_logical('check_conservation',default=check_conservation,error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      model%check_conservation = node%get_logical('check_conservation', default=check_conservation, error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
 
       ! Check whether any keys at the model level remain unused.
       pair => node%first
@@ -325,7 +348,7 @@ contains
 
    end subroutine create_model_from_dictionary
 
-   subroutine parse_initialization(model,node,initialized_set,get_background)
+   subroutine parse_initialization(model, node, initialized_set, get_background)
       class (type_base_model),intent(inout) :: model
       class (type_dictionary),intent(in)    :: node
       type (type_set),        intent(out)   :: initialized_set
