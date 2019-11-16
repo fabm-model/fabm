@@ -413,8 +413,8 @@ end select
 ! (i.e., whether all required calls for link_*_data have been made)
 ! ======================================================================
 
-call start_test('check_ready')
-call model%check_ready()
+call start_test('start')
+call model%start()
 call report_test_result()
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
@@ -659,18 +659,18 @@ contains
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             flux = 0
             sms_bt = 0
-            call model%do_bottom(_PREARG_HORIZONTAL_IN_ flux, sms_bt)
+            call model%get_bottom_sources(_PREARG_HORIZONTAL_IN_ flux, sms_bt)
          _END_OUTER_HORIZONTAL_LOOP_
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             flux = 0
             sms_sf = 0
-            call model%do_surface(_PREARG_HORIZONTAL_IN_ flux, sms_sf)
+            call model%get_surface_sources(_PREARG_HORIZONTAL_IN_ flux, sms_sf)
          _END_OUTER_HORIZONTAL_LOOP_
 
          _BEGIN_OUTER_INTERIOR_LOOP_
             dy = 0
-            call model%do_interior(_PREARG_INTERIOR_IN_ dy)
+            call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy)
          _END_OUTER_INTERIOR_LOOP_
 
          call model%process(model%get_diagnostics_job)
@@ -790,22 +790,22 @@ contains
       ! Retrieve source terms of interior state variables.
       ! ======================================================================
 
-      call start_test('do_interior')
+      call start_test('get_interior_sources')
       interior_loop_count = 0
       _BEGIN_OUTER_INTERIOR_LOOP_
          dy = 0
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
          ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
          if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= 1 .and. bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) &
-            call model%do_interior(_IMIN_, _IMAX_ _ARG_INTERIOR_FIXED_LOCATION_, dy(_IMIN_:_IMAX_,:))
+            call model%get_interior_sources(_IMIN_, _IMAX_ _ARG_INTERIOR_FIXED_LOCATION_, dy(_IMIN_:_IMAX_,:))
 #else
-         call model%do_interior(_PREARG_INTERIOR_IN_ dy)
+         call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy)
 #endif
          do ivar=1,size(model%state_variables)
             call check_interior_slice_plus_1(dy,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _POSTARG_INTERIOR_IN_)
          end do
       _END_OUTER_INTERIOR_LOOP_
-      call assert(interior_loop_count == interior_count, 'do_interior', 'call count does not match number of (unmasked) interior points')
+      call assert(interior_loop_count == interior_count, 'get_interior_sources', 'call count does not match number of (unmasked) interior points')
 
       do ivar=1,size(model%diagnostic_variables)
          if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source==source_do) then
@@ -830,7 +830,7 @@ contains
       _END_GLOBAL_HORIZONTAL_LOOP_
 #endif
 
-      call start_test('do_surface')
+      call start_test('get_surface_sources')
       surface_loop_count = 0
       _BEGIN_OUTER_HORIZONTAL_LOOP_
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
@@ -838,7 +838,7 @@ contains
 #endif
          flux = 0
          sms_sf = 0
-         call model%do_surface(_PREARG_HORIZONTAL_IN_ flux, sms_sf)
+         call model%get_surface_sources(_PREARG_HORIZONTAL_IN_ flux, sms_sf)
          do ivar=1,size(model%state_variables)
             call check_horizontal_slice_plus_1(flux,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _POSTARG_HORIZONTAL_IN_)
          end do
@@ -849,7 +849,7 @@ contains
          endif
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
-      call assert(surface_loop_count == horizontal_count, 'do_surface', 'call count does not match number of (unmasked) horizontal points')
+      call assert(surface_loop_count == horizontal_count, 'get_surface_sources', 'call count does not match number of (unmasked) horizontal points')
 
       do ivar=1,size(model%horizontal_diagnostic_variables)
          if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_surface) then
@@ -874,7 +874,7 @@ contains
       _END_GLOBAL_HORIZONTAL_LOOP_
 #endif
 
-      call start_test('do_bottom')
+      call start_test('get_bottom_sources')
       bottom_loop_count = 0
       _BEGIN_OUTER_HORIZONTAL_LOOP_
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
@@ -882,7 +882,7 @@ contains
 #endif
          flux = 0
          sms_bt = 0
-         call model%do_bottom(_PREARG_HORIZONTAL_IN_ flux, sms_bt)
+         call model%get_bottom_sources(_PREARG_HORIZONTAL_IN_ flux, sms_bt)
          do ivar=1,size(model%state_variables)
             call check_horizontal_slice_plus_1(flux,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _POSTARG_HORIZONTAL_IN_)
          end do
@@ -893,7 +893,7 @@ contains
          endif
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
-      call assert(bottom_loop_count == horizontal_count, 'do_surface', 'call count does not match number of (unmasked) horizontal points')
+      call assert(bottom_loop_count == horizontal_count, 'get_bottom_sources', 'call count does not match number of (unmasked) horizontal points')
 
       do ivar=1,size(model%horizontal_diagnostic_variables)
          if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_bottom) then
