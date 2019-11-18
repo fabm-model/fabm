@@ -22,32 +22,32 @@ module fabm_driver
       procedure :: log_message => base_driver_log_message
    end type
 
-   class (type_base_driver),pointer,save :: driver => null()
+   class (type_base_driver), pointer, save :: driver => null()
 
 contains
 
-   subroutine base_driver_fatal_error(self,location,message)
+   subroutine base_driver_fatal_error(self, location, message)
       class (type_base_driver), intent(inout) :: self
-      character(len=*),         intent(in)    :: location,message
+      character(len=*),         intent(in)    :: location, message
 
-      write (*,*) trim(location)//': '//trim(message)
+      write (*,*) trim(location) // ': ' // trim(message)
       stop 1
    end subroutine
 
-   subroutine base_driver_log_message(self,message)
+   subroutine base_driver_log_message(self, message)
       class (type_base_driver), intent(inout) :: self
       character(len=*),         intent(in)    :: message
 
       write (*,*) trim(message)
    end subroutine
 
-   subroutine fatal_error(location,message)
-      character(len=*),intent(in) :: location,message
-      call driver%fatal_error(location,message)
+   subroutine fatal_error(location, message)
+      character(len=*), intent(in) :: location, message
+      call driver%fatal_error(location, message)
    end subroutine
 
    subroutine log_message(message)
-      character(len=*),intent(in) :: message
+      character(len=*), intent(in) :: message
       call driver%log_message(message)
    end subroutine
 

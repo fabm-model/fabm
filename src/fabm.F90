@@ -583,7 +583,7 @@ contains
       if (associated(factory)) return
 
       ! If needed, create default object for communication (e.g., logging, error reporting) with host.
-      if (.not. associated(driver)) allocate(type_base_driver::driver)
+      if (.not. associated(driver)) allocate(driver)
 
       ! Create all standard variable objects.
       call initialize_standard_variables()
@@ -604,10 +604,10 @@ contains
       type (type_version), pointer :: version
 
       call fabm_initialize_library()
-      string = git_commit_id//' ('//git_branch_name//' branch)'
+      string = git_commit_id // ' (' // git_branch_name // ' branch)'
       version => first_module_version
       do while (associated(version))
-         string = trim(string)//', '//trim(version%module_name)//': '//trim(version%version_string)
+         string = trim(string) // ', ' // trim(version%module_name) // ': ' // trim(version%version_string)
          version => version%next
       end do
    end subroutine fabm_get_version
@@ -638,20 +638,20 @@ contains
       ! The remainder, if any, must be handled by the host model.
       call filter_expressions(self)
 
-      ! This will resolve all FABM dependencies and generate final authorative lists of variables of different types.
+      ! This will resolve all FABM dependencies and generate final authoritative lists of variables of different types.
       call freeze_model_info(self%root)
 
       ! Raise error for unused coupling commands.
       property => self%root%couplings%first
       do while (associated(property))
          if (.not.self%root%couplings%retrieved%contains(trim(property%name))) then
-            islash = index(property%name,'/',.true.)
-            call fatal_error('initialize','model '//property%name(1:islash-1)//' does not contain variable "'//trim(property%name(islash+1:))//'" mentioned in coupling section.')
+            islash = index(property%name, '/', .true.)
+            call fatal_error('initialize', 'model ' // property%name(1:islash-1) // ' does not contain variable "' // trim(property%name(islash+1:)) // '" mentioned in coupling section.')
          end if
          property => property%next
       end do
 
-      ! Build final authoritative arrays with variable metadata .
+      ! Build final authoritative arrays with variable metadata.
       call classify_variables(self)
 
       ! Create catalog for storing pointers to data per variable.
@@ -747,10 +747,10 @@ contains
       self%status = status_set_domain_done
 
 #if _FABM_DIMENSION_COUNT_>0
-      self%domain_size = (/ _LOCATION_ /)
+      self%domain_size = (/_LOCATION_/)
 #endif
 #if _HORIZONTAL_DIMENSION_COUNT_>0
-      self%horizontal_domain_size = (/ _HORIZONTAL_LOCATION_ /)
+      self%horizontal_domain_size = (/_HORIZONTAL_LOCATION_/)
 #endif
 
       if (present(seconds_per_time_unit)) then
@@ -759,18 +759,18 @@ contains
             select type (expression)
             class is (type_interior_temporal_mean)
                expression%in = expression%link%target%catalog_index
-               expression%period = expression%period/seconds_per_time_unit
-               allocate(expression%history(_PREARG_LOCATION_ expression%n+3))
+               expression%period = expression%period / seconds_per_time_unit
+               allocate(expression%history(_PREARG_LOCATION_ expression%n + 3))
                expression%history = 0.0_rke
                call self%link_interior_data(expression%output_name, &
-                                            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+3))
+                                            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 3))
             class is (type_horizontal_temporal_mean)
                expression%in = expression%link%target%catalog_index
-               expression%period = expression%period/seconds_per_time_unit
-               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n+3))
+               expression%period = expression%period / seconds_per_time_unit
+               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 3))
                expression%history = 0.0_rke
                call self%link_horizontal_data(expression%output_name, &
-                                              expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n+3))
+                                              expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 3))
             end select
             expression => expression%next
          end do
@@ -802,8 +802,8 @@ contains
 
 #  ifndef _FABM_HORIZONTAL_MASK_
 #    if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
-      do i=1,size(self%domain_size)
-         if (size(mask,i) /= self%domain_size(i)) &
+      do i = 1, size(self%domain_size)
+         if (size(mask, i) /= self%domain_size(i)) &
             call fatal_error('set_mask', 'shape of provided mask does not match domain extents provided to set_domain.')
       end do
 #    endif
@@ -811,8 +811,8 @@ contains
 #  endif
 
 #  if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
-      do i=1,size(self%horizontal_domain_size)
-         if (size(mask_hz,i) /= self%horizontal_domain_size(i)) &
+      do i = 1, size(self%horizontal_domain_size)
+         if (size(mask_hz, i) /= self%horizontal_domain_size(i)) &
             call fatal_error('set_mask', 'shape of provided horizontal mask does not match domain extents provided to set_domain.')
       end do
 #  endif
@@ -857,8 +857,8 @@ contains
       if (self%status < status_set_domain_done) &
          call fatal_error('set_bottom_index', 'set_domain has not yet been called on this model object.')
 #    if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
-      do i=1,size(self%horizontal_domain_size)
-         if (size(indices,i) /= self%horizontal_domain_size(i)) &
+      do i = 1, size(self%horizontal_domain_size)
+         if (size(indices, i) /= self%horizontal_domain_size(i)) &
             call fatal_error('set_bottom_index', 'shape of provided index array does not match domain extents provided to set_domain.')
       end do
 #    endif
@@ -1096,22 +1096,22 @@ contains
          first => null()
          link => self%root%links%first
          do while (associated(link))
-            if (     associated(link%target,variable)     &                   ! This link points to the target variable,
-                .and.associated(link%original%read_index) &                   ! the model that owns the link requests read access for it,
-                .and.link%original%presence/=presence_external_optional) then ! and this access is required, not optional
+            if (      associated(link%target, variable)    &                     ! This link points to the target variable,
+                .and. associated(link%original%read_index) &                     ! the model that owns the link requests read access for it,
+                .and. link%original%presence /= presence_external_optional) then ! and this access is required, not optional
                current => first
                do while (associated(current))
-                  if (associated(current%p,link%original%owner)) exit
+                  if (associated(current%p, link%original%owner)) exit
                   current => current%next
                end do
-               if (.not.associated(current)) then
+               if (.not. associated(current)) then
                   ! This model has not been reported before. Do so now and remember that we have done so.
                   allocate(current)
                   current%p => link%original%owner
                   current%next => first
                   first => current
                   path = current%p%get_path()
-                  call log_message('    '//trim(path(2:)))
+                  call log_message('    ' // trim(path(2:)))
                end if
             end if
             link => link%next
@@ -1136,30 +1136,9 @@ contains
       character(len=*),   intent(in) :: name
       type (type_bulk_variable_id)   :: id
 
-      type (type_link), pointer :: link
-
-      link => self%root%links%first
-      do while (associated(link))
-         if (link%target%domain==domain_interior) then
-            if (link%name==name.or.get_safe_name(link%name)==name) then
-               id%variable => link%target
-               return
-            end if
-         end if
-         link => link%next
-      end do
-
-      ! Name not found among variable names. Now try standard names that are in use.
-      link => self%root%links%first
-      do while (associated(link))
-         if (link%target%domain==domain_interior.and.link%target%standard_variables%contains(name)) then
-            id%variable => link%target
-            return
-         end if
-         link => link%next
-      end do
+      id%variable => get_variable_by_name(self, name, domain_interior)
    end function get_bulk_variable_id_by_name
-
+   
    ! --------------------------------------------------------------------------
    ! get_bulk_variable_id_by_name: get interior variable identifier for given 
    ! standard variable
@@ -1191,28 +1170,7 @@ contains
       character(len=*),   intent(in)     :: name
       type (type_horizontal_variable_id) :: id
 
-      type (type_link), pointer :: link
-
-      link => self%root%links%first
-      do while (associated(link))
-         if (link%target%domain==domain_horizontal.or.link%target%domain==domain_surface.or.link%target%domain==domain_bottom) then
-            if (link%name==name.or.get_safe_name(link%name)==name) then
-               id%variable => link%target
-               return
-            end if
-         end if
-         link => link%next
-      end do
-
-      ! Name not found among variable names. Now try standard names that are in use.
-      link => self%root%links%first
-      do while (associated(link))
-         if ((link%target%domain==domain_horizontal.or.link%target%domain==domain_surface.or.link%target%domain==domain_bottom).and.link%target%standard_variables%contains(name)) then
-            id%variable => link%target
-            return
-         end if
-         link => link%next
-      end do
+      id%variable => get_variable_by_name(self, name, domain_horizontal)
    end function get_horizontal_variable_id_by_name
 
    ! --------------------------------------------------------------------------
@@ -1246,28 +1204,7 @@ contains
       character(len=*),   intent(in)  :: name
       type (type_scalar_variable_id)  :: id
 
-      type (type_link), pointer :: link
-
-      link => self%root%links%first
-      do while (associated(link))
-         if (link%target%domain==domain_scalar) then
-            if (link%name==name.or.get_safe_name(link%name)==name) then
-               id%variable => link%target
-               return
-            end if
-         end if
-         link => link%next
-      end do
-
-      ! Name not found among variable names. Now try standard names that are in use.
-      link => self%root%links%first
-      do while (associated(link))
-         if (link%target%domain==domain_scalar.and.link%target%standard_variables%contains(name)) then
-            id%variable => link%target
-            return
-         end if
-         link => link%next
-      end do
+      id%variable => get_variable_by_name(self, name, domain_scalar)
    end function get_scalar_variable_id_by_name
 
    ! --------------------------------------------------------------------------
@@ -1421,9 +1358,10 @@ contains
       integer :: source_
 
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
-      do i=1,size(self%domain_size)
-         if (size(dat,i)/=self%domain_size(i)) then
-            call fatal_error('link_interior_data_by_variable', trim(variable%name)//': extents of provided array do not match domain extents.')
+      do i = 1, size(self%domain_size)
+         if (size(dat, i) /= self%domain_size(i)) then
+            call fatal_error('link_interior_data_by_variable', trim(variable%name) // &
+               ': extents of provided array do not match domain extents.')
          end if
       end do
 #endif
@@ -1474,9 +1412,10 @@ contains
       integer :: source_
 
 #if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
-      do i=1,size(self%horizontal_domain_size)
-         if (size(dat,i)/=self%horizontal_domain_size(i)) then
-            call fatal_error('link_horizontal_data_by_variable', trim(variable%name)//': extents of provided array do not match domain extents.')
+      do i = 1, size(self%horizontal_domain_size)
+         if (size(dat, i) /= self%horizontal_domain_size(i)) then
+            call fatal_error('link_horizontal_data_by_variable', trim(variable%name) // &
+               ': extents of provided array do not match domain extents.')
          end if
       end do
 #endif
@@ -1526,7 +1465,7 @@ contains
       integer :: i
       integer :: source_
 
-      if (.not.associated(id%variable)) return
+      if (.not. associated(id%variable)) return
       i = id%variable%catalog_index
       if (i /= -1) then
          source_ = data_source_default
@@ -1585,10 +1524,10 @@ contains
       integer :: i
 
 #ifndef NDEBUG
-      if (size(dat,_FABM_DIMENSION_COUNT_+1) /= size(self%state_variables)) &
+      if (size(dat, _FABM_DIMENSION_COUNT_ + 1) /= size(self%state_variables)) &
          call fatal_error('link_all_interior_state_data', 'size of last dimension of provided array must match number of interior state variables.')
 #endif
-      do i=1,size(self%state_variables)
+      do i = 1, size(self%state_variables)
          call link_interior_state_data(self, i, dat(_PREARG_LOCATION_DIMENSIONS_ i))
       end do
    end subroutine link_all_interior_state_data
@@ -1600,10 +1539,10 @@ contains
       integer :: i
 
 #ifndef NDEBUG
-      if (size(dat,_HORIZONTAL_DIMENSION_COUNT_+1) /= size(self%bottom_state_variables)) &
+      if (size(dat, _HORIZONTAL_DIMENSION_COUNT_ + 1) /= size(self%bottom_state_variables)) &
          call fatal_error('link_all_bottom_state_data', 'size of last dimension of provided array must match number of bottom state variables.')
 #endif
-      do i=1,size(self%bottom_state_variables)
+      do i = 1, size(self%bottom_state_variables)
          call link_bottom_state_data(self, i, dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
       end do
    end subroutine link_all_bottom_state_data
@@ -1615,10 +1554,10 @@ contains
       integer :: i
 
 #ifndef NDEBUG
-      if (size(dat,_HORIZONTAL_DIMENSION_COUNT_+1)/=size(self%surface_state_variables)) &
+      if (size(dat, _HORIZONTAL_DIMENSION_COUNT_ + 1) /= size(self%surface_state_variables)) &
          call fatal_error('link_all_surface_state_data', 'size of last dimension of provided array must match number of surface state variables.')
 #endif
-      do i=1,size(self%surface_state_variables)
+      do i = 1, size(self%surface_state_variables)
          call link_surface_state_data(self, i, dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
       end do
    end subroutine link_all_surface_state_data
@@ -1650,6 +1589,7 @@ contains
 
       _ASSERT_(self%status >= status_check_ready_done, 'get_interior_data', 'This routine can only be called after model start.')
       dat => null()
+      if (.not. associated(id%variable)) return
       if (id%variable%catalog_index /= -1) dat => self%catalog%interior(id%variable%catalog_index)%p
    end function get_interior_data
 
@@ -1660,6 +1600,7 @@ contains
 
       _ASSERT_(self%status >= status_check_ready_done, 'get_horizontal_data', 'This routine can only be called after model start.')
       dat => null()
+      if (.not. associated(id%variable)) return
       if (id%variable%catalog_index /= -1) dat => self%catalog%horizontal(id%variable%catalog_index)%p
    end function get_horizontal_data
 
@@ -1670,99 +1611,101 @@ contains
 
       _ASSERT_(self%status >= status_check_ready_done, 'get_scalar_data', 'This routine can only be called after model start.')
       dat => null()
+      if (.not. associated(id%variable)) return
       if (id%variable%catalog_index /= -1) dat => self%catalog%scalar(id%variable%catalog_index)%p
    end function get_scalar_data
 
-subroutine allocate_and_fill_0d(target, fill, lb, n)
-   real(rki), allocatable, intent(out) :: target(:)
-   real(rki),              intent(in)  :: fill(:)
-   integer,                intent(in)  :: lb, n
-   allocate(target(lb:size(fill)))
-   target(1:) = fill
-end subroutine
+   subroutine allocate_and_fill_0d(target, fill, lb, n)
+      real(rki), allocatable, intent(out) :: target(:)
+      real(rki),              intent(in)  :: fill(:)
+      integer,                intent(in)  :: lb, n
 
-subroutine allocate_and_fill_1d(target, fill, lb, n)
-   real(rki), allocatable, intent(out) :: target(:, :)
-   real(rki),              intent(in)  :: fill(:)
-   integer,                intent(in)  :: lb, n
+      allocate(target(lb:size(fill)))
+      target(1:) = fill
+   end subroutine
 
-   integer :: i
+   subroutine allocate_and_fill_1d(target, fill, lb, n)
+      real(rki), allocatable, intent(out) :: target(:, :)
+      real(rki),              intent(in)  :: fill(:)
+      integer,                intent(in)  :: lb, n
 
-   allocate(target(1:n, lb:size(fill)))
-   do i = 1, size(fill)
-      target(:, i) = fill(i)
-   end do
-end subroutine
+      integer :: i
 
-subroutine create_interior_cache(self, cache)
-   class (type_model),         intent(in)  :: self
-   type (type_interior_cache), intent(out) :: cache
+      allocate(target(1:n, lb:size(fill)))
+      do i = 1, size(fill)
+         target(:, i) = fill(i)
+      end do
+   end subroutine
 
-   integer :: n, n_mod, i
+   subroutine create_interior_cache(self, cache)
+      class (type_model),         intent(in)  :: self
+      type (type_interior_cache), intent(out) :: cache
+
+      integer :: n, n_mod, i
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-   n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
-   n_mod = mod(n, array_block_size)
-   if (n_mod /= 0) n = n - n_mod + array_block_size
+      n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
+      n_mod = mod(n, array_block_size)
+      if (n_mod /= 0) n = n - n_mod + array_block_size
 #  ifdef _HAS_MASK_
-   allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
+      allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
 #  endif
 #else
-   n = 1
+      n = 1
 #endif
 
-   call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
-   call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, n)
-   call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
-   call allocate_and_fill(cache%write, self%write_cache_fill_value, 0, n)
-end subroutine
+      call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
+      call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, n)
+      call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
+      call allocate_and_fill(cache%write, self%write_cache_fill_value, 0, n)
+   end subroutine
 
-subroutine create_horizontal_cache(self, cache)
-   class (type_model),           intent(in)  :: self
-   type (type_horizontal_cache), intent(out) :: cache
+   subroutine create_horizontal_cache(self, cache)
+      class (type_model),           intent(in)  :: self
+      type (type_horizontal_cache), intent(out) :: cache
 
-   integer :: n, n_mod, i
+      integer :: n, n_mod, i
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
-   n_mod = mod(n, array_block_size)
-   if (n_mod /= 0) n = n - n_mod + array_block_size
+      n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
+      n_mod = mod(n, array_block_size)
+      if (n_mod /= 0) n = n - n_mod + array_block_size
 #  ifdef _HAS_MASK_
-   allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
+      allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
 #  endif
 #else
-   n = 1
+      n = 1
 #endif
 
-   call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
-   call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, n)
-   call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
-   call allocate_and_fill(cache%write_hz, self%write_cache_hz_fill_value, 0, n)
-end subroutine
+      call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
+      call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, n)
+      call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
+      call allocate_and_fill(cache%write_hz, self%write_cache_hz_fill_value, 0, n)
+   end subroutine
 
-subroutine create_vertical_cache(self, cache)
-   class (type_model),         intent(in)  :: self
-   type (type_vertical_cache), intent(out) :: cache
+   subroutine create_vertical_cache(self, cache)
+      class (type_model),         intent(in)  :: self
+      type (type_vertical_cache), intent(out) :: cache
 
-   integer :: n, n_mod, i
+      integer :: n, n_mod, i
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   n = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
-   n_mod = mod(n, array_block_size)
-   if (n_mod /= 0) n = n - n_mod + array_block_size
+      n = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
+      n_mod = mod(n, array_block_size)
+      if (n_mod /= 0) n = n - n_mod + array_block_size
 #  ifdef _HAS_MASK_
-   allocate(cache%ipack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
+      allocate(cache%ipack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
 #  endif
 #else
-   n = 1
+      n = 1
 #endif
 
-   call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
-   call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, 1)
-   call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
-   call allocate_and_fill(cache%write, self%write_cache_fill_value, 0, n)
-   call allocate_and_fill(cache%write_hz, self%write_cache_hz_fill_value, 0, 1)
-end subroutine
+      call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
+      call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, 1)
+      call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
+      call allocate_and_fill(cache%write, self%write_cache_fill_value, 0, n)
+      call allocate_and_fill(cache%write_hz, self%write_cache_hz_fill_value, 0, 1)
+   end subroutine
 
 subroutine begin_interior_task(self, task, cache _POSTARG_INTERIOR_IN_)
    class (type_model),         intent(in)    :: self
@@ -1776,7 +1719,7 @@ subroutine begin_interior_task(self, task, cache _POSTARG_INTERIOR_IN_)
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
 #  ifdef _HAS_MASK_
    i = 0
-   do _I_=_START_,_STOP_
+   do _I_ = _START_, _STOP_
 #    ifdef _FABM_HORIZONTAL_MASK_
       if (_IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_I_))) then
 #    else
@@ -1835,7 +1778,7 @@ subroutine begin_horizontal_task(self,task,cache _POSTARG_HORIZONTAL_IN_)
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
    i = 0
-   do _J_=_START_,_STOP_
+   do _J_ = _START_, _STOP_
       if (_IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_J_))) then
           i = i + 1
           cache%ipack(i) = _J_
@@ -1890,7 +1833,7 @@ subroutine load_surface_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
    _VERTICAL_ITERATOR_ = self%surface_index
 #endif
 
-   do i=1,size(task%load)
+   do i = 1, size(task%load)
       j = task%load(i)
       if (j /= 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
@@ -1926,7 +1869,7 @@ subroutine load_bottom_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
    _VERTICAL_ITERATOR_ = self%bottom_index
 #endif
 
-   do i=1, size(task%load)
+   do i = 1, size(task%load)
       k = task%load(i)
       if (k /= 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
@@ -1971,7 +1914,7 @@ subroutine begin_vertical_task(self,task,cache _POSTARG_VERTICAL_IN_)
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  ifdef _HAS_MASK_
    i = 0
-   do _I_=_VERTICAL_START_,_VERTICAL_STOP_
+   do _I_ = _VERTICAL_START_, _VERTICAL_STOP_
 #    ifdef _FABM_HORIZONTAL_MASK_
       if (_IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
 #    else
@@ -1987,7 +1930,7 @@ subroutine begin_vertical_task(self,task,cache _POSTARG_VERTICAL_IN_)
 #  endif
 #endif
 
-   do i=1, size(task%load)
+   do i = 1, size(task%load)
       j = task%load(i)
       if (j /= 0) then
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
@@ -2061,7 +2004,6 @@ subroutine begin_vertical_task(self,task,cache _POSTARG_VERTICAL_IN_)
 #endif
       end if
    end do
-
 end subroutine begin_vertical_task
 
 subroutine invalidate_interior_call_output(call_node, cache)
@@ -2160,12 +2102,12 @@ subroutine check_interior_call_output(call_node, cache)
       _ASSERT_(output_variable%p%target%domain == domain_interior, 'check_interior_call_output', 'output not for interior domain')
       _LOOP_BEGIN_
          if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-            call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
+            call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
       _LOOP_END_
       if (output_variable%p%target%prefill==prefill_none) then
          _LOOP_BEGIN_
             if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-               call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
+               call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
          _LOOP_END_
       end if
       output_variable => output_variable%next
@@ -2187,12 +2129,12 @@ subroutine check_horizontal_call_output(call_node, cache)
       _ASSERT_(iand(output_variable%p%target%domain, domain_horizontal) /= 0, 'check_horizontal_call_output', 'output not for horizontal domain')
       _HORIZONTAL_LOOP_BEGIN_
          if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-            call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
+            call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
       _HORIZONTAL_LOOP_END_
       if (output_variable%p%target%prefill==prefill_none) then
          _HORIZONTAL_LOOP_BEGIN_
             if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-               call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
+               call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
          _HORIZONTAL_LOOP_END_
       end if
       output_variable => output_variable%next
@@ -2215,20 +2157,20 @@ subroutine check_vertical_call_output(call_node, cache)
       case (domain_interior)
          _VERTICAL_LOOP_BEGIN_
             if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-               call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
+               call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
          _VERTICAL_LOOP_END_
          if (output_variable%p%target%prefill==prefill_none) then
             _VERTICAL_LOOP_BEGIN_
                if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-                  call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
+                  call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
             _VERTICAL_LOOP_END_
          end if
       case (domain_surface, domain_bottom, domain_horizontal)
          if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-            call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' wrote non-finite data for '//trim(output_variable%p%target%name))
+            call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
          if (output_variable%p%target%prefill==prefill_none) then
             if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-               call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path())//':'//trim(source2string(call_node%source))//' failed to write data for '//trim(output_variable%p%target%name))
+               call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
          end if
       end select
       output_variable => output_variable%next
@@ -2300,10 +2242,10 @@ subroutine end_vertical_task(task, cache, store _POSTARG_VERTICAL_IN_)
 end subroutine end_vertical_task
 
    subroutine initialize_interior_state(self _POSTARG_INTERIOR_IN_)
-      class (type_model),intent(inout) :: self
+      class (type_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
-      integer                   :: ivar,read_index
+      integer                   :: ivar, read_index
       type (type_call), pointer :: call_node
       logical                   :: set_interior
       _DECLARE_INTERIOR_INDICES_
@@ -2312,9 +2254,10 @@ end subroutine end_vertical_task
       call check_interior_location(self _POSTARG_INTERIOR_IN_, 'initialize_interior_state')
 #endif
 
-      call begin_interior_task(self,self%initialize_state_job%first_task,self%cache_int _POSTARG_INTERIOR_IN_)
+      call begin_interior_task(self, self%initialize_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
-      do ivar=1,size(self%state_variables)
+      ! Default initialization for interior state variables
+      do ivar = 1, size(self%state_variables)
          read_index = self%state_variables(ivar)%target%read_indices%value
          _CONCURRENT_LOOP_BEGIN_EX_(self%cache_int)
             self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index) = self%state_variables(ivar)%initial_value
@@ -2325,12 +2268,12 @@ end subroutine end_vertical_task
       set_interior = .false.
       call_node => self%initialize_state_job%first_task%first_call
       do while (associated(call_node))
-         if (call_node%source == source_initialize_state) call call_node%model%initialize_state(self%cache_int,set_interior)
+         if (call_node%source == source_initialize_state) call call_node%model%initialize_state(self%cache_int, set_interior)
          call_node => call_node%next
       end do
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
-      do ivar=1,size(self%state_variables)
+      do ivar = 1, size(self%state_variables)
          read_index = self%state_variables(ivar)%target%read_indices%value
          if (self%catalog%interior_sources(read_index) == data_source_fabm) then
             _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%state_variables(ivar)%missing_value)
@@ -2344,7 +2287,7 @@ end subroutine end_vertical_task
       class (type_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
-      integer                   :: ivar,read_index
+      integer                   :: ivar, read_index
       type (type_call), pointer :: call_node
       logical                   :: set_horizontal
       _DECLARE_HORIZONTAL_INDICES_
@@ -2353,10 +2296,10 @@ end subroutine end_vertical_task
       call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'initialize_bottom_state')
 #endif
 
-      call begin_horizontal_task(self,self%initialize_bottom_state_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      call begin_horizontal_task(self, self%initialize_bottom_state_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
-      ! Initialize bottom variables
-      do ivar=1,size(self%bottom_state_variables)
+      ! Default initialization for bottom state variables
+      do ivar = 1, size(self%bottom_state_variables)
          read_index = self%bottom_state_variables(ivar)%target%read_indices%value
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
             self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%bottom_state_variables(ivar)%initial_value
@@ -2372,9 +2315,9 @@ end subroutine end_vertical_task
       end do
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
-      do ivar=1,size(self%bottom_state_variables)
+      do ivar = 1, size(self%bottom_state_variables)
          read_index = self%bottom_state_variables(ivar)%target%read_indices%value
-         if (self%catalog%horizontal_sources(read_index)==data_source_fabm) then
+         if (self%catalog%horizontal_sources(read_index) == data_source_fabm) then
             _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(self%bottom_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%bottom_state_variables(ivar)%missing_value)
          end if
       end do
@@ -2386,7 +2329,7 @@ end subroutine end_vertical_task
       class (type_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
-      integer                   :: ivar,read_index
+      integer                   :: ivar, read_index
       type (type_call), pointer :: call_node
       logical                   :: set_horizontal
       _DECLARE_HORIZONTAL_INDICES_
@@ -2395,10 +2338,10 @@ end subroutine end_vertical_task
       call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'initialize_surface_state')
 #endif
 
-      call begin_horizontal_task(self,self%initialize_surface_state_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      call begin_horizontal_task(self, self%initialize_surface_state_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
-      ! Initialize surface variables
-      do ivar=1,size(self%surface_state_variables)
+      ! Default initialization for surface state variables
+      do ivar = 1, size(self%surface_state_variables)
          read_index = self%surface_state_variables(ivar)%target%read_indices%value
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
             self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%surface_state_variables(ivar)%initial_value
@@ -2414,7 +2357,7 @@ end subroutine end_vertical_task
       end do
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
-      do ivar=1,size(self%surface_state_variables)
+      do ivar = 1, size(self%surface_state_variables)
          read_index = self%surface_state_variables(ivar)%target%read_indices%value
          if (self%catalog%horizontal_sources(read_index) == data_source_fabm) then
             _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(self%surface_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%surface_state_variables(ivar)%missing_value)
@@ -2433,11 +2376,11 @@ end subroutine end_vertical_task
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_,'get_interior_sources_rhs')
+      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'get_interior_sources_rhs')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_extents_2d(dy,_STOP_-_START_+1,size(self%state_variables),'get_interior_sources_rhs','dy','stop-start+1, # interior state variables')
+      call check_extents_2d(dy, _STOP_ - _START_ + 1, size(self%state_variables), 'get_interior_sources_rhs', 'dy', 'stop-start+1, # interior state variables')
 #  else
-      call check_extents_1d(dy,size(self%state_variables),'get_interior_sources_rhs','dy','# interior state variables')
+      call check_extents_1d(dy, size(self%state_variables), 'get_interior_sources_rhs', 'dy', '# interior state variables')
 #  endif
 #endif
 
@@ -2460,17 +2403,17 @@ end subroutine end_vertical_task
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_,'get_interior_sources_ppdd')
+      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'get_interior_sources_ppdd')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_extents_3d(pp,_STOP_-_START_+1,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','pp','stop-start+1, # interior state variables, # interior state variables')
-      call check_extents_3d(dd,_STOP_-_START_+1,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','dd','stop-start+1, # interior state variables, # interior state variables')
+      call check_extents_3d(pp, _STOP_ - _START_ + 1, size(self%state_variables), size(self%state_variables), 'get_interior_sources_ppdd', 'pp', 'stop-start+1, # interior state variables, # interior state variables')
+      call check_extents_3d(dd, _STOP_ - _START_ + 1, size(self%state_variables), size(self%state_variables), 'get_interior_sources_ppdd', 'dd', 'stop-start+1, # interior state variables, # interior state variables')
 #  else
-      call check_extents_2d(pp,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','pp','# interior state variables, # interior state variables')
-      call check_extents_2d(dd,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','dd','# interior state variables, # interior state variables')
+      call check_extents_2d(pp, size(self%state_variables), size(self%state_variables), 'get_interior_sources_ppdd', 'pp', '# interior state variables, # interior state variables')
+      call check_extents_2d(dd, size(self%state_variables), size(self%state_variables), 'get_interior_sources_ppdd', 'dd', '# interior state variables, # interior state variables')
 #  endif
 #endif
 
-      call begin_interior_task(self,self%do_interior_job%first_task,self%cache_int _POSTARG_INTERIOR_IN_)
+      call begin_interior_task(self, self%do_interior_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
       call_node => self%do_interior_job%first_task%first_call
       do while (associated(call_node))
@@ -2516,7 +2459,7 @@ end subroutine end_vertical_task
       ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
       call_node => self%check_state_job%first_task%first_call
       do while (associated(call_node) .and. valid)
-         if (call_node%source==source_check_state) call call_node%model%check_state(self%cache_int, repair, valid, set_interior)
+         if (call_node%source == source_check_state) call call_node%model%check_state(self%cache_int, repair, valid, set_interior)
          if (.not. (valid .or. repair)) return
          call_node => call_node%next
       end do
@@ -2525,20 +2468,20 @@ end subroutine end_vertical_task
       ! This is always done, independently of any model-specific checks that may have been called above.
 
       ! Quick bounds check for the common case where all values are valid.
-      do ivar=1,size(self%state_variables)
+      do ivar = 1, size(self%state_variables)
          read_index = self%state_variables(ivar)%target%read_indices%value
          minimum = self%state_variables(ivar)%target%minimum
          maximum = self%state_variables(ivar)%target%maximum
          _LOOP_BEGIN_EX_(self%cache_int)
             value = self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index)
-            if (value<minimum.or.value>maximum) valid = .false.
+            if (value < minimum .or. value > maximum) valid = .false.
          _LOOP_END_
       end do
 
-      if (.not.valid) then
+      if (.not. valid) then
          ! Check boundaries for pelagic state variables specified by the models.
          ! If repair is permitted, this clips invalid values to the closest boundary.
-         do ivar=1,size(self%state_variables)
+         do ivar = 1, size(self%state_variables)
             ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
             read_index = self%state_variables(ivar)%target%read_indices%value
             minimum = self%state_variables(ivar)%target%minimum
@@ -2547,18 +2490,18 @@ end subroutine end_vertical_task
             if (repair) then
                _CONCURRENT_LOOP_BEGIN_EX_(self%cache_int)
                   value = self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index)
-                  self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index) = max(minimum,min(maximum,value))
+                  self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index) = max(minimum, min(maximum, value))
                _LOOP_END_
             else
                _LOOP_BEGIN_EX_(self%cache_int)
                   value = self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index)
-                  if (value<minimum) then
+                  if (value < minimum) then
                      ! State variable value lies below prescribed minimum.
                      write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
                                                                 & ' below minimum value ',minimum
                      call log_message(err)
                      return
-                  elseif (value>maximum) then
+                  elseif (value > maximum) then
                      ! State variable value exceeds prescribed maximum.
                      write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
                                                                 & ' above maximum value ',maximum
@@ -2571,7 +2514,7 @@ end subroutine end_vertical_task
       end if
 
       if (set_interior .or. .not. valid) then
-         do ivar=1,size(self%state_variables)
+         do ivar = 1, size(self%state_variables)
             read_index = self%state_variables(ivar)%target%read_indices%value
             if (self%catalog%interior_sources(read_index) == data_source_fabm) then
                _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%state_variables(ivar)%missing_value)
@@ -2630,7 +2573,7 @@ end subroutine end_vertical_task
       integer :: j
 #endif
 
-      call begin_horizontal_task(self,job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      call begin_horizontal_task(self,job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       valid = .true.
       set_horizontal = .false.
@@ -2640,9 +2583,9 @@ end subroutine end_vertical_task
       call_node => job%first_task%first_call
       do while (associated(call_node) .and. valid)
          if (flag==1) then
-            if (call_node%source==source_check_surface_state) call call_node%model%check_surface_state(self%cache_hz,repair,valid,set_horizontal,set_interior)
+            if (call_node%source == source_check_surface_state) call call_node%model%check_surface_state(self%cache_hz, repair, valid, set_horizontal, set_interior)
          else
-            if (call_node%source==source_check_bottom_state) call call_node%model%check_bottom_state(self%cache_hz,repair,valid,set_horizontal,set_interior)
+            if (call_node%source == source_check_bottom_state) call call_node%model%check_bottom_state(self%cache_hz, repair, valid, set_horizontal, set_interior)
          end if
          if (.not. (valid .or. repair)) return
          call_node => call_node%next
@@ -2650,7 +2593,7 @@ end subroutine end_vertical_task
 
       ! Check boundaries for horizontal state variables, as prescribed by the owning models.
       ! If repair is permitted, this clips invalid values to the closest boundary.
-      do ivar=1,size(state_variables)
+      do ivar = 1, size(state_variables)
          ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
          read_index = state_variables(ivar)%target%read_indices%value
          minimum = state_variables(ivar)%target%minimum
@@ -2658,10 +2601,10 @@ end subroutine end_vertical_task
 
          _HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
             value = self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index)
-            if (value<minimum) then
+            if (value < minimum) then
                ! State variable value lies below prescribed minimum.
                valid = .false.
-               if (.not.repair) then
+               if (.not. repair) then
                   write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
                                                              & trim(state_variables(ivar)%name), &
                                                              & ' below minimum value ',minimum
@@ -2669,10 +2612,10 @@ end subroutine end_vertical_task
                   return
                end if
                self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = minimum
-            elseif (value>maximum) then
+            elseif (value > maximum) then
                ! State variable value exceeds prescribed maximum.
                valid = .false.
-               if (.not.repair) then
+               if (.not. repair) then
                   write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
                                                              & trim(state_variables(ivar)%name), &
                                                              & ' above maximum value ',maximum
@@ -2684,8 +2627,8 @@ end subroutine end_vertical_task
          _HORIZONTAL_LOOP_END_
       end do
 
-      if (set_horizontal.or..not.valid) then
-         do ivar=1,size(state_variables)
+      if (set_horizontal .or. .not. valid) then
+         do ivar = 1, size(state_variables)
             read_index = state_variables(ivar)%target%read_indices%value
             if (self%catalog%horizontal_sources(read_index)==data_source_fabm) then
                _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(state_variables(ivar)%target%catalog_index)%p, self%cache_hz, state_variables(ivar)%missing_value)
@@ -2697,7 +2640,7 @@ end subroutine end_vertical_task
          ! One or more models have provided new values for an interior state variable [at the interface]
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-         if (flag==1) then
+         if (flag == 1) then
             _VERTICAL_ITERATOR_ = self%surface_index
          else
 #  if _FABM_BOTTOM_INDEX_==0
@@ -2708,11 +2651,11 @@ end subroutine end_vertical_task
          end if
 #endif
 
-         do ivar=1,size(self%state_variables)
+         do ivar = 1, size(self%state_variables)
             read_index = self%state_variables(ivar)%target%read_indices%value
-            if (self%catalog%interior_sources(read_index)==data_source_fabm) then
+            if (self%catalog%interior_sources(read_index) == data_source_fabm) then
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
-               if (flag==1) then
+               if (flag == 1) then
 #endif
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
@@ -2731,7 +2674,7 @@ end subroutine end_vertical_task
 
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
                else
-         ! Special case for bottom if vertical index of bottom point is variable.
+                  ! Special case for bottom if vertical index of bottom point is variable.
                   _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
 #  ifdef _HAS_MASK_
                      _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(self%cache_hz%ipack(_J_))
@@ -2760,13 +2703,13 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'get_surface_sources')
+      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'get_surface_sources')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_extents_2d(flux_pel,_STOP_-_START_+1,size(self%state_variables),'get_surface_sources','flux_pel','stop-start+1, # interior state variables')
-      if (present(flux_sf)) call check_extents_2d(flux_sf,_STOP_-_START_+1,size(self%surface_state_variables),'get_surface_sources','flux_sf','stop-start+1, # surface state variables')
+      call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%state_variables), 'get_surface_sources', 'flux_pel', 'stop-start+1, # interior state variables')
+      if (present(flux_sf)) call check_extents_2d(flux_sf, _STOP_ - _START_ + 1, size(self%surface_state_variables), 'get_surface_sources', 'flux_sf', 'stop-start+1, # surface state variables')
 #  else
-      call check_extents_1d(flux_pel,size(self%state_variables),'get_surface_sources','flux_pel','# interior state variables')
-      if (present(flux_sf)) call check_extents_1d(flux_sf,size(self%surface_state_variables),'get_surface_sources','flux_sf','# surface state variables')
+      call check_extents_1d(flux_pel, size(self%state_variables), 'get_surface_sources', 'flux_pel', '# interior state variables')
+      if (present(flux_sf)) call check_extents_1d(flux_sf, size(self%surface_state_variables), 'get_surface_sources', 'flux_sf', '# surface state variables')
 #  endif
 #endif
 
@@ -2798,13 +2741,13 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'get_bottom_sources_rhs')
+      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_rhs')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_extents_2d(flux_pel,_STOP_-_START_+1,size(self%state_variables),'get_bottom_sources_rhs','flux_pel','stop-start+1, # interior state variables')
-      call check_extents_2d(flux_ben,_STOP_-_START_+1,size(self%bottom_state_variables),'get_bottom_sources_rhs','flux_ben','stop-start+1, # bottom state variables')
+      call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%state_variables), 'get_bottom_sources_rhs', 'flux_pel', 'stop-start+1, # interior state variables')
+      call check_extents_2d(flux_ben, _STOP_ - _START_ + 1, size(self%bottom_state_variables), 'get_bottom_sources_rhs', 'flux_ben', 'stop-start+1, # bottom state variables')
 #  else
-      call check_extents_1d(flux_pel,size(self%state_variables),'get_bottom_sources_rhs','flux_pel','# interior state variables')
-      call check_extents_1d(flux_ben,size(self%bottom_state_variables),'get_bottom_sources_rhs','flux_ben','# bottom state variables')
+      call check_extents_1d(flux_pel, size(self%state_variables), 'get_bottom_sources_rhs', 'flux_pel', '# interior state variables')
+      call check_extents_1d(flux_ben, size(self%bottom_state_variables), 'get_bottom_sources_rhs', 'flux_ben', '# bottom state variables')
 #  endif
 #endif
 
@@ -2834,14 +2777,14 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'get_bottom_sources_ppdd')
+      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_ppdd')
 #endif
 
-      call begin_horizontal_task(self,self%do_bottom_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      call begin_horizontal_task(self, self%do_bottom_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       call_node => self%do_bottom_job%first_task%first_call
       do while (associated(call_node))
-         if (call_node%source==source_do_bottom) call call_node%model%do_bottom_ppdd(self%cache_hz,pp,dd,benthos_offset)
+         if (call_node%source == source_do_bottom) call call_node%model%do_bottom_ppdd(self%cache_hz,pp,dd,benthos_offset)
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
          _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
@@ -2863,15 +2806,15 @@ end subroutine end_vertical_task
       _DECLARE_ARGUMENTS_INTERIOR_IN_
       real(rke) _DIMENSION_EXT_SLICE_PLUS_1_, intent(out)   :: velocity
 
-      integer                   :: i, k
+      integer :: i, k
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_,'get_vertical_movement')
+      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'get_vertical_movement')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_extents_2d(velocity,_STOP_-_START_+1,size(self%state_variables),'get_vertical_movement','velocity','stop-start+1, # interior state variables')
+      call check_extents_2d(velocity, _STOP_ - _START_ + 1, size(self%state_variables), 'get_vertical_movement', 'velocity', 'stop-start+1, # interior state variables')
 #  else
-      call check_extents_1d(velocity,size(self%state_variables),'get_vertical_movement','velocity','# interior state variables')
+      call check_extents_1d(velocity, size(self%state_variables), 'get_vertical_movement', 'velocity', '# interior state variables')
 #  endif
 #endif
 
@@ -2892,9 +2835,9 @@ end subroutine end_vertical_task
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_,'fabm_get_light_extinction')
+      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'fabm_get_light_extinction')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_extents_1d(extinction,_STOP_-_START_+1,'fabm_get_light_extinction','extinction','stop-start+1')
+      call check_extents_1d(extinction, _STOP_ - _START_ + 1, 'fabm_get_light_extinction', 'extinction', 'stop-start+1')
 #  endif
 #endif
 
@@ -2918,9 +2861,9 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-       call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_get_drag')
+       call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'fabm_get_drag')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
-       call check_extents_1d(drag,_STOP_-_START_+1,'fabm_get_drag','drag','stop-start+1')
+       call check_extents_1d(drag, _STOP_ - _START_ + 1, 'fabm_get_drag', 'drag', 'stop-start+1')
 #  endif
 #endif
 
@@ -2929,7 +2872,7 @@ end subroutine end_vertical_task
       drag = 1.0_rke
       call_node => self%get_drag_job%first_task%first_call
       do while (associated(call_node))
-         if (call_node%source==source_get_drag) call call_node%model%get_drag(self%cache_hz,drag)
+         if (call_node%source == source_get_drag) call call_node%model%get_drag(self%cache_hz, drag)
          call_node => call_node%next
       end do
 
@@ -2945,18 +2888,18 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'fabm_get_albedo')
+      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'fabm_get_albedo')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_extents_1d(albedo,_STOP_-_START_+1,'fabm_get_albedo','albedo','stop-start+1')
+      call check_extents_1d(albedo, _STOP_ - _START_ + 1, 'fabm_get_albedo', 'albedo', 'stop-start+1')
 #  endif
 #endif
 
-      call begin_horizontal_task(self,self%get_albedo_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      call begin_horizontal_task(self,self%get_albedo_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       albedo = 0.0_rke
       call_node => self%get_albedo_job%first_task%first_call
       do while (associated(call_node))
-         if (call_node%source==source_get_albedo) call call_node%model%get_albedo(self%cache_hz,albedo)
+         if (call_node%source == source_get_albedo) call call_node%model%get_albedo(self%cache_hz, albedo)
          call_node => call_node%next
       end do
 
@@ -2972,11 +2915,11 @@ end subroutine end_vertical_task
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_,'get_interior_conserved_quantities')
+      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'get_interior_conserved_quantities')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_extents_2d(sums,_STOP_-_START_+1,size(self%conserved_quantities),'get_interior_conserved_quantities','sums','stop-start+1, # conserved quantities')
+      call check_extents_2d(sums, _STOP_ - _START_ + 1, size(self%conserved_quantities), 'get_interior_conserved_quantities', 'sums', 'stop-start+1, # conserved quantities')
 #  else
-      call check_extents_1d(sums,size(self%conserved_quantities),'get_interior_conserved_quantities','sums','# conserved quantities')
+      call check_extents_1d(sums, size(self%conserved_quantities), 'get_interior_conserved_quantities', 'sums', '# conserved quantities')
 #  endif
 #endif
 
@@ -2996,11 +2939,11 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_,'get_horizontal_conserved_quantities')
+      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'get_horizontal_conserved_quantities')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_extents_2d(sums,_STOP_-_START_+1,size(self%conserved_quantities),'get_horizontal_conserved_quantities','sums','stop-start+1, # conserved quantities')
+      call check_extents_2d(sums, _STOP_ - _START_ + 1, size(self%conserved_quantities), 'get_horizontal_conserved_quantities', 'sums', 'stop-start+1, # conserved quantities')
 #  else
-      call check_extents_1d(sums,size(self%conserved_quantities),'get_horizontal_conserved_quantities','sums','# conserved quantities')
+      call check_extents_1d(sums, size(self%conserved_quantities), 'get_horizontal_conserved_quantities', 'sums', '# conserved quantities')
 #  endif
 #endif
 
@@ -3264,12 +3207,12 @@ end subroutine end_vertical_task
          integer  :: i
          real(rke) :: weight_right, frac_outside
 
-         if (expression%ioldest==-1) then
+         if (expression%ioldest == -1) then
             ! Start of simulation
-            expression%next_save_time = t + expression%period/expression%n
+            expression%next_save_time = t + expression%period / expression%n
             expression%ioldest = 1
          end if
-         do while (t>=expression%next_save_time)
+         do while (t >= expression%next_save_time)
             ! Weight for linear interpolation between last stored point and current point, to get at values for desired time.
             weight_right = (expression%next_save_time - expression%last_time) / (t - expression%last_time)
 
@@ -3291,7 +3234,7 @@ end subroutine end_vertical_task
             if (expression%ioldest == expression%n .and. .not. expression%valid) then
                expression%valid = .true.
                expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = 0.0_rke
-               do i=1,expression%n
+               do i = 1, expression%n
                   expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) + expression%history(_PREARG_LOCATION_DIMENSIONS_ i)
                end do
                expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) / expression%n
@@ -3311,7 +3254,7 @@ end subroutine end_vertical_task
             ! - set mean (@ n + 3) to historical mean (@ n + 2) but account for change since most recent point in history.
 
             ! Compute extent of time period outside history
-            frac_outside = (t-(expression%next_save_time-expression%period/expression%n)) / expression%period
+            frac_outside = (t- (expression%next_save_time - expression%period / expression%n)) / expression%period
 
             ! Set corrected running mean (move window by removing part of the start, and appending to the end)
             expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) &
@@ -3329,15 +3272,15 @@ end subroutine end_vertical_task
          integer  :: i
          real(rke) :: weight_right, frac_outside
 
-         if (expression%ioldest==-1) then
+         if (expression%ioldest == -1) then
             ! Start of simulation; set entire history equal to current value.
-            do i=1,expression%n+3
+            do i = 1, expression%n + 3
                expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%catalog%horizontal(expression%in)%p
             end do
             expression%next_save_time = t + expression%period / expression%n
             expression%ioldest = 1
          end if
-         do while (t>=expression%next_save_time)
+         do while (t >= expression%next_save_time)
             ! Weight for linear interpolation between last stored point and current point, to get at values for desired time.
             weight_right = (expression%next_save_time - expression%last_time) / (t - expression%last_time)
 
@@ -3404,8 +3347,8 @@ end subroutine end_vertical_task
 
       link => self%root%links%first
       do while (associated(link))
-         if (associated(link%target,link%original)) &
-            newlink => self%links_postcoupling%append(link%target,link%target%name)
+         if (associated(link%target, link%original)) &
+            newlink => self%links_postcoupling%append(link%target, link%target%name)
          link => link%next
       end do
 
@@ -3435,9 +3378,9 @@ end subroutine end_vertical_task
             consvar%long_name = trim(consvar%standard_variable%name)
             consvar%path = trim(consvar%standard_variable%name)
             consvar%target => self%root%find_object(trim(aggregate_variable%standard_variable%name))
-            _ASSERT_(associated(consvar%target), 'classify_variables', 'Conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
-            consvar%target_hz => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
-            _ASSERT_(associated(consvar%target_hz), 'classify_variables', 'Conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
+            _ASSERT_(associated(consvar%target), 'classify_variables', 'Conserved quantity ' // trim(aggregate_variable%standard_variable%name) // ' was not created')
+            consvar%target_hz => self%root%find_object(trim(aggregate_variable%standard_variable%name) // '_at_interfaces')
+            _ASSERT_(associated(consvar%target_hz), 'classify_variables', 'Conserved quantity ' // trim(aggregate_variable%standard_variable%name) // '_at_interfaces was not created')
          end if
          aggregate_variable => aggregate_variable%next
       end do
@@ -3454,27 +3397,27 @@ end subroutine end_vertical_task
       link => self%links_postcoupling%first
       do while (associated(link))
          object => link%target
-         _ASSERT_(object%source /= source_state .or. object%write_indices%is_empty(), 'classify_variables', 'variable '//trim(object%name)//' has source_state and one or more write indices.')
+         _ASSERT_(object%source /= source_state .or. object%write_indices%is_empty(), 'classify_variables', 'variable ' // trim(object%name) // ' has source_state and one or more write indices.')
          select case (object%domain)
             case (domain_interior)
-               if (.not.object%write_indices%is_empty()) then
+               if (.not. object%write_indices%is_empty()) then
                   ! Interior diagnostic variable.
-                  ndiag = ndiag+1
+                  ndiag = ndiag + 1
                elseif (object%source == source_state) then
                   ! Interior state variable.
                   select case (object%presence)
                      case (presence_internal)
-                        nstate = nstate+1
+                        nstate = nstate + 1
                         call object%state_indices%set_value(nstate)
                      case (presence_external_required)
                         call fatal_error('classify_variables', &
-                           'Variable '//trim(link%name)//' must be coupled to an existing state variable.')
+                           'Variable ' // trim(link%name) // ' must be coupled to an existing state variable.')
                      case default
                         continue
                   end select
                end if
-            case (domain_horizontal,domain_surface,domain_bottom)
-               if (.not.object%write_indices%is_empty()) then
+            case (domain_horizontal, domain_surface, domain_bottom)
+               if (.not. object%write_indices%is_empty()) then
                   ! Horizontal diagnostic variable.
                   ndiag_hz = ndiag_hz+1
                elseif (object%source == source_state) then
@@ -3484,16 +3427,16 @@ end subroutine end_vertical_task
                         select case (object%domain)
                            case (domain_bottom)
                               ! Bottom state variable
-                              nstate_bot = nstate_bot+1
+                              nstate_bot = nstate_bot + 1
                               call object%state_indices%set_value(nstate_bot)
                            case (domain_surface)
                               ! Surface state variable
-                              nstate_surf = nstate_surf+1
+                              nstate_surf = nstate_surf + 1
                               call object%state_indices%set_value(nstate_surf)
                         end select
                      case (presence_external_required)
                         call fatal_error('classify_variables', &
-                           'Variable '//trim(link%name)//' must be coupled to an existing state variable.')
+                           'Variable ' // trim(link%name) // ' must be coupled to an existing state variable.')
                   end select
                end if
          end select
@@ -3518,7 +3461,7 @@ end subroutine end_vertical_task
          object => link%target
          select case (link%target%domain)
             case (domain_interior)
-               if (.not.object%write_indices%is_empty()) then
+               if (.not. object%write_indices%is_empty()) then
                   ! Interior diagnostic variable
                   ndiag = ndiag + 1
                   diagvar => self%diagnostic_variables(ndiag)
@@ -3529,13 +3472,13 @@ end subroutine end_vertical_task
                            diagvar%standard_variable = standard_variable
                      end select
                   end if
-                  diagvar%save = diagvar%output/=output_none
+                  diagvar%save = diagvar%output /= output_none
                   diagvar%source = object%source
                elseif (object%presence == presence_internal .and. object%source == source_state) then
                   ! Interior state variable
                   nstate = nstate + 1
                   statevar => self%state_variables(nstate)
-                  call copy_variable_metadata(object,statevar)
+                  call copy_variable_metadata(object, statevar)
                   if (associated(object%standard_variables%first)) then
                      select type (standard_variable=>object%standard_variables%first%p)
                         type is (type_bulk_standard_variable)
@@ -3545,24 +3488,24 @@ end subroutine end_vertical_task
                   statevar%initial_value             = object%initial_value
                   statevar%no_precipitation_dilution = object%no_precipitation_dilution
                   statevar%no_river_dilution         = object%no_river_dilution
-                  if (.not.object%sms_sum%target%write_indices%is_empty()) call object%sms_sum%target%write_indices%append(statevar%sms_index)
-                  if (.not.object%surface_flux_sum%target%write_indices%is_empty()) call object%surface_flux_sum%target%write_indices%append(statevar%surface_flux_index)
-                  if (.not.object%bottom_flux_sum%target%write_indices%is_empty()) call object%bottom_flux_sum%target%write_indices%append(statevar%bottom_flux_index)
-                  if (.not.object%movement_sum%target%write_indices%is_empty()) call object%movement_sum%target%write_indices%append(statevar%movement_index)
+                  if (.not. object%sms_sum%target%write_indices%is_empty()) call object%sms_sum%target%write_indices%append(statevar%sms_index)
+                  if (.not. object%surface_flux_sum%target%write_indices%is_empty()) call object%surface_flux_sum%target%write_indices%append(statevar%surface_flux_index)
+                  if (.not. object%bottom_flux_sum%target%write_indices%is_empty()) call object%bottom_flux_sum%target%write_indices%append(statevar%bottom_flux_index)
+                  if (.not. object%movement_sum%target%write_indices%is_empty()) call object%movement_sum%target%write_indices%append(statevar%movement_index)
                end if
-            case (domain_horizontal,domain_surface,domain_bottom)
-               if (.not.object%write_indices%is_empty()) then
+            case (domain_horizontal, domain_surface, domain_bottom)
+               if (.not. object%write_indices%is_empty()) then
                   ! Horizontal diagnostic variable
                   ndiag_hz = ndiag_hz + 1
                   hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
                   call copy_variable_metadata(object,hz_diagvar)
                   if (associated(object%standard_variables%first)) then
-                     select type (standard_variable=>object%standard_variables%first%p)
+                     select type (standard_variable => object%standard_variables%first%p)
                         type is (type_horizontal_standard_variable)
                            hz_diagvar%standard_variable = standard_variable
                      end select
                   end if
-                  hz_diagvar%save = hz_diagvar%output/=output_none
+                  hz_diagvar%save = hz_diagvar%output /= output_none
                   hz_diagvar%source = object%source
                elseif (object%presence == presence_internal .and. object%source == source_state) then
                   ! Horizontal state variable
@@ -3578,13 +3521,13 @@ end subroutine end_vertical_task
                   end select
                   call copy_variable_metadata(object, hz_statevar)
                   if (associated(object%standard_variables%first)) then
-                     select type (standard_variable=>object%standard_variables%first%p)
+                     select type (standard_variable => object%standard_variables%first%p)
                         type is (type_horizontal_standard_variable)
                            hz_statevar%standard_variable = standard_variable
                      end select
                   end if
-                  hz_statevar%initial_value     = object%initial_value
-                  if (.not.object%sms_sum%target%write_indices%is_empty()) call object%sms_sum%target%write_indices%append(hz_statevar%sms_index)
+                  hz_statevar%initial_value = object%initial_value
+                  if (.not. object%sms_sum%target%write_indices%is_empty()) call object%sms_sum%target%write_indices%append(hz_statevar%sms_index)
                end if
          end select
          link => link%next
@@ -3599,18 +3542,18 @@ end subroutine end_vertical_task
          if (.not. object%read_indices%is_empty() .and. &
              .not. (object%presence == presence_external_optional .and. object%source == source_state)) then
             select case (object%domain)
-               case (domain_interior);                                call dependencies%add(link%name)
-               case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(link%name)
-               case (domain_scalar);                                  call dependencies_scalar%add(link%name)
+               case (domain_interior);                                  call dependencies%add(link%name)
+               case (domain_horizontal, domain_surface, domain_bottom); call dependencies_hz%add(link%name)
+               case (domain_scalar);                                    call dependencies_scalar%add(link%name)
             end select
 
             standard_variables_node => object%standard_variables%first
             do while (associated(standard_variables_node))
-               if (standard_variables_node%p%name/='') then
+               if (standard_variables_node%p%name /= '') then
                   select case (object%domain)
-                     case (domain_interior);                                call dependencies%add(standard_variables_node%p%name)
-                     case (domain_horizontal,domain_surface,domain_bottom); call dependencies_hz%add(standard_variables_node%p%name)
-                     case (domain_scalar);                                  call dependencies_scalar%add(standard_variables_node%p%name)
+                     case (domain_interior);                                  call dependencies%add(standard_variables_node%p%name)
+                     case (domain_horizontal, domain_surface, domain_bottom); call dependencies_hz%add(standard_variables_node%p%name)
+                     case (domain_scalar);                                    call dependencies_scalar%add(standard_variables_node%p%name)
                   end select
                end if
                standard_variables_node => standard_variables_node%next
@@ -3622,9 +3565,9 @@ end subroutine end_vertical_task
       call dependencies_hz%to_array(self%dependencies_hz)
       call dependencies_scalar%to_array(self%dependencies_scalar)
    contains
-      subroutine copy_variable_metadata(internal_variable,external_variable)
-         class (type_external_variable),intent(inout) :: external_variable
-         type (type_internal_variable),intent(in),target :: internal_variable
+      subroutine copy_variable_metadata(internal_variable, external_variable)
+         class (type_external_variable), intent(inout)      :: external_variable
+         type (type_internal_variable),  intent(in), target :: internal_variable
 
          class (type_base_model), pointer :: owner
          external_variable%name            = get_safe_name(internal_variable%name)
@@ -3641,7 +3584,7 @@ end subroutine end_vertical_task
          ! Prepend long names of ancestor models to long name of variable.
          owner => internal_variable%owner
          do while (associated(owner%parent))
-            external_variable%long_name = trim(owner%long_name)//' '//trim(external_variable%long_name)
+            external_variable%long_name = trim(owner%long_name) // ' ' // trim(external_variable%long_name)
             owner => owner%parent
          end do
 
@@ -3650,9 +3593,9 @@ end subroutine end_vertical_task
    end subroutine classify_variables
 
    subroutine require_flux_computation(self, link_list, domain)
-      type (type_job),      intent(inout) :: self
-      type (type_link_list),intent(in)    :: link_list
-      integer,              intent(in)    :: domain
+      type (type_job),       intent(inout) :: self
+      type (type_link_list), intent(in)    :: link_list
+      integer,               intent(in)    :: domain
 
       type (type_link), pointer :: link
 
@@ -3686,11 +3629,11 @@ end subroutine end_vertical_task
    end subroutine require_flux_computation
 
    recursive subroutine require_call_all(self, model, source)
-      type (type_job),        intent(inout) :: self
-      class (type_base_model),intent(in)    :: model
-      integer,                intent(in)    :: source
+      type (type_job),         intent(inout) :: self
+      class (type_base_model), intent(in)    :: model
+      integer,                 intent(in)    :: source
 
-      type (type_model_list_node),pointer :: node
+      type (type_model_list_node), pointer :: node
 
       node => model%children%first
       do while (associated(node))
@@ -3706,10 +3649,10 @@ end subroutine end_vertical_task
    end subroutine require_call_all
 
    subroutine require_call_all_with_state(self, link_list, domain, source)
-      type (type_job),      intent(inout) :: self
-      type (type_link_list),intent(in)    :: link_list
-      integer,              intent(in)    :: domain
-      integer,              intent(in)    :: source
+      type (type_job),       intent(inout) :: self
+      type (type_link_list), intent(in)    :: link_list
+      integer,               intent(in)    :: domain
+      integer,               intent(in)    :: source
 
       type (type_link), pointer :: link
 
@@ -3722,59 +3665,59 @@ end subroutine end_vertical_task
    end subroutine require_call_all_with_state
 
    subroutine check_interior_location(self _POSTARG_INTERIOR_IN_, routine)
-      class (type_model),intent(in) :: self
+      class (type_model), intent(in) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
-      character(len=*), intent(in) :: routine
+      character(len=*),   intent(in) :: routine
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_loop(_START_,_STOP_,self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),routine)
+      call check_loop(_START_, _STOP_, self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_), routine)
 #endif
 #if _FABM_DIMENSION_COUNT_>0&&_FABM_VECTORIZED_DIMENSION_INDEX_!=1
-      call check_index(i__,self%domain_size(1),routine,'i')
+      call check_index(i__, self%domain_size(1), routine, 'i')
 #endif
 #if _FABM_DIMENSION_COUNT_>1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=2
-      call check_index(j__,self%domain_size(2),routine,'j')
+      call check_index(j__, self%domain_size(2), routine, 'j')
 #endif
 #if _FABM_DIMENSION_COUNT_>2&&_FABM_VECTORIZED_DIMENSION_INDEX_!=3
-      call check_index(k__,self%domain_size(3),routine,'k')
+      call check_index(k__, self%domain_size(3), routine, 'k')
 #endif
    end subroutine check_interior_location
 
    subroutine check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, routine)
-      class (type_model),intent(in) :: self
+      class (type_model), intent(in) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      character(len=*), intent(in) :: routine
+      character(len=*),   intent(in) :: routine
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_loop(_START_,_STOP_,self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),routine)
+      call check_loop(_START_, _STOP_, self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_), routine)
 #endif
 #if _FABM_DIMENSION_COUNT_>0&&_FABM_VECTORIZED_DIMENSION_INDEX_!=1&&_FABM_DEPTH_DIMENSION_INDEX_!=1
-      call check_index(i__,self%domain_size(1),routine,'i')
+      call check_index(i__, self%domain_size(1), routine, 'i')
 #endif
 #if _FABM_DIMENSION_COUNT_>1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=2&&_FABM_DEPTH_DIMENSION_INDEX_!=2
-      call check_index(j__,self%domain_size(2),routine,'j')
+      call check_index(j__, self%domain_size(2), routine, 'j')
 #endif
 #if _FABM_DIMENSION_COUNT_>2&&_FABM_VECTORIZED_DIMENSION_INDEX_!=3&&_FABM_DEPTH_DIMENSION_INDEX_!=3
-      call check_index(k__,self%domain_size(3),routine,'k')
+      call check_index(k__, self%domain_size(3), routine, 'k')
 #endif
    end subroutine check_horizontal_location
 
    subroutine check_vertical_location(self _POSTARG_VERTICAL_IN_, routine)
-      class (type_model),intent(in) :: self
+      class (type_model), intent(in) :: self
       _DECLARE_ARGUMENTS_VERTICAL_IN_
-      character(len=*), intent(in) :: routine
+      character(len=*),   intent(in) :: routine
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      call check_loop(_VERTICAL_START_,_VERTICAL_STOP_,self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_),routine)
+      call check_loop(_VERTICAL_START_, _VERTICAL_STOP_, self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_), routine)
 #endif
 #if _FABM_DIMENSION_COUNT_>0&&_FABM_DEPTH_DIMENSION_INDEX_!=1
-      call check_index(i__,self%domain_size(1),routine,'i')
+      call check_index(i__, self%domain_size(1), routine, 'i')
 #endif
 #if _FABM_DIMENSION_COUNT_>1&&_FABM_DEPTH_DIMENSION_INDEX_!=2
-      call check_index(j__,self%domain_size(2),routine,'j')
+      call check_index(j__, self%domain_size(2), routine, 'j')
 #endif
 #if _FABM_DIMENSION_COUNT_>2&&_FABM_DEPTH_DIMENSION_INDEX_!=3
-      call check_index(k__,self%domain_size(3),routine,'k')
+      call check_index(k__, self%domain_size(3), routine, 'k')
 #endif
    end subroutine check_vertical_location
 
@@ -3782,11 +3725,13 @@ end subroutine end_vertical_task
       real(rke),        intent(in) :: array(:)
       integer,          intent(in) :: required_size1
       character(len=*), intent(in) :: routine, array_name, shape_description
-      character(len=8) :: actual,required
-      if (size(array,1)/=required_size1) then
-         write (actual,  '(i0)') size(array,1)
+
+      character(len=8) :: actual, required
+
+      if (size(array,1) /= required_size1) then
+         write (actual,  '(i0)') size(array, 1)
          write (required,'(i0)') required_size1
-         call fatal_error(routine,'shape of argument '//trim(array_name)//' is ('//trim(actual)//') but should be ('//trim(required)//') = '//trim(shape_description))
+         call fatal_error(routine,'shape of argument ' // trim(array_name) // ' is (' // trim(actual) // ') but should be (' // trim(required) // ') = ' // trim(shape_description))
       end if
    end subroutine check_extents_1d
 
@@ -3794,23 +3739,27 @@ end subroutine end_vertical_task
       real(rke),        intent(in) :: array(:,:)
       integer,          intent(in) :: required_size1, required_size2
       character(len=*), intent(in) :: routine, array_name, shape_description
-      character(len=17) :: actual,required
-      if (size(array,1)/=required_size1.or.size(array,2)/=required_size2) then
-         write (actual,  '(i0,a,i0)') size(array,1),',',size(array,2)
-         write (required,'(i0,a,i0)') required_size1,',',required_size2
-         call fatal_error(routine,'shape of argument '//trim(array_name)//' is ('//trim(actual)//') but should be ('//trim(required)//') = '//trim(shape_description))
+
+      character(len=17) :: actual, required
+
+      if (size(array,1) /= required_size1 .or. size(array,2) /= required_size2) then
+         write (actual,  '(i0,a,i0)') size(array,1), ',', size(array,2)
+         write (required,'(i0,a,i0)') required_size1, ',', required_size2
+         call fatal_error(routine,'shape of argument ' // trim(array_name) // ' is (' // trim(actual) // ') but should be (' // trim(required) // ') = ' // trim(shape_description))
       end if
    end subroutine check_extents_2d
 
    subroutine check_extents_3d(array, required_size1, required_size2, required_size3, routine, array_name, shape_description)
       real(rke),       intent(in) :: array(:,:,:)
-      integer,         intent(in) :: required_size1,required_size2,required_size3
-      character(len=*),intent(in) :: routine,array_name,shape_description
-      character(len=26) :: actual,required
-      if (size(array,1)/=required_size1.or.size(array,2)/=required_size2.or.size(array,3)/=required_size3) then
-         write (actual,  '(i0,a,i0,a,i0)') size(array,1),',',size(array,2),',',size(array,3)
-         write (required,'(i0,a,i0,a,i0)') required_size1,',',required_size2,',',required_size3
-         call fatal_error(routine,'shape of argument '//trim(array_name)//' is ('//trim(actual)//') but should be ('//trim(required)//') = '//trim(shape_description))
+      integer,         intent(in) :: required_size1, required_size2, required_size3
+      character(len=*),intent(in) :: routine, array_name, shape_description
+
+      character(len=26) :: actual, required
+
+      if (size(array,1) /= required_size1 .or. size(array,2) /= required_size2 .or. size(array,3) /= required_size3) then
+         write (actual,  '(i0,a,i0,a,i0)') size(array,1), ',', size(array,2), ',', size(array,3)
+         write (required,'(i0,a,i0,a,i0)') required_size1, ',', required_size2, ',', required_size3
+         call fatal_error(routine,'shape of argument ' // trim(array_name) // ' is (' // trim(actual) // ') but should be (' // trim(required) // ') = ' // trim(shape_description))
       end if
    end subroutine check_extents_3d
 
@@ -3818,43 +3767,45 @@ end subroutine end_vertical_task
       integer,          intent(in) :: istart, istop, imax
       character(len=*), intent(in) :: routine
 
-      character(len=8) :: str1,str2
+      character(len=8) :: str1, str2
 
-      if (istart<1) then
+      if (istart < 1) then
          write (str1,'(i0)') istart
-         call fatal_error(routine,'Loop start index '//trim(str1)//' is non-positive.')
+         call fatal_error(routine,'Loop start index ' // trim(str1) // ' is non-positive.')
       end if
-      if (istop>imax) then
+      if (istop > imax) then
          write (str1,'(i0)') istop
          write (str2,'(i0)') imax
-         call fatal_error(routine,'Loop stop index '//trim(str1)//' exceeds size of vectorized dimension ('//trim(str2)//').')
+         call fatal_error(routine,'Loop stop index ' // trim(str1) // ' exceeds size of vectorized dimension (' // trim(str2) // ').')
       end if
-      if (istart>istop) then
+      if (istart > istop) then
          write (str1,'(i0)') istart
          write (str2,'(i0)') istop
-         call fatal_error(routine,'Loop start index '//trim(str1)//' exceeds stop index '//trim(str2)//'.')
+         call fatal_error(routine,'Loop start index ' // trim(str1) // ' exceeds stop index ' // trim(str2) // '.')
       end if
    end subroutine check_loop
 
    subroutine check_index(i, i_max, routine, name)
       integer,          intent(in) :: i, i_max
       character(len=*), intent(in) :: routine, name
-      character(len=8) :: str1,str2
-      if (i<1) then
+
+      character(len=8) :: str1, str2
+
+      if (i < 1) then
          write (str1,'(i0)') i
-         call fatal_error(routine,'Index '//name//' = '//trim(str1)//' is non-positive.')
+         call fatal_error(routine,'Index ' // name // ' = ' // trim(str1) // ' is non-positive.')
       end if
-      if (i>i_max) then
+      if (i > i_max) then
          write (str1,'(i0)') i
          write (str2,'(i0)') i_max
-         call fatal_error(routine,'Index '//name//' = '//trim(str1)//' exceeds size of associated dimension ('//trim(str2)//').')
+         call fatal_error(routine,'Index ' // name // ' = ' // trim(str1) // ' exceeds size of associated dimension (' // trim(str2) // ').')
       end if
    end subroutine check_index
 
    subroutine create_catalog(self)
       class (type_model), intent(inout) :: self
 
-      integer :: i
+      integer                   :: i
       type (type_link), pointer :: link
 
       ! Add all state variables to the catalog and read cache in the order the host is likely to
@@ -3895,8 +3846,8 @@ end subroutine end_vertical_task
       real(rke), allocatable,    intent(out) :: values(:)
       logical,                   intent(in)  :: use_missing
 
+      integer                            :: i
       type (type_variable_node), pointer :: variable_node
-      integer :: i
 
       allocate(values(variable_list%count))
       i = 0
@@ -3917,8 +3868,8 @@ end subroutine end_vertical_task
       real(rki), allocatable,    intent(out) :: values(:)
       logical,                   intent(in)  :: use_missing
 
+      integer                            :: i
       type (type_variable_node), pointer :: variable_node
-      integer :: i
 
       allocate(values(variable_list%count))
       i = 0
@@ -3937,7 +3888,7 @@ end subroutine end_vertical_task
    subroutine create_store(self)
       class (type_model), intent(inout) :: self
 
-      integer :: i
+      integer                            :: i
       type (type_variable_node), pointer :: variable_node
 
       ! Allocate memory for persistent store
@@ -4010,7 +3961,7 @@ end subroutine end_vertical_task
    end subroutine merge_indices
 
    subroutine filter_expressions(self)
-      class (type_model),intent(inout)    :: self
+      class (type_model),intent(inout) :: self
 
       class (type_expression),             pointer :: current, previous, next
       class (type_depth_integral),         pointer :: integral
@@ -4032,7 +3983,7 @@ end subroutine end_vertical_task
                integral => bounded_integral
             end if
             integral%average = current%average
-            call self%root%add_child(integral, trim(current%output_name)//'_calculator', configunit=-1)
+            call self%root%add_child(integral, trim(current%output_name) // '_calculator', configunit=-1)
             call integral%request_coupling(integral%id_input, current%input_name)
             call self%root%request_coupling(current%output_name, integral%id_output%link%target%name)
             filter = .true.
@@ -4053,7 +4004,39 @@ end subroutine end_vertical_task
          current => next
       end do
    end subroutine
-   
+
+   function get_variable_by_name(self, name, domain) result(variable)
+      class (type_model), intent(in)         :: self
+      character(len=*),   intent(in)         :: name
+      integer,            intent(in)         :: domain
+      type (type_internal_variable), pointer :: variable
+
+      type (type_link), pointer :: link
+
+      variable => null()
+
+      link => self%root%links%first
+      do while (associated(link))
+         if (iand(link%target%domain, domain) /= 0) then
+            if (link%name == name .or. get_safe_name(link%name) == name) then
+               variable => link%target
+               return
+            end if
+         end if
+         link => link%next
+      end do
+
+      ! Name not found among variable names. Now try standard names that are in use.
+      link => self%root%links%first
+      do while (associated(link))
+         if (iand(link%target%domain, domain) /= 0 .and. link%target%standard_variables%contains(name)) then
+            variable => link%target
+            return
+         end if
+         link => link%next
+      end do
+   end function get_variable_by_name
+
 end module fabm
 
 !-----------------------------------------------------------------------
