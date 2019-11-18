@@ -1545,7 +1545,7 @@ end subroutine real_pointer_set_set_value
 
    subroutine register_source(self, link, sms_id)
       class (type_base_model),           intent(inout)        :: self
-      type (type_link),                  intent(in)           :: link
+      type (type_link),                  intent(inout)        :: link
       type (type_aggregate_variable_id), intent(inout),target :: sms_id
 
       type (type_link),pointer :: link2
@@ -1561,7 +1561,7 @@ end subroutine real_pointer_set_set_value
 
    subroutine register_surface_flux(self, link, surface_flux_id, source)
       class (type_base_model),                      intent(inout)        :: self
-      type (type_link),                             intent(in)           :: link
+      type (type_link),                             intent(inout)        :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: surface_flux_id
       integer, optional,                            intent(in)           :: source
 
@@ -1582,7 +1582,7 @@ end subroutine real_pointer_set_set_value
 
    subroutine register_bottom_flux(self, link, bottom_flux_id, source)
       class (type_base_model),                      intent(inout)        :: self
-      type (type_link),                             intent(in)           :: link
+      type (type_link),                             intent(inout)        :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: bottom_flux_id
       integer, optional,                            intent(in)           :: source
 
@@ -1624,10 +1624,10 @@ end subroutine real_pointer_set_set_value
    end subroutine register_movement
 
    subroutine register_surface_source(self, link, sms_id, source)
-      class (type_base_model),           intent(inout)        :: self
-      type (type_link),                  intent(in)           :: link
-      type (type_horizontal_aggregate_variable_id), intent(inout),target :: sms_id
-      integer, optional,                            intent(in)           :: source
+      class (type_base_model),                      intent(inout)         :: self
+      type (type_link),                             intent(inout)         :: link
+      type (type_horizontal_aggregate_variable_id), intent(inout), target :: sms_id
+      integer, optional,                            intent(in)            :: source
 
       integer                   :: source_
       type (type_link), pointer :: link2
@@ -1644,8 +1644,8 @@ end subroutine real_pointer_set_set_value
    end subroutine register_surface_source
 
    subroutine register_bottom_source(self, link, sms_id, source)
-      class (type_base_model),           intent(inout)        :: self
-      type (type_link),                  intent(in)           :: link
+      class (type_base_model),                      intent(inout)        :: self
+      type (type_link),                             intent(inout)        :: link
       type (type_horizontal_aggregate_variable_id), intent(inout),target :: sms_id
       integer, optional,                            intent(in)           :: source
 
