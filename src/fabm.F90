@@ -1330,10 +1330,7 @@ contains
       type (type_bulk_standard_variable), intent(in) :: standard_variable
       logical                                        :: required
 
-      type(type_bulk_variable_id) :: id
-
-      id = self%get_bulk_variable_id(standard_variable)
-      required = self%variable_needs_values(id)
+      required = interior_variable_needs_values(self, get_bulk_variable_id_sn(self, standard_variable))
    end function interior_variable_needs_values_sn
 
    function horizontal_variable_needs_values(self, id) result(required)
@@ -1351,10 +1348,7 @@ contains
       type (type_horizontal_standard_variable), intent(in) :: standard_variable
       logical                                              :: required
 
-      type(type_horizontal_variable_id) :: id
-
-      id = self%get_horizontal_variable_id(standard_variable)
-      required = self%variable_needs_values(id)
+      required = horizontal_variable_needs_values(self, get_horizontal_variable_id_sn(self, standard_variable))
    end function horizontal_variable_needs_values_sn
 
    function scalar_variable_needs_values(self, id) result(required)
@@ -1372,10 +1366,7 @@ contains
       type (type_global_standard_variable), intent(in) :: standard_variable
       logical                                          :: required
 
-      type(type_scalar_variable_id) :: id
-
-      id = self%get_scalar_variable_id(standard_variable)
-      required = self%variable_needs_values(id)
+      required = scalar_variable_needs_values(self, get_scalar_variable_id_sn(self, standard_variable))
    end function scalar_variable_needs_values_sn
 
    subroutine require_interior_data(self, standard_variable, domain)
@@ -2308,273 +2299,197 @@ subroutine end_vertical_task(task, cache, store _POSTARG_VERTICAL_IN_)
    end do
 end subroutine end_vertical_task
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Initialize the model state (pelagic).
-!
-! !INTERFACE:
    subroutine initialize_interior_state(self _POSTARG_INTERIOR_IN_)
-!
-! !INPUT PARAMETERS:
-   class (type_model),intent(inout) :: self
-   _DECLARE_ARGUMENTS_INTERIOR_IN_
-!
-! !LOCAL PARAMETERS:
-   integer                   :: ivar,read_index
-   type (type_call), pointer :: call_node
-   logical                   :: set_interior
-   _DECLARE_INTERIOR_INDICES_
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
+      class (type_model),intent(inout) :: self
+      _DECLARE_ARGUMENTS_INTERIOR_IN_
+
+      integer                   :: ivar,read_index
+      type (type_call), pointer :: call_node
+      logical                   :: set_interior
+      _DECLARE_INTERIOR_INDICES_
+
 #ifndef NDEBUG
-   call check_interior_location(self _POSTARG_INTERIOR_IN_, 'initialize_interior_state')
+      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'initialize_interior_state')
 #endif
 
-   call begin_interior_task(self,self%initialize_state_job%first_task,self%cache_int _POSTARG_INTERIOR_IN_)
+      call begin_interior_task(self,self%initialize_state_job%first_task,self%cache_int _POSTARG_INTERIOR_IN_)
 
-   do ivar=1,size(self%state_variables)
-      read_index = self%state_variables(ivar)%target%read_indices%value
-      _CONCURRENT_LOOP_BEGIN_EX_(self%cache_int)
-         self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index) = self%state_variables(ivar)%initial_value
-      _LOOP_END_
-   end do
-
-   ! Allow biogeochemical models to initialize their interior state.
-   set_interior = .false.
-   call_node => self%initialize_state_job%first_task%first_call
-   do while (associated(call_node))
-      if (call_node%source == source_initialize_state) call call_node%model%initialize_state(self%cache_int,set_interior)
-      call_node => call_node%next
-   end do
-
-   ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
-   do ivar=1,size(self%state_variables)
-      read_index = self%state_variables(ivar)%target%read_indices%value
-      if (self%catalog%interior_sources(read_index) == data_source_fabm) then
-         _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%state_variables(ivar)%missing_value)
-      end if
-   end do
-
-   call end_interior_task(self%initialize_state_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
-
-   end subroutine initialize_interior_state
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Initialize the bottom model state.
-!
-! !INTERFACE:
-   subroutine initialize_bottom_state(self _POSTARG_HORIZONTAL_IN_)
-!
-! !INPUT PARAMETERS:
-   class (type_model), intent(inout) :: self
-   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-!
-! !LOCAL PARAMETERS:
-   integer                   :: ivar,read_index
-   type (type_call), pointer :: call_node
-   logical                   :: set_horizontal
-   _DECLARE_HORIZONTAL_INDICES_
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-#ifndef NDEBUG
-   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'initialize_bottom_state')
-#endif
-
-   call begin_horizontal_task(self,self%initialize_bottom_state_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
-
-   ! Initialize bottom variables
-   do ivar=1,size(self%bottom_state_variables)
-      read_index = self%bottom_state_variables(ivar)%target%read_indices%value
-      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
-         self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%bottom_state_variables(ivar)%initial_value
-      _HORIZONTAL_LOOP_END_
-   end do
-
-   ! Allow biogeochemical models to initialize their bottom state.
-   set_horizontal = .false.
-   call_node => self%initialize_bottom_state_job%first_task%first_call
-   do while (associated(call_node))
-      if (call_node%source == source_initialize_bottom_state) call call_node%model%initialize_bottom_state(self%cache_hz,set_horizontal)
-      call_node => call_node%next
-   end do
-
-   ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
-   do ivar=1,size(self%bottom_state_variables)
-      read_index = self%bottom_state_variables(ivar)%target%read_indices%value
-      if (self%catalog%horizontal_sources(read_index)==data_source_fabm) then
-         _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(self%bottom_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%bottom_state_variables(ivar)%missing_value)
-      end if
-   end do
-
-   call end_horizontal_task(self%initialize_bottom_state_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
-
-   end subroutine initialize_bottom_state
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Initialize the surface model state.
-!
-! !INTERFACE:
-   subroutine initialize_surface_state(self _POSTARG_HORIZONTAL_IN_)
-!
-! !INPUT PARAMETERS:
-   class (type_model), intent(inout) :: self
-   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-!
-! !LOCAL PARAMETERS:
-   integer                   :: ivar,read_index
-   type (type_call), pointer :: call_node
-   logical                   :: set_horizontal
-   _DECLARE_HORIZONTAL_INDICES_
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-#ifndef NDEBUG
-   call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'initialize_surface_state')
-#endif
-
-   call begin_horizontal_task(self,self%initialize_surface_state_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
-
-   ! Initialize surface variables
-   do ivar=1,size(self%surface_state_variables)
-      read_index = self%surface_state_variables(ivar)%target%read_indices%value
-      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
-         self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%surface_state_variables(ivar)%initial_value
-      _HORIZONTAL_LOOP_END_
-   end do
-
-   ! Allow biogeochemical models to initialize their surface state.
-   set_horizontal = .false.
-   call_node => self%initialize_surface_state_job%first_task%first_call
-   do while (associated(call_node))
-      if (call_node%source == source_initialize_surface_state) call call_node%model%initialize_surface_state(self%cache_hz,set_horizontal)
-      call_node => call_node%next
-   end do
-
-   ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
-   do ivar=1,size(self%surface_state_variables)
-      read_index = self%surface_state_variables(ivar)%target%read_indices%value
-      if (self%catalog%horizontal_sources(read_index) == data_source_fabm) then
-         _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(self%surface_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%surface_state_variables(ivar)%missing_value)
-      end if
-   end do
-
-   call end_horizontal_task(self%initialize_surface_state_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
-
-   end subroutine initialize_surface_state
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the local temporal derivatives for the biogeochemical
-! model tree.
-!
-! !INTERFACE:
-   subroutine get_interior_sources_rhs(self _POSTARG_INTERIOR_IN_, dy)
-!
-! !INPUT PARAMETERS:
-   class (type_model),                     intent(inout) :: self
-   _DECLARE_ARGUMENTS_INTERIOR_IN_
-!
-! !INPUT/OUTPUT PARAMETERS:
-   real(rke) _DIMENSION_EXT_SLICE_PLUS_1_, intent(inout) :: dy
-!
-! !LOCAL PARAMETERS:
-   integer :: i, k
-   _DECLARE_INTERIOR_INDICES_
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-#ifndef NDEBUG
-   call check_interior_location(self _POSTARG_INTERIOR_IN_,'get_interior_sources_rhs')
-#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-   call check_extents_2d(dy,_STOP_-_START_+1,size(self%state_variables),'get_interior_sources_rhs','dy','stop-start+1, # interior state variables')
-#  else
-   call check_extents_1d(dy,size(self%state_variables),'get_interior_sources_rhs','dy','# interior state variables')
-#  endif
-#endif
-
-   call process_interior_slice(self, self%do_interior_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
-
-   ! Compose total sources-sinks for each state variable, combining model-specific contributions.
-   do i = 1, size(self%state_variables)
-      k = self%state_variables(i)%sms_index
-      _UNPACK_AND_ADD_TO_PLUS_1_(self%cache_int%write, k, dy, i, self%cache_int)
-   end do
-
-   end subroutine get_interior_sources_rhs
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the local temporal derivatives for the biogeochemical
-! model tree in the form of production and destruction matrices.
-!
-! !INTERFACE:
-   subroutine get_interior_sources_ppdd(self _POSTARG_INTERIOR_IN_, pp, dd)
-!
-! !INPUT PARAMETERS:
-   class (type_model),                    intent(inout) :: self
-  _DECLARE_ARGUMENTS_INTERIOR_IN_
-!
-! !INPUT/OUTPUT PARAMETERS:
-   real(rke) _DIMENSION_EXT_SLICE_PLUS_2_,intent(inout) :: pp, dd
-!
-! !LOCAL PARAMETERS:
-   type (type_call), pointer :: call_node
-   integer                   :: i, j, k
-   _DECLARE_INTERIOR_INDICES_
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-#ifndef NDEBUG
-   call check_interior_location(self _POSTARG_INTERIOR_IN_,'get_interior_sources_ppdd')
-#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-   call check_extents_3d(pp,_STOP_-_START_+1,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','pp','stop-start+1, # interior state variables, # interior state variables')
-   call check_extents_3d(dd,_STOP_-_START_+1,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','dd','stop-start+1, # interior state variables, # interior state variables')
-#  else
-   call check_extents_2d(pp,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','pp','# interior state variables, # interior state variables')
-   call check_extents_2d(dd,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','dd','# interior state variables, # interior state variables')
-#  endif
-#endif
-
-   call begin_interior_task(self,self%do_interior_job%first_task,self%cache_int _POSTARG_INTERIOR_IN_)
-
-   call_node => self%do_interior_job%first_task%first_call
-   do while (associated(call_node))
-      call call_node%model%do_ppdd(self%cache_int,pp,dd)
-
-      ! Copy outputs of interest to read cache so consecutive models can use it.
-      _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
-         j = call_node%copy_commands_int(i)%read_index
-         k = call_node%copy_commands_int(i)%write_index
+      do ivar=1,size(self%state_variables)
+         read_index = self%state_variables(ivar)%target%read_indices%value
          _CONCURRENT_LOOP_BEGIN_EX_(self%cache_int)
-            self%cache_int%read _INDEX_SLICE_PLUS_1_(j) = self%cache_int%write _INDEX_SLICE_PLUS_1_(k)
+            self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index) = self%state_variables(ivar)%initial_value
          _LOOP_END_
       end do
 
-      call_node => call_node%next
-   end do
+      ! Allow biogeochemical models to initialize their interior state.
+      set_interior = .false.
+      call_node => self%initialize_state_job%first_task%first_call
+      do while (associated(call_node))
+         if (call_node%source == source_initialize_state) call call_node%model%initialize_state(self%cache_int,set_interior)
+         call_node => call_node%next
+      end do
 
-   call end_interior_task(self%do_interior_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
+      ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
+      do ivar=1,size(self%state_variables)
+         read_index = self%state_variables(ivar)%target%read_indices%value
+         if (self%catalog%interior_sources(read_index) == data_source_fabm) then
+            _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%state_variables(ivar)%missing_value)
+         end if
+      end do
 
+      call end_interior_task(self%initialize_state_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
+   end subroutine initialize_interior_state
+
+   subroutine initialize_bottom_state(self _POSTARG_HORIZONTAL_IN_)
+      class (type_model), intent(inout) :: self
+      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+
+      integer                   :: ivar,read_index
+      type (type_call), pointer :: call_node
+      logical                   :: set_horizontal
+      _DECLARE_HORIZONTAL_INDICES_
+
+#ifndef NDEBUG
+      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'initialize_bottom_state')
+#endif
+
+      call begin_horizontal_task(self,self%initialize_bottom_state_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
+
+      ! Initialize bottom variables
+      do ivar=1,size(self%bottom_state_variables)
+         read_index = self%bottom_state_variables(ivar)%target%read_indices%value
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
+            self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%bottom_state_variables(ivar)%initial_value
+         _HORIZONTAL_LOOP_END_
+      end do
+
+      ! Allow biogeochemical models to initialize their bottom state.
+      set_horizontal = .false.
+      call_node => self%initialize_bottom_state_job%first_task%first_call
+      do while (associated(call_node))
+         if (call_node%source == source_initialize_bottom_state) call call_node%model%initialize_bottom_state(self%cache_hz,set_horizontal)
+         call_node => call_node%next
+      end do
+
+      ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
+      do ivar=1,size(self%bottom_state_variables)
+         read_index = self%bottom_state_variables(ivar)%target%read_indices%value
+         if (self%catalog%horizontal_sources(read_index)==data_source_fabm) then
+            _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(self%bottom_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%bottom_state_variables(ivar)%missing_value)
+         end if
+      end do
+
+      call end_horizontal_task(self%initialize_bottom_state_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
+   end subroutine initialize_bottom_state
+
+   subroutine initialize_surface_state(self _POSTARG_HORIZONTAL_IN_)
+      class (type_model), intent(inout) :: self
+      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+
+      integer                   :: ivar,read_index
+      type (type_call), pointer :: call_node
+      logical                   :: set_horizontal
+      _DECLARE_HORIZONTAL_INDICES_
+
+#ifndef NDEBUG
+      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'initialize_surface_state')
+#endif
+
+      call begin_horizontal_task(self,self%initialize_surface_state_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
+
+      ! Initialize surface variables
+      do ivar=1,size(self%surface_state_variables)
+         read_index = self%surface_state_variables(ivar)%target%read_indices%value
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
+            self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = self%surface_state_variables(ivar)%initial_value
+         _HORIZONTAL_LOOP_END_
+      end do
+
+      ! Allow biogeochemical models to initialize their surface state.
+      set_horizontal = .false.
+      call_node => self%initialize_surface_state_job%first_task%first_call
+      do while (associated(call_node))
+         if (call_node%source == source_initialize_surface_state) call call_node%model%initialize_surface_state(self%cache_hz,set_horizontal)
+         call_node => call_node%next
+      end do
+
+      ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
+      do ivar=1,size(self%surface_state_variables)
+         read_index = self%surface_state_variables(ivar)%target%read_indices%value
+         if (self%catalog%horizontal_sources(read_index) == data_source_fabm) then
+            _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(self%surface_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%surface_state_variables(ivar)%missing_value)
+         end if
+      end do
+
+      call end_horizontal_task(self%initialize_surface_state_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
+   end subroutine initialize_surface_state
+
+   subroutine get_interior_sources_rhs(self _POSTARG_INTERIOR_IN_, dy)
+      class (type_model),                     intent(inout) :: self
+      _DECLARE_ARGUMENTS_INTERIOR_IN_
+      real(rke) _DIMENSION_EXT_SLICE_PLUS_1_, intent(inout) :: dy
+
+      integer :: i, k
+      _DECLARE_INTERIOR_INDICES_
+
+#ifndef NDEBUG
+      call check_interior_location(self _POSTARG_INTERIOR_IN_,'get_interior_sources_rhs')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+      call check_extents_2d(dy,_STOP_-_START_+1,size(self%state_variables),'get_interior_sources_rhs','dy','stop-start+1, # interior state variables')
+#  else
+      call check_extents_1d(dy,size(self%state_variables),'get_interior_sources_rhs','dy','# interior state variables')
+#  endif
+#endif
+
+      call process_interior_slice(self, self%do_interior_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
+
+      ! Compose total sources-sinks for each state variable, combining model-specific contributions.
+      do i = 1, size(self%state_variables)
+         k = self%state_variables(i)%sms_index
+         _UNPACK_AND_ADD_TO_PLUS_1_(self%cache_int%write, k, dy, i, self%cache_int)
+      end do
+   end subroutine get_interior_sources_rhs
+
+   subroutine get_interior_sources_ppdd(self _POSTARG_INTERIOR_IN_, pp, dd)
+      class (type_model),                    intent(inout) :: self
+     _DECLARE_ARGUMENTS_INTERIOR_IN_
+      real(rke) _DIMENSION_EXT_SLICE_PLUS_2_,intent(inout) :: pp, dd
+
+      type (type_call), pointer :: call_node
+      integer                   :: i, j, k
+      _DECLARE_INTERIOR_INDICES_
+
+#ifndef NDEBUG
+      call check_interior_location(self _POSTARG_INTERIOR_IN_,'get_interior_sources_ppdd')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+      call check_extents_3d(pp,_STOP_-_START_+1,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','pp','stop-start+1, # interior state variables, # interior state variables')
+      call check_extents_3d(dd,_STOP_-_START_+1,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','dd','stop-start+1, # interior state variables, # interior state variables')
+#  else
+      call check_extents_2d(pp,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','pp','# interior state variables, # interior state variables')
+      call check_extents_2d(dd,size(self%state_variables),size(self%state_variables),'get_interior_sources_ppdd','dd','# interior state variables, # interior state variables')
+#  endif
+#endif
+
+      call begin_interior_task(self,self%do_interior_job%first_task,self%cache_int _POSTARG_INTERIOR_IN_)
+
+      call_node => self%do_interior_job%first_task%first_call
+      do while (associated(call_node))
+         call call_node%model%do_ppdd(self%cache_int,pp,dd)
+
+         ! Copy outputs of interest to read cache so consecutive models can use it.
+         _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
+            j = call_node%copy_commands_int(i)%read_index
+            k = call_node%copy_commands_int(i)%write_index
+            _CONCURRENT_LOOP_BEGIN_EX_(self%cache_int)
+               self%cache_int%read _INDEX_SLICE_PLUS_1_(j) = self%cache_int%write _INDEX_SLICE_PLUS_1_(k)
+            _LOOP_END_
+         end do
+
+         call_node => call_node%next
+      end do
+
+      call end_interior_task(self%do_interior_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
    end subroutine get_interior_sources_ppdd
-!EOC
 
    subroutine check_interior_state(self _POSTARG_INTERIOR_IN_, repair, valid)
       class (type_model),     intent(inout) :: self
@@ -2967,9 +2882,7 @@ end subroutine end_vertical_task
          k = self%state_variables(i)%movement_index
          _UNPACK_TO_PLUS_1_(self%cache_int%write, k, velocity, i, self%cache_int, 0.0_rke)
       end do
-
    end subroutine get_vertical_movement
-!EOC
 
    subroutine fabm_get_light_extinction(self _POSTARG_INTERIOR_IN_, extinction)
       class (type_model),              intent(inout) :: self
