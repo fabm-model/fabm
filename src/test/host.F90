@@ -300,10 +300,10 @@ case (1)
     ! Unit testing with built-in model
     allocate(model)
     allocate(test_model)
-    call model%root%add_child(test_model,'test_model','test model',configunit=-1)
+    call model%root%add_child(test_model, 'test_model', 'test model', configunit=-1)
 case (2)
     ! Test with user-provided fabm.yaml
-    model => fabm_create_model(do_not_initialize=.true.)
+    model => fabm_create_model(initialize=.false.)
 end select
 call report_test_result()
 

@@ -22,14 +22,19 @@ module fabm_config
 
 contains
 
-   function fabm_create_model(path, do_not_initialize, parameters, unit) result(model)
+   function fabm_create_model(path, initialize, parameters, unit) result(model)
       character(len=*),                optional, intent(in) :: path
-      logical,                         optional, intent(in) :: do_not_initialize
+      logical,                         optional, intent(in) :: initialize
       type (type_property_dictionary), optional, intent(in) :: parameters
       integer,                         optional, intent(in) :: unit
       class (type_fabm_model), pointer                      :: model
+
+      logical :: initialize_
+
+      initialize_ = .true.
+      if (present(initialize)) initialize_ = initialize
       allocate(model)
-      call configure(model, path, do_not_initialize, parameters, unit)
+      call configure(model, path, do_not_initialize=.not. initialize, parameters=parameters, unit=unit)
    end function
 
    ! For backward compatibility (20191115):
@@ -39,6 +44,7 @@ contains
       logical,                         optional, intent(in)  :: do_not_initialize
       type (type_property_dictionary), optional, intent(in)  :: parameters
       integer,                         optional, intent(in)  :: unit
+
       call configure(model, path, do_not_initialize, parameters, unit)
    end subroutine
 
