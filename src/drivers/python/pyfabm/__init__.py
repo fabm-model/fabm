@@ -127,11 +127,9 @@ fabm.get_horizontal_diagnostic_data.restype = None
 
 fabm.check_ready.argtypes = []
 fabm.check_ready.restype = None
-fabm.update_time.argtypes = [ctypes.c_double]
-fabm.update_time.restype = None
 
 # Routine for retrieving source-sink terms for the interior domain.
-fabm.get_rates.argtypes = [numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), ctypes.c_int, ctypes.c_int]
+fabm.get_rates.argtypes = [ctypes.c_double, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), ctypes.c_int, ctypes.c_int]
 fabm.get_rates.restype = None
 fabm.check_state.argtypes = [ctypes.c_int]
 fabm.check_state.restype = ctypes.c_int
@@ -491,12 +489,16 @@ class Model(object):
         self.bulk_state_variables = self.interior_state_variables
         self.bulk_diagnostic_variables = self.interior_diagnostic_variables
 
-    def getRates(self, surface=True, bottom=True):
+        self.itime = -1.
+
+    def getRates(self, t=None, surface=True, bottom=True):
         """Returns the local rate of change in state variables,
         given the current state and environment.
         """
+        if t is None:
+            t = self.ntime
         localrates = numpy.empty_like(self.state)
-        fabm.get_rates(localrates, surface, bottom)
+        fabm.get_rates(t, localrates, surface, bottom)
         return localrates
 
     def checkState(self, repair=False):
@@ -578,7 +580,7 @@ class Model(object):
        return ready
 
     def updateTime(self, nsec):
-       fabm.update_time(nsec)
+       self.itime = nsec
 
     def printInformation(self):
         """Show information about the model."""

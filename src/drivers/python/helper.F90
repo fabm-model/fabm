@@ -11,7 +11,7 @@
 ! TODO
 !
 ! !USES:
-   use fabm, only: type_model, fabm_link_bulk_data, fabm_link_horizontal_data, fabm_link_scalar_data
+   use fabm, only: type_fabm_model
    use fabm_types
 
    implicit none
@@ -24,10 +24,10 @@
 
    contains
 
-   subroutine get_environment_metadata(model,environment_names,environment_units,index_column_depth)
-     type (type_model),                           intent(inout) :: model
-     character(len=1024),dimension(:),allocatable,intent(out)   :: environment_names,environment_units
-     integer,                                     intent(out)   :: index_column_depth
+   subroutine get_environment_metadata(model, environment_names, environment_units, index_column_depth)
+     type (type_fabm_model),                         intent(inout) :: model
+     character(len=1024), dimension(:), allocatable, intent(out)   :: environment_names, environment_units
+     integer,                                        intent(out)   :: index_column_depth
 
      integer                         :: n
      type (type_link),       pointer :: link
@@ -38,26 +38,26 @@
       n = 0
       link => model%links_postcoupling%first
       do while (associated(link))
-         if (.not.link%target%read_indices%is_empty().and.link%target%state_indices%is_empty()) then
+         if (.not. link%target%read_indices%is_empty() .and. link%target%state_indices%is_empty()) then
             select case (link%target%domain)
                case (domain_interior)
-                  if (.not.associated(model%data(link%target%read_indices%pointers(1)%p)%p)) n = n+1
-                  if (index_column_depth==-1 .and. associated(link%target%standard_variables%first)) then
+                  if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) n = n + 1
+                  if (index_column_depth == -1 .and. associated(link%target%standard_variables%first)) then
                      if (link%target%standard_variables%first%p%compare(standard_variables%cell_thickness)) index_column_depth = n
                   end if
-               case (domain_bottom,domain_surface,domain_horizontal)
-                  if (.not.associated(model%data_hz(link%target%read_indices%pointers(1)%p)%p)) n = n+1
+               case (domain_bottom, domain_surface, domain_horizontal)
+                  if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) n = n + 1
                   if (index_column_depth==-1 .and. associated(link%target%standard_variables%first)) then
                      if (link%target%standard_variables%first%p%compare(standard_variables%bottom_depth)) index_column_depth = n
                   end if
                case (domain_scalar)
-                  if (.not.associated(model%data_scalar(link%target%read_indices%pointers(1)%p)%p)) n = n+1
+                  if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) n = n + 1
             end select
          end if
          link => link%next
       end do
 
-      if (index_column_depth==-1) n = n + 1
+      if (index_column_depth == -1) n = n + 1
 
       ! Allocate arrays to hold information on environment
       allocate(environment_names(n))
@@ -70,7 +70,7 @@
          if (.not.link%target%read_indices%is_empty().and.link%target%state_indices%is_empty()) then
             select case (link%target%domain)
                case (domain_interior)
-                  if (.not.associated(model%data(link%target%read_indices%pointers(1)%p)%p)) then
+                  if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) then
                      n = n + 1
                      if (.not.associated(link%target%standard_variables%first)) then
                         environment_names(n) = trim(link%name)
@@ -80,8 +80,8 @@
                         environment_units(n) = trim(link%target%standard_variables%first%p%units)
                      end if
                   end if
-               case (domain_bottom,domain_surface,domain_horizontal)
-                  if (.not.associated(model%data_hz(link%target%read_indices%pointers(1)%p)%p)) then
+               case (domain_bottom, domain_surface, domain_horizontal)
+                  if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) then
                      n = n + 1
                      if (.not.associated(link%target%standard_variables%first)) then
                         environment_names(n) = trim(link%name)
@@ -92,7 +92,7 @@
                      end if
                   end if
                case (domain_scalar)
-                  if (.not.associated(model%data_scalar(link%target%read_indices%pointers(1)%p)%p)) then
+                  if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) then
                      n = n + 1
                      if (.not.associated(link%target%standard_variables%first)) then
                         environment_names(n) = trim(link%name)
@@ -107,7 +107,7 @@
          link => link%next
       end do
 
-      if (index_column_depth==-1) then
+      if (index_column_depth == -1) then
          n = n + 1
          index_column_depth = n
          environment_names(n) = trim(standard_variables%bottom_depth%name)
@@ -115,30 +115,29 @@
       end if
    end subroutine get_environment_metadata
 
-   subroutine get_couplings(model,link_list)
-      type (type_model),    intent(inout) :: model
-      type (type_link_list),intent(inout) :: link_list
+   subroutine get_couplings(model, link_list)
+      type (type_fabm_model), intent(inout) :: model
+      type (type_link_list),  intent(inout) :: link_list
 
-      type (type_link),pointer :: link,link2
+      type (type_link), pointer :: link, link2
 
       call link_list%finalize()
       link => model%root%links%first
       do while (associated(link))
-         if (link%original%presence/=presence_internal.and..not.link%original%read_indices%is_empty()) then
-            link2 => link_list%append(link%target,link%name)
+         if (link%original%presence /= presence_internal .and. .not. link%original%read_indices%is_empty()) then
+            link2 => link_list%append(link%target, link%name)
             link2%original => link%original
          end if
          link => link%next
       end do
-
    end subroutine get_couplings
 
-   function get_suitable_masters(model,slave) result(link_list)
-      type (type_model),                     intent(inout) :: model
-      type (type_internal_variable), pointer    :: slave
-      type (type_link_list),pointer                        :: link_list
+   function get_suitable_masters(model, slave) result(link_list)
+      type (type_fabm_model), intent(inout)  :: model
+      type (type_internal_variable), pointer :: slave
+      type (type_link_list),         pointer :: link_list
 
-      type (type_link),pointer :: link,link2
+      type (type_link), pointer :: link, link2
 
       allocate(link_list)
       link => model%root%links%first
