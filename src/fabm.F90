@@ -309,6 +309,11 @@ module fabm
       procedure :: check_bottom_state
       procedure :: check_surface_state
 
+      procedure :: prepare_inputs1
+      procedure :: prepare_inputs2
+      generic :: prepare_inputs => prepare_inputs1, prepare_inputs2
+      procedure :: complete_outputs
+
       procedure :: get_interior_sources_rhs
       procedure :: get_interior_sources_ppdd
       generic :: get_interior_sources => get_interior_sources_rhs, get_interior_sources_ppdd
@@ -566,8 +571,8 @@ module fabm
    end interface
 
    interface fabm_update_time
-      module procedure fabm_update_time1
-      module procedure fabm_update_time2
+      module procedure prepare_inputs1
+      module procedure prepare_inputs2
    end interface
 
 contains
@@ -1325,13 +1330,12 @@ contains
       call self%get_diagnostics_job%request_variable(id%variable, store=.true.)
    end subroutine require_interior_data
 
-   subroutine require_horizontal_data(self, standard_variable,domain)
+   subroutine require_horizontal_data(self, standard_variable, domain)
       class (type_model),                      intent(inout) :: self
       type(type_horizontal_standard_variable), intent(in)    :: standard_variable
       integer,optional,                        intent(in)    :: domain
 
       type (type_horizontal_variable_id) :: id
-      type (type_link), pointer          :: link
 
       if (self%status < status_initialize_done) &
          call fatal_error('require_horizontal_data', 'This procedure can only be called after model initialization.')
@@ -1339,14 +1343,9 @@ contains
          call fatal_error('require_horizontal_data', 'This procedure cannot be called after check_ready is called.')
 
       id = self%get_horizontal_variable_id(standard_variable)
-      if (associated(id%variable)) then
-         call self%get_diagnostics_job%request_variable(id%variable, store=.true.)
-      else
-         self%root%frozen = .false.
-         call self%root%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable=standard_variable, link=link)
-         call self%get_diagnostics_job%request_variable(link%target, store=.true.)
-         self%root%frozen = .true.
-      end if
+      if (.not. associated(id%variable)) &
+         call fatal_error('require_horizontal_data', 'Model does not contain requested variable ' // trim(standard_variable%name))
+      call self%get_diagnostics_job%request_variable(id%variable, store=.true.)
    end subroutine require_horizontal_data
 
    subroutine link_interior_data_by_variable(self, variable, dat, source)
@@ -3184,19 +3183,23 @@ end subroutine end_vertical_task
 
    end subroutine process_vertical_slice
 
-   subroutine fabm_update_time1(self,t)
-      class (type_model), intent(inout) :: self
-      real(rke),          intent(in)    :: t
+   subroutine prepare_inputs1(self, t)
+      class (type_model),  intent(inout) :: self
+      real(rke), optional, intent(in)    :: t
 
-      class (type_expression),pointer :: expression
+      class (type_expression), pointer :: expression
+
+      call self%process(self%prepare_job)
+
+      if (.not. present(t)) return
 
       expression => self%root%first_expression
       do while (associated(expression))
          select type (expression)
-            class is (type_interior_temporal_mean)
-               call update_interior_temporal_mean(expression)
-            class is (type_horizontal_temporal_mean)
-               call update_horizontal_temporal_mean(expression)
+         class is (type_interior_temporal_mean)
+            call update_interior_temporal_mean(expression)
+         class is (type_horizontal_temporal_mean)
+            call update_horizontal_temporal_mean(expression)
          end select
          expression => expression%next
       end do
@@ -3316,18 +3319,23 @@ end subroutine end_vertical_task
 
          expression%last_time = t
       end subroutine
+   end subroutine prepare_inputs1
 
-   end subroutine fabm_update_time1
-
-   subroutine fabm_update_time2(self, t, year, month, day, seconds)
+   subroutine prepare_inputs2(self, t, year, month, day, seconds)
       class (type_model), intent(inout) :: self
       real(rke),          intent(in)    :: t
       integer,            intent(in)    :: year, month, day
       real(rke),          intent(in)    :: seconds
 
-      call fabm_update_time1(self, t)
       call self%schedules%update(year, month, day, seconds)
-   end subroutine fabm_update_time2
+      call prepare_inputs1(self, t)
+   end subroutine prepare_inputs2
+
+   subroutine complete_outputs(self)
+      class (type_model),  intent(inout) :: self
+
+      call self%process(self%get_diagnostics_job)
+   end subroutine complete_outputs
 
    subroutine classify_variables(self)
       class (type_model), intent(inout), target :: self
@@ -3794,12 +3802,12 @@ end subroutine end_vertical_task
 
       if (i < 1) then
          write (str1,'(i0)') i
-         call fatal_error(routine,'Index ' // name // ' = ' // trim(str1) // ' is non-positive.')
+         call fatal_error(routine, 'Index ' // name // ' = ' // trim(str1) // ' is non-positive.')
       end if
       if (i > i_max) then
          write (str1,'(i0)') i
          write (str2,'(i0)') i_max
-         call fatal_error(routine,'Index ' // name // ' = ' // trim(str1) // ' exceeds size of associated dimension (' // trim(str2) // ').')
+         call fatal_error(routine, 'Index ' // name // ' = ' // trim(str1) // ' exceeds size of associated dimension (' // trim(str2) // ').')
       end if
    end subroutine check_index
 

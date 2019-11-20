@@ -655,8 +655,8 @@ contains
 
       call cpu_time(time_begin)
 
-      do i=1,n
-         call model%process(model%prepare_job)
+      do i = 1, n
+         call model%prepare_inputs()
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             flux = 0
@@ -675,7 +675,7 @@ contains
             call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy)
          _END_OUTER_INTERIOR_LOOP_
 
-         call model%process(model%get_diagnostics_job)
+         call model%complete_outputs()
 
          if (mod(i, 100) == 0) write (*,'(i0,a)') int(100*i/real(n, rke)), ' % complete'
       end do
@@ -687,9 +687,9 @@ contains
    end subroutine
 
    subroutine test_update
-      real(rke),pointer _DIMENSION_GLOBAL_ :: pdata
-      real(rke),pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: pdata_hz
-      logical :: valid
+      real(rke), pointer _DIMENSION_GLOBAL_            :: pdata
+      real(rke), pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: pdata_hz
+      logical                                          :: valid
 
       call randomize_mask
 
@@ -701,7 +701,7 @@ contains
       _BEGIN_OUTER_INTERIOR_LOOP_
          call model%initialize_interior_state(_ARG_INTERIOR_IN_)
       _END_OUTER_INTERIOR_LOOP_
-      do ivar=1,size(model%state_variables)
+      do ivar = 1, size(model%state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, ivar+interior_state_offset+1._rke)
       end do
       call report_test_result()
@@ -710,7 +710,7 @@ contains
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          call model%initialize_bottom_state(_ARG_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
-      do ivar=1,size(model%bottom_state_variables)
+      do ivar = 1, size(model%bottom_state_variables)
          call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, ivar+bottom_state_offset+1._rke)
       end do
       call report_test_result()
@@ -719,7 +719,7 @@ contains
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          call model%initialize_surface_state(_ARG_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
-      do ivar=1,size(model%surface_state_variables)
+      do ivar = 1, size(model%surface_state_variables)
          call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, ivar+surface_state_offset+1._rke)
       end do
       call report_test_result()
@@ -728,11 +728,11 @@ contains
       ! Initialize environmental dependencies
       ! ======================================================================
 
-      temperature = 1+interior_dependency_offset
-      call apply_mask_3d(temperature,-999._rke-interior_dependency_offset)
+      temperature = 1 + interior_dependency_offset
+      call apply_mask_3d(temperature, -999._rke - interior_dependency_offset)
 
-      wind_speed = 1+horizontal_dependency_offset
-      call apply_mask_2d(wind_speed,-999._rke-horizontal_dependency_offset)
+      wind_speed = 1 + horizontal_dependency_offset
+      call apply_mask_2d(wind_speed, -999._rke - horizontal_dependency_offset)
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
       ! Model has depth dimension: make sure depth varies from 0 at the surface till 1 at the bottom
@@ -763,17 +763,17 @@ contains
       ! No depth dimension
       depth = 2
 #endif
-      call apply_mask_3d(depth,-999._rke-interior_dependency_offset)
+      call apply_mask_3d(depth, -999._rke - interior_dependency_offset)
 
-      do ivar=1,size(model%state_variables)
+      do ivar = 1, size(model%state_variables)
          interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = ivar+interior_state_offset
          call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar),model%state_variables(ivar)%missing_value)
       end do
-      do ivar=1,size(model%surface_state_variables)
+      do ivar = 1, size(model%surface_state_variables)
          surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = ivar+surface_state_offset
          call apply_mask_2d(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar),model%surface_state_variables(ivar)%missing_value)
       end do
-      do ivar=1,size(model%bottom_state_variables)
+      do ivar = 1, size(model%bottom_state_variables)
          bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = ivar+bottom_state_offset
          call apply_mask_2d(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar),model%bottom_state_variables(ivar)%missing_value)
       end do
@@ -784,8 +784,8 @@ contains
 
       column_loop_count = 0
 
-      call start_test('process(job%prepare)')
-      call model%process(model%prepare_job)
+      call start_test('prepare_inputs')
+      call model%prepare_inputs()
       call report_test_result()
 
       ! ======================================================================
@@ -799,18 +799,18 @@ contains
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
          ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
          if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= 1 .and. bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)) &
-            call model%get_interior_sources(_IMIN_, _IMAX_ _ARG_INTERIOR_FIXED_LOCATION_, dy(_IMIN_:_IMAX_,:))
+            call model%get_interior_sources(_IMIN_, _IMAX_ _ARG_INTERIOR_FIXED_LOCATION_, dy(_IMIN_:_IMAX_, :))
 #else
          call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy)
 #endif
-         do ivar=1,size(model%state_variables)
-            call check_interior_slice_plus_1(dy,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _POSTARG_INTERIOR_IN_)
+         do ivar = 1, size(model%state_variables)
+            call check_interior_slice_plus_1(dy, ivar, 0.0_rke, -real(ivar + interior_state_offset, rke) _POSTARG_INTERIOR_IN_)
          end do
       _END_OUTER_INTERIOR_LOOP_
       call assert(interior_loop_count == interior_count, 'get_interior_sources', 'call count does not match number of (unmasked) interior points')
 
-      do ivar=1,size(model%diagnostic_variables)
-         if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source==source_do) then
+      do ivar = 1, size(model%diagnostic_variables)
+         if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source == source_do) then
             pdata => model%get_interior_diagnostic_data(ivar)
             call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, -model%diagnostic_variables(ivar)%missing_value)
          end if
@@ -841,11 +841,11 @@ contains
          flux = 0
          sms_sf = 0
          call model%get_surface_sources(_PREARG_HORIZONTAL_IN_ flux, sms_sf)
-         do ivar=1,size(model%state_variables)
-            call check_horizontal_slice_plus_1(flux,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _POSTARG_HORIZONTAL_IN_)
+         do ivar = 1, size(model%state_variables)
+            call check_horizontal_slice_plus_1(flux, ivar, 0.0_rke, -real(ivar + interior_state_offset, rke) _POSTARG_HORIZONTAL_IN_)
          end do
-         do ivar=1,size(model%surface_state_variables)
-            call check_horizontal_slice_plus_1(sms_sf,ivar,0.0_rke,-real(ivar+surface_state_offset,rke) _POSTARG_HORIZONTAL_IN_)
+         do ivar = 1, size(model%surface_state_variables)
+            call check_horizontal_slice_plus_1(sms_sf, ivar, 0.0_rke, -real(ivar + surface_state_offset, rke) _POSTARG_HORIZONTAL_IN_)
          end do
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
          endif
@@ -853,7 +853,7 @@ contains
       _END_OUTER_HORIZONTAL_LOOP_
       call assert(surface_loop_count == horizontal_count, 'get_surface_sources', 'call count does not match number of (unmasked) horizontal points')
 
-      do ivar=1,size(model%horizontal_diagnostic_variables)
+      do ivar = 1, size(model%horizontal_diagnostic_variables)
          if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_surface) then
             pdata_hz => model%get_horizontal_diagnostic_data(ivar)
             call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
@@ -885,11 +885,11 @@ contains
          flux = 0
          sms_bt = 0
          call model%get_bottom_sources(_PREARG_HORIZONTAL_IN_ flux, sms_bt)
-         do ivar=1,size(model%state_variables)
-            call check_horizontal_slice_plus_1(flux,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _POSTARG_HORIZONTAL_IN_)
+         do ivar = 1, size(model%state_variables)
+            call check_horizontal_slice_plus_1(flux, ivar, 0.0_rke, -real(ivar + interior_state_offset, rke) _POSTARG_HORIZONTAL_IN_)
          end do
-         do ivar=1,size(model%bottom_state_variables)
-            call check_horizontal_slice_plus_1(sms_bt,ivar,0.0_rke,-real(ivar+bottom_state_offset,rke) _POSTARG_HORIZONTAL_IN_)
+         do ivar = 1, size(model%bottom_state_variables)
+            call check_horizontal_slice_plus_1(sms_bt, ivar, 0.0_rke, -real(ivar + bottom_state_offset, rke) _POSTARG_HORIZONTAL_IN_)
          end do
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
          endif
@@ -897,7 +897,7 @@ contains
       _END_OUTER_HORIZONTAL_LOOP_
       call assert(bottom_loop_count == horizontal_count, 'get_bottom_sources', 'call count does not match number of (unmasked) horizontal points')
 
-      do ivar=1,size(model%horizontal_diagnostic_variables)
+      do ivar = 1, size(model%horizontal_diagnostic_variables)
          if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_bottom) then
             pdata_hz => model%get_horizontal_diagnostic_data(ivar)
             call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
@@ -910,19 +910,19 @@ contains
       ! Postprocressing
       ! ======================================================================
 
-      call start_test('process(model%get_diagnostics_job)')
-      call model%process(model%get_diagnostics_job)
+      call start_test('complete_outputs')
+      call model%complete_outputs()
 
-      call assert(column_loop_count == interior_count, 'process(model%get_diagnostics_job)', 'call count does not match number of (unmasked) interior points')
+      call assert(column_loop_count == interior_count, 'complete_outputs', 'call count does not match number of (unmasked) interior points')
 
-      do ivar=1,size(model%diagnostic_variables)
-         if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source==source_do_column) then
+      do ivar = 1, size(model%diagnostic_variables)
+         if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source == source_do_column) then
             pdata => model%get_interior_diagnostic_data(ivar)
             call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, -model%diagnostic_variables(ivar)%missing_value)
          end if
       end do
 
-      do ivar=1,size(model%horizontal_diagnostic_variables)
+      do ivar = 1, size(model%horizontal_diagnostic_variables)
          if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_column) then
             pdata_hz => model%get_horizontal_diagnostic_data(ivar)
             call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
@@ -945,11 +945,11 @@ contains
 #else
          call model%get_vertical_movement(_PREARG_INTERIOR_IN_ w)
 #endif
-         do ivar=1,size(model%state_variables)
+         do ivar = 1, size(model%state_variables)
             if (mod(ivar, 2) == 0) then
-               call check_interior_slice_plus_1(w,ivar,0.0_rke,real(ivar+interior_state_offset,rke) _POSTARG_INTERIOR_IN_)
+               call check_interior_slice_plus_1(w, ivar, 0.0_rke, real(ivar + interior_state_offset, rke) _POSTARG_INTERIOR_IN_)
             else
-               call check_interior_slice_plus_1(w,ivar,0.0_rke,-real(ivar+interior_state_offset,rke) _POSTARG_INTERIOR_IN_)
+               call check_interior_slice_plus_1(w, ivar, 0.0_rke, -real(ivar + interior_state_offset, rke) _POSTARG_INTERIOR_IN_)
             end if
          end do
       _END_OUTER_INTERIOR_LOOP_
@@ -986,15 +986,15 @@ contains
       ! ======================================================================
 
       ! Now destroy the state by setting all values to below the minimum
-      do ivar=1,size(model%state_variables)
+      do ivar = 1, size(model%state_variables)
         interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = model%state_variables(ivar)%minimum - abs(model%state_variables(ivar)%minimum) - 1
         call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value)
       end do
-      do ivar=1,size(model%bottom_state_variables)
+      do ivar = 1, size(model%bottom_state_variables)
         bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = model%bottom_state_variables(ivar)%minimum - abs(model%bottom_state_variables(ivar)%minimum) - 1
         call apply_mask_2d(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value)
       end do
-      do ivar=1,size(model%surface_state_variables)
+      do ivar = 1, size(model%surface_state_variables)
         surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = model%surface_state_variables(ivar)%minimum - abs(model%surface_state_variables(ivar)%minimum) - 1
         call apply_mask_2d(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value)
       end do
@@ -1012,7 +1012,7 @@ contains
          call assert(.not. valid, 'check_interior_state', 'invalid result')
 #endif
       _END_OUTER_INTERIOR_LOOP_
-      do ivar=1,size(model%state_variables)
+      do ivar = 1, size(model%state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, model%state_variables(ivar)%minimum)
       end do
       call report_test_result()
@@ -1026,7 +1026,7 @@ contains
          call assert(.not. valid, 'check_surface_state', 'invalid result')
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
-      do ivar=1,size(model%surface_state_variables)
+      do ivar = 1, size(model%surface_state_variables)
          call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, model%surface_state_variables(ivar)%minimum)
       end do
       call report_test_result()
@@ -1040,7 +1040,7 @@ contains
          call assert(.not. valid, 'check_bottom_state', 'invalid result')
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
-      do ivar=1,size(model%bottom_state_variables)
+      do ivar = 1, size(model%bottom_state_variables)
          call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, model%bottom_state_variables(ivar)%minimum)
       end do
       call report_test_result()
@@ -1050,15 +1050,15 @@ contains
       ! ======================================================================
 
       ! Now destroy the state by setting all values to above the maximum
-      do ivar=1,size(model%state_variables)
+      do ivar = 1, size(model%state_variables)
         interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = model%state_variables(ivar)%maximum + abs(model%state_variables(ivar)%maximum) + 1
         call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value)
       end do
-      do ivar=1,size(model%bottom_state_variables)
+      do ivar = 1, size(model%bottom_state_variables)
         bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = model%bottom_state_variables(ivar)%maximum + abs(model%bottom_state_variables(ivar)%maximum) + 1
         call apply_mask_2d(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value)
       end do
-      do ivar=1,size(model%surface_state_variables)
+      do ivar = 1, size(model%surface_state_variables)
         surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = model%surface_state_variables(ivar)%maximum + abs(model%surface_state_variables(ivar)%maximum) + 1
         call apply_mask_2d(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value)
       end do
@@ -1076,7 +1076,7 @@ contains
          call assert(.not. valid, 'check_interior_state', 'invalid result')
 #endif
       _END_OUTER_INTERIOR_LOOP_
-      do ivar=1,size(model%state_variables)
+      do ivar = 1, size(model%state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, model%state_variables(ivar)%maximum)
       end do
       call report_test_result()
@@ -1090,7 +1090,7 @@ contains
          call assert(.not. valid, 'check_surface_state', 'invalid result')
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
-      do ivar=1,size(model%surface_state_variables)
+      do ivar = 1, size(model%surface_state_variables)
          call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, model%surface_state_variables(ivar)%maximum)
       end do
       call report_test_result()
@@ -1104,7 +1104,7 @@ contains
          call assert(.not. valid, 'check_bottom_state', 'invalid result')
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
-      do ivar=1,size(model%bottom_state_variables)
+      do ivar = 1, size(model%bottom_state_variables)
          call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, model%bottom_state_variables(ivar)%maximum)
       end do
       call report_test_result()
