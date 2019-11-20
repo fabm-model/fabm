@@ -34,7 +34,7 @@ module fabm
    ! default: all is private.
    private
 
-   public fabm_initialize_library, type_fabm_model
+   public fabm_initialize_library, fabm_get_version, type_fabm_model
 
    ! Variable identifier types by external physical drivers.
    public type_bulk_variable_id
@@ -290,6 +290,7 @@ module fabm
       real(rki), allocatable :: write_cache_hz_fill_value(:)
    contains
       procedure :: initialize
+      procedure :: finalize
       procedure :: set_domain
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
       procedure :: set_bottom_index
