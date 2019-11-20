@@ -221,24 +221,24 @@ program test_host
          mode = 2
       case ('--nomask')
          no_mask = .true.
-   #if _FABM_DIMENSION_COUNT_>0
+#if _FABM_DIMENSION_COUNT_>0
       case ('--nx')
          i = i + 1
          call get_command_argument(i, arg)
          read (arg,*) i__
-   #endif
-   #if _FABM_DIMENSION_COUNT_>1
+#endif
+#if _FABM_DIMENSION_COUNT_>1
       case ('--ny')
          i = i + 1
          call get_command_argument(i, arg)
          read (arg,*) j__
-   #endif
-   #if _FABM_DIMENSION_COUNT_>2
+#endif
+#if _FABM_DIMENSION_COUNT_>2
       case ('--nz')
          i = i + 1
          call get_command_argument(i, arg)
          read (arg,*) k__
-   #endif
+#endif
       case ('-n')
          i = i + 1
          call get_command_argument(i, arg)
