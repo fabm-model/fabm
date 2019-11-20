@@ -33,19 +33,19 @@ end module host_hooks
    
 program test_host
 
-use fabm, only: type_fabm_model, standard_variables, type_bulk_variable_id, type_horizontal_variable_id, type_scalar_variable_id, fabm_initialize_library
-use fabm_config
-use fabm_driver
-use fabm_parameters, only: rke
-use fabm_types, only: source_do, source_do_surface, source_do_bottom, source_do_column
+   use fabm, only: type_fabm_model, standard_variables, type_bulk_variable_id, type_horizontal_variable_id, type_scalar_variable_id, fabm_initialize_library
+   use fabm_config
+   use fabm_driver
+   use fabm_parameters, only: rke
+   use fabm_types, only: source_do, source_do_surface, source_do_bottom, source_do_column
 
-use test_models
-use host_hooks
+   use test_models
+   use host_hooks
 
-implicit none
+   implicit none
 
 #if _FABM_DIMENSION_COUNT_>0
-integer :: _LOCATION_
+   integer :: _LOCATION_
 #endif
 
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
@@ -147,16 +147,16 @@ integer :: _LOCATION_
 #endif
 
 #ifdef _INTERIOR_IS_VECTORIZED_
-integer :: _START_, _STOP_
+   integer :: _START_, _STOP_
 #endif
 
-real(rke),allocatable _DIMENSION_GLOBAL_ :: tmp
-real(rke),allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: tmp_hz
+   real(rke), allocatable _DIMENSION_GLOBAL_            :: tmp
+   real(rke), allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: tmp_hz
 
 #ifdef _HAS_MASK_
-_FABM_MASK_TYPE_,allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz
+   _FABM_MASK_TYPE_, allocatable, target _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz
 #  ifndef _FABM_HORIZONTAL_MASK_
-_FABM_MASK_TYPE_,allocatable,target _DIMENSION_GLOBAL_ :: mask
+   _FABM_MASK_TYPE_, allocatable, target _DIMENSION_GLOBAL_ :: mask
 #  endif
 #  ifndef _FABM_MASKED_VALUE_
 #    define _FABM_MASKED_VALUE_ _FABM_UNMASKED_VALUE_+1
@@ -166,283 +166,285 @@ _FABM_MASK_TYPE_,allocatable,target _DIMENSION_GLOBAL_ :: mask
 #  endif
 #endif
 
-integer :: interior_count
-integer :: horizontal_count
+   integer :: interior_count
+   integer :: horizontal_count
 
 #if _FABM_BOTTOM_INDEX_==-1
-integer,allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_index
+   integer, allocatable, target _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_index
 #endif
 
-real(rke),allocatable,target _DIMENSION_GLOBAL_PLUS_1_            :: interior_state
-real(rke),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: surface_state
-real(rke),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: bottom_state
+   real(rke), allocatable, target _DIMENSION_GLOBAL_PLUS_1_            :: interior_state
+   real(rke), allocatable, target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: surface_state
+   real(rke), allocatable, target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: bottom_state
 
-real(rke),allocatable _DIMENSION_SLICE_PLUS_1_        :: dy
-real(rke),allocatable _DIMENSION_SLICE_PLUS_1_        :: w
-real(rke),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: flux,sms_sf,sms_bt
+   real(rke), allocatable _DIMENSION_SLICE_PLUS_1_            :: dy
+   real(rke), allocatable _DIMENSION_SLICE_PLUS_1_            :: w
+   real(rke), allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: flux
+   real(rke), allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: sms_sf
+   real(rke), allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: sms_bt
 
-real(rke),allocatable,target _DIMENSION_GLOBAL_            :: temperature
-real(rke),allocatable,target _DIMENSION_GLOBAL_            :: depth
-real(rke),allocatable,target _DIMENSION_GLOBAL_HORIZONTAL_ :: wind_speed
+   real(rke), allocatable, target _DIMENSION_GLOBAL_            :: temperature
+   real(rke), allocatable, target _DIMENSION_GLOBAL_            :: depth
+   real(rke), allocatable, target _DIMENSION_GLOBAL_HORIZONTAL_ :: wind_speed
 
-class (type_fabm_model), pointer :: model
+   class (type_fabm_model), pointer :: model
 
-class (type_test_model), pointer :: test_model
+   class (type_test_model), pointer :: test_model
 
-integer :: domain_extent(_FABM_DIMENSION_COUNT_)
+   integer :: domain_extent(_FABM_DIMENSION_COUNT_)
 
-character(len=20) :: arg
-integer :: ivar
-integer :: i
-integer :: mode = 1
-integer :: ntest = -1
-logical :: no_mask = .false.
+   character(len=20) :: arg
+   integer :: ivar
+   integer :: i
+   integer :: mode = 1
+   integer :: ntest = -1
+   logical :: no_mask = .false.
 
 #if _FABM_DIMENSION_COUNT_>0
-i__=50
+   i__ = 50
 #endif
 #if _FABM_DIMENSION_COUNT_>1
-j__=40
+   j__ = 40
 #endif
 #if _FABM_DIMENSION_COUNT_>2
-k__=45
+   k__ = 45
 #endif
 
-! Parse command line arguments
-call start_test('parsing command line arguments')
-i = 1
-do
-   call get_command_argument(i, arg)
-   if (arg == '') exit
-   select case (arg)
-   case ('-s', '--simulate')
-      mode = 2
-   case ('--nomask')
-      no_mask = .true.
-#if _FABM_DIMENSION_COUNT_>0
-   case ('--nx')
-      i = i + 1
+   ! Parse command line arguments
+   call start_test('parsing command line arguments')
+   i = 1
+   do
       call get_command_argument(i, arg)
-      read (arg,*) i__
-#endif
-#if _FABM_DIMENSION_COUNT_>1
-   case ('--ny')
+      if (arg == '') exit
+      select case (arg)
+      case ('-s', '--simulate')
+         mode = 2
+      case ('--nomask')
+         no_mask = .true.
+   #if _FABM_DIMENSION_COUNT_>0
+      case ('--nx')
+         i = i + 1
+         call get_command_argument(i, arg)
+         read (arg,*) i__
+   #endif
+   #if _FABM_DIMENSION_COUNT_>1
+      case ('--ny')
+         i = i + 1
+         call get_command_argument(i, arg)
+         read (arg,*) j__
+   #endif
+   #if _FABM_DIMENSION_COUNT_>2
+      case ('--nz')
+         i = i + 1
+         call get_command_argument(i, arg)
+         read (arg,*) k__
+   #endif
+      case ('-n')
+         i = i + 1
+         call get_command_argument(i, arg)
+         read (arg,*) ntest
+      case ('-h')
+         write (*,'(a)') ''
+         write (*,'(a)') ''
+         write (*,'(a)') 'FABM host emulator'
+         write (*,'(a)') ''
+         write (*,'(a)') 'Accepted arguments:'
+         write (*,'(a)') '-s/--simulate: simulate using provided fabm.yaml/environment.yaml'
+         write (*,'(a)') '-n:            number of replicates when simulating'
+         stop 0
+      case default
+         write (*,'(a)') 'Unknown command line argument: ' // trim(arg)
+         stop 2
+      end select
       i = i + 1
-      call get_command_argument(i, arg)
-      read (arg,*) j__
-#endif
-#if _FABM_DIMENSION_COUNT_>2
-   case ('--nz')
-      i = i + 1
-      call get_command_argument(i, arg)
-      read (arg,*) k__
-#endif
-   case ('-n')
-      i = i + 1
-      call get_command_argument(i, arg)
-      read (arg,*) ntest
-   case ('-h')
-      write (*,'(a)') ''
-      write (*,'(a)') ''
-      write (*,'(a)') 'FABM host emulator'
-      write (*,'(a)') ''
-      write (*,'(a)') 'Accepted arguments:'
-      write (*,'(a)') '-s/--simulate: simulate using provided fabm.yaml/environment.yaml'
-      write (*,'(a)') '-n:            number of replicates when simulating'
-      stop 0
-   case default
-      write (*,'(a)') 'Unknown command line argument: ' // trim(arg)
-      stop 2
-   end select
-   i = i + 1
-end do
-call report_test_result()
+   end do
+   call report_test_result()
 
 #if _FABM_DIMENSION_COUNT_>0
-domain_extent = (/ _LOCATION_ /)
-interior_count = product(domain_extent)
+   domain_extent = (/ _LOCATION_ /)
+   interior_count = product(domain_extent)
 #else
-interior_count = 1
+   interior_count = 1
 #endif
 
-! Set defaults
-if (ntest == -1) then
-   if (mode == 1) then
-      ntest = 1
-   else
-      ntest = 50000000/interior_count
+   ! Set defaults
+   if (ntest == -1) then
+      if (mode == 1) then
+         ntest = 1
+      else
+         ntest = 50000000 / interior_count
+      end if
    end if
-end if
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-horizontal_count = interior_count / domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)
+   horizontal_count = interior_count / domain_extent(_FABM_DEPTH_DIMENSION_INDEX_)
 #else
-horizontal_count = interior_count
+   horizontal_count = interior_count
 #endif
 
 #ifdef _INTERIOR_IS_VECTORIZED_
-_START_ = 1
-_STOP_ = domain_extent(_FABM_VECTORIZED_DIMENSION_INDEX_)
+   _START_ = 1
+   _STOP_ = domain_extent(_FABM_VECTORIZED_DIMENSION_INDEX_)
 #endif
 
-allocate(tmp _INDEX_LOCATION_)
-allocate(tmp_hz _INDEX_HORIZONTAL_LOCATION_)
+   allocate(tmp _INDEX_LOCATION_)
+   allocate(tmp_hz _INDEX_HORIZONTAL_LOCATION_)
 
-allocate(type_test_driver::driver)
+   allocate(type_test_driver::driver)
 
-call start_test('fabm_initialize_library')
-call fabm_initialize_library()
-call report_test_result()
+   call start_test('fabm_initialize_library')
+   call fabm_initialize_library()
+   call report_test_result()
 
-call start_test('building model tree')
-select case (mode)
-case (1)
-    ! Unit testing with built-in model
-    allocate(model)
-    allocate(test_model)
-    call model%root%add_child(test_model, 'test_model', 'test model', configunit=-1)
-case (2)
-    ! Test with user-provided fabm.yaml
-    model => fabm_create_model(initialize=.false.)
-end select
-call report_test_result()
+   call start_test('building model tree')
+   select case (mode)
+   case (1)
+       ! Unit testing with built-in model
+       allocate(model)
+       allocate(test_model)
+       call model%root%add_child(test_model, 'test_model', 'test model', configunit=-1)
+   case (2)
+       ! Test with user-provided fabm.yaml
+       model => fabm_create_model(initialize=.false.)
+   end select
+   call report_test_result()
 
-call start_test('initialize')
-call model%initialize()
-call report_test_result()
+   call start_test('initialize')
+   call model%initialize()
+   call report_test_result()
 
-! ======================================================================
-! Provide extents of the spatial domain.
-! ======================================================================
+   ! ======================================================================
+   ! Provide extents of the spatial domain.
+   ! ======================================================================
 
-call start_test('set_domain')
-call model%set_domain(_LOCATION_)
-call report_test_result()
+   call start_test('set_domain')
+   call model%set_domain(_LOCATION_)
+   call report_test_result()
 
-! ======================================================================
-! Set up spatial mask.
-! ======================================================================
+   ! ======================================================================
+   ! Set up spatial mask.
+   ! ======================================================================
 
 #ifdef _HAS_MASK_
-allocate(mask_hz _INDEX_HORIZONTAL_LOCATION_)
-call start_test('set_mask')
+   allocate(mask_hz _INDEX_HORIZONTAL_LOCATION_)
+   call start_test('set_mask')
 #  ifdef _FABM_HORIZONTAL_MASK_
-call model%set_mask(mask_hz)
+   call model%set_mask(mask_hz)
 #  else
-allocate(mask _INDEX_LOCATION_)
-call model%set_mask(mask, mask_hz)
+   allocate(mask _INDEX_LOCATION_)
+   call model%set_mask(mask, mask_hz)
 #  endif
-call report_test_result()
+   call report_test_result()
 #endif
 
-! ======================================================================
-! Specify vertical indices of surface and bottom.
-! ======================================================================
+   ! ======================================================================
+   ! Specify vertical indices of surface and bottom.
+   ! ======================================================================
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-call start_test('set_surface_index')
+   call start_test('set_surface_index')
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-call model%set_surface_index(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_))
+   call model%set_surface_index(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_))
 #  else
-call model%set_surface_index(1)
+   call model%set_surface_index(1)
 #  endif
-call report_test_result()
+   call report_test_result()
 
-call start_test('set_bottom_index')
+   call start_test('set_bottom_index')
 #  if _FABM_BOTTOM_INDEX_==-1
-allocate(bottom_index _INDEX_HORIZONTAL_LOCATION_)
-call model%set_bottom_index(bottom_index)
+   allocate(bottom_index _INDEX_HORIZONTAL_LOCATION_)
+   call model%set_bottom_index(bottom_index)
 #  elif defined(_FABM_VERTICAL_BOTTOM_TO_SURFACE_)
-call model%set_bottom_index(1)
+   call model%set_bottom_index(1)
 #  else
-call model%set_bottom_index(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_))
+   call model%set_bottom_index(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_))
 #  endif
-call report_test_result()
+   call report_test_result()
 #endif
 
-allocate(interior_state(_PREARG_LOCATION_ size(model%state_variables)))
-allocate(surface_state(_PREARG_HORIZONTAL_LOCATION_ size(model%surface_state_variables)))
-allocate(bottom_state(_PREARG_HORIZONTAL_LOCATION_ size(model%bottom_state_variables)))
+   allocate(interior_state(_PREARG_LOCATION_ size(model%state_variables)))
+   allocate(surface_state(_PREARG_HORIZONTAL_LOCATION_ size(model%surface_state_variables)))
+   allocate(bottom_state(_PREARG_HORIZONTAL_LOCATION_ size(model%bottom_state_variables)))
 
-! ======================================================================
-! Send pointers to state variable data to FABM.
-! ======================================================================
+   ! ======================================================================
+   ! Send pointers to state variable data to FABM.
+   ! ======================================================================
 
-call start_test('link_interior_state_data')
-do ivar=1,size(model%state_variables)
-   call model%link_interior_state_data(ivar,interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar))
-end do
-call report_test_result()
+   call start_test('link_interior_state_data')
+   do ivar = 1, size(model%state_variables)
+      call model%link_interior_state_data(ivar, interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar))
+   end do
+   call report_test_result()
 
-call start_test('link_surface_state_data')
-do ivar=1,size(model%surface_state_variables)
-   call model%link_surface_state_data(ivar,surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar))
-end do
-call report_test_result()
+   call start_test('link_surface_state_data')
+   do ivar = 1, size(model%surface_state_variables)
+      call model%link_surface_state_data(ivar, surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar))
+   end do
+   call report_test_result()
 
-call start_test('link_bottom_state_data')
-do ivar=1,size(model%bottom_state_variables)
-   call model%link_bottom_state_data(ivar,bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar))
-end do
-call report_test_result()
+   call start_test('link_bottom_state_data')
+   do ivar = 1, size(model%bottom_state_variables)
+      call model%link_bottom_state_data(ivar, bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar))
+   end do
+   call report_test_result()
 
-! ======================================================================
-! Transfer pointers to environmental data
-! ======================================================================
+   ! ======================================================================
+   ! Transfer pointers to environmental data
+   ! ======================================================================
 
-select case (mode)
-case (1)
-    allocate(depth _INDEX_LOCATION_)
-    allocate(temperature _INDEX_LOCATION_)
-    allocate(wind_speed _INDEX_HORIZONTAL_LOCATION_)
+   select case (mode)
+   case (1)
+       allocate(depth _INDEX_LOCATION_)
+       allocate(temperature _INDEX_LOCATION_)
+       allocate(wind_speed _INDEX_HORIZONTAL_LOCATION_)
 
-    call start_test('link_interior_data')
-    call model%link_interior_data(standard_variables%temperature,temperature)
-    call model%link_interior_data(standard_variables%depth,depth)
-    call report_test_result()
+       call start_test('link_interior_data')
+       call model%link_interior_data(standard_variables%temperature, temperature)
+       call model%link_interior_data(standard_variables%depth, depth)
+       call report_test_result()
 
-    call start_test('link_horizontal_data')
-    call model%link_horizontal_data(standard_variables%wind_speed,wind_speed)
-    call report_test_result()
-case (2)
-    call read_environment
-end select
+       call start_test('link_horizontal_data')
+       call model%link_horizontal_data(standard_variables%wind_speed, wind_speed)
+       call report_test_result()
+   case (2)
+       call read_environment
+   end select
 
-! ======================================================================
-! Check whether FABM has all dependencies fulfilled
-! (i.e., whether all required calls for link_*_data have been made)
-! ======================================================================
+   ! ======================================================================
+   ! Check whether FABM has all dependencies fulfilled
+   ! (i.e., whether all required calls for link_*_data have been made)
+   ! ======================================================================
 
-call start_test('start')
-call model%start()
-call report_test_result()
+   call start_test('start')
+   call model%start()
+   call report_test_result()
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-allocate(dy(_START_:_STOP_,size(model%state_variables)))
-allocate(w(_START_:_STOP_,size(model%state_variables)))
+   allocate(dy(_START_:_STOP_, size(model%state_variables)))
+   allocate(w(_START_:_STOP_, size(model%state_variables)))
 #else
-allocate(dy(size(model%state_variables)))
-allocate(w(size(model%state_variables)))
+   allocate(dy(size(model%state_variables)))
+   allocate(w(size(model%state_variables)))
 #endif
 
 #if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&(_FABM_DEPTH_DIMENSION_INDEX_!=_FABM_VECTORIZED_DIMENSION_INDEX_)
-allocate(flux(_START_:_STOP_,size(model%state_variables)))
-allocate(sms_sf(_START_:_STOP_,size(model%surface_state_variables)))
-allocate(sms_bt(_START_:_STOP_,size(model%bottom_state_variables)))
+   allocate(flux(_START_:_STOP_, size(model%state_variables)))
+   allocate(sms_sf(_START_:_STOP_, size(model%surface_state_variables)))
+   allocate(sms_bt(_START_:_STOP_, size(model%bottom_state_variables)))
 #else
-allocate(flux(size(model%state_variables)))
-allocate(sms_sf(size(model%surface_state_variables)))
-allocate(sms_bt(size(model%bottom_state_variables)))
+   allocate(flux(size(model%state_variables)))
+   allocate(sms_sf(size(model%surface_state_variables)))
+   allocate(sms_bt(size(model%bottom_state_variables)))
 #endif
 
-select case (mode)
-case (1)
-   do i=1,ntest
-      call test_update
-   end do
-case(2)
-   call simulate(ntest)
-end select
+   select case (mode)
+   case (1)
+      do i=1,ntest
+         call test_update
+      end do
+   case(2)
+      call simulate(ntest)
+   end select
 
 contains
 
