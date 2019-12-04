@@ -910,10 +910,8 @@ contains
       type (type_variable_set)          :: unfulfilled_dependencies
       type (type_variable_node),pointer :: variable_node
       type (type_link), pointer         :: link
-#ifndef NDEBUG
       character(len=*), parameter       :: log_prefix = 'fabm_'
       integer                           :: log_unit, ios
-#endif
 
       if (self%status < status_set_domain_done) &
          call fatal_error('start', 'set_domain has not yet been called on this model object.')
