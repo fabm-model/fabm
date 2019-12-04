@@ -404,7 +404,7 @@ contains
          dy_(1:size(model%state_variables)) = dy_(1:size(model%state_variables)) / column_depth
       end if
       call model%get_interior_sources(dy_(1:size(model%state_variables)))
-      call model%complete_outputs()
+      call model%finalize_outputs()
 
       ! Compute rate of change in conserved quantities
       !call fabm_state_to_conserved_quantities(model,pelagic_rates,conserved_rates)

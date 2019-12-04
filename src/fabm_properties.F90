@@ -258,7 +258,7 @@ contains
       key = string_lower(property%name)
 
       ! First determine if a property with this name already exists (if so, delete it)
-      nullify(previous)
+      previous => null()
       current => dictionary%first
       do while (associated(current))
          if (current%key==key) then
@@ -294,7 +294,7 @@ contains
          current => current%next
       end if
       current%key = key
-      nullify(current%next)
+      current%next => null()
    end subroutine
 
    subroutine update(target,source,overwrite)
@@ -518,7 +518,7 @@ contains
          deallocate(property)
          property => next
       end do
-      nullify(dictionary%first)
+      dictionary%first => null()
    end subroutine finalize
 
    logical function set_contains(self,string)
@@ -566,7 +566,7 @@ contains
 
       type (type_set_element),pointer :: previous,element
 
-      nullify(previous)
+      previous => null()
       element => self%first
       do while (associated(element))
          if (element%string==string) exit
@@ -625,7 +625,7 @@ contains
          deallocate(element)
          element => next
       end do
-      nullify(self%first)
+      self%first => null()
    end subroutine
 
    function hierarchical_dictionary_find_in_tree(self,name) result(property)
@@ -637,7 +637,7 @@ contains
       class (type_property),                pointer :: current_property
       character(len=metadata_string_length)         :: localname
 
-      nullify(property)
+      property => null()
       current_dictionary => self
       localname = name
       do while (associated(current_dictionary))

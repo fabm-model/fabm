@@ -6,7 +6,7 @@ module fabm_config
    use fabm_properties, only: type_property_dictionary, type_property, type_set
    use fabm_driver
    use fabm_schedule
-   use fabm, only: type_fabm_model, fabm_initialize_library, type_model
+   use fabm, only: type_fabm_model, fabm_initialize_library, fabm_log, type_model
 
    use yaml_types
    use yaml, yaml_parse=>parse, yaml_error_length=>error_length
@@ -112,18 +112,20 @@ contains
       ! If custom parameter values were provided, transfer these to the root model.
       if (present(parameters)) call model%root%parameters%update(parameters)
 
-      nullify(config_error)
-      check_conservation = mapping%get_logical('check_conservation',default=.false.,error=config_error)
+      config_error => null()
+      check_conservation = mapping%get_logical('check_conservation', default=.false., error=config_error)
       if (associated(config_error)) call fatal_error('create_model_tree_from_dictionary', config_error%message)
-      require_initialization = mapping%get_logical('require_initialization',default=.false.,error=config_error)
+      require_initialization = mapping%get_logical('require_initialization', default=.false., error=config_error)
       if (associated(config_error)) call fatal_error('create_model_tree_from_dictionary', config_error%message)
-      require_all_parameters = mapping%get_logical('require_all_parameters',default=.false.,error=config_error)
+      require_all_parameters = mapping%get_logical('require_all_parameters', default=.false., error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_tree_from_dictionary', config_error%message)
+      fabm_log = mapping%get_logical('log', default=.false., error=config_error)
       if (associated(config_error)) call fatal_error('create_model_tree_from_dictionary', config_error%message)
 
       node => mapping%get('instances')
       if (.not.associated(node)) &
          call fatal_error('create_model_tree_from_dictionary', 'No "instances" dictionary found at root level.')
-      nullify(pair)
+      pair => null()
       select type (node)
       class is (type_dictionary)
          pair => node%first
@@ -191,42 +193,42 @@ contains
       integer                            :: schedule_pattern, source
       character(len=64)                  :: pattern
 
-      nullify(config_error)
+      config_error => null()
 
-      use_model = node%get_logical('use',default=.true.,error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
-      if (.not.use_model) then
+      use_model = node%get_logical('use', default=.true., error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
+      if (.not. use_model) then
          call log_message('SKIPPING model instance '//trim(instancename)//' because it has use=false set.')
          return
       end if
 
       ! Retrieve model name (default to instance name if not provided).
-      modelname = trim(node%get_string('model',default=instancename,error=config_error))
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      modelname = trim(node%get_string('model', default=instancename, error=config_error))
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
 
       ! Retrieve descriptive name for the model instance (default to instance name if not provided).
-      long_name = trim(node%get_string('long_name',default=instancename,error=config_error))
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      long_name = trim(node%get_string('long_name', default=instancename, error=config_error))
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
 
       ! Try to create the model based on name.
-      call factory%create(trim(modelname),model)
-      if (.not.associated(model)) call fatal_error('create_model_from_dictionary', &
-         trim(instancename)//': "'//trim(modelname)//'" is not a valid model name.')
+      call factory%create(trim(modelname), model)
+      if (.not. associated(model)) call fatal_error('create_model_from_dictionary', &
+         trim(instancename) // ': "' // trim(modelname) // '" is not a valid model name.')
       model%user_created = .true.
 
       ! Transfer user-specified parameter values to the model.
-      childmap => node%get_dictionary('parameters',required=.false.,error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      childmap => node%get_dictionary('parameters', required=.false., error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
       if (associated(childmap)) then
-         call childmap%flatten(parametermap,'')
+         call childmap%flatten(parametermap, '')
          pair => parametermap%first
          do while (associated(pair))
-            select type (value=>pair%value)
-               class is (type_scalar)
-                  call model%parameters%set_string(trim(pair%key),trim(value%string))
-               class is (type_node)
-                  call fatal_error('create_model_from_dictionary','BUG: "flatten" should &
-                     &have ensured that the value of '//trim(value%path)//' is scalar, not a nested dictionary.')
+            select type (value => pair%value)
+            class is (type_scalar)
+               call model%parameters%set_string(trim(pair%key), trim(value%string))
+            class is (type_node)
+               call fatal_error('create_model_from_dictionary', 'BUG: "flatten" should &
+                  &have ensured that the value of ' // trim(value%path) // ' is scalar, not a nested dictionary.')
             end select
             pair => pair%next
          end do
@@ -234,86 +236,86 @@ contains
       end if
 
       ! Add the model to its parent.
-      call log_message('Initializing '//trim(instancename)//'...')
-      call log_message('   model type: '//trim(modelname))
-      call parent%add_child(model,instancename,long_name,configunit=-1)
+      call log_message('Initializing ' // trim(instancename) // '...')
+      call log_message('   model type: ' // trim(modelname))
+      call parent%add_child(model, instancename, long_name, configunit=-1)
       call log_message('   initialization succeeded.')
 
       ! Check for parameters requested by the model, but not present in the configuration file.
-      if (require_all_parameters.and.associated(model%parameters%missing%first)) &
-         call fatal_error('create_model_from_dictionary','Value for parameter "'// &
-            trim(model%parameters%missing%first%string)//'" of model "'//trim(instancename)//'" is not provided.')
+      if (require_all_parameters .and. associated(model%parameters%missing%first)) &
+         call fatal_error('create_model_from_dictionary', 'Value for parameter "'// &
+            trim(model%parameters%missing%first%string)//'" of model "' // trim(instancename) // '" is not provided.')
 
       ! Check for parameters present in configuration file, but not interpreted by the models.
       property => model%parameters%first
       do while (associated(property))
          if (.not.model%parameters%retrieved%contains(property%name)) call fatal_error('create_model_from_dictionary', &
-            'Unrecognized parameter "'//trim(property%name)//'" found below '//trim(childmap%path)//'.')
+            'Unrecognized parameter "' // trim(property%name) // '" found below ' // trim(childmap%path) // '.')
          property => property%next
       end do
 
       ! Interpret coupling links specified in configuration file.
       ! These override any couplings requested by the models during initialization.
       ! This step must therefore occur after model initialization [from parent%add_child] has completed.
-      childmap => node%get_dictionary('coupling',required=.false.,error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      childmap => node%get_dictionary('coupling', required=.false., error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
       if (associated(childmap)) then
          pair => childmap%first
          do while (associated(pair))
-            select type (value=>pair%value)
-               class is (type_scalar)
-                  ! Register couplings at the root level, so they override whatever the models themselves request.
-                  call parent%couplings%set_string(trim(instancename)//'/'//trim(pair%key),trim(value%string))
-               class is (type_node)
-                  call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
-                     ' must be a string, not a nested dictionary.')
+            select type (value => pair%value)
+            class is (type_scalar)
+               ! Register couplings at the root level, so they override whatever the models themselves request.
+               call parent%couplings%set_string(trim(instancename) // '/' // trim(pair%key), trim(value%string))
+            class is (type_node)
+               call fatal_error('create_model_from_dictionary', 'The value of ' // trim(value%path) // &
+                  ' must be a string, not a nested dictionary.')
             end select
             pair => pair%next
          end do
       end if
 
       ! Parse scheduling instructions
-      childmap => node%get_dictionary('schedule',required=.false.,error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      childmap => node%get_dictionary('schedule', required=.false., error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
       if (associated(childmap)) then
          pair => childmap%first
          do while (associated(pair))
-            select type (value=>pair%value)
-               class is (type_dictionary)
-                  select case (pair%key)
-                  case ('interior')
-                     source = source_do
-                  case default
-                     call fatal_error('create_model_from_dictionary', 'Scheduler currently only supports "interior" &
-                        &(not "' // trim(pair%key) // '").')
-                  end select
-                  pattern = trim(value%get_string('pattern', error=config_error))
-                  if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
-                  select case (pattern)
-                  case ('monthly')
-                     schedule_pattern = schedule_pattern_monthly
-                  case default
-                     call fatal_error('create_model_from_dictionary', 'Scheduler currently only supports "monthly" &
-                        &as a pattern (not "' // trim(pattern) // '").')
-                  end select
-                  call schedules%add(model, source, schedule_pattern)
-               class is (type_node)
-                  call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
-                     ' must be a dictionary.')
+            select type (value => pair%value)
+            class is (type_dictionary)
+               select case (pair%key)
+               case ('interior')
+                  source = source_do
+               case default
+                  call fatal_error('create_model_from_dictionary', 'Scheduler currently only supports "interior" &
+                     &(not "' // trim(pair%key) // '").')
+               end select
+               pattern = trim(value%get_string('pattern', error=config_error))
+               if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
+               select case (pattern)
+               case ('monthly')
+                  schedule_pattern = schedule_pattern_monthly
+               case default
+                  call fatal_error('create_model_from_dictionary', 'Scheduler currently only supports "monthly" &
+                     &as a pattern (not "' // trim(pattern) // '").')
+               end select
+               call schedules%add(model, source, schedule_pattern)
+            class is (type_node)
+               call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
+                  ' must be a dictionary.')
             end select
             pair => pair%next
          end do
       end if
 
       ! Transfer user-specified initial state to the model.
-      childmap => node%get_dictionary('initialization',required=.false.,error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
-      if (associated(childmap)) call parse_initialization(model,childmap,initialized_set,get_background=.false.)
+      childmap => node%get_dictionary('initialization', required=.false., error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
+      if (associated(childmap)) call parse_initialization(model, childmap, initialized_set, get_background=.false.)
 
       ! Transfer user-specified background value to the model.
-      childmap => node%get_dictionary('background',required=.false.,error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
-      if (associated(childmap)) call parse_initialization(model,childmap,background_set,get_background=.true.)
+      childmap => node%get_dictionary('background', required=.false., error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
+      if (associated(childmap)) call parse_initialization(model, childmap, background_set, get_background=.true.)
 
       ! Verify whether all state variables have been provided with an initial value.
       !link => model%first_link
@@ -347,8 +349,8 @@ contains
       ! Check whether any keys at the model level remain unused.
       pair => node%first
       do while (associated(pair))
-         if (.not.pair%accessed) call fatal_error('create_model_from_dictionary', &
-            'Unrecognized option "'//trim(pair%key)//'" found below '//trim(node%path)//'.')
+         if (.not. pair%accessed) call fatal_error('create_model_from_dictionary', &
+            'Unrecognized option "' // trim(pair%key) // '" found below ' // trim(node%path) // '.')
          pair => pair%next
       end do
 

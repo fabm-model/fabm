@@ -675,7 +675,7 @@ contains
             call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy)
          _END_OUTER_INTERIOR_LOOP_
 
-         call model%complete_outputs()
+         call model%finalize_outputs()
 
          if (mod(i, 100) == 0) write (*,'(i0,a)') int(100*i/real(n, rke)), ' % complete'
       end do
@@ -910,10 +910,10 @@ contains
       ! Postprocressing
       ! ======================================================================
 
-      call start_test('complete_outputs')
-      call model%complete_outputs()
+      call start_test('finalize_outputs')
+      call model%finalize_outputs()
 
-      call assert(column_loop_count == interior_count, 'complete_outputs', 'call count does not match number of (unmasked) interior points')
+      call assert(column_loop_count == interior_count, 'finalize_outputs', 'call count does not match number of (unmasked) interior points')
 
       do ivar = 1, size(model%diagnostic_variables)
          if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source == source_do_column) then

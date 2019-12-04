@@ -817,7 +817,7 @@ subroutine task_finalize(self)
       deallocate(node)
       node => next
    end do
-   nullify(self%first_call)
+   self%first_call => null()
 end subroutine task_finalize
 
 subroutine call_initialize(self, variable_register)

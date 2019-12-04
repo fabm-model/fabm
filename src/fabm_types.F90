@@ -1269,7 +1269,7 @@ subroutine link_list_finalize(self)
       deallocate(link)
       link => next
    end do
-   nullify(self%first)
+   self%first => null()
 end subroutine link_list_finalize
 
 function create_coupling_task(self,link) result(task)
@@ -2864,8 +2864,8 @@ end subroutine get_string_parameter
 
       type (type_link), pointer :: link
 
-      nullify(object)
-      link => self%find_link(name,recursive,exact)
+      object => null()
+      link => self%find_link(name, recursive, exact)
       if (associated(link)) object => link%target
 
    end function find_object
@@ -2958,7 +2958,7 @@ end subroutine get_string_parameter
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-      nullify(found_model)
+      found_model => null()
 
       ! Determine whether to also try among ancestors
       recursive_eff = .false.
@@ -2976,7 +2976,7 @@ end subroutine get_string_parameter
                found_model => found_model%parent
             elseif (.not.(length==1.and.name(istart:istart)=='.')) then
                node => found_model%children%find(name(istart:istart+length-1))
-               nullify(found_model)
+               found_model => null()
                if (associated(node)) found_model => node%model
             end if
             istart = istart+length+1
@@ -3161,10 +3161,10 @@ end subroutine abstract_model_factory_register_version
       end do
 
       used = .true.
-      if (.not.associated(self%first)) then
+      if (.not. associated(self%first)) then
          ! Task list is empty - add first.
          self%first => task
-         nullify(task%previous)
+         task%previous => null()
       else
          ! Task list contains items - append to tail.
 
@@ -3177,7 +3177,7 @@ end subroutine abstract_model_factory_register_version
          existing_task%next => task
          task%previous => existing_task
       end if
-      nullify(task%next)
+      task%next => null()
    end function coupling_task_list_add_object
 
    subroutine coupling_task_list_add(self,link,always_create,task)

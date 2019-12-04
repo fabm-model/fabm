@@ -73,6 +73,8 @@ module fabm
    public fabm_set_mask
 #endif
 
+   logical, save, public :: fabm_log = .false.
+
    integer, parameter :: status_none             = 0
    integer, parameter :: status_initialize_done  = 1
    integer, parameter :: status_set_domain_done  = 2
@@ -312,7 +314,7 @@ module fabm
       procedure :: prepare_inputs1
       procedure :: prepare_inputs2
       generic :: prepare_inputs => prepare_inputs1, prepare_inputs2
-      procedure :: complete_outputs
+      procedure :: finalize_outputs
 
       procedure :: get_interior_sources_rhs
       procedure :: get_interior_sources_ppdd
@@ -977,16 +979,15 @@ contains
       ! Merge write indices when operations can be done in place
       ! This must be done after all variables are requested from the different jobs, so we know which variables
       ! will be retrieved (such variables cannot be merged)
-#ifndef NDEBUG
-      log_unit = get_free_unit()
-
-      open(unit=log_unit, file=log_prefix // 'merges.log', action='write', status='replace', iostat=ios)
-      if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'merges.log')
-      call merge_indices(self%root, log_unit)
-      close(log_unit)
-#else
-      call merge_indices(self%root)
-#endif
+      if (fabm_log) then
+         log_unit = get_free_unit()
+         open(unit=log_unit, file=log_prefix // 'merges.log', action='write', status='replace', iostat=ios)
+         if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'merges.log')
+         call merge_indices(self%root, log_unit)
+         close(log_unit)
+      else
+         call merge_indices(self%root)
+      end if
 
       ! Initialize all jobs. This also creates registers for the read and write caches, as well as the persistent store.
       call self%job_manager%initialize(self%variable_register, self%schedules, unfulfilled_dependencies)
@@ -1014,27 +1015,27 @@ contains
          link => link%next
       end do
 
-#ifndef NDEBUG
-      open(unit=log_unit, file=log_prefix // 'register.log', action='write', status='replace', iostat=ios)
-      if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'register.log')
-      call self%variable_register%print(log_unit)
-      close(log_unit)
+      if (fabm_log) then
+         open(unit=log_unit, file=log_prefix // 'register.log', action='write', status='replace', iostat=ios)
+         if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'register.log')
+         call self%variable_register%print(log_unit)
+         close(log_unit)
 
-      open(unit=log_unit, file=log_prefix // 'jobs.log', action='write', status='replace', iostat=ios)
-      if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'jobs.log')
-      call self%job_manager%print(log_unit)
-      close(log_unit)
+         open(unit=log_unit, file=log_prefix // 'jobs.log', action='write', status='replace', iostat=ios)
+         if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'jobs.log')
+         call self%job_manager%print(log_unit)
+         close(log_unit)
 
-      open(unit=log_unit, file=log_prefix // 'discards.log', action='write', status='replace', iostat=ios)
-      if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'discards.log')
-      write (log_unit,'(a)') 'Writes for the following variables are discarded:'
-      link => self%links_postcoupling%first
-      do while (associated(link))
-         if (link%target%write_indices%value == 0) write (log_unit,'("- ",a)') trim(link%target%name)
-         link => link%next
-      end do
-      close(log_unit)
-#endif
+         open(unit=log_unit, file=log_prefix // 'discards.log', action='write', status='replace', iostat=ios)
+         if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'discards.log')
+         write (log_unit,'(a)') 'Writes for the following variables are discarded:'
+         link => self%links_postcoupling%first
+         do while (associated(link))
+            if (link%target%write_indices%value == 0) write (log_unit,'("- ",a)') trim(link%target%name)
+            link => link%next
+         end do
+         close(log_unit)
+      end if
 
       _ASSERT_(all(self%state_variables(:)%sms_index > 0), 'start', 'BUG: sms_index invalid for one or more interior state variables.')
       _ASSERT_(all(self%state_variables(:)%surface_flux_index > 0), 'start', 'BUG: surface_flux_index invalid for one or more interior state variables.')
@@ -3331,11 +3332,11 @@ end subroutine end_vertical_task
       call prepare_inputs1(self, t)
    end subroutine prepare_inputs2
 
-   subroutine complete_outputs(self)
+   subroutine finalize_outputs(self)
       class (type_model),  intent(inout) :: self
 
       call self%process(self%get_diagnostics_job)
-   end subroutine complete_outputs
+   end subroutine finalize_outputs
 
    subroutine classify_variables(self)
       class (type_model), intent(inout), target :: self

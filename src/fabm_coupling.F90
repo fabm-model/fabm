@@ -267,7 +267,7 @@ end subroutine
       coupling => self%coupling_task_list%first
       do while (associated(coupling))
 
-         nullify(master)
+         master => null()
          select case (stage)
             case (couple_explicit,couple_final)
                if (associated(coupling%master_standard_variable)) then
@@ -549,7 +549,10 @@ recursive subroutine create_aggregate_models(self)
 
    aggregate_variable_access => self%first_aggregate_variable_access
    do while (associated(aggregate_variable_access))
-      nullify(sum,horizontal_sum,bottom_sum,surface_sum)
+      sum => null()
+      horizontal_sum => null()
+      bottom_sum => null()
+      surface_sum => null()
       if (aggregate_variable_access%interior  /=access_none) allocate(sum)
       if (aggregate_variable_access%horizontal/=access_none) allocate(horizontal_sum)
       if (aggregate_variable_access%bottom    /=access_none) allocate(bottom_sum)
