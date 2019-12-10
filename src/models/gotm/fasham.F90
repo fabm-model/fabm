@@ -101,7 +101,7 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  Here, the gotm_fasham namelist is read and the variables exported
+!  Here, parameter values are read and variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:

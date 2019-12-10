@@ -69,7 +69,7 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  Here, the npzd namelist is read and te variables exported
+!  Here, parameter values are read and variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
@@ -118,7 +118,7 @@
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_z)
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_d)
 
-   ! Register link to external DIC pool, if DIC variable name is provided in namelist.
+   ! Register optional link to external DIC pool
    call self%register_state_dependency(self%id_dic,'dic','mmol m-3','total dissolved inorganic carbon',required=.false.)
 
    ! Register diagnostic variables

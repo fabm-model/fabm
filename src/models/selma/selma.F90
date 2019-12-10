@@ -92,7 +92,7 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!   Here, the selma namelist is read and the variables exported by the model are registered with FABM
+!   Here, parameter values are read read and the variables exported by the model are registered with FABM
 !
 ! !INPUT PARAMETERS:
    class(type_selma),intent(inout),target :: self
@@ -143,7 +143,7 @@
    call self%register_state_variable(self%id_pb,'pb','mmol P/m2', 'PFe_s', minimum=0.0_rk)
    call self%register_state_variable(self%id_pw,'pw','mmol P/m3', 'PFe_w', minimum=0.0_rk,vertical_movement=wpo4/secs_per_day,no_river_dilution=.true.)
      
-   ! Register link to external DIC pool, if DIC variable name is provided in namelist.
+   ! Register optional link to external DIC pool.
    call self%register_state_dependency(self%id_dic,standard_variables%mole_concentration_of_dissolved_inorganic_carbon, required=.false.)
 
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,   self%id_aa)

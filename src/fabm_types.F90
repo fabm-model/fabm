@@ -419,7 +419,7 @@
       ! Flag determining whether the contents of the type are "frozen", i.e., they will not change anymore.
       logical :: frozen = .false.
 
-      ! Flag determining whether this model was explciitly created by the user (e.g., by requesting it in a namelist or YAML file)
+      ! Flag determining whether this model was explicitly created by the user (by it appearing as instance in fabm.yaml)
       logical :: user_created = .false.
 
       ! Pointers to linked models in the model tree.

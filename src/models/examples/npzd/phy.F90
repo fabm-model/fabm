@@ -52,7 +52,7 @@ contains
    subroutine initialize(self, configunit)
 !
 ! !DESCRIPTION:
-!  Here, the examples_npzd_phy namelist is read and variables exported
+!  Here, parameter values are read and variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:

@@ -77,7 +77,7 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  Here, the bsem namelist is read and the variables exported by the model are registered with FABM
+!  Here, parameter values are read and variables exported by the model are registered with FABM
 !
 ! !INPUT PARAMETERS:
    class(type_jrc_bsem), intent(inout),target :: self

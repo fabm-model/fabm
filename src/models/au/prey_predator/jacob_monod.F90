@@ -55,7 +55,7 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  Here, the au_prey_predator namelist is read and the variables exported
+!  Here, parameter values are read and variables exported
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:

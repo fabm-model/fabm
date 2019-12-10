@@ -89,7 +89,7 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!   Here, the selma namelist is read and the variables exported by the model are registered with FABM
+!   Here, parameter values are read and the variables exported by the model are registered with FABM
 !
 ! !INPUT PARAMETERS:
    class(type_selma_phytoplankton),intent(inout),target :: self
