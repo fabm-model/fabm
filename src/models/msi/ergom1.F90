@@ -145,7 +145,7 @@
    call self%get_parameter(self%toptz,   'toptz',   'deg C', 'Optimal temperature for grazing', default=20._rk)
    call self%get_parameter(self%zcl1,    'zcl1',    '-', 'Zooplankton closure parameter', default= 50._rk)
    call self%get_parameter(self%p0,      'p0',      'mmol n/m3', 'Diatoms       background value', default=0.001_rk)
-   call self%get_parameter(self%f0,      'f0',      'mmol n/m3', 'Flagellates   backgorund value', default=0.001_rk)
+   call self%get_parameter(self%f0,      'f0',      'mmol n/m3', 'Flagellates   background value', default=0.001_rk)
    call self%get_parameter(self%b0,      'b0',      'mmol n/m3', 'Cyanobacteria background value', default=0.001_rk)
    call self%get_parameter(self%z0,      'z0',      'mmol n/m3', 'Zooplankton   background value', default=0.001_rk)
    call self%get_parameter(self%imin_di, 'imin_di', 'W/m2', 'minimal optimal light radiation, diatoms', default=35._rk)
