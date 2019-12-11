@@ -13,7 +13,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm\_gotm\_ergom --- GOTM biogeochemical model ERGOM
+! !MODULE: gotm\_ergom --- GOTM implementation of the biogeochemical model ERGOM
 !
 ! !INTERFACE:
    module gotm_ergom
@@ -111,7 +111,7 @@
 subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!   Here, the ergom namelist is read and the variables exported by the model are registered with FABM
+!   Here, parameter values are read and the variables exported by the model are registered with FABM
 !
 ! !USES
 !   List any modules used by this routine.
@@ -324,8 +324,6 @@ subroutine initialize(self,configunit)
 ! !IROUTINE: Get the light extinction coefficient due to biogeochemical
 ! variables
 !
-! !DESCRIPTION:
-
 ! !INTERFACE:
    subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
@@ -346,7 +344,6 @@ subroutine initialize(self,configunit)
    _GET_(self%id_p2,p2) !flagellates
    _GET_(self%id_p3,p3) !cyanobacteria
    _GET_(self%id_de,de) ! detritus
-
 
    ! Self-shading with explicit contribution from background phytoplankton concentration.
    _SET_EXTINCTION_(self%kc*(self%p10+self%p20+self%p30+p1+p2+p3+de))
@@ -376,49 +373,49 @@ subroutine initialize(self,configunit)
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if (.not. self%fluff) return
+
    ! Enter spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   if (self%fluff) then
-      _GET_(self%id_am,amb)
-      _GET_(self%id_de,deb)
-      _GET_(self%id_ni,nib)
-      _GET_(self%id_po,pob)
-      _GET_(self%id_o2,oxb)
-      _GET_HORIZONTAL_(self%id_fl,fl)
+   _GET_(self%id_am,amb)
+   _GET_(self%id_de,deb)
+   _GET_(self%id_ni,nib)
+   _GET_(self%id_po,pob)
+   _GET_(self%id_o2,oxb)
+   _GET_HORIZONTAL_(self%id_fl,fl)
 
-      _GET_HORIZONTAL_(self%id_taub,taub)
-      _GET_(self%id_temp,temp)
+   _GET_HORIZONTAL_(self%id_taub,taub)
+   _GET_(self%id_temp,temp)
 
-       thopnp=th( oxb,wo,0.0_rk,1.0_rk)*yy(wn,nib)
-       thomnp=th(-oxb,wo,0.0_rk,1.0_rk)*yy(wn,nib)
-       thomnm=th(-oxb,wo,0.0_rk,1.0_rk)*(1.0_rk-yy(wn,nib))
-       thsum=thopnp+thomnp+thomnm
-       thopnp=thopnp/thsum
-       thomnp=thomnp/thsum
-       thomnm=thomnm/thsum
+   thopnp=th( oxb,wo,0.0_rk,1.0_rk)*yy(wn,nib)
+   thomnp=th(-oxb,wo,0.0_rk,1.0_rk)*yy(wn,nib)
+   thomnm=th(-oxb,wo,0.0_rk,1.0_rk)*(1.0_rk-yy(wn,nib))
+   thsum=thopnp+thomnp+thomnm
+   thopnp=thopnp/thsum
+   thomnp=thomnp/thsum
+   thomnm=thomnm/thsum
 
-        llsa=self%lsa*exp(self%bsa*temp)*(th(oxb,wo,dot2,1.0_rk))
+   llsa=self%lsa*exp(self%bsa*temp)*(th(oxb,wo,dot2,1.0_rk))
 
-        if (self%tau_crit .gt. taub) then
-            llds=self%lds*(self%tau_crit-taub)/self%tau_crit
-         else
-            llds=0.
-         end if
-         if (self%tau_crit .lt. taub) then
-            llsd=self%lsd*(taub-self%tau_crit)/self%tau_crit
-         else
-            llsd=0.0_rk
-         end if
-
-      _SET_BOTTOM_ODE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_de,-llds*deb+llsd*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_ni,-self%s1*thomnp*llsa*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_po,self%sr*(1.0_rk-self%ph1*th(oxb,wo,0.0_rk,1.0_rk)*yy(self%ph2,oxb))*llsa*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
+   if (self%tau_crit .gt. taub) then
+      llds=self%lds*(self%tau_crit-taub)/self%tau_crit
+   else
+      llds=0.
    end if
+   if (self%tau_crit .lt. taub) then
+      llsd=self%lsd*(taub-self%tau_crit)/self%tau_crit
+   else
+      llsd=0.0_rk
+   end if
+
+   _SET_BOTTOM_ODE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
+   _SET_BOTTOM_EXCHANGE_(self%id_de,-llds*deb+llsd*fl)
+   _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
+   _SET_BOTTOM_EXCHANGE_(self%id_ni,-self%s1*thomnp*llsa*fl)
+   _SET_BOTTOM_EXCHANGE_(self%id_po,self%sr*(1.0_rk-self%ph1*th(oxb,wo,0.0_rk,1.0_rk)*yy(self%ph2,oxb))*llsa*fl)
+   _SET_BOTTOM_EXCHANGE_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
 
    ! Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_
@@ -466,8 +463,7 @@ subroutine initialize(self,configunit)
 ! \end{table}
 !
 ! !INPUT PARAMETERS:
-!  type (type_gotm_ergom), intent(in) :: self
-  real(rk), intent(in)                 :: t,s
+  real(rk), intent(in) :: t, s
 !
 ! !LOCAL VARIABLES:
    real(rk)            :: tk
@@ -499,13 +495,12 @@ subroutine initialize(self,configunit)
    subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
    class (type_gotm_ergom),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
-
-   real(rk)             :: temp,wnd,salt,o2,ni,am,po
-   real(rk),parameter           :: secs_pr_day=86400.0_rk
 !
 ! !LOCAL VARIABLES:
-   real(rk)                 :: p_vel,sc,flo2
-   integer,parameter        :: newflux=1
+   real(rk)            :: temp,wnd,salt,o2,ni,am,po
+   real(rk), parameter :: secs_pr_day=86400.0_rk
+   real(rk)            :: p_vel,sc,flo2
+   integer, parameter  :: newflux=1
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -520,7 +515,7 @@ subroutine initialize(self,configunit)
    _GET_(self%id_am,am)
    _GET_(self%id_po,po)
 
-!  Calculation of the surface oxygen flux
+   ! Calculation of the surface oxygen flux
    if (newflux .eq. 1) then
       sc=1450.+(1.1*temp-71.0_rk)*temp
       if (wnd .gt. 13.0_rk) then
@@ -537,17 +532,17 @@ subroutine initialize(self,configunit)
       end if
       p_vel = p_vel/secs_pr_day
       flo2 =p_vel*(osat_weiss(temp,salt)-o2)
-   _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
    else
       flo2 = self%pvel*(self%a0*(self%a1-self%a2*temp)-o2)
-   _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
    end if
+   _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
 
    _SET_SURFACE_EXCHANGE_(self%id_ni,self%sfl_ni)
    _SET_SURFACE_EXCHANGE_(self%id_am,self%sfl_am)
    _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po)
 
    _HORIZONTAL_LOOP_END_
+
    end subroutine do_surface
 !EOC
 
@@ -569,8 +564,7 @@ subroutine initialize(self,configunit)
 ! \end{equation}
 !
 ! !INPUT PARAMETERS:
-   ! type(type_gotm_ergom), INTENT(IN) :: self
-    real(rk), intent(in)            :: x,w,min,max
+    real(rk), intent(in) :: x,w,min,max
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -637,9 +631,6 @@ subroutine initialize(self,configunit)
 ! !INPUT PARAMETERS:
    class (type_gotm_ergom), intent(in) :: self
    real(rk), intent(in)                :: g,t,topt,psum
-!
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard, Karsten Bolding
 !
 !EOP
 !-----------------------------------------------------------------------
