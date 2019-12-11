@@ -147,9 +147,9 @@ subroutine initialize(self,configunit)
    call self%get_parameter(self%r1max, 'r1max', '1/d', 'maximum growth rate of diatoms', default=2.0_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%r2max, 'r2max', '1/d', 'maximum growth rate of flagellates', default=0.7_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%r3max, 'r3max', '1/d', 'maximum growth rate of cyanobacteria', default=0.5_rk, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%alpha1, 'alpha1', 'mmol N/m3', 'half-saturation constant for diatoms', default=1.35_rk)
-   call self%get_parameter(self%alpha2, 'alpha2', 'mmol N/m3', 'half-saturation constant for flagellates', default=0.675_rk)
-   call self%get_parameter(self%alpha3, 'alpha3', 'mmol N/m3', 'half-saturation constant for cyanobacteria', default=0.5_rk)
+   call self%get_parameter(self%alpha1, 'alpha1', 'mmol N/m3', 'half-saturation nutrient concentration for diatoms', default=1.35_rk)
+   call self%get_parameter(self%alpha2, 'alpha2', 'mmol N/m3', 'half-saturation nutrient concentration for flagellates', default=0.675_rk)
+   call self%get_parameter(self%alpha3, 'alpha3', 'mmol N/m3', 'half-saturation nutrient concentration for cyanobacteria', default=0.5_rk)
    call self%get_parameter(self%lpa, 'lpa', '1/d', 'phytoplankton exudation', default=0.01_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%lpd, 'lpd', '1/d', 'phytoplankton mortality', default=0.02_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%tf, 'tf', 'deg C', 'half-saturation temperature for flagellates', default=10.0_rk)
@@ -158,22 +158,22 @@ subroutine initialize(self,configunit)
    call self%get_parameter(self%g1max, 'g1max', '1/d', 'maximum grazing rate on diatoms', default=0.5_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%g2max, 'g2max', '1/d', 'maximum grazing rate on flagellates', default=0.5_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%g3max, 'g3max', '1/d', 'maximum grazing rate on cyanobacteria', default=0.25_rk, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%lza, 'lza', '1/d/(mmol N/m3)', 'quadratic zooplankton loss to dissolved matter', default=0.0666666666_rk, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%lzd, 'lzd', '1/d/(mmol N/m3)', 'quadratic zooplankton loss to detritus', default=0.1333333333_rk, scale_factor=1.0_rk/secs_pr_day)
-   call self%get_parameter(self%iv, 'iv', '1/(mmol N/m3)2', 'Ivlev constant for grazing', default=0.24444444_rk)
-   call self%get_parameter(self%topt, 'topt', 'deg C', 'optimal temperature for grazing', default=20.0_rk)
+   call self%get_parameter(self%lza, 'lza', 'm3/mmol N/d', 'quadratic zooplankton loss to dissolved matter', default=0.0666666666_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%lzd, 'lzd', 'm3/mmol N/d', 'quadratic zooplankton loss to detritus', default=0.1333333333_rk, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%iv, 'iv', 'm3/mmol N', 'Ivlev constant for grazing', default=0.24444444_rk)
+   call self%get_parameter(self%topt, 'topt', 'deg C', 'optimum temperature for grazing', default=20.0_rk)
    call self%get_parameter(self%lan, 'lan', '1/d', 'maximum nitrification rate', default=0.1_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%oan, 'oan', 'mmol o2/m3', 'half-saturation oxygen concentration for nitrification', default=0.01_rk)
-   call self%get_parameter(self%beta_an, 'beta_an', '1/deg C', 'nitrification temperature sensitivity', default=0.11_rk)
+   call self%get_parameter(self%beta_an, 'beta_an', '1/deg C', 'temperature sensitivity of nitrification', default=0.11_rk)
    call self%get_parameter(self%lda, 'lda', '1/d', 'remineralisation rate', default=0.003_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%tda, 'tda', 'deg C', 'half-saturation temperature for remineralisation', default=13.0_rk)
-   call self%get_parameter(self%beta_da, 'beta_da', '-', 'temperature sensitivity for remineralisation', default=20.0_rk)
+   call self%get_parameter(self%beta_da, 'beta_da', '-', 'temperature sensitivity of remineralisation', default=20.0_rk)
    call self%get_parameter(self%pvel, 'pvel', 'm/d', 'piston velocity', default=5.0_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%sr, 'sr', 'mol P/mol N', 'phosphorus to nitrogen ratio', default=0.0625_rk)
-   call self%get_parameter(self%s1, 's1', '-', 'reduced nitrate/oxidized detritus due to denitrification', default=5.3_rk)
-   call self%get_parameter(self%s2, 's2', 'mol O2/mol N', 'oxygen/ammonium ratio in biomass synthesis and remineralisation', default=6.625_rk)
-   call self%get_parameter(self%s3, 's3', 'mol O2/mol N', 'oxygen/nitrate ratio in biomass synthesis', default=8.625_rk)
-   call self%get_parameter(self%s4, 's4', 'mol O2/mol N', 'oxygen consumed in nitrification', default=2.0_rk)
+   call self%get_parameter(self%s1, 's1', '-', 'reduced nitrate : oxidized detritus for denitrification', default=5.3_rk)
+   call self%get_parameter(self%s2, 's2', 'mol O2/mol N', 'oxygen : nitrogen ratio for ammonium-based biomass synthesis and remineralisation', default=6.625_rk)
+   call self%get_parameter(self%s3, 's3', 'mol O2/mol N', 'oxygen : nitrogen ratio for nitrate-based biomass synthesis', default=8.625_rk)
+   call self%get_parameter(self%s4, 's4', 'mol O2/mol N', 'oxygen : nitrogen ratio for nitrification', default=2.0_rk)
    call self%get_parameter(self%a0, 'a0', 'mmol O2/g', 'mmol O2 per gram', default=31.25_rk)
    call self%get_parameter(self%a1, 'a1', 'g/m3', 'saturation mass concentration of oxygen at 0 deg C', default=14.603_rk)
    call self%get_parameter(self%a2, 'a2', 'g/m3/deg C', 'decrease in saturation mass concentration of oxygen per deg C', default=0.4025_rk)
@@ -191,7 +191,7 @@ subroutine initialize(self,configunit)
    call self%get_parameter(w_p3, 'w_p3', 'vertical velocity of cyanobacteria (< for sinking)', 'm/d', default=-5.0_rk, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(w_de, 'w_de', 'vertical velocity of detritus (< for sinking)', 'm/d', default=-3.0_rk, scale_factor=1.0_rk/secs_pr_day)
 
-!  Register state variables
+   ! Register state variables
    call self%register_state_variable(self%id_p1, 'dia', 'mmol N/m3', 'diatoms',      &
          4.5_rk, minimum=0.0_rk, vertical_movement=w_p1)
    call self%register_state_variable(self%id_p2, 'fla', 'mmol N/m3', 'flagellates',  &
@@ -212,14 +212,14 @@ subroutine initialize(self,configunit)
    if (self%fluff) call self%register_state_variable(self%id_fl, 'flf', 'mmol N/m2', 'fluff', &
          0.0_rk, minimum=0.0_rk)
 
-! Register diagnostic variables
+   ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_dPAR, 'PAR', 'W/m2', 'photosynthetically active radiation')
    call self%register_diagnostic_variable(self%id_GPP,  'GPP', 'mmol/m3', 'gross primary production')
    call self%register_diagnostic_variable(self%id_NCP,  'NCP', 'mmol/m3', 'net community production')
    call self%register_diagnostic_variable(self%id_PPR,  'PPR', 'mmol/m3/d', 'gross primary production rate')
    call self%register_diagnostic_variable(self%id_NPR,  'NPR', 'mmol/m3/d', 'net community production rate')
 
-! Register environmental dependencies
+   ! Register environmental dependencies
    call self%register_dependency(self%id_par,  standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_temp, standard_variables%temperature)
    call self%register_dependency(self%id_salt, standard_variables%practical_salinity)
@@ -470,16 +470,16 @@ subroutine initialize(self,configunit)
   real(rk), intent(in)                 :: t,s
 !
 ! !LOCAL VARIABLES:
-  real(rk)                 :: tk
-  real(rk)                 :: aa1=-173.4292_rk
-  real(rk)                 :: aa2=249.6339_rk
-  real(rk)                 :: a3=143.3483_rk
-  real(rk)                 :: a4=-21.8492_rk
-  real(rk)                 :: b1=-0.033096_rk
-  real(rk)                 :: b2=0.014259_rk
-  real(rk)                 :: b3=-0.001700_rk
-  real(rk)                 :: kelvin=273.16_rk
-  real(rk)                 :: mol_per_liter=44.661_rk
+   real(rk)            :: tk
+   real(rk), parameter :: aa1=-173.4292_rk
+   real(rk), parameter :: aa2=249.6339_rk
+   real(rk), parameter :: a3=143.3483_rk
+   real(rk), parameter :: a4=-21.8492_rk
+   real(rk), parameter :: b1=-0.033096_rk
+   real(rk), parameter :: b2=0.014259_rk
+   real(rk), parameter :: b3=-0.001700_rk
+   real(rk), parameter :: kelvin=273.16_rk
+   real(rk), parameter :: mol_per_liter=44.661_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
