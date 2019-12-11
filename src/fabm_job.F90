@@ -1332,7 +1332,7 @@ contains
 
    subroutine link_cowritten_outputs(output_variable_set, requesting_task)
       type (type_output_variable_set), intent(in) :: output_variable_set
-      type (type_task), target                    :: requesting_task
+      type (type_task), pointer                   :: requesting_task
 
       type (type_output_variable_set_node), pointer :: output_variable
       logical                                       :: multiple_tasks
@@ -1367,7 +1367,7 @@ contains
    end subroutine
 
    subroutine prepare_task(task)
-      type (type_task), intent(inout) :: task
+      type (type_task), pointer :: task
 
       type (type_call),                     pointer :: call_node
       type (type_input_variable_set_node),  pointer :: input_variable
