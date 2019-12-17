@@ -837,10 +837,14 @@
          end do
       else
          ! Ascertain whether the provided name is valid.
-         if (name=='' .or. name/=get_safe_name(name)) call self%fatal_error('add_child', &
-            'Cannot add child model "'//trim(name)//'" because its name is not valid. &
-            &Model names should not be empty, and can contain letters, digits and underscores only.')
-         if (len_trim(name)>len(model%name)) call self%fatal_error('add_child','Model name "'//trim(name)//'" exceeds maximum length.')
+         if (name == '') call self%fatal_error('add_child', 'Invalid model name "'//trim(name)// &
+            '". Names cannot be empty.')
+         if (name(1:1) == '_') call self%fatal_error('add_child', 'Invalid model name "'//trim(name)// &
+            '". Names beginning with underscore are reserved for internal use.')
+         if (len_trim(name) > len(model%name)) call self%fatal_error('add_child', 'Invalid model name "'//trim(name)// &
+            '". This name is longer than the maximum allowed number of characters.')
+         if (name /= get_safe_name(name)) call self%fatal_error('add_child', 'Invalid model name "'//trim(name)// &
+            '". Names can contain letters, digits and underscores only.')
 
          ! Make sure a child with this name does not exist yet.
          child => self%children%first
