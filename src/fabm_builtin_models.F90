@@ -923,7 +923,7 @@ module fabm_builtin_models
       class (type_flux_copier),pointer :: copier
 
       allocate(copier)
-      call source_model%add_child(copier,'redirect_'//trim(source_variable%link%name)//'_fluxes',configunit=-1)
+      call source_model%add_child(copier, '_', configunit=-1)
       if (present(scale_factor)) copier%scale_factor = scale_factor
       call copier%register_state_dependency(copier%id_target,'target','','target variable')
       call copier%register_dependency(copier%id_sms,         'sms',         '','sources minus sinks')
@@ -947,13 +947,13 @@ module fabm_builtin_models
       select case (source_variable%link%target%domain)
       case (domain_bottom)
          allocate(bottom_copier)
-         call source_model%add_child(bottom_copier,'redirect_'//trim(source_variable%link%name)//'_fluxes',configunit=-1)
+         call source_model%add_child(bottom_copier, '_', configunit=-1)
          if (present(scale_factor)) bottom_copier%scale_factor = scale_factor
          call bottom_copier%request_coupling(bottom_copier%id_target,target_variable)
          call bottom_copier%request_coupling(bottom_copier%id_source,trim(source_variable%link%target%name)//'_sms_tot')
       case (domain_surface)
          allocate(surface_copier)
-         call source_model%add_child(surface_copier,'redirect_'//trim(source_variable%link%name)//'_fluxes',configunit=-1)
+         call source_model%add_child(surface_copier, '_', configunit=-1)
          if (present(scale_factor)) surface_copier%scale_factor = scale_factor
          call surface_copier%request_coupling(surface_copier%id_target,target_variable)
          call surface_copier%request_coupling(surface_copier%id_source,trim(source_variable%link%target%name)//'_sms_tot')

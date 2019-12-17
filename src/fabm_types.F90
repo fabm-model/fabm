@@ -805,6 +805,7 @@
       integer                             :: islash
       class (type_base_model),    pointer :: parent
       type (type_model_list_node),pointer :: child
+      integer                             :: ind
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -821,28 +822,43 @@
       if (associated(model%parent)) call self%fatal_error('add_child', &
          'The provided child model "'//trim(name)//'" has already been assigned parent '//trim(model%parent%name)//'.')
 
-      ! Ascertain whether the provided name is valid.
-      if (name=='' .or. name/=get_safe_name(name)) call self%fatal_error('add_child', &
-         'Cannot add child model "'//trim(name)//'" because its name is not valid. &
-         &Model names should not be empty, and can contain letters, digits and underscores only.')
-      if (len_trim(name)>len(model%name)) call self%fatal_error('add_child','Model name "'//trim(name)//'" exceeds maximum length.')
+      if (name == '_') then
+         ! This instance is for internal use only - auto-generate a unique name
+         ind = 1
+         do
+            write (model%name, '("_", i0)') ind
+            child => self%children%first
+            do while (associated(child))
+               if (child%model%name == model%name) exit
+               child => child%next
+            end do
+            if (.not. associated(child)) exit
+            ind = ind + 1
+         end do
+      else
+         ! Ascertain whether the provided name is valid.
+         if (name=='' .or. name/=get_safe_name(name)) call self%fatal_error('add_child', &
+            'Cannot add child model "'//trim(name)//'" because its name is not valid. &
+            &Model names should not be empty, and can contain letters, digits and underscores only.')
+         if (len_trim(name)>len(model%name)) call self%fatal_error('add_child','Model name "'//trim(name)//'" exceeds maximum length.')
 
-      ! Make sure a child with this name does not exist yet.
-      child => self%children%first
-      do while (associated(child))
-         if (child%model%name==name) call self%fatal_error('add_child','A child model with name "'//trim(name)//'" already exists.')
-         child => child%next
-      end do
+         ! Make sure a child with this name does not exist yet.
+         child => self%children%first
+         do while (associated(child))
+            if (child%model%name==name) call self%fatal_error('add_child','A child model with name "'//trim(name)//'" already exists.')
+            child => child%next
+         end do
+         model%name = name
+      end if
 
-      model%name = name
       if (present(long_name)) then
          model%long_name = trim(long_name)
       else
-         model%long_name = trim(name)
+         model%long_name = trim(model%name)
       end if
       model%parent => self
-      call self%parameters%add_child(model%parameters,name)
-      call self%couplings%add_child(model%couplings,name)
+      call self%parameters%add_child(model%parameters,trim(model%name))
+      call self%couplings%add_child(model%couplings,trim(model%name))
       call self%children%append(model)
       call model%initialize(configunit)
    end subroutine add_child
