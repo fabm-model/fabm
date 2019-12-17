@@ -822,7 +822,7 @@
       if (associated(model%parent)) call self%fatal_error('add_child', &
          'The provided child model "'//trim(name)//'" has already been assigned parent '//trim(model%parent%name)//'.')
 
-      if (name == '_') then
+      if (name == '*') then
          ! This instance is for internal use only - auto-generate a unique name
          ind = 1
          do
