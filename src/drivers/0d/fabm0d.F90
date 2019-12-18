@@ -488,7 +488,6 @@
       type (type_error),         pointer :: config_error
       class (type_node),         pointer :: node
       class (type_scalar),       pointer :: constant_value_node, file_node
-      character(len=1024)                :: message
       real(rk)                           :: relaxation_time
       logical                            :: is_state_variable
       type (type_key_value_pair),pointer :: pair
@@ -528,14 +527,14 @@
       end if
 
       ! Prepend to list of input data.
-      input%name = variable_name
+      input%name = trim(variable_name)
 
       constant_value_node => mapping%get_scalar('constant_value',required=.false.,error=config_error)
       file_node => mapping%get_scalar('file',required=.false.,error=config_error)
       if (associated(constant_value_node)) then
          ! Input variable is set to a constant value.
          input%method = 0
-         input%value = mapping%get_real('constant_value',error=config_error)
+         input%constant_value = mapping%get_real('constant_value',error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
 
          ! Make sure keys related to time-varying input are not present.
