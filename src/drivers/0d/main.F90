@@ -16,7 +16,6 @@
    use fabm, only: fabm_initialize_library
    use fabm_types, only: type_version,first_module_version
    use fabm_version
-   use netcdf
 !
    IMPLICIT NONE
 !
@@ -42,7 +41,6 @@
       LEVEL0 trim(version%module_name)//' version:   ',trim(version%version_string)
       version => version%next
    end do
-   LEVEL0 'NetCDF version:  ',trim(NF90_INQ_LIBVERS())
    STDERR 'Started on  ',datestr,' ',timestr
    STDERR LINE
 

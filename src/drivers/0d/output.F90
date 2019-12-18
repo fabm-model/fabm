@@ -161,10 +161,6 @@
 ! !REVISION HISTORY:
 !  Original author(s): Karsten Bolding
 !
-! !LOCAL PARAMETERS:
-   integer         :: i,j,iret
-   integer         :: start(3)
-   type (type_input_data),pointer :: input_data
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -222,8 +218,8 @@
    call fm%register('lat','degrees_north','latitude',dimensions=(/id_dim_lat/),no_default_dimensions=.true.,data0d=latitude,coordinate_dimension=id_dim_lat)
 
    call fm%register('par','W/m^2','par',standard_name='downwelling_photosynthetic_radiative_flux',data0d=par)
-   call fm%register('temp','Celsius','temperature',standard_name='sea_water_temperature',data0d=temp)
-   call fm%register('salt','1e-3','salinity',standard_name='sea_water_practical_salinity',data0d=salt)
+   call fm%register('temp','Celsius','temperature',standard_name='sea_water_temperature',data0d=temp%value)
+   call fm%register('salt','1e-3','salinity',standard_name='sea_water_practical_salinity',data0d=salt%value)
 
    ! state variables
    do i=1,size(model%state_variables)

@@ -69,8 +69,9 @@
    real(rk),allocatable :: expression_data(:)
    real(rk),allocatable :: totals0(:)
 
-   real(rk),            target :: mixing_rate
-   real(rk),allocatable,target :: cc_deep(:)
+   type (type_scalar_input) :: mixing_rate
+   type (type_scalar_input) :: mixed_layer_depth
+   type (type_scalar_input), allocatable :: cc_deep(:)
    real(rk),allocatable,target :: w(:)
    integer(timestepkind), save :: itime
 
@@ -209,9 +210,9 @@
    if (ios/=0) call fatal_error('init_run','I could not open '//trim(run_nml_file)//' for reading.')
 
    ! Initialize environment
-   temp = 0.0_rk
-   salt = 0.0_rk
-   par = 0.0_rk
+   temp%value = 0.0_rk
+   salt%value = 0.0_rk
+   light%value = 0.0_rk
    dens = 0.0_rk
    par_sf = 0.0_rk
    par_bt = 0.0_rk
@@ -306,9 +307,9 @@
    LEVEL2 'reading local environment data from:'
    LEVEL3 trim(env_file)
    call init_input()
-   call register_input_0d(env_file,1,swr_sf,'shortwave radiation')
-   call register_input_0d(env_file,2,temp,'temperature')
-   call register_input_0d(env_file,3,salt,'salinity')
+   call light%configure(method=2, path=env_file, index=1, name='shortwave radiation')
+   call temp%configure(method=2, path=env_file, index=2, name='temperature')
+   call salt%configure(method=2, path=env_file, index=3, name='salinity')
 
    ! Build FABM model tree. Use 'fabm_yaml_file' if available, otherwise fall back to fabm.nml.
    LEVEL1 'initialize FABM'
@@ -329,8 +330,8 @@
       call driver%log_message('The model type is set to mixed layer model (model_type = 1).')
       call driver%log_message('Therefore, bottom-associated processes will be deactivated.')
       allocate(cc_deep(n_int))
-      cc_deep = 0.0_rk
-      mixing_rate = 0.0_rk
+      cc_deep(:)%value = 0.0_rk
+      mixing_rate%value = 0.0_rk
       allocate(w(n_int))
    end if
 
@@ -357,8 +358,8 @@
    id_par = model%get_bulk_variable_id(standard_variables%downwelling_photosynthetic_radiative_flux)
 
    ! Link environmental data to FABM
-   call model%link_interior_data(standard_variables%temperature,temp)
-   call model%link_interior_data(standard_variables%practical_salinity,salt)
+   call model%link_interior_data(standard_variables%temperature,temp%value)
+   call model%link_interior_data(standard_variables%practical_salinity,salt%value)
    if (model%variable_needs_values(id_par)) call model%link_interior_data(id_par,par)
    call model%link_interior_data(standard_variables%pressure,current_depth)
    call model%link_interior_data(standard_variables%cell_thickness,column_depth)
@@ -457,7 +458,7 @@
          if (model_type==1) then
             select case (variable_name)
             case ('mixed_layer_depth')
-               call parse_input_variable(pair%key,pair%value,column_depth)
+               call parse_input_variable(pair%key,pair%value,mixed_layer_depth)
                found = .true.
             case ('mixing_rate')
                call parse_input_variable(pair%key,pair%value,mixing_rate)
@@ -476,28 +477,25 @@
       end do
    end subroutine init_input_from_yaml_node
 
-   subroutine parse_input_variable(variable_name,value_node,data)
+   subroutine parse_input_variable(variable_name,value_node,input_)
       use yaml_types
 
       character(len=*),        intent(in) :: variable_name
       class (type_node),target,intent(in) :: value_node
-      real(rk),         target,optional   :: data
+      type (type_scalar_input), target, optional :: input_
 
       class (type_dictionary),   pointer :: mapping
       type (type_error),         pointer :: config_error
       class (type_node),         pointer :: node
       class (type_scalar),       pointer :: constant_value_node, file_node
-      character(len=1024)                :: path,message
-      integer                            :: column
-      real(rk)                           :: scale_factor
+      character(len=1024)                :: message
       real(rk)                           :: relaxation_time
       logical                            :: is_state_variable
-      type (type_input_data),    pointer :: input_data
       type (type_key_value_pair),pointer :: pair
       type (type_bulk_variable_id)       :: interior_id
       type (type_horizontal_variable_id) :: horizontal_id
       type (type_scalar_variable_id)     :: scalar_id
-      real(rk), pointer                  :: pdata
+      type (type_scalar_input), pointer  :: input
 
       select type (value_node)
       class is (type_dictionary)
@@ -507,7 +505,12 @@
       end select
 
       is_state_variable = .false.
-      if (.not.present(data)) then
+      if (present(input_)) then
+         input => input_
+      else
+         allocate(input)
+         call extra_inputs%add(input)
+
          ! Try to locate the forced variable among interior, horizontal, and global variables in the active biogeochemical models.
          interior_id = model%get_bulk_variable_id(variable_name)
          if (fabm_is_variable_used(interior_id)) then
@@ -525,19 +528,14 @@
       end if
 
       ! Prepend to list of input data.
-      allocate(input_data)
-      input_data%next => first_input_data
-      first_input_data => input_data
-      input_data%variable_name = variable_name
-      pdata => input_data%value
-      if (present(data)) pdata => data
-      call driver%log_message('  '//trim(input_data%variable_name)//':')
+      input%name = variable_name
 
       constant_value_node => mapping%get_scalar('constant_value',required=.false.,error=config_error)
       file_node => mapping%get_scalar('file',required=.false.,error=config_error)
       if (associated(constant_value_node)) then
          ! Input variable is set to a constant value.
-         pdata = mapping%get_real('constant_value',error=config_error)
+         input%method = 0
+         input%value = mapping%get_real('constant_value',error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
 
          ! Make sure keys related to time-varying input are not present.
@@ -549,26 +547,20 @@
          node => mapping%get('scale_factor')
          if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
             &keys "constant_value" and "scale_factor" cannot both be present.')
-         write (message,'(g13.6)') pdata
-         call driver%log_message('    constant_value: '//adjustl(message))
       elseif (associated(file_node)) then
          ! Input variable is set to a time-varying value. Obtain path, column number and scale factor.
-         path = mapping%get_string('file',error=config_error)
+         input%method = 2
+         input%path = mapping%get_string('file',error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
-         column = mapping%get_integer('column',default=1,error=config_error)
+         input%index = mapping%get_integer('column',default=1,error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
-         scale_factor = mapping%get_real('scale_factor',default=1.0_rk,error=config_error)
+         input%scale_factor = mapping%get_real('scale_factor',default=1.0_rk,error=config_error)
          if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
-         call register_input_0d(path,column,pdata,variable_name,scale_factor=scale_factor)
-         call driver%log_message('    file: '//trim(path))
-         write (message,'(i0)') column
-         call driver%log_message('    column: '//adjustl(message))
-         write (message,'(g13.6)') scale_factor
-         call driver%log_message('    scale factor: '//adjustl(message))
       else
          call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": &
             &either key "constant_value" or key "file" must be present.')
       end if
+      call register_input(input)
 
       if (is_state_variable) then
          ! This is a state variable. Obtain associated relaxation time.
@@ -590,15 +582,15 @@
       end do
 
       ! If a data pointer was provided, this variable for the host, not FABM, so return.
-      if (present(data)) return
+      if (present(input_)) return
 
       ! Link forced data to target variable.
       if (fabm_is_variable_used(interior_id)) then
-         call model%link_interior_data(interior_id,input_data%value,source=data_source_user)
+         call model%link_interior_data(interior_id, input%value, source=data_source_user)
       elseif (fabm_is_variable_used(horizontal_id)) then
-         call model%link_horizontal_data(horizontal_id,input_data%value,source=data_source_user)
+         call model%link_horizontal_data(horizontal_id, input%value, source=data_source_user)
       else
-         call model%link_scalar(scalar_id,input_data%value,source=data_source_user)
+         call model%link_scalar(scalar_id, input%value, source=data_source_user)
       end if
 
    end subroutine parse_input_variable
@@ -615,8 +607,10 @@
       ! Update environment (i.e., read from input files)
       call do_input(julianday,secondsofday)
 
+      if (model_type==1) column_depth = mixed_layer_depth%value
+
       ! Compute density from temperature and salinity, if required by biogeochemistry.
-      if (compute_density) dens = rho_feistel(salt,temp,5._rk*column_depth,.true.)
+      if (compute_density) dens = rho_feistel(salt%value,temp%value,5._rk*column_depth,.true.)
    end subroutine update_environment
 
    subroutine update_light()
@@ -638,6 +632,8 @@
             albedo = albedo_water(1,zenith_angle,yearday)
             swr_sf = swr_sf*(1._rk-albedo-bio_albedo)
          end if
+      else
+         swr_sf = light%value
       end if
 
       ! Multiply by fraction of short-wave radiation that is photosynthetically active.
@@ -838,7 +834,7 @@
    call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
 
    call model%prepare_inputs(real(itime,rk))
-   
+
    ! Calculate temporal derivatives due to benthic processes.
    call update_depth(BOTTOM)
    call model%get_bottom_sources(pp,dd,n_int)
@@ -910,7 +906,7 @@
       call model%get_bottom_sources(rhs(1:n_int),rhs(n_int+1:n_int+n_bt))
    case (1)
       call model%get_vertical_movement(w)
-      rhs(1:n_int) = rhs(1:n_int) + mixing_rate * (cc_deep(1:n_int) - cc(1:n_int)) + w * cc(1:n_int)
+      rhs(1:n_int) = rhs(1:n_int) + mixing_rate%value * (cc_deep(1:n_int)%value - cc(1:n_int)) + w * cc(1:n_int)
    end select
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
