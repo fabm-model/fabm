@@ -34,7 +34,7 @@ contains
       initialize_ = .true.
       if (present(initialize)) initialize_ = initialize
       allocate(model)
-      call configure(model, path, do_not_initialize=.not. initialize, parameters=parameters, unit=unit)
+      call configure(model, path, do_not_initialize=.not. initialize_, parameters=parameters, unit=unit)
    end function
 
    ! For backward compatibility (20191115):
