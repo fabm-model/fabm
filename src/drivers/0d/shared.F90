@@ -6,7 +6,7 @@ module shared
 
    public
 
-   type (type_model),pointer :: model
+   class (type_model), save, pointer :: model => null()
 
    real(rk),allocatable,target :: cc(:)
 

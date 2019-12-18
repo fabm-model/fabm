@@ -11,29 +11,12 @@ project(fabm0d Fortran)
 find_path(GOTM_BASE
           NAMES src/gotm/gotm.F90
           HINTS ENV GOTMDIR
-          PATHS ${PROJECT_SOURCE_DIR}/../../../../..
-          PATH_SUFFIXES GOTM/gotm-git gotm-git
+          PATHS ${PROJECT_SOURCE_DIR}/../../../../.. ${PROJECT_SOURCE_DIR}/../../..
+          PATH_SUFFIXES GOTM/gotm-git gotm-git gotm
           DOC "Directory with GOTM source code (www.gotm.net)")
 
 # Make NetCDF usage a configurable option.
 option(FABM_USE_NetCDF "Enable NetCDF output" ON)
-
-if(EXISTS ${GOTM_BASE}/extern/flexout/CMakeLists.txt)
-   set(FLEXOUT_USE_NetCDF ${FABM_USE_NetCDF} CACHE BOOL "Enable output in NetCDF format" FORCE)
-   mark_as_advanced(FLEXOUT_USE_NetCDF)
-  add_subdirectory(${GOTM_BASE}/extern/flexout flexout EXCLUDE_FROM_ALL)
-else()
-  if(FABM_USE_NetCDF)
-    add_definitions(-DREAL_4B=real\(4\))
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${GOTM_BASE}/src/cmake/Modules/")
-    find_package(NetCDF REQUIRED)
-    if (NetCDF_STATIC_MSVC_BUILD)
-      add_compile_options("/libs:static")
-    endif()
-    set (OUTPUT_MANAGER ${GOTM_BASE}/src/output/output_manager_core.F90 ${GOTM_BASE}/src/output/output_manager.F90 ${GOTM_BASE}/src/output/text_output.F90 ${GOTM_BASE}/src/output/netcdf_output.F90)
-    set (FIELD_MANAGER ${GOTM_BASE}/src/util/field_manager.F90)
-  endif(FABM_USE_NetCDF)
-endif()
 
 # Specify additional compiler flags
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
@@ -43,6 +26,13 @@ elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
   endif()
 endif()
+
+set(GOTM_USE_NetCDF ${FABM_USE_NetCDF} CACHE BOOL "Enable output in NetCDF format" FORCE)
+set(GOTM_USE_FABM OFF CACHE BOOL "use FABM" FORCE)
+set(GOTM_USE_SEAGRASS OFF CACHE BOOL "use seagrass" FORCE)
+set(GOTM_USE_STIM OFF CACHE BOOL "use STIM" FORCE)
+mark_as_advanced(GOTM_USE_FABM GOTM_USE_NetCDF GOTM_USE_SEAGRASS GOTM_USE_STIM)
+add_subdirectory(${GOTM_BASE} gotm EXCLUDE_FROM_ALL)
 
 # Force FABM_HOST to 0d and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST 0d)
@@ -55,36 +45,10 @@ add_executable (fabm0d
                 shared.F90
                 output.F90
                 fabm_0d.h
-                ${GOTM_BASE}/src/airsea/solar_zenith_angle.F90
-                ${GOTM_BASE}/src/airsea/albedo_water.F90
-                ${GOTM_BASE}/src/airsea/short_wave_radiation.F90
-                ${GOTM_BASE}/src/input/input.F90
-                ${FIELD_MANAGER}
-                ${OUTPUT_MANAGER}
-                ${GOTM_BASE}/src/util/eqstate.F90
-                ${GOTM_BASE}/src/util/gridinterpol.F90
-                ${GOTM_BASE}/src/util/time.F90
                 )
 
-# Group GOTM source files in a folder in IDEs that support this.
-source_group(gotm REGULAR_EXPRESSION ${GOTM_BASE}/src)
-
-# Link with FABM library.
-target_link_libraries(fabm0d PRIVATE fabm)
-
-if(TARGET output_manager)
-  target_link_libraries(fabm0d PRIVATE output_manager field_manager)
-else()
-  if(FABM_USE_NetCDF)
-    target_link_libraries(fabm0d PRIVATE ${NetCDF_LIBRARIES})
-    set_property(TARGET fabm0d APPEND PROPERTY INCLUDE_DIRECTORIES ${NetCDF_INCLUDE_DIRS})
-    set_property(SOURCE ${OUTPUT_MANAGER} APPEND PROPERTY COMPILE_DEFINITIONS NETCDF_FMT)
-    if (NetCDF_STATIC_MSVC_BUILD)
-      set_property(TARGET fabm0d PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmt\"")
-    endif()
-  endif(FABM_USE_NetCDF)
-endif()
-set_property(TARGET fabm0d APPEND PROPERTY COMPILE_DEFINITIONS NETCDF4)
+# Link with FABM library, field/output manager and GOTM.
+target_link_libraries(fabm0d PRIVATE fabm output_manager field_manager airsea input_manager util)
 
 # Set module directory (output of *.mod)
 set_property(TARGET fabm0d PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)

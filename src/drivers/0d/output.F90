@@ -19,11 +19,9 @@
 
    ! From GOTM
    use time
-#ifdef NETCDF4
    use field_manager
    use output_manager_core, only:output_manager_host=>host, type_output_manager_host=>type_host
    use output_manager
-#endif
 
    use shared
 
@@ -33,7 +31,6 @@
 
    public configure_output, init_output, do_output, clean_output
 
-#ifdef NETCDF4
    public register_output_fields, fm
 
    type,extends(type_output_manager_host) :: type_fabm0d_host
@@ -43,7 +40,6 @@
    end type
 
    type (type_field_manager), target :: fm
-#endif
 
    integer, parameter :: ASCII_FMT  = 1
    integer, parameter :: NETCDF_FMT = 2
@@ -119,78 +115,32 @@
 !  Original author(s): Karsten Bolding
 !
 ! !LOCAL PARAMETERS:
-   integer                        :: i,iret
-   type (type_input_data),pointer :: input_data,input_data2
+   integer          :: i
+   real(rk),pointer :: pdata
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifdef NETCDF4  
-   if (output_format /= 1) then
-      call send_output_data()
-      return
-   end if
-#endif
+   do i=1,size(model%state_variables)
+      pdata => model%get_data(model%get_bulk_variable_id(model%state_variables(i)%name))
+      call fm%send_data(model%state_variables(i)%name, pdata)
+   end do
+   do i=1,size(model%bottom_state_variables)
+      pdata => model%get_data(model%get_horizontal_variable_id(model%bottom_state_variables(i)%name))
+      call fm%send_data(model%bottom_state_variables(i)%name, pdata)
+   end do
+   do i=1,size(model%surface_state_variables)
+      pdata => model%get_data(model%get_horizontal_variable_id(model%surface_state_variables(i)%name))
+      call fm%send_data(model%surface_state_variables(i)%name, pdata)
+   end do
 
-   LEVEL2 'writing results to:'
-   LEVEL3 trim(output_file)
-   select case (output_format)
-      case (ASCII_FMT)
-         out_unit = get_free_unit()
-         open(out_unit,file=trim(output_file),action='write',status='replace',err=96)
-         LEVEL3 'ASCII format'
-
-         ! Write header to the output file.
-         write(out_unit,FMT='(''# '',A)') title
-         write(out_unit,FMT='(''# '',A)',ADVANCE='NO') 'time'
-         if (add_environment) then
-            write(out_unit,FMT=100,ADVANCE='NO') separator,'photosynthetically active radiation','W/m2'
-            write(out_unit,FMT=100,ADVANCE='NO') separator,'temperature',                        'degrees C'
-            write(out_unit,FMT=100,ADVANCE='NO') separator,'salinity',                           'kg/m3'
-         end if
-         do i=1,size(model%state_variables)
-            if (model%state_variables(i)%output/=output_none) &
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%state_variables(i)%long_name), &
-                  trim(model%state_variables(i)%units)
-         end do
-         do i=1,size(model%bottom_state_variables)
-            if (model%bottom_state_variables(i)%output/=output_none) &
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%bottom_state_variables(i)%long_name), &
-                  trim(model%bottom_state_variables(i)%units)
-         end do
-         do i=1,size(model%surface_state_variables)
-            if (model%surface_state_variables(i)%output/=output_none) &
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%surface_state_variables(i)%long_name), &
-                  trim(model%surface_state_variables(i)%units)
-         end do
-         if (add_diagnostic_variables) then
-            do i=1,size(model%diagnostic_variables)
-               if (model%diagnostic_variables(i)%output/=output_none) &
-                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%diagnostic_variables(i)%long_name), &
-                     trim(model%diagnostic_variables(i)%units)
-            end do
-            do i=1,size(model%horizontal_diagnostic_variables)
-               if (model%horizontal_diagnostic_variables(i)%output/=output_none) &
-                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%horizontal_diagnostic_variables(i)%long_name), &
-                     trim(model%horizontal_diagnostic_variables(i)%units)
-            end do
-         end if
-         if (add_conserved_quantities) then
-            compute_conserved_quantities = .true.
-            do i=1,size(model%conserved_quantities)
-               if (model%conserved_quantities(i)%output/=output_none) &
-                  write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%conserved_quantities(i)%long_name), &
-                     trim(model%conserved_quantities(i)%units)
-            end do
-         end if
-         write(out_unit,*)
-      case (NETCDF_FMT)
-      case default
-   end select
-
-   return
-96 call driver%fatal_error('init_output','I could not open '//trim(output_file))
-
-100 format (A, A, ' (', A, ')')
+   do i=1,size(model%diagnostic_variables)
+      if (model%diagnostic_variables(i)%save) &
+         call fm%send_data(model%diagnostic_variables(i)%name, model%get_interior_diagnostic_data(i))
+   end do
+   do i=1,size(model%horizontal_diagnostic_variables)
+      if (model%horizontal_diagnostic_variables(i)%save) &
+         call fm%send_data(model%horizontal_diagnostic_variables(i)%name, model%get_horizontal_diagnostic_data(i))
+   end do
 
    end subroutine init_output
 !EOC
@@ -218,57 +168,7 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifdef NETCDF4  
-   if (output_format /= 1) then
-      call output_manager_save(julianday,secondsofday,int(n))
-      return
-   end if
-#endif
-
-   if (mod(n,nsave)/=0) return
-
-   select case (output_format)
-      case(ASCII_FMT)
-         call write_time_string(julianday,secondsofday,timestr)
-         write (out_unit,FMT='(A)',ADVANCE='NO') timestr
-         if (add_environment) then
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,par
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,temp
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,salt
-         end if
-         do i=1,size(model%state_variables)
-            if (model%state_variables(i)%output/=output_none) &
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,model%get_data(model%state_variables(i)%globalid)
-         end do
-         do i=1,size(model%bottom_state_variables)
-            if (model%bottom_state_variables(i)%output/=output_none) &
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,model%get_data(model%bottom_state_variables(i)%globalid)
-         end do
-         do i=1,size(model%surface_state_variables)
-            if (model%surface_state_variables(i)%output/=output_none) &
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,model%get_data(model%surface_state_variables(i)%globalid)
-         end do
-         if (add_diagnostic_variables) then
-            do i=1,size(model%diagnostic_variables)
-               if (model%diagnostic_variables(i)%output/=output_none) &
-                  write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
-            end do
-            do i=1,size(model%horizontal_diagnostic_variables)
-               if (model%horizontal_diagnostic_variables(i)%output/=output_none) &
-                  write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_horizontal_diagnostic_data(model,i)
-            end do
-         end if
-         if (add_conserved_quantities) then
-            do i=1,size(model%conserved_quantities)
-               if (model%conserved_quantities(i)%output/=output_none) &
-                  write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,totals(i)
-            end do
-         end if
-         write (out_unit,*)
-
-      case (NETCDF_FMT)
-      case default
-   end select
+   call output_manager_save(julianday,secondsofday,int(n))
 
    end subroutine do_output
 !EOC
@@ -298,15 +198,12 @@
 
    if (out_unit/=-1) close(out_unit)
 
-#ifdef NETCDF4
    call output_manager_clean()
    call fm%finalize()
-#endif
 
    end subroutine clean_output
 !EOC
 
-#ifdef NETCDF4
    subroutine register_output_fields()
 
    integer :: i
@@ -382,33 +279,6 @@
 
    end subroutine register_output_fields
 
-   subroutine send_output_data()
-      integer          :: i
-      real(rk),pointer :: pdata
-
-      do i=1,size(model%state_variables)
-         pdata => model%get_data(model%state_variables(i)%globalid)
-         call fm%send_data(model%state_variables(i)%name, pdata)
-      end do
-      do i=1,size(model%bottom_state_variables)
-         pdata => model%get_data(model%bottom_state_variables(i)%globalid)
-         call fm%send_data(model%bottom_state_variables(i)%name, pdata)
-      end do
-      do i=1,size(model%surface_state_variables)
-         pdata => model%get_data(model%surface_state_variables(i)%globalid)
-         call fm%send_data(model%surface_state_variables(i)%name, pdata)
-      end do
-
-      do i=1,size(model%diagnostic_variables)
-         if (model%diagnostic_variables(i)%save) &
-            call fm%send_data(model%diagnostic_variables(i)%name, fabm_get_interior_diagnostic_data(model,i))
-      end do
-      do i=1,size(model%horizontal_diagnostic_variables)
-         if (model%horizontal_diagnostic_variables(i)%save) &
-            call fm%send_data(model%horizontal_diagnostic_variables(i)%name, fabm_get_horizontal_diagnostic_data(model,i))
-      end do
-   end subroutine send_output_data
-
    subroutine fabm0d_host_julian_day(self,yyyy,mm,dd,julian)
       class (type_fabm0d_host), intent(in) :: self
       integer, intent(in)  :: yyyy,mm,dd
@@ -422,7 +292,6 @@
       integer, intent(out) :: yyyy,mm,dd
       call calendar_date(julian,yyyy,mm,dd)
    end subroutine
-#endif
 
 !-----------------------------------------------------------------------
 

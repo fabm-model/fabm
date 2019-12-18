@@ -72,6 +72,7 @@
    real(rk),            target :: mixing_rate
    real(rk),allocatable,target :: cc_deep(:)
    real(rk),allocatable,target :: w(:)
+   integer(timestepkind), save :: itime
 
    type (type_bulk_variable_id), save :: id_dens, id_par
    logical                            :: compute_density
@@ -313,21 +314,9 @@
    LEVEL1 'initialize FABM'
    LEVEL2 'reading configuration from:'
    inquire(file=trim(fabm_yaml_file),exist=file_exists)
-   if (file_exists) then
-      ! From YAML file fabm.yaml
-      LEVEL3 trim(fabm_yaml_file)
-      allocate(model)
-      call fabm_create_model_from_yaml_file(model,path=trim(fabm_yaml_file))
-   else
-      ! From namelists in fabm_nml_file
-      inquire(file=trim(fabm_nml_file),exist=file_exists)
-      if (file_exists) then
-         LEVEL3 trim(fabm_nml_file)
-         model => fabm_create_model_from_file(namlst)
-      else
-         call fatal_error('init_run','can not find '//trim(fabm_yaml_file)//' or '//trim(fabm_nml_file)//'.')
-      end if
-   end if
+   if (.not. file_exists) call fatal_error('init_run','can not find '//trim(fabm_yaml_file)//'.')
+   LEVEL3 trim(fabm_yaml_file)
+   model => fabm_create_model(path=trim(fabm_yaml_file))
 
    ! Shortcuts to the number of state variables.
    n_int = size(model%state_variables)
@@ -345,17 +334,15 @@
       allocate(w(n_int))
    end if
 
-   ! Allocate memeroy to hold totals of conserved quantities
+   ! Allocate memory to hold totals of conserved quantities
    allocate(totals0             (size(model%conserved_quantities)))  ! at initial time (depth-integrated, interior + interfaces)
    allocate(totals              (size(model%conserved_quantities)))  ! at current time (depth-explicit, interior only)
    allocate(int_change_in_totals(size(model%conserved_quantities)))  ! change since start of simulation (depth-integrated, interior + interfaces)
 
-#ifdef NETCDF4
-   if (output_format /= 1) call register_output_fields()
-#endif
+   call register_output_fields()
 
    ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
-   call fabm_set_domain(model,seconds_per_time_unit=timestep)
+   call model%set_domain(seconds_per_time_unit=timestep)
 
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
@@ -363,11 +350,11 @@
    call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
    call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
 
-   id_dens = fabm_get_bulk_variable_id(model,standard_variables%density)
-   compute_density = fabm_variable_needs_values(model,id_dens)
+   id_dens = model%get_bulk_variable_id(standard_variables%density)
+   compute_density = model%variable_needs_values(id_dens)
    if (compute_density) call model%link_interior_data(id_dens,dens)
 
-   id_par = fabm_get_bulk_variable_id(model,standard_variables%downwelling_photosynthetic_radiative_flux)
+   id_par = model%get_bulk_variable_id(standard_variables%downwelling_photosynthetic_radiative_flux)
 
    ! Link environmental data to FABM
    call model%link_interior_data(standard_variables%temperature,temp)
@@ -390,15 +377,15 @@
    call init_input_from_file('input.yaml')
 
    ! Check whether all dependencies of biogeochemical models have now been fulfilled.
-   call fabm_check_ready(model)
+   call model%start()
 
    ! Update time and all time-dependent inputs.
    call update_environment(0_timestepkind)
 
    ! Perform custom initialization per biogeochemical model
-   call fabm_initialize_state(model)
-   call fabm_initialize_surface_state(model)
-   call fabm_initialize_bottom_state(model)
+   call model%initialize_interior_state()
+   call model%initialize_surface_state()
+   call model%initialize_bottom_state()
 
    ! Let FABM update the light field (requires state variables to be initialized!)
    call update_light()
@@ -412,14 +399,6 @@
 
    call get_conserved_quantities(totals0)
    int_change_in_totals = 0.0_rk
-
-   ! Output variable values at initial time
-#ifndef NETCDF4
-   if (output_format .eq. 2) then
-      LEVEL0 'WARNING: NetCDF support not compiled in - setting output to ASCII'
-      output_format = 1
-   end if
-#endif
 
    LEVEL1 'init_output'
    call init_output(start)
@@ -530,17 +509,17 @@
       is_state_variable = .false.
       if (.not.present(data)) then
          ! Try to locate the forced variable among interior, horizontal, and global variables in the active biogeochemical models.
-         interior_id = fabm_get_bulk_variable_id(model,variable_name)
+         interior_id = model%get_bulk_variable_id(variable_name)
          if (fabm_is_variable_used(interior_id)) then
             is_state_variable = interior_id%variable%state_indices%value/=-1
          else
-            horizontal_id = fabm_get_horizontal_variable_id(model,variable_name)
+            horizontal_id = model%get_horizontal_variable_id(variable_name)
             if (fabm_is_variable_used(horizontal_id)) then
                is_state_variable = horizontal_id%variable%state_indices%value/=-1
             else
-               scalar_id = fabm_get_scalar_variable_id(model,variable_name)
+               scalar_id = model%get_scalar_variable_id(variable_name)
                if (.not.fabm_is_variable_used(scalar_id)) call log_message('WARNING! input.yaml: &
-                  &Variable "'//trim(variable_name)//'" is not present in any biogeochemical  model.')
+                  &Variable "'//trim(variable_name)//'" is not present in any biogeochemical model.')
             end if
          end if
       end if
@@ -642,7 +621,7 @@
 
    subroutine update_light()
       real(rk)                         :: zenith_angle,solar_zenith_angle
-      real(rk)                         :: short_wave_radiation
+      real(rk)                         :: shortwave_radiation
       real(rk)                         :: albedo,albedo_water,bio_albedo
       real(rk)                         :: hh
 
@@ -651,10 +630,10 @@
       ! Calculate photosynthetically active radiation at surface, if it is not provided in the input file.
       if (swr_method==0) then
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
-         call fabm_get_albedo(model,bio_albedo)
+         call fabm_get_albedo(model, bio_albedo)
          hh = secondsofday*(1._rk/3600)
          zenith_angle = solar_zenith_angle(yearday,hh,longitude,latitude)
-         swr_sf = short_wave_radiation(zenith_angle,yearday,longitude,latitude,cloud)
+         swr_sf = shortwave_radiation(zenith_angle,yearday,longitude,latitude,cloud)
          if (albedo_correction) then
             albedo = albedo_water(1,zenith_angle,yearday)
             swr_sf = swr_sf*(1._rk-albedo-bio_albedo)
@@ -668,7 +647,7 @@
       if (swr_method/=2) then
          ! Calculate light extinction
          extinction = 0.0_rk
-         if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
+         if (apply_self_shading) call fabm_get_light_extinction(model, extinction)
          extinction = extinction + par_background_extinction
 
          ! Either we calculate surface PAR, or surface PAR is provided.
@@ -700,7 +679,6 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   integer(timestepkind)     :: n
    logical                   :: valid_state
    integer                   :: progress,k
 !EOP
@@ -710,17 +688,15 @@
 
    progress = (MaxN-MinN+1)/10
    k = 0
-   do n=MinN,MaxN
-      if(mod(n,progress) .eq. 0 .or. n .eq. MinN) then
+   do itime=MinN,MaxN
+      if(mod(itime,progress) == 0 .or. itime == MinN) then
          LEVEL0 k,'%'
          k = k+10
       end if
 
       ! Update time and all time-dependent inputs.
-      call update_environment(n)
+      call update_environment(itime)
       call update_light()
-
-      call fabm_update_time(model,real(n,rk))
 
       ! Integrate one time step
       call ode_solver(ode_method,size(cc),timestep,cc,get_rhs,get_ppdd)
@@ -733,9 +709,9 @@
       call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_sf+n_bt))
 
       ! Verify whether the model state is still valid (clip if needed and allowed)
-      call fabm_check_state(model,repair_state,valid_state)
-      if (valid_state .or. repair_state) call fabm_check_bottom_state(model,repair_state,valid_state)
-      if (valid_state .or. repair_state) call fabm_check_surface_state(model,repair_state,valid_state)
+      call model%check_interior_state(repair_state,valid_state)
+      if (valid_state .or. repair_state) call model%check_bottom_state(repair_state,valid_state)
+      if (valid_state .or. repair_state) call model%check_surface_state(repair_state,valid_state)
       if (.not. (valid_state .or. repair_state)) &
          call fatal_error('time_loop','State variable values are invalid and repair is not allowed. &
             &This may be fixed by setting repair_state=.true. (clip state to nearest valid value), &
@@ -747,7 +723,7 @@
       end if
 
       ! Do output
-      call do_output(n)
+      call do_output(itime)
    end do
    STDERR LINE
 
@@ -757,8 +733,8 @@
    subroutine get_conserved_quantities(depth_int_totals)
       real(rk), intent(inout) :: depth_int_totals(size(model%conserved_quantities))
       real(rk) :: totals_hz(size(model%conserved_quantities))
-      call fabm_get_conserved_quantities(model,totals)
-      call fabm_get_horizontal_conserved_quantities(model,totals_hz)
+      call model%get_interior_conserved_quantities(totals)
+      call model%get_horizontal_conserved_quantities(totals_hz)
       depth_int_totals = totals*column_depth + totals_hz
    end subroutine
 !-----------------------------------------------------------------------
@@ -861,9 +837,11 @@
    call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
    call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
 
+   call model%prepare_inputs(real(itime,rk))
+   
    ! Calculate temporal derivatives due to benthic processes.
    call update_depth(BOTTOM)
-   call fabm_do_benthos(model,pp,dd,n_int)
+   call model%get_bottom_sources(pp,dd,n_int)
 
    ! For pelagic variables: translate bottom flux to into change in concentration
    pp(1:n_int,:) = pp(1:n_int,:)/column_depth
@@ -871,7 +849,9 @@
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
    call update_depth(CENTER)
-   call fabm_do(model,pp,dd)
+   call model%get_interior_sources(pp,dd)
+
+   call model%finalize_outputs()
 
    end subroutine get_ppdd
 !EOC
@@ -917,17 +897,19 @@
    call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
    call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
 
+   call model%prepare_inputs(real(itime,rk))
+
    ! Calculate temporal derivatives due to surface-bound processes.
    call update_depth(SURFACE)
-   call fabm_do_surface(model,rhs(1:n_int),rhs(n_int+n_bt+1:n_int+n_bt+n_sf))
+   call model%get_surface_sources(rhs(1:n_int),rhs(n_int+n_bt+1:n_int+n_bt+n_sf))
 
    ! Calculate temporal derivatives due to bottom-bound processes.
    select case (model_type)
    case (0)
       call update_depth(BOTTOM)
-      call fabm_do_bottom(model,rhs(1:n_int),rhs(n_int+1:n_int+n_bt))
+      call model%get_bottom_sources(rhs(1:n_int),rhs(n_int+1:n_int+n_bt))
    case (1)
-      call fabm_get_vertical_movement(model,w)
+      call model%get_vertical_movement(w)
       rhs(1:n_int) = rhs(1:n_int) + mixing_rate * (cc_deep(1:n_int) - cc(1:n_int)) + w * cc(1:n_int)
    end select
 
@@ -936,7 +918,9 @@
 
    ! Add change in pelagic variables.
    call update_depth(CENTER)
-   call fabm_do(model,rhs(1:n_int))
+   call model%get_interior_sources(rhs(1:n_int))
+
+   call model%finalize_outputs()
 
    end subroutine get_rhs
 !EOC
