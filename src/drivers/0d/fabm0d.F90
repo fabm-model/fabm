@@ -310,6 +310,9 @@
    call light%configure(method=2, path=env_file, index=1, name='shortwave radiation')
    call temp%configure(method=2, path=env_file, index=2, name='temperature')
    call salt%configure(method=2, path=env_file, index=3, name='salinity')
+   call register_input(light)
+   call register_input(temp)
+   call register_input(salt)
 
    ! Build FABM model tree. Use 'fabm_yaml_file' if available, otherwise fall back to fabm.nml.
    LEVEL1 'initialize FABM'
