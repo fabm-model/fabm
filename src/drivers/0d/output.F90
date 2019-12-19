@@ -134,12 +134,16 @@
    end do
 
    do i=1,size(model%diagnostic_variables)
-      if (model%diagnostic_variables(i)%save) &
-         call fm%send_data(model%diagnostic_variables(i)%name, model%get_interior_diagnostic_data(i))
+      if (model%diagnostic_variables(i)%save) then
+         pdata => model%get_interior_diagnostic_data(i)
+         call fm%send_data(model%diagnostic_variables(i)%name, pdata)
+      end if
    end do
    do i=1,size(model%horizontal_diagnostic_variables)
-      if (model%horizontal_diagnostic_variables(i)%save) &
-         call fm%send_data(model%horizontal_diagnostic_variables(i)%name, model%get_horizontal_diagnostic_data(i))
+      if (model%horizontal_diagnostic_variables(i)%save) then
+         pdata => model%get_horizontal_diagnostic_data(i)
+         call fm%send_data(model%horizontal_diagnostic_variables(i)%name, pdata)
+      end if
    end do
 
    end subroutine init_output
