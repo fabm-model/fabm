@@ -1,0 +1,128 @@
+instances:
+  ammonium:
+    model: su/pools
+    parameters:
+      has_nitrogen: true
+    initialization:
+      N: 14
+  nitrate:
+    model: su/pools
+    parameters:
+      has_nitrogen: true
+    initialization:
+      N: 140
+  phosphate:
+    model: su/pools
+    parameters:
+      has_phosphorus: true
+    initialization:
+      P: 3.1
+  DIC:
+    model: su/pools
+    parameters:
+      has_carbon: true
+    initialization:
+      C: 240
+  DOC:
+    model: su/pools
+    parameters:
+      has_carbon: true
+    initialization:
+      C: 240
+  sDOM:
+    model: su/pools
+    parameters:
+       has_carbon: true
+       has_nitrogen: true
+       has_phosphorus: true
+    initialization:
+      C: 12
+      N: 1.4
+      P: 0.31
+  cDOM:
+    model: su/pools
+    parameters:
+       has_carbon: true
+       has_nitrogen: true
+       has_phosphorus: true
+    initialization:
+      C: 0
+      N: 0
+      P: 0
+  POM:
+    model: su/pools
+    parameters:
+      has_silicate: true
+    initialization:
+      S: 10
+  algae:
+    model: su/algae
+    initialization:            
+      aC: 1
+      aN: 0.25
+      aP: 0.02
+      aChl: 0.06
+    coupling:
+      NH4:   ammonium/N
+      NO3:   nitrate/N
+      DIP:   phosphate/P
+      DIC:   DIC/C
+      sDOMC: sDOM/C
+      sDOMN: sDOM/N
+      sDOMP: sDOM/P
+      DOC:   DOC/C
+  bacteria:
+    model: su/bacteria
+    initialization:            
+      bC: 1
+    coupling:
+      NH4:   ammonium/N
+      NO3:   nitrate/N
+      DIP:   phosphate/P
+      DIC:   DIC/C
+      DOC:   DOC/C
+      sDOMC: sDOM/C
+      sDOMN: sDOM/N
+      sDOMP: sDOM/P
+      cDOMC: cDOM/C
+      cDOMN: cDOM/N
+      cDOMP: cDOM/P
+  PB:
+    long_name: Perfect Beast  
+    model: su/mixo
+    parameters:
+      mUm: 0.7             
+      mUphot: 0.35         
+      Smix: 0              
+      Svol: 1              
+      mChlCabs: 0.03       
+      nprey: 2
+      preyESD1: 10.50
+      preyESD2: 1
+      pref1: 1
+      pref2: 1
+      steal1: 1
+      steal2: 0
+      kpmax: 1.852
+      SSi: false
+    initialization:
+      mC: 1
+      mN: 0.2
+      mP: 0.02
+      mChl: 0.01
+      mF: 1e-12
+      mFN: 0
+      mFP: 0
+      mFChl: 1e-18
+    coupling:
+      prey1: algae
+      prey2: bacteria
+      NH4:   ammonium
+      NO3:   nitrate
+      DIP:   phosphate
+      DIC:   DIC
+      sDOMC: sDOM
+      sDOMN: sDOM
+      sDOMP: sDOM
+      DOC:   DOC
+      RPs:   POM
