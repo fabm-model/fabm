@@ -23,6 +23,7 @@ set(DEFAULT_INSTITUTES
     pml          # Plymouth Marine Laboratory, United Kingdom
     selma        # Simple EcoLogical Model for the Aquatic - PROGNOS
     ersem        # European Regional Seas Ecosystem Model
+    su           # Swansea University, United Kingdom
     niva         # Norsk Institutt for Vannforskning, Norway
     akvaplan     # Akvaplan-niva, Norway
 )
