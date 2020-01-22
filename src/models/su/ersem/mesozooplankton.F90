@@ -236,7 +236,7 @@ contains
       call self%register_diagnostic_variable(self%id_I,        'I',        'g C/g C/d',  'total carbon ingestion',  output=output_time_step_averaged)
 
       ! Contribute to aggregate fluxes.
-      call self%add_to_aggregate_variable(zooplankton_respiration_rate,self%id_fZIO3c)
+      call self%add_to_aggregate_variable(type_bulk_standard_variable(name='zooplankton_respiration_rate',units='mg C/m^3/d',aggregate_variable=.true.),self%id_fZIO3c)
 
    end subroutine
 
