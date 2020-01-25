@@ -32,7 +32,6 @@ set(DEFAULT_INSTITUTES
 # This is DEPRECATED. Please use the new conventions described on
 # this wiki and add your institute to the above FABM_INSTITUTES instead.
 set(FABM_INSTITUTES_OLD
-    #aed          # Aquatic Eco Dynamics, University of Western Australia
     hzg          # Helmholtz-Zentrum Geesthacht, Germany
     klimacampus  # KlimaCampus Hamburg, Germany
     metu         # Middle East Technical University, Turkey

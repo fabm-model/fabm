@@ -19,7 +19,6 @@
    ! This is DEPRECATED - if institutes provide their own model library
    ! using recommended naming conventions (http://fabm.net/wiki), CMake
    ! will auto-generate the required code and insert it above.
-   !use aed_models
    use fabm_metu_mnemiopsis
    use fabm_klimacampus_phy_feedback
    use fabm_hzg_omexdia_p
