@@ -2,7 +2,7 @@
 
 module fabm_python
 
-   use iso_c_binding, only: c_double, c_int, c_char, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr
+   use iso_c_binding, only: c_double, c_int, c_char, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr, c_null_ptr
 
    !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
 
@@ -487,14 +487,22 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: get_interior_diagnostic_data
       integer(c_int), intent(in), value :: index
       type(c_ptr),    intent(out)       :: ptr
-      ptr = c_loc(model%get_interior_diagnostic_data(index))
+      real(rk), pointer :: pvalue
+
+      ptr = c_null_ptr
+      pvalue => model%get_interior_diagnostic_data(index)
+      if (associated(pvalue)) ptr = c_loc(pvalue)
    end subroutine get_interior_diagnostic_data
 
    subroutine get_horizontal_diagnostic_data(index, ptr) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_horizontal_diagnostic_data
       integer(c_int), intent(in), value :: index
       type(c_ptr),    intent(out)       :: ptr
-      ptr = c_loc(model%get_horizontal_diagnostic_data(index))
+      real(rk), pointer :: pvalue
+
+      ptr = c_null_ptr
+      pvalue => model%get_horizontal_diagnostic_data(index)
+      if (associated(pvalue)) ptr = c_loc(pvalue)
    end subroutine get_horizontal_diagnostic_data
 
    subroutine finalize()

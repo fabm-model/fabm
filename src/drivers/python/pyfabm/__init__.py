@@ -284,15 +284,16 @@ class StateVariable(Variable):
 class DiagnosticVariable(Variable):
     def __init__(self,variable_pointer,index,horizontal):
         Variable.__init__(self,variable_pointer=variable_pointer)
-        pdata = ctypes.POINTER(ctypes.c_double)()
-        if horizontal:
-            fabm.get_horizontal_diagnostic_data(index+1,ctypes.byref(pdata))
-        else:
-            fabm.get_interior_diagnostic_data(index+1,ctypes.byref(pdata))
-        self.data = pdata.contents
 
     def getValue(self):
-        return self.data.value
+        if not asattr(self, 'data'):
+            pdata = ctypes.POINTER(ctypes.c_double)()
+            if horizontal:
+                fabm.get_horizontal_diagnostic_data(index+1,ctypes.byref(pdata))
+            else:
+                fabm.get_interior_diagnostic_data(index+1,ctypes.byref(pdata))
+            self.data = None if not pdata else pdata.contents
+        return None if self.data is None else self.data.value
 
     @property
     def output(self):
