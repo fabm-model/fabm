@@ -93,7 +93,7 @@ contains
    call self%register_diagnostic_variable(self%id_NCP,  'NCP', 'mmol m-3',     'net community production')
    call self%register_diagnostic_variable(self%id_PPR,  'PPR', 'mmol m-3 d-1', 'gross primary production rate')
    call self%register_diagnostic_variable(self%id_NPR,  'NPR', 'mmol m-3 d-1', 'net community production rate')
-   call self%register_diagnostic_variable(self%id_dPAR,' PAR', 'W m-2',        'photosynthetically active radiation')
+   call self%register_diagnostic_variable(self%id_dPAR, 'PAR', 'W m-2',        'photosynthetically active radiation')
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
