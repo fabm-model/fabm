@@ -96,9 +96,9 @@ def processFile(infile,outfile,subtract_background=False,add_missing=False):
          elif path[-1]=='coupling':
             d = reorderCouplings(path[1],d)
 
-      # If processing model instances list, first wield out models with use=False
+      # If processing model instances list, first remove models with use=False
       if len(path)==1 and path[0]=='instances':
-         for key in d.keys():
+         for key in list(d.keys()):
             instance = d[key]
             if isinstance(instance,dict) and not instance.get('use',True): del d[key]
 
