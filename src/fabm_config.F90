@@ -204,16 +204,25 @@ contains
 
       ! Retrieve model name (default to instance name if not provided).
       modelname = trim(node%get_string('model', default=instancename, error=config_error))
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
+      if (associated(config_error)) then
+         call fatal_error('create_model_from_dictionary', config_error%message)
+         return
+      end if
 
       ! Retrieve descriptive name for the model instance (default to instance name if not provided).
       long_name = trim(node%get_string('long_name', default=instancename, error=config_error))
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
+      if (associated(config_error)) then
+         call fatal_error('create_model_from_dictionary', config_error%message)
+         return
+      end if
 
       ! Try to create the model based on name.
       call factory%create(trim(modelname), model)
-      if (.not. associated(model)) call fatal_error('create_model_from_dictionary', &
-         trim(instancename) // ': "' // trim(modelname) // '" is not a valid model name.')
+      if (.not. associated(model)) then
+         call fatal_error('create_model_from_dictionary', &
+            trim(instancename) // ': "' // trim(modelname) // '" is not a valid model name.')
+         return
+      end if
       model%user_created = .true.
 
       ! Transfer user-specified parameter values to the model.
