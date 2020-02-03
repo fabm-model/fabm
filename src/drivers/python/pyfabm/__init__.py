@@ -2,7 +2,10 @@
 
 from __future__ import print_function
 from __future__ import unicode_literals
-import sys,os,ctypes,re
+import sys
+import os
+import ctypes
+import re
 
 try:
    import numpy
@@ -11,8 +14,8 @@ except ImportError:
    sys.exit(1)
 
 # Determine potential names of FABM dynamic library.
-if os.name=='nt':
-   dllpaths = ('python_fabm.dll','libpython_fabm.dll')
+if os.name == 'nt':
+   dllpaths = ('python_fabm.dll', 'libpython_fabm.dll')
 elif os.name == "posix" and sys.platform == "darwin":
    dllpaths = ('libpython_fabm.dylib',)
 else:
@@ -126,7 +129,7 @@ fabm.get_interior_diagnostic_data.restype = None
 fabm.get_horizontal_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.POINTER(ctypes.c_double))]
 fabm.get_horizontal_diagnostic_data.restype = None
 
-fabm.start.argtypes = []
+fabm.start.argtypes = [ctypes.c_void_p]
 fabm.start.restype = None
 
 # Routine for retrieving source-sink terms for the interior domain.
@@ -193,12 +196,12 @@ def printTree(root,stringmapper,indent=''):
     """Print an indented tree of objects, encoded by dictionaries linking the names of children to
     their subtree, or to their object. Objects are finally printed as string obtained by
     calling the provided stringmapper method."""
-    for name,item in root.items():
-        if isinstance(item,dict):
-            print('%s%s' % (indent,name))
-            printTree(item,stringmapper,indent+'   ')
+    for name, item in root.items():
+        if isinstance(item, dict):
+            print('%s%s' % (indent, name))
+            printTree(item, stringmapper, indent + '   ')
         else:
-            print('%s%s = %s' % (indent,name,stringmapper(item)))
+            print('%s%s = %s' % (indent, name, stringmapper(item)))
 
 class Variable(object):
     def __init__(self, name=None, units=None, long_name=None, path=None, variable_pointer=None):
@@ -207,7 +210,7 @@ class Variable(object):
            strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
            strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
            strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-           fabm.variable_get_metadata(variable_pointer,ATTRIBUTE_LENGTH,strname,strunits,strlong_name)
+           fabm.variable_get_metadata(variable_pointer, ATTRIBUTE_LENGTH, strname, strunits, strlong_name)
            name = strname.value.decode('ascii')
            units = strunits.value.decode('ascii')
            long_name = strlong_name.value.decode('ascii')
@@ -499,7 +502,7 @@ class Model(object):
         given the current state and environment.
         """
         if t is None:
-            t = self.ntime
+            t = self.itime
         localrates = numpy.empty_like(self.state)
         fabm.get_rates(self.pmodel, t, localrates, surface, bottom)
         return localrates
@@ -574,14 +577,16 @@ class Model(object):
             parent[pathcomps[-1]] = parameter
         return root
 
-    def checkReady(self, verbose=True, stop=False):
+    def start(self, verbose=True, stop=False):
        ready = True
        for dependency in self.dependencies:
           if not dependency.is_set:
              print('Value for dependency %s is not set.' % dependency.name)
              ready = False
        assert ready or not stop, 'Not all dependencies have been fulfilled.'
-       fabm.start()
+       fabm.start(self.pmodel)
+       if hasError():
+           return False
        for i, variable in enumerate(self.interior_diagnostic_variables):
             pdata = ctypes.POINTER(ctypes.c_double)()
             fabm.get_interior_diagnostic_data(self.pmodel, i + 1, ctypes.byref(pdata))
@@ -591,6 +596,7 @@ class Model(object):
             fabm.get_horizontal_diagnostic_data(self.pmodel, i + 1, ctypes.byref(pdata))
             variable.data = None if not pdata else pdata.contents
        return ready
+    checkReady = start
 
     def updateTime(self, nsec):
        self.itime = nsec

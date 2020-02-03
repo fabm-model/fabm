@@ -6,7 +6,7 @@ module fabm_python
 
    !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
 
-   use fabm, only: type_fabm_model, type_external_variable, fabm_get_version
+   use fabm, only: type_fabm_model, type_external_variable, fabm_get_version, status_check_ready_done
    use fabm_config
    use fabm_types, only:rk => rke,attribute_length,type_model_list_node,type_base_model, &
                         factory,type_link,type_link_list,type_internal_variable
@@ -439,6 +439,11 @@ contains
       real(c_double), pointer :: dy_(:)
 
       call c_f_pointer(pmodel, model)
+      if (model%p%status < status_check_ready_done) then
+         call fatal_error('get_rates', 'start has not been called yet.')
+         return
+      end if
+
       call c_f_pointer(c_loc(dy), dy_, &
         (/size(model%p%state_variables) + size(model%p%surface_state_variables) + size(model%p%bottom_state_variables)/))
 
@@ -479,6 +484,11 @@ contains
       logical :: repair, interior_valid, surface_valid, bottom_valid
 
       call c_f_pointer(pmodel, model)
+      if (model%p%status < status_check_ready_done) then
+         call fatal_error('check_state', 'start has not been called yet.')
+         return
+      end if
+
       repair = int2logical(repair_)
       call model%p%check_interior_state(repair, interior_valid)
       call model%p%check_surface_state(repair, surface_valid)
@@ -503,8 +513,14 @@ contains
       logical                :: surface, bottom
 
       call c_f_pointer(pmodel, model)
-      if (ny /= size(model%p%state_variables) + size(model%p%surface_state_variables) + size(model%p%bottom_state_variables)) &
-          call fatal_error('integrate', 'ny is wrong length')
+      if (model%p%status < status_check_ready_done) then
+         call fatal_error('integrate', 'start has not been called yet.')
+         return
+      end if
+      if (ny /= size(model%p%state_variables) + size(model%p%surface_state_variables) + size(model%p%bottom_state_variables)) then
+         call fatal_error('integrate', 'ny is wrong length')
+         return
+      end if
 
       call c_f_pointer(c_loc(t_), t, (/nt/))
       call c_f_pointer(c_loc(y_ini_), y_ini, (/ny/))
@@ -512,10 +528,11 @@ contains
 
       surface = int2logical(do_surface)
       bottom = int2logical(do_bottom)
-      if (surface .or. bottom) then
-          if (.not. associated(model%column_depth)) call fatal_error('get_rates', &
+      if ((surface .or. bottom) .and. .not. associated(model%column_depth)) then
+          call fatal_error('get_rates', &
             'Value for environmental dependency ' // trim(model%environment_names(model%index_column_depth)) // &
             ' must be provided if integrate is called with the do_surface and/or do_bottom flags.')
+          return
       end if
       call model%p%link_all_interior_state_data(y_cur(1:size(model%p%state_variables)))
       call model%p%link_all_surface_state_data(y_cur(size(model%p%state_variables) + 1: &

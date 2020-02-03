@@ -26,6 +26,7 @@ module fabm_job
 
    type type_graph_subset_node_set
       type (type_graph_subset_node_pointer), pointer :: first => null()
+      integer                                        :: log_unit = -1
    contains
       procedure :: collect            => graph_subset_node_set_collect
       procedure :: collect_and_branch => graph_subset_node_set_collect_and_branch
@@ -171,15 +172,18 @@ module fabm_job
       procedure :: print => variable_register_print
    end type
 
-   contains
+contains
 
-   subroutine create_graph_subset_node_set(graph, set)
+   subroutine create_graph_subset_node_set(graph, set, log_unit)
       type (type_graph),                 intent(in)  :: graph
       type (type_graph_subset_node_set), intent(out) :: set
+      integer,                           intent(in)  :: log_unit
 
       type (type_node_list_member),         pointer :: graph_node
       type (type_node_set_member),          pointer :: dependency
       type (type_graph_subset_node_pointer),pointer :: set_node, set_node2, set_node3
+
+      set%log_unit = log_unit
 
       ! Create representatives for each original graph node.
       graph_node => graph%first
@@ -304,7 +308,7 @@ module fabm_job
 
       call self%collect(tree_node%operation, removed)
 
-      if (.not.associated(self%first)) write (*,*) '  - ' // trim(tree_node%to_string())
+      if (self%log_unit /= -1 .and. .not. associated(self%first)) write (self%log_unit,'(a,a)') '  - ', trim(tree_node%to_string())
 
       ! We have processed all graph end points with compatible sources.
       ! Now process end points with other sources.
@@ -1013,8 +1017,9 @@ subroutine job_create_graph(self, variable_register)
    self%state = job_state_graph_created
 end subroutine job_create_graph
 
-subroutine job_create_tasks(self)
-   class (type_job),target,intent(inout) :: self
+subroutine job_create_tasks(self, log_unit)
+   class (type_job), target, intent(inout) :: self
+   integer,                  intent(in)    :: log_unit
 
    type (type_job_node),        pointer :: job_node
    type (type_graph_subset_node_set)    :: subset
@@ -1027,7 +1032,7 @@ subroutine job_create_tasks(self)
    _ASSERT_(self%state < job_state_tasks_created, 'job_create_tasks', trim(self%name)//': tasks for this job have already been created.')
    _ASSERT_(self%state >= job_state_graph_created, 'job_create_tasks', trim(self%name)//': the graph for this job have not been created yet.')
 
-   write (*,'(a)') trim(self%name)
+   if (log_unit /= -1) write (log_unit,'(a)') trim(self%name)
 
    ! If we are linked to an earlier called job, make sure its task list has already been created.
    ! This is essential if we will try to outsource our own calls to previous tasks/jobs.
@@ -1038,8 +1043,8 @@ subroutine job_create_tasks(self)
    end do
 
    ! Create tree that describes all possible task orders (root is at the right of the call list, i.e., at the end of the very last call)
-   write (*,'(a)') '- possible task orders:'
-   call create_graph_subset_node_set(self%graph, subset)
+   if (log_unit /= -1) write (log_unit,'(a)') '  possible task orders:'
+   call create_graph_subset_node_set(self%graph, subset, log_unit)
    root%operation = self%operation
    if (root%operation /= source_unknown) then
       call subset%collect_and_branch(root)
@@ -1048,12 +1053,15 @@ subroutine job_create_tasks(self)
    end if
 
    ! Determine optimum task order and use it to create the task objects.
-   ntasks = root%get_minimum_depth() - 1
-   write (*,'(a,i0,a)') '- best task order contains ',ntasks,' tasks.'
-   leaf => root%get_leaf_at_depth(ntasks + 1)
-   write (*,'(a,a)') '- best task order: ',trim(leaf%to_string())
+   ntasks = root%get_minimum_depth()
+   leaf => root%get_leaf_at_depth(ntasks)
    call create_tasks(leaf)
    _ASSERT_(.not. associated(subset%first), 'job_select_order', 'BUG: graph subset should be empty after create_tasks.')
+
+   if (log_unit /= -1) then
+      if (root%operation == source_unknown) ntasks = ntasks - 1
+      write (log_unit,'(a,i0,a,a)') '  best task order (', ntasks, ' tasks): ', trim(leaf%to_string())
+   end if
 
    if (self%outsource_tasks) then
       task => self%first_task
@@ -1068,7 +1076,9 @@ subroutine job_create_tasks(self)
       end do
    end if
 
-   _ASSERT_(self%operation == source_unknown .or. .not. associated(self%first_task%next), 'job_select_order', 'Multiple tasks created while only one source was acceptable.')
+   if (associated(self%first_task)) then
+      _ASSERT_(self%operation == source_unknown .or. .not. associated(self%first_task%next), 'job_select_order', 'Multiple tasks created while only one source was acceptable.')
+   end if
 
    self%state = job_state_tasks_created
 
@@ -1087,10 +1097,10 @@ contains
       if (associated(tree_node%parent)) call create_tasks(tree_node%parent)
 
       ! If we have a root that does NOT represent a task itself, we are done.
-      if (tree_node%operation==source_unknown) return
+      if (tree_node%operation == source_unknown) return
 
       ! Collect all nodes that can be processed with the currently selected source.
-      call subset%collect(tree_node%operation,removed)
+      call subset%collect(tree_node%operation, removed)
 
       ! Create the task and preprend it to the list.
       allocate(task)
@@ -1521,11 +1531,12 @@ subroutine check_graph_duplicates(self)
    end do
 end subroutine check_graph_duplicates
 
-subroutine job_manager_initialize(self, variable_register, schedules, unfulfilled_dependencies)
+subroutine job_manager_initialize(self, variable_register, schedules, unfulfilled_dependencies, log_unit)
    class (type_job_manager),             intent(inout) :: self
    type (type_global_variable_register), intent(inout) :: variable_register
    type (type_schedules),                intent(inout) :: schedules
    type (type_variable_set),             intent(out)   :: unfulfilled_dependencies
+   integer,                              intent(in)    :: log_unit
 
    type (type_job_node), pointer :: node, first_ordered
 
@@ -1557,7 +1568,7 @@ subroutine job_manager_initialize(self, variable_register, schedules, unfulfille
    ! Create tasks. This must be done for all jobs before job_finalize_prefill_settings is called, as this API operates across all jobs.
    node => self%first
    do while (associated(node))
-      call job_create_tasks(node%p)
+      call job_create_tasks(node%p, log_unit)
       node => node%next
    end do
 

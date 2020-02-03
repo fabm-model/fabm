@@ -78,7 +78,7 @@ module fabm
    integer, parameter :: status_none             = 0
    integer, parameter :: status_initialize_done  = 1
    integer, parameter :: status_set_domain_done  = 2
-   integer, parameter :: status_check_ready_done = 3
+   integer, parameter, public :: status_check_ready_done = 3
 
    integer, parameter, public :: data_source_none = 0
    integer, parameter, public :: data_source_host = 1
@@ -913,8 +913,13 @@ contains
       character(len=*), parameter       :: log_prefix = 'fabm_'
       integer                           :: log_unit, ios
 
-      if (self%status < status_set_domain_done) &
+      if (self%status < status_set_domain_done) then
          call fatal_error('start', 'set_domain has not yet been called on this model object.')
+         return
+      elseif (self%status >= status_check_ready_done) then
+         ! start has been called on this model before and it must have succeeded to have this status. We are done.
+         return
+      end if
 
       ready = .true.
 
@@ -974,11 +979,13 @@ contains
             call self%get_diagnostics_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target, store=.true.)
       end do
 
+      log_unit = -1
+      if (fabm_log) log_unit = get_free_unit()
+
       ! Merge write indices when operations can be done in place
       ! This must be done after all variables are requested from the different jobs, so we know which variables
       ! will be retrieved (such variables cannot be merged)
       if (fabm_log) then
-         log_unit = get_free_unit()
          open(unit=log_unit, file=log_prefix // 'merges.log', action='write', status='replace', iostat=ios)
          if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'merges.log')
          call merge_indices(self%root, log_unit)
@@ -988,7 +995,12 @@ contains
       end if
 
       ! Initialize all jobs. This also creates registers for the read and write caches, as well as the persistent store.
-      call self%job_manager%initialize(self%variable_register, self%schedules, unfulfilled_dependencies)
+      if (fabm_log) then
+         open(unit=log_unit, file=log_prefix // 'task_order.log', action='write', status='replace', iostat=ios)
+         if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'task_order.log')
+      end if
+      call self%job_manager%initialize(self%variable_register, self%schedules, unfulfilled_dependencies, log_unit)
+      if (fabm_log) close(log_unit)
 
       ! Create persistent store. This provides memory for all variables to be stored there.
       call create_store(self)
@@ -999,7 +1011,7 @@ contains
       call collect_internal_fill_values(self%variable_register%write_cache%interior, self%write_cache_fill_value, use_missing=.false.)
       call collect_internal_fill_values(self%variable_register%write_cache%horizontal, self%write_cache_hz_fill_value, use_missing=.false.)
 
-      ! Create global caches for exchanging information wiht BGC models.
+      ! Create global caches for exchanging information with BGC models.
       ! This can only be done after collect_fill_values calls complete, because they specify what values to prefill te cache with.
       call create_interior_cache(self, self%cache_int)
       call create_horizontal_cache(self, self%cache_hz)
@@ -2866,9 +2878,10 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
+      drag = 1.0_rke
+
       call begin_horizontal_task(self,self%get_drag_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
-      drag = 1.0_rke
       call_node => self%get_drag_job%first_task%first_call
       do while (associated(call_node))
          if (call_node%source == source_get_drag) call call_node%model%get_drag(self%cache_hz, drag)
@@ -2893,9 +2906,10 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
+      albedo = 0.0_rke
+
       call begin_horizontal_task(self,self%get_albedo_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
-      albedo = 0.0_rke
       call_node => self%get_albedo_job%first_task%first_call
       do while (associated(call_node))
          if (call_node%source == source_get_albedo) call call_node%model%get_albedo(self%cache_hz, albedo)
