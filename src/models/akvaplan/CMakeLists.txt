@@ -3,6 +3,7 @@ add_library(fabm_models_akvaplan OBJECT
             tracer.F90
             plume_injection.F90
             tracer_sed.F90
+            antiparasitic.F90
            )
 
 add_dependencies(fabm_models_akvaplan fabm_base)

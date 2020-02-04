@@ -1,0 +1,49 @@
+instances:
+   ab:
+      model: akvaplan/antiparasitic
+      parameters:
+         npom: 8
+         w1: 216.0    # sinking velocity of POM class 1 (m d-1)
+         w2: 648.0    # sinking velocity of POM class 2 (m d-1)
+         w3: 1080.0   # sinking velocity of POM class 3 (m d-1)
+         w4: 1728.0   # sinking velocity of POM class 4 (m d-1)
+         w5: 3240.0   # sinking velocity of POM class 5 (m d-1)
+         w6: 6480.0   # sinking velocity of POM class 6 (m d-1)
+         w7: 7603.2   # sinking velocity of POM class 7 (m d-1)
+         w8: 10368.0  # sinking velocity of POM class 8 (m d-1)
+         K_oc: 0.005  # water : POM partition coefficient of antiparasitic (m3 g-1)
+         E_a: 0       # activation energy for antiparasitic degradation (J mol-1)
+         T_ref: 20    # reference temperature for antiparasitic degradation (degrees Celsius)
+         k_w: 0.0     # degradation rate of dissolved antiparasitic at reference temperature (d-1)
+         k_ads: 0.0     # degradation rate of adsorbed antiparasitic at reference temperature (d-1)
+         k_pom: 0.0     # degradation rate of POM (d-1)
+         erate: 0.0035  # maximum erosion rate (g m-2 d-1) - should this vary per POM class???
+         bed_por: 0.4   # sediment porosity
+         tau_bot_crit1: 0.005 # critical bottom shear stress for resuspension of POM class 1 (Pa)
+         tau_bot_crit2: 0.005 # critical bottom shear stress for resuspension of POM class 2 (Pa)
+         tau_bot_crit3: 0.005 # critical bottom shear stress for resuspension of POM class 3 (Pa)
+         tau_bot_crit4: 0.005 # critical bottom shear stress for resuspension of POM class 4 (Pa)
+         tau_bot_crit5: 0.005 # critical bottom shear stress for resuspension of POM class 5 (Pa)
+         tau_bot_crit6: 0.005 # critical bottom shear stress for resuspension of POM class 6 (Pa)
+         tau_bot_crit7: 0.005 # critical bottom shear stress for resuspension of POM class 7 (Pa)
+         tau_bot_crit8: 0.005 # critical bottom shear stress for resuspension of POM class 8 (Pa)
+      initialization:
+         pom1: 1 # pelagic concentration of POM class 1 (g m-3)
+         pom2: 1 # pelagic concentration of POM class 2 (g m-3)
+         pom3: 1 # pelagic concentration of POM class 3 (g m-3)
+         pom4: 1 # pelagic concentration of POM class 4 (g m-3)
+         pom5: 1 # pelagic concentration of POM class 5 (g m-3)
+         pom6: 1 # pelagic concentration of POM class 6 (g m-3)
+         pom7: 1 # pelagic concentration of POM class 7 (g m-3)
+         pom8: 1 # pelagic concentration of POM class 8 (g m-3)
+         pom1_bot: 0 # density of POM class 1 in sediment (g m-2)
+         pom2_bot: 0 # density of POM class 2 in sediment (g m-2)
+         pom3_bot: 0 # density of POM class 3 in sediment (g m-2)
+         pom4_bot: 0 # density of POM class 4 in sediment (g m-2)
+         pom5_bot: 0 # density of POM class 5 in sediment (g m-2)
+         pom6_bot: 0 # density of POM class 6 in sediment (g m-2)
+         pom7_bot: 0 # density of POM class 7 in sediment (g m-2)
+         pom8_bot: 0 # density of POM class 8 in sediment (g m-2)
+         c: 1 # pelagic concentration of antiparasitic (g m-3)
+         c_bot: 0 # density of antiparasitic in sediment (g m-2)
+
